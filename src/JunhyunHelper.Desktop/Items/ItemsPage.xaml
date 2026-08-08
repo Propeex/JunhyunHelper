@@ -14,9 +14,10 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="52" />
                         <ColumnDefinition Width="*" MinWidth="170" />
-                        <ColumnDefinition Width="88" />
-                        <ColumnDefinition Width="88" />
-                        <ColumnDefinition Width="108" />
+                        <ColumnDefinition Width="74" />
+                        <ColumnDefinition Width="74" />
+                        <ColumnDefinition Width="74" />
+                        <ColumnDefinition Width="74" />
                     </Grid.ColumnDefinitions>
 
                     <Border Grid.Column="0"
@@ -45,55 +46,40 @@
                                    FontWeight="SemiBold"
                                    TextTrimming="CharacterEllipsis"
                                    TextWrapping="NoWrap" />
-                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                            <Border Background="{StaticResource BackgroundLightBrush}"
-                                    CornerRadius="7"
-                                    Padding="6,2"
-                                    Margin="0,0,6,0">
-                                <TextBlock Text="{Binding CategoryLabel}"
-                                           Foreground="{StaticResource TextSecondaryBrush}"
-                                           FontSize="10" />
-                            </Border>
-                            <Border x:Name="FirBadge"
-                                    Background="{StaticResource BackgroundLightBrush}"
-                                    CornerRadius="7"
-                                    Padding="6,2"
-                                    Margin="0,0,6,0"
-                                    Visibility="{Binding FirBadgeVisibility}">
-                                <TextBlock Text="{Binding FirBadgeText}"
-                                           Foreground="{StaticResource AccentBrush}"
-                                           FontSize="10"
-                                           FontWeight="SemiBold" />
-                            </Border>
-                            <TextBlock Text="{Binding SourceSummary}"
+                        <Border Background="{StaticResource BackgroundLightBrush}"
+                                CornerRadius="7"
+                                Padding="6,2"
+                                Margin="0,4,0,0"
+                                HorizontalAlignment="Left">
+                            <TextBlock Text="{Binding CategoryLabel}"
                                        Foreground="{StaticResource TextSecondaryBrush}"
-                                       FontSize="11"
-                                       VerticalAlignment="Center"
-                                       TextTrimming="CharacterEllipsis" />
-                        </StackPanel>
+                                       FontSize="10" />
+                        </Border>
                     </StackPanel>
 
                     <StackPanel Grid.Column="2" VerticalAlignment="Center">
                         <TextBlock Text="필요" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" HorizontalAlignment="Center" />
-                        <TextBlock Text="{Binding RequiredTotal}" HorizontalAlignment="Center" FontWeight="SemiBold" />
+                        <TextBlock Text="인레이드" Foreground="{StaticResource TextSecondaryBrush}" FontSize="9" HorizontalAlignment="Center" />
+                        <TextBlock Text="{Binding RequiredFir}" HorizontalAlignment="Center" FontWeight="SemiBold" />
                     </StackPanel>
 
                     <StackPanel Grid.Column="3" VerticalAlignment="Center">
-                        <TextBlock Text="보유" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" HorizontalAlignment="Center" />
-                        <TextBlock Text="{Binding OwnedTotal}" HorizontalAlignment="Center" FontWeight="SemiBold" />
+                        <TextBlock Text="필요" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" HorizontalAlignment="Center" />
+                        <TextBlock Text="일반" Foreground="{StaticResource TextSecondaryBrush}" FontSize="9" HorizontalAlignment="Center" />
+                        <TextBlock Text="{Binding RequiredGeneral}" HorizontalAlignment="Center" FontWeight="SemiBold" />
                     </StackPanel>
 
-                    <Border Grid.Column="4"
-                            Background="{StaticResource BackgroundDarkBrush}"
-                            CornerRadius="9"
-                            Padding="8,5"
-                            VerticalAlignment="Center"
-                            Margin="8,0,0,0">
-                        <TextBlock Text="{Binding StatusText}"
-                                   Foreground="{Binding StatusBrush}"
-                                   FontWeight="SemiBold"
-                                   TextAlignment="Center" />
-                    </Border>
+                    <StackPanel Grid.Column="4" VerticalAlignment="Center">
+                        <TextBlock Text="보유" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" HorizontalAlignment="Center" />
+                        <TextBlock Text="인레이드" Foreground="{StaticResource TextSecondaryBrush}" FontSize="9" HorizontalAlignment="Center" />
+                        <TextBlock Text="{Binding OwnedFir}" HorizontalAlignment="Center" FontWeight="SemiBold" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="5" VerticalAlignment="Center">
+                        <TextBlock Text="보유" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" HorizontalAlignment="Center" />
+                        <TextBlock Text="일반" Foreground="{StaticResource TextSecondaryBrush}" FontSize="9" HorizontalAlignment="Center" />
+                        <TextBlock Text="{Binding OwnedNonFir}" HorizontalAlignment="Center" FontWeight="SemiBold" />
+                    </StackPanel>
                 </Grid>
             </Border>
             <DataTemplate.Triggers>
@@ -152,6 +138,83 @@
                 </StackPanel>
             </Button>
         </DataTemplate>
+
+        <DataTemplate x:Key="FlexibleCandidateTemplate">
+            <Button Tag="{Binding ItemId}"
+                    Click="FlexibleCandidateButton_Click"
+                    HorizontalContentAlignment="Stretch"
+                    Padding="8"
+                    Margin="0,0,0,6">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="44" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Border Width="36" Height="36"
+                            Background="{StaticResource BackgroundDarkBrush}"
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="5">
+                        <Grid>
+                            <TextBlock Text="?" Foreground="{StaticResource TextSecondaryBrush}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <Image Source="{Binding Icon}" Stretch="Uniform" Margin="2" />
+                        </Grid>
+                    </Border>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="7,0,10,0">
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding CategoryLabel}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" />
+                    </StackPanel>
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding FlexibleOwnedText}"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="11"
+                               VerticalAlignment="Center" />
+                </Grid>
+            </Button>
+        </DataTemplate>
+
+        <DataTemplate x:Key="FlexibleGroupTemplate">
+            <Border Background="{StaticResource BackgroundDarkBrush}"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="10"
+                    Margin="0,0,0,10">
+                <StackPanel>
+                    <Button Tag="{Binding QuestId}"
+                            Click="FlexibleQuestButton_Click"
+                            HorizontalContentAlignment="Stretch"
+                            Padding="9,7"
+                            Margin="0,0,0,8">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="{Binding QuestName}"
+                                       Foreground="{StaticResource AccentBrush}"
+                                       FontWeight="SemiBold"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Grid.Column="1"
+                                       Text="퀘스트 보기"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       FontSize="10"
+                                       Margin="10,0,0,0"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+                    </Button>
+                    <TextBlock Text="{Binding ProgressText}"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="11"
+                               TextWrapping="Wrap"
+                               Margin="2,0,2,8" />
+                    <ItemsControl ItemsSource="{Binding Candidates}"
+                                  ItemTemplate="{StaticResource FlexibleCandidateTemplate}" />
+                </StackPanel>
+            </Border>
+        </DataTemplate>
     </UserControl.Resources>
 
     <Grid Margin="16">
@@ -208,7 +271,7 @@
 
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" MinWidth="520" />
+                <ColumnDefinition Width="*" MinWidth="590" />
                 <ColumnDefinition Width="8" />
                 <ColumnDefinition Width="430" MinWidth="340" />
             </Grid.ColumnDefinitions>
@@ -220,6 +283,14 @@
                              SelectionChanged="ItemList_SelectionChanged"
                              VirtualizingPanel.IsVirtualizing="True"
                              VirtualizingPanel.VirtualizationMode="Recycling" />
+                    <ScrollViewer x:Name="FlexibleGroupScroll"
+                                  Visibility="Collapsed"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  Padding="10">
+                        <ItemsControl x:Name="FlexibleGroupItems"
+                                      ItemTemplate="{StaticResource FlexibleGroupTemplate}" />
+                    </ScrollViewer>
                     <TextBlock x:Name="EmptyListText"
                                Visibility="Collapsed"
                                Text="조건에 맞는 아이템이 없습니다."
@@ -259,43 +330,67 @@
                                     <TextBlock x:Name="DetailName" FontSize="21" FontWeight="SemiBold"
                                                Foreground="{StaticResource AccentBrush}" TextWrapping="Wrap" />
                                     <TextBlock x:Name="DetailCategoryText" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,0" />
-                                    <TextBlock x:Name="DetailStatusText" Margin="0,4,0,0" FontWeight="SemiBold" />
                                 </StackPanel>
                             </Grid>
 
+                            <TextBlock Text="필요 수량" FontWeight="SemiBold" Margin="0,0,0,7" />
                             <Border Background="{StaticResource BackgroundDarkBrush}" CornerRadius="7" Padding="10" Margin="0,0,0,14">
-                                <StackPanel>
-                                    <TextBlock x:Name="DetailRequirementText" />
-                                    <TextBlock x:Name="DetailRemainingText" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,5,0,0" />
-                                    <TextBlock x:Name="DetailCleanupText" Foreground="{StaticResource WarningBrush}" Margin="0,5,0,0" />
-                                </StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="인레이드 필요" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" />
+                                        <TextBlock x:Name="DetailRequiredFirText" FontSize="18" FontWeight="SemiBold" Margin="0,3,0,0" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="일반 필요" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" />
+                                        <TextBlock x:Name="DetailRequiredGeneralText" FontSize="18" FontWeight="SemiBold" Margin="0,3,0,0" />
+                                    </StackPanel>
+                                </Grid>
                             </Border>
 
+                            <TextBlock x:Name="DetailCleanupText" Foreground="{StaticResource WarningBrush}" Margin="0,0,0,14" TextWrapping="Wrap" />
+
                             <TextBlock Text="보유 수량" FontWeight="SemiBold" Margin="0,0,0,8" />
-                            <Grid Margin="0,0,0,10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="8" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="FIR" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
-                                    <TextBox x:Name="OwnedFirTextBox" />
-                                </StackPanel>
-                                <StackPanel Grid.Column="2">
-                                    <TextBlock Text="일반" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
-                                    <TextBox x:Name="OwnedNonFirTextBox" />
-                                </StackPanel>
-                            </Grid>
-                            <Button x:Name="SaveInventoryButton" Content="보유량 저장" HorizontalAlignment="Left"
-                                    Margin="0,0,0,18" Click="SaveInventoryButton_Click" />
+                            <StackPanel x:Name="InventoryControls">
+                                <TextBlock Text="인레이드" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="42" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="42" />
+                                    </Grid.ColumnDefinitions>
+                                    <Button Grid.Column="0" Content="−" Click="OwnedFirMinusButton_Click" />
+                                    <TextBox x:Name="OwnedFirTextBox" Grid.Column="1" Margin="6,0" TextAlignment="Center" />
+                                    <Button Grid.Column="2" Content="+" Click="OwnedFirPlusButton_Click" />
+                                </Grid>
+
+                                <TextBlock Text="일반" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="42" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="42" />
+                                    </Grid.ColumnDefinitions>
+                                    <Button Grid.Column="0" Content="−" Click="OwnedNonFirMinusButton_Click" />
+                                    <TextBox x:Name="OwnedNonFirTextBox" Grid.Column="1" Margin="6,0" TextAlignment="Center" />
+                                    <Button Grid.Column="2" Content="+" Click="OwnedNonFirPlusButton_Click" />
+                                </Grid>
+                            </StackPanel>
+                            <Button x:Name="SaveInventoryButton"
+                                    Content="직접 입력 저장"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,0,0,18"
+                                    Click="SaveInventoryButton_Click" />
 
                             <TextBlock Text="필요 출처" FontWeight="SemiBold" Margin="0,0,0,6" />
                             <ItemsControl x:Name="SourceItems" ItemTemplate="{StaticResource SourceRowTemplate}" />
 
                             <StackPanel x:Name="FlexibleDetailPanel" Visibility="Collapsed" Margin="0,16,0,0">
                                 <TextBlock Text="유동 제출" FontWeight="SemiBold" Margin="0,0,0,6" />
-                                <TextBlock Text="후보 아이템은 그룹 합계로 제출합니다. 퀘스트를 누르면 해당 퀘스트로 이동합니다."
+                                <TextBlock Text="후보 아이템은 퀘스트별 그룹 합계로 제출합니다. 퀘스트를 누르면 해당 퀘스트로 이동합니다."
                                            Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,6" />
                                 <ItemsControl x:Name="FlexibleRequirementItems" ItemTemplate="{StaticResource FlexibleRowTemplate}" />
                             </StackPanel>
