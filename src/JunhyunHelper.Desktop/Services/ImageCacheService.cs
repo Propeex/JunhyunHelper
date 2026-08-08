@@ -4,12 +4,14 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using SkiaSharp;
 
 namespace JunhyunHelper.Desktop.Services;
 
 public sealed class ImageCacheService
 {
     private const int MaxImageBytes = 8 * 1024 * 1024;
+    private const int MaxImageDimension = 4096;
 
     private readonly HttpClient _httpClient;
     private readonly string _cacheDirectory;
@@ -51,7 +53,7 @@ public sealed class ImageCacheService
                 if (cached is not null)
                     return cached;
 
-                await DownloadAsync(sourceUri, path, cancellationToken);
+                await DownloadAndNormalizeAsync(sourceUri, path, cancellationToken);
             }
             finally
             {
@@ -66,11 +68,15 @@ public sealed class ImageCacheService
         }
         catch
         {
+            // Images are presentation-only. A failed image must never break Game Content/User Progress.
             return null;
         }
     }
 
-    private async Task DownloadAsync(Uri sourceUri, string destination, CancellationToken cancellationToken)
+    private async Task DownloadAndNormalizeAsync(
+        Uri sourceUri,
+        string destination,
+        CancellationToken cancellationToken)
     {
         using var response = await _httpClient.GetAsync(
             sourceUri,
@@ -81,41 +87,76 @@ public sealed class ImageCacheService
         if (response.Content.Headers.ContentLength is > MaxImageBytes)
             throw new InvalidDataException("Image is larger than the JunhyunHelper cache limit.");
 
-        var temporary = $"{destination}.{Guid.NewGuid():N}.tmp";
+        var rawTemporary = $"{destination}.{Guid.NewGuid():N}.raw";
+        var pngTemporary = $"{destination}.{Guid.NewGuid():N}.png.tmp";
         try
         {
-            await using var input = await response.Content.ReadAsStreamAsync(cancellationToken);
-            await using var output = new FileStream(
-                temporary,
-                FileMode.CreateNew,
-                FileAccess.Write,
-                FileShare.None,
-                bufferSize: 81920,
-                useAsync: true);
-
-            var buffer = new byte[81920];
-            var total = 0;
-            while (true)
+            await using (var input = await response.Content.ReadAsStreamAsync(cancellationToken))
+            await using (var output = new FileStream(
+                             rawTemporary,
+                             FileMode.CreateNew,
+                             FileAccess.Write,
+                             FileShare.None,
+                             bufferSize: 81920,
+                             useAsync: true))
             {
-                var read = await input.ReadAsync(buffer, cancellationToken);
-                if (read == 0)
-                    break;
+                var buffer = new byte[81920];
+                var total = 0;
+                while (true)
+                {
+                    var read = await input.ReadAsync(buffer, cancellationToken);
+                    if (read == 0)
+                        break;
 
-                total += read;
-                if (total > MaxImageBytes)
-                    throw new InvalidDataException("Image is larger than the JunhyunHelper cache limit.");
+                    total += read;
+                    if (total > MaxImageBytes)
+                        throw new InvalidDataException("Image is larger than the JunhyunHelper cache limit.");
 
-                await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+                    await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+                }
+
+                await output.FlushAsync(cancellationToken);
             }
 
-            await output.FlushAsync(cancellationToken);
-            File.Move(temporary, destination, overwrite: false);
+            cancellationToken.ThrowIfCancellationRequested();
+            NormalizeToPng(rawTemporary, pngTemporary);
+            cancellationToken.ThrowIfCancellationRequested();
+            File.Move(pngTemporary, destination, overwrite: true);
         }
         finally
         {
-            if (File.Exists(temporary))
-                File.Delete(temporary);
+            TryDelete(rawTemporary);
+            TryDelete(pngTemporary);
         }
+    }
+
+    private static void NormalizeToPng(string source, string destination)
+    {
+        using var stream = File.OpenRead(source);
+        using var codec = SKCodec.Create(stream)
+                          ?? throw new InvalidDataException("Downloaded payload is not a supported image.");
+
+        if (codec.Info.Width <= 0 || codec.Info.Height <= 0 ||
+            codec.Info.Width > MaxImageDimension || codec.Info.Height > MaxImageDimension)
+        {
+            throw new InvalidDataException("Image dimensions are outside the JunhyunHelper cache limits.");
+        }
+
+        var imageInfo = new SKImageInfo(
+            codec.Info.Width,
+            codec.Info.Height,
+            SKColorType.Bgra8888,
+            SKAlphaType.Premul);
+        using var bitmap = new SKBitmap(imageInfo);
+        var result = codec.GetPixels(imageInfo, bitmap.GetPixels());
+        if (result is not (SKCodecResult.Success or SKCodecResult.IncompleteInput))
+            throw new InvalidDataException($"Image decode failed: {result}");
+
+        using var image = SKImage.FromBitmap(bitmap);
+        using var encoded = image.Encode(SKEncodedImageFormat.Png, 100)
+                            ?? throw new InvalidDataException("Image PNG encoding failed.");
+        using var output = File.Create(destination);
+        encoded.SaveTo(output);
     }
 
     private static ImageSource? TryLoadLocalImage(string path)
@@ -149,7 +190,7 @@ public sealed class ImageCacheService
         }
         catch
         {
-            // A future load will retry deletion. Image failures must remain non-fatal.
+            // A later load may retry. Image failures stay non-fatal.
         }
     }
 
@@ -166,6 +207,8 @@ public sealed class ImageCacheService
                 SHA256.HashData(Encoding.UTF8.GetBytes(sourceUrl)))
             .ToLowerInvariant()[..16];
 
-        return Path.Combine(_cacheDirectory, $"{safeId}-{hash}.img");
+        // Canonical source assets may be WebP. Cache a normalized PNG so WPF decoding
+        // does not depend on optional Windows WebP codecs.
+        return Path.Combine(_cacheDirectory, $"{safeId}-{hash}.png");
     }
 }

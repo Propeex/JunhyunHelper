@@ -15,6 +15,8 @@ public sealed record InventoryChangeRequestedEventArgs(
     int Fir,
     int NonFir);
 
+public sealed record ItemQuestNavigationRequestedEventArgs(string QuestId);
+
 public partial class ItemsPage : UserControl
 {
     private GameContentCatalog? _content;
@@ -23,11 +25,14 @@ public partial class ItemsPage : UserControl
     private IReadOnlyList<ItemRow> _allRows = [];
     private ItemRow? _selectedRow;
     private CancellationTokenSource? _iconLoadCts;
+    private ItemViewMode _viewMode = ItemViewMode.Normal;
     private bool _busy;
+    private bool _updatingFilters;
 
     public ItemsPage()
     {
         InitializeComponent();
+
         FilterComboBox.ItemsSource = new[]
         {
             new FilterChoice(ItemFilter.Needed, "필요"),
@@ -37,9 +42,15 @@ public partial class ItemsPage : UserControl
             new FilterChoice(ItemFilter.Deferred, "판단 보류"),
         };
         FilterComboBox.SelectedIndex = 0;
+
+        CategoryComboBox.ItemsSource = new[] { new CategoryChoice(null, "모든 종류") };
+        CategoryComboBox.SelectedIndex = 0;
+        UpdateModeControls();
     }
 
     public event EventHandler<InventoryChangeRequestedEventArgs>? InventoryChangeRequested;
+
+    public event EventHandler<ItemQuestNavigationRequestedEventArgs>? QuestNavigationRequested;
 
     public void SetImageCache(ImageCacheService imageCache) =>
         _imageCache = imageCache ?? throw new ArgumentNullException(nameof(imageCache));
@@ -48,13 +59,39 @@ public partial class ItemsPage : UserControl
     {
         _content = content ?? throw new ArgumentNullException(nameof(content));
         _workspace = workspace ?? throw new ArgumentNullException(nameof(workspace));
+
+        var selectedItemId = _selectedRow?.ItemId;
         _allRows = BuildRows(content, workspace);
+        PopulateCategoryFilter();
         ApplyFilter();
+
+        if (!string.IsNullOrWhiteSpace(selectedItemId))
+            SelectVisibleItem(selectedItemId);
 
         _iconLoadCts?.Cancel();
         _iconLoadCts?.Dispose();
         _iconLoadCts = new CancellationTokenSource();
         _ = LoadIconsAsync(_allRows, _iconLoadCts.Token);
+    }
+
+    public void NavigateToItem(string itemId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(itemId);
+        var target = _allRows.FirstOrDefault(row => row.ItemId == itemId);
+        if (target is null)
+            return;
+
+        _viewMode = target.IsFlexibleOnly ? ItemViewMode.Flexible : ItemViewMode.Normal;
+        _updatingFilters = true;
+        SearchBox.Text = string.Empty;
+        CategoryComboBox.SelectedIndex = 0;
+        FilterComboBox.SelectedItem = FilterComboBox.Items
+            .Cast<FilterChoice>()
+            .First(choice => choice.Value == ItemFilter.All);
+        _updatingFilters = false;
+        UpdateModeControls();
+        ApplyFilter();
+        SelectVisibleItem(itemId);
     }
 
     public void SetCleanupChanges(IReadOnlyList<InventoryCleanupIncrease> changes)
@@ -78,7 +115,9 @@ public partial class ItemsPage : UserControl
     {
         _busy = busy;
         SearchBox.IsEnabled = !busy;
-        FilterComboBox.IsEnabled = !busy;
+        CategoryComboBox.IsEnabled = !busy;
+        FilterComboBox.IsEnabled = !busy && _viewMode == ItemViewMode.Normal;
+        ViewModeButton.IsEnabled = !busy;
         ItemList.IsEnabled = !busy;
         OwnedFirTextBox.IsEnabled = !busy;
         OwnedNonFirTextBox.IsEnabled = !busy;
@@ -135,16 +174,22 @@ public partial class ItemsPage : UserControl
                 var name = item is null
                     ? itemId
                     : DisplayName(item.NameKo, item.NameEn, item.Id);
-
-                var sources = (needed?.Sources ?? cleanup?.Sources ?? Array.Empty<ItemRequirementSource>())
-                    .Select(source => SourceText(source, content))
-                    .Distinct(StringComparer.CurrentCulture)
+                var category = ItemCategoryClassifier.Classify(item);
+                var sourceRows = (needed?.Sources ?? cleanup?.Sources ?? Array.Empty<ItemRequirementSource>())
+                    .Select(source => BuildSourceRow(source, content))
+                    .DistinctBy(source => (source.Title, source.Detail, source.QuestId))
                     .ToArray();
+                var isFlexibleOnly = needed is null &&
+                                     cleanup is null &&
+                                     !workspace.Profile.Inventory.ContainsKey(itemId);
 
                 return new ItemRow(
                     itemId,
                     name,
                     item?.IconUrl,
+                    category,
+                    ItemCategoryClassifier.Label(category),
+                    isFlexibleOnly,
                     requiredTotal,
                     requiredFir,
                     owned.Fir,
@@ -155,13 +200,41 @@ public partial class ItemsPage : UserControl
                     surplusNonFir,
                     protections,
                     flexibleProgresses,
-                    sources,
-                    SourceSummary(sources, flexibleProgresses),
+                    sourceRows,
+                    SourceSummary(sourceRows, flexibleProgresses),
                     BuildStatusText(remainingTotal, remainingFir, surplusTotal, deferred, flexiblePending),
                     StatusBrush(remainingTotal, surplusTotal, deferred, flexiblePending));
             })
-            .OrderBy(row => row.Name, StringComparer.CurrentCulture)
+            .OrderBy(row => ItemCategoryClassifier.Order(row.Category))
+            .ThenBy(row => row.Name, StringComparer.CurrentCulture)
             .ToArray();
+    }
+
+    private static SourceRow BuildSourceRow(ItemRequirementSource source, GameContentCatalog content)
+    {
+        if (source.Kind == ItemRequirementSourceKind.Quest)
+        {
+            var quest = content.Quests.FirstOrDefault(candidate => candidate.Id == source.SourceId);
+            var questName = DisplayName(quest?.NameKo, quest?.NameEn, source.SourceId);
+            return new SourceRow(
+                $"퀘스트 · {questName}",
+                "클릭해서 퀘스트 정보로 이동",
+                source.SourceId,
+                IsQuest: true);
+        }
+
+        if (source.Kind == ItemRequirementSourceKind.Hideout)
+        {
+            var station = content.HideoutStations.FirstOrDefault(candidate => candidate.Id == source.SourceId);
+            var stationName = DisplayName(station?.NameKo, station?.NameEn, source.SourceId);
+            return new SourceRow(
+                $"은신처 · {stationName}",
+                string.IsNullOrWhiteSpace(source.DetailId) ? "업그레이드 재료" : $"Lv.{source.DetailId} 업그레이드",
+                QuestId: null,
+                IsQuest: false);
+        }
+
+        return new SourceRow(source.SourceId, string.Empty, QuestId: null, IsQuest: false);
     }
 
     private async Task LoadIconsAsync(IReadOnlyList<ItemRow> rows, CancellationToken cancellationToken)
@@ -191,24 +264,49 @@ public partial class ItemsPage : UserControl
         }
         catch (OperationCanceledException)
         {
-            // A newer workspace replaced these rows. Old image work is intentionally discarded.
+            // A newer workspace replaced these rows.
         }
+    }
+
+    private void PopulateCategoryFilter()
+    {
+        var selected = (CategoryComboBox.SelectedItem as CategoryChoice)?.Value;
+        var choices = new[] { new CategoryChoice(null, "모든 종류") }
+            .Concat(_allRows
+                .Select(row => row.Category)
+                .Distinct()
+                .OrderBy(ItemCategoryClassifier.Order)
+                .Select(category => new CategoryChoice(category, ItemCategoryClassifier.Label(category))))
+            .ToArray();
+
+        _updatingFilters = true;
+        CategoryComboBox.ItemsSource = choices;
+        CategoryComboBox.SelectedItem = choices.FirstOrDefault(choice => choice.Value == selected) ?? choices[0];
+        _updatingFilters = false;
     }
 
     private void ApplyFilter()
     {
         var search = SearchBox.Text?.Trim() ?? string.Empty;
         var filter = (FilterComboBox.SelectedItem as FilterChoice)?.Value ?? ItemFilter.Needed;
+        var category = (CategoryComboBox.SelectedItem as CategoryChoice)?.Value;
         var selectedId = _selectedRow?.ItemId;
 
-        var filtered = _allRows
+        IEnumerable<ItemRow> query = _allRows;
+        query = _viewMode == ItemViewMode.Flexible
+            ? query.Where(row => row.FlexibleProgresses.Count > 0)
+            : query.Where(row => !row.IsFlexibleOnly);
+
+        var filtered = query
             .Where(row => string.IsNullOrWhiteSpace(search) ||
                           row.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase) ||
                           row.ItemId.Contains(search, StringComparison.OrdinalIgnoreCase))
-            .Where(row => MatchesFilter(row, filter))
+            .Where(row => category is null || row.Category == category)
+            .Where(row => _viewMode == ItemViewMode.Flexible || MatchesFilter(row, filter))
             .ToArray();
 
         ItemList.ItemsSource = filtered;
+        EmptyListText.Visibility = filtered.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
         ItemList.SelectedItem = filtered.FirstOrDefault(row => row.ItemId == selectedId)
                                 ?? filtered.FirstOrDefault();
         if (filtered.Length == 0)
@@ -218,9 +316,7 @@ public partial class ItemsPage : UserControl
     private static bool MatchesFilter(ItemRow row, ItemFilter filter) => filter switch
     {
         ItemFilter.All => true,
-        ItemFilter.Needed => row.RemainingTotal > 0 ||
-                             row.RemainingFir > 0 ||
-                             row.FlexibleProgresses.Any(progress => !progress.IsFulfilled),
+        ItemFilter.Needed => row.RemainingTotal > 0 || row.RemainingFir > 0,
         ItemFilter.Cleanup => row.SurplusTotal > 0,
         ItemFilter.Satisfied => row.RequiredTotal > 0 && row.RemainingTotal == 0 && row.SurplusTotal == 0,
         ItemFilter.Deferred => row.Protections.Count > 0 && row.OwnedTotal > 0 && row.SurplusTotal == 0,
@@ -243,6 +339,7 @@ public partial class ItemsPage : UserControl
         DetailScroll.Visibility = Visibility.Visible;
         DetailIcon.Source = row.Icon;
         DetailName.Text = row.Name;
+        DetailCategoryText.Text = row.CategoryLabel;
         DetailStatusText.Text = row.StatusText;
         DetailStatusText.Foreground = row.StatusBrush;
 
@@ -259,47 +356,63 @@ public partial class ItemsPage : UserControl
             : row.RemainingTotal > 0
                 ? $"추가 필요 {row.RemainingTotal}개"
                 : hasFlexible && row.FlexibleProgresses.Any(progress => !progress.IsFulfilled)
-                    ? "유동 제출 그룹은 후보 아이템 보유량을 합산해 남은 수량을 계산합니다."
+                    ? "유동 제출은 아래 그룹의 후보 보유량을 합산해 계산합니다."
                     : row.RequiredTotal > 0
                         ? "현재 보유량으로 미래 필요량을 충족합니다."
                         : "현재 확정된 미래 필요량은 없습니다.";
-        DetailCleanupText.Text = row.SurplusTotal > 0
-            ? CleanupText(row)
-            : string.Empty;
+        DetailCleanupText.Text = row.SurplusTotal > 0 ? CleanupText(row) : string.Empty;
 
         OwnedFirTextBox.Text = row.OwnedFir.ToString(CultureInfo.InvariantCulture);
         OwnedNonFirTextBox.Text = row.OwnedNonFir.ToString(CultureInfo.InvariantCulture);
         SaveInventoryButton.IsEnabled = !_busy;
 
         SourceItems.ItemsSource = row.Sources.Length > 0
-            ? row.Sources.Select(source => $"• {source}").ToArray()
+            ? row.Sources
             : hasFlexible
-                ? new[] { "• 유동 제출 요구 — 아래 그룹 정보를 확인하세요." }
-                : new[] { "• 현재 계산된 필요 출처 없음" };
+                ? [new SourceRow("유동 제출", "아래 그룹별 제출 정보를 확인하세요.", null, false)]
+                : [new SourceRow("현재 계산된 필요 출처 없음", string.Empty, null, false)];
 
         FlexibleRequirementItems.ItemsSource = row.FlexibleProgresses
-            .Select(BuildFlexibleRequirementText)
+            .Select(BuildFlexibleRow)
             .ToArray();
-        FlexibleDetailPanel.Visibility = hasFlexible
-            ? Visibility.Visible
-            : Visibility.Collapsed;
-
+        FlexibleDetailPanel.Visibility = hasFlexible ? Visibility.Visible : Visibility.Collapsed;
         ProtectionText.Text = BuildProtectionText(row.Protections);
     }
 
-    private string BuildFlexibleRequirementText(FlexibleQuestItemProgress progress)
+    private FlexibleSourceRow BuildFlexibleRow(FlexibleQuestItemProgress progress)
     {
         var quest = _content?.Quests.FirstOrDefault(candidate => candidate.Id == progress.QuestId);
         var questName = DisplayName(quest?.NameKo, quest?.NameEn, progress.QuestId);
         var candidateNames = progress.AcceptedItemIds.Select(DisplayName).ToArray();
-        var remainingText = progress.IsFulfilled
-            ? "충족"
-            : $"남음 {progress.RemainingTotal}개";
+        var remainingText = progress.IsFulfilled ? "충족" : $"남음 {progress.RemainingTotal}개";
         var ownershipText = progress.RequiredFir > 0
             ? $"FIR 합산 {progress.OwnedFir}/{progress.RequiredFir}"
             : $"합산 보유 {progress.OwnedTotal}/{progress.RequiredTotal}";
 
-        return $"• {questName} · {ownershipText} · {remainingText}\n  후보: {string.Join(", ", candidateNames)}";
+        return new FlexibleSourceRow(
+            progress.QuestId,
+            questName,
+            $"{ownershipText} · {remainingText}",
+            $"후보: {string.Join(", ", candidateNames)}");
+    }
+
+    private void SelectVisibleItem(string itemId)
+    {
+        var item = (ItemList.ItemsSource as IEnumerable<ItemRow>)?
+            .FirstOrDefault(row => row.ItemId == itemId);
+        if (item is null)
+            return;
+
+        ItemList.SelectedItem = item;
+        ItemList.ScrollIntoView(item);
+    }
+
+    private void UpdateModeControls()
+    {
+        ViewModeButton.Content = _viewMode == ItemViewMode.Normal
+            ? $"유동 제출 보기 ({_allRows.Count(row => row.FlexibleProgresses.Count > 0)})"
+            : "일반 목록 보기";
+        FilterComboBox.IsEnabled = !_busy && _viewMode == ItemViewMode.Normal;
     }
 
     private string DisplayName(string itemId)
@@ -308,36 +421,15 @@ public partial class ItemsPage : UserControl
         return item is null ? itemId : DisplayName(item.NameKo, item.NameEn, item.Id);
     }
 
-    private static string SourceText(ItemRequirementSource source, GameContentCatalog content) => source.Kind switch
-    {
-        ItemRequirementSourceKind.Quest =>
-            $"퀘스트 · {DisplayName(
-                content.Quests.FirstOrDefault(quest => quest.Id == source.SourceId)?.NameKo,
-                content.Quests.FirstOrDefault(quest => quest.Id == source.SourceId)?.NameEn,
-                source.SourceId)}",
-        ItemRequirementSourceKind.Hideout =>
-            $"은신처 · {DisplayName(
-                content.HideoutStations.FirstOrDefault(station => station.Id == source.SourceId)?.NameKo,
-                content.HideoutStations.FirstOrDefault(station => station.Id == source.SourceId)?.NameEn,
-                source.SourceId)} Lv.{source.DetailId}",
-        _ => source.SourceId,
-    };
-
     private static string SourceSummary(
-        IReadOnlyList<string> sources,
+        IReadOnlyList<SourceRow> sources,
         IReadOnlyList<FlexibleQuestItemProgress> flexibleProgresses)
     {
         if (sources.Count > 0)
-        {
-            return sources.Count == 1
-                ? sources[0]
-                : $"{sources[0]} 외 {sources.Count - 1}곳";
-        }
+            return sources.Count == 1 ? sources[0].Title : $"{sources[0].Title} 외 {sources.Count - 1}곳";
 
         return flexibleProgresses.Count > 0
-            ? flexibleProgresses.Count == 1
-                ? "유동 제출 후보"
-                : $"유동 제출 후보 · {flexibleProgresses.Count}개 그룹"
+            ? flexibleProgresses.Count == 1 ? "유동 제출 후보" : $"유동 제출 후보 · {flexibleProgresses.Count}개 그룹"
             : "보유 기록";
     }
 
@@ -388,15 +480,10 @@ public partial class ItemsPage : UserControl
         if (protections.Count == 0)
             return string.Empty;
 
-        var messages = new List<string>();
         if (protections.Any(protection => protection.Kind == CleanupProtectionKind.AlternativeQuestRequirement))
-        {
-            messages.Add("유동 제출 후보이므로 목표가 끝나기 전에는 이 아이템만 따로 정리 가능하다고 판단하지 않습니다.");
-        }
+            return "정리 판단 보호 · 유동 제출 후보이므로 그룹 목표가 끝나기 전에는 이 아이템만 따로 정리 가능하다고 판단하지 않습니다.";
 
-        return messages.Count > 0
-            ? $"정리 판단 보호 · {string.Join(" ", messages)}"
-            : "이 아이템은 안전한 정리량을 자동 확정할 수 없어 판단을 보류합니다.";
+        return "이 아이템은 안전한 정리량을 자동 확정할 수 없어 판단을 보류합니다.";
     }
 
     private static string DisplayName(string? korean, string? english, string fallback) =>
@@ -406,23 +493,57 @@ public partial class ItemsPage : UserControl
                 ? english
                 : fallback;
 
-    private void SearchBox_TextChanged(object sender, TextChangedEventArgs e) => ApplyFilter();
+    private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!_updatingFilters)
+            ApplyFilter();
+    }
 
     private void FilterComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (IsLoaded)
+        if (IsLoaded && !_updatingFilters)
             ApplyFilter();
+    }
+
+    private void CategoryComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (IsLoaded && !_updatingFilters)
+            ApplyFilter();
+    }
+
+    private void ViewModeButton_Click(object sender, RoutedEventArgs e)
+    {
+        _viewMode = _viewMode == ItemViewMode.Normal ? ItemViewMode.Flexible : ItemViewMode.Normal;
+        UpdateModeControls();
+        ApplyFilter();
     }
 
     private void ItemList_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
         ShowDetail(ItemList.SelectedItem as ItemRow);
 
+    private void SourceButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: string questId } && !string.IsNullOrWhiteSpace(questId))
+            QuestNavigationRequested?.Invoke(this, new ItemQuestNavigationRequestedEventArgs(questId));
+    }
+
+    private void FlexibleQuestButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: string questId } && !string.IsNullOrWhiteSpace(questId))
+            QuestNavigationRequested?.Invoke(this, new ItemQuestNavigationRequestedEventArgs(questId));
+    }
+
     private void ShowCleanupButton_Click(object sender, RoutedEventArgs e)
     {
+        _viewMode = ItemViewMode.Normal;
+        _updatingFilters = true;
+        CategoryComboBox.SelectedIndex = 0;
         FilterComboBox.SelectedItem = FilterComboBox.Items
             .Cast<FilterChoice>()
             .First(choice => choice.Value == ItemFilter.Cleanup);
+        _updatingFilters = false;
         CleanupNotice.Visibility = Visibility.Collapsed;
+        UpdateModeControls();
         ApplyFilter();
     }
 
@@ -460,6 +581,9 @@ public partial class ItemsPage : UserControl
             string itemId,
             string name,
             string? iconUrl,
+            ItemDisplayCategory category,
+            string categoryLabel,
+            bool isFlexibleOnly,
             int requiredTotal,
             int requiredFir,
             int ownedFir,
@@ -470,7 +594,7 @@ public partial class ItemsPage : UserControl
             int surplusNonFir,
             IReadOnlyList<CleanupProtection> protections,
             IReadOnlyList<FlexibleQuestItemProgress> flexibleProgresses,
-            string[] sources,
+            SourceRow[] sources,
             string sourceSummary,
             string statusText,
             Brush statusBrush)
@@ -478,6 +602,9 @@ public partial class ItemsPage : UserControl
             ItemId = itemId;
             Name = name;
             IconUrl = iconUrl;
+            Category = category;
+            CategoryLabel = categoryLabel;
+            IsFlexibleOnly = isFlexibleOnly;
             RequiredTotal = requiredTotal;
             RequiredFir = requiredFir;
             OwnedFir = ownedFir;
@@ -497,6 +624,9 @@ public partial class ItemsPage : UserControl
         public string ItemId { get; }
         public string Name { get; }
         public string? IconUrl { get; }
+        public ItemDisplayCategory Category { get; }
+        public string CategoryLabel { get; }
+        public bool IsFlexibleOnly { get; }
         public int RequiredTotal { get; }
         public int RequiredFir { get; }
         public int OwnedFir { get; }
@@ -507,7 +637,7 @@ public partial class ItemsPage : UserControl
         public int SurplusNonFir { get; }
         public IReadOnlyList<CleanupProtection> Protections { get; }
         public IReadOnlyList<FlexibleQuestItemProgress> FlexibleProgresses { get; }
-        public string[] Sources { get; }
+        public SourceRow[] Sources { get; }
         public string SourceSummary { get; }
         public string StatusText { get; }
         public Brush StatusBrush { get; }
@@ -531,7 +661,20 @@ public partial class ItemsPage : UserControl
         public event PropertyChangedEventHandler? PropertyChanged;
     }
 
+    private sealed record SourceRow(string Title, string Detail, string? QuestId, bool IsQuest);
+
+    private sealed record FlexibleSourceRow(
+        string QuestId,
+        string QuestName,
+        string ProgressText,
+        string CandidatesText);
+
     private sealed record FilterChoice(ItemFilter Value, string Label)
+    {
+        public override string ToString() => Label;
+    }
+
+    private sealed record CategoryChoice(ItemDisplayCategory? Value, string Label)
     {
         public override string ToString() => Label;
     }
@@ -543,5 +686,11 @@ public partial class ItemsPage : UserControl
         Cleanup,
         Satisfied,
         Deferred,
+    }
+
+    private enum ItemViewMode
+    {
+        Normal,
+        Flexible,
     }
 }

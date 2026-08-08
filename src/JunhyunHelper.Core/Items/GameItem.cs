@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace JunhyunHelper.Core.Items;
 
 public sealed record GameItem(
@@ -8,4 +10,9 @@ public sealed record GameItem(
     string? ShortNameEn,
     string? IconUrl,
     string? WikiUrl,
-    IReadOnlyList<string> CategoryIds);
+    IReadOnlyList<string> CategoryIds,
+    IReadOnlyList<string>? CategoryKeys = null)
+{
+    [JsonIgnore]
+    public IReadOnlyList<string> Categories => CategoryKeys ?? Array.Empty<string>();
+}

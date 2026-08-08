@@ -12,6 +12,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="SkiaSharp" Version="4.150.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.150.1" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../JunhyunHelper.Core/JunhyunHelper.Core.csproj" />
     <ProjectReference Include="../JunhyunHelper.Infrastructure/JunhyunHelper.Infrastructure.csproj" />
     <ProjectReference Include="../JunhyunHelper.Application/JunhyunHelper.Application.csproj" />
