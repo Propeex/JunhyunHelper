@@ -6,6 +6,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AssemblyName>JunhyunHelper</AssemblyName>
+    <Product>준현 헬퍼</Product>
+    <Version>0.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
