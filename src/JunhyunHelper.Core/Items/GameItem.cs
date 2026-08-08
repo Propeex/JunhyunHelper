@@ -8,4 +8,8 @@ public sealed record GameItem(
     string? ShortNameEn,
     string? IconUrl,
     string? WikiUrl,
-    IReadOnlyList<string> CategoryIds);
+    IReadOnlyList<string> CategoryIds,
+    IReadOnlyList<string>? CategoryKeys = null)
+{
+    public IReadOnlyList<string> Categories => CategoryKeys ?? Array.Empty<string>();
+}
