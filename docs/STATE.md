@@ -6,11 +6,11 @@
 
 **Phase 2B — 실제 Desktop 핵심 흐름 구현**
 
-상태: `IN PROGRESS — data pipeline + profile + Quest + Hideout desktop flows verified`
+상태: `IN PROGRESS — data pipeline + profile + Quest + Hideout + future Items desktop flows verified`
 
-현재 사용자는 프로그램 안에서 게임 모드별 캐릭터 프로필을 만들고 수정하고, 같은 프로필을 기준으로 Quest 진행과 Hideout 시설 레벨을 관리할 수 있습니다.
+현재 사용자는 게임 모드별 캐릭터 프로필을 만들고 수정하고, 같은 프로필을 기준으로 Quest 진행, Hideout 시설 레벨, 미래 필요 아이템과 실제 보유량을 관리할 수 있습니다.
 
-다음 핵심 제품 영역은 **Needed Items**입니다. 단, 어떤 미래 Quest/Hideout 범위까지 기본 합산할지는 아직 제품 정책으로 확정하지 않았으므로 Core가 임의로 결정하지 않습니다.
+필요 아이템은 이제 현재 할 일 체크리스트가 아니라 **앞으로 필요한 물건을 미리 모으고, 업데이트나 진행 변화로 더 이상 필요하지 않은 보유품을 안전하게 정리하게 해주는 기능**으로 확정·구현되었습니다.
 
 ---
 
@@ -24,17 +24,18 @@
 - 동일 입력 → 동일 결과
 - 모르는 의미를 추측하지 않음
 - 미입력을 임의의 0/false로 바꾸지 않음
-- 안전한 판정이 불가능하면 `Indeterminate` 또는 업데이트 실패
+- 안전한 판정이 불가능하면 `Indeterminate`, `판단 보류`, 또는 업데이트 실패
 - Game Content와 User Progress를 분리
 - 계산 가능한 결과를 별도 진실의 원천으로 저장하지 않음
 - UI는 Domain 규칙을 다시 구현하지 않음
+- 사용자가 필요한 아이템을 잘못 버리게 만드는 false-positive cleanup을 특히 피함
 
 ---
 
 ## 책임 경계
 
 1. **Game Content** — 온라인 원천에서 재생성 가능한 게임 사실
-2. **User Progress** — 사용자가 실제 게임에서 만든 진행 사실
+2. **User Progress** — 사용자가 실제 게임에서 만든 진행/보유 사실
 3. **Domain Logic** — 두 입력에서 결과를 계산하는 순수 규칙
 4. **Application** — 사용자 명령과 저장/재계산의 얇은 조정
 5. **Desktop/UI** — 결과 표시와 사용자 입력 전달
@@ -50,7 +51,7 @@
 
 ---
 
-## 데이터 원천
+## 데이터 원천 / 콘텐츠 업데이트
 
 ### 1차 — `json.tarkov.dev`
 
@@ -62,13 +63,7 @@
 - barters
 - crafts
 
-모드:
-
-- regular
-- pve
-- pvp-season
-
-한국어 `ko` 사용.
+모드: `regular / pve / pvp-season`, 한국어 `ko` 사용.
 
 ### 보조 — edition rules only
 
@@ -79,22 +74,6 @@ TarkovTracker `tarkov-data-overlay` 중 `editions` 섹션만 사용:
 - `excludedTaskIds`
 
 전체 community correction overlay는 자동 적용하지 않습니다.
-
----
-
-## 구현 상태
-
-### Game Content / 업데이트
-
-Canonical model:
-
-- Item
-- Trader / Map 최소 참조
-- Edition Quest rules
-- Quest / prerequisite / objective / submit-item requirement
-- Hideout station / level / material requirement
-- Ammo performance / acquisition
-- `GameContentCatalog`
 
 모드별 콘텐츠 저장:
 
@@ -116,8 +95,11 @@ content/
 
 - 실패 candidate는 active를 건드리지 않음
 - active 손상 시 같은 모드 previous 복구 가능
+- 실제 세 모드 live update / read-back 검증 완료
 
-### User Progress / `user.db`
+---
+
+## User Progress / `user.db`
 
 프로필 하나 = 실제 Tarkov 캐릭터 하나.
 
@@ -133,22 +115,29 @@ content/
 저장하지 않음:
 
 - Current / Locked / Indeterminate
-- 다음 Hideout 업그레이드 계산 결과
-- Needed Items 결과
+- 미래 Quest 도달 가능성 결과
+- 다음 Hideout 업그레이드 결과
+- Needed Items / Cleanup 결과
 - UI filter/sort 결과
 
-### Profile
+Game Content가 업데이트되어도 user.db 보유량과 진행 사실은 삭제하지 않습니다.
+
+---
+
+## Profile
 
 `ProfileApplicationService` + WPF profile UI 구현.
 
 - PvP / PvE / 시즌별 명시적 프로필 생성
-- 같은 지원 game mode 중복 자동 생성 방지
+- same mode 중복 자동 생성 방지
 - level / faction / edition / prestige 편집
 - trader별 입력 여부 + LL + standing
-- 미입력 trader는 0으로 추측하지 않음
-- 프로필 설정 수정 시 completed Quest / Hideout / Inventory 보존
+- 미입력 trader를 0으로 추측하지 않음
+- 설정 수정 시 completed Quest / Hideout / Inventory 보존
 
-### Quest
+---
+
+## Quest
 
 `QuestApplicationService` + WPF Quest 화면 구현.
 
@@ -160,79 +149,145 @@ content/
 탐색:
 
 - 진행 중 / 잠김 / 완료
-- 검색
-- 상인 dropdown
-- 지도 dropdown
-- Wiki
-- 상세 정보
+- 검색 / 상인 / 지도 dropdown
+- Wiki / 상세
+- `Indeterminate` 별도 판정 문제
 
-`Indeterminate`는 정상 Quest 상태가 아니라 별도 `판정 문제`로 표시합니다.
-
-현재 evaluator가 처리:
+현재 availability evaluator:
 
 - level
 - faction
-- edition rules
+- edition
 - prestige
 - trader reputation / loyalty
 - prerequisite Complete / Active
 - disabled
 
-추측하지 않음:
+미지원/미입력은 추측하지 않습니다.
 
-- 미입력 profile value
-- Failed-only prerequisite
-- dependency cycle
-- `dialogue` 등 미지원 availability requirement
+### 미래 Quest 도달 가능성
 
-시간 지연은 제품 결정에 따라 계산하지 않습니다.
+필요 아이템 전용 `QuestFutureReachabilityEvaluator` 구현.
 
-### Hideout
+상태:
 
-`HideoutApplicationService` + 첫 WPF Hideout 화면 구현.
+- `Potential` — 미래 요구량 포함
+- `Completed` — 제외
+- `Unavailable` — 영구 불가로 증명, 제외
+- `IndeterminatePotential` — 불명확하지만 보수적으로 미래 요구량 포함
 
-핵심 원칙:
+규칙:
 
-- station current level은 **사용자 사실**
-- `미입력`과 `Lv.0`을 구분
-- 미입력 level을 0으로 추측하지 않음
-- 사용자가 level을 명시하면 그 값만 `user.db`에 저장
-- station level 변경은 다른 profile 사실을 직접 수정하지 않음
+- level / trader / prestige 부족 → 미래에 충족 가능하므로 포함
+- faction / edition / disabled → 영구 불가이므로 제외
+- 완료 Quest → 제외
+- 이미 완료된 Quest의 `Failed`만 요구하는 후속 분기 → 영구 불가로 닫을 수 있음
+- 아직 추적하지 않는 Failed 상태 / `dialogue` / 기타 미지원 의미 → 정리 위험을 피하기 위해 가능성 유지
+- 영구 불가 prerequisite를 요구하는 후속 Quest도 전파해 제외
 
-현재 UI:
+---
 
-- Quest / Hideout 상위 탭
-- Hideout 검색
-- 시설 목록
-- 현재 level 표시
-- `미입력 / Lv.0 ... max` 명시적 level selector
-- level이 알려진 경우 canonical data에서 **바로 다음 업그레이드** 표시
-- 다음 업그레이드 item requirement + FIR 표시
-- construction time 표시
-- max level 표시
+## Hideout
 
-현재 의도적으로 구현하지 않음:
+`HideoutApplicationService` + WPF Hideout 화면 구현.
 
-- 로그/게임 화면 기반 자동 Hideout 추정
-- `미입력 = Lv.0` 가정
-- 최종 레벨까지 남은 재료를 자동 합산하는 정책
-- Needed Items에서 어느 Hideout 미래 범위까지 기본 포함할지 결정
-- canonical model에 아직 없는 trader/skill/station prerequisite를 UI에서 추측
+- station current level은 사용자 사실
+- `미입력`과 `Lv.0` 구분
+- Hideout 화면은 입력된 current level의 바로 다음 upgrade 표시
+- 필요 아이템 계획에서는 current level보다 높은 **모든 미래 level material** 합산
+- current level 미입력 시설은 Lv.0으로 가정하지 않음
+- 해당 시설에서 쓸 수 있는 보유 item은 잘못 정리하지 않도록 cleanup 판단 보호
 
-### Quest + Hideout → Needed Items 기반
+---
 
-이미 Core에 존재:
+## Future Needed Items / Item Desktop
 
-- Quest `giveItem` submit requirement
-- Hideout material requirement
-- Item ID별 집계
-- 출처 보존
-- FIR / Non-FIR 이중 계산 방지
-- alternative Quest item group 보존
+공식 제품 기준: `docs/NEEDED_ITEMS_EXPERIENCE.md`
 
-아직 Desktop에서는 **어느 요구사항을 기본 포함할지** 제품 정책이 정해지지 않아 자동 집계를 연결하지 않았습니다.
+### 미래 필요량
 
-### Ammo
+`FutureNeededItemsPlanner` 구현.
+
+입력:
+
+`Game Content + User Progress`
+
+출력:
+
+- 미래 고정 필요량
+- 현재 부족량
+- 안전하게 정리 가능한 초과 보유량
+- 대체 Quest 요구
+- cleanup 판단 보호 항목
+- 미래 Quest reachability 진단
+
+포함:
+
+- 현재/미래 가능 Quest 제출 아이템
+- 아직 닫히지 않은 불명확 가능성도 보수적으로 포함
+- 입력된 Hideout current level 이후 모든 업그레이드 재료
+
+제외:
+
+- 완료 Quest
+- 영구 불가로 증명된 Quest/경로
+- 이미 지난 Hideout level 요구량
+
+### 정리 필요
+
+`InventorySurplusCalculator` 구현.
+
+- inventory-only item도 계산 대상
+- `필요 0 / 보유 > 0`이면 정리 필요에 남음
+- 필요량보다 많이 가진 경우 초과분 표시
+- FIR minimum과 total requirement를 동시에 지킨 뒤 안전한 FIR/Non-FIR cleanup 수량만 반환
+- 대체 제출 후보는 임의 선택하지 않아 cleanup 보호
+- 미입력 Hideout 관련 item도 cleanup 보호
+
+Game Content에 더 이상 item metadata가 없어도 user.db에 보유량이 남아 있으면 Item 화면에서 stable Item ID라도 계속 보입니다.
+
+### 변화 감지
+
+`InventoryCleanupChangeDetector` 구현.
+
+Quest 완료/취소, Hideout level 변화, Game Content update 후 이전 계획과 새 계획의 `정리 가능` 증가분을 비교할 수 있습니다.
+
+특히 데이터 업데이트로 새 정리 가능 보유품이 생기면:
+
+- 사용자에게 알림
+- Item 탭에 지속적인 `정리 필요` 목록
+
+알림을 닫아도 실제 inventory가 초과 상태인 한 `정리 필요` 자체는 사라지지 않습니다.
+
+### Item Application/UI
+
+`ItemsApplicationService` + 첫 WPF Item 화면 구현.
+
+Application:
+
+- item별 FIR / Non-FIR 보유량만 수정
+- 0/0이면 해당 inventory row 제거
+- 다른 profile 진행 사실 보존
+- 저장 후 미래 필요량 재계산
+
+Item 탭:
+
+- 검색
+- `필요 / 전체 / 정리 필요 / 충분 / 판단 보류` 필터
+- 미래 필요량 / FIR 요구
+- 현재 보유 FIR / 일반
+- 추가 필요량
+- 안전한 정리 가능량
+- 필요 출처
+- 판단 보류 이유
+- 보유량 직접 수정
+- 새 cleanup 변화 배너
+
+Quest/Hideout/Items는 서로의 저장소를 직접 수정하지 않습니다. 사용자 사실 하나를 변경한 뒤 세 workspace를 동일한 Core 규칙으로 다시 계산합니다.
+
+---
+
+## Ammo
 
 Canonical Ammo + acquisition 구현:
 
@@ -242,84 +297,60 @@ Canonical Ammo + acquisition 구현:
 
 실제 탄약은 `ItemPropertiesAmmo`로 식별합니다.
 
-Desktop Ammo 화면은 아직 새 제품에 구현하지 않았습니다.
+Desktop Ammo 화면은 아직 구현하지 않았습니다.
 
 ---
 
-## 실제 검증
+## 최신 검증
 
-실제 `json.tarkov.dev + editions-only overlay`로 regular / pve / pvp-season 모두:
+### Future Items Desktop checkpoint — 2026-08-08
 
-`live sources → canonical build → candidate.db → validation → active → read-back`
+Windows Server 2025 / .NET SDK 10.0.302:
 
-성공.
-
-### 최신 Windows CI — Hideout checkpoint
-
-- Windows Server 2025
-- .NET SDK 10.0.302
-- Desktop build 성공
+- Desktop restore/build 성공
 - **0 warnings / 0 errors**
-- 전체 테스트 **86 passed / 0 failed / 0 skipped**
+- 전체 테스트 **106 passed / 0 failed / 0 skipped**
 
-회귀 테스트 포함:
+추가 회귀 테스트가 확인:
 
-- profile settings 수정 시 기존 진행 보존
-- Quest 완료/완료 취소 후 재계산
-- `Indeterminate`가 Current에 섞이지 않음
-- Hideout 미입력 level 유지
-- 명시적 Lv.0과 미입력 구분
-- Hideout level 변경/해제 저장
-- max range 밖 level 거부
-- Hideout level 변경 시 다른 profile 진행 보존
-
----
-
-## 기존 Tarkov-Helper 참고 정책
-
-사용성 패턴만 참고:
-
-- 적은 수의 상위 탭
-- 검색 + ComboBox
-- 목록 / 우측 detail split
-- 상태 badge
-- 명확한 주 행동 버튼
-- section화된 detail
-- Hideout level control
-- Ammo caliber dropdown + table
-
-기존 code-behind/service/event 구조와 오래된 제품 규칙은 승계하지 않습니다.
+- 미래 level-locked Quest 포함
+- faction/edition 영구 불가 Quest 제외
+- completed Quest requirement 제거
+- 영구 불가 prerequisite의 후속 Quest 제외 전파
+- Failed-only / unsupported 조건은 보수적 potential 유지
+- known Hideout current level 이후 모든 미래 재료 합산
+- 미입력 Hideout item cleanup 보호
+- 대체 Quest item cleanup 보호
+- FIR-safe surplus 계산
+- 새 cleanup 증가 감지
+- inventory 수정 시 다른 진행 사실 보존
+- 0 inventory row 정리
 
 ---
 
-## 아직 제품 결정/구현이 남은 것
+## 아직 남은 주요 제품/구현 항목
 
-- Needed Items의 기본 포함 범위
-  - Current Quest만인지
-  - Locked/Future Quest까지 포함할지
-  - Hideout next upgrade만인지
-  - 모든 미래 Hideout level까지 포함할지
-- Item 자동 차감 여부
-- 대체 제출 아이템을 사용자가 어떻게 선택/관리할지
-- Quest 실패/분기 상태 입력 방식
+- Failed/branch Quest 상태를 사용자가 어떻게 명시할지
+  - 현재는 미확정 failed branch를 `IndeterminatePotential`로 보수적으로 포함
+- Alternative Quest item을 사용자가 선택/관리할 UX
 - Quest reward 전체 canonical model
 - profile 삭제/reset UX
 - Ammo Desktop
 - 지도
 - Scanner
+- 기존 Tarkov-Helper migration은 현재 목표 아님
 
 ---
 
 ## 다음 순서
 
-1. **Needed Items 제품 범위 확정**
-2. 확정된 입력 범위만 `NeededItemsQuery`에 전달하는 얇은 Application flow 구현
-3. 보유 수량 입력/수정과 Needed Items Desktop 화면
-4. Quest 완료 / Hideout level 변경 → 별도 저장 동기화 없이 Needed Items 재계산 검증
-5. 이후 Ammo Desktop
+1. Future Items 실제 live content/profile 조합에서 end-to-end 사용성 점검
+2. 필요하다면 item 출처/cleanup 이유 표현만 개선하되 계산 규칙은 그대로 유지
+3. Ammo Desktop 구현
+4. 이후 Quest branch/failed 입력이 실제 필요 아이템 정확도에 주는 영향을 데이터 기준으로 보완
 
-Core가 미래 요구 범위를 임의로 선택하지 않는 원칙을 유지합니다.
+새 기능도 `Game Content / User Progress / Domain Logic / Application / UI` 경계를 유지합니다.
 
 ## 마지막 갱신
 
-2026-08-08 — 명시적 Hideout station level 저장과 첫 Hideout WPF 화면을 구현. 미입력과 Lv.0을 분리하고, 입력된 current level에서 바로 다음 upgrade requirement만 사실로 표시. Desktop build 0 warning/0 error, 전체 테스트 86/86 통과 후 main 반영. 다음 제품 결정은 Needed Items 기본 포함 범위.
+2026-08-08 — 미래 Quest/모든 이후 Hideout upgrade를 포함하는 Needed Items, user inventory 보존, FIR-safe `정리 필요`, 불명확 요구의 cleanup 보호, 업데이트 전후 cleanup 증가 알림, 첫 Item WPF 화면까지 구현. Windows Desktop 0 warning/0 error, 전체 테스트 106/106 통과.
