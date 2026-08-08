@@ -109,11 +109,11 @@ TarkovTracker `tarkov-data-overlay`의 **editions 정보만** 사용합니다.
 
 실제 Map 기능을 위한 최종 데이터 공급원은 아직 확정하지 않았습니다.
 
-따라서 Map 탭은 UI placeholder를 먼저 둘 수 있지만, 검증되지 않은 지도 데이터 기능을 임의 구현하지 않습니다.
+따라서 Map 탭은 UI placeholder만 두며, 검증되지 않은 지도 데이터 기능을 임의 구현하지 않습니다.
 
 ## 5. CORE-001 — Game Content 업데이트
 
-`CONFIRMED`
+`CONFIRMED / IMPLEMENTED`
 
 - 선택 GameMode의 최신 온라인 데이터를 다운로드
 - canonical model로 변환
@@ -124,22 +124,40 @@ TarkovTracker `tarkov-data-overlay`의 **editions 정보만** 사용합니다.
 
 ### 업데이트 진행 표시
 
-`CONFIRMED / IMPLEMENTATION PENDING`
+`CONFIRMED / IMPLEMENTED`
 
 사용자가 데이터 업데이트 중 현재 진행 상황을 시각적으로 알 수 있어야 합니다.
 
-최종 UI는 최소 다음을 제공합니다.
+UI:
 
-- 진행 중임을 명확히 표시
+- 진행 중 overlay
 - 진행률 bar
 - 현재 단계/작업 설명
+- 퍼센트 표시
 - 완료/실패 상태
 
-가짜 퍼센트를 만들지 않습니다. 실제 단계 또는 측정 가능한 작업량에서 진행률을 계산합니다.
+가짜 타이머 퍼센트를 만들지 않습니다.
+
+현재 구현은 실제 다운로드 source 완료 수와 다음 실제 처리 단계를 기준으로 진행률을 계산합니다.
+
+- items
+- traders
+- maps
+- tasks
+- hideout
+- barters
+- crafts
+- edition rules
+- canonical import
+- validation
+- candidate write
+- activation
+
+최초 데이터 생성, 복구 업데이트, 수동 업데이트 모두 같은 progress contract를 사용합니다.
 
 ## 6. CORE-002 — Profile / 진행 입력
 
-`CONFIRMED`
+`CONFIRMED / IMPLEMENTED`
 
 한 GameMode당 프로필 하나를 기본으로 합니다.
 
@@ -184,7 +202,7 @@ LL과 standing은 저장 구조에서도 별개의 optional fact입니다.
 
 ## 7. CORE-003 — Quest
 
-`CONFIRMED`
+`CONFIRMED / IMPLEMENTED`
 
 사용자가 게임에서 수주 가능한 Quest는 준현 헬퍼에서 이미 진행 가능한 것으로 봅니다.
 
@@ -209,7 +227,7 @@ Quest 보상은 핵심 범위에서 제외합니다.
 
 ### Quest list UI
 
-`CONFIRMED`
+`CONFIRMED / IMPLEMENTED`
 
 - 행 전체 폭을 사용해 정렬된 목록으로 표시
 - 이름 길이에 따라 좌측에 제각각 뭉쳐 보이는 형태를 피함
@@ -218,25 +236,37 @@ Quest 보상은 핵심 범위에서 제외합니다.
 
 ### Trader / Map filter 순서
 
-`CONFIRMED / IMPLEMENTATION PENDING`
+`CONFIRMED / IMPLEMENTED`
 
-Trader와 Map dropdown은 알파벳순/임의 순서가 아니라 **실제 게임에서 익숙한 순서**로 고정합니다.
+Trader와 Map dropdown은 알파벳순/임의 순서가 아니라 사용자가 게임에서 익숙한 고정 순서로 표시합니다.
 
-순서를 코드 여러 곳에 중복 하드코딩하지 않고 canonical UI ordering helper로 관리합니다.
+순서는 Desktop의 중앙 UI ordering helper에서 한 번만 관리합니다.
 
-게임 순서를 기술적으로 확정할 수 없는 항목만 사용자 확인 대상으로 남깁니다.
+알 수 없는 미래 상인/지도는 누락시키지 않고 알려진 항목 뒤에 표시합니다.
+
+일반 Trader 순서:
+
+```text
+Prapor → Therapist → Fence → Skier → Peacekeeper → Mechanic
+→ Ragman → Jaeger → Ref → Lightkeeper → BTR Driver
+```
+
+지도 순서는 이전에 검증한 해당 게임식 표시 순서를 재사용하되 canonical map ID와 원본 데이터 순서는 변경하지 않습니다.
 
 ### Ground Zero 21+
 
-`CONFIRMED / VERIFICATION PENDING`
+`CONFIRMED / IMPLEMENTED`
 
-`Ground Zero 21+`는 별도 지도처럼 노출하지 않고 **Ground Zero와 같은 맵 그룹**으로 취급합니다.
+`Ground Zero 21+`는 별도 지도처럼 사용자 filter에 중복 노출하지 않고 **Ground Zero와 같은 맵 그룹**으로 취급합니다.
 
-Quest Map filter에서도 Ground Zero 하나로 병합합니다.
+- canonical map ID는 유지
+- Quest가 어느 variant ID를 참조하는지도 유지
+- Quest Map filter에서만 `Ground Zero` 하나로 병합
+- Ground Zero를 선택하면 두 variant의 Quest가 함께 표시
 
 ## 8. CORE-004 — Hideout
 
-`CONFIRMED`
+`CONFIRMED / IMPLEMENTED`
 
 - 최신 Hideout 데이터를 canonical model로 사용
 - 시설별 현재 레벨을 사용자가 입력
@@ -257,7 +287,7 @@ Quest Map filter에서도 Ground Zero 하나로 병합합니다.
 
 ### 이미지
 
-`CONFIRMED`
+`CONFIRMED / IMPLEMENTED`
 
 Hideout station은 canonical `ImageUrl`을 사용하여:
 
@@ -270,7 +300,7 @@ Hideout station은 canonical `ImageUrl`을 사용하여:
 
 ## 9. CORE-005 — Needed Items / Item
 
-`CONFIRMED`
+`CONFIRMED / IMPLEMENTED`
 
 이 기능이 준현 헬퍼의 핵심 제작 이유입니다.
 
@@ -315,8 +345,6 @@ Hideout station은 canonical `ImageUrl`을 사용하여:
 
 ### Item 화면
 
-`CONFIRMED`
-
 기존 진단 dump처럼 긴 텍스트를 나열하지 않습니다.
 
 목록 행:
@@ -344,7 +372,7 @@ canonical `GameItem.IconUrl`을 사용합니다.
 
 ## 10. CORE-006 — Ammo
 
-`CONFIRMED`
+`CONFIRMED / PARTIALLY IMPLEMENTED`
 
 Ammo는 선택 GameMode의 최신 Game Content를 읽는 **비교 중심 read-only 기능**입니다.
 
@@ -410,7 +438,7 @@ canonical Ammo Item의 `IconUrl`을 사용하여 표와 상세 header에 표시�
 
 ## 11. UI-001 — 전역 디자인
 
-`CONFIRMED`
+`CONFIRMED / IMPLEMENTED`
 
 준현 헬퍼 전체는 dark UI로 통일합니다.
 
@@ -425,7 +453,7 @@ canonical Ammo Item의 `IconUrl`을 사용하여 표와 상세 header에 표시�
 
 ## 12. UI-002 — 이미지 cache
 
-`CONFIRMED`
+`CONFIRMED / IMPLEMENTED`
 
 Item / Hideout / Ammo 이미지는 온라인 canonical URL을 사용하되 Desktop에서 로컬 cache합니다.
 
@@ -443,16 +471,16 @@ Item / Hideout / Ammo 이미지는 온라인 canonical URL을 사용하되 Deskt
 
 ## 13. UI-003 — Map / Scanner 탭
 
-`CONFIRMED / IMPLEMENTATION PENDING`
+`CONFIRMED / PLACEHOLDER IMPLEMENTED`
 
-실제 기능이 아직 미구현이어도 상단 내비게이션에:
+상단 내비게이션에:
 
 - 지도
 - 스캐너
 
-탭을 추가합니다.
+탭이 존재합니다.
 
-미구현 상태에서는 사용자가 혼동하지 않도록 **준비 중**임을 명확히 표시합니다.
+현재 실제 기능은 미구현이며 두 화면은 `준비 중`을 명확히 표시합니다.
 
 검증되지 않은 기능을 placeholder 뒤에서 임의 실행하지 않습니다.
 
@@ -466,21 +494,21 @@ Item / Hideout / Ammo 이미지는 온라인 canonical URL을 사용하되 Deskt
 - 검증되지 않은 Ammo effectiveness heuristic
 - 기존 Tarkov-Helper의 동작을 이유만으로 그대로 승계하는 기능
 
-## 15. 현재 첫 실사용 피드백 구현 상태
+## 15. 첫 실사용 피드백 구현 상태
 
 | 번호 | 내용 | 상태 |
 |---:|---|---|
 | 1 | dark dropdown/scrollbar 및 UI 다듬기 | 구현 완료 |
-| 2 | Hideout/Item/Ammo 이미지 | 구현/검증 중 (PR #32) |
+| 2 | Hideout/Item/Ammo 이미지 | 구현 완료 |
 | 3 | Quest/Hideout list 정렬 | 구현 완료 |
 | 4 | +/- 진행 입력, 일반 Trader LL, Fence 0.1 | 구현 완료 |
 | 5 | Hideout 미입력 = Lv.0 | 구현 완료 |
-| 6 | Item 목록 재설계 | 구현/검증 중 (PR #32) |
+| 6 | Item 목록 재설계 | 구현 완료 |
 | 7 | Ammo 표 최소 수급 경로 | 구현 완료 |
-| 8 | 데이터 업데이트 진행률 | 구현 대기 |
+| 8 | 데이터 업데이트 진행률 | 구현 완료, 검증 중 |
 | 9 | Profile 버튼 정리 | 구현 완료 |
 | 10 | Ammo 검색 제거/열 선택/관통 오름차순 | 구현 완료 |
 | 10-b | Class 1~6 0~6 rating | source/공식 검증 중 |
-| 11 | Trader/Map 실제 게임 순서 | 구현 대기 |
-| 12 | Ground Zero 21+ 병합 | 구현 상태 재검증 필요 |
-| 13 | Map/Scanner placeholder 탭 | 구현 대기 |
+| 11 | Trader/Map 실제 게임 순서 | 구현 완료, 검증 중 |
+| 12 | Ground Zero 21+ 병합 | 구현 완료, 검증 중 |
+| 13 | Map/Scanner placeholder 탭 | 구현 완료, 검증 중 |
