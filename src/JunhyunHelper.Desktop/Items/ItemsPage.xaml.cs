@@ -107,7 +107,7 @@ public partial class ItemsPage : UserControl
                 var surplusFir = cleanup?.SurplusFir ?? 0;
                 var surplusNonFir = cleanup?.SurplusNonFir ?? 0;
                 var surplusTotal = surplusFir + surplusNonFir;
-                var deferred = protections.Count > 0 && surplusTotal == 0 && owned.Total > 0;
+                var deferred = protections.Length > 0 && surplusTotal == 0 && owned.Total > 0;
 
                 var name = itemById.TryGetValue(itemId, out var item)
                     ? DisplayName(item.NameKo, item.NameEn, item.Id)
