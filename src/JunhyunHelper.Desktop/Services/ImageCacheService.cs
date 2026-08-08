@@ -1,4 +1,5 @@
 using System.IO;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Windows.Media;
@@ -61,8 +62,6 @@ public sealed class ImageCacheService
         }
         catch
         {
-            // Images are supplementary. A bad URL, corrupt payload, or cache problem must never
-            // make Game Content or User Progress unusable.
             return null;
         }
     }
