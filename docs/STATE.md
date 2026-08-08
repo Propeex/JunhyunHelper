@@ -6,16 +6,11 @@
 
 **Phase 2B — 핵심 Desktop 흐름 구현 + 실사용 피드백 반복 개선**
 
-상태: `IN PROGRESS`
+상태: `SECOND USABILITY PASS MERGED / USER TESTING NEXT`
 
-첫 실사용 피드백 1~13은 구현/병합 완료되었습니다. 현재는 첫 통합 Windows 빌드를 실제 사용한 뒤 받은 **2차 실사용 피드백 1~7**을 반영하고 있습니다.
+첫 실사용 피드백 1~13은 구현/병합 완료되었습니다.
 
-현재 작업 브랜치/PR:
-
-```text
-agent/usability-second-pass
-PR #36
-```
+첫 통합 Windows 빌드를 실제 사용한 뒤 받은 **2차 실사용 피드백 1~7**도 PR #36으로 구현·검증·main 병합 완료했습니다.
 
 상세 결정: `docs/SECOND_USABILITY_PASS.md`
 
@@ -55,6 +50,7 @@ PR #36
 - C#
 - WPF Desktop
 - SQLite
+- SkiaSharp — 외부 이미지 decode/PNG normalize
 - Core / Infrastructure / Application / Desktop 4계층
 - 별도 backend 없음
 - runtime AI/GPT 없음
@@ -125,17 +121,19 @@ Wiki enrichment 실패는 기본 Game Content 업데이트 실패가 아닙니�
 
 ### Content snapshot schema
 
-현재 작업 PR #36에서 **v2**로 변경합니다.
+현재 schema: **v2**
 
-이유:
+v2에서 canonical `GameItem`에 Tarkov item category metadata가 추가되었습니다.
 
-- Item 화면이 Tarkov item category metadata를 사용하도록 canonical `GameItem`이 확장됨
+이전 테스트 빌드의 v1 `content.db`는 새 빌드 실행 시 온라인 데이터로 자동 재구축됩니다.
 
-동작:
+`user.db`는 별도이므로 다음 User Progress는 유지됩니다.
 
-- 기존 v1 content.db는 호환되지 않는 것으로 감지
-- 프로그램이 온라인 데이터를 다시 받아 v2 content.db 생성
-- `user.db`는 별도이므로 Profile/Quest/Hideout/Inventory 진행은 유지
+- Profile
+- Quest 완료/실패
+- Hideout level
+- Trader 진행
+- FIR / Non-FIR Inventory
 
 ---
 
@@ -163,24 +161,23 @@ Core가 계산하는 상태:
 - Locked
 - Unavailable
 - Completed
-- Indeterminate — 진단 상태
+- Indeterminate — 내부 진단 상태
 
-### 2차 실사용 정책 — PR #36
+### residual Indeterminate 정책 — PR #36
 
 사용자 화면에서 끝까지 남은 `Indeterminate` Quest는 **Current(진행 중)** 으로 취급합니다.
 
-중요:
-
-- Core의 진단 reason은 삭제하지 않음
-- 확정 가능한 Locked/Unavailable을 Current로 바꾸지 않음
+- Core diagnostic reason은 보존
+- 확정 가능한 Locked/Unavailable은 변경하지 않음
 - Application 제품 경계에서 residual Indeterminate만 Current로 승격
-- 사용자는 해당 Quest를 완료 처리할 수 있음
+- 사용자가 완료 처리 가능
+- 별도 `판정 문제` 목록으로 사용 흐름을 막지 않음
 
 ### Quest 상세 UI — PR #36
 
-제출 Item을 문자열 dump로 표시하지 않습니다.
+제출 Item은 문자열 dump가 아니라 card/list로 표시합니다.
 
-각 Item을 card 형태로 표시:
+각 Item:
 
 - icon
 - 이름
@@ -193,7 +190,7 @@ Core가 계산하는 상태:
 - Quest Item 클릭 → Item 상세
 - 선행 Quest 클릭 → 해당 Quest 상세
 
-링크 기준은 이름이 아니라 stable ID입니다.
+navigation은 표시 이름이 아니라 stable ID를 사용합니다.
 
 ### 기존 구현
 
@@ -210,7 +207,7 @@ Core가 계산하는 상태:
 
 - 미입력 = Lv.0
 - `- / 현재 레벨 / +`
-- 상세은 바로 다음 upgrade
+- 상세는 바로 다음 upgrade
 - Needed Items는 현재 레벨보다 높은 모든 미래 upgrade material
 - canonical station image
 
@@ -234,23 +231,15 @@ cleanup:
 - 유동 제출 후보 보호
 - 안전성을 증명하지 못하면 판단 보류
 
-### 2차 Item UI — PR #36
+### 유동 제출 분리 — PR #36
 
-#### 유동 제출 분리
+유동 제출 때문에만 목록에 들어온 후보는 일반 Item 목록에서 제외합니다.
 
-유동 제출 때문에만 목록에 들어온 후보를 일반 Item 목록에서 제거합니다.
+별도 `유동 제출 보기`에서 모든 후보에 계속 접근할 수 있습니다.
 
-별도:
+고정 필요/실제 보유에도 관련 있는 후보는 일반 목록에 남을 수 있습니다.
 
-```text
-유동 제출 보기
-```
-
-에서 모든 후보를 계속 접근할 수 있습니다.
-
-고정 필요/실제 보유와도 관련 있는 후보는 일반 목록에 남을 수 있습니다.
-
-#### Item 종류 분류
+### Item 종류 분류 — PR #36
 
 `json.tarkov.dev`의 `item.categories` + `itemCategories.normalizedName`을 importer가 읽습니다.
 
@@ -275,7 +264,7 @@ Desktop 상위 분류:
 
 알 수 없는 미래 category는 누락하지 않고 `기타`로 표시합니다.
 
-#### Item → Quest
+### Item → Quest — PR #36
 
 Item 필요 출처의 Quest 또는 유동 제출 Quest를 클릭하면 해당 Quest 상세로 이동합니다.
 
@@ -283,18 +272,13 @@ Quest 상세에서 선택한 Item이 현재 Needed 목록에 없더라도 canoni
 
 ---
 
-## 이미지 cache — PR #36 수정
+## 이미지 cache — PR #36 수정 완료
 
-기존 증상:
+기존 문제:
 
-- Item/Hideout/Ammo icon URL이 존재하지만 일부 Windows 환경에서 이미지가 표시되지 않음
+- canonical icon URL은 존재하지만 WebP 계열 source를 WPF가 PC codec 환경에 따라 decode하지 못해 아이콘이 보이지 않을 수 있었음
 
-원인:
-
-- canonical source에 WebP 계열 이미지 존재
-- 기존 WPF BitmapImage 직접 decode가 PC codec 환경에 의존
-
-새 pipeline:
+현재 pipeline:
 
 ```text
 canonical URL
@@ -306,15 +290,18 @@ canonical URL
 → WPF
 ```
 
+대상:
+
+- Item
+- Hideout
+- Ammo
+- Quest Item
+
 이미지 실패는 계속 non-fatal입니다.
 
 ---
 
-## ScrollBar — PR #36 수정
-
-기존에는 일부 색/Thumb만 바꿔 native WPF scrollbar chrome이 남았습니다.
-
-현재 작업:
+## ScrollBar — PR #36 수정 완료
 
 - vertical/horizontal 전체 template 교체
 - native arrow chrome 제거
@@ -348,26 +335,32 @@ canonical URL
 
 ---
 
-## 2차 실사용 피드백 진행 상태
+## 2차 실사용 피드백 상태
 
 | 번호 | 요구 | 상태 |
 |---:|---|---|
-| 1 | 아이콘 미표시 수정 | 구현, CI/Windows build 검증 중 (PR #36) |
-| 2 | residual 판정불가 Quest를 진행 중 처리 | 구현, 회귀 test 검증 중 (PR #36) |
-| 3 | ScrollBar 디자인 수정 | 구현, Windows UI 검증 중 (PR #36) |
-| 4 | 유동 제출 후보 별도 분류 | 구현, 통합 검증 중 (PR #36) |
-| 5 | Tarkov식 Item 종류 분류 | 구현, online category 재구축 검증 중 (PR #36) |
-| 6 | Quest Item icon/list UI | 구현, 통합 검증 중 (PR #36) |
-| 7 | Quest ↔ Item / 선행 Quest 상호 이동 | 구현, 통합 검증 중 (PR #36) |
+| 1 | 아이콘 미표시 수정 | 구현/검증/병합 완료 (PR #36) |
+| 2 | residual 판정불가 Quest를 진행 중 처리 | 구현/검증/병합 완료 (PR #36) |
+| 3 | ScrollBar 디자인 수정 | 구현/검증/병합 완료 (PR #36) |
+| 4 | 유동 제출 후보 별도 분류 | 구현/검증/병합 완료 (PR #36) |
+| 5 | Tarkov식 Item 종류 분류 | 구현/검증/병합 완료 (PR #36) |
+| 6 | Quest Item icon/list UI | 구현/검증/병합 완료 (PR #36) |
+| 7 | Quest ↔ Item / 선행 Quest 상호 이동 | 구현/검증/병합 완료 (PR #36) |
+
+검증 checkpoint:
+
+- Windows Release Desktop build 성공
+- 전체 automated test 성공
+- Windows x64 publish/ZIP 성공
+- documentation-inclusive CI 성공
+- unresolved review thread 없음
 
 ---
 
 ## 현재 다음 작업
 
-1. PR #36 최신 head Release build / 전체 tests 통과
-2. Windows x64 publish artifact 생성
-3. PR review thread 최종 확인
-4. 문서 상태를 `VERIFIED`로 갱신
-5. main 병합
-6. 사용자에게 새 Windows test build 전달
-7. 실제 사용 결과를 바탕으로 다음 피드백 반영
+1. PR #36 코드가 포함된 새 Windows x64 테스트 빌드를 사용자에게 전달
+2. 기존 테스트 데이터로 v1 → v2 content 자동 재구축 확인
+3. 실제 PC에서 아이콘/스크롤/분류/상호 이동 사용성 확인
+4. 추가 실사용 피드백 반영
+5. 새 요구가 없다면 Map 실제 기능과 Scanner 실제 기능의 제품 요구사항 정의
