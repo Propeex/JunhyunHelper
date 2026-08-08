@@ -10,6 +10,7 @@ public sealed class UserProfileStoreTests
     [Fact]
     public async Task SavesAndLoadsProfileFactsWithoutDerivedState()
     {
+        var cancellationToken = TestContext.Current.CancellationToken;
         var directory = CreateTempDirectory();
         try
         {
@@ -41,8 +42,8 @@ public sealed class UserProfileStoreTests
                 },
             };
 
-            await store.SaveAsync(profile);
-            var loaded = await store.LoadAsync(profile.ProfileId);
+            await store.SaveAsync(profile, cancellationToken);
+            var loaded = await store.LoadAsync(profile.ProfileId, cancellationToken);
 
             Assert.NotNull(loaded);
             Assert.Equal(profile.ProfileId, loaded.ProfileId);
@@ -65,14 +66,15 @@ public sealed class UserProfileStoreTests
     [Fact]
     public async Task DifferentGameModeProfilesRemainIndependent()
     {
+        var cancellationToken = TestContext.Current.CancellationToken;
         var directory = CreateTempDirectory();
         try
         {
             var store = new UserProfileStore(Path.Combine(directory, "user.db"));
-            await store.SaveAsync(Profile("pvp", GameMode.Regular, level: 20));
-            await store.SaveAsync(Profile("pve", GameMode.Pve, level: 55));
+            await store.SaveAsync(Profile("pvp", GameMode.Regular, level: 20), cancellationToken);
+            await store.SaveAsync(Profile("pve", GameMode.Pve, level: 55), cancellationToken);
 
-            var profiles = await store.LoadAllAsync();
+            var profiles = await store.LoadAllAsync(cancellationToken);
 
             Assert.Equal(2, profiles.Count);
             Assert.Contains(profiles, profile =>
@@ -93,18 +95,19 @@ public sealed class UserProfileStoreTests
     [Fact]
     public async Task SavingSameProfileReplacesFactsAtomicallyAtProfileLevel()
     {
+        var cancellationToken = TestContext.Current.CancellationToken;
         var directory = CreateTempDirectory();
         try
         {
             var store = new UserProfileStore(Path.Combine(directory, "user.db"));
-            await store.SaveAsync(Profile("pvp", GameMode.Regular, level: 10));
-            await store.SaveAsync(Profile("pvp", GameMode.Regular, level: 11));
+            await store.SaveAsync(Profile("pvp", GameMode.Regular, level: 10), cancellationToken);
+            await store.SaveAsync(Profile("pvp", GameMode.Regular, level: 11), cancellationToken);
 
-            var loaded = await store.LoadAsync("pvp");
+            var loaded = await store.LoadAsync("pvp", cancellationToken);
 
             Assert.NotNull(loaded);
             Assert.Equal(11, loaded.Level);
-            Assert.Single(await store.LoadAllAsync());
+            Assert.Single(await store.LoadAllAsync(cancellationToken));
         }
         finally
         {
@@ -115,6 +118,7 @@ public sealed class UserProfileStoreTests
     [Fact]
     public async Task InvalidNegativeInventoryIsRejectedInsteadOfNormalizedSilently()
     {
+        var cancellationToken = TestContext.Current.CancellationToken;
         var directory = CreateTempDirectory();
         try
         {
@@ -127,7 +131,8 @@ public sealed class UserProfileStoreTests
                 },
             };
 
-            await Assert.ThrowsAsync<InvalidDataException>(() => store.SaveAsync(profile));
+            await Assert.ThrowsAsync<InvalidDataException>(
+                () => store.SaveAsync(profile, cancellationToken));
         }
         finally
         {
