@@ -104,6 +104,78 @@ public sealed class ProfileApplicationServiceTests
         }
     }
 
+    [Fact]
+    public async Task DeleteRemovesOnlyTargetProfileAndAllowsModeRecreation()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var databasePath = TempDatabasePath();
+
+        try
+        {
+            var store = new UserProfileStore(databasePath);
+            var service = new ProfileApplicationService(store);
+            await store.SaveAsync(new GameProfileSnapshot
+            {
+                ProfileId = "regular",
+                GameMode = GameMode.Regular,
+                Level = 30,
+                Faction = PmcFaction.Usec,
+                CompletedQuestIds = new HashSet<string>(["quest-a"], StringComparer.Ordinal),
+                Inventory = new Dictionary<string, InventoryQuantity>(StringComparer.Ordinal)
+                {
+                    ["item-a"] = new InventoryQuantity(2, 3),
+                },
+            }, cancellationToken);
+            await store.SaveAsync(new GameProfileSnapshot
+            {
+                ProfileId = "pve",
+                GameMode = GameMode.Pve,
+                Level = 45,
+                Faction = PmcFaction.Bear,
+            }, cancellationToken);
+
+            await service.DeleteAsync("regular", cancellationToken);
+
+            Assert.Null(await store.LoadAsync("regular", cancellationToken));
+            Assert.NotNull(await store.LoadAsync("pve", cancellationToken));
+
+            var recreated = await service.CreateAsync(
+                GameMode.Regular,
+                level: 1,
+                PmcFaction.Bear,
+                editionId: null,
+                prestigeLevel: null,
+                traders: new Dictionary<string, TraderProgress>(StringComparer.Ordinal),
+                cancellationToken);
+            Assert.Equal("regular", recreated.ProfileId);
+            Assert.Empty(recreated.CompletedQuestIds);
+            Assert.Empty(recreated.Inventory);
+        }
+        finally
+        {
+            DeleteIfExists(databasePath);
+        }
+    }
+
+    [Fact]
+    public async Task DeleteMissingProfileFailsExplicitly()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var databasePath = TempDatabasePath();
+
+        try
+        {
+            var service = new ProfileApplicationService(new UserProfileStore(databasePath));
+
+            await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+                service.DeleteAsync("missing", cancellationToken));
+        }
+        finally
+        {
+            DeleteIfExists(databasePath);
+        }
+    }
+
     private static string TempDatabasePath() =>
         Path.Combine(Path.GetTempPath(), $"JunhyunHelper-ProfileApp-{Guid.NewGuid():N}.db");
 
