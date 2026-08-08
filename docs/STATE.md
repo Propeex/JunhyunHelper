@@ -6,22 +6,23 @@
 
 **Phase 2B — 핵심 Desktop 흐름 구현 + 실사용 피드백 반복 개선**
 
-상태: `THIRD USABILITY PASS VERIFIED / USER TEST BUILD NEXT`
+상태: `THIRD USABILITY PASS MERGED / USER TESTING`
 
-3차 실사용 피드백 구현은 PR #37에서 완료되었고 Windows CI로 검증되었습니다.
+3차 실사용 피드백 구현은 PR #37로 main에 병합 완료되었고 Windows CI와 전달용 ZIP 무결성까지 검증되었습니다.
 
 상세 요구/구현: `docs/THIRD_USABILITY_PASS.md`
 
 검증 checkpoint:
 
 ```text
-PR #37
-GitHub Actions 31272266508
+PR #37: merged
+final PR CI: 31272387911
 Release Desktop build: success
 full automated tests: success
 Windows x64 publish: success
 ZIP/artifact upload: success
 review threads: none
+final delivery ZIP CRC: success
 ```
 
 ---
@@ -308,7 +309,7 @@ canonical URL
 
 - 첫 실사용 피드백 1~13: 구현/병합 완료
 - 2차 실사용 피드백 1~7: PR #36 구현/검증/병합 완료
-- 3차 실사용 피드백 1~10: PR #37 구현/Windows CI 검증 완료
+- 3차 실사용 피드백 1~10: PR #37 구현/검증/병합 완료
 
 3차 상세: `docs/THIRD_USABILITY_PASS.md`
 
@@ -316,9 +317,6 @@ canonical URL
 
 ## 현재 다음 작업
 
-1. 검증된 PR #37을 main에 반영
-2. Windows x64 artifact를 다운로드해 ZIP 중첩/CRC를 직접 확인
-3. 사용자에게 새 테스트 빌드 전달
-4. 실제 PC 사용 결과를 다음 피드백으로 반영
-
-새 실사용 피드백이 없다면 이후 큰 기능은 Map 실제 기능과 Scanner 실제 기능의 제품 요구사항 정의입니다.
+1. 사용자가 3차 Windows 테스트 빌드를 실제 사용
+2. 발견된 불편/오류를 다음 실사용 피드백으로 반영
+3. 새 실사용 피드백이 없다면 Map 실제 기능과 Scanner 실제 기능의 제품 요구사항 정의
