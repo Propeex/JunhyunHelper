@@ -53,7 +53,13 @@ public sealed class QuestApplicationService
         {
             questId,
         };
-        var updated = profile with { CompletedQuestIds = completed };
+        var failed = new HashSet<string>(profile.FailedQuestIds, StringComparer.Ordinal);
+        failed.Remove(questId);
+        var updated = profile with
+        {
+            CompletedQuestIds = completed,
+            FailedQuestIds = failed,
+        };
 
         await _profileStore.SaveAsync(updated, cancellationToken);
         return BuildWorkspace(content, updated);
