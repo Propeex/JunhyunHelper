@@ -1,6 +1,7 @@
 using System.IO;
 using System.Net.Http;
 using JunhyunHelper.Application.Hideout;
+using JunhyunHelper.Application.Items;
 using JunhyunHelper.Application.Profiles;
 using JunhyunHelper.Application.Quests;
 using JunhyunHelper.Infrastructure.Content;
@@ -41,6 +42,7 @@ public sealed class DesktopServices : IDisposable
         ProfileManagement = new ProfileApplicationService(Profiles);
         Quests = new QuestApplicationService(Profiles);
         Hideout = new HideoutApplicationService(Profiles);
+        Items = new ItemsApplicationService(Profiles);
     }
 
     public string RootDirectory { get; }
@@ -56,6 +58,8 @@ public sealed class DesktopServices : IDisposable
     public QuestApplicationService Quests { get; }
 
     public HideoutApplicationService Hideout { get; }
+
+    public ItemsApplicationService Items { get; }
 
     public void Dispose() => _httpClient.Dispose();
 }
