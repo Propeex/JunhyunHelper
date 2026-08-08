@@ -260,7 +260,9 @@ public sealed class WikiBallisticsEffectivenessClient
                 $"Tarkov Wiki에서 같은 탄약에 서로 다른 Class 효율값이 연결된 {conflicting}건을 제외했습니다.");
         }
 
-        var minimumHealthyMatches = Math.Max(20, content.Ammunition.Count / 2);
+        var minimumHealthyMatches = Math.Min(
+            content.Ammunition.Count,
+            Math.Max(20, content.Ammunition.Count / 2));
         if (resolved.Count < minimumHealthyMatches)
         {
             warnings.Add(
