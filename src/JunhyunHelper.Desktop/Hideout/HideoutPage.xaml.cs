@@ -23,6 +23,7 @@ public partial class HideoutPage : UserControl
     private ImageCacheService? _imageCache;
     private IReadOnlyList<StationRow> _rows = [];
     private CancellationTokenSource? _iconLoadCts;
+    private CancellationTokenSource? _materialIconLoadCts;
 
     public HideoutPage()
     {
@@ -102,6 +103,34 @@ public partial class HideoutPage : UserControl
         }
     }
 
+    private async Task LoadMaterialIconsAsync(
+        IReadOnlyList<HideoutMaterialRow> rows,
+        CancellationToken cancellationToken)
+    {
+        if (_imageCache is null)
+            return;
+
+        try
+        {
+            foreach (var row in rows)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (string.IsNullOrWhiteSpace(row.IconUrl))
+                    continue;
+
+                var image = await _imageCache.LoadAsync(
+                    $"hideout-material-{row.ItemId}",
+                    row.IconUrl,
+                    cancellationToken);
+                if (image is not null && !cancellationToken.IsCancellationRequested)
+                    row.Icon = image;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e) => ApplySearch();
 
     private void ApplySearch()
@@ -146,6 +175,10 @@ public partial class HideoutPage : UserControl
         LevelMinusButton.IsEnabled = currentLevel > 0;
         LevelPlusButton.IsEnabled = currentLevel < entry.MaximumLevel;
 
+        _materialIconLoadCts?.Cancel();
+        _materialIconLoadCts?.Dispose();
+        _materialIconLoadCts = null;
+
         if (entry.NextLevel is null)
         {
             NextLevelHeader.Text = "다음 업그레이드";
@@ -161,16 +194,26 @@ public partial class HideoutPage : UserControl
             : "아이템 요구사항이 없습니다.";
 
         var items = _content.Items.ToDictionary(item => item.Id, StringComparer.Ordinal);
-        NextLevelItems.ItemsSource = entry.NextLevel.ItemRequirements
+        var materialRows = entry.NextLevel.ItemRequirements
             .Select(requirement =>
             {
-                var itemName = items.TryGetValue(requirement.ItemId, out var item)
-                    ? DisplayName(item.NameKo, item.NameEn, requirement.ItemId)
-                    : requirement.ItemId;
-                var fir = requirement.FoundInRaid ? " · FIR" : string.Empty;
-                return $"• {itemName} × {requirement.Count}{fir}";
+                items.TryGetValue(requirement.ItemId, out var item);
+                var itemName = item is null
+                    ? requirement.ItemId
+                    : DisplayName(item.NameKo, item.NameEn, item.Id);
+                return new HideoutMaterialRow(
+                    requirement.ItemId,
+                    itemName,
+                    item?.IconUrl,
+                    $"× {requirement.Count}",
+                    requirement.FoundInRaid);
             })
+            .OrderBy(material => material.Name, StringComparer.CurrentCulture)
             .ToArray();
+
+        NextLevelItems.ItemsSource = materialRows;
+        _materialIconLoadCts = new CancellationTokenSource();
+        _ = LoadMaterialIconsAsync(materialRows, _materialIconLoadCts.Token);
 
         ConstructionTimeText.Text = entry.NextLevel.ConstructionTimeSeconds is > 0
             ? $"건설 시간: {FormatDuration(entry.NextLevel.ConstructionTimeSeconds.Value)}"
@@ -198,9 +241,13 @@ public partial class HideoutPage : UserControl
 
     private void ClearDetail()
     {
+        _materialIconLoadCts?.Cancel();
+        _materialIconLoadCts?.Dispose();
+        _materialIconLoadCts = null;
         DetailScroll.Visibility = Visibility.Collapsed;
         EmptyDetailText.Visibility = Visibility.Visible;
         DetailIcon.Source = null;
+        NextLevelItems.ItemsSource = null;
     }
 
     private static string FormatDuration(int seconds)
@@ -234,6 +281,46 @@ public partial class HideoutPage : UserControl
         public HideoutStationEntry Entry { get; }
         public string Name { get; }
         public string LevelText { get; }
+
+        public ImageSource? Icon
+        {
+            get => _icon;
+            set
+            {
+                if (ReferenceEquals(_icon, value))
+                    return;
+                _icon = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Icon)));
+            }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+    }
+
+    private sealed class HideoutMaterialRow : INotifyPropertyChanged
+    {
+        private ImageSource? _icon;
+
+        public HideoutMaterialRow(
+            string itemId,
+            string name,
+            string? iconUrl,
+            string amountText,
+            bool inRaid)
+        {
+            ItemId = itemId;
+            Name = name;
+            IconUrl = iconUrl;
+            AmountText = amountText;
+            InRaid = inRaid;
+        }
+
+        public string ItemId { get; }
+        public string Name { get; }
+        public string? IconUrl { get; }
+        public string AmountText { get; }
+        public bool InRaid { get; }
+        public Visibility InRaidVisibility => InRaid ? Visibility.Visible : Visibility.Collapsed;
 
         public ImageSource? Icon
         {
