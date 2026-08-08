@@ -7,7 +7,8 @@ namespace JunhyunHelper.Application.Items;
 
 public sealed record ItemsWorkspace(
     GameProfileSnapshot Profile,
-    FutureNeededItemsPlan Plan);
+    FutureNeededItemsPlan Plan,
+    IReadOnlyList<FlexibleQuestItemProgress> FlexibleQuestItemProgresses);
 
 public sealed class ItemsApplicationService
 {
@@ -65,6 +66,15 @@ public sealed class ItemsApplicationService
 
     private static ItemsWorkspace Build(
         GameContentCatalog content,
-        GameProfileSnapshot profile) =>
-        new(profile, FutureNeededItemsPlanner.Calculate(content, profile));
+        GameProfileSnapshot profile)
+    {
+        var plan = FutureNeededItemsPlanner.Calculate(content, profile);
+        var flexibleProgresses = plan.AlternativeQuestRequirements
+            .Select(requirement => FlexibleQuestItemRequirementCalculator.Calculate(requirement, profile.Inventory))
+            .OrderBy(progress => progress.QuestId, StringComparer.Ordinal)
+            .ThenBy(progress => progress.ObjectiveId, StringComparer.Ordinal)
+            .ToArray();
+
+        return new ItemsWorkspace(profile, plan, flexibleProgresses);
+    }
 }
