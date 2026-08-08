@@ -1,3 +1,4 @@
+using JunhyunHelper.Core.Ammo;
 using JunhyunHelper.Core.Content;
 
 namespace JunhyunHelper.Infrastructure.Validation;
@@ -29,6 +30,7 @@ public sealed class GameContentValidator
         var traderIds = content.Traders.Select(trader => trader.Id).ToHashSet(StringComparer.Ordinal);
         var mapIds = content.Maps.Select(map => map.Id).ToHashSet(StringComparer.Ordinal);
         var questIds = content.Quests.Select(quest => quest.Id).ToHashSet(StringComparer.Ordinal);
+        var stationIds = content.HideoutStations.Select(station => station.Id).ToHashSet(StringComparer.Ordinal);
 
         foreach (var quest in content.Quests)
         {
@@ -121,7 +123,87 @@ public sealed class GameContentValidator
             }
         }
 
+        ValidateAmmo(
+            content.Ammunition,
+            itemIds,
+            traderIds,
+            stationIds,
+            questIds,
+            issues);
+
         return new ContentValidationResult(issues);
+    }
+
+    private static void ValidateAmmo(
+        IEnumerable<AmmoDefinition> ammunition,
+        IReadOnlySet<string> itemIds,
+        IReadOnlySet<string> traderIds,
+        IReadOnlySet<string> stationIds,
+        IReadOnlySet<string> questIds,
+        ICollection<ContentValidationIssue> issues)
+    {
+        var ammoIds = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var ammo in ammunition)
+        {
+            if (!ammoIds.Add(ammo.ItemId))
+            {
+                Fatal(issues, "ammo.duplicate", $"Ammo item '{ammo.ItemId}' appears more than once.");
+            }
+
+            if (!itemIds.Contains(ammo.ItemId))
+            {
+                Fatal(issues, "ammo.item.missing", $"Ammo references missing item '{ammo.ItemId}'.");
+            }
+
+            foreach (var acquisition in ammo.Acquisitions)
+            {
+                if (acquisition.TraderId is not null && !traderIds.Contains(acquisition.TraderId))
+                {
+                    Fatal(
+                        issues,
+                        "ammo.trader.missing",
+                        $"Ammo '{ammo.ItemId}' acquisition references missing trader '{acquisition.TraderId}'.");
+                }
+
+                if (acquisition.StationId is not null && !stationIds.Contains(acquisition.StationId))
+                {
+                    Fatal(
+                        issues,
+                        "ammo.station.missing",
+                        $"Ammo '{ammo.ItemId}' craft references missing hideout station '{acquisition.StationId}'.");
+                }
+
+                if (acquisition.TaskUnlockQuestId is not null &&
+                    !questIds.Contains(acquisition.TaskUnlockQuestId))
+                {
+                    Fatal(
+                        issues,
+                        "ammo.unlock-quest.missing",
+                        $"Ammo '{ammo.ItemId}' acquisition references missing unlock quest '{acquisition.TaskUnlockQuestId}'.");
+                }
+
+                if (acquisition.CurrencyItemId is not null &&
+                    !itemIds.Contains(acquisition.CurrencyItemId))
+                {
+                    Fatal(
+                        issues,
+                        "ammo.currency.missing",
+                        $"Ammo '{ammo.ItemId}' purchase references missing currency item '{acquisition.CurrencyItemId}'.");
+                }
+
+                foreach (var requirement in acquisition.Requirements)
+                {
+                    if (!itemIds.Contains(requirement.ItemId))
+                    {
+                        Fatal(
+                            issues,
+                            "ammo.requirement-item.missing",
+                            $"Ammo '{ammo.ItemId}' acquisition references missing required item '{requirement.ItemId}'.");
+                    }
+                }
+            }
+        }
     }
 
     private static void Fatal(
