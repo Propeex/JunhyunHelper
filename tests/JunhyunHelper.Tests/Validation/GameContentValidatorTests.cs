@@ -1,4 +1,5 @@
 using JunhyunHelper.Core.Content;
+using JunhyunHelper.Core.Editions;
 using JunhyunHelper.Core.Hideout;
 using JunhyunHelper.Core.Items;
 using JunhyunHelper.Core.Quests;
@@ -45,9 +46,79 @@ public sealed class GameContentValidatorTests
         Assert.Contains(result.Issues, issue => issue.Code == "quest.prerequisite.missing");
     }
 
+    [Fact]
+    public void ConflictingEditionQuestRuleIsFatal()
+    {
+        var content = CreateCatalog(
+            "item-a",
+            "quest-prereq",
+            [
+                new EditionDefinition(
+                    "edition-a",
+                    "Edition A",
+                    new HashSet<string>(StringComparer.Ordinal) { "quest-a" },
+                    new HashSet<string>(StringComparer.Ordinal) { "quest-a" }),
+            ]);
+
+        var result = new GameContentValidator().Validate(content);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Issues, issue =>
+            issue.Severity == ContentValidationSeverity.Fatal &&
+            issue.Code == "edition.quest-rule.conflict");
+    }
+
+    [Fact]
+    public void EditionQuestMissingFromThisModeIsWarningNotFatal()
+    {
+        var content = CreateCatalog(
+            "item-a",
+            "quest-prereq",
+            [
+                new EditionDefinition(
+                    "edition-a",
+                    "Edition A",
+                    new HashSet<string>(StringComparer.Ordinal) { "quest-other-mode" },
+                    new HashSet<string>(StringComparer.Ordinal)),
+            ]);
+
+        var result = new GameContentValidator().Validate(content);
+
+        Assert.True(result.IsValid);
+        Assert.Contains(result.Issues, issue =>
+            issue.Severity == ContentValidationSeverity.Warning &&
+            issue.Code == "edition.quest.missing-in-mode");
+    }
+
+    [Fact]
+    public void DuplicateEditionIdIsFatalEvenIfSnapshotWasConstructedDirectly()
+    {
+        var content = CreateCatalog(
+            "item-a",
+            "quest-prereq",
+            [
+                new EditionDefinition(
+                    "edition-a",
+                    "Edition A",
+                    new HashSet<string>(StringComparer.Ordinal),
+                    new HashSet<string>(StringComparer.Ordinal)),
+                new EditionDefinition(
+                    "edition-a",
+                    "Edition A duplicate",
+                    new HashSet<string>(StringComparer.Ordinal),
+                    new HashSet<string>(StringComparer.Ordinal)),
+            ]);
+
+        var result = new GameContentValidator().Validate(content);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Issues, issue => issue.Code == "edition.duplicate");
+    }
+
     private static GameContentCatalog CreateCatalog(
         string itemRequirementId,
-        string prerequisiteId)
+        string prerequisiteId,
+        IReadOnlyList<EditionDefinition>? editions = null)
     {
         var quest = new QuestDefinition(
             "quest-a",
@@ -141,6 +212,8 @@ public sealed class GameContentValidatorTests
                                     false),
                             }),
                     }),
-            });
+            },
+            Ammo: [],
+            EditionData: editions ?? []);
     }
 }
