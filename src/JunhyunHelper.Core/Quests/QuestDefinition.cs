@@ -46,8 +46,4 @@ public sealed record QuestDefinition(
     IReadOnlyList<QuestTaskRequirement> TaskRequirements,
     IReadOnlyList<QuestTraderStandingRequirement> TraderStandingRequirements,
     IReadOnlyList<QuestTraderLoyaltyRequirement> TraderLoyaltyRequirements,
-    IReadOnlyList<string>? UnsupportedAvailabilityRequirementTypes = null)
-{
-    public IReadOnlyList<string> UnsupportedAvailabilityRequirements =>
-        UnsupportedAvailabilityRequirementTypes ?? Array.Empty<string>();
-}
+    IReadOnlyList<string>? UnsupportedAvailabilityRequirements = null);
