@@ -65,6 +65,51 @@ internal static class TarkovJsonReader
             : null;
     }
 
+    public static int RequiredInt(JsonElement value, string propertyName, string entityName)
+    {
+        if (value.ValueKind == JsonValueKind.Object &&
+            value.TryGetProperty(propertyName, out var property) &&
+            property.ValueKind == JsonValueKind.Number &&
+            property.TryGetInt32(out var number))
+        {
+            return number;
+        }
+
+        throw new InvalidDataException(
+            $"{entityName} is missing required integer '{propertyName}'.");
+    }
+
+    public static int? OptionalInt(JsonElement value, string propertyName)
+    {
+        if (value.ValueKind != JsonValueKind.Object ||
+            !value.TryGetProperty(propertyName, out var property) ||
+            property.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            return null;
+        }
+
+        return property.ValueKind == JsonValueKind.Number && property.TryGetInt32(out var number)
+            ? number
+            : null;
+    }
+
+    public static bool? OptionalBool(JsonElement value, string propertyName)
+    {
+        if (value.ValueKind != JsonValueKind.Object ||
+            !value.TryGetProperty(propertyName, out var property) ||
+            property.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            return null;
+        }
+
+        return property.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            _ => null,
+        };
+    }
+
     public static string? ReferenceId(JsonElement value)
     {
         return value.ValueKind switch
