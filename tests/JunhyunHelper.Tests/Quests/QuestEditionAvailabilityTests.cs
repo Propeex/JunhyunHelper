@@ -26,11 +26,11 @@ public sealed class QuestEditionAvailabilityTests
         new HashSet<string>(StringComparer.Ordinal) { "old-patterns" });
 
     [Fact]
-    public void ExclusiveQuestIsLockedForOtherEdition()
+    public void ExclusiveQuestIsUnavailableForOtherEdition()
     {
         var result = Evaluate(Quest("eod-only"), Profile("standard"));
 
-        Assert.Equal(QuestAvailabilityState.Locked, result.State);
+        Assert.Equal(QuestAvailabilityState.Unavailable, result.State);
         Assert.Contains(result.Reasons, reason => reason.Kind == QuestAvailabilityReasonKind.Edition);
     }
 
@@ -43,11 +43,11 @@ public sealed class QuestEditionAvailabilityTests
     }
 
     [Fact]
-    public void ExcludedQuestIsLockedForExcludedEdition()
+    public void ExcludedQuestIsUnavailableForExcludedEdition()
     {
         var result = Evaluate(Quest("old-patterns"), Profile("unheard"));
 
-        Assert.Equal(QuestAvailabilityState.Locked, result.State);
+        Assert.Equal(QuestAvailabilityState.Unavailable, result.State);
         Assert.Contains(result.Reasons, reason => reason.Kind == QuestAvailabilityReasonKind.Edition);
     }
 

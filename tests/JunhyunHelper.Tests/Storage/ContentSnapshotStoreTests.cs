@@ -44,6 +44,8 @@ public sealed class ContentSnapshotStoreTests
             var quest = Assert.Single(loaded.Content.Quests);
             Assert.Equal("quest-a", quest.Id);
             Assert.Equal("dialogue", Assert.Single(quest.UnsupportedAvailabilityRequirements));
+            Assert.Equal("quest-a", Assert.Single(quest.CompletionFailureConditions).TriggerQuestId);
+            Assert.Contains("shoot", quest.UnsupportedFailureConditions);
 
             Assert.Equal("station-a", Assert.Single(loaded.Content.HideoutStations).Id);
             Assert.Equal("fixture warning", Assert.Single(loaded.Warnings));
@@ -108,7 +110,10 @@ public sealed class ContentSnapshotStoreTests
                     },
                     Array.Empty<QuestTraderStandingRequirement>(),
                     Array.Empty<QuestTraderLoyaltyRequirement>(),
-                    new[] { "dialogue" }),
+                    new[] { "dialogue" },
+                    new[] { new QuestCompletionFailureCondition("quest-a") },
+                    false,
+                    new[] { "shoot" }),
             },
             Array.Empty<QuestObjective>(),
             new[]

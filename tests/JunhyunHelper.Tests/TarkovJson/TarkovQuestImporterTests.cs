@@ -108,6 +108,71 @@ public sealed class TarkovQuestImporterTests
         Assert.Equal(expectedOperator, standing.Operator);
     }
 
+
+    [Fact]
+    public void FailureConditionsPreserveCompletionTriggersAndUnsupportedTypes()
+    {
+        var document = Document("""
+            {
+              "data": {
+                "tasks": [
+                  {
+                    "id": "quest-a",
+                    "restartable": false,
+                    "failConditions": [
+                      {
+                        "type": "taskStatus",
+                        "status": ["complete"],
+                        "task": "quest-b"
+                      },
+                      {
+                        "type": "shoot"
+                      }
+                    ]
+                  },
+                  { "id": "quest-b" }
+                ]
+              }
+            }
+            """);
+
+        var quest = new TarkovQuestImporter()
+            .Import(document, new TarkovLocalization())
+            .Single(candidate => candidate.Id == "quest-a");
+
+        Assert.Equal("quest-b", Assert.Single(quest.CompletionFailureConditions).TriggerQuestId);
+        Assert.Contains("shoot", quest.UnsupportedFailureConditions);
+        Assert.False(quest.Restartable);
+        Assert.True(quest.RequiresExplicitFailureInput);
+    }
+
+    [Fact]
+    public void RestartableUnsupportedFailureDoesNotRequirePermanentManualState()
+    {
+        var document = Document("""
+            {
+              "data": {
+                "tasks": [
+                  {
+                    "id": "quest-a",
+                    "restartable": true,
+                    "failConditions": [
+                      { "type": "shoot" }
+                    ]
+                  }
+                ]
+              }
+            }
+            """);
+
+        var quest = Assert.Single(
+            new TarkovQuestImporter().Import(document, new TarkovLocalization()));
+
+        Assert.True(quest.Restartable);
+        Assert.Contains("shoot", quest.UnsupportedFailureConditions);
+        Assert.False(quest.RequiresExplicitFailureInput);
+    }
+
     [Fact]
     public void UnknownTraderRequirementTypeIsFatalInsteadOfGuessed()
     {
