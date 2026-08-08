@@ -10,7 +10,7 @@ namespace JunhyunHelper.Tests.Application;
 public sealed class HideoutApplicationServiceTests
 {
     [Fact]
-    public async Task UnenteredLevelStaysUnknownUntilUserSetsIt()
+    public async Task MissingLevelDefaultsToZeroAndExposesFirstUpgrade()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         var databasePath = TempDatabasePath();
@@ -25,8 +25,8 @@ public sealed class HideoutApplicationServiceTests
 
             var initial = await service.LoadAsync(content, profile.ProfileId, cancellationToken);
             var station = Assert.Single(initial.Stations);
-            Assert.Null(station.CurrentLevel);
-            Assert.Null(station.NextLevel);
+            Assert.Equal(0, station.CurrentLevel);
+            Assert.Equal(1, station.NextLevel?.Level);
 
             var entered = await service.SetLevelAsync(
                 content,
@@ -37,6 +37,7 @@ public sealed class HideoutApplicationServiceTests
             var enteredStation = Assert.Single(entered.Stations);
             Assert.Equal(0, enteredStation.CurrentLevel);
             Assert.Equal(1, enteredStation.NextLevel?.Level);
+            Assert.DoesNotContain("station-a", entered.Profile.HideoutLevels.Keys);
         }
         finally
         {
@@ -45,7 +46,7 @@ public sealed class HideoutApplicationServiceTests
     }
 
     [Fact]
-    public async Task ChangingHideoutLevelPreservesOtherProfileFactsAndCanBeCleared()
+    public async Task ChangingHideoutLevelPreservesOtherProfileFactsAndZeroUsesCompactStorage()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         var databasePath = TempDatabasePath();
@@ -71,14 +72,16 @@ public sealed class HideoutApplicationServiceTests
             Assert.Contains("quest-a", set.Profile.CompletedQuestIds);
             Assert.Null(Assert.Single(set.Stations).NextLevel);
 
-            var cleared = await service.SetLevelAsync(
+            var resetToZero = await service.SetLevelAsync(
                 content,
                 profile.ProfileId,
                 "station-a",
-                null,
+                0,
                 cancellationToken);
-            Assert.DoesNotContain("station-a", cleared.Profile.HideoutLevels.Keys);
-            Assert.Null(Assert.Single(cleared.Stations).CurrentLevel);
+            Assert.DoesNotContain("station-a", resetToZero.Profile.HideoutLevels.Keys);
+            Assert.Equal(0, Assert.Single(resetToZero.Stations).CurrentLevel);
+            Assert.Equal(1, Assert.Single(resetToZero.Stations).NextLevel?.Level);
+            Assert.Contains("quest-a", resetToZero.Profile.CompletedQuestIds);
         }
         finally
         {
