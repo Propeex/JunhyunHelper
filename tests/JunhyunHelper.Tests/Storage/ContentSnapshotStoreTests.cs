@@ -1,3 +1,4 @@
+using JunhyunHelper.Core.Ammo;
 using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.Hideout;
 using JunhyunHelper.Core.Items;
@@ -38,13 +39,20 @@ public sealed class ContentSnapshotStoreTests
             Assert.Equal(ContentSnapshotStore.CurrentSchemaVersion, loaded.SchemaVersion);
             Assert.Equal(GameMode.Regular, loaded.GameMode);
             Assert.Equal("item-a", Assert.Single(loaded.Content.Items).Id);
-            Assert.Equal("quest-a", Assert.Single(loaded.Content.Quests).Id);
+
+            var quest = Assert.Single(loaded.Content.Quests);
+            Assert.Equal("quest-a", quest.Id);
+            Assert.Equal("dialogue", Assert.Single(quest.UnsupportedAvailabilityRequirements));
+
             Assert.Equal("station-a", Assert.Single(loaded.Content.HideoutStations).Id);
             Assert.Equal("fixture warning", Assert.Single(loaded.Warnings));
 
-            var status = Assert.Single(
-                Assert.Single(loaded.Content.Quests).TaskRequirements).AcceptedStatuses;
+            var status = Assert.Single(quest.TaskRequirements).AcceptedStatuses;
             Assert.Contains(QuestRequiredStatus.Complete, status);
+
+            var ammo = Assert.Single(loaded.Content.Ammunition);
+            Assert.Equal("item-a", ammo.ItemId);
+            Assert.Equal(31, ammo.PenetrationPower);
         }
         finally
         {
@@ -94,7 +102,8 @@ public sealed class ContentSnapshotStoreTests
                             new HashSet<QuestRequiredStatus> { QuestRequiredStatus.Complete }),
                     },
                     Array.Empty<QuestTraderStandingRequirement>(),
-                    Array.Empty<QuestTraderLoyaltyRequirement>()),
+                    Array.Empty<QuestTraderLoyaltyRequirement>(),
+                    new[] { "dialogue" }),
             },
             Array.Empty<QuestObjective>(),
             new[]
@@ -129,6 +138,27 @@ public sealed class ContentSnapshotStoreTests
                                     false),
                             }),
                     }),
+            },
+            new[]
+            {
+                new AmmoDefinition(
+                    "item-a",
+                    "Caliber556x45NATO",
+                    "bullet",
+                    1,
+                    54,
+                    37,
+                    31,
+                    0.4m,
+                    0.2m,
+                    0m,
+                    -0.05m,
+                    922m,
+                    0.1m,
+                    0.2m,
+                    false,
+                    "none",
+                    Array.Empty<AmmoAcquisition>()),
             });
     }
 }
