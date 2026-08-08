@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using JunhyunHelper.Core.Profiles;
 
 namespace JunhyunHelper.Core.Quests;
@@ -46,4 +47,9 @@ public sealed record QuestDefinition(
     IReadOnlyList<QuestTaskRequirement> TaskRequirements,
     IReadOnlyList<QuestTraderStandingRequirement> TraderStandingRequirements,
     IReadOnlyList<QuestTraderLoyaltyRequirement> TraderLoyaltyRequirements,
-    IReadOnlyList<string>? UnsupportedAvailabilityRequirements = null);
+    IReadOnlyList<string>? UnsupportedAvailabilityRequirementTypes = null)
+{
+    [JsonIgnore]
+    public IReadOnlyList<string> UnsupportedAvailabilityRequirements =>
+        UnsupportedAvailabilityRequirementTypes ?? Array.Empty<string>();
+}
