@@ -104,6 +104,7 @@
             <hideout:HideoutPage x:Name="HideoutPage"
                                  Visibility="Collapsed" />
             <items:ItemsPage x:Name="ItemsPage"
+                             Loaded="ItemsPage_Loaded"
                              Visibility="Collapsed" />
             <ammo:AmmoPage x:Name="AmmoPage"
                            Visibility="Collapsed" />
@@ -129,8 +130,6 @@
                 </StackPanel>
             </Grid>
 
-            <!-- 기존 MainWindow의 busy 계약을 유지하기 위한 숨김 anchor입니다.
-                 실제 새 프로필 진입은 ProfileComboBox 내부 메뉴에서 제공합니다. -->
             <Button x:Name="CreateProfileButton"
                     Visibility="Collapsed"
                     IsHitTestVisible="False" />
