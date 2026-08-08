@@ -237,3 +237,23 @@
 - 대안/배경: 모든 실패 상태를 사용자가 직접 관리하거나, failed-only 선행조건을 결과가 정해질 때까지 전부 `판정 문제`로 두는 방식은 채택하지 않는다. 재시작 가능한 레이드 실패를 영구 사용자 상태로 저장하는 방식도 채택하지 않는다.
 - 영향: Quest 화면은 `진행 중 / 잠김 / 사용 불가 / 완료`를 정상 상태로 구분하고 `Indeterminate`는 실제 데이터/입력 문제에만 사용한다. 분기 결정 전에는 가능한 미래 요구 아이템을 모두 유지하고, 결정 후 불가능해진 분기의 요구량을 제거해 이미 모은 초과 재고를 `정리 필요`로 계산한다. explicit failure 기록은 패치가 삭제하지 않지만 새 canonical 규칙에서 더 이상 영구 실패 대상이 아니면 계산에 강제 적용하지 않는다.
 - 대체한 결정: 없음
+
+## DEC-023 — 사용자에게는 FIR 대신 인레이드/일반 용어를 사용한다
+
+- 상태: `CONFIRMED`
+- 날짜: 2026-08-09
+- 결정: Item 보유량과 요구량에서 사용자에게 보이는 용어는 `FIR / Non-FIR` 대신 `인레이드 / 일반`을 사용한다. 저장 호환성을 위해 내부 모델·DB의 `Fir / NonFir` 식별자는 유지할 수 있다.
+- 이유: 사용자가 Tarkov 플레이 중 실제로 이해하기 쉬운 한국어 표현으로 정보 구조를 단순화하기를 원한다.
+- 대안/배경: 내부 영문 약어를 화면까지 그대로 노출하는 방식은 정보 밀도를 높이고 사용자 표현과 맞지 않는다.
+- 영향: Quest 제출 Item, Hideout 재료, Needed Items 목록/상세, 유동 제출 진행 표시 등 사용자 UI는 `인레이드 / 일반` 용어를 사용한다. 내부 데이터 의미와 계산 규칙은 바뀌지 않는다.
+- 대체한 결정: 없음
+
+## DEC-024 — Ammo 비교 대상은 현재 healthy Wiki Ballistics membership으로 제한한다
+
+- 상태: `CONFIRMED`
+- 날짜: 2026-08-09
+- 결정: Tarkov Wiki Ballistics source가 정상적으로 해석·매칭된 경우 Ammo 비교 화면에는 현재 Ballistics 표와 안전하게 매칭된 탄약만 표시한다. 영구 hard-coded allowlist는 만들지 않으며 raw Ammo 성능의 1차 원천은 계속 `json.tarkov.dev`로 둔다.
+- 이유: 사용자는 장난식·미사용·실제 비교 가치가 없는 탄약과 그 구경이 Ammo 표에 섞이는 것을 원하지 않으며, Ballistics 표 등록 여부를 비교 대상의 실용적 기준으로 지정했다. 동시에 패치마다 수작업 목록을 갱신하면 제품의 self-updating 원칙과 충돌한다.
+- 대안/배경: 모든 json.tarkov.dev Ammo를 무조건 표시하거나, 현재 탄약 이름을 코드에 고정 allowlist로 넣는 방식은 채택하지 않는다.
+- 영향: healthy Wiki enrichment에서는 current table unique-match 여부가 Ammo 표와 caliber dropdown의 inclusion 기준이 된다. Wiki source가 unavailable/비정상이라 membership을 신뢰할 수 없을 때는 기본 Game Content를 삭제하거나 빈 화면을 만들지 않고 raw Ammo를 임시 표시하며 source 상태를 명시한다. Armor effectiveness 자체는 계속 Wiki의 명시된 0~6 값만 사용하고 자체 heuristic을 만들지 않는다.
+- 대체한 결정: DEC-021의 read-only raw-stat 원칙을 유지하면서 화면의 비교 대상 범위를 추가로 정의한다.
