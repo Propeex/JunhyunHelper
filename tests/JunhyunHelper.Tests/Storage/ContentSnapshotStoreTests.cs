@@ -1,5 +1,6 @@
 using JunhyunHelper.Core.Ammo;
 using JunhyunHelper.Core.Content;
+using JunhyunHelper.Core.Editions;
 using JunhyunHelper.Core.Hideout;
 using JunhyunHelper.Core.Items;
 using JunhyunHelper.Core.Profiles;
@@ -53,6 +54,10 @@ public sealed class ContentSnapshotStoreTests
             var ammo = Assert.Single(loaded.Content.Ammunition);
             Assert.Equal("item-a", ammo.ItemId);
             Assert.Equal(31, ammo.PenetrationPower);
+
+            var edition = Assert.Single(loaded.Content.Editions);
+            Assert.Equal("edge_of_darkness", edition.Id);
+            Assert.Contains("quest-a", edition.ExclusiveQuestIds);
         }
         finally
         {
@@ -159,6 +164,14 @@ public sealed class ContentSnapshotStoreTests
                     false,
                     "none",
                     Array.Empty<AmmoAcquisition>()),
+            },
+            new[]
+            {
+                new EditionDefinition(
+                    "edge_of_darkness",
+                    "Edge of Darkness",
+                    new HashSet<string>(StringComparer.Ordinal) { "quest-a" },
+                    new HashSet<string>(StringComparer.Ordinal)),
             });
     }
 }
