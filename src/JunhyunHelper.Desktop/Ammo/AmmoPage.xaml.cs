@@ -11,7 +11,6 @@ public partial class AmmoPage : UserControl
     private GameContentCatalog? _content;
     private IReadOnlyList<AmmoRow> _allRows = [];
     private AmmoRow? _selectedRow;
-    private bool _busy;
 
     public AmmoPage()
     {
@@ -41,10 +40,11 @@ public partial class AmmoPage : UserControl
 
     public void SetBusy(bool busy)
     {
-        _busy = busy;
-        SearchBox.IsEnabled = !busy;
         CaliberComboBox.IsEnabled = !busy;
+        ColumnMenuButton.IsEnabled = !busy;
         AmmoGrid.IsEnabled = !busy;
+        if (busy)
+            ColumnMenuPopup.IsOpen = false;
     }
 
     private static IReadOnlyList<AmmoRow> BuildRows(GameContentCatalog content)
@@ -65,6 +65,7 @@ public partial class AmmoPage : UserControl
                     name,
                     ammo.Caliber,
                     caliberLabel,
+                    ammo.Damage,
                     ammo.ProjectileCount > 1
                         ? $"{ammo.Damage} × {ammo.ProjectileCount}"
                         : ammo.Damage.ToString(CultureInfo.InvariantCulture),
@@ -74,25 +75,22 @@ public partial class AmmoPage : UserControl
                     FormatPercentage(ammo.FragmentationChance),
                     FormatSignedPercentage(ammo.RecoilModifier),
                     FormatSignedPercentage(ammo.AccuracyModifier),
-                    ammo.Acquisitions.Count == 0 ? "없음" : $"{ammo.Acquisitions.Count}개");
+                    BuildCompactAcquisitionText(ammo, content));
             })
-            .OrderBy(row => row.CaliberLabel, StringComparer.CurrentCulture)
+            .OrderBy(row => row.PenetrationPower)
+            .ThenBy(row => row.Damage)
             .ThenBy(row => row.Name, StringComparer.CurrentCulture)
             .ToArray();
     }
 
     private void ApplyFilter()
     {
-        var search = SearchBox.Text?.Trim() ?? string.Empty;
         var selectedCaliber = (CaliberComboBox.SelectedItem as CaliberChoice)?.RawCaliber;
         var selectedItemId = _selectedRow?.Ammo.ItemId;
 
         var filtered = _allRows
             .Where(row => selectedCaliber is null ||
                           string.Equals(row.RawCaliber, selectedCaliber, StringComparison.Ordinal))
-            .Where(row => string.IsNullOrWhiteSpace(search) ||
-                          row.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase) ||
-                          row.Ammo.ItemId.Contains(search, StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
         AmmoGrid.ItemsSource = filtered;
@@ -101,8 +99,8 @@ public partial class AmmoPage : UserControl
                                 ?? filtered.FirstOrDefault();
 
         SummaryText.Text = selectedCaliber is null
-            ? $"탄약 {filtered.Length}종 · 구경 {Math.Max(0, CaliberComboBox.Items.Count - 1)}개"
-            : $"{CaliberText(selectedCaliber)} · 탄약 {filtered.Length}종";
+            ? $"탄약 {filtered.Length}종 · 구경 {Math.Max(0, CaliberComboBox.Items.Count - 1)}개 · 관통력 낮은 순"
+            : $"{CaliberText(selectedCaliber)} · 탄약 {filtered.Length}종 · 관통력 낮은 순";
 
         if (filtered.Length == 0)
             ShowDetail(null);
@@ -147,6 +145,66 @@ public partial class AmmoPage : UserControl
         AcquisitionItems.ItemsSource = BuildAcquisitionRows(ammo, _content);
     }
 
+    private static string BuildCompactAcquisitionText(
+        AmmoDefinition ammo,
+        GameContentCatalog content)
+    {
+        if (ammo.Acquisitions.Count == 0)
+            return "레이드 획득";
+
+        var labels = ammo.Acquisitions
+            .Select(acquisition => new
+            {
+                Order = AcquisitionOrder(acquisition.Kind),
+                acquisition.RequiredLevel,
+                Label = CompactAcquisitionLabel(acquisition, content),
+            })
+            .OrderBy(entry => entry.Order)
+            .ThenBy(entry => entry.RequiredLevel)
+            .ThenBy(entry => entry.Label, StringComparer.CurrentCulture)
+            .Select(entry => entry.Label)
+            .Distinct(StringComparer.CurrentCulture)
+            .ToArray();
+
+        if (labels.Length <= 2)
+            return string.Join(" · ", labels);
+
+        return $"{labels[0]} · {labels[1]} · +{labels.Length - 2}";
+    }
+
+    private static string CompactAcquisitionLabel(
+        AmmoAcquisition acquisition,
+        GameContentCatalog content)
+    {
+        var traderName = TraderName(acquisition.TraderId, content);
+        var stationName = StationName(acquisition.StationId, content);
+        var level = acquisition.RequiredLevel > 0
+            ? acquisition.RequiredLevel.ToString(CultureInfo.InvariantCulture)
+            : null;
+
+        return acquisition.Kind switch
+        {
+            AmmoAcquisitionKind.TraderPurchase => level is null
+                ? traderName
+                : $"{traderName} LL{level}",
+            AmmoAcquisitionKind.TraderBarter => level is null
+                ? $"{traderName} 교환"
+                : $"{traderName} LL{level} 교환",
+            AmmoAcquisitionKind.HideoutCraft => level is null
+                ? $"{stationName} 제작"
+                : $"{stationName} Lv.{level}",
+            _ => acquisition.Kind.ToString(),
+        };
+    }
+
+    private static int AcquisitionOrder(AmmoAcquisitionKind kind) => kind switch
+    {
+        AmmoAcquisitionKind.TraderPurchase => 0,
+        AmmoAcquisitionKind.TraderBarter => 1,
+        AmmoAcquisitionKind.HideoutCraft => 2,
+        _ => 9,
+    };
+
     private static IReadOnlyList<AcquisitionRow> BuildAcquisitionRows(
         AmmoDefinition ammo,
         GameContentCatalog content)
@@ -156,9 +214,9 @@ public partial class AmmoPage : UserControl
             return
             [
                 new AcquisitionRow(
-                    "확인된 수급처 없음",
+                    "레이드 획득",
                     string.Empty,
-                    "현재 canonical 데이터에 구매·교환·제작 수급처가 없습니다.",
+                    "현재 데이터에 확인된 상인 구매·교환·은신처 제작 경로가 없습니다.",
                     string.Empty),
             ];
         }
@@ -173,14 +231,8 @@ public partial class AmmoPage : UserControl
         AmmoAcquisition acquisition,
         GameContentCatalog content)
     {
-        var traderName = DisplayName(
-            content.Traders.FirstOrDefault(trader => trader.Id == acquisition.TraderId)?.NameKo,
-            content.Traders.FirstOrDefault(trader => trader.Id == acquisition.TraderId)?.NameEn,
-            acquisition.TraderId ?? "상인");
-        var stationName = DisplayName(
-            content.HideoutStations.FirstOrDefault(station => station.Id == acquisition.StationId)?.NameKo,
-            content.HideoutStations.FirstOrDefault(station => station.Id == acquisition.StationId)?.NameEn,
-            acquisition.StationId ?? "은신처");
+        var traderName = TraderName(acquisition.TraderId, content);
+        var stationName = StationName(acquisition.StationId, content);
 
         var title = acquisition.Kind switch
         {
@@ -235,6 +287,28 @@ public partial class AmmoPage : UserControl
             string.Join(" · ", conditionParts),
             string.Join(Environment.NewLine, detailParts),
             unlock);
+    }
+
+    private static string TraderName(string? traderId, GameContentCatalog content)
+    {
+        if (string.IsNullOrWhiteSpace(traderId))
+            return "상인";
+
+        var trader = content.Traders.FirstOrDefault(candidate => candidate.Id == traderId);
+        return trader is null
+            ? traderId
+            : DisplayName(trader.NameKo, trader.NameEn, trader.Id);
+    }
+
+    private static string StationName(string? stationId, GameContentCatalog content)
+    {
+        if (string.IsNullOrWhiteSpace(stationId))
+            return "은신처";
+
+        var station = content.HideoutStations.FirstOrDefault(candidate => candidate.Id == stationId);
+        return station is null
+            ? stationId
+            : DisplayName(station.NameKo, station.NameEn, station.Id);
     }
 
     private static string ItemName(string? itemId, GameContentCatalog content)
@@ -341,13 +415,33 @@ public partial class AmmoPage : UserControl
                 ? english
                 : fallback;
 
-    private void SearchBox_TextChanged(object sender, TextChangedEventArgs e) => ApplyFilter();
-
     private void CaliberComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (IsLoaded)
             ApplyFilter();
     }
+
+    private void ColumnMenuButton_Click(object sender, RoutedEventArgs e) =>
+        ColumnMenuPopup.IsOpen = !ColumnMenuPopup.IsOpen;
+
+    private void ColumnVisibility_Changed(object sender, RoutedEventArgs e)
+    {
+        if (CaliberColumn is null)
+            return;
+
+        CaliberColumn.Visibility = VisibilityFor(CaliberColumnCheckBox);
+        DamageColumn.Visibility = VisibilityFor(DamageColumnCheckBox);
+        PenetrationColumn.Visibility = VisibilityFor(PenetrationColumnCheckBox);
+        ArmorDamageColumn.Visibility = VisibilityFor(ArmorDamageColumnCheckBox);
+        SpeedColumn.Visibility = VisibilityFor(SpeedColumnCheckBox);
+        FragmentationColumn.Visibility = VisibilityFor(FragmentationColumnCheckBox);
+        RecoilColumn.Visibility = VisibilityFor(RecoilColumnCheckBox);
+        AccuracyColumn.Visibility = VisibilityFor(AccuracyColumnCheckBox);
+        AcquisitionColumn.Visibility = VisibilityFor(AcquisitionColumnCheckBox);
+    }
+
+    private static Visibility VisibilityFor(CheckBox checkBox) =>
+        checkBox.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
 
     private void AmmoGrid_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
         ShowDetail(AmmoGrid.SelectedItem as AmmoRow);
@@ -357,6 +451,7 @@ public partial class AmmoPage : UserControl
         string Name,
         string RawCaliber,
         string CaliberLabel,
+        int Damage,
         string DamageText,
         int PenetrationPower,
         string ArmorDamageText,
@@ -364,7 +459,7 @@ public partial class AmmoPage : UserControl
         string FragmentationText,
         string RecoilText,
         string AccuracyText,
-        string AcquisitionCountText);
+        string AcquisitionText);
 
     private sealed record AcquisitionRow(
         string Title,
