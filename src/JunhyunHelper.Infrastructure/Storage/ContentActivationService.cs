@@ -46,7 +46,8 @@ public sealed class ContentActivationService
         if (File.Exists(PreviousPath))
             File.Delete(PreviousPath);
 
-        if (File.Exists(ActivePath))
+        var hadPreviousActive = File.Exists(ActivePath);
+        if (hadPreviousActive)
         {
             File.Replace(
                 CandidatePath,
@@ -68,7 +69,10 @@ public sealed class ContentActivationService
         }
         catch
         {
-            RestorePreviousAfterFailedActivation();
+            if (hadPreviousActive)
+                RestorePreviousAfterFailedActivation();
+            else if (File.Exists(ActivePath))
+                File.Delete(ActivePath);
             throw;
         }
     }
@@ -82,7 +86,8 @@ public sealed class ContentActivationService
         {
             return await ReadAndValidateAsync(ActivePath, cancellationToken);
         }
-        catch when (File.Exists(PreviousPath))
+        catch (Exception exception) when (
+            exception is not OperationCanceledException && File.Exists(PreviousPath))
         {
             var previous = await ReadAndValidateAsync(PreviousPath, cancellationToken);
 
