@@ -16,7 +16,9 @@ public sealed record StoredContentSnapshot(
 
 public sealed class ContentSnapshotStore
 {
-    public const int CurrentSchemaVersion = 1;
+    // v2 adds normalized item category metadata used by the Item screen.
+    // Old content snapshots are intentionally rebuilt from online source; user.db is separate.
+    public const int CurrentSchemaVersion = 2;
 
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
 
