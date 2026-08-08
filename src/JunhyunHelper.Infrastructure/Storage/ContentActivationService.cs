@@ -1,6 +1,13 @@
+using JunhyunHelper.Core.Profiles;
 using JunhyunHelper.Infrastructure.Validation;
 
 namespace JunhyunHelper.Infrastructure.Storage;
+
+public sealed record ContentModePaths(
+    string Directory,
+    string ActivePath,
+    string CandidatePath,
+    string PreviousPath);
 
 public sealed class ContentActivationService
 {
@@ -15,131 +22,146 @@ public sealed class ContentActivationService
         ArgumentException.ThrowIfNullOrWhiteSpace(rootDirectory);
 
         RootDirectory = Path.GetFullPath(rootDirectory);
-        ActivePath = Path.Combine(RootDirectory, "content.db");
-        CandidatePath = Path.Combine(RootDirectory, "content.candidate.db");
-        PreviousPath = Path.Combine(RootDirectory, "content.previous.db");
-
         _store = store ?? new ContentSnapshotStore();
         _validator = validator ?? new GameContentValidator();
     }
 
     public string RootDirectory { get; }
 
-    public string ActivePath { get; }
-
-    public string CandidatePath { get; }
-
-    public string PreviousPath { get; }
-
-    public async Task ActivateCandidateAsync(CancellationToken cancellationToken = default)
+    public ContentModePaths GetPaths(GameMode gameMode)
     {
-        Directory.CreateDirectory(RootDirectory);
+        var directory = Path.Combine(RootDirectory, gameMode.ToDataKey());
+        return new ContentModePaths(
+            directory,
+            Path.Combine(directory, "content.db"),
+            Path.Combine(directory, "content.candidate.db"),
+            Path.Combine(directory, "content.previous.db"));
+    }
 
-        var candidate = await _store.ReadAsync(CandidatePath, cancellationToken);
-        var candidateValidation = _validator.Validate(candidate.Content);
-        if (!candidateValidation.IsValid)
-        {
-            throw new InvalidDataException(
-                "Candidate content failed canonical reference validation and was not activated.");
-        }
+    public async Task ActivateCandidateAsync(
+        GameMode gameMode,
+        CancellationToken cancellationToken = default)
+    {
+        var paths = GetPaths(gameMode);
+        Directory.CreateDirectory(paths.Directory);
 
-        if (File.Exists(PreviousPath))
-            File.Delete(PreviousPath);
+        var candidate = await ReadAndValidateAsync(
+            paths.CandidatePath,
+            gameMode,
+            cancellationToken);
 
-        var hadPreviousActive = File.Exists(ActivePath);
+        if (File.Exists(paths.PreviousPath))
+            File.Delete(paths.PreviousPath);
+
+        var hadPreviousActive = File.Exists(paths.ActivePath);
         if (hadPreviousActive)
         {
             File.Replace(
-                CandidatePath,
-                ActivePath,
-                PreviousPath,
+                paths.CandidatePath,
+                paths.ActivePath,
+                paths.PreviousPath,
                 ignoreMetadataErrors: true);
         }
         else
         {
-            File.Move(CandidatePath, ActivePath);
+            File.Move(paths.CandidatePath, paths.ActivePath);
         }
 
         try
         {
-            var activated = await _store.ReadAsync(ActivePath, cancellationToken);
-            var activatedValidation = _validator.Validate(activated.Content);
-            if (!activatedValidation.IsValid)
-                throw new InvalidDataException("Activated content failed post-activation validation.");
+            await ReadAndValidateAsync(
+                paths.ActivePath,
+                gameMode,
+                cancellationToken);
         }
         catch
         {
             if (hadPreviousActive)
-                RestorePreviousAfterFailedActivation();
-            else if (File.Exists(ActivePath))
-                File.Delete(ActivePath);
+                RestorePreviousAfterFailedActivation(paths);
+            else if (File.Exists(paths.ActivePath))
+                File.Delete(paths.ActivePath);
             throw;
         }
     }
 
     public async Task<StoredContentSnapshot> ReadActiveOrRecoverAsync(
+        GameMode gameMode,
         CancellationToken cancellationToken = default)
     {
-        Directory.CreateDirectory(RootDirectory);
+        var paths = GetPaths(gameMode);
+        Directory.CreateDirectory(paths.Directory);
 
         try
         {
-            return await ReadAndValidateAsync(ActivePath, cancellationToken);
+            return await ReadAndValidateAsync(
+                paths.ActivePath,
+                gameMode,
+                cancellationToken);
         }
         catch (Exception exception) when (
-            exception is not OperationCanceledException && File.Exists(PreviousPath))
+            exception is not OperationCanceledException && File.Exists(paths.PreviousPath))
         {
-            var previous = await ReadAndValidateAsync(PreviousPath, cancellationToken);
+            var previous = await ReadAndValidateAsync(
+                paths.PreviousPath,
+                gameMode,
+                cancellationToken);
 
-            if (File.Exists(ActivePath))
-                File.Delete(ActivePath);
-            File.Move(PreviousPath, ActivePath);
+            if (File.Exists(paths.ActivePath))
+                File.Delete(paths.ActivePath);
+            File.Move(paths.PreviousPath, paths.ActivePath);
 
             return previous;
         }
     }
 
-    public void DiscardCandidate()
+    public void DiscardCandidate(GameMode gameMode)
     {
-        if (File.Exists(CandidatePath))
-            File.Delete(CandidatePath);
+        var candidatePath = GetPaths(gameMode).CandidatePath;
+        if (File.Exists(candidatePath))
+            File.Delete(candidatePath);
     }
 
     private async Task<StoredContentSnapshot> ReadAndValidateAsync(
         string path,
+        GameMode expectedGameMode,
         CancellationToken cancellationToken)
     {
         var snapshot = await _store.ReadAsync(path, cancellationToken);
+        if (snapshot.GameMode != expectedGameMode)
+        {
+            throw new InvalidDataException(
+                $"Content at '{path}' belongs to '{snapshot.GameMode}', expected '{expectedGameMode}'.");
+        }
+
         var validation = _validator.Validate(snapshot.Content);
         if (!validation.IsValid)
             throw new InvalidDataException($"Content at '{path}' failed canonical validation.");
         return snapshot;
     }
 
-    private void RestorePreviousAfterFailedActivation()
+    private static void RestorePreviousAfterFailedActivation(ContentModePaths paths)
     {
-        if (!File.Exists(PreviousPath))
+        if (!File.Exists(paths.PreviousPath))
             return;
 
         try
         {
-            if (File.Exists(ActivePath))
+            if (File.Exists(paths.ActivePath))
             {
                 File.Replace(
-                    PreviousPath,
-                    ActivePath,
+                    paths.PreviousPath,
+                    paths.ActivePath,
                     destinationBackupFileName: null,
                     ignoreMetadataErrors: true);
             }
             else
             {
-                File.Move(PreviousPath, ActivePath);
+                File.Move(paths.PreviousPath, paths.ActivePath);
             }
         }
         catch
         {
-            // The original activation exception is more useful to the caller.
-            // Startup recovery will attempt to use any remaining valid file.
+            // Keep the original activation error. Startup recovery can retry later.
         }
     }
 }
