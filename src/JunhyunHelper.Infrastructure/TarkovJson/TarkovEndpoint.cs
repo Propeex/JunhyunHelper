@@ -15,13 +15,7 @@ public enum TarkovEndpoint
 
 internal static class TarkovSourcePath
 {
-    public static string GameModeSegment(GameMode gameMode) => gameMode switch
-    {
-        GameMode.Regular => "regular",
-        GameMode.Pve => "pve",
-        GameMode.PvpSeason => "pvp-season",
-        _ => throw new ArgumentOutOfRangeException(nameof(gameMode), gameMode, null),
-    };
+    public static string GameModeSegment(GameMode gameMode) => gameMode.ToDataKey();
 
     public static string EndpointSegment(TarkovEndpoint endpoint) => endpoint switch
     {
