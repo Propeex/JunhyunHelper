@@ -2,7 +2,7 @@
 
 검증일: **2026-08-08**
 
-상태: `MECHANICS FORMULA VERIFIED / WIKI 0–6 DERIVATION NOT YET PROVEN`
+상태: `EXACT RATING SOURCE VERIFIED / IMPLEMENTATION IN PROGRESS`
 
 목적:
 
@@ -69,6 +69,14 @@ Ammo 기본 정렬:
 - 그래서 낮은 penetration이라도 pellet/dart가 많은 탄은 반복 사격 시 방어구를 빠르게 깎아 높은 등급을 받을 수 있다.
 
 이 때문에 0~6 등급은 단순한 `penetrationPower / 10` 또는 처음 한 발의 관통 확률만으로 만들 수 없다.
+
+검증 예:
+
+- `.50 AE JHP` — Pen 12 → `6,1,0,0,0,0`
+- `.300 Blackout Whisper` — Pen 14 → `6,4,2,1,0,0`
+- `12/70 Flechette` — Pen 31, 8 darts → `6,6,6,5,5,5`
+
+동일한 penetration 값 근처에서도 armor damage와 projectile 구조 때문에 값이 달라지므로 단순 penetration/class ratio는 정답이 아니다.
 
 참조:
 
@@ -184,7 +192,7 @@ RealResistance(100, 100, armorClass, penetrationPower)
 
 하지만 이것은 Wiki의 0~6 effectiveness rating과 동일하지 않다.
 
-## 7. 왜 Wiki 0~6을 아직 바로 계산할 수 없는가
+## 7. Wiki 0~6의 exact 계산식은 공개 근거가 부족함
 
 반복 사격 후 효과를 계산하려면 Ammo 원시값 외에도 표준 방어구의 다음 사실이 필요하다.
 
@@ -210,43 +218,122 @@ Class 4 = durability 50 / steel
 
 이는 제품 철학에 맞지 않는다.
 
-## 8. 과거 구현 조사
+## 8. exact rating의 실시간 원천 — 확인됨
+
+### 8.1 공식 Tarkov Wiki Ballistics 표
+
+사용자가 직접 지정한 공식 Wiki Ballistics 페이지에는 현재 Ammo별로 다음이 명시되어 있다.
+
+```text
+Ammo name
+raw ballistic stats
+Class 1 rating
+Class 2 rating
+Class 3 rating
+Class 4 rating
+Class 5 rating
+Class 6 rating
+```
+
+즉 **0~6 값 자체를 외부 표 데이터로 취급할 수 있는 검증 가능한 source가 존재한다.**
+
+이것은 추정 공식이 아니다.
+
+### 8.2 MediaWiki Action API
+
+Fandom Wiki는 MediaWiki 기반이며, MediaWiki는 `api.php?action=parse&page=...` 방식으로 현재 페이지의 parser output을 제공하는 Action API를 지원한다.
+
+따라서 준현 헬퍼는 일반 HTML 화면을 browser automation으로 긁는 대신:
+
+```text
+Escape from Tarkov Wiki MediaWiki Action API
+→ Ballistics page parser output
+→ ammo row + rightmost Class 1~6 values 추출
+→ canonical Tarkov ammo와 안전하게 이름 매칭
+→ verified optional enrichment
+```
+
+형태로 구현한다.
+
+중요:
+
+- `json.tarkov.dev`가 계속 raw Ammo stat의 1차 원천이다.
+- Wiki source는 **Armor Class 1~6 rating만** 보충한다.
+- Wiki source 장애가 Quest/Hideout/Item/Game Content 기본 업데이트 전체를 막으면 안 된다.
+- row가 모호하거나 canonical ammo에 유일하게 매칭되지 않으면 값을 추정하지 않고 `unknown`으로 둔다.
+
+### 8.3 eft-ammo.com 교차 검증
+
+현재 eft-ammo.com은 NoFoodAfterMidnight의 동일한 0~6 scale을 제공하고 있으며 공식 Wiki의 대표 샘플과 값이 일치한다.
+
+이를 runtime 1차 source로 추가하지 않고 **회귀 샘플/교차 검증 근거**로 사용한다.
+
+이유:
+
+- 핵심 요구가 Wiki와 같은 값인 점
+- 원천을 불필요하게 둘 이상 runtime 의존시키지 않기 위함
+- 두 source가 일시적으로 업데이트 시점이 어긋날 때 자동 충돌 해석을 만들지 않기 위함
+
+## 9. 과거 구현 조사
 
 과거 커뮤니티 앱 `TheHideoutAndroid`는 Item ID별로 `666654` 같은 6자리 문자열을 직접 하드코딩해 저장했다.
 
 즉 그 앱도 Wiki/NoFood 값을 공식을 통해 재생성한 것이 아니라 **외부 표 데이터로 취급**했다.
 
-이 사실만으로 공식이 없다고 단정할 수는 없지만, 적어도 널리 공개된 단일 변환식이 있었다는 근거는 아니다.
+과거 NoFoodAfterMidnight Google Sheet도 Armor Class 1~6 값을 명시적인 표 데이터로 제공했다.
 
-## 9. 현재 결론
+현재 방식은 이 데이터를 소스 코드에 수작업 하드코딩하는 대신 현재 Wiki source에서 다시 내려받아 변환한다.
 
-### CONFIRMED
+## 10. 최종 source 결정
 
-- 현재 게임의 penetration chance 공식은 재현 가능하다.
-- 현재 게임의 armor durability damage 공식도 재현 가능하다.
-- projectile 수까지 포함한 반복 방어구 손상 시뮬레이션을 만드는 데 필요한 핵심 게임 공식은 상당 부분 확인됐다.
-- Wiki 0~6은 단순 penetrationPower 구간표가 아니다.
+`CONFIRMED`
 
-### NOT YET PROVEN
+### 사용하지 않음
 
-- Wiki/NoFood 0~6을 **정확히 같은 값으로** 출력하는 공개된 reference armor / simulation / classification algorithm.
+- `penetrationPower / armorClass` ratio heuristic
+- 임의 threshold table
+- 임의 reference armor simulation을 Wiki 값이라고 부르는 방식
+- 오래된 Google Sheet 값을 고정 하드코딩
 
-## 10. 다음 결정 규칙
+### 사용
 
-1. NoFood/eft-ammo가 사용하는 정확한 reference/simulation 방법을 더 조사한다.
-2. 방법이 확인되면 해당 공식을 준현 헬퍼 Core에 순수 함수 + 회귀 fixture로 구현한다.
-3. 현재 eft-ammo 표의 샘플 Ammo를 대량 대조해 0~6 결과가 일치하는지 검증한다.
-4. 일치할 때만 Ammo 표에 `Class 1~6` 색상 cell을 노출한다.
-5. 공식이 끝내 공개/검증되지 않으면 임의 공식을 만들지 않는다.
-   - 그 경우 정확한 외부 rating source를 validated overlay로 사용하는 방안과
-   - 실제 게임 공식 기반 `초기 관통 확률`을 별도 정보로 표시하는 방안을 분리해 검토한다.
+1. `json.tarkov.dev` — Ammo raw facts
+2. 공식 Escape from Tarkov Wiki Ballistics — Class 1~6 0~6 rating optional enrichment
 
-## 11. 구현 시 색상 원칙
+### 실패 의미
+
+Wiki enrichment 실패 시:
+
+- 기본 Game Content 업데이트는 계속 가능
+- 해당 rating은 `unknown`으로 유지
+- 이전 값이나 자체 계산값을 최신이라고 가장하지 않음
+- User Progress에는 영향 없음
+
+parser가 Wiki 구조를 이해할 수 없는 경우도 동일하게 fail-open for core / fail-closed for rating 처리한다.
+
+## 11. 구현 검증 기준
+
+구현은 최소 다음을 검증한다.
+
+1. page/API 응답에서 6개 rating이 모두 0~6 범위인지 확인
+2. 하나의 canonical Ammo에 둘 이상의 서로 다른 row가 매칭되면 해당 Ammo를 거부
+3. 매칭되지 않은 Wiki row를 억지로 가까운 이름에 붙이지 않음
+4. 전체 matching이 비정상적으로 적으면 source schema warning 발생
+5. 대표 회귀 샘플:
+   - `.50 AE JHP` → `6,1,0,0,0,0`
+   - `.50 AE Copper Solid` → `6,6,6,5,3,2`
+   - `.300 Blackout Whisper` → `6,4,2,1,0,0`
+   - `.366 TKM AP-M` → `6,6,6,6,5,4`
+   - `12/70 Flechette` → `6,6,6,5,5,5`
+6. rating이 없는 Ammo는 UI에서 숫자를 발명하지 않음
+
+## 12. 구현 시 색상 원칙
 
 0~6은 숫자가 없어도 색만으로 의미가 전달되게 하지 않는다.
 
 - 숫자를 항상 표시
 - 색상은 보조 신호
 - 색각 이상 사용자를 위해 값/텍스트만으로도 비교 가능
+- unknown은 중립색 + `?`
 
 최종 palette는 전체 dark theme과 함께 결정한다.
