@@ -55,10 +55,14 @@ public sealed class ImageCacheService
 
             return LoadLocalImage(path);
         }
-        catch (Exception exception) when (
-            exception is HttpRequestException or IOException or UnauthorizedAccessException or
-            NotSupportedException or System.Runtime.InteropServices.ExternalException)
+        catch (OperationCanceledException)
         {
+            throw;
+        }
+        catch
+        {
+            // Images are supplementary. A bad URL, corrupt payload, or cache problem must never
+            // make Game Content or User Progress unusable.
             return null;
         }
     }
@@ -124,8 +128,9 @@ public sealed class ImageCacheService
 
     private string CachePath(string stableId, string sourceUrl)
     {
+        var invalidCharacters = Path.GetInvalidFileNameChars();
         var safeId = new string(stableId
-            .Select(character => Path.GetInvalidFileNameChars().Contains(character) ? '_' : character)
+            .Select(character => invalidCharacters.Contains(character) ? '_' : character)
             .ToArray());
         if (safeId.Length > 80)
             safeId = safeId[..80];
