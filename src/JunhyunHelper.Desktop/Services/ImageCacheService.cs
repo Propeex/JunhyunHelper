@@ -40,21 +40,25 @@ public sealed class ImageCacheService
         try
         {
             var path = CachePath(stableId, sourceUrl);
-            if (!File.Exists(path))
+            var cached = TryLoadLocalImage(path);
+            if (cached is not null)
+                return cached;
+
+            await _downloads.WaitAsync(cancellationToken);
+            try
             {
-                await _downloads.WaitAsync(cancellationToken);
-                try
-                {
-                    if (!File.Exists(path))
-                        await DownloadAsync(sourceUri, path, cancellationToken);
-                }
-                finally
-                {
-                    _downloads.Release();
-                }
+                cached = TryLoadLocalImage(path);
+                if (cached is not null)
+                    return cached;
+
+                await DownloadAsync(sourceUri, path, cancellationToken);
+            }
+            finally
+            {
+                _downloads.Release();
             }
 
-            return LoadLocalImage(path);
+            return TryLoadLocalImage(path);
         }
         catch (OperationCanceledException)
         {
@@ -114,15 +118,39 @@ public sealed class ImageCacheService
         }
     }
 
-    private static ImageSource LoadLocalImage(string path)
+    private static ImageSource? TryLoadLocalImage(string path)
     {
-        var bitmap = new BitmapImage();
-        bitmap.BeginInit();
-        bitmap.CacheOption = BitmapCacheOption.OnLoad;
-        bitmap.UriSource = new Uri(path, UriKind.Absolute);
-        bitmap.EndInit();
-        bitmap.Freeze();
-        return bitmap;
+        if (!File.Exists(path))
+            return null;
+
+        try
+        {
+            var bitmap = new BitmapImage();
+            bitmap.BeginInit();
+            bitmap.CacheOption = BitmapCacheOption.OnLoad;
+            bitmap.UriSource = new Uri(path, UriKind.Absolute);
+            bitmap.EndInit();
+            bitmap.Freeze();
+            return bitmap;
+        }
+        catch
+        {
+            TryDelete(path);
+            return null;
+        }
+    }
+
+    private static void TryDelete(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+        catch
+        {
+            // A future load will retry deletion. Image failures must remain non-fatal.
+        }
     }
 
     private string CachePath(string stableId, string sourceUrl)
