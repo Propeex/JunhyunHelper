@@ -16,14 +16,14 @@
 
     <Style x:Key="RoundedScrollThumbStyle" TargetType="Thumb">
         <Setter Property="Background" Value="{StaticResource BorderBrush}" />
-        <Setter Property="MinWidth" Value="28" />
+        <Setter Property="MinWidth" Value="8" />
         <Setter Property="MinHeight" Value="28" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Thumb">
                     <Border x:Name="ThumbBody"
                             Background="{TemplateBinding Background}"
-                            CornerRadius="5"
+                            CornerRadius="4"
                             Margin="2" />
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
@@ -39,10 +39,9 @@
     </Style>
 
     <ControlTemplate x:Key="VerticalScrollBarTemplate" TargetType="ScrollBar">
-        <Border Width="12"
-                Background="{StaticResource BackgroundDarkBrush}"
-                CornerRadius="6"
-                Margin="2,1">
+        <Border Background="{StaticResource BackgroundDarkBrush}"
+                CornerRadius="5"
+                Margin="1,2">
             <Track x:Name="PART_Track"
                    Orientation="Vertical"
                    IsDirectionReversed="True"
@@ -66,10 +65,9 @@
     </ControlTemplate>
 
     <ControlTemplate x:Key="HorizontalScrollBarTemplate" TargetType="ScrollBar">
-        <Border Height="12"
-                Background="{StaticResource BackgroundDarkBrush}"
-                CornerRadius="6"
-                Margin="1,2">
+        <Border Background="{StaticResource BackgroundDarkBrush}"
+                CornerRadius="5"
+                Margin="2,1">
             <Track x:Name="PART_Track"
                    Orientation="Horizontal"
                    IsDirectionReversed="False"
@@ -82,7 +80,7 @@
                                   Command="{x:Static ScrollBar.PageLeftCommand}" />
                 </Track.DecreaseRepeatButton>
                 <Track.Thumb>
-                    <Thumb Style="{StaticResource RoundedScrollThumbStyle}" />
+                    <Thumb Style="{StaticResource RoundedScrollThumbStyle}" MinWidth="28" MinHeight="8" />
                 </Track.Thumb>
                 <Track.IncreaseRepeatButton>
                     <RepeatButton Style="{StaticResource ScrollBarPageButtonStyle}"
@@ -95,11 +93,16 @@
     <Style TargetType="ScrollBar">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="{StaticResource BorderBrush}" />
-        <Setter Property="Width" Value="14" />
-        <Setter Property="Height" Value="14" />
+        <Setter Property="Width" Value="12" />
+        <Setter Property="HorizontalAlignment" Value="Right" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
         <Setter Property="Template" Value="{StaticResource VerticalScrollBarTemplate}" />
         <Style.Triggers>
             <Trigger Property="Orientation" Value="Horizontal">
+                <Setter Property="Width" Value="Auto" />
+                <Setter Property="Height" Value="12" />
+                <Setter Property="HorizontalAlignment" Value="Stretch" />
+                <Setter Property="VerticalAlignment" Value="Bottom" />
                 <Setter Property="Template" Value="{StaticResource HorizontalScrollBarTemplate}" />
             </Trigger>
         </Style.Triggers>

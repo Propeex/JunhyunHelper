@@ -32,13 +32,9 @@ public partial class ItemsPage
                     surplusNonFir: 0,
                     protections: Array.Empty<CleanupProtection>(),
                     flexibleProgresses: Array.Empty<FlexibleQuestItemProgress>(),
-                    sources: Array.Empty<SourceRow>(),
-                    sourceSummary: "현재 진행 기준 필요 출처 없음",
-                    statusText: "참고",
-                    statusBrush: StatusBrush(0, 0, deferred: false, flexiblePending: false));
+                    sources: Array.Empty<SourceRow>());
 
                 _allRows = _allRows.Concat([referenceRow]).ToArray();
-                PopulateCategoryFilter();
 
                 if (_imageCache is not null && !string.IsNullOrWhiteSpace(referenceRow.IconUrl))
                     _ = LoadReferenceIconAsync(referenceRow);

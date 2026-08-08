@@ -54,6 +54,57 @@
                 </Trigger>
             </DataTemplate.Triggers>
         </DataTemplate>
+
+        <DataTemplate x:Key="MaterialRowTemplate">
+            <Border Background="{StaticResource BackgroundMediumBrush}"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="7"
+                    Padding="8"
+                    Margin="0,0,0,7">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="46" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Border Width="38" Height="38"
+                            Background="{StaticResource BackgroundDarkBrush}"
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="5">
+                        <Grid>
+                            <TextBlock Text="?"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center" />
+                            <Image Source="{Binding Icon}" Stretch="Uniform" Margin="2" />
+                        </Grid>
+                    </Border>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="7,0,10,0">
+                        <TextBlock Text="{Binding Name}"
+                                   FontWeight="SemiBold"
+                                   TextWrapping="Wrap" />
+                        <Border Visibility="{Binding InRaidVisibility}"
+                                Background="{StaticResource BackgroundDarkBrush}"
+                                CornerRadius="6"
+                                Padding="5,1"
+                                HorizontalAlignment="Left"
+                                Margin="0,3,0,0">
+                            <TextBlock Text="인레이드"
+                                       Foreground="{StaticResource AccentBrush}"
+                                       FontSize="10"
+                                       FontWeight="SemiBold" />
+                        </Border>
+                    </StackPanel>
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding AmountText}"
+                               Foreground="{StaticResource AccentBrush}"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center" />
+                </Grid>
+            </Border>
+        </DataTemplate>
     </UserControl.Resources>
 
     <Grid Margin="16">
@@ -181,7 +232,8 @@
                                     <TextBlock x:Name="NextLevelMessage"
                                                Foreground="{StaticResource TextSecondaryBrush}"
                                                Margin="0,0,0,8" />
-                                    <ItemsControl x:Name="NextLevelItems" />
+                                    <ItemsControl x:Name="NextLevelItems"
+                                                  ItemTemplate="{StaticResource MaterialRowTemplate}" />
                                 </StackPanel>
                             </Border>
 

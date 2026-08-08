@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.Profiles;
+using JunhyunHelper.Desktop.Services;
 
 namespace JunhyunHelper.Desktop.Profiles;
 
@@ -24,6 +25,7 @@ public sealed class TraderEditorRow : INotifyPropertyChanged
     public required string Name { get; init; }
     public required bool IsFence { get; init; }
     public required bool NeedsAdvancedStanding { get; init; }
+    public required int DisplayRank { get; init; }
 
     public int? LoyaltyLevel
     {
@@ -65,8 +67,6 @@ public sealed class TraderEditorRow : INotifyPropertyChanged
 
     public string LoyaltyDisplay => LoyaltyLevel is null ? "미입력" : $"LL{LoyaltyLevel.Value}";
     public string StandingDisplay => Standing?.ToString("0.##", CultureInfo.CurrentCulture) ?? "미입력";
-    public Visibility LoyaltyVisibility => IsFence ? Visibility.Collapsed : Visibility.Visible;
-    public Visibility FenceStandingVisibility => IsFence ? Visibility.Visible : Visibility.Collapsed;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -77,6 +77,7 @@ public sealed class TraderEditorRow : INotifyPropertyChanged
 public partial class ProfileEditorWindow : Window
 {
     private const string FenceTraderId = "579dc571d53a0658a154fbec";
+    private const int LastCoreTraderRank = 8; // Ref. Lightkeeper/BTR Driver follow as special traders.
 
     private readonly IReadOnlyList<TraderEditorRow> _traderRows;
     private readonly bool _editingExistingProfile;
@@ -133,13 +134,13 @@ public partial class ProfileEditorWindow : Window
             .ToHashSet(StringComparer.Ordinal);
 
         _traderRows = content.Traders
-            .OrderBy(trader => DisplayName(trader.NameKo, trader.NameEn, trader.Id), StringComparer.CurrentCulture)
             .Select(trader =>
             {
                 TraderProgress progress = default;
                 var hasProgress = existingProfile is not null &&
                                   existingProfile.Traders.TryGetValue(trader.Id, out progress);
-                var isFence = string.Equals(trader.Id, FenceTraderId, StringComparison.Ordinal);
+                var isFence = string.Equals(trader.Id, FenceTraderId, StringComparison.Ordinal) ||
+                              string.Equals(trader.NameEn, "Fence", StringComparison.OrdinalIgnoreCase);
 
                 return new TraderEditorRow
                 {
@@ -149,6 +150,7 @@ public partial class ProfileEditorWindow : Window
                     NeedsAdvancedStanding = !isFence &&
                                             (standingRequiredTraderIds.Contains(trader.Id) ||
                                              (hasProgress && progress.Standing is not null)),
+                    DisplayRank = UiReferenceOrder.TraderRank(trader),
                     LoyaltyLevel = isFence
                         ? hasProgress ? progress.LoyaltyLevel : null
                         : hasProgress ? progress.LoyaltyLevel ?? 1 : 1,
@@ -159,7 +161,27 @@ public partial class ProfileEditorWindow : Window
             })
             .ToArray();
 
-        TraderItems.ItemsSource = _traderRows;
+        var fenceRow = _traderRows.FirstOrDefault(row => row.IsFence);
+        FencePanel.DataContext = fenceRow;
+        FencePanel.Visibility = fenceRow is null ? Visibility.Collapsed : Visibility.Visible;
+
+        var coreRows = _traderRows
+            .Where(row => !row.IsFence && row.DisplayRank <= LastCoreTraderRank)
+            .OrderBy(row => row.DisplayRank)
+            .ThenBy(row => row.Name, StringComparer.CurrentCulture)
+            .ToArray();
+        TraderItems.ItemsSource = coreRows;
+
+        var specialRows = _traderRows
+            .Where(row => !row.IsFence && row.DisplayRank > LastCoreTraderRank)
+            .OrderBy(row => row.DisplayRank)
+            .ThenBy(row => row.Name, StringComparer.CurrentCulture)
+            .ToArray();
+        SpecialTraderItems.ItemsSource = specialRows;
+        SpecialTraderPanel.Visibility = specialRows.Length > 0
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
         var advancedRows = _traderRows.Where(row => row.NeedsAdvancedStanding).ToArray();
         AdvancedStandingItems.ItemsSource = advancedRows;
         AdvancedStandingExpander.Visibility = advancedRows.Length > 0
