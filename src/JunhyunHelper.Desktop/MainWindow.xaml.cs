@@ -1,9 +1,11 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using JunhyunHelper.Application.Hideout;
 using JunhyunHelper.Application.Quests;
 using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.Profiles;
+using JunhyunHelper.Desktop.Hideout;
 using JunhyunHelper.Desktop.Profiles;
 using JunhyunHelper.Desktop.Quests;
 using JunhyunHelper.Desktop.Services;
@@ -16,12 +18,14 @@ public partial class MainWindow : Window
     private IReadOnlyList<GameProfileSnapshot> _profiles = [];
     private GameProfileSnapshot? _activeProfile;
     private GameContentCatalog? _activeContent;
+    private DesktopSection _activeSection = DesktopSection.Quest;
     private bool _initializing;
 
     public MainWindow()
     {
         InitializeComponent();
         QuestPage.ActionRequested += QuestPage_ActionRequested;
+        HideoutPage.LevelChangeRequested += HideoutPage_LevelChangeRequested;
     }
 
     private async void Window_Loaded(object sender, RoutedEventArgs e)
@@ -74,10 +78,12 @@ public partial class MainWindow : Window
         _activeProfile = null;
         _activeContent = null;
         QuestPage.Visibility = Visibility.Collapsed;
+        HideoutPage.Visibility = Visibility.Collapsed;
         EmptyState.Visibility = Visibility.Visible;
         StatusText.Text = "프로필 설정 필요";
         EditProfileButton.IsEnabled = false;
         UpdateDataButton.IsEnabled = false;
+        UpdateSectionButtons();
     }
 
     private async void ProfileComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -108,15 +114,19 @@ public partial class MainWindow : Window
         _activeProfile = choice.Profile;
         _activeContent = await ReadOrCreateContentAsync(choice.Profile.GameMode);
 
-        var workspace = await _services.Quests.LoadAsync(
+        var questWorkspace = await _services.Quests.LoadAsync(
             _activeContent,
             choice.Profile.ProfileId);
-        _activeProfile = workspace.Profile;
+        var hideoutWorkspace = await _services.Hideout.LoadAsync(
+            _activeContent,
+            choice.Profile.ProfileId);
+        _activeProfile = hideoutWorkspace.Profile;
 
-        QuestPage.SetData(_activeContent, workspace);
-        QuestPage.Visibility = Visibility.Visible;
+        QuestPage.SetData(_activeContent, questWorkspace);
+        HideoutPage.SetData(_activeContent, hideoutWorkspace);
         EmptyState.Visibility = Visibility.Collapsed;
-        StatusText.Text = $"{GameModeText(choice.Profile.GameMode)} · {_activeContent.Quests.Count}개 퀘스트";
+        ShowActiveSection();
+        StatusText.Text = BuildLoadedStatus(choice.Profile.GameMode);
     }
 
     private async Task<GameContentCatalog> ReadOrCreateContentAsync(GameMode gameMode)
@@ -260,12 +270,17 @@ public partial class MainWindow : Window
 
             var snapshot = await _services.Content.ReadActiveOrRecoverAsync(_activeProfile.GameMode);
             _activeContent = snapshot.Content;
-            var workspace = await _services.Quests.LoadAsync(
+            var questWorkspace = await _services.Quests.LoadAsync(
                 _activeContent,
                 _activeProfile.ProfileId);
-            _activeProfile = workspace.Profile;
-            QuestPage.SetData(_activeContent, workspace);
-            StatusText.Text = $"업데이트 완료 · {_activeContent.Quests.Count}개 퀘스트";
+            var hideoutWorkspace = await _services.Hideout.LoadAsync(
+                _activeContent,
+                _activeProfile.ProfileId);
+            _activeProfile = hideoutWorkspace.Profile;
+            QuestPage.SetData(_activeContent, questWorkspace);
+            HideoutPage.SetData(_activeContent, hideoutWorkspace);
+            ShowActiveSection();
+            StatusText.Text = $"업데이트 완료 · {BuildLoadedStatus(_activeProfile.GameMode)}";
         }
         catch (Exception exception)
         {
@@ -317,14 +332,98 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void HideoutPage_LevelChangeRequested(
+        object? sender,
+        HideoutLevelChangeRequestedEventArgs e)
+    {
+        if (_activeProfile is null || _activeContent is null)
+            return;
+
+        try
+        {
+            SetBusy(true, "은신처 레벨을 저장하는 중...");
+            var workspace = await _services.Hideout.SetLevelAsync(
+                _activeContent,
+                _activeProfile.ProfileId,
+                e.StationId,
+                e.Level);
+            _activeProfile = workspace.Profile;
+            HideoutPage.SetData(_activeContent, workspace);
+            StatusText.Text = e.Level.HasValue
+                ? "은신처 레벨 저장됨"
+                : "은신처 레벨 입력 해제됨";
+        }
+        catch (Exception exception)
+        {
+            ShowFailure("은신처 진행 상태를 변경하지 못했습니다.", exception);
+        }
+        finally
+        {
+            SetBusy(false, StatusText.Text);
+        }
+    }
+
+    private void QuestTabButton_Click(object sender, RoutedEventArgs e)
+    {
+        _activeSection = DesktopSection.Quest;
+        ShowActiveSection();
+    }
+
+    private void HideoutTabButton_Click(object sender, RoutedEventArgs e)
+    {
+        _activeSection = DesktopSection.Hideout;
+        ShowActiveSection();
+    }
+
+    private void ShowActiveSection()
+    {
+        if (_activeProfile is null || _activeContent is null)
+        {
+            QuestPage.Visibility = Visibility.Collapsed;
+            HideoutPage.Visibility = Visibility.Collapsed;
+            EmptyState.Visibility = Visibility.Visible;
+            UpdateSectionButtons();
+            return;
+        }
+
+        EmptyState.Visibility = Visibility.Collapsed;
+        QuestPage.Visibility = _activeSection == DesktopSection.Quest
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        HideoutPage.Visibility = _activeSection == DesktopSection.Hideout
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        UpdateSectionButtons();
+    }
+
     private void SetBusy(bool busy, string status)
     {
         ProfileComboBox.IsEnabled = !busy && _profiles.Count > 0;
         EditProfileButton.IsEnabled = !busy && _activeProfile is not null;
-        CreateProfileButton.IsEnabled = !busy && _profiles.Select(profile => profile.GameMode).Distinct().Count() < Enum.GetValues<GameMode>().Length;
+        CreateProfileButton.IsEnabled = !busy &&
+                                        _profiles.Select(profile => profile.GameMode).Distinct().Count() <
+                                        Enum.GetValues<GameMode>().Length;
         UpdateDataButton.IsEnabled = !busy && _activeProfile is not null;
         QuestPage.SetBusy(busy);
+        HideoutPage.SetBusy(busy);
+        QuestTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Quest;
+        HideoutTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Hideout;
         StatusText.Text = status;
+    }
+
+    private void UpdateSectionButtons()
+    {
+        var hasProfile = _activeProfile is not null;
+        QuestTabButton.IsEnabled = hasProfile && _activeSection != DesktopSection.Quest;
+        HideoutTabButton.IsEnabled = hasProfile && _activeSection != DesktopSection.Hideout;
+    }
+
+    private string BuildLoadedStatus(GameMode gameMode)
+    {
+        if (_activeContent is null)
+            return GameModeText(gameMode);
+
+        return $"{GameModeText(gameMode)} · Quest {_activeContent.Quests.Count} · Hideout {_activeContent.HideoutStations.Count}";
     }
 
     private void ShowFailure(string title, Exception exception)
@@ -357,5 +456,11 @@ public partial class MainWindow : Window
     {
         public override string ToString() =>
             $"{GameModeText(Profile.GameMode)} · Lv.{Profile.Level} · {FactionText(Profile.Faction)}";
+    }
+
+    private enum DesktopSection
+    {
+        Quest,
+        Hideout,
     }
 }
