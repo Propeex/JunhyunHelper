@@ -59,7 +59,7 @@
             <quests:QuestPage x:Name="QuestPage" Visibility="Collapsed" />
             <hideout:HideoutPage x:Name="HideoutPage" Loaded="HideoutPage_Loaded" Visibility="Collapsed" />
             <items:ItemsPage x:Name="ItemsPage" Loaded="ItemsPage_Loaded" Visibility="Collapsed" />
-            <ammo:AmmoPage x:Name="AmmoPage" Visibility="Collapsed" />
+            <ammo:AmmoPage x:Name="AmmoPage" Loaded="AmmoPage_Loaded" Visibility="Collapsed" />
 
             <Grid x:Name="EmptyState">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="520">
