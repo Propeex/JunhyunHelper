@@ -11,7 +11,7 @@ public enum QuestRequiredStatus
 
 public sealed record QuestTaskRequirement(
     string RequiredQuestId,
-    IReadOnlyList<QuestRequiredStatus> AcceptedStatuses);
+    IReadOnlyCollection<QuestRequiredStatus> AcceptedStatuses);
 
 public sealed record QuestTraderStandingRequirement(
     string TraderId,
