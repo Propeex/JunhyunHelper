@@ -15,15 +15,15 @@ public enum TarkovEndpoint
 
 internal static class TarkovSourcePath
 {
-    public static string GameMode(GameMode gameMode) => gameMode switch
+    public static string GameModeSegment(GameMode gameMode) => gameMode switch
     {
-        Profiles.GameMode.Regular => "regular",
-        Profiles.GameMode.Pve => "pve",
-        Profiles.GameMode.PvpSeason => "pvp-season",
+        GameMode.Regular => "regular",
+        GameMode.Pve => "pve",
+        GameMode.PvpSeason => "pvp-season",
         _ => throw new ArgumentOutOfRangeException(nameof(gameMode), gameMode, null),
     };
 
-    public static string Endpoint(TarkovEndpoint endpoint) => endpoint switch
+    public static string EndpointSegment(TarkovEndpoint endpoint) => endpoint switch
     {
         TarkovEndpoint.Tasks => "tasks",
         TarkovEndpoint.Hideout => "hideout",
