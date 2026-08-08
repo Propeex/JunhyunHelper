@@ -19,5 +19,6 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/JunhyunHelper.Core/JunhyunHelper.Core.csproj" />
+    <ProjectReference Include="../../src/JunhyunHelper.Infrastructure/JunhyunHelper.Infrastructure.csproj" />
   </ItemGroup>
 </Project>
