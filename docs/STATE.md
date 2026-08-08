@@ -4,13 +4,13 @@
 
 ## 현재 Phase
 
-**Phase 2B — 첫 실제 Desktop/Quest 흐름 구현**
+**Phase 2B — 실제 Desktop 핵심 흐름 구현**
 
-상태: `IN PROGRESS — deterministic data pipeline + Quest application flow + first WPF Quest screen verified`
+상태: `IN PROGRESS — data pipeline + profile management + Quest desktop flow verified`
 
-현재 핵심 데이터 기반은 실제 온라인 데이터로 검증되었고, 첫 WPF Quest 화면이 Core/Application 경계를 통해 연결되었습니다.
+현재 사용자는 프로그램 안에서 게임 모드별 캐릭터 프로필을 직접 만들고 수정한 뒤, 그 사용자 사실과 최신 Game Content를 결합한 Quest 목록을 실제 WPF 화면에서 사용할 수 있습니다.
 
-다음 병목은 **게임 진행 프로필을 사용자가 직접 생성·편집하는 최소 UI**입니다.
+다음 제품 영역은 **Hideout 상세 동작**입니다. 구현을 확장하더라도 현재의 단순한 책임 경계는 유지합니다.
 
 ---
 
@@ -167,6 +167,67 @@ content/
 - active 손상 시 같은 모드의 valid previous 복구 가능
 - Game Content는 재생성 가능한 snapshot
 
+### User Progress / `user.db`
+
+프로필 하나 = 실제 Tarkov 캐릭터 하나.
+
+현재 준현 헬퍼가 생성하는 프로필은 지원 게임 모드별 현재 캐릭터 하나를 표현하며 같은 모드의 중복 프로필을 자동 생성하지 않습니다.
+
+저장하는 사용자 사실:
+
+- game mode
+- level
+- faction
+- edition
+- prestige
+- 선택적으로 입력한 trader loyalty / standing
+- completed Quest IDs
+- hideout current levels
+- inventory FIR / Non-FIR
+
+저장하지 않는 파생 상태:
+
+- Current/Locked/Indeterminate
+- Needed Items 결과
+- 화면 필터/정렬/집계 결과
+
+### Profile Application / UI
+
+`ProfileApplicationService` 구현.
+
+책임:
+
+- game mode별 프로필 생성
+- 사용자 설정값 수정
+- `user.db` 저장
+- profile 목록 조회
+
+프로필 설정 수정 시 **보존**:
+
+- completed Quest IDs
+- hideout levels
+- inventory
+
+WPF profile UI:
+
+- `새 프로필`
+- 게임 모드 선택 (`PvP / PvE / 시즌`)
+- 해당 모드 콘텐츠가 없으면 안전한 온라인 구축
+- level 입력
+- faction 선택
+- edition 선택
+- prestige 입력
+- trader별 입력 여부 + LL + standing
+- 기존 profile 수정
+
+Trader progress의 중요한 원칙:
+
+- 입력하지 않은 trader는 dictionary에 넣지 않음
+- 미입력을 평판/LL 0으로 추측하지 않음
+- 그 값이 필요한 Quest는 evaluator가 `Indeterminate`로 진단
+
+로그나 게임 화면에서 profile 값을 자동 추측하지 않습니다.
+
 ### Quest availability
 
 정상 상태:
@@ -200,6 +261,56 @@ content/
 
 시간 지연 해금은 제품 결정에 따라 계산하지 않습니다.
 
+### Quest Application
+
+`QuestApplicationService` 구현.
+
+- profile + Game Content로 Quest workspace 조회
+- 수동 `완료`
+- `완료 취소`
+- user.db 저장
+- 저장 후 전체 deterministic Quest 재계산
+- `Indeterminate`를 `Problems`로 별도 반환
+
+완료/취소가 다른 기능의 저장 상태를 직접 수정하지 않습니다.
+
+### WPF Desktop / Quest 화면
+
+현재 실제 흐름:
+
+1. profile 생성 또는 기존 profile 선택
+2. profile 모드의 Game Content 로드/복구/최초 구축
+3. Quest evaluator 실행
+4. Quest 화면 표시
+5. 사용자 완료/완료 취소 → user fact 수정 → 재계산
+
+Quest 화면:
+
+- 검색
+- 상태 dropdown (`진행 중 / 전체 / 잠김 / 완료`)
+- 상인 dropdown
+- 지도 dropdown
+- 왼쪽 Quest 목록 / 오른쪽 상세
+- Wiki
+- 진행 중 Quest `완료`
+- 완료 Quest `완료 취소`
+- 별도 `판정 문제 N` 진단 진입점
+- 목표
+- 제출 아이템
+- 해금 조건
+- 선행 Quest
+- 판정 이유
+- XP
+
+UI는 `QuestCatalogEntry.Availability` 결과를 소비하며 Quest 조건을 다시 판정하지 않습니다.
+
+현재 의도적으로 없음:
+
+- 로그 기반 자동 완료
+- objective 수동 진행 체크
+- 추천 Quest 로직
+- Quest 화면 내부 faction/edition 임시 토글
+
 ### Quest → Needed Items
 
 - `giveItem`만 제출 requirement로 변환
@@ -220,73 +331,6 @@ content/
 - TraderBarter
 - HideoutCraft
 
-### User Progress / `user.db`
-
-프로필 하나 = 실제 Tarkov 캐릭터 하나.
-
-저장하는 사용자 사실:
-
-- game mode
-- level / faction / edition / prestige
-- trader progress
-- completed Quest IDs
-- hideout current levels
-- inventory FIR / Non-FIR
-
-저장하지 않는 파생 상태:
-
-- Current/Locked/Indeterminate
-- Needed Items 결과
-- 화면 필터/정렬/집계 결과
-
-### Application 계층
-
-`JunhyunHelper.Application` 추가.
-
-현재 `QuestApplicationService` 책임:
-
-- profile + Game Content로 Quest workspace 조회
-- 수동 `완료`
-- `완료 취소`
-- user.db 저장
-- 저장 후 전체 deterministic Quest 재계산
-- `Indeterminate`를 `Problems`로 별도 반환
-
-완료/취소가 다른 기능의 저장 상태를 직접 수정하지 않습니다.
-
-### WPF Desktop / 첫 Quest 화면
-
-`JunhyunHelper.Desktop` 추가.
-
-현재 실제 화면:
-
-- 기존 profile 선택
-- 선택 profile의 모드별 active content 로드
-- active content가 없으면 온라인에서 최초 구축
-- 수동 데이터 업데이트
-- Quest 검색
-- 상태 dropdown (`진행 중 / 전체 / 잠김 / 완료`)
-- 상인 dropdown
-- 지도 dropdown
-- 왼쪽 Quest 목록 / 오른쪽 상세
-- Wiki
-- 진행 중 Quest `완료`
-- 완료 Quest `완료 취소`
-- 별도 `판정 문제 N` 진단 진입점
-- 목표 / 제출 아이템 / 해금 조건 / 선행 Quest / 판정 이유 / XP 표시
-
-UI는 `QuestCatalogEntry.Availability` 결과를 소비하며 Quest 조건을 다시 판정하지 않습니다.
-
-현재 의도적으로 없는 것:
-
-- 로그 기반 자동 완료
-- objective 수동 진행 체크
-- 추천 Quest 로직
-- 화면 내부 faction/edition 임시 토글
-- 프로필 생성/편집 UI
-
-프로필이 하나도 없으면 임의 캐릭터를 만들지 않고 명확한 빈 상태를 표시합니다.
-
 ---
 
 ## 실제 검증
@@ -305,14 +349,23 @@ UI는 `QuestCatalogEntry.Availability` 결과를 소비하며 Quest 조건을 �
 
 ### 최신 Windows CI
 
-첫 Desktop/Quest UI checkpoint:
+Profile management checkpoint:
 
 - Windows Server 2025
 - .NET SDK 10.0.302
 - Desktop restore/build 성공
 - **0 warnings / 0 errors**
 - Core/Infrastructure/Application/Test build 성공
-- **81 passed / 0 failed / 0 skipped**
+- **83 passed / 0 failed / 0 skipped**
+
+회귀 테스트가 명시적으로 확인하는 항목:
+
+- same game mode 중복 profile 생성 방지
+- profile settings 수정 시 completed quests 보존
+- profile settings 수정 시 hideout levels 보존
+- profile settings 수정 시 inventory 보존
+- Quest 완료/취소 후 후속 Quest 재계산
+- `Indeterminate`가 Current에 섞이지 않음
 
 ---
 
@@ -341,7 +394,7 @@ UI는 `QuestCatalogEntry.Availability` 결과를 소비하며 Quest 조건을 �
 
 ## 아직 제품 결정/구현이 남은 것
 
-- 프로필 생성/편집 UI
+- profile 삭제/reset UX
 - Quest 실패/분기 상태를 사용자가 어떻게 기록할지
 - Quest reward 전체 canonical model
 - Item 자동 차감 여부
@@ -355,14 +408,15 @@ UI는 `QuestCatalogEntry.Availability` 결과를 소비하며 Quest 조건을 �
 
 ## 다음 순서
 
-1. **최소 프로필 관리 UI** — 캐릭터별 사용자 사실 생성/편집
-2. 프로필 변경 → Quest 진단/목록 갱신 흐름 검증
-3. 첫 Quest UI를 실제 프로필로 end-to-end 검증
-4. Quest에 남은 필수 정보 모델을 최소 범위에서 보완
-5. 그 다음 **Hideout 제품 세부 동작**으로 이동
+1. 현재 profile → Quest end-to-end 흐름을 계속 회귀 테스트로 보호
+2. Quest에 남은 필수 정보가 실제 사용을 막는 수준인지 최소 점검
+3. **Hideout 제품 상세 동작 설계/구현**
+4. Hideout 상태 변경을 user.db와 연결
+5. Quest + Hideout → Needed Items 실제 Desktop 흐름으로 확장
+6. 그 후 Ammo 화면
 
-프로필 관리에서도 자동 추정/로그 동기화는 넣지 않고 사용자가 알고 있는 캐릭터 사실만 저장합니다.
+새 기능은 현재 Core/Application/UI 경계를 깨지 않는 범위에서만 추가합니다.
 
 ## 마지막 갱신
 
-2026-08-08 — 수동 Quest 완료/완료 취소와 `Indeterminate` 진단을 얇은 Application 계층으로 연결하고 첫 WPF Quest 화면을 구현. Desktop 빌드 0 warning/0 error, 전체 테스트 81/81 통과 후 main 반영. 다음 병목은 프로필 생성/편집 UI.
+2026-08-08 — 명시적 profile 생성/수정 UI와 `ProfileApplicationService`를 구현. 미입력 trader 상태를 0으로 추측하지 않으며, profile 설정 변경 시 완료 Quest·Hideout·Inventory를 보존하도록 고정. Desktop 빌드 0 warning/0 error, 전체 테스트 83/83 통과 후 main 반영. 다음 제품 영역은 Hideout.
