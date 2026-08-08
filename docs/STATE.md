@@ -19,7 +19,7 @@
 → Desktop 표시
 ```
 
-지도와 Scanner의 실제 기능은 아직 후속 범위입니다.
+지도와 Scanner의 실제 기능은 아직 후속 범위입니다. 상단 탭과 `준비 중` placeholder만 존재합니다.
 
 ---
 
@@ -100,6 +100,38 @@ TarkovTracker `tarkov-data-overlay`의 editions 정보만 사용합니다.
 
 ---
 
+## Game Content update — 현재 구현
+
+업데이트 안전성:
+
+1. 기존 active data를 유지
+2. 온라인 원천 다운로드
+3. canonical model 변환
+4. 관계/필수 값 검증
+5. candidate SQLite 작성
+6. candidate read-back/activation 검증
+7. 성공한 경우에만 active 교체
+8. 실패 시 기존 active와 `user.db` 유지
+
+### 진행률 UI — PR #34
+
+첫 실사용 피드백의 `데이터 업데이트 로딩바` 요구를 구현했습니다.
+
+진행률은 타이머로 만들어낸 가짜 퍼센트가 아닙니다.
+
+- 8개 실제 원천(items/traders/maps/tasks/hideout/barters/crafts/edition rules)의 완료 개수를 1/8~8/8로 측정
+- canonical import 단계
+- validation 단계
+- candidate write 단계
+- activation 단계
+- 완료/실패 단계
+
+Infrastructure의 `ContentUpdateProgress`가 실제 단계를 보고하고 Desktop이 overlay progress bar와 현재 작업 문구로 표시합니다.
+
+수동 업데이트뿐 아니라 해당 모드의 최초 데이터 생성 및 active 복구 업데이트도 같은 진행 UI를 사용합니다.
+
+---
+
 ## Profile — 현재 구현
 
 - 한 GameMode당 프로필 하나
@@ -160,6 +192,23 @@ Trader LL과 standing은 별개의 optional fact로 저장합니다.
 
 Quest 보상은 제품 범위에서 제외합니다.
 
+### Quest filter ordering — PR #34
+
+상인 filter는 사용자가 게임에서 익숙한 고정 순서를 사용합니다.
+
+```text
+Prapor → Therapist → Fence → Skier → Peacekeeper → Mechanic
+→ Ragman → Jaeger → Ref → Lightkeeper → BTR Driver
+```
+
+지도 filter도 기존에 검증한 게임식 고정 순서를 한 곳의 UI ordering helper에서 관리합니다. 알 수 없는 미래 상인/지도는 숨기지 않고 알려진 항목 뒤에 표시합니다.
+
+### Ground Zero 21+
+
+`Ground Zero`와 `Ground Zero 21+`의 canonical map ID 자체는 보존합니다.
+
+Quest map filter에서만 두 변형을 하나의 `Ground Zero` 그룹으로 묶습니다. 따라서 Ground Zero를 선택하면 어느 matchmaking variant에 연결된 Quest든 함께 표시됩니다.
+
 상세 근거:
 
 - `docs/QUEST_FAILURE_ANALYSIS.md`
@@ -179,7 +228,7 @@ Quest 보상은 제품 범위에서 제외합니다.
 - 현재 레벨의 바로 다음 upgrade를 상세에 표시
 - Needed Items에는 현재 레벨보다 높은 모든 미래 upgrade material을 합산
 
-Hideout station 이미지는 canonical `ImageUrl`을 사용해 목록과 상세 header에 표시하는 작업이 PR #32에 포함되어 있습니다.
+Hideout station 이미지는 canonical `ImageUrl`을 사용해 목록과 상세 header에 표시합니다.
 
 ---
 
@@ -217,9 +266,9 @@ cleanup:
 - 보유 metadata가 새 Game Content에서 사라져도 stable Item ID로 노출
 - 안전성을 증명할 수 없으면 cleanup하지 않고 보호
 
-### Item UI — PR #32
+### Item UI — PR #32 병합 완료
 
-기존 진단 dump 형태를 제거하고 비교 가능한 행으로 정리합니다.
+기존 진단 dump 형태를 제거하고 비교 가능한 행으로 정리했습니다.
 
 행:
 
@@ -261,8 +310,7 @@ Ammo는 User Progress와 분리된 읽기 전용 비교 화면입니다.
   - Hideout 제작 Lv.
 - 구조화된 상인/교환/제작 경로가 없을 때만 `레이드 획득`
 - 상세 수급처 카드는 유지
-
-PR #32에서는 canonical item icon을 Ammo 표와 상세 header에도 표시합니다.
+- canonical item icon을 표와 상세 header에 표시
 
 ### Armor Class 1~6 effectiveness
 
@@ -279,7 +327,7 @@ PR #32에서는 canonical item icon을 Ammo 표와 상세 header에도 표시합
 
 ---
 
-## 이미지 cache — PR #32
+## 이미지 cache — PR #32 병합 완료
 
 Desktop 비권위 cache:
 
@@ -304,55 +352,63 @@ Desktop 비권위 cache:
 
 ---
 
+## Map / Scanner — 현재 구현
+
+상단 내비게이션에 다음 탭이 존재합니다.
+
+- 지도
+- 스캐너
+
+실제 기능은 아직 미구현입니다.
+
+현재 두 탭은 `준비 중` placeholder만 표시하며 검증되지 않은 지도 데이터나 스캐너 로직을 임의 실행하지 않습니다.
+
+---
+
 ## 첫 실사용 피드백 1~13 진행 상태
 
 | 번호 | 요구 | 상태 |
 |---:|---|---|
 | 1 | 전역 dark dropdown/scrollbar 및 부드러운 UI | 구현/병합 완료 (PR #28) |
-| 2 | Hideout/Item/Ammo 이미지 + 온라인 URL 기반 cache | PR #32 검증 중 |
+| 2 | Hideout/Item/Ammo 이미지 + 온라인 URL 기반 cache | 구현/병합 완료 (PR #32) |
 | 3 | Quest/Hideout 리스트 행 정렬/형태 개선 | 구현/병합 완료 (PR #28) |
 | 4 | level/trader 수치 +/- 입력, Fence 0.1 | 구현/병합 완료 (PR #30) |
 | 5 | Hideout 미입력 = Lv.0 | 구현/병합 완료 (PR #29) |
-| 6 | Item 목록을 실제 판단용 목록으로 재설계 | PR #32 검증 중 |
+| 6 | Item 목록을 실제 판단용 목록으로 재설계 | 구현/병합 완료 (PR #32) |
 | 7 | Ammo 표에 간단한 수급 경로 표시 | 구현/병합 완료 (PR #31) |
-| 8 | 데이터 업데이트 진행률 시각화 | 미구현 |
+| 8 | 데이터 업데이트 진행률 시각화 | 구현 완료, PR #34 검증 중 |
 | 9 | Profile 버튼 공간 절약 | 구현/병합 완료 (PR #30) |
 | 10 | Ammo 검색 제거/열 선택/관통 오름차순 | 구현/병합 완료 (PR #31) |
 | 10-b | Wiki-equivalent Class 1~6 0~6 효율 cell | 공식/source 검증 중, 미구현 |
-| 11 | Trader/Map dropdown을 실제 게임 순서로 고정 | 미검증/미구현 |
-| 12 | Ground Zero 21+를 Ground Zero로 병합 | 구현 여부 재검증 필요 |
-| 13 | Map/Scanner 탭 placeholder 추가 | 미구현 |
+| 11 | Trader/Map dropdown을 실제 게임 순서로 고정 | 구현 완료, PR #34 검증 중 |
+| 12 | Ground Zero 21+를 Ground Zero로 병합 | Quest filter 구현 완료, PR #34 검증 중 |
+| 13 | Map/Scanner 탭 placeholder 추가 | 구현 완료, PR #34 검증 중 |
 
 ---
 
 ## 현재 작업 PR
 
-### PR #32 — `agent/item-icons-redesign`
+### PR #34 — `agent/usability-followup-progress-navigation`
 
 목적:
 
-- Item 목록 재설계
-- Item/Hideout/Ammo canonical 이미지 표시
-- LocalAppData image cache
+- 실제 update stage 기반 진행률 overlay
+- Quest 상인/지도 고정 UI order
+- Ground Zero 21+ → Ground Zero filter grouping
+- Map / Scanner placeholder tabs
 
-자동 리뷰에서 확인된 보완 사항:
-
-1. 미보유 flexible 후보도 Item 행에 포함
-2. invalid image cache payload 자동 제거/재시도 가능
-3. 현재 UI/cache 구조를 공식 문서에 기록
-
-위 보완을 반영하고 CI/리뷰를 다시 통과시킨 뒤 병합합니다.
+현재 구현 및 기본 CI는 완료되었습니다. 최종 문서/자동 리뷰까지 확인한 뒤 병합합니다.
 
 ---
 
 ## 다음 작업 순서
 
-PR #32 종료 후 다음 순서로 첫 실사용 피드백을 계속 처리합니다.
+PR #34 종료 후:
 
-1. 데이터 업데이트 진행률 UI (#8)
-2. Trader / Map 실제 게임 순서 고정 (#11)
-3. Ground Zero 21+ alias 정규화 검증 및 필요 시 수정 (#12)
-4. Map / Scanner placeholder 탭 (#13)
-5. Armor Class 1~6 exact rating 조사 계속 (#10-b)
+1. Armor Class 1~6 exact 0~6 rating의 source/공식 조사 계속 (#10-b)
+2. 첫 실사용 피드백 전체 회귀 검토 및 새 Windows test build 확인
+3. 사용자에게 다음 실사용본 전달 후 추가 제품 피드백 반영
+4. Map 실제 기능은 지도 데이터 공급원/사용 경험을 확정한 뒤 구현
+5. Scanner 실제 기능은 별도 요구사항 확정 후 구현
 
-각 단계에서 기존 Core/데이터 의미를 임의 변경하지 않고 테스트와 공식 문서를 함께 갱신합니다.
+기존 Core/데이터 의미를 임의 변경하지 않고 테스트와 공식 문서를 함께 갱신합니다.
