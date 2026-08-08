@@ -168,20 +168,37 @@ public sealed class QuestApplicationService
         GameProfileSnapshot profile,
         string questId)
     {
-        return QuestCatalogQuery.Evaluate(content, profile)
-            .FirstOrDefault(entry => string.Equals(entry.Quest.Id, questId, StringComparison.Ordinal))
+        var entry = QuestCatalogQuery.Evaluate(content, profile)
+            .FirstOrDefault(candidate => string.Equals(candidate.Quest.Id, questId, StringComparison.Ordinal))
             ?? throw new KeyNotFoundException($"Quest '{questId}' does not exist in the active game content.");
+        return ApplyProductAvailabilityPolicy(entry);
     }
 
     private static QuestWorkspace BuildWorkspace(
         GameContentCatalog content,
         GameProfileSnapshot profile)
     {
-        var quests = QuestCatalogQuery.Evaluate(content, profile);
-        var problems = quests
-            .Where(entry => entry.Availability.State == QuestAvailabilityState.Indeterminate)
+        var quests = QuestCatalogQuery.Evaluate(content, profile)
+            .Select(ApplyProductAvailabilityPolicy)
             .ToArray();
 
-        return new QuestWorkspace(profile, quests, problems);
+        // Core keeps Indeterminate as a diagnostic truth. Product policy intentionally treats
+        // any remaining non-resolvable availability condition as Current so the helper does not
+        // hide a quest the user can actually have in game.
+        return new QuestWorkspace(profile, quests, Array.Empty<QuestCatalogEntry>());
+    }
+
+    private static QuestCatalogEntry ApplyProductAvailabilityPolicy(QuestCatalogEntry entry)
+    {
+        if (entry.Availability.State != QuestAvailabilityState.Indeterminate)
+            return entry;
+
+        return entry with
+        {
+            Availability = new QuestAvailabilityResult(
+                entry.Quest.Id,
+                QuestAvailabilityState.Current,
+                entry.Availability.Reasons),
+        };
     }
 }
