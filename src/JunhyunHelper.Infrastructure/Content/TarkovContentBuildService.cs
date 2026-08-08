@@ -1,5 +1,6 @@
 using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.Profiles;
+using JunhyunHelper.Infrastructure.EditionData;
 using JunhyunHelper.Infrastructure.TarkovJson;
 using JunhyunHelper.Infrastructure.Validation;
 
@@ -16,15 +17,18 @@ public sealed record TarkovContentBuildResult(
 public sealed class TarkovContentBuildService
 {
     private readonly TarkovEndpointSourceLoader _sourceLoader;
+    private readonly TarkovEditionCatalogClient _editionClient;
     private readonly TarkovGameContentImporter _importer;
     private readonly GameContentValidator _validator;
 
     public TarkovContentBuildService(
         TarkovEndpointSourceLoader sourceLoader,
+        TarkovEditionCatalogClient editionClient,
         TarkovGameContentImporter? importer = null,
         GameContentValidator? validator = null)
     {
         _sourceLoader = sourceLoader ?? throw new ArgumentNullException(nameof(sourceLoader));
+        _editionClient = editionClient ?? throw new ArgumentNullException(nameof(editionClient));
         _importer = importer ?? new TarkovGameContentImporter();
         _validator = validator ?? new GameContentValidator();
     }
@@ -61,6 +65,7 @@ public sealed class TarkovContentBuildService
             gameMode,
             TarkovEndpoint.Crafts,
             cancellationToken);
+        var editionsTask = _editionClient.GetAsync(cancellationToken);
 
         await Task.WhenAll(
             itemsTask,
@@ -69,7 +74,8 @@ public sealed class TarkovContentBuildService
             tasksTask,
             hideoutTask,
             bartersTask,
-            craftsTask);
+            craftsTask,
+            editionsTask);
 
         var items = await itemsTask;
         var traders = await tradersTask;
@@ -78,6 +84,7 @@ public sealed class TarkovContentBuildService
         var hideout = await hideoutTask;
         var barters = await bartersTask;
         var crafts = await craftsTask;
+        var editions = await editionsTask;
 
         var content = _importer.Import(
             items.Source,
@@ -86,7 +93,8 @@ public sealed class TarkovContentBuildService
             tasks.Source,
             hideout.Source,
             barters.Source,
-            crafts.Source);
+            crafts.Source,
+            editions);
 
         var warnings = new[]
             {
