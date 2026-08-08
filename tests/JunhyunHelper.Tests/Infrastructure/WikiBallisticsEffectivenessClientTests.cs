@@ -34,7 +34,7 @@ public sealed class WikiBallisticsEffectivenessClientTests
 
         using var client = new HttpClient(new StaticResponseHandler(HttpStatusCode.OK, json));
         var sourceClient = new WikiBallisticsEffectivenessClient(client);
-        var source = await sourceClient.LoadAsync();
+        var source = await sourceClient.LoadAsync(TestContext.Current.CancellationToken);
 
         Assert.True(source.Available);
         Assert.Equal(fixtures.Length, source.Rows.Count);
@@ -47,7 +47,9 @@ public sealed class WikiBallisticsEffectivenessClientTests
 
         foreach (var fixture in fixtures)
         {
-            var ammo = Assert.Single(enriched.Content.Ammunition.Where(value => value.ItemId == fixture.ItemId));
+            var ammo = Assert.Single(
+                enriched.Content.Ammunition,
+                value => value.ItemId == fixture.ItemId);
             Assert.Equal(fixture.Rating, ammo.ArmorEffectiveness);
         }
     }
@@ -59,7 +61,7 @@ public sealed class WikiBallisticsEffectivenessClientTests
             HttpStatusCode.ServiceUnavailable,
             "service unavailable"));
         var sourceClient = new WikiBallisticsEffectivenessClient(client);
-        var source = await sourceClient.LoadAsync();
+        var source = await sourceClient.LoadAsync(TestContext.Current.CancellationToken);
 
         Assert.False(source.Available);
         Assert.NotEmpty(source.Warnings);
@@ -86,7 +88,8 @@ public sealed class WikiBallisticsEffectivenessClientTests
         var json = JsonSerializer.Serialize(new { parse = new { text = html } });
 
         using var client = new HttpClient(new StaticResponseHandler(HttpStatusCode.OK, json));
-        var source = await new WikiBallisticsEffectivenessClient(client).LoadAsync();
+        var source = await new WikiBallisticsEffectivenessClient(client)
+            .LoadAsync(TestContext.Current.CancellationToken);
         var content = BuildContent(
         [
             new Fixture("conflict", "Conflict Round", first),
@@ -119,8 +122,14 @@ public sealed class WikiBallisticsEffectivenessClientTests
         try
         {
             var store = new ContentSnapshotStore();
-            await store.WriteNewAsync(path, GameMode.Regular, content);
-            var read = await store.ReadAsync(path);
+            await store.WriteNewAsync(
+                path,
+                GameMode.Regular,
+                content,
+                cancellationToken: TestContext.Current.CancellationToken);
+            var read = await store.ReadAsync(
+                path,
+                TestContext.Current.CancellationToken);
 
             Assert.Equal(rating, Assert.Single(read.Content.Ammunition).ArmorEffectiveness);
         }
