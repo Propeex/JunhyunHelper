@@ -53,21 +53,40 @@ public sealed class TarkovContentBuildService
             gameMode,
             TarkovEndpoint.Hideout,
             cancellationToken);
+        var bartersTask = _sourceLoader.LoadAsync(
+            gameMode,
+            TarkovEndpoint.Barters,
+            cancellationToken);
+        var craftsTask = _sourceLoader.LoadAsync(
+            gameMode,
+            TarkovEndpoint.Crafts,
+            cancellationToken);
 
-        await Task.WhenAll(itemsTask, tradersTask, mapsTask, tasksTask, hideoutTask);
+        await Task.WhenAll(
+            itemsTask,
+            tradersTask,
+            mapsTask,
+            tasksTask,
+            hideoutTask,
+            bartersTask,
+            craftsTask);
 
         var items = await itemsTask;
         var traders = await tradersTask;
         var maps = await mapsTask;
         var tasks = await tasksTask;
         var hideout = await hideoutTask;
+        var barters = await bartersTask;
+        var crafts = await craftsTask;
 
         var content = _importer.Import(
             items.Source,
             traders.Source,
             maps.Source,
             tasks.Source,
-            hideout.Source);
+            hideout.Source,
+            barters.Source,
+            crafts.Source);
 
         var warnings = new[]
             {
@@ -76,6 +95,8 @@ public sealed class TarkovContentBuildService
                 maps.Warnings,
                 tasks.Warnings,
                 hideout.Warnings,
+                barters.Warnings,
+                crafts.Warnings,
             }
             .SelectMany(static sourceWarnings => sourceWarnings)
             .ToArray();
