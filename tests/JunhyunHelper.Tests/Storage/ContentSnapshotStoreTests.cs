@@ -14,6 +14,7 @@ public sealed class ContentSnapshotStoreTests
     [Fact]
     public async Task CanonicalContentRoundTripsAsOneVersionedSnapshot()
     {
+        var cancellationToken = TestContext.Current.CancellationToken;
         var path = Path.Combine(
             Path.GetTempPath(),
             "JunhyunHelper.Tests",
@@ -29,9 +30,10 @@ public sealed class ContentSnapshotStoreTests
                 path,
                 GameMode.Regular,
                 content,
-                new[] { "fixture warning" });
+                new[] { "fixture warning" },
+                cancellationToken);
 
-            var loaded = await store.ReadAsync(path);
+            var loaded = await store.ReadAsync(path, cancellationToken);
 
             Assert.Equal(ContentSnapshotStore.CurrentSchemaVersion, loaded.SchemaVersion);
             Assert.Equal(GameMode.Regular, loaded.GameMode);
