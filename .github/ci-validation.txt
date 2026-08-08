@@ -1,3 +1,4 @@
 Temporary CI validation marker. Do not merge.
 Retry: patched SQLite native bundle.
 Retry: test compile/analyzer fixes.
+Retry: disable user DB pooling.
