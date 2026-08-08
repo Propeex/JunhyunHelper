@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using JunhyunHelper.Application.Quests;
 using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.Profiles;
+using JunhyunHelper.Desktop.Profiles;
 using JunhyunHelper.Desktop.Quests;
 using JunhyunHelper.Desktop.Services;
 
@@ -12,6 +13,7 @@ namespace JunhyunHelper.Desktop;
 public partial class MainWindow : Window
 {
     private readonly DesktopServices _services = new();
+    private IReadOnlyList<GameProfileSnapshot> _profiles = [];
     private GameProfileSnapshot? _activeProfile;
     private GameContentCatalog? _activeContent;
     private bool _initializing;
@@ -32,28 +34,26 @@ public partial class MainWindow : Window
         _services.Dispose();
     }
 
-    private async Task LoadProfilesAsync()
+    private async Task LoadProfilesAsync(string? selectedProfileId = null)
     {
         try
         {
             SetBusy(true, "프로필을 불러오는 중...");
-            var profiles = await _services.Profiles.LoadAllAsync();
+            _profiles = await _services.ProfileManagement.LoadAllAsync();
+
+            var targetProfileId = selectedProfileId ?? _activeProfile?.ProfileId;
+            var choices = _profiles.Select(profile => new ProfileChoice(profile)).ToArray();
 
             _initializing = true;
-            ProfileComboBox.ItemsSource = profiles
-                .Select(profile => new ProfileChoice(profile))
-                .ToArray();
-            ProfileComboBox.SelectedIndex = profiles.Count > 0 ? 0 : -1;
+            ProfileComboBox.ItemsSource = choices;
+            ProfileComboBox.SelectedItem = choices.FirstOrDefault(choice =>
+                string.Equals(choice.Profile.ProfileId, targetProfileId, StringComparison.Ordinal))
+                ?? choices.FirstOrDefault();
             _initializing = false;
 
-            if (profiles.Count == 0)
+            if (_profiles.Count == 0)
             {
-                _activeProfile = null;
-                _activeContent = null;
-                QuestPage.Visibility = Visibility.Collapsed;
-                EmptyState.Visibility = Visibility.Visible;
-                StatusText.Text = "프로필 설정 필요";
-                UpdateDataButton.IsEnabled = false;
+                ShowNoProfileState();
                 return;
             }
 
@@ -67,6 +67,17 @@ public partial class MainWindow : Window
         {
             SetBusy(false, StatusText.Text);
         }
+    }
+
+    private void ShowNoProfileState()
+    {
+        _activeProfile = null;
+        _activeContent = null;
+        QuestPage.Visibility = Visibility.Collapsed;
+        EmptyState.Visibility = Visibility.Visible;
+        StatusText.Text = "프로필 설정 필요";
+        EditProfileButton.IsEnabled = false;
+        UpdateDataButton.IsEnabled = false;
     }
 
     private async void ProfileComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -105,7 +116,6 @@ public partial class MainWindow : Window
         QuestPage.SetData(_activeContent, workspace);
         QuestPage.Visibility = Visibility.Visible;
         EmptyState.Visibility = Visibility.Collapsed;
-        UpdateDataButton.IsEnabled = true;
         StatusText.Text = $"{GameModeText(choice.Profile.GameMode)} · {_activeContent.Quests.Count}개 퀘스트";
     }
 
@@ -132,6 +142,104 @@ public partial class MainWindow : Window
 
             var snapshot = await _services.Content.ReadActiveOrRecoverAsync(gameMode);
             return snapshot.Content;
+        }
+    }
+
+    private async void CreateProfileButton_Click(object sender, RoutedEventArgs e)
+    {
+        var existingModes = _profiles.Select(profile => profile.GameMode).ToHashSet();
+        var availableModes = Enum.GetValues<GameMode>()
+            .Where(mode => !existingModes.Contains(mode))
+            .ToArray();
+
+        if (availableModes.Length == 0)
+        {
+            MessageBox.Show(
+                this,
+                "현재 지원하는 모든 게임 모드의 프로필이 이미 있습니다.",
+                "새 프로필",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var modeWindow = new ProfileModeWindow(availableModes)
+        {
+            Owner = this,
+        };
+        if (modeWindow.ShowDialog() != true || modeWindow.SelectedMode is not { } mode)
+            return;
+
+        try
+        {
+            SetBusy(true, $"{GameModeText(mode)} 데이터를 준비하는 중...");
+            var content = await ReadOrCreateContentAsync(mode);
+            SetBusy(false, "프로필 정보를 입력해주세요.");
+
+            var editor = new ProfileEditorWindow(mode, content)
+            {
+                Owner = this,
+            };
+            if (editor.ShowDialog() != true || editor.Result is not { } result)
+                return;
+
+            SetBusy(true, "프로필을 저장하는 중...");
+            var created = await _services.ProfileManagement.CreateAsync(
+                mode,
+                result.Level,
+                result.Faction,
+                result.EditionId,
+                result.PrestigeLevel,
+                result.Traders);
+
+            await LoadProfilesAsync(created.ProfileId);
+        }
+        catch (Exception exception)
+        {
+            ShowFailure("프로필을 만들지 못했습니다.", exception);
+        }
+        finally
+        {
+            SetBusy(false, StatusText.Text);
+        }
+    }
+
+    private async void EditProfileButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_activeProfile is null || _activeContent is null)
+            return;
+
+        var profileId = _activeProfile.ProfileId;
+        var editor = new ProfileEditorWindow(
+            _activeProfile.GameMode,
+            _activeContent,
+            _activeProfile)
+        {
+            Owner = this,
+        };
+        if (editor.ShowDialog() != true || editor.Result is not { } result)
+            return;
+
+        try
+        {
+            SetBusy(true, "프로필을 저장하는 중...");
+            var updated = await _services.ProfileManagement.UpdateSettingsAsync(
+                profileId,
+                result.Level,
+                result.Faction,
+                result.EditionId,
+                result.PrestigeLevel,
+                result.Traders);
+
+            await LoadProfilesAsync(updated.ProfileId);
+        }
+        catch (Exception exception)
+        {
+            ShowFailure("프로필을 수정하지 못했습니다.", exception);
+        }
+        finally
+        {
+            SetBusy(false, StatusText.Text);
         }
     }
 
@@ -211,7 +319,9 @@ public partial class MainWindow : Window
 
     private void SetBusy(bool busy, string status)
     {
-        ProfileComboBox.IsEnabled = !busy;
+        ProfileComboBox.IsEnabled = !busy && _profiles.Count > 0;
+        EditProfileButton.IsEnabled = !busy && _activeProfile is not null;
+        CreateProfileButton.IsEnabled = !busy && _profiles.Select(profile => profile.GameMode).Distinct().Count() < Enum.GetValues<GameMode>().Length;
         UpdateDataButton.IsEnabled = !busy && _activeProfile is not null;
         QuestPage.SetBusy(busy);
         StatusText.Text = status;
@@ -236,8 +346,16 @@ public partial class MainWindow : Window
         _ => gameMode.ToString(),
     };
 
+    private static string FactionText(PmcFaction faction) => faction switch
+    {
+        PmcFaction.Usec => "USEC",
+        PmcFaction.Bear => "BEAR",
+        _ => faction.ToString(),
+    };
+
     private sealed record ProfileChoice(GameProfileSnapshot Profile)
     {
-        public override string ToString() => $"{GameModeText(Profile.GameMode)} · {Profile.ProfileId}";
+        public override string ToString() =>
+            $"{GameModeText(Profile.GameMode)} · Lv.{Profile.Level} · {FactionText(Profile.Faction)}";
     }
 }
