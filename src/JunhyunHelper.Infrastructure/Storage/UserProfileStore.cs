@@ -104,6 +104,24 @@ public sealed class UserProfileStore
         return result;
     }
 
+    public async Task<bool> DeleteAsync(
+        string profileId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
+        await EnsureSchemaAsync(cancellationToken);
+
+        await using var connection = OpenConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            DELETE FROM profiles
+            WHERE profile_id = $profileId;
+            """;
+        command.Parameters.AddWithValue("$profileId", profileId.Trim());
+        return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
+    }
+
     private async Task EnsureSchemaAsync(CancellationToken cancellationToken)
     {
         var directory = Path.GetDirectoryName(_databasePath);
