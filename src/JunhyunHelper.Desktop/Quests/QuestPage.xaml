@@ -205,7 +205,7 @@
                             </Border>
 
                             <TextBlock x:Name="ExperienceText"
-                                       Foreground="{StaticResource TextSecondaryBrush}" />
+                                       Visibility="Collapsed" />
                         </StackPanel>
                     </ScrollViewer>
                 </Grid>
