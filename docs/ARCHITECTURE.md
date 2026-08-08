@@ -74,6 +74,7 @@ GPT/개발자는 importer와 변환 규칙을 설계할 때 필요할 수 있지
 - 스키마/관계 검증
 - `content.db` / `user.db` SQLite 저장
 - candidate/previous/active content 교체 및 복구
+- 실제 Game Content update 단계 진행 상황 보고
 
 Infrastructure는 외부 형식의 불확실성을 Core로 누출하지 않습니다.
 
@@ -95,7 +96,9 @@ Infrastructure는 외부 형식의 불확실성을 Core로 누출하지 않습�
 - 사용자 입력 수집
 - Application 명령 호출
 - Core/Application 계산 결과 표시
+- Infrastructure update progress 표시
 - 사용자 편의를 위한 비권위적 UI cache
+- canonical ID를 변경하지 않는 filter ordering/grouping
 
 Desktop은 Quest/Needed Items 규칙을 다시 구현하지 않습니다.
 
@@ -200,7 +203,57 @@ TarkovTracker `tarkov-data-overlay`의 editions 정보만 허용합니다.
 
 전체 community correction overlay를 자동 적용하지 않습니다.
 
-## 6. Hideout 진행 표현
+## 6. Game Content update progress
+
+`CONFIRMED / IMPLEMENTED`
+
+진행률은 UI 타이머가 임의로 증가시키지 않습니다.
+
+Infrastructure에 typed contract를 둡니다.
+
+```text
+ContentUpdateProgress
+- Stage
+- Message
+- Percent
+- CompletedUnits?
+- TotalUnits?
+```
+
+현재 실제 source 다운로드 단위는 8개입니다.
+
+```text
+items
+traders
+maps
+tasks
+hideout
+barters
+crafts
+edition rules
+```
+
+각 source task가 실제로 끝날 때 `Interlocked` 완료 수를 증가시키고 1/8~8/8 상태를 보고합니다.
+
+이후 실제 pipeline 경계를 보고합니다.
+
+```text
+Preparing
+Downloading
+Importing
+Validating
+WritingCandidate
+Activating
+Completed / Failed
+```
+
+Desktop은 `IProgress<ContentUpdateProgress>`를 받아 overlay progress bar와 stage message만 표시합니다.
+
+Infrastructure는 WPF를 참조하지 않습니다.
+
+최초 content 생성, active 복구 update, 사용자 수동 update는 모두 같은 progress 경로를 사용합니다.
+
+## 7. Hideout 진행 표현
 
 `CONFIRMED`
 
@@ -213,7 +266,7 @@ TarkovTracker `tarkov-data-overlay`의 editions 정보만 허용합니다.
 
 nullable boundary가 일부 남아 있더라도 호환 경계일 뿐 별도 제품 상태가 아닙니다.
 
-## 7. Desktop 이미지 cache
+## 8. Desktop 이미지 cache
 
 `CONFIRMED`
 
@@ -243,7 +296,7 @@ Desktop 전용 cache:
 - 이미지 실패는 User Progress에 영향을 주지 않음
 - 이미지 cache는 권위 데이터가 아니므로 언제든 재생성 가능
 
-## 8. Desktop 화면 데이터 흐름
+## 9. Desktop 화면 데이터 흐름
 
 ### Profile 선택
 
@@ -272,7 +325,7 @@ Ammo는 선택된 GameMode active Game Content의 읽기 전용 비교 화면입
 
 사용자 진행 상태와 결합하지 않습니다.
 
-## 9. Item 화면 구조
+## 10. Item 화면 구조
 
 `CONFIRMED`
 
@@ -297,7 +350,7 @@ Item 화면의 1차 목록은 진단 dump가 아니라 사용자가 빠르게 �
 
 flexible hand-in 후보는 아직 하나도 보유하지 않았더라도 모두 목록에서 접근 가능해야 합니다. 그래야 사용자가 첫 보유량을 입력할 수 있습니다.
 
-## 10. Hideout / Ammo 이미지 표시
+## 11. Hideout / Ammo 이미지 표시
 
 Hideout:
 
@@ -311,7 +364,71 @@ Ammo:
 
 이미지는 canonical `ImageUrl` / `IconUrl`만 사용합니다.
 
-## 11. 업데이트 안전성
+## 12. Quest reference UI ordering / grouping
+
+`CONFIRMED / IMPLEMENTED`
+
+Trader/Map dropdown 순서는 canonical 데이터 의미가 아니라 사용자 표시 정책입니다.
+
+따라서 Desktop의 `UiReferenceOrder` 한 곳에서 관리합니다.
+
+원칙:
+
+- canonical trader/map ID 변경 금지
+- Game Content 원본 순서 변경 금지
+- 알려진 trader/map만 고정 UI rank 적용
+- 미래 unknown 값은 제거하지 않고 알려진 값 뒤에 display-name fallback
+
+### Trader
+
+현재 고정 순서:
+
+```text
+Prapor
+Therapist
+Fence
+Skier
+Peacekeeper
+Mechanic
+Ragman
+Jaeger
+Ref
+Lightkeeper
+BTR Driver
+```
+
+### Ground Zero variants
+
+Ground Zero와 Ground Zero 21+는 Game Content에서 별도 ID를 유지합니다.
+
+Quest map filter key 생성에서만 둘을 `group:groundzero`로 정규화합니다.
+
+```text
+canonical quest.MapId
+→ MapReference
+→ Desktop MapFilterKey
+→ Ground Zero variants only: group:groundzero
+```
+
+이 때문에 filter는 하나이지만 원본 데이터/Quest 관계는 손실되지 않습니다.
+
+## 13. Map / Scanner placeholder
+
+`CONFIRMED / IMPLEMENTED`
+
+상단 navigation에는 `지도`, `스캐너`가 존재합니다.
+
+실제 기능은 아직 구현하지 않습니다.
+
+각 section은 `준비 중` placeholder이며:
+
+- Map 데이터 공급원을 임의 확정하지 않음
+- Scanner 인식 방법을 임의 구현하지 않음
+- 숨은 background runtime을 시작하지 않음
+
+나중에 기능이 확정되면 동일 section을 실제 page로 교체합니다.
+
+## 14. 업데이트 안전성
 
 Game Content 교체는 다음 순서를 지킵니다.
 
@@ -324,7 +441,7 @@ Game Content 교체는 다음 순서를 지킵니다.
 
 잘못된 새 데이터로 기존 정상 데이터를 덮어쓰는 것보다 업데이트 실패가 낫습니다.
 
-## 12. 의도적으로 사용하지 않는 구조
+## 15. 의도적으로 사용하지 않는 구조
 
 현재 필요성이 증명되지 않아 사용하지 않습니다.
 
@@ -337,14 +454,13 @@ Game Content 교체는 다음 순서를 지킵니다.
 - 기능별 중복 데이터베이스
 - 외부 API JSON을 UI에서 직접 소비
 
-## 13. 후속 기술 과제
+## 16. 후속 기술 과제
 
 현재 남은 주요 과제:
 
-- 데이터 업데이트 단계별 진행률을 Desktop에 전달하는 progress contract
-- Trader / Map 고정 표시 순서의 canonical UI ordering helper
-- Ground Zero 21+ 등 같은 플레이 공간의 alias normalization 검증
-- 미구현 Map / Scanner 탭 placeholder
 - Wiki-equivalent Armor Class 1~6 0~6 rating의 정확한 source/derivation 검증
+- Map 실제 기능용 데이터 공급원/레이어 모델 결정
+- Scanner 실제 기능 요구사항/인식 경계 확정
+- 첫 실사용 피드백 통합 Windows build 회귀 검증
 
 Armor Class rating은 검증되지 않은 자체 휴리스틱을 만들지 않습니다. 조사 기준은 `docs/BALLISTICS_EFFECTIVENESS_ANALYSIS.md`입니다.
