@@ -93,6 +93,20 @@ internal static class TarkovJsonReader
             : null;
     }
 
+    public static decimal RequiredDecimal(JsonElement value, string propertyName, string entityName)
+    {
+        if (value.ValueKind == JsonValueKind.Object &&
+            value.TryGetProperty(propertyName, out var property) &&
+            property.ValueKind == JsonValueKind.Number &&
+            property.TryGetDecimal(out var number))
+        {
+            return number;
+        }
+
+        throw new InvalidDataException(
+            $"{entityName} is missing required number '{propertyName}'.");
+    }
+
     public static bool? OptionalBool(JsonElement value, string propertyName)
     {
         if (value.ValueKind != JsonValueKind.Object ||
