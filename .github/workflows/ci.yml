@@ -49,7 +49,6 @@ jobs:
           Get-Item artifacts/publish/JunhyunHelper.exe | Format-List Name,Length,LastWriteTime
 
       - name: Create test ZIP
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
         run: |
           Compress-Archive `
@@ -64,10 +63,9 @@ jobs:
           Get-Item artifacts/JunhyunHelper-win-x64.zip | Format-List Name,Length,LastWriteTime
 
       - name: Upload Windows x64 test build
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
           name: JunhyunHelper-win-x64
           path: artifacts/JunhyunHelper-win-x64.zip
           if-no-files-found: error
-          retention-days: 14
+          retention-days: ${{ github.event_name == 'push' && 14 || 3 }}
