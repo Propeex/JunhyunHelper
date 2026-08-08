@@ -1,0 +1,184 @@
+<UserControl x:Class="JunhyunHelper.Desktop.Items.ItemsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{StaticResource BackgroundDarkBrush}">
+    <UserControl.Resources>
+        <DataTemplate x:Key="ItemRowTemplate">
+            <Border x:Name="RowBorder"
+                    Padding="12,9"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="0,0,0,1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="{Binding Name}"
+                                   FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding Summary}"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   FontSize="12"
+                                   Margin="0,3,0,0" />
+                    </StackPanel>
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding StatusText}"
+                               Foreground="{Binding StatusBrush}"
+                               VerticalAlignment="Center"
+                               Margin="12,0,0,0" />
+                </Grid>
+            </Border>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                    <Setter TargetName="RowBorder" Property="Background" Value="{StaticResource BackgroundLightBrush}" />
+                </DataTrigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="RowBorder" Property="Background" Value="{StaticResource BackgroundMediumBrush}" />
+                </Trigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="180" />
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="SearchBox"
+                     Grid.Column="0"
+                     Margin="0,0,8,0"
+                     ToolTip="아이템 검색"
+                     TextChanged="SearchBox_TextChanged" />
+            <ComboBox x:Name="FilterComboBox"
+                      Grid.Column="1"
+                      SelectionChanged="FilterComboBox_SelectionChanged" />
+        </Grid>
+
+        <Border x:Name="CleanupNotice"
+                Grid.Row="1"
+                Visibility="Collapsed"
+                Background="{StaticResource BackgroundMediumBrush}"
+                BorderBrush="{StaticResource AccentBrush}"
+                BorderThickness="1"
+                CornerRadius="6"
+                Padding="10"
+                Margin="0,0,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="CleanupNoticeText"
+                           VerticalAlignment="Center" />
+                <Button Grid.Column="1"
+                        Content="정리 필요 보기"
+                        Margin="12,0,0,0"
+                        Click="ShowCleanupButton_Click" />
+            </Grid>
+        </Border>
+
+        <TextBlock x:Name="PlanningWarningText"
+                   Grid.Row="2"
+                   Foreground="{StaticResource WarningBrush}"
+                   TextWrapping="Wrap"
+                   Margin="2,0,0,10"
+                   Visibility="Collapsed" />
+
+        <Grid Grid.Row="3">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="420" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="430" MinWidth="330" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0"
+                    Background="{StaticResource BackgroundMediumBrush}"
+                    CornerRadius="6">
+                <ListBox x:Name="ItemList"
+                         ItemTemplate="{StaticResource ItemRowTemplate}"
+                         SelectionChanged="ItemList_SelectionChanged"
+                         VirtualizingPanel.IsVirtualizing="True"
+                         VirtualizingPanel.VirtualizationMode="Recycling" />
+            </Border>
+
+            <GridSplitter Grid.Column="1" Width="8" Background="Transparent" />
+
+            <Border Grid.Column="2"
+                    Background="{StaticResource BackgroundMediumBrush}"
+                    CornerRadius="6"
+                    Padding="16">
+                <Grid>
+                    <TextBlock x:Name="EmptyDetailText"
+                               Text="아이템을 선택하면 필요량과 보유량을 확인할 수 있습니다."
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               TextAlignment="Center" />
+
+                    <ScrollViewer x:Name="DetailScroll"
+                                  Visibility="Collapsed"
+                                  VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <TextBlock x:Name="DetailName"
+                                       FontSize="22"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource AccentBrush}"
+                                       Margin="0,0,0,14" />
+
+                            <TextBlock x:Name="DetailRequirementText"
+                                       Margin="0,0,0,8" />
+                            <TextBlock x:Name="DetailRemainingText"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       Margin="0,0,0,8" />
+                            <TextBlock x:Name="DetailCleanupText"
+                                       Foreground="{StaticResource WarningBrush}"
+                                       Margin="0,0,0,16" />
+
+                            <TextBlock Text="보유 수량"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,8" />
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="8" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="FIR" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                                    <TextBox x:Name="OwnedFirTextBox" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="일반" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4" />
+                                    <TextBox x:Name="OwnedNonFirTextBox" />
+                                </StackPanel>
+                            </Grid>
+                            <Button x:Name="SaveInventoryButton"
+                                    Content="보유량 저장"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,0,0,18"
+                                    Click="SaveInventoryButton_Click" />
+
+                            <TextBlock Text="필요 출처"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,6" />
+                            <ItemsControl x:Name="SourceItems" />
+
+                            <TextBlock x:Name="ProtectionText"
+                                       Foreground="{StaticResource WarningBrush}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,14,0,0" />
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

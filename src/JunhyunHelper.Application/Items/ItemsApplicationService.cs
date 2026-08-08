@@ -1,0 +1,70 @@
+using JunhyunHelper.Core.Content;
+using JunhyunHelper.Core.Items;
+using JunhyunHelper.Core.Profiles;
+using JunhyunHelper.Infrastructure.Storage;
+
+namespace JunhyunHelper.Application.Items;
+
+public sealed record ItemsWorkspace(
+    GameProfileSnapshot Profile,
+    FutureNeededItemsPlan Plan);
+
+public sealed class ItemsApplicationService
+{
+    private readonly UserProfileStore _profileStore;
+
+    public ItemsApplicationService(UserProfileStore profileStore)
+    {
+        _profileStore = profileStore ?? throw new ArgumentNullException(nameof(profileStore));
+    }
+
+    public async Task<ItemsWorkspace> LoadAsync(
+        GameContentCatalog content,
+        string profileId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
+
+        var profile = await _profileStore.LoadAsync(profileId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Profile '{profileId}' does not exist.");
+
+        return Build(content, profile);
+    }
+
+    public async Task<ItemsWorkspace> SetInventoryAsync(
+        GameContentCatalog content,
+        string profileId,
+        string itemId,
+        int fir,
+        int nonFir,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(itemId);
+        if (fir < 0)
+            throw new ArgumentOutOfRangeException(nameof(fir), fir, "FIR quantity cannot be negative.");
+        if (nonFir < 0)
+            throw new ArgumentOutOfRangeException(nameof(nonFir), nonFir, "Non-FIR quantity cannot be negative.");
+
+        var profile = await _profileStore.LoadAsync(profileId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Profile '{profileId}' does not exist.");
+
+        var inventory = new Dictionary<string, InventoryQuantity>(profile.Inventory, StringComparer.Ordinal);
+        var normalizedItemId = itemId.Trim();
+        if (fir == 0 && nonFir == 0)
+            inventory.Remove(normalizedItemId);
+        else
+            inventory[normalizedItemId] = new InventoryQuantity(fir, nonFir);
+
+        var updated = profile with { Inventory = inventory };
+        await _profileStore.SaveAsync(updated, cancellationToken);
+        return Build(content, updated);
+    }
+
+    private static ItemsWorkspace Build(
+        GameContentCatalog content,
+        GameProfileSnapshot profile) =>
+        new(profile, FutureNeededItemsPlanner.Calculate(content, profile));
+}

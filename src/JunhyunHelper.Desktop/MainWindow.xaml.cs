@@ -2,10 +2,13 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using JunhyunHelper.Application.Hideout;
+using JunhyunHelper.Application.Items;
 using JunhyunHelper.Application.Quests;
 using JunhyunHelper.Core.Content;
+using JunhyunHelper.Core.Items;
 using JunhyunHelper.Core.Profiles;
 using JunhyunHelper.Desktop.Hideout;
+using JunhyunHelper.Desktop.Items;
 using JunhyunHelper.Desktop.Profiles;
 using JunhyunHelper.Desktop.Quests;
 using JunhyunHelper.Desktop.Services;
@@ -18,6 +21,7 @@ public partial class MainWindow : Window
     private IReadOnlyList<GameProfileSnapshot> _profiles = [];
     private GameProfileSnapshot? _activeProfile;
     private GameContentCatalog? _activeContent;
+    private ItemsWorkspace? _activeItemsWorkspace;
     private DesktopSection _activeSection = DesktopSection.Quest;
     private bool _initializing;
 
@@ -26,6 +30,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         QuestPage.ActionRequested += QuestPage_ActionRequested;
         HideoutPage.LevelChangeRequested += HideoutPage_LevelChangeRequested;
+        ItemsPage.InventoryChangeRequested += ItemsPage_InventoryChangeRequested;
     }
 
     private async void Window_Loaded(object sender, RoutedEventArgs e)
@@ -77,8 +82,11 @@ public partial class MainWindow : Window
     {
         _activeProfile = null;
         _activeContent = null;
+        _activeItemsWorkspace = null;
         QuestPage.Visibility = Visibility.Collapsed;
         HideoutPage.Visibility = Visibility.Collapsed;
+        ItemsPage.Visibility = Visibility.Collapsed;
+        ItemsPage.ClearCleanupNotice();
         EmptyState.Visibility = Visibility.Visible;
         StatusText.Text = "프로필 설정 필요";
         EditProfileButton.IsEnabled = false;
@@ -113,20 +121,45 @@ public partial class MainWindow : Window
         SetBusy(true, "게임 데이터를 불러오는 중...");
         _activeProfile = choice.Profile;
         _activeContent = await ReadOrCreateContentAsync(choice.Profile.GameMode);
+        _activeItemsWorkspace = null;
+        ItemsPage.ClearCleanupNotice();
 
-        var questWorkspace = await _services.Quests.LoadAsync(
-            _activeContent,
-            choice.Profile.ProfileId);
-        var hideoutWorkspace = await _services.Hideout.LoadAsync(
-            _activeContent,
-            choice.Profile.ProfileId);
-        _activeProfile = hideoutWorkspace.Profile;
-
-        QuestPage.SetData(_activeContent, questWorkspace);
-        HideoutPage.SetData(_activeContent, hideoutWorkspace);
+        await RefreshActiveWorkspacesAsync(detectCleanupChanges: false);
         EmptyState.Visibility = Visibility.Collapsed;
         ShowActiveSection();
         StatusText.Text = BuildLoadedStatus(choice.Profile.GameMode);
+    }
+
+    private async Task<IReadOnlyList<InventoryCleanupIncrease>> RefreshActiveWorkspacesAsync(
+        bool detectCleanupChanges)
+    {
+        if (_activeProfile is null || _activeContent is null)
+            return Array.Empty<InventoryCleanupIncrease>();
+
+        var previousPlan = detectCleanupChanges ? _activeItemsWorkspace?.Plan : null;
+        var profileId = _activeProfile.ProfileId;
+
+        var questWorkspace = await _services.Quests.LoadAsync(_activeContent, profileId);
+        var hideoutWorkspace = await _services.Hideout.LoadAsync(_activeContent, profileId);
+        var itemsWorkspace = await _services.Items.LoadAsync(_activeContent, profileId);
+
+        _activeProfile = itemsWorkspace.Profile;
+        _activeItemsWorkspace = itemsWorkspace;
+
+        QuestPage.SetData(_activeContent, questWorkspace);
+        HideoutPage.SetData(_activeContent, hideoutWorkspace);
+        ItemsPage.SetData(_activeContent, itemsWorkspace);
+
+        if (previousPlan is null)
+        {
+            if (!detectCleanupChanges)
+                ItemsPage.ClearCleanupNotice();
+            return Array.Empty<InventoryCleanupIncrease>();
+        }
+
+        var changes = InventoryCleanupChangeDetector.FindIncreases(previousPlan, itemsWorkspace.Plan);
+        ItemsPage.SetCleanupChanges(changes);
+        return changes;
     }
 
     private async Task<GameContentCatalog> ReadOrCreateContentAsync(GameMode gameMode)
@@ -270,17 +303,21 @@ public partial class MainWindow : Window
 
             var snapshot = await _services.Content.ReadActiveOrRecoverAsync(_activeProfile.GameMode);
             _activeContent = snapshot.Content;
-            var questWorkspace = await _services.Quests.LoadAsync(
-                _activeContent,
-                _activeProfile.ProfileId);
-            var hideoutWorkspace = await _services.Hideout.LoadAsync(
-                _activeContent,
-                _activeProfile.ProfileId);
-            _activeProfile = hideoutWorkspace.Profile;
-            QuestPage.SetData(_activeContent, questWorkspace);
-            HideoutPage.SetData(_activeContent, hideoutWorkspace);
+            var cleanupChanges = await RefreshActiveWorkspacesAsync(detectCleanupChanges: true);
             ShowActiveSection();
-            StatusText.Text = $"업데이트 완료 · {BuildLoadedStatus(_activeProfile.GameMode)}";
+            StatusText.Text = cleanupChanges.Count > 0
+                ? $"업데이트 완료 · 정리 가능 변화 {cleanupChanges.Count}종"
+                : $"업데이트 완료 · {BuildLoadedStatus(_activeProfile.GameMode)}";
+
+            if (cleanupChanges.Count > 0)
+            {
+                MessageBox.Show(
+                    this,
+                    $"게임 데이터 변경으로 정리 가능한 보유 아이템이 {cleanupChanges.Count}종 생기거나 늘었습니다. 아이템 탭의 '정리 필요'에서 확인할 수 있습니다.",
+                    "필요 아이템 변경",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
         }
         catch (Exception exception)
         {
@@ -303,7 +340,7 @@ public partial class MainWindow : Window
                 ? "퀘스트 완료를 저장하는 중..."
                 : "퀘스트 완료를 취소하는 중...");
 
-            QuestWorkspace workspace = e.Action switch
+            _ = e.Action switch
             {
                 QuestActionKind.Complete => await _services.Quests.CompleteAsync(
                     _activeContent,
@@ -316,11 +353,12 @@ public partial class MainWindow : Window
                 _ => throw new ArgumentOutOfRangeException(nameof(e.Action), e.Action, null),
             };
 
-            _activeProfile = workspace.Profile;
-            QuestPage.SetData(_activeContent, workspace);
-            StatusText.Text = e.Action == QuestActionKind.Complete
-                ? "퀘스트 완료 저장됨"
-                : "퀘스트 완료 취소됨";
+            var cleanupChanges = await RefreshActiveWorkspacesAsync(detectCleanupChanges: true);
+            StatusText.Text = BuildProgressChangeStatus(
+                e.Action == QuestActionKind.Complete
+                    ? "퀘스트 완료 저장됨"
+                    : "퀘스트 완료 취소됨",
+                cleanupChanges);
         }
         catch (Exception exception)
         {
@@ -342,20 +380,55 @@ public partial class MainWindow : Window
         try
         {
             SetBusy(true, "은신처 레벨을 저장하는 중...");
-            var workspace = await _services.Hideout.SetLevelAsync(
+            await _services.Hideout.SetLevelAsync(
                 _activeContent,
                 _activeProfile.ProfileId,
                 e.StationId,
                 e.Level);
-            _activeProfile = workspace.Profile;
-            HideoutPage.SetData(_activeContent, workspace);
-            StatusText.Text = e.Level.HasValue
-                ? "은신처 레벨 저장됨"
-                : "은신처 레벨 입력 해제됨";
+
+            var cleanupChanges = await RefreshActiveWorkspacesAsync(detectCleanupChanges: true);
+            StatusText.Text = BuildProgressChangeStatus(
+                e.Level.HasValue
+                    ? "은신처 레벨 저장됨"
+                    : "은신처 레벨 입력 해제됨",
+                cleanupChanges);
         }
         catch (Exception exception)
         {
             ShowFailure("은신처 진행 상태를 변경하지 못했습니다.", exception);
+        }
+        finally
+        {
+            SetBusy(false, StatusText.Text);
+        }
+    }
+
+    private async void ItemsPage_InventoryChangeRequested(
+        object? sender,
+        InventoryChangeRequestedEventArgs e)
+    {
+        if (_activeProfile is null || _activeContent is null)
+            return;
+
+        try
+        {
+            SetBusy(true, "보유 아이템 수량을 저장하는 중...");
+            var workspace = await _services.Items.SetInventoryAsync(
+                _activeContent,
+                _activeProfile.ProfileId,
+                e.ItemId,
+                e.Fir,
+                e.NonFir);
+
+            _activeProfile = workspace.Profile;
+            _activeItemsWorkspace = workspace;
+            ItemsPage.SetData(_activeContent, workspace);
+            ItemsPage.ClearCleanupNotice();
+            StatusText.Text = "보유량 저장됨";
+        }
+        catch (Exception exception)
+        {
+            ShowFailure("보유 아이템 수량을 변경하지 못했습니다.", exception);
         }
         finally
         {
@@ -375,12 +448,19 @@ public partial class MainWindow : Window
         ShowActiveSection();
     }
 
+    private void ItemsTabButton_Click(object sender, RoutedEventArgs e)
+    {
+        _activeSection = DesktopSection.Items;
+        ShowActiveSection();
+    }
+
     private void ShowActiveSection()
     {
         if (_activeProfile is null || _activeContent is null)
         {
             QuestPage.Visibility = Visibility.Collapsed;
             HideoutPage.Visibility = Visibility.Collapsed;
+            ItemsPage.Visibility = Visibility.Collapsed;
             EmptyState.Visibility = Visibility.Visible;
             UpdateSectionButtons();
             return;
@@ -391,6 +471,9 @@ public partial class MainWindow : Window
             ? Visibility.Visible
             : Visibility.Collapsed;
         HideoutPage.Visibility = _activeSection == DesktopSection.Hideout
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        ItemsPage.Visibility = _activeSection == DesktopSection.Items
             ? Visibility.Visible
             : Visibility.Collapsed;
         UpdateSectionButtons();
@@ -406,8 +489,10 @@ public partial class MainWindow : Window
         UpdateDataButton.IsEnabled = !busy && _activeProfile is not null;
         QuestPage.SetBusy(busy);
         HideoutPage.SetBusy(busy);
+        ItemsPage.SetBusy(busy);
         QuestTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Quest;
         HideoutTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Hideout;
+        ItemsTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Items;
         StatusText.Text = status;
     }
 
@@ -416,6 +501,7 @@ public partial class MainWindow : Window
         var hasProfile = _activeProfile is not null;
         QuestTabButton.IsEnabled = hasProfile && _activeSection != DesktopSection.Quest;
         HideoutTabButton.IsEnabled = hasProfile && _activeSection != DesktopSection.Hideout;
+        ItemsTabButton.IsEnabled = hasProfile && _activeSection != DesktopSection.Items;
     }
 
     private string BuildLoadedStatus(GameMode gameMode)
@@ -423,8 +509,16 @@ public partial class MainWindow : Window
         if (_activeContent is null)
             return GameModeText(gameMode);
 
-        return $"{GameModeText(gameMode)} · Quest {_activeContent.Quests.Count} · Hideout {_activeContent.HideoutStations.Count}";
+        var cleanupCount = _activeItemsWorkspace?.Plan.CleanupItems.Count ?? 0;
+        return $"{GameModeText(gameMode)} · Quest {_activeContent.Quests.Count} · Hideout {_activeContent.HideoutStations.Count} · 정리 {cleanupCount}";
     }
+
+    private static string BuildProgressChangeStatus(
+        string baseStatus,
+        IReadOnlyList<InventoryCleanupIncrease> cleanupChanges) =>
+        cleanupChanges.Count > 0
+            ? $"{baseStatus} · 정리 가능 변화 {cleanupChanges.Count}종"
+            : baseStatus;
 
     private void ShowFailure(string title, Exception exception)
     {
@@ -462,5 +556,6 @@ public partial class MainWindow : Window
     {
         Quest,
         Hideout,
+        Items,
     }
 }
