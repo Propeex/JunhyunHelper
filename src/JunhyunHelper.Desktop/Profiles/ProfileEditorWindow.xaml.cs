@@ -136,8 +136,9 @@ public partial class ProfileEditorWindow : Window
             .OrderBy(trader => DisplayName(trader.NameKo, trader.NameEn, trader.Id), StringComparer.CurrentCulture)
             .Select(trader =>
             {
+                TraderProgress progress = default;
                 var hasProgress = existingProfile is not null &&
-                                  existingProfile.Traders.TryGetValue(trader.Id, out var progress);
+                                  existingProfile.Traders.TryGetValue(trader.Id, out progress);
                 var isFence = string.Equals(trader.Id, FenceTraderId, StringComparison.Ordinal);
 
                 return new TraderEditorRow
