@@ -75,7 +75,6 @@ public sealed class FutureNeededItemsPlannerTests
             plan.QuestReachability["unknown"].State);
     }
 
-
     [Fact]
     public void ExplicitFailedQuestRequirement_DisappearsAndFailedOnlyRecoveryRequirementRemains()
     {
@@ -156,7 +155,7 @@ public sealed class FutureNeededItemsPlannerTests
     }
 
     [Fact]
-    public void UnenteredHideoutStation_BlocksCleanupForItsPossibleMaterials()
+    public void MissingHideoutStationProgress_IsLevelZeroAndIncludesFutureMaterials()
     {
         var station = new HideoutStation(
             "workbench",
@@ -169,10 +168,13 @@ public sealed class FutureNeededItemsPlannerTests
 
         var plan = FutureNeededItemsPlanner.Calculate(content, profile);
 
-        Assert.Empty(plan.CleanupItems);
-        Assert.Contains("workbench", plan.UnenteredHideoutStationIds);
-        Assert.Contains(plan.CleanupProtections, protection =>
-            protection.ItemId == "wire" &&
+        var wire = Assert.Single(plan.NeededItems);
+        Assert.Equal(2, wire.RequiredTotal);
+        var cleanup = Assert.Single(plan.CleanupItems);
+        Assert.Equal("wire", cleanup.ItemId);
+        Assert.Equal(6, cleanup.SurplusNonFir);
+        Assert.Empty(plan.UnenteredHideoutStationIds);
+        Assert.DoesNotContain(plan.CleanupProtections, protection =>
             protection.Kind == CleanupProtectionKind.UnenteredHideoutLevel);
     }
 
