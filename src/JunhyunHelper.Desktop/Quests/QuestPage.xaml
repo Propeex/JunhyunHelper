@@ -5,29 +5,42 @@
     <UserControl.Resources>
         <DataTemplate x:Key="QuestRowTemplate">
             <Border x:Name="RowBorder"
-                    Padding="12,9"
+                    MinHeight="58"
+                    Padding="14,10"
                     BorderBrush="{StaticResource BorderBrush}"
                     BorderThickness="0,0,0,1"
                     Background="Transparent">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="86" />
                     </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0" Margin="0,0,12,0">
-                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                    <StackPanel Grid.Column="0"
+                                Margin="0,0,14,0"
+                                VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Name}"
+                                   FontWeight="SemiBold"
+                                   TextWrapping="NoWrap"
+                                   TextTrimming="CharacterEllipsis" />
                         <TextBlock Text="{Binding Subtitle}"
                                    Foreground="{StaticResource TextSecondaryBrush}"
                                    FontSize="12"
                                    Margin="0,3,0,0"
+                                   TextWrapping="NoWrap"
                                    TextTrimming="CharacterEllipsis" />
                     </StackPanel>
                     <Border Grid.Column="1"
+                            MinWidth="72"
                             Background="{Binding StatusBrush}"
-                            CornerRadius="4"
-                            Padding="7,3"
-                            VerticalAlignment="Center">
-                        <TextBlock Text="{Binding StatusText}" FontSize="12" FontWeight="SemiBold" />
+                            CornerRadius="9"
+                            Padding="8,4"
+                            VerticalAlignment="Center"
+                            HorizontalAlignment="Stretch">
+                        <TextBlock Text="{Binding StatusText}"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   TextAlignment="Center"
+                                   TextWrapping="NoWrap" />
                     </Border>
                 </Grid>
             </Border>
@@ -36,7 +49,7 @@
                     <Setter TargetName="RowBorder" Property="Background" Value="{StaticResource BackgroundLightBrush}" />
                 </DataTrigger>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter TargetName="RowBorder" Property="Background" Value="{StaticResource BackgroundMediumBrush}" />
+                    <Setter TargetName="RowBorder" Property="Background" Value="{StaticResource BackgroundHoverBrush}" />
                 </Trigger>
             </DataTemplate.Triggers>
         </DataTemplate>
@@ -51,7 +64,7 @@
 
         <Border Grid.Row="0"
                 Background="{StaticResource BackgroundMediumBrush}"
-                CornerRadius="6"
+                CornerRadius="8"
                 Padding="10"
                 Margin="0,0,0,10">
             <Grid>
@@ -101,7 +114,8 @@
 
             <Border Grid.Column="0"
                     Background="{StaticResource BackgroundMediumBrush}"
-                    CornerRadius="6">
+                    CornerRadius="8"
+                    ClipToBounds="True">
                 <ListBox x:Name="QuestList"
                          ItemTemplate="{StaticResource QuestRowTemplate}"
                          SelectionChanged="QuestList_SelectionChanged"
@@ -117,7 +131,7 @@
 
             <Border Grid.Column="2"
                     Background="{StaticResource BackgroundMediumBrush}"
-                    CornerRadius="6"
+                    CornerRadius="8"
                     Padding="16">
                 <Grid>
                     <TextBlock x:Name="EmptyDetailText"
@@ -154,7 +168,7 @@
 
                             <TextBlock Text="목표" FontWeight="SemiBold" Margin="0,0,0,6" />
                             <Border Background="{StaticResource BackgroundDarkBrush}"
-                                    CornerRadius="5"
+                                    CornerRadius="7"
                                     Padding="10"
                                     Margin="0,0,0,14">
                                 <ItemsControl x:Name="ObjectivesList" />
@@ -166,7 +180,7 @@
                                        Margin="0,0,0,6" />
                             <Border x:Name="RequiredItemsBox"
                                     Background="{StaticResource BackgroundDarkBrush}"
-                                    CornerRadius="5"
+                                    CornerRadius="7"
                                     Padding="10"
                                     Margin="0,0,0,14">
                                 <ItemsControl x:Name="RequiredItemsList" />
@@ -174,7 +188,7 @@
 
                             <TextBlock Text="해금 조건" FontWeight="SemiBold" Margin="0,0,0,6" />
                             <Border Background="{StaticResource BackgroundDarkBrush}"
-                                    CornerRadius="5"
+                                    CornerRadius="7"
                                     Padding="10"
                                     Margin="0,0,0,14">
                                 <ItemsControl x:Name="RequirementsList" />
@@ -186,7 +200,7 @@
                                        Margin="0,0,0,6" />
                             <Border x:Name="PrerequisitesBox"
                                     Background="{StaticResource BackgroundDarkBrush}"
-                                    CornerRadius="5"
+                                    CornerRadius="7"
                                     Padding="10"
                                     Margin="0,0,0,14">
                                 <ItemsControl x:Name="PrerequisitesList" />
@@ -198,7 +212,7 @@
                                        Margin="0,0,0,6" />
                             <Border x:Name="StateReasonsBox"
                                     Background="{StaticResource BackgroundDarkBrush}"
-                                    CornerRadius="5"
+                                    CornerRadius="7"
                                     Padding="10"
                                     Margin="0,0,0,14">
                                 <ItemsControl x:Name="StateReasonsList" />
