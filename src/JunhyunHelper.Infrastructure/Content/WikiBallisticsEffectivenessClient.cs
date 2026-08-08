@@ -32,6 +32,8 @@ public sealed class WikiBallisticsEffectivenessClient
     internal const string ApiUrl =
         "https://escapefromtarkov.fandom.com/api.php?action=parse&page=Ballistics&prop=text&format=json&formatversion=2&redirects=1";
 
+    private static readonly TimeSpan SourceTimeout = TimeSpan.FromSeconds(20);
+
     private static readonly Regex RowRegex = new(
         "<tr\\b[^>]*>(?<body>.*?)</tr>",
         RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant);
@@ -62,12 +64,21 @@ public sealed class WikiBallisticsEffectivenessClient
     public async Task<WikiArmorEffectivenessSource> LoadAsync(
         CancellationToken cancellationToken = default)
     {
+        using var sourceCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        sourceCancellation.CancelAfter(SourceTimeout);
+
         try
         {
-            using var response = await _httpClient.GetAsync(ApiUrl, cancellationToken);
+            using var response = await _httpClient.GetAsync(ApiUrl, sourceCancellation.Token);
             response.EnsureSuccessStatusCode();
-            var json = await response.Content.ReadAsStringAsync(cancellationToken);
+            var json = await response.Content.ReadAsStringAsync(sourceCancellation.Token);
             return ParseApiResponse(json);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return Unavailable(
+                "Tarkov Wiki 방탄 효율 요청이 제한 시간 안에 완료되지 않았습니다. " +
+                "기본 탄약 데이터는 계속 업데이트하며 효율값은 추정하지 않습니다.");
         }
         catch (OperationCanceledException)
         {
@@ -78,16 +89,17 @@ public sealed class WikiBallisticsEffectivenessClient
             JsonException or
             InvalidDataException)
         {
-            return new WikiArmorEffectivenessSource(
-                Available: false,
-                Rows: Array.Empty<WikiArmorEffectivenessRow>(),
-                Warnings:
-                [
-                    $"Tarkov Wiki 방탄 효율 데이터를 가져오지 못했습니다: {exception.Message} " +
-                    "기본 탄약 데이터는 계속 업데이트하며 효율값은 추정하지 않습니다.",
-                ]);
+            return Unavailable(
+                $"Tarkov Wiki 방탄 효율 데이터를 가져오지 못했습니다: {exception.Message} " +
+                "기본 탄약 데이터는 계속 업데이트하며 효율값은 추정하지 않습니다.");
         }
     }
+
+    private static WikiArmorEffectivenessSource Unavailable(string warning) =>
+        new(
+            Available: false,
+            Rows: Array.Empty<WikiArmorEffectivenessRow>(),
+            Warnings: [warning]);
 
     internal static WikiArmorEffectivenessSource ParseApiResponse(string json)
     {
