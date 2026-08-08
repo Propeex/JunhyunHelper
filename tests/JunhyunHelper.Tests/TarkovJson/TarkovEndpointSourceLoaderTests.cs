@@ -11,6 +11,7 @@ public sealed class TarkovEndpointSourceLoaderTests
     [Fact]
     public async Task MissingKoreanTranslationBecomesWarningButBaseContentStillLoads()
     {
+        var cancellationToken = TestContext.Current.CancellationToken;
         var handler = new RoutingHandler(request => request.RequestUri!.AbsolutePath switch
         {
             "/regular/items" => Json(HttpStatusCode.OK, "{\"data\":{\"items\":[]}}"),
@@ -22,7 +23,10 @@ public sealed class TarkovEndpointSourceLoaderTests
         var loader = new TarkovEndpointSourceLoader(
             new TarkovJsonClient(httpClient, new Uri("https://example.test/")));
 
-        var result = await loader.LoadAsync(GameMode.Regular, TarkovEndpoint.Items);
+        var result = await loader.LoadAsync(
+            GameMode.Regular,
+            TarkovEndpoint.Items,
+            cancellationToken);
 
         Assert.Single(result.Warnings);
         Assert.Equal("Item", result.Source.Localization.Resolve("item Name").English);
@@ -32,6 +36,7 @@ public sealed class TarkovEndpointSourceLoaderTests
     [Fact]
     public async Task NonLocalizedEndpointDoesNotRequestLanguageDocuments()
     {
+        var cancellationToken = TestContext.Current.CancellationToken;
         var requestedPaths = new List<string>();
         var handler = new RoutingHandler(request =>
         {
@@ -42,7 +47,10 @@ public sealed class TarkovEndpointSourceLoaderTests
         var loader = new TarkovEndpointSourceLoader(
             new TarkovJsonClient(httpClient, new Uri("https://example.test/")));
 
-        await loader.LoadAsync(GameMode.Pve, TarkovEndpoint.Barters);
+        await loader.LoadAsync(
+            GameMode.Pve,
+            TarkovEndpoint.Barters,
+            cancellationToken);
 
         Assert.Equal(new[] { "/pve/barters" }, requestedPaths);
     }
