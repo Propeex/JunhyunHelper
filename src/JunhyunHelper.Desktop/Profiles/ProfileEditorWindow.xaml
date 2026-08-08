@@ -3,9 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="프로필 설정"
         Width="720"
-        Height="680"
-        MinWidth="620"
-        MinHeight="560"
+        Height="760"
+        MinWidth="640"
+        MinHeight="620"
         WindowStartupLocation="CenterOwner">
     <Grid Margin="20">
         <Grid.RowDefinitions>
@@ -28,10 +28,10 @@
         <Grid Grid.Row="1" Margin="0,0,0,18">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="140" />
-                <ColumnDefinition Width="22" />
+                <ColumnDefinition Width="190" />
+                <ColumnDefinition Width="24" />
                 <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="180" />
+                <ColumnDefinition Width="190" />
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -41,18 +41,33 @@
             <TextBlock Grid.Row="0" Grid.Column="0"
                        Text="레벨"
                        VerticalAlignment="Center"
-                       Margin="0,0,10,10" />
-            <TextBox x:Name="LevelTextBox"
-                     Grid.Row="0" Grid.Column="1"
-                     Margin="0,0,0,10" />
+                       Margin="0,0,10,12" />
+            <Border Grid.Row="0" Grid.Column="1"
+                    Background="{StaticResource BackgroundMediumBrush}"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="5"
+                    Margin="0,0,0,12">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="42" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="42" />
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="−" FontSize="17" Padding="0" Click="LevelMinusButton_Click" />
+                    <TextBlock x:Name="LevelValueText" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="SemiBold" />
+                    <Button Grid.Column="2" Content="+" FontSize="17" Padding="0" Click="LevelPlusButton_Click" />
+                </Grid>
+            </Border>
 
             <TextBlock Grid.Row="0" Grid.Column="3"
                        Text="진영"
                        VerticalAlignment="Center"
-                       Margin="0,0,10,10" />
+                       Margin="0,0,10,12" />
             <ComboBox x:Name="FactionComboBox"
                       Grid.Row="0" Grid.Column="4"
-                      Margin="0,0,0,10" />
+                      Margin="0,0,0,12" />
 
             <TextBlock Grid.Row="1" Grid.Column="0"
                        Text="에디션"
@@ -65,70 +80,169 @@
                        Text="프레스티지"
                        VerticalAlignment="Center"
                        Margin="0,0,10,0" />
-            <TextBox x:Name="PrestigeTextBox"
-                     Grid.Row="1" Grid.Column="4" />
+            <Border Grid.Row="1" Grid.Column="4"
+                    Background="{StaticResource BackgroundMediumBrush}"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="5">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="42" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="42" />
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="−" FontSize="17" Padding="0" Click="PrestigeMinusButton_Click" />
+                    <Button x:Name="PrestigeValueButton"
+                            Grid.Column="1"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Padding="4"
+                            ToolTip="값을 클릭하면 미입력과 0을 전환합니다."
+                            Click="PrestigeValueButton_Click" />
+                    <Button Grid.Column="2" Content="+" FontSize="17" Padding="0" Click="PrestigePlusButton_Click" />
+                </Grid>
+            </Border>
         </Grid>
 
-        <Grid Grid.Row="2">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
-            </Grid.RowDefinitions>
-
-            <StackPanel Grid.Row="0" Margin="0,0,0,8">
-                <TextBlock Text="상인 진행 상태"
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <TextBlock Text="상인 진행"
                            FontWeight="SemiBold"
                            FontSize="16" />
-                <TextBlock Text="알고 있는 상인만 '입력'을 체크해 LL과 평판을 적으세요. 미입력 값은 프로그램이 0으로 추측하지 않습니다."
+                <TextBlock Text="일반 상인은 LL만 간단히 맞춥니다. 모르는 값은 미입력으로 남으며 0으로 추측하지 않습니다."
                            Foreground="{StaticResource TextSecondaryBrush}"
                            FontSize="12"
-                           Margin="0,4,0,0" />
+                           TextWrapping="Wrap"
+                           Margin="0,4,0,10" />
+
+                <ItemsControl x:Name="TraderLoyaltyItems">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{StaticResource BackgroundMediumBrush}"
+                                    BorderBrush="{StaticResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="12,8"
+                                    Margin="0,0,0,7">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="44" />
+                                        <ColumnDefinition Width="90" />
+                                        <ColumnDefinition Width="44" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontWeight="SemiBold" />
+                                    <Button Grid.Column="1" Content="−" Padding="0" Tag="{Binding}" Click="TraderLoyaltyMinusButton_Click" />
+                                    <TextBlock Grid.Column="2" Text="{Binding LoyaltyDisplay}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    <Button Grid.Column="3" Content="+" Padding="0" Tag="{Binding}" Click="TraderLoyaltyPlusButton_Click" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Border x:Name="FencePanel"
+                        Background="{StaticResource BackgroundMediumBrush}"
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="12"
+                        Margin="0,3,0,10"
+                        Visibility="Collapsed">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="44" />
+                            <ColumnDefinition Width="105" />
+                            <ColumnDefinition Width="44" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Fence" FontWeight="SemiBold" />
+                            <TextBlock Text="우호도 · 0.1 단위"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       FontSize="11" />
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="−" Padding="0" Click="FenceStandingMinusButton_Click" />
+                        <Button x:Name="FenceStandingValueButton"
+                                Grid.Column="2"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Padding="4"
+                                ToolTip="값을 클릭하면 미입력과 0을 전환합니다."
+                                Click="FenceStandingValueButton_Click" />
+                        <Button Grid.Column="3" Content="+" Padding="0" Click="FenceStandingPlusButton_Click" />
+                    </Grid>
+                </Border>
+
+                <Expander x:Name="AdvancedStandingExpander"
+                          Header="정밀 판정용 일반 상인 우호도 (선택)"
+                          Margin="0,2,0,0"
+                          Visibility="Collapsed">
+                    <StackPanel Margin="0,8,0,0">
+                        <TextBlock Text="일부 퀘스트 조건은 LL과 별개로 상인 우호도를 요구합니다. 모르면 비워두어도 되며, 해당 퀘스트만 판정 문제로 남습니다."
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   TextWrapping="Wrap"
+                                   FontSize="12"
+                                   Margin="0,0,0,8" />
+                        <ItemsControl x:Name="TraderStandingItems">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{StaticResource BackgroundMediumBrush}"
+                                            BorderBrush="{StaticResource BorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            Padding="12,8"
+                                            Margin="0,0,0,7">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="44" />
+                                                <ColumnDefinition Width="105" />
+                                                <ColumnDefinition Width="44" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                                            <Button Grid.Column="1" Content="−" Padding="0" Tag="{Binding}" Click="TraderStandingMinusButton_Click" />
+                                            <Button Grid.Column="2"
+                                                    Content="{Binding StandingDisplay}"
+                                                    Background="Transparent"
+                                                    BorderThickness="0"
+                                                    Padding="4"
+                                                    Tag="{Binding}"
+                                                    ToolTip="값을 클릭하면 미입력과 0을 전환합니다."
+                                                    Click="TraderStandingValueButton_Click" />
+                                            <Button Grid.Column="3" Content="+" Padding="0" Tag="{Binding}" Click="TraderStandingPlusButton_Click" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Expander>
             </StackPanel>
+        </ScrollViewer>
 
-            <DataGrid x:Name="TraderGrid"
-                      Grid.Row="1"
-                      AutoGenerateColumns="False"
-                      CanUserAddRows="False"
-                      CanUserDeleteRows="False"
-                      CanUserReorderColumns="False"
-                      IsReadOnly="False"
-                      HeadersVisibility="Column"
-                      GridLinesVisibility="Horizontal"
-                      RowHeaderWidth="0"
-                      Background="{StaticResource BackgroundMediumBrush}"
-                      RowBackground="{StaticResource BackgroundMediumBrush}"
-                      AlternatingRowBackground="{StaticResource BackgroundLightBrush}"
-                      Foreground="{StaticResource TextPrimaryBrush}"
-                      BorderBrush="{StaticResource BorderBrush}"
-                      HorizontalGridLinesBrush="{StaticResource BorderBrush}">
-                <DataGrid.Columns>
-                    <DataGridCheckBoxColumn Header="입력"
-                                            Binding="{Binding IsIncluded, UpdateSourceTrigger=PropertyChanged}"
-                                            Width="70" />
-                    <DataGridTextColumn Header="상인"
-                                        Binding="{Binding Name}"
-                                        IsReadOnly="True"
-                                        Width="*" />
-                    <DataGridTextColumn Header="LL"
-                                        Binding="{Binding LoyaltyText, UpdateSourceTrigger=PropertyChanged}"
-                                        Width="90" />
-                    <DataGridTextColumn Header="평판"
-                                        Binding="{Binding StandingText, UpdateSourceTrigger=PropertyChanged}"
-                                        Width="120" />
-                </DataGrid.Columns>
-            </DataGrid>
+        <Grid Grid.Row="3" Margin="0,18,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <Button x:Name="DeleteProfileButton"
+                    Grid.Column="0"
+                    Content="이 프로필 삭제"
+                    HorizontalAlignment="Left"
+                    Visibility="Collapsed"
+                    Click="DeleteProfileButton_Click" />
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <Button Content="취소"
+                        IsCancel="True"
+                        Margin="0,0,8,0" />
+                <Button Content="저장"
+                        IsDefault="True"
+                        Click="SaveButton_Click" />
+            </StackPanel>
         </Grid>
-
-        <StackPanel Grid.Row="3"
-                    Orientation="Horizontal"
-                    HorizontalAlignment="Right"
-                    Margin="0,18,0,0">
-            <Button Content="취소"
-                    IsCancel="True"
-                    Margin="0,0,8,0" />
-            <Button Content="저장"
-                    IsDefault="True"
-                    Click="SaveButton_Click" />
-        </StackPanel>
     </Grid>
 </Window>
