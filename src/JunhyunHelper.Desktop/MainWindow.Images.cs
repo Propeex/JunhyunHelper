@@ -12,6 +12,7 @@ public partial class MainWindow
     {
         ItemsPage.SetImageCache(_services.Images);
         QuestPage.SetImageCache(_services.Images);
+        QuestPage.RefreshNavigationLinks();
 
         if (_contentNavigationAttached)
             return;
