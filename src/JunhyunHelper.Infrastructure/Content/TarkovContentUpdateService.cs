@@ -27,13 +27,24 @@ public sealed class TarkovContentUpdateService
 
     public async Task<ContentUpdateResult> UpdateAsync(
         GameMode gameMode,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IProgress<ContentUpdateProgress>? progress = null)
     {
+        progress?.Report(new ContentUpdateProgress(
+            ContentUpdateStage.Preparing,
+            "기존 정상 데이터를 보존하고 업데이트를 준비하는 중...",
+            0));
+
         _activationService.DiscardCandidate(gameMode);
 
-        var build = await _buildService.BuildAsync(gameMode, cancellationToken);
+        var build = await _buildService.BuildAsync(gameMode, cancellationToken, progress);
         if (!build.IsValid)
         {
+            progress?.Report(new ContentUpdateProgress(
+                ContentUpdateStage.Failed,
+                "새 데이터 검증에 실패했습니다. 기존 정상 데이터를 유지합니다.",
+                80));
+
             return new ContentUpdateResult(
                 Applied: false,
                 build.Validation,
@@ -41,6 +52,11 @@ public sealed class TarkovContentUpdateService
         }
 
         var paths = _activationService.GetPaths(gameMode);
+        progress?.Report(new ContentUpdateProgress(
+            ContentUpdateStage.WritingCandidate,
+            "검증된 candidate 데이터베이스를 작성하는 중...",
+            88));
+
         await _snapshotStore.WriteNewAsync(
             paths.CandidatePath,
             gameMode,
@@ -48,7 +64,17 @@ public sealed class TarkovContentUpdateService
             build.Warnings,
             cancellationToken);
 
+        progress?.Report(new ContentUpdateProgress(
+            ContentUpdateStage.Activating,
+            "candidate를 다시 검증하고 최신 게임 데이터로 적용하는 중...",
+            96));
+
         await _activationService.ActivateCandidateAsync(gameMode, cancellationToken);
+
+        progress?.Report(new ContentUpdateProgress(
+            ContentUpdateStage.Completed,
+            "게임 데이터 업데이트 완료",
+            100));
 
         return new ContentUpdateResult(
             Applied: true,
