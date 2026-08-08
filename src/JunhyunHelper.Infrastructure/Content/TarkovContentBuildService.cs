@@ -16,6 +16,8 @@ public sealed record TarkovContentBuildResult(
 
 public sealed class TarkovContentBuildService
 {
+    private const int SourceCount = 8;
+
     private readonly TarkovEndpointSourceLoader _sourceLoader;
     private readonly TarkovEditionCatalogClient _editionClient;
     private readonly TarkovGameContentImporter _importer;
@@ -35,37 +37,51 @@ public sealed class TarkovContentBuildService
 
     public async Task<TarkovContentBuildResult> BuildAsync(
         GameMode gameMode,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IProgress<ContentUpdateProgress>? progress = null)
     {
-        var itemsTask = _sourceLoader.LoadAsync(
-            gameMode,
-            TarkovEndpoint.Items,
-            cancellationToken);
-        var tradersTask = _sourceLoader.LoadAsync(
-            gameMode,
-            TarkovEndpoint.Traders,
-            cancellationToken);
-        var mapsTask = _sourceLoader.LoadAsync(
-            gameMode,
-            TarkovEndpoint.Maps,
-            cancellationToken);
-        var tasksTask = _sourceLoader.LoadAsync(
-            gameMode,
-            TarkovEndpoint.Tasks,
-            cancellationToken);
-        var hideoutTask = _sourceLoader.LoadAsync(
-            gameMode,
-            TarkovEndpoint.Hideout,
-            cancellationToken);
-        var bartersTask = _sourceLoader.LoadAsync(
-            gameMode,
-            TarkovEndpoint.Barters,
-            cancellationToken);
-        var craftsTask = _sourceLoader.LoadAsync(
-            gameMode,
-            TarkovEndpoint.Crafts,
-            cancellationToken);
-        var editionsTask = _editionClient.GetAsync(cancellationToken);
+        progress?.Report(new ContentUpdateProgress(
+            ContentUpdateStage.Preparing,
+            "온라인 데이터 요청을 준비하는 중...",
+            3));
+
+        var completedSources = 0;
+
+        async Task<T> TrackSourceAsync<T>(Task<T> task, string sourceName)
+        {
+            var result = await task;
+            var completed = Interlocked.Increment(ref completedSources);
+            progress?.Report(ContentUpdateProgress.ForDownloadedSource(
+                sourceName,
+                completed,
+                SourceCount));
+            return result;
+        }
+
+        var itemsTask = TrackSourceAsync(
+            _sourceLoader.LoadAsync(gameMode, TarkovEndpoint.Items, cancellationToken),
+            "아이템");
+        var tradersTask = TrackSourceAsync(
+            _sourceLoader.LoadAsync(gameMode, TarkovEndpoint.Traders, cancellationToken),
+            "상인");
+        var mapsTask = TrackSourceAsync(
+            _sourceLoader.LoadAsync(gameMode, TarkovEndpoint.Maps, cancellationToken),
+            "지도");
+        var tasksTask = TrackSourceAsync(
+            _sourceLoader.LoadAsync(gameMode, TarkovEndpoint.Tasks, cancellationToken),
+            "퀘스트");
+        var hideoutTask = TrackSourceAsync(
+            _sourceLoader.LoadAsync(gameMode, TarkovEndpoint.Hideout, cancellationToken),
+            "은신처");
+        var bartersTask = TrackSourceAsync(
+            _sourceLoader.LoadAsync(gameMode, TarkovEndpoint.Barters, cancellationToken),
+            "물물교환");
+        var craftsTask = TrackSourceAsync(
+            _sourceLoader.LoadAsync(gameMode, TarkovEndpoint.Crafts, cancellationToken),
+            "제작");
+        var editionsTask = TrackSourceAsync(
+            _editionClient.GetAsync(cancellationToken),
+            "에디션 규칙");
 
         await Task.WhenAll(
             itemsTask,
@@ -85,6 +101,11 @@ public sealed class TarkovContentBuildService
         var barters = await bartersTask;
         var crafts = await craftsTask;
         var editions = await editionsTask;
+
+        progress?.Report(new ContentUpdateProgress(
+            ContentUpdateStage.Importing,
+            "다운로드한 데이터를 준현 헬퍼 형식으로 변환하는 중...",
+            70));
 
         var content = _importer.Import(
             items.Source,
@@ -108,6 +129,11 @@ public sealed class TarkovContentBuildService
             }
             .SelectMany(static sourceWarnings => sourceWarnings)
             .ToArray();
+
+        progress?.Report(new ContentUpdateProgress(
+            ContentUpdateStage.Validating,
+            "변환된 게임 데이터의 관계와 필수 값을 검증하는 중...",
+            80));
 
         return new TarkovContentBuildResult(
             content,
