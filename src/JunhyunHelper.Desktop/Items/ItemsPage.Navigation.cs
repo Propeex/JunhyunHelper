@@ -1,3 +1,5 @@
+using JunhyunHelper.Core.Items;
+
 namespace JunhyunHelper.Desktop.Items;
 
 public partial class ItemsPage
@@ -28,8 +30,8 @@ public partial class ItemsPage
                     remainingFir: 0,
                     surplusFir: 0,
                     surplusNonFir: 0,
-                    protections: Array.Empty<Core.Items.CleanupProtection>(),
-                    flexibleProgresses: Array.Empty<Application.Items.FlexibleQuestItemProgress>(),
+                    protections: Array.Empty<CleanupProtection>(),
+                    flexibleProgresses: Array.Empty<FlexibleQuestItemProgress>(),
                     sources: Array.Empty<SourceRow>(),
                     sourceSummary: "현재 진행 기준 필요 출처 없음",
                     statusText: "참고",
