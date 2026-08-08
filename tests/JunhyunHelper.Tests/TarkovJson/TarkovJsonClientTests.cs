@@ -11,6 +11,7 @@ public sealed class TarkovJsonClientTests
     [Fact]
     public async Task SeasonalKoreanTaskRequestUsesExpectedPath()
     {
+        var cancellationToken = TestContext.Current.CancellationToken;
         var handler = new RecordingHandler("""
             {
               "data": { "tasks": {} },
@@ -20,7 +21,11 @@ public sealed class TarkovJsonClientTests
         using var httpClient = new HttpClient(handler);
         var client = new TarkovJsonClient(httpClient, new Uri("https://example.test/"));
 
-        var result = await client.GetAsync(GameMode.PvpSeason, TarkovEndpoint.Tasks, "ko");
+        var result = await client.GetAsync(
+            GameMode.PvpSeason,
+            TarkovEndpoint.Tasks,
+            "ko",
+            cancellationToken);
 
         Assert.Equal(
             new Uri("https://example.test/pvp-season/tasks_ko"),
@@ -35,11 +40,15 @@ public sealed class TarkovJsonClientTests
     [InlineData(GameMode.PvpSeason, "pvp-season")]
     public async Task GameModesMapToStableSourceSegments(GameMode gameMode, string expectedSegment)
     {
+        var cancellationToken = TestContext.Current.CancellationToken;
         var handler = new RecordingHandler("{\"data\":{}}");
         using var httpClient = new HttpClient(handler);
         var client = new TarkovJsonClient(httpClient, new Uri("https://example.test/"));
 
-        await client.GetAsync(gameMode, TarkovEndpoint.Items);
+        await client.GetAsync(
+            gameMode,
+            TarkovEndpoint.Items,
+            cancellationToken: cancellationToken);
 
         Assert.Equal(
             new Uri($"https://example.test/{expectedSegment}/items"),
@@ -49,17 +58,22 @@ public sealed class TarkovJsonClientTests
     [Fact]
     public async Task MissingDataIsRejected()
     {
+        var cancellationToken = TestContext.Current.CancellationToken;
         var handler = new RecordingHandler("{\"translations\":[]}");
         using var httpClient = new HttpClient(handler);
         var client = new TarkovJsonClient(httpClient, new Uri("https://example.test/"));
 
         await Assert.ThrowsAsync<InvalidDataException>(
-            () => client.GetAsync(GameMode.Regular, TarkovEndpoint.Tasks));
+            () => client.GetAsync(
+                GameMode.Regular,
+                TarkovEndpoint.Tasks,
+                cancellationToken: cancellationToken));
     }
 
     [Fact]
     public async Task NonStringTranslationEntryIsRejected()
     {
+        var cancellationToken = TestContext.Current.CancellationToken;
         var handler = new RecordingHandler("""
             {
               "data": {},
@@ -70,7 +84,10 @@ public sealed class TarkovJsonClientTests
         var client = new TarkovJsonClient(httpClient, new Uri("https://example.test/"));
 
         await Assert.ThrowsAsync<InvalidDataException>(
-            () => client.GetAsync(GameMode.Regular, TarkovEndpoint.Tasks));
+            () => client.GetAsync(
+                GameMode.Regular,
+                TarkovEndpoint.Tasks,
+                cancellationToken: cancellationToken));
     }
 
     private sealed class RecordingHandler(string responseJson) : HttpMessageHandler
