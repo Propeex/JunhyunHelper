@@ -47,7 +47,6 @@ public sealed class QuestApplicationServiceTests
         }
     }
 
-
     [Fact]
     public async Task ManualPermanentFailureAndUndoOnlyChangeFailureFactAndRecalculate()
     {
@@ -130,7 +129,6 @@ public sealed class QuestApplicationServiceTests
         }
     }
 
-
     [Fact]
     public async Task CompletingQuestAfterContentChangeRemovesStaleExplicitFailureFact()
     {
@@ -203,7 +201,7 @@ public sealed class QuestApplicationServiceTests
     }
 
     [Fact]
-    public async Task IndeterminateQuestsAreReturnedAsProblemsNotNormalCurrentQuests()
+    public async Task IndeterminateQuestIsTreatedAsCurrentAtProductBoundaryAndKeepsDiagnosticReason()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         var databasePath = Path.Combine(
@@ -221,13 +219,19 @@ public sealed class QuestApplicationServiceTests
 
             var workspace = await service.LoadAsync(content, profile.ProfileId, cancellationToken);
 
-            var problem = Assert.Single(workspace.Problems);
-            Assert.Equal("prestige", problem.Quest.Id);
-            Assert.Equal(QuestAvailabilityState.Indeterminate, problem.Availability.State);
-            Assert.DoesNotContain(
-                workspace.Quests,
-                entry => entry.Quest.Id == "prestige" &&
-                         entry.Availability.State == QuestAvailabilityState.Current);
+            Assert.Empty(workspace.Problems);
+            var entry = Find(workspace, "prestige");
+            Assert.Equal(QuestAvailabilityState.Current, entry.Availability.State);
+            Assert.Contains(
+                entry.Availability.Reasons,
+                reason => reason.Kind == QuestAvailabilityReasonKind.UnknownPrestige);
+
+            var completed = await service.CompleteAsync(
+                content,
+                profile.ProfileId,
+                "prestige",
+                cancellationToken);
+            Assert.Equal(QuestAvailabilityState.Completed, Find(completed, "prestige").Availability.State);
         }
         finally
         {
