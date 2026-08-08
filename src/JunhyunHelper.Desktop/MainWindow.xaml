@@ -35,8 +35,6 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
                 <TextBlock Grid.Column="0"
@@ -82,31 +80,19 @@
 
                 <ComboBox x:Name="ProfileComboBox"
                           Grid.Column="6"
-                          Width="180"
+                          Width="210"
                           Margin="0,0,8,0"
-                          SelectionChanged="ProfileComboBox_SelectionChanged" />
+                          DropDownOpened="ProfileComboBox_DropDownOpened"
+                          SelectionChanged="ProfileComboBox_CompactSelectionChanged" />
 
                 <Button x:Name="EditProfileButton"
                         Grid.Column="7"
                         Content="프로필 수정"
                         Margin="0,0,8,0"
-                        Click="EditProfileButton_Click" />
-
-                <Button x:Name="DeleteProfileButton"
-                        Grid.Column="8"
-                        Content="프로필 삭제"
-                        Margin="0,0,8,0"
-                        IsEnabled="{Binding IsEnabled, ElementName=EditProfileButton}"
-                        Click="DeleteProfileButton_Click" />
-
-                <Button x:Name="CreateProfileButton"
-                        Grid.Column="9"
-                        Content="새 프로필"
-                        Margin="0,0,8,0"
-                        Click="CreateProfileButton_Click" />
+                        Click="EditProfileCompactButton_Click" />
 
                 <Button x:Name="UpdateDataButton"
-                        Grid.Column="10"
+                        Grid.Column="8"
                         Content="데이터 업데이트"
                         Click="UpdateDataButton_Click" />
             </Grid>
@@ -142,6 +128,12 @@
                             Click="CreateProfileButton_Click" />
                 </StackPanel>
             </Grid>
+
+            <!-- 기존 MainWindow의 busy 계약을 유지하기 위한 숨김 anchor입니다.
+                 실제 새 프로필 진입은 ProfileComboBox 내부 메뉴에서 제공합니다. -->
+            <Button x:Name="CreateProfileButton"
+                    Visibility="Collapsed"
+                    IsHitTestVisible="False" />
         </Grid>
     </Grid>
 </Window>

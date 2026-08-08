@@ -243,7 +243,8 @@ public sealed class QuestAvailabilityEvaluator
 
         foreach (var requirement in quest.TraderStandingRequirements)
         {
-            if (!_profile.Traders.TryGetValue(requirement.TraderId, out var traderProgress))
+            if (!_profile.Traders.TryGetValue(requirement.TraderId, out var traderProgress) ||
+                traderProgress.Standing is null)
             {
                 unknownReasons.Add(new QuestAvailabilityReason(
                     QuestAvailabilityReasonKind.MissingProfileValue,
@@ -251,14 +252,15 @@ public sealed class QuestAvailabilityEvaluator
                 continue;
             }
 
+            var standing = traderProgress.Standing.Value;
             var standingMet = requirement.Operator switch
             {
                 StandingRequirementOperator.AtLeast =>
-                    traderProgress.Standing >= requirement.RequiredStanding,
+                    standing >= requirement.RequiredStanding,
                 StandingRequirementOperator.AtMost =>
-                    traderProgress.Standing <= requirement.RequiredStanding,
+                    standing <= requirement.RequiredStanding,
                 StandingRequirementOperator.LessThan =>
-                    traderProgress.Standing < requirement.RequiredStanding,
+                    standing < requirement.RequiredStanding,
                 _ => throw new InvalidDataException(
                     $"Unsupported standing operator '{requirement.Operator}'."),
             };
@@ -273,7 +275,8 @@ public sealed class QuestAvailabilityEvaluator
 
         foreach (var requirement in quest.TraderLoyaltyRequirements)
         {
-            if (!_profile.Traders.TryGetValue(requirement.TraderId, out var traderProgress))
+            if (!_profile.Traders.TryGetValue(requirement.TraderId, out var traderProgress) ||
+                traderProgress.LoyaltyLevel is null)
             {
                 unknownReasons.Add(new QuestAvailabilityReason(
                     QuestAvailabilityReasonKind.MissingProfileValue,
@@ -281,7 +284,7 @@ public sealed class QuestAvailabilityEvaluator
                 continue;
             }
 
-            if (traderProgress.LoyaltyLevel < requirement.RequiredLoyaltyLevel)
+            if (traderProgress.LoyaltyLevel.Value < requirement.RequiredLoyaltyLevel)
             {
                 lockedReasons.Add(new QuestAvailabilityReason(
                     QuestAvailabilityReasonKind.TraderLoyalty,
@@ -390,9 +393,6 @@ public sealed class QuestAvailabilityEvaluator
                 return PrerequisiteOutcome.Indeterminate;
         }
 
-        // Complete/Failed terminal-status combinations are ordinary locked future branches,
-        // not missing information. Explicit/manual or deterministic failure will satisfy
-        // Failed when it actually occurs.
         if (requirement.AcceptedStatuses.Contains(QuestRequiredStatus.Complete) ||
             requirement.AcceptedStatuses.Contains(QuestRequiredStatus.Failed))
         {

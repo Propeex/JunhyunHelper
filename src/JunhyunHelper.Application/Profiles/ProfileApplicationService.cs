@@ -102,19 +102,27 @@ public sealed class ProfileApplicationService
         {
             if (string.IsNullOrWhiteSpace(traderId))
                 throw new ArgumentException("Trader id cannot be empty.", nameof(traders));
-            if (progress.LoyaltyLevel < 0)
+            if (progress.LoyaltyLevel is < 0)
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(traders),
                     progress.LoyaltyLevel,
                     $"Trader '{traderId}' loyalty level cannot be negative.");
             }
+            if (progress.LoyaltyLevel is null && progress.Standing is null)
+            {
+                throw new ArgumentException(
+                    $"Trader '{traderId}' must contain at least one known progress value.",
+                    nameof(traders));
+            }
         }
     }
 
     private static Dictionary<string, TraderProgress> CopyTraders(
         IReadOnlyDictionary<string, TraderProgress> traders) =>
-        new(traders, StringComparer.Ordinal);
+        traders
+            .Where(pair => pair.Value.LoyaltyLevel is not null || pair.Value.Standing is not null)
+            .ToDictionary(pair => pair.Key, pair => pair.Value.Normalize(), StringComparer.Ordinal);
 
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
