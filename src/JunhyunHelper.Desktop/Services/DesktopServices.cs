@@ -31,14 +31,16 @@ public sealed class DesktopServices : IDisposable
         {
             Timeout = TimeSpan.FromMinutes(3),
         };
-        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("JunhyunHelper/0.1");
+        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(
+            "JunhyunHelper/0.1 (+https://github.com/Propeex/JunhyunHelper)");
 
         Images = new ImageCacheService(_httpClient, RootDirectory);
 
         var sourceLoader = new TarkovEndpointSourceLoader(new TarkovJsonClient(_httpClient));
         var buildService = new TarkovContentBuildService(
             sourceLoader,
-            new TarkovEditionCatalogClient(_httpClient));
+            new TarkovEditionCatalogClient(_httpClient),
+            effectivenessClient: new WikiBallisticsEffectivenessClient(_httpClient));
 
         ContentUpdater = new TarkovContentUpdateService(buildService, Content);
         ProfileManagement = new ProfileApplicationService(Profiles);

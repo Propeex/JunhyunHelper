@@ -11,6 +11,19 @@ namespace JunhyunHelper.Desktop.Ammo;
 
 public partial class AmmoPage : UserControl
 {
+    private static readonly Brush UnknownEffectivenessBackground = CreateFrozenBrush(0x3A, 0x3A, 0x3A);
+    private static readonly Brush UnknownEffectivenessForeground = CreateFrozenBrush(0xB8, 0xB8, 0xB8);
+    private static readonly Brush[] EffectivenessBackgrounds =
+    [
+        CreateFrozenBrush(0x5A, 0x2A, 0x2A),
+        CreateFrozenBrush(0x8B, 0x37, 0x37),
+        CreateFrozenBrush(0xA8, 0x5A, 0x2A),
+        CreateFrozenBrush(0x9C, 0x7B, 0x2E),
+        CreateFrozenBrush(0x76, 0x8B, 0x32),
+        CreateFrozenBrush(0x3E, 0x7C, 0x39),
+        CreateFrozenBrush(0x2C, 0x66, 0x3B),
+    ];
+
     private GameContentCatalog? _content;
     private ImageCacheService? _imageCache;
     private IReadOnlyList<AmmoRow> _allRows = [];
@@ -85,6 +98,7 @@ public partial class AmmoPage : UserControl
                         : ammo.Damage.ToString(CultureInfo.InvariantCulture),
                     ammo.PenetrationPower,
                     $"{ammo.ArmorDamage}%",
+                    BuildArmorEffectivenessCells(ammo.ArmorEffectiveness),
                     $"{ammo.InitialSpeed:0} m/s",
                     FormatPercentage(ammo.FragmentationChance),
                     FormatSignedPercentage(ammo.RecoilModifier),
@@ -142,9 +156,10 @@ public partial class AmmoPage : UserControl
                                     string.Equals(row.Ammo.ItemId, selectedItemId, StringComparison.Ordinal))
                                 ?? filtered.FirstOrDefault();
 
+        var ratedCount = filtered.Count(row => row.Ammo.ArmorEffectiveness is not null);
         SummaryText.Text = selectedCaliber is null
-            ? $"탄약 {filtered.Length}종 · 구경 {Math.Max(0, CaliberComboBox.Items.Count - 1)}개 · 관통력/피해량 낮은 순"
-            : $"{CaliberText(selectedCaliber)} · 탄약 {filtered.Length}종 · 관통력/피해량 낮은 순";
+            ? $"탄약 {filtered.Length}종 · 구경 {Math.Max(0, CaliberComboBox.Items.Count - 1)}개 · 방탄 효율 {ratedCount}종 · 관통력/피해량 낮은 순"
+            : $"{CaliberText(selectedCaliber)} · 탄약 {filtered.Length}종 · 방탄 효율 {ratedCount}종 · 관통력/피해량 낮은 순";
 
         if (filtered.Length == 0)
             ShowDetail(null);
@@ -158,6 +173,7 @@ public partial class AmmoPage : UserControl
             EmptyDetailText.Visibility = Visibility.Visible;
             DetailGrid.Visibility = Visibility.Collapsed;
             DetailIcon.Source = null;
+            DetailArmorEffectivenessItems.ItemsSource = null;
             return;
         }
 
@@ -176,6 +192,7 @@ public partial class AmmoPage : UserControl
             $"초속: {ammo.InitialSpeed:0} m/s",
             $"파편 확률: {FormatPercentage(ammo.FragmentationChance)}",
             $"도탄 확률: {FormatPercentage(ammo.RicochetChance)}");
+        DetailArmorEffectivenessItems.ItemsSource = row.ArmorEffectivenessCells;
 
         var tracer = ammo.Tracer
             ? string.IsNullOrWhiteSpace(ammo.TracerColor) ? "예" : $"예 · {ammo.TracerColor}"
@@ -189,6 +206,44 @@ public partial class AmmoPage : UserControl
             $"예광탄: {tracer}");
 
         AcquisitionItems.ItemsSource = BuildAcquisitionRows(ammo, _content);
+    }
+
+    private static IReadOnlyList<ArmorEffectivenessCell> BuildArmorEffectivenessCells(
+        AmmoArmorEffectiveness? effectiveness)
+    {
+        var values = effectiveness?.IsValid == true
+            ? effectiveness.Values.Cast<int?>().ToArray()
+            : Enumerable.Repeat<int?>(null, 6).ToArray();
+
+        return values
+            .Select((value, index) =>
+            {
+                var armorClass = index + 1;
+                if (value is null)
+                {
+                    return new ArmorEffectivenessCell(
+                        armorClass,
+                        "?",
+                        UnknownEffectivenessBackground,
+                        UnknownEffectivenessForeground,
+                        $"방탄 등급 {armorClass} · 현재 Tarkov Wiki 효율값을 안전하게 매칭하지 못했습니다.");
+                }
+
+                return new ArmorEffectivenessCell(
+                    armorClass,
+                    value.Value.ToString(CultureInfo.InvariantCulture),
+                    EffectivenessBackgrounds[value.Value],
+                    Brushes.White,
+                    $"방탄 등급 {armorClass} · Tarkov Wiki 효율 {value.Value}/6 · 값이 높을수록 효과적");
+            })
+            .ToArray();
+    }
+
+    private static Brush CreateFrozenBrush(byte red, byte green, byte blue)
+    {
+        var brush = new SolidColorBrush(Color.FromRgb(red, green, blue));
+        brush.Freeze();
+        return brush;
     }
 
     private static string BuildCompactAcquisitionText(AmmoDefinition ammo, GameContentCatalog content)
@@ -455,6 +510,7 @@ public partial class AmmoPage : UserControl
         DamageColumn.Visibility = VisibilityFor(DamageColumnCheckBox);
         PenetrationColumn.Visibility = VisibilityFor(PenetrationColumnCheckBox);
         ArmorDamageColumn.Visibility = VisibilityFor(ArmorDamageColumnCheckBox);
+        ArmorEffectivenessColumn.Visibility = VisibilityFor(ArmorEffectivenessColumnCheckBox);
         SpeedColumn.Visibility = VisibilityFor(SpeedColumnCheckBox);
         FragmentationColumn.Visibility = VisibilityFor(FragmentationColumnCheckBox);
         RecoilColumn.Visibility = VisibilityFor(RecoilColumnCheckBox);
@@ -482,6 +538,7 @@ public partial class AmmoPage : UserControl
             string damageText,
             int penetrationPower,
             string armorDamageText,
+            IReadOnlyList<ArmorEffectivenessCell> armorEffectivenessCells,
             string speedText,
             string fragmentationText,
             string recoilText,
@@ -497,6 +554,7 @@ public partial class AmmoPage : UserControl
             DamageText = damageText;
             PenetrationPower = penetrationPower;
             ArmorDamageText = armorDamageText;
+            ArmorEffectivenessCells = armorEffectivenessCells;
             SpeedText = speedText;
             FragmentationText = fragmentationText;
             RecoilText = recoilText;
@@ -513,6 +571,7 @@ public partial class AmmoPage : UserControl
         public string DamageText { get; }
         public int PenetrationPower { get; }
         public string ArmorDamageText { get; }
+        public IReadOnlyList<ArmorEffectivenessCell> ArmorEffectivenessCells { get; }
         public string SpeedText { get; }
         public string FragmentationText { get; }
         public string RecoilText { get; }
@@ -533,6 +592,13 @@ public partial class AmmoPage : UserControl
 
         public event PropertyChangedEventHandler? PropertyChanged;
     }
+
+    private sealed record ArmorEffectivenessCell(
+        int ArmorClass,
+        string DisplayValue,
+        Brush Background,
+        Brush Foreground,
+        string ToolTip);
 
     private sealed record AcquisitionRow(string Title, string Conditions, string Details, string Unlock);
 
