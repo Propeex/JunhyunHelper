@@ -1,5 +1,6 @@
 using System.IO;
 using System.Net.Http;
+using JunhyunHelper.Application.Profiles;
 using JunhyunHelper.Application.Quests;
 using JunhyunHelper.Infrastructure.Content;
 using JunhyunHelper.Infrastructure.EditionData;
@@ -36,6 +37,7 @@ public sealed class DesktopServices : IDisposable
             new TarkovEditionCatalogClient(_httpClient));
 
         ContentUpdater = new TarkovContentUpdateService(buildService, Content);
+        ProfileManagement = new ProfileApplicationService(Profiles);
         Quests = new QuestApplicationService(Profiles);
     }
 
@@ -46,6 +48,8 @@ public sealed class DesktopServices : IDisposable
     public ContentActivationService Content { get; }
 
     public TarkovContentUpdateService ContentUpdater { get; }
+
+    public ProfileApplicationService ProfileManagement { get; }
 
     public QuestApplicationService Quests { get; }
 
