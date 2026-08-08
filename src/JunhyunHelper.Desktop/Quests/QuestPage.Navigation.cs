@@ -85,7 +85,7 @@ public partial class QuestPage
                     ? $"그룹 합계 {count}개"
                     : $"{count}개";
                 if (requirement.FoundInRaid)
-                    amount += " · FIR";
+                    amount += " · 인레이드";
 
                 return new QuestItemLinkRow(
                     itemId,
