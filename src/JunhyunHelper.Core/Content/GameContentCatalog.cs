@@ -14,7 +14,4 @@ public sealed record GameContentCatalog(
     IReadOnlyList<QuestObjective> QuestObjectives,
     IReadOnlyList<QuestItemRequirement> QuestItemRequirements,
     IReadOnlyList<HideoutStation> HideoutStations,
-    IReadOnlyList<AmmoDefinition>? Ammo = null)
-{
-    public IReadOnlyList<AmmoDefinition> Ammunition => Ammo ?? Array.Empty<AmmoDefinition>();
-}
+    IReadOnlyList<AmmoDefinition>? Ammunition = null);
