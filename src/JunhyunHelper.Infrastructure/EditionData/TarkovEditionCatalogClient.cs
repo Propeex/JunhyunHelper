@@ -69,7 +69,7 @@ public sealed class TarkovEditionCatalogClient
         return result;
     }
 
-    private static IReadOnlySet<string> ReadTaskIds(
+    private static HashSet<string> ReadTaskIds(
         JsonElement edition,
         string propertyName,
         string editionId)
