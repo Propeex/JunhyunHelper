@@ -62,7 +62,6 @@ public partial class ItemsPage : UserControl
 
         var selectedItemId = _selectedRow?.ItemId;
         _allRows = BuildRows(content, workspace);
-        PopulateCategoryFilter();
         ApplyFilter();
 
         if (!string.IsNullOrWhiteSpace(selectedItemId))
@@ -84,7 +83,8 @@ public partial class ItemsPage : UserControl
         _viewMode = target.IsFlexibleOnly ? ItemViewMode.Flexible : ItemViewMode.Normal;
         _updatingFilters = true;
         SearchBox.Text = string.Empty;
-        CategoryComboBox.SelectedIndex = 0;
+        if (CategoryComboBox.Items.Count > 0)
+            CategoryComboBox.SelectedIndex = 0;
         FilterComboBox.SelectedItem = FilterComboBox.Items
             .Cast<FilterChoice>()
             .First(choice => choice.Value == ItemFilter.All);
@@ -119,8 +119,8 @@ public partial class ItemsPage : UserControl
         FilterComboBox.IsEnabled = !busy && _viewMode == ItemViewMode.Normal;
         ViewModeButton.IsEnabled = !busy;
         ItemList.IsEnabled = !busy;
-        OwnedFirTextBox.IsEnabled = !busy;
-        OwnedNonFirTextBox.IsEnabled = !busy;
+        FlexibleGroupScroll.IsEnabled = !busy;
+        InventoryControls.IsEnabled = !busy;
         SaveInventoryButton.IsEnabled = !busy && _selectedRow is not null;
     }
 
@@ -166,9 +166,6 @@ public partial class ItemsPage : UserControl
                 var remainingFir = needed?.RemainingFir ?? 0;
                 var surplusFir = cleanup?.SurplusFir ?? 0;
                 var surplusNonFir = cleanup?.SurplusNonFir ?? 0;
-                var surplusTotal = surplusFir + surplusNonFir;
-                var deferred = protections.Length > 0 && surplusTotal == 0 && owned.Total > 0;
-                var flexiblePending = flexibleProgresses.Any(progress => !progress.IsFulfilled);
 
                 itemById.TryGetValue(itemId, out var item);
                 var name = item is null
@@ -200,10 +197,7 @@ public partial class ItemsPage : UserControl
                     surplusNonFir,
                     protections,
                     flexibleProgresses,
-                    sourceRows,
-                    SourceSummary(sourceRows, flexibleProgresses),
-                    BuildStatusText(remainingTotal, remainingFir, surplusTotal, deferred, flexiblePending),
-                    StatusBrush(remainingTotal, surplusTotal, deferred, flexiblePending));
+                    sourceRows);
             })
             .OrderBy(row => ItemCategoryClassifier.Order(row.Category))
             .ThenBy(row => row.Name, StringComparer.CurrentCulture)
@@ -264,15 +258,14 @@ public partial class ItemsPage : UserControl
         }
         catch (OperationCanceledException)
         {
-            // A newer workspace replaced these rows.
         }
     }
 
-    private void PopulateCategoryFilter()
+    private void RefreshCategoryFilter(IReadOnlyList<ItemRow> availableRows)
     {
         var selected = (CategoryComboBox.SelectedItem as CategoryChoice)?.Value;
         var choices = new[] { new CategoryChoice(null, "모든 종류") }
-            .Concat(_allRows
+            .Concat(availableRows
                 .Select(row => row.Category)
                 .Distinct()
                 .OrderBy(ItemCategoryClassifier.Order)
@@ -289,7 +282,6 @@ public partial class ItemsPage : UserControl
     {
         var search = SearchBox.Text?.Trim() ?? string.Empty;
         var filter = (FilterComboBox.SelectedItem as FilterChoice)?.Value ?? ItemFilter.Needed;
-        var category = (CategoryComboBox.SelectedItem as CategoryChoice)?.Value;
         var selectedId = _selectedRow?.ItemId;
 
         IEnumerable<ItemRow> query = _allRows;
@@ -297,20 +289,87 @@ public partial class ItemsPage : UserControl
             ? query.Where(row => row.FlexibleProgresses.Count > 0)
             : query.Where(row => !row.IsFlexibleOnly);
 
-        var filtered = query
-            .Where(row => string.IsNullOrWhiteSpace(search) ||
-                          row.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase) ||
-                          row.ItemId.Contains(search, StringComparison.OrdinalIgnoreCase))
+        query = query.Where(row => string.IsNullOrWhiteSpace(search) ||
+                                   row.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase) ||
+                                   row.ItemId.Contains(search, StringComparison.OrdinalIgnoreCase));
+
+        if (_viewMode == ItemViewMode.Normal)
+            query = query.Where(row => MatchesFilter(row, filter));
+
+        var availableBeforeCategory = query.ToArray();
+        RefreshCategoryFilter(availableBeforeCategory);
+        var category = (CategoryComboBox.SelectedItem as CategoryChoice)?.Value;
+        var filtered = availableBeforeCategory
             .Where(row => category is null || row.Category == category)
-            .Where(row => _viewMode == ItemViewMode.Flexible || MatchesFilter(row, filter))
             .ToArray();
 
-        ItemList.ItemsSource = filtered;
-        EmptyListText.Visibility = filtered.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
-        ItemList.SelectedItem = filtered.FirstOrDefault(row => row.ItemId == selectedId)
-                                ?? filtered.FirstOrDefault();
-        if (filtered.Length == 0)
-            ShowDetail(null);
+        if (_viewMode == ItemViewMode.Flexible)
+        {
+            ItemList.Visibility = Visibility.Collapsed;
+            FlexibleGroupScroll.Visibility = Visibility.Visible;
+            var groups = BuildFlexibleGroups(filtered);
+            FlexibleGroupItems.ItemsSource = groups;
+            var candidateIds = groups
+                .SelectMany(group => group.Candidates)
+                .Select(row => row.ItemId)
+                .ToHashSet(StringComparer.Ordinal);
+            var selected = filtered.FirstOrDefault(row => row.ItemId == selectedId && candidateIds.Contains(row.ItemId))
+                           ?? groups.SelectMany(group => group.Candidates).FirstOrDefault();
+            ShowDetail(selected);
+            EmptyListText.Visibility = groups.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+        else
+        {
+            FlexibleGroupScroll.Visibility = Visibility.Collapsed;
+            ItemList.Visibility = Visibility.Visible;
+            ItemList.ItemsSource = filtered;
+            EmptyListText.Visibility = filtered.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+            ItemList.SelectedItem = filtered.FirstOrDefault(row => row.ItemId == selectedId)
+                                    ?? filtered.FirstOrDefault();
+            if (filtered.Length == 0)
+                ShowDetail(null);
+        }
+    }
+
+    private IReadOnlyList<FlexibleGroupRow> BuildFlexibleGroups(IReadOnlyList<ItemRow> visibleCandidates)
+    {
+        if (_workspace is null)
+            return Array.Empty<FlexibleGroupRow>();
+
+        var rowsById = visibleCandidates.ToDictionary(row => row.ItemId, StringComparer.Ordinal);
+        return _workspace.FlexibleQuestItemProgresses
+            .GroupBy(progress => progress.QuestId, StringComparer.Ordinal)
+            .Select(group =>
+            {
+                var candidates = group
+                    .SelectMany(progress => progress.AcceptedItemIds)
+                    .Distinct(StringComparer.Ordinal)
+                    .Where(rowsById.ContainsKey)
+                    .Select(itemId => rowsById[itemId])
+                    .OrderBy(row => ItemCategoryClassifier.Order(row.Category))
+                    .ThenBy(row => row.Name, StringComparer.CurrentCulture)
+                    .ToArray();
+                if (candidates.Length == 0)
+                    return null;
+
+                var quest = _content?.Quests.FirstOrDefault(candidate => candidate.Id == group.Key);
+                var questName = DisplayName(quest?.NameKo, quest?.NameEn, group.Key);
+                var progressText = string.Join(
+                    " · ",
+                    group.Select(progress =>
+                    {
+                        var state = progress.IsFulfilled ? "충족" : $"남음 {progress.RemainingTotal}개";
+                        return progress.RequiredFir > 0
+                            ? $"인레이드 {progress.OwnedFir}/{progress.RequiredFir} · 전체 {progress.OwnedTotal}/{progress.RequiredTotal} · {state}"
+                            : $"보유 {progress.OwnedTotal}/{progress.RequiredTotal} · {state}";
+                    }));
+
+                return new FlexibleGroupRow(group.Key, questName, progressText, candidates);
+            })
+            .Where(group => group is not null)
+            .Cast<FlexibleGroupRow>()
+            .OrderBy(group => group.QuestName, StringComparer.CurrentCulture)
+            .ToArray();
     }
 
     private static bool MatchesFilter(ItemRow row, ItemFilter filter) => filter switch
@@ -340,32 +399,15 @@ public partial class ItemsPage : UserControl
         DetailIcon.Source = row.Icon;
         DetailName.Text = row.Name;
         DetailCategoryText.Text = row.CategoryLabel;
-        DetailStatusText.Text = row.StatusText;
-        DetailStatusText.Foreground = row.StatusBrush;
-
-        var hasFlexible = row.FlexibleProgresses.Count > 0;
-        DetailRequirementText.Text = row.RequiredFir > 0
-            ? $"미래 필요 {row.RequiredTotal}개 · FIR 최소 {row.RequiredFir}개"
-            : row.RequiredTotal > 0
-                ? $"미래 필요 {row.RequiredTotal}개"
-                : hasFlexible
-                    ? "개별 확정 필요량 없음 · 유동 제출 후보"
-                    : "미래 필요 0개";
-        DetailRemainingText.Text = row.RemainingFir > 0
-            ? $"추가 필요 {row.RemainingTotal}개 · 그중 FIR {row.RemainingFir}개"
-            : row.RemainingTotal > 0
-                ? $"추가 필요 {row.RemainingTotal}개"
-                : hasFlexible && row.FlexibleProgresses.Any(progress => !progress.IsFulfilled)
-                    ? "유동 제출은 아래 그룹의 후보 보유량을 합산해 계산합니다."
-                    : row.RequiredTotal > 0
-                        ? "현재 보유량으로 미래 필요량을 충족합니다."
-                        : "현재 확정된 미래 필요량은 없습니다.";
+        DetailRequiredFirText.Text = $"{row.RequiredFir}개";
+        DetailRequiredGeneralText.Text = $"{row.RequiredGeneral}개";
         DetailCleanupText.Text = row.SurplusTotal > 0 ? CleanupText(row) : string.Empty;
 
         OwnedFirTextBox.Text = row.OwnedFir.ToString(CultureInfo.InvariantCulture);
         OwnedNonFirTextBox.Text = row.OwnedNonFir.ToString(CultureInfo.InvariantCulture);
         SaveInventoryButton.IsEnabled = !_busy;
 
+        var hasFlexible = row.FlexibleProgresses.Count > 0;
         SourceItems.ItemsSource = row.Sources.Length > 0
             ? row.Sources
             : hasFlexible
@@ -386,7 +428,7 @@ public partial class ItemsPage : UserControl
         var candidateNames = progress.AcceptedItemIds.Select(DisplayName).ToArray();
         var remainingText = progress.IsFulfilled ? "충족" : $"남음 {progress.RemainingTotal}개";
         var ownershipText = progress.RequiredFir > 0
-            ? $"FIR 합산 {progress.OwnedFir}/{progress.RequiredFir}"
+            ? $"인레이드 합산 {progress.OwnedFir}/{progress.RequiredFir} · 전체 {progress.OwnedTotal}/{progress.RequiredTotal}"
             : $"합산 보유 {progress.OwnedTotal}/{progress.RequiredTotal}";
 
         return new FlexibleSourceRow(
@@ -398,6 +440,16 @@ public partial class ItemsPage : UserControl
 
     private void SelectVisibleItem(string itemId)
     {
+        var target = _allRows.FirstOrDefault(row => row.ItemId == itemId);
+        if (target is null)
+            return;
+
+        if (_viewMode == ItemViewMode.Flexible)
+        {
+            ShowDetail(target);
+            return;
+        }
+
         var item = (ItemList.ItemsSource as IEnumerable<ItemRow>)?
             .FirstOrDefault(row => row.ItemId == itemId);
         if (item is null)
@@ -409,8 +461,12 @@ public partial class ItemsPage : UserControl
 
     private void UpdateModeControls()
     {
+        var groupCount = _workspace?.FlexibleQuestItemProgresses
+            .Select(progress => progress.QuestId)
+            .Distinct(StringComparer.Ordinal)
+            .Count() ?? 0;
         ViewModeButton.Content = _viewMode == ItemViewMode.Normal
-            ? $"유동 제출 보기 ({_allRows.Count(row => row.FlexibleProgresses.Count > 0)})"
+            ? $"유동 제출 보기 ({groupCount})"
             : "일반 목록 보기";
         FilterComboBox.IsEnabled = !_busy && _viewMode == ItemViewMode.Normal;
     }
@@ -421,55 +477,11 @@ public partial class ItemsPage : UserControl
         return item is null ? itemId : DisplayName(item.NameKo, item.NameEn, item.Id);
     }
 
-    private static string SourceSummary(
-        IReadOnlyList<SourceRow> sources,
-        IReadOnlyList<FlexibleQuestItemProgress> flexibleProgresses)
-    {
-        if (sources.Count > 0)
-            return sources.Count == 1 ? sources[0].Title : $"{sources[0].Title} 외 {sources.Count - 1}곳";
-
-        return flexibleProgresses.Count > 0
-            ? flexibleProgresses.Count == 1 ? "유동 제출 후보" : $"유동 제출 후보 · {flexibleProgresses.Count}개 그룹"
-            : "보유 기록";
-    }
-
-    private static string BuildStatusText(
-        int remainingTotal,
-        int remainingFir,
-        int surplusTotal,
-        bool deferred,
-        bool flexiblePending)
-    {
-        if (remainingFir > 0)
-            return "FIR 부족";
-        if (remainingTotal > 0)
-            return $"+{remainingTotal} 필요";
-        if (flexiblePending)
-            return "유동 제출";
-        if (surplusTotal > 0)
-            return $"{surplusTotal} 정리";
-        if (deferred)
-            return "판단 보류";
-        return "충분";
-    }
-
-    private static Brush StatusBrush(
-        int remainingTotal,
-        int surplusTotal,
-        bool deferred,
-        bool flexiblePending) =>
-        (Brush)System.Windows.Application.Current.FindResource(
-            surplusTotal > 0 || deferred
-                ? "WarningBrush"
-                : remainingTotal > 0 || flexiblePending
-                    ? "AccentBrush"
-                    : "SuccessBrush");
-
     private static string CleanupText(ItemRow row)
     {
         var parts = new List<string>();
         if (row.SurplusFir > 0)
-            parts.Add($"FIR {row.SurplusFir}개");
+            parts.Add($"인레이드 {row.SurplusFir}개");
         if (row.SurplusNonFir > 0)
             parts.Add($"일반 {row.SurplusNonFir}개");
         return $"정리 가능: {string.Join(" · ", parts)}";
@@ -518,8 +530,21 @@ public partial class ItemsPage : UserControl
         ApplyFilter();
     }
 
-    private void ItemList_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
-        ShowDetail(ItemList.SelectedItem as ItemRow);
+    private void ItemList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_viewMode == ItemViewMode.Normal)
+            ShowDetail(ItemList.SelectedItem as ItemRow);
+    }
+
+    private void FlexibleCandidateButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string itemId } || string.IsNullOrWhiteSpace(itemId))
+            return;
+
+        var row = _allRows.FirstOrDefault(candidate => candidate.ItemId == itemId);
+        if (row is not null)
+            ShowDetail(row);
+    }
 
     private void SourceButton_Click(object sender, RoutedEventArgs e)
     {
@@ -537,7 +562,8 @@ public partial class ItemsPage : UserControl
     {
         _viewMode = ItemViewMode.Normal;
         _updatingFilters = true;
-        CategoryComboBox.SelectedIndex = 0;
+        if (CategoryComboBox.Items.Count > 0)
+            CategoryComboBox.SelectedIndex = 0;
         FilterComboBox.SelectedItem = FilterComboBox.Items
             .Cast<FilterChoice>()
             .First(choice => choice.Value == ItemFilter.Cleanup);
@@ -545,6 +571,36 @@ public partial class ItemsPage : UserControl
         CleanupNotice.Visibility = Visibility.Collapsed;
         UpdateModeControls();
         ApplyFilter();
+    }
+
+    private void OwnedFirMinusButton_Click(object sender, RoutedEventArgs e) => AdjustInventory(inRaid: true, -1);
+
+    private void OwnedFirPlusButton_Click(object sender, RoutedEventArgs e) => AdjustInventory(inRaid: true, 1);
+
+    private void OwnedNonFirMinusButton_Click(object sender, RoutedEventArgs e) => AdjustInventory(inRaid: false, -1);
+
+    private void OwnedNonFirPlusButton_Click(object sender, RoutedEventArgs e) => AdjustInventory(inRaid: false, 1);
+
+    private void AdjustInventory(bool inRaid, int delta)
+    {
+        if (_busy || _selectedRow is null)
+            return;
+
+        if (!TryParseQuantity(OwnedFirTextBox.Text, out var fir) ||
+            !TryParseQuantity(OwnedNonFirTextBox.Text, out var nonFir))
+        {
+            ShowQuantityValidation();
+            return;
+        }
+
+        if (inRaid)
+            fir = Math.Max(0, fir + delta);
+        else
+            nonFir = Math.Max(0, nonFir + delta);
+
+        OwnedFirTextBox.Text = fir.ToString(CultureInfo.InvariantCulture);
+        OwnedNonFirTextBox.Text = nonFir.ToString(CultureInfo.InvariantCulture);
+        RequestInventorySave(fir, nonFir);
     }
 
     private void SaveInventoryButton_Click(object sender, RoutedEventArgs e)
@@ -555,14 +611,17 @@ public partial class ItemsPage : UserControl
         if (!TryParseQuantity(OwnedFirTextBox.Text, out var fir) ||
             !TryParseQuantity(OwnedNonFirTextBox.Text, out var nonFir))
         {
-            MessageBox.Show(
-                Window.GetWindow(this),
-                "보유 수량은 0 이상의 정수로 입력해주세요.",
-                "보유량",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+            ShowQuantityValidation();
             return;
         }
+
+        RequestInventorySave(fir, nonFir);
+    }
+
+    private void RequestInventorySave(int fir, int nonFir)
+    {
+        if (_selectedRow is null)
+            return;
 
         InventoryChangeRequested?.Invoke(
             this,
@@ -572,6 +631,14 @@ public partial class ItemsPage : UserControl
     private static bool TryParseQuantity(string? text, out int quantity) =>
         int.TryParse(text?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out quantity) &&
         quantity >= 0;
+
+    private void ShowQuantityValidation() =>
+        MessageBox.Show(
+            Window.GetWindow(this),
+            "보유 수량은 0 이상의 정수로 입력해주세요.",
+            "보유량",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
 
     private sealed class ItemRow : INotifyPropertyChanged
     {
@@ -594,10 +661,7 @@ public partial class ItemsPage : UserControl
             int surplusNonFir,
             IReadOnlyList<CleanupProtection> protections,
             IReadOnlyList<FlexibleQuestItemProgress> flexibleProgresses,
-            SourceRow[] sources,
-            string sourceSummary,
-            string statusText,
-            Brush statusBrush)
+            SourceRow[] sources)
         {
             ItemId = itemId;
             Name = name;
@@ -616,9 +680,6 @@ public partial class ItemsPage : UserControl
             Protections = protections;
             FlexibleProgresses = flexibleProgresses;
             Sources = sources;
-            SourceSummary = sourceSummary;
-            StatusText = statusText;
-            StatusBrush = statusBrush;
         }
 
         public string ItemId { get; }
@@ -629,6 +690,7 @@ public partial class ItemsPage : UserControl
         public bool IsFlexibleOnly { get; }
         public int RequiredTotal { get; }
         public int RequiredFir { get; }
+        public int RequiredGeneral => Math.Max(0, RequiredTotal - RequiredFir);
         public int OwnedFir { get; }
         public int OwnedNonFir { get; }
         public int RemainingTotal { get; }
@@ -638,13 +700,9 @@ public partial class ItemsPage : UserControl
         public IReadOnlyList<CleanupProtection> Protections { get; }
         public IReadOnlyList<FlexibleQuestItemProgress> FlexibleProgresses { get; }
         public SourceRow[] Sources { get; }
-        public string SourceSummary { get; }
-        public string StatusText { get; }
-        public Brush StatusBrush { get; }
         public int OwnedTotal => OwnedFir + OwnedNonFir;
         public int SurplusTotal => SurplusFir + SurplusNonFir;
-        public string FirBadgeText => $"FIR {RequiredFir}";
-        public Visibility FirBadgeVisibility => RequiredFir > 0 ? Visibility.Visible : Visibility.Collapsed;
+        public string FlexibleOwnedText => $"인레이드 {OwnedFir} · 일반 {OwnedNonFir}";
 
         public ImageSource? Icon
         {
@@ -668,6 +726,12 @@ public partial class ItemsPage : UserControl
         string QuestName,
         string ProgressText,
         string CandidatesText);
+
+    private sealed record FlexibleGroupRow(
+        string QuestId,
+        string QuestName,
+        string ProgressText,
+        IReadOnlyList<ItemRow> Candidates);
 
     private sealed record FilterChoice(ItemFilter Value, string Label)
     {
