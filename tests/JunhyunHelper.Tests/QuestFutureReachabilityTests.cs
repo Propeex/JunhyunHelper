@@ -50,7 +50,7 @@ public sealed class QuestFutureReachabilityTests
     {
         var result = Evaluate(
             [Quest("q")],
-            Profile(completedQuestIds: ["q"]))["q"];
+            Profile(completedQuestIds: new HashSet<string>(["q"], StringComparer.Ordinal)))["q"];
 
         Assert.Equal(QuestFutureReachabilityState.Completed, result.State);
         Assert.False(result.IncludeFutureRequirements);
@@ -71,7 +71,7 @@ public sealed class QuestFutureReachabilityTests
 
         var result = Evaluate(
             [source, branch],
-            Profile(completedQuestIds: ["source"]))["branch"];
+            Profile(completedQuestIds: new HashSet<string>(["source"], StringComparer.Ordinal)))["branch"];
 
         Assert.Equal(QuestFutureReachabilityState.Unavailable, result.State);
         Assert.Contains(result.Reasons, reason =>
