@@ -109,9 +109,40 @@
                             <TextBlock Text="현재 레벨"
                                        FontWeight="SemiBold"
                                        Margin="0,0,0,6" />
-                            <ComboBox x:Name="LevelComboBox"
-                                      Margin="0,0,0,18"
-                                      SelectionChanged="LevelComboBox_SelectionChanged" />
+                            <Border Background="{StaticResource BackgroundDarkBrush}"
+                                    BorderBrush="{StaticResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="6"
+                                    Margin="0,0,0,18"
+                                    HorizontalAlignment="Left">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="42" />
+                                        <ColumnDefinition Width="100" />
+                                        <ColumnDefinition Width="42" />
+                                    </Grid.ColumnDefinitions>
+                                    <Button x:Name="LevelMinusButton"
+                                            Grid.Column="0"
+                                            Content="−"
+                                            FontSize="18"
+                                            Padding="0"
+                                            Click="LevelMinusButton_Click" />
+                                    <TextBlock x:Name="CurrentLevelText"
+                                               Grid.Column="1"
+                                               Text="Lv.0"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               TextAlignment="Center"
+                                               FontWeight="SemiBold" />
+                                    <Button x:Name="LevelPlusButton"
+                                            Grid.Column="2"
+                                            Content="+"
+                                            FontSize="18"
+                                            Padding="0"
+                                            Click="LevelPlusButton_Click" />
+                                </Grid>
+                            </Border>
 
                             <TextBlock x:Name="NextLevelHeader"
                                        FontWeight="SemiBold"

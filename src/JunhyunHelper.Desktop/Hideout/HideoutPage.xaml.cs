@@ -18,7 +18,6 @@ public partial class HideoutPage : UserControl
     private GameContentCatalog? _content;
     private HideoutWorkspace? _workspace;
     private IReadOnlyList<StationRow> _rows = [];
-    private bool _updatingLevel;
 
     public HideoutPage()
     {
@@ -36,12 +35,14 @@ public partial class HideoutPage : UserControl
         _content = content;
         _workspace = workspace;
         _rows = workspace.Stations
-            .Select(entry => new StationRow(
-                entry,
-                DisplayName(entry.Station.NameKo, entry.Station.NameEn, entry.Station.Id),
-                entry.CurrentLevel.HasValue
-                    ? $"Lv.{entry.CurrentLevel.Value} / {entry.MaximumLevel}"
-                    : "미입력"))
+            .Select(entry =>
+            {
+                var currentLevel = entry.CurrentLevel ?? 0;
+                return new StationRow(
+                    entry,
+                    DisplayName(entry.Station.NameKo, entry.Station.NameEn, entry.Station.Id),
+                    $"Lv.{currentLevel} / {entry.MaximumLevel}");
+            })
             .OrderBy(row => row.Name, StringComparer.CurrentCulture)
             .ToArray();
 
@@ -75,7 +76,7 @@ public partial class HideoutPage : UserControl
             .ToArray();
 
         StationList.ItemsSource = filtered;
-        SummaryText.Text = $"{filtered.Length}개 표시 · 레벨 입력 {_rows.Count(row => row.Entry.CurrentLevel.HasValue)} / {_rows.Count}";
+        SummaryText.Text = $"{filtered.Length}개 시설";
 
         if (StationList.SelectedItem is null)
             ClearDetail();
@@ -98,24 +99,10 @@ public partial class HideoutPage : UserControl
         DetailScroll.Visibility = Visibility.Visible;
         DetailName.Text = DisplayName(entry.Station.NameKo, entry.Station.NameEn, entry.Station.Id);
 
-        var levelChoices = new[] { new LevelChoice(null, "미입력") }
-            .Concat(Enumerable.Range(0, entry.MaximumLevel + 1)
-                .Select(level => new LevelChoice(level, $"Lv.{level}")))
-            .ToArray();
-
-        _updatingLevel = true;
-        LevelComboBox.ItemsSource = levelChoices;
-        LevelComboBox.SelectedItem = levelChoices.First(choice => choice.Level == entry.CurrentLevel);
-        _updatingLevel = false;
-
-        if (!entry.CurrentLevel.HasValue)
-        {
-            NextLevelHeader.Text = "다음 업그레이드";
-            NextLevelMessage.Text = "현재 레벨을 입력하면 다음 업그레이드 요구 아이템을 표시합니다.";
-            NextLevelItems.ItemsSource = null;
-            ConstructionTimeText.Text = string.Empty;
-            return;
-        }
+        var currentLevel = entry.CurrentLevel ?? 0;
+        CurrentLevelText.Text = $"Lv.{currentLevel} / {entry.MaximumLevel}";
+        LevelMinusButton.IsEnabled = currentLevel > 0;
+        LevelPlusButton.IsEnabled = currentLevel < entry.MaximumLevel;
 
         if (entry.NextLevel is null)
         {
@@ -148,20 +135,23 @@ public partial class HideoutPage : UserControl
             : string.Empty;
     }
 
-    private void LevelComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (_updatingLevel || StationList.SelectedItem is not StationRow row ||
-            LevelComboBox.SelectedItem is not LevelChoice level)
-        {
-            return;
-        }
+    private void LevelMinusButton_Click(object sender, RoutedEventArgs e) => ChangeSelectedLevel(-1);
 
-        if (row.Entry.CurrentLevel == level.Level)
+    private void LevelPlusButton_Click(object sender, RoutedEventArgs e) => ChangeSelectedLevel(1);
+
+    private void ChangeSelectedLevel(int delta)
+    {
+        if (StationList.SelectedItem is not StationRow row)
+            return;
+
+        var currentLevel = row.Entry.CurrentLevel ?? 0;
+        var targetLevel = Math.Clamp(currentLevel + delta, 0, row.Entry.MaximumLevel);
+        if (targetLevel == currentLevel)
             return;
 
         LevelChangeRequested?.Invoke(
             this,
-            new HideoutLevelChangeRequestedEventArgs(row.Entry.Station.Id, level.Level));
+            new HideoutLevelChangeRequestedEventArgs(row.Entry.Station.Id, targetLevel));
     }
 
     private void ClearDetail()
@@ -191,9 +181,4 @@ public partial class HideoutPage : UserControl
         HideoutStationEntry Entry,
         string Name,
         string LevelText);
-
-    private sealed record LevelChoice(int? Level, string Label)
-    {
-        public override string ToString() => Label;
-    }
 }

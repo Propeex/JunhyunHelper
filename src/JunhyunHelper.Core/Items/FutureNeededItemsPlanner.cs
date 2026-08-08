@@ -64,29 +64,21 @@ public static class FutureNeededItemsPlanner
             .ToArray();
 
         var hideoutRequirements = new List<HideoutItemRequirement>();
-        var unenteredStations = new List<string>();
         var protections = new List<CleanupProtection>();
 
         foreach (var station in content.HideoutStations)
         {
-            if (profile.HideoutLevels.TryGetValue(station.Id, out var currentLevel))
-            {
-                hideoutRequirements.AddRange(
-                    station.Levels
-                        .Where(level => level.Level > currentLevel)
-                        .SelectMany(level => level.ItemRequirements));
-                continue;
-            }
+            // Product rule: no saved station value means the station is at Lv.0.
+            // Therefore every future level above zero is a real planning requirement
+            // instead of an unknown range that blocks cleanup globally.
+            var currentLevel = profile.HideoutLevels.TryGetValue(station.Id, out var savedLevel)
+                ? savedLevel
+                : 0;
 
-            unenteredStations.Add(station.Id);
-            foreach (var requirement in station.Levels.SelectMany(level => level.ItemRequirements))
-            {
-                protections.Add(new CleanupProtection(
-                    requirement.ItemId,
-                    CleanupProtectionKind.UnenteredHideoutLevel,
-                    station.Id,
-                    requirement.TargetLevel.ToString(System.Globalization.CultureInfo.InvariantCulture)));
-            }
+            hideoutRequirements.AddRange(
+                station.Levels
+                    .Where(level => level.Level > currentLevel)
+                    .SelectMany(level => level.ItemRequirements));
         }
 
         var built = NeededItemRequirementBuilder.Build(questRequirements, hideoutRequirements);
@@ -123,10 +115,7 @@ public static class FutureNeededItemsPlanner
                 .ThenBy(static protection => protection.Kind)
                 .ThenBy(static protection => protection.SourceId, StringComparer.Ordinal)
                 .ToArray(),
-            unenteredStations
-                .Distinct(StringComparer.Ordinal)
-                .OrderBy(static stationId => stationId, StringComparer.Ordinal)
-                .ToArray(),
+            Array.Empty<string>(),
             reachability);
     }
 }

@@ -51,21 +51,25 @@ public sealed class HideoutApplicationService
             string.Equals(candidate.Id, stationId, StringComparison.Ordinal))
             ?? throw new KeyNotFoundException($"Hideout station '{stationId}' does not exist in active content.");
 
+        // Product rule: an absent station value and Lv.0 mean the same thing.
+        // Keep accepting null at this application boundary so older callers remain safe,
+        // but normalize it immediately to the single Lv.0 meaning.
+        var normalizedLevel = level ?? 0;
         var maximumLevel = MaximumLevel(station);
-        if (level is < 0 || level > maximumLevel)
+        if (normalizedLevel < 0 || normalizedLevel > maximumLevel)
         {
             throw new ArgumentOutOfRangeException(
                 nameof(level),
-                level,
-                $"Hideout station '{stationId}' level must be between 0 and {maximumLevel}, or null when unentered.");
+                normalizedLevel,
+                $"Hideout station '{stationId}' level must be between 0 and {maximumLevel}.");
         }
 
         var profile = await LoadRequiredProfileAsync(profileId, cancellationToken);
         var levels = new Dictionary<string, int>(profile.HideoutLevels, StringComparer.Ordinal);
-        if (level.HasValue)
-            levels[stationId] = level.Value;
-        else
+        if (normalizedLevel == 0)
             levels.Remove(stationId);
+        else
+            levels[stationId] = normalizedLevel;
 
         var updated = profile with { HideoutLevels = levels };
         await _profileStore.SaveAsync(updated, cancellationToken);
@@ -89,14 +93,12 @@ public sealed class HideoutApplicationService
             {
                 var currentLevel = profile.HideoutLevels.TryGetValue(station.Id, out var savedLevel)
                     ? savedLevel
-                    : (int?)null;
+                    : 0;
                 var maximumLevel = MaximumLevel(station);
-                var nextLevel = currentLevel.HasValue
-                    ? station.Levels
-                        .Where(level => level.Level > currentLevel.Value)
-                        .OrderBy(level => level.Level)
-                        .FirstOrDefault()
-                    : null;
+                var nextLevel = station.Levels
+                    .Where(level => level.Level > currentLevel)
+                    .OrderBy(level => level.Level)
+                    .FirstOrDefault();
 
                 return new HideoutStationEntry(
                     station,
