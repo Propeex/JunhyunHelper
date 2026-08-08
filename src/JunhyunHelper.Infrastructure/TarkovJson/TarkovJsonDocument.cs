@@ -23,14 +23,21 @@ public sealed record TarkovJsonDocument(
             if (translations.ValueKind != JsonValueKind.Array)
                 throw new InvalidDataException("json.tarkov.dev translations must be an array.");
 
-            translationPaths = translations
-                .EnumerateArray()
-                .Select(static value => value.ValueKind == JsonValueKind.String
-                    ? value.GetString()
-                    : null)
-                .Where(static value => !string.IsNullOrWhiteSpace(value))
-                .Cast<string>()
-                .ToArray();
+            var paths = new List<string>();
+            foreach (var value in translations.EnumerateArray())
+            {
+                if (value.ValueKind != JsonValueKind.String)
+                {
+                    throw new InvalidDataException(
+                        "json.tarkov.dev translations entries must be strings.");
+                }
+
+                var path = value.GetString();
+                if (!string.IsNullOrWhiteSpace(path))
+                    paths.Add(path);
+            }
+
+            translationPaths = paths.ToArray();
         }
 
         return new TarkovJsonDocument(data.Clone(), translationPaths);
