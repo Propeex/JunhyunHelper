@@ -65,8 +65,36 @@ public sealed class TarkovQuestImporterTests
         Assert.Contains(QuestRequiredStatus.Complete, prerequisite.AcceptedStatuses);
         Assert.Contains(QuestRequiredStatus.Active, prerequisite.AcceptedStatuses);
 
-        Assert.Equal(1.5m, Assert.Single(quest.TraderStandingRequirements).RequiredStanding);
+        var standing = Assert.Single(quest.TraderStandingRequirements);
+        Assert.Equal(1.5m, standing.RequiredStanding);
+        Assert.Equal(StandingRequirementOperator.AtLeast, standing.Operator);
         Assert.Equal(3, Assert.Single(quest.TraderLoyaltyRequirements).RequiredLoyaltyLevel);
+    }
+
+    [Fact]
+    public void NegativeTraderStandingBecomesMaximumRequirement()
+    {
+        var document = Document("""
+            {
+              "data": {
+                "tasks": [
+                  {
+                    "id": "quest-a",
+                    "traderRequirements": [
+                      { "trader": "trader-fence", "value": -1.0 }
+                    ]
+                  }
+                ]
+              }
+            }
+            """);
+
+        var quest = Assert.Single(
+            new TarkovQuestImporter().Import(document, new TarkovLocalization()));
+
+        var standing = Assert.Single(quest.TraderStandingRequirements);
+        Assert.Equal(-1.0m, standing.RequiredStanding);
+        Assert.Equal(StandingRequirementOperator.AtMost, standing.Operator);
     }
 
     [Fact]
