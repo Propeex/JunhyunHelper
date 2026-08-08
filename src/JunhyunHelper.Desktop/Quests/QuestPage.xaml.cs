@@ -6,6 +6,7 @@ using JunhyunHelper.Application.Quests;
 using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.Profiles;
 using JunhyunHelper.Core.Quests;
+using JunhyunHelper.Desktop.Services;
 
 namespace JunhyunHelper.Desktop.Quests;
 
@@ -60,7 +61,8 @@ public partial class QuestPage : UserControl
                 DisplayName(entry.Quest.NameKo, entry.Quest.NameEn, entry.Quest.Id),
                 BuildSubtitle(entry.Quest, traders, maps),
                 StatusText(entry.Availability.State),
-                StatusBrush(entry.Availability.State)))
+                StatusBrush(entry.Availability.State),
+                MapFilterKey(entry.Quest.MapId, maps)))
             .OrderBy(row => row.Name, StringComparer.CurrentCulture)
             .ToArray();
 
@@ -115,20 +117,46 @@ public partial class QuestPage : UserControl
             .Cast<string>()
             .Distinct(StringComparer.Ordinal)
             .OrderBy(id => traders.TryGetValue(id, out var trader)
+                ? UiReferenceOrder.TraderRank(trader)
+                : int.MaxValue)
+            .ThenBy(id => traders.TryGetValue(id, out var trader)
                 ? DisplayName(trader.NameKo, trader.NameEn, id)
                 : id,
                 StringComparer.CurrentCulture)
             .ToArray();
 
-        var mapIds = _rows
+        var mapGroups = _rows
             .Select(row => row.Entry.Quest.MapId)
             .Where(id => !string.IsNullOrWhiteSpace(id))
             .Cast<string>()
             .Distinct(StringComparer.Ordinal)
-            .OrderBy(id => maps.TryGetValue(id, out var map)
-                ? DisplayName(map.NameKo, map.NameEn, id)
-                : id,
-                StringComparer.CurrentCulture)
+            .Select(id =>
+            {
+                maps.TryGetValue(id, out var map);
+                var label = map is null
+                    ? id
+                    : DisplayName(map.NameKo, map.NameEn, id);
+                var key = map is null
+                    ? $"map:{id}"
+                    : UiReferenceOrder.MapFilterKey(map);
+                var rank = UiReferenceOrder.MapRank(map);
+                var highVariant = UiReferenceOrder.IsGroundZeroHighVariant(map);
+                return new MapFilterCandidate(id, key, label, rank, highVariant);
+            })
+            .GroupBy(candidate => candidate.FilterKey, StringComparer.Ordinal)
+            .Select(group =>
+            {
+                var representative = group
+                    .OrderBy(candidate => candidate.IsGroundZeroHighVariant)
+                    .ThenBy(candidate => candidate.Label, StringComparer.CurrentCulture)
+                    .First();
+                return new MapFilterGroup(
+                    group.Key,
+                    representative.Label,
+                    group.Min(candidate => candidate.Rank));
+            })
+            .OrderBy(group => group.Rank)
+            .ThenBy(group => group.Label, StringComparer.CurrentCulture)
             .ToArray();
 
         _updatingFilters = true;
@@ -144,11 +172,7 @@ public partial class QuestPage : UserControl
             .FirstOrDefault(option => option.Value == selectedTrader) ?? TraderFilter.Items[0];
 
         MapFilter.ItemsSource = new[] { new FilterOption("모든 지도", null) }
-            .Concat(mapIds.Select(id => new FilterOption(
-                maps.TryGetValue(id, out var map)
-                    ? DisplayName(map.NameKo, map.NameEn, id)
-                    : id,
-                id)))
+            .Concat(mapGroups.Select(group => new FilterOption(group.Label, group.FilterKey)))
             .ToArray();
         MapFilter.SelectedItem = MapFilter.Items
             .Cast<FilterOption>()
@@ -170,7 +194,7 @@ public partial class QuestPage : UserControl
         var search = SearchBox.Text?.Trim() ?? string.Empty;
         var status = (StatusFilter.SelectedItem as FilterOption)?.Value;
         var traderId = (TraderFilter.SelectedItem as FilterOption)?.Value;
-        var mapId = (MapFilter.SelectedItem as FilterOption)?.Value;
+        var mapKey = (MapFilter.SelectedItem as FilterOption)?.Value;
 
         var filtered = _rows.Where(row =>
         {
@@ -193,8 +217,8 @@ public partial class QuestPage : UserControl
                 return false;
             }
 
-            if (!string.IsNullOrWhiteSpace(mapId) &&
-                !string.Equals(row.Entry.Quest.MapId, mapId, StringComparison.Ordinal))
+            if (!string.IsNullOrWhiteSpace(mapKey) &&
+                !string.Equals(row.MapFilterKey, mapKey, StringComparison.Ordinal))
             {
                 return false;
             }
@@ -457,6 +481,18 @@ public partial class QuestPage : UserControl
         return $"{trader} · {map}";
     }
 
+    private static string? MapFilterKey(
+        string? mapId,
+        IReadOnlyDictionary<string, Core.Reference.MapReference> maps)
+    {
+        if (string.IsNullOrWhiteSpace(mapId))
+            return null;
+
+        return maps.TryGetValue(mapId, out var map)
+            ? UiReferenceOrder.MapFilterKey(map)
+            : $"map:{mapId}";
+    }
+
     private static string ReasonText(
         QuestAvailabilityReason reason,
         GameContentCatalog content,
@@ -558,10 +594,23 @@ public partial class QuestPage : UserControl
         string Name,
         string Subtitle,
         string StatusText,
-        Brush StatusBrush);
+        Brush StatusBrush,
+        string? MapFilterKey);
 
     private sealed record FilterOption(string Label, string? Value)
     {
         public override string ToString() => Label;
     }
+
+    private sealed record MapFilterCandidate(
+        string MapId,
+        string FilterKey,
+        string Label,
+        int Rank,
+        bool IsGroundZeroHighVariant);
+
+    private sealed record MapFilterGroup(
+        string FilterKey,
+        string Label,
+        int Rank);
 }
