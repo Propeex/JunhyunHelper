@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:quests="clr-namespace:JunhyunHelper.Desktop.Quests"
         xmlns:hideout="clr-namespace:JunhyunHelper.Desktop.Hideout"
+        xmlns:items="clr-namespace:JunhyunHelper.Desktop.Items"
         Title="준현 헬퍼"
         Width="1320"
         Height="820"
@@ -24,6 +25,7 @@
                 Padding="16,11">
             <Grid>
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
@@ -52,35 +54,42 @@
                 <Button x:Name="HideoutTabButton"
                         Grid.Column="2"
                         Content="은신처"
+                        Margin="0,0,6,0"
                         Padding="16,7"
                         Click="HideoutTabButton_Click" />
 
+                <Button x:Name="ItemsTabButton"
+                        Grid.Column="3"
+                        Content="아이템"
+                        Padding="16,7"
+                        Click="ItemsTabButton_Click" />
+
                 <TextBlock x:Name="StatusText"
-                           Grid.Column="3"
+                           Grid.Column="4"
                            Foreground="{StaticResource TextSecondaryBrush}"
                            VerticalAlignment="Center"
                            Margin="18,0" />
 
                 <ComboBox x:Name="ProfileComboBox"
-                          Grid.Column="4"
+                          Grid.Column="5"
                           Width="180"
                           Margin="0,0,8,0"
                           SelectionChanged="ProfileComboBox_SelectionChanged" />
 
                 <Button x:Name="EditProfileButton"
-                        Grid.Column="5"
+                        Grid.Column="6"
                         Content="프로필 수정"
                         Margin="0,0,8,0"
                         Click="EditProfileButton_Click" />
 
                 <Button x:Name="CreateProfileButton"
-                        Grid.Column="6"
+                        Grid.Column="7"
                         Content="새 프로필"
                         Margin="0,0,8,0"
                         Click="CreateProfileButton_Click" />
 
                 <Button x:Name="UpdateDataButton"
-                        Grid.Column="7"
+                        Grid.Column="8"
                         Content="데이터 업데이트"
                         Click="UpdateDataButton_Click" />
             </Grid>
@@ -91,6 +100,8 @@
                               Visibility="Collapsed" />
             <hideout:HideoutPage x:Name="HideoutPage"
                                  Visibility="Collapsed" />
+            <items:ItemsPage x:Name="ItemsPage"
+                             Visibility="Collapsed" />
 
             <Grid x:Name="EmptyState">
                 <StackPanel HorizontalAlignment="Center"
@@ -103,7 +114,7 @@
                                HorizontalAlignment="Center"
                                Margin="0,0,0,10" />
                     <TextBlock x:Name="EmptyStateMessage"
-                               Text="프로필을 만들면 퀘스트와 은신처 진행 상태를 관리할 수 있습니다."
+                               Text="프로필을 만들면 퀘스트·은신처 진행과 미래 필요 아이템을 관리할 수 있습니다."
                                Foreground="{StaticResource TextSecondaryBrush}"
                                TextAlignment="Center"
                                Margin="0,0,0,16" />
