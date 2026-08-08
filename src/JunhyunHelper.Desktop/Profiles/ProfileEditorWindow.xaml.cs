@@ -1,4 +1,6 @@
+using System.ComponentModel;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using JunhyunHelper.Core.Content;
@@ -13,18 +15,73 @@ public sealed record ProfileSettingsResult(
     int? PrestigeLevel,
     IReadOnlyDictionary<string, TraderProgress> Traders);
 
-public sealed class TraderEditorRow
+public sealed class TraderEditorRow : INotifyPropertyChanged
 {
+    private int? _loyaltyLevel;
+    private decimal? _standing;
+
     public required string TraderId { get; init; }
     public required string Name { get; init; }
-    public bool IsIncluded { get; set; }
-    public string LoyaltyText { get; set; } = "1";
-    public string StandingText { get; set; } = "0";
+    public required bool IsFence { get; init; }
+    public required bool NeedsAdvancedStanding { get; init; }
+
+    public int? LoyaltyLevel
+    {
+        get => _loyaltyLevel;
+        set
+        {
+            if (_loyaltyLevel == value)
+                return;
+            _loyaltyLevel = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(LoyaltyDisplay));
+        }
+    }
+
+    public decimal? Standing
+    {
+        get => _standing;
+        set
+        {
+            if (_standing == value)
+                return;
+            _standing = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(StandingDisplay));
+            OnPropertyChanged(nameof(IsStandingKnown));
+        }
+    }
+
+    public bool IsStandingKnown
+    {
+        get => Standing is not null;
+        set
+        {
+            if (value == IsStandingKnown)
+                return;
+            Standing = value ? 0m : null;
+        }
+    }
+
+    public string LoyaltyDisplay => LoyaltyLevel is null ? "미입력" : $"LL{LoyaltyLevel.Value}";
+    public string StandingDisplay => Standing?.ToString("0.##", CultureInfo.CurrentCulture) ?? "미입력";
+    public Visibility LoyaltyVisibility => IsFence ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility FenceStandingVisibility => IsFence ? Visibility.Visible : Visibility.Collapsed;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null) =>
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 }
 
 public partial class ProfileEditorWindow : Window
 {
+    private const string FenceTraderId = "579dc571d53a0658a154fbec";
+
     private readonly IReadOnlyList<TraderEditorRow> _traderRows;
+    private readonly bool _editingExistingProfile;
+    private int _level;
+    private int? _prestigeLevel;
 
     public ProfileEditorWindow(
         GameMode gameMode,
@@ -41,10 +98,16 @@ public partial class ProfileEditorWindow : Window
 
         InitializeComponent();
 
+        _editingExistingProfile = existingProfile is not null;
+        _level = existingProfile?.Level ?? 1;
+        _prestigeLevel = existingProfile?.PrestigeLevel;
+
         TitleText.Text = existingProfile is null ? "새 프로필 설정" : "프로필 수정";
         ModeText.Text = $"{GameModeText(gameMode)} 캐릭터";
-        LevelTextBox.Text = (existingProfile?.Level ?? 1).ToString(CultureInfo.InvariantCulture);
-        PrestigeTextBox.Text = (existingProfile?.PrestigeLevel ?? 0).ToString(CultureInfo.InvariantCulture);
+        DeleteProfileButton.Visibility = _editingExistingProfile
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        UpdateTopValues();
 
         var factions = new[]
         {
@@ -64,57 +127,110 @@ public partial class ProfileEditorWindow : Window
         EditionComboBox.SelectedItem = editions.FirstOrDefault(choice =>
             string.Equals(choice.Id, existingProfile?.EditionId, StringComparison.Ordinal)) ?? editions[0];
 
+        var standingRequiredTraderIds = content.Quests
+            .SelectMany(quest => quest.TraderStandingRequirements)
+            .Select(requirement => requirement.TraderId)
+            .ToHashSet(StringComparer.Ordinal);
+
         _traderRows = content.Traders
             .OrderBy(trader => DisplayName(trader.NameKo, trader.NameEn, trader.Id), StringComparer.CurrentCulture)
             .Select(trader =>
             {
-                TraderProgress progress = default;
                 var hasProgress = existingProfile is not null &&
-                                  existingProfile.Traders.TryGetValue(trader.Id, out progress);
+                                  existingProfile.Traders.TryGetValue(trader.Id, out var progress);
+                var isFence = string.Equals(trader.Id, FenceTraderId, StringComparison.Ordinal);
+
                 return new TraderEditorRow
                 {
                     TraderId = trader.Id,
                     Name = DisplayName(trader.NameKo, trader.NameEn, trader.Id),
-                    IsIncluded = hasProgress,
-                    LoyaltyText = hasProgress
-                        ? progress.LoyaltyLevel.ToString(CultureInfo.InvariantCulture)
-                        : "1",
-                    StandingText = hasProgress
-                        ? progress.Standing.ToString(CultureInfo.InvariantCulture)
-                        : "0",
+                    IsFence = isFence,
+                    NeedsAdvancedStanding = !isFence &&
+                                            (standingRequiredTraderIds.Contains(trader.Id) ||
+                                             (hasProgress && progress.Standing is not null)),
+                    LoyaltyLevel = isFence
+                        ? hasProgress ? progress.LoyaltyLevel : null
+                        : hasProgress ? progress.LoyaltyLevel ?? 1 : 1,
+                    Standing = isFence
+                        ? hasProgress ? progress.Standing ?? 0m : 0m
+                        : hasProgress ? progress.Standing : null,
                 };
             })
             .ToArray();
-        TraderGrid.ItemsSource = _traderRows;
+
+        TraderItems.ItemsSource = _traderRows;
+        var advancedRows = _traderRows.Where(row => row.NeedsAdvancedStanding).ToArray();
+        AdvancedStandingItems.ItemsSource = advancedRows;
+        AdvancedStandingExpander.Visibility = advancedRows.Length > 0
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 
     public ProfileSettingsResult? Result { get; private set; }
+    public bool DeleteRequested { get; private set; }
+
+    private void LevelMinusButton_Click(object sender, RoutedEventArgs e)
+    {
+        _level = Math.Max(1, _level - 1);
+        UpdateTopValues();
+    }
+
+    private void LevelPlusButton_Click(object sender, RoutedEventArgs e)
+    {
+        _level++;
+        UpdateTopValues();
+    }
+
+    private void PrestigeMinusButton_Click(object sender, RoutedEventArgs e)
+    {
+        _prestigeLevel = _prestigeLevel switch
+        {
+            null => null,
+            <= 0 => null,
+            _ => _prestigeLevel.Value - 1,
+        };
+        UpdateTopValues();
+    }
+
+    private void PrestigePlusButton_Click(object sender, RoutedEventArgs e)
+    {
+        _prestigeLevel = _prestigeLevel is null ? 0 : _prestigeLevel.Value + 1;
+        UpdateTopValues();
+    }
+
+    private static TraderEditorRow? RowFrom(object sender) =>
+        (sender as FrameworkElement)?.DataContext as TraderEditorRow;
+
+    private void TraderLoyaltyMinusButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (RowFrom(sender) is not { IsFence: false } row)
+            return;
+        row.LoyaltyLevel = Math.Max(1, (row.LoyaltyLevel ?? 1) - 1);
+    }
+
+    private void TraderLoyaltyPlusButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (RowFrom(sender) is not { IsFence: false } row)
+            return;
+        row.LoyaltyLevel = Math.Min(4, (row.LoyaltyLevel ?? 1) + 1);
+    }
+
+    private void TraderStandingMinusButton_Click(object sender, RoutedEventArgs e) =>
+        AdjustStanding(sender, -0.1m);
+
+    private void TraderStandingPlusButton_Click(object sender, RoutedEventArgs e) =>
+        AdjustStanding(sender, 0.1m);
+
+    private static void AdjustStanding(object sender, decimal delta)
+    {
+        if (RowFrom(sender) is not { } row || row.Standing is null)
+            return;
+
+        row.Standing = Math.Round(row.Standing.Value + delta, 2, MidpointRounding.AwayFromZero);
+    }
 
     private void SaveButton_Click(object sender, RoutedEventArgs e)
     {
-        TraderGrid.CommitEdit(DataGridEditingUnit.Cell, true);
-        TraderGrid.CommitEdit(DataGridEditingUnit.Row, true);
-
-        if (!int.TryParse(LevelTextBox.Text?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var level) ||
-            level < 1)
-        {
-            ShowValidation("레벨은 1 이상의 정수로 입력해주세요.");
-            return;
-        }
-
-        int? prestige = null;
-        var prestigeText = PrestigeTextBox.Text?.Trim();
-        if (!string.IsNullOrWhiteSpace(prestigeText))
-        {
-            if (!int.TryParse(prestigeText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedPrestige) ||
-                parsedPrestige < 0)
-            {
-                ShowValidation("프레스티지는 0 이상의 정수로 입력하거나 비워두세요.");
-                return;
-            }
-            prestige = parsedPrestige;
-        }
-
         if (FactionComboBox.SelectedItem is not FactionChoice faction)
         {
             ShowValidation("진영을 선택해주세요.");
@@ -122,39 +238,52 @@ public partial class ProfileEditorWindow : Window
         }
 
         var traders = new Dictionary<string, TraderProgress>(StringComparer.Ordinal);
-        foreach (var row in _traderRows.Where(row => row.IsIncluded))
+        foreach (var row in _traderRows)
         {
-            if (!int.TryParse(row.LoyaltyText?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var loyalty) ||
-                loyalty < 0 || loyalty > 4)
-            {
-                ShowValidation($"{row.Name}의 LL은 0~4 사이 정수로 입력해주세요.");
-                return;
-            }
-
-            if (!TryParseDecimal(row.StandingText, out var standing))
-            {
-                ShowValidation($"{row.Name}의 평판을 숫자로 입력해주세요.");
-                return;
-            }
+            int? loyalty = row.IsFence ? row.LoyaltyLevel : row.LoyaltyLevel ?? 1;
+            decimal? standing = row.IsFence || row.IsStandingKnown ? row.Standing : null;
+            if (loyalty is null && standing is null)
+                continue;
 
             traders[row.TraderId] = new TraderProgress(loyalty, standing);
         }
 
         var editionId = (EditionComboBox.SelectedItem as EditionChoice)?.Id;
         Result = new ProfileSettingsResult(
-            level,
+            _level,
             faction.Value,
             editionId,
-            prestige,
+            _prestigeLevel,
             traders);
         DialogResult = true;
     }
 
-    private static bool TryParseDecimal(string? text, out decimal value)
+    private void DeleteProfileButton_Click(object sender, RoutedEventArgs e)
     {
-        var trimmed = text?.Trim();
-        return decimal.TryParse(trimmed, NumberStyles.Number, CultureInfo.CurrentCulture, out value) ||
-               decimal.TryParse(trimmed, NumberStyles.Number, CultureInfo.InvariantCulture, out value);
+        if (!_editingExistingProfile)
+            return;
+
+        var result = MessageBox.Show(
+            this,
+            "이 프로필의 퀘스트 진행, 은신처 레벨, 상인 진행, 보유 아이템 기록을 모두 삭제합니다. 다운로드된 게임 데이터와 다른 프로필은 유지됩니다.\n\n삭제하시겠습니까?",
+            "프로필 삭제",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning,
+            MessageBoxResult.No);
+        if (result != MessageBoxResult.Yes)
+            return;
+
+        DeleteRequested = true;
+        Result = null;
+        DialogResult = true;
+    }
+
+    private void UpdateTopValues()
+    {
+        LevelValueText.Text = $"Lv.{_level}";
+        PrestigeValueText.Text = _prestigeLevel is null
+            ? "미입력"
+            : _prestigeLevel.Value.ToString(CultureInfo.CurrentCulture);
     }
 
     private void ShowValidation(string message)
