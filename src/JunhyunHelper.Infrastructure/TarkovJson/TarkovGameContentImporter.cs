@@ -1,4 +1,5 @@
 using JunhyunHelper.Core.Content;
+using JunhyunHelper.Infrastructure.TarkovJson.Ammo;
 using JunhyunHelper.Infrastructure.TarkovJson.Hideout;
 using JunhyunHelper.Infrastructure.TarkovJson.Items;
 using JunhyunHelper.Infrastructure.TarkovJson.Quests;
@@ -14,19 +15,24 @@ public sealed class TarkovGameContentImporter
     private readonly TarkovQuestImporter _questImporter = new();
     private readonly TarkovQuestObjectiveImporter _questObjectiveImporter = new();
     private readonly TarkovHideoutImporter _hideoutImporter = new();
+    private readonly TarkovAmmoImporter _ammoImporter = new();
 
     public GameContentCatalog Import(
         TarkovEndpointSource items,
         TarkovEndpointSource traders,
         TarkovEndpointSource maps,
         TarkovEndpointSource tasks,
-        TarkovEndpointSource hideout)
+        TarkovEndpointSource hideout,
+        TarkovEndpointSource barters,
+        TarkovEndpointSource crafts)
     {
         ArgumentNullException.ThrowIfNull(items);
         ArgumentNullException.ThrowIfNull(traders);
         ArgumentNullException.ThrowIfNull(maps);
         ArgumentNullException.ThrowIfNull(tasks);
         ArgumentNullException.ThrowIfNull(hideout);
+        ArgumentNullException.ThrowIfNull(barters);
+        ArgumentNullException.ThrowIfNull(crafts);
 
         var questObjectives = _questObjectiveImporter.Import(
             tasks.BaseDocument,
@@ -39,6 +45,10 @@ public sealed class TarkovGameContentImporter
             _questImporter.Import(tasks.BaseDocument, tasks.Localization),
             questObjectives.Objectives,
             questObjectives.ItemRequirements,
-            _hideoutImporter.Import(hideout.BaseDocument, hideout.Localization));
+            _hideoutImporter.Import(hideout.BaseDocument, hideout.Localization),
+            _ammoImporter.Import(
+                items.BaseDocument,
+                barters.BaseDocument,
+                crafts.BaseDocument));
     }
 }
