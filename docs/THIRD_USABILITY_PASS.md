@@ -2,150 +2,208 @@
 
 기록일: **2026-08-09**
 
-상태: `CONFIRMED / IMPLEMENTATION IN PROGRESS`
+상태: `IMPLEMENTED / WINDOWS CI VERIFIED`
 
-이번 문서는 2차 테스트 빌드 실사용 후 확정된 UI·정보 구조 개선 요구사항을 기록합니다.
+2차 테스트 빌드 실사용 후 확정된 UI·정보 구조 개선 요구사항과 현재 구현을 기록합니다.
 
 ## 1. ScrollBar
 
-현재 ScrollBar가 세로 영역 전체를 차지하지 않고 작은 공처럼 보이는 문제를 수정합니다.
+기존 문제는 공처럼 보이는 thumb 자체보다 **모든 ScrollBar에 Width와 Height를 동시에 고정해 vertical ScrollBar 전체 높이까지 작아진 것**이 핵심이었습니다.
 
-- 세로 ScrollBar는 scrollable viewport의 우측 높이를 정상적으로 채웁니다.
-- 가로 ScrollBar는 하단 너비를 정상적으로 채웁니다.
-- 둥근 모서리는 유지하되 일반적인 track + thumb 형태를 사용합니다.
-- ScrollBar 전체 크기를 14×14로 고정하지 않습니다.
+현재 구현:
+
+- 세로 ScrollBar는 scrollable viewport 우측 높이를 정상적으로 채움
+- 가로 ScrollBar는 하단 너비를 정상적으로 채움
+- 일반적인 track + thumb 구조
+- 둥근 dark theme 유지
+- native arrow chrome 없음
+- vertical은 폭만 고정하고 높이는 stretch
+- horizontal은 높이만 고정하고 폭은 stretch
 
 ## 2. 유동 제출 그룹화
 
-유동 제출 후보를 단순히 한 목록으로 이어 붙이지 않습니다.
+유동 제출 후보를 하나의 긴 목록으로 이어 붙이지 않습니다.
 
-- Quest별로 하나의 그룹을 만듭니다.
-- A Quest 후보와 B Quest 후보는 별도 카드/그룹으로 구분합니다.
-- 그룹 안에서 후보 Item을 선택해 Item 상세로 이동할 수 있습니다.
-- 계산 방식과 cleanup 보호 정책은 변경하지 않습니다.
+- QuestId별 하나의 시각적 그룹/card
+- A Quest와 B Quest의 후보는 서로 분리
+- 같은 Quest 안의 여러 flexible objective는 같은 Quest 그룹 안에서 진행 정보를 표시
+- 그룹의 Quest 이름 클릭 → Quest 상세
+- 후보 Item 클릭 → Item 상세
+- 계산 및 cleanup 보호 원칙은 변경하지 않음
 
 ## 3. Hideout 필요 Item 목록화
 
 Hideout 다음 업그레이드 재료를 문자열 bullet로 표시하지 않습니다.
 
-각 재료를 개별 row/card로 표시합니다.
+각 재료를 card/row로 표시합니다.
 
 - Item icon
 - 이름
 - 필요 수량
-- 인레이드 요구 여부
+- `인레이드` 요구 badge
+
+이미지는 기존 canonical Item URL + local image cache를 사용합니다.
 
 ## 4. Ammo 구경 표기
 
-내부 raw caliber 식별자를 임의로 mm 표기로 치환하지 않습니다.
+내부 raw caliber 식별자를 숫자 기반 mm 표현으로 그대로 보여주지 않습니다.
 
-사용자가 실제 Tarkov에서 익숙한 전통적인 구경명을 표시합니다.
+사용자가 Tarkov에서 익숙한 cartridge 이름을 표시합니다.
 
-예:
+대표 예:
 
-- `.45 ACP`
-- `.300 Blackout`
-- `.366 TKM`
-- `12/70`
+- `Caliber1143x23ACP` → `.45 ACP`
+- `Caliber762x35` → `.300 Blackout`
+- `Caliber9x33R` → `.357 Magnum`
+- `Caliber86x70` → `.338 Lapua Magnum`
+- `Caliber127x33` → `.50 AE`
+- `Caliber12g` → `12/70`
+- `Caliber366TKM` → `.366 TKM`
 
-가능하면 현재 Wiki Ballistics의 구경 label을 self-updating 표시 메타데이터로 사용하고, source가 없을 때만 검증된 fallback mapping을 사용합니다.
+canonical raw caliber 값은 변경하지 않고 Desktop 표시명만 정규화합니다.
 
 ## 5. Wiki Ballistics에 없는 Ammo 제외
 
-Ammo 비교 화면은 현재 Tarkov Wiki Ballistics 표에 등록된 탄약만 대상으로 합니다.
+Ammo 비교 화면은 **현재 Wiki Ballistics 표와 안전하게 매칭된 탄약만** 정상 비교 대상으로 표시합니다.
 
-- Wiki 표에 존재하지 않는 장난/미사용/비교 대상 외 탄약과 그로 인해 생기는 구경은 정상적인 healthy source 상태에서 표에서 제외합니다.
-- 영구 hard-coded allowlist를 만들지 않습니다.
-- 현재 Wiki table membership을 update 시점에 다시 해석합니다.
-- Wiki source가 unavailable/비정상일 때는 마지막 정상 Game Content를 망가뜨리거나 임의 판정을 만들지 않습니다.
+기존 Wiki enrichment는 이미 다음을 검증합니다.
+
+- current Ballistics table parser
+- canonical 영문 Ammo 이름의 unique match
+- conflicting row 제외
+- 비정상적으로 낮은 전체 match coverage 감지
+
+따라서 healthy Wiki enrichment가 존재하면 `ArmorEffectiveness`가 유효하게 매칭된 탄약만 Ammo 표에 포함합니다. 그 결과 Wiki 표에 없는 장난/미사용/비교 대상 외 탄약과 그 탄약만 가진 구경도 표/구경 dropdown에서 제외됩니다.
+
+영구 hard-coded 탄약 allowlist는 만들지 않습니다.
+
+Wiki source가 unavailable 또는 schema 이상으로 판단되어 enrichment 자체가 적용되지 못한 경우에는 **기본 Game Content를 삭제하거나 Ammo 화면을 빈 화면으로 만들지 않고** raw Ammo를 임시 표시하며 화면에 Wiki 목록 확인 불가 상태를 명시합니다. 외부 보조 원천 장애가 마지막 정상 Game Content나 User Progress를 손상시키지 않는 기존 안전 원칙을 유지합니다.
 
 ## 6. 사용자 표시 용어: FIR → 인레이드
 
-내부 데이터 모델/DB의 `Fir` 식별자는 호환성을 위해 유지합니다.
+내부 데이터 모델/DB의 `Fir` 식별자는 저장 호환성을 위해 유지합니다.
 
-사용자에게 보이는 모든 관련 표현만 다음처럼 바꿉니다.
+사용자에게 보이는 관련 표현은 다음으로 통일합니다.
 
 - `FIR` → `인레이드`
-- `Non-FIR` → `일반`
+- `Non-FIR` 의미 → `일반`
+
+적용 대상에는 Quest 제출 Item, Hideout 재료, Needed Items, flexible hand-in 진행 표시가 포함됩니다.
 
 ## 7. Needed Items 정보 구조
 
 ### 목록
 
-필요와 보유를 각각 인레이드/일반으로 분리해 총 네 값을 바로 비교할 수 있게 합니다.
+필요와 보유를 각각 인레이드/일반으로 분리해 네 값을 바로 비교합니다.
 
 - 필요 · 인레이드
 - 필요 · 일반
 - 보유 · 인레이드
 - 보유 · 일반
 
-현재 우측의 `추가 필요`, `충분`, `정리 필요` 등 상태 badge는 목록에서 제거해 정보 밀도를 줄입니다.
+여기서 `일반 필요`는 `전체 필요 - 인레이드로 반드시 필요한 수량`인 unrestricted 요구량입니다.
+
+기존 우측의 `+N 필요 / 충분 / 정리 / 판단 보류` status badge는 제거했습니다.
 
 ### 상세
 
-`미래 필요`, `추가 필요` 같은 문장을 중심으로 표시하지 않고 단순한 요구량을 우선합니다.
+상세의 주 정보는 다음 두 값으로 단순화했습니다.
 
 - 인레이드 필요 N개
 - 일반 필요 N개
 
-cleanup 관련 경고가 실제로 필요한 경우에는 별도 보조 정보로 유지할 수 있습니다.
+`미래 필요`, `추가 필요` 같은 장문 상태 문장을 주 정보로 사용하지 않습니다. 실제 안전한 초과분이 있을 때의 cleanup 경고와 유동 제출 보호 설명은 별도 보조 정보로 유지합니다.
 
 ### 보유량 입력
 
-- 직접 숫자 입력 경로는 유지할 수 있습니다.
-- 인레이드/일반 각각 `- / 값 / +` 조작을 제공합니다.
-- `-` 또는 `+`를 누를 때마다 즉시 User Progress에 저장합니다.
-- 별도 저장 버튼을 누르지 않아도 +/- 변경은 저장됩니다.
+인레이드/일반 각각:
+
+```text
+− / 값 / +
+```
+
+- `-` 또는 `+`를 누를 때마다 즉시 Inventory User Progress 저장 요청
+- 0 미만으로 내려가지 않음
+- 직접 숫자 입력도 유지
+- 직접 입력은 `직접 입력 저장`으로 명시적으로 저장
 
 ### 종류 dropdown
 
-현재 view/filter에서 실제로 보이는 Item이 없는 종류는 종류 dropdown에서 숨깁니다.
+종류 dropdown은 **현재 view + 검색 + 상태 filter를 통과한 실제 Item 종류만** 보여줍니다.
 
-따라서 완료되어 더 이상 필요 Item이 없는 종류는 `필요` 보기에서 나타나지 않습니다.
+따라서 기본 `필요` 보기에서 더 이상 필요한 Item이 없는 종류는 dropdown에서 사라집니다. `전체` 보기에서는 실제 보유/참고 row가 있으면 다시 나타날 수 있습니다.
 
 ## 8. Quest 용어
 
-Quest 상세의 `Wiki` 버튼을 `위키`로 표시합니다.
+Quest 상세의 `Wiki` 버튼은 `위키`로 표시합니다.
 
 ## 9. Profile 상인 진행 상태
 
-Profile 편집 화면의 상인 진행 상태를 게임 사용 흐름에 맞게 나눕니다.
+Profile 편집 화면을 다음처럼 재구성했습니다.
 
-- Fence 우호도는 Player level/Prestige와 비슷한 최상단 주요 진행값으로 별도 배치합니다.
-- 핵심 상인은 인게임 Trader 탭에서 익숙한 순서로 나열합니다.
-- Lightkeeper, BTR Driver 등 핵심 Trader 탭 밖의 상인은 `특별` 섹션에 분리합니다.
-- 내부 Trader ID와 Quest 판정 데이터는 변경하지 않습니다.
+### 상단 주요 진행값
+
+- Player level
+- Prestige
+- **펜스 우호도** — 0.1 단위
+
+Fence는 일반 LL 목록에서 제거하고 독립된 주요 진행값으로 배치합니다.
+
+### 핵심 상인
+
+공유 `UiReferenceOrder`의 게임식 순서를 재사용합니다.
+
+Fence를 제외한 핵심 목록:
+
+```text
+Prapor → Therapist → Skier → Peacekeeper → Mechanic
+→ Ragman → Jaeger → Ref
+```
+
+### 특별
+
+일반 핵심 Trader 탭 밖의 상인은 별도 `특별` 섹션에 둡니다.
+
+현재 알려진 순서:
+
+```text
+Lightkeeper → BTR Driver → future unknown traders
+```
+
+Quest 판정에 실제 standing이 필요한 비-Fence 상인의 고급 입력은 기존처럼 별도 advanced 영역에 유지합니다.
 
 ## 10. Ammo 방탄 효율 cell
 
-방탄 1~6클은 여섯 칸의 **왼쪽→오른쪽 위치**로 이미 구분됩니다.
+방탄 1~6클은 여섯 칸의 **왼쪽→오른쪽 위치**로 구분합니다.
 
-따라서 각 cell에는 효율값만 표시합니다.
-
-예:
+각 cell 안에는 효율값만 표시합니다.
 
 ```text
 6  6  6  5  3  2
 ```
 
-현재처럼 효율값 위에 작은 `1`, `2`, `3`, `4`, `5`, `6`을 함께 표시하지 않습니다.
+효율값 위/아래에 작은 `1, 2, 3, 4, 5, 6` 클래스 숫자를 중복 표시하지 않습니다.
 
-Tooltip에서는 필요하면 해당 cell이 몇 클래스인지 설명할 수 있지만, 표와 상세 cell 내부에는 클래스 숫자를 중복 표시하지 않습니다.
+Tooltip에는 해당 cell의 armor class와 값의 의미를 계속 설명할 수 있습니다.
 
-## 검증 기준
+## 검증
 
-- Windows Release Desktop build
-- 전체 automated tests
-- Windows x64 publish
-- vertical/horizontal ScrollBar 실제 layout
-- Quest별 flexible group 구분
-- Hideout material card 표시
-- `.45 ACP` 등 구경 label 회귀 테스트
-- healthy Wiki membership 기반 Ammo 필터
-- Wiki 장애 시 기존 정상 데이터/기능 보존
-- 사용자 화면의 FIR 잔존 표현 제거
-- Item 네 수량 column 계산 정확성
-- +/- 한 번마다 inventory persistence
-- dynamic category dropdown
-- trader 섹션 순서/분리
-- armor effectiveness cell에 rating 숫자만 표시
+코드 checkpoint `3bb437d7e04fb9fc453c6da00ba5ee756b5f7f48`:
+
+- Windows Release Desktop build 성공
+- 전체 automated tests 성공
+- Windows x64 publish 성공
+- ZIP/artifact 생성 성공
+- GitHub Actions run `31271990036` 성공
+
+PR 병합 전 문서 변경까지 포함한 최종 CI를 한 번 더 확인합니다.
+
+## 변경하지 않은 핵심 원칙
+
+- 일반 Game Content 업데이트에 GPT 불필요
+- Game Content와 `user.db` 분리
+- raw Ammo stats의 1차 원천은 계속 `json.tarkov.dev`
+- Wiki Ballistics는 Ammo 비교 범위/명시 effectiveness를 위한 보조 원천이며 raw stats를 대체하지 않음
+- 유동 제출 계산에서 후보 하나를 임의 선택하지 않음
+- 안전한 cleanup을 증명할 수 없으면 보호
+- canonical stable ID 기반 Quest ↔ Item 관계 유지
