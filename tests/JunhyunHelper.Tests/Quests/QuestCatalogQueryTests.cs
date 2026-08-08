@@ -81,7 +81,7 @@ public sealed class QuestCatalogQueryTests
         Assert.Empty(result);
         var evaluated = Assert.Single(
             QuestCatalogQuery.Evaluate(Content([exclusiveQuest], editions), standardProfile));
-        Assert.Equal(QuestAvailabilityState.Locked, evaluated.Availability.State);
+        Assert.Equal(QuestAvailabilityState.Unavailable, evaluated.Availability.State);
         Assert.Contains(evaluated.Availability.Reasons, reason =>
             reason.Kind == QuestAvailabilityReasonKind.Edition);
     }
