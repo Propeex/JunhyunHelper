@@ -13,6 +13,8 @@ public enum QuestActionKind
 {
     Complete,
     UndoCompletion,
+    Fail,
+    UndoFailure,
 }
 
 public sealed class QuestActionRequestedEventArgs(
@@ -93,6 +95,7 @@ public partial class QuestPage : UserControl
             new FilterOption("진행 중", QuestAvailabilityState.Current.ToString()),
             new FilterOption("전체", null),
             new FilterOption("잠김", QuestAvailabilityState.Locked.ToString()),
+            new FilterOption("사용 불가", QuestAvailabilityState.Unavailable.ToString()),
             new FilterOption("완료", QuestAvailabilityState.Completed.ToString()),
         };
         StatusFilter.SelectedIndex = 0;
@@ -202,6 +205,7 @@ public partial class QuestPage : UserControl
         QuestList.ItemsSource = filtered;
         SummaryText.Text = $"{filtered.Length}개 표시 · 진행 중 {_rows.Count(row => row.Entry.Availability.State == QuestAvailabilityState.Current)} · " +
                            $"잠김 {_rows.Count(row => row.Entry.Availability.State == QuestAvailabilityState.Locked)} · " +
+                           $"사용 불가 {_rows.Count(row => row.Entry.Availability.State == QuestAvailabilityState.Unavailable)} · " +
                            $"완료 {_rows.Count(row => row.Entry.Availability.State == QuestAvailabilityState.Completed)}";
 
         if (QuestList.SelectedItem is null)
@@ -244,6 +248,15 @@ public partial class QuestPage : UserControl
             ? "완료 취소"
             : "완료";
         PrimaryActionButton.Tag = entry;
+
+        var explicitlyFailed = _workspace?.Profile.FailedQuestIds.Contains(quest.Id) == true;
+        FailureActionButton.Visibility =
+            ((entry.Availability.State == QuestAvailabilityState.Current && quest.RequiresExplicitFailureInput) ||
+             (entry.Availability.State == QuestAvailabilityState.Unavailable && explicitlyFailed))
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        FailureActionButton.Content = explicitlyFailed ? "실패 취소" : "실패 처리";
+        FailureActionButton.Tag = entry;
 
         var objectives = _content.QuestObjectives
             .Where(objective => objective.QuestId == quest.Id)
@@ -352,6 +365,11 @@ public partial class QuestPage : UserControl
         foreach (var unsupported in quest.UnsupportedAvailabilityRequirements)
             lines.Add($"• 현재 판정 미지원 조건: {unsupported}");
 
+        if (quest.RequiresExplicitFailureInput)
+        {
+            lines.Add($"• 영구 실패 시 수동 동기화 필요: {string.Join(", ", quest.UnsupportedFailureConditions)}");
+        }
+
         return lines.Count > 0 ? lines : ["특별한 해금 조건이 없습니다."];
     }
 
@@ -369,6 +387,18 @@ public partial class QuestPage : UserControl
         var action = entry.Availability.State == QuestAvailabilityState.Completed
             ? QuestActionKind.UndoCompletion
             : QuestActionKind.Complete;
+        ActionRequested?.Invoke(this, new QuestActionRequestedEventArgs(entry.Quest.Id, action));
+    }
+
+    private void FailureActionButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (FailureActionButton.Tag is not QuestCatalogEntry entry || _workspace is null)
+            return;
+
+        var explicitlyFailed = _workspace.Profile.FailedQuestIds.Contains(entry.Quest.Id);
+        var action = explicitlyFailed
+            ? QuestActionKind.UndoFailure
+            : QuestActionKind.Fail;
         ActionRequested?.Invoke(this, new QuestActionRequestedEventArgs(entry.Quest.Id, action));
     }
 
@@ -435,6 +465,8 @@ public partial class QuestPage : UserControl
         return reason.Kind switch
         {
             QuestAvailabilityReasonKind.Disabled => "현재 데이터에서 비활성화된 퀘스트입니다.",
+            QuestAvailabilityReasonKind.Failed => "게임에서 영구 실패한 것으로 기록한 퀘스트입니다.",
+            QuestAvailabilityReasonKind.FailedByQuest => $"퀘스트 '{QuestName(reason.ReferenceId, content)}' 완료로 이 진행 경로가 종료되었습니다.",
             QuestAvailabilityReasonKind.MinimumLevel => "요구 레벨을 충족하지 않았습니다.",
             QuestAvailabilityReasonKind.Faction => "현재 진영에서 수행할 수 없습니다.",
             QuestAvailabilityReasonKind.Edition => "현재 에디션 조건을 충족하지 않았습니다.",
@@ -442,8 +474,8 @@ public partial class QuestPage : UserControl
             QuestAvailabilityReasonKind.TraderStanding => $"{TraderName(reason.ReferenceId, traders)} 평판 조건을 충족하지 않았습니다.",
             QuestAvailabilityReasonKind.TraderLoyalty => $"{TraderName(reason.ReferenceId, traders)} 로열티 조건을 충족하지 않았습니다.",
             QuestAvailabilityReasonKind.Prerequisite => $"선행 퀘스트 '{QuestName(reason.ReferenceId, content)}' 조건을 충족하지 않았습니다.",
+            QuestAvailabilityReasonKind.PrerequisiteUnavailable => $"선행 퀘스트 '{QuestName(reason.ReferenceId, content)}' 경로가 더 이상 사용 가능하지 않습니다.",
             QuestAvailabilityReasonKind.MissingProfileValue => $"프로필 값이 필요합니다: {reason.ReferenceId ?? "알 수 없음"}",
-            QuestAvailabilityReasonKind.FailedPrerequisiteStateNotTracked => $"선행 퀘스트 '{QuestName(reason.ReferenceId, content)}'의 실패 상태 확인이 필요합니다.",
             QuestAvailabilityReasonKind.UnsupportedAvailabilityRequirement => $"아직 지원하지 않는 해금 조건입니다: {reason.ReferenceId ?? "알 수 없음"}",
             QuestAvailabilityReasonKind.MissingReferencedQuest => $"참조 퀘스트를 찾을 수 없습니다: {reason.ReferenceId ?? "알 수 없음"}",
             QuestAvailabilityReasonKind.DependencyCycle => $"퀘스트 선행 관계에 순환 참조가 있습니다: {reason.ReferenceId ?? "알 수 없음"}",
@@ -481,6 +513,7 @@ public partial class QuestPage : UserControl
     {
         QuestAvailabilityState.Current => "진행 중",
         QuestAvailabilityState.Locked => "잠김",
+        QuestAvailabilityState.Unavailable => "사용 불가",
         QuestAvailabilityState.Completed => "완료",
         QuestAvailabilityState.Indeterminate => "판정 문제",
         _ => state.ToString(),
@@ -515,6 +548,7 @@ public partial class QuestPage : UserControl
             QuestAvailabilityState.Current => "SuccessBrush",
             QuestAvailabilityState.Completed => "AccentBrush",
             QuestAvailabilityState.Locked => "BackgroundLightBrush",
+            QuestAvailabilityState.Unavailable => "WarningBrush",
             QuestAvailabilityState.Indeterminate => "WarningBrush",
             _ => "BackgroundLightBrush",
         });

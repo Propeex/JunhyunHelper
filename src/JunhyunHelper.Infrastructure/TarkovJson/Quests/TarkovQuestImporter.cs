@@ -29,6 +29,7 @@ public sealed class TarkovQuestImporter
 
             var name = localization.Resolve(TarkovJsonReader.OptionalString(rawTask, "name"));
             var traderRequirements = ReadTraderRequirements(rawTask, taskId);
+            var failureConditions = ReadFailureConditions(rawTask, taskId);
 
             result.Add(new QuestDefinition(
                 taskId,
@@ -46,7 +47,11 @@ public sealed class TarkovQuestImporter
                 ResolveRequiredPrestige(rawTask, prestigeLevels, taskId),
                 ReadTaskRequirements(rawTask, taskId),
                 traderRequirements.Standing,
-                traderRequirements.Loyalty));
+                traderRequirements.Loyalty,
+                UnsupportedAvailabilityRequirementTypes: null,
+                CompletionFailureConditionData: failureConditions.CompletionTriggers,
+                Restartable: TarkovJsonReader.OptionalBool(rawTask, "restartable") ?? false,
+                UnsupportedFailureConditionTypes: failureConditions.UnsupportedTypes));
         }
 
         return result;
@@ -134,6 +139,62 @@ public sealed class TarkovQuestImporter
             _ => throw new InvalidDataException(
                 $"Quest '{taskId}' has unsupported faction '{rawFaction}'."),
         };
+    }
+
+    private static ParsedFailureConditions ReadFailureConditions(
+        JsonElement task,
+        string taskId)
+    {
+        if (!task.TryGetProperty("failConditions", out var rawConditions) ||
+            rawConditions.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            return new ParsedFailureConditions(
+                Array.Empty<QuestCompletionFailureCondition>(),
+                Array.Empty<string>());
+        }
+
+        var completionTriggers = new List<QuestCompletionFailureCondition>();
+        var unsupportedTypes = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var raw in TarkovJsonReader.ReadCollectionValue(
+                     rawConditions,
+                     $"quest {taskId} fail conditions"))
+        {
+            if (raw.ValueKind != JsonValueKind.Object)
+                throw new InvalidDataException($"Quest '{taskId}' has invalid fail condition.");
+
+            var type = TarkovJsonReader.RequiredString(
+                    raw,
+                    "type",
+                    $"Quest '{taskId}' fail condition")
+                .Trim();
+
+            if (!string.Equals(type, "taskStatus", StringComparison.OrdinalIgnoreCase))
+            {
+                unsupportedTypes.Add(type);
+                continue;
+            }
+
+            if (!raw.TryGetProperty("task", out var rawTriggerTask))
+                throw new InvalidDataException($"Quest '{taskId}' has taskStatus fail condition without task.");
+
+            var triggerTaskId = TarkovJsonReader.ReferenceId(rawTriggerTask);
+            if (string.IsNullOrWhiteSpace(triggerTaskId))
+                throw new InvalidDataException($"Quest '{taskId}' has invalid taskStatus fail condition task.");
+
+            var statuses = ReadRequiredStatuses(raw, taskId, triggerTaskId);
+            if (statuses.Contains(QuestRequiredStatus.Complete))
+                completionTriggers.Add(new QuestCompletionFailureCondition(triggerTaskId));
+            else
+                unsupportedTypes.Add("taskStatus:" + string.Join(",", statuses.OrderBy(static value => value)));
+        }
+
+        return new ParsedFailureConditions(
+            completionTriggers
+                .Distinct()
+                .OrderBy(static condition => condition.TriggerQuestId, StringComparer.Ordinal)
+                .ToArray(),
+            unsupportedTypes.Order(StringComparer.Ordinal).ToArray());
     }
 
     private static IReadOnlyList<QuestTaskRequirement> ReadTaskRequirements(
@@ -322,6 +383,10 @@ public sealed class TarkovQuestImporter
             throw new InvalidDataException($"Quest '{taskId}' has invalid {description} reference.");
         return id;
     }
+
+    private sealed record ParsedFailureConditions(
+        IReadOnlyList<QuestCompletionFailureCondition> CompletionTriggers,
+        IReadOnlyList<string> UnsupportedTypes);
 
     private sealed record ParsedTraderRequirements(
         IReadOnlyList<QuestTraderStandingRequirement> Standing,

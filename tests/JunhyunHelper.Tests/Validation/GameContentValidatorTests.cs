@@ -46,6 +46,31 @@ public sealed class GameContentValidatorTests
         Assert.Contains(result.Issues, issue => issue.Code == "quest.prerequisite.missing");
     }
 
+
+    [Fact]
+    public void MissingQuestFailureTriggerIsFatal()
+    {
+        var content = CreateCatalog(itemRequirementId: "item-a", prerequisiteId: "quest-prereq");
+        var quest = content.Quests.Single(candidate => candidate.Id == "quest-a") with
+        {
+            CompletionFailureConditionData =
+                [new QuestCompletionFailureCondition("missing-trigger")],
+        };
+        content = content with
+        {
+            Quests = content.Quests
+                .Select(candidate => candidate.Id == quest.Id ? quest : candidate)
+                .ToArray(),
+        };
+
+        var result = new GameContentValidator().Validate(content);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Issues, issue =>
+            issue.Severity == ContentValidationSeverity.Fatal &&
+            issue.Code == "quest.failure-trigger.missing");
+    }
+
     [Fact]
     public void ConflictingEditionQuestRuleIsFatal()
     {

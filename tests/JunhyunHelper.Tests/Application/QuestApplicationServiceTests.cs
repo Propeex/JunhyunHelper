@@ -1,5 +1,6 @@
 using JunhyunHelper.Application.Quests;
 using JunhyunHelper.Core.Content;
+using JunhyunHelper.Core.Items;
 using JunhyunHelper.Core.Profiles;
 using JunhyunHelper.Core.Quests;
 using JunhyunHelper.Infrastructure.Storage;
@@ -38,6 +39,136 @@ public sealed class QuestApplicationServiceTests
             Assert.DoesNotContain("a", undone.Profile.CompletedQuestIds);
             Assert.Equal(QuestAvailabilityState.Current, Find(undone, "a").Availability.State);
             Assert.Equal(QuestAvailabilityState.Locked, Find(undone, "b").Availability.State);
+        }
+        finally
+        {
+            if (File.Exists(databasePath))
+                File.Delete(databasePath);
+        }
+    }
+
+
+    [Fact]
+    public async Task ManualPermanentFailureAndUndoOnlyChangeFailureFactAndRecalculate()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var databasePath = Path.Combine(
+            Path.GetTempPath(),
+            $"JunhyunHelper-QuestFail-{Guid.NewGuid():N}.db");
+
+        try
+        {
+            var store = new UserProfileStore(databasePath);
+            var service = new QuestApplicationService(store);
+            var profile = CreateProfile() with
+            {
+                HideoutLevels = new Dictionary<string, int>(StringComparer.Ordinal) { ["workbench"] = 2 },
+                Inventory = new Dictionary<string, InventoryQuantity>(StringComparer.Ordinal)
+                {
+                    ["wire"] = new(1, 3),
+                },
+            };
+            var source = CreateQuest("source", unsupportedFailureConditions: ["shoot"]);
+            var recovery = CreateQuest(
+                "recovery",
+                taskRequirements:
+                [new QuestTaskRequirement(
+                    "source",
+                    new HashSet<QuestRequiredStatus>([QuestRequiredStatus.Failed]))]);
+            var content = EmptyContent([source, recovery]);
+            await store.SaveAsync(profile, cancellationToken);
+
+            var failed = await service.FailAsync(content, profile.ProfileId, "source", cancellationToken);
+
+            Assert.Contains("source", failed.Profile.FailedQuestIds);
+            Assert.Equal(QuestAvailabilityState.Unavailable, Find(failed, "source").Availability.State);
+            Assert.Equal(QuestAvailabilityState.Current, Find(failed, "recovery").Availability.State);
+            Assert.Equal(2, failed.Profile.HideoutLevels["workbench"]);
+            Assert.Equal(new InventoryQuantity(1, 3), failed.Profile.Inventory["wire"]);
+
+            var undone = await service.UndoFailureAsync(content, profile.ProfileId, "source", cancellationToken);
+
+            Assert.DoesNotContain("source", undone.Profile.FailedQuestIds);
+            Assert.Equal(QuestAvailabilityState.Current, Find(undone, "source").Availability.State);
+            Assert.Equal(QuestAvailabilityState.Locked, Find(undone, "recovery").Availability.State);
+        }
+        finally
+        {
+            if (File.Exists(databasePath))
+                File.Delete(databasePath);
+        }
+    }
+
+    [Fact]
+    public async Task ManualFailureIsRejectedForRestartableOrAutomaticallyObservableQuest()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var databasePath = Path.Combine(
+            Path.GetTempPath(),
+            $"JunhyunHelper-QuestFailReject-{Guid.NewGuid():N}.db");
+
+        try
+        {
+            var store = new UserProfileStore(databasePath);
+            var service = new QuestApplicationService(store);
+            var profile = CreateProfile();
+            await store.SaveAsync(profile, cancellationToken);
+
+            var normal = CreateQuest("normal");
+            var restartable = CreateQuest("restartable", restartable: true, unsupportedFailureConditions: ["shoot"]);
+            var content = EmptyContent([normal, restartable]);
+
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                service.FailAsync(content, profile.ProfileId, "normal", cancellationToken));
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                service.FailAsync(content, profile.ProfileId, "restartable", cancellationToken));
+        }
+        finally
+        {
+            if (File.Exists(databasePath))
+                File.Delete(databasePath);
+        }
+    }
+
+
+    [Fact]
+    public async Task CompletingQuestAfterContentChangeRemovesStaleExplicitFailureFact()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var databasePath = Path.Combine(
+            Path.GetTempPath(),
+            $"JunhyunHelper-QuestStaleFail-{Guid.NewGuid():N}.db");
+
+        try
+        {
+            var store = new UserProfileStore(databasePath);
+            var service = new QuestApplicationService(store);
+            var profile = CreateProfile() with
+            {
+                FailedQuestIds = new HashSet<string>(["source"], StringComparer.Ordinal),
+            };
+            await store.SaveAsync(profile, cancellationToken);
+
+            // A later content update can make a previously permanent failure restartable/irrelevant.
+            // The stale user fact remains durable until the user progresses this quest again,
+            // but it must no longer poison availability under the new canonical rule.
+            var content = EmptyContent([CreateQuest("source")]);
+            var initial = await service.LoadAsync(content, profile.ProfileId, cancellationToken);
+            Assert.Equal(QuestAvailabilityState.Current, Find(initial, "source").Availability.State);
+
+            var completed = await service.CompleteAsync(
+                content,
+                profile.ProfileId,
+                "source",
+                cancellationToken);
+
+            Assert.Contains("source", completed.Profile.CompletedQuestIds);
+            Assert.DoesNotContain("source", completed.Profile.FailedQuestIds);
+
+            var reloaded = await store.LoadAsync(profile.ProfileId, cancellationToken);
+            Assert.NotNull(reloaded);
+            Assert.Contains("source", reloaded.CompletedQuestIds);
+            Assert.DoesNotContain("source", reloaded.FailedQuestIds);
         }
         finally
         {
@@ -136,7 +267,9 @@ public sealed class QuestApplicationServiceTests
     private static QuestDefinition CreateQuest(
         string id,
         int? requiredPrestigeLevel = null,
-        IReadOnlyList<QuestTaskRequirement>? taskRequirements = null) =>
+        IReadOnlyList<QuestTaskRequirement>? taskRequirements = null,
+        bool restartable = false,
+        IReadOnlyList<string>? unsupportedFailureConditions = null) =>
         new(
             id,
             NameKo: id,
@@ -153,7 +286,9 @@ public sealed class QuestApplicationServiceTests
             RequiredPrestigeLevel: requiredPrestigeLevel,
             TaskRequirements: taskRequirements ?? [],
             TraderStandingRequirements: [],
-            TraderLoyaltyRequirements: []);
+            TraderLoyaltyRequirements: [],
+            Restartable: restartable,
+            UnsupportedFailureConditionTypes: unsupportedFailureConditions);
 
     private static GameContentCatalog EmptyContent(IReadOnlyList<QuestDefinition> quests) =>
         new(

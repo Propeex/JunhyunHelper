@@ -137,7 +137,7 @@ public sealed class QuestAvailabilityEvaluatorTests
     }
 
     [Fact]
-    public void FailedOnlyPrerequisiteIsIndeterminateUntilFailureProgressIsDefined()
+    public void FailedOnlyPrerequisiteIsLockedUntilFailureOccurs()
     {
         var prerequisite = Quest("quest-a");
         var dependent = Quest(
@@ -151,10 +151,79 @@ public sealed class QuestAvailabilityEvaluatorTests
 
         var result = Evaluate(Profile(), prerequisite, dependent)[dependent.Id];
 
-        Assert.Equal(QuestAvailabilityState.Indeterminate, result.State);
+        Assert.Equal(QuestAvailabilityState.Locked, result.State);
         Assert.Contains(
             result.Reasons,
-            reason => reason.Kind == QuestAvailabilityReasonKind.FailedPrerequisiteStateNotTracked);
+            reason => reason.Kind == QuestAvailabilityReasonKind.Prerequisite);
+    }
+
+    [Fact]
+    public void ExplicitPermanentFailureUnlocksFailedOnlyDependentQuest()
+    {
+        var prerequisite = Quest(
+            "quest-a",
+            unsupportedFailureConditions: ["shoot"]);
+        var dependent = Quest(
+            "quest-b",
+            taskRequirements:
+            [
+                new QuestTaskRequirement(
+                    prerequisite.Id,
+                    new[] { QuestRequiredStatus.Failed }),
+            ]);
+        var profile = Profile(
+            failedQuestIds: new HashSet<string>(StringComparer.Ordinal) { prerequisite.Id });
+
+        var result = Evaluate(profile, prerequisite, dependent);
+
+        Assert.Equal(QuestAvailabilityState.Unavailable, result[prerequisite.Id].State);
+        Assert.Equal(QuestAvailabilityState.Current, result[dependent.Id].State);
+    }
+
+    [Fact]
+    public void CompletedSiblingDeterministicallyFailsMutuallyExclusiveQuest()
+    {
+        var chosen = Quest("chosen");
+        var failedSibling = Quest(
+            "failed-sibling",
+            completionFailureConditions: [new QuestCompletionFailureCondition(chosen.Id)]);
+        var recovery = Quest(
+            "recovery",
+            taskRequirements:
+            [
+                new QuestTaskRequirement(
+                    failedSibling.Id,
+                    new[] { QuestRequiredStatus.Failed }),
+            ]);
+        var profile = Profile(
+            completedQuestIds: new HashSet<string>(StringComparer.Ordinal) { chosen.Id });
+
+        var result = Evaluate(profile, chosen, failedSibling, recovery);
+
+        Assert.Equal(QuestAvailabilityState.Unavailable, result[failedSibling.Id].State);
+        Assert.Contains(
+            result[failedSibling.Id].Reasons,
+            reason => reason.Kind == QuestAvailabilityReasonKind.FailedByQuest &&
+                      reason.ReferenceId == chosen.Id);
+        Assert.Equal(QuestAvailabilityState.Current, result[recovery.Id].State);
+    }
+
+    [Fact]
+    public void CompleteOrFailedPrerequisiteIsOrdinaryLockedBranchBeforeTerminalOutcome()
+    {
+        var prerequisite = Quest("quest-a");
+        var dependent = Quest(
+            "quest-b",
+            taskRequirements:
+            [
+                new QuestTaskRequirement(
+                    prerequisite.Id,
+                    new[] { QuestRequiredStatus.Complete, QuestRequiredStatus.Failed }),
+            ]);
+
+        var result = Evaluate(Profile(), prerequisite, dependent);
+
+        Assert.Equal(QuestAvailabilityState.Locked, result[dependent.Id].State);
     }
 
     [Fact]
@@ -192,7 +261,9 @@ public sealed class QuestAvailabilityEvaluatorTests
         IReadOnlyList<QuestTaskRequirement>? taskRequirements = null,
         IReadOnlyList<QuestTraderStandingRequirement>? traderStandingRequirements = null,
         IReadOnlyList<QuestTraderLoyaltyRequirement>? traderLoyaltyRequirements = null,
-        bool disabled = false) =>
+        bool disabled = false,
+        IReadOnlyList<QuestCompletionFailureCondition>? completionFailureConditions = null,
+        IReadOnlyList<string>? unsupportedFailureConditions = null) =>
         new(
             Id: id,
             NameKo: null,
@@ -209,14 +280,18 @@ public sealed class QuestAvailabilityEvaluatorTests
             RequiredPrestigeLevel: requiredPrestigeLevel,
             TaskRequirements: taskRequirements ?? [],
             TraderStandingRequirements: traderStandingRequirements ?? [],
-            TraderLoyaltyRequirements: traderLoyaltyRequirements ?? []);
+            TraderLoyaltyRequirements: traderLoyaltyRequirements ?? [],
+            CompletionFailureConditionData: completionFailureConditions,
+            Restartable: false,
+            UnsupportedFailureConditionTypes: unsupportedFailureConditions);
 
     private static GameProfileSnapshot Profile(
         int level = 1,
         PmcFaction faction = PmcFaction.Usec,
         int? prestigeLevel = null,
         IReadOnlyDictionary<string, TraderProgress>? traders = null,
-        IReadOnlySet<string>? completedQuestIds = null) =>
+        IReadOnlySet<string>? completedQuestIds = null,
+        IReadOnlySet<string>? failedQuestIds = null) =>
         new()
         {
             ProfileId = "profile-a",
@@ -226,5 +301,6 @@ public sealed class QuestAvailabilityEvaluatorTests
             PrestigeLevel = prestigeLevel,
             Traders = traders ?? new Dictionary<string, TraderProgress>(StringComparer.Ordinal),
             CompletedQuestIds = completedQuestIds ?? new HashSet<string>(StringComparer.Ordinal),
+            FailedQuestIds = failedQuestIds ?? new HashSet<string>(StringComparer.Ordinal),
         };
 }

@@ -10,6 +10,8 @@ public sealed class QuestAvailabilityEvaluator
     private readonly IReadOnlySet<string> _exclusiveQuestIds;
     private readonly IReadOnlySet<string> _editionSensitiveQuestIds;
     private readonly GameProfileSnapshot _profile;
+    private readonly IReadOnlyDictionary<string, InferredQuestFailure> _inferredFailures;
+    private readonly IReadOnlySet<string> _effectiveFailedQuestIds;
     private readonly Dictionary<string, QuestAvailabilityResult> _memo =
         new(StringComparer.Ordinal);
     private readonly HashSet<string> _visiting = new(StringComparer.Ordinal);
@@ -19,13 +21,20 @@ public sealed class QuestAvailabilityEvaluator
         IReadOnlyDictionary<string, EditionDefinition> editionsById,
         IReadOnlySet<string> exclusiveQuestIds,
         IReadOnlySet<string> editionSensitiveQuestIds,
-        GameProfileSnapshot profile)
+        GameProfileSnapshot profile,
+        IReadOnlyDictionary<string, InferredQuestFailure> inferredFailures)
     {
         _questsById = questsById;
         _editionsById = editionsById;
         _exclusiveQuestIds = exclusiveQuestIds;
         _editionSensitiveQuestIds = editionSensitiveQuestIds;
         _profile = profile;
+        _inferredFailures = inferredFailures;
+        _effectiveFailedQuestIds = questsById.Values
+            .Where(quest => quest.RequiresExplicitFailureInput && profile.FailedQuestIds.Contains(quest.Id))
+            .Select(quest => quest.Id)
+            .Concat(inferredFailures.Keys)
+            .ToHashSet(StringComparer.Ordinal);
     }
 
     public static IReadOnlyDictionary<string, QuestAvailabilityResult> Evaluate(
@@ -42,8 +51,9 @@ public sealed class QuestAvailabilityEvaluator
         ArgumentNullException.ThrowIfNull(profile);
         ArgumentNullException.ThrowIfNull(editions);
 
+        var questList = quests.ToArray();
         var byId = new Dictionary<string, QuestDefinition>(StringComparer.Ordinal);
-        foreach (var quest in quests)
+        foreach (var quest in questList)
         {
             if (!byId.TryAdd(quest.Id, quest))
                 throw new InvalidDataException($"Duplicate quest id '{quest.Id}'.");
@@ -62,12 +72,16 @@ public sealed class QuestAvailabilityEvaluator
             editionSensitiveQuestIds.UnionWith(edition.ExcludedQuestIds);
         }
 
+        var inferredFailures = QuestFailureEvaluator.InferCompletionTriggeredFailures(
+            questList,
+            profile.CompletedQuestIds);
         var evaluator = new QuestAvailabilityEvaluator(
             byId,
             editionsById,
             exclusiveQuestIds,
             editionSensitiveQuestIds,
-            profile);
+            profile,
+            inferredFailures);
         foreach (var questId in byId.Keys)
             evaluator.EvaluateQuest(questId);
 
@@ -84,12 +98,9 @@ public sealed class QuestAvailabilityEvaluator
             return new QuestAvailabilityResult(
                 questId,
                 QuestAvailabilityState.Indeterminate,
-                new[]
-                {
-                    new QuestAvailabilityReason(
-                        QuestAvailabilityReasonKind.MissingReferencedQuest,
-                        questId),
-                });
+                [new QuestAvailabilityReason(
+                    QuestAvailabilityReasonKind.MissingReferencedQuest,
+                    questId)]);
         }
 
         if (_profile.CompletedQuestIds.Contains(questId))
@@ -102,29 +113,56 @@ public sealed class QuestAvailabilityEvaluator
             return completed;
         }
 
+        if (_profile.FailedQuestIds.Contains(questId) && quest.RequiresExplicitFailureInput)
+        {
+            var failed = new QuestAvailabilityResult(
+                questId,
+                QuestAvailabilityState.Unavailable,
+                [new QuestAvailabilityReason(QuestAvailabilityReasonKind.Failed)]);
+            _memo[questId] = failed;
+            return failed;
+        }
+
+        if (_inferredFailures.TryGetValue(questId, out var inferredFailure))
+        {
+            var failed = new QuestAvailabilityResult(
+                questId,
+                QuestAvailabilityState.Unavailable,
+                [new QuestAvailabilityReason(
+                    QuestAvailabilityReasonKind.FailedByQuest,
+                    inferredFailure.TriggerQuestId)]);
+            _memo[questId] = failed;
+            return failed;
+        }
+
         if (!_visiting.Add(questId))
         {
             return new QuestAvailabilityResult(
                 questId,
                 QuestAvailabilityState.Indeterminate,
-                new[]
-                {
-                    new QuestAvailabilityReason(
-                        QuestAvailabilityReasonKind.DependencyCycle,
-                        questId),
-                });
+                [new QuestAvailabilityReason(
+                    QuestAvailabilityReasonKind.DependencyCycle,
+                    questId)]);
         }
 
         try
         {
+            var unavailableReasons = new List<QuestAvailabilityReason>();
             var lockedReasons = new List<QuestAvailabilityReason>();
             var unknownReasons = new List<QuestAvailabilityReason>();
 
-            EvaluateStaticRules(quest, lockedReasons, unknownReasons);
-            EvaluatePrerequisites(quest, lockedReasons, unknownReasons);
+            EvaluateStaticRules(quest, unavailableReasons, lockedReasons, unknownReasons);
+            EvaluatePrerequisites(quest, unavailableReasons, lockedReasons, unknownReasons);
 
             QuestAvailabilityResult result;
-            if (lockedReasons.Count > 0)
+            if (unavailableReasons.Count > 0)
+            {
+                result = new QuestAvailabilityResult(
+                    questId,
+                    QuestAvailabilityState.Unavailable,
+                    unavailableReasons);
+            }
+            else if (lockedReasons.Count > 0)
             {
                 result = new QuestAvailabilityResult(
                     questId,
@@ -157,12 +195,13 @@ public sealed class QuestAvailabilityEvaluator
 
     private void EvaluateStaticRules(
         QuestDefinition quest,
+        ICollection<QuestAvailabilityReason> unavailableReasons,
         ICollection<QuestAvailabilityReason> lockedReasons,
         ICollection<QuestAvailabilityReason> unknownReasons)
     {
         if (quest.Disabled)
         {
-            lockedReasons.Add(new QuestAvailabilityReason(
+            unavailableReasons.Add(new QuestAvailabilityReason(
                 QuestAvailabilityReasonKind.Disabled));
         }
 
@@ -181,11 +220,11 @@ public sealed class QuestAvailabilityEvaluator
 
         if (quest.RequiredFaction is { } faction && _profile.Faction != faction)
         {
-            lockedReasons.Add(new QuestAvailabilityReason(
+            unavailableReasons.Add(new QuestAvailabilityReason(
                 QuestAvailabilityReasonKind.Faction));
         }
 
-        EvaluateEditionRule(quest, lockedReasons, unknownReasons);
+        EvaluateEditionRule(quest, unavailableReasons, unknownReasons);
 
         if (quest.RequiredPrestigeLevel is { } requiredPrestige)
         {
@@ -253,7 +292,7 @@ public sealed class QuestAvailabilityEvaluator
 
     private void EvaluateEditionRule(
         QuestDefinition quest,
-        ICollection<QuestAvailabilityReason> lockedReasons,
+        ICollection<QuestAvailabilityReason> unavailableReasons,
         ICollection<QuestAvailabilityReason> unknownReasons)
     {
         if (!_editionSensitiveQuestIds.Contains(quest.Id))
@@ -278,7 +317,7 @@ public sealed class QuestAvailabilityEvaluator
         if (edition.ExcludedQuestIds.Contains(quest.Id) ||
             (_exclusiveQuestIds.Contains(quest.Id) && !edition.ExclusiveQuestIds.Contains(quest.Id)))
         {
-            lockedReasons.Add(new QuestAvailabilityReason(
+            unavailableReasons.Add(new QuestAvailabilityReason(
                 QuestAvailabilityReasonKind.Edition,
                 edition.Id));
         }
@@ -286,6 +325,7 @@ public sealed class QuestAvailabilityEvaluator
 
     private void EvaluatePrerequisites(
         QuestDefinition quest,
+        ICollection<QuestAvailabilityReason> unavailableReasons,
         ICollection<QuestAvailabilityReason> lockedReasons,
         ICollection<QuestAvailabilityReason> unknownReasons)
     {
@@ -301,9 +341,14 @@ public sealed class QuestAvailabilityEvaluator
                         QuestAvailabilityReasonKind.Prerequisite,
                         requirement.RequiredQuestId));
                     break;
+                case PrerequisiteOutcome.Unavailable:
+                    unavailableReasons.Add(new QuestAvailabilityReason(
+                        QuestAvailabilityReasonKind.PrerequisiteUnavailable,
+                        requirement.RequiredQuestId));
+                    break;
                 case PrerequisiteOutcome.Indeterminate:
                     unknownReasons.Add(new QuestAvailabilityReason(
-                        QuestAvailabilityReasonKind.FailedPrerequisiteStateNotTracked,
+                        QuestAvailabilityReasonKind.MissingReferencedQuest,
                         requirement.RequiredQuestId));
                     break;
                 default:
@@ -319,23 +364,42 @@ public sealed class QuestAvailabilityEvaluator
             return PrerequisiteOutcome.Indeterminate;
 
         var completed = _profile.CompletedQuestIds.Contains(requirement.RequiredQuestId);
-        if (completed && requirement.AcceptedStatuses.Contains(QuestRequiredStatus.Complete))
-            return PrerequisiteOutcome.Met;
+        if (completed)
+        {
+            return requirement.AcceptedStatuses.Contains(QuestRequiredStatus.Complete) ||
+                   requirement.AcceptedStatuses.Contains(QuestRequiredStatus.Active)
+                ? PrerequisiteOutcome.Met
+                : PrerequisiteOutcome.Unavailable;
+        }
+
+        if (_effectiveFailedQuestIds.Contains(requirement.RequiredQuestId))
+        {
+            return requirement.AcceptedStatuses.Contains(QuestRequiredStatus.Failed)
+                ? PrerequisiteOutcome.Met
+                : PrerequisiteOutcome.Unavailable;
+        }
 
         if (requirement.AcceptedStatuses.Contains(QuestRequiredStatus.Active))
         {
             var requiredQuest = EvaluateQuest(requirement.RequiredQuestId);
             if (requiredQuest.State is QuestAvailabilityState.Current or QuestAvailabilityState.Completed)
                 return PrerequisiteOutcome.Met;
+            if (requiredQuest.State == QuestAvailabilityState.Unavailable)
+                return PrerequisiteOutcome.Unavailable;
             if (requiredQuest.State == QuestAvailabilityState.Indeterminate)
                 return PrerequisiteOutcome.Indeterminate;
         }
 
-        if (requirement.AcceptedStatuses.Contains(QuestRequiredStatus.Failed))
+        // Complete/Failed terminal-status combinations are ordinary locked future branches,
+        // not missing information. Explicit/manual or deterministic failure will satisfy
+        // Failed when it actually occurs.
+        if (requirement.AcceptedStatuses.Contains(QuestRequiredStatus.Complete) ||
+            requirement.AcceptedStatuses.Contains(QuestRequiredStatus.Failed))
         {
-            // Failed quest state is intentionally not persisted until its product UX is defined.
-            // Do not guess whether the prerequisite failed.
-            return PrerequisiteOutcome.Indeterminate;
+            var requiredQuest = EvaluateQuest(requirement.RequiredQuestId);
+            return requiredQuest.State == QuestAvailabilityState.Unavailable
+                ? PrerequisiteOutcome.Unavailable
+                : PrerequisiteOutcome.NotMet;
         }
 
         return PrerequisiteOutcome.NotMet;
@@ -345,6 +409,7 @@ public sealed class QuestAvailabilityEvaluator
     {
         Met,
         NotMet,
+        Unavailable,
         Indeterminate,
     }
 }

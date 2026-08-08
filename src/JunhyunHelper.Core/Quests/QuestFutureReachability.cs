@@ -14,10 +14,11 @@ public enum QuestFutureReachabilityState
 public enum QuestFutureReachabilityReasonKind
 {
     Disabled,
+    Failed,
+    FailedByQuest,
     Faction,
     Edition,
     PrerequisiteUnavailable,
-    FailedPrerequisiteStateNotTracked,
     MissingReferencedQuest,
     UnsupportedAvailabilityRequirement,
     MissingProfileValue,
@@ -67,7 +68,8 @@ public static class QuestFutureReachabilityEvaluator
             profile,
             editions ?? Array.Empty<EditionDefinition>());
 
-        var evaluator = new Evaluator(byId, currentAvailability, profile);
+        var effectiveFailedQuestIds = QuestFailureEvaluator.EffectiveFailedQuestIds(questList, profile);
+        var evaluator = new Evaluator(byId, currentAvailability, profile, effectiveFailedQuestIds);
         foreach (var questId in byId.Keys)
             evaluator.EvaluateQuest(questId);
 
@@ -79,6 +81,7 @@ public static class QuestFutureReachabilityEvaluator
         private readonly IReadOnlyDictionary<string, QuestDefinition> _questsById;
         private readonly IReadOnlyDictionary<string, QuestAvailabilityResult> _availability;
         private readonly GameProfileSnapshot _profile;
+        private readonly IReadOnlySet<string> _effectiveFailedQuestIds;
         private readonly Dictionary<string, QuestFutureReachabilityResult> _results =
             new(StringComparer.Ordinal);
         private readonly HashSet<string> _visiting = new(StringComparer.Ordinal);
@@ -86,11 +89,13 @@ public static class QuestFutureReachabilityEvaluator
         public Evaluator(
             IReadOnlyDictionary<string, QuestDefinition> questsById,
             IReadOnlyDictionary<string, QuestAvailabilityResult> availability,
-            GameProfileSnapshot profile)
+            GameProfileSnapshot profile,
+            IReadOnlySet<string> effectiveFailedQuestIds)
         {
             _questsById = questsById;
             _availability = availability;
             _profile = profile;
+            _effectiveFailedQuestIds = effectiveFailedQuestIds;
         }
 
         public IReadOnlyDictionary<string, QuestFutureReachabilityResult> Results => _results;
@@ -146,6 +151,16 @@ public static class QuestFutureReachabilityEvaluator
                                     questId,
                                     QuestFutureReachabilityReasonKind.Disabled,
                                     reason.ReferenceId);
+                            case QuestAvailabilityReasonKind.Failed:
+                                return StoreUnavailable(
+                                    questId,
+                                    QuestFutureReachabilityReasonKind.Failed,
+                                    reason.ReferenceId);
+                            case QuestAvailabilityReasonKind.FailedByQuest:
+                                return StoreUnavailable(
+                                    questId,
+                                    QuestFutureReachabilityReasonKind.FailedByQuest,
+                                    reason.ReferenceId);
                             case QuestAvailabilityReasonKind.Faction:
                                 return StoreUnavailable(
                                     questId,
@@ -199,7 +214,7 @@ public static class QuestFutureReachabilityEvaluator
                     {
                         indeterminate = true;
                         reasons.Add(new QuestFutureReachabilityReason(
-                            prerequisite.ReasonKind ?? QuestFutureReachabilityReasonKind.FailedPrerequisiteStateNotTracked,
+                            prerequisite.ReasonKind ?? QuestFutureReachabilityReasonKind.MissingReferencedQuest,
                             requirement.RequiredQuestId));
                     }
                 }
@@ -250,12 +265,14 @@ public static class QuestFutureReachabilityEvaluator
                     return new PrerequisiteFutureResult(PrerequisiteFutureState.Possible);
                 }
 
-                // A completed quest can no longer become Failed. This is a deterministic
-                // way to close some mutually exclusive future branches without guessing.
-                if (requirement.AcceptedStatuses.Contains(QuestRequiredStatus.Failed))
-                    return new PrerequisiteFutureResult(PrerequisiteFutureState.Unavailable);
-
                 return new PrerequisiteFutureResult(PrerequisiteFutureState.Unavailable);
+            }
+
+            if (_effectiveFailedQuestIds.Contains(requirement.RequiredQuestId))
+            {
+                return requirement.AcceptedStatuses.Contains(QuestRequiredStatus.Failed)
+                    ? new PrerequisiteFutureResult(PrerequisiteFutureState.Possible)
+                    : new PrerequisiteFutureResult(PrerequisiteFutureState.Unavailable);
             }
 
             var acceptsSuccess =
@@ -263,18 +280,13 @@ public static class QuestFutureReachabilityEvaluator
                 requirement.AcceptedStatuses.Contains(QuestRequiredStatus.Active);
             var acceptsFailure = requirement.AcceptedStatuses.Contains(QuestRequiredStatus.Failed);
 
-            if (acceptsFailure)
-            {
-                // Failed state is not yet persisted. Keep this path in future planning rather
-                // than risk discarding items for a branch that may still become valid.
-                return new PrerequisiteFutureResult(
-                    PrerequisiteFutureState.Indeterminate,
-                    QuestFutureReachabilityReasonKind.FailedPrerequisiteStateNotTracked);
-            }
-
-            if (!acceptsSuccess)
+            if (!acceptsSuccess && !acceptsFailure)
                 return new PrerequisiteFutureResult(PrerequisiteFutureState.Unavailable);
 
+            // Before the prerequisite reaches a terminal state, both success and failure
+            // are legitimate future possibilities. A failed-only branch is therefore not
+            // an Indeterminate problem by itself; it remains part of the future plan until
+            // the prerequisite outcome closes it.
             var prerequisite = EvaluateQuest(requirement.RequiredQuestId);
             return prerequisite.State switch
             {

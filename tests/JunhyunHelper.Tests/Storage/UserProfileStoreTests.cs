@@ -32,6 +32,10 @@ public sealed class UserProfileStoreTests
                     "quest-a",
                     "quest-b",
                 },
+                FailedQuestIds = new HashSet<string>(StringComparer.Ordinal)
+                {
+                    "quest-failed",
+                },
                 HideoutLevels = new Dictionary<string, int>(StringComparer.Ordinal)
                 {
                     ["workbench"] = 3,
@@ -54,6 +58,7 @@ public sealed class UserProfileStoreTests
             Assert.Equal(profile.PrestigeLevel, loaded.PrestigeLevel);
             Assert.Equal(profile.Traders["fence"], loaded.Traders["fence"]);
             Assert.True(loaded.CompletedQuestIds.SetEquals(profile.CompletedQuestIds));
+            Assert.True(loaded.FailedQuestIds.SetEquals(profile.FailedQuestIds));
             Assert.Equal(3, loaded.HideoutLevels["workbench"]);
             Assert.Equal(new InventoryQuantity(4, 7), loaded.Inventory["item-a"]);
         }
@@ -108,6 +113,30 @@ public sealed class UserProfileStoreTests
             Assert.NotNull(loaded);
             Assert.Equal(11, loaded.Level);
             Assert.Single(await store.LoadAllAsync(cancellationToken));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+
+    [Fact]
+    public async Task CompletedAndFailedQuestOverlapIsRejected()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var directory = CreateTempDirectory();
+        try
+        {
+            var store = new UserProfileStore(Path.Combine(directory, "user.db"));
+            var profile = Profile("pvp", GameMode.Regular, level: 1) with
+            {
+                CompletedQuestIds = new HashSet<string>(["quest-a"], StringComparer.Ordinal),
+                FailedQuestIds = new HashSet<string>(["quest-a"], StringComparer.Ordinal),
+            };
+
+            await Assert.ThrowsAsync<InvalidDataException>(
+                () => store.SaveAsync(profile, cancellationToken));
         }
         finally
         {

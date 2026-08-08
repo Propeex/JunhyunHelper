@@ -21,6 +21,8 @@ public sealed record QuestTaskRequirement(
     string RequiredQuestId,
     IReadOnlyCollection<QuestRequiredStatus> AcceptedStatuses);
 
+public sealed record QuestCompletionFailureCondition(string TriggerQuestId);
+
 public sealed record QuestTraderStandingRequirement(
     string TraderId,
     decimal RequiredStanding,
@@ -47,9 +49,24 @@ public sealed record QuestDefinition(
     IReadOnlyList<QuestTaskRequirement> TaskRequirements,
     IReadOnlyList<QuestTraderStandingRequirement> TraderStandingRequirements,
     IReadOnlyList<QuestTraderLoyaltyRequirement> TraderLoyaltyRequirements,
-    IReadOnlyList<string>? UnsupportedAvailabilityRequirementTypes = null)
+    IReadOnlyList<string>? UnsupportedAvailabilityRequirementTypes = null,
+    IReadOnlyList<QuestCompletionFailureCondition>? CompletionFailureConditionData = null,
+    bool Restartable = false,
+    IReadOnlyList<string>? UnsupportedFailureConditionTypes = null)
 {
     [JsonIgnore]
     public IReadOnlyList<string> UnsupportedAvailabilityRequirements =>
         UnsupportedAvailabilityRequirementTypes ?? Array.Empty<string>();
+
+    [JsonIgnore]
+    public IReadOnlyList<QuestCompletionFailureCondition> CompletionFailureConditions =>
+        CompletionFailureConditionData ?? Array.Empty<QuestCompletionFailureCondition>();
+
+    [JsonIgnore]
+    public IReadOnlyList<string> UnsupportedFailureConditions =>
+        UnsupportedFailureConditionTypes ?? Array.Empty<string>();
+
+    [JsonIgnore]
+    public bool RequiresExplicitFailureInput =>
+        !Restartable && UnsupportedFailureConditions.Count > 0;
 }

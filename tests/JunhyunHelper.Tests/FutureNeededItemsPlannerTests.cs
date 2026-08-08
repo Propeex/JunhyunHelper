@@ -75,6 +75,60 @@ public sealed class FutureNeededItemsPlannerTests
             plan.QuestReachability["unknown"].State);
     }
 
+
+    [Fact]
+    public void ExplicitFailedQuestRequirement_DisappearsAndFailedOnlyRecoveryRequirementRemains()
+    {
+        var source = Quest("source", unsupportedFailure: ["shoot"]);
+        var recovery = Quest(
+            "recovery",
+            taskRequirements: [FailedRequirement("source")]);
+        var content = Content(
+            quests: [source, recovery],
+            questRequirements:
+            [
+                Requirement("source", "old-item", 3),
+                Requirement("recovery", "recovery-item", 2),
+            ]);
+        var profile = Profile(
+            failedQuestIds: new HashSet<string>(["source"], StringComparer.Ordinal),
+            inventory: Inventory(("old-item", new InventoryQuantity(0, 3))));
+
+        var plan = FutureNeededItemsPlanner.Calculate(content, profile);
+
+        Assert.DoesNotContain(plan.NeededItems, item => item.ItemId == "old-item");
+        Assert.Equal(2, plan.NeededItems.Single(item => item.ItemId == "recovery-item").RequiredTotal);
+        Assert.Equal(3, plan.CleanupItems.Single(item => item.ItemId == "old-item").SurplusTotal);
+    }
+
+    [Fact]
+    public void CompletedBranch_AutomaticallyRemovesFailedSiblingItemsAndKeepsRecoveryItems()
+    {
+        var chosen = Quest("chosen");
+        var sibling = Quest(
+            "sibling",
+            completionFailureConditions: [new QuestCompletionFailureCondition("chosen")]);
+        var recovery = Quest("recovery", taskRequirements: [FailedRequirement("sibling")]);
+        var content = Content(
+            quests: [chosen, sibling, recovery],
+            questRequirements:
+            [
+                Requirement("sibling", "sibling-item", 4),
+                Requirement("recovery", "recovery-item", 1),
+            ]);
+        var profile = Profile(
+            completedQuestIds: new HashSet<string>(["chosen"], StringComparer.Ordinal),
+            inventory: Inventory(("sibling-item", new InventoryQuantity(0, 4))));
+
+        var plan = FutureNeededItemsPlanner.Calculate(content, profile);
+
+        Assert.DoesNotContain(plan.NeededItems, item => item.ItemId == "sibling-item");
+        Assert.Single(plan.NeededItems, item => item.ItemId == "recovery-item");
+        Assert.Equal(4, plan.CleanupItems.Single(item => item.ItemId == "sibling-item").SurplusTotal);
+        Assert.Equal(QuestFutureReachabilityState.Unavailable, plan.QuestReachability["sibling"].State);
+        Assert.Equal(QuestFutureReachabilityState.Potential, plan.QuestReachability["recovery"].State);
+    }
+
     [Fact]
     public void KnownHideoutLevel_IncludesEveryLaterLevel()
     {
@@ -179,7 +233,10 @@ public sealed class FutureNeededItemsPlannerTests
         string id,
         int minimumLevel = 1,
         PmcFaction? requiredFaction = null,
-        IReadOnlyList<string>? unsupported = null) =>
+        IReadOnlyList<string>? unsupported = null,
+        IReadOnlyList<QuestTaskRequirement>? taskRequirements = null,
+        IReadOnlyList<QuestCompletionFailureCondition>? completionFailureConditions = null,
+        IReadOnlyList<string>? unsupportedFailure = null) =>
         new(
             id,
             id,
@@ -194,10 +251,16 @@ public sealed class FutureNeededItemsPlannerTests
             minimumLevel,
             requiredFaction,
             null,
-            Array.Empty<QuestTaskRequirement>(),
-            Array.Empty<QuestTraderStandingRequirement>(),
-            Array.Empty<QuestTraderLoyaltyRequirement>(),
-            unsupported);
+            taskRequirements ?? [],
+            [],
+            [],
+            unsupported,
+            completionFailureConditions,
+            false,
+            unsupportedFailure);
+
+    private static QuestTaskRequirement FailedRequirement(string questId) =>
+        new(questId, new HashSet<QuestRequiredStatus>([QuestRequiredStatus.Failed]));
 
     private static QuestItemRequirement Requirement(string questId, string itemId, int count) =>
         new(questId, $"{questId}-obj", [itemId], count, false);
@@ -221,6 +284,7 @@ public sealed class FutureNeededItemsPlannerTests
         int level = 1,
         PmcFaction faction = PmcFaction.Usec,
         IReadOnlySet<string>? completedQuestIds = null,
+        IReadOnlySet<string>? failedQuestIds = null,
         IReadOnlyDictionary<string, int>? hideoutLevels = null,
         IReadOnlyDictionary<string, InventoryQuantity>? inventory = null) =>
         new()
@@ -230,6 +294,7 @@ public sealed class FutureNeededItemsPlannerTests
             Level = level,
             Faction = faction,
             CompletedQuestIds = completedQuestIds ?? new HashSet<string>(StringComparer.Ordinal),
+            FailedQuestIds = failedQuestIds ?? new HashSet<string>(StringComparer.Ordinal),
             HideoutLevels = hideoutLevels ?? new Dictionary<string, int>(StringComparer.Ordinal),
             Inventory = inventory ?? new Dictionary<string, InventoryQuantity>(StringComparer.Ordinal),
         };
