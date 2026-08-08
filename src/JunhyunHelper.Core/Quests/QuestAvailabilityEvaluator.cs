@@ -174,6 +174,8 @@ public sealed class QuestAvailabilityEvaluator
                     traderProgress.Standing >= requirement.RequiredStanding,
                 StandingRequirementOperator.AtMost =>
                     traderProgress.Standing <= requirement.RequiredStanding,
+                StandingRequirementOperator.LessThan =>
+                    traderProgress.Standing < requirement.RequiredStanding,
                 _ => throw new InvalidDataException(
                     $"Unsupported standing operator '{requirement.Operator}'."),
             };
