@@ -228,7 +228,10 @@ public sealed class TarkovQuestImporter
                     raw,
                     "value",
                     $"Quest '{taskId}' trader standing requirement");
-                return new QuestTraderStandingRequirement(traderId, standing);
+                var comparison = standing < 0
+                    ? StandingRequirementOperator.AtMost
+                    : StandingRequirementOperator.AtLeast;
+                return new QuestTraderStandingRequirement(traderId, standing, comparison);
             })
             .ToArray();
     }
