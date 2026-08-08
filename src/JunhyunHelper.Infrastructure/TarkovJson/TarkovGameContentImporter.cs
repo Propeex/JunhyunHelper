@@ -1,5 +1,6 @@
 using System.Text.Json;
 using JunhyunHelper.Core.Content;
+using JunhyunHelper.Core.Editions;
 using JunhyunHelper.Core.Quests;
 using JunhyunHelper.Infrastructure.TarkovJson.Ammo;
 using JunhyunHelper.Infrastructure.TarkovJson.Hideout;
@@ -26,7 +27,8 @@ public sealed class TarkovGameContentImporter
         TarkovEndpointSource tasks,
         TarkovEndpointSource hideout,
         TarkovEndpointSource barters,
-        TarkovEndpointSource crafts)
+        TarkovEndpointSource crafts,
+        IReadOnlyList<EditionDefinition> editions)
     {
         ArgumentNullException.ThrowIfNull(items);
         ArgumentNullException.ThrowIfNull(traders);
@@ -35,6 +37,7 @@ public sealed class TarkovGameContentImporter
         ArgumentNullException.ThrowIfNull(hideout);
         ArgumentNullException.ThrowIfNull(barters);
         ArgumentNullException.ThrowIfNull(crafts);
+        ArgumentNullException.ThrowIfNull(editions);
 
         var questObjectives = _questObjectiveImporter.Import(
             tasks.BaseDocument,
@@ -54,7 +57,8 @@ public sealed class TarkovGameContentImporter
             _ammoImporter.Import(
                 items.BaseDocument,
                 barters.BaseDocument,
-                crafts.BaseDocument));
+                crafts.BaseDocument),
+            editions);
     }
 
     private static IReadOnlyList<QuestDefinition> ApplyUnsupportedAvailabilityRequirements(
