@@ -102,7 +102,9 @@ public sealed class ProfileApplicationService
         {
             if (string.IsNullOrWhiteSpace(traderId))
                 throw new ArgumentException("Trader id cannot be empty.", nameof(traders));
-            if (progress.LoyaltyLevel < 0)
+            if (!progress.HasAnyValue)
+                throw new ArgumentException($"Trader '{traderId}' has no entered progress value.", nameof(traders));
+            if (progress.LoyaltyLevel is < 0)
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(traders),
@@ -114,7 +116,9 @@ public sealed class ProfileApplicationService
 
     private static Dictionary<string, TraderProgress> CopyTraders(
         IReadOnlyDictionary<string, TraderProgress> traders) =>
-        new(traders, StringComparer.Ordinal);
+        traders
+            .Where(pair => pair.Value.HasAnyValue)
+            .ToDictionary(pair => pair.Key, pair => pair.Value.Normalize(), StringComparer.Ordinal);
 
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
