@@ -1,10 +1,13 @@
+using System.ComponentModel;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using JunhyunHelper.Application.Items;
 using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.Items;
+using JunhyunHelper.Desktop.Services;
 
 namespace JunhyunHelper.Desktop.Items;
 
@@ -17,8 +20,10 @@ public partial class ItemsPage : UserControl
 {
     private GameContentCatalog? _content;
     private ItemsWorkspace? _workspace;
+    private ImageCacheService? _imageCache;
     private IReadOnlyList<ItemRow> _allRows = [];
     private ItemRow? _selectedRow;
+    private CancellationTokenSource? _iconLoadCts;
     private bool _busy;
 
     public ItemsPage()
@@ -37,13 +42,20 @@ public partial class ItemsPage : UserControl
 
     public event EventHandler<InventoryChangeRequestedEventArgs>? InventoryChangeRequested;
 
+    public void SetImageCache(ImageCacheService imageCache) =>
+        _imageCache = imageCache ?? throw new ArgumentNullException(nameof(imageCache));
+
     public void SetData(GameContentCatalog content, ItemsWorkspace workspace)
     {
         _content = content ?? throw new ArgumentNullException(nameof(content));
         _workspace = workspace ?? throw new ArgumentNullException(nameof(workspace));
         _allRows = BuildRows(content, workspace);
-        UpdatePlanningWarning(workspace);
         ApplyFilter();
+
+        _iconLoadCts?.Cancel();
+        _iconLoadCts?.Dispose();
+        _iconLoadCts = new CancellationTokenSource();
+        _ = LoadIconsAsync(_allRows, _iconLoadCts.Token);
     }
 
     public void SetCleanupChanges(IReadOnlyList<InventoryCleanupIncrease> changes)
@@ -84,11 +96,19 @@ public partial class ItemsPage : UserControl
         var protectionsById = workspace.Plan.CleanupProtections
             .GroupBy(protection => protection.ItemId, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal);
+        var flexibleByItemId = workspace.FlexibleQuestItemProgresses
+            .SelectMany(progress => progress.AcceptedItemIds.Select(itemId => (itemId, progress)))
+            .GroupBy(entry => entry.itemId, StringComparer.Ordinal)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<FlexibleQuestItemProgress>)group.Select(entry => entry.progress).ToArray(),
+                StringComparer.Ordinal);
 
         var itemIds = new HashSet<string>(neededById.Keys, StringComparer.Ordinal);
         itemIds.UnionWith(cleanupById.Keys);
         itemIds.UnionWith(workspace.Profile.Inventory.Keys);
         itemIds.UnionWith(protectionsById.Keys.Where(workspace.Profile.Inventory.ContainsKey));
+        itemIds.UnionWith(flexibleByItemId.Keys.Where(workspace.Profile.Inventory.ContainsKey));
 
         return itemIds
             .Select(itemId =>
@@ -99,6 +119,8 @@ public partial class ItemsPage : UserControl
                 var owned = ownedRaw.Normalize();
                 protectionsById.TryGetValue(itemId, out var protections);
                 protections ??= Array.Empty<CleanupProtection>();
+                flexibleByItemId.TryGetValue(itemId, out var flexibleProgresses);
+                flexibleProgresses ??= Array.Empty<FlexibleQuestItemProgress>();
 
                 var requiredTotal = needed?.RequiredTotal ?? cleanup?.RequiredTotal ?? 0;
                 var requiredFir = needed?.RequiredFir ?? cleanup?.RequiredFir ?? 0;
@@ -109,9 +131,10 @@ public partial class ItemsPage : UserControl
                 var surplusTotal = surplusFir + surplusNonFir;
                 var deferred = protections.Length > 0 && surplusTotal == 0 && owned.Total > 0;
 
-                var name = itemById.TryGetValue(itemId, out var item)
-                    ? DisplayName(item.NameKo, item.NameEn, item.Id)
-                    : itemId;
+                itemById.TryGetValue(itemId, out var item);
+                var name = item is null
+                    ? itemId
+                    : DisplayName(item.NameKo, item.NameEn, item.Id);
 
                 var sources = (needed?.Sources ?? cleanup?.Sources ?? Array.Empty<ItemRequirementSource>())
                     .Select(source => SourceText(source, content))
@@ -121,6 +144,7 @@ public partial class ItemsPage : UserControl
                 return new ItemRow(
                     itemId,
                     name,
+                    item?.IconUrl,
                     requiredTotal,
                     requiredFir,
                     owned.Fir,
@@ -130,13 +154,45 @@ public partial class ItemsPage : UserControl
                     surplusFir,
                     surplusNonFir,
                     protections,
+                    flexibleProgresses,
                     sources,
-                    BuildSummary(requiredTotal, requiredFir, owned.Total),
+                    SourceSummary(sources),
                     BuildStatusText(remainingTotal, remainingFir, surplusTotal, deferred),
                     StatusBrush(remainingTotal, surplusTotal, deferred));
             })
             .OrderBy(row => row.Name, StringComparer.CurrentCulture)
             .ToArray();
+    }
+
+    private async Task LoadIconsAsync(IReadOnlyList<ItemRow> rows, CancellationToken cancellationToken)
+    {
+        if (_imageCache is null)
+            return;
+
+        try
+        {
+            foreach (var row in rows)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (string.IsNullOrWhiteSpace(row.IconUrl))
+                    continue;
+
+                var image = await _imageCache.LoadAsync(
+                    $"item-{row.ItemId}",
+                    row.IconUrl,
+                    cancellationToken);
+                if (image is null || cancellationToken.IsCancellationRequested)
+                    continue;
+
+                row.Icon = image;
+                if (ReferenceEquals(row, _selectedRow))
+                    DetailIcon.Source = image;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer workspace replaced these rows. Old image work is intentionally discarded.
+        }
     }
 
     private void ApplyFilter()
@@ -177,12 +233,16 @@ public partial class ItemsPage : UserControl
             EmptyDetailText.Visibility = Visibility.Visible;
             DetailScroll.Visibility = Visibility.Collapsed;
             SaveInventoryButton.IsEnabled = false;
+            DetailIcon.Source = null;
             return;
         }
 
         EmptyDetailText.Visibility = Visibility.Collapsed;
         DetailScroll.Visibility = Visibility.Visible;
+        DetailIcon.Source = row.Icon;
         DetailName.Text = row.Name;
+        DetailStatusText.Text = row.StatusText;
+        DetailStatusText.Foreground = row.StatusBrush;
         DetailRequirementText.Text = row.RequiredFir > 0
             ? $"미래 필요 {row.RequiredTotal}개 · FIR 최소 {row.RequiredFir}개"
             : $"미래 필요 {row.RequiredTotal}개";
@@ -190,42 +250,29 @@ public partial class ItemsPage : UserControl
             ? $"추가 필요 {row.RemainingTotal}개 · 그중 FIR {row.RemainingFir}개"
             : row.RemainingTotal > 0
                 ? $"추가 필요 {row.RemainingTotal}개"
-                : "현재 보유량으로 계산된 필요량을 충족합니다.";
-
+                : row.RequiredTotal > 0
+                    ? "현재 보유량으로 미래 필요량을 충족합니다."
+                    : "현재 확정된 미래 필요량은 없습니다.";
         DetailCleanupText.Text = row.SurplusTotal > 0
             ? CleanupText(row)
             : string.Empty;
+
         OwnedFirTextBox.Text = row.OwnedFir.ToString(CultureInfo.InvariantCulture);
         OwnedNonFirTextBox.Text = row.OwnedNonFir.ToString(CultureInfo.InvariantCulture);
         SaveInventoryButton.IsEnabled = !_busy;
+
         SourceItems.ItemsSource = row.Sources.Length > 0
             ? row.Sources.Select(source => $"• {source}").ToArray()
             : new[] { "• 현재 계산된 필요 출처 없음" };
-        ProtectionText.Text = BuildProtectionText(row.Protections);
-    }
 
-    private void UpdatePlanningWarning(ItemsWorkspace workspace)
-    {
-        var parts = new List<string>();
-        if (workspace.Plan.UnenteredHideoutStationIds.Count > 0)
-        {
-            parts.Add($"은신처 레벨 미입력 {workspace.Plan.UnenteredHideoutStationIds.Count}개 시설의 관련 아이템은 정리 판단을 보류합니다.");
-        }
-
-        if (workspace.FlexibleQuestItemProgresses.Count > 0)
-        {
-            parts.Add($"유동 제출 요구 {workspace.FlexibleQuestItemProgresses.Count}건은 그룹 단위로 계산하고 후보별 정리 판단은 보호합니다.");
-        }
-
-        PlanningWarningText.Text = string.Join("  ", parts);
-        PlanningWarningText.Visibility = parts.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-
-        FlexibleRequirementItems.ItemsSource = workspace.FlexibleQuestItemProgresses
+        FlexibleRequirementItems.ItemsSource = row.FlexibleProgresses
             .Select(BuildFlexibleRequirementText)
             .ToArray();
-        FlexibleRequirementsPanel.Visibility = workspace.FlexibleQuestItemProgresses.Count > 0
+        FlexibleDetailPanel.Visibility = row.FlexibleProgresses.Count > 0
             ? Visibility.Visible
             : Visibility.Collapsed;
+
+        ProtectionText.Text = BuildProtectionText(row.Protections);
     }
 
     private string BuildFlexibleRequirementText(FlexibleQuestItemProgress progress)
@@ -240,7 +287,7 @@ public partial class ItemsPage : UserControl
             ? $"FIR 합산 {progress.OwnedFir}/{progress.RequiredFir}"
             : $"합산 보유 {progress.OwnedTotal}/{progress.RequiredTotal}";
 
-        return $"• {questName} · {ownershipText} · {remainingText} · 후보: {string.Join(", ", candidateNames)}";
+        return $"• {questName} · {ownershipText} · {remainingText}\n  후보: {string.Join(", ", candidateNames)}";
     }
 
     private string DisplayName(string itemId)
@@ -264,10 +311,12 @@ public partial class ItemsPage : UserControl
         _ => source.SourceId,
     };
 
-    private static string BuildSummary(int requiredTotal, int requiredFir, int ownedTotal) =>
-        requiredFir > 0
-            ? $"필요 {requiredTotal} · FIR {requiredFir} · 보유 {ownedTotal}"
-            : $"필요 {requiredTotal} · 보유 {ownedTotal}";
+    private static string SourceSummary(IReadOnlyList<string> sources) => sources.Count switch
+    {
+        0 => "보유 기록",
+        1 => sources[0],
+        _ => $"{sources[0]} 외 {sources.Count - 1}곳",
+    };
 
     private static string BuildStatusText(
         int remainingTotal,
@@ -276,13 +325,13 @@ public partial class ItemsPage : UserControl
         bool deferred)
     {
         if (remainingFir > 0 && surplusTotal > 0)
-            return "FIR 부족 · 정리 가능";
+            return "FIR 부족";
         if (remainingFir > 0)
             return "FIR 부족";
         if (remainingTotal > 0)
-            return "더 필요";
+            return $"+{remainingTotal} 필요";
         if (surplusTotal > 0)
-            return $"정리 {surplusTotal}";
+            return $"{surplusTotal} 정리";
         if (deferred)
             return "판단 보류";
         return "충분";
@@ -311,13 +360,15 @@ public partial class ItemsPage : UserControl
         if (protections.Count == 0)
             return string.Empty;
 
-        var kinds = protections.Select(protection => protection.Kind).Distinct().ToArray();
         var messages = new List<string>();
-        if (kinds.Contains(CleanupProtectionKind.UnenteredHideoutLevel))
-            messages.Add("은신처 현재 레벨이 입력되지 않아 관련 수량의 정리 판단을 보류합니다.");
-        if (kinds.Contains(CleanupProtectionKind.AlternativeQuestRequirement))
-            messages.Add("유동 제출 후보 아이템이므로 목표가 끝날 때까지 후보별 정리 가능 수량을 자동 판단하지 않습니다.");
-        return string.Join(" ", messages);
+        if (protections.Any(protection => protection.Kind == CleanupProtectionKind.AlternativeQuestRequirement))
+        {
+            messages.Add("유동 제출 후보이므로 목표가 끝나기 전에는 이 아이템만 따로 정리 가능하다고 판단하지 않습니다.");
+        }
+
+        return messages.Count > 0
+            ? $"정리 판단 보호 · {string.Join(" ", messages)}"
+            : "이 아이템은 안전한 정리량을 자동 확정할 수 없어 판단을 보류합니다.";
     }
 
     private static string DisplayName(string? korean, string? english, string fallback) =>
@@ -373,25 +424,83 @@ public partial class ItemsPage : UserControl
         int.TryParse(text?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out quantity) &&
         quantity >= 0;
 
-    private sealed record ItemRow(
-        string ItemId,
-        string Name,
-        int RequiredTotal,
-        int RequiredFir,
-        int OwnedFir,
-        int OwnedNonFir,
-        int RemainingTotal,
-        int RemainingFir,
-        int SurplusFir,
-        int SurplusNonFir,
-        IReadOnlyList<CleanupProtection> Protections,
-        string[] Sources,
-        string Summary,
-        string StatusText,
-        Brush StatusBrush)
+    private sealed class ItemRow : INotifyPropertyChanged
     {
+        private ImageSource? _icon;
+
+        public ItemRow(
+            string itemId,
+            string name,
+            string? iconUrl,
+            int requiredTotal,
+            int requiredFir,
+            int ownedFir,
+            int ownedNonFir,
+            int remainingTotal,
+            int remainingFir,
+            int surplusFir,
+            int surplusNonFir,
+            IReadOnlyList<CleanupProtection> protections,
+            IReadOnlyList<FlexibleQuestItemProgress> flexibleProgresses,
+            string[] sources,
+            string sourceSummary,
+            string statusText,
+            Brush statusBrush)
+        {
+            ItemId = itemId;
+            Name = name;
+            IconUrl = iconUrl;
+            RequiredTotal = requiredTotal;
+            RequiredFir = requiredFir;
+            OwnedFir = ownedFir;
+            OwnedNonFir = ownedNonFir;
+            RemainingTotal = remainingTotal;
+            RemainingFir = remainingFir;
+            SurplusFir = surplusFir;
+            SurplusNonFir = surplusNonFir;
+            Protections = protections;
+            FlexibleProgresses = flexibleProgresses;
+            Sources = sources;
+            SourceSummary = sourceSummary;
+            StatusText = statusText;
+            StatusBrush = statusBrush;
+        }
+
+        public string ItemId { get; }
+        public string Name { get; }
+        public string? IconUrl { get; }
+        public int RequiredTotal { get; }
+        public int RequiredFir { get; }
+        public int OwnedFir { get; }
+        public int OwnedNonFir { get; }
+        public int RemainingTotal { get; }
+        public int RemainingFir { get; }
+        public int SurplusFir { get; }
+        public int SurplusNonFir { get; }
+        public IReadOnlyList<CleanupProtection> Protections { get; }
+        public IReadOnlyList<FlexibleQuestItemProgress> FlexibleProgresses { get; }
+        public string[] Sources { get; }
+        public string SourceSummary { get; }
+        public string StatusText { get; }
+        public Brush StatusBrush { get; }
         public int OwnedTotal => OwnedFir + OwnedNonFir;
         public int SurplusTotal => SurplusFir + SurplusNonFir;
+        public string FirBadgeText => $"FIR {RequiredFir}";
+        public Visibility FirBadgeVisibility => RequiredFir > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        public ImageSource? Icon
+        {
+            get => _icon;
+            set
+            {
+                if (ReferenceEquals(_icon, value))
+                    return;
+                _icon = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Icon)));
+            }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
     }
 
     private sealed record FilterChoice(ItemFilter Value, string Label)
