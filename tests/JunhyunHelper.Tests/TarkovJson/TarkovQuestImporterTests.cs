@@ -92,9 +92,9 @@ public sealed class TarkovQuestImporterTests
             .Import(document, new TarkovLocalization())
             .Single(quest => quest.Id == "quest-a");
 
-        Assert.Equal(
-            new[] { QuestRequiredStatus.Complete },
-            Assert.Single(quest.TaskRequirements).AcceptedStatuses);
+        var statuses = Assert.Single(quest.TaskRequirements).AcceptedStatuses;
+        Assert.Single(statuses);
+        Assert.Contains(QuestRequiredStatus.Complete, statuses);
     }
 
     [Fact]
