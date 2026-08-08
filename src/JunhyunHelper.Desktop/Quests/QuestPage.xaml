@@ -1,0 +1,211 @@
+<UserControl x:Class="JunhyunHelper.Desktop.Quests.QuestPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{StaticResource BackgroundDarkBrush}">
+    <UserControl.Resources>
+        <DataTemplate x:Key="QuestRowTemplate">
+            <Border x:Name="RowBorder"
+                    Padding="12,9"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Background="Transparent">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Subtitle}"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   FontSize="12"
+                                   Margin="0,3,0,0"
+                                   TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                    <Border Grid.Column="1"
+                            Background="{Binding StatusBrush}"
+                            CornerRadius="4"
+                            Padding="7,3"
+                            VerticalAlignment="Center">
+                        <TextBlock Text="{Binding StatusText}" FontSize="12" FontWeight="SemiBold" />
+                    </Border>
+                </Grid>
+            </Border>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                    <Setter TargetName="RowBorder" Property="Background" Value="{StaticResource BackgroundLightBrush}" />
+                </DataTrigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="RowBorder" Property="Background" Value="{StaticResource BackgroundMediumBrush}" />
+                </Trigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0"
+                Background="{StaticResource BackgroundMediumBrush}"
+                CornerRadius="6"
+                Padding="10"
+                Margin="0,0,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MinWidth="220" />
+                    <ColumnDefinition Width="130" />
+                    <ColumnDefinition Width="150" />
+                    <ColumnDefinition Width="150" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBox x:Name="SearchBox"
+                         Grid.Column="0"
+                         Margin="0,0,8,0"
+                         ToolTip="퀘스트 검색"
+                         TextChanged="FilterChanged" />
+                <ComboBox x:Name="StatusFilter"
+                          Grid.Column="1"
+                          Margin="0,0,8,0"
+                          SelectionChanged="FilterChanged" />
+                <ComboBox x:Name="TraderFilter"
+                          Grid.Column="2"
+                          Margin="0,0,8,0"
+                          SelectionChanged="FilterChanged" />
+                <ComboBox x:Name="MapFilter"
+                          Grid.Column="3"
+                          Margin="0,0,8,0"
+                          SelectionChanged="FilterChanged" />
+                <Button x:Name="ProblemsButton"
+                        Grid.Column="4"
+                        Content="판정 문제 0"
+                        Click="ProblemsButton_Click" />
+            </Grid>
+        </Border>
+
+        <TextBlock x:Name="SummaryText"
+                   Grid.Row="1"
+                   Foreground="{StaticResource TextSecondaryBrush}"
+                   Margin="2,0,0,10" />
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="360" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="420" MinWidth="320" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0"
+                    Background="{StaticResource BackgroundMediumBrush}"
+                    CornerRadius="6">
+                <ListBox x:Name="QuestList"
+                         ItemTemplate="{StaticResource QuestRowTemplate}"
+                         SelectionChanged="QuestList_SelectionChanged"
+                         VirtualizingPanel.IsVirtualizing="True"
+                         VirtualizingPanel.VirtualizationMode="Recycling"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
+            </Border>
+
+            <GridSplitter Grid.Column="1"
+                          Width="8"
+                          HorizontalAlignment="Stretch"
+                          Background="Transparent" />
+
+            <Border Grid.Column="2"
+                    Background="{StaticResource BackgroundMediumBrush}"
+                    CornerRadius="6"
+                    Padding="16">
+                <Grid>
+                    <TextBlock x:Name="EmptyDetailText"
+                               Text="퀘스트를 선택하면 상세 정보를 확인할 수 있습니다."
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center" />
+
+                    <ScrollViewer x:Name="DetailScroll"
+                                  Visibility="Collapsed"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
+                            <TextBlock x:Name="DetailName"
+                                       FontSize="22"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource AccentBrush}" />
+                            <TextBlock x:Name="DetailMeta"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       Margin="0,4,0,12" />
+
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,18">
+                                <Button x:Name="WikiButton"
+                                        Content="Wiki"
+                                        Margin="0,0,8,0"
+                                        Click="WikiButton_Click" />
+                                <Button x:Name="PrimaryActionButton"
+                                        Click="PrimaryActionButton_Click" />
+                            </StackPanel>
+
+                            <TextBlock Text="목표" FontWeight="SemiBold" Margin="0,0,0,6" />
+                            <Border Background="{StaticResource BackgroundDarkBrush}"
+                                    CornerRadius="5"
+                                    Padding="10"
+                                    Margin="0,0,0,14">
+                                <ItemsControl x:Name="ObjectivesList" />
+                            </Border>
+
+                            <TextBlock x:Name="RequiredItemsHeader"
+                                       Text="제출 아이템"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,6" />
+                            <Border x:Name="RequiredItemsBox"
+                                    Background="{StaticResource BackgroundDarkBrush}"
+                                    CornerRadius="5"
+                                    Padding="10"
+                                    Margin="0,0,0,14">
+                                <ItemsControl x:Name="RequiredItemsList" />
+                            </Border>
+
+                            <TextBlock Text="해금 조건" FontWeight="SemiBold" Margin="0,0,0,6" />
+                            <Border Background="{StaticResource BackgroundDarkBrush}"
+                                    CornerRadius="5"
+                                    Padding="10"
+                                    Margin="0,0,0,14">
+                                <ItemsControl x:Name="RequirementsList" />
+                            </Border>
+
+                            <TextBlock x:Name="PrerequisitesHeader"
+                                       Text="선행 퀘스트"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,6" />
+                            <Border x:Name="PrerequisitesBox"
+                                    Background="{StaticResource BackgroundDarkBrush}"
+                                    CornerRadius="5"
+                                    Padding="10"
+                                    Margin="0,0,0,14">
+                                <ItemsControl x:Name="PrerequisitesList" />
+                            </Border>
+
+                            <TextBlock x:Name="StateReasonsHeader"
+                                       Text="현재 판정 이유"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,6" />
+                            <Border x:Name="StateReasonsBox"
+                                    Background="{StaticResource BackgroundDarkBrush}"
+                                    CornerRadius="5"
+                                    Padding="10"
+                                    Margin="0,0,0,14">
+                                <ItemsControl x:Name="StateReasonsList" />
+                            </Border>
+
+                            <TextBlock x:Name="ExperienceText"
+                                       Foreground="{StaticResource TextSecondaryBrush}" />
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>
