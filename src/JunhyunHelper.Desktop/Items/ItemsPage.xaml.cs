@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using System.Globalization;
-using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -130,6 +129,7 @@ public partial class ItemsPage : UserControl
                 var surplusNonFir = cleanup?.SurplusNonFir ?? 0;
                 var surplusTotal = surplusFir + surplusNonFir;
                 var deferred = protections.Length > 0 && surplusTotal == 0 && owned.Total > 0;
+                var flexiblePending = flexibleProgresses.Any(progress => !progress.IsFulfilled);
 
                 itemById.TryGetValue(itemId, out var item);
                 var name = item is null
@@ -156,9 +156,9 @@ public partial class ItemsPage : UserControl
                     protections,
                     flexibleProgresses,
                     sources,
-                    SourceSummary(sources),
-                    BuildStatusText(remainingTotal, remainingFir, surplusTotal, deferred),
-                    StatusBrush(remainingTotal, surplusTotal, deferred));
+                    SourceSummary(sources, flexibleProgresses),
+                    BuildStatusText(remainingTotal, remainingFir, surplusTotal, deferred, flexiblePending),
+                    StatusBrush(remainingTotal, surplusTotal, deferred, flexiblePending));
             })
             .OrderBy(row => row.Name, StringComparer.CurrentCulture)
             .ToArray();
@@ -218,7 +218,9 @@ public partial class ItemsPage : UserControl
     private static bool MatchesFilter(ItemRow row, ItemFilter filter) => filter switch
     {
         ItemFilter.All => true,
-        ItemFilter.Needed => row.RemainingTotal > 0 || row.RemainingFir > 0,
+        ItemFilter.Needed => row.RemainingTotal > 0 ||
+                             row.RemainingFir > 0 ||
+                             row.FlexibleProgresses.Any(progress => !progress.IsFulfilled),
         ItemFilter.Cleanup => row.SurplusTotal > 0,
         ItemFilter.Satisfied => row.RequiredTotal > 0 && row.RemainingTotal == 0 && row.SurplusTotal == 0,
         ItemFilter.Deferred => row.Protections.Count > 0 && row.OwnedTotal > 0 && row.SurplusTotal == 0,
@@ -243,16 +245,24 @@ public partial class ItemsPage : UserControl
         DetailName.Text = row.Name;
         DetailStatusText.Text = row.StatusText;
         DetailStatusText.Foreground = row.StatusBrush;
+
+        var hasFlexible = row.FlexibleProgresses.Count > 0;
         DetailRequirementText.Text = row.RequiredFir > 0
             ? $"미래 필요 {row.RequiredTotal}개 · FIR 최소 {row.RequiredFir}개"
-            : $"미래 필요 {row.RequiredTotal}개";
+            : row.RequiredTotal > 0
+                ? $"미래 필요 {row.RequiredTotal}개"
+                : hasFlexible
+                    ? "개별 확정 필요량 없음 · 유동 제출 후보"
+                    : "미래 필요 0개";
         DetailRemainingText.Text = row.RemainingFir > 0
             ? $"추가 필요 {row.RemainingTotal}개 · 그중 FIR {row.RemainingFir}개"
             : row.RemainingTotal > 0
                 ? $"추가 필요 {row.RemainingTotal}개"
-                : row.RequiredTotal > 0
-                    ? "현재 보유량으로 미래 필요량을 충족합니다."
-                    : "현재 확정된 미래 필요량은 없습니다.";
+                : hasFlexible && row.FlexibleProgresses.Any(progress => !progress.IsFulfilled)
+                    ? "유동 제출 그룹은 후보 아이템 보유량을 합산해 남은 수량을 계산합니다."
+                    : row.RequiredTotal > 0
+                        ? "현재 보유량으로 미래 필요량을 충족합니다."
+                        : "현재 확정된 미래 필요량은 없습니다.";
         DetailCleanupText.Text = row.SurplusTotal > 0
             ? CleanupText(row)
             : string.Empty;
@@ -263,12 +273,14 @@ public partial class ItemsPage : UserControl
 
         SourceItems.ItemsSource = row.Sources.Length > 0
             ? row.Sources.Select(source => $"• {source}").ToArray()
-            : new[] { "• 현재 계산된 필요 출처 없음" };
+            : hasFlexible
+                ? new[] { "• 유동 제출 요구 — 아래 그룹 정보를 확인하세요." }
+                : new[] { "• 현재 계산된 필요 출처 없음" };
 
         FlexibleRequirementItems.ItemsSource = row.FlexibleProgresses
             .Select(BuildFlexibleRequirementText)
             .ToArray();
-        FlexibleDetailPanel.Visibility = row.FlexibleProgresses.Count > 0
+        FlexibleDetailPanel.Visibility = hasFlexible
             ? Visibility.Visible
             : Visibility.Collapsed;
 
@@ -311,25 +323,37 @@ public partial class ItemsPage : UserControl
         _ => source.SourceId,
     };
 
-    private static string SourceSummary(IReadOnlyList<string> sources) => sources.Count switch
+    private static string SourceSummary(
+        IReadOnlyList<string> sources,
+        IReadOnlyList<FlexibleQuestItemProgress> flexibleProgresses)
     {
-        0 => "보유 기록",
-        1 => sources[0],
-        _ => $"{sources[0]} 외 {sources.Count - 1}곳",
-    };
+        if (sources.Count > 0)
+        {
+            return sources.Count == 1
+                ? sources[0]
+                : $"{sources[0]} 외 {sources.Count - 1}곳";
+        }
+
+        return flexibleProgresses.Count > 0
+            ? flexibleProgresses.Count == 1
+                ? "유동 제출 후보"
+                : $"유동 제출 후보 · {flexibleProgresses.Count}개 그룹"
+            : "보유 기록";
+    }
 
     private static string BuildStatusText(
         int remainingTotal,
         int remainingFir,
         int surplusTotal,
-        bool deferred)
+        bool deferred,
+        bool flexiblePending)
     {
-        if (remainingFir > 0 && surplusTotal > 0)
-            return "FIR 부족";
         if (remainingFir > 0)
             return "FIR 부족";
         if (remainingTotal > 0)
             return $"+{remainingTotal} 필요";
+        if (flexiblePending)
+            return "유동 제출";
         if (surplusTotal > 0)
             return $"{surplusTotal} 정리";
         if (deferred)
@@ -337,11 +361,15 @@ public partial class ItemsPage : UserControl
         return "충분";
     }
 
-    private static Brush StatusBrush(int remainingTotal, int surplusTotal, bool deferred) =>
+    private static Brush StatusBrush(
+        int remainingTotal,
+        int surplusTotal,
+        bool deferred,
+        bool flexiblePending) =>
         (Brush)System.Windows.Application.Current.FindResource(
             surplusTotal > 0 || deferred
                 ? "WarningBrush"
-                : remainingTotal > 0
+                : remainingTotal > 0 || flexiblePending
                     ? "AccentBrush"
                     : "SuccessBrush");
 
