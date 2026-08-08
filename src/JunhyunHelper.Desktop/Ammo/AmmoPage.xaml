@@ -35,6 +35,28 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+        <DataTemplate x:Key="ArmorEffectivenessCellTemplate">
+            <Border Background="{Binding Background}"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    Width="31"
+                    MinHeight="31"
+                    Margin="2,0"
+                    ToolTip="{Binding ToolTip}">
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="{Binding ArmorClass}"
+                               Foreground="{Binding Foreground}"
+                               FontSize="9"
+                               HorizontalAlignment="Center"
+                               Opacity="0.8" />
+                    <TextBlock Text="{Binding DisplayValue}"
+                               Foreground="{Binding Foreground}"
+                               FontWeight="Bold"
+                               HorizontalAlignment="Center" />
+                </StackPanel>
+            </Border>
+        </DataTemplate>
     </UserControl.Resources>
 
     <Grid Margin="16">
@@ -66,12 +88,13 @@
                 <Border Background="{StaticResource BackgroundMediumBrush}"
                         BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
                         CornerRadius="8" Padding="12" Margin="0,6,0,0">
-                    <StackPanel MinWidth="170">
+                    <StackPanel MinWidth="190">
                         <TextBlock Text="표에 표시할 정보" FontWeight="SemiBold" Margin="2,0,0,8" />
                         <CheckBox x:Name="CaliberColumnCheckBox" Content="구경" IsChecked="True" Checked="ColumnVisibility_Changed" Unchecked="ColumnVisibility_Changed" />
                         <CheckBox x:Name="DamageColumnCheckBox" Content="피해" IsChecked="True" Checked="ColumnVisibility_Changed" Unchecked="ColumnVisibility_Changed" />
                         <CheckBox x:Name="PenetrationColumnCheckBox" Content="관통" IsChecked="True" Checked="ColumnVisibility_Changed" Unchecked="ColumnVisibility_Changed" />
                         <CheckBox x:Name="ArmorDamageColumnCheckBox" Content="장갑 피해" IsChecked="True" Checked="ColumnVisibility_Changed" Unchecked="ColumnVisibility_Changed" />
+                        <CheckBox x:Name="ArmorEffectivenessColumnCheckBox" Content="방탄 등급별 효율" IsChecked="True" Checked="ColumnVisibility_Changed" Unchecked="ColumnVisibility_Changed" />
                         <CheckBox x:Name="SpeedColumnCheckBox" Content="속도" IsChecked="True" Checked="ColumnVisibility_Changed" Unchecked="ColumnVisibility_Changed" />
                         <CheckBox x:Name="FragmentationColumnCheckBox" Content="파편" IsChecked="True" Checked="ColumnVisibility_Changed" Unchecked="ColumnVisibility_Changed" />
                         <CheckBox x:Name="RecoilColumnCheckBox" Content="반동" IsChecked="True" Checked="ColumnVisibility_Changed" Unchecked="ColumnVisibility_Changed" />
@@ -111,6 +134,23 @@
                 <DataGridTextColumn x:Name="DamageColumn" Header="피해" Binding="{Binding DamageText}" Width="85" />
                 <DataGridTextColumn x:Name="PenetrationColumn" Header="관통" Binding="{Binding PenetrationPower}" Width="70" />
                 <DataGridTextColumn x:Name="ArmorDamageColumn" Header="장갑 피해" Binding="{Binding ArmorDamageText}" Width="90" />
+                <DataGridTemplateColumn x:Name="ArmorEffectivenessColumn" Header="방탄 효율 1–6" Width="225" MinWidth="210">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <ItemsControl ItemsSource="{Binding ArmorEffectivenessCells}"
+                                          HorizontalAlignment="Center">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <StaticResource ResourceKey="ArmorEffectivenessCellTemplate" />
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <DataGridTextColumn x:Name="SpeedColumn" Header="속도" Binding="{Binding SpeedText}" Width="95" />
                 <DataGridTextColumn x:Name="FragmentationColumn" Header="파편" Binding="{Binding FragmentationText}" Width="75" />
                 <DataGridTextColumn x:Name="RecoilColumn" Header="반동" Binding="{Binding RecoilText}" Width="75" />
@@ -130,7 +170,7 @@
 
                 <Grid x:Name="DetailGrid" Visibility="Collapsed">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="380" MinWidth="320" />
+                        <ColumnDefinition Width="420" MinWidth="340" />
                         <ColumnDefinition Width="16" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
@@ -155,7 +195,29 @@
                                 </StackPanel>
                             </Grid>
                             <TextBlock x:Name="DetailPerformance" />
-                            <TextBlock x:Name="DetailModifiers" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,8,0,0" />
+
+                            <TextBlock Text="방탄 등급별 효율"
+                                       FontSize="15"
+                                       FontWeight="SemiBold"
+                                       Margin="0,14,0,7" />
+                            <ItemsControl x:Name="DetailArmorEffectivenessItems"
+                                          HorizontalAlignment="Left">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <StaticResource ResourceKey="ArmorEffectivenessCellTemplate" />
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="0–6은 Tarkov Wiki Ballistics의 비교 효율값입니다. '?'는 현재 Wiki 행과 안전하게 매칭되지 않은 탄약입니다."
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       FontSize="11"
+                                       TextWrapping="Wrap"
+                                       Margin="0,6,0,0" />
+
+                            <TextBlock x:Name="DetailModifiers" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,0" />
                         </StackPanel>
                     </ScrollViewer>
 
