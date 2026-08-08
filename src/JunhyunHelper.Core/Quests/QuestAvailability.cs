@@ -19,6 +19,7 @@ public enum QuestAvailabilityReasonKind
     Prerequisite,
     MissingProfileValue,
     FailedPrerequisiteStateNotTracked,
+    UnsupportedAvailabilityRequirement,
     MissingReferencedQuest,
     DependencyCycle,
 }
