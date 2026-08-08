@@ -3,6 +3,7 @@ using JunhyunHelper.Core.Hideout;
 using JunhyunHelper.Core.Items;
 using JunhyunHelper.Core.Profiles;
 using JunhyunHelper.Core.Quests;
+using Xunit;
 
 namespace JunhyunHelper.Tests;
 
