@@ -1,5 +1,6 @@
 using System.IO;
 using System.Net.Http;
+using JunhyunHelper.Application.Hideout;
 using JunhyunHelper.Application.Profiles;
 using JunhyunHelper.Application.Quests;
 using JunhyunHelper.Infrastructure.Content;
@@ -39,6 +40,7 @@ public sealed class DesktopServices : IDisposable
         ContentUpdater = new TarkovContentUpdateService(buildService, Content);
         ProfileManagement = new ProfileApplicationService(Profiles);
         Quests = new QuestApplicationService(Profiles);
+        Hideout = new HideoutApplicationService(Profiles);
     }
 
     public string RootDirectory { get; }
@@ -52,6 +54,8 @@ public sealed class DesktopServices : IDisposable
     public ProfileApplicationService ProfileManagement { get; }
 
     public QuestApplicationService Quests { get; }
+
+    public HideoutApplicationService Hideout { get; }
 
     public void Dispose() => _httpClient.Dispose();
 }
