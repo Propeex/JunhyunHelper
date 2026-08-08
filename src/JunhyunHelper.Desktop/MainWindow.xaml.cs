@@ -12,6 +12,7 @@ using JunhyunHelper.Desktop.Items;
 using JunhyunHelper.Desktop.Profiles;
 using JunhyunHelper.Desktop.Quests;
 using JunhyunHelper.Desktop.Services;
+using JunhyunHelper.Infrastructure.Content;
 
 namespace JunhyunHelper.Desktop;
 
@@ -87,6 +88,8 @@ public partial class MainWindow : Window
         HideoutPage.Visibility = Visibility.Collapsed;
         ItemsPage.Visibility = Visibility.Collapsed;
         AmmoPage.Visibility = Visibility.Collapsed;
+        MapPlaceholder.Visibility = Visibility.Collapsed;
+        ScannerPlaceholder.Visibility = Visibility.Collapsed;
         ItemsPage.ClearCleanupNotice();
         EmptyState.Visibility = Visibility.Visible;
         StatusText.Text = "프로필 설정 필요";
@@ -169,7 +172,7 @@ public partial class MainWindow : Window
         var paths = _services.Content.GetPaths(gameMode);
         if (!File.Exists(paths.ActivePath))
         {
-            var firstUpdate = await _services.ContentUpdater.UpdateAsync(gameMode);
+            var firstUpdate = await RunContentUpdateAsync(gameMode);
             if (!firstUpdate.Applied)
                 throw new InvalidDataException("최초 게임 데이터 업데이트가 검증을 통과하지 못했습니다.");
         }
@@ -181,12 +184,38 @@ public partial class MainWindow : Window
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            var update = await _services.ContentUpdater.UpdateAsync(gameMode);
+            var update = await RunContentUpdateAsync(gameMode);
             if (!update.Applied)
                 throw new InvalidDataException("게임 데이터 복구 업데이트가 검증을 통과하지 못했습니다.", exception);
 
             var snapshot = await _services.Content.ReadActiveOrRecoverAsync(gameMode);
             return snapshot.Content;
+        }
+    }
+
+    private async Task<ContentUpdateResult> RunContentUpdateAsync(GameMode gameMode)
+    {
+        UpdateProgressBar.Value = 0;
+        UpdateProgressStageText.Text = "업데이트 준비 중...";
+        UpdateProgressPercentText.Text = "0%";
+        UpdateProgressOverlay.Visibility = Visibility.Visible;
+
+        var progress = new Progress<ContentUpdateProgress>(value =>
+        {
+            var percent = Math.Clamp(value.Percent, 0, 100);
+            UpdateProgressBar.Value = percent;
+            UpdateProgressStageText.Text = value.Message;
+            UpdateProgressPercentText.Text = $"{percent}%";
+            StatusText.Text = value.Message;
+        });
+
+        try
+        {
+            return await _services.ContentUpdater.UpdateAsync(gameMode, progress: progress);
+        }
+        finally
+        {
+            UpdateProgressOverlay.Visibility = Visibility.Collapsed;
         }
     }
 
@@ -296,7 +325,7 @@ public partial class MainWindow : Window
         try
         {
             SetBusy(true, "최신 게임 데이터를 업데이트하는 중...");
-            var result = await _services.ContentUpdater.UpdateAsync(_activeProfile.GameMode);
+            var result = await RunContentUpdateAsync(_activeProfile.GameMode);
             if (!result.Applied)
             {
                 throw new InvalidDataException(
@@ -480,6 +509,18 @@ public partial class MainWindow : Window
         ShowActiveSection();
     }
 
+    private void MapTabButton_Click(object sender, RoutedEventArgs e)
+    {
+        _activeSection = DesktopSection.Map;
+        ShowActiveSection();
+    }
+
+    private void ScannerTabButton_Click(object sender, RoutedEventArgs e)
+    {
+        _activeSection = DesktopSection.Scanner;
+        ShowActiveSection();
+    }
+
     private void ShowActiveSection()
     {
         if (_activeProfile is null || _activeContent is null)
@@ -488,6 +529,8 @@ public partial class MainWindow : Window
             HideoutPage.Visibility = Visibility.Collapsed;
             ItemsPage.Visibility = Visibility.Collapsed;
             AmmoPage.Visibility = Visibility.Collapsed;
+            MapPlaceholder.Visibility = Visibility.Collapsed;
+            ScannerPlaceholder.Visibility = Visibility.Collapsed;
             EmptyState.Visibility = Visibility.Visible;
             UpdateSectionButtons();
             return;
@@ -504,6 +547,12 @@ public partial class MainWindow : Window
             ? Visibility.Visible
             : Visibility.Collapsed;
         AmmoPage.Visibility = _activeSection == DesktopSection.Ammo
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        MapPlaceholder.Visibility = _activeSection == DesktopSection.Map
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        ScannerPlaceholder.Visibility = _activeSection == DesktopSection.Scanner
             ? Visibility.Visible
             : Visibility.Collapsed;
         UpdateSectionButtons();
@@ -525,6 +574,8 @@ public partial class MainWindow : Window
         HideoutTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Hideout;
         ItemsTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Items;
         AmmoTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Ammo;
+        MapTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Map;
+        ScannerTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Scanner;
         StatusText.Text = status;
     }
 
@@ -535,6 +586,8 @@ public partial class MainWindow : Window
         HideoutTabButton.IsEnabled = hasProfile && _activeSection != DesktopSection.Hideout;
         ItemsTabButton.IsEnabled = hasProfile && _activeSection != DesktopSection.Items;
         AmmoTabButton.IsEnabled = hasProfile && _activeSection != DesktopSection.Ammo;
+        MapTabButton.IsEnabled = hasProfile && _activeSection != DesktopSection.Map;
+        ScannerTabButton.IsEnabled = hasProfile && _activeSection != DesktopSection.Scanner;
     }
 
     private string BuildLoadedStatus(GameMode gameMode)
@@ -591,5 +644,7 @@ public partial class MainWindow : Window
         Hideout,
         Items,
         Ammo,
+        Map,
+        Scanner,
     }
 }

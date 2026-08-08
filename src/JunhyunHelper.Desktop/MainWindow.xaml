@@ -31,6 +31,8 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
@@ -39,19 +41,22 @@
 
                 <TextBlock Grid.Column="0" Text="준현 헬퍼" FontSize="20" FontWeight="Bold"
                            Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" Margin="0,0,24,0" />
-                <Button x:Name="QuestTabButton" Grid.Column="1" Content="퀘스트" Margin="0,0,6,0" Padding="16,7" Click="QuestTabButton_Click" />
-                <Button x:Name="HideoutTabButton" Grid.Column="2" Content="은신처" Margin="0,0,6,0" Padding="16,7" Click="HideoutTabButton_Click" />
-                <Button x:Name="ItemsTabButton" Grid.Column="3" Content="아이템" Margin="0,0,6,0" Padding="16,7" Click="ItemsTabButton_Click" />
-                <Button x:Name="AmmoTabButton" Grid.Column="4" Content="탄약" Padding="16,7" Click="AmmoTabButton_Click" />
+                <Button x:Name="QuestTabButton" Grid.Column="1" Content="퀘스트" Margin="0,0,6,0" Padding="14,7" Click="QuestTabButton_Click" />
+                <Button x:Name="HideoutTabButton" Grid.Column="2" Content="은신처" Margin="0,0,6,0" Padding="14,7" Click="HideoutTabButton_Click" />
+                <Button x:Name="ItemsTabButton" Grid.Column="3" Content="아이템" Margin="0,0,6,0" Padding="14,7" Click="ItemsTabButton_Click" />
+                <Button x:Name="AmmoTabButton" Grid.Column="4" Content="탄약" Margin="0,0,6,0" Padding="14,7" Click="AmmoTabButton_Click" />
+                <Button x:Name="MapTabButton" Grid.Column="5" Content="지도" Margin="0,0,6,0" Padding="14,7" Click="MapTabButton_Click" />
+                <Button x:Name="ScannerTabButton" Grid.Column="6" Content="스캐너" Padding="14,7" Click="ScannerTabButton_Click" />
 
-                <TextBlock x:Name="StatusText" Grid.Column="5"
-                           Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="18,0" />
-                <ComboBox x:Name="ProfileComboBox" Grid.Column="6" Width="210" Margin="0,0,8,0"
+                <TextBlock x:Name="StatusText" Grid.Column="7"
+                           Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="18,0"
+                           TextTrimming="CharacterEllipsis" />
+                <ComboBox x:Name="ProfileComboBox" Grid.Column="8" Width="195" Margin="0,0,8,0"
                           DropDownOpened="ProfileComboBox_DropDownOpened"
                           SelectionChanged="ProfileComboBox_CompactSelectionChanged" />
-                <Button x:Name="EditProfileButton" Grid.Column="7" Content="프로필 수정" Margin="0,0,8,0"
+                <Button x:Name="EditProfileButton" Grid.Column="9" Content="프로필 수정" Margin="0,0,8,0"
                         Click="EditProfileCompactButton_Click" />
-                <Button x:Name="UpdateDataButton" Grid.Column="8" Content="데이터 업데이트" Click="UpdateDataButton_Click" />
+                <Button x:Name="UpdateDataButton" Grid.Column="10" Content="데이터 업데이트" Click="UpdateDataButton_Click" />
             </Grid>
         </Border>
 
@@ -60,6 +65,44 @@
             <hideout:HideoutPage x:Name="HideoutPage" Loaded="HideoutPage_Loaded" Visibility="Collapsed" />
             <items:ItemsPage x:Name="ItemsPage" Loaded="ItemsPage_Loaded" Visibility="Collapsed" />
             <ammo:AmmoPage x:Name="AmmoPage" Loaded="AmmoPage_Loaded" Visibility="Collapsed" />
+
+            <Grid x:Name="MapPlaceholder" Visibility="Collapsed">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="560">
+                    <TextBlock Text="지도" FontSize="26" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,12" />
+                    <Border Background="{StaticResource BackgroundMediumBrush}"
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            Padding="18,10"
+                            HorizontalAlignment="Center"
+                            Margin="0,0,0,14">
+                        <TextBlock Text="준비 중" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" />
+                    </Border>
+                    <TextBlock Text="지도 데이터 공급원과 표시 규칙을 검증한 뒤 구현합니다. 현재 탭은 기능 위치만 먼저 확정한 상태입니다."
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Grid>
+
+            <Grid x:Name="ScannerPlaceholder" Visibility="Collapsed">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="560">
+                    <TextBlock Text="스캐너" FontSize="26" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,12" />
+                    <Border Background="{StaticResource BackgroundMediumBrush}"
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            Padding="18,10"
+                            HorizontalAlignment="Center"
+                            Margin="0,0,0,14">
+                        <TextBlock Text="준비 중" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" />
+                    </Border>
+                    <TextBlock Text="스캐너 기능은 후속 구현 범위입니다. 검증되지 않은 인식 기능은 아직 실행하지 않습니다."
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Grid>
 
             <Grid x:Name="EmptyState">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="520">
@@ -73,6 +116,45 @@
             </Grid>
 
             <Button x:Name="CreateProfileButton" Visibility="Collapsed" IsHitTestVisible="False" />
+
+            <Grid x:Name="UpdateProgressOverlay"
+                  Visibility="Collapsed"
+                  Background="#78000000"
+                  Panel.ZIndex="100">
+                <Border Width="470"
+                        Background="{StaticResource BackgroundMediumBrush}"
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="12"
+                        Padding="24"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                    <StackPanel>
+                        <TextBlock Text="게임 데이터 업데이트"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   Margin="0,0,0,8" />
+                        <TextBlock x:Name="UpdateProgressStageText"
+                                   Text="업데이트 준비 중..."
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,0,0,14" />
+                        <ProgressBar x:Name="UpdateProgressBar"
+                                     Minimum="0"
+                                     Maximum="100"
+                                     Value="0"
+                                     Height="10"
+                                     Background="{StaticResource BackgroundDarkBrush}"
+                                     Foreground="{StaticResource AccentBrush}" />
+                        <TextBlock x:Name="UpdateProgressPercentText"
+                                   Text="0%"
+                                   Foreground="{StaticResource AccentBrush}"
+                                   HorizontalAlignment="Right"
+                                   Margin="0,7,0,0" />
+                    </StackPanel>
+                </Border>
+            </Grid>
         </Grid>
     </Grid>
 </Window>
