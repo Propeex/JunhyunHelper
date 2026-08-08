@@ -13,6 +13,7 @@ public enum StandingRequirementOperator
 {
     AtLeast,
     AtMost,
+    LessThan,
 }
 
 public sealed record QuestTaskRequirement(
