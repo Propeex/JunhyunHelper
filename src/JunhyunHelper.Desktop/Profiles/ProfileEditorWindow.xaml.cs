@@ -24,7 +24,6 @@ public sealed class TraderEditorRow
 
 public partial class ProfileEditorWindow : Window
 {
-    private readonly GameMode _gameMode;
     private readonly IReadOnlyList<TraderEditorRow> _traderRows;
 
     public ProfileEditorWindow(
@@ -40,7 +39,6 @@ public partial class ProfileEditorWindow : Window
                 nameof(existingProfile));
         }
 
-        _gameMode = gameMode;
         InitializeComponent();
 
         TitleText.Text = existingProfile is null ? "새 프로필 설정" : "프로필 수정";
@@ -70,7 +68,9 @@ public partial class ProfileEditorWindow : Window
             .OrderBy(trader => DisplayName(trader.NameKo, trader.NameEn, trader.Id), StringComparer.CurrentCulture)
             .Select(trader =>
             {
-                var hasProgress = existingProfile?.Traders.TryGetValue(trader.Id, out var progress) == true;
+                TraderProgress progress = default;
+                var hasProgress = existingProfile is not null &&
+                                  existingProfile.Traders.TryGetValue(trader.Id, out progress);
                 return new TraderEditorRow
                 {
                     TraderId = trader.Id,
