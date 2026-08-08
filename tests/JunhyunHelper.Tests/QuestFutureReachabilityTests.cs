@@ -1,6 +1,7 @@
 using JunhyunHelper.Core.Editions;
 using JunhyunHelper.Core.Profiles;
 using JunhyunHelper.Core.Quests;
+using Xunit;
 
 namespace JunhyunHelper.Tests;
 
