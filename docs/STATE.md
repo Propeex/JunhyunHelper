@@ -6,11 +6,11 @@
 
 **Phase 2B — 실제 Desktop 핵심 흐름 구현**
 
-상태: `IN PROGRESS — data pipeline + profile + Quest + Hideout + future Items desktop flows verified`
+상태: `IN PROGRESS — data pipeline + profile + Quest + Hideout + future Items + Ammo desktop flows verified`
 
-현재 사용자는 게임 모드별 캐릭터 프로필을 만들고 수정하고, 같은 프로필을 기준으로 Quest 진행, Hideout 시설 레벨, 미래 필요 아이템과 실제 보유량을 관리할 수 있습니다.
+현재 사용자는 게임 모드별 캐릭터 프로필을 만들고 수정하고, 같은 프로필을 기준으로 Quest 진행, Hideout 시설 레벨, 미래 필요 아이템과 실제 보유량을 관리할 수 있으며 최신 탄약 성능과 수급처를 비교할 수 있습니다.
 
-필요 아이템은 이제 현재 할 일 체크리스트가 아니라 **앞으로 필요한 물건을 미리 모으고, 업데이트나 진행 변화로 더 이상 필요하지 않은 보유품을 안전하게 정리하게 해주는 기능**으로 확정·구현되었습니다.
+필요 아이템은 현재 할 일 체크리스트가 아니라 **앞으로 필요한 물건을 미리 모으고, 업데이트나 진행 변화로 더 이상 필요하지 않은 보유품을 안전하게 정리하게 해주는 기능**으로 확정·구현되었습니다.
 
 ---
 
@@ -29,6 +29,7 @@
 - 계산 가능한 결과를 별도 진실의 원천으로 저장하지 않음
 - UI는 Domain 규칙을 다시 구현하지 않음
 - 사용자가 필요한 아이템을 잘못 버리게 만드는 false-positive cleanup을 특히 피함
+- 게임 사실과 개발자가 만든 임의 평가/추천 점수를 섞지 않음
 
 ---
 
@@ -118,6 +119,7 @@ content/
 - 미래 Quest 도달 가능성 결과
 - 다음 Hideout 업그레이드 결과
 - Needed Items / Cleanup 결과
+- Ammo 조회/필터 상태
 - UI filter/sort 결과
 
 Game Content가 업데이트되어도 user.db 보유량과 진행 사실은 삭제하지 않습니다.
@@ -289,7 +291,7 @@ Quest/Hideout/Items는 서로의 저장소를 직접 수정하지 않습니다. 
 
 ## Ammo
 
-Canonical Ammo + acquisition 구현:
+Canonical Ammo + acquisition:
 
 - TraderPurchase
 - TraderBarter
@@ -297,13 +299,32 @@ Canonical Ammo + acquisition 구현:
 
 실제 탄약은 `ItemPropertiesAmmo`로 식별합니다.
 
-Desktop Ammo 화면은 아직 구현하지 않았습니다.
+WPF Ammo 화면 구현:
+
+- 상위 `탄약` 탭
+- 탄약 이름 검색
+- 구경 dropdown
+- 정렬 가능한 비교 표
+- damage / projectile count / penetration / armor damage / initial speed
+- fragmentation / accuracy / recoil
+- 선택 탄약의 추가 성능 정보
+- TraderPurchase / TraderBarter / HideoutCraft 수급처 상세
+- 상인/시설 레벨, 가격, 재료, 구매 제한, 제작 시간, 결과 수량, 퀘스트 해금 표시
+
+탄약은 읽기 전용 Game Content 기능입니다.
+
+- 별도 User Progress를 저장하지 않음
+- Quest/Hideout/Items 재계산에 결합하지 않음
+- 콘텐츠 로드/업데이트 시에만 새 canonical Ammo를 받음
+- 자체 방어구 효율/티어/추천 점수 없음
+- 여러 projectile은 피해량을 임의 합산하지 않고 원본 `damage × projectileCount`로 표시
+- 알려지지 않은 새 caliber 식별자는 화면을 깨뜨리지 않고 canonical 값으로 fallback
 
 ---
 
 ## 최신 검증
 
-### Future Items Desktop checkpoint — 2026-08-08
+### Ammo Desktop checkpoint — 2026-08-08
 
 Windows Server 2025 / .NET SDK 10.0.302:
 
@@ -311,20 +332,7 @@ Windows Server 2025 / .NET SDK 10.0.302:
 - **0 warnings / 0 errors**
 - 전체 테스트 **106 passed / 0 failed / 0 skipped**
 
-추가 회귀 테스트가 확인:
-
-- 미래 level-locked Quest 포함
-- faction/edition 영구 불가 Quest 제외
-- completed Quest requirement 제거
-- 영구 불가 prerequisite의 후속 Quest 제외 전파
-- Failed-only / unsupported 조건은 보수적 potential 유지
-- known Hideout current level 이후 모든 미래 재료 합산
-- 미입력 Hideout item cleanup 보호
-- 대체 Quest item cleanup 보호
-- FIR-safe surplus 계산
-- 새 cleanup 증가 감지
-- inventory 수정 시 다른 진행 사실 보존
-- 0 inventory row 정리
+기존 Future Items 회귀 테스트도 모두 유지됩니다.
 
 ---
 
@@ -335,7 +343,6 @@ Windows Server 2025 / .NET SDK 10.0.302:
 - Alternative Quest item을 사용자가 선택/관리할 UX
 - Quest reward 전체 canonical model
 - profile 삭제/reset UX
-- Ammo Desktop
 - 지도
 - Scanner
 - 기존 Tarkov-Helper migration은 현재 목표 아님
@@ -344,13 +351,13 @@ Windows Server 2025 / .NET SDK 10.0.302:
 
 ## 다음 순서
 
-1. Future Items 실제 live content/profile 조합에서 end-to-end 사용성 점검
-2. 필요하다면 item 출처/cleanup 이유 표현만 개선하되 계산 규칙은 그대로 유지
-3. Ammo Desktop 구현
-4. 이후 Quest branch/failed 입력이 실제 필요 아이템 정확도에 주는 영향을 데이터 기준으로 보완
+1. 실제 데이터에서 Quest branch/failed 상태가 미래 필요 아이템 정확도에 주는 영향을 검토
+2. 필요한 최소 사용자 입력만 정의해 닫힌 분기를 확실하게 제거할 방법 설계
+3. Alternative Quest item 선택 UX와 함께 Needed Items의 남은 `판단 보류`를 줄임
+4. 이후 profile 삭제/reset 또는 지도 데이터 공급원 조사 중 제품 우선순위가 높은 항목 진행
 
 새 기능도 `Game Content / User Progress / Domain Logic / Application / UI` 경계를 유지합니다.
 
 ## 마지막 갱신
 
-2026-08-08 — 미래 Quest/모든 이후 Hideout upgrade를 포함하는 Needed Items, user inventory 보존, FIR-safe `정리 필요`, 불명확 요구의 cleanup 보호, 업데이트 전후 cleanup 증가 알림, 첫 Item WPF 화면까지 구현. Windows Desktop 0 warning/0 error, 전체 테스트 106/106 통과.
+2026-08-08 — canonical Ammo를 그대로 읽는 WPF 탄약 비교 화면 구현. 구경 dropdown/검색/정렬 표와 상인 구매·물물교환·은신처 제작 상세를 연결하고, 자체 효율 점수나 별도 사용자 상태는 추가하지 않음. Windows Desktop 0 warning/0 error, 전체 테스트 106/106 통과.
