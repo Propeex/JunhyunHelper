@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using JunhyunHelper.Core.Ammo;
 using JunhyunHelper.Core.Hideout;
 using JunhyunHelper.Core.Items;
@@ -14,4 +15,8 @@ public sealed record GameContentCatalog(
     IReadOnlyList<QuestObjective> QuestObjectives,
     IReadOnlyList<QuestItemRequirement> QuestItemRequirements,
     IReadOnlyList<HideoutStation> HideoutStations,
-    IReadOnlyList<AmmoDefinition>? Ammunition = null);
+    IReadOnlyList<AmmoDefinition>? Ammo = null)
+{
+    [JsonIgnore]
+    public IReadOnlyList<AmmoDefinition> Ammunition => Ammo ?? Array.Empty<AmmoDefinition>();
+}
