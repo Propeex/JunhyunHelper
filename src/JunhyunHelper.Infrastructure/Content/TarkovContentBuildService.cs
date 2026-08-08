@@ -16,23 +16,26 @@ public sealed record TarkovContentBuildResult(
 
 public sealed class TarkovContentBuildService
 {
-    private const int SourceCount = 8;
+    private const int PrimarySourceCount = 8;
 
     private readonly TarkovEndpointSourceLoader _sourceLoader;
     private readonly TarkovEditionCatalogClient _editionClient;
     private readonly TarkovGameContentImporter _importer;
     private readonly GameContentValidator _validator;
+    private readonly WikiBallisticsEffectivenessClient? _effectivenessClient;
 
     public TarkovContentBuildService(
         TarkovEndpointSourceLoader sourceLoader,
         TarkovEditionCatalogClient editionClient,
         TarkovGameContentImporter? importer = null,
-        GameContentValidator? validator = null)
+        GameContentValidator? validator = null,
+        WikiBallisticsEffectivenessClient? effectivenessClient = null)
     {
         _sourceLoader = sourceLoader ?? throw new ArgumentNullException(nameof(sourceLoader));
         _editionClient = editionClient ?? throw new ArgumentNullException(nameof(editionClient));
         _importer = importer ?? new TarkovGameContentImporter();
         _validator = validator ?? new GameContentValidator();
+        _effectivenessClient = effectivenessClient;
     }
 
     public async Task<TarkovContentBuildResult> BuildAsync(
@@ -46,6 +49,7 @@ public sealed class TarkovContentBuildService
             3));
 
         var completedSources = 0;
+        var sourceCount = PrimarySourceCount + (_effectivenessClient is null ? 0 : 1);
 
         async Task<T> TrackSourceAsync<T>(Task<T> task, string sourceName)
         {
@@ -54,7 +58,7 @@ public sealed class TarkovContentBuildService
             progress?.Report(ContentUpdateProgress.ForDownloadedSource(
                 sourceName,
                 completed,
-                SourceCount));
+                sourceCount));
             return result;
         }
 
@@ -82,6 +86,14 @@ public sealed class TarkovContentBuildService
         var editionsTask = TrackSourceAsync(
             _editionClient.GetAsync(cancellationToken),
             "에디션 규칙");
+        var effectivenessTask = _effectivenessClient is null
+            ? Task.FromResult(new WikiArmorEffectivenessSource(
+                Available: false,
+                Rows: Array.Empty<WikiArmorEffectivenessRow>(),
+                Warnings: Array.Empty<string>()))
+            : TrackSourceAsync(
+                _effectivenessClient.LoadAsync(cancellationToken),
+                WikiBallisticsEffectivenessClient.SourceName);
 
         await Task.WhenAll(
             itemsTask,
@@ -91,7 +103,8 @@ public sealed class TarkovContentBuildService
             hideoutTask,
             bartersTask,
             craftsTask,
-            editionsTask);
+            editionsTask,
+            effectivenessTask);
 
         var items = await itemsTask;
         var traders = await tradersTask;
@@ -101,6 +114,7 @@ public sealed class TarkovContentBuildService
         var barters = await bartersTask;
         var crafts = await craftsTask;
         var editions = await editionsTask;
+        var effectiveness = await effectivenessTask;
 
         progress?.Report(new ContentUpdateProgress(
             ContentUpdateStage.Importing,
@@ -128,7 +142,14 @@ public sealed class TarkovContentBuildService
                 crafts.Warnings,
             }
             .SelectMany(static sourceWarnings => sourceWarnings)
-            .ToArray();
+            .ToList();
+
+        if (_effectivenessClient is not null)
+        {
+            var enrichment = WikiBallisticsEffectivenessClient.Enrich(content, effectiveness);
+            content = enrichment.Content;
+            warnings.AddRange(enrichment.Warnings);
+        }
 
         progress?.Report(new ContentUpdateProgress(
             ContentUpdateStage.Validating,
@@ -138,6 +159,6 @@ public sealed class TarkovContentBuildService
         return new TarkovContentBuildResult(
             content,
             _validator.Validate(content),
-            warnings);
+            warnings.ToArray());
     }
 }
