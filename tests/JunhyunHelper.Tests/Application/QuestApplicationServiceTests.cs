@@ -224,7 +224,8 @@ public sealed class QuestApplicationServiceTests
             Assert.Equal(QuestAvailabilityState.Current, entry.Availability.State);
             Assert.Contains(
                 entry.Availability.Reasons,
-                reason => reason.Kind == QuestAvailabilityReasonKind.UnknownPrestige);
+                reason => reason.Kind == QuestAvailabilityReasonKind.MissingProfileValue &&
+                          reason.ReferenceId == "prestige");
 
             var completed = await service.CompleteAsync(
                 content,
