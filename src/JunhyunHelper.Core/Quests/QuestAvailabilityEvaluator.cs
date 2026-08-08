@@ -1,3 +1,4 @@
+using JunhyunHelper.Core.Editions;
 using JunhyunHelper.Core.Profiles;
 
 namespace JunhyunHelper.Core.Quests;
@@ -5,6 +6,9 @@ namespace JunhyunHelper.Core.Quests;
 public sealed class QuestAvailabilityEvaluator
 {
     private readonly IReadOnlyDictionary<string, QuestDefinition> _questsById;
+    private readonly IReadOnlyDictionary<string, EditionDefinition> _editionsById;
+    private readonly IReadOnlySet<string> _exclusiveQuestIds;
+    private readonly IReadOnlySet<string> _editionSensitiveQuestIds;
     private readonly GameProfileSnapshot _profile;
     private readonly Dictionary<string, QuestAvailabilityResult> _memo =
         new(StringComparer.Ordinal);
@@ -12,18 +16,31 @@ public sealed class QuestAvailabilityEvaluator
 
     private QuestAvailabilityEvaluator(
         IReadOnlyDictionary<string, QuestDefinition> questsById,
+        IReadOnlyDictionary<string, EditionDefinition> editionsById,
+        IReadOnlySet<string> exclusiveQuestIds,
+        IReadOnlySet<string> editionSensitiveQuestIds,
         GameProfileSnapshot profile)
     {
         _questsById = questsById;
+        _editionsById = editionsById;
+        _exclusiveQuestIds = exclusiveQuestIds;
+        _editionSensitiveQuestIds = editionSensitiveQuestIds;
         _profile = profile;
     }
 
     public static IReadOnlyDictionary<string, QuestAvailabilityResult> Evaluate(
         IEnumerable<QuestDefinition> quests,
-        GameProfileSnapshot profile)
+        GameProfileSnapshot profile) =>
+        Evaluate(quests, profile, Array.Empty<EditionDefinition>());
+
+    public static IReadOnlyDictionary<string, QuestAvailabilityResult> Evaluate(
+        IEnumerable<QuestDefinition> quests,
+        GameProfileSnapshot profile,
+        IEnumerable<EditionDefinition> editions)
     {
         ArgumentNullException.ThrowIfNull(quests);
         ArgumentNullException.ThrowIfNull(profile);
+        ArgumentNullException.ThrowIfNull(editions);
 
         var byId = new Dictionary<string, QuestDefinition>(StringComparer.Ordinal);
         foreach (var quest in quests)
@@ -32,7 +49,25 @@ public sealed class QuestAvailabilityEvaluator
                 throw new InvalidDataException($"Duplicate quest id '{quest.Id}'.");
         }
 
-        var evaluator = new QuestAvailabilityEvaluator(byId, profile);
+        var editionsById = new Dictionary<string, EditionDefinition>(StringComparer.Ordinal);
+        var exclusiveQuestIds = new HashSet<string>(StringComparer.Ordinal);
+        var editionSensitiveQuestIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var edition in editions)
+        {
+            if (!editionsById.TryAdd(edition.Id, edition))
+                throw new InvalidDataException($"Duplicate edition id '{edition.Id}'.");
+
+            exclusiveQuestIds.UnionWith(edition.ExclusiveQuestIds);
+            editionSensitiveQuestIds.UnionWith(edition.ExclusiveQuestIds);
+            editionSensitiveQuestIds.UnionWith(edition.ExcludedQuestIds);
+        }
+
+        var evaluator = new QuestAvailabilityEvaluator(
+            byId,
+            editionsById,
+            exclusiveQuestIds,
+            editionSensitiveQuestIds,
+            profile);
         foreach (var questId in byId.Keys)
             evaluator.EvaluateQuest(questId);
 
@@ -150,6 +185,8 @@ public sealed class QuestAvailabilityEvaluator
                 QuestAvailabilityReasonKind.Faction));
         }
 
+        EvaluateEditionRule(quest, lockedReasons, unknownReasons);
+
         if (quest.RequiredPrestigeLevel is { } requiredPrestige)
         {
             if (_profile.PrestigeLevel is null)
@@ -211,6 +248,39 @@ public sealed class QuestAvailabilityEvaluator
                     QuestAvailabilityReasonKind.TraderLoyalty,
                     requirement.TraderId));
             }
+        }
+    }
+
+    private void EvaluateEditionRule(
+        QuestDefinition quest,
+        ICollection<QuestAvailabilityReason> lockedReasons,
+        ICollection<QuestAvailabilityReason> unknownReasons)
+    {
+        if (!_editionSensitiveQuestIds.Contains(quest.Id))
+            return;
+
+        if (string.IsNullOrWhiteSpace(_profile.EditionId))
+        {
+            unknownReasons.Add(new QuestAvailabilityReason(
+                QuestAvailabilityReasonKind.MissingProfileValue,
+                "edition"));
+            return;
+        }
+
+        if (!_editionsById.TryGetValue(_profile.EditionId, out var edition))
+        {
+            unknownReasons.Add(new QuestAvailabilityReason(
+                QuestAvailabilityReasonKind.MissingProfileValue,
+                $"edition:{_profile.EditionId}"));
+            return;
+        }
+
+        if (edition.ExcludedQuestIds.Contains(quest.Id) ||
+            (_exclusiveQuestIds.Contains(quest.Id) && !edition.ExclusiveQuestIds.Contains(quest.Id)))
+        {
+            lockedReasons.Add(new QuestAvailabilityReason(
+                QuestAvailabilityReasonKind.Edition,
+                edition.Id));
         }
     }
 
