@@ -1,80 +1,66 @@
 # STATE — 현재 프로젝트 상태
 
-> 이 문서는 새 개발자가 가장 빠르게 현재 상태를 복구하기 위한 핸드오프 문서입니다.
+> 새 대화/새 개발자는 이 문서를 먼저 읽고 관련 설계 문서만 추가 확인합니다.
 
 ## 현재 Phase
 
-**Phase 1 — 제품 발견 및 핵심 시스템/데이터 설계**
+**Phase 2A — 핵심 데이터 기반 구현**
 
-상태: `IN PROGRESS — 핵심 시스템 + 내부 데이터 모델 큰 틀 완료`
+상태: `IN PROGRESS`
 
-제품 UI 코드는 아직 작성하지 않습니다.
+제품의 큰 틀, 유지보수 철학, canonical 데이터 모델을 확정했고 **UI보다 Game Content 기반을 먼저 실제 코드로 구현하기 시작했습니다.**
 
-## 프로젝트 이름
+## 프로젝트
 
-**준현 헬퍼**
+- 제품명: **준현 헬퍼**
+- 저장소: `Propeex/JunhyunHelper`
 
-저장소: `Propeex/JunhyunHelper`
+## 최상위 원칙
 
-## 프로젝트의 현재 핵심 정의
+준현 헬퍼는:
 
-준현 헬퍼의 핵심은 **최신 Tarkov 데이터를 온라인에서 받아 프로그램 스스로 내부 데이터베이스로 변환·재구축하고, 그 데이터를 게임 진행 상태와 결합해 사용하는 것**입니다.
+`최신 Tarkov 데이터 다운로드 → 검증 → canonical model 변환 → 검증된 콘텐츠 저장 → 사용자 진행과 결합 → 정보 계산`
 
-금지 구조:
+으로 동작합니다.
 
-`새 패치 데이터 → GPT가 다시 해석 → 수작업 데이터 갱신`
+일반적인 Tarkov 패치 때:
 
-목표 구조:
+`새 데이터 → GPT 재해석 → 수작업 DB 수정`
 
-`GPT/개발자가 변환 규칙 구현 → 프로그램이 최신 데이터 다운로드 → 검증 → 변환 → DB 재구축 → 기능이 최신 DB 사용`
+이 필요하지 않아야 합니다.
 
-일반적인 데이터 업데이트에는 GPT가 필요하지 않아야 합니다.
+## 유지보수 경계
 
----
+1. **Game Content** — API에서 다시 만들 수 있는 게임 사실
+2. **User Progress** — 사용자의 실제 캐릭터 진행
+3. **Domain Logic** — 두 데이터를 이용한 순수 계산
+4. **Application/UI** — 표시와 사용자 명령
 
-## 공식 설계 문서
+규칙:
 
-- `docs/SYSTEM_DESIGN.md` — 핵심 시스템 경계와 데이터 흐름
-- `docs/MAINTENANCE_PHILOSOPHY.md` — 복잡성 억제/유지보수 원칙
-- `docs/DATA_MODEL.md` — 준현 헬퍼 canonical 내부 데이터 모델
-- `docs/DATA_VALIDATION.md` — 데이터 계약/검증/안전한 활성화 규칙
-- `docs/DATA_SOURCE_AUDIT.md` — 2026-08-08 최신 외부 데이터 원천 검증
-- `docs/LEGACY_SALVAGE_AUDIT.md` — 기존 Tarkov-Helper 회수 후보/폐기 대상
+- Game Content와 User Progress를 섞지 않음
+- 계산 가능한 파생 상태를 진실의 원천으로 저장하지 않음
+- 한 규칙을 여러 화면/서비스가 중복 구현하지 않음
+- 기능끼리 다른 기능의 내부 저장소를 직접 수정하지 않음
+- UI는 API JSON/SQL을 직접 해석하지 않음
+- 미래를 예상한 범용 프레임워크/규칙 엔진을 만들지 않음
 
----
+## 주요 공식 문서
 
-## 독립 시스템 재설계
+- `docs/PRODUCT.md`
+- `docs/SYSTEM_DESIGN.md`
+- `docs/MAINTENANCE_PHILOSOPHY.md`
+- `docs/DATA_MODEL.md`
+- `docs/DATA_VALIDATION.md`
+- `docs/DATA_SOURCE_AUDIT.md`
+- `docs/TECH_STACK.md`
+- `docs/CONTENT_STORAGE.md`
+- `docs/LEGACY_SALVAGE_AUDIT.md`
+- `docs/DECISIONS.md`
 
-`COMPLETED — 큰 틀`
+## 데이터 공급원
 
-기존 `Propeex/Tarkov-Helper`를 리팩터링 출발점으로 사용하지 않고 현재 준현 헬퍼의 제품 의도에서 시스템을 새로 설계했습니다.
-
-핵심 경계:
-
-1. **Game Content** — 온라인에서 다시 만들 수 있는 게임 데이터
-2. **User Progress** — 사용자의 실제 캐릭터 진행 상태
-3. **Domain Logic** — Game Content + User Progress에서 결과 계산
-4. **Application/UI** — 조회와 사용자 명령
-
-핵심 유지보수 규칙:
-
-- 게임 데이터와 사용자 진행 데이터를 섞지 않습니다.
-- 계산 가능한 파생 상태는 가능한 한 영구 저장하지 않습니다.
-- 같은 게임 규칙을 여러 화면/서비스에서 중복 판정하지 않습니다.
-- 한 기능이 다른 기능의 내부 저장 구조를 직접 수정하지 않습니다.
-- UI는 API JSON/SQL/게임 규칙을 직접 해석하지 않습니다.
-- 긴 이벤트 연쇄보다 명시적 상태 변경 + 재계산을 선호합니다.
-- 외부 API 변경은 Importer/Validator 경계에서 흡수합니다.
-- 데이터 업데이트 실패 시 기존 정상 콘텐츠와 사용자 진행을 보호합니다.
-- 미래를 예상한 범용 규칙 엔진/과도한 계층을 만들지 않습니다.
-
----
-
-## 최신 데이터 공급원 검증
-
-`COMPLETED — 큰 틀 / 구현 시 raw fixture 계약 고정 필요`
-
-2026-08-08 현재 `json.tarkov.dev` endpoint catalog에서 확인:
+2026-08-08 현재 `json.tarkov.dev`에서 확인한 핵심 원천:
 
 - `tasks`
 - `hideout`
@@ -92,191 +78,231 @@
 
 한국어 `ko` 지원.
 
-TarkovTracker의 최신 실제 소비 코드와 문서를 대조해 다음 의미가 현재 원천에 존재함을 확인:
+현재 방향:
 
-- Quest: min level, faction, prerequisite task/status, trader requirement, prestige, objective/fail condition/reward
-- Hideout: station/level, item requirement, station/trader/skill requirement, craft
-- Item: stable item id, display data, categories, properties
-- Tasks payload: quest items, prestige
+- Quest → `tasks`
+- Hideout → `hideout`
+- Items/common refs → `items/traders/maps`
+- Ammo → `items + traders/barters/crafts/hideout` (세부 raw 계약 검증 남음)
 
-현재 결론:
+추가 검증 필요:
 
-- **퀘스트:** `json.tarkov.dev/tasks` 사용 방향 유지
-- **은신처:** `json.tarkov.dev/hideout`를 주 원천으로 설계 가능
-- **탄약:** `items` + `traders/barters/crafts/hideout` 조합으로 구축하는 방향이 적합
-- **필요 아이템:** Quest/Hideout 내부 요구 모델에서 파생 가능
+- 에디션별 Quest 허용/제외 규칙의 안정적인 원천
+- Ammo `properties` raw key/type
+- `barters` / `crafts` 실제 raw shape
 
-남은 원천 검증:
+## 기술 스택
 
-- 에디션별 quest 허용/제외 규칙의 안정적인 원천
-- 탄약 `properties`의 필요한 raw key/type
-- `barters`/`crafts`의 실제 raw shape
+초기 핵심 구현:
 
-이 세 항목은 구현 시 실제 최신 응답을 고정 fixture로 저장해 contract test로 확정합니다.
+- C# / .NET 10 LTS
+- WPF (UI 단계에서 사용)
+- SQLite via `Microsoft.Data.Sqlite`
+- `HttpClient`
+- `System.Text.Json`
+- xUnit
 
----
+초기에는 ORM, DI container, 범용 rule engine, 별도 backend를 사용하지 않습니다.
 
-## 내부 데이터 모델
+프로젝트 경계:
 
-`CONFIRMED — 큰 틀`
+```text
+src/
+  JunhyunHelper.Core/
+  JunhyunHelper.Infrastructure/
+  JunhyunHelper.Desktop/   # UI 단계에서 추가
 
-외부 API의 모든 필드를 DB에 복사하지 않습니다.
+tests/
+  JunhyunHelper.Tests/
+```
 
-준현 헬퍼가 실제 계산/표시에 사용하는 의미만 canonical model로 변환합니다.
+## 현재 구현 상태
 
-### 공통
+### Core — 구현 시작
 
-- 영구 식별은 이름이 아니라 API/게임의 안정적인 ID 사용
-- 한국어 표시 + 영어 fallback
-- Map은 현재 Quest 분류용 최소 참조만 사용
+구현됨:
 
-### Quest
+- Item 식별/표시 모델
+- FIR / Non-FIR 보유량
+- Quest/Hideout item requirement source 모델
+- Needed Item 결과 모델 및 계산기
+- GameMode / PMC faction / TraderProgress
+- GameProfileSnapshot 큰 틀
+- Quest 기본 정의 및 조건 모델
+  - prerequisite status: Complete / Active / Failed
+  - level / faction / trader standing / trader loyalty / prestige
+- Quest Objective 모델
+- Quest Item Requirement 의미 모델
+- Hideout station/level/item requirement 모델
+- Trader / Map 최소 참조 모델
+- GameContentCatalog
 
-- 기본 정보
-- 해금 판정 규칙
-- Objective
-- `QuestItemRequirement`를 별도 의미 모델로 정규화
+중요:
 
-Objective의 내부 식별은 `(questId, objectiveId)`.
+- 현재 퀘스트/필요 아이템 등 파생 결과는 프로필에 저장하지 않음
+- Quest objective ID는 `(questId, objectiveId)` 범위로 취급
+- 대체 가능한 Quest 제출 아이템은 하나의 requirement group으로 보존
 
-필요 아이템 계산은 원본 objective type을 화면마다 해석하지 않고, Importer가 제출/획득/판매/기타 의미를 한 번 정규화합니다.
+### Needed Items — 순수 계산 기반 구현
 
-### Hideout
+구현됨:
 
-- Station
-- Level
-- Item Requirement
-- 기타 station/trader/skill requirement
+- Quest + Hideout requirement를 Item ID별 집계
+- 출처 보존
+- FIR/일반 이중 계산 방지
+- 관련 회귀 테스트 작성
 
-사용자 진행에는 station의 현재 level만 저장하는 것을 기본으로 합니다.
+아직 확정하지 않은 부분:
 
-### Ammo
+- Hideout을 다음 레벨만 계산할지 전체 미래 레벨까지 계산할지 기본 UX
+- 대체 아이템 requirement를 사용자에게 어떻게 표현/계산할지
 
-Ammo는 별도 아이템 체계가 아니라 ItemId를 참조하는 성능/수급 정보입니다.
+### json.tarkov.dev Infrastructure — 구현 시작
 
-수급처는 문자열이 아니라 `TraderPurchase / TraderBarter / HideoutCraft` 관계로 저장합니다.
+구현됨:
 
-### User Progress
+- `regular / pve / pvp-season` source path 매핑
+- endpoint enum
+- HTTP client
+- `data` / `translations` envelope 검증
+- 한국어 + 영어 fallback catalog
+- 번역은 표시 문자열에만 적용하고 ID/관계에는 적용하지 않음
+- 번역 endpoint 실패는 warning으로 낮추고 본문 데이터는 유지
+- Item importer
+- Trader importer
+- Map reference importer
+- Quest rule importer
+- Quest objective importer
+- Hideout material importer
+- 각 importer를 GameContentCatalog로 조립하는 `TarkovGameContentImporter`
 
-프로필 하나 = 실제 Tarkov 캐릭터 하나.
+### 의미 기반 Quest material 변환 — 구현됨
 
-- game mode
-- level/faction/edition/prestige
-- 필요한 trader progress
-- completed quests
-- hideout levels
-- item inventory(FIR/non-FIR)
+현재 분류:
 
-### Derived State
+- `giveItem` → 실제 제출 requirement
+- `findItem / collect` → 획득/발견 목표
+- `sellItem` → 판매 목표
+- 기타 → Objective에는 보존하되 Needed Items에 자동 합산하지 않음
 
-영구 저장하지 않는 기본 결과:
+Optional submit objective도 기본 필요 재료 합계에는 넣지 않습니다.
 
-- Quest `Locked / Current`
-- Needed Items
-- 남은 수량/집계
+이 분류는 live fixture 검증 단계에서 현재 실제 objective type 전체와 대조합니다.
 
----
+### 콘텐츠 참조 검증 — 구현됨
 
-## 데이터 검증/업데이트 원칙
+`GameContentValidator`가 현재 다음 핵심 관계를 검사합니다.
 
-`CONFIRMED — 큰 틀`
+- Quest → prerequisite Quest
+- Quest → Trader
+- Quest → Map
+- Quest trader condition → Trader
+- Quest Item Requirement → Quest / Item
+- Hideout Item Requirement → Item
 
-업데이트:
+핵심 참조 누락은 Fatal이며 후보 콘텐츠를 활성화할 수 없습니다.
 
-`download → envelope/schema validation → import → reference/semantic validation → candidate DB → DB validation → activation`
+### 콘텐츠 빌드 흐름 — 구현됨
 
-- 후보 DB는 active DB와 별도로 만듭니다.
-- Fatal 오류 시 현재 정상 콘텐츠를 그대로 유지합니다.
-- 한국어 누락 등 표시용 문제는 영어 fallback + warning 가능.
-- 새로운 requirement/objective type이 핵심 계산에 영향을 줄 가능성이 있으면 자동 추측하지 않고 갱신을 막습니다.
-- 대형 패치에서 실제 데이터 수가 크게 바뀔 수 있으므로 고정 row-count 임계치만으로 실패시키지 않습니다.
-- 구조/참조/의미 무결성을 활성화 판단의 핵심으로 사용합니다.
+`TarkovContentBuildService`:
 
-테스트는 세 층으로 분리:
+```text
+Items/Traders/Maps/Tasks/Hideout 다운로드
+→ localized source 준비
+→ canonical import
+→ reference validation
+→ build result
+```
 
-1. deterministic contract fixture
-2. live source contract test
-3. pure domain regression test
+### 콘텐츠 저장 — 구현됨
 
----
+`content.db`는 수십 개 관계 테이블로 Game Content 의미를 다시 복제하지 않습니다.
 
-## 현재 핵심 기능 범위
+검증된 `GameContentCatalog` 전체를 **versioned canonical snapshot**으로 SQLite에 저장합니다.
 
-### API 기반 데이터베이스 업데이트
+이유:
 
-`CONFIRMED`
+- 현재 콘텐츠 규모는 시작 시 메모리 로딩에 충분히 작음
+- Game Content는 온라인에서 통째로 재생성 가능
+- C# model + SQLite relational schema라는 이중 스키마 유지 비용을 피함
 
-Game Content를 온라인에서 받아 검증/변환하고 성공한 콘텐츠만 활성화합니다.
+파일:
 
-### 게임 진행 프로필
+- `content.db` — active
+- `content.candidate.db` — 새 후보
+- `content.previous.db` — 직전 정상본
 
-`CONFIRMED / 큰 틀`
+### 안전한 데이터 업데이트 — 구현됨
 
-게임 모드별 실제 캐릭터 진행을 독립 관리합니다.
+`TarkovContentUpdateService` 흐름:
 
-### 퀘스트
+```text
+old candidate 폐기
+→ 온라인 build
+→ semantic/reference validation
+→ candidate.db 생성
+→ SQLite integrity / deserialize / canonical validation
+→ active 교체
+→ 이전 active는 previous로 보존
+```
 
-`CONFIRMED / 큰 틀`
+candidate 실패 시 active를 건드리지 않습니다.
 
-- 조건을 만족한 미완료 퀘스트 = `Current`
-- 수주 가능은 자동 수락으로 간주
-- `Completed`만 사용자 상태로 저장
-- 시간 지연 해금 제외
+active 읽기 실패 시 previous가 정상이라면 복구하는 경로도 구현했습니다.
 
-### 은신처
+## 테스트 상태
 
-`CONFIRMED / 큰 틀`
+작성된 테스트 범위:
 
-현재 시설 레벨 + 최신 Hideout 정의에서 요구 재료를 계산합니다.
+- Needed Items FIR/일반 계산
+- Quest + Hideout source 집계
+- API game mode/path 계약
+- JSON envelope 계약
+- 한국어/영어 fallback
+- Item importer
+- Hideout item importer
+- Quest prerequisite/status/trader/prestige importer
+- `findItem/sellItem`이 제출 재료로 유출되지 않는지
+- 다른 Quest에서 같은 objective ID 사용 가능
+- 같은 Quest 내부 objective ID 중복 차단
+- canonical reference validation
+- content.db snapshot roundtrip
+- candidate → active 교체 / invalid candidate 보호
 
-### 필요 아이템
+### 검증 주의
 
-`CONFIRMED / 큰 틀`
+현재 실행 환경에는 .NET SDK가 없어 로컬 `dotnet test`를 실행하지 못했습니다.
 
-`Quest Item Requirements + Hideout Item Requirements + User Inventory → Needed Items`
+GitHub CI는 `.NET 10 + Windows`에서 test project를 실행하도록 구성했지만, 현재 연결 도구에서는 push check-run 결과를 직접 확인하지 못했습니다.
 
-출처를 보존하고 FIR/일반을 이중 계산하지 않습니다.
+따라서 **테스트 코드는 작성되었지만 CI 통과를 아직 공식 확인한 상태는 아닙니다.**
 
-### 탄약
+CI 결과를 확인 가능한 경로가 생기면 실패를 먼저 수정하고 다음 구현으로 진행합니다.
 
-`CONFIRMED / 큰 틀`
+## 아직 구현하지 않는 것
 
-최신 성능값과 판매/교환/제작 수급처 관계를 제공합니다.
+- WPF UI
+- Quest 실패/분기 UX
+- Quest 완료 취소 UX
+- 시간 지연 해금
+- Item 자동 차감
+- Hideout 필요량 기본 범위 UX
+- 지도
+- Scanner
+- 기존 Tarkov-Helper 호환 migration
 
----
+## 바로 다음 구현 순서
 
-## 지도 / Scanner
-
-핵심 시스템 이후의 독립 기능입니다.
-
-- 지도/Scanner는 핵심 기능을 조회할 수 있음
-- 핵심 Quest/Hideout/NeededItem/Ammo 시스템은 지도/Scanner 존재를 몰라야 함
-
----
-
-## 지금 미루는 세부사항
-
-- 구체적인 UI 레이아웃
-- 완료 취소/오입력 복구
-- 실패/분기형 퀘스트의 세부 UX
-- Item 자동 차감 정책
-- 은신처 필요 아이템 범위(다음 레벨/전체 미래)의 기본 UX
-- 자동 갱신 주기
-- 상세 프로필 입력 화면
-- 지도/Scanner 구현 방식
-
----
-
-## 바로 다음 행동
-
-1. 데스크톱 앱 기술 스택을 유지보수 철학 기준으로 최소 구성으로 확정합니다.
-2. 프로젝트 구조를 단순한 책임 경계에 맞춰 설계합니다.
-3. 가장 먼저 `Game Content Import/Validation` 기반을 구현합니다.
-4. 실제 `json.tarkov.dev` 응답을 fixture로 저장해 raw 계약을 고정합니다.
-5. Quest/Hideout/Item의 canonical importer부터 구현하고 테스트합니다.
-6. 그 위에 User Progress와 순수 Quest/NeededItem 계산을 추가합니다.
-7. UI는 핵심 계산이 검증된 뒤 붙입니다.
+1. 현재 작성된 Core/Infrastructure의 실제 컴파일·테스트 실패가 있으면 우선 수정
+2. 실제 `json.tarkov.dev` 응답 fixture 확보 및 importer contract 고정
+3. 실제 objective type 전체를 대조해 Quest material semantic 분류 검증
+4. Ammo raw fields + trader/barter/craft 관계 importer 구현
+5. Quest availability evaluator 구현
+   - 현재 확정된 조건부터
+   - Failed 분기는 사용자 UX 결정 전까지 별도 처리
+6. `user.db` 최소 저장 구조 구현
+7. Game Content + User Progress + Domain 계산이 모두 검증된 뒤 Desktop/WPF 시작
 
 ## 마지막 갱신
 
-2026-08-08 — 최신 `json.tarkov.dev` endpoint catalog 및 TarkovTracker 운영 소비 코드를 대조하여 퀘스트·은신처·아이템·탄약/수급 관계 원천의 큰 틀을 검증. `DATA_MODEL.md`, `DATA_VALIDATION.md`, `DATA_SOURCE_AUDIT.md`를 추가하고 최소 canonical model, 의미 기반 objective 변환, 안전한 candidate activation, deterministic/live/domain 3층 테스트 전략을 확정.
+2026-08-08 — 핵심 데이터 기반 구현 시작. 최소 Core 모델/Needed Items 계산, json.tarkov.dev client와 canonical importer, 의미 기반 Quest material 분리, 콘텐츠 참조 검증, versioned snapshot SQLite 저장, candidate/active/previous 안전 교체 흐름을 구현. UI는 아직 시작하지 않음.
