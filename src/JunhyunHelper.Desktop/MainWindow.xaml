@@ -35,8 +35,6 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
                 <TextBlock Grid.Column="0"
@@ -82,7 +80,7 @@
 
                 <ComboBox x:Name="ProfileComboBox"
                           Grid.Column="6"
-                          Width="180"
+                          Width="210"
                           Margin="0,0,8,0"
                           SelectionChanged="ProfileComboBox_SelectionChanged" />
 
@@ -92,21 +90,8 @@
                         Margin="0,0,8,0"
                         Click="EditProfileButton_Click" />
 
-                <Button x:Name="DeleteProfileButton"
-                        Grid.Column="8"
-                        Content="프로필 삭제"
-                        Margin="0,0,8,0"
-                        IsEnabled="{Binding IsEnabled, ElementName=EditProfileButton}"
-                        Click="DeleteProfileButton_Click" />
-
-                <Button x:Name="CreateProfileButton"
-                        Grid.Column="9"
-                        Content="새 프로필"
-                        Margin="0,0,8,0"
-                        Click="CreateProfileButton_Click" />
-
                 <Button x:Name="UpdateDataButton"
-                        Grid.Column="10"
+                        Grid.Column="8"
                         Content="데이터 업데이트"
                         Click="UpdateDataButton_Click" />
             </Grid>
