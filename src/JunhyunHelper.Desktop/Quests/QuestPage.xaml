@@ -150,7 +150,7 @@
                             <TextBlock x:Name="DetailMeta" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,12" />
 
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,18">
-                                <Button x:Name="WikiButton" Content="Wiki" Margin="0,0,8,0" Click="WikiButton_Click" />
+                                <Button x:Name="WikiButton" Content="위키" Margin="0,0,8,0" Click="WikiButton_Click" />
                                 <Button x:Name="PrimaryActionButton" Margin="0,0,8,0" Click="PrimaryActionButton_Click" />
                                 <Button x:Name="FailureActionButton" Visibility="Collapsed" Click="FailureActionButton_Click" />
                             </StackPanel>
