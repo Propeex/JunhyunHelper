@@ -25,9 +25,27 @@ Game Content는 어차피 새 API 데이터로 통째로 재생성할 수 있으
 
 초기 준현 헬퍼에서는 canonical model이 데이터 의미의 유일한 내부 계약입니다.
 
-## 3. content.db
+## 3. 모드별 content.db
 
-`content.db`는 SQLite 파일이지만 내부에는 한 번의 검증된 콘텐츠 스냅샷을 저장합니다.
+게임 모드별 원천 데이터는 서로 다를 수 있으므로 한 개의 active DB를 공유하지 않습니다.
+
+```text
+content/
+  regular/
+    content.db
+    content.candidate.db
+    content.previous.db
+  pve/
+    content.db
+    content.candidate.db
+    content.previous.db
+  pvp-season/
+    content.db
+    content.candidate.db
+    content.previous.db
+```
+
+각 `content.db`는 SQLite 파일이지만 내부에는 해당 게임 모드의 검증된 콘텐츠 스냅샷 하나를 저장합니다.
 
 현재 최소 메타데이터:
 
@@ -46,7 +64,7 @@ SQLite를 사용하는 이유:
 
 제품 기능은 SQLite JSON을 직접 질의하지 않습니다.
 
-시작 시 snapshot을 읽어 canonical `GameContentCatalog`로 복원하고 Core 계산이 그 객체를 사용합니다.
+선택된 프로필의 게임 모드에 맞는 snapshot을 읽어 canonical `GameContentCatalog`로 복원하고 Core 계산이 그 객체를 사용합니다.
 
 ## 4. 내부 schema version
 
@@ -60,7 +78,7 @@ Game Content는 온라인에서 재생성 가능하므로 새 스키마로 다�
 
 ## 5. 안전한 활성화
 
-파일:
+각 게임 모드 디렉터리에는 다음 세 파일만 둡니다.
 
 - `content.db` — 현재 active
 - `content.candidate.db` — 새로 빌드한 후보
@@ -69,22 +87,26 @@ Game Content는 온라인에서 재생성 가능하므로 새 스키마로 다�
 업데이트:
 
 ```text
-API download
+해당 game mode API download
   → canonical import
   → semantic/reference validation
-  → content.candidate.db 작성
+  → 해당 mode의 content.candidate.db 작성
   → SQLite integrity + deserialize + canonical validation
-  → active와 파일 교체
+  → 같은 mode의 active와 파일 교체
   → 기존 active는 previous로 보존
 ```
 
-candidate가 검증에 실패하면 active는 건드리지 않습니다.
+candidate가 검증에 실패하면 해당 모드의 active는 건드리지 않습니다.
+
+PvP 콘텐츠 업데이트가 PvE/시즌 콘텐츠 파일을 수정해서는 안 되며 반대도 동일합니다.
+
+candidate 내부의 `GameMode`가 저장 경로의 기대 모드와 다르면 활성화를 거부합니다.
 
 가능한 경우 `File.Replace`를 사용해 같은 볼륨 안에서 active/candidate 교체를 단순한 파일 연산으로 처리합니다.
 
 ## 6. 시작 시 복구
 
-active를 읽고 SQLite/canonical 검증에 실패했으며 previous가 정상이라면 previous를 active로 복구합니다.
+선택된 게임 모드의 active를 읽고 SQLite/canonical 검증에 실패했으며 같은 모드의 previous가 정상이라면 previous를 active로 복구합니다.
 
 candidate는 프로그램 시작 시 자동으로 active가 되지 않습니다.
 
@@ -92,7 +114,7 @@ candidate는 프로그램 시작 시 자동으로 active가 되지 않습니다.
 
 ## 7. 사용자 진행과 분리
 
-`content.db`를 삭제하거나 교체해도 `user.db`는 영향을 받지 않습니다.
+Game Content 파일을 삭제하거나 교체해도 `user.db`는 영향을 받지 않습니다.
 
 사용자 진행은 stable game IDs로 Game Content를 참조합니다.
 
