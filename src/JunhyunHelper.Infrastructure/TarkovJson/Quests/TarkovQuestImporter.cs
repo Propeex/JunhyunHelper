@@ -28,6 +28,7 @@ public sealed class TarkovQuestImporter
                 throw new InvalidDataException($"Duplicate quest id '{taskId}'.");
 
             var name = localization.Resolve(TarkovJsonReader.OptionalString(rawTask, "name"));
+            var traderRequirements = ReadTraderRequirements(rawTask, taskId);
 
             result.Add(new QuestDefinition(
                 taskId,
@@ -44,8 +45,8 @@ public sealed class TarkovQuestImporter
                 ParseFaction(TarkovJsonReader.OptionalString(rawTask, "factionName"), taskId),
                 ResolveRequiredPrestige(rawTask, prestigeLevels, taskId),
                 ReadTaskRequirements(rawTask, taskId),
-                ReadTraderStandingRequirements(rawTask, taskId),
-                ReadTraderLoyaltyRequirements(rawTask, taskId)));
+                traderRequirements.Standing,
+                traderRequirements.Loyalty));
         }
 
         return result;
@@ -208,60 +209,90 @@ public sealed class TarkovQuestImporter
         return result;
     }
 
-    private static IReadOnlyList<QuestTraderStandingRequirement> ReadTraderStandingRequirements(
+    private static ParsedTraderRequirements ReadTraderRequirements(
         JsonElement task,
         string taskId)
     {
         if (!task.TryGetProperty("traderRequirements", out var rawRequirements) ||
             rawRequirements.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
         {
-            return Array.Empty<QuestTraderStandingRequirement>();
+            return new ParsedTraderRequirements(
+                Array.Empty<QuestTraderStandingRequirement>(),
+                Array.Empty<QuestTraderLoyaltyRequirement>());
         }
 
-        return TarkovJsonReader.ReadCollectionValue(
-                rawRequirements,
-                $"quest {taskId} trader requirements")
-            .Select(raw =>
-            {
-                var traderId = ReadRequiredReference(raw, "trader", taskId, "trader standing");
-                var standing = TarkovJsonReader.RequiredDecimal(
-                    raw,
-                    "value",
-                    $"Quest '{taskId}' trader standing requirement");
-                var comparison = standing < 0
-                    ? StandingRequirementOperator.AtMost
-                    : StandingRequirementOperator.AtLeast;
-                return new QuestTraderStandingRequirement(traderId, standing, comparison);
-            })
-            .ToArray();
-    }
+        var standing = new List<QuestTraderStandingRequirement>();
+        var loyalty = new List<QuestTraderLoyaltyRequirement>();
 
-    private static IReadOnlyList<QuestTraderLoyaltyRequirement> ReadTraderLoyaltyRequirements(
-        JsonElement task,
-        string taskId)
-    {
-        if (!task.TryGetProperty("traderLevelRequirements", out var rawRequirements) ||
-            rawRequirements.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        foreach (var raw in TarkovJsonReader.ReadCollectionValue(
+                     rawRequirements,
+                     $"quest {taskId} trader requirements"))
         {
-            return Array.Empty<QuestTraderLoyaltyRequirement>();
+            if (raw.ValueKind != JsonValueKind.Object)
+                throw new InvalidDataException($"Quest '{taskId}' has invalid trader requirement.");
+
+            var traderId = ReadRequiredReference(raw, "trader", taskId, "trader requirement");
+            var requirementType = TarkovJsonReader.RequiredString(
+                    raw,
+                    "requirementType",
+                    $"Quest '{taskId}' trader requirement")
+                .Trim()
+                .ToLowerInvariant();
+            var compareMethod = TarkovJsonReader.RequiredString(
+                    raw,
+                    "compareMethod",
+                    $"Quest '{taskId}' trader requirement")
+                .Trim();
+            var value = TarkovJsonReader.RequiredDecimal(
+                raw,
+                "value",
+                $"Quest '{taskId}' trader requirement");
+
+            switch (requirementType)
+            {
+                case "reputation":
+                    standing.Add(new QuestTraderStandingRequirement(
+                        traderId,
+                        value,
+                        ParseStandingOperator(compareMethod, taskId, traderId)));
+                    break;
+
+                case "level":
+                    if (compareMethod != ">=")
+                    {
+                        throw new InvalidDataException(
+                            $"Quest '{taskId}' trader level requirement for '{traderId}' uses unsupported compare method '{compareMethod}'.");
+                    }
+
+                    if (value < 0 || value != decimal.Truncate(value) || value > int.MaxValue)
+                    {
+                        throw new InvalidDataException(
+                            $"Quest '{taskId}' trader level requirement for '{traderId}' has invalid value '{value}'.");
+                    }
+
+                    loyalty.Add(new QuestTraderLoyaltyRequirement(traderId, decimal.ToInt32(value)));
+                    break;
+
+                default:
+                    throw new InvalidDataException(
+                        $"Quest '{taskId}' has unsupported trader requirement type '{requirementType}'.");
+            }
         }
 
-        return TarkovJsonReader.ReadCollectionValue(
-                rawRequirements,
-                $"quest {taskId} trader loyalty requirements")
-            .Select(raw =>
-            {
-                var traderId = ReadRequiredReference(raw, "trader", taskId, "trader loyalty");
-                var level = TarkovJsonReader.RequiredInt(
-                    raw,
-                    "level",
-                    $"Quest '{taskId}' trader loyalty requirement");
-                if (level < 0)
-                    throw new InvalidDataException($"Quest '{taskId}' has negative trader loyalty level.");
-                return new QuestTraderLoyaltyRequirement(traderId, level);
-            })
-            .ToArray();
+        return new ParsedTraderRequirements(standing, loyalty);
     }
+
+    private static StandingRequirementOperator ParseStandingOperator(
+        string compareMethod,
+        string taskId,
+        string traderId) => compareMethod switch
+    {
+        ">=" => StandingRequirementOperator.AtLeast,
+        "<=" => StandingRequirementOperator.AtMost,
+        "<" => StandingRequirementOperator.LessThan,
+        _ => throw new InvalidDataException(
+            $"Quest '{taskId}' trader reputation requirement for '{traderId}' uses unsupported compare method '{compareMethod}'."),
+    };
 
     private static string? ReadOptionalReference(JsonElement entity, string propertyName, string taskId)
     {
@@ -291,4 +322,8 @@ public sealed class TarkovQuestImporter
             throw new InvalidDataException($"Quest '{taskId}' has invalid {description} reference.");
         return id;
     }
+
+    private sealed record ParsedTraderRequirements(
+        IReadOnlyList<QuestTraderStandingRequirement> Standing,
+        IReadOnlyList<QuestTraderLoyaltyRequirement> Loyalty);
 }
