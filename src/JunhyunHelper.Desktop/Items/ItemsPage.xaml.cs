@@ -108,7 +108,7 @@ public partial class ItemsPage : UserControl
         itemIds.UnionWith(cleanupById.Keys);
         itemIds.UnionWith(workspace.Profile.Inventory.Keys);
         itemIds.UnionWith(protectionsById.Keys.Where(workspace.Profile.Inventory.ContainsKey));
-        itemIds.UnionWith(flexibleByItemId.Keys.Where(workspace.Profile.Inventory.ContainsKey));
+        itemIds.UnionWith(flexibleByItemId.Keys);
 
         return itemIds
             .Select(itemId =>
