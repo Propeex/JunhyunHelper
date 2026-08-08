@@ -3,10 +3,48 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="프로필 설정"
         Width="720"
-        Height="720"
+        Height="760"
         MinWidth="620"
-        MinHeight="600"
+        MinHeight="620"
         WindowStartupLocation="CenterOwner">
+    <Window.Resources>
+        <DataTemplate x:Key="TraderLoyaltyRowTemplate">
+            <Border Background="{StaticResource BackgroundMediumBrush}"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    Padding="10,7"
+                    Margin="0,0,0,6">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="220" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding Name}"
+                               VerticalAlignment="Center"
+                               FontWeight="SemiBold" />
+                    <Grid Grid.Column="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="42" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="42" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0"
+                                Content="−"
+                                Click="TraderLoyaltyMinusButton_Click" />
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding LoyaltyDisplay}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" />
+                        <Button Grid.Column="2"
+                                Content="+"
+                                Click="TraderLoyaltyPlusButton_Click" />
+                    </Grid>
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </Window.Resources>
+
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -25,159 +63,160 @@
                        Margin="0,5,0,0" />
         </StackPanel>
 
-        <Grid Grid.Row="1" Margin="0,0,0,18">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="190" />
-                <ColumnDefinition Width="22" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="190" />
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
-
-            <TextBlock Grid.Row="0" Grid.Column="0"
-                       Text="레벨"
-                       VerticalAlignment="Center"
-                       Margin="0,0,10,10" />
-            <Grid Grid.Row="0" Grid.Column="1" Margin="0,0,0,10">
+        <StackPanel Grid.Row="1" Margin="0,0,0,18">
+            <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="42" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="42" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="190" />
+                    <ColumnDefinition Width="22" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="190" />
                 </Grid.ColumnDefinitions>
-                <Button Grid.Column="0" Content="−" Click="LevelMinusButton_Click" />
-                <Border Grid.Column="1"
-                        Background="{StaticResource BackgroundDarkBrush}"
-                        BorderBrush="{StaticResource BorderBrush}"
-                        BorderThickness="1"
-                        Margin="6,0"
-                        CornerRadius="6">
-                    <TextBlock x:Name="LevelValueText"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center"
-                               FontWeight="SemiBold" />
-                </Border>
-                <Button Grid.Column="2" Content="+" Click="LevelPlusButton_Click" />
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0"
+                           Text="레벨"
+                           VerticalAlignment="Center"
+                           Margin="0,0,10,10" />
+                <Grid Grid.Row="0" Grid.Column="1" Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="42" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="42" />
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="−" Click="LevelMinusButton_Click" />
+                    <Border Grid.Column="1"
+                            Background="{StaticResource BackgroundDarkBrush}"
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1"
+                            Margin="6,0"
+                            CornerRadius="6">
+                        <TextBlock x:Name="LevelValueText"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   FontWeight="SemiBold" />
+                    </Border>
+                    <Button Grid.Column="2" Content="+" Click="LevelPlusButton_Click" />
+                </Grid>
+
+                <TextBlock Grid.Row="0" Grid.Column="3"
+                           Text="진영"
+                           VerticalAlignment="Center"
+                           Margin="0,0,10,10" />
+                <ComboBox x:Name="FactionComboBox"
+                          Grid.Row="0" Grid.Column="4"
+                          Margin="0,0,0,10" />
+
+                <TextBlock Grid.Row="1" Grid.Column="0"
+                           Text="에디션"
+                           VerticalAlignment="Center"
+                           Margin="0,0,10,0" />
+                <ComboBox x:Name="EditionComboBox"
+                          Grid.Row="1" Grid.Column="1" />
+
+                <TextBlock Grid.Row="1" Grid.Column="3"
+                           Text="프레스티지"
+                           VerticalAlignment="Center"
+                           Margin="0,0,10,0" />
+                <Grid Grid.Row="1" Grid.Column="4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="42" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="42" />
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="−" Click="PrestigeMinusButton_Click" />
+                    <Border Grid.Column="1"
+                            Background="{StaticResource BackgroundDarkBrush}"
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1"
+                            Margin="6,0"
+                            CornerRadius="6">
+                        <TextBlock x:Name="PrestigeValueText"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   FontWeight="SemiBold" />
+                    </Border>
+                    <Button Grid.Column="2" Content="+" Click="PrestigePlusButton_Click" />
+                </Grid>
             </Grid>
 
-            <TextBlock Grid.Row="0" Grid.Column="3"
-                       Text="진영"
-                       VerticalAlignment="Center"
-                       Margin="0,0,10,10" />
-            <ComboBox x:Name="FactionComboBox"
-                      Grid.Row="0" Grid.Column="4"
-                      Margin="0,0,0,10" />
-
-            <TextBlock Grid.Row="1" Grid.Column="0"
-                       Text="에디션"
-                       VerticalAlignment="Center"
-                       Margin="0,0,10,0" />
-            <ComboBox x:Name="EditionComboBox"
-                      Grid.Row="1" Grid.Column="1" />
-
-            <TextBlock Grid.Row="1" Grid.Column="3"
-                       Text="프레스티지"
-                       VerticalAlignment="Center"
-                       Margin="0,0,10,0" />
-            <Grid Grid.Row="1" Grid.Column="4">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="42" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="42" />
-                </Grid.ColumnDefinitions>
-                <Button Grid.Column="0" Content="−" Click="PrestigeMinusButton_Click" />
-                <Border Grid.Column="1"
-                        Background="{StaticResource BackgroundDarkBrush}"
-                        BorderBrush="{StaticResource BorderBrush}"
-                        BorderThickness="1"
-                        Margin="6,0"
-                        CornerRadius="6">
-                    <TextBlock x:Name="PrestigeValueText"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center"
-                               FontWeight="SemiBold" />
-                </Border>
-                <Button Grid.Column="2" Content="+" Click="PrestigePlusButton_Click" />
-            </Grid>
-        </Grid>
+            <Border x:Name="FencePanel"
+                    Background="{StaticResource BackgroundMediumBrush}"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="12"
+                    Margin="0,14,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="220" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="펜스 우호도" FontWeight="SemiBold" FontSize="15" />
+                        <TextBlock Text="Scav 우호도 · 0.1 단위"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   FontSize="11"
+                                   Margin="0,3,0,0" />
+                    </StackPanel>
+                    <Grid Grid.Column="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="42" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="42" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0"
+                                Content="−"
+                                Click="TraderStandingMinusButton_Click" />
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding StandingDisplay}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   FontWeight="SemiBold" />
+                        <Button Grid.Column="2"
+                                Content="+"
+                                Click="TraderStandingPlusButton_Click" />
+                    </Grid>
+                </Grid>
+            </Border>
+        </StackPanel>
 
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
             <StackPanel>
                 <TextBlock Text="상인 진행 상태"
                            FontWeight="SemiBold"
                            FontSize="16" />
-                <TextBlock Text="일반 상인은 LL만 기록합니다. Fence는 Scav 우호도를 0.1 단위로 기록합니다."
+                <TextBlock Text="핵심 상인은 인게임 상인 탭 순서로 LL만 기록합니다."
                            Foreground="{StaticResource TextSecondaryBrush}"
                            FontSize="12"
                            Margin="0,4,0,10" />
 
-                <ItemsControl x:Name="TraderItems">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border Background="{StaticResource BackgroundMediumBrush}"
-                                    BorderBrush="{StaticResource BorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="6"
-                                    Padding="10,7"
-                                    Margin="0,0,0,6">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="220" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="{Binding Name}"
-                                               VerticalAlignment="Center"
-                                               FontWeight="SemiBold" />
-                                    <Grid Grid.Column="1"
-                                          Visibility="{Binding LoyaltyVisibility}">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="42" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="42" />
-                                        </Grid.ColumnDefinitions>
-                                        <Button Grid.Column="0"
-                                                Content="−"
-                                                Click="TraderLoyaltyMinusButton_Click" />
-                                        <TextBlock Grid.Column="1"
-                                                   Text="{Binding LoyaltyDisplay}"
-                                                   HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center" />
-                                        <Button Grid.Column="2"
-                                                Content="+"
-                                                Click="TraderLoyaltyPlusButton_Click" />
-                                    </Grid>
-                                    <Grid Grid.Column="1"
-                                          Visibility="{Binding FenceStandingVisibility}">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="42" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="42" />
-                                        </Grid.ColumnDefinitions>
-                                        <Button Grid.Column="0"
-                                                Content="−"
-                                                Click="TraderStandingMinusButton_Click" />
-                                        <TextBlock Grid.Column="1"
-                                                   Text="{Binding StandingDisplay}"
-                                                   HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center" />
-                                        <Button Grid.Column="2"
-                                                Content="+"
-                                                Click="TraderStandingPlusButton_Click" />
-                                    </Grid>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                <TextBlock Text="핵심 상인"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,7" />
+                <ItemsControl x:Name="TraderItems"
+                              ItemTemplate="{StaticResource TraderLoyaltyRowTemplate}" />
+
+                <StackPanel x:Name="SpecialTraderPanel" Margin="0,12,0,0">
+                    <TextBlock Text="특별"
+                               FontWeight="SemiBold"
+                               Margin="0,0,0,4" />
+                    <TextBlock Text="등대지기 등 일반 상인 탭과 분리해서 보는 특수 상인입니다."
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="11"
+                               Margin="0,0,0,7" />
+                    <ItemsControl x:Name="SpecialTraderItems"
+                                  ItemTemplate="{StaticResource TraderLoyaltyRowTemplate}" />
+                </StackPanel>
 
                 <Expander x:Name="AdvancedStandingExpander"
-                          Header="고급 · 퀘스트 판정용 일반 상인 우호도"
-                          Margin="0,8,0,0">
+                          Header="고급 · 퀘스트 판정용 상인 우호도"
+                          Margin="0,12,0,0">
                     <StackPanel Margin="0,8,0,0">
-                        <TextBlock Text="일부 특수 퀘스트는 LL과 별도로 상인 우호도를 요구합니다. 모르는 값은 입력하지 않아도 되며, 그 퀘스트만 판정 문제로 남습니다."
+                        <TextBlock Text="일부 특수 퀘스트는 LL과 별도로 상인 우호도를 요구합니다. 모르는 값은 입력하지 않아도 됩니다."
                                    TextWrapping="Wrap"
                                    Foreground="{StaticResource TextSecondaryBrush}"
                                    FontSize="12"
