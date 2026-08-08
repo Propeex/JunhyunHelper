@@ -62,7 +62,7 @@ content/
 
 ## CI package 계약
 
-main push의 정상 CI에서 다음을 순서대로 실행합니다.
+정상 CI에서 다음을 순서대로 실행합니다.
 
 1. Release Desktop build
 2. 전체 테스트
@@ -74,6 +74,13 @@ main push의 정상 CI에서 다음을 순서대로 실행합니다.
 
 빌드 또는 테스트가 실패하면 package를 만들지 않습니다.
 
+Artifact 보존 정책:
+
+- Pull Request 검증 빌드: 3일
+- main 빌드: 14일
+
+PR artifact는 실제 publish/ZIP 생성까지 검증하고 개발자가 실행본을 직접 회수하기 위한 후보 빌드입니다. 사용자에게 정식으로 전달할 기준은 검증된 main 상태와 제품 코드가 동일한 빌드입니다.
+
 ## 첫 실사용 전 확인 범위
 
 자동 검증:
@@ -83,6 +90,7 @@ main push의 정상 CI에서 다음을 순서대로 실행합니다.
 - publish 성공
 - `JunhyunHelper.exe` 생성 확인
 - ZIP 생성 확인
+- artifact 업로드 확인
 
 사용자 PC 실사용에서 확인할 항목:
 
