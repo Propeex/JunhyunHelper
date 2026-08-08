@@ -1,5 +1,6 @@
 using JunhyunHelper.Core.Ammo;
 using JunhyunHelper.Core.Content;
+using JunhyunHelper.Core.Editions;
 
 namespace JunhyunHelper.Infrastructure.Validation;
 
@@ -130,6 +131,7 @@ public sealed class GameContentValidator
             stationIds,
             questIds,
             issues);
+        ValidateEditions(content.Editions, questIds, issues);
 
         return new ContentValidationResult(issues);
     }
@@ -204,6 +206,60 @@ public sealed class GameContentValidator
                 }
             }
         }
+    }
+
+    private static void ValidateEditions(
+        IEnumerable<EditionDefinition> editions,
+        IReadOnlySet<string> questIds,
+        ICollection<ContentValidationIssue> issues)
+    {
+        var editionIds = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var edition in editions)
+        {
+            if (string.IsNullOrWhiteSpace(edition.Id) || string.IsNullOrWhiteSpace(edition.Title))
+            {
+                Fatal(issues, "edition.invalid", "Edition id and title must be non-empty.");
+                continue;
+            }
+
+            if (!editionIds.Add(edition.Id))
+            {
+                Fatal(
+                    issues,
+                    "edition.duplicate",
+                    $"Edition '{edition.Id}' appears more than once.");
+            }
+
+            foreach (var questId in edition.ExclusiveQuestIds.Intersect(
+                         edition.ExcludedQuestIds,
+                         StringComparer.Ordinal))
+            {
+                Fatal(
+                    issues,
+                    "edition.quest-rule.conflict",
+                    $"Edition '{edition.Id}' marks quest '{questId}' as both exclusive and excluded.");
+            }
+
+            foreach (var questId in edition.ExclusiveQuestIds.Concat(edition.ExcludedQuestIds).Distinct(StringComparer.Ordinal))
+            {
+                if (!questIds.Contains(questId))
+                {
+                    Warning(
+                        issues,
+                        "edition.quest.missing-in-mode",
+                        $"Edition '{edition.Id}' references quest '{questId}' that is absent from this game-mode catalog.");
+                }
+            }
+        }
+    }
+
+    private static void Warning(
+        ICollection<ContentValidationIssue> issues,
+        string code,
+        string message)
+    {
+        issues.Add(new ContentValidationIssue(ContentValidationSeverity.Warning, code, message));
     }
 
     private static void Fatal(
