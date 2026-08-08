@@ -110,7 +110,7 @@
 - caliber selector 유지
 - column visibility popup/menu 추가
 - 체크를 끈 column은 main table에서 숨기되 detail에는 계속 표시
-- 기본/강제 row order는 penetration power ascending, 동률은 name
+- 기본/강제 row order는 **penetration power ascending → damage ascending → name** 순으로 고정한다.
 
 ### Armor class effectiveness 1~6
 
@@ -125,6 +125,8 @@
 - Fandom HTML을 매 update마다 무검증 scrape하는 방식도 금지
 - 동일한 0~6 결과를 결정론적으로 재현할 공식/검증 가능한 계산 또는 명시적 overlay source를 먼저 확정한다.
 - 구현되면 class 1~6 각각 숫자 + 단계별 색상 cell을 표시하며 derived guideline임을 문서화한다.
+
+상세 조사와 공식은 `docs/BALLISTICS_EFFECTIVENESS_ANALYSIS.md`에서 관리한다.
 
 ## 11. Trader/Map display order
 
