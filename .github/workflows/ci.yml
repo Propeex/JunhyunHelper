@@ -24,3 +24,12 @@ jobs:
 
       - name: Test core
         run: dotnet test tests/JunhyunHelper.Tests/JunhyunHelper.Tests.csproj --configuration Release
+
+      - name: Upload source snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: junhyun-helper-source-snapshot
+          path: |
+            src
+            tests
+          retention-days: 1
