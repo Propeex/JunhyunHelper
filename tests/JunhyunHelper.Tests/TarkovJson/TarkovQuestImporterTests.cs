@@ -10,7 +10,7 @@ namespace JunhyunHelper.Tests.TarkovJson;
 public sealed class TarkovQuestImporterTests
 {
     [Fact]
-    public void PreservesQuestAvailabilityRuleMeanings()
+    public void PreservesLiveQuestAvailabilityRuleMeanings()
     {
         var document = Document("""
             {
@@ -35,14 +35,16 @@ public sealed class TarkovQuestImporterTests
                     ],
                     "traderRequirements": [
                       {
-                        "trader": "trader-fence",
-                        "value": 1.5
-                      }
-                    ],
-                    "traderLevelRequirements": [
+                        "requirementType": "reputation",
+                        "compareMethod": ">=",
+                        "value": 1.5,
+                        "trader": "trader-fence"
+                      },
                       {
-                        "trader": "trader-prapor",
-                        "level": 3
+                        "requirementType": "level",
+                        "compareMethod": ">=",
+                        "value": 3,
+                        "trader": "trader-prapor"
                       }
                     ]
                   }
@@ -71,17 +73,26 @@ public sealed class TarkovQuestImporterTests
         Assert.Equal(3, Assert.Single(quest.TraderLoyaltyRequirements).RequiredLoyaltyLevel);
     }
 
-    [Fact]
-    public void NegativeTraderStandingBecomesMaximumRequirement()
+    [Theory]
+    [InlineData("<=", StandingRequirementOperator.AtMost)]
+    [InlineData("<", StandingRequirementOperator.LessThan)]
+    public void ReputationComparisonComesFromCompareMethod(
+        string compareMethod,
+        StandingRequirementOperator expectedOperator)
     {
-        var document = Document("""
+        var document = Document($$"""
             {
               "data": {
                 "tasks": [
                   {
                     "id": "quest-a",
                     "traderRequirements": [
-                      { "trader": "trader-fence", "value": -1.0 }
+                      {
+                        "requirementType": "reputation",
+                        "compareMethod": "{{compareMethod}}",
+                        "value": -1.0,
+                        "trader": "trader-fence"
+                      }
                     ]
                   }
                 ]
@@ -94,7 +105,61 @@ public sealed class TarkovQuestImporterTests
 
         var standing = Assert.Single(quest.TraderStandingRequirements);
         Assert.Equal(-1.0m, standing.RequiredStanding);
-        Assert.Equal(StandingRequirementOperator.AtMost, standing.Operator);
+        Assert.Equal(expectedOperator, standing.Operator);
+    }
+
+    [Fact]
+    public void UnknownTraderRequirementTypeIsFatalInsteadOfGuessed()
+    {
+        var document = Document("""
+            {
+              "data": {
+                "tasks": [
+                  {
+                    "id": "quest-a",
+                    "traderRequirements": [
+                      {
+                        "requirementType": "futureType",
+                        "compareMethod": ">=",
+                        "value": 1,
+                        "trader": "trader-fence"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+            """);
+
+        Assert.Throws<InvalidDataException>(() =>
+            new TarkovQuestImporter().Import(document, new TarkovLocalization()));
+    }
+
+    [Fact]
+    public void UnknownTraderCompareMethodIsFatalInsteadOfGuessed()
+    {
+        var document = Document("""
+            {
+              "data": {
+                "tasks": [
+                  {
+                    "id": "quest-a",
+                    "traderRequirements": [
+                      {
+                        "requirementType": "reputation",
+                        "compareMethod": "!=",
+                        "value": 1,
+                        "trader": "trader-fence"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+            """);
+
+        Assert.Throws<InvalidDataException>(() =>
+            new TarkovQuestImporter().Import(document, new TarkovLocalization()));
     }
 
     [Fact]
