@@ -46,6 +46,17 @@ public sealed class GameContentValidator
                 }
             }
 
+            foreach (var failureCondition in quest.CompletionFailureConditions)
+            {
+                if (!questIds.Contains(failureCondition.TriggerQuestId))
+                {
+                    Fatal(
+                        issues,
+                        "quest.failure-trigger.missing",
+                        $"Quest '{quest.Id}' references missing failure-trigger quest '{failureCondition.TriggerQuestId}'.");
+                }
+            }
+
             if (quest.TraderId is not null && !traderIds.Contains(quest.TraderId))
             {
                 Fatal(

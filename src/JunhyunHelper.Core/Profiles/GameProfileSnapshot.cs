@@ -22,6 +22,9 @@ public sealed record GameProfileSnapshot
     public IReadOnlySet<string> CompletedQuestIds { get; init; } =
         new HashSet<string>(StringComparer.Ordinal);
 
+    public IReadOnlySet<string> FailedQuestIds { get; init; } =
+        new HashSet<string>(StringComparer.Ordinal);
+
     public IReadOnlyDictionary<string, int> HideoutLevels { get; init; } =
         new Dictionary<string, int>(StringComparer.Ordinal);
 

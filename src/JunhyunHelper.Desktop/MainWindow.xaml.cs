@@ -339,9 +339,14 @@ public partial class MainWindow : Window
 
         try
         {
-            SetBusy(true, e.Action == QuestActionKind.Complete
-                ? "퀘스트 완료를 저장하는 중..."
-                : "퀘스트 완료를 취소하는 중...");
+            SetBusy(true, e.Action switch
+            {
+                QuestActionKind.Complete => "퀘스트 완료를 저장하는 중...",
+                QuestActionKind.UndoCompletion => "퀘스트 완료를 취소하는 중...",
+                QuestActionKind.Fail => "퀘스트 실패를 저장하는 중...",
+                QuestActionKind.UndoFailure => "퀘스트 실패를 취소하는 중...",
+                _ => "퀘스트 진행 상태를 저장하는 중...",
+            });
 
             _ = e.Action switch
             {
@@ -353,15 +358,27 @@ public partial class MainWindow : Window
                     _activeContent,
                     _activeProfile.ProfileId,
                     e.QuestId),
+                QuestActionKind.Fail => await _services.Quests.FailAsync(
+                    _activeContent,
+                    _activeProfile.ProfileId,
+                    e.QuestId),
+                QuestActionKind.UndoFailure => await _services.Quests.UndoFailureAsync(
+                    _activeContent,
+                    _activeProfile.ProfileId,
+                    e.QuestId),
                 _ => throw new ArgumentOutOfRangeException(nameof(e.Action), e.Action, null),
             };
 
             var cleanupChanges = await RefreshActiveWorkspacesAsync(detectCleanupChanges: true);
-            StatusText.Text = BuildProgressChangeStatus(
-                e.Action == QuestActionKind.Complete
-                    ? "퀘스트 완료 저장됨"
-                    : "퀘스트 완료 취소됨",
-                cleanupChanges);
+            var status = e.Action switch
+            {
+                QuestActionKind.Complete => "퀘스트 완료 저장됨",
+                QuestActionKind.UndoCompletion => "퀘스트 완료 취소됨",
+                QuestActionKind.Fail => "퀘스트 실패 저장됨",
+                QuestActionKind.UndoFailure => "퀘스트 실패 취소됨",
+                _ => "퀘스트 진행 상태 저장됨",
+            };
+            StatusText.Text = BuildProgressChangeStatus(status, cleanupChanges);
         }
         catch (Exception exception)
         {

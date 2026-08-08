@@ -5,12 +5,15 @@ public enum QuestAvailabilityState
     Completed,
     Current,
     Locked,
+    Unavailable,
     Indeterminate,
 }
 
 public enum QuestAvailabilityReasonKind
 {
     Disabled,
+    Failed,
+    FailedByQuest,
     MinimumLevel,
     Faction,
     Edition,
@@ -18,8 +21,8 @@ public enum QuestAvailabilityReasonKind
     TraderStanding,
     TraderLoyalty,
     Prerequisite,
+    PrerequisiteUnavailable,
     MissingProfileValue,
-    FailedPrerequisiteStateNotTracked,
     UnsupportedAvailabilityRequirement,
     MissingReferencedQuest,
     DependencyCycle,

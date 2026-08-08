@@ -59,6 +59,68 @@ public sealed class QuestApplicationService
         return BuildWorkspace(content, updated);
     }
 
+    public async Task<QuestWorkspace> FailAsync(
+        GameContentCatalog content,
+        string profileId,
+        string questId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(questId);
+
+        var profile = await LoadRequiredProfileAsync(profileId, cancellationToken);
+        var entry = FindQuest(content, profile, questId);
+        if (entry.Availability.State != QuestAvailabilityState.Current)
+        {
+            throw new InvalidOperationException(
+                $"Quest '{questId}' can only be failed while it is Current, but it is '{entry.Availability.State}'.");
+        }
+
+        if (!entry.Quest.RequiresExplicitFailureInput)
+        {
+            throw new InvalidOperationException(
+                $"Quest '{questId}' does not require manual permanent-failure input.");
+        }
+
+        var failed = new HashSet<string>(profile.FailedQuestIds, StringComparer.Ordinal)
+        {
+            questId,
+        };
+        var updated = profile with { FailedQuestIds = failed };
+
+        await _profileStore.SaveAsync(updated, cancellationToken);
+        return BuildWorkspace(content, updated);
+    }
+
+    public async Task<QuestWorkspace> UndoFailureAsync(
+        GameContentCatalog content,
+        string profileId,
+        string questId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(questId);
+
+        var profile = await LoadRequiredProfileAsync(profileId, cancellationToken);
+        if (!profile.FailedQuestIds.Contains(questId))
+        {
+            throw new InvalidOperationException(
+                $"Quest '{questId}' is not explicitly failed in profile '{profileId}'.");
+        }
+
+        if (!content.Quests.Any(quest => string.Equals(quest.Id, questId, StringComparison.Ordinal)))
+            throw new KeyNotFoundException($"Quest '{questId}' does not exist in the active game content.");
+
+        var failed = new HashSet<string>(profile.FailedQuestIds, StringComparer.Ordinal);
+        failed.Remove(questId);
+        var updated = profile with { FailedQuestIds = failed };
+
+        await _profileStore.SaveAsync(updated, cancellationToken);
+        return BuildWorkspace(content, updated);
+    }
+
     public async Task<QuestWorkspace> UndoCompletionAsync(
         GameContentCatalog content,
         string profileId,

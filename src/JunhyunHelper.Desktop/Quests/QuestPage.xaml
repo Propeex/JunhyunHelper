@@ -145,7 +145,11 @@
                                         Margin="0,0,8,0"
                                         Click="WikiButton_Click" />
                                 <Button x:Name="PrimaryActionButton"
+                                        Margin="0,0,8,0"
                                         Click="PrimaryActionButton_Click" />
+                                <Button x:Name="FailureActionButton"
+                                        Visibility="Collapsed"
+                                        Click="FailureActionButton_Click" />
                             </StackPanel>
 
                             <TextBlock Text="목표" FontWeight="SemiBold" Margin="0,0,0,6" />

@@ -183,6 +183,10 @@ public sealed class UserProfileStore
 
         if (profile.CompletedQuestIds.Any(string.IsNullOrWhiteSpace))
             throw new InvalidDataException("Completed quest ids cannot contain empty values.");
+        if (profile.FailedQuestIds.Any(string.IsNullOrWhiteSpace))
+            throw new InvalidDataException("Failed quest ids cannot contain empty values.");
+        if (profile.CompletedQuestIds.Overlaps(profile.FailedQuestIds))
+            throw new InvalidDataException("A quest cannot be both completed and explicitly failed.");
     }
 
     private sealed record ProfileDocument
@@ -196,6 +200,7 @@ public sealed class UserProfileStore
         public Dictionary<string, TraderProgress> Traders { get; init; } =
             new(StringComparer.Ordinal);
         public string[] CompletedQuestIds { get; init; } = [];
+        public string[] FailedQuestIds { get; init; } = [];
         public Dictionary<string, int> HideoutLevels { get; init; } =
             new(StringComparer.Ordinal);
         public Dictionary<string, InventoryQuantity> Inventory { get; init; } =
@@ -212,6 +217,7 @@ public sealed class UserProfileStore
                 PrestigeLevel = snapshot.PrestigeLevel,
                 Traders = new Dictionary<string, TraderProgress>(snapshot.Traders, StringComparer.Ordinal),
                 CompletedQuestIds = snapshot.CompletedQuestIds.Order(StringComparer.Ordinal).ToArray(),
+                FailedQuestIds = snapshot.FailedQuestIds.Order(StringComparer.Ordinal).ToArray(),
                 HideoutLevels = new Dictionary<string, int>(snapshot.HideoutLevels, StringComparer.Ordinal),
                 Inventory = new Dictionary<string, InventoryQuantity>(snapshot.Inventory, StringComparer.Ordinal),
             };
@@ -227,6 +233,7 @@ public sealed class UserProfileStore
                 PrestigeLevel = PrestigeLevel,
                 Traders = new Dictionary<string, TraderProgress>(Traders, StringComparer.Ordinal),
                 CompletedQuestIds = new HashSet<string>(CompletedQuestIds, StringComparer.Ordinal),
+                FailedQuestIds = new HashSet<string>(FailedQuestIds, StringComparer.Ordinal),
                 HideoutLevels = new Dictionary<string, int>(HideoutLevels, StringComparer.Ordinal),
                 Inventory = new Dictionary<string, InventoryQuantity>(Inventory, StringComparer.Ordinal),
             };
