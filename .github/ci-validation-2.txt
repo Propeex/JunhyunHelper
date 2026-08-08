@@ -1,0 +1,1 @@
+Temporary CI validation marker for live-contract ammo integration. Do not merge.
