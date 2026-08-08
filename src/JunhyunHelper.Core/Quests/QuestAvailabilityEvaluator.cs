@@ -131,6 +131,13 @@ public sealed class QuestAvailabilityEvaluator
                 QuestAvailabilityReasonKind.Disabled));
         }
 
+        foreach (var requirementType in quest.UnsupportedAvailabilityRequirements)
+        {
+            unknownReasons.Add(new QuestAvailabilityReason(
+                QuestAvailabilityReasonKind.UnsupportedAvailabilityRequirement,
+                requirementType));
+        }
+
         if (_profile.Level < quest.MinimumPlayerLevel)
         {
             lockedReasons.Add(new QuestAvailabilityReason(
