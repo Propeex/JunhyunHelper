@@ -510,7 +510,7 @@ public partial class QuestPage : UserControl
     };
 
     private static Brush StatusBrush(QuestAvailabilityState state) =>
-        (Brush)Application.Current.FindResource(state switch
+        (Brush)System.Windows.Application.Current.FindResource(state switch
         {
             QuestAvailabilityState.Current => "SuccessBrush",
             QuestAvailabilityState.Completed => "AccentBrush",
