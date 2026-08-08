@@ -33,6 +33,8 @@ public sealed class DesktopServices : IDisposable
         };
         _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("JunhyunHelper/0.1");
 
+        Images = new ImageCacheService(_httpClient, RootDirectory);
+
         var sourceLoader = new TarkovEndpointSourceLoader(new TarkovJsonClient(_httpClient));
         var buildService = new TarkovContentBuildService(
             sourceLoader,
@@ -52,6 +54,8 @@ public sealed class DesktopServices : IDisposable
     public ContentActivationService Content { get; }
 
     public TarkovContentUpdateService ContentUpdater { get; }
+
+    public ImageCacheService Images { get; }
 
     public ProfileApplicationService ProfileManagement { get; }
 
