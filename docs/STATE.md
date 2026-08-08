@@ -4,11 +4,11 @@
 
 ## 현재 Phase
 
-**Phase 2A — 핵심 데이터 기반 구현**
+**Phase 2A — 핵심 데이터 기반 구현 + Quest UX 확정**
 
-상태: `IN PROGRESS — live pipeline + deterministic query boundary verified`
+상태: `IN PROGRESS — live pipeline, deterministic query boundary, edition rules verified`
 
-UI보다 먼저 Game Content / User Progress / Domain Logic을 작고 독립적인 구성으로 구현합니다.
+UI보다 먼저 Game Content / User Progress / Domain Logic을 작고 독립적인 구성으로 구현합니다. 퀘스트는 이제 실제 사용자 행동과 탐색 방식까지 큰 틀이 확정되어 최소 WPF 화면으로 내려갈 준비가 되고 있습니다.
 
 ## 제품의 핵심
 
@@ -51,6 +51,7 @@ UI보다 먼저 Game Content / User Progress / Domain Logic을 작고 독립적�
 ## 공식 문서
 
 - `docs/PRODUCT.md`
+- `docs/QUEST_EXPERIENCE.md`
 - `docs/SYSTEM_DESIGN.md`
 - `docs/MAINTENANCE_PHILOSOPHY.md`
 - `docs/DATA_MODEL.md`
@@ -59,11 +60,12 @@ UI보다 먼저 Game Content / User Progress / Domain Logic을 작고 독립적�
 - `docs/TECH_STACK.md`
 - `docs/CONTENT_STORAGE.md`
 - `docs/LEGACY_SALVAGE_AUDIT.md`
+- `docs/LEGACY_UI_REFERENCE.md`
 - `docs/DECISIONS.md`
 
 ## 현재 데이터 원천
 
-`json.tarkov.dev`:
+### 1차 원천 — `json.tarkov.dev`
 
 - `tasks`
 - `hideout`
@@ -91,11 +93,19 @@ UI보다 먼저 Game Content / User Progress / Domain Logic을 작고 독립적�
 
 이 숫자는 고정 정상 임계값으로 사용하지 않습니다.
 
-### 열린 원천 문제
+### 에디션 보조 원천
 
-에디션별 Quest 허용/제외 규칙은 현재 `tasks` raw에 직접 존재하지 않습니다.
+`json.tarkov.dev/tasks`에는 에디션별 Quest 허용/제외 규칙이 직접 존재하지 않습니다.
 
-`EditionId`는 사용자 사실로 저장하지만 신뢰 가능한 원천이 확정되기 전까지 Quest를 edition 기준으로 추측해 필터링하지 않습니다.
+따라서 TarkovTracker의 `tarkov-data-overlay` 중 **`editions` 섹션만** 별도 명시적 원천으로 사용합니다.
+
+준현 헬퍼가 현재 소비하는 의미:
+
+- Edition ID / 표시명
+- `exclusiveTaskIds`
+- `excludedTaskIds`
+
+전체 community correction overlay를 자동 적용하는 결정은 하지 않았습니다.
 
 ## 기술 스택
 
@@ -116,6 +126,7 @@ UI보다 먼저 Game Content / User Progress / Domain Logic을 작고 독립적�
 
 - Item
 - Trader / Map 최소 참조
+- Edition quest rules
 - Quest / prerequisite / objective / item requirement
 - Hideout station / level / material requirement
 - Ammo performance / acquisition
@@ -136,6 +147,7 @@ UI보다 먼저 Game Content / User Progress / Domain Logic을 작고 독립적�
 
 - player level
 - faction
+- edition exclusive/excluded quest rules
 - prestige
 - trader reputation
 - trader loyalty level
@@ -152,9 +164,9 @@ live `traderRequirements`의 `requirementType + compareMethod` 의미를 직접 
 - reputation `<` → LessThan
 - level `>=` → loyalty requirement
 
-미입력 trader/prestige, Failed-only prerequisite, dependency cycle, 미지원 additional requirement는 추측하지 않고 `Indeterminate`입니다.
+미입력 edition/trader/prestige, Failed-only prerequisite, dependency cycle, 미지원 additional requirement는 추측하지 않고 `Indeterminate`입니다.
 
-현재 live non-empty `otherRequirements`는 3개 Quest의 `dialogue` 유형으로 확인했으며 canonical model에 보존 후 `Indeterminate` 처리합니다.
+현재 live non-empty `otherRequirements`는 일부 Quest의 `dialogue` 유형으로 확인했으며 canonical model에 보존 후 `Indeterminate` 처리합니다.
 
 시간 지연은 제품 결정대로 무시합니다.
 
@@ -187,9 +199,26 @@ live `traderRequirements`의 `requirementType + compareMethod` 의미를 직접 
 
 `QuestCatalogQuery` 구현.
 
-UI가 Quest 판정 규칙을 다시 구현하지 않도록 `QuestDefinition + QuestAvailabilityResult`를 묶어 반환합니다.
+UI가 Quest 판정 규칙을 다시 구현하지 않도록 `GameContentCatalog + GameProfileSnapshot`을 받아 `QuestDefinition + QuestAvailabilityResult`를 묶어 반환합니다.
+
+Edition rules도 이 경계를 통해 자동으로 적용되며 UI가 별도로 잊을 수 없습니다.
 
 `Current()`는 오직 실제 evaluator 결과가 `Current`인 Quest만 반환하며 `Indeterminate`를 Current로 섞지 않습니다.
+
+### Quest 제품 동작 — 최신 확정
+
+세부 기준은 `docs/QUEST_EXPERIENCE.md`.
+
+- 게임 로그 기반 자동 완료 추적 사용 안 함
+- 사용자가 실제 게임 완료 후 수동으로 Quest 완료 처리
+- 완료 취소 가능
+- 일반 탐색 상태: `진행 중 / 잠김 / 완료`
+- 모든 Quest를 상태별로 탐색 가능
+- 상태 / 상인 / 지도는 dropdown filter로 조합
+- 검색 제공
+- `Indeterminate`는 정상 상태가 아니라 별도 **판정 문제**로 취급
+- Quest detail은 기본 정보 / 목표 / 제출 아이템 / 해금 조건 / 선행 Quest / 분기 정보 / 보상 / Wiki를 중심으로 설계
+- 개별 objective 수동 진행 체크는 현재 핵심 진행 모델에서 제외
 
 ### Ammo
 
@@ -267,7 +296,7 @@ content/
 
 업데이트:
 
-`API → canonical import → validation → candidate DB → DB validation → active 교체`
+`API + edition source → canonical import → validation → candidate DB → DB validation → active 교체`
 
 실패한 candidate는 active를 건드리지 않습니다.
 
@@ -285,25 +314,21 @@ snapshot convenience getter는 `[JsonIgnore]` 처리하여 같은 사실을 중�
 - Core build 성공
 - Infrastructure build 성공
 - Tests build 성공
-- **64 passed / 0 failed / 0 skipped**
+- **78 passed / 0 failed / 0 skipped**
 
-### live canonical build
+### live canonical build / 전체 업데이트 흐름
 
-실제 현재 API로:
+실제 현재 `json.tarkov.dev + edition overlay(editions only)`로 세 모드 각각:
+
+`live sources → canonical build → candidate.db → validation → content.db activation → read-back`
+
+까지 성공했습니다.
 
 - regular 성공
 - pve 성공
 - pvp-season 성공
 
-### live 전체 업데이트 흐름
-
-세 모드 각각 실제로:
-
-`live API → canonical build → candidate.db → validation → content.db activation → read-back`
-
-까지 성공했습니다.
-
-해당 임시 live probe 실행은 **58 passed / 0 failed**였으며 검증용 코드는 main에 남기지 않았습니다.
+해당 임시 live probe 포함 실행은 **79 passed / 0 failed**였으며 검증용 probe 코드는 main에 남기지 않았습니다.
 
 ### 실제 개발 중 잡힌 주요 문제
 
@@ -315,29 +340,55 @@ snapshot convenience getter는 `[JsonIgnore]` 처리하여 같은 사실을 중�
 - 수류탄/탄약 상자 ammo 혼입 위험 → `ItemPropertiesAmmo`만 인정
 - 대체 제출 아이템 임의 선택 위험 → alternative group 분리
 - snapshot 중복 직렬화 가능성 → 단일 stored field + JsonIgnore convenience view
+- Edition rules snapshot `IReadOnlySet` 역직렬화 실패 → 구체적 `HashSet` 저장 계약으로 수정
+
+## 기존 Tarkov-Helper UI 참고
+
+`docs/LEGACY_UI_REFERENCE.md`에 UI만 별도 검토했습니다.
+
+적극 참고:
+
+- 적은 수의 상위 탭
+- 검색 + ComboBox filter bar
+- 목록 / 우측 detail split view
+- 상태 badge
+- 행의 작은 주 행동 버튼
+- section화된 detail
+- 선행 Quest 클릭 탐색
+- Item icon / FIR badge
+- Hideout +/- level control
+- Ammo caliber dropdown + table
+
+가져오지 않음:
+
+- Quest recommendation panel
+- Kappa 특수 UI를 Core 흐름에 혼합
+- Quest 화면의 faction/profile 중복 토글
+- objective 수동 진행 체크를 기본 진행 모델로 사용
+- `초기화`처럼 의미가 모호한 Quest action
+- code-behind가 상태 판정/서비스/데이터 로딩을 모두 담당하는 구조
 
 ## 아직 결정/구현하지 않는 것
 
-- WPF UI
-- Quest 실패/분기 UX
-- Quest 완료 취소 UX
+- WPF 실제 화면 스타일/픽셀 배치
+- Quest 실패/분기 상태를 사용자가 어떻게 입력할지
 - 시간 지연 해금
 - Item 자동 차감
 - Hideout Needed Items 기본 범위
 - 대체 제출 아이템 자동 배분
-- edition 기반 Quest filtering
 - 지도
 - Scanner
 - 기존 Tarkov-Helper 호환 migration
 
 ## 다음 순서
 
-1. 현재 Core query들을 실제 사용자 행동과 연결하는 최소 application orchestration 검토
-2. 미확정 제품 정책이 필요 없는 범위만 구현
-3. 에디션 Quest 제한의 신뢰 가능한 원천은 별도 조사 가능하되 하드코딩 금지
-4. 핵심 조회 흐름을 계속 회귀 테스트로 고정
-5. Core/Application 경계가 충분히 단순한 상태에서 최소 WPF shell 시작
+1. 확정된 Quest UX를 지원하는 최소 Application command/query 경계 구현
+2. `완료 / 완료 취소`를 user.db와 deterministic recalculation에 연결
+3. Quest 상태/상인/지도 filter view model은 UI 전용 파생값으로 구성
+4. `Indeterminate` 진단 조회를 별도 query로 제공
+5. 그 다음 최소 WPF shell + Quest 화면 구현
+6. Quest UI가 안정되면 Hideout 제품 세부 동작으로 이동
 
 ## 마지막 갱신
 
-2026-08-08 — actual raw 계약 및 세 모드 live update 파이프라인 검증 완료. Ammo와 Quest 조건을 실제 원천 의미로 구현. Quest 조회와 Needed Items 입력 변환에 얇은 결정론적 query boundary를 추가하고, 대체 아이템/Hideout 범위 같은 미확정 정책은 Core가 임의 결정하지 않도록 분리. 최신 Windows/.NET 10 CI 64/64 통과.
+2026-08-08 — 수동 Quest 완료 방식, 완료 취소, 전체 상태 탐색, dropdown filter, Indeterminate 별도 판정 문제 취급을 확정. 기존 Tarkov-Helper UI를 별도 검토해 사용성이 좋은 상호작용 패턴만 회수하고 구현 구조는 승계하지 않기로 정리. Edition 보조 원천까지 실제 온라인 세 모드 전체 update flow에서 검증 완료.
