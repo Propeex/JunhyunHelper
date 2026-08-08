@@ -29,7 +29,7 @@ public sealed class TarkovContentUpdateService
         GameMode gameMode,
         CancellationToken cancellationToken = default)
     {
-        _activationService.DiscardCandidate();
+        _activationService.DiscardCandidate(gameMode);
 
         var build = await _buildService.BuildAsync(gameMode, cancellationToken);
         if (!build.IsValid)
@@ -40,14 +40,15 @@ public sealed class TarkovContentUpdateService
                 build.Warnings);
         }
 
+        var paths = _activationService.GetPaths(gameMode);
         await _snapshotStore.WriteNewAsync(
-            _activationService.CandidatePath,
+            paths.CandidatePath,
             gameMode,
             build.Content,
             build.Warnings,
             cancellationToken);
 
-        await _activationService.ActivateCandidateAsync(cancellationToken);
+        await _activationService.ActivateCandidateAsync(gameMode, cancellationToken);
 
         return new ContentUpdateResult(
             Applied: true,
