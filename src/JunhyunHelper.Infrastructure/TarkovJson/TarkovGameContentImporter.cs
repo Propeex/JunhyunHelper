@@ -89,7 +89,7 @@ public sealed class TarkovGameContentImporter
 
         return quests
             .Select(quest => unsupportedByQuest.TryGetValue(quest.Id, out var types)
-                ? quest with { UnsupportedAvailabilityRequirements = types }
+                ? quest with { UnsupportedAvailabilityRequirementTypes = types }
                 : quest)
             .ToArray();
     }
