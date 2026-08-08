@@ -243,22 +243,20 @@ public sealed class QuestAvailabilityEvaluator
 
         foreach (var requirement in quest.TraderStandingRequirements)
         {
-            if (!_profile.Traders.TryGetValue(requirement.TraderId, out var traderProgress))
+            if (!_profile.Traders.TryGetValue(requirement.TraderId, out var traderProgress) ||
+                traderProgress.Standing is not { } standing)
             {
                 unknownReasons.Add(new QuestAvailabilityReason(
                     QuestAvailabilityReasonKind.MissingProfileValue,
-                    requirement.TraderId));
+                    $"trader-standing:{requirement.TraderId}"));
                 continue;
             }
 
             var standingMet = requirement.Operator switch
             {
-                StandingRequirementOperator.AtLeast =>
-                    traderProgress.Standing >= requirement.RequiredStanding,
-                StandingRequirementOperator.AtMost =>
-                    traderProgress.Standing <= requirement.RequiredStanding,
-                StandingRequirementOperator.LessThan =>
-                    traderProgress.Standing < requirement.RequiredStanding,
+                StandingRequirementOperator.AtLeast => standing >= requirement.RequiredStanding,
+                StandingRequirementOperator.AtMost => standing <= requirement.RequiredStanding,
+                StandingRequirementOperator.LessThan => standing < requirement.RequiredStanding,
                 _ => throw new InvalidDataException(
                     $"Unsupported standing operator '{requirement.Operator}'."),
             };
@@ -273,15 +271,16 @@ public sealed class QuestAvailabilityEvaluator
 
         foreach (var requirement in quest.TraderLoyaltyRequirements)
         {
-            if (!_profile.Traders.TryGetValue(requirement.TraderId, out var traderProgress))
+            if (!_profile.Traders.TryGetValue(requirement.TraderId, out var traderProgress) ||
+                traderProgress.LoyaltyLevel is not { } loyaltyLevel)
             {
                 unknownReasons.Add(new QuestAvailabilityReason(
                     QuestAvailabilityReasonKind.MissingProfileValue,
-                    requirement.TraderId));
+                    $"trader-loyalty:{requirement.TraderId}"));
                 continue;
             }
 
-            if (traderProgress.LoyaltyLevel < requirement.RequiredLoyaltyLevel)
+            if (loyaltyLevel < requirement.RequiredLoyaltyLevel)
             {
                 lockedReasons.Add(new QuestAvailabilityReason(
                     QuestAvailabilityReasonKind.TraderLoyalty,
