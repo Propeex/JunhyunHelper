@@ -29,6 +29,7 @@ public partial class AmmoPage : UserControl
     private IReadOnlyList<AmmoRow> _allRows = [];
     private AmmoRow? _selectedRow;
     private CancellationTokenSource? _iconLoadCts;
+    private bool _usingWikiBallisticsFilter;
 
     public AmmoPage()
     {
@@ -42,7 +43,8 @@ public partial class AmmoPage : UserControl
     {
         _content = content ?? throw new ArgumentNullException(nameof(content));
         var selectedCaliber = (CaliberComboBox.SelectedItem as CaliberChoice)?.RawCaliber;
-        _allRows = BuildRows(content);
+        _usingWikiBallisticsFilter = content.Ammunition.Any(ammo => ammo.ArmorEffectiveness?.IsValid == true);
+        _allRows = BuildRows(content, _usingWikiBallisticsFilter);
 
         var choices = new[] { new CaliberChoice(null, "전체 구경") }
             .Concat(_allRows
@@ -73,11 +75,14 @@ public partial class AmmoPage : UserControl
             ColumnMenuPopup.IsOpen = false;
     }
 
-    private static IReadOnlyList<AmmoRow> BuildRows(GameContentCatalog content)
+    private static IReadOnlyList<AmmoRow> BuildRows(GameContentCatalog content, bool useWikiBallisticsFilter)
     {
         var itemsById = content.Items.ToDictionary(item => item.Id, StringComparer.Ordinal);
+        var comparisonAmmo = useWikiBallisticsFilter
+            ? content.Ammunition.Where(ammo => ammo.ArmorEffectiveness?.IsValid == true)
+            : content.Ammunition;
 
-        return content.Ammunition
+        return comparisonAmmo
             .Select(ammo =>
             {
                 itemsById.TryGetValue(ammo.ItemId, out var item);
@@ -156,10 +161,12 @@ public partial class AmmoPage : UserControl
                                     string.Equals(row.Ammo.ItemId, selectedItemId, StringComparison.Ordinal))
                                 ?? filtered.FirstOrDefault();
 
-        var ratedCount = filtered.Count(row => row.Ammo.ArmorEffectiveness is not null);
+        var sourceText = _usingWikiBallisticsFilter
+            ? "Wiki Ballistics 등록 탄약만"
+            : "Wiki 목록 확인 불가 · 기본 탄약 임시 표시";
         SummaryText.Text = selectedCaliber is null
-            ? $"탄약 {filtered.Length}종 · 구경 {Math.Max(0, CaliberComboBox.Items.Count - 1)}개 · 방탄 효율 {ratedCount}종 · 관통력/피해량 낮은 순"
-            : $"{CaliberText(selectedCaliber)} · 탄약 {filtered.Length}종 · 방탄 효율 {ratedCount}종 · 관통력/피해량 낮은 순";
+            ? $"탄약 {filtered.Length}종 · 구경 {Math.Max(0, CaliberComboBox.Items.Count - 1)}개 · {sourceText} · 관통력/피해량 낮은 순"
+            : $"{CaliberText(selectedCaliber)} · 탄약 {filtered.Length}종 · {sourceText} · 관통력/피해량 낮은 순";
 
         if (filtered.Length == 0)
             ShowDetail(null);
@@ -425,31 +432,34 @@ public partial class AmmoPage : UserControl
         return caliber switch
         {
             "Caliber9x18PM" => "9×18mm PM",
-            "Caliber9x19PARA" => "9×19mm",
-            "Caliber9x21" => "9×21mm",
-            "Caliber9x33R" => "9×33R",
+            "Caliber9x19PARA" => "9×19mm Parabellum",
+            "Caliber9x21" => "9×21mm Gyurza",
+            "Caliber9x33R" => ".357 Magnum",
             "Caliber545x39" => "5.45×39mm",
             "Caliber556x45NATO" => "5.56×45mm NATO",
-            "Caliber762x25TT" => "7.62×25mm TT",
-            "Caliber762x35" => "7.62×35mm",
+            "Caliber762x25TT" => "7.62×25mm Tokarev",
+            "Caliber762x35" => ".300 Blackout",
             "Caliber762x39" => "7.62×39mm",
             "Caliber762x51" => "7.62×51mm NATO",
             "Caliber762x54R" => "7.62×54mmR",
-            "Caliber86x70" => "8.6×70mm",
+            "Caliber86x70" => ".338 Lapua Magnum",
             "Caliber9x39" => "9×39mm",
             "Caliber366TKM" => ".366 TKM",
+            "Caliber1143x23ACP" => ".45 ACP",
+            "Caliber1143x23" => ".45 ACP",
+            "Caliber127x33" => ".50 AE",
             "Caliber127x55" => "12.7×55mm",
-            "Caliber12g" => "12 gauge",
-            "Caliber20g" => "20 gauge",
-            "Caliber23x75" => "23×75mm",
-            "Caliber26x75" => "26×75mm",
+            "Caliber12g" => "12/70",
+            "Caliber20g" => "20/70",
+            "Caliber23x75" => "23×75mmR",
+            "Caliber26x75" => "26×75mm flare",
             "Caliber30x29" => "30×29mm",
             "Caliber40x46" => "40×46mm",
-            "Caliber40mmRU" => "40mm RU",
-            "Caliber46x30" => "4.6×30mm",
-            "Caliber57x28" => "5.7×28mm",
+            "Caliber40mmRU" => "40mm VOG",
+            "Caliber46x30" => "4.6×30mm HK",
+            "Caliber57x28" => "5.7×28mm FN",
             "Caliber68x51" => "6.8×51mm",
-            "Caliber127x99" => "12.7×99mm",
+            "Caliber127x99" => ".50 BMG",
             "Caliber127x108" => "12.7×108mm",
             _ => caliber.StartsWith("Caliber", StringComparison.Ordinal)
                 ? caliber["Caliber".Length..]
