@@ -86,6 +86,7 @@ public partial class MainWindow : Window
         QuestPage.Visibility = Visibility.Collapsed;
         HideoutPage.Visibility = Visibility.Collapsed;
         ItemsPage.Visibility = Visibility.Collapsed;
+        AmmoPage.Visibility = Visibility.Collapsed;
         ItemsPage.ClearCleanupNotice();
         EmptyState.Visibility = Visibility.Visible;
         StatusText.Text = "프로필 설정 필요";
@@ -125,6 +126,7 @@ public partial class MainWindow : Window
         ItemsPage.ClearCleanupNotice();
 
         await RefreshActiveWorkspacesAsync(detectCleanupChanges: false);
+        AmmoPage.SetData(_activeContent);
         EmptyState.Visibility = Visibility.Collapsed;
         ShowActiveSection();
         StatusText.Text = BuildLoadedStatus(choice.Profile.GameMode);
@@ -303,6 +305,7 @@ public partial class MainWindow : Window
 
             var snapshot = await _services.Content.ReadActiveOrRecoverAsync(_activeProfile.GameMode);
             _activeContent = snapshot.Content;
+            AmmoPage.SetData(_activeContent);
             var cleanupChanges = await RefreshActiveWorkspacesAsync(detectCleanupChanges: true);
             ShowActiveSection();
             StatusText.Text = cleanupChanges.Count > 0
@@ -454,6 +457,12 @@ public partial class MainWindow : Window
         ShowActiveSection();
     }
 
+    private void AmmoTabButton_Click(object sender, RoutedEventArgs e)
+    {
+        _activeSection = DesktopSection.Ammo;
+        ShowActiveSection();
+    }
+
     private void ShowActiveSection()
     {
         if (_activeProfile is null || _activeContent is null)
@@ -461,6 +470,7 @@ public partial class MainWindow : Window
             QuestPage.Visibility = Visibility.Collapsed;
             HideoutPage.Visibility = Visibility.Collapsed;
             ItemsPage.Visibility = Visibility.Collapsed;
+            AmmoPage.Visibility = Visibility.Collapsed;
             EmptyState.Visibility = Visibility.Visible;
             UpdateSectionButtons();
             return;
@@ -474,6 +484,9 @@ public partial class MainWindow : Window
             ? Visibility.Visible
             : Visibility.Collapsed;
         ItemsPage.Visibility = _activeSection == DesktopSection.Items
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        AmmoPage.Visibility = _activeSection == DesktopSection.Ammo
             ? Visibility.Visible
             : Visibility.Collapsed;
         UpdateSectionButtons();
@@ -490,9 +503,11 @@ public partial class MainWindow : Window
         QuestPage.SetBusy(busy);
         HideoutPage.SetBusy(busy);
         ItemsPage.SetBusy(busy);
+        AmmoPage.SetBusy(busy);
         QuestTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Quest;
         HideoutTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Hideout;
         ItemsTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Items;
+        AmmoTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Ammo;
         StatusText.Text = status;
     }
 
@@ -502,6 +517,7 @@ public partial class MainWindow : Window
         QuestTabButton.IsEnabled = hasProfile && _activeSection != DesktopSection.Quest;
         HideoutTabButton.IsEnabled = hasProfile && _activeSection != DesktopSection.Hideout;
         ItemsTabButton.IsEnabled = hasProfile && _activeSection != DesktopSection.Items;
+        AmmoTabButton.IsEnabled = hasProfile && _activeSection != DesktopSection.Ammo;
     }
 
     private string BuildLoadedStatus(GameMode gameMode)
@@ -510,7 +526,7 @@ public partial class MainWindow : Window
             return GameModeText(gameMode);
 
         var cleanupCount = _activeItemsWorkspace?.Plan.CleanupItems.Count ?? 0;
-        return $"{GameModeText(gameMode)} · Quest {_activeContent.Quests.Count} · Hideout {_activeContent.HideoutStations.Count} · 정리 {cleanupCount}";
+        return $"{GameModeText(gameMode)} · Quest {_activeContent.Quests.Count} · Hideout {_activeContent.HideoutStations.Count} · Ammo {_activeContent.Ammunition.Count} · 정리 {cleanupCount}";
     }
 
     private static string BuildProgressChangeStatus(
@@ -557,5 +573,6 @@ public partial class MainWindow : Window
         Quest,
         Hideout,
         Items,
+        Ammo,
     }
 }
