@@ -124,8 +124,18 @@ public sealed class UserProfileStore
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    private SqliteConnection OpenConnection() =>
-        new($"Data Source={_databasePath};Mode=ReadWriteCreate;Cache=Private");
+    private SqliteConnection OpenConnection()
+    {
+        var connectionString = new SqliteConnectionStringBuilder
+        {
+            DataSource = _databasePath,
+            Mode = SqliteOpenMode.ReadWriteCreate,
+            Cache = SqliteCacheMode.Private,
+            Pooling = false,
+        }.ToString();
+
+        return new SqliteConnection(connectionString);
+    }
 
     private static GameProfileSnapshot Deserialize(int schemaVersion, string payload)
     {
