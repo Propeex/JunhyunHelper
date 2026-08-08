@@ -138,15 +138,13 @@
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <ItemsControl ItemsSource="{Binding ArmorEffectivenessCells}"
+                                          ItemTemplate="{StaticResource ArmorEffectivenessCellTemplate}"
                                           HorizontalAlignment="Center">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <StackPanel Orientation="Horizontal" />
                                     </ItemsPanelTemplate>
                                 </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <StaticResource ResourceKey="ArmorEffectivenessCellTemplate" />
-                                </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
@@ -201,15 +199,13 @@
                                        FontWeight="SemiBold"
                                        Margin="0,14,0,7" />
                             <ItemsControl x:Name="DetailArmorEffectivenessItems"
+                                          ItemTemplate="{StaticResource ArmorEffectivenessCellTemplate}"
                                           HorizontalAlignment="Left">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <StackPanel Orientation="Horizontal" />
                                     </ItemsPanelTemplate>
                                 </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <StaticResource ResourceKey="ArmorEffectivenessCellTemplate" />
-                                </ItemsControl.ItemTemplate>
                             </ItemsControl>
                             <TextBlock Text="0–6은 Tarkov Wiki Ballistics의 비교 효율값입니다. '?'는 현재 Wiki 행과 안전하게 매칭되지 않은 탄약입니다."
                                        Foreground="{StaticResource TextSecondaryBrush}"
