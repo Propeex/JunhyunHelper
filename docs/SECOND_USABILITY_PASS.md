@@ -2,7 +2,7 @@
 
 검증/구현일: **2026-08-09**
 
-상태: `IMPLEMENTED / CI VERIFICATION IN PROGRESS`
+상태: `IMPLEMENTED / AUTOMATED VERIFICATION PASSED / USER UI TEST NEXT`
 
 이 문서는 첫 통합 Windows 테스트 빌드를 실제로 사용한 뒤 확정된 2차 제품 피드백과 구현 결정을 기록합니다.
 
@@ -204,23 +204,29 @@ RequiredQuestId
 
 이 방식은 게임 패치로 이름/번역이 바뀌어도 stable ID 관계가 유지되는 한 링크가 깨지지 않습니다.
 
-## 8. 테스트 기준
+## 8. 검증 상태
 
-반드시 확인할 항목:
+자동 검증 완료:
 
-- Desktop Release build
-- 전체 Core/Application/Infrastructure test
-- Windows x64 publish
-- 기존 user.db를 유지한 채 content v1 → v2 자동 재구축
-- Item/Hideout/Ammo/Quest Item WebP 이미지 표시
-- ScrollBar vertical/horizontal 렌더링
-- Indeterminate → Current 제품 경계 회귀 test
+- Desktop Release build 성공
+- 전체 Core/Application/Infrastructure test 성공
+- residual Indeterminate → Current 회귀 test 성공
+- Windows x64 self-contained publish 성공
+- ZIP/artifact 생성 성공
+- documentation-inclusive CI 성공
+- unresolved PR review thread 없음
+
+실제 Windows 사용자 환경에서 확인할 항목:
+
+- 기존 `user.db`를 유지한 채 content v1 → v2 자동 재구축
+- Item/Hideout/Ammo/Quest Item 이미지 실제 표시
+- ScrollBar vertical/horizontal 실제 모양과 조작성
+- 일반 Item 목록에서 flexible-only 후보 분리
+- `유동 제출 보기`에서 모든 후보 접근
+- Item category filter 분류 결과
 - Quest → Item
 - Item → Quest
 - prerequisite Quest → Quest
-- 일반 Item 목록에서 flexible-only 후보 분리
-- `유동 제출 보기`에서 모든 후보 접근 가능
-- category filter가 online category metadata를 기반으로 동작
 
 ## 9. 변경하지 않는 것
 
