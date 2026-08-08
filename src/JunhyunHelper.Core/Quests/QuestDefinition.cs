@@ -45,4 +45,9 @@ public sealed record QuestDefinition(
     int? RequiredPrestigeLevel,
     IReadOnlyList<QuestTaskRequirement> TaskRequirements,
     IReadOnlyList<QuestTraderStandingRequirement> TraderStandingRequirements,
-    IReadOnlyList<QuestTraderLoyaltyRequirement> TraderLoyaltyRequirements);
+    IReadOnlyList<QuestTraderLoyaltyRequirement> TraderLoyaltyRequirements,
+    IReadOnlyList<string>? UnsupportedAvailabilityRequirementTypes = null)
+{
+    public IReadOnlyList<string> UnsupportedAvailabilityRequirements =>
+        UnsupportedAvailabilityRequirementTypes ?? Array.Empty<string>();
+}
