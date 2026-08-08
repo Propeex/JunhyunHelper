@@ -85,12 +85,33 @@
             </Grid>
         </Border>
 
-        <TextBlock x:Name="PlanningWarningText"
-                   Grid.Row="2"
-                   Foreground="{StaticResource WarningBrush}"
-                   TextWrapping="Wrap"
-                   Margin="2,0,0,10"
-                   Visibility="Collapsed" />
+        <StackPanel Grid.Row="2"
+                    Margin="0,0,0,10">
+            <TextBlock x:Name="PlanningWarningText"
+                       Foreground="{StaticResource WarningBrush}"
+                       TextWrapping="Wrap"
+                       Margin="2,0,0,8"
+                       Visibility="Collapsed" />
+
+            <Border x:Name="FlexibleRequirementsPanel"
+                    Visibility="Collapsed"
+                    Background="{StaticResource BackgroundMediumBrush}"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    Padding="10">
+                <StackPanel>
+                    <TextBlock Text="유동 제출 요구"
+                               FontWeight="SemiBold"
+                               Margin="0,0,0,6" />
+                    <TextBlock Text="여러 허용 아이템의 보유량을 합쳐 한 목표를 채웁니다. 후보별 정리 가능 수량은 목표가 끝날 때까지 자동 판정하지 않습니다."
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,6" />
+                    <ItemsControl x:Name="FlexibleRequirementItems" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
 
         <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>

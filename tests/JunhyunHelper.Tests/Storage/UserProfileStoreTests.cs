@@ -120,6 +120,27 @@ public sealed class UserProfileStoreTests
         }
     }
 
+    [Fact]
+    public async Task DeleteRemovesOnlyRequestedProfile()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var directory = CreateTempDirectory();
+        try
+        {
+            var store = new UserProfileStore(Path.Combine(directory, "user.db"));
+            await store.SaveAsync(Profile("pvp", GameMode.Regular, level: 20), cancellationToken);
+            await store.SaveAsync(Profile("pve", GameMode.Pve, level: 55), cancellationToken);
+
+            Assert.True(await store.DeleteAsync("pvp", cancellationToken));
+            Assert.Null(await store.LoadAsync("pvp", cancellationToken));
+            Assert.NotNull(await store.LoadAsync("pve", cancellationToken));
+            Assert.False(await store.DeleteAsync("pvp", cancellationToken));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
 
     [Fact]
     public async Task CompletedAndFailedQuestOverlapIsRejected()

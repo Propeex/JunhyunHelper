@@ -77,6 +77,15 @@ public sealed class ProfileApplicationService
         return updated;
     }
 
+    public async Task DeleteAsync(
+        string profileId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
+        if (!await _profileStore.DeleteAsync(profileId, cancellationToken))
+            throw new KeyNotFoundException($"Profile '{profileId}' does not exist.");
+    }
+
     private static void ValidateSettings(
         int level,
         int? prestigeLevel,

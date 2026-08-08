@@ -212,13 +212,35 @@ public partial class ItemsPage : UserControl
             parts.Add($"은신처 레벨 미입력 {workspace.Plan.UnenteredHideoutStationIds.Count}개 시설의 관련 아이템은 정리 판단을 보류합니다.");
         }
 
-        if (workspace.Plan.AlternativeQuestRequirements.Count > 0)
+        if (workspace.FlexibleQuestItemProgresses.Count > 0)
         {
-            parts.Add($"대체 제출 요구 {workspace.Plan.AlternativeQuestRequirements.Count}건은 프로그램이 사용할 아이템을 임의로 선택하지 않습니다.");
+            parts.Add($"유동 제출 요구 {workspace.FlexibleQuestItemProgresses.Count}건은 그룹 단위로 계산하고 후보별 정리 판단은 보호합니다.");
         }
 
         PlanningWarningText.Text = string.Join("  ", parts);
         PlanningWarningText.Visibility = parts.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        FlexibleRequirementItems.ItemsSource = workspace.FlexibleQuestItemProgresses
+            .Select(BuildFlexibleRequirementText)
+            .ToArray();
+        FlexibleRequirementsPanel.Visibility = workspace.FlexibleQuestItemProgresses.Count > 0
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+    }
+
+    private string BuildFlexibleRequirementText(FlexibleQuestItemProgress progress)
+    {
+        var quest = _content?.Quests.FirstOrDefault(candidate => candidate.Id == progress.QuestId);
+        var questName = DisplayName(quest?.NameKo, quest?.NameEn, progress.QuestId);
+        var candidateNames = progress.AcceptedItemIds.Select(DisplayName).ToArray();
+        var remainingText = progress.IsFulfilled
+            ? "충족"
+            : $"남음 {progress.RemainingTotal}개";
+        var ownershipText = progress.RequiredFir > 0
+            ? $"FIR 합산 {progress.OwnedFir}/{progress.RequiredFir}"
+            : $"합산 보유 {progress.OwnedTotal}/{progress.RequiredTotal}";
+
+        return $"• {questName} · {ownershipText} · {remainingText} · 후보: {string.Join(", ", candidateNames)}";
     }
 
     private string DisplayName(string itemId)
@@ -294,7 +316,7 @@ public partial class ItemsPage : UserControl
         if (kinds.Contains(CleanupProtectionKind.UnenteredHideoutLevel))
             messages.Add("은신처 현재 레벨이 입력되지 않아 관련 수량의 정리 판단을 보류합니다.");
         if (kinds.Contains(CleanupProtectionKind.AlternativeQuestRequirement))
-            messages.Add("대체 제출 후보 아이템이므로 프로그램이 임의로 정리 대상으로 판단하지 않습니다.");
+            messages.Add("유동 제출 후보 아이템이므로 목표가 끝날 때까지 후보별 정리 가능 수량을 자동 판단하지 않습니다.");
         return string.Join(" ", messages);
     }
 
