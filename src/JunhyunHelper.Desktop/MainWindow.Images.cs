@@ -9,4 +9,7 @@ public partial class MainWindow
 
     private void HideoutPage_Loaded(object sender, RoutedEventArgs e) =>
         HideoutPage.SetImageCache(_services.Images);
+
+    private void AmmoPage_Loaded(object sender, RoutedEventArgs e) =>
+        AmmoPage.SetImageCache(_services.Images);
 }
