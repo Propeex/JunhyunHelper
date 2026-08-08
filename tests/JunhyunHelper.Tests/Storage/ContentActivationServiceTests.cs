@@ -11,6 +11,7 @@ public sealed class ContentActivationServiceTests
     [Fact]
     public async Task ValidCandidateReplacesActiveAndPreservesPrevious()
     {
+        var cancellationToken = TestContext.Current.CancellationToken;
         var root = TempRoot();
         try
         {
@@ -21,21 +22,23 @@ public sealed class ContentActivationServiceTests
             await store.WriteNewAsync(
                 paths.ActivePath,
                 GameMode.Regular,
-                Catalog("old-item"));
+                Catalog("old-item"),
+                cancellationToken: cancellationToken);
             await store.WriteNewAsync(
                 paths.CandidatePath,
                 GameMode.Regular,
-                Catalog("new-item"));
+                Catalog("new-item"),
+                cancellationToken: cancellationToken);
 
-            await activation.ActivateCandidateAsync(GameMode.Regular);
+            await activation.ActivateCandidateAsync(GameMode.Regular, cancellationToken);
 
             Assert.False(File.Exists(paths.CandidatePath));
             Assert.Equal(
                 "new-item",
-                Assert.Single((await store.ReadAsync(paths.ActivePath)).Content.Items).Id);
+                Assert.Single((await store.ReadAsync(paths.ActivePath, cancellationToken)).Content.Items).Id);
             Assert.Equal(
                 "old-item",
-                Assert.Single((await store.ReadAsync(paths.PreviousPath)).Content.Items).Id);
+                Assert.Single((await store.ReadAsync(paths.PreviousPath, cancellationToken)).Content.Items).Id);
         }
         finally
         {
@@ -46,6 +49,7 @@ public sealed class ContentActivationServiceTests
     [Fact]
     public async Task InvalidCandidateNeverTouchesActiveContent()
     {
+        var cancellationToken = TestContext.Current.CancellationToken;
         var root = TempRoot();
         try
         {
@@ -56,16 +60,20 @@ public sealed class ContentActivationServiceTests
             await store.WriteNewAsync(
                 paths.ActivePath,
                 GameMode.Regular,
-                Catalog("old-item"));
+                Catalog("old-item"),
+                cancellationToken: cancellationToken);
             Directory.CreateDirectory(paths.Directory);
-            await File.WriteAllTextAsync(paths.CandidatePath, "not a sqlite database");
+            await File.WriteAllTextAsync(
+                paths.CandidatePath,
+                "not a sqlite database",
+                cancellationToken);
 
             await Assert.ThrowsAnyAsync<Exception>(
-                () => activation.ActivateCandidateAsync(GameMode.Regular));
+                () => activation.ActivateCandidateAsync(GameMode.Regular, cancellationToken));
 
             Assert.Equal(
                 "old-item",
-                Assert.Single((await store.ReadAsync(paths.ActivePath)).Content.Items).Id);
+                Assert.Single((await store.ReadAsync(paths.ActivePath, cancellationToken)).Content.Items).Id);
         }
         finally
         {
@@ -76,6 +84,7 @@ public sealed class ContentActivationServiceTests
     [Fact]
     public async Task DifferentGameModesKeepIndependentActiveDatabases()
     {
+        var cancellationToken = TestContext.Current.CancellationToken;
         var root = TempRoot();
         try
         {
@@ -87,22 +96,24 @@ public sealed class ContentActivationServiceTests
             await store.WriteNewAsync(
                 regular.CandidatePath,
                 GameMode.Regular,
-                Catalog("regular-item"));
-            await activation.ActivateCandidateAsync(GameMode.Regular);
+                Catalog("regular-item"),
+                cancellationToken: cancellationToken);
+            await activation.ActivateCandidateAsync(GameMode.Regular, cancellationToken);
 
             await store.WriteNewAsync(
                 pve.CandidatePath,
                 GameMode.Pve,
-                Catalog("pve-item"));
-            await activation.ActivateCandidateAsync(GameMode.Pve);
+                Catalog("pve-item"),
+                cancellationToken: cancellationToken);
+            await activation.ActivateCandidateAsync(GameMode.Pve, cancellationToken);
 
             Assert.NotEqual(regular.ActivePath, pve.ActivePath);
             Assert.Equal(
                 "regular-item",
-                Assert.Single((await activation.ReadActiveOrRecoverAsync(GameMode.Regular)).Content.Items).Id);
+                Assert.Single((await activation.ReadActiveOrRecoverAsync(GameMode.Regular, cancellationToken)).Content.Items).Id);
             Assert.Equal(
                 "pve-item",
-                Assert.Single((await activation.ReadActiveOrRecoverAsync(GameMode.Pve)).Content.Items).Id);
+                Assert.Single((await activation.ReadActiveOrRecoverAsync(GameMode.Pve, cancellationToken)).Content.Items).Id);
         }
         finally
         {
@@ -113,6 +124,7 @@ public sealed class ContentActivationServiceTests
     [Fact]
     public async Task CandidateFromWrongGameModeIsRejected()
     {
+        var cancellationToken = TestContext.Current.CancellationToken;
         var root = TempRoot();
         try
         {
@@ -123,10 +135,11 @@ public sealed class ContentActivationServiceTests
             await store.WriteNewAsync(
                 regular.CandidatePath,
                 GameMode.Pve,
-                Catalog("wrong-mode-item"));
+                Catalog("wrong-mode-item"),
+                cancellationToken: cancellationToken);
 
             await Assert.ThrowsAsync<InvalidDataException>(
-                () => activation.ActivateCandidateAsync(GameMode.Regular));
+                () => activation.ActivateCandidateAsync(GameMode.Regular, cancellationToken));
 
             Assert.False(File.Exists(regular.ActivePath));
         }
