@@ -5,27 +5,97 @@
     <UserControl.Resources>
         <DataTemplate x:Key="ItemRowTemplate">
             <Border x:Name="RowBorder"
-                    Padding="12,9"
+                    MinHeight="64"
+                    Padding="10,7"
                     BorderBrush="{StaticResource BorderBrush}"
-                    BorderThickness="0,0,0,1">
+                    BorderThickness="0,0,0,1"
+                    Background="Transparent">
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="52" />
+                        <ColumnDefinition Width="*" MinWidth="170" />
+                        <ColumnDefinition Width="88" />
+                        <ColumnDefinition Width="88" />
+                        <ColumnDefinition Width="108" />
                     </Grid.ColumnDefinitions>
-                    <StackPanel>
+
+                    <Border Grid.Column="0"
+                            Width="44"
+                            Height="44"
+                            Background="{StaticResource BackgroundDarkBrush}"
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            VerticalAlignment="Center">
+                        <Grid>
+                            <TextBlock Text="?"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center" />
+                            <Image Source="{Binding Icon}"
+                                   Stretch="Uniform"
+                                   Margin="3" />
+                        </Grid>
+                    </Border>
+
+                    <StackPanel Grid.Column="1"
+                                VerticalAlignment="Center"
+                                Margin="8,0,12,0">
                         <TextBlock Text="{Binding Name}"
-                                   FontWeight="SemiBold" />
-                        <TextBlock Text="{Binding Summary}"
-                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                   FontSize="12"
-                                   Margin="0,3,0,0" />
+                                   FontWeight="SemiBold"
+                                   TextTrimming="CharacterEllipsis"
+                                   TextWrapping="NoWrap" />
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <Border x:Name="FirBadge"
+                                    Background="{StaticResource BackgroundLightBrush}"
+                                    CornerRadius="8"
+                                    Padding="7,2"
+                                    Margin="0,0,6,0"
+                                    Visibility="{Binding FirBadgeVisibility}">
+                                <TextBlock Text="{Binding FirBadgeText}"
+                                           Foreground="{StaticResource AccentBrush}"
+                                           FontSize="11"
+                                           FontWeight="SemiBold" />
+                            </Border>
+                            <TextBlock Text="{Binding SourceSummary}"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       FontSize="11"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
                     </StackPanel>
-                    <TextBlock Grid.Column="1"
-                               Text="{Binding StatusText}"
-                               Foreground="{Binding StatusBrush}"
-                               VerticalAlignment="Center"
-                               Margin="12,0,0,0" />
+
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                        <TextBlock Text="필요"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   FontSize="10"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock Text="{Binding RequiredTotal}"
+                                   HorizontalAlignment="Center"
+                                   FontWeight="SemiBold" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="3" VerticalAlignment="Center">
+                        <TextBlock Text="보유"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   FontSize="10"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock Text="{Binding OwnedTotal}"
+                                   HorizontalAlignment="Center"
+                                   FontWeight="SemiBold" />
+                    </StackPanel>
+
+                    <Border Grid.Column="4"
+                            Background="{StaticResource BackgroundDarkBrush}"
+                            CornerRadius="9"
+                            Padding="8,5"
+                            VerticalAlignment="Center"
+                            Margin="8,0,0,0">
+                        <TextBlock Text="{Binding StatusText}"
+                                   Foreground="{Binding StatusBrush}"
+                                   FontWeight="SemiBold"
+                                   TextAlignment="Center" />
+                    </Border>
                 </Grid>
             </Border>
             <DataTemplate.Triggers>
@@ -33,7 +103,7 @@
                     <Setter TargetName="RowBorder" Property="Background" Value="{StaticResource BackgroundLightBrush}" />
                 </DataTrigger>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter TargetName="RowBorder" Property="Background" Value="{StaticResource BackgroundMediumBrush}" />
+                    <Setter TargetName="RowBorder" Property="Background" Value="{StaticResource BackgroundHoverBrush}" />
                 </Trigger>
             </DataTemplate.Triggers>
         </DataTemplate>
@@ -41,7 +111,6 @@
 
     <Grid Margin="16">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -68,7 +137,7 @@
                 Background="{StaticResource BackgroundMediumBrush}"
                 BorderBrush="{StaticResource AccentBrush}"
                 BorderThickness="1"
-                CornerRadius="6"
+                CornerRadius="8"
                 Padding="10"
                 Margin="0,0,0,10">
             <Grid>
@@ -85,44 +154,17 @@
             </Grid>
         </Border>
 
-        <StackPanel Grid.Row="2"
-                    Margin="0,0,0,10">
-            <TextBlock x:Name="PlanningWarningText"
-                       Foreground="{StaticResource WarningBrush}"
-                       TextWrapping="Wrap"
-                       Margin="2,0,0,8"
-                       Visibility="Collapsed" />
-
-            <Border x:Name="FlexibleRequirementsPanel"
-                    Visibility="Collapsed"
-                    Background="{StaticResource BackgroundMediumBrush}"
-                    BorderBrush="{StaticResource BorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="6"
-                    Padding="10">
-                <StackPanel>
-                    <TextBlock Text="유동 제출 요구"
-                               FontWeight="SemiBold"
-                               Margin="0,0,0,6" />
-                    <TextBlock Text="여러 허용 아이템의 보유량을 합쳐 한 목표를 채웁니다. 후보별 정리 가능 수량은 목표가 끝날 때까지 자동 판정하지 않습니다."
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               TextWrapping="Wrap"
-                               Margin="0,0,0,6" />
-                    <ItemsControl x:Name="FlexibleRequirementItems" />
-                </StackPanel>
-            </Border>
-        </StackPanel>
-
-        <Grid Grid.Row="3">
+        <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" MinWidth="420" />
+                <ColumnDefinition Width="*" MinWidth="520" />
                 <ColumnDefinition Width="8" />
-                <ColumnDefinition Width="430" MinWidth="330" />
+                <ColumnDefinition Width="430" MinWidth="340" />
             </Grid.ColumnDefinitions>
 
             <Border Grid.Column="0"
                     Background="{StaticResource BackgroundMediumBrush}"
-                    CornerRadius="6">
+                    CornerRadius="8"
+                    ClipToBounds="True">
                 <ListBox x:Name="ItemList"
                          ItemTemplate="{StaticResource ItemRowTemplate}"
                          SelectionChanged="ItemList_SelectionChanged"
@@ -134,7 +176,7 @@
 
             <Border Grid.Column="2"
                     Background="{StaticResource BackgroundMediumBrush}"
-                    CornerRadius="6"
+                    CornerRadius="8"
                     Padding="16">
                 <Grid>
                     <TextBlock x:Name="EmptyDetailText"
@@ -148,20 +190,53 @@
                                   Visibility="Collapsed"
                                   VerticalScrollBarVisibility="Auto">
                         <StackPanel>
-                            <TextBlock x:Name="DetailName"
-                                       FontSize="22"
-                                       FontWeight="SemiBold"
-                                       Foreground="{StaticResource AccentBrush}"
-                                       Margin="0,0,0,14" />
+                            <Grid Margin="0,0,0,14">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="72" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border Width="64"
+                                        Height="64"
+                                        Background="{StaticResource BackgroundDarkBrush}"
+                                        BorderBrush="{StaticResource BorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="8">
+                                    <Grid>
+                                        <TextBlock Text="?"
+                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center" />
+                                        <Image x:Name="DetailIcon"
+                                               Stretch="Uniform"
+                                               Margin="4" />
+                                    </Grid>
+                                </Border>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock x:Name="DetailName"
+                                               FontSize="21"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource AccentBrush}"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock x:Name="DetailStatusText"
+                                               Margin="0,4,0,0"
+                                               FontWeight="SemiBold" />
+                                </StackPanel>
+                            </Grid>
 
-                            <TextBlock x:Name="DetailRequirementText"
-                                       Margin="0,0,0,8" />
-                            <TextBlock x:Name="DetailRemainingText"
-                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                       Margin="0,0,0,8" />
-                            <TextBlock x:Name="DetailCleanupText"
-                                       Foreground="{StaticResource WarningBrush}"
-                                       Margin="0,0,0,16" />
+                            <Border Background="{StaticResource BackgroundDarkBrush}"
+                                    CornerRadius="7"
+                                    Padding="10"
+                                    Margin="0,0,0,14">
+                                <StackPanel>
+                                    <TextBlock x:Name="DetailRequirementText" />
+                                    <TextBlock x:Name="DetailRemainingText"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               Margin="0,5,0,0" />
+                                    <TextBlock x:Name="DetailCleanupText"
+                                               Foreground="{StaticResource WarningBrush}"
+                                               Margin="0,5,0,0" />
+                                </StackPanel>
+                            </Border>
 
                             <TextBlock Text="보유 수량"
                                        FontWeight="SemiBold"
@@ -191,6 +266,19 @@
                                        FontWeight="SemiBold"
                                        Margin="0,0,0,6" />
                             <ItemsControl x:Name="SourceItems" />
+
+                            <StackPanel x:Name="FlexibleDetailPanel"
+                                        Visibility="Collapsed"
+                                        Margin="0,16,0,0">
+                                <TextBlock Text="유동 제출"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,6" />
+                                <TextBlock Text="이 아이템은 다른 후보와 합쳐 제출할 수 있어 후보 하나만 따로 버려도 된다고 판단하지 않습니다."
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,6" />
+                                <ItemsControl x:Name="FlexibleRequirementItems" />
+                            </StackPanel>
 
                             <TextBlock x:Name="ProtectionText"
                                        Foreground="{StaticResource WarningBrush}"

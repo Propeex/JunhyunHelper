@@ -1,53 +1,88 @@
 # 준현 헬퍼
 
-`JunhyunHelper`는 새로운 **준현 헬퍼**를 처음부터 제품 설계하고 개발하기 위한 공식 저장소입니다.
-
-준현 헬퍼는 **Escape from Tarkov 플레이를 지원하는 데스크톱 헬퍼 프로그램**입니다.
+`JunhyunHelper`는 Escape from Tarkov 플레이를 지원하는 Windows 데스크톱 헬퍼 **준현 헬퍼**의 공식 저장소입니다.
 
 ## 현재 단계
 
-**Phase 1 — 제품 발견(Product Discovery) 및 요구사항 설계**
+**Phase 2B — 핵심 Desktop 흐름 구현 및 첫 실사용 피드백 반영**
 
-아직 제품 코드 구현을 시작하지 않습니다. 먼저 사용자의 의도와 제품 요구사항을 대화로 정의하고, 확정된 내용을 저장소에 지속적으로 기록합니다.
+현재 실제 WPF Desktop에서 다음 핵심 흐름이 연결되어 있습니다.
 
-## 현재 확정된 상위 기능
+- 게임 모드별 Profile 관리
+- Quest 진행/잠김/사용 불가/완료 계산
+- Hideout 현재 레벨 관리
+- 미래 Quest + 미래 Hideout 기준 Needed Items 계산
+- FIR / Non-FIR 보유량 및 안전한 cleanup 계산
+- flexible hand-in 그룹 계산
+- Ammo 성능/수급처 비교
+- 온라인 Game Content 안전 업데이트
 
-- 퀘스트 목록
-- 은신처 목록
-- 필요 아이템
-- 탄약 표
-- 지도 및 인게임 미니맵 형태 표시
-- RatScanner 기능 통합 — 후속 추가 예정
-
-세부 동작은 아직 제품 설계 중이며, 기존 구현을 근거로 임의 보완하지 않습니다.
+Map과 Scanner의 실제 기능은 후속 범위이며, 현재는 내비게이션 placeholder가 다음 구현 대상입니다.
 
 ## 가장 중요한 원칙
 
 1. **사용자의 의도가 제품의 최상위 기준입니다.**
-2. 준현 헬퍼는 **처음부터 설계**합니다.
-3. 기존 `Propeex/Tarkov-Helper` 및 기타 구현은 필요할 때 참고할 수 있지만 **정답, 사양, 사실의 근거로 간주하지 않습니다.**
-4. 대화가 바뀌어도 개발자는 저장소 문서를 읽어 현재 맥락을 복구해야 합니다.
-5. 확정된 결정과 미확정 가설을 섞지 않습니다.
-6. 구현보다 제품 동작과 요구사항을 먼저 확정합니다.
+2. 기존 `Propeex/Tarkov-Helper`는 참고 자료일 뿐 새 제품의 사양이 아닙니다.
+3. 일반적인 Tarkov 패치 데이터 변경 때마다 GPT가 데이터를 다시 수작업으로 변환하지 않습니다.
+4. 온라인 데이터는 프로그램이 검증·canonical 변환·DB 재구축을 반복할 수 있어야 합니다.
+5. Game Content와 User Progress를 분리합니다.
+6. 잘못된 새 데이터로 정상 데이터를 덮어쓰는 것보다 업데이트 실패가 낫습니다.
+7. 안전한 cleanup을 증명할 수 없으면 보수적으로 보호합니다.
+8. 대화가 바뀌어도 저장소 문서만 읽고 작업을 이어갈 수 있어야 합니다.
+
+## 데이터 구조
+
+기본 사용자 데이터 루트:
+
+```text
+%LocalAppData%/JunhyunHelper
+```
+
+주요 저장:
+
+```text
+user.db
+content/<game-mode>/content.db
+content/<game-mode>/content.candidate.db
+content/<game-mode>/content.previous.db
+image-cache/
+```
+
+현재 1차 Game Content 원천은 `json.tarkov.dev`입니다.
+
+## 기술 스택
+
+- .NET 10
+- C#
+- WPF
+- SQLite
+- Core / Infrastructure / Application / Desktop 계층 분리
 
 ## 새 개발자가 가장 먼저 읽을 문서
 
-1. [`AGENTS.md`](AGENTS.md) — 개발자/AI 작업 규약과 문서 읽기 순서
-2. [`docs/STATE.md`](docs/STATE.md) — 지금 어디까지 왔는지, 바로 다음에 무엇을 해야 하는지
-3. [`docs/PRODUCT.md`](docs/PRODUCT.md) — 제품 목적, 사용자 요구사항, 기능 정의
-4. [`docs/DECISIONS.md`](docs/DECISIONS.md) — 확정된 제품/기술 결정의 이력
-5. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — 기술 구조와 구성요소 관계
-6. [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) — 개발/검증/인수인계 절차
-7. [`docs/REFERENCE_POLICY.md`](docs/REFERENCE_POLICY.md) — 기존 Tarkov-Helper 등 외부 구현 참고 규칙
+1. [`AGENTS.md`](AGENTS.md) — 개발자/AI 작업 규약
+2. [`docs/STATE.md`](docs/STATE.md) — 현재 상태와 다음 작업
+3. [`docs/PRODUCT.md`](docs/PRODUCT.md) — 확정 제품 요구사항
+4. [`docs/DECISIONS.md`](docs/DECISIONS.md) — 장기 결정 이력
+5. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — 현재 기술 구조
+6. [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) — 개발/검증 절차
+7. [`docs/REFERENCE_POLICY.md`](docs/REFERENCE_POLICY.md) — 기존 구현 참고 규칙
 
-## 문서의 역할
+## 현재 개발 우선순위
 
-- `STATE.md`는 **현재 상태와 다음 행동**을 빠르게 복구하는 문서입니다.
-- `PRODUCT.md`는 **무엇을 왜 만드는지**를 정의합니다.
-- `DECISIONS.md`는 **무엇을 확정했고 왜 그랬는지**를 보존합니다.
-- `ARCHITECTURE.md`는 제품 요구가 정해진 뒤 **어떻게 구현할지**를 정의합니다.
-- 코드와 테스트는 이 문서들의 결과물이지, 제품 의도를 대신하지 않습니다.
+첫 실사용 피드백을 순차 반영 중입니다.
 
-## 현재 다음 단계
+현재 진행 중:
 
-먼저 서로 연결되는 **퀘스트 목록 ↔ 은신처 목록 ↔ 필요 아이템**의 진행 상태와 수량 계산 규칙을 제품 관점에서 정의합니다. 이후 탄약 표와 지도 사용 흐름을 구체화합니다.
+- Item 목록 재설계
+- Item / Hideout / Ammo 이미지 cache 및 표시
+
+이후:
+
+- 데이터 업데이트 진행률 UI
+- Trader / Map 실제 게임 순서
+- Ground Zero 21+ alias 검증
+- Map / Scanner placeholder 탭
+- Wiki-equivalent Armor Class 1~6 0~6 rating의 정확한 source/공식 조사
+
+상세 상태는 [`docs/STATE.md`](docs/STATE.md)를 기준으로 합니다.

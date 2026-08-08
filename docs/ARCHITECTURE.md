@@ -1,163 +1,350 @@
 # ARCHITECTURE — 기술 설계
 
-이 문서는 준현 헬퍼를 **어떻게 구현할지** 기록합니다.
-
-프레임워크나 프로그래밍 언어 같은 세부 기술 스택은 아직 확정하지 않습니다. 다만 제품의 핵심 원리에서 직접 도출되는 **데이터 아키텍처의 큰 틀**은 현재 확정합니다.
+이 문서는 준현 헬퍼의 현재 구현 구조와 장기적으로 지켜야 할 기술 경계를 기록합니다.
 
 ## 현재 상태
 
-`PARTIALLY CONFIRMED — 데이터 아키텍처 큰 틀 확정, 기술 스택 미정`
+`CONFIRMED — Phase 2B desktop/core architecture implemented`
+
+현재 기술 스택:
+
+- .NET 10
+- C#
+- WPF Desktop (`net10.0-windows`)
+- SQLite (`Microsoft.Data.Sqlite` + bundled e_sqlite3)
+- 별도 backend 없음
+- runtime AI/GPT 없음
+
+솔루션의 핵심 프로젝트 경계:
+
+```text
+JunhyunHelper.Core
+JunhyunHelper.Infrastructure
+JunhyunHelper.Application
+JunhyunHelper.Desktop
+```
 
 ## 1. 최상위 데이터 아키텍처
 
 `CONFIRMED`
 
-준현 헬퍼의 게임 데이터 기능은 다음 파이프라인을 기본 구조로 사용합니다.
+```text
+온라인 Tarkov 데이터
+→ 다운로드
+→ 원본 형식/필수 의미 검증
+→ canonical Game Content 변환
+→ candidate SQLite DB 작성
+→ DB/read-back 검증
+→ active content 원자적 교체
+→ User Progress와 결합
+→ Core 순수 규칙 계산
+→ Application 조정
+→ WPF Desktop 표시
+```
 
-`외부 API → 원본 데이터 다운로드 → 스키마/필수 필드 검증 → 준현 헬퍼 내부 모델로 변환 → 로컬 데이터베이스 구축/갱신 → 제품 기능에서 조회/계산`
+핵심 목적은 게임 패치로 데이터의 값과 내용이 바뀌더라도 프로그램 자체가 최신 데이터를 다시 받아 내부 Game Content를 재구축하는 것입니다.
 
-핵심 목적은 **게임 패치로 데이터 값과 내용이 바뀌더라도 프로그램 자체가 최신 데이터를 다시 받아 내부 데이터베이스를 재구축할 수 있게 하는 것**입니다.
+GPT/개발자는 importer와 변환 규칙을 설계할 때 필요할 수 있지만, 일반적인 데이터 업데이트 실행에는 GPT가 개입하지 않습니다.
 
-GPT나 개발자는 변환 규칙을 설계하고 구현할 때 필요할 수 있지만, 일반적인 데이터 업데이트 실행에는 GPT가 필요하지 않아야 합니다.
+## 2. 계층 책임
 
-## 2. 외부 데이터와 내부 모델의 경계
+### Core
+
+책임:
+
+- canonical Game Content / User Progress 타입
+- Quest 상태/미래 도달성 계산
+- Hideout 미래 upgrade 범위 계산
+- Needed Items / FIR / cleanup / flexible hand-in 계산
+- Ammo canonical 모델
+
+금지:
+
+- HTTP
+- SQLite
+- WPF
+- 화면 상태
+
+### Infrastructure
+
+책임:
+
+- `json.tarkov.dev` 및 허용된 보조 원천 읽기
+- 외부 JSON → canonical 모델 import
+- 스키마/관계 검증
+- `content.db` / `user.db` SQLite 저장
+- candidate/previous/active content 교체 및 복구
+
+Infrastructure는 외부 형식의 불확실성을 Core로 누출하지 않습니다.
+
+### Application
+
+책임:
+
+- 사용자 명령 1건을 저장하고 Core 결과를 다시 계산하는 얇은 orchestration
+- Quest / Hideout / Items workspace 구성
+- Profile CRUD 흐름 조정
+
+파생 결과를 별도의 사실처럼 저장하지 않습니다.
+
+### Desktop
+
+책임:
+
+- WPF 표시
+- 사용자 입력 수집
+- Application 명령 호출
+- Core/Application 계산 결과 표시
+- 사용자 편의를 위한 비권위적 UI cache
+
+Desktop은 Quest/Needed Items 규칙을 다시 구현하지 않습니다.
+
+## 3. Game Content와 User Progress 분리
 
 `CONFIRMED`
 
-제품 로직과 UI는 외부 API의 원본 JSON 구조를 직접 사용하지 않습니다.
+기본 데이터 루트:
 
-각 데이터 영역은 전용 변환기(Adapter/Importer)를 통해 내부 모델로 변환합니다.
+```text
+%LocalAppData%/JunhyunHelper
+```
 
-예상 구성:
+### User Progress
 
-- Quest Importer → 내부 Quest 모델
-- Hideout Importer → 내부 Hideout 모델
-- Ammo Importer → 내부 Ammo 모델
-- 필요 아이템 계산기 → Quest + Hideout 내부 모델에서 파생 Item Requirement 생성
+```text
+user.db
+```
 
-이 경계를 두는 이유:
+저장하는 사용자 사실:
 
-- 외부 필드 이름 변경의 영향을 한 곳에 제한
-- 데이터 검증 가능
-- 테스트 가능
-- 공급원 변경 가능
-- 제품 로직이 API 세부 형식에 종속되는 문제 방지
+- profile / game mode
+- level / faction / edition / prestige
+- trader LL / 필요한 standing
+- completed quest IDs
+- 필요한 경우 explicit permanent failed quest IDs
+- hideout station level
+- FIR / Non-FIR inventory
 
-## 3. 데이터 갱신의 독립성
+저장하지 않는 파생 결과:
+
+- Quest Current/Locked/Unavailable
+- Needed Items
+- cleanup
+- flexible hand-in progress
+- next hideout upgrade
+
+### Game Content
+
+모드별 독립 저장:
+
+```text
+content/
+  regular/
+    content.db
+    content.candidate.db
+    content.previous.db
+  pve/
+    ...
+  pvp-season/
+    ...
+```
+
+Game Content 업데이트 실패는 `user.db`를 변경하지 않습니다.
+
+## 4. 외부 데이터와 canonical 모델의 경계
 
 `CONFIRMED`
 
-일반적인 게임 업데이트 후 다음 상황을 목표로 합니다.
+제품 로직과 UI는 외부 API 원본 JSON 구조를 직접 사용하지 않습니다.
 
-1. 외부 데이터 공급원이 최신 퀘스트/은신처/탄약 데이터를 갱신합니다.
-2. 준현 헬퍼가 최신 데이터를 내려받습니다.
-3. 기존 변환 규칙이 새 데이터를 검증하고 내부 모델로 변환합니다.
-4. 로컬 데이터베이스를 새 데이터 기준으로 재구축 또는 갱신합니다.
-5. 퀘스트, 은신처, 탄약, 필요 아이템 기능이 새 데이터베이스를 그대로 사용합니다.
+현재 주요 importer 영역:
 
-이 과정에는 새로운 GPT 해석이나 수작업 데이터 작성이 개입하지 않는 것을 기본 목표로 합니다.
+- Quest
+- Hideout
+- Item
+- Trader
+- Map 최소 메타데이터
+- Barter / Craft
+- Ammo
+- edition-only rule source
 
-## 4. 스키마 변화 안전성
+내용 변화는 기존 importer가 이해할 수 있으면 자동 흡수합니다.
+
+핵심 필드 삭제/타입 변경/의미 변경처럼 안전하게 이해할 수 없는 변화가 발생하면 candidate build를 실패시키고 마지막 정상 active DB를 유지합니다.
+
+## 5. 데이터 원천
+
+### 1차 원천
+
+`json.tarkov.dev`
+
+현재 사용하는 주요 영역:
+
+- tasks
+- hideout
+- items
+- traders
+- maps — 현재 Quest 분류/참조용 최소 정보
+- barters
+- crafts
+
+지원 GameMode:
+
+- regular
+- pve
+- pvp-season
+
+### 보조 원천
+
+TarkovTracker `tarkov-data-overlay`의 editions 정보만 허용합니다.
+
+전체 community correction overlay를 자동 적용하지 않습니다.
+
+## 6. Hideout 진행 표현
 
 `CONFIRMED`
 
-외부 API 형식은 안정적일 것으로 기대할 수 있지만 **불변이라고 가정하지 않습니다.**
+제품 의미상 `미입력`과 `Lv.0`을 구분하지 않습니다.
 
-### 자동 처리 가능한 변화
+- 저장된 row가 없으면 Lv.0으로 계산
+- Lv.0을 굳이 `user.db`에 모두 저장하지 않아도 됨
+- UI는 `- / 현재 레벨 / +` 조작으로 정수 단계 변경
+- Needed Items는 현재 레벨보다 높은 모든 미래 upgrade material을 포함
 
-- 퀘스트 이름/설명 변경
-- 요구 아이템 종류/수량 변경
-- 은신처 요구사항 변경
-- 탄약 성능값 변경
-- 데이터 항목 추가/삭제 등 기존 변환기가 의미를 이해할 수 있는 내용 변화
+nullable boundary가 일부 남아 있더라도 호환 경계일 뿐 별도 제품 상태가 아닙니다.
 
-이런 변화는 새 데이터를 내려받는 것만으로 반영되어야 합니다.
+## 7. Desktop 이미지 cache
 
-### 비호환 스키마 변화
+`CONFIRMED`
 
-핵심 필드 삭제, 타입 변경, 의미 변경 등 기존 변환기가 안전하게 이해할 수 없는 경우:
+Item / Hideout / Ammo 이미지는 canonical Game Content의 URL을 재사용합니다.
 
-- 갱신 실패를 감지합니다.
-- 검증되지 않은 새 데이터로 정상 데이터베이스를 덮어쓰지 않습니다.
-- 가능한 경우 마지막 정상 데이터베이스를 유지합니다.
-- 변환 코드 업데이트가 필요한 상태로 취급합니다.
+새로운 별도 이미지 데이터 원천을 만들지 않습니다.
 
-즉 **자동 업데이트 실패보다 잘못된 데이터베이스 생성이 더 나쁜 실패**로 봅니다.
+Desktop 전용 cache:
 
-## 5. 현재 데이터 영역
+```text
+%LocalAppData%/JunhyunHelper/image-cache
+```
 
-### 퀘스트
+구조 원칙:
 
-- 현재 원천 후보 확정: `json.tarkov.dev`
-- 게임 모드별 데이터를 내부 Quest 모델로 변환
-- 프로필 상태와 결합해 현재 퀘스트 판정
+- stable entity ID + source URL hash로 cache key 생성
+- source URL이 바뀌면 새 cache entry 사용
+- 최대 6개 병렬 다운로드
+- 이미지 1개 최대 8 MiB
+- WPF `BitmapImage`는 메모리 로드 후 freeze
+- 네트워크/디코딩 실패는 non-fatal
+- 잘못된 payload가 cache에 저장되어 디코딩에 실패하면 해당 cache 파일을 제거하여 다음 요청에서 재다운로드 가능
 
-### 은신처
+중요:
 
-- 최신 온라인 데이터를 내부 Hideout 모델로 변환
-- 업그레이드 요구 아이템을 파생 계산에 제공
-- 정확한 공급원/엔드포인트는 구현 전 최신 검증
+- 이미지 실패는 Game Content update 실패가 아님
+- 이미지 실패는 User Progress에 영향을 주지 않음
+- 이미지 cache는 권위 데이터가 아니므로 언제든 재생성 가능
 
-### 탄약
+## 8. Desktop 화면 데이터 흐름
 
-- 최신 온라인 데이터를 내부 Ammo 모델로 변환
-- 구경, 성능, 수급 정보 등을 제품에서 사용
-- 정확한 공급원/엔드포인트는 구현 전 최신 검증
+### Profile 선택
 
-### 필요 아이템
+```text
+Profile selector
+→ ProfileApplicationService
+→ user.db profile fact
+→ 해당 GameMode active content 읽기/복구
+→ Quest/Hideout/Items workspace 계산
+→ 화면 갱신
+```
 
-별도 외부 원천을 기본으로 하지 않습니다.
+### Quest/Hideout/Inventory 변경
 
-`Quest 내부 데이터 + Hideout 내부 데이터 → 필요 아이템 파생 데이터`
+```text
+사용자 입력
+→ Application service에 fact 저장
+→ workspace 재계산
+→ Needed/Cleanup 변화 계산
+→ Quest/Hideout/Item UI 갱신
+```
 
-따라서 퀘스트나 은신처 요구사항이 패치로 변경되면 동일한 파생 계산을 다시 수행하여 필요 아이템 목록도 자동 갱신되어야 합니다.
+### Ammo
 
-### 지도
+Ammo는 선택된 GameMode active Game Content의 읽기 전용 비교 화면입니다.
 
-현재 API 공급원을 확정하지 않았으므로 본 데이터 파이프라인의 확정 범위 밖입니다.
+사용자 진행 상태와 결합하지 않습니다.
 
-## 6. 아직 정하지 않은 기술 사항
+## 9. Item 화면 구조
 
-- 애플리케이션 프레임워크
-- 프로그래밍 언어
-- 구체적인 데이터베이스 엔진/파일 형식
-- 캐시 보존 기간
-- 자동 갱신 주기
-- 오프라인 동작 정책
-- 업데이트 트랜잭션 방식
-- 배포/업데이트 기술
+`CONFIRMED`
 
-이 항목들은 핵심 기능의 큰 틀이 확보된 뒤 결정합니다.
+Item 화면의 1차 목록은 진단 dump가 아니라 사용자가 빠르게 판단할 수 있는 행 구조입니다.
 
-## 7. 금지되는 설계 방식
+행의 핵심 정보:
 
-- GPT가 매 패치의 새 데이터를 직접 읽고 변환 결과를 프로그램에 수작업으로 넣는 구조
-- 퀘스트/은신처/탄약 데이터를 소스 코드에 고정값으로 대량 포함하는 구조
-- 외부 API 원본 스키마를 UI와 비즈니스 로직 전체에서 직접 참조하는 구조
-- 데이터 검증 없이 새 데이터베이스로 교체하는 구조
-- 기존 구현이 그렇게 되어 있다는 이유만으로 구조를 승계하는 방식
+- 아이콘
+- 이름
+- 필요 출처 요약
+- 미래 필요량
+- 보유량
+- `추가 필요 / 충분 / 정리 / 판단 보류` 상태
 
-## 8. 향후 구성요소 기록 형식
+상세:
 
-### COMPONENT-XXX — 이름
+- FIR 최소 요구
+- FIR / Non-FIR 보유 입력
+- 전체 출처
+- cleanup 보호 이유
+- 해당 아이템이 후보인 경우에만 flexible hand-in 그룹 정보
 
-- 상태: `PROPOSED | CONFIRMED | SUPERSEDED`
-- 책임:
-- 입력:
-- 출력:
-- 의존성:
-- 관련 요구사항:
-- 실패 동작:
-- 테스트 전략:
+flexible hand-in 후보는 아직 하나도 보유하지 않았더라도 모두 목록에서 접근 가능해야 합니다. 그래야 사용자가 첫 보유량을 입력할 수 있습니다.
 
-## 9. 향후 데이터 흐름 기록 형식
+## 10. Hideout / Ammo 이미지 표시
 
-### DATAFLOW-XXX — 이름
+Hideout:
 
-- 상태:
-- 시작점:
-- 처리 단계:
-- 종료점:
-- 데이터 신뢰 기준:
-- 갱신/캐시 규칙:
-- 실패 시 처리:
+- 시설 목록 행에 station image
+- 상세 header에 station image
+
+Ammo:
+
+- 표의 탄약 이름 영역에 item image
+- 상세 header에 같은 image
+
+이미지는 canonical `ImageUrl` / `IconUrl`만 사용합니다.
+
+## 11. 업데이트 안전성
+
+Game Content 교체는 다음 순서를 지킵니다.
+
+1. 새 데이터를 candidate 영역에 작성
+2. 스키마/필수 관계/행 수 등 검증
+3. candidate를 다시 읽어 canonical 의미 검증
+4. 검증 성공 후에만 active 교체
+5. 이전 active를 복구 가능하게 보존
+6. 실패 시 기존 active와 user.db 유지
+
+잘못된 새 데이터로 기존 정상 데이터를 덮어쓰는 것보다 업데이트 실패가 낫습니다.
+
+## 12. 의도적으로 사용하지 않는 구조
+
+현재 필요성이 증명되지 않아 사용하지 않습니다.
+
+- ORM / EF Core
+- DI container
+- 별도 backend
+- 범용 rule engine
+- runtime AI/GPT
+- 거대한 event bus
+- 기능별 중복 데이터베이스
+- 외부 API JSON을 UI에서 직접 소비
+
+## 13. 후속 기술 과제
+
+현재 남은 주요 과제:
+
+- 데이터 업데이트 단계별 진행률을 Desktop에 전달하는 progress contract
+- Trader / Map 고정 표시 순서의 canonical UI ordering helper
+- Ground Zero 21+ 등 같은 플레이 공간의 alias normalization 검증
+- 미구현 Map / Scanner 탭 placeholder
+- Wiki-equivalent Armor Class 1~6 0~6 rating의 정확한 source/derivation 검증
+
+Armor Class rating은 검증되지 않은 자체 휴리스틱을 만들지 않습니다. 조사 기준은 `docs/BALLISTICS_EFFECTIVENESS_ANALYSIS.md`입니다.

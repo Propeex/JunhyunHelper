@@ -1,7 +1,10 @@
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using JunhyunHelper.Application.Hideout;
 using JunhyunHelper.Core.Content;
+using JunhyunHelper.Desktop.Services;
 
 namespace JunhyunHelper.Desktop.Hideout;
 
@@ -17,7 +20,9 @@ public partial class HideoutPage : UserControl
 {
     private GameContentCatalog? _content;
     private HideoutWorkspace? _workspace;
+    private ImageCacheService? _imageCache;
     private IReadOnlyList<StationRow> _rows = [];
+    private CancellationTokenSource? _iconLoadCts;
 
     public HideoutPage()
     {
@@ -25,6 +30,9 @@ public partial class HideoutPage : UserControl
     }
 
     public event EventHandler<HideoutLevelChangeRequestedEventArgs>? LevelChangeRequested;
+
+    public void SetImageCache(ImageCacheService imageCache) =>
+        _imageCache = imageCache ?? throw new ArgumentNullException(nameof(imageCache));
 
     public void SetData(GameContentCatalog content, HideoutWorkspace workspace)
     {
@@ -58,9 +66,41 @@ public partial class HideoutPage : UserControl
                 StationList.ScrollIntoView(selected);
             }
         }
+
+        _iconLoadCts?.Cancel();
+        _iconLoadCts?.Dispose();
+        _iconLoadCts = new CancellationTokenSource();
+        _ = LoadIconsAsync(_rows, _iconLoadCts.Token);
     }
 
     public void SetBusy(bool busy) => IsEnabled = !busy;
+
+    private async Task LoadIconsAsync(IReadOnlyList<StationRow> rows, CancellationToken cancellationToken)
+    {
+        if (_imageCache is null)
+            return;
+
+        try
+        {
+            foreach (var row in rows)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var image = await _imageCache.LoadAsync(
+                    $"hideout-{row.Entry.Station.Id}",
+                    row.Entry.Station.ImageUrl,
+                    cancellationToken);
+                if (image is null || cancellationToken.IsCancellationRequested)
+                    continue;
+
+                row.Icon = image;
+                if (ReferenceEquals(row, StationList.SelectedItem))
+                    DetailIcon.Source = image;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
 
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e) => ApplySearch();
 
@@ -85,19 +125,21 @@ public partial class HideoutPage : UserControl
     private void StationList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (StationList.SelectedItem is StationRow row)
-            ShowDetail(row.Entry);
+            ShowDetail(row);
         else
             ClearDetail();
     }
 
-    private void ShowDetail(HideoutStationEntry entry)
+    private void ShowDetail(StationRow row)
     {
         if (_content is null)
             return;
 
+        var entry = row.Entry;
         EmptyDetailText.Visibility = Visibility.Collapsed;
         DetailScroll.Visibility = Visibility.Visible;
-        DetailName.Text = DisplayName(entry.Station.NameKo, entry.Station.NameEn, entry.Station.Id);
+        DetailIcon.Source = row.Icon;
+        DetailName.Text = row.Name;
 
         var currentLevel = entry.CurrentLevel ?? 0;
         CurrentLevelText.Text = $"Lv.{currentLevel} / {entry.MaximumLevel}";
@@ -158,6 +200,7 @@ public partial class HideoutPage : UserControl
     {
         DetailScroll.Visibility = Visibility.Collapsed;
         EmptyDetailText.Visibility = Visibility.Visible;
+        DetailIcon.Source = null;
     }
 
     private static string FormatDuration(int seconds)
@@ -177,8 +220,33 @@ public partial class HideoutPage : UserControl
                 ? english
                 : fallback;
 
-    private sealed record StationRow(
-        HideoutStationEntry Entry,
-        string Name,
-        string LevelText);
+    private sealed class StationRow : INotifyPropertyChanged
+    {
+        private ImageSource? _icon;
+
+        public StationRow(HideoutStationEntry entry, string name, string levelText)
+        {
+            Entry = entry;
+            Name = name;
+            LevelText = levelText;
+        }
+
+        public HideoutStationEntry Entry { get; }
+        public string Name { get; }
+        public string LevelText { get; }
+
+        public ImageSource? Icon
+        {
+            get => _icon;
+            set
+            {
+                if (ReferenceEquals(_icon, value))
+                    return;
+                _icon = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Icon)));
+            }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+    }
 }

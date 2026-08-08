@@ -1,21 +1,29 @@
+using System.ComponentModel;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using JunhyunHelper.Core.Ammo;
 using JunhyunHelper.Core.Content;
+using JunhyunHelper.Desktop.Services;
 
 namespace JunhyunHelper.Desktop.Ammo;
 
 public partial class AmmoPage : UserControl
 {
     private GameContentCatalog? _content;
+    private ImageCacheService? _imageCache;
     private IReadOnlyList<AmmoRow> _allRows = [];
     private AmmoRow? _selectedRow;
+    private CancellationTokenSource? _iconLoadCts;
 
     public AmmoPage()
     {
         InitializeComponent();
     }
+
+    public void SetImageCache(ImageCacheService imageCache) =>
+        _imageCache = imageCache ?? throw new ArgumentNullException(nameof(imageCache));
 
     public void SetData(GameContentCatalog content)
     {
@@ -36,6 +44,11 @@ public partial class AmmoPage : UserControl
             ?? choices[0];
 
         ApplyFilter();
+
+        _iconLoadCts?.Cancel();
+        _iconLoadCts?.Dispose();
+        _iconLoadCts = new CancellationTokenSource();
+        _ = LoadIconsAsync(_allRows, _iconLoadCts.Token);
     }
 
     public void SetBusy(bool busy)
@@ -63,6 +76,7 @@ public partial class AmmoPage : UserControl
                 return new AmmoRow(
                     ammo,
                     name,
+                    item?.IconUrl,
                     ammo.Caliber,
                     caliberLabel,
                     ammo.Damage,
@@ -83,6 +97,36 @@ public partial class AmmoPage : UserControl
             .ToArray();
     }
 
+    private async Task LoadIconsAsync(IReadOnlyList<AmmoRow> rows, CancellationToken cancellationToken)
+    {
+        if (_imageCache is null)
+            return;
+
+        try
+        {
+            foreach (var row in rows)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (string.IsNullOrWhiteSpace(row.IconUrl))
+                    continue;
+
+                var image = await _imageCache.LoadAsync(
+                    $"ammo-{row.Ammo.ItemId}",
+                    row.IconUrl,
+                    cancellationToken);
+                if (image is null || cancellationToken.IsCancellationRequested)
+                    continue;
+
+                row.Icon = image;
+                if (ReferenceEquals(row, _selectedRow))
+                    DetailIcon.Source = image;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
     private void ApplyFilter()
     {
         var selectedCaliber = (CaliberComboBox.SelectedItem as CaliberChoice)?.RawCaliber;
@@ -99,8 +143,8 @@ public partial class AmmoPage : UserControl
                                 ?? filtered.FirstOrDefault();
 
         SummaryText.Text = selectedCaliber is null
-            ? $"탄약 {filtered.Length}종 · 구경 {Math.Max(0, CaliberComboBox.Items.Count - 1)}개 · 관통력 낮은 순"
-            : $"{CaliberText(selectedCaliber)} · 탄약 {filtered.Length}종 · 관통력 낮은 순";
+            ? $"탄약 {filtered.Length}종 · 구경 {Math.Max(0, CaliberComboBox.Items.Count - 1)}개 · 관통력/피해량 낮은 순"
+            : $"{CaliberText(selectedCaliber)} · 탄약 {filtered.Length}종 · 관통력/피해량 낮은 순";
 
         if (filtered.Length == 0)
             ShowDetail(null);
@@ -113,6 +157,7 @@ public partial class AmmoPage : UserControl
         {
             EmptyDetailText.Visibility = Visibility.Visible;
             DetailGrid.Visibility = Visibility.Collapsed;
+            DetailIcon.Source = null;
             return;
         }
 
@@ -120,6 +165,7 @@ public partial class AmmoPage : UserControl
         DetailGrid.Visibility = Visibility.Visible;
 
         var ammo = row.Ammo;
+        DetailIcon.Source = row.Icon;
         DetailName.Text = row.Name;
         DetailIdentity.Text = $"{row.CaliberLabel} · {AmmoTypeText(ammo.AmmoType)} · Item ID {ammo.ItemId}";
         DetailPerformance.Text = string.Join(
@@ -145,9 +191,7 @@ public partial class AmmoPage : UserControl
         AcquisitionItems.ItemsSource = BuildAcquisitionRows(ammo, _content);
     }
 
-    private static string BuildCompactAcquisitionText(
-        AmmoDefinition ammo,
-        GameContentCatalog content)
+    private static string BuildCompactAcquisitionText(AmmoDefinition ammo, GameContentCatalog content)
     {
         if (ammo.Acquisitions.Count == 0)
             return "레이드 획득";
@@ -166,15 +210,12 @@ public partial class AmmoPage : UserControl
             .Distinct(StringComparer.CurrentCulture)
             .ToArray();
 
-        if (labels.Length <= 2)
-            return string.Join(" · ", labels);
-
-        return $"{labels[0]} · {labels[1]} · +{labels.Length - 2}";
+        return labels.Length <= 2
+            ? string.Join(" · ", labels)
+            : $"{labels[0]} · {labels[1]} · +{labels.Length - 2}";
     }
 
-    private static string CompactAcquisitionLabel(
-        AmmoAcquisition acquisition,
-        GameContentCatalog content)
+    private static string CompactAcquisitionLabel(AmmoAcquisition acquisition, GameContentCatalog content)
     {
         var traderName = TraderName(acquisition.TraderId, content);
         var stationName = StationName(acquisition.StationId, content);
@@ -184,15 +225,9 @@ public partial class AmmoPage : UserControl
 
         return acquisition.Kind switch
         {
-            AmmoAcquisitionKind.TraderPurchase => level is null
-                ? traderName
-                : $"{traderName} LL{level}",
-            AmmoAcquisitionKind.TraderBarter => level is null
-                ? $"{traderName} 교환"
-                : $"{traderName} LL{level} 교환",
-            AmmoAcquisitionKind.HideoutCraft => level is null
-                ? $"{stationName} 제작"
-                : $"{stationName} Lv.{level}",
+            AmmoAcquisitionKind.TraderPurchase => level is null ? traderName : $"{traderName} LL{level}",
+            AmmoAcquisitionKind.TraderBarter => level is null ? $"{traderName} 교환" : $"{traderName} LL{level} 교환",
+            AmmoAcquisitionKind.HideoutCraft => level is null ? $"{stationName} 제작" : $"{stationName} Lv.{level}",
             _ => acquisition.Kind.ToString(),
         };
     }
@@ -205,9 +240,7 @@ public partial class AmmoPage : UserControl
         _ => 9,
     };
 
-    private static IReadOnlyList<AcquisitionRow> BuildAcquisitionRows(
-        AmmoDefinition ammo,
-        GameContentCatalog content)
+    private static IReadOnlyList<AcquisitionRow> BuildAcquisitionRows(AmmoDefinition ammo, GameContentCatalog content)
     {
         if (ammo.Acquisitions.Count == 0)
         {
@@ -227,9 +260,7 @@ public partial class AmmoPage : UserControl
             .ToArray();
     }
 
-    private static AcquisitionRow BuildAcquisitionRow(
-        AmmoAcquisition acquisition,
-        GameContentCatalog content)
+    private static AcquisitionRow BuildAcquisitionRow(AmmoAcquisition acquisition, GameContentCatalog content)
     {
         var traderName = TraderName(acquisition.TraderId, content);
         var stationName = StationName(acquisition.StationId, content);
@@ -295,9 +326,7 @@ public partial class AmmoPage : UserControl
             return "상인";
 
         var trader = content.Traders.FirstOrDefault(candidate => candidate.Id == traderId);
-        return trader is null
-            ? traderId
-            : DisplayName(trader.NameKo, trader.NameEn, trader.Id);
+        return trader is null ? traderId : DisplayName(trader.NameKo, trader.NameEn, trader.Id);
     }
 
     private static string StationName(string? stationId, GameContentCatalog content)
@@ -306,9 +335,7 @@ public partial class AmmoPage : UserControl
             return "은신처";
 
         var station = content.HideoutStations.FirstOrDefault(candidate => candidate.Id == stationId);
-        return station is null
-            ? stationId
-            : DisplayName(station.NameKo, station.NameEn, station.Id);
+        return station is null ? stationId : DisplayName(station.NameKo, station.NameEn, station.Id);
     }
 
     private static string ItemName(string? itemId, GameContentCatalog content)
@@ -317,17 +344,13 @@ public partial class AmmoPage : UserControl
             return string.Empty;
 
         var item = content.Items.FirstOrDefault(candidate => candidate.Id == itemId);
-        return item is null
-            ? itemId
-            : DisplayName(item.NameKo, item.NameEn, item.Id);
+        return item is null ? itemId : DisplayName(item.NameKo, item.NameEn, item.Id);
     }
 
     private static string QuestName(string questId, GameContentCatalog content)
     {
         var quest = content.Quests.FirstOrDefault(candidate => candidate.Id == questId);
-        return quest is null
-            ? questId
-            : DisplayName(quest.NameKo, quest.NameEn, quest.Id);
+        return quest is null ? questId : DisplayName(quest.NameKo, quest.NameEn, quest.Id);
     }
 
     private static string AmmoTypeText(string? ammoType) => ammoType?.ToLowerInvariant() switch
@@ -379,8 +402,7 @@ public partial class AmmoPage : UserControl
         };
     }
 
-    private static string FormatPercentage(decimal value) =>
-        $"{value * 100m:0.##}%";
+    private static string FormatPercentage(decimal value) => $"{value * 100m:0.##}%";
 
     private static string FormatSignedPercentage(decimal value)
     {
@@ -446,26 +468,73 @@ public partial class AmmoPage : UserControl
     private void AmmoGrid_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
         ShowDetail(AmmoGrid.SelectedItem as AmmoRow);
 
-    private sealed record AmmoRow(
-        AmmoDefinition Ammo,
-        string Name,
-        string RawCaliber,
-        string CaliberLabel,
-        int Damage,
-        string DamageText,
-        int PenetrationPower,
-        string ArmorDamageText,
-        string SpeedText,
-        string FragmentationText,
-        string RecoilText,
-        string AccuracyText,
-        string AcquisitionText);
+    private sealed class AmmoRow : INotifyPropertyChanged
+    {
+        private ImageSource? _icon;
 
-    private sealed record AcquisitionRow(
-        string Title,
-        string Conditions,
-        string Details,
-        string Unlock);
+        public AmmoRow(
+            AmmoDefinition ammo,
+            string name,
+            string? iconUrl,
+            string rawCaliber,
+            string caliberLabel,
+            int damage,
+            string damageText,
+            int penetrationPower,
+            string armorDamageText,
+            string speedText,
+            string fragmentationText,
+            string recoilText,
+            string accuracyText,
+            string acquisitionText)
+        {
+            Ammo = ammo;
+            Name = name;
+            IconUrl = iconUrl;
+            RawCaliber = rawCaliber;
+            CaliberLabel = caliberLabel;
+            Damage = damage;
+            DamageText = damageText;
+            PenetrationPower = penetrationPower;
+            ArmorDamageText = armorDamageText;
+            SpeedText = speedText;
+            FragmentationText = fragmentationText;
+            RecoilText = recoilText;
+            AccuracyText = accuracyText;
+            AcquisitionText = acquisitionText;
+        }
+
+        public AmmoDefinition Ammo { get; }
+        public string Name { get; }
+        public string? IconUrl { get; }
+        public string RawCaliber { get; }
+        public string CaliberLabel { get; }
+        public int Damage { get; }
+        public string DamageText { get; }
+        public int PenetrationPower { get; }
+        public string ArmorDamageText { get; }
+        public string SpeedText { get; }
+        public string FragmentationText { get; }
+        public string RecoilText { get; }
+        public string AccuracyText { get; }
+        public string AcquisitionText { get; }
+
+        public ImageSource? Icon
+        {
+            get => _icon;
+            set
+            {
+                if (ReferenceEquals(_icon, value))
+                    return;
+                _icon = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Icon)));
+            }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+    }
+
+    private sealed record AcquisitionRow(string Title, string Conditions, string Details, string Unlock);
 
     private sealed record CaliberChoice(string? RawCaliber, string Label)
     {
