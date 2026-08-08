@@ -13,6 +13,7 @@ public enum QuestAvailabilityReasonKind
     Disabled,
     MinimumLevel,
     Faction,
+    Edition,
     Prestige,
     TraderStanding,
     TraderLoyalty,
