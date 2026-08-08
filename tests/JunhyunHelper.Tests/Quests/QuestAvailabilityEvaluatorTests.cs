@@ -101,7 +101,67 @@ public sealed class QuestAvailabilityEvaluatorTests
         Assert.Contains(
             result.Reasons,
             reason => reason.Kind == QuestAvailabilityReasonKind.MissingProfileValue &&
-                      reason.ReferenceId == "fence");
+                      reason.ReferenceId == "trader-standing:fence");
+    }
+
+    [Fact]
+    public void KnownLoyaltyDoesNotInventStanding()
+    {
+        var loyaltyQuest = Quest(
+            "loyalty",
+            traderLoyaltyRequirements:
+            [
+                new QuestTraderLoyaltyRequirement("trader-a", 3),
+            ]);
+        var standingQuest = Quest(
+            "standing",
+            traderStandingRequirements:
+            [
+                new QuestTraderStandingRequirement(
+                    "trader-a",
+                    0.5m,
+                    StandingRequirementOperator.AtLeast),
+            ]);
+        var profile = Profile(
+            traders: new Dictionary<string, TraderProgress>(StringComparer.Ordinal)
+            {
+                ["trader-a"] = new(3, null),
+            });
+
+        var result = Evaluate(profile, loyaltyQuest, standingQuest);
+
+        Assert.Equal(QuestAvailabilityState.Current, result[loyaltyQuest.Id].State);
+        Assert.Equal(QuestAvailabilityState.Indeterminate, result[standingQuest.Id].State);
+    }
+
+    [Fact]
+    public void KnownStandingDoesNotInventLoyalty()
+    {
+        var loyaltyQuest = Quest(
+            "loyalty",
+            traderLoyaltyRequirements:
+            [
+                new QuestTraderLoyaltyRequirement("trader-a", 3),
+            ]);
+        var standingQuest = Quest(
+            "standing",
+            traderStandingRequirements:
+            [
+                new QuestTraderStandingRequirement(
+                    "trader-a",
+                    0.5m,
+                    StandingRequirementOperator.AtLeast),
+            ]);
+        var profile = Profile(
+            traders: new Dictionary<string, TraderProgress>(StringComparer.Ordinal)
+            {
+                ["trader-a"] = new(null, 0.6m),
+            });
+
+        var result = Evaluate(profile, loyaltyQuest, standingQuest);
+
+        Assert.Equal(QuestAvailabilityState.Indeterminate, result[loyaltyQuest.Id].State);
+        Assert.Equal(QuestAvailabilityState.Current, result[standingQuest.Id].State);
     }
 
     [Fact]
