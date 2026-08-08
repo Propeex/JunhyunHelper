@@ -122,7 +122,8 @@
                                Foreground="{StaticResource TextSecondaryBrush}"
                                TextAlignment="Center"
                                Margin="0,0,0,16" />
-                    <Button Content="프로필 만들기"
+                    <Button x:Name="CreateProfileButton"
+                            Content="프로필 만들기"
                             HorizontalAlignment="Center"
                             Click="CreateProfileButton_Click" />
                 </StackPanel>
