@@ -96,6 +96,7 @@
                         Grid.Column="8"
                         Content="프로필 삭제"
                         Margin="0,0,8,0"
+                        IsEnabled="{Binding IsEnabled, ElementName=EditProfileButton}"
                         Click="DeleteProfileButton_Click" />
 
                 <Button x:Name="CreateProfileButton"
