@@ -21,3 +21,21 @@ jobs:
 
       - name: Test core
         run: dotnet test tests/JunhyunHelper.Tests/JunhyunHelper.Tests.csproj --configuration Release
+
+      - name: Download live Tarkov JSON probe
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path source-probe | Out-Null
+          $headers = @{ 'User-Agent' = 'JunhyunHelper-contract-probe/1.0' }
+          Invoke-WebRequest -Headers $headers -Uri 'https://json.tarkov.dev/regular/items' -OutFile 'source-probe/items.json'
+          Invoke-WebRequest -Headers $headers -Uri 'https://json.tarkov.dev/regular/tasks' -OutFile 'source-probe/tasks.json'
+          Invoke-WebRequest -Headers $headers -Uri 'https://json.tarkov.dev/regular/barters' -OutFile 'source-probe/barters.json'
+          Invoke-WebRequest -Headers $headers -Uri 'https://json.tarkov.dev/regular/crafts' -OutFile 'source-probe/crafts.json'
+          Get-ChildItem source-probe | Select-Object Name,Length | Format-Table
+
+      - name: Upload live Tarkov JSON probe
+        uses: actions/upload-artifact@v4
+        with:
+          name: tarkov-json-source-probe
+          path: source-probe/*.json
+          retention-days: 1
