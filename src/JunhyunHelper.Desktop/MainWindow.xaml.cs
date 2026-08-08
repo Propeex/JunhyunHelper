@@ -51,13 +51,21 @@ public partial class MainWindow : Window
             _profiles = await _services.ProfileManagement.LoadAllAsync();
 
             var targetProfileId = selectedProfileId ?? _activeProfile?.ProfileId;
-            var choices = _profiles.Select(profile => new ProfileChoice(profile)).ToArray();
+            var choices = _profiles
+                .Select(profile => new ProfileChoice(profile, false))
+                .ToList();
+            if (_profiles.Select(profile => profile.GameMode).Distinct().Count() < Enum.GetValues<GameMode>().Length &&
+                _profiles.Count > 0)
+            {
+                choices.Add(ProfileChoice.CreateNew);
+            }
 
             _initializing = true;
             ProfileComboBox.ItemsSource = choices;
             ProfileComboBox.SelectedItem = choices.FirstOrDefault(choice =>
+                choice.Profile is not null &&
                 string.Equals(choice.Profile.ProfileId, targetProfileId, StringComparison.Ordinal))
-                ?? choices.FirstOrDefault();
+                ?? choices.FirstOrDefault(choice => choice.Profile is not null);
             _initializing = false;
 
             if (_profiles.Count == 0)
@@ -100,6 +108,13 @@ public partial class MainWindow : Window
         if (_initializing || !IsLoaded)
             return;
 
+        if (ProfileComboBox.SelectedItem is ProfileChoice { IsCreateNew: true })
+        {
+            RestoreActiveProfileSelection();
+            await CreateProfileAsync();
+            return;
+        }
+
         try
         {
             await LoadSelectedProfileAsync();
@@ -114,14 +129,26 @@ public partial class MainWindow : Window
         }
     }
 
+    private void RestoreActiveProfileSelection()
+    {
+        if (_activeProfile is null || ProfileComboBox.ItemsSource is not IEnumerable<ProfileChoice> choices)
+            return;
+
+        _initializing = true;
+        ProfileComboBox.SelectedItem = choices.FirstOrDefault(choice =>
+            choice.Profile is not null &&
+            string.Equals(choice.Profile.ProfileId, _activeProfile.ProfileId, StringComparison.Ordinal));
+        _initializing = false;
+    }
+
     private async Task LoadSelectedProfileAsync()
     {
-        if (ProfileComboBox.SelectedItem is not ProfileChoice choice)
+        if (ProfileComboBox.SelectedItem is not ProfileChoice { Profile: { } profile })
             return;
 
         SetBusy(true, "게임 데이터를 불러오는 중...");
-        _activeProfile = choice.Profile;
-        _activeContent = await ReadOrCreateContentAsync(choice.Profile.GameMode);
+        _activeProfile = profile;
+        _activeContent = await ReadOrCreateContentAsync(profile.GameMode);
         _activeItemsWorkspace = null;
         ItemsPage.ClearCleanupNotice();
 
@@ -129,7 +156,7 @@ public partial class MainWindow : Window
         AmmoPage.SetData(_activeContent);
         EmptyState.Visibility = Visibility.Collapsed;
         ShowActiveSection();
-        StatusText.Text = BuildLoadedStatus(choice.Profile.GameMode);
+        StatusText.Text = BuildLoadedStatus(profile.GameMode);
     }
 
     private async Task<IReadOnlyList<InventoryCleanupIncrease>> RefreshActiveWorkspacesAsync(
@@ -191,6 +218,11 @@ public partial class MainWindow : Window
     }
 
     private async void CreateProfileButton_Click(object sender, RoutedEventArgs e)
+    {
+        await CreateProfileAsync();
+    }
+
+    private async Task CreateProfileAsync()
     {
         var existingModes = _profiles.Select(profile => profile.GameMode).ToHashSet();
         var availableModes = Enum.GetValues<GameMode>()
@@ -262,7 +294,27 @@ public partial class MainWindow : Window
         {
             Owner = this,
         };
-        if (editor.ShowDialog() != true || editor.Result is not { } result)
+        if (editor.ShowDialog() != true)
+            return;
+
+        if (editor.DeleteRequested)
+        {
+            try
+            {
+                await DeleteProfileAsync(profileId);
+            }
+            catch (Exception exception)
+            {
+                ShowFailure("프로필을 삭제하지 못했습니다.", exception);
+            }
+            finally
+            {
+                SetBusy(false, StatusText.Text);
+            }
+            return;
+        }
+
+        if (editor.Result is not { } result)
             return;
 
         try
@@ -407,11 +459,7 @@ public partial class MainWindow : Window
                 e.Level);
 
             var cleanupChanges = await RefreshActiveWorkspacesAsync(detectCleanupChanges: true);
-            StatusText.Text = BuildProgressChangeStatus(
-                e.Level.HasValue
-                    ? "은신처 레벨 저장됨"
-                    : "은신처 레벨 입력 해제됨",
-                cleanupChanges);
+            StatusText.Text = BuildProgressChangeStatus("은신처 레벨 저장됨", cleanupChanges);
         }
         catch (Exception exception)
         {
@@ -579,10 +627,18 @@ public partial class MainWindow : Window
         _ => faction.ToString(),
     };
 
-    private sealed record ProfileChoice(GameProfileSnapshot Profile)
+    private sealed record ProfileChoice(GameProfileSnapshot? Profile, bool IsCreateNew)
     {
-        public override string ToString() =>
-            $"{GameModeText(Profile.GameMode)} · Lv.{Profile.Level} · {FactionText(Profile.Faction)}";
+        public static ProfileChoice CreateNew { get; } = new(null, true);
+
+        public override string ToString()
+        {
+            if (IsCreateNew)
+                return "+ 새 프로필";
+            return Profile is null
+                ? string.Empty
+                : $"{GameModeText(Profile.GameMode)} · Lv.{Profile.Level} · {FactionText(Profile.Faction)}";
+        }
     }
 
     private enum DesktopSection
