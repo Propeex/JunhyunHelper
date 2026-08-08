@@ -20,5 +20,6 @@
   <ItemGroup>
     <ProjectReference Include="../../src/JunhyunHelper.Core/JunhyunHelper.Core.csproj" />
     <ProjectReference Include="../../src/JunhyunHelper.Infrastructure/JunhyunHelper.Infrastructure.csproj" />
+    <ProjectReference Include="../../src/JunhyunHelper.Application/JunhyunHelper.Application.csproj" />
   </ItemGroup>
 </Project>

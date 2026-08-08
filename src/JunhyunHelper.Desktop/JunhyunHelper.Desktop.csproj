@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../JunhyunHelper.Core/JunhyunHelper.Core.csproj" />
+    <ProjectReference Include="../JunhyunHelper.Infrastructure/JunhyunHelper.Infrastructure.csproj" />
+    <ProjectReference Include="../JunhyunHelper.Application/JunhyunHelper.Application.csproj" />
+  </ItemGroup>
+</Project>
