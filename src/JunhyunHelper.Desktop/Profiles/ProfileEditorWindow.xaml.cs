@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.Profiles;
+using JunhyunHelper.Desktop.Services;
 
 namespace JunhyunHelper.Desktop.Profiles;
 
@@ -22,9 +23,9 @@ public sealed class TraderEditorRow : INotifyPropertyChanged
 
     public required string TraderId { get; init; }
     public required string Name { get; init; }
-    public required string EnglishName { get; init; }
     public required bool IsFence { get; init; }
     public required bool NeedsAdvancedStanding { get; init; }
+    public required int DisplayRank { get; init; }
 
     public int? LoyaltyLevel
     {
@@ -76,24 +77,7 @@ public sealed class TraderEditorRow : INotifyPropertyChanged
 public partial class ProfileEditorWindow : Window
 {
     private const string FenceTraderId = "579dc571d53a0658a154fbec";
-
-    private static readonly string[] CoreTraderNames =
-    [
-        "Prapor",
-        "Therapist",
-        "Skier",
-        "Peacekeeper",
-        "Mechanic",
-        "Ragman",
-        "Jaeger",
-        "Ref",
-    ];
-
-    private static readonly string[] SpecialTraderNames =
-    [
-        "Lightkeeper",
-        "BTR Driver",
-    ];
+    private const int LastCoreTraderRank = 8; // Ref. Lightkeeper/BTR Driver follow as special traders.
 
     private readonly IReadOnlyList<TraderEditorRow> _traderRows;
     private readonly bool _editingExistingProfile;
@@ -162,11 +146,11 @@ public partial class ProfileEditorWindow : Window
                 {
                     TraderId = trader.Id,
                     Name = DisplayName(trader.NameKo, trader.NameEn, trader.Id),
-                    EnglishName = trader.NameEn ?? string.Empty,
                     IsFence = isFence,
                     NeedsAdvancedStanding = !isFence &&
                                             (standingRequiredTraderIds.Contains(trader.Id) ||
                                              (hasProgress && progress.Standing is not null)),
+                    DisplayRank = UiReferenceOrder.TraderRank(trader),
                     LoyaltyLevel = isFence
                         ? hasProgress ? progress.LoyaltyLevel : null
                         : hasProgress ? progress.LoyaltyLevel ?? 1 : 1,
@@ -182,15 +166,15 @@ public partial class ProfileEditorWindow : Window
         FencePanel.Visibility = fenceRow is null ? Visibility.Collapsed : Visibility.Visible;
 
         var coreRows = _traderRows
-            .Where(row => !row.IsFence && CoreTraderOrder(row.EnglishName) < int.MaxValue)
-            .OrderBy(row => CoreTraderOrder(row.EnglishName))
+            .Where(row => !row.IsFence && row.DisplayRank <= LastCoreTraderRank)
+            .OrderBy(row => row.DisplayRank)
             .ThenBy(row => row.Name, StringComparer.CurrentCulture)
             .ToArray();
         TraderItems.ItemsSource = coreRows;
 
         var specialRows = _traderRows
-            .Where(row => !row.IsFence && CoreTraderOrder(row.EnglishName) == int.MaxValue)
-            .OrderBy(row => SpecialTraderOrder(row.EnglishName))
+            .Where(row => !row.IsFence && row.DisplayRank > LastCoreTraderRank)
+            .OrderBy(row => row.DisplayRank)
             .ThenBy(row => row.Name, StringComparer.CurrentCulture)
             .ToArray();
         SpecialTraderItems.ItemsSource = specialRows;
@@ -207,28 +191,6 @@ public partial class ProfileEditorWindow : Window
 
     public ProfileSettingsResult? Result { get; private set; }
     public bool DeleteRequested { get; private set; }
-
-    private static int CoreTraderOrder(string englishName)
-    {
-        for (var index = 0; index < CoreTraderNames.Length; index++)
-        {
-            if (string.Equals(CoreTraderNames[index], englishName, StringComparison.OrdinalIgnoreCase))
-                return index;
-        }
-
-        return int.MaxValue;
-    }
-
-    private static int SpecialTraderOrder(string englishName)
-    {
-        for (var index = 0; index < SpecialTraderNames.Length; index++)
-        {
-            if (string.Equals(SpecialTraderNames[index], englishName, StringComparison.OrdinalIgnoreCase))
-                return index;
-        }
-
-        return SpecialTraderNames.Length;
-    }
 
     private void LevelMinusButton_Click(object sender, RoutedEventArgs e)
     {
