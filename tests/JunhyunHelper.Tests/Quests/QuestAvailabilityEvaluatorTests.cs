@@ -21,7 +21,8 @@ public sealed class QuestAvailabilityEvaluatorTests
     public void CompletedQuestIsCompletedInsteadOfCurrent()
     {
         var quest = Quest("quest-a");
-        var profile = Profile(completedQuestIds: [quest.Id]);
+        var profile = Profile(
+            completedQuestIds: new HashSet<string>(StringComparer.Ordinal) { quest.Id });
 
         var result = Evaluate(profile, quest)[quest.Id];
 
@@ -52,7 +53,8 @@ public sealed class QuestAvailabilityEvaluatorTests
                     prerequisite.Id,
                     new[] { QuestRequiredStatus.Complete }),
             ]);
-        var profile = Profile(completedQuestIds: [prerequisite.Id]);
+        var profile = Profile(
+            completedQuestIds: new HashSet<string>(StringComparer.Ordinal) { prerequisite.Id });
 
         var result = Evaluate(profile, prerequisite, dependent);
 
