@@ -6,7 +6,7 @@
 
 **Phase 2A — 핵심 데이터 기반 구현**
 
-상태: `IN PROGRESS — verified baseline`
+상태: `IN PROGRESS — live data pipeline verified`
 
 UI보다 먼저 **Game Content / User Progress / Domain Logic**을 작고 독립적인 구성으로 구현하고 있습니다.
 
@@ -20,9 +20,7 @@ UI보다 먼저 **Game Content / User Progress / Domain Logic**을 작고 독립
 
 일반적인 Tarkov 패치 때 GPT가 데이터를 다시 해석하거나 수작업 DB를 만들어야 하는 구조를 금지합니다.
 
-## 최우선 철학
-
-### 결정론적 도구 — DEC-018
+## 최우선 철학 — DEC-018
 
 준현 헬퍼 런타임은 생각하거나 추론하는 AI가 아닙니다.
 
@@ -33,7 +31,7 @@ UI보다 먼저 **Game Content / User Progress / Domain Logic**을 작고 독립
 - 안전하게 계산할 수 없으면 `Indeterminate` 또는 업데이트 실패로 명시
 - 새 규칙은 `의미 검증 → 코드 → 테스트` 순으로 추가
 
-### 유지보수 경계
+## 유지보수 경계
 
 1. **Game Content** — API에서 다시 만들 수 있는 게임 사실
 2. **User Progress** — 사용자의 실제 캐릭터 진행 사실
@@ -65,7 +63,7 @@ UI보다 먼저 **Game Content / User Progress / Domain Logic**을 작고 독립
 
 ## 데이터 공급원
 
-2026-08-08 기준 `json.tarkov.dev` 핵심 원천:
+2026-08-08 현재 `json.tarkov.dev` 사용 원천:
 
 - `tasks`
 - `hideout`
@@ -83,19 +81,27 @@ UI보다 먼저 **Game Content / User Progress / Domain Logic**을 작고 독립
 
 한국어 `ko` 지원.
 
-현재 사용 방향:
+### 실제 raw 계약 직접 검증 완료
 
-- Quest → `tasks`
-- Hideout → `hideout`
-- Items/common refs → `items / traders / maps`
-- Ammo → `items + traders / barters / crafts / hideout`
+2026-08-08 GitHub Actions runner에서 현재 `regular` raw JSON을 직접 다운로드하여 검사했습니다.
 
-아직 실제 raw fixture로 고정할 계약:
+당시 개수:
 
-- 에디션별 Quest 허용/제외 원천
-- Ammo `properties` 실제 key/type
-- `barters` / `crafts` raw shape
-- 현재 전체 Quest objective type 집합
+- Items: **5,310**
+- Tasks: **510**
+- Barters: **789**
+- Crafts: **214**
+- 실제 탄약(`ItemPropertiesAmmo`): **200**
+
+이 숫자는 패치 후 데이터 정상 여부를 판단하는 고정 임계값으로 사용하지 않습니다.
+
+상세 계약은 `DATA_SOURCE_AUDIT.md` 참조.
+
+### 아직 열린 데이터 원천 문제
+
+**에디션별 Quest 허용/제외 조건**은 현재 `json.tarkov.dev/tasks` raw에 직접 존재하지 않습니다.
+
+`EditionId`는 사용자 프로필 사실로 보존하지만 신뢰 가능한 규칙 원천을 확정하기 전까지 에디션 기준으로 Quest를 추측해 숨기지 않습니다.
 
 ## 기술 스택
 
@@ -127,6 +133,7 @@ tests/
 - GameProfileSnapshot
 - Quest definition / prerequisite / objective / item requirement
 - Hideout station / level / item requirement
+- Ammo performance / acquisition
 - Trader / Map 최소 참조
 - GameContentCatalog
 
@@ -148,24 +155,48 @@ tests/
 - player level
 - faction
 - prestige
-- trader standing
-- trader loyalty
+- trader reputation
+- trader loyalty level
 - prerequisite `Complete`
 - prerequisite `Active`
 - disabled
 
 준현 헬퍼는 수주 가능한 퀘스트를 자동 수락한 것으로 간주하므로, 해금된 선행 퀘스트는 `Active` 조건을 만족할 수 있습니다.
 
-의도적으로 추측하지 않는 것:
+실제 live task 계약을 기준으로 `traderRequirements`를 다음처럼 해석합니다.
 
-- 필요한 trader progress 미입력 → `Indeterminate`
-- 필요한 prestige 미입력 → `Indeterminate`
-- `Failed` 전용 prerequisite → 실패 진행 UX가 확정될 때까지 `Indeterminate`
-- dependency cycle → `Indeterminate`
+- `reputation + >=` → `AtLeast`
+- `reputation + <=` → `AtMost`
+- `reputation + <` → `LessThan`
+- `level + >=` → loyalty level requirement
+
+숫자의 부호로 비교 방향을 추측하지 않습니다.
+
+의도적으로 `Indeterminate`로 남기는 것:
+
+- 필요한 trader progress 미입력
+- 필요한 prestige 미입력
+- `Failed` 전용 prerequisite — 실패 진행 UX 미확정
+- dependency cycle
+- 아직 지원하지 않는 추가 availability requirement
+
+현재 live data의 비어 있지 않은 `otherRequirements`는 3개 Quest에서 `dialogue` 유형으로 확인했습니다. 이를 무시해서 Current로 오판하지 않고 canonical data에 보존한 뒤 `Indeterminate`로 판정합니다.
 
 시간 지연 해금은 제품 결정대로 무시합니다.
 
-Trader standing은 값만 저장하지 않고 `AtLeast / AtMost` 비교 의미까지 canonical model에 보존합니다.
+### Quest objective → Needed Items 의미 변환
+
+현재 live regular에서 실제 objective type 집합을 직접 확인했습니다.
+
+Needed Items 관련 기본 분류:
+
+- `giveItem` → stash 제출 requirement
+- `findItem` / `collect` → 획득 목표, 제출 재료 합계에서 제외
+- `sellItem` → 판매 목표, 제출 재료 합계에서 제외
+- `findQuestItem` / `giveQuestItem` → 일반 stash 아이템 집계에 자동 포함하지 않음
+- 기타 objective → 원래 의미는 보존하되 재료로 추측하지 않음
+
+`giveItem.items`의 여러 item ID는 대체 가능한 하나의 requirement group으로 보존합니다.
 
 ### Needed Items
 
@@ -175,14 +206,38 @@ Trader standing은 값만 저장하지 않고 `AtLeast / AtMost` 비교 의미�
 - 요구 출처 보존
 - FIR / Non-FIR 이중 계산 방지
 
-Quest objective 의미를 한 번만 정규화합니다.
+아직 제품 판단이 필요한 부분은 억지로 구현하지 않습니다.
 
-- `giveItem` → 제출 재료
-- `findItem / collect` → 획득 목표, 필요 재료 합계에서 제외
-- `sellItem` → 판매 목표, 필요 재료 합계에서 제외
-- 기타 → objective에는 보존, 자동 합산하지 않음
+- Hideout 필요량을 기본적으로 다음 레벨만 볼지 전체 미래 레벨까지 볼지
+- 대체 가능한 Quest 제출 아이템을 보유량과 어떻게 배분할지
 
-이 분류는 실제 live fixture로 다시 검증합니다.
+### Ammo
+
+canonical Ammo importer 구현 완료.
+
+탄약 식별:
+
+`properties.propertiesType == ItemPropertiesAmmo`
+
+`types`에 `ammo`가 있다는 이유만으로 포함하지 않아 grenade/ammo box가 탄약 표에 섞이지 않습니다.
+
+현재 canonical 성능값:
+
+- caliber / ammoType / projectileCount
+- damage / armorDamage / penetrationPower
+- fragmentationChance / ricochetChance
+- accuracyModifier / recoilModifier
+- initialSpeed
+- heavyBleedModifier / lightBleedModifier
+- tracer / tracerColor
+
+수급 관계:
+
+- `TraderPurchase` — item `buyFromTrader`
+- `TraderBarter` — `barters`
+- `HideoutCraft` — `crafts`
+
+구매 가격/화폐, 상인 레벨, Quest unlock, barter 요구 아이템, craft 재료/도구/시간/시설 레벨 등 실제 원천 의미를 명시적으로 보존합니다.
 
 ### User Progress / `user.db`
 
@@ -199,11 +254,11 @@ Quest objective 의미를 한 번만 정규화합니다.
 
 저장하지 않는 것:
 
-- Current / Locked quest 결과
+- Current / Locked / Indeterminate 결과
 - Needed Items 결과
 - 화면 집계/정렬 결과
 
-`user.db`는 작은 versioned JSON payload를 SQLite에 저장합니다. 사용자 데이터는 재생성할 수 없으므로 알 수 없는 schema version을 자동 추측하지 않습니다.
+`user.db`는 작은 versioned JSON payload를 SQLite에 저장합니다.
 
 SQLite connection pooling은 이 단일 로컬 DB 용도에 불필요하고 Windows 파일 잠금을 남겼으므로 비활성화했습니다.
 
@@ -217,12 +272,10 @@ SQLite connection pooling은 이 단일 로컬 DB 용도에 불필요하고 Wind
 - 한국어 + 영어 fallback
 - 번역은 표시 문자열에만 적용, ID/관계에는 적용하지 않음
 - 번역 실패는 warning, 본문 데이터 실패는 fatal
-- Item importer
-- Trader importer
-- Map reference importer
-- Quest rule importer
-- Quest objective importer
+- Item / Trader / Map importer
+- Quest rule / objective importer
 - Hideout material importer
+- Ammo importer
 - `TarkovGameContentImporter`
 - `TarkovContentBuildService`
 
@@ -231,11 +284,13 @@ SQLite connection pooling은 이 단일 로컬 DB 용도에 불필요하고 Wind
 `GameContentValidator`가 최소 다음을 검증합니다.
 
 - Quest → prerequisite Quest
-- Quest → Trader
-- Quest → Map
+- Quest → Trader / Map
 - Quest trader condition → Trader
 - Quest Item Requirement → Quest / Item
 - Hideout Item Requirement → Item
+- Ammo → Item
+- Ammo acquisition → Trader / Hideout station / unlock Quest / currency / required Item
+- duplicate Ammo ID
 
 핵심 참조 누락은 candidate 활성화를 막습니다.
 
@@ -277,34 +332,68 @@ content/
 - active 손상 + previous 정상 → previous 복구
 - candidate의 저장 mode가 경로 mode와 다르면 거부
 - PvP/PvE/season 콘텐츠는 서로 덮어쓸 수 없음
+- convenience 계산 getter는 `[JsonIgnore]` 처리하여 snapshot에 같은 사실을 중복 저장하지 않음
 
-## 실제 CI 검증
+## 실제 검증 결과
+
+### 최신 main CI
 
 `VERIFIED — 2026-08-08`
 
-Windows Server 2025 + .NET 10 SDK `10.0.302`에서 실제 GitHub Actions 검증 완료.
-
-결과:
+Windows Server 2025 + .NET 10 SDK `10.0.302`:
 
 - NuGet restore: 성공
-- `JunhyunHelper.Core` build: 성공
-- `JunhyunHelper.Infrastructure` build: 성공
-- `JunhyunHelper.Tests` build: 성공
-- tests: **50 passed / 0 failed / 0 skipped**
+- Core build: 성공
+- Infrastructure build: 성공
+- Tests build: 성공
+- **57 passed / 0 failed / 0 skipped**
 
-검증 과정에서 실제로 발견해 수정한 문제:
+snapshot round-trip 테스트는 Ammo와 미지원 Quest availability requirement(`dialogue`)가 저장/복원 후에도 보존되는지 확인합니다.
 
-1. `SQLitePCLRaw.lib.e_sqlite3 2.1.11` 보안 취약점 경고
-   - 경고 억제하지 않음
-   - `SQLitePCLRaw.bundle_e_sqlite3 2.1.12`로 안전한 최소 버전 고정
-2. 테스트의 잘못된 `IReadOnlySet` collection expression
-   - 명시적 `HashSet`으로 수정
-3. xUnit cancellation analyzer 경고
-   - 경고 비활성화하지 않고 테스트에서 cancellation token 전달
-4. `user.db` Windows file lock
-   - SQLite connection pooling 비활성화
+### live API canonical build
 
-임시 CI 검증 PR #2는 성공 확인 후 닫았고 merge하지 않았습니다.
+실제 현재 `json.tarkov.dev`를 사용한 임시 검증에서:
+
+- `regular` canonical build: 성공
+- `pve` canonical build: 성공
+- `pvp-season` canonical build: 성공
+
+각 모드에서 Item / Quest / Hideout / Ammo가 비어 있지 않고 canonical reference validation을 통과했습니다.
+
+### live API 전체 업데이트 흐름
+
+실제 세 모드 각각에 대해 다음 전체 흐름을 Windows CI에서 직접 실행했습니다.
+
+```text
+live API
+→ canonical build
+→ validation
+→ content.candidate.db
+→ DB validation
+→ content.db activation
+→ content.db read-back
+```
+
+결과: **모든 모드 성공**.
+
+해당 임시 live probe를 포함한 실행은 **58 passed / 0 failed**였습니다. 임시 probe/PR은 검증 후 닫았고 제품 코드에 남기지 않았습니다.
+
+### 검증 과정에서 실제 발견·수정한 문제
+
+1. 취약한 SQLite native dependency가 선택됨
+   - 경고 억제 대신 `SQLitePCLRaw.bundle_e_sqlite3 2.1.12`로 안전한 버전 고정
+2. xUnit analyzer/collection test 오류
+   - 경고 비활성화 없이 테스트 코드 수정
+3. Windows에서 `user.db` file handle 유지
+   - 불필요한 SQLite connection pooling 비활성화
+4. 게임 모드별 콘텐츠가 단일 active DB를 공유할 위험
+   - `regular / pve / pvp-season` 저장소 완전 분리
+5. trader reputation 비교 방향을 값의 부호에서 추측하던 초기 모델
+   - live raw의 `requirementType + compareMethod`를 직접 보존하도록 수정
+6. `otherRequirements.dialogue`를 무시하면 일부 Quest가 잘못 Current가 될 위험
+   - 미지원 availability requirement를 보존하고 `Indeterminate` 처리
+7. convenience getter가 canonical snapshot에 같은 데이터를 이중 직렬화할 가능성
+   - 저장 원본은 한 필드만 두고 convenience getter는 `[JsonIgnore]`
 
 ## 아직 구현하지 않는 것
 
@@ -314,21 +403,20 @@ Windows Server 2025 + .NET 10 SDK `10.0.302`에서 실제 GitHub Actions 검증 
 - 시간 지연 해금
 - Item 자동 차감
 - Hideout 필요량 기본 범위 UX
-- Ammo canonical importer / acquisition 관계
+- 대체 아이템 자동 배분 정책
+- 에디션별 Quest 필터 — 신뢰 가능한 원천 미확정
 - 지도
 - Scanner
 - 기존 Tarkov-Helper 호환 migration
 
 ## 바로 다음 순서
 
-1. 실제 `json.tarkov.dev` raw fixture 확보 및 importer contract 고정
-2. 실제 Quest objective type 전체와 현재 의미 분류 대조
-3. Ammo `properties` raw contract 고정
-4. Ammo 성능 canonical model/importer 구현
-5. `barters` / `crafts` raw contract 검증 후 acquisition 관계 구현
-6. Game Content + User Progress + Domain 계산 통합 검증
-7. 핵심 데이터/계산 기반이 충분히 검증된 뒤에만 WPF UI 시작
+1. Core 결과를 UI가 단순히 조회할 수 있는 얇은 application/query 경계 설계
+2. Quest availability + Quest material + Hideout material + Inventory를 연결하되 미확정 Hideout 범위/대체 아이템 정책은 주입된 입력으로만 처리
+3. 필요하면 에디션별 Quest 제한의 신뢰 가능한 데이터 원천 추가 조사
+4. 핵심 query 흐름 회귀 테스트
+5. 데이터/계산/application 경계가 안정된 뒤 최소 WPF shell 시작
 
 ## 마지막 갱신
 
-2026-08-08 — 결정론적 런타임 원칙을 코드에 반영하고 Quest availability, `user.db`, 게임 모드별 콘텐츠 저장을 구현. 의존성 보안 문제와 Windows SQLite 파일 잠금을 실제 CI에서 발견·수정. Windows/.NET 10에서 전체 50개 테스트 통과를 공식 확인. UI는 아직 시작하지 않음.
+2026-08-08 — 현재 `json.tarkov.dev` raw 계약을 직접 확보·검증하여 Quest 상인 조건과 objective 의미를 수정하고 Ammo 성능/구매/교환/제작 importer를 구현. 모든 지원 게임 모드에서 실제 API → canonical build → candidate DB → active DB → read-back 전체 흐름 성공을 검증. 최신 main은 Windows/.NET 10에서 57/57 테스트 통과. 런타임 추론 없이 명시 규칙만 실행한다는 유지보수 철학을 계속 유지.
