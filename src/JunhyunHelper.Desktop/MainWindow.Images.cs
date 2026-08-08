@@ -34,7 +34,7 @@ public partial class MainWindow
     {
         _activeSection = DesktopSection.Items;
         ShowActiveSection();
-        ItemsPage.NavigateToItem(e.ItemId);
+        ItemsPage.NavigateToAnyItem(e.ItemId);
     }
 
     private void QuestPage_QuestNavigationRequested(
