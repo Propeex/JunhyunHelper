@@ -19,5 +19,8 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      - name: Build desktop
+        run: dotnet build src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj --configuration Release
+
       - name: Test core
         run: dotnet test tests/JunhyunHelper.Tests/JunhyunHelper.Tests.csproj --configuration Release
