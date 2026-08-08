@@ -1,83 +1,165 @@
 # STATE — 현재 프로젝트 상태
 
-> 새 대화/새 개발자는 이 문서를 먼저 읽고 필요한 공식 문서만 추가 확인합니다.
+> 새 대화/새 개발자는 이 문서를 먼저 읽습니다. 대화 기억이 아니라 이 저장소의 공식 문서와 코드가 프로젝트의 기준입니다.
 
 ## 현재 Phase
 
-**Phase 2B — 실제 Desktop 핵심 흐름 구현**
+**Phase 2B — 핵심 Desktop 흐름 구현 및 대형 패치 내구성 검증**
 
-상태: `IN PROGRESS — data pipeline + profile + Quest branching/failure + Hideout + future Items + Ammo desktop flows verified`
+상태: `IN PROGRESS — first usable core workflow implemented and major-update resilience verified`
 
-현재 사용자는 게임 모드별 캐릭터 프로필을 만들고 수정하고, Quest 진행/분기, Hideout 시설 레벨, 미래 필요 아이템과 실제 보유량을 관리할 수 있으며 최신 탄약 성능과 수급처를 비교할 수 있습니다.
+현재 실제 Desktop에서 다음 흐름이 연결되어 있습니다.
 
-필요 아이템은 현재 할 일 체크리스트가 아니라 **앞으로 필요한 물건을 미리 모으고, 업데이트나 진행 변화로 더 이상 필요하지 않은 보유품을 안전하게 정리하게 해주는 기능**입니다.
+- 게임 모드별 프로필 생성 / 수정 / 삭제
+- Quest 상태 계산, 수동 완료/완료 취소, 필요한 경우에만 영구 실패 처리/취소
+- Hideout 시설별 현재 레벨 입력
+- 미래 Quest + 미래 Hideout 기준 Needed Items 계산
+- FIR / Non-FIR 실제 보유량 입력
+- 더 이상 필요하지 않은 초과 보유량 `정리 필요` 계산 및 변화 알림
+- 여러 Item ID를 허용하는 Quest 제출 목표의 그룹 단위 진행도
+- 최신 Ammo 성능 / 수급처 비교
+- 모드별 온라인 Game Content 안전 업데이트
+
+지도와 Scanner는 현재 핵심 흐름 밖의 후속 기능입니다.
 
 ---
 
-## 최우선 철학
+## 최우선 제품 철학
 
-준현 헬퍼는 생각하는 AI가 아니라 **검증된 명시 규칙을 실행하는 결정론적 도구**입니다.
+준현 헬퍼는 생각하는 AI가 아니라 **개발자가 명시적으로 설계한 규칙을 동일하게 실행하는 결정론적 도구**입니다.
 
-`최신 Tarkov 데이터 다운로드 → 검증 → canonical model 변환 → 안전한 로컬 콘텐츠 갱신 → 사용자 진행과 결합 → 명시 규칙으로 결과 계산`
+```text
+온라인 Tarkov 데이터
+→ 다운로드
+→ 형식/의미 검증
+→ canonical Game Content 변환
+→ candidate DB
+→ DB/read-back 검증
+→ active content 교체
+→ User Progress와 결합
+→ 순수 규칙으로 결과 계산
+→ Desktop 표시
+```
 
-- 일반 패치 때 GPT가 데이터를 다시 수작업 변환하지 않음
-- 동일 입력 → 동일 결과
-- 모르는 의미를 추측하지 않음
-- 미입력을 임의의 0/false로 바꾸지 않음
+### 반드시 지키는 원칙
+
+- 일반 패치 때 GPT가 데이터를 다시 수작업으로 해석하지 않음
+- 같은 입력에는 같은 결과
+- 모르는 외부 데이터 의미를 추측하지 않음
+- 미입력을 0 / false / 기본 완료 상태로 몰래 바꾸지 않음
 - 안전한 판정이 불가능하면 `Indeterminate`, `판단 보류`, 또는 업데이트 실패
-- Game Content와 User Progress를 분리
-- 계산 가능한 결과를 별도 진실의 원천으로 저장하지 않음
-- UI는 Domain 규칙을 다시 구현하지 않음
-- 사용자가 필요한 아이템을 잘못 버리게 만드는 false-positive cleanup을 특히 피함
-- 게임 사실과 개발자가 만든 임의 평가/추천 점수를 섞지 않음
-- 자동으로 알 수 있는 진행 사실은 다시 사용자에게 입력시키지 않음
+- **Game Content와 User Progress를 분리**
+- Game Content update가 user.db를 덮어쓰지 않음
+- Current Quest / Needed Items / Cleanup 같은 파생 결과는 별도 진실의 원천으로 저장하지 않음
+- UI는 Quest/Item 규칙을 다시 구현하지 않고 Core 계산 결과를 표시
+- 사용자가 필요한 아이템을 잘못 버리게 하는 false-positive cleanup을 특히 금지
+- 데이터에서 자동으로 알 수 있는 진행 사실을 다시 사용자에게 입력시키지 않음
+- 인게임에서 쉽게 확인 가능하고 핵심 목적에 필요하지 않은 기능은 유지보수 비용을 이유로 추가하지 않을 수 있음
 
 ---
 
-## 책임 경계
+## 현재 책임 경계
 
-1. **Game Content** — 온라인 원천에서 재생성 가능한 게임 사실
-2. **User Progress** — 사용자가 실제 게임에서 만든 진행/보유 사실
-3. **Domain Logic** — 두 입력에서 결과를 계산하는 순수 규칙
-4. **Application** — 사용자 명령과 저장/재계산의 얇은 조정
-5. **Desktop/UI** — 결과 표시와 사용자 입력 전달
+1. **Core**
+   - canonical Game/User types
+   - Quest availability / failure / future reachability
+   - Needed Items / FIR / cleanup / flexible hand-in 계산
+2. **Infrastructure**
+   - json.tarkov.dev / edition source 읽기
+   - import / validation
+   - content.db 안전 교체
+   - user.db 저장
+3. **Application**
+   - 사용자 명령 한 건을 저장하고 Core를 다시 계산하는 얇은 조정
+4. **Desktop**
+   - WPF 표시 / 사용자 입력 전달
 
-현재 사용하지 않음:
+현재 의도적으로 사용하지 않음:
 
-- ORM
+- ORM / EF Core
 - DI container
 - 별도 backend
 - 범용 rule engine
 - runtime AI/GPT
-- 기능 간 거대한 event bus
+- 거대한 event bus
+- 기능별 중복 데이터베이스
 
 ---
 
-## 데이터 원천 / 콘텐츠 업데이트
+## 데이터 원천
 
-### 1차 — `json.tarkov.dev`
+### 1차 Game Content — `json.tarkov.dev`
+
+현재 사용:
 
 - tasks
 - hideout
 - items
 - traders
-- maps
+- maps — 현재는 Quest 맵 참조/필터용 최소 정보
 - barters
 - crafts
 
-모드: `regular / pve / pvp-season`, 한국어 `ko` 사용.
+지원 모드:
 
-### 보조 — edition rules only
+- `regular`
+- `pve`
+- `pvp-season`
 
-TarkovTracker `tarkov-data-overlay` 중 `editions` 섹션만 사용:
+표시는 한국어 `ko` 우선, 필요한 경우 영어 fallback.
+
+### 보조 원천 — edition rules only
+
+TarkovTracker `tarkov-data-overlay`의 `editions` 정보만 사용:
 
 - Edition ID / 표시명
 - `exclusiveTaskIds`
 - `excludedTaskIds`
 
-전체 community correction overlay는 자동 적용하지 않습니다.
+전체 community correction overlay를 자동 적용하지 않습니다.
 
-모드별 콘텐츠 저장:
+---
+
+## 로컬 저장
+
+기본 Desktop 데이터 루트:
+
+```text
+%LocalAppData%/JunhyunHelper
+```
+
+### User Progress
+
+```text
+user.db
+```
+
+프로필 하나가 한 Tarkov 캐릭터/진행 컨텍스트입니다.
+
+저장하는 사실:
+
+- Profile ID / GameMode
+- level / faction / edition / prestige
+- 사용자가 명시적으로 입력한 trader LL / standing
+- completed Quest IDs
+- 정말 필요한 경우에만 explicit permanent failed Quest IDs
+- 명시적으로 입력한 Hideout station levels
+- Item FIR / Non-FIR 보유량
+
+저장하지 않는 파생 결과:
+
+- Quest Current / Locked / Unavailable / Indeterminate
+- 자동 추론 failure
+- 미래 Quest reachability
+- Needed Items
+- Cleanup Items
+- 유동 제출 진행도
+- 다음 Hideout upgrade 계산
+- Ammo 필터/정렬 상태
+
+### Game Content
+
+모드별 독립 저장:
 
 ```text
 content/
@@ -91,269 +173,445 @@ content/
     ...
 ```
 
-업데이트:
-
-`API + edition source → canonical import → semantic/reference validation → candidate DB → DB validation → active replace`
-
-- 실패 candidate는 active를 건드리지 않음
-- active 손상 시 같은 모드 previous 복구 가능
-- 실제 세 모드 live update / read-back 검증 완료
+업데이트 실패는 user.db에 영향을 주지 않습니다.
 
 ---
 
-## User Progress / `user.db`
+## Profile — 구현 완료 범위
 
-프로필 하나 = 실제 Tarkov 캐릭터 하나.
+상단 Profile UI:
 
-저장:
+- Profile dropdown
+- `프로필 수정`
+- `프로필 삭제`
+- `새 프로필`
 
-- game mode
-- level / faction / edition / prestige
-- 명시적으로 입력된 trader LL / standing
-- completed Quest IDs
-- **필요한 경우에만 explicit permanent failed Quest IDs**
-- 명시적으로 입력된 Hideout station levels
-- inventory FIR / Non-FIR
+### 생성
 
-저장하지 않음:
+지원 GameMode 중 아직 없는 모드를 고르고 명시적으로 생성합니다.
 
-- Current / Locked / Unavailable / Indeterminate
-- 다른 완료 사실에서 자동 추론 가능한 Quest failure
-- 미래 Quest 도달 가능성 결과
-- 다음 Hideout 업그레이드 결과
-- Needed Items / Cleanup 결과
-- Ammo 조회/필터 상태
-- UI filter/sort 결과
-
-Game Content가 업데이트되어도 user.db 보유량과 진행 사실을 자동 삭제하지 않습니다.
-
-과거 explicit failure 기록이 새 패치에서 더 이상 영구 실패 규칙에 해당하지 않으면 기록 자체는 보존하지만 계산에는 강제로 적용하지 않습니다. 새 규칙에서 해당 Quest를 완료하면 같은 Quest의 낡은 explicit failure 기록만 제거합니다.
-
----
-
-## Profile
-
-`ProfileApplicationService` + WPF profile UI 구현.
-
-- PvP / PvE / 시즌별 명시적 프로필 생성
-- same mode 중복 자동 생성 방지
-- level / faction / edition / prestige 편집
-- trader별 입력 여부 + LL + standing
-- 미입력 trader를 0으로 추측하지 않음
-- 설정 수정 시 Quest / Hideout / Inventory 진행 보존
-
----
-
-## Quest
-
-`QuestApplicationService` + WPF Quest 화면 구현.
-
-### 정상 상태
-
-- `Current` — 진행 중
-- `Locked` — 앞으로 충족 가능한 조건 때문에 잠김
-- `Unavailable` — 현재 캐릭터/확정된 진행에서 영구적으로 사용 불가
-- `Completed` — 완료
-
-`Indeterminate`는 정상 상태가 아니라 실제 데이터/입력 문제만 별도 `판정 문제`로 표시합니다.
-
-탐색:
-
-- 진행 중 / 잠김 / 사용 불가 / 완료
-- 검색 / 상인 / 지도 dropdown
-- Wiki / 상세
-- 판정 문제 별도 표시
-
-현재 availability evaluator:
+입력:
 
 - level
 - faction
 - edition
 - prestige
-- trader reputation / loyalty
-- prerequisite Active / Complete / Failed
+- 필요한 trader LL / standing
+
+한 GameMode당 현재 프로필 하나만 둡니다.
+
+### 수정
+
+설정 값만 바꿉니다.
+
+수정해도 다음 진행 사실은 보존:
+
+- completed / failed Quest
+- Hideout levels
+- Inventory
+
+### 삭제 / 전체 초기화
+
+별도의 `Reset engine`을 만들지 않습니다.
+
+**프로필 삭제 = 그 GameMode 캐릭터의 User Progress 전체 삭제**입니다.
+
+삭제되는 것:
+
+- 프로필 설정
+- Quest 완료/실패
+- Hideout levels
+- trader progress
+- Inventory
+
+삭제되지 않는 것:
+
+- 다운로드된 Game Content
+- 다른 GameMode 프로필
+
+완전 새 진행을 시작하려면 삭제 후 같은 모드 프로필을 다시 생성합니다.
+
+삭제는 되돌릴 수 없는 작업이므로 Desktop에서 경고 확인 후 실행합니다.
+
+---
+
+## Quest — 구현 완료 범위
+
+### 사용자 진행 방식
+
+로그 자동 추적을 사용하지 않습니다.
+
+사용자가 게임에서 Quest를 완료하면 `완료`를 누르고, 실수했다면 `완료 취소`합니다.
+
+별도의 Accept 버튼은 없습니다. 확인 가능한 해금 조건을 충족한 미완료 Quest는 준현 헬퍼에서 Current/진행 중으로 간주합니다.
+
+### 정상 상태
+
+- `Current` — 진행 중
+- `Locked` — 미래에 충족 가능한 조건 때문에 잠김
+- `Unavailable` — 현재 캐릭터/확정 분기상 영구 수행 불가
+- `Completed` — 완료
+
+`Indeterminate`는 정상 게임 상태가 아니라 **판정 문제**입니다.
+
+예:
+
+- 필요한 profile 값 미입력
+- 지원하지 않는 availability 의미
+- 참조 데이터 문제
+
+정상 상태 목록과 분리해 표시합니다.
+
+### 현재 판정 규칙
+
+- player level
+- faction
+- edition
+- prestige
+- trader standing
+- trader loyalty
+- prerequisite Quest Active / Complete / Failed
 - disabled
 - explicit permanent failure
-- 다른 Quest 완료로 발생하는 taskStatus failure
-- 영구 불가 prerequisite 전파
+- 다른 Quest 완료에서 자동 추론되는 taskStatus failure
+- prerequisite가 영구 불가일 때 후속 Quest의 Unavailable 전파
 
-### Quest 실패/분기
+### 실패 / 분기
 
-공식 조사: `docs/QUEST_FAILURE_ANALYSIS.md`
+공식 근거: `docs/QUEST_FAILURE_ANALYSIS.md`
 
-2026-08-08 regular live source 분석:
+2026-08-08 regular live source 기준:
 
 - Quest 510개
-- task prerequisite 607개
+- task prerequisite relation 607개
 - Failed 포함 prerequisite 24개
 - Failed-only prerequisite 4개
 - failConditions 50개 / 38 Quest
-- taskStatus failure 35개 / 23 Quest
+- 다른 Quest 완료에서 자동 추론 가능한 taskStatus failure 35개 / 23 Quest
 
-핵심 규칙:
+따라서 큰 수동 Branch Manager를 만들지 않습니다.
 
-- 다른 Quest 완료로 확정되는 실패는 `CompletedQuestIds + failConditions`에서 자동 추론
-- 자동 추론 failure는 user.db에 중복 저장하지 않음
-- failed-only 선행조건은 결과 결정 전 `Indeterminate`가 아니라 정상 미래 가능성
-- 완료/실패가 확정되면 불가능한 sibling/후속 경로를 `Unavailable`로 계산
-- 재시작 가능한 raid failure는 permanent user fact로 저장하지 않음
-- Game Content가 `restartable = false`이고 프로그램이 실제 발생 여부를 알 수 없는 failure만 상세 화면에 `실패 처리` 표시
-- explicit failure는 `실패 취소` 가능
+- 자동으로 알 수 있는 failure는 completed Quest facts에서 계산
+- 분기 결과 전에는 가능한 성공/실패 미래 경로를 유지
+- 결과가 확정되면 불가능 경로를 `Unavailable`
+- restartable raid failure는 permanent 상태로 저장하지 않음
+- `restartable = false`이고 실제 발생 여부를 앱이 자동으로 알 수 없는 희귀 failure만 `실패 처리 / 실패 취소` 제공
 
-사용자가 모든 분기를 수동 관리하는 별도 branch manager는 만들지 않습니다.
+### 시간 지연 해금
 
-### 미래 Quest 도달 가능성
+실제 게임의 완료 시각을 앱이 알 수 없으므로 `AvailableAfter` 기반 지연은 현재 해금 판정에서 제외합니다.
 
-필요 아이템 전용 `QuestFutureReachabilityEvaluator`:
+### Quest 상세
 
-- `Potential` — 미래 요구량 포함
-- `Completed` — 제외
-- `Unavailable` — 영구 불가로 증명, 제외
-- `IndeterminatePotential` — 데이터 의미가 불명확하여 보수적으로 포함
+진행에 필요한 정보 중심:
 
-분기 선택 전에는 가능한 여러 경로의 아이템을 유지하고, 결과가 확정된 뒤 불가능 경로만 제거합니다.
+- 목표
+- 제출 아이템
+- 해금/잠김 이유
+- 선행 Quest
+- 상태/판정 이유
+- Wiki
+- 완료 / 완료 취소
+- 해당되는 경우만 실패 / 실패 취소
 
----
+**Quest 보상 전체는 구현하지 않음.**
 
-## Hideout
+결정 근거: `docs/QUEST_REWARD_DECISION.md`
 
-`HideoutApplicationService` + WPF Hideout 화면 구현.
-
-- station current level은 사용자 사실
-- `미입력`과 `Lv.0` 구분
-- Hideout 화면은 입력된 current level의 바로 다음 upgrade 표시
-- 필요 아이템 계획에서는 current level보다 높은 **모든 미래 level material** 합산
-- current level 미입력 시설은 Lv.0으로 가정하지 않음
-- 해당 시설에서 쓸 수 있는 보유 item은 잘못 정리하지 않도록 cleanup 판단 보호
+인게임에서 쉽게 확인 가능하고 핵심 기능에 필요하지 않아 별도 canonical reward model/importer/UI 유지 비용을 만들지 않습니다.
 
 ---
 
-## Future Needed Items / Item Desktop
+## Hideout — 구현 완료 범위
 
-공식 제품 기준: `docs/NEEDED_ITEMS_EXPERIENCE.md`
+사용자가 시설별 현재 레벨을 직접 입력합니다.
 
-`FutureNeededItemsPlanner` 입력:
+- `미입력`과 `Lv.0`은 다름
+- 미입력을 Lv.0으로 추측하지 않음
+- Hideout 화면은 명시된 현재 레벨의 **바로 다음 upgrade**를 표시
+- Item 계획은 현재 레벨보다 높은 **모든 미래 upgrade material**을 합산
 
-`Game Content + User Progress`
-
-출력:
-
-- 미래 고정 필요량
-- 현재 부족량
-- 안전하게 정리 가능한 초과 보유량
-- 대체 Quest 요구
-- cleanup 판단 보호 항목
-- 미래 Quest reachability 진단
-
-포함:
-
-- 현재/미래 가능 Quest 제출 아이템
-- 아직 열려 있는 여러 분기
-- 데이터 의미가 불명확한 가능성은 보수적으로 유지
-- 입력된 Hideout current level 이후 모든 업그레이드 재료
-
-제외:
-
-- 완료 Quest
-- 진영/에디션/disabled 등 영구 불가 Quest
-- 확정된 완료/실패 분기로 닫힌 Quest/경로
-- 이미 지난 Hideout level 요구량
-
-### 정리 필요
-
-`InventorySurplusCalculator`:
-
-- inventory-only item도 계산 대상
-- `필요 0 / 보유 > 0`이면 정리 필요에 남음
-- 필요량보다 많이 가진 경우 초과분 표시
-- FIR minimum과 total requirement를 모두 지킨 뒤 안전한 FIR/Non-FIR cleanup 수량만 반환
-- 대체 제출 후보는 임의 선택하지 않아 cleanup 보호
-- 미입력 Hideout 관련 item도 cleanup 보호
-
-분기 완료/실패로 미래 요구량이 줄면 이미 모은 초과분도 `정리 필요`로 이어집니다.
-
-Game Content에 더 이상 item metadata가 없어도 user.db에 보유량이 남아 있으면 Item 화면에서 stable Item ID라도 계속 보입니다.
-
-### 변화 감지
-
-`InventoryCleanupChangeDetector`가 Quest 완료/취소/실패/실패 취소, Hideout level 변화, Game Content update 전후의 `정리 가능` 증가분을 비교합니다.
-
-새 정리 가능 보유품이 생기면:
-
-- 사용자에게 알림
-- Item 탭에 지속적인 `정리 필요` 목록
-
-알림을 닫아도 실제 inventory가 초과 상태인 한 `정리 필요`는 사라지지 않습니다.
+현재 레벨이 미입력인 시설은 미래 범위를 확정할 수 없으므로 그 시설 관련 보유 Item의 cleanup을 보수적으로 보호합니다.
 
 ---
 
-## Ammo
+## Future Needed Items / Item — 구현 완료 범위
 
-WPF Ammo 화면 구현:
+이 기능이 준현 헬퍼의 핵심 제작 이유입니다.
 
-- 상위 `탄약` 탭
-- 탄약 이름 검색
-- 구경 dropdown
+정의:
+
+> 지금 당장 필요한 물건이 아니라, 현재 캐릭터가 앞으로 사용할 가능성이 있는 물건을 미리 모으고, 패치나 진행 변화로 더 이상 필요하지 않은 보유품을 안전하게 정리하도록 돕는다.
+
+공식 상세: `docs/NEEDED_ITEMS_EXPERIENCE.md`
+
+### 미래 필요량에 포함
+
+- Current Quest 제출 아이템
+- 레벨/상인/프레스티지 등 미래 충족 가능한 Locked Quest
+- 아직 닫히지 않은 여러 Quest branch
+- 불명확한 데이터 의미는 `IndeterminatePotential`로 보수적 포함
+- 명시된 Hideout current level 이후 모든 미래 level material
+
+### 제외
+
+- Completed Quest
+- 진영 / edition / disabled 등으로 영구 불가 Quest
+- 완료/실패가 확정되어 닫힌 branch와 후속 경로
+- 이미 지난 Hideout level material
+
+### Inventory
+
+사용자가 FIR / Non-FIR을 직접 입력합니다.
+
+Inventory는 User Progress의 독립 사실이므로 Game Content update가 삭제하지 않습니다.
+
+### `정리 필요`
+
+`InventorySurplusCalculator`가 미래 필요량을 만족하고도 남는 **안전한 초과분만** 계산합니다.
+
+- 필요 0 / 보유 > 0도 표시
+- FIR minimum을 먼저 보호
+- 남는 FIR은 unrestricted requirement 충족에 사용할 수 있음
+- 안전한 FIR / Non-FIR cleanup 수량을 따로 계산
+- Game Content에서 Item metadata가 사라져도 user.db에 보유량이 있으면 stable Item ID로 계속 노출
+
+### Item 탭 분류
+
+- `필요`
+- `전체`
+- `정리 필요`
+- `충분`
+- `판단 보류`
+
+### cleanup 판단 보호
+
+자동으로 안전하다고 증명할 수 없는 후보는 정리 가능으로 말하지 않습니다.
+
+현재 대표 보호 원인:
+
+- Hideout current level 미입력
+- 유동 Quest 제출 후보
+
+### 유동 제출 요구
+
+공식 분석: `docs/FLEXIBLE_QUEST_ITEMS_ANALYSIS.md`
+
+2026-08-08 regular live source에서 필수 `giveItem` 187건 중 다중 Accepted Item ID 목표는 3건.
+
+별도 사용자 선택을 저장하지 않습니다.
+
+예:
+
+```text
+A / B / C 중 합계 5개 제출
+보유 A2 + B1 + C0
+→ 합산 3 / 5
+→ 2개 남음
+```
+
+FIR 목표라면 허용 후보의 FIR 보유량만 FIR 충족에 사용합니다.
+
+Item 탭에서:
+
+- Quest 이름
+- 합산 보유 / 필요
+- 남은 수량
+- FIR 진행
+- 허용 후보 Item 이름
+
+을 그룹 단위로 표시합니다.
+
+그룹이 끝나기 전 후보별 cleanup 수량은 독립적으로 안전하다고 볼 수 없으므로 보호합니다.
+
+### 변화 알림
+
+다음 변화 전후의 Cleanup Plan을 비교합니다.
+
+- Quest 완료 / 완료 취소
+- Quest 실패 / 실패 취소
+- Hideout level 변경
+- Game Content update
+
+새로 정리 가능한 보유품이 생기거나 수량이 늘면 사용자에게 알리고 `정리 필요` 탭으로 연결합니다.
+
+알림을 닫아도 실제 Inventory 초과가 해결되기 전까지 정리 필요 항목은 유지됩니다.
+
+---
+
+## Ammo — 구현 완료 범위
+
+Ammo는 선택 GameMode의 최신 Game Content를 읽는 **read-only 비교 기능**입니다.
+
+Desktop:
+
+- 이름 검색
+- caliber dropdown
 - 정렬 가능한 비교 표
-- damage / projectile count / penetration / armor damage / initial speed
-- fragmentation / accuracy / recoil
-- TraderPurchase / TraderBarter / HideoutCraft 수급처 상세
-- 상인/시설 레벨, 가격, 재료, 구매 제한, 제작 시간, 결과 수량, Quest 해금 표시
+- 선택 Ammo의 수급처 상세
 
-탄약은 읽기 전용 Game Content 기능입니다.
+표시 사실:
 
-- 별도 User Progress를 저장하지 않음
-- Quest/Hideout/Items 재계산에 결합하지 않음
-- 콘텐츠 로드/업데이트 시 새 canonical Ammo 표시
-- 자체 방어구 효율/티어/추천 점수 없음
-- 여러 projectile은 `damage × projectileCount`로 원본 의미 유지
+- damage
+- projectile count
+- penetration
+- armor damage
+- initial speed
+- fragmentation chance
+- accuracy modifier
+- recoil modifier
+
+수급처:
+
+- TraderPurchase
+- TraderBarter
+- HideoutCraft
+
+가능하면 다음 원천 사실도 표시:
+
+- trader / station level
+- 가격 / 재료
+- 구매 제한
+- craft duration
+- output quantity
+- Quest unlock
+
+자체 armor effectiveness / tier / recommendation 점수는 만들지 않습니다.
+
+여러 projectile은 임의 합산 평가 대신 `damage × projectile count` 의미를 그대로 보여줍니다.
+
+Ammo는 별도 User Progress를 저장하지 않습니다.
 
 ---
 
-## 최신 검증
+## 대형 패치 내구성 — VERIFIED
 
-### Quest failure/branch checkpoint — 2026-08-08
+공식 회귀 계약: `docs/MAJOR_UPDATE_RESILIENCE.md`
+
+2026-08-08 실제 저장 경계를 사용한 시나리오 테스트 추가:
+
+1. Quest required Item A → B + A metadata 삭제
+2. required count 10 → 4
+3. 새 edition exclusion
+4. Hideout future material A → B
+5. flexible accepted items A/B → B/C
+6. invalid candidate update
+
+검증하는 핵심 약속:
+
+- content.db는 새 패치로 교체 가능
+- user.db 사실은 그대로 유지
+- 새 Game Content + 같은 User Progress에서 결과만 다시 계산
+- 필요 없어진 기존 보유품은 사라지지 않고 `정리 필요`
+- invalid candidate는 active content와 user.db를 건드리지 않음
+- 정상 교체 전 active는 previous snapshot으로 보존
+
+### 최신 Windows 검증
 
 Windows Server 2025 / .NET SDK 10.0.302:
 
-- Desktop restore/build 성공
-- **0 warnings / 0 errors**
-- 전체 테스트 **121 passed / 0 failed / 0 skipped**
-
-새 회귀 범위:
-
-- failed-only prerequisite는 결과 전 Locked/Potential
-- explicit permanent failure가 failed-only recovery branch를 활성화
-- sibling Quest 완료에서 taskStatus failure 자동 추론
-- 자동 실패한 Quest 요구량이 Needed Items에서 제거
-- recovery branch 필요량 유지
-- explicit fail / undo가 다른 User Progress를 보존
-- restartable failure permanent 저장 거부
-- failure condition content import / DB round-trip
-- missing failure trigger content validation 실패
-- 패치 후 stale explicit failure가 새 canonical 완료를 방해하지 않음
+- Desktop Release build: **0 warnings / 0 errors**
+- 전체 tests: **134 passed / 0 failed / 0 skipped**
 
 ---
 
-## 아직 남은 주요 제품/구현 항목
+## 지도
 
-- Alternative Quest item을 사용자가 선택/관리할 UX
-- Quest reward 전체 canonical model
-- profile 삭제/reset UX
-- 지도 데이터 공급원/지도 기능
-- Scanner
-- 기존 Tarkov-Helper migration은 현재 목표 아님
+후속 기능입니다.
+
+현재 `json.tarkov.dev`의 maps는 Quest map ID/name과 일부 game facts에는 쓸 수 있지만, 우리가 원하는 유지 가능한 interactive map의 기준 이미지 + unified coordinates + full POI + asset/license 문제를 한 번에 해결하지 않습니다.
+
+따라서:
+
+- 기존 Tarkov-Helper 지도 자산/좌표를 공식 설계로 승계하지 않음
+- 검증되지 않은 community map 이미지를 제품에 임의 포함하지 않음
+- 지도 공급원 문제로 core release를 막지 않음
+- Map은 Core에 의존하는 downstream consumer로 설계
+
+현재 공식 `docs/MAP_SOURCE_ANALYSIS.md` 파일은 아직 만들지 않았습니다. 필요할 때 공급원 조사 결과와 함께 작성합니다.
 
 ---
 
-## 다음 순서
+## Scanner
 
-1. **Alternative Quest item**이 현재 실제 데이터에서 얼마나 존재하고 Needed Items를 얼마나 `판단 보류`시키는지 live 데이터 기준으로 분석
-2. 필요한 경우에만 최소 선택 UX 추가
-3. 그 다음 profile 삭제/reset 또는 지도 데이터 공급원 조사 중 제품 우선순위가 높은 항목 진행
+후속 기능입니다.
 
-새 기능도 `Game Content / User Progress / Domain Logic / Application / UI` 경계를 유지합니다.
+목표 구조:
 
-## 마지막 갱신
+```text
+scan
+→ Item ID 식별
+→ 기존 Item / Needed Items / Ammo 조회
+```
 
-2026-08-08 — 최신 Quest failConditions를 canonical model에 추가하고, 다른 Quest 완료로 확정되는 분기 실패를 자동 계산하도록 구현. Quest 상태에 `사용 불가`를 분리하고 failed-only 미래 분기는 정상 가능성으로 처리. 프로그램이 알 수 없는 희귀 비재시작형 영구 실패만 수동 `실패 처리/실패 취소`를 제공. 분기 변화가 Future Needed Items와 `정리 필요`에 자동 반영되도록 연결. Windows Desktop 0 warning/0 error, 전체 테스트 121/121 통과.
+Scanner가 별도 Quest/Item requirement DB나 독립 계산 규칙을 갖지 않습니다.
+
+게임 메모리 hook/injection, 입력 자동화, anti-cheat 우회는 제품 방향이 아닙니다.
+
+---
+
+## 현재 완료된 핵심 UI
+
+상단:
+
+- `퀘스트`
+- `은신처`
+- `아이템`
+- `탄약`
+- 상태 텍스트
+- Profile dropdown
+- `프로필 수정`
+- `프로필 삭제`
+- `새 프로필`
+- `데이터 업데이트`
+
+각 기능은 같은 선택 Profile / 같은 active Game Content를 공유하되, 서로의 내부 상태를 직접 수정하지 않습니다.
+
+진행 사실 변경 후 필요한 workspace를 Core에서 다시 계산합니다.
+
+---
+
+## 현재 남은 주요 작업
+
+### 첫 실사용 버전 전에
+
+1. **사용자 제품 검토**
+   - 각 탭/버튼/필터/상태/예외 규칙을 실제 사용 관점에서 사용자와 상세 검토
+   - 불편/누락/의도 불일치를 확정 후 수정
+2. 실제 Desktop UI polish
+   - 검토에서 발견된 가독성/상호작용 문제 중심
+   - 기능 없이 장식만 늘리는 작업은 피함
+3. 배포 준비
+   - Windows publish/package
+   - 실제 사용자 PC에서 실행 가능한 형태
+   - user.db 보존을 포함한 버전 업데이트 정책
+   - 첫 실행 / 네트워크 실패 / content 복구 smoke test
+
+### 후속 기능
+
+4. 지도 — 공급원/asset/coordinate 검증 후
+5. Scanner — 기존 Item system의 downstream consumer로
+
+현재 목표가 아님:
+
+- 기존 Tarkov-Helper 자동 migration
+- Quest reward 전체 모델
+- 로그 기반 Quest 자동 완료
+- runtime AI
+
+---
+
+## 다음 작업
+
+**사용자에게 현재 준현 헬퍼의 전체 기능 원리와 Desktop 사용 흐름을 세부적으로 설명하고 제품 검토를 받습니다.**
+
+설명에서는 최소한 다음을 실제 UI와 규칙 기준으로 다룹니다.
+
+- 상단 공통 UI / Profile lifecycle
+- 데이터 업데이트와 복구
+- Quest 탭의 상태/필터/완료/분기/판정 문제
+- Hideout 탭의 레벨 입력과 미래 계산
+- Item 탭의 분류/FIR/보유량/정리 필요/유동 제출/판단 보류
+- Ammo 탭의 비교/수급처
+- 대형 패치 발생 시 실제 데이터 흐름
+- 각 기능에서 의도적으로 자동화하지 않는 것과 이유
