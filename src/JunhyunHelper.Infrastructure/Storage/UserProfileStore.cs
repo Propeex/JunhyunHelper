@@ -183,7 +183,9 @@ public sealed class UserProfileStore
         {
             if (string.IsNullOrWhiteSpace(traderId))
                 throw new InvalidDataException("Trader id cannot be empty.");
-            if (progress.LoyaltyLevel < 0)
+            if (!progress.HasAnyValue)
+                throw new InvalidDataException($"Trader '{traderId}' has no entered progress value.");
+            if (progress.LoyaltyLevel is < 0)
                 throw new InvalidDataException($"Trader '{traderId}' loyalty level cannot be negative.");
         }
 
@@ -233,7 +235,9 @@ public sealed class UserProfileStore
                 Faction = snapshot.Faction,
                 EditionId = snapshot.EditionId,
                 PrestigeLevel = snapshot.PrestigeLevel,
-                Traders = new Dictionary<string, TraderProgress>(snapshot.Traders, StringComparer.Ordinal),
+                Traders = snapshot.Traders
+                    .Where(pair => pair.Value.HasAnyValue)
+                    .ToDictionary(pair => pair.Key, pair => pair.Value.Normalize(), StringComparer.Ordinal),
                 CompletedQuestIds = snapshot.CompletedQuestIds.Order(StringComparer.Ordinal).ToArray(),
                 FailedQuestIds = snapshot.FailedQuestIds.Order(StringComparer.Ordinal).ToArray(),
                 HideoutLevels = new Dictionary<string, int>(snapshot.HideoutLevels, StringComparer.Ordinal),
@@ -249,7 +253,9 @@ public sealed class UserProfileStore
                 Faction = Faction,
                 EditionId = EditionId,
                 PrestigeLevel = PrestigeLevel,
-                Traders = new Dictionary<string, TraderProgress>(Traders, StringComparer.Ordinal),
+                Traders = Traders
+                    .Where(pair => pair.Value.HasAnyValue)
+                    .ToDictionary(pair => pair.Key, pair => pair.Value.Normalize(), StringComparer.Ordinal),
                 CompletedQuestIds = new HashSet<string>(CompletedQuestIds, StringComparer.Ordinal),
                 FailedQuestIds = new HashSet<string>(FailedQuestIds, StringComparer.Ordinal),
                 HideoutLevels = new Dictionary<string, int>(HideoutLevels, StringComparer.Ordinal),
