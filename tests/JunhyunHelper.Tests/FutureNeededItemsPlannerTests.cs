@@ -48,7 +48,7 @@ public sealed class FutureNeededItemsPlannerTests
             quests: [Quest("done")],
             questRequirements: [Requirement("done", "wire", 8)]);
         var profile = Profile(
-            completedQuestIds: ["done"],
+            completedQuestIds: new HashSet<string>(["done"], StringComparer.Ordinal),
             inventory: Inventory(("wire", new InventoryQuantity(0, 8))));
 
         var plan = FutureNeededItemsPlanner.Calculate(content, profile);
