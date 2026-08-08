@@ -9,13 +9,20 @@ public enum QuestRequiredStatus
     Failed,
 }
 
+public enum StandingRequirementOperator
+{
+    AtLeast,
+    AtMost,
+}
+
 public sealed record QuestTaskRequirement(
     string RequiredQuestId,
     IReadOnlyCollection<QuestRequiredStatus> AcceptedStatuses);
 
 public sealed record QuestTraderStandingRequirement(
     string TraderId,
-    decimal RequiredStanding);
+    decimal RequiredStanding,
+    StandingRequirementOperator Operator);
 
 public sealed record QuestTraderLoyaltyRequirement(
     string TraderId,
