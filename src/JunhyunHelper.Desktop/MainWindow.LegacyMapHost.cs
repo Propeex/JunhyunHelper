@@ -12,6 +12,7 @@ public partial class MainWindow : TarkovHelper.MainWindow
 {
     private TarkovHelper.Pages.Map.MapPage? _legacyMapPage;
     private LegacyMapProductAdapter? _legacyMapProductAdapter;
+    private LegacyMapProductRuntime? _legacyMapProductRuntime;
     private LegacyMapQuestSidebar? _legacyMapQuestSidebar;
     private bool _legacyMapTabHooked;
 
@@ -61,6 +62,7 @@ public partial class MainWindow : TarkovHelper.MainWindow
                 sidebar,
                 () => QuestPage.CurrentContentForMap,
                 () => QuestPage.CurrentWorkspaceForMap);
+            _legacyMapProductRuntime = new LegacyMapProductRuntime(page);
         }
         catch (Exception exception)
         {
