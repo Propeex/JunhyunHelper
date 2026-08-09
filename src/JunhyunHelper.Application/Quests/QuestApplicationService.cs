@@ -51,17 +51,33 @@ public sealed class QuestApplicationService
                 $"Quest '{questId}' can only be completed while it is Current, but it is '{entry.Availability.State}'.");
         }
 
-        var fixedRequirements = content.QuestItemRequirements
-            .Where(requirement => string.Equals(requirement.QuestId, questId, StringComparison.Ordinal))
-            // Flexible hand-ins are deliberately excluded: the helper cannot know which candidate
-            // the user actually submitted, so guessing would corrupt inventory truth.
-            .Where(requirement => requirement.AcceptedItemIds.Count == 1)
-            .Select(requirement => new FixedItemConsumptionRequirement(
-                requirement.AcceptedItemIds[0],
-                requirement.Count,
-                requirement.FoundInRaid))
-            .ToArray();
-        var consumption = FixedInventoryConsumptionPolicy.Consume(profile.Inventory, fixedRequirements);
+        var questConsumptions = new Dictionary<string, InventoryConsumption>(
+            profile.QuestConsumptions,
+            StringComparer.Ordinal);
+        IReadOnlyDictionary<string, InventoryQuantity> inventory = profile.Inventory;
+
+        // A ledger can survive an undo when the user explicitly chose not to restore
+        // inventory. In that case the materials are already considered spent and a later
+        // re-completion must not deduct them a second time.
+        if (!questConsumptions.TryGetValue(questId, out var existingConsumption) || existingConsumption.IsEmpty)
+        {
+            var fixedRequirements = content.QuestItemRequirements
+                .Where(requirement => string.Equals(requirement.QuestId, questId, StringComparison.Ordinal))
+                // Flexible hand-ins are deliberately excluded: the helper cannot know which
+                // candidate the user actually submitted, so guessing would corrupt inventory truth.
+                .Where(requirement => requirement.AcceptedItemIds.Count == 1)
+                .Select(requirement => new FixedItemConsumptionRequirement(
+                    requirement.AcceptedItemIds[0],
+                    requirement.Count,
+                    requirement.FoundInRaid))
+                .ToArray();
+            var consumption = FixedInventoryConsumptionPolicy.Consume(profile.Inventory, fixedRequirements);
+            inventory = consumption.Inventory;
+            if (consumption.Consumption.IsEmpty)
+                questConsumptions.Remove(questId);
+            else
+                questConsumptions[questId] = consumption.Consumption;
+        }
 
         var completed = new HashSet<string>(profile.CompletedQuestIds, StringComparer.Ordinal)
         {
@@ -69,19 +85,12 @@ public sealed class QuestApplicationService
         };
         var failed = new HashSet<string>(profile.FailedQuestIds, StringComparer.Ordinal);
         failed.Remove(questId);
-        var questConsumptions = new Dictionary<string, InventoryConsumption>(
-            profile.QuestConsumptions,
-            StringComparer.Ordinal);
-        if (consumption.Consumption.IsEmpty)
-            questConsumptions.Remove(questId);
-        else
-            questConsumptions[questId] = consumption.Consumption;
 
         var updated = profile with
         {
             CompletedQuestIds = completed,
             FailedQuestIds = failed,
-            Inventory = consumption.Inventory,
+            Inventory = inventory,
             QuestConsumptions = questConsumptions,
         };
 
@@ -186,8 +195,12 @@ public sealed class QuestApplicationService
             StringComparer.Ordinal);
         var inventory = profile.Inventory;
         if (questConsumptions.TryGetValue(questId, out var consumption) && restoreInventory)
+        {
             inventory = FixedInventoryConsumptionPolicy.Restore(inventory, consumption);
-        questConsumptions.Remove(questId);
+            questConsumptions.Remove(questId);
+        }
+        // Choosing not to restore keeps the ledger so a later re-completion does not
+        // automatically consume the same materials again.
 
         var updated = profile with
         {
