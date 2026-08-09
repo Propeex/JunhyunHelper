@@ -4,9 +4,8 @@ using System.Windows.Controls;
 namespace JunhyunHelper.Desktop.Map;
 
 /// <summary>
-/// Completes the product merge of extract settings into the visible "지도 마커"
-/// group. The adapter already moves PMC/Scav/Transit toggles; this bridge moves the
-/// remaining extract-label-size control so no orphan extract settings section remains.
+/// Keeps extract visibility inside the Map marker panel while moving the extract
+/// label-size control into the main Settings panel.
 /// </summary>
 public sealed class LegacyExtractSettingsMergeBridge
 {
@@ -14,21 +13,36 @@ public sealed class LegacyExtractSettingsMergeBridge
     {
         ArgumentNullException.ThrowIfNull(page);
 
-        if (page.FindName("MapMarkersContent") is not StackPanel markerSettings ||
+        if (page.FindName("SettingsPanel") is not Border settingsPanel ||
+            settingsPanel.Child is not ScrollViewer scrollViewer ||
+            scrollViewer.Content is not StackPanel settingsStack ||
             page.FindName("SliderExtractTextSize") is not Slider extractTextSize ||
             extractTextSize.Parent is not StackPanel sizeRow)
         {
             return;
         }
 
-        if (ReferenceEquals(sizeRow.Parent, markerSettings))
-            return;
+        if (page.FindName("TxtExtractNameSizeLabel") is TextBlock label)
+            label.Text = "탈출구 이름:";
 
-        if (sizeRow.Parent is not Panel oldParent)
-            return;
+        if (sizeRow.Parent is Panel oldParent && !ReferenceEquals(oldParent, settingsStack))
+            oldParent.Children.Remove(sizeRow);
 
-        oldParent.Children.Remove(sizeRow);
-        sizeRow.Margin = new Thickness(0, 7, 0, 3);
-        markerSettings.Children.Add(sizeRow);
+        sizeRow.Margin = new Thickness(0, 0, 0, 18);
+
+        var insertIndex = settingsStack.Children.Count;
+        if (page.FindName("SliderPlayerMarkerSize") is Slider playerSlider &&
+            playerSlider.Parent is FrameworkElement playerRow)
+        {
+            var playerIndex = settingsStack.Children.IndexOf(playerRow);
+            if (playerIndex >= 0)
+                insertIndex = playerIndex + 1;
+        }
+
+        if (!settingsStack.Children.Contains(sizeRow))
+            settingsStack.Children.Insert(Math.Min(insertIndex, settingsStack.Children.Count), sizeRow);
+
+        if (page.FindName("TxtExtractSettingsLabel") is FrameworkElement orphanHeader)
+            orphanHeader.Visibility = Visibility.Collapsed;
     }
 }
