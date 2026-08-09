@@ -55,15 +55,7 @@ public sealed class WikiMapArtworkProvider : IMapArtworkProvider
         CancellationToken cancellationToken = default)
     {
         if (layout.UsesLegacyAffineTransform)
-        {
-            return new MapArtworkProviderResult(
-                false,
-                null,
-                null,
-                null,
-                null,
-                "Legacy Tarkov-Helper artwork was explicitly selected; online artwork substitution is disabled.");
-        }
+            return new MapArtworkProviderResult(false, null, null, null, null, null);
 
         var floorAware = await _groundZeroFloorAware.TryBuildAlignedSvgAsync(
             layout,
@@ -137,6 +129,12 @@ public sealed class MapArtworkProviderPipeline
         string destination,
         CancellationToken cancellationToken = default)
     {
+        // Legacy SVG + legacy affine calibration are the selected product source,
+        // not an error fallback. Return a silent miss so MapAssetCacheService downloads
+        // the configured pinned legacy SVG without showing a misleading warning.
+        if (layout.UsesLegacyAffineTransform)
+            return new MapArtworkProviderResult(false, null, null, null, null, null);
+
         var warnings = new List<string>();
 
         foreach (var provider in _providers)
