@@ -19,10 +19,12 @@ public sealed class TarkovMapLayoutCatalogClient
         "https://raw.githubusercontent.com/the-hideout/tarkov-dev-svg-maps/refs/heads/main/";
 
     private readonly HttpClient _httpClient;
+    private readonly LegacyTarkovHelperMapCatalogClient _legacyMapClient;
 
     public TarkovMapLayoutCatalogClient(HttpClient httpClient)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        _legacyMapClient = new LegacyTarkovHelperMapCatalogClient(httpClient);
     }
 
     public async Task<MapLayoutCatalogResult> LoadAsync(
@@ -75,7 +77,13 @@ public sealed class TarkovMapLayoutCatalogClient
         if (layouts.Count == 0)
             throw new InvalidDataException("No canonical maps could be matched to Tarkov.dev interactive layouts.");
 
-        return new MapLayoutCatalogResult(layouts, warnings);
+        // Current Tarkov.dev metadata remains authoritative for canonical map identity and
+        // spatial floor extents. The selected presentation source is the legacy Tarkov-Helper
+        // map bundle, resolved atomically at one GitHub revision so artwork and calibration
+        // can update together without ever mixing revisions.
+        return await _legacyMapClient.ApplyLatestAsync(
+            new MapLayoutCatalogResult(layouts, warnings),
+            cancellationToken);
     }
 
     private static IReadOnlyList<LayoutTemplate> ParseTemplates(JsonElement root)

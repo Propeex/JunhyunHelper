@@ -61,6 +61,12 @@ public sealed class ReadableSvgViewbox : SvgViewbox
         if (!File.Exists(sourcePath))
             return source;
 
+        // Legacy Tarkov-Helper SVGs already contain the exact palette, labels and
+        // floor presentation selected by the user. The readable-v1 schematic CSS
+        // was created for Tarkov.dev source artwork and must never rewrite these maps.
+        if (Path.GetFileName(sourcePath).Contains("legacy-", StringComparison.OrdinalIgnoreCase))
+            return source;
+
         string? temporary = null;
         try
         {

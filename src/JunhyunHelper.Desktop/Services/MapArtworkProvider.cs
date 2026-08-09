@@ -28,9 +28,10 @@ public interface IMapArtworkProvider
 }
 
 /// <summary>
-/// Compatibility entry point used by the existing Map asset service. Ground Zero first uses
-/// the floor-aware RE3MR implementation. The older revision-aware provider and the machine-readable
-/// Escape from Tarkov Wiki artwork remain fallbacks before the calibrated schematic is used.
+/// Compatibility entry point used by the existing Map asset service. The user's current
+/// product decision selects the legacy Tarkov-Helper artwork/calibration as an inseparable
+/// presentation pair. Those layouts intentionally bypass RE3MR/Wiki artwork substitution.
+/// The detailed online chain remains available only for non-legacy layouts.
 /// </summary>
 public sealed class WikiMapArtworkProvider : IMapArtworkProvider
 {
@@ -53,6 +54,9 @@ public sealed class WikiMapArtworkProvider : IMapArtworkProvider
         string destination,
         CancellationToken cancellationToken = default)
     {
+        if (layout.UsesLegacyAffineTransform)
+            return new MapArtworkProviderResult(false, null, null, null, null, null);
+
         var floorAware = await _groundZeroFloorAware.TryBuildAlignedSvgAsync(
             layout,
             canonicalMarkers,
@@ -106,8 +110,8 @@ public sealed class WikiMapArtworkProvider : IMapArtworkProvider
 /// <summary>
 /// Tries presentation providers in product-priority order. Every provider is isolated:
 /// a rejected/partial candidate is deleted before the next provider runs. If every detailed
-/// artwork provider rejects the source, MapAssetCacheService keeps the calibrated schematic
-/// SVG fallback rather than displaying an unproven image.
+/// artwork provider rejects the source, MapAssetCacheService keeps the configured SVG fallback.
+/// For legacy layouts that fallback is the pinned SVG from Propeex/Tarkov-Helper.
 /// </summary>
 public sealed class MapArtworkProviderPipeline
 {
@@ -125,6 +129,12 @@ public sealed class MapArtworkProviderPipeline
         string destination,
         CancellationToken cancellationToken = default)
     {
+        // Legacy SVG + legacy affine calibration are the selected product source,
+        // not an error fallback. Return a silent miss so MapAssetCacheService downloads
+        // the configured pinned legacy SVG without showing a misleading warning.
+        if (layout.UsesLegacyAffineTransform)
+            return new MapArtworkProviderResult(false, null, null, null, null, null);
+
         var warnings = new List<string>();
 
         foreach (var provider in _providers)
