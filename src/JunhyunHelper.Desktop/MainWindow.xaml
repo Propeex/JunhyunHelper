@@ -6,7 +6,7 @@
         xmlns:items="clr-namespace:JunhyunHelper.Desktop.Items"
         xmlns:ammo="clr-namespace:JunhyunHelper.Desktop.Ammo"
         Title="준현 헬퍼"
-        Icon="Assets/AppIcon.jpg"
+        Icon="Assets/AppIcon.png"
         Width="1320"
         Height="820"
         MinWidth="900"
@@ -41,7 +41,7 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,24,0">
-                    <Image Source="Assets/AppIcon.jpg"
+                    <Image Source="Assets/AppIcon.png"
                            Width="28" Height="28"
                            Stretch="UniformToFill"
                            VerticalAlignment="Center"
