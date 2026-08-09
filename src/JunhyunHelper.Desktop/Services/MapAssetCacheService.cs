@@ -54,6 +54,7 @@ public sealed class MapAssetCacheService
 
     private readonly HttpClient _httpClient;
     private readonly TarkovMapLayoutCatalogClient _layoutClient;
+    private readonly FandomMapArtworkService _wikiArtwork;
     private readonly string _root;
 
     public MapAssetCacheService(HttpClient httpClient, string rootDirectory)
@@ -61,6 +62,7 @@ public sealed class MapAssetCacheService
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         ArgumentException.ThrowIfNullOrWhiteSpace(rootDirectory);
         _layoutClient = new TarkovMapLayoutCatalogClient(httpClient);
+        _wikiArtwork = new FandomMapArtworkService(httpClient);
         _root = Path.Combine(Path.GetFullPath(rootDirectory), "map-cache");
         Directory.CreateDirectory(_root);
     }
@@ -105,8 +107,34 @@ public sealed class MapAssetCacheService
 
                 try
                 {
-                    await DownloadSvgWithFallbackAsync(layout.SvgUrl, destination, cancellationToken);
-                    effectiveLayouts.Add(layout);
+                    var effectiveLayout = layout;
+                    var wikiArtwork = await _wikiArtwork.TryBuildAlignedSvgAsync(
+                        layout,
+                        content.MapMarkers,
+                        destination,
+                        cancellationToken);
+                    if (wikiArtwork.Applied)
+                    {
+                        effectiveLayout = layout with
+                        {
+                            Attribution = wikiArtwork.Attribution,
+                            AttributionUrl = wikiArtwork.AttributionUrl,
+                        };
+                    }
+                    else
+                    {
+                        if (File.Exists(destination))
+                            File.Delete(destination);
+                        await DownloadSvgWithFallbackAsync(layout.SvgUrl, destination, cancellationToken);
+
+                        if (layout.Floors.Count <= 1 && !string.IsNullOrWhiteSpace(wikiArtwork.Warning))
+                        {
+                            warnings.Add(
+                                $"Map '{layout.NormalizedName}' kept the calibrated SVG fallback because the Wiki background was not safely aligned: {wikiArtwork.Warning}");
+                        }
+                    }
+
+                    effectiveLayouts.Add(effectiveLayout);
                 }
                 catch (Exception exception) when (exception is not OperationCanceledException)
                 {
