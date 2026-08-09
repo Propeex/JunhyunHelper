@@ -22,6 +22,15 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
     private readonly ComboBox? _mapSelector;
     private readonly Canvas? _mapMarkers;
     private readonly Canvas? _extractMarkers;
+    private readonly CheckBox? _pmcSpawnToggle;
+    private readonly CheckBox? _sniperToggle;
+    private readonly CheckBox? _rogueToggle;
+    private readonly CheckBox? _cultistToggle;
+    private readonly CheckBox? _leverToggle;
+    private readonly CheckBox? _bossToggle;
+    private readonly CheckBox? _pmcExtractToggle;
+    private readonly CheckBox? _scavExtractToggle;
+    private readonly CheckBox? _transitToggle;
     private readonly DispatcherTimer _policyTimer;
     private bool _disposed;
 
@@ -34,6 +43,15 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
         _mapSelector = _page.FindName("CmbMapSelect") as ComboBox;
         _mapMarkers = _page.FindName("MapMarkersContainer") as Canvas;
         _extractMarkers = _page.FindName("ExtractMarkersContainer") as Canvas;
+        _pmcSpawnToggle = _page.FindName("ChkShowPmcSpawns") as CheckBox;
+        _sniperToggle = _page.FindName("ChkShowSniperScavs") as CheckBox;
+        _rogueToggle = _page.FindName("ChkShowRogues") as CheckBox;
+        _cultistToggle = _page.FindName("ChkShowCultists") as CheckBox;
+        _leverToggle = _page.FindName("ChkShowLeversMarker") as CheckBox;
+        _bossToggle = _page.FindName("ChkShowBosses") as CheckBox;
+        _pmcExtractToggle = _page.FindName("ChkShowPmcExtracts") as CheckBox;
+        _scavExtractToggle = _page.FindName("ChkShowScavExtracts") as CheckBox;
+        _transitToggle = _page.FindName("ChkShowTransitExtracts") as CheckBox;
 
         RemoveCustomMarkers();
         ApplyFixedPolicies();
@@ -93,7 +111,6 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
     private void EnforceCurrentFloorAndFilters()
     {
         var selectedFloor = (_floorSelector?.SelectedItem as ComboBoxItem)?.Tag as string;
-        var settings = MapSettings.Instance;
 
         if (_mapMarkers is not null)
         {
@@ -103,7 +120,7 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
                     continue;
 
                 child.Visibility = IsCurrentFloor(marker.FloorId, selectedFloor) &&
-                                   IsGeneralMarkerEnabled(marker.Type, settings)
+                                   IsGeneralMarkerEnabled(marker.Type)
                     ? Visibility.Visible
                     : Visibility.Collapsed;
             }
@@ -117,32 +134,34 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
                     continue;
 
                 child.Visibility = IsCurrentFloor(extract.FloorId, selectedFloor) &&
-                                   IsExtractEnabled(extract.Faction, settings)
+                                   IsExtractEnabled(extract.Faction)
                     ? Visibility.Visible
                     : Visibility.Collapsed;
             }
         }
     }
 
-    private static bool IsGeneralMarkerEnabled(MarkerType type, MapSettings settings) => type switch
+    private bool IsGeneralMarkerEnabled(MarkerType type) => type switch
     {
-        MarkerType.PmcSpawn => settings.ShowPmcSpawns,
-        MarkerType.SniperScavSpawn => settings.ShowSniperScavs,
-        MarkerType.RogueSpawn => settings.ShowRogues,
-        MarkerType.CultistSpawn => settings.ShowCultists,
-        MarkerType.Lever => settings.ShowLevers,
-        MarkerType.BossSpawn => settings.ShowBosses,
+        MarkerType.PmcSpawn => IsChecked(_pmcSpawnToggle),
+        MarkerType.SniperScavSpawn => IsChecked(_sniperToggle),
+        MarkerType.RogueSpawn => IsChecked(_rogueToggle),
+        MarkerType.CultistSpawn => IsChecked(_cultistToggle),
+        MarkerType.Lever => IsChecked(_leverToggle),
+        MarkerType.BossSpawn => IsChecked(_bossToggle),
         _ => true,
     };
 
-    private static bool IsExtractEnabled(ExtractFaction faction, MapSettings settings) => faction switch
+    private bool IsExtractEnabled(ExtractFaction faction) => faction switch
     {
-        ExtractFaction.Pmc => settings.ShowPmcExtracts,
-        ExtractFaction.Scav => settings.ShowScavExtracts,
-        ExtractFaction.Shared => settings.ShowPmcExtracts || settings.ShowScavExtracts,
-        ExtractFaction.Transit => settings.ShowTransits,
+        ExtractFaction.Pmc => IsChecked(_pmcExtractToggle),
+        ExtractFaction.Scav => IsChecked(_scavExtractToggle),
+        ExtractFaction.Shared => IsChecked(_pmcExtractToggle) || IsChecked(_scavExtractToggle),
+        ExtractFaction.Transit => IsChecked(_transitToggle),
         _ => true,
     };
+
+    private static bool IsChecked(CheckBox? checkBox) => checkBox?.IsChecked != false;
 
     private static bool IsCurrentFloor(string? markerFloor, string? selectedFloor)
     {
