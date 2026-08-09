@@ -6,11 +6,11 @@
 
 **Phase 2B — 핵심 Desktop 흐름 구현 + 실사용 피드백 반복 개선**
 
-상태: `MAP PRODUCT REFINEMENT V2 MERGED / AUTOMATED VALIDATION PASSED / WINDOWS USER VALIDATION NEXT`
+상태: `MAP V2 WINDOWS HOTFIX MERGED / AUTOMATED VALIDATION PASSED / WINDOWS USER VALIDATION NEXT`
 
 ---
 
-# 현재 Map 제품 기준 — 2026-08-09
+# 현재 Map 제품 기준 — 2026-08-10
 
 ## Exact Tarkov Helper 기준선
 
@@ -77,6 +77,45 @@ ZIP creation/upload: success
 ```
 
 `Startup + Map smoke`는 publish된 Windows EXE가 lazy Map subsystem과 V2 product adapter까지 실제로 생성한 뒤 정상 생존하는지 확인합니다.
+
+---
+
+# PR #65 — Map V2 Windows feedback hotfix — MERGED
+
+사용자의 실제 Windows 테스트에서 다음 3개 문제/요구사항을 확인하고 즉시 수정했습니다.
+
+```text
+PR #65: Fix Map V2 Quest toggle, screenshot switching, and app icon
+merge commit: 480a49ce7df5f1a17ca91d1caecbb6a81451811a
+final PR head: ecde6d5167f051f53f88ef2b557240a61909e4d4
+final PR CI: 31324134472
+```
+
+수정 내용:
+
+- `지도 마커 > 퀘스트` section이 빈 회색 줄로 보이던 문제 수정
+  - 상단에서 숨긴 원본 global Quest checkbox를 section으로 이동할 때 `Visibility.Collapsed`가 유지되던 것이 원인
+  - `퀘스트 마커 표시` checkbox를 정상 표시/입력 가능 상태로 명시적으로 복구
+- screenshot Map 자동 전환 수정
+  - screenshot parser가 `MapTracker.CurrentMapKey`를 먼저 갱신한 뒤 `PositionUpdated`를 보내는 흐름에서 V2 bridge가 이미 전환됐다고 잘못 판단하던 것이 원인
+  - tracker 상태가 아니라 실제 Map selector의 선택값과 감지 MapKey를 비교하여 UI Map을 전환
+  - screenshot floor auto-detection은 계속 사용하지 않음
+- 브랜드 icon 추가
+  - 사용자가 첨부한 정사각형 얼굴 이미지를 source로 사용
+  - Main Window 좌측 상단 `준현 헬퍼` 텍스트 왼쪽에 표시
+  - Windows build에서 ICO를 생성하여 `JunhyunHelper.exe` application icon으로 embed
+
+최종 자동 검증:
+
+```text
+Desktop Release build: success
+automated tests: success
+Windows x64 self-contained publish: success
+Startup + Map smoke: success
+ZIP creation/upload: success
+```
+
+상세: `docs/MAP_V2_HOTFIX_2026-08-10.md`
 
 ---
 
@@ -264,6 +303,11 @@ Scanner는 탭/placeholder만 있으며 실제 요구사항은 아직 확정 전
 
 # 다음 작업
 
-1. V2 Windows 테스트 빌드 사용자 검증
-2. 실제 화면/사용감 차이만 보정
-3. 사용자 검증 이후 exact Map artwork/config/general-marker DB를 동일 revision으로 교체하는 atomic bundle updater 구현
+1. PR #65 Windows 테스트 빌드 사용자 검증
+2. 확인:
+   - `지도 마커 > 퀘스트` global checkbox 표시/동작
+   - screenshot 촬영 후 감지 Map 자동 전환
+   - screenshot Map 전환 시 사용자가 고른 floor가 자동으로 변경되지 않는지
+   - EXE / Window title / 좌측 상단 brand icon
+3. 실제 화면/사용감 차이만 보정
+4. 사용자 검증 이후 exact Map artwork/config/general-marker DB를 동일 revision으로 교체하는 atomic bundle updater 구현
