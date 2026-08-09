@@ -83,6 +83,7 @@ public sealed class MapAssetCacheService
             if (layouts.Count == 0)
                 throw new InvalidDataException("No usable Map layouts were returned.");
 
+            var warnings = catalog.Warnings.ToList();
             var iconFiles = MarkerIconFiles.Values
                 .Concat(SupplementalIconFiles)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -107,7 +108,16 @@ public sealed class MapAssetCacheService
                 cancellationToken.ThrowIfCancellationRequested();
                 var destination = GetIconPath(CandidateDirectory, iconFile);
                 Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-                await DownloadPngAsync(MarkerAssetBaseUrl + iconFile, destination, cancellationToken);
+                try
+                {
+                    await DownloadPngAsync(MarkerAssetBaseUrl + iconFile, destination, cancellationToken);
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException)
+                {
+                    if (File.Exists(destination))
+                        File.Delete(destination);
+                    warnings.Add($"Map marker icon '{iconFile}' could not be refreshed; fallback marker will be used: {exception.Message}");
+                }
                 completed++;
                 progress?.Report(new MapAssetUpdateProgress(
                     completed,
@@ -121,7 +131,7 @@ public sealed class MapAssetCacheService
                 cancellationToken);
             await ValidateDirectoryAsync(CandidateDirectory, layouts, cancellationToken);
             ActivateCandidate();
-            return new MapAssetUpdateResult(true, layouts, catalog.Warnings);
+            return new MapAssetUpdateResult(true, layouts, warnings.ToArray());
         }
         catch
         {
@@ -301,14 +311,6 @@ public sealed class MapAssetCacheService
             if (!File.Exists(svg))
                 throw new FileNotFoundException($"Map SVG missing for '{layout.Key}'.", svg);
             ValidateSvg(svg);
-        }
-
-        foreach (var iconFile in MarkerIconFiles.Values.Concat(SupplementalIconFiles).Distinct(StringComparer.OrdinalIgnoreCase))
-        {
-            var icon = GetIconPath(directory, iconFile);
-            if (!File.Exists(icon))
-                throw new FileNotFoundException($"Map marker icon missing: '{iconFile}'.", icon);
-            ValidatePng(icon);
         }
         return Task.CompletedTask;
     }
