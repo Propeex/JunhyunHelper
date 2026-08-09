@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using JunhyunHelper.Core.Maps;
 
@@ -11,11 +12,17 @@ internal static class MapVisualFactory
     public static FrameworkElement CreateMarker(
         MapMarkerKind kind,
         string toolTip,
-        double size = 26) =>
-        CreateBadge(SymbolFor(kind), BrushFor(kind), toolTip, size);
+        string? iconPath = null,
+        double size = 28) =>
+        TryCreateIcon(iconPath, toolTip, size)
+        ?? CreateBadge(SymbolFor(kind), BrushFor(kind), toolTip, size);
 
-    public static FrameworkElement CreateQuestMarker(string toolTip, double size = 28) =>
-        CreateBadge("!", Brushes.Gold, toolTip, size);
+    public static FrameworkElement CreateQuestMarker(
+        string toolTip,
+        string? iconPath = null,
+        double size = 30) =>
+        TryCreateIcon(iconPath, toolTip, size)
+        ?? CreateBadge("!", Brushes.Gold, toolTip, size);
 
     public static FrameworkElement CreateUserMarker(string color, string toolTip, double size = 28)
     {
@@ -25,8 +32,20 @@ internal static class MapVisualFactory
         return CreateBadge("●", brush, toolTip, size);
     }
 
-    public static FrameworkElement CreatePlayerMarker(double headingDegrees, double size = 30)
+    public static FrameworkElement CreatePlayerMarker(
+        double headingDegrees,
+        string? iconPath = null,
+        double size = 32)
     {
+        var icon = TryCreateIcon(iconPath, "현재 위치", size);
+        if (icon is not null)
+        {
+            icon.IsHitTestVisible = false;
+            icon.RenderTransformOrigin = new Point(0.5, 0.5);
+            icon.RenderTransform = new RotateTransform(headingDegrees);
+            return icon;
+        }
+
         var grid = new Grid
         {
             Width = size,
@@ -90,6 +109,48 @@ internal static class MapVisualFactory
             Opacity = 0.55,
         };
         return border;
+    }
+
+    private static FrameworkElement? TryCreateIcon(string? iconPath, string toolTip, double size)
+    {
+        if (string.IsNullOrWhiteSpace(iconPath) || !File.Exists(iconPath))
+            return null;
+
+        try
+        {
+            var bitmap = new BitmapImage();
+            bitmap.BeginInit();
+            bitmap.CacheOption = BitmapCacheOption.OnLoad;
+            bitmap.UriSource = new Uri(iconPath, UriKind.Absolute);
+            bitmap.EndInit();
+            bitmap.Freeze();
+
+            var grid = new Grid
+            {
+                Width = size,
+                Height = size,
+                ToolTip = toolTip,
+                Cursor = System.Windows.Input.Cursors.Hand,
+            };
+            grid.Children.Add(new Image
+            {
+                Source = bitmap,
+                Stretch = Stretch.Uniform,
+                SnapsToDevicePixels = true,
+                IsHitTestVisible = false,
+            });
+            grid.Effect = new System.Windows.Media.Effects.DropShadowEffect
+            {
+                BlurRadius = 3,
+                ShadowDepth = 1,
+                Opacity = 0.55,
+            };
+            return grid;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static string SymbolFor(MapMarkerKind kind) => kind switch
