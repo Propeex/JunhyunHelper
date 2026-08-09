@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Setup .NET 10
         uses: actions/setup-dotnet@v4
@@ -41,15 +43,9 @@ jobs:
 
           Copy-Item packaging/FIRST_RUN_KO.txt artifacts/publish/FIRST_RUN_KO.txt
 
-          if (-not (Test-Path artifacts/publish/JunhyunHelper.exe)) {
-            throw "Published JunhyunHelper.exe was not produced."
-          }
-
           $required = @(
             'JunhyunHelper.exe',
-            'JunhyunHelper.dll',
-            'SharpVectors.Converters.Wpf.dll',
-            'SharpVectors.Rendering.Wpf.dll'
+            'JunhyunHelper.dll'
           )
           foreach ($file in $required) {
             if (-not (Test-Path (Join-Path artifacts/publish $file))) {
@@ -58,6 +54,25 @@ jobs:
           }
 
           Get-ChildItem artifacts/publish | Sort-Object Name | Select-Object Name,Length | Format-Table -AutoSize
+
+      - name: Startup smoke
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path artifacts/publish/JunhyunHelper.exe).Path
+          $process = Start-Process -FilePath $exe -WorkingDirectory artifacts/publish -PassThru
+          try {
+            Start-Sleep -Seconds 12
+            $process.Refresh()
+            if ($process.HasExited) {
+              throw "Published JunhyunHelper exited during startup smoke with code $($process.ExitCode)."
+            }
+            Write-Host "Startup smoke passed: process remained alive for 12 seconds."
+          }
+          finally {
+            if (-not $process.HasExited) {
+              Stop-Process -Id $process.Id -Force
+            }
+          }
 
       - name: Create test ZIP
         shell: pwsh

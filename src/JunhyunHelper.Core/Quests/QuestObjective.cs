@@ -1,6 +1,3 @@
-using System.Text.Json.Serialization;
-using JunhyunHelper.Core.Maps;
-
 namespace JunhyunHelper.Core.Quests;
 
 public enum QuestItemObjectiveKind
@@ -10,20 +7,6 @@ public enum QuestItemObjectiveKind
     Sell,
     Other,
 }
-
-public enum QuestMapLocationKind
-{
-    PossibleLocation,
-    Zone,
-}
-
-public sealed record QuestMapLocation(
-    string MapId,
-    QuestMapLocationKind Kind,
-    MapWorldPosition Position,
-    IReadOnlyList<MapOutlinePoint> Outline,
-    double? Top,
-    double? Bottom);
 
 public sealed record QuestObjective(
     string QuestId,
@@ -37,13 +20,7 @@ public sealed record QuestObjective(
     IReadOnlyList<string> MapIds,
     IReadOnlyList<string> ItemIds,
     string? QuestItemId,
-    QuestItemObjectiveKind ItemKind,
-    IReadOnlyList<QuestMapLocation>? MapLocationData = null)
-{
-    [JsonIgnore]
-    public IReadOnlyList<QuestMapLocation> MapLocations =>
-        MapLocationData ?? Array.Empty<QuestMapLocation>();
-}
+    QuestItemObjectiveKind ItemKind);
 
 public sealed record QuestItemRequirement(
     string QuestId,
