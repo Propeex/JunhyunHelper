@@ -13,6 +13,7 @@ public partial class MainWindow : TarkovHelper.MainWindow
     private TarkovHelper.Pages.Map.MapPage? _legacyMapPage;
     private LegacyMapProductAdapter? _legacyMapProductAdapter;
     private LegacyMapProductRuntime? _legacyMapProductRuntime;
+    private LegacyAdditionalMapMarkerController? _legacyAdditionalMapMarkers;
     private LegacyMapQuestSidebar? _legacyMapQuestSidebar;
     private bool _legacyMapTabHooked;
 
@@ -31,6 +32,7 @@ public partial class MainWindow : TarkovHelper.MainWindow
     {
         EnsureLegacyMapPage();
         _legacyMapProductAdapter?.Refresh();
+        _legacyAdditionalMapMarkers?.Refresh();
     }
 
     private void EnsureLegacyMapPage()
@@ -63,6 +65,7 @@ public partial class MainWindow : TarkovHelper.MainWindow
                 () => QuestPage.CurrentContentForMap,
                 () => QuestPage.CurrentWorkspaceForMap);
             _legacyMapProductRuntime = new LegacyMapProductRuntime(page);
+            _legacyAdditionalMapMarkers = new LegacyAdditionalMapMarkerController(page);
         }
         catch (Exception exception)
         {
