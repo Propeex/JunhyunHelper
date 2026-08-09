@@ -1,8 +1,8 @@
 namespace JunhyunHelper.Desktop.Map;
 
 /// <summary>
-/// Narrow runtime bridge for product actions that do not exist in the original
-/// Tarkov Helper OverlayMiniMapService (anchored size and shared player marker size).
+/// Narrow runtime bridge for product actions layered on the exact Tarkov Helper
+/// MiniMap window.
 /// </summary>
 public static class JunhyunMiniMapProductRegistry
 {
@@ -14,10 +14,13 @@ public static class JunhyunMiniMapProductRegistry
         ArgumentNullException.ThrowIfNull(window);
         lock (Gate)
             _active = new WeakReference<TarkovHelper.Windows.OverlayMiniMapWindow>(window);
+
+        window.InitializeQuestV2();
     }
 
     public static void Unregister(TarkovHelper.Windows.OverlayMiniMapWindow window)
     {
+        window.DisposeQuestV2();
         lock (Gate)
         {
             if (_active is null || !_active.TryGetTarget(out var current) || ReferenceEquals(current, window))
