@@ -72,8 +72,17 @@ public sealed class LegacyMapMarkerSettingsV2Bridge : IDisposable
         if (_page.FindName("ChkShowQuestMarkers") is CheckBox questToggle)
         {
             Detach(questToggle);
+
+            // The product adapter hides this control in the original top bar before
+            // it is moved here. Moving a collapsed element preserves that state, which
+            // left the Quest section looking like an empty grey strip on Windows.
+            // Restore it explicitly as the single global Quest marker control.
+            questToggle.Visibility = Visibility.Visible;
+            questToggle.IsEnabled = true;
+            questToggle.IsHitTestVisible = true;
             questToggle.Content = "퀘스트 마커 표시";
-            questToggle.Margin = new Thickness(0);
+            questToggle.Margin = new Thickness(2, 2, 2, 2);
+            questToggle.HorizontalAlignment = HorizontalAlignment.Left;
             rows.Children.Add(Wrap(questToggle));
         }
         return rows;
