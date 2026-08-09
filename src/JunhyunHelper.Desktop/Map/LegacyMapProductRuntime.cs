@@ -27,6 +27,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
     public LegacyMapProductRuntime(TarkovHelper.Pages.Map.MapPage page)
     {
         _page = page ?? throw new ArgumentNullException(nameof(page));
+        _ = new LegacyExtractSettingsMergeBridge(page);
         _questScaleBridge = new LegacyQuestMarkerScaleBridge(page);
         _questToggleBridge = new LegacyQuestMarkerToggleBridge(page);
         _playerMarkerSlider = _page.FindName("SliderPlayerMarkerSize") as Slider;
