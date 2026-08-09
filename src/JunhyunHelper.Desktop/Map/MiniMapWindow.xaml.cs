@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
@@ -120,7 +121,7 @@ public partial class MiniMapWindow : Window
 
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
-        if (Application.Current?.MainWindow?.IsVisible == true)
+        if (System.Windows.Application.Current?.MainWindow?.IsVisible == true)
         {
             e.Cancel = true;
             Hide();
