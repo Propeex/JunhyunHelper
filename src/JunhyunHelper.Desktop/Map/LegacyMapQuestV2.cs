@@ -2,9 +2,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using JunhyunHelper.Application.Quests;
 using JunhyunHelper.Core.Content;
-using JunhyunHelper.Core.Profiles;
 using JunhyunHelper.Core.Quests;
 using TarkovHelper.Services.Map;
 
@@ -39,8 +39,8 @@ public sealed class QuestSidebarMarkerEventArgs(string questId, bool enabled) : 
 }
 
 /// <summary>
-/// V2 Quest projection: only current Quests for the selected Map, with explicit
-/// per-Quest visibility and stable A/B/C identity shared by Main Map and MiniMap.
+/// Current-Quest projection owned by JunhyunHelper. Each enabled Quest receives a
+/// visible A/B/C identity shared by Main Map and MiniMap.
 /// </summary>
 public sealed class LegacyMapQuestV2Controller : IDisposable
 {
@@ -51,8 +51,10 @@ public sealed class LegacyMapQuestV2Controller : IDisposable
     private readonly Action<string> _openQuest;
     private readonly MapTrackerService _tracker = MapTrackerService.Instance;
     private readonly Canvas _layer;
+    private readonly ScaleTransform? _mapScale;
     private readonly ComboBox? _floorSelector;
     private readonly CheckBox? _globalToggle;
+    private readonly DispatcherTimer _scaleTimer;
     private readonly Dictionary<string, bool> _questMarkerEnabled = new(StringComparer.Ordinal);
     private bool _disposed;
 
@@ -71,14 +73,11 @@ public sealed class LegacyMapQuestV2Controller : IDisposable
 
         var mapCanvas = _page.FindName("MapCanvas") as Canvas
             ?? throw new InvalidOperationException("Legacy MapCanvas was not found.");
-        _layer = new Canvas
-        {
-            IsHitTestVisible = false,
-            ClipToBounds = false,
-        };
+        _layer = new Canvas { IsHitTestVisible = false, ClipToBounds = false };
         Panel.SetZIndex(_layer, 520);
         mapCanvas.Children.Add(_layer);
 
+        _mapScale = _page.FindName("MapScale") as ScaleTransform;
         _floorSelector = _page.FindName("CmbFloorSelect") as ComboBox;
         _globalToggle = _page.FindName("ChkShowQuestMarkers") as CheckBox;
 
@@ -95,6 +94,13 @@ public sealed class LegacyMapQuestV2Controller : IDisposable
         _sidebar.QuestRequested += Sidebar_QuestRequested;
         _sidebar.MarkerVisibilityChanged += Sidebar_MarkerVisibilityChanged;
         _page.Loaded += Page_Loaded;
+
+        _scaleTimer = new DispatcherTimer(
+            TimeSpan.FromMilliseconds(120),
+            DispatcherPriority.Background,
+            (_, _) => UpdateMarkerScale(),
+            _page.Dispatcher);
+        _scaleTimer.Start();
     }
 
     public void Refresh()
@@ -105,13 +111,11 @@ public sealed class LegacyMapQuestV2Controller : IDisposable
         var content = _contentProvider();
         var workspace = _workspaceProvider();
         var mapKey = _tracker.CurrentMapKey;
-
         if (content is null || workspace is null || string.IsNullOrWhiteSpace(mapKey))
         {
             _sidebar.SetState(mapKey, Array.Empty<LegacyMapQuestEntryV2>());
             _layer.Children.Clear();
-            JunhyunMapQuestProjectionV2.Publish(mapKey, Array.Empty<JunhyunQuestMarkerProjectionV2>());
-            JunhyunMapQuestProjection.Publish(mapKey, Array.Empty<JunhyunQuestMarkerProjection>());
+            PublishEmpty(mapKey);
             return;
         }
 
@@ -119,7 +123,7 @@ public sealed class LegacyMapQuestV2Controller : IDisposable
         foreach (var entry in rawEntries.Where(entry => entry.Markers.Count > 0))
             _questMarkerEnabled.TryAdd(entry.QuestId, true);
 
-        var markerCodeByQuest = rawEntries
+        var codeByQuest = rawEntries
             .Where(entry => entry.Markers.Count > 0 && IsQuestMarkerEnabled(entry.QuestId))
             .Select((entry, index) => (entry.QuestId, Code: MarkerCode(index)))
             .ToDictionary(pair => pair.QuestId, pair => pair.Code, StringComparer.Ordinal);
@@ -130,7 +134,7 @@ public sealed class LegacyMapQuestV2Controller : IDisposable
                 entry.Name,
                 entry.Markers,
                 entry.Markers.Count > 0 && IsQuestMarkerEnabled(entry.QuestId),
-                markerCodeByQuest.GetValueOrDefault(entry.QuestId)))
+                codeByQuest.GetValueOrDefault(entry.QuestId)))
             .ToArray();
 
         _sidebar.SetState(mapKey, entries);
@@ -142,12 +146,12 @@ public sealed class LegacyMapQuestV2Controller : IDisposable
         QuestWorkspace workspace,
         string mapKey)
     {
-        var mapReferences = content.Maps.ToDictionary(map => map.Id, StringComparer.Ordinal);
+        var maps = content.Maps.ToDictionary(map => map.Id, StringComparer.Ordinal);
         var objectivesByQuest = content.QuestObjectives
             .GroupBy(objective => objective.QuestId, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal);
-
         var result = new List<LegacyMapQuestEntryV2>();
+
         foreach (var catalogEntry in workspace.Quests)
         {
             if (catalogEntry.Availability.State != QuestAvailabilityState.Current)
@@ -157,30 +161,18 @@ public sealed class LegacyMapQuestV2Controller : IDisposable
             objectivesByQuest.TryGetValue(quest.Id, out var objectives);
             objectives ??= Array.Empty<QuestObjective>();
 
-            var questMapMatches = MapIdMatches(content, mapReferences, quest.MapId, mapKey);
+            var questMapMatches = MapIdMatches(maps, quest.MapId, mapKey);
             var objectiveMapMatches = objectives.Any(objective =>
-                objective.MapIds.Any(mapId => MapIdMatches(content, mapReferences, mapId, mapKey)));
+                objective.MapIds.Any(mapId => MapIdMatches(maps, mapId, mapKey)));
             if (!questMapMatches && !objectiveMapMatches)
                 continue;
 
-            var markerSeeds = objectives
+            var markers = objectives
                 .SelectMany(objective => objective.MapLocations.Select(location => (objective, location)))
-                .Where(pair => MapIdMatches(content, mapReferences, pair.location.MapId, mapKey))
-                .Select(pair => CreateProjectionSeed(quest, pair.objective, pair.location, mapKey))
+                .Where(pair => MapIdMatches(maps, pair.location.MapId, mapKey))
+                .Select(pair => CreateProjection(quest, pair.objective, pair.location, mapKey))
                 .Where(static marker => marker is not null)
-                .Cast<QuestMarkerSeed>()
-                .ToArray();
-
-            var markers = markerSeeds
-                .Select(seed => new JunhyunQuestMarkerProjectionV2(
-                    seed.QuestId,
-                    seed.QuestName,
-                    seed.ObjectiveId,
-                    seed.ObjectiveName,
-                    string.Empty,
-                    seed.X,
-                    seed.Y,
-                    seed.FloorId))
+                .Cast<JunhyunQuestMarkerProjectionV2>()
                 .ToArray();
 
             result.Add(new LegacyMapQuestEntryV2(
@@ -191,12 +183,10 @@ public sealed class LegacyMapQuestV2Controller : IDisposable
                 null));
         }
 
-        return result
-            .OrderBy(entry => entry.Name, StringComparer.CurrentCulture)
-            .ToArray();
+        return result.OrderBy(entry => entry.Name, StringComparer.CurrentCulture).ToArray();
     }
 
-    private QuestMarkerSeed? CreateProjectionSeed(
+    private JunhyunQuestMarkerProjectionV2? CreateProjection(
         QuestDefinition quest,
         QuestObjective objective,
         QuestMapLocation location,
@@ -219,11 +209,12 @@ public sealed class LegacyMapQuestV2Controller : IDisposable
                 location.Position.Z);
         }
 
-        return new QuestMarkerSeed(
+        return new JunhyunQuestMarkerProjectionV2(
             quest.Id,
             DisplayName(quest.NameKo, quest.NameEn, quest.Id),
             objective.ObjectiveId,
             DisplayName(objective.DescriptionKo, objective.DescriptionEn, objective.Type),
+            string.Empty,
             transformed.X,
             transformed.Y,
             floorId);
@@ -232,11 +223,10 @@ public sealed class LegacyMapQuestV2Controller : IDisposable
     private void Render(IReadOnlyList<LegacyMapQuestEntryV2> entries, string mapKey)
     {
         _layer.Children.Clear();
-        var globallyVisible = _globalToggle?.IsChecked != false;
-        var selectedFloor = SelectedFloorId();
         var miniMapMarkers = new List<JunhyunQuestMarkerProjectionV2>();
+        var selectedFloor = SelectedFloorId();
 
-        if (globallyVisible)
+        if (_globalToggle?.IsChecked != false)
         {
             foreach (var entry in entries)
             {
@@ -258,8 +248,25 @@ public sealed class LegacyMapQuestV2Controller : IDisposable
             }
         }
 
+        UpdateMarkerScale();
         JunhyunMapQuestProjectionV2.Publish(mapKey, miniMapMarkers);
-        // V1 projection must remain empty; V2 owns all current Quest presentation.
+        JunhyunMapQuestProjection.Publish(mapKey, Array.Empty<JunhyunQuestMarkerProjection>());
+    }
+
+    private void UpdateMarkerScale()
+    {
+        var zoom = _mapScale?.ScaleX ?? 1.0;
+        var inverse = 1.0 / Math.Max(zoom, 0.01);
+        foreach (FrameworkElement child in _layer.Children)
+        {
+            child.RenderTransform = new ScaleTransform(inverse, inverse);
+            child.RenderTransformOrigin = new Point(0, 0);
+        }
+    }
+
+    private void PublishEmpty(string? mapKey)
+    {
+        JunhyunMapQuestProjectionV2.Publish(mapKey, Array.Empty<JunhyunQuestMarkerProjectionV2>());
         JunhyunMapQuestProjection.Publish(mapKey, Array.Empty<JunhyunQuestMarkerProjection>());
     }
 
@@ -280,43 +287,44 @@ public sealed class LegacyMapQuestV2Controller : IDisposable
     private void FloorSelector_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
         _page.Dispatcher.BeginInvoke(Refresh);
 
-    private string? SelectedFloorId()
-    {
-        if (_floorSelector is null)
-            return null;
-        return (_floorSelector.SelectedItem as ComboBoxItem)?.Tag as string;
-    }
+    private string? SelectedFloorId() =>
+        (_floorSelector?.SelectedItem as ComboBoxItem)?.Tag as string;
 
     private static bool FloorMatches(string? markerFloor, string? selectedFloor)
     {
-        if (string.IsNullOrWhiteSpace(selectedFloor) || string.IsNullOrWhiteSpace(markerFloor))
+        if (string.IsNullOrWhiteSpace(markerFloor) || string.IsNullOrWhiteSpace(selectedFloor))
             return true;
         return string.Equals(markerFloor, selectedFloor, StringComparison.OrdinalIgnoreCase);
     }
 
     private bool MapIdMatches(
-        GameContentCatalog content,
-        IReadOnlyDictionary<string, Core.Reference.MapReference> references,
+        IReadOnlyDictionary<string, Core.Reference.MapReference> maps,
         string? mapId,
         string legacyMapKey)
     {
         if (string.IsNullOrWhiteSpace(mapId))
             return false;
 
-        if (references.TryGetValue(mapId, out var map))
+        if (maps.TryGetValue(mapId, out var map))
         {
             foreach (var candidate in new[] { map.NameEn, map.NameKo, map.Id })
             {
                 if (string.IsNullOrWhiteSpace(candidate))
                     continue;
-                var resolved = _tracker.ResolveMapKey(candidate);
-                if (string.Equals(resolved, legacyMapKey, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(
+                        _tracker.ResolveMapKey(candidate),
+                        legacyMapKey,
+                        StringComparison.OrdinalIgnoreCase))
+                {
                     return true;
+                }
             }
         }
 
-        var direct = _tracker.ResolveMapKey(mapId);
-        return string.Equals(direct, legacyMapKey, StringComparison.OrdinalIgnoreCase);
+        return string.Equals(
+            _tracker.ResolveMapKey(mapId),
+            legacyMapKey,
+            StringComparison.OrdinalIgnoreCase);
     }
 
     private static string MarkerCode(int index)
@@ -326,7 +334,7 @@ public sealed class LegacyMapQuestV2Controller : IDisposable
         while (index > 0)
         {
             index--;
-            chars.Push((char)('A' + (index % 26)));
+            chars.Push((char)('A' + index % 26));
             index /= 26;
         }
         return new string(chars.ToArray());
@@ -342,6 +350,7 @@ public sealed class LegacyMapQuestV2Controller : IDisposable
             return;
         _disposed = true;
 
+        _scaleTimer.Stop();
         _tracker.MapChanged -= Tracker_MapChanged;
         if (_floorSelector is not null)
             _floorSelector.SelectionChanged -= FloorSelector_SelectionChanged;
@@ -353,17 +362,8 @@ public sealed class LegacyMapQuestV2Controller : IDisposable
         _sidebar.QuestRequested -= Sidebar_QuestRequested;
         _sidebar.MarkerVisibilityChanged -= Sidebar_MarkerVisibilityChanged;
         _page.Loaded -= Page_Loaded;
-        JunhyunMapQuestProjectionV2.Publish(null, Array.Empty<JunhyunQuestMarkerProjectionV2>());
+        PublishEmpty(null);
     }
-
-    private sealed record QuestMarkerSeed(
-        string QuestId,
-        string QuestName,
-        string ObjectiveId,
-        string ObjectiveName,
-        double X,
-        double Y,
-        string? FloorId);
 }
 
 public static class JunhyunMapQuestProjectionV2
@@ -396,7 +396,6 @@ public static class JunhyunQuestMarkerVisualFactoryV2
             IsHitTestVisible = false,
             ToolTip = $"{marker.MarkerCode} · {marker.QuestName}\n{marker.ObjectiveName}",
         };
-
         root.Children.Add(new Border
         {
             Width = MarkerSize,
@@ -417,14 +416,12 @@ public static class JunhyunQuestMarkerVisualFactoryV2
                 TextAlignment = TextAlignment.Center,
             },
         });
-
         return root;
     }
 }
 
 /// <summary>
-/// Compact collapsible left Quest list. It starts collapsed so the Map receives the
-/// available screen width until the user explicitly opens the list.
+/// Collapsible current-Quest sidebar. It starts collapsed to preserve Map width.
 /// </summary>
 public sealed class LegacyMapQuestSidebarV2 : Border
 {
@@ -440,7 +437,6 @@ public sealed class LegacyMapQuestSidebarV2 : Border
 
     public event EventHandler<QuestSidebarQuestEventArgs>? QuestRequested;
     public event EventHandler<QuestSidebarMarkerEventArgs>? MarkerVisibilityChanged;
-    public event Action<double>? WidthRequested;
 
     public LegacyMapQuestSidebarV2()
     {
@@ -451,7 +447,7 @@ public sealed class LegacyMapQuestSidebarV2 : Border
 
         _root = new Grid();
         _root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(CollapsedWidth) });
-        _root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        _root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0) });
 
         _toggle = new Button
         {
@@ -461,7 +457,7 @@ public sealed class LegacyMapQuestSidebarV2 : Border
             Padding = new Thickness(0),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
-            ToolTip = "진행 중 퀘스트 펼치기/접기",
+            ToolTip = "진행 중 퀘스트 펼치기",
             Cursor = Cursors.Hand,
         };
         _toggle.Click += Toggle_Click;
@@ -484,7 +480,6 @@ public sealed class LegacyMapQuestSidebarV2 : Border
         _expandedContent.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         _expandedContent.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         _expandedContent.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-
         _expandedContent.Children.Add(new TextBlock
         {
             Text = "진행 중 퀘스트",
@@ -533,19 +528,6 @@ public sealed class LegacyMapQuestSidebarV2 : Border
 
     private FrameworkElement CreateQuestRow(LegacyMapQuestEntryV2 entry)
     {
-        var outer = new Border
-        {
-            Background = new SolidColorBrush(Color.FromRgb(40, 40, 40)),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(63, 63, 63)),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(6),
-            Padding = new Thickness(8),
-            Margin = new Thickness(0, 0, 0, 7),
-            Cursor = Cursors.Hand,
-            Tag = entry.QuestId,
-        };
-        outer.MouseLeftButtonUp += QuestRow_MouseLeftButtonUp;
-
         var grid = new Grid();
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -562,10 +544,37 @@ public sealed class LegacyMapQuestSidebarV2 : Border
             };
             markerToggle.Checked += MarkerToggle_Changed;
             markerToggle.Unchecked += MarkerToggle_Changed;
-            markerToggle.PreviewMouseLeftButtonDown += (_, e) => e.Handled = true;
             grid.Children.Add(markerToggle);
         }
 
+        var button = new Button
+        {
+            Tag = entry.QuestId,
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            Padding = new Thickness(0),
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Cursor = Cursors.Hand,
+            Content = CreateQuestContent(entry),
+        };
+        button.Click += QuestButton_Click;
+        Grid.SetColumn(button, 1);
+        grid.Children.Add(button);
+
+        return new Border
+        {
+            Background = new SolidColorBrush(Color.FromRgb(40, 40, 40)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(63, 63, 63)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(8),
+            Margin = new Thickness(0, 0, 0, 7),
+            Child = grid,
+        };
+    }
+
+    private static FrameworkElement CreateQuestContent(LegacyMapQuestEntryV2 entry)
+    {
         var content = new StackPanel();
         var titleLine = new StackPanel { Orientation = Orientation.Horizontal };
         if (!string.IsNullOrWhiteSpace(entry.MarkerCode))
@@ -608,26 +617,22 @@ public sealed class LegacyMapQuestSidebarV2 : Border
             FontSize = 10,
             Margin = new Thickness(0, 3, 0, 0),
         });
-        Grid.SetColumn(content, 1);
-        grid.Children.Add(content);
-        outer.Child = grid;
-        return outer;
+        return content;
     }
 
     private void MarkerToggle_Changed(object sender, RoutedEventArgs e)
     {
         if (sender is CheckBox checkBox && checkBox.Tag is string questId)
         {
-            e.Handled = true;
             MarkerVisibilityChanged?.Invoke(
                 this,
                 new QuestSidebarMarkerEventArgs(questId, checkBox.IsChecked == true));
         }
     }
 
-    private void QuestRow_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    private void QuestButton_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Border row && row.Tag is string questId)
+        if (sender is Button button && button.Tag is string questId)
             QuestRequested?.Invoke(this, new QuestSidebarQuestEventArgs(questId));
     }
 
@@ -641,6 +646,5 @@ public sealed class LegacyMapQuestSidebarV2 : Border
             : new GridLength(0);
         _toggle.Content = _expanded ? "◀" : "▶";
         _toggle.ToolTip = _expanded ? "진행 중 퀘스트 접기" : "진행 중 퀘스트 펼치기";
-        WidthRequested?.Invoke(Width);
     }
 }
