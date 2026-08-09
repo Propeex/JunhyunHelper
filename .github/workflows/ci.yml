@@ -55,6 +55,25 @@ jobs:
 
           Get-ChildItem artifacts/publish | Sort-Object Name | Select-Object Name,Length | Format-Table -AutoSize
 
+      - name: Startup smoke
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path artifacts/publish/JunhyunHelper.exe).Path
+          $process = Start-Process -FilePath $exe -WorkingDirectory artifacts/publish -PassThru
+          try {
+            Start-Sleep -Seconds 12
+            $process.Refresh()
+            if ($process.HasExited) {
+              throw "Published JunhyunHelper exited during startup smoke with code $($process.ExitCode)."
+            }
+            Write-Host "Startup smoke passed: process remained alive for 12 seconds."
+          }
+          finally {
+            if (-not $process.HasExited) {
+              Stop-Process -Id $process.Id -Force
+            }
+          }
+
       - name: Create test ZIP
         shell: pwsh
         run: |
