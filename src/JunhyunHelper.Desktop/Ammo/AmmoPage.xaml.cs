@@ -9,6 +9,8 @@ using JunhyunHelper.Desktop.Services;
 
 namespace JunhyunHelper.Desktop.Ammo;
 
+public sealed record AmmoQuestNavigationRequestedEventArgs(string QuestId);
+
 public partial class AmmoPage : UserControl
 {
     private static readonly Brush UnknownEffectivenessBackground = CreateFrozenBrush(0x3A, 0x3A, 0x3A);
@@ -26,24 +28,37 @@ public partial class AmmoPage : UserControl
 
     private GameContentCatalog? _content;
     private ImageCacheService? _imageCache;
+    private AmmoFavoriteStore? _favoriteStore;
+    private HashSet<string> _favoriteCalibers = new(StringComparer.Ordinal);
     private IReadOnlyList<AmmoRow> _allRows = [];
     private AmmoRow? _selectedRow;
     private CancellationTokenSource? _iconLoadCts;
     private bool _usingWikiBallisticsFilter;
+    private bool _updatingFavorites;
 
     public AmmoPage()
     {
         InitializeComponent();
     }
 
+    public event EventHandler<AmmoQuestNavigationRequestedEventArgs>? QuestNavigationRequested;
+
     public void SetImageCache(ImageCacheService imageCache) =>
         _imageCache = imageCache ?? throw new ArgumentNullException(nameof(imageCache));
+
+    public void SetFavoriteStore(AmmoFavoriteStore favoriteStore)
+    {
+        _favoriteStore = favoriteStore ?? throw new ArgumentNullException(nameof(favoriteStore));
+        _favoriteCalibers = favoriteStore.Load().ToHashSet(StringComparer.Ordinal);
+        RefreshFavoriteChoices();
+        UpdateFavoriteButton();
+    }
 
     public void SetData(GameContentCatalog content)
     {
         _content = content ?? throw new ArgumentNullException(nameof(content));
         var selectedCaliber = (CaliberComboBox.SelectedItem as CaliberChoice)?.RawCaliber;
-        _usingWikiBallisticsFilter = content.Ammunition.Any(ammo => ammo.ArmorEffectiveness?.IsValid == true);
+        _usingWikiBallisticsFilter = content.Ammunition.Any(ammo => ammo.IsWikiBallisticsListed is not null);
         _allRows = BuildRows(content, _usingWikiBallisticsFilter);
 
         var choices = new[] { new CaliberChoice(null, "전체 구경") }
@@ -58,6 +73,7 @@ public partial class AmmoPage : UserControl
             string.Equals(choice.RawCaliber, selectedCaliber, StringComparison.Ordinal))
             ?? choices[0];
 
+        RefreshFavoriteChoices();
         ApplyFilter();
 
         _iconLoadCts?.Cancel();
@@ -69,6 +85,9 @@ public partial class AmmoPage : UserControl
     public void SetBusy(bool busy)
     {
         CaliberComboBox.IsEnabled = !busy;
+        FavoriteCaliberComboBox.IsEnabled = !busy;
+        FavoriteCaliberButton.IsEnabled = !busy &&
+                                          (CaliberComboBox.SelectedItem as CaliberChoice)?.RawCaliber is not null;
         ColumnMenuButton.IsEnabled = !busy;
         AmmoGrid.IsEnabled = !busy;
         if (busy)
@@ -79,7 +98,7 @@ public partial class AmmoPage : UserControl
     {
         var itemsById = content.Items.ToDictionary(item => item.Id, StringComparer.Ordinal);
         var comparisonAmmo = useWikiBallisticsFilter
-            ? content.Ammunition.Where(ammo => ammo.ArmorEffectiveness?.IsValid == true)
+            ? content.Ammunition.Where(ammo => ammo.IsWikiBallisticsListed == true)
             : content.Ammunition;
 
         return comparisonAmmo
@@ -130,7 +149,7 @@ public partial class AmmoPage : UserControl
                     continue;
 
                 var image = await _imageCache.LoadAsync(
-                    $"ammo-{row.Ammo.ItemId}",
+                    $"item-{row.Ammo.ItemId}",
                     row.IconUrl,
                     cancellationToken);
                 if (image is null || cancellationToken.IsCancellationRequested)
@@ -168,8 +187,41 @@ public partial class AmmoPage : UserControl
             ? $"탄약 {filtered.Length}종 · 구경 {Math.Max(0, CaliberComboBox.Items.Count - 1)}개 · {sourceText} · 관통력/피해량 낮은 순"
             : $"{CaliberText(selectedCaliber)} · 탄약 {filtered.Length}종 · {sourceText} · 관통력/피해량 낮은 순";
 
+        UpdateFavoriteButton();
         if (filtered.Length == 0)
             ShowDetail(null);
+    }
+
+    private void RefreshFavoriteChoices()
+    {
+        if (FavoriteCaliberComboBox is null)
+            return;
+
+        var available = _allRows
+            .Select(row => new CaliberChoice(row.RawCaliber, row.CaliberLabel))
+            .DistinctBy(choice => choice.RawCaliber, StringComparer.Ordinal)
+            .Where(choice => choice.RawCaliber is not null && _favoriteCalibers.Contains(choice.RawCaliber))
+            .OrderBy(choice => choice.Label, StringComparer.CurrentCulture)
+            .ToArray();
+
+        _updatingFavorites = true;
+        FavoriteCaliberComboBox.ItemsSource = new[] { new CaliberChoice(null, "즐겨찾기 선택") }
+            .Concat(available)
+            .ToArray();
+        FavoriteCaliberComboBox.SelectedIndex = 0;
+        _updatingFavorites = false;
+    }
+
+    private void UpdateFavoriteButton()
+    {
+        if (FavoriteCaliberButton is null)
+            return;
+
+        var caliber = (CaliberComboBox.SelectedItem as CaliberChoice)?.RawCaliber;
+        FavoriteCaliberButton.IsEnabled = caliber is not null;
+        FavoriteCaliberButton.Content = caliber is not null && _favoriteCalibers.Contains(caliber)
+            ? "★ 즐겨찾기"
+            : "☆ 즐겨찾기";
     }
 
     private void ShowDetail(AmmoRow? row)
@@ -312,7 +364,8 @@ public partial class AmmoPage : UserControl
                     "레이드 획득",
                     string.Empty,
                     "현재 데이터에 확인된 상인 구매·교환·은신처 제작 경로가 없습니다.",
-                    string.Empty),
+                    string.Empty,
+                    null),
             ];
         }
 
@@ -371,22 +424,25 @@ public partial class AmmoPage : UserControl
         if (detailParts.Count == 0)
             detailParts.Add("추가 비용/재료 정보 없음");
 
-        var unlock = string.IsNullOrWhiteSpace(acquisition.TaskUnlockQuestId)
+        var unlockQuestId = string.IsNullOrWhiteSpace(acquisition.TaskUnlockQuestId)
+            ? null
+            : acquisition.TaskUnlockQuestId;
+        var unlock = unlockQuestId is null
             ? string.Empty
-            : $"해금 퀘스트: {QuestName(acquisition.TaskUnlockQuestId, content)}";
+            : $"해금 퀘스트 · {QuestName(unlockQuestId, content)}";
 
         return new AcquisitionRow(
             title,
             string.Join(" · ", conditionParts),
             string.Join(Environment.NewLine, detailParts),
-            unlock);
+            unlock,
+            unlockQuestId);
     }
 
     private static string TraderName(string? traderId, GameContentCatalog content)
     {
         if (string.IsNullOrWhiteSpace(traderId))
             return "상인";
-
         var trader = content.Traders.FirstOrDefault(candidate => candidate.Id == traderId);
         return trader is null ? traderId : DisplayName(trader.NameKo, trader.NameEn, trader.Id);
     }
@@ -395,7 +451,6 @@ public partial class AmmoPage : UserControl
     {
         if (string.IsNullOrWhiteSpace(stationId))
             return "은신처";
-
         var station = content.HideoutStations.FirstOrDefault(candidate => candidate.Id == stationId);
         return station is null ? stationId : DisplayName(station.NameKo, station.NameEn, station.Id);
     }
@@ -404,7 +459,6 @@ public partial class AmmoPage : UserControl
     {
         if (string.IsNullOrWhiteSpace(itemId))
             return string.Empty;
-
         var item = content.Items.FirstOrDefault(candidate => candidate.Id == itemId);
         return item is null ? itemId : DisplayName(item.NameKo, item.NameEn, item.Id);
     }
@@ -424,14 +478,16 @@ public partial class AmmoPage : UserControl
         _ => ammoType,
     };
 
-    private static string CaliberText(string caliber)
+    internal static string CaliberText(string caliber)
     {
         if (string.IsNullOrWhiteSpace(caliber))
             return "구경 미표기";
 
         return caliber switch
         {
-            "Caliber9x18PM" => "9×18mm PM",
+            "Caliber784x49" => ".308 Marlin Express",
+            "Caliber93x64" => "9.3×64mm",
+            "Caliber9x18PM" => "9×18mm Makarov",
             "Caliber9x19PARA" => "9×19mm Parabellum",
             "Caliber9x21" => "9×21mm Gyurza",
             "Caliber9x33R" => ".357 Magnum",
@@ -447,7 +503,7 @@ public partial class AmmoPage : UserControl
             "Caliber366TKM" => ".366 TKM",
             "Caliber1143x23ACP" => ".45 ACP",
             "Caliber1143x23" => ".45 ACP",
-            "Caliber127x33" => ".50 AE",
+            "Caliber127x33" => ".50 Action Express",
             "Caliber127x55" => "12.7×55mm",
             "Caliber12g" => "12/70",
             "Caliber20g" => "20/70",
@@ -506,6 +562,36 @@ public partial class AmmoPage : UserControl
     {
         if (IsLoaded)
             ApplyFilter();
+    }
+
+    private void FavoriteCaliberButton_Click(object sender, RoutedEventArgs e)
+    {
+        var caliber = (CaliberComboBox.SelectedItem as CaliberChoice)?.RawCaliber;
+        if (caliber is null)
+            return;
+
+        if (!_favoriteCalibers.Add(caliber))
+            _favoriteCalibers.Remove(caliber);
+        _favoriteStore?.Save(_favoriteCalibers);
+        RefreshFavoriteChoices();
+        UpdateFavoriteButton();
+    }
+
+    private void FavoriteCaliberComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_updatingFavorites || FavoriteCaliberComboBox.SelectedItem is not CaliberChoice { RawCaliber: { } caliber })
+            return;
+
+        var target = CaliberComboBox.Items.Cast<CaliberChoice>()
+            .FirstOrDefault(choice => string.Equals(choice.RawCaliber, caliber, StringComparison.Ordinal));
+        if (target is not null)
+            CaliberComboBox.SelectedItem = target;
+    }
+
+    private void UnlockQuestButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: string questId } && !string.IsNullOrWhiteSpace(questId))
+            QuestNavigationRequested?.Invoke(this, new AmmoQuestNavigationRequestedEventArgs(questId));
     }
 
     private void ColumnMenuButton_Click(object sender, RoutedEventArgs e) =>
@@ -610,7 +696,17 @@ public partial class AmmoPage : UserControl
         Brush Foreground,
         string ToolTip);
 
-    private sealed record AcquisitionRow(string Title, string Conditions, string Details, string Unlock);
+    private sealed record AcquisitionRow(
+        string Title,
+        string Conditions,
+        string Details,
+        string Unlock,
+        string? UnlockQuestId)
+    {
+        public Visibility UnlockVisibility => string.IsNullOrWhiteSpace(UnlockQuestId)
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+    }
 
     private sealed record CaliberChoice(string? RawCaliber, string Label)
     {
