@@ -11,11 +11,19 @@ public enum QuestItemObjectiveKind
 }
 
 /// <summary>
-/// Quest-only world geometry used by the Map subsystem. Y is nullable because some
-/// external location records define X/Z without a reliable height. Unknown height
-/// must not be guessed as zero and accidentally assigned to the wrong floor.
+/// Quest-only world geometry used by the Map subsystem. Height is nullable because
+/// some external location records define X/Z without a reliable Y value.
 /// </summary>
-public sealed record QuestWorldPosition(double X, double? Y, double Z);
+public sealed record QuestWorldPosition(double X, double? Height, double Z)
+{
+    /// <summary>
+    /// Compatibility floor-probe value for the exact Tarkov Helper floor detector.
+    /// A finite out-of-range value preserves "unknown floor" without changing the
+    /// legacy service contract or serializing non-finite JSON numbers.
+    /// </summary>
+    [JsonIgnore]
+    public double Y => Height ?? double.MaxValue;
+}
 
 public sealed record QuestOutlinePoint(double X, double Z);
 
