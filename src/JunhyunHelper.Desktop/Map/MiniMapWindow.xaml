@@ -13,6 +13,7 @@
         SizeChanged="Window_SizeChanged"
         LocationChanged="Window_LocationChanged"
         MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        MouseRightButtonUp="Window_MouseRightButtonUp"
         PreviewMouseDown="Window_PreviewMouseDown"
         PreviewMouseUp="Window_PreviewMouseUp"
         PreviewMouseMove="Window_PreviewMouseMove"
