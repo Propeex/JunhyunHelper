@@ -17,6 +17,9 @@ public sealed class LegacyMapMarkerSettingsV2Bridge : IDisposable
     private readonly StackPanel _mapRows = new();
     private readonly StackPanel _extractRows = new();
     private readonly DispatcherTimer _retryTimer;
+    private CheckBox? _legacyQuestToggle;
+    private CheckBox? _productQuestToggle;
+    private bool _syncingQuestToggle;
     private bool _initialized;
     private int _retries;
 
@@ -43,9 +46,7 @@ public sealed class LegacyMapMarkerSettingsV2Bridge : IDisposable
         _initialized = true;
 
         var root = new StackPanel();
-        root.Children.Add(CreateSection(
-            "퀘스트",
-            CreateQuestRows()));
+        root.Children.Add(CreateSection("퀘스트", CreateQuestRows()));
         root.Children.Add(CreateSection("전투 / 스폰", _combatRows));
         root.Children.Add(CreateSection("지도 요소", _mapRows));
         root.Children.Add(CreateSection("탈출 / 이동", _extractRows));
@@ -69,23 +70,75 @@ public sealed class LegacyMapMarkerSettingsV2Bridge : IDisposable
     private StackPanel CreateQuestRows()
     {
         var rows = new StackPanel();
-        if (_page.FindName("ChkShowQuestMarkers") is CheckBox questToggle)
-        {
-            Detach(questToggle);
+        _legacyQuestToggle = _page.FindName("ChkShowQuestMarkers") as CheckBox;
 
-            // The product adapter hides this control in the original top bar before
-            // it is moved here. Moving a collapsed element preserves that state, which
-            // left the Quest section looking like an empty grey strip on Windows.
-            // Restore it explicitly as the single global Quest marker control.
-            questToggle.Visibility = Visibility.Visible;
-            questToggle.IsEnabled = true;
-            questToggle.IsHitTestVisible = true;
-            questToggle.Content = "퀘스트 마커 표시";
-            questToggle.Margin = new Thickness(2, 2, 2, 2);
-            questToggle.HorizontalAlignment = HorizontalAlignment.Left;
-            rows.Children.Add(Wrap(questToggle));
+        if (_legacyQuestToggle is not null)
+        {
+            // The transplanted checkbox belongs to the old top bar and is hidden by the
+            // product adapter. Reusing that visual directly proved unreliable on Windows:
+            // its inherited collapsed state and template could survive after reparenting.
+            // Keep it as the behavior endpoint only and expose a clean product control.
+            Detach(_legacyQuestToggle);
+            _legacyQuestToggle.Visibility = Visibility.Collapsed;
+            _legacyQuestToggle.Checked += LegacyQuestToggle_Changed;
+            _legacyQuestToggle.Unchecked += LegacyQuestToggle_Changed;
+
+            // Quest markers are opt-out. Ensure a stale hidden legacy state cannot silently
+            // suppress every A/B/C marker while the per-Quest checkboxes appear enabled.
+            if (_legacyQuestToggle.IsChecked != true)
+                _legacyQuestToggle.IsChecked = true;
         }
+
+        _productQuestToggle = new CheckBox
+        {
+            Content = "퀘스트 마커 표시",
+            IsChecked = _legacyQuestToggle?.IsChecked ?? true,
+            IsThreeState = false,
+            IsEnabled = true,
+            IsHitTestVisible = true,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(2),
+            Foreground = Brush("TextPrimaryBrush", Brushes.White),
+            ToolTip = "왼쪽 퀘스트 목록에서 선택한 퀘스트 마커를 지도와 미니맵에 표시합니다.",
+        };
+        _productQuestToggle.Checked += ProductQuestToggle_Changed;
+        _productQuestToggle.Unchecked += ProductQuestToggle_Changed;
+        rows.Children.Add(Wrap(_productQuestToggle));
         return rows;
+    }
+
+    private void ProductQuestToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_syncingQuestToggle || _productQuestToggle is null)
+            return;
+
+        _syncingQuestToggle = true;
+        try
+        {
+            if (_legacyQuestToggle is not null)
+                _legacyQuestToggle.IsChecked = _productQuestToggle.IsChecked == true;
+        }
+        finally
+        {
+            _syncingQuestToggle = false;
+        }
+    }
+
+    private void LegacyQuestToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_syncingQuestToggle || _productQuestToggle is null || _legacyQuestToggle is null)
+            return;
+
+        _syncingQuestToggle = true;
+        try
+        {
+            _productQuestToggle.IsChecked = _legacyQuestToggle.IsChecked == true;
+        }
+        finally
+        {
+            _syncingQuestToggle = false;
+        }
     }
 
     private FrameworkElement CreateSection(string title, StackPanel rows)
@@ -122,7 +175,7 @@ public sealed class LegacyMapMarkerSettingsV2Bridge : IDisposable
         if (row is StackPanel stackRow && stackRow.Orientation == Orientation.Horizontal)
         {
             Detach(stackRow);
-            stackRow.Margin = new Thickness(2, 2, 2, 2);
+            stackRow.Margin = new Thickness(2);
             destination.Children.Add(Wrap(stackRow));
             return;
         }
@@ -136,7 +189,7 @@ public sealed class LegacyMapMarkerSettingsV2Bridge : IDisposable
             return;
 
         Detach(checkBox);
-        checkBox.Margin = new Thickness(2, 2, 2, 2);
+        checkBox.Margin = new Thickness(2);
         destination.Children.Add(Wrap(checkBox));
     }
 
@@ -146,6 +199,7 @@ public sealed class LegacyMapMarkerSettingsV2Bridge : IDisposable
         CornerRadius = new CornerRadius(4),
         Padding = new Thickness(6, 4, 6, 4),
         Margin = new Thickness(0, 2, 0, 2),
+        HorizontalAlignment = HorizontalAlignment.Stretch,
         Child = child,
     };
 
@@ -201,5 +255,20 @@ public sealed class LegacyMapMarkerSettingsV2Bridge : IDisposable
     private Brush Brush(string key, Brush fallback) =>
         _page.TryFindResource(key) as Brush ?? fallback;
 
-    public void Dispose() => _retryTimer.Stop();
+    public void Dispose()
+    {
+        _retryTimer.Stop();
+
+        if (_productQuestToggle is not null)
+        {
+            _productQuestToggle.Checked -= ProductQuestToggle_Changed;
+            _productQuestToggle.Unchecked -= ProductQuestToggle_Changed;
+        }
+
+        if (_legacyQuestToggle is not null)
+        {
+            _legacyQuestToggle.Checked -= LegacyQuestToggle_Changed;
+            _legacyQuestToggle.Unchecked -= LegacyQuestToggle_Changed;
+        }
+    }
 }
