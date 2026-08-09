@@ -139,7 +139,7 @@ public partial class MapPage
         foreach (var marker in _content.MapMarkers.Where(marker =>
                      marker.Kind == kind &&
                      _currentChoice.MapIds.Contains(marker.MapId, StringComparer.Ordinal) &&
-                     IsOnCurrentFloor(marker.Position, marker.Top, marker.Bottom)))
+                     IsBulkMarkerOnCurrentFloor(marker.Position, marker.Top, marker.Bottom)))
         {
             if (!MapCoordinateTransformer.TryWorldToSurface(
                     _currentChoice.Layout,
@@ -188,7 +188,7 @@ public partial class MapPage
                          _currentChoice.MapIds.Contains(marker.MapId, StringComparer.Ordinal) &&
                          ((marker.Kind == MapMarkerKind.LootContainer && _showLootContainers) ||
                           (marker.Kind == MapMarkerKind.LooseLoot && _showLooseLoot)) &&
-                         IsOnCurrentFloor(marker.Position, marker.Top, marker.Bottom)))
+                         IsBulkMarkerOnCurrentFloor(marker.Position, marker.Top, marker.Bottom)))
             {
                 markers.Add(new MiniMapMarker(
                     marker.Position,
@@ -207,6 +207,25 @@ public partial class MapPage
             _playerHeading,
             _trail,
             _settings.ShowTrail);
+    }
+
+    private bool IsBulkMarkerOnCurrentFloor(
+        MapWorldPosition position,
+        double? top,
+        double? bottom)
+    {
+        if (_currentChoice is null || _currentFloor is null || _currentChoice.Layout.Floors.Count <= 1)
+            return true;
+
+        var markerTop = top ?? position.Y;
+        var markerBottom = bottom ?? position.Y;
+        if (markerTop < markerBottom)
+            (markerTop, markerBottom) = (markerBottom, markerTop);
+
+        return _currentFloor.Extents.Any(extent =>
+            markerTop >= extent.MinHeight &&
+            markerBottom < extent.MaxHeight &&
+            (extent.Bounds.Count == 0 || extent.Bounds.Any(bounds => bounds.Contains(position.X, position.Z))));
     }
 
     private void LoadBulkPreferences()
@@ -255,14 +274,7 @@ public partial class MapPage
         }
     }
 
-    private static async Task SaveBulkPreferencesAsync()
-    {
-        // The values are captured by the overload below; this method body is
-        // replaced by the instance call to avoid blocking UI persistence.
-        await Task.CompletedTask;
-    }
-
-    private async Task SaveBulkPreferencesAsync(bool _ = true)
+    private async Task SaveBulkPreferencesAsync()
     {
         try
         {
