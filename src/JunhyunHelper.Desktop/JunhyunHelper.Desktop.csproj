@@ -15,6 +15,7 @@
     <Product>준현 헬퍼</Product>
     <Version>0.1.0</Version>
     <ApplicationIcon>$(MSBuildProjectDirectory)\obj\JunhyunHelper.AppIcon.ico</ApplicationIcon>
+    <SatelliteResourceLanguages>ko</SatelliteResourceLanguages>
   </PropertyGroup>
 
   <ItemGroup>
@@ -110,5 +111,9 @@
 
   <Target Name="GenerateJunhyunHelperApplicationIcon" BeforeTargets="CoreCompile">
     <Exec Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\Build\GenerateApplicationIcon.ps1&quot; -Source &quot;$(MSBuildProjectDirectory)\Assets\AppIcon.png&quot; -Destination &quot;$(ApplicationIcon)&quot;" />
+  </Target>
+
+  <Target Name="TrimUnusedSatelliteResources" AfterTargets="Publish" Condition="'$(PublishDir)' != ''">
+    <Exec Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\Build\TrimSatelliteResources.ps1&quot; -PublishDirectory &quot;$(PublishDir)&quot;" />
   </Target>
 </Project>
