@@ -9,8 +9,11 @@ namespace JunhyunHelper.Desktop;
 
 public partial class MainWindow
 {
+    private const string CurrentMapArtworkMigrationMarker = "wiki-background-v1.ready";
+
     private readonly SemaphoreSlim _mapAssetEnsureGate = new(1, 1);
     private bool _mapIntegrationInitialized;
+    private bool _mapArtworkMigrationAttempted;
     private MapPage? _mapPage;
 
     protected override void OnContentRendered(EventArgs e)
@@ -155,15 +158,33 @@ public partial class MainWindow
         await _mapAssetEnsureGate.WaitAsync();
         try
         {
-            if (!forceRefresh && await _services.MapAssets.HasUsableActiveAssetsAsync())
+            var hasUsableActiveAssets = await _services.MapAssets.HasUsableActiveAssetsAsync();
+            var migrationMarkerPath = Path.Combine(
+                _services.MapAssets.ActiveDirectory,
+                CurrentMapArtworkMigrationMarker);
+            var requiresArtworkMigration =
+                hasUsableActiveAssets &&
+                !_mapArtworkMigrationAttempted &&
+                !File.Exists(migrationMarkerPath);
+
+            if (!forceRefresh && hasUsableActiveAssets && !requiresArtworkMigration)
             {
                 page.SetAssetRecoveryState(null, retryEnabled: true);
                 return true;
             }
 
+            if (requiresArtworkMigration)
+                _mapArtworkMigrationAttempted = true;
+
             page.SetBusy(true);
-            page.SetAssetRecoveryState("지도 레이아웃과 SVG를 내려받는 중입니다...", retryEnabled: false);
-            StatusText.Text = "지도 자산을 준비하는 중...";
+            page.SetAssetRecoveryState(
+                requiresArtworkMigration
+                    ? "새 지도 배경을 준비하는 중입니다..."
+                    : "지도 레이아웃과 자산을 내려받는 중입니다...",
+                retryEnabled: false);
+            StatusText.Text = requiresArtworkMigration
+                ? "새 지도 배경으로 업데이트하는 중..."
+                : "지도 자산을 준비하는 중...";
 
             var progress = new Progress<MapAssetUpdateProgress>(value =>
             {
@@ -174,6 +195,21 @@ public partial class MainWindow
             try
             {
                 var result = await _services.MapAssets.UpdateAsync(content, progress);
+                if (result.Layouts.Count > 0)
+                {
+                    try
+                    {
+                        Directory.CreateDirectory(_services.MapAssets.ActiveDirectory);
+                        await File.WriteAllTextAsync(
+                            Path.Combine(_services.MapAssets.ActiveDirectory, CurrentMapArtworkMigrationMarker),
+                            CurrentMapArtworkMigrationMarker);
+                    }
+                    catch (Exception exception) when (exception is not OperationCanceledException)
+                    {
+                        App.WriteDiagnostic("Map artwork migration marker write failed", exception);
+                    }
+                }
+
                 page.SetAssetRecoveryState(null, retryEnabled: true);
                 StatusText.Text = result.Warnings.Count == 0
                     ? $"지도 {result.Layouts.Count}개 준비 완료"
