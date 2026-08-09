@@ -3,6 +3,7 @@ using JunhyunHelper.Core.Ammo;
 using JunhyunHelper.Core.Editions;
 using JunhyunHelper.Core.Hideout;
 using JunhyunHelper.Core.Items;
+using JunhyunHelper.Core.Maps;
 using JunhyunHelper.Core.Quests;
 using JunhyunHelper.Core.Reference;
 
@@ -17,11 +18,16 @@ public sealed record GameContentCatalog(
     IReadOnlyList<QuestItemRequirement> QuestItemRequirements,
     IReadOnlyList<HideoutStation> HideoutStations,
     IReadOnlyList<AmmoDefinition>? Ammo = null,
-    IReadOnlyList<EditionDefinition>? EditionData = null)
+    IReadOnlyList<EditionDefinition>? EditionData = null,
+    IReadOnlyList<MapMarkerDefinition>? MapMarkerData = null)
 {
     [JsonIgnore]
     public IReadOnlyList<AmmoDefinition> Ammunition => Ammo ?? Array.Empty<AmmoDefinition>();
 
     [JsonIgnore]
     public IReadOnlyList<EditionDefinition> Editions => EditionData ?? Array.Empty<EditionDefinition>();
+
+    [JsonIgnore]
+    public IReadOnlyList<MapMarkerDefinition> MapMarkers =>
+        MapMarkerData ?? Array.Empty<MapMarkerDefinition>();
 }
