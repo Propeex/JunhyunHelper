@@ -47,6 +47,7 @@
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/ItemsDataService.cs" />
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/ItemsFilterService.cs" />
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/IntegratedItemService.cs" />
+    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/ItemRequirementService.cs" />
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/ContentStorageService.cs" />
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/ContentDatabaseSummary.cs" />
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/DatabaseUpdateService.cs" />
