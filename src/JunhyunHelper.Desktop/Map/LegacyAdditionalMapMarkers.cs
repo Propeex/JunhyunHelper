@@ -113,9 +113,6 @@ public sealed class LegacyAdditionalMapMarkerController : IDisposable
             Margin = new Thickness(6, 0, 0, 0),
         });
 
-        // Product adapter inserts a 1px divider between general and extract settings.
-        // Anchor to that actual divider rather than relying on the number of settings
-        // that happen to follow it, so later extract controls cannot reorder Raider.
         var divider = _markerSettingsPanel.Children
             .OfType<Border>()
             .FirstOrDefault(border => Math.Abs(border.Height - 1.0) < 0.01);
@@ -186,12 +183,8 @@ public sealed class LegacyAdditionalMapMarkerController : IDisposable
         }
     }
 
-    private string? SelectedFloorId()
-    {
-        if (_floorSelector?.Visibility != Visibility.Visible)
-            return null;
-        return (_floorSelector.SelectedItem as ComboBoxItem)?.Tag as string;
-    }
+    private string? SelectedFloorId() =>
+        (_floorSelector?.SelectedItem as ComboBoxItem)?.Tag as string;
 
     private static bool FloorMatches(string? markerFloor, string? selectedFloor)
     {
