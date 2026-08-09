@@ -6,7 +6,7 @@
 
 **Phase 2B — 핵심 Desktop 흐름 구현 + 실사용 피드백 반복 개선**
 
-상태: `MAP PRODUCT REFINEMENT MERGED / AUTOMATED VALIDATION PASSED / WINDOWS USER VALIDATION NEXT`
+상태: `MAP PRODUCT REFINEMENT V2 IMPLEMENTED / AUTOMATED VALIDATION PASSED / WINDOWS USER VALIDATION NEXT`
 
 ---
 
@@ -14,7 +14,7 @@
 
 ## Exact Tarkov Helper 기준선
 
-PR #62에서 JunhyunHelper 자체 Map 구현을 제거하고 `Propeex/Tarkov-Helper`의 Map + MiniMap subsystem을 원본 소스 기준으로 이식했습니다.
+PR #62에서 JunhyunHelper 자체 Map 재구현을 폐기하고 `Propeex/Tarkov-Helper`의 Map + MiniMap subsystem을 exact source 기준으로 이식했습니다.
 
 ```text
 PR #62 merge: 4b3d43051b48c3d00ab8fdba03814d24066a2fd0
@@ -22,57 +22,66 @@ exact baseline Tarkov-Helper revision:
 9371c4769d8da8acb9df864a2c88f83ecdd42818
 ```
 
-사용자가 Windows에서 기존 Tarkov Helper의 지도 화면이 원하는 형태로 정상 표시되는 것을 직접 확인했습니다.
+사용자가 Windows에서 기존 Tarkov Helper의 지도 artwork/구조가 원하는 형태임을 직접 확인했습니다.
 
-따라서 지도 artwork / coordinate transform / screenshot tracking / floor / MiniMap의 기준은 이 subsystem입니다. 이전 RE3MR / Wiki / Shebuka presentation 실험은 제품 기준이 아닙니다.
-
-상세: `docs/MAP_TRANSPLANT_RESET.md`
-
----
-
-## Map subsystem 독립성
-
-사용자 확정 철학:
-
-```text
-Map subsystem = 독립
-Quest만 예외
-```
-
-Map이 JunhyunHelper에서 직접 읽을 수 있는 외부 제품 정보는 다음뿐입니다.
-
-- 현재 profile의 Quest 진행 상태
-- Quest online location geometry
-
-Quest 이외의 Hideout / Item / Ammo / 기타 화면과 Map runtime을 결합하지 않습니다.
-
-상세: `docs/MAP_PRODUCT_REQUIREMENTS.md`
-
----
-
-# PR #63 — Map product refinement — MERGED
-
-```text
-PR #63: Refine transplanted Map product behavior
-merge commit: 4606b693c229f7cc2dbc1e09cd4ef423774003bc
-final PR head: b7421c6d805e2594f3337c145a33594f9bd2f902
-final PR CI: 31313312720
-```
-
-old Map 전용 제품 source:
+현재 제품 전용 Map source는 별도 branch에서 관리합니다.
 
 ```text
 repository: Propeex/Tarkov-Helper
-branch: junhyun-map-product-v1
-pinned revision: 23230102b40377a9b33e9c72f29b85941ad4098d
+branch: junhyun-map-product-v2
+pinned revision: d933792b6042a51cea38dc44b686a096fe30de67
 JunhyunHelper submodule: vendor/Tarkov-Helper
 ```
 
-기존 `Propeex/Tarkov-Helper` main은 수정하지 않습니다. Exact baseline과 JunhyunHelper 전용 변경 diff를 분리해서 관리합니다.
+기존 `Propeex/Tarkov-Helper` main은 수정하지 않습니다.
 
-최종 자동 검증:
+---
+
+# Map subsystem 독립성
+
+사용자 확정 원칙:
 
 ```text
+Map subsystem = 독립
+└─ Quest만 예외
+```
+
+Map이 JunhyunHelper에서 읽는 제품 정보는 다음뿐입니다.
+
+- 현재 profile의 Quest 진행 상태
+- online Quest location geometry
+
+Hideout / Item / Ammo 등과 Map runtime을 결합하지 않습니다.
+
+상세 요구사항: `docs/MAP_PRODUCT_REQUIREMENTS.md`
+
+---
+
+# PR #63 — V1 기준
+
+```text
+PR #63 merge: 4606b693c229f7cc2dbc1e09cd4ef423774003bc
+```
+
+V1에서 exact Map 이식 위에 Quest 연동, MiniMap top-right, marker synchronization 등의 기본 제품화를 완료했습니다.
+
+V2는 사용자의 Windows 피드백에 따라 불필요 설정을 제거하고 Quest/marker UX를 다시 정리합니다.
+
+---
+
+# PR #64 — Map product refinement V2
+
+작업 branch:
+
+```text
+agent/map-product-refinement-v2
+```
+
+최신 검증 checkpoint:
+
+```text
+code head before STATE doc: f199da3fb314428eb780049776d1b7268da19b19
+CI: 31320773432
 Desktop Release build: success
 existing automated tests: success
 Windows x64 self-contained publish: success
@@ -80,77 +89,63 @@ Startup + Map smoke: success
 ZIP creation/upload: success
 ```
 
-Startup + Map smoke는 publish된 실제 Windows EXE에서 lazy Map subsystem과 product adapter까지 생성한 뒤 12초 이상 정상 생존하는지 확인합니다.
+`Startup + Map smoke`는 publish된 Windows EXE가 lazy Map subsystem과 V2 product adapter까지 실제로 생성한 뒤 정상 생존하는지 확인합니다.
 
 ---
 
-# 현재 Map 기능
+# V2 구현 상태
 
-## Main Map UI
+## Quest sidebar
 
-제거:
+왼쪽에는 현재 선택 Map의 **Current(진행 중) Quest만** 표시합니다.
 
-- 전체화면 기능/버튼
-- 상단 탈출구 checkbox
-- 상단 고정 뷰 checkbox
-- MiniMap 옆 `?` 도움말
+- 기본 접힘 상태: 34px handle만 사용
+- 펼침 상태: 300px
+- 접으면 지도 영역이 실제로 넓어짐
+- Quest 행 클릭 → JunhyunHelper `퀘스트` 탭 → 해당 Quest 상세 선택/스크롤
+- 좌표가 없는 Quest도 목록에는 표시하고 `정확한 좌표 없음` 표시
 
-`SetFullScreenMode(bool)` compatibility contract는 exact source compile용으로만 남아 있으며 JunhyunHelper에서는 no-op입니다.
+## Quest marker
 
-## 현재 맵의 진행 중 Quest sidebar
+- `퀘스트 마커 표시` 전역 checkbox를 지도 marker 목록에 제공
+- 좌표가 있는 Quest는 sidebar에 개별 marker checkbox 제공
+- 전역 OFF는 개별 선택 상태를 지우지 않음
+- 개별 표시 대상 Quest를 sidebar 순서대로 `A`, `B`, `C`...로 식별
+- 하나의 Quest에 위치가 여러 개면 모두 같은 문자 사용
+- sidebar와 Main Map/MiniMap이 동일한 문자 사용
+- old Quest marker style / color / name-size / marker-size 설정은 제거
+- source에 높이가 없으면 층을 추측하지 않음
 
-왼쪽 sidebar는 **현재 선택 Map + 현재 profile의 Current(진행 중) Quest만** 표시합니다.
+Quest content schema는 **v4**이며 online `possibleLocations` / `zones`를 Quest domain에만 저장합니다.
 
-- 완료 / 잠김 / 미래 Quest 제외
-- online `possibleLocations` / `zones` 사용
-- 여러 유효 위치면 모두 marker
-- 정확한 위치가 없으면 `정확한 좌표 없음`
-- 위치를 추측하지 않음
-- 외부 데이터에 Height가 없으면 Y=0으로 만들지 않고 floor unknown 유지
-- exact Tarkov Helper coordinate transform 사용
-- Main Map / MiniMap 공통 Quest marker factory 사용
-- 상단 `퀘스트 마커` checkbox가 Main/MiniMap 동시 제어
-- marker 크기 / Quest 이름 크기 설정은 양쪽에 즉시 반영
+기존 v3 snapshot은 offline fallback으로 계속 읽고, Map 최초 사용 시 v4 online update를 1회 시도합니다. 실패하면 v3와 `user.db`를 그대로 유지합니다.
 
-옛 Tarkov Helper Quest DB 전용 drawer 및 현재 Quest projection에 의미 없는 옛 marker style/color 설정은 비활성화했습니다.
+## 지도 marker 설정
 
-## Quest data update
-
-Content schema는 **v4**입니다.
-
-v4에서 추가된 것은 Quest 위치 geometry뿐입니다.
+marker UI를 section/card 구조로 정리했습니다.
 
 ```text
-v3 active 있음
-→ offline에서도 정상 읽기
-→ Map 최초 사용 시 v4 online update 1회 자동 시도
-→ 성공: v4 active
-→ 실패: v3 + user.db 그대로 유지하고 정상 실행
-```
+Quest
+- 퀘스트 마커 표시
 
-사용자에게 cache 삭제나 수동 변환을 요구하지 않습니다.
-
-## 지도 marker settings
-
-별도 `탈출구 설정`을 없애고 `지도 마커`에 통합했습니다.
-
-현재 설정 대상:
-
-- PMC spawn
+전투 / 스폰
+- PMC Spawn
 - Sniper Scav
 - Rogue
 - Cultist
-- Lever
 - Boss
 - Raider
-- PMC extract
-- Scav extract
+
+지도 요소
+- Lever
+
+탈출 / 이동
+- PMC Extract
+- Scav Extract
 - Transit
-- extract name size
+```
 
-### 추가 marker 검토
-
-Exact bundled `MapMarkers` DB 실제 값:
+실제 bundled DB 검토 결과:
 
 ```text
 ScavSpawn: 0
@@ -158,36 +153,62 @@ Keys: 0
 RaiderSpawn: 2
 ```
 
-빈 ScavSpawn / Keys UI는 만들지 않았고 Reserve에 실제 2개 위치가 있는 Raider만 추가했습니다.
+따라서 빈 ScavSpawn/Keys UI는 만들지 않고 Raider만 유지합니다.
 
-## Main Map ↔ MiniMap marker synchronization
+`탈출구 이름 크기`는 marker 목록에서 제거하고 Main Map `설정` 패널로 이동했습니다.
 
-동기화 대상:
+## Screenshot tracking / floor
 
-- category visibility
-- icon
-- 화면상 marker size
-- Quest marker / text size
-- extract icon / color / name size
-- Raider visual
-- floor filter
-- player marker size
+스크린샷은 다음 용도로만 사용합니다.
 
-MiniMap extract icon은 Main Map 원본 emergency-exit path geometry를 그대로 재사용합니다.
+- Map 감지
+- 감지된 Map으로 자동 전환
+- player 위치
+- 가능한 경우 heading
 
-## MiniMap position / opacity / interaction
+스크린샷 좌표로 floor를 판정하지 않습니다.
 
-- 원본 `PositionToTopRight()`의 우측 상단 위치에 고정
-- window mouse drag 이동 금지
-- resize / size hotkey 후 같은 top-right anchor로 즉시 재정렬
-- 전체 opacity 100% 고정
-- cursor가 MiniMap 영역 위에 있으면 일시적으로 0%
-- cursor가 빠지면 즉시 100%
-- per-monitor DPI 좌표 변환 적용
-- 기존 Click-through는 hover transparency와 별도 기능으로 유지
-- MiniMap 내부 map pan/zoom은 유지
+제품 callback은 원본 screenshot position handler에서 floor auto-switch 경로를 제거하고 Map 전환 + player tracking만 수행합니다.
 
-## configurable hotkeys
+Floor 정책:
+
+- 사용자가 floor selector 또는 floor hotkey로 직접 선택
+- 선택된 현재 층만 표시
+- 다른 층 opacity 0% 고정
+- `다른 층 투명도` 설정 제거
+- `현재 층만 표시` 설정 제거
+- auto-floor 설정/복귀 기능 제거
+- auto-floor-resume hotkey 제거
+
+Quest source 자체에 신뢰 가능한 Height가 있는 경우에만 Quest marker의 소속 floor를 분류합니다. 이는 screenshot floor 추정과 별개입니다.
+
+## MiniMap 고정 정책
+
+- 우측 상단 `PositionToTopRight()` anchor
+- 창 drag 이동 금지
+- resize 후 동일 anchor 유지
+- opacity 100% 기본
+- cursor hover 시 일시적으로 0%, 이탈 시 즉시 100%
+- **Click-through 항상 ON**
+- **ViewMode 항상 PlayerTracking**
+- **다른 층 opacity 항상 0%**
+- **AutoFloorSelection 항상 OFF**
+
+이 값들은 단순 UI 숨김이 아니라 settings model setter 단계에서도 legacy 저장값을 무시하므로 이전 설정이 다시 기능을 활성화할 수 없습니다.
+
+MiniMap 별도 설정창은 현재 조정 가능한 확대율/플레이어 marker 크기만 남기고 다음을 제거했습니다.
+
+- 다른 층 투명도
+- 현재 층만 표시 옵션
+- auto floor
+- Fixed / PlayerTracking 선택
+- Click-through 선택
+- hotkey section
+- 즉시 작업
+
+## Hotkey
+
+단축키 편집기는 별도 MiniMap dialog에서 제거하고 Main Map `설정` 패널에 직접 배치했습니다.
 
 설정 가능:
 
@@ -195,70 +216,45 @@ MiniMap extract icon은 Main Map 원본 emergency-exit path geometry를 그대�
 - Map zoom in/out
 - floor up/down
 - MiniMap size increase/decrease
-- resume automatic floor tracking
 
 규칙:
 
-- 동일 key는 한 동작에만 지정
-- 새 배정이 기존 배정을 해제
+- 같은 key는 한 동작에만 지정
+- 새 배정이 이전 배정을 해제
 - Delete / Backspace = 미지정
 - Esc = 취소
-- NumPad 0~5 = 직접 층 선택 예약
+- NumPad 0~5 = 직접 floor 선택 예약
 
-기존 안정화된 zoom/floor는 old global hook을 유지하고, 원본에 없던 MiniMap Toggle / Size +/-만 JunhyunHelper supplemental hook이 처리합니다.
+`자동 층 추적 복귀`는 삭제했습니다.
 
-## player marker size
+## Custom marker
 
-Main Map / MiniMap 공통 범위:
+제품에서 Custom Marker 기능을 제거했습니다.
 
-```text
-9 ~ 54 px
-= MiniMap 0.5x ~ 3.0x
-legacy base 18 px
-```
+- 우측 custom marker sidebar 비노출
+- add context-menu 비노출
+- marker container 비노출
+- 편집/삭제/opacity/list UI 비노출
 
-두 설정 화면은 양방향 동기화합니다.
-
----
-
-# 기존 Core 제품 상태
-
-Map 외 Core 기능은 유지합니다.
-
-## Profile
-
-- 한 GameMode당 profile 하나
-- 새 프로필 / 수정 / 삭제
-- level / faction / edition / prestige / trader 상태
-- Fence reputation 진행값
-
-## Quest
-
-- 진행 중 / 잠김 / 사용 불가 / 완료
-- prerequisite / item requirement
-- 제출 / 취소 inventory ledger
-- Map에는 Current Quest만 투영
-
-## Hideout
-
-- 시설 레벨 추적
-- next-upgrade material
-- upgrade / rollback inventory ledger
-
-## Needed Items / Item
-
-- FIR / 일반 필요량과 보유량
-- 검색 / 종류 / 용도 / 상태 필터
-
-## Ammo
-
-- json.tarkov.dev raw 성능
-- Wiki Ballistics 비교 정보
-- favorite shortcut popup
+원본 source의 호환 타입이 남더라도 JunhyunHelper 제품 runtime/UI에서는 사용자가 접근하지 않습니다.
 
 ---
 
-# 프로젝트 전체 업데이트 원칙
+# Map 외 Core 제품 상태
+
+유지:
+
+- Profile: mode별 profile, level/faction/edition/prestige/trader/Fence
+- Quest: 진행/잠김/사용불가/완료, prerequisite, item requirement, inventory ledger
+- Hideout: 시설 level, next upgrade material, upgrade/rollback ledger
+- Needed Items: FIR/일반 필요량/보유량/검색/필터
+- Ammo: json.tarkov.dev raw 성능 + Wiki Ballistics 비교 + favorite
+
+Scanner는 탭/placeholder만 있으며 실제 요구사항은 아직 확정 전입니다.
+
+---
+
+# 프로젝트 전체 update 원칙
 
 ```text
 온라인 source
@@ -271,57 +267,17 @@ Map 외 Core 기능은 유지합니다.
 → 실패 시 마지막 정상 데이터 유지
 ```
 
-- 일반적인 데이터 내용 변화는 같은 importer / 변환 규칙으로 자동 처리
-- 외부 형식/의미 자체가 변경된 경우에만 코드 수정
+- 일반 데이터 내용 변화는 importer 규칙으로 자동 재구축
+- 외부 형식/의미 자체가 변경된 경우에만 코드 변경
 - runtime AI/GPT 없음
 - `user.db`와 Game Content 분리
-- 업데이트 실패가 사용자 진행도/기존 정상 데이터 손상시키지 않음
-
-Quest 좌표는 이 원칙으로 online v4 content에 포함됩니다.
+- update 실패가 사용자 진행도/기존 정상 데이터를 손상시키지 않음
 
 ---
 
-# Map artwork / general marker update — 다음 인프라 작업
+# 다음 작업
 
-현재 exact Map artwork/config/general marker DB는 검증된 pinned bundle을 사용합니다.
-
-다음 Map 시스템 작업은 **Map subsystem 내부 atomic bundle updater**입니다.
-
-목표:
-
-```text
-동일 upstream Tarkov Helper revision
-→ map_configs.json
-→ SVG map / marker assets
-→ map DB
-→ bundle 전체 검증
-→ 모두 정상일 때만 active 교체
-→ 실패 시 마지막 정상 bundle 유지
-```
-
-지도 이미지/config/DB를 서로 다른 revision에서 따로 갱신하지 않습니다.
-
-PR #63 Windows 사용자 검증 후 이 updater를 구현합니다.
-
----
-
-# Scanner
-
-탭과 placeholder만 있습니다. 실제 Scanner 요구사항은 아직 확정 전입니다.
-
----
-
-## 현재 다음 작업
-
-1. PR #63 Windows 테스트 빌드 사용자 검증
-2. 확인:
-   - 진행 중 Quest sidebar / Quest marker 위치와 floor
-   - 제거된 UI
-   - marker settings / Raider / extracts 통합
-   - Main/MiniMap marker 표현 동기화
-   - MiniMap top-right 고정 / resize anchor
-   - hover transparency + 기존 Click-through
-   - configurable hotkey
-   - player marker size sync
+1. PR #64 최종 문서 포함 CI 확인 및 merge
+2. V2 Windows 테스트 빌드 사용자 검증
 3. 실제 화면/사용감 차이만 보정
-4. exact Map atomic bundle updater 구현
+4. 사용자 검증 이후 exact Map artwork/config/general-marker DB를 동일 revision으로 교체하는 atomic bundle updater 구현
