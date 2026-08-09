@@ -13,6 +13,10 @@ public static class MapCoordinateTransformer
         out Point point)
     {
         point = default;
+
+        if (layout.UsesLegacyAffineTransform)
+            return TryLegacyWorldToSurface(layout, world, surfaceWidth, surfaceHeight, out point);
+
         if (!TryProjectedBounds(layout, out var minX, out var maxX, out var minY, out var maxY))
             return false;
         var projected = Project(layout, world.X, world.Z);
@@ -38,6 +42,10 @@ public static class MapCoordinateTransformer
         out MapWorldPosition world)
     {
         world = new MapWorldPosition(0, height, 0);
+
+        if (layout.UsesLegacyAffineTransform)
+            return TryLegacySurfaceToWorld(layout, point, surfaceWidth, surfaceHeight, height, out world);
+
         if (surfaceWidth <= 0 || surfaceHeight <= 0 ||
             !TryProjectedBounds(layout, out var minX, out var maxX, out var minY, out var maxY))
             return false;
@@ -66,6 +74,9 @@ public static class MapCoordinateTransformer
 
     public static double SurfaceAspectRatio(MapLayoutDefinition layout)
     {
+        if (layout.UsesLegacyAffineTransform)
+            return Math.Clamp(layout.SurfaceHeight!.Value / layout.SurfaceWidth!.Value, 0.2, 5.0);
+
         if (!TryProjectedBounds(layout, out var minX, out var maxX, out var minY, out var maxY))
             return 1;
         var width = Math.Abs(maxX - minX);
@@ -95,7 +106,64 @@ public static class MapCoordinateTransformer
         FloorForPosition(layout, new MapWorldPosition(0, height, 0));
 
     public static double SurfaceHeading(MapLayoutDefinition layout, double worldHeadingDegrees) =>
-        NormalizeDegrees(worldHeadingDegrees + layout.CoordinateRotation);
+        layout.UsesLegacyAffineTransform
+            ? NormalizeDegrees(worldHeadingDegrees)
+            : NormalizeDegrees(worldHeadingDegrees + layout.CoordinateRotation);
+
+    private static bool TryLegacyWorldToSurface(
+        MapLayoutDefinition layout,
+        MapWorldPosition world,
+        double surfaceWidth,
+        double surfaceHeight,
+        out Point point)
+    {
+        point = default;
+        if (surfaceWidth <= 0 || surfaceHeight <= 0 ||
+            layout.LegacyPlayerTransform is not { Count: 6 } matrix ||
+            layout.SurfaceWidth is not > 0 || layout.SurfaceHeight is not > 0)
+            return false;
+
+        var rawX = matrix[0] * world.X + matrix[1] * world.Z + matrix[4];
+        var rawY = matrix[2] * world.X + matrix[3] * world.Z + matrix[5];
+        var x = rawX / layout.SurfaceWidth.Value * surfaceWidth;
+        var y = rawY / layout.SurfaceHeight.Value * surfaceHeight;
+        if (!double.IsFinite(x) || !double.IsFinite(y))
+            return false;
+
+        point = new Point(x, y);
+        return true;
+    }
+
+    private static bool TryLegacySurfaceToWorld(
+        MapLayoutDefinition layout,
+        Point point,
+        double surfaceWidth,
+        double surfaceHeight,
+        double height,
+        out MapWorldPosition world)
+    {
+        world = new MapWorldPosition(0, height, 0);
+        if (surfaceWidth <= 0 || surfaceHeight <= 0 ||
+            layout.LegacyPlayerTransform is not { Count: 6 } matrix ||
+            layout.SurfaceWidth is not > 0 || layout.SurfaceHeight is not > 0)
+            return false;
+
+        var rawX = point.X / surfaceWidth * layout.SurfaceWidth.Value;
+        var rawY = point.Y / surfaceHeight * layout.SurfaceHeight.Value;
+        var translatedX = rawX - matrix[4];
+        var translatedY = rawY - matrix[5];
+        var determinant = matrix[0] * matrix[3] - matrix[1] * matrix[2];
+        if (Math.Abs(determinant) < 0.000001)
+            return false;
+
+        var x = (matrix[3] * translatedX - matrix[1] * translatedY) / determinant;
+        var z = (-matrix[2] * translatedX + matrix[0] * translatedY) / determinant;
+        if (!double.IsFinite(x) || !double.IsFinite(z))
+            return false;
+
+        world = new MapWorldPosition(x, height, z);
+        return true;
+    }
 
     private static bool TryProjectedBounds(
         MapLayoutDefinition layout,
