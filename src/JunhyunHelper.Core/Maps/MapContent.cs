@@ -80,6 +80,12 @@ public sealed record MapFloorDefinition(
 
     public bool Contains(MapWorldPosition position) =>
         Extents.Any(extent => extent.Contains(position));
+
+    // The Desktop ComboBox theme renders SelectionBoxItem directly. Returning the
+    // display name here prevents WPF from showing the generated record dump when
+    // this object is the selected item, even if DisplayMemberPath is ignored by a
+    // custom selection-box template.
+    public override string ToString() => Name;
 }
 
 public sealed record MapLayoutDefinition(
