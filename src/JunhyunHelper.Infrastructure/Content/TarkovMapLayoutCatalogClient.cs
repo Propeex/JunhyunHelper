@@ -149,7 +149,8 @@ public sealed class TarkovMapLayoutCatalogClient
             baseLayer,
             baseRange.Item1,
             baseRange.Item2,
-            true));
+            true,
+            [new MapFloorExtent(baseRange.Item1, baseRange.Item2, Array.Empty<MapWorldBounds>())]));
 
         if (!map.TryGetProperty("layers", out var layers) || layers.ValueKind != JsonValueKind.Array)
             return floors;
@@ -162,30 +163,62 @@ public sealed class TarkovMapLayoutCatalogClient
             var svgLayer = ReadString(layer, "svgLayer");
             if (string.IsNullOrWhiteSpace(svgLayer))
                 continue;
-            var range = ReadLayerRange(layer) ?? (double.MinValue, double.MaxValue);
+
+            var extents = ReadLayerExtents(layer);
+            if (extents.Count == 0)
+                extents = [new MapFloorExtent(double.MinValue, double.MaxValue, Array.Empty<MapWorldBounds>())];
+            var minHeight = extents.Min(extent => extent.MinHeight);
+            var maxHeight = extents.Max(extent => extent.MaxHeight);
             var name = ReadString(layer, "name") ?? svgLayer.Replace('_', ' ');
             floors.Add(new MapFloorDefinition(
                 $"layer-{index++}",
                 name,
                 svgLayer,
-                range.Item1,
-                range.Item2,
-                false));
+                minHeight,
+                maxHeight,
+                false,
+                extents));
         }
         return floors;
     }
 
-    private static (double, double)? ReadLayerRange(JsonElement layer)
+    private static IReadOnlyList<MapFloorExtent> ReadLayerExtents(JsonElement layer)
     {
         if (!layer.TryGetProperty("extents", out var extents) || extents.ValueKind != JsonValueKind.Array)
-            return null;
+            return Array.Empty<MapFloorExtent>();
+
+        var result = new List<MapFloorExtent>();
         foreach (var extent in extents.EnumerateArray())
         {
             var range = ReadRange(extent, "height");
-            if (range is not null)
-                return range;
+            if (range is null)
+                continue;
+            result.Add(new MapFloorExtent(
+                range.Value.Item1,
+                range.Value.Item2,
+                ReadExtentBounds(extent)));
         }
-        return null;
+        return result;
+    }
+
+    private static IReadOnlyList<MapWorldBounds> ReadExtentBounds(JsonElement extent)
+    {
+        if (!extent.TryGetProperty("bounds", out var bounds) || bounds.ValueKind != JsonValueKind.Array)
+            return Array.Empty<MapWorldBounds>();
+
+        var result = new List<MapWorldBounds>();
+        foreach (var rawBounds in bounds.EnumerateArray())
+        {
+            if (rawBounds.ValueKind != JsonValueKind.Array)
+                continue;
+            var parts = rawBounds.EnumerateArray().Take(2).ToArray();
+            if (parts.Length != 2 ||
+                !TryReadCoordinatePair(parts[0], out var first) ||
+                !TryReadCoordinatePair(parts[1], out var second))
+                continue;
+            result.Add(new MapWorldBounds(first, second));
+        }
+        return result;
     }
 
     private static (double, double)? ReadRange(JsonElement entity, string propertyName)
@@ -209,17 +242,26 @@ public sealed class TarkovMapLayoutCatalogClient
         var result = new List<MapBoundsPoint>();
         foreach (var point in value.EnumerateArray())
         {
-            if (point.ValueKind != JsonValueKind.Array)
-                continue;
-            var values = point.EnumerateArray()
-                .Where(item => item.ValueKind == JsonValueKind.Number && item.TryGetDouble(out _))
-                .Select(item => item.GetDouble())
-                .Take(2)
-                .ToArray();
-            if (values.Length == 2 && values.All(double.IsFinite))
-                result.Add(new MapBoundsPoint(values[0], values[1]));
+            if (TryReadCoordinatePair(point, out var pair))
+                result.Add(pair);
         }
         return result;
+    }
+
+    private static bool TryReadCoordinatePair(JsonElement point, out MapBoundsPoint pair)
+    {
+        pair = new MapBoundsPoint(0, 0);
+        if (point.ValueKind != JsonValueKind.Array)
+            return false;
+        var values = point.EnumerateArray()
+            .Take(2)
+            .Where(item => item.ValueKind == JsonValueKind.Number && item.TryGetDouble(out _))
+            .Select(item => item.GetDouble())
+            .ToArray();
+        if (values.Length != 2 || !values.All(double.IsFinite))
+            return false;
+        pair = new MapBoundsPoint(values[0], values[1]);
+        return true;
     }
 
     private static IReadOnlyList<double> ReadDoubleArray(JsonElement entity, string propertyName)
