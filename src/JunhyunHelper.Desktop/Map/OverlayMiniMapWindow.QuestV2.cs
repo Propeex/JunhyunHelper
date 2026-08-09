@@ -69,7 +69,7 @@ public partial class OverlayMiniMapWindow
             ? markers.Where(marker => FloorMatchesV2(marker.FloorId, _selectedFloorId)).ToArray()
             : Array.Empty<JunhyunQuestMarkerProjectionV2>();
 
-        var signature = new HashCode();
+        var signature = new System.HashCode();
         signature.Add(projectionMap, StringComparer.OrdinalIgnoreCase);
         signature.Add(_currentMapKey, StringComparer.OrdinalIgnoreCase);
         signature.Add(_selectedFloorId, StringComparer.OrdinalIgnoreCase);
@@ -114,8 +114,6 @@ public partial class OverlayMiniMapWindow
 
     private static bool FloorMatchesV2(string? markerFloor, string? selectedFloor)
     {
-        // Unknown Quest floor is deliberately not guessed; keep it visible rather
-        // than hiding a valid objective because the source omitted height.
         if (string.IsNullOrWhiteSpace(markerFloor) || string.IsNullOrWhiteSpace(selectedFloor))
             return true;
         return string.Equals(markerFloor, selectedFloor, StringComparison.OrdinalIgnoreCase);
