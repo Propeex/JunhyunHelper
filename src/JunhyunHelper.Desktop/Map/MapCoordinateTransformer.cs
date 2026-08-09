@@ -73,11 +73,26 @@ public static class MapCoordinateTransformer
         return width <= 0.000001 ? 1 : Math.Clamp(height / width, 0.2, 5.0);
     }
 
+    public static MapFloorDefinition? FloorForPosition(
+        MapLayoutDefinition layout,
+        MapWorldPosition position)
+    {
+        var matching = layout.Floors
+            .Where(floor => floor.Contains(position))
+            .OrderBy(floor => floor.IsDefault ? 1 : 0)
+            .ThenBy(floor => floor.Extents
+                .Where(extent => extent.Contains(position))
+                .Select(extent => extent.MaxHeight - extent.MinHeight)
+                .DefaultIfEmpty(double.MaxValue)
+                .Min())
+            .ToArray();
+
+        return matching.FirstOrDefault()
+               ?? layout.Floors.FirstOrDefault(floor => floor.IsDefault);
+    }
+
     public static MapFloorDefinition? FloorForHeight(MapLayoutDefinition layout, double height) =>
-        layout.Floors
-            .Where(floor => height >= floor.MinHeight && height < floor.MaxHeight)
-            .OrderBy(floor => floor.MaxHeight - floor.MinHeight)
-            .FirstOrDefault();
+        FloorForPosition(layout, new MapWorldPosition(0, height, 0));
 
     public static double SurfaceHeading(MapLayoutDefinition layout, double worldHeadingDegrees) =>
         NormalizeDegrees(worldHeadingDegrees + layout.CoordinateRotation);
