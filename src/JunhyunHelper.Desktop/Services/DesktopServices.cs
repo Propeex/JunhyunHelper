@@ -38,6 +38,7 @@ public sealed class DesktopServices : IDisposable
         Images = new ImageCacheService(_httpClient, RootDirectory);
         AmmoFavorites = new AmmoFavoriteStore(RootDirectory);
         MapAssets = new MapAssetCacheService(_httpClient, RootDirectory);
+        MapVisualFactory.ConfigureIconDirectory(Path.Combine(MapAssets.ActiveDirectory, "icons"));
         MapUserData = new MapUserDataStore(RootDirectory);
 
         var sourceLoader = new TarkovEndpointSourceLoader(new TarkovJsonClient(_httpClient));
