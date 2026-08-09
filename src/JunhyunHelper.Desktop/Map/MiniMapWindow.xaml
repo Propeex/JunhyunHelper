@@ -5,7 +5,9 @@
         Title="준현 미니맵" Width="430" Height="460" MinWidth="260" MinHeight="290"
         Topmost="True" ShowInTaskbar="False" ShowActivated="False"
         WindowStyle="None" ResizeMode="CanResizeWithGrip"
-        Background="#E8181B20" Opacity="0.96">
+        Background="#E8181B20" Opacity="0.96"
+        SizeChanged="Window_SizeChanged"
+        PreviewMouseWheel="Window_PreviewMouseWheel">
     <Border BorderBrush="#886E7681" BorderThickness="1">
         <Grid>
             <Grid.RowDefinitions><RowDefinition Height="32" /><RowDefinition Height="*" /></Grid.RowDefinitions>
@@ -16,15 +18,19 @@
                     <Button Grid.Column="1" Content="×" Width="28" Height="24" Padding="0" Click="CloseButton_Click" />
                 </Grid>
             </Border>
-            <Grid Grid.Row="1" Background="#16191D" ClipToBounds="True">
-                <Viewbox Stretch="Uniform">
-                    <Grid x:Name="MiniSurface" Width="1600" Height="1100">
-                        <svgc:SvgViewbox x:Name="MiniSvg" Stretch="Fill" IsHitTestVisible="False" />
-                        <Canvas x:Name="MiniMarkerCanvas" IsHitTestVisible="False" />
-                        <Canvas x:Name="MiniTrailCanvas" IsHitTestVisible="False" />
-                        <Canvas x:Name="MiniPlayerCanvas" IsHitTestVisible="False" />
-                    </Grid>
-                </Viewbox>
+            <Grid x:Name="MiniViewport" Grid.Row="1" Background="#16191D" ClipToBounds="True">
+                <Grid x:Name="MiniSurface" Width="1600" Height="1100"
+                      HorizontalAlignment="Left" VerticalAlignment="Top"
+                      RenderTransformOrigin="0,0">
+                    <svgc:SvgViewbox x:Name="MiniSvg" Stretch="Fill" IsHitTestVisible="False" />
+                    <Canvas x:Name="MiniMarkerCanvas" IsHitTestVisible="False" />
+                    <Canvas x:Name="MiniTrailCanvas" IsHitTestVisible="False" />
+                    <Canvas x:Name="MiniPlayerCanvas" IsHitTestVisible="False" />
+                </Grid>
+                <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="7" Padding="5,2"
+                        Background="#B0202328" CornerRadius="4" IsHitTestVisible="False">
+                    <TextBlock x:Name="ZoomHintText" Text="플레이어 추적" FontSize="9" Foreground="#C8FFFFFF" />
+                </Border>
             </Grid>
         </Grid>
     </Border>
