@@ -2,9 +2,9 @@
 
 기록일: **2026-08-09**
 
-상태: `CONFIRMED / IMPLEMENTED / FINAL VERIFICATION`
+상태: `CONFIRMED / IMPLEMENTED / VERIFIED / MERGED`
 
-3차 Windows 테스트 빌드 실사용 후 확정된 4차 개선 사항입니다.
+3차 Windows 테스트 빌드 실사용 후 확정된 4차 개선 사항입니다. 구현은 PR #39로 main에 병합되었고 Windows CI 및 전달용 ZIP 무결성 검증을 완료했습니다.
 
 ## 1. Ammo 구경 표시
 
@@ -134,19 +134,16 @@ v3 추가 의미:
 
 `user.db`에는 자동 차감 reconciliation을 위한 Quest/Hideout 소비 기록이 optional JSON field로 추가됩니다. SQLite table schema는 그대로이며 과거 profile payload와 하위 호환됩니다.
 
-## 검증 기준
+## 검증 결과
 
-- Windows Release Desktop build
-- 전체 automated tests
-- Windows x64 publish/package
-- caliber label regression
-- Wiki membership/effectiveness 분리
-- `12.7x108mm` membership 유지
-- fixed item consumption + exact restore ledger
-- rollback 후 복원하지 않은 경우 재완료/재업그레이드 중복 차감 금지
-- flexible requirement 무작위 차감 금지
-- Prestige null → 0 normalization
-- update-time image prefetch
-- stable-ID cross navigation
-- Factory day/night filter grouping
-- 최종 ZIP CRC 검사
+- PR #39: merged
+- final documentation-inclusive CI: `31289134464`
+- Windows Release Desktop build: success
+- 전체 automated tests: success
+- Windows x64 publish/package: success
+- artifact upload: success
+- unresolved review thread: none
+- GitHub artifact outer ZIP CRC: success
+- inner Windows ZIP CRC: success
+- flat delivery ZIP CRC: success
+- delivery ZIP SHA-256: `65d67a6ed60dbc39b3a51e0e640ca58b636560058ee575fa418f47aa66a831f1`
