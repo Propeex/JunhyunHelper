@@ -1,5 +1,7 @@
+using JunhyunHelper.Application.Items;
 using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.Hideout;
+using JunhyunHelper.Core.Items;
 using JunhyunHelper.Core.Profiles;
 using JunhyunHelper.Infrastructure.Storage;
 
@@ -36,11 +38,26 @@ public sealed class HideoutApplicationService
         return BuildWorkspace(content, profile);
     }
 
+    public Task<HideoutWorkspace> SetLevelAsync(
+        GameContentCatalog content,
+        string profileId,
+        string stationId,
+        int? level,
+        CancellationToken cancellationToken = default) =>
+        SetLevelAsync(
+            content,
+            profileId,
+            stationId,
+            level,
+            restoreInventoryOnRollback: false,
+            cancellationToken);
+
     public async Task<HideoutWorkspace> SetLevelAsync(
         GameContentCatalog content,
         string profileId,
         string stationId,
         int? level,
+        bool restoreInventoryOnRollback,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(content);
@@ -51,9 +68,6 @@ public sealed class HideoutApplicationService
             string.Equals(candidate.Id, stationId, StringComparison.Ordinal))
             ?? throw new KeyNotFoundException($"Hideout station '{stationId}' does not exist in active content.");
 
-        // Product rule: an absent station value and Lv.0 mean the same thing.
-        // Keep accepting null at this application boundary so older callers remain safe,
-        // but normalize it immediately to the single Lv.0 meaning.
         var normalizedLevel = level ?? 0;
         var maximumLevel = MaximumLevel(station);
         if (normalizedLevel < 0 || normalizedLevel > maximumLevel)
@@ -65,15 +79,73 @@ public sealed class HideoutApplicationService
         }
 
         var profile = await LoadRequiredProfileAsync(profileId, cancellationToken);
+        var currentLevel = profile.HideoutLevels.TryGetValue(stationId, out var savedLevel)
+            ? savedLevel
+            : 0;
+        if (normalizedLevel == currentLevel)
+            return BuildWorkspace(content, profile);
+
+        IReadOnlyDictionary<string, InventoryQuantity> inventory = profile.Inventory;
+        var consumptions = new Dictionary<string, InventoryConsumption>(
+            profile.HideoutUpgradeConsumptions,
+            StringComparer.Ordinal);
+
+        if (normalizedLevel > currentLevel)
+        {
+            foreach (var targetLevel in Enumerable.Range(currentLevel + 1, normalizedLevel - currentLevel))
+            {
+                var upgrade = station.Levels.FirstOrDefault(candidate => candidate.Level == targetLevel);
+                if (upgrade is null)
+                    continue;
+
+                var result = FixedInventoryConsumptionPolicy.Consume(
+                    inventory,
+                    upgrade.ItemRequirements.Select(requirement => new FixedItemConsumptionRequirement(
+                        requirement.ItemId,
+                        requirement.Count,
+                        requirement.FoundInRaid)));
+                inventory = result.Inventory;
+
+                var key = UpgradeConsumptionKey(stationId, targetLevel);
+                if (result.Consumption.IsEmpty)
+                    consumptions.Remove(key);
+                else
+                    consumptions[key] = result.Consumption;
+            }
+        }
+        else
+        {
+            foreach (var rolledBackLevel in Enumerable.Range(normalizedLevel + 1, currentLevel - normalizedLevel).Reverse())
+            {
+                var key = UpgradeConsumptionKey(stationId, rolledBackLevel);
+                if (consumptions.TryGetValue(key, out var consumption) && restoreInventoryOnRollback)
+                    inventory = FixedInventoryConsumptionPolicy.Restore(inventory, consumption);
+                consumptions.Remove(key);
+            }
+        }
+
         var levels = new Dictionary<string, int>(profile.HideoutLevels, StringComparer.Ordinal);
         if (normalizedLevel == 0)
             levels.Remove(stationId);
         else
             levels[stationId] = normalizedLevel;
 
-        var updated = profile with { HideoutLevels = levels };
+        var updated = profile with
+        {
+            HideoutLevels = levels,
+            Inventory = inventory,
+            HideoutUpgradeConsumptions = consumptions,
+        };
         await _profileStore.SaveAsync(updated, cancellationToken);
         return BuildWorkspace(content, updated);
+    }
+
+    public static string UpgradeConsumptionKey(string stationId, int targetLevel)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(stationId);
+        if (targetLevel < 1)
+            throw new ArgumentOutOfRangeException(nameof(targetLevel));
+        return $"{stationId.Trim()}:{targetLevel}";
     }
 
     private async Task<GameProfileSnapshot> LoadRequiredProfileAsync(
