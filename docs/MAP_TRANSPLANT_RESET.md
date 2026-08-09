@@ -2,7 +2,7 @@
 
 기록일: **2026-08-09**
 
-상태: `EXACT SOURCE TRANSPLANT IMPLEMENTED / WINDOWS VALIDATION NEXT`
+상태: `MERGED / AUTOMATED VALIDATION PASSED / WINDOWS USER VALIDATION NEXT`
 
 ## 사용자 확정 결정
 
@@ -16,6 +16,17 @@
 4. 기존 Tarkov Helper를 참고해 JunhyunHelper용으로 다시 만드는 방식은 사용하지 않습니다.
 5. 변경 허용 범위는 새 앱에서 실행하기 위한 host adapter에 한정합니다.
 6. MiniMap도 동일한 이식 범위입니다.
+
+## 구현 결과
+
+PR #62로 구현 및 `main` 병합 완료했습니다.
+
+```text
+PR #62
+merge commit: 4b3d43051b48c3d00ab8fdba03814d24066a2fd0
+validated head: 77ef3052e74c3134d7cd61994cebb29ac11d7f1e
+final CI: 31309285854
+```
 
 ## 구현 방식
 
@@ -90,20 +101,18 @@ Map tab first open
 
 ## 자동 검증
 
-확인된 checkpoint:
+최종 CI `31309285854`:
 
-- pre-Map clean reset Desktop build: success
-- pre-Map clean reset core tests: 163 passed
 - exact Tarkov Helper submodule checkout: success
-- original Map/MiniMap source Desktop build: success
-- JunhyunHelper core tests with original subsystem linked: success
-- Windows x64 self-contained publish / ZIP: success at pre-startup-smoke checkpoint
-
-현재 최종 CI에는 publish된 실제 EXE가 일정 시간 살아 있는지 확인하는 Startup Smoke도 포함합니다.
+- original Map/MiniMap source Desktop Release build: success
+- JunhyunHelper core tests: success
+- Windows x64 self-contained publish: success
+- published `JunhyunHelper.exe` Startup Smoke 12초: success
+- ZIP creation/upload: success
 
 ## 완료 기준
 
-자동 빌드만으로 exact transplant를 완료 처리하지 않습니다.
+자동 빌드만으로 exact transplant를 최종 완료 처리하지 않습니다.
 
 Windows에서 다음을 확인해야 합니다.
 
@@ -121,6 +130,6 @@ Windows에서 다음을 확인해야 합니다.
 
 ## 업데이트 대응
 
-업데이트 대응은 exact transplant 검증 후 진행합니다.
+업데이트 대응은 exact transplant 사용자 검증 후 진행합니다.
 
 향후 Map 업데이트도 Map source/config/SVG/DB를 서로 따로 갱신하지 않고 **검증된 Tarkov Helper revision 단위로 원자적으로 갱신**하는 것이 기본 원칙입니다.
