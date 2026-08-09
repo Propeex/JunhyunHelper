@@ -6,7 +6,7 @@ using JunhyunHelper.Core.Content;
 namespace JunhyunHelper.Desktop.Services;
 
 /// <summary>
-/// Decides when Map presentation/layout assets must be rebuilt from their online sources.
+/// Decides when Map presentation/layout assets must be rebuilt from their configured sources.
 /// The policy deliberately lives outside the active/candidate directories so an asset swap
 /// cannot accidentally erase update state.
 /// </summary>
@@ -16,7 +16,7 @@ public static class MapAssetRefreshPolicy
 
     // Bump this whenever the artwork/layout ingestion formula changes. Existing installs
     // will then rebuild Map assets once without asking the user to delete their cache.
-    public const string PipelineVersion = "map-online-sources-v5-floor-aware-re3mr";
+    public const string PipelineVersion = "legacy-tarkov-helper-map-minimap-v1";
 
     private const string StateFileName = "update-state.json";
     private const string RefreshRequestFileName = "refresh.requested";
@@ -60,8 +60,8 @@ public static class MapAssetRefreshPolicy
 
     /// <summary>
     /// Marks Map sources stale without touching the currently working active assets.
-    /// Used whenever Game Content is activated so coordinate/layout/artwork refreshes remain
-    /// coupled to the user's Data Update action without coupling their storage models.
+    /// Used whenever Game Content is activated so current Map IDs/floor metadata remain
+    /// coupled to the user's Data Update action while legacy artwork/calibration stays stable.
     /// </summary>
     public static void RequestRefresh(MapAssetCacheService assets, string reason)
     {
