@@ -6,7 +6,7 @@
 
 **Phase 2B — 핵심 Desktop 흐름 구현 + 실사용 피드백 반복 개선**
 
-상태: `MAP PRODUCT REFINEMENT V2 IMPLEMENTED / AUTOMATED VALIDATION PASSED / WINDOWS USER VALIDATION NEXT`
+상태: `MAP PRODUCT REFINEMENT V2 MERGED / AUTOMATED VALIDATION PASSED / WINDOWS USER VALIDATION NEXT`
 
 ---
 
@@ -57,31 +57,18 @@ Hideout / Item / Ammo 등과 Map runtime을 결합하지 않습니다.
 
 ---
 
-# PR #63 — V1 기준
+# PR #64 — Map product refinement V2 — MERGED
 
 ```text
-PR #63 merge: 4606b693c229f7cc2dbc1e09cd4ef423774003bc
+PR #64: Refine Map Quest and MiniMap controls v2
+merge commit: 2339ddff5773ee385ff32b4ff5a173aab52d8050
+final PR head: ae7839e15a26d8d0a0643802ed08ab0f5b80f520
+final PR CI: 31320921128
 ```
 
-V1에서 exact Map 이식 위에 Quest 연동, MiniMap top-right, marker synchronization 등의 기본 제품화를 완료했습니다.
-
-V2는 사용자의 Windows 피드백에 따라 불필요 설정을 제거하고 Quest/marker UX를 다시 정리합니다.
-
----
-
-# PR #64 — Map product refinement V2
-
-작업 branch:
+최종 자동 검증:
 
 ```text
-agent/map-product-refinement-v2
-```
-
-최신 검증 checkpoint:
-
-```text
-code head before STATE doc: f199da3fb314428eb780049776d1b7268da19b19
-CI: 31320773432
 Desktop Release build: success
 existing automated tests: success
 Windows x64 self-contained publish: success
@@ -277,7 +264,6 @@ Scanner는 탭/placeholder만 있으며 실제 요구사항은 아직 확정 전
 
 # 다음 작업
 
-1. PR #64 최종 문서 포함 CI 확인 및 merge
-2. V2 Windows 테스트 빌드 사용자 검증
-3. 실제 화면/사용감 차이만 보정
-4. 사용자 검증 이후 exact Map artwork/config/general-marker DB를 동일 revision으로 교체하는 atomic bundle updater 구현
+1. V2 Windows 테스트 빌드 사용자 검증
+2. 실제 화면/사용감 차이만 보정
+3. 사용자 검증 이후 exact Map artwork/config/general-marker DB를 동일 revision으로 교체하는 atomic bundle updater 구현
