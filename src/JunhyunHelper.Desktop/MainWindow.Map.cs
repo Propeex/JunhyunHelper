@@ -20,6 +20,7 @@ public partial class MainWindow
         MapPage.QuestNavigationRequested += MapPage_QuestNavigationRequested;
         MapPlaceholder.IsVisibleChanged += MapPlaceholder_IsVisibleChanged;
         _services.ContentUpdater.ContentActivated += ContentUpdater_ContentActivated;
+        EnsureMapProfileRefreshHook();
 
         if (MapPlaceholder.IsVisible)
             _ = RefreshMapPageFromActiveProfileAsync();
@@ -32,6 +33,7 @@ public partial class MainWindow
             _services.ContentUpdater.ContentActivated -= ContentUpdater_ContentActivated;
             MapPlaceholder.IsVisibleChanged -= MapPlaceholder_IsVisibleChanged;
             MapPage.QuestNavigationRequested -= MapPage_QuestNavigationRequested;
+            RemoveMapProfileRefreshHook();
         }
 
         MapPage.Dispose();
