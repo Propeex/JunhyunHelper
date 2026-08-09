@@ -6,32 +6,25 @@
 
 **Phase 2B — 핵심 Desktop 흐름 구현 + 실사용 피드백 반복 개선**
 
-상태: `FIFTH USABILITY FIXES IMPLEMENTED / MAP SOURCE DESIGN`
+상태: `FIFTH USABILITY PASS MERGED / MAP PRODUCT DESIGN`
 
-현재 작업:
-
-```text
-branch: agent/fifth-usability-map-source
-PR: #41
-```
-
-4차 실사용 피드백은 PR #39로 main 병합 완료되어 사용자 테스트 중입니다.
-
-5차에서 새로 확인된 Ammo 즐겨찾기 이동 문제와 Item 용도 필터는 구현 완료했고 Windows CI를 통과했습니다. Map은 실제 기능 구현 전에 장기 유지 가능한 데이터 공급원을 조사했으며, **동적 gameplay/location data source는 확보 가능**한 것으로 확인했습니다. 실제 Map UI와 지도 배경 artwork 선택은 아직 제품 설계 단계입니다.
+5차에서 확인된 Ammo 즐겨찾기 이동 문제와 Item 용도 필터는 **PR #41로 main 병합 완료**되었습니다. Map은 실제 기능 구현 전에 장기 유지 가능한 데이터 공급원을 조사했으며, **동적 gameplay/location data source는 확보 가능**한 것으로 확인했습니다. 실제 Map UI와 지도 배경 artwork 선택은 제품 설계 단계입니다.
 
 상세:
 
 - `docs/FIFTH_USABILITY_PASS.md`
 - `docs/MAP_DATA_SOURCE_ANALYSIS.md`
 
-5차 구현 checkpoint:
+5차 검증 checkpoint:
 
 ```text
-CI: 31290336689
+PR #41: merged
+final CI: 31290434791
 Release Desktop build: success
 full automated tests: success
 Windows x64 publish/package: success
 artifact upload: success
+review threads: none
 ```
 
 ---
@@ -356,14 +349,13 @@ Map artwork license의 cheating prohibition과 충돌하지 않도록 향후 Sca
 - 2차: PR #36 merged
 - 3차: PR #37 merged
 - 4차: PR #39 merged / user testing
-- 5차: **PR #41 — Ammo favorite shortcut + Item 용도 filter 구현 완료 / Map source 분석 완료 / 최종 문서 검증 중**
+- 5차: **PR #41 merged — Ammo favorite shortcut + Item 용도 filter 구현/검증 완료, Map source 분석 완료**
 
 ---
 
 ## 현재 다음 작업
 
-1. PR #41 최종 documentation-inclusive CI 확인 및 병합
-2. 사용자에게 5차 UX 수정 결과와 Map source 조사 결과 전달
-3. Map artwork로 CC BY-NC-SA SVG source 사용 여부를 제품 관점에서 결정
-4. Map 실제 사용자 흐름/marker 범위/층 전환/Quest 연동을 확정
-5. 확정 후 Map canonical importer + Desktop 구현 시작
+1. Map artwork로 CC BY-NC-SA SVG source 사용 여부를 제품 관점에서 결정
+2. Map 실제 사용자 흐름 / marker 범위 / 층 전환 / Quest 연동을 확정
+3. 확정 후 Map canonical importer + Desktop 구현 시작
+4. Scanner 실제 기능은 별도 제품 요구사항 정렬 후 진행
