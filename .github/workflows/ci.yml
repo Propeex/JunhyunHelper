@@ -49,7 +49,7 @@ jobs:
             'JunhyunHelper.exe',
             'JunhyunHelper.dll',
             'SharpVectors.Converters.Wpf.dll',
-            'SharpVectors.Renderers.Wpf.dll'
+            'SharpVectors.Rendering.Wpf.dll'
           )
           foreach ($file in $required) {
             if (-not (Test-Path (Join-Path artifacts/publish $file))) {
