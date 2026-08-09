@@ -6,6 +6,10 @@ namespace JunhyunHelper.Infrastructure.TarkovJson.Maps;
 
 public sealed class TarkovMapMarkerImporter
 {
+    private static readonly HashSet<string> SpecialAiBossNames = new(
+        ["cultist-priest", "rogue", "black-div", "af", "bloodhound"],
+        StringComparer.OrdinalIgnoreCase);
+
     public IReadOnlyList<MapMarkerDefinition> Import(
         TarkovJsonDocument baseDocument,
         TarkovLocalization localization)
@@ -21,6 +25,7 @@ public sealed class TarkovMapMarkerImporter
             ImportTransits(markers, map, mapId, localization);
             ImportSpawns(markers, map, mapId);
             ImportPositionCollection(markers, map, mapId, "hazards", MapMarkerKind.Hazard, "위험 구역", localization, includeOutline: true);
+            ImportArtillery(markers, map, mapId, localization);
             ImportPositionCollection(markers, map, mapId, "locks", MapMarkerKind.Lock, "잠금 지점", localization);
             ImportPositionCollection(markers, map, mapId, "switches", MapMarkerKind.Switch, "스위치", localization);
             ImportPositionCollection(markers, map, mapId, "stationaryWeapons", MapMarkerKind.StationaryWeapon, "고정 화기", localization);
@@ -103,6 +108,7 @@ public sealed class TarkovMapMarkerImporter
         JsonElement map,
         string mapId)
     {
+        var (bossSpawnKeys, specialAiSpawnKeys) = ReadBossSpawnKeys(map);
         var index = 0;
         foreach (var raw in ReadOptionalCollection(map, "spawns"))
         {
@@ -111,11 +117,16 @@ public sealed class TarkovMapMarkerImporter
 
             var categories = ReadStringArray(raw, "categories");
             var sides = ReadStringArray(raw, "sides");
-            var kind = ClassifySpawn(categories, sides);
+            var zoneName = TarkovJsonReader.OptionalString(raw, "zoneName");
+            var kind = ClassifySpawn(
+                categories,
+                sides,
+                zoneName,
+                bossSpawnKeys,
+                specialAiSpawnKeys);
             if (kind is null)
                 continue;
 
-            var zoneName = TarkovJsonReader.OptionalString(raw, "zoneName");
             var name = kind.Value switch
             {
                 MapMarkerKind.PmcSpawn => "PMC 스폰",
@@ -139,24 +150,89 @@ public sealed class TarkovMapMarkerImporter
         }
     }
 
+    private static (IReadOnlySet<string> BossSpawnKeys, IReadOnlySet<string> SpecialAiSpawnKeys)
+        ReadBossSpawnKeys(JsonElement map)
+    {
+        var bossSpawnKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var specialAiSpawnKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var boss in ReadOptionalCollection(map, "bosses"))
+        {
+            var normalizedName = TarkovJsonReader.OptionalString(boss, "normalizedName") ?? string.Empty;
+            var target = SpecialAiBossNames.Contains(normalizedName)
+                ? specialAiSpawnKeys
+                : bossSpawnKeys;
+
+            foreach (var spawnLocation in ReadOptionalCollection(boss, "spawnLocations"))
+            {
+                var spawnKey = TarkovJsonReader.OptionalString(spawnLocation, "spawnKey");
+                if (!string.IsNullOrWhiteSpace(spawnKey))
+                    target.Add(spawnKey);
+            }
+        }
+
+        return (bossSpawnKeys, specialAiSpawnKeys);
+    }
+
     private static MapMarkerKind? ClassifySpawn(
         IReadOnlySet<string> categories,
-        IReadOnlySet<string> sides)
+        IReadOnlySet<string> sides,
+        string? zoneName,
+        IReadOnlySet<string> bossSpawnKeys,
+        IReadOnlySet<string> specialAiSpawnKeys)
     {
-        if (categories.Contains("sniper"))
-            return MapMarkerKind.SniperScav;
-        if (categories.Contains("rogue") || categories.Contains("cultist") ||
-            categories.Contains("bloodhound") || categories.Contains("black-div") ||
-            categories.Contains("af"))
-            return MapMarkerKind.SpecialAi;
         if (categories.Contains("boss"))
+        {
+            if (!string.IsNullOrWhiteSpace(zoneName) && specialAiSpawnKeys.Contains(zoneName))
+                return MapMarkerKind.SpecialAi;
+            if (!string.IsNullOrWhiteSpace(zoneName) && bossSpawnKeys.Contains(zoneName))
+                return MapMarkerKind.Boss;
+
+            // The current Tarkov.dev map also treats an unmatched boss-category
+            // spawn as a normal Scav spawn when it is otherwise a Scav bot zone.
+            if (categories.Contains("bot") && sides.Contains("scav"))
+                return MapMarkerKind.ScavSpawn;
             return MapMarkerKind.Boss;
+        }
+
         if (categories.Contains("player") && (sides.Contains("pmc") || sides.Contains("all")))
             return MapMarkerKind.PmcSpawn;
+        if (categories.Contains("sniper"))
+            return MapMarkerKind.SniperScav;
         if (sides.Contains("scav") &&
             (categories.Contains("bot") || categories.Contains("all") || categories.Count == 0))
             return MapMarkerKind.ScavSpawn;
         return null;
+    }
+
+    private static void ImportArtillery(
+        ICollection<MapMarkerDefinition> markers,
+        JsonElement map,
+        string mapId,
+        TarkovLocalization localization)
+    {
+        if (map.ValueKind != JsonValueKind.Object ||
+            !map.TryGetProperty("artillery", out var artillery) ||
+            artillery.ValueKind != JsonValueKind.Object)
+            return;
+
+        var index = 0;
+        foreach (var raw in ReadOptionalCollection(artillery, "zones"))
+        {
+            if (!TryReadPosition(raw, out var position))
+                continue;
+
+            markers.Add(new MapMarkerDefinition(
+                StableId(raw, mapId, "artillery", index++),
+                mapId,
+                MapMarkerKind.Hazard,
+                ResolveName(raw, localization, "박격포 위험 구역"),
+                position,
+                ReadOutline(raw),
+                ReadNullableDouble(raw, "top") ?? position.Y,
+                ReadNullableDouble(raw, "bottom") ?? position.Y,
+                "artillery"));
+        }
     }
 
     private static void ImportPositionCollection(
