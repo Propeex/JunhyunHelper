@@ -84,8 +84,43 @@
 
             <TextBlock Grid.Column="4" Text="즐겨찾기" VerticalAlignment="Center"
                        Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,8,0" />
-            <ComboBox x:Name="FavoriteCaliberComboBox" Grid.Column="5"
-                      SelectionChanged="FavoriteCaliberComboBox_SelectionChanged" />
+            <Button x:Name="FavoriteCaliberMenuButton" Grid.Column="5"
+                    Content="즐겨찾기 선택" HorizontalContentAlignment="Left"
+                    Click="FavoriteCaliberMenuButton_Click" />
+
+            <Popup x:Name="FavoriteCaliberPopup"
+                   PlacementTarget="{Binding ElementName=FavoriteCaliberMenuButton}"
+                   Placement="Bottom" StaysOpen="False" AllowsTransparency="True">
+                <Border Background="{StaticResource BackgroundMediumBrush}"
+                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                        CornerRadius="8" Padding="8" Margin="0,6,0,0" MinWidth="210" MaxHeight="360">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
+                            <TextBlock x:Name="FavoriteCaliberEmptyText"
+                                       Text="등록된 즐겨찾기가 없습니다."
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       Padding="8,7" />
+                            <ItemsControl x:Name="FavoriteCaliberItems">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Tag="{Binding RawCaliber}"
+                                                Content="{Binding Label}"
+                                                HorizontalAlignment="Stretch"
+                                                HorizontalContentAlignment="Left"
+                                                Padding="10,7" Margin="0,0,0,4"
+                                                Click="FavoriteCaliberShortcutButton_Click" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                                <ItemsControl.ItemContainerStyle>
+                                    <Style TargetType="ContentPresenter">
+                                        <Setter Property="HorizontalAlignment" Value="Stretch" />
+                                    </Style>
+                                </ItemsControl.ItemContainerStyle>
+                            </ItemsControl>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </Popup>
 
             <Button x:Name="ColumnMenuButton" Grid.Column="7" Content="표시 열" Padding="14,6" Click="ColumnMenuButton_Click" />
 

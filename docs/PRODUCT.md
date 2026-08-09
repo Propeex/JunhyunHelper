@@ -235,6 +235,24 @@ canonical Map ID와 Quest 원본 MapId는 보존합니다.
 - Quest → Quest, 후보 → Item
 - 목표 종료 전 후보별 cleanup은 보수적으로 보호
 
+### 7.5 Item 용도 필터
+
+`CONFIRMED / FIFTH USABILITY PASS`
+
+Item 종류(category)와 필요 상태(filter)와 별개로 용도를 교차 필터링할 수 있습니다.
+
+```text
+모든 용도
+퀘스트용
+은신처용
+```
+
+- Quest requirement source가 있거나 flexible Quest candidate이면 `퀘스트용`
+- Hideout requirement source가 있으면 `은신처용`
+- Quest와 Hideout 모두에 필요한 Item은 두 필터 모두에 표시
+- cross-navigation으로 특정 Item을 열 때는 용도 필터 때문에 대상이 숨지 않도록 `모든 용도`로 복귀
+- 유동 제출 view는 본질적으로 Quest 용도이므로 용도 filter를 중복 적용하지 않음
+
 ## 8. 진행 완료와 Inventory 자동 차감
 
 `CONFIRMED / IMPLEMENTED IN FOURTH USABILITY PASS`
@@ -326,9 +344,12 @@ raw ID는 내부에 유지하고 사용자에게 cartridge 명칭을 표시합�
 
 ### 9.4 caliber favorites
 
+`CONFIRMED / FIFTH USABILITY PASS UPDATED`
+
 - 현재 caliber 즐겨찾기 toggle
-- 즐겨찾기 전용 dropdown
-- 선택 → 해당 caliber 이동
+- 즐겨찾기는 선택값을 유지하는 selector가 아니라 **shortcut menu**
+- 메뉴 안의 각 caliber는 button/action처럼 동작하며 누를 때마다 해당 caliber로 이동
+- 일반 caliber를 다른 값으로 바꾼 뒤에도 같은 favorite를 다시 눌러 언제든 이동 가능
 - `%LocalAppData%/JunhyunHelper/ammo-favorites.json`에 UI preference로 저장
 
 ## 10. 이미지
@@ -375,17 +396,44 @@ Game Content update 성공 후 제품에서 사용하는 이미지를 **미리 �
 
 ## 12. Map / Scanner
 
-`PLACEHOLDER IMPLEMENTED`
+Map 탭과 Scanner 탭의 placeholder는 구현되어 있습니다.
 
-상단에 `지도`, `스캐너` 탭이 존재하고 현재는 `준비 중`을 표시합니다.
+### 12.1 Map
 
-실제 Map 공급원과 Scanner 동작은 별도 제품 요구사항 확정 전까지 구현하지 않습니다.
+`INTENT_CAPTURED / SOURCE ANALYSIS`
+
+사용자는 기존 `Propeex/Tarkov-Helper`의 지도 사용 경험을 대체로 쓸 만한 참고점으로 보고 있으며, 새 Map 기능에서 가장 먼저 해결할 문제를 **패치 후에도 유지 가능한 지도 API/데이터 공급원**으로 봅니다.
+
+현재 source 조사 결과는 다음 구조를 우선 제안합니다.
+
+```text
+json.tarkov.dev/<game-mode>/maps
+→ extract / spawn / transit / boss / loot / switch 등 gameplay/location data
+
+Tarkov.dev public map metadata
+→ bounds / transform / rotation / layers / asset reference
+
+별도 license가 확인된 map artwork
+→ visual background
+```
+
+실제 Map UI/marker 범위/층 전환/Quest 연동/Scanner 연동은 아직 확정하지 않습니다. 기존 Tarkov-Helper는 UX와 좌표 처리 아이디어의 참고 자료일 뿐 데이터 진실의 원천이 아닙니다.
+
+상세 조사: `docs/MAP_DATA_SOURCE_ANALYSIS.md`
+
+### 12.2 Scanner
+
+`PLACEHOLDER IMPLEMENTED / PRODUCT OPEN`
+
+실제 Scanner 동작은 별도 제품 요구사항 확정 전까지 구현하지 않습니다.
 
 ## 13. 현재 실사용 개선 상태
 
 - 첫 실사용 피드백: merged
 - 2차: PR #36 merged
 - 3차: PR #37 merged
-- 4차: PR #39 implemented / final verification
+- 4차: PR #39 merged
+- 5차: Ammo favorite shortcut + Item 용도 filter 구현/검증 중, Map source 분석 진행
 
 4차 세부 계약: `docs/FOURTH_USABILITY_PASS.md`
+5차 세부 계약: `docs/FIFTH_USABILITY_PASS.md`

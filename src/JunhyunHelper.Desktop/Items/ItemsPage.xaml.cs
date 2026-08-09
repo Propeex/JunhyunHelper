@@ -40,6 +40,13 @@ public partial class ItemsPage : UserControl
         FilterComboBox.SelectedIndex = 0;
         CategoryComboBox.ItemsSource = new[] { new CategoryChoice(null, "모든 종류") };
         CategoryComboBox.SelectedIndex = 0;
+        UsageComboBox.ItemsSource = new[]
+        {
+            new UsageChoice(ItemUsageFilter.All, "모든 용도"),
+            new UsageChoice(ItemUsageFilter.Quest, "퀘스트용"),
+            new UsageChoice(ItemUsageFilter.Hideout, "은신처용"),
+        };
+        UsageComboBox.SelectedIndex = 0;
         UpdateModeControls();
     }
 
@@ -80,6 +87,9 @@ public partial class ItemsPage : UserControl
         SearchBox.Text = string.Empty;
         if (CategoryComboBox.Items.Count > 0)
             CategoryComboBox.SelectedIndex = 0;
+        UsageComboBox.SelectedItem = UsageComboBox.Items
+            .Cast<UsageChoice>()
+            .First(choice => choice.Value == ItemUsageFilter.All);
         FilterComboBox.SelectedItem = FilterComboBox.Items
             .Cast<FilterChoice>()
             .First(choice => choice.Value == ItemFilter.All);
@@ -111,6 +121,7 @@ public partial class ItemsPage : UserControl
         _busy = busy;
         SearchBox.IsEnabled = !busy;
         CategoryComboBox.IsEnabled = !busy;
+        UsageComboBox.IsEnabled = !busy && _viewMode == ItemViewMode.Normal;
         FilterComboBox.IsEnabled = !busy && _viewMode == ItemViewMode.Normal;
         ViewModeButton.IsEnabled = !busy;
         ItemList.IsEnabled = !busy;
@@ -249,6 +260,7 @@ public partial class ItemsPage : UserControl
     {
         var search = SearchBox.Text?.Trim() ?? string.Empty;
         var filter = (FilterComboBox.SelectedItem as FilterChoice)?.Value ?? ItemFilter.Needed;
+        var usage = (UsageComboBox.SelectedItem as UsageChoice)?.Value ?? ItemUsageFilter.All;
         var selectedId = _selectedRow?.ItemId;
 
         IEnumerable<ItemRow> query = _allRows;
@@ -259,7 +271,10 @@ public partial class ItemsPage : UserControl
                                    row.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase) ||
                                    row.ItemId.Contains(search, StringComparison.OrdinalIgnoreCase));
         if (_viewMode == ItemViewMode.Normal)
+        {
             query = query.Where(row => MatchesFilter(row, filter));
+            query = query.Where(row => MatchesUsage(row, usage));
+        }
 
         var availableBeforeCategory = query.ToArray();
         RefreshCategoryFilter(availableBeforeCategory);
@@ -329,6 +344,14 @@ public partial class ItemsPage : UserControl
         ItemFilter.Cleanup => row.SurplusTotal > 0,
         ItemFilter.Satisfied => row.RequiredTotal > 0 && row.RemainingTotal == 0 && row.SurplusTotal == 0,
         ItemFilter.Deferred => row.Protections.Count > 0 && row.OwnedTotal > 0 && row.SurplusTotal == 0,
+        _ => false,
+    };
+
+    private static bool MatchesUsage(ItemRow row, ItemUsageFilter usage) => usage switch
+    {
+        ItemUsageFilter.All => true,
+        ItemUsageFilter.Quest => row.IsQuestUsage,
+        ItemUsageFilter.Hideout => row.IsHideoutUsage,
         _ => false,
     };
 
@@ -405,6 +428,7 @@ public partial class ItemsPage : UserControl
         ViewModeButton.Content = _viewMode == ItemViewMode.Normal
             ? $"유동 제출 보기 ({groupCount})"
             : "일반 목록 보기";
+        UsageComboBox.IsEnabled = !_busy && _viewMode == ItemViewMode.Normal;
         FilterComboBox.IsEnabled = !_busy && _viewMode == ItemViewMode.Normal;
     }
 
@@ -436,6 +460,7 @@ public partial class ItemsPage : UserControl
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e) { if (!_updatingFilters) ApplyFilter(); }
     private void FilterComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e) { if (IsLoaded && !_updatingFilters) ApplyFilter(); }
     private void CategoryComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e) { if (IsLoaded && !_updatingFilters) ApplyFilter(); }
+    private void UsageComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e) { if (IsLoaded && !_updatingFilters) ApplyFilter(); }
 
     private void ViewModeButton_Click(object sender, RoutedEventArgs e)
     {
@@ -478,6 +503,7 @@ public partial class ItemsPage : UserControl
         _viewMode = ItemViewMode.Normal;
         _updatingFilters = true;
         if (CategoryComboBox.Items.Count > 0) CategoryComboBox.SelectedIndex = 0;
+        UsageComboBox.SelectedItem = UsageComboBox.Items.Cast<UsageChoice>().First(choice => choice.Value == ItemUsageFilter.All);
         FilterComboBox.SelectedItem = FilterComboBox.Items.Cast<FilterChoice>().First(choice => choice.Value == ItemFilter.Cleanup);
         _updatingFilters = false;
         CleanupNotice.Visibility = Visibility.Collapsed;
@@ -561,6 +587,8 @@ public partial class ItemsPage : UserControl
         public IReadOnlyList<CleanupProtection> Protections { get; }
         public IReadOnlyList<FlexibleQuestItemProgress> FlexibleProgresses { get; }
         public SourceRow[] Sources { get; }
+        public bool IsQuestUsage => FlexibleProgresses.Count > 0 || Sources.Any(source => source.Kind == SourceNavigationKind.Quest);
+        public bool IsHideoutUsage => Sources.Any(source => source.Kind == SourceNavigationKind.Hideout);
         public int OwnedTotal => OwnedFir + OwnedNonFir;
         public int SurplusTotal => SurplusFir + SurplusNonFir;
         public string FlexibleOwnedText => $"인레이드 {OwnedFir} · 일반 {OwnedNonFir}";
@@ -580,8 +608,10 @@ public partial class ItemsPage : UserControl
     private sealed record FlexibleGroupRow(string QuestId, string QuestName, string ProgressText, IReadOnlyList<ItemRow> Candidates);
     private sealed record FilterChoice(ItemFilter Value, string Label) { public override string ToString() => Label; }
     private sealed record CategoryChoice(ItemDisplayCategory? Value, string Label) { public override string ToString() => Label; }
+    private sealed record UsageChoice(ItemUsageFilter Value, string Label) { public override string ToString() => Label; }
 
     private enum SourceNavigationKind { None, Quest, Hideout }
     private enum ItemFilter { Needed, All, Cleanup, Satisfied, Deferred }
+    private enum ItemUsageFilter { All, Quest, Hideout }
     private enum ItemViewMode { Normal, Flexible }
 }
