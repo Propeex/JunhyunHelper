@@ -94,6 +94,14 @@ public sealed class HideoutApplicationService
         {
             foreach (var targetLevel in Enumerable.Range(currentLevel + 1, normalizedLevel - currentLevel))
             {
+                var key = UpgradeConsumptionKey(stationId, targetLevel);
+                if (consumptions.TryGetValue(key, out var existingConsumption) && !existingConsumption.IsEmpty)
+                {
+                    // The level was previously rolled back without restoring inventory. Those
+                    // materials remain spent, so a later re-upgrade must not deduct them twice.
+                    continue;
+                }
+
                 var upgrade = station.Levels.FirstOrDefault(candidate => candidate.Level == targetLevel);
                 if (upgrade is null)
                     continue;
@@ -106,7 +114,6 @@ public sealed class HideoutApplicationService
                         requirement.FoundInRaid)));
                 inventory = result.Inventory;
 
-                var key = UpgradeConsumptionKey(stationId, targetLevel);
                 if (result.Consumption.IsEmpty)
                     consumptions.Remove(key);
                 else
@@ -119,8 +126,12 @@ public sealed class HideoutApplicationService
             {
                 var key = UpgradeConsumptionKey(stationId, rolledBackLevel);
                 if (consumptions.TryGetValue(key, out var consumption) && restoreInventoryOnRollback)
+                {
                     inventory = FixedInventoryConsumptionPolicy.Restore(inventory, consumption);
-                consumptions.Remove(key);
+                    consumptions.Remove(key);
+                }
+                // Choosing not to restore deliberately keeps the ledger. If the user raises
+                // the level again, the same already-spent materials are not consumed twice.
             }
         }
 
