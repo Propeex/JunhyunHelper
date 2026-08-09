@@ -155,7 +155,6 @@ public sealed class TarkovMapLayoutCatalogClient
         if (!map.TryGetProperty("layers", out var layers) || layers.ValueKind != JsonValueKind.Array)
             return floors;
 
-        var index = 0;
         foreach (var layer in layers.EnumerateArray())
         {
             if (layer.ValueKind != JsonValueKind.Object)
@@ -171,7 +170,7 @@ public sealed class TarkovMapLayoutCatalogClient
             var maxHeight = extents.Max(extent => extent.MaxHeight);
             var name = ReadString(layer, "name") ?? svgLayer.Replace('_', ' ');
             floors.Add(new MapFloorDefinition(
-                $"layer-{index++}",
+                svgLayer,
                 name,
                 svgLayer,
                 minHeight,
