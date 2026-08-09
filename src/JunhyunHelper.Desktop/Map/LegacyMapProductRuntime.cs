@@ -11,6 +11,9 @@ namespace JunhyunHelper.Desktop.Map;
 /// </summary>
 public sealed class LegacyMapProductRuntime : IDisposable
 {
+    private const double SharedPlayerMarkerMinPixels = 9.0;  // 0.5x of legacy 18px base
+    private const double SharedPlayerMarkerMaxPixels = 54.0; // 3.0x of legacy 18px base
+
     private readonly TarkovHelper.Pages.Map.MapPage _page;
     private readonly OverlayMiniMapService _overlay = OverlayMiniMapService.Instance;
     private readonly JunhyunMapHotkeyService _hotkeys = new();
@@ -29,7 +32,15 @@ public sealed class LegacyMapProductRuntime : IDisposable
         _playerMarkerSlider = _page.FindName("SliderPlayerMarkerSize") as Slider;
 
         if (_playerMarkerSlider is not null)
+        {
+            _playerMarkerSlider.Minimum = SharedPlayerMarkerMinPixels;
+            _playerMarkerSlider.Maximum = SharedPlayerMarkerMaxPixels;
+            _playerMarkerSlider.Value = Math.Clamp(
+                _playerMarkerSlider.Value,
+                SharedPlayerMarkerMinPixels,
+                SharedPlayerMarkerMaxPixels);
             _playerMarkerSlider.ValueChanged += PlayerMarkerSlider_ValueChanged;
+        }
 
         InjectHotkeySettingsEntry();
         _overlay.SettingsChanged += Overlay_SettingsChanged;
@@ -102,9 +113,10 @@ public sealed class LegacyMapProductRuntime : IDisposable
         if (_playerMarkerSlider is null)
             return;
 
-        var target = Math.Clamp(settings.PlayerMarkerSize * 18.0,
-            _playerMarkerSlider.Minimum,
-            _playerMarkerSlider.Maximum);
+        var target = Math.Clamp(
+            settings.PlayerMarkerSize * 18.0,
+            SharedPlayerMarkerMinPixels,
+            SharedPlayerMarkerMaxPixels);
 
         _page.Dispatcher.BeginInvoke(() =>
         {
