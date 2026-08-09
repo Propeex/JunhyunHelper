@@ -1,3 +1,4 @@
+using System.Windows.Controls;
 using TarkovHelper.Models.Map;
 using TarkovHelper.Services.Settings;
 
@@ -8,9 +9,8 @@ public partial class MapPage
     private bool _junhyunManualFloorPolicyEnabled;
 
     /// <summary>
-    /// Replaces the exact MapPage screenshot-position callback with the same player
-    /// tracking behavior minus screenshot-based floor inference. Map detection is
-    /// handled separately by the JunhyunHelper product bridge.
+    /// Replaces the exact MapPage screenshot-position callback. Screenshot data may
+    /// select the Map and update the player position/heading, but never selects a floor.
     /// </summary>
     public void EnableJunhyunManualFloorPolicy()
     {
@@ -27,6 +27,7 @@ public partial class MapPage
     {
         DispatchUi(() =>
         {
+            SelectMapDetectedFromScreenshot(position.MapKey);
             UpdateMarkerPosition(position);
             UpdateTrailPath();
             UpdateCoordinatesDisplay(position);
@@ -35,5 +36,25 @@ public partial class MapPage
             if (MapSettings.Instance.AutoCenterEnabled)
                 CenterOnPosition(position);
         });
+    }
+
+    private void SelectMapDetectedFromScreenshot(string detectedMapKey)
+    {
+        if (string.IsNullOrWhiteSpace(detectedMapKey))
+            return;
+
+        var mapKey = _trackerService?.ResolveMapKey(detectedMapKey) ?? detectedMapKey;
+        if (string.Equals(_currentMapKey, mapKey, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        for (var i = 0; i < CmbMapSelect.Items.Count; i++)
+        {
+            if (CmbMapSelect.Items[i] is ComboBoxItem item &&
+                string.Equals(item.Tag as string, mapKey, StringComparison.OrdinalIgnoreCase))
+            {
+                CmbMapSelect.SelectedIndex = i;
+                return;
+            }
+        }
     }
 }
