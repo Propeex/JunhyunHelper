@@ -53,6 +53,13 @@ public sealed class MapUserDataStore
         {
             var json = await File.ReadAllTextAsync(_settingsPath, cancellationToken);
             var settings = JsonSerializer.Deserialize<MapUserSettings>(json, JsonOptions) ?? new MapUserSettings();
+
+            // System.Text.Json may hydrate explicit JSON null into a non-nullable
+            // reference property. Normalize old/corrupt preference files before
+            // the Map UI reads them so preferences can never crash rendering.
+            settings.LastFloorByMap ??= new Dictionary<string, string>(StringComparer.Ordinal);
+            settings.MarkerVisibility ??= MapUserSettings.DefaultMarkerVisibility();
+
             foreach (var kind in Enum.GetValues<MapMarkerKind>())
             {
                 if (!settings.MarkerVisibility.ContainsKey(kind))
@@ -61,6 +68,14 @@ public sealed class MapUserDataStore
             return settings;
         }
         catch (JsonException)
+        {
+            return new MapUserSettings();
+        }
+        catch (IOException)
+        {
+            return new MapUserSettings();
+        }
+        catch (UnauthorizedAccessException)
         {
             return new MapUserSettings();
         }
@@ -79,6 +94,14 @@ public sealed class MapUserDataStore
             return JsonSerializer.Deserialize<UserMapMarker[]>(json, JsonOptions) ?? Array.Empty<UserMapMarker>();
         }
         catch (JsonException)
+        {
+            return Array.Empty<UserMapMarker>();
+        }
+        catch (IOException)
+        {
+            return Array.Empty<UserMapMarker>();
+        }
+        catch (UnauthorizedAccessException)
         {
             return Array.Empty<UserMapMarker>();
         }
