@@ -1,6 +1,5 @@
 using System.Windows;
 using System.Windows.Media;
-using System.Windows.Shapes;
 
 namespace JunhyunHelper.Desktop.Map;
 
@@ -15,7 +14,7 @@ public static class JunhyunExtractMarkerIcon
 
     public static FrameworkElement Create(double size, Color color)
     {
-        return new Path
+        return new System.Windows.Shapes.Path
         {
             Fill = new SolidColorBrush(color),
             Stretch = Stretch.Uniform,
