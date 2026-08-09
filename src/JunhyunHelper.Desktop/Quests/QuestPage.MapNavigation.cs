@@ -1,12 +1,10 @@
-using JunhyunHelper.Core.Profiles;
-
 namespace JunhyunHelper.Desktop.Quests;
 
 public partial class QuestPage
 {
     /// <summary>
     /// Opens a Quest from an external product surface such as the Map sidebar.
-    /// Filters are normalized so the requested current Quest cannot be hidden.
+    /// Filters are normalized so the requested Quest cannot be hidden.
     /// </summary>
     public bool FocusQuest(string questId)
     {
@@ -22,14 +20,13 @@ public partial class QuestPage
         try
         {
             SearchBox.Text = string.Empty;
+            var targetStatus = target.Entry.Availability.State.ToString();
 
             StatusFilter.SelectedItem = StatusFilter.Items
                 .Cast<FilterOption>()
                 .FirstOrDefault(option =>
-                    string.Equals(
-                        option.Value,
-                        QuestAvailabilityState.Current.ToString(),
-                        StringComparison.Ordinal))
+                    string.Equals(option.Value, targetStatus, StringComparison.Ordinal))
+                ?? StatusFilter.Items.Cast<FilterOption>().FirstOrDefault(option => option.Value is null)
                 ?? StatusFilter.Items.Cast<FilterOption>().FirstOrDefault();
 
             TraderFilter.SelectedItem = TraderFilter.Items
