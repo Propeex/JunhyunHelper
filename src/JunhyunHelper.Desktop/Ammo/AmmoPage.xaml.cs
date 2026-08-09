@@ -34,7 +34,6 @@ public partial class AmmoPage : UserControl
     private AmmoRow? _selectedRow;
     private CancellationTokenSource? _iconLoadCts;
     private bool _usingWikiBallisticsFilter;
-    private bool _updatingFavorites;
 
     public AmmoPage()
     {
@@ -85,13 +84,16 @@ public partial class AmmoPage : UserControl
     public void SetBusy(bool busy)
     {
         CaliberComboBox.IsEnabled = !busy;
-        FavoriteCaliberComboBox.IsEnabled = !busy;
+        FavoriteCaliberMenuButton.IsEnabled = !busy;
         FavoriteCaliberButton.IsEnabled = !busy &&
                                           (CaliberComboBox.SelectedItem as CaliberChoice)?.RawCaliber is not null;
         ColumnMenuButton.IsEnabled = !busy;
         AmmoGrid.IsEnabled = !busy;
         if (busy)
+        {
+            FavoriteCaliberPopup.IsOpen = false;
             ColumnMenuPopup.IsOpen = false;
+        }
     }
 
     private static IReadOnlyList<AmmoRow> BuildRows(GameContentCatalog content, bool useWikiBallisticsFilter)
@@ -194,7 +196,7 @@ public partial class AmmoPage : UserControl
 
     private void RefreshFavoriteChoices()
     {
-        if (FavoriteCaliberComboBox is null)
+        if (FavoriteCaliberItems is null)
             return;
 
         var available = _allRows
@@ -204,12 +206,10 @@ public partial class AmmoPage : UserControl
             .OrderBy(choice => choice.Label, StringComparer.CurrentCulture)
             .ToArray();
 
-        _updatingFavorites = true;
-        FavoriteCaliberComboBox.ItemsSource = new[] { new CaliberChoice(null, "즐겨찾기 선택") }
-            .Concat(available)
-            .ToArray();
-        FavoriteCaliberComboBox.SelectedIndex = 0;
-        _updatingFavorites = false;
+        FavoriteCaliberItems.ItemsSource = available;
+        FavoriteCaliberEmptyText.Visibility = available.Length == 0
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 
     private void UpdateFavoriteButton()
@@ -577,15 +577,25 @@ public partial class AmmoPage : UserControl
         UpdateFavoriteButton();
     }
 
-    private void FavoriteCaliberComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void FavoriteCaliberMenuButton_Click(object sender, RoutedEventArgs e) =>
+        FavoriteCaliberPopup.IsOpen = !FavoriteCaliberPopup.IsOpen;
+
+    private void FavoriteCaliberShortcutButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_updatingFavorites || FavoriteCaliberComboBox.SelectedItem is not CaliberChoice { RawCaliber: { } caliber })
+        if (sender is not Button { Tag: string caliber } || string.IsNullOrWhiteSpace(caliber))
             return;
 
         var target = CaliberComboBox.Items.Cast<CaliberChoice>()
             .FirstOrDefault(choice => string.Equals(choice.RawCaliber, caliber, StringComparison.Ordinal));
         if (target is not null)
-            CaliberComboBox.SelectedItem = target;
+        {
+            if (ReferenceEquals(CaliberComboBox.SelectedItem, target))
+                ApplyFilter();
+            else
+                CaliberComboBox.SelectedItem = target;
+        }
+
+        FavoriteCaliberPopup.IsOpen = false;
     }
 
     private void UnlockQuestButton_Click(object sender, RoutedEventArgs e)
