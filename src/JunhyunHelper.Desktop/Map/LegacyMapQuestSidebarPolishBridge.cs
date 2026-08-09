@@ -11,6 +11,9 @@ namespace JunhyunHelper.Desktop.Map;
 public sealed class LegacyMapQuestSidebarPolishBridge : IDisposable
 {
     private static readonly Color QuestRowColor = Color.FromRgb(40, 40, 40);
+    private const double CheckBoxLaneWidth = 28;
+    private const double MarkerBadgeLaneWidth = 29;
+
     private readonly LegacyMapQuestSidebarV2 _sidebar;
     private bool _applying;
     private bool _disposed;
@@ -40,52 +43,7 @@ public sealed class LegacyMapQuestSidebarPolishBridge : IDisposable
         try
         {
             foreach (var row in FindDescendants<Border>(_sidebar).Where(IsQuestRow))
-            {
-                row.HorizontalAlignment = HorizontalAlignment.Stretch;
-                row.VerticalAlignment = VerticalAlignment.Top;
-                row.Padding = new Thickness(10, 8, 10, 8);
-                row.Margin = new Thickness(0, 0, 0, 7);
-
-                if (row.Child is not Grid grid)
-                    continue;
-
-                grid.HorizontalAlignment = HorizontalAlignment.Stretch;
-                grid.VerticalAlignment = VerticalAlignment.Center;
-
-                // Reserve the same checkbox lane on every row. Quests without map
-                // coordinates then line up with coordinate-bearing Quests instead of
-                // shifting left and right like uneven books on a shelf.
-                if (grid.ColumnDefinitions.Count >= 2)
-                    grid.ColumnDefinitions[0].Width = new GridLength(28);
-
-                foreach (var button in grid.Children.OfType<Button>())
-                {
-                    button.HorizontalAlignment = HorizontalAlignment.Stretch;
-                    button.HorizontalContentAlignment = HorizontalAlignment.Left;
-                    button.VerticalContentAlignment = VerticalAlignment.Center;
-
-                    if (button.Content is not StackPanel content)
-                        continue;
-
-                    content.HorizontalAlignment = HorizontalAlignment.Left;
-                    content.VerticalAlignment = VerticalAlignment.Center;
-
-                    var titleLine = content.Children.OfType<StackPanel>()
-                        .FirstOrDefault(panel => panel.Orientation == Orientation.Horizontal);
-                    if (titleLine is not null)
-                    {
-                        titleLine.HorizontalAlignment = HorizontalAlignment.Left;
-                        titleLine.VerticalAlignment = VerticalAlignment.Center;
-                        EnsureMarkerCodeLane(titleLine);
-                    }
-
-                    foreach (var text in FindDescendants<TextBlock>(content))
-                    {
-                        text.HorizontalAlignment = HorizontalAlignment.Left;
-                        text.TextAlignment = TextAlignment.Left;
-                    }
-                }
-            }
+                PolishRow(row);
         }
         finally
         {
@@ -93,19 +51,105 @@ public sealed class LegacyMapQuestSidebarPolishBridge : IDisposable
         }
     }
 
-    private static void EnsureMarkerCodeLane(StackPanel titleLine)
+    private static void PolishRow(Border row)
     {
-        if (titleLine.Children.Count == 0 || titleLine.Children[0] is Border)
+        row.HorizontalAlignment = HorizontalAlignment.Stretch;
+        row.VerticalAlignment = VerticalAlignment.Top;
+        row.Padding = new Thickness(10, 8, 10, 8);
+        row.Margin = new Thickness(0, 0, 0, 7);
+
+        if (row.Child is not Grid grid)
             return;
 
-        titleLine.Children.Insert(0, new Border
+        grid.HorizontalAlignment = HorizontalAlignment.Stretch;
+        grid.VerticalAlignment = VerticalAlignment.Center;
+
+        // The checkbox, A/B/C badge and Quest text each own a fixed lane. This is the
+        // important distinction from the previous polish pass: the badge is no longer
+        // part of a variable-width Button content panel, so A/B/C always starts at the
+        // exact same X coordinate regardless of Quest-name length.
+        EnsureThreeColumnLayout(grid);
+
+        var markerToggle = grid.Children.OfType<CheckBox>().FirstOrDefault();
+        if (markerToggle is not null)
         {
-            Width = 22,
-            Height = 22,
-            Margin = new Thickness(0, 0, 7, 0),
-            Background = Brushes.Transparent,
-            IsHitTestVisible = false,
-        });
+            Grid.SetColumn(markerToggle, 0);
+            markerToggle.HorizontalAlignment = HorizontalAlignment.Left;
+            markerToggle.VerticalAlignment = VerticalAlignment.Center;
+            markerToggle.Margin = new Thickness(0);
+        }
+
+        var button = grid.Children.OfType<Button>().FirstOrDefault();
+        if (button is null)
+            return;
+
+        Grid.SetColumn(button, 2);
+        button.HorizontalAlignment = HorizontalAlignment.Stretch;
+        button.HorizontalContentAlignment = HorizontalAlignment.Left;
+        button.VerticalContentAlignment = VerticalAlignment.Center;
+        button.Padding = new Thickness(0);
+        button.Margin = new Thickness(0);
+
+        if (button.Content is not StackPanel content)
+            return;
+
+        content.HorizontalAlignment = HorizontalAlignment.Stretch;
+        content.VerticalAlignment = VerticalAlignment.Center;
+
+        var titleLine = content.Children.OfType<StackPanel>()
+            .FirstOrDefault(panel => panel.Orientation == Orientation.Horizontal);
+        if (titleLine is not null)
+        {
+            titleLine.HorizontalAlignment = HorizontalAlignment.Left;
+            titleLine.VerticalAlignment = VerticalAlignment.Center;
+            MoveMarkerBadgeIntoFixedLane(grid, titleLine);
+        }
+
+        foreach (var text in FindDescendants<TextBlock>(content))
+        {
+            text.HorizontalAlignment = HorizontalAlignment.Left;
+            text.TextAlignment = TextAlignment.Left;
+        }
+    }
+
+    private static void EnsureThreeColumnLayout(Grid grid)
+    {
+        if (grid.ColumnDefinitions.Count == 3 &&
+            Math.Abs(grid.ColumnDefinitions[0].Width.Value - CheckBoxLaneWidth) < 0.01 &&
+            Math.Abs(grid.ColumnDefinitions[1].Width.Value - MarkerBadgeLaneWidth) < 0.01 &&
+            grid.ColumnDefinitions[2].Width.IsStar)
+        {
+            return;
+        }
+
+        grid.ColumnDefinitions.Clear();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(CheckBoxLaneWidth) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(MarkerBadgeLaneWidth) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+    }
+
+    private static void MoveMarkerBadgeIntoFixedLane(Grid grid, StackPanel titleLine)
+    {
+        // A previous build inserted a transparent placeholder Border for rows without a
+        // marker code. Remove either kind from the title panel; only a real coded badge
+        // is moved into the fixed badge column.
+        var leadingBorder = titleLine.Children.OfType<Border>().FirstOrDefault();
+        if (leadingBorder is null)
+            return;
+
+        titleLine.Children.Remove(leadingBorder);
+        if (leadingBorder.Child is not TextBlock codeText || string.IsNullOrWhiteSpace(codeText.Text))
+            return;
+
+        if (grid.Children.Contains(leadingBorder))
+            return;
+
+        leadingBorder.HorizontalAlignment = HorizontalAlignment.Left;
+        leadingBorder.VerticalAlignment = VerticalAlignment.Center;
+        leadingBorder.Margin = new Thickness(0);
+        leadingBorder.IsHitTestVisible = false;
+        Grid.SetColumn(leadingBorder, 1);
+        grid.Children.Add(leadingBorder);
     }
 
     private static bool IsQuestRow(Border border) =>
