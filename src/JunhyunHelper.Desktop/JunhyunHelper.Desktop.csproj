@@ -14,11 +14,16 @@
     <AssemblyName>JunhyunHelper</AssemblyName>
     <Product>준현 헬퍼</Product>
     <Version>0.1.0</Version>
+    <ApplicationIcon>$(MSBuildProjectDirectory)\obj\JunhyunHelper.AppIcon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <Using Remove="System.Drawing" />
     <Using Remove="System.Windows.Forms" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets/AppIcon.jpg" />
   </ItemGroup>
 
   <ItemGroup>
@@ -102,4 +107,8 @@
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
+
+  <Target Name="GenerateJunhyunHelperApplicationIcon" BeforeTargets="CoreCompile">
+    <Exec Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\Build\GenerateApplicationIcon.ps1&quot; -Source &quot;$(MSBuildProjectDirectory)\Assets\AppIcon.jpg&quot; -Destination &quot;$(ApplicationIcon)&quot;" />
+  </Target>
 </Project>
