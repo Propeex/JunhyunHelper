@@ -138,10 +138,14 @@
                     </Border>
 
                     <Border x:Name="NoMapPanel" Background="#CC16191D" Visibility="Collapsed">
-                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="500">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="520">
                             <TextBlock Text="표시할 지도 자산이 없습니다." FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                            <TextBlock Text="데이터 업데이트를 실행하면 지도 레이아웃과 SVG를 내려받아 검증합니다."
+                            <TextBlock x:Name="NoMapDetailText"
+                                       Text="지도 탭에 들어오면 필요한 지도 자산을 자동으로 다시 받습니다."
                                        Foreground="{StaticResource TextSecondaryBrush}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,8,0,0" />
+                            <Button x:Name="RetryMapAssetsButton" Content="지도 자산 다시 받기"
+                                    HorizontalAlignment="Center" Padding="16,7" Margin="0,14,0,0"
+                                    Click="RetryMapAssetsButton_Click" />
                         </StackPanel>
                     </Border>
                 </Grid>
