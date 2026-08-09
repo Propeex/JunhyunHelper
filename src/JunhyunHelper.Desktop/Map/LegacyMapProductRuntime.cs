@@ -20,6 +20,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
     private readonly LegacyMapHotkeySettingsBridge _hotkeySettingsBridge;
     private readonly LegacyMapMarkerSettingsV2Bridge _markerSettingsBridge;
     private readonly LegacyMapInteractionPolicyBridge _interactionPolicyBridge;
+    private readonly LegacyQuestMarkerRenderV3 _questMarkerRenderer;
     private readonly Slider? _playerMarkerSlider;
     private Button? _miniMapSettingsButton;
     private bool _syncingPlayerMarker;
@@ -37,6 +38,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
         _hotkeySettingsBridge = new LegacyMapHotkeySettingsBridge(page);
         _markerSettingsBridge = new LegacyMapMarkerSettingsV2Bridge(page);
         _interactionPolicyBridge = new LegacyMapInteractionPolicyBridge(page);
+        _questMarkerRenderer = new LegacyQuestMarkerRenderV3(page);
         _playerMarkerSlider = _page.FindName("SliderPlayerMarkerSize") as Slider;
 
         if (_playerMarkerSlider is not null)
@@ -152,6 +154,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
             return;
         _disposed = true;
 
+        _questMarkerRenderer.Dispose();
         _interactionPolicyBridge.Dispose();
         _markerSettingsBridge.Dispose();
         _hotkeySettingsBridge.Dispose();

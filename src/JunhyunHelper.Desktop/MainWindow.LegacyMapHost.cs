@@ -33,13 +33,8 @@ public partial class MainWindow : TarkovHelper.MainWindow
         _legacyMapTabHooked = true;
         MapTabButton.Click += LegacyMapTabButton_Click;
 
-        if (string.Equals(
-                Environment.GetEnvironmentVariable(MapSmokeEnvironmentVariable),
-                "1",
-                StringComparison.Ordinal))
-        {
+        if (IsMapSmokeEnabled())
             EnsureLegacyMapPage();
-        }
     }
 
     private async void LegacyMapTabButton_Click(object sender, RoutedEventArgs e)
@@ -134,16 +129,14 @@ public partial class MainWindow : TarkovHelper.MainWindow
                 page,
                 () => _legacyMapQuestV2?.Refresh());
             _legacyAdditionalMapMarkers = new LegacyAdditionalMapMarkerController(page);
+
+            if (IsMapSmokeEnabled())
+                page.Loaded += MapSmoke_PageLoaded;
         }
         catch (Exception exception)
         {
-            if (string.Equals(
-                    Environment.GetEnvironmentVariable(MapSmokeEnvironmentVariable),
-                    "1",
-                    StringComparison.Ordinal))
-            {
+            if (IsMapSmokeEnabled())
                 throw;
-            }
 
             MessageBox.Show(
                 this,
@@ -152,6 +145,94 @@ public partial class MainWindow : TarkovHelper.MainWindow
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
+    }
+
+    private static bool IsMapSmokeEnabled() =>
+        string.Equals(
+            Environment.GetEnvironmentVariable(MapSmokeEnvironmentVariable),
+            "1",
+            StringComparison.Ordinal);
+
+    private async void MapSmoke_PageLoaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not TarkovHelper.Pages.Map.MapPage page)
+            return;
+
+        page.Loaded -= MapSmoke_PageLoaded;
+        try
+        {
+            // Quest marker regression: the visual must be a zero-size Canvas anchor with
+            // a real child badge. The previous zero-size Grid implementation compiled but
+            // disappeared at WPF arrange time on the user's machine.
+            var probe = JunhyunQuestMarkerVisualFactoryV3.Create(
+                new JunhyunQuestMarkerProjectionV2(
+                    "smoke-quest",
+                    "Smoke Quest",
+                    "smoke-objective",
+                    "Smoke Objective",
+                    "A",
+                    100,
+                    100,
+                    null));
+            if (probe is not Canvas probeCanvas || probeCanvas.Children.Count == 0)
+                throw new InvalidOperationException("Quest marker Canvas anchor smoke failed.");
+
+            var mapSelector = page.FindName("CmbMapSelect") as ComboBox
+                ?? throw new InvalidOperationException("Map selector was not found.");
+            var floorSelector = page.FindName("CmbFloorSelect") as ComboBox
+                ?? throw new InvalidOperationException("Floor selector was not found.");
+            var mapSvg = page.FindName("MapSvg") as SharpVectors.Converters.SvgViewbox
+                ?? throw new InvalidOperationException("Map SVG view was not found.");
+
+            await WaitForAsync(() => mapSelector.Items.Count > 0, TimeSpan.FromSeconds(3));
+
+            var multiFloorIndex = -1;
+            for (var index = 0; index < mapSelector.Items.Count; index++)
+            {
+                if (mapSelector.Items[index] is ComboBoxItem item &&
+                    string.Equals(item.Tag as string, "Customs", StringComparison.OrdinalIgnoreCase))
+                {
+                    multiFloorIndex = index;
+                    break;
+                }
+            }
+
+            if (multiFloorIndex < 0)
+                throw new InvalidOperationException("Customs was not available for floor smoke.");
+
+            mapSelector.SelectedIndex = multiFloorIndex;
+            await WaitForAsync(
+                () => floorSelector.Items.Count >= 2 && floorSelector.Visibility == Visibility.Visible,
+                TimeSpan.FromSeconds(3));
+
+            var originalFloorIndex = Math.Max(0, floorSelector.SelectedIndex);
+            var targetFloorIndex = originalFloorIndex == 0 ? 1 : 0;
+            var sourceBefore = mapSvg.Source?.ToString();
+            floorSelector.SelectedIndex = targetFloorIndex;
+
+            await WaitForAsync(
+                () => floorSelector.SelectedIndex == targetFloorIndex &&
+                      !string.Equals(sourceBefore, mapSvg.Source?.ToString(), StringComparison.Ordinal),
+                TimeSpan.FromSeconds(4));
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MapSmoke] {exception}");
+            Environment.Exit(86);
+        }
+    }
+
+    private static async Task WaitForAsync(Func<bool> condition, TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (DateTime.UtcNow < deadline)
+        {
+            if (condition())
+                return;
+            await Task.Delay(100);
+        }
+
+        throw new TimeoutException("Map smoke condition timed out.");
     }
 
     private void OpenQuestFromMap(string questId)

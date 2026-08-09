@@ -10,23 +10,28 @@ using TarkovHelper.Services.Settings;
 namespace JunhyunHelper.Desktop.Map;
 
 /// <summary>
-/// Enforces V2 product policies on the exact Map engine: manual floor selection,
-/// screenshot Map switching, player tracking, current-floor-only presentation and
-/// no custom-marker surface.
+/// Enforces JunhyunHelper product policies while leaving the exact Tarkov Helper
+/// floor selector and its native floor-change loading path intact.
 /// </summary>
 public sealed class LegacyMapInteractionPolicyBridge : IDisposable
 {
     private readonly TarkovHelper.Pages.Map.MapPage _page;
     private readonly MapTrackerService _tracker = MapTrackerService.Instance;
     private readonly OverlayMiniMapService _overlay = OverlayMiniMapService.Instance;
-    private readonly ComboBox? _legacyFloor;
+    private readonly ComboBox? _floorSelector;
     private readonly ComboBox? _mapSelector;
-    private readonly TextBlock? _floorLabel;
-    private readonly ComboBox? _productFloor;
     private readonly Canvas? _mapMarkers;
     private readonly Canvas? _extractMarkers;
+    private readonly CheckBox? _pmcSpawnToggle;
+    private readonly CheckBox? _sniperToggle;
+    private readonly CheckBox? _rogueToggle;
+    private readonly CheckBox? _cultistToggle;
+    private readonly CheckBox? _leverToggle;
+    private readonly CheckBox? _bossToggle;
+    private readonly CheckBox? _pmcExtractToggle;
+    private readonly CheckBox? _scavExtractToggle;
+    private readonly CheckBox? _transitToggle;
     private readonly DispatcherTimer _policyTimer;
-    private bool _syncingFloor;
     private bool _disposed;
 
     public LegacyMapInteractionPolicyBridge(TarkovHelper.Pages.Map.MapPage page)
@@ -34,24 +39,27 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
         _page = page ?? throw new ArgumentNullException(nameof(page));
         _page.EnableJunhyunManualFloorPolicy();
 
-        _legacyFloor = _page.FindName("CmbFloorSelect") as ComboBox;
+        _floorSelector = _page.FindName("CmbFloorSelect") as ComboBox;
         _mapSelector = _page.FindName("CmbMapSelect") as ComboBox;
-        _floorLabel = _page.FindName("TxtFloorLabel") as TextBlock;
         _mapMarkers = _page.FindName("MapMarkersContainer") as Canvas;
         _extractMarkers = _page.FindName("ExtractMarkersContainer") as Canvas;
+        _pmcSpawnToggle = _page.FindName("ChkShowPmcSpawns") as CheckBox;
+        _sniperToggle = _page.FindName("ChkShowSniperScavs") as CheckBox;
+        _rogueToggle = _page.FindName("ChkShowRogues") as CheckBox;
+        _cultistToggle = _page.FindName("ChkShowCultists") as CheckBox;
+        _leverToggle = _page.FindName("ChkShowLeversMarker") as CheckBox;
+        _bossToggle = _page.FindName("ChkShowBosses") as CheckBox;
+        _pmcExtractToggle = _page.FindName("ChkShowPmcExtracts") as CheckBox;
+        _scavExtractToggle = _page.FindName("ChkShowScavExtracts") as CheckBox;
+        _transitToggle = _page.FindName("ChkShowTransitExtracts") as CheckBox;
 
-        _productFloor = CreateProductFloorSelector();
         RemoveCustomMarkers();
         ApplyFixedPolicies();
 
         _tracker.PositionUpdated += Tracker_PositionUpdated;
         _overlay.SettingsChanged += Overlay_SettingsChanged;
-        if (_legacyFloor is not null)
-            _legacyFloor.SelectionChanged += LegacyFloor_SelectionChanged;
-        if (_productFloor is not null)
-            _productFloor.SelectionChanged += ProductFloor_SelectionChanged;
-        if (_mapSelector is not null)
-            _mapSelector.SelectionChanged += MapSelector_SelectionChanged;
+        if (_floorSelector is not null)
+            _floorSelector.SelectionChanged += FloorSelector_SelectionChanged;
 
         _policyTimer = new DispatcherTimer(
             TimeSpan.FromMilliseconds(200),
@@ -62,32 +70,13 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
         _page.Dispatcher.BeginInvoke(MaintainPolicies, DispatcherPriority.Loaded);
     }
 
-    private ComboBox? CreateProductFloorSelector()
-    {
-        if (_legacyFloor?.Parent is not StackPanel parent)
-            return null;
-
-        var index = parent.Children.IndexOf(_legacyFloor);
-        var combo = new ComboBox
-        {
-            Width = _legacyFloor.Width,
-            Visibility = Visibility.Collapsed,
-            Margin = _legacyFloor.Margin,
-            ToolTip = "현재 층을 직접 선택합니다.",
-        };
-        parent.Children.Insert(Math.Max(0, index + 1), combo);
-        _legacyFloor.Visibility = Visibility.Collapsed;
-        return combo;
-    }
-
     private void MaintainPolicies()
     {
         if (_disposed)
             return;
 
         ApplyFixedPolicies();
-        SyncFloorSelector();
-        EnforceCurrentFloorOnly();
+        EnforceCurrentFloorAndFilters();
         RemoveCustomMarkers();
     }
 
@@ -116,113 +105,69 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
             _overlay.SaveSettings();
     }
 
-    private void SyncFloorSelector()
+    private void FloorSelector_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
+        _page.Dispatcher.BeginInvoke(EnforceCurrentFloorAndFilters, DispatcherPriority.Background);
+
+    private void EnforceCurrentFloorAndFilters()
     {
-        if (_legacyFloor is null || _productFloor is null)
-            return;
+        var selectedFloor = (_floorSelector?.SelectedItem as ComboBoxItem)?.Tag as string;
 
-        _legacyFloor.Visibility = Visibility.Collapsed;
-
-        var shouldShow = _floorLabel?.Visibility == Visibility.Visible && _legacyFloor.Items.Count > 0;
-        _productFloor.Visibility = shouldShow ? Visibility.Visible : Visibility.Collapsed;
-        if (!shouldShow)
-            return;
-
-        var rebuild = _productFloor.Items.Count != _legacyFloor.Items.Count;
-        if (!rebuild)
+        if (_mapMarkers is not null)
         {
-            for (var i = 0; i < _legacyFloor.Items.Count; i++)
+            foreach (FrameworkElement child in _mapMarkers.Children)
             {
-                var source = _legacyFloor.Items[i] as ComboBoxItem;
-                var copy = _productFloor.Items[i] as ComboBoxItem;
-                if (!string.Equals(source?.Tag as string, copy?.Tag as string, StringComparison.OrdinalIgnoreCase) ||
-                    !Equals(source?.Content, copy?.Content))
-                {
-                    rebuild = true;
-                    break;
-                }
+                if (child.Tag is not MapMarker marker)
+                    continue;
+
+                child.Visibility = IsCurrentFloor(marker.FloorId, selectedFloor) &&
+                                   IsGeneralMarkerEnabled(marker.Type)
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
             }
         }
 
-        _syncingFloor = true;
-        try
+        if (_extractMarkers is not null)
         {
-            if (rebuild)
+            foreach (FrameworkElement child in _extractMarkers.Children)
             {
-                _productFloor.Items.Clear();
-                foreach (var item in _legacyFloor.Items.OfType<ComboBoxItem>())
-                {
-                    _productFloor.Items.Add(new ComboBoxItem
-                    {
-                        Content = item.Content,
-                        Tag = item.Tag,
-                    });
-                }
+                if (child.Tag is not MapExtract extract)
+                    continue;
+
+                child.Visibility = IsCurrentFloor(extract.FloorId, selectedFloor) &&
+                                   IsExtractEnabled(extract.Faction)
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
             }
-
-            _productFloor.SelectedIndex = _legacyFloor.SelectedIndex;
-        }
-        finally
-        {
-            _syncingFloor = false;
         }
     }
 
-    private void ProductFloor_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private bool IsGeneralMarkerEnabled(MarkerType type) => type switch
     {
-        if (_syncingFloor || _legacyFloor is null || _productFloor is null)
-            return;
+        MarkerType.PmcSpawn => IsChecked(_pmcSpawnToggle),
+        MarkerType.SniperScavSpawn => IsChecked(_sniperToggle),
+        MarkerType.RogueSpawn => IsChecked(_rogueToggle),
+        MarkerType.CultistSpawn => IsChecked(_cultistToggle),
+        MarkerType.Lever => IsChecked(_leverToggle),
+        MarkerType.BossSpawn => IsChecked(_bossToggle),
+        _ => true,
+    };
 
-        if (_productFloor.SelectedIndex >= 0 &&
-            _productFloor.SelectedIndex < _legacyFloor.Items.Count)
-        {
-            _legacyFloor.SelectedIndex = _productFloor.SelectedIndex;
-        }
-    }
-
-    private void LegacyFloor_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private bool IsExtractEnabled(ExtractFaction faction) => faction switch
     {
-        if (!_syncingFloor)
-            _page.Dispatcher.BeginInvoke(SyncFloorSelector);
-    }
+        ExtractFaction.Pmc => IsChecked(_pmcExtractToggle),
+        ExtractFaction.Scav => IsChecked(_scavExtractToggle),
+        ExtractFaction.Shared => IsChecked(_pmcExtractToggle) || IsChecked(_scavExtractToggle),
+        ExtractFaction.Transit => IsChecked(_transitToggle),
+        _ => true,
+    };
 
-    private void MapSelector_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
-        _page.Dispatcher.BeginInvoke(SyncFloorSelector, DispatcherPriority.Loaded);
-
-    private void EnforceCurrentFloorOnly()
-    {
-        var selectedFloor = (_legacyFloor?.SelectedItem as ComboBoxItem)?.Tag as string;
-        ApplyFloorVisibility(_mapMarkers, selectedFloor);
-        ApplyFloorVisibility(_extractMarkers, selectedFloor);
-    }
-
-    private static void ApplyFloorVisibility(Canvas? container, string? selectedFloor)
-    {
-        if (container is null)
-            return;
-
-        foreach (FrameworkElement child in container.Children)
-        {
-            var floorId = child.Tag switch
-            {
-                MapMarker marker => marker.FloorId,
-                MapExtract extract => extract.FloorId,
-                _ => null,
-            };
-
-            if (child.Tag is not MapMarker && child.Tag is not MapExtract)
-                continue;
-
-            child.Visibility = IsCurrentFloor(floorId, selectedFloor)
-                ? Visibility.Visible
-                : Visibility.Collapsed;
-        }
-    }
+    private static bool IsChecked(CheckBox? checkBox) => checkBox?.IsChecked != false;
 
     private static bool IsCurrentFloor(string? markerFloor, string? selectedFloor)
     {
         if (string.IsNullOrWhiteSpace(selectedFloor))
             return true;
+
         var effectiveMarkerFloor = string.IsNullOrWhiteSpace(markerFloor) ? "main" : markerFloor;
         return string.Equals(effectiveMarkerFloor, selectedFloor, StringComparison.OrdinalIgnoreCase);
     }
@@ -241,11 +186,6 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
             return;
 
         var selectedMapKey = (_mapSelector.SelectedItem as ComboBoxItem)?.Tag as string;
-
-        // Screenshot parsing updates MapTracker.CurrentMapKey before PositionUpdated is
-        // published. The V2 bridge previously treated that tracker value as proof that
-        // the UI had already switched and returned early, leaving the ComboBox and map
-        // artwork on the old map. Compare against the actual selected UI item instead.
         if (!string.Equals(selectedMapKey, mapKey, StringComparison.OrdinalIgnoreCase))
         {
             for (var i = 0; i < _mapSelector.Items.Count; i++)
@@ -308,11 +248,7 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
         _policyTimer.Stop();
         _tracker.PositionUpdated -= Tracker_PositionUpdated;
         _overlay.SettingsChanged -= Overlay_SettingsChanged;
-        if (_legacyFloor is not null)
-            _legacyFloor.SelectionChanged -= LegacyFloor_SelectionChanged;
-        if (_productFloor is not null)
-            _productFloor.SelectionChanged -= ProductFloor_SelectionChanged;
-        if (_mapSelector is not null)
-            _mapSelector.SelectionChanged -= MapSelector_SelectionChanged;
+        if (_floorSelector is not null)
+            _floorSelector.SelectionChanged -= FloorSelector_SelectionChanged;
     }
 }
