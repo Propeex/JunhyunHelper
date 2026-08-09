@@ -147,9 +147,6 @@ public partial class OverlayMiniMapWindow
 
         try
         {
-            // GetCursorPos uses physical screen pixels while WPF layout uses DIPs.
-            // PointFromScreen performs the per-monitor DPI conversion before bounds
-            // checking, so hover reveal remains correct at 125%/150% scaling too.
             var local = PointFromScreen(new Point(cursor.X, cursor.Y));
             var width = ActualWidth > 0 ? ActualWidth : Width;
             var height = ActualHeight > 0 ? ActualHeight : Height;
@@ -212,11 +209,6 @@ public partial class OverlayMiniMapWindow
         _junhyunLastQuestMapKey = mapKey;
     }
 
-    /// <summary>
-    /// Main Map uses 24px as the standard map-marker base size; the original MiniMap
-    /// used 18px. Apply the exact 4/3 presentation ratio after the original inverse
-    /// zoom transform so icon size stays synchronized with Main Map.
-    /// </summary>
     private void SynchronizeGeneralMarkerScale()
     {
         var inverse = 1.0 / Math.Max(_settings.ZoomLevel, OverlayMiniMapSettings.MinZoom);
@@ -230,11 +222,6 @@ public partial class OverlayMiniMapWindow
         }
     }
 
-    /// <summary>
-    /// The original MiniMap rendered extracts as small unlabeled dots while Main Map
-    /// rendered an emergency-exit marker plus name. Replace only that presentation
-    /// layer so MiniMap uses the same semantic color, base size and text-size setting.
-    /// </summary>
     private void SynchronizeExtractPresentation(bool force)
     {
         if (string.IsNullOrWhiteSpace(_currentMapKey) || _currentMapConfig is null)
@@ -337,19 +324,11 @@ public partial class OverlayMiniMapWindow
         Canvas.SetTop(circle, -markerSize / 2);
         canvas.Children.Add(circle);
 
-        var glyph = new TextBlock
-        {
-            Text = "↗",
-            Foreground = Brushes.White,
-            FontWeight = FontWeights.Bold,
-            FontSize = markerSize * 0.72,
-            TextAlignment = TextAlignment.Center,
-            Width = markerSize,
-            Height = markerSize,
-        };
-        Canvas.SetLeft(glyph, -markerSize / 2);
-        Canvas.SetTop(glyph, -markerSize / 2 - 1);
-        canvas.Children.Add(glyph);
+        var iconSize = markerSize * 0.7;
+        var icon = JunhyunExtractMarkerIcon.Create(iconSize, Colors.White);
+        Canvas.SetLeft(icon, -iconSize / 2);
+        Canvas.SetTop(icon, -iconSize / 2);
+        canvas.Children.Add(icon);
 
         var displayName = !string.IsNullOrWhiteSpace(extract.NameKo) ? extract.NameKo : extract.Name;
         var label = new Border
