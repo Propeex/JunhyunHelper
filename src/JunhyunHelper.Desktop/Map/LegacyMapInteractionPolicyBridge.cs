@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
+using TarkovHelper.Models;
 using TarkovHelper.Models.Map;
 using TarkovHelper.Services;
 using TarkovHelper.Services.Map;
@@ -9,9 +10,9 @@ using TarkovHelper.Services.Settings;
 namespace JunhyunHelper.Desktop.Map;
 
 /// <summary>
-/// Enforces V2 product policies without changing the exact Map rendering/coordinate
-/// engine: manual floor selection, screenshot map switching, player tracking and no
-/// custom-marker surface.
+/// Enforces V2 product policies on the exact Map engine: manual floor selection,
+/// screenshot Map switching, player tracking, current-floor-only presentation and
+/// no custom-marker surface.
 /// </summary>
 public sealed class LegacyMapInteractionPolicyBridge : IDisposable
 {
@@ -22,6 +23,8 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
     private readonly ComboBox? _mapSelector;
     private readonly TextBlock? _floorLabel;
     private readonly ComboBox? _productFloor;
+    private readonly Canvas? _mapMarkers;
+    private readonly Canvas? _extractMarkers;
     private readonly DispatcherTimer _policyTimer;
     private bool _syncingFloor;
     private bool _disposed;
@@ -29,9 +32,13 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
     public LegacyMapInteractionPolicyBridge(TarkovHelper.Pages.Map.MapPage page)
     {
         _page = page ?? throw new ArgumentNullException(nameof(page));
+        _page.EnableJunhyunManualFloorPolicy();
+
         _legacyFloor = _page.FindName("CmbFloorSelect") as ComboBox;
         _mapSelector = _page.FindName("CmbMapSelect") as ComboBox;
         _floorLabel = _page.FindName("TxtFloorLabel") as TextBlock;
+        _mapMarkers = _page.FindName("MapMarkersContainer") as Canvas;
+        _extractMarkers = _page.FindName("ExtractMarkersContainer") as Canvas;
 
         _productFloor = CreateProductFloorSelector();
         RemoveCustomMarkers();
@@ -47,7 +54,7 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
             _mapSelector.SelectionChanged += MapSelector_SelectionChanged;
 
         _policyTimer = new DispatcherTimer(
-            TimeSpan.FromMilliseconds(250),
+            TimeSpan.FromMilliseconds(200),
             DispatcherPriority.Background,
             (_, _) => MaintainPolicies(),
             _page.Dispatcher);
@@ -80,12 +87,14 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
 
         ApplyFixedPolicies();
         SyncFloorSelector();
+        EnforceCurrentFloorOnly();
         RemoveCustomMarkers();
     }
 
     private void ApplyFixedPolicies()
     {
         MapSettings.Instance.AutoCenterEnabled = true;
+        MapSettings.Instance.AutoFloorEnabled = false;
 
         var settings = _overlay.Settings;
         var changed = settings.OtherFloorOpacity != 0.0 ||
@@ -112,9 +121,6 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
         if (_legacyFloor is null || _productFloor is null)
             return;
 
-        // This is the key boundary: the exact MapPage auto-floor code skips when its
-        // original selector is collapsed. The product selector drives the original
-        // selected index only from explicit user/hotkey changes.
         _legacyFloor.Visibility = Visibility.Collapsed;
 
         var shouldShow = _floorLabel?.Visibility == Visibility.Visible && _legacyFloor.Items.Count > 0;
@@ -182,6 +188,44 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
 
     private void MapSelector_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
         _page.Dispatcher.BeginInvoke(SyncFloorSelector, DispatcherPriority.Loaded);
+
+    private void EnforceCurrentFloorOnly()
+    {
+        var selectedFloor = (_legacyFloor?.SelectedItem as ComboBoxItem)?.Tag as string;
+        ApplyFloorVisibility(_mapMarkers, selectedFloor);
+        ApplyFloorVisibility(_extractMarkers, selectedFloor);
+    }
+
+    private static void ApplyFloorVisibility(Canvas? container, string? selectedFloor)
+    {
+        if (container is null)
+            return;
+
+        foreach (FrameworkElement child in container.Children)
+        {
+            var floorId = child.Tag switch
+            {
+                MapMarker marker => marker.FloorId,
+                MapExtract extract => extract.FloorId,
+                _ => null,
+            };
+
+            if (child.Tag is not MapMarker && child.Tag is not MapExtract)
+                continue;
+
+            child.Visibility = IsCurrentFloor(floorId, selectedFloor)
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        }
+    }
+
+    private static bool IsCurrentFloor(string? markerFloor, string? selectedFloor)
+    {
+        if (string.IsNullOrWhiteSpace(selectedFloor))
+            return true;
+        var effectiveMarkerFloor = string.IsNullOrWhiteSpace(markerFloor) ? "main" : markerFloor;
+        return string.Equals(effectiveMarkerFloor, selectedFloor, StringComparison.OrdinalIgnoreCase);
+    }
 
     private void Tracker_PositionUpdated(object? sender, ScreenPosition position)
     {
