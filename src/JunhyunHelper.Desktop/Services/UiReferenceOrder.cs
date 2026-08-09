@@ -17,8 +17,6 @@ internal static class UiReferenceOrder
         "lightkeeper",
         "btrdriver");
 
-    // This is the established in-game filter/location order used by the helper.
-    // Unknown future locations remain visible after these entries and fall back to display-name order.
     private static readonly IReadOnlyDictionary<string, int> MapRanks = BuildRanks(
         "customs",
         "shoreline",
@@ -46,8 +44,14 @@ internal static class UiReferenceOrder
         return MapRanks.TryGetValue(key, out var rank) ? rank : int.MaxValue;
     }
 
-    public static string MapFilterKey(MapReference map) =>
-        IsGroundZero(map) ? "group:groundzero" : $"map:{map.Id}";
+    public static string MapFilterKey(MapReference map)
+    {
+        if (IsGroundZero(map))
+            return "group:groundzero";
+        if (IsFactory(map))
+            return "group:factory";
+        return $"map:{map.Id}";
+    }
 
     public static bool IsGroundZero(MapReference? map)
     {
@@ -56,19 +60,32 @@ internal static class UiReferenceOrder
 
         var normalizedKey = Normalize(map.NormalizedKey);
         var englishName = Normalize(map.NameEn);
-
         return normalizedKey is "groundzero" or "groundzero21" or "sandbox" or "sandboxhigh" ||
                englishName is "groundzero" or "groundzero21";
     }
 
-    public static bool IsGroundZeroHighVariant(MapReference? map)
+    public static bool IsFactory(MapReference? map)
     {
         if (map is null)
             return false;
 
         var normalizedKey = Normalize(map.NormalizedKey);
         var englishName = Normalize(map.NameEn);
-        return normalizedKey is "groundzero21" or "sandboxhigh" || englishName == "groundzero21";
+        return normalizedKey is "factory" or "factoryday" or "factorynight" or "factory4day" or "factory4night" ||
+               englishName is "factory" or "factoryday" or "factorynight";
+    }
+
+    public static bool IsSecondaryMapVariant(MapReference? map)
+    {
+        if (map is null)
+            return false;
+
+        var normalizedKey = Normalize(map.NormalizedKey);
+        var englishName = Normalize(map.NameEn);
+        if (normalizedKey is "groundzero21" or "sandboxhigh" || englishName == "groundzero21")
+            return true;
+
+        return normalizedKey is "factorynight" or "factory4night" || englishName == "factorynight";
     }
 
     private static string CanonicalMapName(MapReference? map)
@@ -77,6 +94,8 @@ internal static class UiReferenceOrder
             return string.Empty;
         if (IsGroundZero(map))
             return "groundzero";
+        if (IsFactory(map))
+            return "factory";
 
         var key = Normalize(map.NameEn);
         return key switch
