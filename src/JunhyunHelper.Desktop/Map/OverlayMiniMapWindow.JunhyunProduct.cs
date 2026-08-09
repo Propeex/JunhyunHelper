@@ -34,8 +34,6 @@ public partial class OverlayMiniMapWindow
     {
         base.OnSourceInitialized(e);
 
-        // Position is a product-owned anchor now. Keep the original map interactions,
-        // but remove the original window drag handler.
         MouseLeftButtonDown -= Window_MouseLeftButtonDown;
 
         _settings.Opacity = 1.0;
@@ -44,6 +42,7 @@ public partial class OverlayMiniMapWindow
 
         SizeChanged += JunhyunMiniMap_SizeChanged;
         LocationChanged += JunhyunMiniMap_LocationChanged;
+        Closed += JunhyunMiniMap_Closed;
         JunhyunMapQuestProjection.Changed += JunhyunQuestProjection_Changed;
 
         _junhyunProductTimer = new DispatcherTimer(
@@ -56,38 +55,10 @@ public partial class OverlayMiniMapWindow
         RenderJunhyunQuestProjection(force: true);
     }
 
-    protected override void OnClosed(EventArgs e)
-    {
-        if (_junhyunProductTimer is not null)
-        {
-            _junhyunProductTimer.Stop();
-            _junhyunProductTimer.Tick -= JunhyunProductTimer_Tick;
-            _junhyunProductTimer = null;
-        }
-
-        SizeChanged -= JunhyunMiniMap_SizeChanged;
-        LocationChanged -= JunhyunMiniMap_LocationChanged;
-        JunhyunMapQuestProjection.Changed -= JunhyunQuestProjection_Changed;
-
-        base.OnClosed(e);
-    }
-
-    /// <summary>
-    /// Hotkey target. Changes the window size while retaining the same top-right
-    /// anchor used by the original double-click reset behavior.
-    /// </summary>
     public void IncreaseAnchoredSize() => ChangeAnchoredSize(+40);
 
-    /// <summary>
-    /// Hotkey target. Changes the window size while retaining the same top-right
-    /// anchor used by the original double-click reset behavior.
-    /// </summary>
     public void DecreaseAnchoredSize() => ChangeAnchoredSize(-40);
 
-    /// <summary>
-    /// Main Map player-marker setting is canonical. Apply the same relative scale
-    /// to the MiniMap player marker.
-    /// </summary>
     public void ApplySharedPlayerMarkerSize(double mapPixelSize)
     {
         _settings.PlayerMarkerSize = Math.Clamp(mapPixelSize / 18.0, 0.5, 3.0);
@@ -118,20 +89,14 @@ public partial class OverlayMiniMapWindow
 
     private void JunhyunMiniMap_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        if (_junhyunReanchoring)
-            return;
-
-        PositionToTopRightSafe();
+        if (!_junhyunReanchoring)
+            PositionToTopRightSafe();
     }
 
     private void JunhyunMiniMap_LocationChanged(object? sender, EventArgs e)
     {
-        if (_junhyunReanchoring)
-            return;
-
-        // Any external/user attempt to move the overlay is snapped back to the
-        // canonical top-right anchor.
-        PositionToTopRightSafe();
+        if (!_junhyunReanchoring)
+            PositionToTopRightSafe();
     }
 
     private void PositionToTopRightSafe()
@@ -152,8 +117,6 @@ public partial class OverlayMiniMapWindow
 
     private void JunhyunProductTimer_Tick(object? sender, EventArgs e)
     {
-        // Overall MiniMap opacity is product-fixed to 100%. Window.Opacity is used
-        // only for temporary hover reveal and is independent from Click-through.
         _settings.Opacity = 1.0;
         if (Math.Abs(MainBorder.Opacity - 1.0) > 0.001)
             MainBorder.Opacity = 1.0;
@@ -199,9 +162,6 @@ public partial class OverlayMiniMapWindow
             .Where(marker => IsCurrentFloor(marker.FloorId, _selectedFloorId))
             .ToArray();
 
-        // The original asynchronous marker refresh clears QuestMarkersContainer.
-        // Count mismatch lets us restore the shared projection after that refresh
-        // without a second independent marker-loading pipeline.
         if (!force &&
             string.Equals(_junhyunLastQuestMapKey, mapKey, StringComparison.OrdinalIgnoreCase) &&
             _junhyunLastQuestMarkerCount == visibleMarkers.Length &&
@@ -228,5 +188,20 @@ public partial class OverlayMiniMapWindow
             : Visibility.Collapsed;
         _junhyunLastQuestMarkerCount = visibleMarkers.Length;
         _junhyunLastQuestMapKey = mapKey;
+    }
+
+    private void JunhyunMiniMap_Closed(object? sender, EventArgs e)
+    {
+        Closed -= JunhyunMiniMap_Closed;
+        SizeChanged -= JunhyunMiniMap_SizeChanged;
+        LocationChanged -= JunhyunMiniMap_LocationChanged;
+        JunhyunMapQuestProjection.Changed -= JunhyunQuestProjection_Changed;
+
+        if (_junhyunProductTimer is not null)
+        {
+            _junhyunProductTimer.Stop();
+            _junhyunProductTimer.Tick -= JunhyunProductTimer_Tick;
+            _junhyunProductTimer = null;
+        }
     }
 }
