@@ -16,6 +16,8 @@ public sealed class HideoutLevelChangeRequestedEventArgs(
     public int? Level { get; } = level;
 }
 
+public sealed record HideoutItemNavigationRequestedEventArgs(string ItemId);
+
 public partial class HideoutPage : UserControl
 {
     private GameContentCatalog? _content;
@@ -31,6 +33,7 @@ public partial class HideoutPage : UserControl
     }
 
     public event EventHandler<HideoutLevelChangeRequestedEventArgs>? LevelChangeRequested;
+    public event EventHandler<HideoutItemNavigationRequestedEventArgs>? ItemNavigationRequested;
 
     public void SetImageCache(ImageCacheService imageCache) =>
         _imageCache = imageCache ?? throw new ArgumentNullException(nameof(imageCache));
@@ -62,16 +65,30 @@ public partial class HideoutPage : UserControl
             var selected = (StationList.ItemsSource as IEnumerable<StationRow>)?
                 .FirstOrDefault(row => row.Entry.Station.Id == selectedStationId);
             if (selected is not null)
-            {
                 StationList.SelectedItem = selected;
-                StationList.ScrollIntoView(selected);
-            }
         }
 
         _iconLoadCts?.Cancel();
         _iconLoadCts?.Dispose();
         _iconLoadCts = new CancellationTokenSource();
         _ = LoadIconsAsync(_rows, _iconLoadCts.Token);
+    }
+
+    public void NavigateToStation(string stationId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(stationId);
+        if (_rows.All(row => !string.Equals(row.Entry.Station.Id, stationId, StringComparison.Ordinal)))
+            return;
+
+        SearchBox.Text = string.Empty;
+        ApplySearch();
+        var target = (StationList.ItemsSource as IEnumerable<StationRow>)?
+            .FirstOrDefault(row => string.Equals(row.Entry.Station.Id, stationId, StringComparison.Ordinal));
+        if (target is null)
+            return;
+
+        StationList.SelectedItem = target;
+        StationList.ScrollIntoView(target);
     }
 
     public void SetBusy(bool busy) => IsEnabled = !busy;
@@ -119,7 +136,7 @@ public partial class HideoutPage : UserControl
                     continue;
 
                 var image = await _imageCache.LoadAsync(
-                    $"hideout-material-{row.ItemId}",
+                    $"item-{row.ItemId}",
                     row.IconUrl,
                     cancellationToken);
                 if (image is not null && !cancellationToken.IsCancellationRequested)
@@ -221,7 +238,6 @@ public partial class HideoutPage : UserControl
     }
 
     private void LevelMinusButton_Click(object sender, RoutedEventArgs e) => ChangeSelectedLevel(-1);
-
     private void LevelPlusButton_Click(object sender, RoutedEventArgs e) => ChangeSelectedLevel(1);
 
     private void ChangeSelectedLevel(int delta)
@@ -237,6 +253,12 @@ public partial class HideoutPage : UserControl
         LevelChangeRequested?.Invoke(
             this,
             new HideoutLevelChangeRequestedEventArgs(row.Entry.Station.Id, targetLevel));
+    }
+
+    private void MaterialButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: string itemId } && !string.IsNullOrWhiteSpace(itemId))
+            ItemNavigationRequested?.Invoke(this, new HideoutItemNavigationRequestedEventArgs(itemId));
     }
 
     private void ClearDetail()
@@ -301,12 +323,7 @@ public partial class HideoutPage : UserControl
     {
         private ImageSource? _icon;
 
-        public HideoutMaterialRow(
-            string itemId,
-            string name,
-            string? iconUrl,
-            string amountText,
-            bool inRaid)
+        public HideoutMaterialRow(string itemId, string name, string? iconUrl, string amountText, bool inRaid)
         {
             ItemId = itemId;
             Name = name;
