@@ -29,6 +29,8 @@ public sealed class TarkovContentUpdateService
         _supplementalUpdater = supplementalUpdater;
     }
 
+    public event Action<GameContentCatalog>? ContentActivated;
+
     public async Task<ContentUpdateResult> UpdateAsync(
         GameMode gameMode,
         CancellationToken cancellationToken = default,
@@ -101,6 +103,8 @@ public sealed class TarkovContentUpdateService
                     warnings.Add($"Map asset update failed; previous validated map assets were kept: {exception.Message}");
                 }
             }
+
+            ContentActivated?.Invoke(build.Content);
 
             trackedProgress.Report(new ContentUpdateProgress(
                 ContentUpdateStage.Completed,
