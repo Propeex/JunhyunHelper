@@ -19,17 +19,23 @@ public sealed class LegacyMapProductRuntime : IDisposable
     private readonly JunhyunMapHotkeyService _hotkeys = new();
     private readonly LegacyQuestMarkerScaleBridge _questScaleBridge;
     private readonly LegacyQuestMarkerToggleBridge _questToggleBridge;
+    private readonly LegacyQuestPresentationSettingsBridge _questSettingsBridge;
     private readonly Slider? _playerMarkerSlider;
     private Button? _hotkeySettingsButton;
     private bool _syncingPlayerMarker;
     private bool _disposed;
 
-    public LegacyMapProductRuntime(TarkovHelper.Pages.Map.MapPage page)
+    public LegacyMapProductRuntime(
+        TarkovHelper.Pages.Map.MapPage page,
+        Action refreshQuestProjection)
     {
         _page = page ?? throw new ArgumentNullException(nameof(page));
+        ArgumentNullException.ThrowIfNull(refreshQuestProjection);
+
         _ = new LegacyExtractSettingsMergeBridge(page);
         _questScaleBridge = new LegacyQuestMarkerScaleBridge(page);
         _questToggleBridge = new LegacyQuestMarkerToggleBridge(page);
+        _questSettingsBridge = new LegacyQuestPresentationSettingsBridge(page, refreshQuestProjection);
         _playerMarkerSlider = _page.FindName("SliderPlayerMarkerSize") as Slider;
 
         if (_playerMarkerSlider is not null)
@@ -145,6 +151,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
             return;
         _disposed = true;
 
+        _questSettingsBridge.Dispose();
         _questToggleBridge.Dispose();
         _questScaleBridge.Dispose();
         _hotkeys.Dispose();
