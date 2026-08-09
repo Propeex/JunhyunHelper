@@ -48,24 +48,24 @@
 
         <Border Grid.Row="1" Background="{StaticResource BackgroundMediumBrush}" CornerRadius="8" Padding="8" Margin="0,0,0,8">
             <WrapPanel VerticalAlignment="Center">
-                <CheckBox Tag="PmcExtract" Content="PMC 탈출구" IsChecked="True" Margin="5,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
-                <CheckBox Tag="ScavExtract" Content="Scav 탈출구" IsChecked="True" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
-                <CheckBox Tag="SharedExtract" Content="공용 탈출구" IsChecked="True" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
-                <CheckBox Tag="Transit" Content="Transit" IsChecked="True" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
-                <CheckBox Tag="PmcSpawn" Content="PMC 스폰" IsChecked="True" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
-                <CheckBox Tag="ScavSpawn" Content="Scav 스폰" IsChecked="True" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
-                <CheckBox Tag="SniperScav" Content="저격수" IsChecked="True" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
-                <CheckBox Tag="BossGroup" Content="보스/특수 AI" IsChecked="True" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
-                <CheckBox Tag="Quest" Content="퀘스트" IsChecked="True" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
-                <CheckBox Tag="Hazard" Content="위험 구역" IsChecked="True" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
-                <CheckBox Tag="LockSwitch" Content="잠금/스위치" IsChecked="True" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
-                <CheckBox Tag="StationaryWeapon" Content="고정 화기" IsChecked="True" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
-                <CheckBox Tag="BtrStop" Content="BTR" IsChecked="True" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
-                <CheckBox Tag="LootContainer" Content="루팅 컨테이너" IsChecked="False" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
-                <CheckBox Tag="LooseLoot" Content="루즈 루트" IsChecked="False" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
-                <CheckBox Tag="User" Content="사용자 마커" IsChecked="True" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
-                <CheckBox Tag="Player" Content="현재 위치" IsChecked="True" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
-                <CheckBox Tag="Trail" Content="이동 경로" IsChecked="False" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
+                <CheckBox Tag="PmcExtract" Content="PMC 탈출구" Margin="5,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
+                <CheckBox Tag="ScavExtract" Content="Scav 탈출구" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
+                <CheckBox Tag="SharedExtract" Content="공용 탈출구" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
+                <CheckBox Tag="Transit" Content="Transit" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
+                <CheckBox Tag="PmcSpawn" Content="PMC 스폰" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
+                <CheckBox Tag="ScavSpawn" Content="Scav 스폰" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
+                <CheckBox Tag="SniperScav" Content="저격수" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
+                <CheckBox Tag="BossGroup" Content="보스/특수 AI" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
+                <CheckBox Tag="Quest" Content="퀘스트" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
+                <CheckBox Tag="Hazard" Content="위험 구역" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
+                <CheckBox Tag="LockSwitch" Content="잠금/스위치" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
+                <CheckBox Tag="StationaryWeapon" Content="고정 화기" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
+                <CheckBox Tag="BtrStop" Content="BTR" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
+                <CheckBox Tag="LootContainer" Content="루팅 컨테이너" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
+                <CheckBox Tag="LooseLoot" Content="루즈 루트" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
+                <CheckBox Tag="User" Content="사용자 마커" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
+                <CheckBox Tag="Player" Content="현재 위치" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
+                <CheckBox Tag="Trail" Content="이동 경로" Margin="0,3,12,3" Checked="MarkerToggle_Changed" Unchecked="MarkerToggle_Changed" />
                 <Button Content="경로 지우기" Padding="10,4" Margin="0,1,0,1" Click="ClearTrailButton_Click" />
             </WrapPanel>
         </Border>
