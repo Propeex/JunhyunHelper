@@ -28,17 +28,19 @@ public interface IMapArtworkProvider
 }
 
 /// <summary>
-/// Compatibility entry point used by the existing Map asset service. Detailed RE3MR artwork
-/// is attempted first; the machine-readable Escape from Tarkov Wiki artwork remains the
-/// secondary provider because it can independently prove alignment from named markers.
+/// Compatibility entry point used by the existing Map asset service. Ground Zero first uses
+/// the floor-aware RE3MR implementation. The older revision-aware provider and the machine-readable
+/// Escape from Tarkov Wiki artwork remain fallbacks before the calibrated schematic is used.
 /// </summary>
 public sealed class WikiMapArtworkProvider : IMapArtworkProvider
 {
+    private readonly GroundZeroRe3mrArtworkProviderV2 _groundZeroFloorAware;
     private readonly Re3mrMapArtworkProvider _re3mr;
     private readonly FandomMapArtworkService _wiki;
 
     public WikiMapArtworkProvider(HttpClient httpClient)
     {
+        _groundZeroFloorAware = new GroundZeroRe3mrArtworkProviderV2(httpClient);
         _re3mr = new Re3mrMapArtworkProvider(httpClient);
         _wiki = new FandomMapArtworkService(httpClient);
     }
@@ -51,6 +53,15 @@ public sealed class WikiMapArtworkProvider : IMapArtworkProvider
         string destination,
         CancellationToken cancellationToken = default)
     {
+        var floorAware = await _groundZeroFloorAware.TryBuildAlignedSvgAsync(
+            layout,
+            canonicalMarkers,
+            destination,
+            cancellationToken);
+        if (floorAware.Applied)
+            return floorAware;
+
+        DeleteCandidate(destination);
         var re3mr = await _re3mr.TryBuildAlignedSvgAsync(
             layout,
             canonicalMarkers,
@@ -59,9 +70,7 @@ public sealed class WikiMapArtworkProvider : IMapArtworkProvider
         if (re3mr.Applied)
             return re3mr;
 
-        if (File.Exists(destination))
-            File.Delete(destination);
-
+        DeleteCandidate(destination);
         var wiki = await _wiki.TryBuildAlignedSvgAsync(
             layout,
             canonicalMarkers,
@@ -76,12 +85,18 @@ public sealed class WikiMapArtworkProvider : IMapArtworkProvider
             wiki.AttributionUrl,
             wiki.Applied
                 ? null
-                : JoinWarnings(re3mr.Warning, wiki.Warning));
+                : JoinWarnings(floorAware.Warning, re3mr.Warning, wiki.Warning));
     }
 
-    private static string? JoinWarnings(string? first, string? second)
+    private static void DeleteCandidate(string destination)
     {
-        var warnings = new[] { first, second }
+        if (File.Exists(destination))
+            File.Delete(destination);
+    }
+
+    private static string? JoinWarnings(params string?[] values)
+    {
+        var warnings = values
             .Where(value => !string.IsNullOrWhiteSpace(value))
             .ToArray();
         return warnings.Length == 0 ? null : string.Join(" | ", warnings);
