@@ -12,10 +12,21 @@
     <Version>0.1.0</Version>
   </PropertyGroup>
 
+  <!-- Match the original Tarkov Helper compile environment. WinForms is only used by
+       the legacy Map color picker; implicit WinForms/Drawing imports would collide
+       with WPF types throughout both applications. -->
   <ItemGroup>
+    <Using Remove="System.Drawing" />
+    <Using Remove="System.Windows.Forms" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Autoupdater.NET.Official" Version="1.9.2" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.11" />
     <PackageReference Include="SharpVectors.Wpf" Version="1.8.5" />
     <PackageReference Include="SkiaSharp" Version="4.150.1" />
     <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.150.1" />
+    <PackageReference Include="Westermo.GraphX.Controls" Version="3.0.1" />
   </ItemGroup>
 
   <ItemGroup>
@@ -26,21 +37,19 @@
 
   <!--
     The Map subsystem is compiled directly from the pinned Propeex/Tarkov-Helper
-    submodule. These are the original source files, not rewritten JunhyunHelper copies.
+    submodule. These are original source files, not JunhyunHelper rewrites.
+    Models and Services are included as the original subsystem's dependency layer;
+    unrelated old application Pages/MainWindow/App are intentionally not imported.
   -->
   <ItemGroup>
+    <Compile Include="../../vendor/Tarkov-Helper/TarkovHelper/Models/**/*.cs"
+             Link="Legacy/TarkovHelper/Models/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../../vendor/Tarkov-Helper/TarkovHelper/Services/**/*.cs"
+             Link="Legacy/TarkovHelper/Services/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../../vendor/Tarkov-Helper/TarkovHelper/Debug/**/*.cs"
+             Link="Legacy/TarkovHelper/Debug/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../../vendor/Tarkov-Helper/TarkovHelper/Pages/Map/**/*.cs"
              Link="Legacy/TarkovHelper/Pages/Map/%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="../../vendor/Tarkov-Helper/TarkovHelper/Models/Map/**/*.cs"
-             Link="Legacy/TarkovHelper/Models/Map/%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="../../vendor/Tarkov-Helper/TarkovHelper/Services/Map/**/*.cs"
-             Link="Legacy/TarkovHelper/Services/Map/%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="../../vendor/Tarkov-Helper/TarkovHelper/Services/OverlayMiniMapService.cs"
-             Link="Legacy/TarkovHelper/Services/OverlayMiniMapService.cs" />
-    <Compile Include="../../vendor/Tarkov-Helper/TarkovHelper/Services/OverlayClickThroughPolicy.cs"
-             Link="Legacy/TarkovHelper/Services/OverlayClickThroughPolicy.cs" />
-    <Compile Include="../../vendor/Tarkov-Helper/TarkovHelper/Services/GlobalKeyboardHookService.cs"
-             Link="Legacy/TarkovHelper/Services/GlobalKeyboardHookService.cs" />
     <Compile Include="../../vendor/Tarkov-Helper/TarkovHelper/Windows/OverlayMiniMapWindow*.cs"
              Link="Legacy/TarkovHelper/Windows/%(Filename)%(Extension)" />
     <Compile Include="../../vendor/Tarkov-Helper/TarkovHelper/Windows/Dialogs/OverlaySettingsWindow*.cs"
@@ -55,12 +64,20 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="../../vendor/Tarkov-Helper/TarkovHelper/Assets/DB/Data/map_configs.json"
-             Link="Assets/DB/Data/map_configs.json"
+    <Content Include="../../vendor/Tarkov-Helper/TarkovHelper/Assets/tarkov_data.db"
+             Link="Assets/tarkov_data.db"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../../vendor/Tarkov-Helper/TarkovHelper/Assets/DB/Data/*.json"
+             Link="Assets/DB/Data/%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../../vendor/Tarkov-Helper/TarkovHelper/Assets/DB/Maps/*.svg"
              Link="Assets/DB/Maps/%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../../vendor/Tarkov-Helper/TarkovHelper/Assets/DB/Icons/*.svg"
+             Link="Assets/DB/Icons/%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../../vendor/Tarkov-Helper/TarkovHelper/Assets/DB/Icons/Markers/*.svg"
