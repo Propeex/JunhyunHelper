@@ -16,7 +16,7 @@ public static class MapAssetRefreshPolicy
 
     // Bump this whenever the artwork/layout ingestion formula changes. Existing installs
     // will then rebuild Map assets once without asking the user to delete their cache.
-    public const string PipelineVersion = "legacy-tarkov-helper-map-minimap-v1";
+    public const string PipelineVersion = "legacy-tarkov-helper-map-minimap-v2-atomic-upstream";
 
     private const string StateFileName = "update-state.json";
     private const string RefreshRequestFileName = "refresh.requested";
@@ -61,7 +61,8 @@ public static class MapAssetRefreshPolicy
     /// <summary>
     /// Marks Map sources stale without touching the currently working active assets.
     /// Used whenever Game Content is activated so current Map IDs/floor metadata remain
-    /// coupled to the user's Data Update action while legacy artwork/calibration stays stable.
+    /// coupled to the user's Data Update action while legacy artwork/calibration is
+    /// re-resolved as one upstream GitHub revision.
     /// </summary>
     public static void RequestRefresh(MapAssetCacheService assets, string reason)
     {
