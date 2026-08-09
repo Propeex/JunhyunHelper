@@ -26,30 +26,23 @@ public sealed class WikiBallisticsEffectivenessClientTests
         };
 
         var html = "<table>" + string.Concat(fixtures.Select((fixture, index) =>
-            BuildWikiRow(
-                fixture.Name,
-                fixture.Rating,
-                appendSuperscript: index == 0))) + "</table>";
+            BuildWikiRow(fixture.Name, fixture.Rating, appendSuperscript: index == 0))) + "</table>";
         var json = JsonSerializer.Serialize(new { parse = new { text = html } });
 
         using var client = new HttpClient(new StaticResponseHandler(HttpStatusCode.OK, json));
-        var sourceClient = new WikiBallisticsEffectivenessClient(client);
-        var source = await sourceClient.LoadAsync(TestContext.Current.CancellationToken);
+        var source = await new WikiBallisticsEffectivenessClient(client)
+            .LoadAsync(TestContext.Current.CancellationToken);
 
         Assert.True(source.Available);
         Assert.Equal(fixtures.Length, source.Rows.Count);
 
-        var content = BuildContent(fixtures);
-        var enriched = WikiBallisticsEffectivenessClient.Enrich(content, source);
-
+        var enriched = WikiBallisticsEffectivenessClient.Enrich(BuildContent(fixtures), source);
         Assert.Equal(fixtures.Length, enriched.MatchedAmmoCount);
-        Assert.Empty(enriched.Warnings);
 
         foreach (var fixture in fixtures)
         {
-            var ammo = Assert.Single(
-                enriched.Content.Ammunition,
-                value => value.ItemId == fixture.ItemId);
+            var ammo = Assert.Single(enriched.Content.Ammunition, value => value.ItemId == fixture.ItemId);
+            Assert.True(ammo.IsWikiBallisticsListed);
             Assert.Equal(fixture.Rating, ammo.ArmorEffectiveness);
         }
     }
@@ -57,11 +50,9 @@ public sealed class WikiBallisticsEffectivenessClientTests
     [Fact]
     public async Task SourceFailureLeavesCoreAmmoUnchangedAndDoesNotGuess()
     {
-        using var client = new HttpClient(new StaticResponseHandler(
-            HttpStatusCode.ServiceUnavailable,
-            "service unavailable"));
-        var sourceClient = new WikiBallisticsEffectivenessClient(client);
-        var source = await sourceClient.LoadAsync(TestContext.Current.CancellationToken);
+        using var client = new HttpClient(new StaticResponseHandler(HttpStatusCode.ServiceUnavailable, "service unavailable"));
+        var source = await new WikiBallisticsEffectivenessClient(client)
+            .LoadAsync(TestContext.Current.CancellationToken);
 
         Assert.False(source.Available);
         Assert.NotEmpty(source.Warnings);
@@ -73,11 +64,13 @@ public sealed class WikiBallisticsEffectivenessClientTests
         var enriched = WikiBallisticsEffectivenessClient.Enrich(content, source);
 
         Assert.Same(content, enriched.Content);
-        Assert.Null(Assert.Single(enriched.Content.Ammunition).ArmorEffectiveness);
+        var ammo = Assert.Single(enriched.Content.Ammunition);
+        Assert.Null(ammo.IsWikiBallisticsListed);
+        Assert.Null(ammo.ArmorEffectiveness);
     }
 
     [Fact]
-    public async Task ConflictingRowsAreRejectedInsteadOfChoosingOne()
+    public async Task ConflictingRatingsKeepMembershipButDoNotGuessRating()
     {
         var first = new AmmoArmorEffectiveness(6, 6, 6, 4, 2, 1);
         var second = new AmmoArmorEffectiveness(6, 6, 6, 5, 3, 2);
@@ -90,30 +83,49 @@ public sealed class WikiBallisticsEffectivenessClientTests
         using var client = new HttpClient(new StaticResponseHandler(HttpStatusCode.OK, json));
         var source = await new WikiBallisticsEffectivenessClient(client)
             .LoadAsync(TestContext.Current.CancellationToken);
-        var content = BuildContent(
-        [
-            new Fixture("conflict", "Conflict Round", first),
-        ]);
-
-        var enriched = WikiBallisticsEffectivenessClient.Enrich(content, source);
+        var enriched = WikiBallisticsEffectivenessClient.Enrich(
+            BuildContent([new Fixture("conflict", "Conflict Round", first)]),
+            source);
 
         Assert.Equal(0, enriched.MatchedAmmoCount);
-        Assert.Null(Assert.Single(enriched.Content.Ammunition).ArmorEffectiveness);
+        var ammo = Assert.Single(enriched.Content.Ammunition);
+        Assert.True(ammo.IsWikiBallisticsListed);
+        Assert.Null(ammo.ArmorEffectiveness);
         Assert.Contains(enriched.Warnings, warning => warning.Contains("서로 다른", StringComparison.Ordinal));
     }
 
     [Fact]
-    public async Task SnapshotRoundTripPreservesOptionalRatings()
+    public async Task ListedRoundCanRemainVisibleWhenRatingCellsCannotBeParsed()
+    {
+        const string name = "12.7x108mm Test Round";
+        var html = $"<table><tr>" +
+                   $"<td>12.7x108mm</td><td>{name}</td>" +
+                   "<td>100</td><td>60</td><td>50%</td><td>800 m/s</td>" +
+                   "<td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td>" +
+                   "</tr></table>";
+        var json = JsonSerializer.Serialize(new { parse = new { text = html } });
+
+        using var client = new HttpClient(new StaticResponseHandler(HttpStatusCode.OK, json));
+        var source = await new WikiBallisticsEffectivenessClient(client)
+            .LoadAsync(TestContext.Current.CancellationToken);
+        var enriched = WikiBallisticsEffectivenessClient.Enrich(
+            BuildContent([new Fixture("127", name, new AmmoArmorEffectiveness(6, 6, 6, 6, 6, 6))]),
+            source);
+
+        var ammo = Assert.Single(enriched.Content.Ammunition);
+        Assert.True(ammo.IsWikiBallisticsListed);
+        Assert.Null(ammo.ArmorEffectiveness);
+    }
+
+    [Fact]
+    public async Task SnapshotRoundTripPreservesMembershipAndOptionalRatings()
     {
         var rating = new AmmoArmorEffectiveness(6, 6, 6, 5, 3, 2);
-        var content = BuildContent(
-        [
-            new Fixture("roundtrip", ".50 AE Copper Solid", rating),
-        ]);
+        var content = BuildContent([new Fixture("roundtrip", ".50 AE Copper Solid", rating)]);
         content = content with
         {
             Ammo = content.Ammunition
-                .Select(ammo => ammo with { ArmorEffectiveness = rating })
+                .Select(ammo => ammo with { IsWikiBallisticsListed = true, ArmorEffectiveness = rating })
                 .ToArray(),
         };
 
@@ -127,11 +139,11 @@ public sealed class WikiBallisticsEffectivenessClientTests
                 GameMode.Regular,
                 content,
                 cancellationToken: TestContext.Current.CancellationToken);
-            var read = await store.ReadAsync(
-                path,
-                TestContext.Current.CancellationToken);
+            var read = await store.ReadAsync(path, TestContext.Current.CancellationToken);
 
-            Assert.Equal(rating, Assert.Single(read.Content.Ammunition).ArmorEffectiveness);
+            var ammo = Assert.Single(read.Content.Ammunition);
+            Assert.True(ammo.IsWikiBallisticsListed);
+            Assert.Equal(rating, ammo.ArmorEffectiveness);
         }
         finally
         {
