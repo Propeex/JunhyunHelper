@@ -9,19 +9,47 @@ namespace JunhyunHelper.Desktop.Map;
 
 internal static class MapVisualFactory
 {
+    private static readonly IReadOnlyDictionary<MapMarkerKind, string> MarkerIconFiles =
+        new Dictionary<MapMarkerKind, string>
+        {
+            [MapMarkerKind.PmcExtract] = "extract_pmc.png",
+            [MapMarkerKind.ScavExtract] = "extract_scav.png",
+            [MapMarkerKind.SharedExtract] = "extract_shared.png",
+            [MapMarkerKind.Transit] = "extract_transit.png",
+            [MapMarkerKind.PmcSpawn] = "spawn_pmc.png",
+            [MapMarkerKind.ScavSpawn] = "spawn_scav.png",
+            [MapMarkerKind.SniperScav] = "spawn_sniper_scav.png",
+            [MapMarkerKind.Boss] = "spawn_boss.png",
+            [MapMarkerKind.SpecialAi] = "spawn_rogue.png",
+            [MapMarkerKind.Hazard] = "hazard.png",
+            [MapMarkerKind.Lock] = "lock.png",
+            [MapMarkerKind.Switch] = "switch.png",
+            [MapMarkerKind.StationaryWeapon] = "stationarygun.png",
+            [MapMarkerKind.BtrStop] = "btr_stop.png",
+            [MapMarkerKind.LootContainer] = "container_crate.png",
+            [MapMarkerKind.LooseLoot] = "loose_loot.png",
+        };
+
+    private static string? _iconDirectory;
+
+    public static void ConfigureIconDirectory(string iconDirectory) =>
+        _iconDirectory = string.IsNullOrWhiteSpace(iconDirectory)
+            ? null
+            : Path.GetFullPath(iconDirectory);
+
     public static FrameworkElement CreateMarker(
         MapMarkerKind kind,
         string toolTip,
         string? iconPath = null,
         double size = 28) =>
-        TryCreateIcon(iconPath, toolTip, size)
+        TryCreateIcon(iconPath ?? ResolveMarkerIcon(kind), toolTip, size)
         ?? CreateBadge(SymbolFor(kind), BrushFor(kind), toolTip, size);
 
     public static FrameworkElement CreateQuestMarker(
         string toolTip,
         string? iconPath = null,
         double size = 30) =>
-        TryCreateIcon(iconPath, toolTip, size)
+        TryCreateIcon(iconPath ?? ResolveIcon("quest_objective.png"), toolTip, size)
         ?? CreateBadge("!", Brushes.Gold, toolTip, size);
 
     public static FrameworkElement CreateUserMarker(string color, string toolTip, double size = 28)
@@ -37,7 +65,7 @@ internal static class MapVisualFactory
         string? iconPath = null,
         double size = 32)
     {
-        var icon = TryCreateIcon(iconPath, "현재 위치", size);
+        var icon = TryCreateIcon(iconPath ?? ResolveIcon("player-position.png"), "현재 위치", size);
         if (icon is not null)
         {
             icon.IsHitTestVisible = false;
@@ -109,6 +137,19 @@ internal static class MapVisualFactory
             Opacity = 0.55,
         };
         return border;
+    }
+
+    private static string? ResolveMarkerIcon(MapMarkerKind kind) =>
+        MarkerIconFiles.TryGetValue(kind, out var fileName)
+            ? ResolveIcon(fileName)
+            : null;
+
+    private static string? ResolveIcon(string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(_iconDirectory))
+            return null;
+        var path = Path.Combine(_iconDirectory, fileName);
+        return File.Exists(path) ? path : null;
     }
 
     private static FrameworkElement? TryCreateIcon(string? iconPath, string toolTip, double size)
