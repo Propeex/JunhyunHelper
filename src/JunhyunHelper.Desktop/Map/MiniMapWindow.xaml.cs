@@ -69,6 +69,7 @@ public partial class MiniMapWindow : Window
                 : marker.UserColor is not null
                     ? MapVisualFactory.CreateUserMarker(marker.UserColor, marker.Name, 30)
                     : MapVisualFactory.CreateMarker(marker.Kind ?? MapMarkerKind.Hazard, marker.Name, 28);
+            visual.Tag = 0d;
             Canvas.SetLeft(visual, point.X - visual.Width / 2);
             Canvas.SetTop(visual, point.Y - visual.Height / 2);
             MiniMarkerCanvas.Children.Add(visual);
@@ -113,6 +114,7 @@ public partial class MiniMapWindow : Window
                 ? 0
                 : MapCoordinateTransformer.SurfaceHeading(layout, playerHeading.Value);
             var player = MapVisualFactory.CreatePlayerMarker(heading, 34);
+            player.Tag = heading;
             Canvas.SetLeft(player, playerPoint.X - player.Width / 2);
             Canvas.SetTop(player, playerPoint.Y - player.Height / 2);
             MiniPlayerCanvas.Children.Add(player);
@@ -171,8 +173,13 @@ public partial class MiniMapWindow : Window
         var inverse = 1 / _effectiveScale;
         foreach (var child in canvas.Children.OfType<FrameworkElement>())
         {
+            var heading = child.Tag is double angle ? angle : 0;
             child.RenderTransformOrigin = new Point(0.5, 0.5);
-            child.RenderTransform = new ScaleTransform(inverse, inverse);
+            var transforms = new TransformGroup();
+            if (Math.Abs(heading) > 0.001)
+                transforms.Children.Add(new RotateTransform(heading));
+            transforms.Children.Add(new ScaleTransform(inverse, inverse));
+            child.RenderTransform = transforms;
         }
     }
 
