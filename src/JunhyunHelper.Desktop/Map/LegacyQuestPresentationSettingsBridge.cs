@@ -1,30 +1,26 @@
 using System.Windows;
-using System.Windows.Controls;
 
 namespace JunhyunHelper.Desktop.Map;
 
 /// <summary>
-/// Removes settings that belonged to the old Tarkov Helper Quest DB presentation and
-/// keeps the two presentation controls that are meaningful for JunhyunHelper's current
-/// Quest projection: marker size and quest-name text size.
+/// Removes legacy Tarkov Helper Quest presentation controls that are not connected
+/// to JunhyunHelper's current Quest marker product.
 /// </summary>
 public sealed class LegacyQuestPresentationSettingsBridge : IDisposable
 {
     private readonly TarkovHelper.Pages.Map.MapPage _page;
-    private readonly Action _refresh;
-    private readonly Slider? _markerSize;
-    private readonly Slider? _nameSize;
-    private bool _disposed;
 
     public LegacyQuestPresentationSettingsBridge(
         TarkovHelper.Pages.Map.MapPage page,
-        Action refresh)
+        Action refreshQuestProjection)
     {
         _page = page ?? throw new ArgumentNullException(nameof(page));
-        _refresh = refresh ?? throw new ArgumentNullException(nameof(refresh));
+        ArgumentNullException.ThrowIfNull(refreshQuestProjection);
 
         Collapse("ChkHideCompletedObjectives");
         CollapseParent("CmbQuestMarkerStyle");
+        CollapseParent("SliderQuestNameTextSize");
+        CollapseParent("SliderMarkerSize");
         Collapse("TxtMarkerColorsLabel");
         CollapseParent("ColorVisit");
         CollapseParent("ColorMark");
@@ -32,22 +28,6 @@ public sealed class LegacyQuestPresentationSettingsBridge : IDisposable
         CollapseParent("ColorExtract");
         CollapseParent("ColorFind");
         Collapse("BtnResetColors");
-
-        _markerSize = _page.FindName("SliderMarkerSize") as Slider;
-        _nameSize = _page.FindName("SliderQuestNameTextSize") as Slider;
-        if (_markerSize is not null)
-            _markerSize.ValueChanged += Size_ValueChanged;
-        if (_nameSize is not null)
-            _nameSize.ValueChanged += Size_ValueChanged;
-    }
-
-    private void Size_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (_disposed)
-            return;
-
-        // Run after the exact MapPage handler has persisted the new MapSettings value.
-        _page.Dispatcher.BeginInvoke(_refresh);
     }
 
     private void Collapse(string name)
@@ -67,13 +47,5 @@ public sealed class LegacyQuestPresentationSettingsBridge : IDisposable
 
     public void Dispose()
     {
-        if (_disposed)
-            return;
-        _disposed = true;
-
-        if (_markerSize is not null)
-            _markerSize.ValueChanged -= Size_ValueChanged;
-        if (_nameSize is not null)
-            _nameSize.ValueChanged -= Size_ValueChanged;
     }
 }
