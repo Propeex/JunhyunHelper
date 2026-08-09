@@ -151,7 +151,7 @@ public partial class MainWindow : Window
         _activeProfile = itemsWorkspace.Profile;
         _activeItemsWorkspace = itemsWorkspace;
 
-        QuestPage.SetData(_activeContent, questWorkspace);
+        QuestPage.SetDataPreservingScroll(_activeContent, questWorkspace);
         HideoutPage.SetData(_activeContent, hideoutWorkspace);
         ItemsPage.SetData(_activeContent, itemsWorkspace);
 
@@ -202,7 +202,7 @@ public partial class MainWindow : Window
 
         var progress = new Progress<ContentUpdateProgress>(value =>
         {
-            var percent = Math.Clamp(value.Percent, 0, 100);
+            var percent = Math.Clamp((int)Math.Round(value.Percent * 0.85), 0, 85);
             UpdateProgressBar.Value = percent;
             UpdateProgressStageText.Text = value.Message;
             UpdateProgressPercentText.Text = $"{percent}%";
@@ -211,7 +211,28 @@ public partial class MainWindow : Window
 
         try
         {
-            return await _services.ContentUpdater.UpdateAsync(gameMode, progress: progress);
+            var result = await _services.ContentUpdater.UpdateAsync(gameMode, progress: progress);
+            if (!result.Applied)
+                return result;
+
+            var snapshot = await _services.Content.ReadActiveOrRecoverAsync(gameMode);
+            var imageProgress = new Progress<ImagePrefetchProgress>(value =>
+            {
+                var fraction = value.Total <= 0 ? 1d : value.Completed / (double)value.Total;
+                var percent = 85 + Math.Clamp((int)Math.Round(fraction * 15), 0, 15);
+                UpdateProgressBar.Value = percent;
+                UpdateProgressStageText.Text = value.Total <= 0
+                    ? "아이콘 준비 완료"
+                    : $"아이콘 다운로드 중... {value.Completed}/{value.Total}";
+                UpdateProgressPercentText.Text = $"{percent}%";
+                StatusText.Text = UpdateProgressStageText.Text;
+            });
+            await _services.Images.PrefetchAsync(snapshot.Content, imageProgress);
+
+            UpdateProgressBar.Value = 100;
+            UpdateProgressStageText.Text = "업데이트 완료";
+            UpdateProgressPercentText.Text = "100%";
+            return result;
         }
         finally
         {
@@ -291,7 +312,30 @@ public partial class MainWindow : Window
         {
             Owner = this,
         };
-        if (editor.ShowDialog() != true || editor.Result is not { } result)
+        if (editor.ShowDialog() != true)
+            return;
+
+        if (editor.DeleteRequested)
+        {
+            try
+            {
+                SetBusy(true, "프로필을 삭제하는 중...");
+                await _services.ProfileManagement.DeleteAsync(profileId);
+                _activeProfile = null;
+                await LoadProfilesAsync();
+            }
+            catch (Exception exception)
+            {
+                ShowFailure("프로필을 삭제하지 못했습니다.", exception);
+            }
+            finally
+            {
+                SetBusy(false, StatusText.Text);
+            }
+            return;
+        }
+
+        if (editor.Result is not { } result)
             return;
 
         try
@@ -337,9 +381,6 @@ public partial class MainWindow : Window
             AmmoPage.SetData(_activeContent);
             var cleanupChanges = await RefreshActiveWorkspacesAsync(detectCleanupChanges: true);
             ShowActiveSection();
-            StatusText.Text = cleanupChanges.Count > 0
-                ? $"업데이트 완료 · 정리 가능 변화 {cleanupChanges.Count}종"
-                : $"업데이트 완료 · {BuildLoadedStatus(_activeProfile.GameMode)}";
 
             if (cleanupChanges.Count > 0)
             {
@@ -350,6 +391,8 @@ public partial class MainWindow : Window
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
             }
+
+            StatusText.Text = BuildLoadedStatus(_activeProfile.GameMode);
         }
         catch (Exception exception)
         {
@@ -365,6 +408,23 @@ public partial class MainWindow : Window
     {
         if (_activeProfile is null || _activeContent is null)
             return;
+
+        var restoreInventory = false;
+        if (e.Action == QuestActionKind.UndoCompletion &&
+            _activeProfile.QuestConsumptions.TryGetValue(e.QuestId, out var consumption) &&
+            !consumption.IsEmpty)
+        {
+            var decision = MessageBox.Show(
+                this,
+                "이 퀘스트를 완료할 때 자동으로 차감한 보유 아이템 기록이 있습니다.\n\n차감했던 수량을 보유량에 다시 복원할까요?",
+                "퀘스트 완료 취소",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Question,
+                MessageBoxResult.Yes);
+            if (decision == MessageBoxResult.Cancel)
+                return;
+            restoreInventory = decision == MessageBoxResult.Yes;
+        }
 
         try
         {
@@ -386,7 +446,8 @@ public partial class MainWindow : Window
                 QuestActionKind.UndoCompletion => await _services.Quests.UndoCompletionAsync(
                     _activeContent,
                     _activeProfile.ProfileId,
-                    e.QuestId),
+                    e.QuestId,
+                    restoreInventory),
                 QuestActionKind.Fail => await _services.Quests.FailAsync(
                     _activeContent,
                     _activeProfile.ProfileId,
@@ -398,16 +459,8 @@ public partial class MainWindow : Window
                 _ => throw new ArgumentOutOfRangeException(nameof(e.Action), e.Action, null),
             };
 
-            var cleanupChanges = await RefreshActiveWorkspacesAsync(detectCleanupChanges: true);
-            var status = e.Action switch
-            {
-                QuestActionKind.Complete => "퀘스트 완료 저장됨",
-                QuestActionKind.UndoCompletion => "퀘스트 완료 취소됨",
-                QuestActionKind.Fail => "퀘스트 실패 저장됨",
-                QuestActionKind.UndoFailure => "퀘스트 실패 취소됨",
-                _ => "퀘스트 진행 상태 저장됨",
-            };
-            StatusText.Text = BuildProgressChangeStatus(status, cleanupChanges);
+            await RefreshActiveWorkspacesAsync(detectCleanupChanges: true);
+            StatusText.Text = BuildLoadedStatus(_activeProfile.GameMode);
         }
         catch (Exception exception)
         {
@@ -426,6 +479,32 @@ public partial class MainWindow : Window
         if (_activeProfile is null || _activeContent is null)
             return;
 
+        var currentLevel = _activeProfile.HideoutLevels.TryGetValue(e.StationId, out var savedLevel)
+            ? savedLevel
+            : 0;
+        var targetLevel = e.Level ?? 0;
+        var restoreInventory = false;
+
+        if (targetLevel < currentLevel)
+        {
+            var hasConsumption = Enumerable.Range(targetLevel + 1, currentLevel - targetLevel)
+                .Any(level => _activeProfile.HideoutUpgradeConsumptions.ContainsKey(
+                    HideoutApplicationService.UpgradeConsumptionKey(e.StationId, level)));
+            if (hasConsumption)
+            {
+                var decision = MessageBox.Show(
+                    this,
+                    "되돌리는 은신처 업그레이드에서 자동으로 차감한 보유 아이템 기록이 있습니다.\n\n차감했던 수량을 보유량에 다시 복원할까요?",
+                    "은신처 레벨 되돌리기",
+                    MessageBoxButton.YesNoCancel,
+                    MessageBoxImage.Question,
+                    MessageBoxResult.Yes);
+                if (decision == MessageBoxResult.Cancel)
+                    return;
+                restoreInventory = decision == MessageBoxResult.Yes;
+            }
+        }
+
         try
         {
             SetBusy(true, "은신처 레벨을 저장하는 중...");
@@ -433,14 +512,11 @@ public partial class MainWindow : Window
                 _activeContent,
                 _activeProfile.ProfileId,
                 e.StationId,
-                e.Level);
+                e.Level,
+                restoreInventory);
 
-            var cleanupChanges = await RefreshActiveWorkspacesAsync(detectCleanupChanges: true);
-            StatusText.Text = BuildProgressChangeStatus(
-                e.Level.HasValue
-                    ? "은신처 레벨 저장됨"
-                    : "은신처 레벨 입력 해제됨",
-                cleanupChanges);
+            await RefreshActiveWorkspacesAsync(detectCleanupChanges: true);
+            StatusText.Text = BuildLoadedStatus(_activeProfile.GameMode);
         }
         catch (Exception exception)
         {
@@ -473,7 +549,7 @@ public partial class MainWindow : Window
             _activeItemsWorkspace = workspace;
             ItemsPage.SetData(_activeContent, workspace);
             ItemsPage.ClearCleanupNotice();
-            StatusText.Text = "보유량 저장됨";
+            StatusText.Text = BuildLoadedStatus(_activeProfile.GameMode);
         }
         catch (Exception exception)
         {
@@ -537,24 +613,12 @@ public partial class MainWindow : Window
         }
 
         EmptyState.Visibility = Visibility.Collapsed;
-        QuestPage.Visibility = _activeSection == DesktopSection.Quest
-            ? Visibility.Visible
-            : Visibility.Collapsed;
-        HideoutPage.Visibility = _activeSection == DesktopSection.Hideout
-            ? Visibility.Visible
-            : Visibility.Collapsed;
-        ItemsPage.Visibility = _activeSection == DesktopSection.Items
-            ? Visibility.Visible
-            : Visibility.Collapsed;
-        AmmoPage.Visibility = _activeSection == DesktopSection.Ammo
-            ? Visibility.Visible
-            : Visibility.Collapsed;
-        MapPlaceholder.Visibility = _activeSection == DesktopSection.Map
-            ? Visibility.Visible
-            : Visibility.Collapsed;
-        ScannerPlaceholder.Visibility = _activeSection == DesktopSection.Scanner
-            ? Visibility.Visible
-            : Visibility.Collapsed;
+        QuestPage.Visibility = _activeSection == DesktopSection.Quest ? Visibility.Visible : Visibility.Collapsed;
+        HideoutPage.Visibility = _activeSection == DesktopSection.Hideout ? Visibility.Visible : Visibility.Collapsed;
+        ItemsPage.Visibility = _activeSection == DesktopSection.Items ? Visibility.Visible : Visibility.Collapsed;
+        AmmoPage.Visibility = _activeSection == DesktopSection.Ammo ? Visibility.Visible : Visibility.Collapsed;
+        MapPlaceholder.Visibility = _activeSection == DesktopSection.Map ? Visibility.Visible : Visibility.Collapsed;
+        ScannerPlaceholder.Visibility = _activeSection == DesktopSection.Scanner ? Visibility.Visible : Visibility.Collapsed;
         UpdateSectionButtons();
     }
 
@@ -592,19 +656,10 @@ public partial class MainWindow : Window
 
     private string BuildLoadedStatus(GameMode gameMode)
     {
-        if (_activeContent is null)
-            return GameModeText(gameMode);
-
+        _ = gameMode;
         var cleanupCount = _activeItemsWorkspace?.Plan.CleanupItems.Count ?? 0;
-        return $"{GameModeText(gameMode)} · Quest {_activeContent.Quests.Count} · Hideout {_activeContent.HideoutStations.Count} · Ammo {_activeContent.Ammunition.Count} · 정리 {cleanupCount}";
+        return $"정리 필요 {cleanupCount}";
     }
-
-    private static string BuildProgressChangeStatus(
-        string baseStatus,
-        IReadOnlyList<InventoryCleanupIncrease> cleanupChanges) =>
-        cleanupChanges.Count > 0
-            ? $"{baseStatus} · 정리 가능 변화 {cleanupChanges.Count}종"
-            : baseStatus;
 
     private void ShowFailure(string title, Exception exception)
     {
