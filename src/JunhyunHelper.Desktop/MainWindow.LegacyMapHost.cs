@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using JunhyunHelper.Desktop.Map;
+using JunhyunHelper.Infrastructure.Storage;
 
 namespace JunhyunHelper.Desktop;
 
@@ -17,6 +18,7 @@ public partial class MainWindow : TarkovHelper.MainWindow
     private LegacyMapProductRuntime? _legacyMapProductRuntime;
     private LegacyAdditionalMapMarkerController? _legacyAdditionalMapMarkers;
     private LegacyMapQuestSidebar? _legacyMapQuestSidebar;
+    private readonly HashSet<Core.Profiles.GameMode> _questMapGeometryUpgradeAttempted = [];
     private bool _legacyMapTabHooked;
 
     protected override void OnContentRendered(EventArgs e)
@@ -38,11 +40,53 @@ public partial class MainWindow : TarkovHelper.MainWindow
         }
     }
 
-    private void LegacyMapTabButton_Click(object sender, RoutedEventArgs e)
+    private async void LegacyMapTabButton_Click(object sender, RoutedEventArgs e)
     {
         EnsureLegacyMapPage();
+        await EnsureQuestMapGeometryCurrentAsync();
         _legacyMapProductAdapter?.Refresh();
         _legacyAdditionalMapMarkers?.Refresh();
+    }
+
+    /// <summary>
+    /// v3 content remains a valid offline fallback. The first Map use for a game mode
+    /// attempts a normal atomic content update so Quest geometry becomes v4 without
+    /// requiring a manual cache deletion or update action. Failure leaves v3 intact.
+    /// </summary>
+    private async Task EnsureQuestMapGeometryCurrentAsync()
+    {
+        if (_activeProfile is null ||
+            !_questMapGeometryUpgradeAttempted.Add(_activeProfile.GameMode))
+        {
+            return;
+        }
+
+        try
+        {
+            var snapshot = await _services.Content.ReadActiveOrRecoverAsync(_activeProfile.GameMode);
+            if (snapshot.SchemaVersion >= ContentSnapshotStore.CurrentSchemaVersion)
+                return;
+
+            StatusText.Text = "퀘스트 지도 좌표를 최신 데이터로 준비하는 중...";
+            var update = await RunContentUpdateAsync(_activeProfile.GameMode);
+            if (!update.Applied)
+            {
+                StatusText.Text = "기존 게임 데이터로 지도 표시 중";
+                return;
+            }
+
+            var upgraded = await _services.Content.ReadActiveOrRecoverAsync(_activeProfile.GameMode);
+            _activeContent = upgraded.Content;
+            await RefreshActiveWorkspacesAsync(detectCleanupChanges: false);
+            AmmoPage.SetData(_activeContent);
+            StatusText.Text = "퀘스트 지도 좌표 업데이트 완료";
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            // Quest map geometry is additive. Network/update failure must never make
+            // the previous usable content or user progress unusable.
+            StatusText.Text = "기존 게임 데이터로 지도 표시 중";
+        }
     }
 
     private void EnsureLegacyMapPage()
