@@ -15,6 +15,9 @@
     <Product>준현 헬퍼</Product>
     <Version>0.1.0</Version>
     <ApplicationIcon>$(MSBuildProjectDirectory)\obj\JunhyunHelper.AppIcon.ico</ApplicationIcon>
+    <!-- The product UI is Korean-only. Let the .NET SDK filter framework/package
+         satellite assemblies at publish time instead of deleting files afterward. -->
+    <SatelliteResourceLanguages>ko</SatelliteResourceLanguages>
   </PropertyGroup>
 
   <ItemGroup>

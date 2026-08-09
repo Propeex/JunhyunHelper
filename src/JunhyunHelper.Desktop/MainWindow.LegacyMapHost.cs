@@ -19,6 +19,7 @@ public partial class MainWindow : TarkovHelper.MainWindow
     private LegacyAdditionalMapMarkerController? _legacyAdditionalMapMarkers;
     private LegacyMapQuestV2Controller? _legacyMapQuestV2;
     private LegacyMapQuestSidebarV2? _legacyMapQuestSidebarV2;
+    private LegacyMapQuestSidebarPolishBridge? _legacyMapQuestSidebarPolish;
     private readonly HashSet<Core.Profiles.GameMode> _questMapGeometryUpgradeAttempted = [];
     private bool _legacyMapTabHooked;
 
@@ -122,6 +123,7 @@ public partial class MainWindow : TarkovHelper.MainWindow
             _legacyMapPage = page;
             _legacyMapProductAdapter = adapter;
             _legacyMapQuestSidebarV2 = sidebar;
+            _legacyMapQuestSidebarPolish = new LegacyMapQuestSidebarPolishBridge(sidebar);
             _legacyMapQuestV2 = new LegacyMapQuestV2Controller(
                 page,
                 sidebar,
