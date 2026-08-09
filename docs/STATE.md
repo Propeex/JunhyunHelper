@@ -1,14 +1,20 @@
 # STATE — 현재 프로젝트 상태
 
-> 새 대화/새 개발자는 이 문서를 먼저 읽습니다. 대화 기억이 아니라 저장소의 공식 문서와 코드가 프로젝트의 기준입니다. 세부 설계/과거 원인은 링크된 상세 문서를 참조합니다.
+> 새 대화/새 개발자는 이 문서를 먼저 읽습니다. 대화 기억이 아니라 저장소의 공식 문서와 코드가 프로젝트의 기준입니다. 세부 설계와 과거 원인은 링크된 상세 문서를 참조합니다.
 
 ## 현재 Phase
 
 **Phase 2B — 핵심 Desktop 흐름 구현 + 실사용 피드백 반복 개선**
 
-상태: `MAP IMPLEMENTED / MAP READABILITY PASS MERGED / WINDOWS USER TESTING`
+상태: `MAP IMPLEMENTED / UPDATE-RESILIENT MAP PIPELINE MERGED / RE3MR GROUND ZERO WINDOWS VALIDATION`
 
-Map 1차 기능은 구현되어 Windows 실사용 검증 중입니다. 앱 시작, Map 초기화, 지도 자산 복구, Windows 다운로드 파일 잠금 문제는 해결됐습니다. 첫 실제 지도 화면에서 확인된 **층 선택 표시 버그와 낮은 SVG 시인성**은 PR #53에서 수정·검증·병합했습니다.
+Map 1차 기능은 구현되어 Windows 실사용 검증 중입니다. 사용자가 실제 화면에서 확인한 결과:
+
+- floor selector의 record dump 문제는 해결됨
+- Tarkov.dev/Shebuka schematic SVG 및 Official Wiki background는 좌표 기능에는 사용할 수 있으나 실전 지도 가독성이 부족함
+- 목표 presentation은 기존 Tarkov Helper처럼 **도로, 건물 구조, 구역, 지명이 빠르게 읽히는 상세 지도**임
+- 좌표 데이터와 지도 artwork는 같은 source에서 가져올 필요가 없음
+- 무엇보다 **지도와 좌표 모두 패치마다 사람이 다시 맞추지 않고 온라인 source를 재다운로드해 같은 변환/검증 규칙으로 갱신 가능해야 함**
 
 최근 Map checkpoint:
 
@@ -21,31 +27,34 @@ PR #47 — 초기 marker CheckBox NRE 수정
 PR #48 — missing map-cache self-heal / 지도별 부분 복구 / SVG source fallback
 PR #50 — Windows FileShare.None 다운로드 검증 실패 수정
 PR #53 — floor Name 표시 + high-contrast readable SVG presentation
+PR #55 — 선택된 floor가 record 전체를 표시하던 전역 ComboBox template 문제 최종 수정
+PR #56 — Official Wiki background 자동 affine calibration
+PR #57 — 기존 사용자 map-cache 자동 migration
+PR #58 — Map 좌표/artwork update-resilient refresh 정책 + artwork provider 경계
+PR #59 — RE3MR Ground Zero 상세 artwork provider + revision registration
 ```
 
-PR #53 검증:
+PR #59 최종 검증:
 
 ```text
-CI: 31299511934
+CI: 31303356682
 Release Desktop build: success
 full automated tests: success
 Windows x64 self-contained publish: success
 ZIP creation/upload: success
-review threads: none
 ```
 
-상세 문서:
+핵심 Map 상세 문서:
 
-- `docs/PRODUCT.md`
-- `docs/ARCHITECTURE.md`
 - `docs/MAP_PRODUCT_DESIGN.md`
 - `docs/MAP_IMPLEMENTATION.md`
-- `docs/MAP_PERFORMANCE.md`
-- `docs/MAP_STARTUP_RECOVERY.md`
-- `docs/MAP_UI_INIT_FIX.md`
-- `docs/MAP_ASSET_RECOVERY.md`
+- `docs/MAP_UPDATE_PIPELINE.md`
+- `docs/MAP_SOURCE_DECISION_2026-08-09.md`
+- `docs/MAP_RE3MR_PROVIDER.md`
 - `docs/MAP_DATA_SOURCE_ANALYSIS.md`
 - `docs/MAP_VISIBILITY_ANALYSIS.md`
+- `docs/MAP_ASSET_RECOVERY.md`
+- `docs/MAP_STARTUP_RECOVERY.md`
 
 ---
 
@@ -58,7 +67,7 @@ review threads: none
 → 다운로드
 → 외부 형식 검증
 → canonical model 변환
-→ candidate SQLite / presentation candidate
+→ candidate DB / presentation candidate
 → 검증
 → active 교체
 → User Progress와 결합
@@ -66,14 +75,17 @@ review threads: none
 → Desktop 표시
 ```
 
+원칙:
+
 - 일반적인 데이터 내용 변화는 같은 importer/변환 규칙으로 자동 재구축
+- 외부 **형식/의미 자체가 바뀐 경우에만** importer 개발 변경
+- runtime AI/GPT 없음
 - 의미를 모르는 외부 데이터는 추측하지 않음
 - Game Content와 `user.db` 분리
 - update 실패가 기존 정상 Game Content/User Progress를 손상시키지 않음
-- runtime AI/GPT 없음
-- 프로그램이 실제 사용 사실을 알 수 없는 유동 제출 등은 임의 추정하지 않음
-- Map gameplay facts와 artwork/layout은 분리하고 독립적으로 갱신/복구
-- Map 좌표도 수동 patch DB가 아니라 온라인 source → canonical 변환 구조 사용
+- Map gameplay facts / coordinate / presentation artwork를 분리
+- 새 지도 artwork는 다운로드 성공만으로 적용하지 않고 좌표 정합 검증 필수
+- 잘못 정렬된 최신 지도보다 이전 정상 지도 유지가 우선
 
 ---
 
@@ -82,7 +94,7 @@ review threads: none
 - .NET 10 / C# / WPF
 - SQLite
 - Core / Infrastructure / Application / Desktop
-- SkiaSharp image decode + PNG normalize
+- SkiaSharp image decode / image revision registration
 - SharpVectors WPF SVG rendering
 
 기본 root:
@@ -102,6 +114,8 @@ image-cache/
 map-cache/active/
 map-cache/candidate/
 map-cache/previous/
+map-cache/update-state.json
+map-cache/refresh.requested
 map-settings.json
 map-markers.json
 map-bulk-marker-settings.json
@@ -111,32 +125,31 @@ logs/startup.log
 
 Content schema는 **v4**이며 dynamic Map marker + Quest objective world geometry를 포함합니다. 이전 snapshot은 온라인 source에서 자동 재구축하고 `user.db`는 유지합니다.
 
-Windows 테스트 전달본은 **self-contained folder ZIP**입니다. ZIP 전체를 새 폴더에 풀고 `JunhyunHelper.exe`를 실행하며, 별도 .NET 설치는 필요 없습니다.
+Windows 테스트 전달본은 self-contained folder ZIP입니다. ZIP 전체를 새 폴더에 풀고 `JunhyunHelper.exe`를 실행하며 별도 .NET 설치는 필요 없습니다.
 
 ---
 
-## 기존 Core 제품 상태
+# 기존 Core 제품 상태
 
-### Profile
+## Profile
 
 - 한 GameMode당 profile 하나
-- 새 프로필 / 프로필 수정 / 삭제
+- 새 프로필 / 수정 / 삭제
 - level, faction, edition, prestige, trader 상태
-- Prestige 기본 0
-- Fence reputation 별도 주요 진행값
+- Fence reputation 별도 진행값
 
-### Quest
+## Quest
 
 - 진행 중 / 잠김 / 사용 불가 / 완료
 - Quest Item → Item
 - prerequisite Quest → Quest
 - Wiki 이동
 - Map Quest list/marker → Quest
-- 고정 제출 요구는 완료 시 tracked Inventory 자동 차감
+- 고정 제출 요구 완료 시 tracked Inventory 자동 차감
 - 완료 취소는 실제 소비 ledger 기반 복원 선택
-- 유동 제출 후보는 실제 사용 Item을 알 수 없어 자동 차감하지 않음
+- 실제 사용 Item을 알 수 없는 유동 제출 후보는 임의 자동 차감하지 않음
 
-### Hideout
+## Hideout
 
 - 미입력 Lv.0
 - 단계별 next-upgrade material
@@ -144,41 +157,35 @@ Windows 테스트 전달본은 **self-contained folder ZIP**입니다. ZIP 전�
 - upgrade 고정 재료 자동 차감
 - rollback은 ledger 기반 정확한 복원 선택
 
-### Needed Items / Item
+## Needed Items / Item
 
-수량:
+- 필요 · 인레이드 / 일반
+- 보유 · 인레이드 / 일반
+- 검색 / Item 종류 / 용도 / 필요 상태 필터
 
-- 필요 · 인레이드
-- 필요 · 일반
-- 보유 · 인레이드
-- 보유 · 일반
-
-필터:
-
-- 검색
-- Item 종류
-- 용도: `모든 용도 / 퀘스트용 / 은신처용`
-- 필요 상태
-
-### Ammo
+## Ammo
 
 - raw 성능: `json.tarkov.dev`
-- Wiki Ballistics: 현재 비교 표 membership + Armor Class 1~6 effectiveness
-- favorite는 selection 상태가 아니라 shortcut popup
-- 같은 favorite를 언제든 다시 눌러 이동 가능
+- Wiki Ballistics 비교 정보
+- favorite shortcut popup
 
 ---
 
 # Map
 
-## 사용자 흐름
+## 사용자 기능
 
 - Map dropdown
 - floor selector
 - wheel zoom / drag pan / 보기 초기화
-- 좌측: 선택 Map의 **현재 진행 중 Quest만**
-- Map 상단에서 marker checkbox 즉시 접근
-- attribution 상시 표시
+- 선택 Map의 현재 진행 중 Quest 목록
+- marker checkbox
+- attribution
+- user marker
+- screenshot 현재 위치/방향
+- 이동 경로
+- game log Map 자동 전환
+- always-on-top MiniMap
 
 Marker 범위:
 
@@ -197,28 +204,16 @@ Marker 범위:
 - current player position
 - optional trail
 
-Loot container / loose loot는 기본 OFF이며 수천 개 WPF Control 대신 `DrawingContext` 기반 bulk layer로 렌더링합니다.
+Loot marker는 기본 OFF이며 대량 marker는 `DrawingContext` 기반 bulk layer로 렌더링합니다.
 
 ## Quest 위치
 
 Task의 `possibleLocations` / `zones`를 canonical world geometry로 변환합니다.
+정확한 위치가 없는 Quest는 가짜 좌표를 만들지 않고 목록에만 표시합니다.
 
-- 정확한 위치/zone 있음 → marker/outline
-- 정확한 위치 없음 → 좌측 목록에는 표시, `정확한 위치 없음`
-- 가짜 좌표 생성 금지
-- Quest list ↔ marker ↔ Quest 탭 연결
+## Screenshot 위치
 
-## 사용자 marker
-
-- 빈 지도 우클릭 추가
-- 이름/색 변경
-- 삭제
-- floor ID 포함 저장
-- Game Content/Map update와 독립
-
-## Screenshot 현재 위치
-
-EFT screenshot 파일명의 X/Y/Z + quaternion을 파싱합니다. 이미지 OCR은 사용하지 않습니다.
+EFT screenshot 파일명의 X/Y/Z + quaternion을 파싱하며 OCR은 사용하지 않습니다.
 
 ```text
 PrintScreen
@@ -229,132 +224,118 @@ PrintScreen
 → player marker + heading
 ```
 
-- screenshot path 직접 선택 / 자동 찾기
-- 위치 기반 floor 자동 전환
-- floor 판정은 height + metadata spatial bounds 사용
-
-## Raid Map 자동 전환
-
-EFT game log의 알려진 Map alias만 사용해 Map/MiniMap을 자동 전환합니다. unknown alias는 추측하지 않습니다.
-
-## 이동 경로
-
-- `이동 경로` checkbox
-- 기본 OFF
-- screenshot 위치 갱신 시 path 추가
-- `경로 지우기`
-
-## MiniMap
-
-별도 always-on-top window입니다.
-
-- 전체 Map의 mini version
-- player-centered follow
-- zoom
-- 현재 floor/map/marker/filter 연동
-- Map 탭 버튼으로 ON/OFF
-
 ---
 
-## Map 데이터 원천
+## Map source architecture
 
-### gameplay / Quest geometry
+### Canonical gameplay / coordinate
 
-- `json.tarkov.dev/<game-mode>/maps`
-- task `possibleLocations`
-- task `zones`
-
-### layout metadata
-
-Tarkov.dev 공개 `src/data/maps.json`:
-
-- transform / coordinate rotation
-- bounds / svgBounds
-- zoom
-- SVG layer
-- floor height/spatial extents
-- attribution
-
-### artwork
-
-`the-hideout/tarkov-dev-svg-maps`
-
-- CC BY-NC-SA 4.0
-- 준현 헬퍼는 비상업적 사용
-- attribution 표시
-- radar/ESP/cheat 용도 금지 조건 준수
-
----
-
-## Map asset update / recovery
+온라인 Tarkov data와 Tarkov.dev layout metadata를 사용합니다.
 
 ```text
-Game Content update
-→ canonical gameplay/Quest geometry 갱신
-→ layout/SVG candidate 갱신
-→ 검증
-→ active Map assets 교체
+online gameplay/map data
++ layout transform / rotation / bounds / floor metadata
+→ canonical world X/Y/Z
+→ normalized Map surface
 ```
 
-Map asset은 `active / candidate / previous` 구조입니다.
+Quest/extract/player/user marker는 이 canonical surface를 사용합니다.
 
-Map 탭 진입 시 active asset이 없거나 손상되면 현재 Game Content를 이용해 **Map asset만 self-heal**합니다. 빈 지도 패널에서 `지도 자산 다시 받기`도 가능합니다.
+### Presentation artwork
 
-SVG source fallback:
+좌표 source와 독립 provider입니다.
+
+현재 우선순위:
 
 ```text
-assets.tarkov.dev/maps/svg/<file>
-↕
-raw.githubusercontent.com/the-hideout/tarkov-dev-svg-maps/.../<file>
+1. RE3MR detailed artwork — 현재 Ground Zero만 검증 구현
+2. Official Wiki artwork — machine-readable marker 기반 affine calibration
+3. Tarkov.dev/Shebuka calibrated schematic SVG
+4. refresh 전체 실패 시 previous active asset
 ```
 
-한 Map 실패가 전체를 막지 않으며 이전 정상본이 있으면 해당 Map만 이전본을 유지합니다. Marker PNG는 실패해도 이전 icon 또는 기본 visual로 fallback합니다.
-
-Windows 다운로드는 반드시 writer dispose 후 validator가 파일을 재오픈하며, `FileShare.None` 회귀 테스트로 보호합니다.
+기존 Tarkov Helper의 보기 좋은 SVG는 과거 Tarkov Market 계열 artwork를 수동 migration한 자산으로 확인됐습니다. 목표 UX reference로만 사용하며 신규 JunhyunHelper의 자동 source로 복제하지 않습니다.
 
 ---
 
-## Map readability — PR #53
+## Map update-resilient pipeline — PR #58
 
-첫 실제 화면에서 확인된 사실:
+Map source refresh 조건:
 
-- floor selector가 record 전체를 출력하던 UI bug가 있었음
-- Customs 구조 geometry는 SVG에 실제 존재함
-- upstream SVG가 `land #1f5054`, `building #1a2632` 등 저대비 palette라 전체 축척에서 구조물이 묻힘
-- upstream SVG는 기능형 schematic이며 촘촘한 지명/랜드마크 텍스트가 있는 완성형 커뮤니티 지도와 성격이 다름
+- active Map 없음/손상
+- Game Content의 Map/marker fingerprint 변경
+- Data Update 성공
+- Map ingestion pipeline version 변경
+- 마지막 성공 refresh 후 24시간 경과
+- 사용자의 지도 자산 수동 refresh
 
-적용된 수정:
+현재 pipeline version:
 
-- floor selector는 **`Name`만 표시**
-- downloaded/source SVG는 그대로 보존
-- 화면 표시 때 `readable-v1` derivative 생성
-- building / floor / cement / tarmac / road / fence / map border 대비 강화
-- geometry/viewBox 불변 → marker calibration 불변
-- Map과 MiniMap 동일 readable presentation
-- derivative 생성은 WPF UI thread 밖에서 수행
-- 빠른 Map/floor 전환 시 최신 요청만 적용
-- 변환 실패 시 원본 SVG fallback
+```text
+map-online-sources-v4-re3mr
+```
 
-이번 사용자 검증에서도 구조/랜드마크 파악이 부족하다고 판단되면 다음 단계에서 **더 상세하면서 redistribution/derivative 라이선스가 명확하고 좌표 calibration 가능한 artwork source**를 조사합니다. 라이선스가 불명확한 커뮤니티 이미지는 임의로 패키징하지 않습니다.
+따라서 새 artwork importer가 도입되면 기존 사용자의 cache도 자동 재구축합니다.
 
-상세: `docs/MAP_VISIBILITY_ANALYSIS.md`
+`update-state.json`은 active/candidate 밖에 보존하며 asset directory swap과 독립입니다.
+
+---
+
+## RE3MR Ground Zero — PR #59
+
+목표는 상세 지도를 넣는 것과 업데이트 대응을 동시에 만족하는 것입니다.
+
+```text
+RE3MR page
+→ page version
+→ current image URL
+→ image SHA256
+→ visual extraction anchor 검증
+→ 현재 canonical extraction marker 이름 매칭
+→ artwork coordinate → canonical surface affine calibration
+→ residual/max error 검증
+→ candidate
+→ active
+```
+
+Artwork 이미지 revision이 바뀌면 이전 validated image와 새 image를 자동 registration합니다.
+현재는 안전성을 위해 global scale + translation만 허용합니다.
+
+새 revision을 신뢰할 수 없으면:
+
+```text
+previous validated RE3MR 유지
+→ 없으면 Official Wiki
+→ Wiki 실패 시 calibrated schematic SVG
+```
+
+Ground Zero visual anchor:
+
+- Emercom Checkpoint
+- Scav Checkpoint (Co-Op)
+- Mira Ave
+- Police Cordon V-Ex
+- Nakatani Basement Stairs
+
+중요: 이 anchor는 artwork상의 시각 기준점이며 world X/Z를 하드코딩한 것이 아닙니다. world coordinate는 매 refresh마다 현재 canonical Map marker에서 다시 읽습니다.
+
+현재 **Windows 실제 화면 검증 전**입니다. 자동 테스트는 통과했지만 실제 RE3MR source 다운로드, 화면 crop/scale, 실제 marker 정합은 사용자 Windows 검증이 다음 gate입니다.
 
 ---
 
 ## Scanner
 
-탭과 placeholder만 있습니다. 실제 기능은 별도 제품 요구사항 확정 전까지 구현하지 않습니다. 향후 Map artwork anti-cheat 라이선스와 충돌하는 radar/ESP 성격 기능은 넣지 않습니다.
+탭과 placeholder만 있습니다. 실제 기능은 별도 제품 요구사항 확정 전까지 구현하지 않습니다. Map artwork의 anti-cheat 라이선스와 충돌하는 radar/ESP 성격 기능은 넣지 않습니다.
 
 ---
 
 ## 현재 다음 작업
 
-1. Windows 사용자 화면에서 PR #53의 floor `Name` 표시 확인
-2. `readable-v1`로 Customs 및 다른 Map 구조물 시인성 확인
-3. 실제 marker coordinate alignment 확인
-4. multi-floor 수동/자동 전환 확인
-5. 실제 EFT screenshot 위치/방향 검증
-6. game log Map auto-switch 검증
-7. MiniMap follow/zoom 사용감 검증
-8. readable-v1로도 부족하면 상세 artwork source 라이선스/정합성 조사
-9. 발견된 실사용 문제를 Map 2차 개선으로 반영
+1. 최신 Windows 빌드에서 Ground Zero가 실제 RE3MR 상세 artwork로 표시되는지 확인
+2. 도로/건물/지명 가독성이 목표 UX에 맞는지 확인
+3. Ground Zero extract/Quest marker의 실제 배경 위치 정합 확인
+4. screenshot current-position marker 정합 확인
+5. RE3MR source refresh 실패/변경 시 previous/fallback 동작 확인
+6. Ground Zero 검증 성공 후 RE3MR provider를 다른 single-plane Map으로 확대
+7. multi-floor Map은 floor별 상세 artwork/calibration 별도 구현
+8. MiniMap에서 상세 artwork 가독성/성능 확인
