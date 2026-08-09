@@ -10,7 +10,7 @@ namespace JunhyunHelper.Tests.Infrastructure;
 public sealed class TarkovMapLayoutCatalogClientTests
 {
     [Fact]
-    public async Task LoadAsync_MatchesAltMapAndPreservesSpatialFloorExtents()
+    public async Task LoadAsync_UsesLegacyGroundZeroArtworkAndPreservesSpatialFloorExtents()
     {
         const string metadata = """
             [
@@ -61,14 +61,23 @@ public sealed class TarkovMapLayoutCatalogClientTests
         var layout = Assert.Single(result.Layouts);
         Assert.Equal("map-gz-21", layout.MapId);
         Assert.Equal("ground-zero", layout.NormalizedName);
-        Assert.Equal(2, layout.Floors.Count);
-        var garage = Assert.Single(layout.Floors, floor => floor.SvgLayer == "level_garage");
-        var extent = Assert.Single(garage.Extents);
+        Assert.Equal("legacy-GroundZero", layout.Key);
+        Assert.True(layout.UsesLegacyAffineTransform);
+        Assert.Equal([ -2d, 0d, 0d, 2d, 1600d, 1301.5d ], layout.LegacyPlayerTransform);
+        Assert.Equal(2800, layout.SurfaceWidth);
+        Assert.Equal(3100, layout.SurfaceHeight);
+        Assert.Equal(4, layout.Floors.Count);
+
+        var basement = Assert.Single(layout.Floors, floor => floor.Id == "basement");
+        Assert.Equal("basement", basement.SvgLayer);
+        var extent = Assert.Single(basement.Extents);
         var bounds = Assert.Single(extent.Bounds);
         Assert.True(bounds.Contains(0, 0));
         Assert.False(bounds.Contains(50, 0));
-        Assert.EndsWith("ground-zero.svg", layout.SvgUrl, StringComparison.Ordinal);
-        Assert.Contains("tarkov-dev-svg-maps", layout.SvgUrl, StringComparison.Ordinal);
+
+        Assert.EndsWith("/GroundZero.svg", layout.SvgUrl, StringComparison.Ordinal);
+        Assert.Contains("Propeex/Tarkov-Helper", layout.SvgUrl, StringComparison.Ordinal);
+        Assert.DoesNotContain("tarkov-dev-svg-maps", layout.SvgUrl, StringComparison.Ordinal);
     }
 
     private sealed class StaticJsonHandler(string json) : HttpMessageHandler
