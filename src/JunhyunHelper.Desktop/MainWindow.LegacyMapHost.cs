@@ -54,6 +54,7 @@ public partial class MainWindow : TarkovHelper.MainWindow
         {
             var page = new TarkovHelper.Pages.Map.MapPage();
             var sidebar = new LegacyMapQuestSidebar();
+            LegacyQuestSidebarLayoutBridge.Apply(sidebar);
 
             var host = new Grid();
             host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
