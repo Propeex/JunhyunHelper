@@ -1,7 +1,7 @@
 <UserControl x:Class="JunhyunHelper.Desktop.Map.MapPage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:svgc="http://sharpvectors.codeplex.com/svgc/"
+             xmlns:map="clr-namespace:JunhyunHelper.Desktop.Map"
              Background="{StaticResource BackgroundDarkBrush}"
              Loaded="MapPage_Loaded"
              Unloaded="MapPage_Unloaded">
@@ -32,7 +32,8 @@
 
                 <TextBlock x:Name="FloorLabel" Grid.Column="2" Text="층" Foreground="{StaticResource TextSecondaryBrush}"
                            VerticalAlignment="Center" Margin="14,0,8,0" />
-                <ComboBox x:Name="FloorComboBox" Grid.Column="3" SelectionChanged="FloorComboBox_SelectionChanged" />
+                <ComboBox x:Name="FloorComboBox" Grid.Column="3" DisplayMemberPath="Name"
+                          SelectionChanged="FloorComboBox_SelectionChanged" />
 
                 <Button x:Name="MiniMapButton" Grid.Column="4" Content="미니맵 켜기" Margin="12,0,0,0"
                         Click="MiniMapButton_Click" />
@@ -114,7 +115,7 @@
                                   PreviewMouseMove="MapScrollViewer_PreviewMouseMove">
                         <Grid x:Name="MapSurface" Width="1600" Height="1100" Background="#16191D"
                               MouseRightButtonUp="MapSurface_MouseRightButtonUp">
-                            <svgc:SvgViewbox x:Name="MapSvg" Stretch="Fill" IsHitTestVisible="False" />
+                            <map:ReadableSvgViewbox x:Name="MapSvg" Stretch="Fill" IsHitTestVisible="False" />
                             <Canvas x:Name="ZoneCanvas" IsHitTestVisible="False" />
                             <Canvas x:Name="TrailCanvas" IsHitTestVisible="False" />
                             <Canvas x:Name="MarkerCanvas" />
