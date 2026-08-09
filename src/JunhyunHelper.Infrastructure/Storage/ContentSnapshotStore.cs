@@ -16,10 +16,12 @@ public sealed record StoredContentSnapshot(
 
 public sealed class ContentSnapshotStore
 {
-    // v2 added normalized item category metadata. v3 adds explicit current Wiki
+    // v2 added normalized item category metadata. v3 added explicit current Wiki
     // Ballistics membership independently from optional armor-effectiveness ratings.
-    // Old content snapshots are intentionally rebuilt from online source; user.db is separate.
-    public const int CurrentSchemaVersion = 3;
+    // v4 adds Quest-only world geometry (possibleLocations/zones) used by the
+    // independent Map subsystem. Old snapshots are intentionally rebuilt from
+    // online source; user.db remains separate and is never invalidated by this bump.
+    public const int CurrentSchemaVersion = 4;
 
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
 
