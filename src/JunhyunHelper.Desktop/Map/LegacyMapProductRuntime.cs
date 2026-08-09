@@ -6,22 +6,22 @@ using TarkovHelper.Services;
 namespace JunhyunHelper.Desktop.Map;
 
 /// <summary>
-/// Runtime-only synchronization for product controls that sit at the boundary
-/// between the exact Main Map and MiniMap window.
+/// Runtime-only product controls layered on the exact Tarkov Helper Map subsystem.
 /// </summary>
 public sealed class LegacyMapProductRuntime : IDisposable
 {
-    private const double SharedPlayerMarkerMinPixels = 9.0;  // 0.5x of legacy 18px base
-    private const double SharedPlayerMarkerMaxPixels = 54.0; // 3.0x of legacy 18px base
+    private const double SharedPlayerMarkerMinPixels = 9.0;
+    private const double SharedPlayerMarkerMaxPixels = 54.0;
 
     private readonly TarkovHelper.Pages.Map.MapPage _page;
     private readonly OverlayMiniMapService _overlay = OverlayMiniMapService.Instance;
     private readonly JunhyunMapHotkeyService _hotkeys = new();
-    private readonly LegacyQuestMarkerScaleBridge _questScaleBridge;
-    private readonly LegacyQuestMarkerToggleBridge _questToggleBridge;
     private readonly LegacyQuestPresentationSettingsBridge _questSettingsBridge;
+    private readonly LegacyMapHotkeySettingsBridge _hotkeySettingsBridge;
+    private readonly LegacyMapMarkerSettingsV2Bridge _markerSettingsBridge;
+    private readonly LegacyMapInteractionPolicyBridge _interactionPolicyBridge;
     private readonly Slider? _playerMarkerSlider;
-    private Button? _hotkeySettingsButton;
+    private Button? _miniMapSettingsButton;
     private bool _syncingPlayerMarker;
     private bool _disposed;
 
@@ -33,9 +33,10 @@ public sealed class LegacyMapProductRuntime : IDisposable
         ArgumentNullException.ThrowIfNull(refreshQuestProjection);
 
         _ = new LegacyExtractSettingsMergeBridge(page);
-        _questScaleBridge = new LegacyQuestMarkerScaleBridge(page);
-        _questToggleBridge = new LegacyQuestMarkerToggleBridge(page);
         _questSettingsBridge = new LegacyQuestPresentationSettingsBridge(page, refreshQuestProjection);
+        _hotkeySettingsBridge = new LegacyMapHotkeySettingsBridge(page);
+        _markerSettingsBridge = new LegacyMapMarkerSettingsV2Bridge(page);
+        _interactionPolicyBridge = new LegacyMapInteractionPolicyBridge(page);
         _playerMarkerSlider = _page.FindName("SliderPlayerMarkerSize") as Slider;
 
         if (_playerMarkerSlider is not null)
@@ -49,12 +50,12 @@ public sealed class LegacyMapProductRuntime : IDisposable
             _playerMarkerSlider.ValueChanged += PlayerMarkerSlider_ValueChanged;
         }
 
-        InjectHotkeySettingsEntry();
+        InjectMiniMapSettingsEntry();
         _overlay.SettingsChanged += Overlay_SettingsChanged;
         _page.Loaded += Page_Loaded;
     }
 
-    private void InjectHotkeySettingsEntry()
+    private void InjectMiniMapSettingsEntry()
     {
         if (_page.FindName("SettingsPanel") is not Border settingsPanel ||
             settingsPanel.Child is not ScrollViewer scrollViewer ||
@@ -65,26 +66,26 @@ public sealed class LegacyMapProductRuntime : IDisposable
 
         var header = new TextBlock
         {
-            Text = "미니맵 / 단축키",
+            Text = "미니맵",
             FontWeight = FontWeights.SemiBold,
             Foreground = _page.TryFindResource("TextPrimaryBrush") as Brush ?? Brushes.White,
             Margin = new Thickness(0, 0, 0, 8),
         };
-        _hotkeySettingsButton = new Button
+        _miniMapSettingsButton = new Button
         {
-            Content = "미니맵 및 단축키 설정",
+            Content = "미니맵 표시 설정",
             Padding = new Thickness(12, 7, 12, 7),
             Margin = new Thickness(0, 0, 0, 20),
             HorizontalAlignment = HorizontalAlignment.Stretch,
         };
-        _hotkeySettingsButton.Click += HotkeySettingsButton_Click;
+        _miniMapSettingsButton.Click += MiniMapSettingsButton_Click;
 
         var insertIndex = Math.Min(1, stack.Children.Count);
         stack.Children.Insert(insertIndex, header);
-        stack.Children.Insert(insertIndex + 1, _hotkeySettingsButton);
+        stack.Children.Insert(insertIndex + 1, _miniMapSettingsButton);
     }
 
-    private void HotkeySettingsButton_Click(object sender, RoutedEventArgs e) =>
+    private void MiniMapSettingsButton_Click(object sender, RoutedEventArgs e) =>
         _overlay.ShowSettingsWindow();
 
     private void Page_Loaded(object sender, RoutedEventArgs e)
@@ -151,15 +152,16 @@ public sealed class LegacyMapProductRuntime : IDisposable
             return;
         _disposed = true;
 
+        _interactionPolicyBridge.Dispose();
+        _markerSettingsBridge.Dispose();
+        _hotkeySettingsBridge.Dispose();
         _questSettingsBridge.Dispose();
-        _questToggleBridge.Dispose();
-        _questScaleBridge.Dispose();
         _hotkeys.Dispose();
         _overlay.SettingsChanged -= Overlay_SettingsChanged;
         _page.Loaded -= Page_Loaded;
         if (_playerMarkerSlider is not null)
             _playerMarkerSlider.ValueChanged -= PlayerMarkerSlider_ValueChanged;
-        if (_hotkeySettingsButton is not null)
-            _hotkeySettingsButton.Click -= HotkeySettingsButton_Click;
+        if (_miniMapSettingsButton is not null)
+            _miniMapSettingsButton.Click -= MiniMapSettingsButton_Click;
     }
 }

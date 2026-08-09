@@ -6,8 +6,8 @@ using JunhyunHelper.Infrastructure.Storage;
 namespace JunhyunHelper.Desktop;
 
 /// <summary>
-/// Host boundary for the exact Tarkov Helper Map subsystem plus the explicitly
-/// approved JunhyunHelper product delta. Quest is the only cross-feature dependency.
+/// Host boundary for the exact Tarkov Helper Map subsystem plus the approved
+/// JunhyunHelper product delta. Quest is the only cross-feature dependency.
 /// </summary>
 public partial class MainWindow : TarkovHelper.MainWindow
 {
@@ -17,7 +17,8 @@ public partial class MainWindow : TarkovHelper.MainWindow
     private LegacyMapProductAdapter? _legacyMapProductAdapter;
     private LegacyMapProductRuntime? _legacyMapProductRuntime;
     private LegacyAdditionalMapMarkerController? _legacyAdditionalMapMarkers;
-    private LegacyMapQuestSidebar? _legacyMapQuestSidebar;
+    private LegacyMapQuestV2Controller? _legacyMapQuestV2;
+    private LegacyMapQuestSidebarV2? _legacyMapQuestSidebarV2;
     private readonly HashSet<Core.Profiles.GameMode> _questMapGeometryUpgradeAttempted = [];
     private bool _legacyMapTabHooked;
 
@@ -45,13 +46,13 @@ public partial class MainWindow : TarkovHelper.MainWindow
         EnsureLegacyMapPage();
         await EnsureQuestMapGeometryCurrentAsync();
         _legacyMapProductAdapter?.Refresh();
+        _legacyMapQuestV2?.Refresh();
         _legacyAdditionalMapMarkers?.Refresh();
     }
 
     /// <summary>
-    /// v3 content remains a valid offline fallback. The first Map use for a game mode
-    /// attempts a normal atomic content update so Quest geometry becomes v4 without
-    /// requiring a manual cache deletion or update action. Failure leaves v3 intact.
+    /// v3 content remains a valid offline fallback. First Map use attempts an atomic
+    /// content update so Quest geometry becomes v4 without requiring manual cleanup.
     /// </summary>
     private async Task EnsureQuestMapGeometryCurrentAsync()
     {
@@ -83,8 +84,6 @@ public partial class MainWindow : TarkovHelper.MainWindow
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            // Quest map geometry is additive. Network/update failure must never make
-            // the previous usable content or user progress unusable.
             StatusText.Text = "기존 게임 데이터로 지도 표시 중";
         }
     }
@@ -97,11 +96,19 @@ public partial class MainWindow : TarkovHelper.MainWindow
         try
         {
             var page = new TarkovHelper.Pages.Map.MapPage();
-            var sidebar = new LegacyMapQuestSidebar();
-            LegacyQuestSidebarLayoutBridge.Apply(sidebar);
 
+            // V1 adapter still owns the minimal exact-source UI cleanup. Its old Quest
+            // sidebar/projection is kept disconnected; V2 owns all real Quest UI/data.
+            var disconnectedV1Sidebar = new LegacyMapQuestSidebar();
+            var adapter = new LegacyMapProductAdapter(
+                page,
+                disconnectedV1Sidebar,
+                () => null,
+                () => null);
+
+            var sidebar = new LegacyMapQuestSidebarV2();
             var host = new Grid();
-            host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
+            host.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
             Grid.SetColumn(sidebar, 0);
@@ -113,15 +120,17 @@ public partial class MainWindow : TarkovHelper.MainWindow
             MapPlaceholder.Children.Add(host);
 
             _legacyMapPage = page;
-            _legacyMapQuestSidebar = sidebar;
-            _legacyMapProductAdapter = new LegacyMapProductAdapter(
+            _legacyMapProductAdapter = adapter;
+            _legacyMapQuestSidebarV2 = sidebar;
+            _legacyMapQuestV2 = new LegacyMapQuestV2Controller(
                 page,
                 sidebar,
                 () => QuestPage.CurrentContentForMap,
-                () => QuestPage.CurrentWorkspaceForMap);
+                () => QuestPage.CurrentWorkspaceForMap,
+                OpenQuestFromMap);
             _legacyMapProductRuntime = new LegacyMapProductRuntime(
                 page,
-                () => _legacyMapProductAdapter?.Refresh());
+                () => _legacyMapQuestV2?.Refresh());
             _legacyAdditionalMapMarkers = new LegacyAdditionalMapMarkerController(page);
         }
         catch (Exception exception)
@@ -141,6 +150,13 @@ public partial class MainWindow : TarkovHelper.MainWindow
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
+    }
+
+    private void OpenQuestFromMap(string questId)
+    {
+        _activeSection = DesktopSection.Quest;
+        ShowActiveSection();
+        QuestPage.FocusQuest(questId);
     }
 
     public void SetFullScreenMode(bool enabled)
