@@ -32,7 +32,8 @@
 
                 <TextBlock x:Name="FloorLabel" Grid.Column="2" Text="층" Foreground="{StaticResource TextSecondaryBrush}"
                            VerticalAlignment="Center" Margin="14,0,8,0" />
-                <ComboBox x:Name="FloorComboBox" Grid.Column="3" SelectionChanged="FloorComboBox_SelectionChanged" />
+                <ComboBox x:Name="FloorComboBox" Grid.Column="3" DisplayMemberPath="Name"
+                          SelectionChanged="FloorComboBox_SelectionChanged" />
 
                 <Button x:Name="MiniMapButton" Grid.Column="4" Content="미니맵 켜기" Margin="12,0,0,0"
                         Click="MiniMapButton_Click" />
