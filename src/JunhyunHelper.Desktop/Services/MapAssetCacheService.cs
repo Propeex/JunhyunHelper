@@ -17,7 +17,37 @@ public sealed record MapAssetUpdateResult(
 public sealed class MapAssetCacheService
 {
     private const int MaxSvgBytes = 32 * 1024 * 1024;
+    private const int MaxIconBytes = 2 * 1024 * 1024;
+    private const string MarkerAssetBaseUrl =
+        "https://raw.githubusercontent.com/the-hideout/tarkov-dev/refs/heads/main/public/maps/interactive/";
+
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
+    private static readonly IReadOnlyDictionary<MapMarkerKind, string> MarkerIconFiles =
+        new Dictionary<MapMarkerKind, string>
+        {
+            [MapMarkerKind.PmcExtract] = "extract_pmc.png",
+            [MapMarkerKind.ScavExtract] = "extract_scav.png",
+            [MapMarkerKind.SharedExtract] = "extract_shared.png",
+            [MapMarkerKind.Transit] = "extract_transit.png",
+            [MapMarkerKind.PmcSpawn] = "spawn_pmc.png",
+            [MapMarkerKind.ScavSpawn] = "spawn_scav.png",
+            [MapMarkerKind.SniperScav] = "spawn_sniper_scav.png",
+            [MapMarkerKind.Boss] = "spawn_boss.png",
+            [MapMarkerKind.SpecialAi] = "spawn_rogue.png",
+            [MapMarkerKind.Hazard] = "hazard.png",
+            [MapMarkerKind.Lock] = "lock.png",
+            [MapMarkerKind.Switch] = "switch.png",
+            [MapMarkerKind.StationaryWeapon] = "stationarygun.png",
+            [MapMarkerKind.BtrStop] = "btr_stop.png",
+            [MapMarkerKind.LootContainer] = "container_crate.png",
+            [MapMarkerKind.LooseLoot] = "loose_loot.png",
+        };
+    private static readonly string[] SupplementalIconFiles =
+    [
+        "quest_item.png",
+        "quest_objective.png",
+        "player-position.png",
+    ];
 
     private readonly HttpClient _httpClient;
     private readonly TarkovMapLayoutCatalogClient _layoutClient;
@@ -53,7 +83,11 @@ public sealed class MapAssetCacheService
             if (layouts.Count == 0)
                 throw new InvalidDataException("No usable Map layouts were returned.");
 
-            var total = layouts.Count;
+            var iconFiles = MarkerIconFiles.Values
+                .Concat(SupplementalIconFiles)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            var total = layouts.Count + iconFiles.Length;
             var completed = 0;
             foreach (var layout in layouts)
             {
@@ -66,6 +100,19 @@ public sealed class MapAssetCacheService
                     completed,
                     total,
                     $"지도 다운로드 중... {completed}/{total}"));
+            }
+
+            foreach (var iconFile in iconFiles)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var destination = GetIconPath(CandidateDirectory, iconFile);
+                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                await DownloadPngAsync(MarkerAssetBaseUrl + iconFile, destination, cancellationToken);
+                completed++;
+                progress?.Report(new MapAssetUpdateProgress(
+                    completed,
+                    total,
+                    $"지도 마커 아이콘 다운로드 중... {completed}/{total}"));
             }
 
             await File.WriteAllTextAsync(
@@ -95,6 +142,23 @@ public sealed class MapAssetCacheService
                       ?? Array.Empty<MapLayoutDefinition>();
         await ValidateDirectoryAsync(ActiveDirectory, layouts, cancellationToken);
         return layouts;
+    }
+
+    public string? GetMarkerIconPath(MapMarkerKind kind) =>
+        MarkerIconFiles.TryGetValue(kind, out var fileName)
+            ? ExistingIconPath(fileName)
+            : null;
+
+    public string? GetQuestObjectiveIconPath() => ExistingIconPath("quest_objective.png");
+
+    public string? GetQuestItemIconPath() => ExistingIconPath("quest_item.png");
+
+    public string? GetPlayerIconPath() => ExistingIconPath("player-position.png");
+
+    private string? ExistingIconPath(string fileName)
+    {
+        var path = GetIconPath(ActiveDirectory, fileName);
+        return File.Exists(path) ? path : null;
     }
 
     public string? GetRenderedSvgPath(MapLayoutDefinition layout, string? floorId)
@@ -181,6 +245,43 @@ public sealed class MapAssetCacheService
         ValidateSvg(destination);
     }
 
+    private async Task DownloadPngAsync(
+        string url,
+        string destination,
+        CancellationToken cancellationToken)
+    {
+        using var response = await _httpClient.GetAsync(
+            url,
+            HttpCompletionOption.ResponseHeadersRead,
+            cancellationToken);
+        response.EnsureSuccessStatusCode();
+        if (response.Content.Headers.ContentLength is > MaxIconBytes)
+            throw new InvalidDataException($"Map marker icon is too large: {url}");
+
+        await using var input = await response.Content.ReadAsStreamAsync(cancellationToken);
+        await using var output = new FileStream(
+            destination,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.None,
+            bufferSize: 32768,
+            useAsync: true);
+        var buffer = new byte[32768];
+        var total = 0;
+        while (true)
+        {
+            var read = await input.ReadAsync(buffer, cancellationToken);
+            if (read == 0)
+                break;
+            total += read;
+            if (total > MaxIconBytes)
+                throw new InvalidDataException($"Map marker icon exceeded the maximum size: {url}");
+            await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+        }
+        await output.FlushAsync(cancellationToken);
+        ValidatePng(destination);
+    }
+
     private static Task ValidateDirectoryAsync(
         string directory,
         IReadOnlyList<MapLayoutDefinition> layouts,
@@ -201,6 +302,14 @@ public sealed class MapAssetCacheService
                 throw new FileNotFoundException($"Map SVG missing for '{layout.Key}'.", svg);
             ValidateSvg(svg);
         }
+
+        foreach (var iconFile in MarkerIconFiles.Values.Concat(SupplementalIconFiles).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            var icon = GetIconPath(directory, iconFile);
+            if (!File.Exists(icon))
+                throw new FileNotFoundException($"Map marker icon missing: '{iconFile}'.", icon);
+            ValidatePng(icon);
+        }
         return Task.CompletedTask;
     }
 
@@ -209,6 +318,15 @@ public sealed class MapAssetCacheService
         var document = XDocument.Load(path, LoadOptions.None);
         if (document.Root is null || !string.Equals(document.Root.Name.LocalName, "svg", StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException($"Map asset '{path}' is not a valid SVG document.");
+    }
+
+    private static void ValidatePng(string path)
+    {
+        Span<byte> header = stackalloc byte[8];
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        if (stream.Read(header) != header.Length ||
+            !header.SequenceEqual(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }))
+            throw new InvalidDataException($"Map marker asset '{path}' is not a valid PNG file.");
     }
 
     private void ActivateCandidate()
@@ -240,6 +358,9 @@ public sealed class MapAssetCacheService
 
     private static string GetRawSvgPath(string directory, MapLayoutDefinition layout) =>
         Path.Combine(directory, "svg", $"{Sanitize(layout.MapId)}-{Sanitize(layout.Key)}.svg");
+
+    private static string GetIconPath(string directory, string fileName) =>
+        Path.Combine(directory, "icons", Sanitize(fileName));
 
     private static string Sanitize(string value)
     {
