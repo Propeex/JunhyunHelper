@@ -6,6 +6,7 @@ namespace JunhyunHelper.Desktop.Map;
 public partial class MapPage
 {
     private bool _attributionAdded;
+    private TextBlock? _attributionText;
 
     protected override void OnInitialized(EventArgs e)
     {
@@ -14,6 +15,9 @@ public partial class MapPage
         {
             EnsureAttributionOverlay();
             EnsureSpatialFloorTracking();
+            MapComboBox.SelectionChanged -= MapComboBox_AttributionSelectionChanged;
+            MapComboBox.SelectionChanged += MapComboBox_AttributionSelectionChanged;
+            UpdateAttributionText();
         };
         EnsureAttributionOverlay();
     }
@@ -23,6 +27,12 @@ public partial class MapPage
         if (_attributionAdded || MarkerInfoPanel?.Parent is not Grid mapHost)
             return;
 
+        _attributionText = new TextBlock
+        {
+            Text = "지도: tarkov-dev-svg-maps · CC BY-NC-SA 4.0",
+            FontSize = 10,
+            Foreground = TryFindResource("TextSecondaryBrush") as System.Windows.Media.Brush,
+        };
         var attribution = new Border
         {
             HorizontalAlignment = HorizontalAlignment.Right,
@@ -35,15 +45,24 @@ public partial class MapPage
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(5),
             IsHitTestVisible = false,
-            Child = new TextBlock
-            {
-                Text = "지도: tarkov-dev-svg-maps · CC BY-NC-SA 4.0",
-                FontSize = 10,
-                Foreground = TryFindResource("TextSecondaryBrush") as System.Windows.Media.Brush,
-            },
+            Child = _attributionText,
         };
         Panel.SetZIndex(attribution, 50);
         mapHost.Children.Add(attribution);
         _attributionAdded = true;
+        UpdateAttributionText();
+    }
+
+    private void MapComboBox_AttributionSelectionChanged(object sender, SelectionChangedEventArgs e) =>
+        Dispatcher.BeginInvoke(UpdateAttributionText);
+
+    private void UpdateAttributionText()
+    {
+        if (_attributionText is null)
+            return;
+        var author = _currentChoice?.Layout.Attribution;
+        _attributionText.Text = string.IsNullOrWhiteSpace(author)
+            ? "지도: tarkov-dev-svg-maps · CC BY-NC-SA 4.0"
+            : $"지도: {author} / tarkov-dev-svg-maps · CC BY-NC-SA 4.0";
     }
 }
