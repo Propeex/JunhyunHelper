@@ -33,8 +33,7 @@ jobs:
             --runtime win-x64 `
             --self-contained true `
             --output artifacts/publish `
-            -p:PublishSingleFile=true `
-            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:PublishSingleFile=false `
             -p:PublishTrimmed=false `
             -p:PublishReadyToRun=false `
             -p:DebugType=None `
@@ -46,7 +45,19 @@ jobs:
             throw "Published JunhyunHelper.exe was not produced."
           }
 
-          Get-Item artifacts/publish/JunhyunHelper.exe | Format-List Name,Length,LastWriteTime
+          $required = @(
+            'JunhyunHelper.exe',
+            'JunhyunHelper.dll',
+            'SharpVectors.Converters.Wpf.dll',
+            'SharpVectors.Renderers.Wpf.dll'
+          )
+          foreach ($file in $required) {
+            if (-not (Test-Path (Join-Path artifacts/publish $file))) {
+              throw "Required published file was not produced: $file"
+            }
+          }
+
+          Get-ChildItem artifacts/publish | Sort-Object Name | Select-Object Name,Length | Format-Table -AutoSize
 
       - name: Create test ZIP
         shell: pwsh
