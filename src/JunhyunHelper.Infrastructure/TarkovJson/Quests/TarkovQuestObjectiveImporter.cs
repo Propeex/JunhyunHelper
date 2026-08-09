@@ -135,8 +135,8 @@ public sealed class TarkovQuestObjectiveImporter
                         QuestMapLocationKind.PossibleLocation,
                         position,
                         Array.Empty<QuestOutlinePoint>(),
-                        position.Y,
-                        position.Y));
+                        position.Height,
+                        position.Height));
                 }
             }
         }
@@ -158,8 +158,8 @@ public sealed class TarkovQuestObjectiveImporter
                     QuestMapLocationKind.Zone,
                     position,
                     ReadOutline(zone),
-                    ReadNullableDouble(zone, "top") ?? position.Y,
-                    ReadNullableDouble(zone, "bottom") ?? position.Y));
+                    ReadNullableDouble(zone, "top") ?? position.Height,
+                    ReadNullableDouble(zone, "bottom") ?? position.Height));
             }
         }
 
