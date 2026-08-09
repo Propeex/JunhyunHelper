@@ -6,18 +6,49 @@ namespace JunhyunHelper.Desktop.Map;
 public sealed class ReadableSvgViewbox : SvgViewbox
 {
     private static readonly object RenderGate = new();
+    private long _sourceRequestVersion;
 
     public new Uri? Source
     {
         get => base.Source;
         set
         {
-            var prepared = PrepareReadableSource(value);
+            var version = Interlocked.Increment(ref _sourceRequestVersion);
+            _ = ApplyReadableSourceAsync(value, version);
+        }
+    }
 
-            // Force SharpVectors to reload when an updated asset keeps the same local URI.
-            ClearValue(SourceProperty);
-            if (prepared is not null)
-                base.Source = prepared;
+    private async Task ApplyReadableSourceAsync(Uri? source, long version)
+    {
+        Uri? prepared;
+        try
+        {
+            prepared = await Task.Run(() => PrepareReadableSource(source));
+        }
+        catch
+        {
+            prepared = source;
+        }
+
+        if (version != Volatile.Read(ref _sourceRequestVersion))
+            return;
+
+        try
+        {
+            await Dispatcher.InvokeAsync(() =>
+            {
+                if (version != Volatile.Read(ref _sourceRequestVersion))
+                    return;
+
+                // Force SharpVectors to reload when an updated asset keeps the same local URI.
+                ClearValue(SourceProperty);
+                if (prepared is not null)
+                    base.Source = prepared;
+            });
+        }
+        catch
+        {
+            // The owning window/control may already be shutting down. Rendering is non-authoritative.
         }
     }
 
