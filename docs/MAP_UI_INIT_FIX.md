@@ -43,6 +43,7 @@ MapPage.InitializeComponent()
 - `EnsureInitializedAsync()`가 사용자 설정을 읽은 뒤 `ApplySettingsToCheckboxes()`에서 상태를 적용합니다.
 - 이 적용 구간은 기존 `_applyingUi` guard 안에서 실행되므로 Checked/Unchecked handler가 render/save를 재진입하지 않습니다.
 - 기존/손상된 `map-settings.json`이 explicit `null` dictionary를 갖더라도 기본값으로 복구하도록 preference load normalization도 추가했습니다.
+- 회귀 방지를 위해 Map marker CheckBox가 XAML에 `IsChecked` 값을 다시 선언하지 않는지 자동 테스트합니다.
 
 ## 기대 결과
 
