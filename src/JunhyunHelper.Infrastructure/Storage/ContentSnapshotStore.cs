@@ -16,11 +16,10 @@ public sealed record StoredContentSnapshot(
 
 public sealed class ContentSnapshotStore
 {
-    // v2 added normalized item category metadata. v3 added explicit current Wiki
+    // v2 added normalized item category metadata. v3 adds explicit current Wiki
     // Ballistics membership independently from optional armor-effectiveness ratings.
-    // v4 adds dynamic Map markers and Quest objective world locations/zones.
     // Old content snapshots are intentionally rebuilt from online source; user.db is separate.
-    public const int CurrentSchemaVersion = 4;
+    public const int CurrentSchemaVersion = 3;
 
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
 
