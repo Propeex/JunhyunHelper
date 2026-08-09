@@ -35,6 +35,7 @@ public sealed class DesktopServices : IDisposable
             "JunhyunHelper/0.1 (+https://github.com/Propeex/JunhyunHelper)");
 
         Images = new ImageCacheService(_httpClient, RootDirectory);
+        AmmoFavorites = new AmmoFavoriteStore(RootDirectory);
 
         var sourceLoader = new TarkovEndpointSourceLoader(new TarkovJsonClient(_httpClient));
         var buildService = new TarkovContentBuildService(
@@ -58,6 +59,8 @@ public sealed class DesktopServices : IDisposable
     public TarkovContentUpdateService ContentUpdater { get; }
 
     public ImageCacheService Images { get; }
+
+    public AmmoFavoriteStore AmmoFavorites { get; }
 
     public ProfileApplicationService ProfileManagement { get; }
 

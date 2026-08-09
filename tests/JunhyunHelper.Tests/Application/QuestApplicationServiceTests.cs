@@ -14,10 +14,7 @@ public sealed class QuestApplicationServiceTests
     public async Task CompleteAndUndoOnlyChangeCompletedQuestFactAndRecalculate()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        var databasePath = Path.Combine(
-            Path.GetTempPath(),
-            $"JunhyunHelper-QuestApp-{Guid.NewGuid():N}.db");
-
+        var databasePath = Path.Combine(Path.GetTempPath(), $"JunhyunHelper-QuestApp-{Guid.NewGuid():N}.db");
         try
         {
             var store = new UserProfileStore(databasePath);
@@ -42,8 +39,7 @@ public sealed class QuestApplicationServiceTests
         }
         finally
         {
-            if (File.Exists(databasePath))
-                File.Delete(databasePath);
+            if (File.Exists(databasePath)) File.Delete(databasePath);
         }
     }
 
@@ -51,10 +47,7 @@ public sealed class QuestApplicationServiceTests
     public async Task ManualPermanentFailureAndUndoOnlyChangeFailureFactAndRecalculate()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        var databasePath = Path.Combine(
-            Path.GetTempPath(),
-            $"JunhyunHelper-QuestFail-{Guid.NewGuid():N}.db");
-
+        var databasePath = Path.Combine(Path.GetTempPath(), $"JunhyunHelper-QuestFail-{Guid.NewGuid():N}.db");
         try
         {
             var store = new UserProfileStore(databasePath);
@@ -62,23 +55,17 @@ public sealed class QuestApplicationServiceTests
             var profile = CreateProfile() with
             {
                 HideoutLevels = new Dictionary<string, int>(StringComparer.Ordinal) { ["workbench"] = 2 },
-                Inventory = new Dictionary<string, InventoryQuantity>(StringComparer.Ordinal)
-                {
-                    ["wire"] = new(1, 3),
-                },
+                Inventory = new Dictionary<string, InventoryQuantity>(StringComparer.Ordinal) { ["wire"] = new(1, 3) },
             };
             var source = CreateQuest("source", unsupportedFailureConditions: ["shoot"]);
             var recovery = CreateQuest(
                 "recovery",
                 taskRequirements:
-                [new QuestTaskRequirement(
-                    "source",
-                    new HashSet<QuestRequiredStatus>([QuestRequiredStatus.Failed]))]);
+                [new QuestTaskRequirement("source", new HashSet<QuestRequiredStatus>([QuestRequiredStatus.Failed]))]);
             var content = EmptyContent([source, recovery]);
             await store.SaveAsync(profile, cancellationToken);
 
             var failed = await service.FailAsync(content, profile.ProfileId, "source", cancellationToken);
-
             Assert.Contains("source", failed.Profile.FailedQuestIds);
             Assert.Equal(QuestAvailabilityState.Unavailable, Find(failed, "source").Availability.State);
             Assert.Equal(QuestAvailabilityState.Current, Find(failed, "recovery").Availability.State);
@@ -86,15 +73,13 @@ public sealed class QuestApplicationServiceTests
             Assert.Equal(new InventoryQuantity(1, 3), failed.Profile.Inventory["wire"]);
 
             var undone = await service.UndoFailureAsync(content, profile.ProfileId, "source", cancellationToken);
-
             Assert.DoesNotContain("source", undone.Profile.FailedQuestIds);
             Assert.Equal(QuestAvailabilityState.Current, Find(undone, "source").Availability.State);
             Assert.Equal(QuestAvailabilityState.Locked, Find(undone, "recovery").Availability.State);
         }
         finally
         {
-            if (File.Exists(databasePath))
-                File.Delete(databasePath);
+            if (File.Exists(databasePath)) File.Delete(databasePath);
         }
     }
 
@@ -102,10 +87,7 @@ public sealed class QuestApplicationServiceTests
     public async Task ManualFailureIsRejectedForRestartableOrAutomaticallyObservableQuest()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        var databasePath = Path.Combine(
-            Path.GetTempPath(),
-            $"JunhyunHelper-QuestFailReject-{Guid.NewGuid():N}.db");
-
+        var databasePath = Path.Combine(Path.GetTempPath(), $"JunhyunHelper-QuestFailReject-{Guid.NewGuid():N}.db");
         try
         {
             var store = new UserProfileStore(databasePath);
@@ -124,8 +106,7 @@ public sealed class QuestApplicationServiceTests
         }
         finally
         {
-            if (File.Exists(databasePath))
-                File.Delete(databasePath);
+            if (File.Exists(databasePath)) File.Delete(databasePath);
         }
     }
 
@@ -133,10 +114,7 @@ public sealed class QuestApplicationServiceTests
     public async Task CompletingQuestAfterContentChangeRemovesStaleExplicitFailureFact()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        var databasePath = Path.Combine(
-            Path.GetTempPath(),
-            $"JunhyunHelper-QuestStaleFail-{Guid.NewGuid():N}.db");
-
+        var databasePath = Path.Combine(Path.GetTempPath(), $"JunhyunHelper-QuestStaleFail-{Guid.NewGuid():N}.db");
         try
         {
             var store = new UserProfileStore(databasePath);
@@ -147,19 +125,11 @@ public sealed class QuestApplicationServiceTests
             };
             await store.SaveAsync(profile, cancellationToken);
 
-            // A later content update can make a previously permanent failure restartable/irrelevant.
-            // The stale user fact remains durable until the user progresses this quest again,
-            // but it must no longer poison availability under the new canonical rule.
             var content = EmptyContent([CreateQuest("source")]);
             var initial = await service.LoadAsync(content, profile.ProfileId, cancellationToken);
             Assert.Equal(QuestAvailabilityState.Current, Find(initial, "source").Availability.State);
 
-            var completed = await service.CompleteAsync(
-                content,
-                profile.ProfileId,
-                "source",
-                cancellationToken);
-
+            var completed = await service.CompleteAsync(content, profile.ProfileId, "source", cancellationToken);
             Assert.Contains("source", completed.Profile.CompletedQuestIds);
             Assert.DoesNotContain("source", completed.Profile.FailedQuestIds);
 
@@ -170,8 +140,7 @@ public sealed class QuestApplicationServiceTests
         }
         finally
         {
-            if (File.Exists(databasePath))
-                File.Delete(databasePath);
+            if (File.Exists(databasePath)) File.Delete(databasePath);
         }
     }
 
@@ -179,10 +148,7 @@ public sealed class QuestApplicationServiceTests
     public async Task CannotCompleteLockedQuest()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        var databasePath = Path.Combine(
-            Path.GetTempPath(),
-            $"JunhyunHelper-QuestApp-{Guid.NewGuid():N}.db");
-
+        var databasePath = Path.Combine(Path.GetTempPath(), $"JunhyunHelper-QuestApp-{Guid.NewGuid():N}.db");
         try
         {
             var store = new UserProfileStore(databasePath);
@@ -195,19 +161,15 @@ public sealed class QuestApplicationServiceTests
         }
         finally
         {
-            if (File.Exists(databasePath))
-                File.Delete(databasePath);
+            if (File.Exists(databasePath)) File.Delete(databasePath);
         }
     }
 
     [Fact]
-    public async Task IndeterminateQuestIsTreatedAsCurrentAtProductBoundaryAndKeepsDiagnosticReason()
+    public async Task UnsetPrestigeIsNormalizedToZeroAndPrestigeQuestLocks()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        var databasePath = Path.Combine(
-            Path.GetTempPath(),
-            $"JunhyunHelper-QuestApp-{Guid.NewGuid():N}.db");
-
+        var databasePath = Path.Combine(Path.GetTempPath(), $"JunhyunHelper-QuestApp-{Guid.NewGuid():N}.db");
         try
         {
             var store = new UserProfileStore(databasePath);
@@ -219,25 +181,17 @@ public sealed class QuestApplicationServiceTests
 
             var workspace = await service.LoadAsync(content, profile.ProfileId, cancellationToken);
 
+            Assert.Equal(0, workspace.Profile.PrestigeLevel);
             Assert.Empty(workspace.Problems);
             var entry = Find(workspace, "prestige");
-            Assert.Equal(QuestAvailabilityState.Current, entry.Availability.State);
+            Assert.Equal(QuestAvailabilityState.Locked, entry.Availability.State);
             Assert.Contains(
                 entry.Availability.Reasons,
-                reason => reason.Kind == QuestAvailabilityReasonKind.MissingProfileValue &&
-                          reason.ReferenceId == "prestige");
-
-            var completed = await service.CompleteAsync(
-                content,
-                profile.ProfileId,
-                "prestige",
-                cancellationToken);
-            Assert.Equal(QuestAvailabilityState.Completed, Find(completed, "prestige").Availability.State);
+                reason => reason.Kind == QuestAvailabilityReasonKind.Prestige);
         }
         finally
         {
-            if (File.Exists(databasePath))
-                File.Delete(databasePath);
+            if (File.Exists(databasePath)) File.Delete(databasePath);
         }
     }
 
@@ -260,12 +214,7 @@ public sealed class QuestApplicationServiceTests
         var questB = CreateQuest(
             "b",
             taskRequirements:
-            [
-                new QuestTaskRequirement(
-                    "a",
-                    new[] { QuestRequiredStatus.Complete }),
-            ]);
-
+            [new QuestTaskRequirement("a", new[] { QuestRequiredStatus.Complete })]);
         return EmptyContent([questA, questB]);
     }
 

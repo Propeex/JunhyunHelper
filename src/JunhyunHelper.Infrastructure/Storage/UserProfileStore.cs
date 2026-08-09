@@ -8,6 +8,8 @@ namespace JunhyunHelper.Infrastructure.Storage;
 
 public sealed class UserProfileStore
 {
+    // The SQLite table schema remains v1. New JSON properties are optional and defaulted,
+    // so existing user.db rows remain readable without a destructive migration.
     private const int CurrentSchemaVersion = 1;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -193,11 +195,9 @@ public sealed class UserProfileStore
                 throw new InvalidDataException("Hideout progress contains an invalid station level.");
         }
 
-        foreach (var (itemId, quantity) in profile.Inventory)
-        {
-            if (string.IsNullOrWhiteSpace(itemId) || quantity.Fir < 0 || quantity.NonFir < 0)
-                throw new InvalidDataException("Inventory contains an invalid item quantity.");
-        }
+        ValidateInventory(profile.Inventory, "Inventory");
+        ValidateConsumptions(profile.QuestConsumptions, "Quest consumption");
+        ValidateConsumptions(profile.HideoutUpgradeConsumptions, "Hideout consumption");
 
         if (profile.CompletedQuestIds.Any(string.IsNullOrWhiteSpace))
             throw new InvalidDataException("Completed quest ids cannot contain empty values.");
@@ -205,6 +205,29 @@ public sealed class UserProfileStore
             throw new InvalidDataException("Failed quest ids cannot contain empty values.");
         if (profile.CompletedQuestIds.Overlaps(profile.FailedQuestIds))
             throw new InvalidDataException("A quest cannot be both completed and explicitly failed.");
+    }
+
+    private static void ValidateInventory(
+        IReadOnlyDictionary<string, InventoryQuantity> inventory,
+        string label)
+    {
+        foreach (var (itemId, quantity) in inventory)
+        {
+            if (string.IsNullOrWhiteSpace(itemId) || quantity.Fir < 0 || quantity.NonFir < 0)
+                throw new InvalidDataException($"{label} contains an invalid item quantity.");
+        }
+    }
+
+    private static void ValidateConsumptions(
+        IReadOnlyDictionary<string, InventoryConsumption> consumptions,
+        string label)
+    {
+        foreach (var (key, consumption) in consumptions)
+        {
+            if (string.IsNullOrWhiteSpace(key) || consumption is null)
+                throw new InvalidDataException($"{label} contains an invalid key or record.");
+            ValidateInventory(consumption.Items, label);
+        }
     }
 
     private sealed record ProfileDocument
@@ -223,6 +246,10 @@ public sealed class UserProfileStore
             new(StringComparer.Ordinal);
         public Dictionary<string, InventoryQuantity> Inventory { get; init; } =
             new(StringComparer.Ordinal);
+        public Dictionary<string, InventoryConsumption> QuestConsumptions { get; init; } =
+            new(StringComparer.Ordinal);
+        public Dictionary<string, InventoryConsumption> HideoutUpgradeConsumptions { get; init; } =
+            new(StringComparer.Ordinal);
 
         public static ProfileDocument From(GameProfileSnapshot snapshot) =>
             new()
@@ -232,12 +259,14 @@ public sealed class UserProfileStore
                 Level = snapshot.Level,
                 Faction = snapshot.Faction,
                 EditionId = snapshot.EditionId,
-                PrestigeLevel = snapshot.PrestigeLevel,
+                PrestigeLevel = snapshot.PrestigeLevel ?? 0,
                 Traders = new Dictionary<string, TraderProgress>(snapshot.Traders, StringComparer.Ordinal),
                 CompletedQuestIds = snapshot.CompletedQuestIds.Order(StringComparer.Ordinal).ToArray(),
                 FailedQuestIds = snapshot.FailedQuestIds.Order(StringComparer.Ordinal).ToArray(),
                 HideoutLevels = new Dictionary<string, int>(snapshot.HideoutLevels, StringComparer.Ordinal),
                 Inventory = new Dictionary<string, InventoryQuantity>(snapshot.Inventory, StringComparer.Ordinal),
+                QuestConsumptions = CopyConsumptions(snapshot.QuestConsumptions),
+                HideoutUpgradeConsumptions = CopyConsumptions(snapshot.HideoutUpgradeConsumptions),
             };
 
         public GameProfileSnapshot ToSnapshot() =>
@@ -248,12 +277,22 @@ public sealed class UserProfileStore
                 Level = Level,
                 Faction = Faction,
                 EditionId = EditionId,
-                PrestigeLevel = PrestigeLevel,
+                PrestigeLevel = PrestigeLevel ?? 0,
                 Traders = new Dictionary<string, TraderProgress>(Traders, StringComparer.Ordinal),
                 CompletedQuestIds = new HashSet<string>(CompletedQuestIds, StringComparer.Ordinal),
                 FailedQuestIds = new HashSet<string>(FailedQuestIds, StringComparer.Ordinal),
                 HideoutLevels = new Dictionary<string, int>(HideoutLevels, StringComparer.Ordinal),
                 Inventory = new Dictionary<string, InventoryQuantity>(Inventory, StringComparer.Ordinal),
+                QuestConsumptions = CopyConsumptions(QuestConsumptions),
+                HideoutUpgradeConsumptions = CopyConsumptions(HideoutUpgradeConsumptions),
             };
+
+        private static Dictionary<string, InventoryConsumption> CopyConsumptions(
+            IReadOnlyDictionary<string, InventoryConsumption> source) =>
+            source.ToDictionary(
+                pair => pair.Key,
+                pair => new InventoryConsumption(
+                    new Dictionary<string, InventoryQuantity>(pair.Value.Items, StringComparer.Ordinal)),
+                StringComparer.Ordinal);
     }
 }

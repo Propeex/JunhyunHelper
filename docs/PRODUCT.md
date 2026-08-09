@@ -12,13 +12,13 @@
 
 저장소: `Propeex/JunhyunHelper`
 
-가장 중요한 원칙:
+핵심 원칙:
 
 > 게임 데이터의 내용이 바뀌어도 외부 형식이 importer가 이해할 수 있는 범위라면 프로그램이 최신 데이터를 다시 내려받아 같은 변환 규칙으로 DB를 다시 만들 수 있어야 합니다.
 
 일반적인 데이터 업데이트에 GPT가 개입하지 않습니다.
 
-## 2. 데이터 갱신과 저장
+## 2. 데이터 갱신 / 저장
 
 `CONFIRMED / IMPLEMENTED`
 
@@ -30,6 +30,7 @@
 → candidate DB
 → 관계/read-back 검증
 → active Game Content 교체
+→ 제품 icon 선다운로드
 → User Progress와 결합
 → 파생 결과 계산
 → Desktop 표시
@@ -38,22 +39,34 @@
 원칙:
 
 - 내용 변화는 importer가 이해하는 한 자동 흡수
-- 핵심 필드 삭제/타입·의미 변경은 안전하게 update 실패
-- 검증되지 않은 candidate로 마지막 정상 active content를 덮어쓰지 않음
+- 비호환 schema/의미 변화는 update 실패
+- 실패한 candidate가 마지막 정상 active content를 덮어쓰지 않음
 - Game Content update가 `user.db`를 삭제/덮어쓰지 않음
-- Quest 상태, Needed Items, cleanup 등 파생 결과는 진실의 원천처럼 저장하지 않음
+- 파생 결과를 별도 권위 데이터로 저장하지 않음
+- 런타임 AI/GPT 없음
 
-User Progress 사실:
+### 2.1 Game Content schema
 
-- Profile 설정
-- Quest 완료 및 필요한 명시적 영구 실패
+현재 **v3**.
+
+- v2: Item category metadata
+- v3: Ammo의 현재 Wiki Ballistics 표 등록 여부를 Armor effectiveness와 별도 보존
+
+이전 content snapshot은 온라인 source에서 자동 재구축합니다. `user.db`는 별도입니다.
+
+### 2.2 User Progress
+
+저장 사실:
+
+- Profile / GameMode
+- player level / faction / edition / prestige
+- Trader LL / 필요한 standing
+- completed Quest / 필요한 explicit permanent failure
 - Hideout level
-- Trader 진행
-- **인레이드 / 일반** Inventory
+- 인레이드 / 일반 Inventory
+- 자동 inventory reconciliation용 Quest / Hideout 실제 소비 기록
 
-내부 호환성 때문에 코드/DB 필드명이 `Fir` / `NonFir`인 부분은 유지할 수 있지만 사용자 화면에서는 `인레이드` / `일반`을 사용합니다.
-
-현재 Content snapshot schema는 **v2**이며 Item category metadata를 포함합니다. 기존 v1 content DB는 온라인 데이터로 재구축되고 `user.db`는 유지됩니다.
+소비 기록은 자동 차감과 rollback을 정확히 맞추기 위한 bookkeeping 사실이며 Game Content update와 독립입니다.
 
 ## 3. 데이터 원천
 
@@ -61,15 +74,12 @@ User Progress 사실:
 
 `json.tarkov.dev`
 
-현재 사용 영역:
-
 - Quest
 - Hideout
-- Item 및 Item category metadata
+- Item + category metadata
 - Trader
 - Map 최소 메타데이터
-- Barter
-- Craft
+- Barter / Craft
 - Ammo raw stats
 
 지원 GameMode:
@@ -80,377 +90,302 @@ User Progress 사실:
 
 ### 3.2 보조 원천
 
-- TarkovTracker `tarkov-data-overlay`: edition rules만
-- Escape from Tarkov Wiki `Ballistics`: Ammo 비교 대상 membership 및 Armor Class 1~6의 명시된 0~6 effectiveness
+- TarkovTracker overlay: edition rules only
+- Escape from Tarkov Wiki Ballistics:
+  - 현재 Ammo 비교 표 membership
+  - Armor Class 1~6의 명시 0~6 effectiveness
 
-Wiki Ballistics는 raw Ammo 성능의 대체 원천이 아닙니다.
+Wiki는 raw Ammo stats의 대체 원천이 아닙니다. Wiki 장애/구조 이상은 기본 Game Content를 손상시키지 않습니다.
 
-Wiki source가 정상일 때는 현재 Ballistics 표와 안전하게 매칭된 탄약만 Ammo 비교 화면에 표시합니다. Wiki 장애/구조 이상으로 정상 membership을 확인할 수 없을 때는 기본 Ammo Game Content를 삭제하지 않고 임시 표시하며 source 상태를 명시합니다.
-
-영구 하드코딩된 Ammo allowlist는 만들지 않습니다.
-
-### 3.3 Map 실제 기능
-
-`OPEN`
-
-Map 실제 기능의 최종 데이터 공급원은 아직 확정하지 않았습니다. 현재 Map 탭은 placeholder입니다.
-
-## 4. Game Content 업데이트 UI
+## 4. Profile
 
 `CONFIRMED / IMPLEMENTED`
 
-- 수동 업데이트 및 최초/복구 업데이트에서 같은 pipeline 사용
-- progress overlay / progress bar / 현재 단계 / 퍼센트 표시
-- timer 기반 가짜 진행률 금지
-- 실제 source 완료 수와 실제 pipeline 단계에서 계산
-- 실패 시 마지막 정상 active content와 User Progress 유지
+- 한 GameMode당 profile 하나
+- 상단 Profile dropdown 안 `새 프로필`
+- 삭제는 `프로필 수정` 안
+- player level: `- / 값 / +`
+- Prestige: **기본 0**, 미입력 상태 없음
+- Fence reputation: 주요 진행값, 0.1 단위
+- 핵심 Trader: LL 중심, 게임식 순서
+- 일반 상인 탭 밖 Trader: `특별` Expander, 기본 접힘
+- Quest 판정에 실제로 필요한 비-Fence standing만 `고급` 입력
 
-## 5. Profile / 진행 입력
+과거 profile의 Prestige null은 읽을 때 0으로 정규화합니다.
 
-`CONFIRMED / IMPLEMENTED`
-
-한 GameMode당 프로필 하나를 기본으로 합니다.
-
-상단:
-
-- Profile dropdown
-- `프로필 수정`
-- `데이터 업데이트`
-
-Profile dropdown 내부:
-
-- 기존 프로필
-- `새 프로필`
-
-삭제는 `프로필 수정` 안에 둡니다.
-
-### 5.1 주요 진행값
-
-- Player level: `- / 값 / +`, 정수 1단위
-- Prestige: `- / 값 / +`, 정수 1단위
-- **펜스 우호도**: 상단 주요 진행값으로 별도 배치, 0.1 단위
-
-### 5.2 상인
-
-핵심 상인은 인게임에서 익숙한 순서로 LL만 기본 표시합니다.
-
-Fence를 제외한 핵심 순서:
-
-```text
-Prapor → Therapist → Skier → Peacekeeper → Mechanic
-→ Ragman → Jaeger → Ref
-```
-
-일반 핵심 상인 밖의 Trader는 `특별` 섹션으로 분리합니다.
-
-현재 알려진 순서:
-
-```text
-Lightkeeper → BTR Driver → future unknown traders
-```
-
-Quest 판정에 실제 standing이 필요한 비-Fence 상인만 고급 입력을 제공합니다. LL과 standing은 별개의 optional fact입니다.
-
-## 6. Quest
+## 5. Quest
 
 `CONFIRMED / IMPLEMENTED`
 
-실제 게임에서 수주 가능한 Quest는 준현 헬퍼에서 이미 수락한 것으로 봅니다. 별도 Accept 버튼은 두지 않습니다.
+준현 헬퍼는 실제 게임에서 수주 가능한 Quest를 이미 수락한 것으로 간주합니다. 별도 Accept 버튼은 두지 않습니다.
 
-사용자에게 보이는 정상 상태:
+사용자 상태:
 
-- 진행 중(Current)
-- 잠김(Locked)
-- 사용 불가(Unavailable)
-- 완료(Completed)
+- 진행 중
+- 잠김
+- 사용 불가
+- 완료
 
-Core의 `Indeterminate`는 내부 진단 상태로 유지합니다. 현재 판정 시스템으로도 끝까지 `Indeterminate`인 Quest는 Application 제품 경계에서 **진행 중(Current)** 으로 보여주되 diagnostic reason은 보존합니다. 확정 가능한 Locked/Unavailable은 승격하지 않습니다.
+Core `Indeterminate`는 diagnostic으로 유지하되 현재 지원 규칙을 모두 적용한 후에도 남는 residual Indeterminate는 Application 제품 경계에서 **진행 중**으로 보여줍니다. 확정 가능한 Locked/Unavailable은 변경하지 않습니다.
 
 사용자 조작:
 
 - 완료
 - 완료 취소
-- 자동 추론할 수 없는 희귀 비재시작형 영구 실패만 실패 처리/취소
+- 정말 필요한 비재시작형 영구 실패만 실패 / 실패 취소
 
-Quest reward 전체 모델은 핵심 범위에서 제외합니다.
+상세:
 
-### 6.1 Quest 필터
+- 목표
+- 제출 Item card/list: icon / 이름 / 수량 / 인레이드 여부
+- 선행 Quest
+- `위키`
+- Quest Item click → Item
+- prerequisite Quest click → Quest
 
-Trader filter는 게임식 순서를 사용합니다. Map도 검증된 고정 순서를 사용하며 unknown 값은 알려진 값 뒤에 표시합니다.
+### 5.1 Map filter grouping
 
-Ground Zero와 Ground Zero 21+는 canonical ID를 보존하되 Quest Map filter에서 하나의 `Ground Zero` 그룹으로 표시합니다.
+UI filter에서만 variant를 병합합니다.
 
-### 6.2 Quest 상세
+- Ground Zero + Ground Zero 21+ → `Ground Zero`
+- Factory day/night → `Factory`
 
-- `위키` 버튼
-- 제출 Item을 문자열 dump가 아니라 card/list로 표시
-- Item icon / 이름 / 수량 / `인레이드` 여부 / 유동 제출 후보 여부
-- Quest Item 클릭 → Item 상세
-- 선행 Quest 클릭 → 해당 Quest 상세
-- 이름이 아니라 canonical stable ID로 이동
+canonical Map ID와 Quest 원본 MapId는 보존합니다.
 
-## 7. Hideout
+### 5.2 자동 scroll 정책
+
+일반 refresh/진행 변경 때문에 목록이 임의로 이동하지 않습니다. 사용자가 cross-navigation을 명시적으로 요청했을 때만 목표 row로 이동할 수 있습니다.
+
+## 6. Hideout
 
 `CONFIRMED / IMPLEMENTED`
 
 - 미입력 = Lv.0
-- 시설별 `- / 현재 레벨 / +`
-- 상세는 바로 다음 upgrade 표시
-- Needed Items는 현재 레벨보다 높은 모든 미래 upgrade material 합산
-- canonical station image 표시
+- `- / 현재 level / +`
+- 상세는 바로 다음 upgrade
+- Needed Items는 현재 level 이후 모든 미래 upgrade material 포함
+- station image
+- 다음 upgrade material은 icon/name/count/인레이드 card/list
+- material click → Item
 
-다음 업그레이드의 필요 Item은 문자열 bullet가 아니라 card/list로 표시합니다.
-
-각 재료:
-
-- Item icon
-- 이름
-- 필요 수량
-- `인레이드` 요구 여부
-
-## 8. Needed Items / Item
+## 7. Needed Items / Item
 
 `CONFIRMED / IMPLEMENTED`
 
-핵심 목적:
+목적:
 
-> 현재뿐 아니라 앞으로 사용할 가능성이 있는 Item을 미리 모으고, 더 이상 필요하지 않은 실제 보유품만 안전하게 정리하도록 돕습니다.
-
-### 8.1 미래 필요량
+> 현재만이 아니라 앞으로 사용할 가능성이 남아 있는 Item을 미리 모으고, 더 이상 필요하지 않은 실제 보유품만 안전하게 정리한다.
 
 포함:
 
-- Current Quest 제출 Item
+- Current Quest
 - 미래에 조건 충족 가능한 Locked Quest
 - 아직 닫히지 않은 가능한 Quest branch
-- 안전하게 제외할 수 없는 잠재 요구
-- 현재 Hideout level 이후 모든 미래 upgrade material
+- 안전하게 제외할 수 없는 잠재 Quest 요구
+- 현재 Hideout level 이후 모든 future upgrade material
 
 제외:
 
 - Completed Quest
-- 현재 캐릭터에서 영구 불가임이 증명된 Quest
-- 닫힌 branch
+- 현재 character에서 영구 불가임이 증명된 Quest / 닫힌 branch
 - 이미 지난 Hideout upgrade
 
-### 8.2 Inventory / cleanup
+### 7.1 목록
 
-- 인레이드 / 일반 보유량은 User Progress 독립 사실
-- Game Content update로 삭제/자동 차감하지 않음
-- 미래 필요량 충족 후 남는 안전한 초과분만 cleanup 대상으로 계산
-- 인레이드 요구를 우선 보호
-- 유동 제출 후보는 목표 종료 전 보수적으로 보호
-- metadata가 사라져도 stable Item ID 보유 기록 유지
-- 안전한 정리량을 증명할 수 없으면 `판단 보류`
-
-### 8.3 Item 목록
-
-기본 list row는 비교에 필요한 네 수량을 직접 보여줍니다.
+한 row에서 다음 네 값을 비교합니다.
 
 - 필요 · 인레이드
 - 필요 · 일반
 - 보유 · 인레이드
 - 보유 · 일반
 
-`일반 필요 = 전체 필요 - 인레이드로 반드시 필요한 수량`입니다.
+불필요한 우측 상태 badge는 두지 않습니다.
 
-목록 우측의 `+N 필요 / 충분 / 정리 / 판단 보류` status badge는 표시하지 않습니다.
+### 7.2 상세 / 입력
 
-### 8.4 Item 상세
+- 인레이드 필요 N
+- 일반 필요 N
+- 인레이드 `− / 수량 / +`
+- 일반 `− / 수량 / +`
+- +/- 클릭 즉시 저장
+- 직접 숫자 입력 + 명시적 저장 가능
+- Quest와 Hideout 필요 출처를 동일한 clickable block 형태로 표시
+- Quest 출처 → Quest
+- Hideout 출처 → Hideout facility
 
-주요 요구량은 단순히:
+종류 dropdown은 현재 view/search/filter에서 실제 Item이 있는 category만 표시합니다.
 
-- 인레이드 필요 N개
-- 일반 필요 N개
+### 7.3 cleanup
 
-로 표시합니다.
+- 미래 필요량 충족 후 안전하게 남는 초과분만 `정리 필요`
+- 인레이드 최소 요구 보호
+- 유동 제출 후보 보호
+- 안전성을 증명하지 못하면 판단 보류
+- Game Content update가 실제 보유량을 자동 삭제하지 않음
 
-보유량은 인레이드/일반 각각 `- / 값 / +`를 제공하며 `-` 또는 `+` 클릭마다 즉시 저장합니다. 직접 숫자 입력도 유지하고 명시적 저장으로 반영합니다.
+### 7.4 유동 제출
 
-실제 cleanup 경고, 필요 출처, 유동 제출 보호 설명은 필요한 경우 별도 보조 정보로 유지합니다.
+여러 Item ID를 하나의 objective 후보로 받는 요구는 그룹 단위로 계산합니다.
 
-### 8.5 Item 종류
+- 후보 보유량 합산
+- 후보 하나를 임의 선택하지 않음
+- 별도 `유동 제출 보기`
+- Quest별 group/card
+- 후보 row와 group은 full-width / left aligned
+- Quest → Quest, 후보 → Item
+- 목표 종료 전 후보별 cleanup은 보수적으로 보호
 
-분류 권위 데이터는 현재 `json.tarkov.dev` Item category metadata입니다.
+## 8. 진행 완료와 Inventory 자동 차감
 
-상위 표시 그룹:
+`CONFIRMED / IMPLEMENTED IN FOURTH USABILITY PASS`
 
-- 무기
-- 무기 부품
-- 장비
-- 탄약
-- 의약품
-- 식량/음료
-- 물물교환
-- 열쇠
-- 정보
-- 특수 장비
-- 퀘스트 아이템
-- 화폐
-- 지도
-- 기타
+고정 제출/재료 요구는 실제 진행 처리와 함께 tracked Inventory에서 자동 차감합니다.
 
-unknown future category는 숨기지 않고 `기타` fallback으로 둡니다.
+### 8.1 차감 순서
 
-종류 dropdown은 **현재 view + 검색 + 상태 filter를 통과한 실제 row가 있는 종류만** 보여줍니다. 따라서 기본 `필요` 보기에서 해당 종류의 필요 Item이 모두 사라지면 그 종류도 dropdown에서 사라집니다.
+```text
+인레이드 필수 요구
+→ 인레이드에서만 차감
 
-### 8.6 유동 제출
+일반 요구
+→ 일반 우선 차감
+→ 부족분만 인레이드 차감
+```
 
-여러 후보 Item ID는 하나의 objective 합계로 계산하며 후보 하나를 임의 선택하지 않습니다.
+- tracked 보유량보다 많이 차감하지 않음
+- 음수 금지
+- 유동 제출은 실제 어느 후보를 사용했는지 알 수 없으므로 자동 차감하지 않음
 
-UI는 `유동 제출 보기`를 별도 제공하고 **Quest별로 그룹화**합니다.
+### 8.2 Quest 완료 취소 / Hideout rollback
 
-- A Quest 후보와 B Quest 후보는 서로 다른 group/card
-- Quest 이름 클릭 → Quest 상세
-- 후보 Item 클릭 → Item 상세
-- 후보별 보유량을 인레이드/일반로 확인 가능
-- 일반 고정 필요/실제 보유에도 관련된 후보는 일반 Item 목록에도 남을 수 있음
+실제 자동 차감량을 ledger에 기록합니다.
 
-### 8.7 Item → Quest
+rollback 시 사용자에게 복원 여부를 묻습니다.
 
-Item 상세의 Quest 필요 출처 또는 유동 제출 Quest를 클릭하면 해당 Quest 상세로 이동합니다. stable ID로 연결합니다.
+- **예**: 당시 실제 차감량만 복원 + ledger 제거
+- **아니오**: 보유량은 그대로 + ledger 유지
+- **취소**: rollback 중단
+
+복원하지 않은 ledger는 다시 완료/재업그레이드했을 때 같은 재료를 **중복 차감하지 않기 위해 유지**합니다.
 
 ## 9. Ammo
 
 `CONFIRMED / IMPLEMENTED`
 
-Ammo는 선택 GameMode의 Game Content를 읽는 read-only 비교 화면이며 User Progress와 결합하지 않습니다.
-
-### 9.1 탐색/정렬
+선택 GameMode의 read-only 비교 기능입니다.
 
 - 이름 검색 없음
-- 구경 dropdown 중심
-- 항상 penetration 오름차순 → damage 오름차순 → name
-- header sort로 이 기준을 깨지 않음
+- caliber dropdown
+- 표시 열 선택
+- penetration power 오름차순 → damage → name
+- main table 최소 수급 경로
+- 상세 전체 수급 경로
+- item image
+- 해금 Quest click → Quest 상세
 
-구경 표시명은 raw 식별자를 기계적으로 mm화하지 않고 Tarkov에서 익숙한 cartridge 표현을 사용합니다.
+### 9.1 비교 membership
 
-예:
+Wiki Ballistics source가 healthy하면 **현재 Wiki 표에 등록된 Ammo만** 비교 화면에 둡니다.
 
-- `.45 ACP`
-- `.357 Magnum`
-- `.300 Blackout`
-- `.338 Lapua Magnum`
-- `.50 AE`
-- `.366 TKM`
-- `12/70`
+표 등록 여부와 effectiveness는 별개입니다.
 
-raw caliber ID는 canonical data로 그대로 보존합니다.
+- 등록 true + effectiveness 있음 → 정상 0~6 표시
+- 등록 true + effectiveness 미매칭 → Ammo는 유지, 해당 효율은 `?`
+- 등록 false → Wiki 표 비교 대상에서 제외
+- Wiki source unavailable/unhealthy → raw Ammo를 임시 표시; 빈 표/데이터 손상을 만들지 않음
 
-### 9.2 비교 대상
+이 구조로 장난/미사용/비교 표 외 Ammo는 정상 source 상태에서 제외하면서 `12.7x108mm`처럼 표에 있는 Ammo가 rating 파싱 문제만으로 사라지지 않게 합니다.
 
-healthy Wiki Ballistics enrichment가 존재할 때는 현재 Ballistics 표와 안전하게 unique-match된 Ammo만 표와 구경 dropdown에 포함합니다.
+### 9.2 caliber 표시
 
-따라서 Wiki 표에 없는 장난/미사용/비교 대상 외 탄약 및 그 탄약만 가진 구경은 정상 비교 화면에서 제외됩니다.
+raw ID는 내부에 유지하고 사용자에게 cartridge 명칭을 표시합니다.
 
-Wiki source 장애 시 raw Game Content를 파괴하지 않고 기본 Ammo를 임시 표시하며 source 상태를 명시합니다.
-
-### 9.3 표 열과 상세
-
-`표시 열` 메뉴에서 속성을 선택/해제합니다. 숨긴 속성도 상세에는 계속 표시합니다.
-
-표에는 최소 수급 경로를 표시하고, 상인 구매/교환/제작 경로가 모두 없을 때만 `레이드 획득`을 표시합니다. 상세에는 전체 acquisition 정보를 유지합니다.
-
-### 9.4 Armor Class 1~6 effectiveness
-
-- Tarkov Wiki Ballistics의 명시된 0~6 값만 사용
-- 자체 penetration/class heuristic 금지
-- 모호함/충돌/미매칭은 추측하지 않음
-- schema 이상/비정상 match coverage는 enrichment 미적용
-
-UI는 여섯 칸의 **위치 자체가 Class 1→6**임을 사용합니다.
-
-각 cell 안에는 effectiveness 숫자만 표시합니다.
+대표:
 
 ```text
-6  6  6  5  3  2
+.308 Marlin Express
+9.3x64mm
+9x18mm Makarov
+.50 Action Express
+12.7x108mm
+.45 ACP
+.300 Blackout
+.338 Lapua Magnum
+.366 TKM
+12/70
 ```
 
-작은 `1,2,3,4,5,6` armor class 숫자를 cell 안에 중복 표시하지 않습니다. Tooltip에서는 armor class를 설명할 수 있습니다.
+### 9.3 Armor effectiveness
 
-## 10. UI / 이미지
+- Class 1~6 여섯 칸
+- 각 칸 0~6
+- 색상
+- 왼쪽부터 Class 1 → 6
+- cell 내부에는 effectiveness 값만 표시, class 숫자 중복 표시 금지
+- 자체 heuristic 금지
+
+### 9.4 caliber favorites
+
+- 현재 caliber 즐겨찾기 toggle
+- 즐겨찾기 전용 dropdown
+- 선택 → 해당 caliber 이동
+- `%LocalAppData%/JunhyunHelper/ammo-favorites.json`에 UI preference로 저장
+
+## 10. 이미지
 
 `CONFIRMED / IMPLEMENTED`
 
-- dark background / 밝은 본문 / 기존 accent
-- white native ComboBox popup 방지
-- list row 전체 폭 정렬
-- 장식보다 비교성과 읽기 쉬운 정보 구조 우선
-
-### 10.1 ScrollBar
-
-- vertical/horizontal 전체 WPF ControlTemplate 사용
-- native arrow chrome 없음
-- normal track + thumb 형태
-- vertical ScrollBar는 viewport 세로 영역을 채우고 폭만 고정
-- horizontal ScrollBar는 viewport 가로 영역을 채우고 높이만 고정
-- 작은 공처럼 보이는 고정 14×14 ScrollBar 금지
-
-### 10.2 이미지 cache
-
-Item / Hideout / Ammo / Quest Item 이미지는 canonical URL을 사용합니다.
+권위 데이터는 canonical URL이며 cache는 비권위 presentation asset입니다.
 
 ```text
 canonical URL
-→ bytes download
+→ download bytes
 → SkiaSharp decode
-→ 크기/유효성 검증
+→ validation
 → PNG normalize
-→ %LocalAppData%/JunhyunHelper/image-cache
+→ image-cache
 → WPF
 ```
 
-이미지 실패는 Game Content/User Progress 실패가 아닙니다.
+Game Content update 성공 후 제품에서 사용하는 이미지를 **미리 다운로드**합니다.
 
-## 11. Map / Scanner
+- Quest Item candidates
+- Hideout materials
+- Ammo items
+- Hideout stations
 
-`CONFIRMED / PLACEHOLDER IMPLEMENTED`
+동일 Item ID는 `item-{id}` cache key를 공유합니다. 개별 이미지 실패는 Game Content update 실패가 아닙니다.
 
-상단에 `지도`, `스캐너` 탭이 존재하며 현재 실제 기능은 `준비 중` placeholder입니다. 검증되지 않은 기능은 뒤에서 실행하지 않습니다.
+## 11. UI
 
-## 12. 현재 범위 밖
+- dark theme
+- dark dropdown popup / light text
+- 정렬된 full-width list rows
+- native white control chrome 방지
+- 일반적인 track + thumb ScrollBar
+- refresh-driven automatic list scrolling 금지
 
-- Quest reward 전체 모델
-- runtime AI/GPT
-- 검증되지 않은 Map 실제 기능
-- Scanner 실제 기능 — 요구사항 확정 후 구현
-- 기존 `Propeex/Tarkov-Helper` 동작을 존재한다는 이유만으로 승계하는 기능
+평상시 상단 상태는 불필요한 모드/Quest/Hideout/Ammo count를 제거하고 다음 하나만 표시합니다.
 
-## 13. 실사용 피드백 상태
+```text
+정리 필요 N
+```
 
-### 첫 실사용 피드백
+작업 중에는 update/save/error 상태 메시지가 일시적으로 우선할 수 있습니다.
 
-`IMPLEMENTED / MERGED`
+## 12. Map / Scanner
 
-초기 dark UI, 이미지, 정렬, +/- 진행 입력, Hideout Lv.0, Item 판단 목록, Ammo 비교, update progress, Profile 정리, Armor effectiveness, Map/Trader order, Ground Zero grouping, Map/Scanner placeholder까지 반영했습니다.
+`PLACEHOLDER IMPLEMENTED`
 
-### 2차 실사용 피드백
+상단에 `지도`, `스캐너` 탭이 존재하고 현재는 `준비 중`을 표시합니다.
 
-`IMPLEMENTED / MERGED — PR #36`
+실제 Map 공급원과 Scanner 동작은 별도 제품 요구사항 확정 전까지 구현하지 않습니다.
 
-- WebP 포함 icon decode 안정화
-- residual Indeterminate → Current
-- ScrollBar template 1차 수정
-- 유동 제출 별도 view
-- Tarkov category 기반 Item 분류
-- Quest Item card/icon
-- Quest ↔ Item / prerequisite navigation
+## 13. 현재 실사용 개선 상태
 
-상세: `docs/SECOND_USABILITY_PASS.md`
+- 첫 실사용 피드백: merged
+- 2차: PR #36 merged
+- 3차: PR #37 merged
+- 4차: PR #39 implemented / final verification
 
-### 3차 실사용 피드백
-
-`IMPLEMENTED / WINDOWS CI VERIFIED — PR #37`
-
-- ScrollBar 정상 track 크기/형태
-- Quest별 유동 제출 그룹
-- Hideout 재료 card/list
-- conventional Ammo caliber label
-- healthy Wiki Ballistics membership 기반 Ammo 비교 대상 제한
-- 사용자 표시 `FIR` → `인레이드`
-- Needed Items 네 수량 column + 간결한 상세 + +/- 즉시 저장 + dynamic category dropdown
-- Quest `위키`
-- Fence 상단 분리 + 핵심/특별 Trader 구조
-- Armor effectiveness cell 내부 class 숫자 제거
-
-상세: `docs/THIRD_USABILITY_PASS.md`
+4차 세부 계약: `docs/FOURTH_USABILITY_PASS.md`

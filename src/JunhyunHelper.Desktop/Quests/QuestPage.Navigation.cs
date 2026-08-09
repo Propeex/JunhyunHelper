@@ -137,7 +137,7 @@ public partial class QuestPage
                     continue;
 
                 var image = await _questImageCache.LoadAsync(
-                    $"quest-item-{row.ItemId}",
+                    $"item-{row.ItemId}",
                     row.IconUrl,
                     cancellationToken);
                 if (image is not null && !cancellationToken.IsCancellationRequested)

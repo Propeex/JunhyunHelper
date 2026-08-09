@@ -30,4 +30,10 @@ public sealed record GameProfileSnapshot
 
     public IReadOnlyDictionary<string, InventoryQuantity> Inventory { get; init; } =
         new Dictionary<string, InventoryQuantity>(StringComparer.Ordinal);
+
+    public IReadOnlyDictionary<string, InventoryConsumption> QuestConsumptions { get; init; } =
+        new Dictionary<string, InventoryConsumption>(StringComparer.Ordinal);
+
+    public IReadOnlyDictionary<string, InventoryConsumption> HideoutUpgradeConsumptions { get; init; } =
+        new Dictionary<string, InventoryConsumption>(StringComparer.Ordinal);
 }

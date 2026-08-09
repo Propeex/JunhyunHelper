@@ -66,7 +66,11 @@
         <Grid Grid.Row="0" Margin="0,0,0,10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="210" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="210" />
                 <ColumnDefinition Width="12" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
@@ -75,7 +79,15 @@
             <TextBlock Grid.Column="0" Text="구경" VerticalAlignment="Center"
                        Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,8,0" />
             <ComboBox x:Name="CaliberComboBox" Grid.Column="1" SelectionChanged="CaliberComboBox_SelectionChanged" />
-            <Button x:Name="ColumnMenuButton" Grid.Column="3" Content="표시 열" Padding="14,6" Click="ColumnMenuButton_Click" />
+            <Button x:Name="FavoriteCaliberButton" Grid.Column="2" Margin="8,0,0,0"
+                    Content="☆ 즐겨찾기" Click="FavoriteCaliberButton_Click" />
+
+            <TextBlock Grid.Column="4" Text="즐겨찾기" VerticalAlignment="Center"
+                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,8,0" />
+            <ComboBox x:Name="FavoriteCaliberComboBox" Grid.Column="5"
+                      SelectionChanged="FavoriteCaliberComboBox_SelectionChanged" />
+
+            <Button x:Name="ColumnMenuButton" Grid.Column="7" Content="표시 열" Padding="14,6" Click="ColumnMenuButton_Click" />
 
             <Popup x:Name="ColumnMenuPopup"
                    PlacementTarget="{Binding ElementName=ColumnMenuButton}"
@@ -125,7 +137,7 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn x:Name="CaliberColumn" Header="구경" Binding="{Binding CaliberLabel}" Width="140" />
+                <DataGridTextColumn x:Name="CaliberColumn" Header="구경" Binding="{Binding CaliberLabel}" Width="160" />
                 <DataGridTextColumn x:Name="DamageColumn" Header="피해" Binding="{Binding DamageText}" Width="85" />
                 <DataGridTextColumn x:Name="PenetrationColumn" Header="관통" Binding="{Binding PenetrationPower}" Width="70" />
                 <DataGridTextColumn x:Name="ArmorDamageColumn" Header="장갑 피해" Binding="{Binding ArmorDamageText}" Width="90" />
@@ -136,9 +148,7 @@
                                           ItemTemplate="{StaticResource ArmorEffectivenessCellTemplate}"
                                           HorizontalAlignment="Center">
                                 <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <StackPanel Orientation="Horizontal" />
-                                    </ItemsPanelTemplate>
+                                    <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
                                 </ItemsControl.ItemsPanel>
                             </ItemsControl>
                         </DataTemplate>
@@ -189,25 +199,17 @@
                             </Grid>
                             <TextBlock x:Name="DetailPerformance" />
 
-                            <TextBlock Text="방탄 등급별 효율"
-                                       FontSize="15"
-                                       FontWeight="SemiBold"
-                                       Margin="0,14,0,7" />
+                            <TextBlock Text="방탄 등급별 효율" FontSize="15" FontWeight="SemiBold" Margin="0,14,0,7" />
                             <ItemsControl x:Name="DetailArmorEffectivenessItems"
                                           ItemTemplate="{StaticResource ArmorEffectivenessCellTemplate}"
                                           HorizontalAlignment="Left">
                                 <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <StackPanel Orientation="Horizontal" />
-                                    </ItemsPanelTemplate>
+                                    <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
                                 </ItemsControl.ItemsPanel>
                             </ItemsControl>
                             <TextBlock Text="왼쪽부터 방탄 1→6클 순서입니다. 각 칸의 0–6 숫자는 Tarkov Wiki Ballistics의 비교 효율값입니다."
-                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                       FontSize="11"
-                                       TextWrapping="Wrap"
-                                       Margin="0,6,0,0" />
-
+                                       Foreground="{StaticResource TextSecondaryBrush}" FontSize="11"
+                                       TextWrapping="Wrap" Margin="0,6,0,0" />
                             <TextBlock x:Name="DetailModifiers" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,0" />
                         </StackPanel>
                     </ScrollViewer>
@@ -225,7 +227,13 @@
                                                 <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" />
                                                 <TextBlock Text="{Binding Conditions}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,0" />
                                                 <TextBlock Text="{Binding Details}" Margin="0,3,0,0" />
-                                                <TextBlock Text="{Binding Unlock}" Foreground="{StaticResource WarningBrush}" Margin="0,3,0,0" />
+                                                <Button Visibility="{Binding UnlockVisibility}"
+                                                        Tag="{Binding UnlockQuestId}"
+                                                        Content="{Binding Unlock}"
+                                                        HorizontalAlignment="Stretch"
+                                                        HorizontalContentAlignment="Left"
+                                                        Margin="0,5,0,0"
+                                                        Click="UnlockQuestButton_Click" />
                                             </StackPanel>
                                         </Border>
                                     </DataTemplate>

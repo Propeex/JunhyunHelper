@@ -4,9 +4,12 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using JunhyunHelper.Core.Content;
 using SkiaSharp;
 
 namespace JunhyunHelper.Desktop.Services;
+
+public sealed record ImagePrefetchProgress(int Completed, int Total);
 
 public sealed class ImageCacheService
 {
@@ -31,35 +34,16 @@ public sealed class ImageCacheService
         string? sourceUrl,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(stableId) ||
-            string.IsNullOrWhiteSpace(sourceUrl) ||
-            !Uri.TryCreate(sourceUrl, UriKind.Absolute, out var sourceUri) ||
-            sourceUri.Scheme is not ("http" or "https"))
-        {
+        if (!TryGetSource(stableId, sourceUrl, out var sourceUri, out var path))
             return null;
-        }
 
         try
         {
-            var path = CachePath(stableId, sourceUrl);
             var cached = TryLoadLocalImage(path);
             if (cached is not null)
                 return cached;
 
-            await _downloads.WaitAsync(cancellationToken);
-            try
-            {
-                cached = TryLoadLocalImage(path);
-                if (cached is not null)
-                    return cached;
-
-                await DownloadAndNormalizeAsync(sourceUri, path, cancellationToken);
-            }
-            finally
-            {
-                _downloads.Release();
-            }
-
+            await EnsureCachedAsync(stableId, sourceUrl, cancellationToken);
             return TryLoadLocalImage(path);
         }
         catch (OperationCanceledException)
@@ -68,9 +52,120 @@ public sealed class ImageCacheService
         }
         catch
         {
-            // Images are presentation-only. A failed image must never break Game Content/User Progress.
             return null;
         }
+    }
+
+    public async Task PrefetchAsync(
+        GameContentCatalog content,
+        IProgress<ImagePrefetchProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+
+        var itemsById = content.Items.ToDictionary(item => item.Id, StringComparer.Ordinal);
+        var itemIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var requirement in content.QuestItemRequirements)
+            itemIds.UnionWith(requirement.AcceptedItemIds);
+        foreach (var station in content.HideoutStations)
+        foreach (var level in station.Levels)
+        foreach (var requirement in level.ItemRequirements)
+            itemIds.Add(requirement.ItemId);
+        foreach (var ammo in content.Ammunition)
+            itemIds.Add(ammo.ItemId);
+
+        var entries = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var itemId in itemIds)
+        {
+            if (!itemsById.TryGetValue(itemId, out var item) || string.IsNullOrWhiteSpace(item.IconUrl))
+                continue;
+            entries[$"item-{itemId}"] = item.IconUrl;
+        }
+        foreach (var station in content.HideoutStations)
+        {
+            if (!string.IsNullOrWhiteSpace(station.ImageUrl))
+                entries[$"hideout-{station.Id}"] = station.ImageUrl;
+        }
+
+        var total = entries.Count;
+        if (total == 0)
+        {
+            progress?.Report(new ImagePrefetchProgress(0, 0));
+            return;
+        }
+
+        var completed = 0;
+        await Parallel.ForEachAsync(
+            entries,
+            new ParallelOptions
+            {
+                MaxDegreeOfParallelism = 6,
+                CancellationToken = cancellationToken,
+            },
+            async (entry, token) =>
+            {
+                try
+                {
+                    await EnsureCachedAsync(entry.Key, entry.Value, token);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    // Presentation assets are optional. One failed image cannot invalidate Game Content.
+                }
+                finally
+                {
+                    var current = Interlocked.Increment(ref completed);
+                    progress?.Report(new ImagePrefetchProgress(current, total));
+                }
+            });
+    }
+
+    private async Task EnsureCachedAsync(
+        string stableId,
+        string? sourceUrl,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetSource(stableId, sourceUrl, out var sourceUri, out var path))
+            return;
+        if (File.Exists(path))
+            return;
+
+        await _downloads.WaitAsync(cancellationToken);
+        try
+        {
+            if (File.Exists(path))
+                return;
+            await DownloadAndNormalizeAsync(sourceUri, path, cancellationToken);
+        }
+        finally
+        {
+            _downloads.Release();
+        }
+    }
+
+    private bool TryGetSource(
+        string stableId,
+        string? sourceUrl,
+        out Uri sourceUri,
+        out string path)
+    {
+        sourceUri = null!;
+        path = string.Empty;
+        if (string.IsNullOrWhiteSpace(stableId) ||
+            string.IsNullOrWhiteSpace(sourceUrl) ||
+            !Uri.TryCreate(sourceUrl, UriKind.Absolute, out var parsed) ||
+            parsed.Scheme is not ("http" or "https"))
+        {
+            return false;
+        }
+
+        sourceUri = parsed;
+        path = CachePath(stableId, sourceUrl);
+        return true;
     }
 
     private async Task DownloadAndNormalizeAsync(
@@ -190,7 +285,6 @@ public sealed class ImageCacheService
         }
         catch
         {
-            // A later load may retry. Image failures stay non-fatal.
         }
     }
 
@@ -207,8 +301,6 @@ public sealed class ImageCacheService
                 SHA256.HashData(Encoding.UTF8.GetBytes(sourceUrl)))
             .ToLowerInvariant()[..16];
 
-        // Canonical source assets may be WebP. Cache a normalized PNG so WPF decoding
-        // does not depend on optional Windows WebP codecs.
         return Path.Combine(_cacheDirectory, $"{safeId}-{hash}.png");
     }
 }

@@ -6,24 +6,18 @@
 
 **Phase 2B — 핵심 Desktop 흐름 구현 + 실사용 피드백 반복 개선**
 
-상태: `THIRD USABILITY PASS MERGED / USER TESTING`
+상태: `FOURTH USABILITY PASS IMPLEMENTED / FINAL CI`
 
-3차 실사용 피드백 구현은 PR #37로 main에 병합 완료되었고 Windows CI와 전달용 ZIP 무결성까지 검증되었습니다.
-
-상세 요구/구현: `docs/THIRD_USABILITY_PASS.md`
-
-검증 checkpoint:
+현재 작업:
 
 ```text
-PR #37: merged
-final PR CI: 31272387911
-Release Desktop build: success
-full automated tests: success
-Windows x64 publish: success
-ZIP/artifact upload: success
-review threads: none
-final delivery ZIP CRC: success
+branch: agent/fourth-usability-pass
+PR: #39
 ```
+
+4차 실사용 피드백 1~13 구현은 완료되었고, 최종 문서 포함 Windows CI 및 테스트 패키징을 검증하는 단계입니다.
+
+상세 요구: `docs/FOURTH_USABILITY_PASS.md`
 
 ---
 
@@ -39,6 +33,7 @@ final delivery ZIP CRC: success
 → candidate SQLite
 → 검증
 → active content 교체
+→ 아이콘 선다운로드
 → User Progress와 결합
 → 파생 결과 계산
 → Desktop 표시
@@ -48,20 +43,19 @@ final delivery ZIP CRC: success
 - 의미를 모르는 외부 데이터는 추측하지 않음
 - Game Content와 `user.db` 분리
 - update 실패가 기존 정상 Game Content/User Progress를 손상시키지 않음
-- Needed Items / cleanup / Quest 상태 같은 파생 결과는 권위 데이터로 저장하지 않음
-- 안전한 cleanup을 증명하지 못하면 보호
 - runtime AI/GPT 없음
+- 유동 제출에서 실제 제출 Item처럼 프로그램이 알 수 없는 사실은 임의 추정하지 않음
 
 ---
 
-## 기술/저장 기준
+## 기술 / 저장
 
 - .NET 10 / C# / WPF
 - SQLite
 - SkiaSharp image decode + PNG normalize
-- Core / Infrastructure / Application / Desktop 4계층
+- Core / Infrastructure / Application / Desktop
 
-기본 데이터 루트:
+기본 root:
 
 ```text
 %LocalAppData%/JunhyunHelper
@@ -75,81 +69,88 @@ content/<game-mode>/content.db
 content/<game-mode>/content.candidate.db
 content/<game-mode>/content.previous.db
 image-cache/
+ammo-favorites.json
 ```
 
-Content snapshot schema는 현재 **v2**입니다. v1 content DB는 온라인 재구축되며 `user.db`는 유지됩니다.
+### Content schema
 
----
+현재 **v3**.
 
-## 데이터 원천
+v3에서 Ammo의 현재 Wiki Ballistics **표 등록 여부**를 Class 1~6 effectiveness와 별도 사실로 저장합니다.
 
-1차 Game Content: `json.tarkov.dev`
+- v2 `content.db` → 새 빌드에서 온라인 재구축
+- `user.db`는 유지
 
-- items + categories
-- traders
-- maps
-- tasks
-- hideout
-- barters
-- crafts
-- Ammo raw stats
+### User Progress 추가 의미
 
-지원 모드:
+기존 Profile/Quest/Hideout/Trader/Inventory에 더해 자동 inventory bookkeeping용 소비 기록을 optional JSON field로 저장합니다.
 
-- regular
-- pve
-- pvp-season
+- Quest별 실제 자동 차감량
+- Hideout station + target level별 실제 자동 차감량
 
-보조 원천:
+SQLite table schema는 그대로이므로 기존 user.db와 하위 호환됩니다.
 
-- TarkovTracker overlay: edition rules only
-- Tarkov Wiki Ballistics: Ammo 비교 membership + Class 1~6의 명시 0~6 effectiveness
-
-Wiki는 raw Ammo 성능의 대체 원천이 아닙니다.
+Prestige nullable 과거 값은 제품상 **0**으로 정규화합니다.
 
 ---
 
 ## Profile
 
-- 한 GameMode당 프로필 하나
+- 한 GameMode당 profile 하나
 - Profile dropdown 안 `새 프로필`
 - `프로필 수정` 안 삭제
-- Player level / Prestige: `- / 값 / +`
+- Player level: `- / 값 / +`
+- Prestige: **기본 0**, `- / 값 / +`, 미입력 없음
 - Fence reputation: 상단 주요 진행값, 0.1 단위
-- 핵심 Trader LL: 게임식 순서
-- Lightkeeper / BTR Driver / future non-core traders: `특별`
-- 필요한 비-Fence standing만 advanced 입력
-
-핵심 Trader(Fence 제외):
-
-```text
-Prapor → Therapist → Skier → Peacekeeper → Mechanic
-→ Ragman → Jaeger → Ref
-```
+- 핵심 Trader: 게임식 순서
+- 일반 상인 밖 Trader: `특별` Expander, 기본 접힘
+- 필요한 비-Fence standing만 `고급` 입력
 
 ---
 
 ## Quest
 
-사용자 화면 상태:
+사용자 상태:
 
 - 진행 중
 - 잠김
 - 사용 불가
 - 완료
 
-Core `Indeterminate`는 diagnostic으로 보존하되, 모든 지원 판정 뒤에도 남은 residual Indeterminate는 사용자 화면에서 **진행 중**으로 취급합니다. 확정 Locked/Unavailable은 변경하지 않습니다.
+끝까지 남은 Core `Indeterminate`는 Application 제품 경계에서 진행 중으로 보여주되 diagnostic reason은 보존합니다.
 
-Quest 상세:
+상세 연결:
 
+- Quest Item → Item
+- prerequisite Quest → Quest
 - `위키`
-- 제출 Item card/list
-- icon / 이름 / 수량 / 인레이드 여부 / 유동 제출 후보
-- Quest Item 클릭 → Item 상세
-- 선행 Quest 클릭 → Quest 상세
-- stable ID navigation
 
-Ground Zero 21+는 Quest filter에서 Ground Zero와 그룹화하되 canonical ID는 보존합니다.
+### 완료와 Inventory
+
+고정 제출 요구는 Quest 완료와 함께 tracked Inventory에서 자동 차감합니다.
+
+```text
+인레이드 필수 → 인레이드만
+일반 요구 → 일반 우선, 부족하면 인레이드
+```
+
+유동 제출 후보는 어느 Item을 사용했는지 알 수 없으므로 자동 차감하지 않습니다.
+
+완료 취소 시 자동 차감 기록이 있으면 복원 여부를 묻습니다.
+
+- 예: 정확한 실제 차감량 복원 + ledger 제거
+- 아니오: 차감 유지 + ledger 유지
+- 취소: 완료 취소 자체를 중단
+
+ledger를 유지한 상태에서 다시 완료해도 같은 재료를 중복 차감하지 않습니다.
+
+### Map filter
+
+- Ground Zero / Ground Zero 21+ → `Ground Zero`
+- Factory day/night → `Factory`
+- canonical Map ID는 변경하지 않음
+
+일반 refresh에서는 목록의 scroll 위치를 보존하고, 사용자가 링크 이동을 명시적으로 요청했을 때만 목표 row로 이동합니다.
 
 ---
 
@@ -157,166 +158,138 @@ Ground Zero 21+는 Quest filter에서 Ground Zero와 그룹화하되 canonical I
 
 - 미입력 = Lv.0
 - `- / 현재 레벨 / +`
-- 상세는 바로 다음 upgrade
-- Needed Items는 현재 level 이후 모든 미래 upgrade material
-- station image
-- 다음 upgrade 재료는 icon/name/수량/인레이드 여부 card/list
+- 다음 upgrade material card/list
+- material click → Item 상세
+- Item 상세 Hideout 출처 click → 해당 facility
+
+업그레이드 시 고정 재료를 Inventory에서 자동 차감하며 Quest와 같은 인레이드/일반 우선순위를 사용합니다.
+
+rollback 시 복원 여부를 묻고, 복원하지 않은 ledger는 재업그레이드 중복 차감을 막기 위해 유지합니다.
 
 ---
 
 ## Needed Items / Item
 
-핵심 목적:
-
-> 앞으로 필요할 가능성이 남아 있는 Item을 미리 모으고, 더 이상 필요하지 않은 실제 보유품만 안전하게 정리한다.
-
-사용자 표시 용어:
-
-```text
-FIR 의미 → 인레이드
-Non-FIR 의미 → 일반
-```
-
-내부 `Fir/NonFir` 식별자는 저장 호환성을 위해 유지할 수 있습니다.
-
-일반 목록은 한 row에서 다음 네 값을 비교합니다.
+일반 row:
 
 - 필요 · 인레이드
 - 필요 · 일반
 - 보유 · 인레이드
 - 보유 · 일반
 
-기존 우측 status badge는 제거했습니다.
+상세:
 
-상세 주요 요구량:
+- 인레이드 필요 N
+- 일반 필요 N
+- `− / 수량 / +`, +/- 즉시 저장
+- 직접 입력 저장
+- Quest / Hideout 필요 출처를 동일한 클릭 block 형태로 표시
 
-- 인레이드 필요 N개
-- 일반 필요 N개
+유동 제출:
 
-보유 입력:
+- 별도 view
+- Quest별 group
+- group/candidate가 부모 폭을 채우고 왼쪽 정렬
+- 후보 Item click → Item
+- Quest click → Quest
+- cleanup은 보수적으로 보호
 
-- 인레이드 `− / 값 / +`
-- 일반 `− / 값 / +`
-- +/- 클릭 즉시 저장
-- 직접 숫자 입력 + 명시적 저장 유지
+종류 dropdown은 현재 view/search/filter에 실제 row가 있는 category만 표시합니다.
 
-종류 dropdown은 현재 view/search/status filter에 실제 row가 있는 종류만 표시합니다.
+평상시 상단 status는 다른 개수 나열 없이:
 
-유동 제출은 별도 view에서 **Quest별 group/card**으로 표시합니다.
+```text
+정리 필요 N
+```
 
-- Quest 이름 → Quest 상세
-- 후보 Item → Item 상세
-- 후보 하나를 임의 선택하지 않음
-- objective 후보 보유량 합계로 진행 계산
-- cleanup은 목표 종료 전 보수적으로 보호
+만 표시합니다. 작업 중에는 임시 progress/status 메시지가 우선합니다.
 
 ---
 
 ## Ammo
 
-read-only 비교 기능입니다.
+raw 성능: `json.tarkov.dev`
 
-- 이름 검색 없음
-- caliber dropdown
-- 표시 열 선택
-- penetration 오름차순 → damage → name
-- 최소 acquisition summary + 상세 전체 acquisition
-- item image
+현재 Wiki Ballistics는 두 보조 사실을 제공합니다.
 
-### 비교 대상
+1. 현재 비교 표에 등록된 Ammo인지
+2. Armor Class 1~6의 0~6 effectiveness
 
-healthy Wiki Ballistics enrichment가 있으면 **현재 Wiki 표와 안전하게 매칭된 탄약만** 표시합니다.
+두 사실은 분리합니다. 등록된 Ammo라면 effectiveness가 `?`여도 표에서 제거하지 않습니다.
 
-- Wiki 미등록 장난/미사용/비교 대상 외 Ammo 제외
-- 그 Ammo만 있던 caliber도 dropdown에서 제외
-- hard-coded Ammo allowlist 없음
-- Wiki 장애/비정상 시 raw Ammo Game Content를 임시 표시하고 source 상태 명시
+Wiki가 정상일 때는 현재 Wiki 등록 Ammo만 비교합니다. Wiki 장애/구조 이상이면 raw Ammo를 임시 표시하여 빈 표가 되거나 Game Content가 손상되지 않게 합니다.
 
-### caliber 표시
-
-raw ID는 보존하고 익숙한 cartridge 이름을 표시합니다.
-
-예:
+구경 대표 표기:
 
 ```text
+.308 Marlin Express
+9.3x64mm
+9x18mm Makarov
+.50 Action Express
+12.7x108mm
 .45 ACP
-.357 Magnum
 .300 Blackout
 .338 Lapua Magnum
-.50 AE
 .366 TKM
 12/70
 ```
 
-### Armor effectiveness
+추가 UX:
 
-Wiki Ballistics의 명시된 0~6 값만 사용하고 자체 heuristic은 만들지 않습니다.
-
-6칸은 왼쪽부터 Class 1→6이며 cell 안에는 effectiveness 숫자만 표시합니다.
-
-```text
-6  6  6  5  3  2
-```
-
-작은 armor class 숫자는 cell 안에 중복 표시하지 않습니다.
+- caliber 즐겨찾기 toggle
+- 즐겨찾기 전용 dropdown
+- `ammo-favorites.json`에 로컬 저장
+- Ammo 수급처의 해금 Quest click → Quest 상세
+- penetration → damage → name 고정 오름차순
 
 ---
 
-## ScrollBar
+## 이미지
 
-현재 구현:
+Game Content update 성공 후 제품에서 사용하는 icon을 선다운로드합니다.
 
-- vertical: viewport 높이를 stretch, 폭만 12
-- horizontal: viewport 너비를 stretch, 높이만 12
-- full track + normal thumb
-- dark rounded style
-- native arrow chrome 없음
+대상:
 
-이전처럼 ScrollBar 자체 Width/Height를 동시에 고정해 작은 공처럼 보이게 하지 않습니다.
+- Quest 제출 Item 후보
+- Hideout material
+- Ammo item
+- Hideout station
 
----
-
-## 이미지 cache
+동일 Item은 공통 `item-{id}` cache key를 사용합니다.
 
 ```text
-canonical URL
-→ bytes
+URL
+→ download
 → SkiaSharp decode
-→ size/validity check
 → PNG normalize
 → image-cache
 → WPF
 ```
 
-대상:
-
-- Item
-- Hideout station/material
-- Ammo
-- Quest Item
-
-이미지 실패는 non-fatal입니다.
+개별 이미지 실패는 Game Content update 실패가 아닙니다.
 
 ---
 
 ## Map / Scanner
 
-상단 탭과 `준비 중` placeholder만 있습니다. 실제 기능은 후속 요구사항 확정 전까지 구현하지 않습니다.
+탭과 `준비 중` placeholder만 있습니다. 실제 기능은 후속 요구사항 확정 전까지 구현하지 않습니다.
 
 ---
 
 ## 실사용 피드백 상태
 
-- 첫 실사용 피드백 1~13: 구현/병합 완료
-- 2차 실사용 피드백 1~7: PR #36 구현/검증/병합 완료
-- 3차 실사용 피드백 1~10: PR #37 구현/검증/병합 완료
-
-3차 상세: `docs/THIRD_USABILITY_PASS.md`
+- 첫 실사용 피드백: 구현/병합 완료
+- 2차: PR #36 병합 완료
+- 3차: PR #37 병합 완료
+- 4차: **PR #39 구현 완료 / 최종 검증 중**
 
 ---
 
 ## 현재 다음 작업
 
-1. 사용자가 3차 Windows 테스트 빌드를 실제 사용
-2. 발견된 불편/오류를 다음 실사용 피드백으로 반영
-3. 새 실사용 피드백이 없다면 Map 실제 기능과 Scanner 실제 기능의 제품 요구사항 정의
+1. PR #39 최신 head의 documentation-inclusive CI 통과 확인
+2. review thread 확인
+3. main 병합
+4. 최종 Windows x64 artifact 다운로드
+5. 중첩 ZIP 제거 후 전달용 ZIP 재패키징 + CRC/SHA-256 확인
+6. 사용자에게 4차 테스트 빌드 전달
