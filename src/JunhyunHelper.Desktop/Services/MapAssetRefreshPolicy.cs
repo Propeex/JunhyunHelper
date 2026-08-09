@@ -16,7 +16,7 @@ public static class MapAssetRefreshPolicy
 
     // Bump this whenever the artwork/layout ingestion formula changes. Existing installs
     // will then rebuild Map assets once without asking the user to delete their cache.
-    public const string PipelineVersion = "map-online-sources-v3";
+    public const string PipelineVersion = "map-online-sources-v4-re3mr";
 
     private const string StateFileName = "update-state.json";
     private const string RefreshRequestFileName = "refresh.requested";
