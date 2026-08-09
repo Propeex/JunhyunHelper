@@ -6,9 +6,9 @@
 
 **Phase 2B — 핵심 Desktop 흐름 구현 + 실사용 피드백 반복 개선**
 
-상태: `MAP IMPLEMENTED / WINDOWS USER TESTING / MAP ASSET SELF-HEAL MERGED`
+상태: `MAP IMPLEMENTED / WINDOWS USER TESTING / MAP ASSET FILE-LOCK FIX MERGED`
 
-Map 1차 기능은 구현되어 있으며 Windows 실사용 검증 중입니다. 최초 Map 빌드에서 발견된 시작/초기화/자산 복구 문제는 각각 후속 PR로 수정했습니다.
+Map 1차 기능은 구현되어 있으며 Windows 실사용 검증 중입니다. 최초 Map 빌드에서 발견된 시작/초기화/자산 복구/Windows 파일 잠금 문제는 각각 후속 PR로 수정했습니다.
 
 최근 Map 관련 병합:
 
@@ -19,14 +19,16 @@ PR #45 — 대량 loot marker renderer build/persistence 복구
 PR #46 — 앱 시작 복구, Map lazy-load, startup diagnostics, self-contained folder package
 PR #47 — Map marker CheckBox 초기화 NRE 수정
 PR #48 — missing map-cache 자동 복구 + 지도별 부분 복구 + SVG source fallback
+PR #50 — Windows FileShare.None writer 수명주기 때문에 모든 SVG/PNG 검증이 실패하던 문제 수정
 ```
 
-PR #48 검증:
+PR #50 검증:
 
 ```text
-CI: 31296494454
+CI: 31297134490
 Release Desktop build: success
 full automated tests: success
+Windows FileShare.None regression test: success
 Windows x64 self-contained publish: success
 ZIP creation/upload: success
 review threads: none
@@ -456,6 +458,20 @@ raw.githubusercontent.com/the-hideout/tarkov-dev-svg-maps/.../<file>
 
 Marker PNG도 실패 시 이전 icon을 재사용하고, 이전 icon도 없으면 기본 marker visual을 사용합니다.
 
+### 다운로드 파일 수명주기
+
+PR #50부터 SVG/PNG 다운로드 파일은 다음 순서를 강제합니다.
+
+```text
+exclusive writer(FileShare.None)로 쓰기
+→ Flush
+→ writer/input dispose
+→ validator가 파일 재오픈
+→ SVG/XML 또는 PNG signature 검증
+```
+
+검증 전에 writer가 살아 있으면 Windows에서 validator의 두 번째 open이 거부되므로, 이 순서를 회귀 테스트로 보호합니다.
+
 ---
 
 ## Map에서 최근 해결한 문제
@@ -498,6 +514,27 @@ XAML IsChecked=True
 
 해결: 위 `Map asset update / recovery`의 self-heal/partial recovery 적용.
 
+### Map asset 자동 복구가 모든 SVG에서 실패
+
+실제 원인:
+
+```text
+SVG/PNG 다운로드
+→ FileStream(FileShare.None) writer 유지
+→ writer scope 종료 전에 ValidateSvg / ValidatePng
+→ validator가 동일 파일을 다시 open
+→ Windows sharing violation
+→ 모든 Map 공통 실패
+```
+
+해결:
+
+- writer/input stream을 명시적 scope로 제한
+- scope 종료 후 validation
+- SVG와 marker PNG 모두 수정
+- Windows `FileShare.None` 재오픈 회귀 테스트 추가
+- 모든 Map 실패 시 일부 concrete failure message를 사용자에게 표시
+
 ---
 
 ## Scanner
@@ -520,13 +557,14 @@ XAML IsChecked=True
 - Map build recovery: PR #45 merged
 - Map startup recovery: PR #46 merged
 - Map initial CheckBox crash: PR #47 merged
-- Map missing asset self-heal: **PR #48 merged / Windows user verification next**
+- Map missing asset self-heal: PR #48 merged
+- Map asset Windows file-lock fix: **PR #50 merged / Windows user verification next**
 
 ---
 
 ## 현재 다음 작업
 
-1. PR #48 Windows 사용자 환경에서 `map-cache` 자동 복구 확인
+1. PR #50 Windows 사용자 환경에서 `map-cache` 자동 복구 및 실제 SVG 표시 확인
 2. 실제 SVG 표시 / coordinate alignment 확인
 3. marker 위치·아이콘·filter 사용감 확인
 4. multi-floor 자동/수동 전환 확인
