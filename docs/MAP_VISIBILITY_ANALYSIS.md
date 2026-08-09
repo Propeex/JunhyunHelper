@@ -2,7 +2,7 @@
 
 기록일: **2026-08-09**
 
-상태: `READABILITY PASS IMPLEMENTED / WINDOWS USER VERIFICATION NEXT`
+상태: `MERGED / WINDOWS USER VERIFICATION NEXT`
 
 ## 사용자 피드백
 
@@ -83,6 +83,18 @@ Basement
 ```
 
 내부 `Id`, `SvgLayer`, height range, extent는 기존대로 선택/자동 층 판정에만 사용합니다.
+
+## 검증 checkpoint
+
+```text
+PR #53: merged
+CI: 31299511934
+Release Desktop build: success
+full automated tests: success
+Windows x64 self-contained publish: success
+ZIP creation/upload: success
+review threads: none
+```
 
 ## 향후 배경 source 교체 기준
 
