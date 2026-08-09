@@ -14,6 +14,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
     private readonly TarkovHelper.Pages.Map.MapPage _page;
     private readonly OverlayMiniMapService _overlay = OverlayMiniMapService.Instance;
     private readonly JunhyunMapHotkeyService _hotkeys = new();
+    private readonly LegacyQuestMarkerScaleBridge _questScaleBridge;
     private readonly Slider? _playerMarkerSlider;
     private Button? _hotkeySettingsButton;
     private bool _syncingPlayerMarker;
@@ -22,6 +23,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
     public LegacyMapProductRuntime(TarkovHelper.Pages.Map.MapPage page)
     {
         _page = page ?? throw new ArgumentNullException(nameof(page));
+        _questScaleBridge = new LegacyQuestMarkerScaleBridge(page);
         _playerMarkerSlider = _page.FindName("SliderPlayerMarkerSize") as Slider;
 
         if (_playerMarkerSlider is not null)
@@ -57,7 +59,6 @@ public sealed class LegacyMapProductRuntime : IDisposable
         };
         _hotkeySettingsButton.Click += HotkeySettingsButton_Click;
 
-        // Put the product settings entry immediately below the original panel title.
         var insertIndex = Math.Min(1, stack.Children.Count);
         stack.Children.Insert(insertIndex, header);
         stack.Children.Insert(insertIndex + 1, _hotkeySettingsButton);
@@ -129,6 +130,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
             return;
         _disposed = true;
 
+        _questScaleBridge.Dispose();
         _hotkeys.Dispose();
         _overlay.SettingsChanged -= Overlay_SettingsChanged;
         _page.Loaded -= Page_Loaded;
