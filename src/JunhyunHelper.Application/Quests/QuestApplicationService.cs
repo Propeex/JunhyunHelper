@@ -1,4 +1,6 @@
+using JunhyunHelper.Application.Items;
 using JunhyunHelper.Core.Content;
+using JunhyunHelper.Core.Items;
 using JunhyunHelper.Core.Profiles;
 using JunhyunHelper.Core.Quests;
 using JunhyunHelper.Infrastructure.Storage;
@@ -49,16 +51,38 @@ public sealed class QuestApplicationService
                 $"Quest '{questId}' can only be completed while it is Current, but it is '{entry.Availability.State}'.");
         }
 
+        var fixedRequirements = content.QuestItemRequirements
+            .Where(requirement => string.Equals(requirement.QuestId, questId, StringComparison.Ordinal))
+            // Flexible hand-ins are deliberately excluded: the helper cannot know which candidate
+            // the user actually submitted, so guessing would corrupt inventory truth.
+            .Where(requirement => requirement.AcceptedItemIds.Count == 1)
+            .Select(requirement => new FixedItemConsumptionRequirement(
+                requirement.AcceptedItemIds[0],
+                requirement.Count,
+                requirement.FoundInRaid))
+            .ToArray();
+        var consumption = FixedInventoryConsumptionPolicy.Consume(profile.Inventory, fixedRequirements);
+
         var completed = new HashSet<string>(profile.CompletedQuestIds, StringComparer.Ordinal)
         {
             questId,
         };
         var failed = new HashSet<string>(profile.FailedQuestIds, StringComparer.Ordinal);
         failed.Remove(questId);
+        var questConsumptions = new Dictionary<string, InventoryConsumption>(
+            profile.QuestConsumptions,
+            StringComparer.Ordinal);
+        if (consumption.Consumption.IsEmpty)
+            questConsumptions.Remove(questId);
+        else
+            questConsumptions[questId] = consumption.Consumption;
+
         var updated = profile with
         {
             CompletedQuestIds = completed,
             FailedQuestIds = failed,
+            Inventory = consumption.Inventory,
+            QuestConsumptions = questConsumptions,
         };
 
         await _profileStore.SaveAsync(updated, cancellationToken);
@@ -127,10 +151,18 @@ public sealed class QuestApplicationService
         return BuildWorkspace(content, updated);
     }
 
+    public Task<QuestWorkspace> UndoCompletionAsync(
+        GameContentCatalog content,
+        string profileId,
+        string questId,
+        CancellationToken cancellationToken = default) =>
+        UndoCompletionAsync(content, profileId, questId, restoreInventory: false, cancellationToken);
+
     public async Task<QuestWorkspace> UndoCompletionAsync(
         GameContentCatalog content,
         string profileId,
         string questId,
+        bool restoreInventory,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(content);
@@ -149,7 +181,20 @@ public sealed class QuestApplicationService
 
         var completed = new HashSet<string>(profile.CompletedQuestIds, StringComparer.Ordinal);
         completed.Remove(questId);
-        var updated = profile with { CompletedQuestIds = completed };
+        var questConsumptions = new Dictionary<string, InventoryConsumption>(
+            profile.QuestConsumptions,
+            StringComparer.Ordinal);
+        var inventory = profile.Inventory;
+        if (questConsumptions.TryGetValue(questId, out var consumption) && restoreInventory)
+            inventory = FixedInventoryConsumptionPolicy.Restore(inventory, consumption);
+        questConsumptions.Remove(questId);
+
+        var updated = profile with
+        {
+            CompletedQuestIds = completed,
+            Inventory = inventory,
+            QuestConsumptions = questConsumptions,
+        };
 
         await _profileStore.SaveAsync(updated, cancellationToken);
         return BuildWorkspace(content, updated);
@@ -182,9 +227,6 @@ public sealed class QuestApplicationService
             .Select(ApplyProductAvailabilityPolicy)
             .ToArray();
 
-        // Core keeps Indeterminate as a diagnostic truth. Product policy intentionally treats
-        // any remaining non-resolvable availability condition as Current so the helper does not
-        // hide a quest the user can actually have in game.
         return new QuestWorkspace(profile, quests, Array.Empty<QuestCatalogEntry>());
     }
 
