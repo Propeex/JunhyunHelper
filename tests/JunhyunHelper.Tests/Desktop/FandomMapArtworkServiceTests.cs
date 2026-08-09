@@ -42,7 +42,11 @@ public sealed class FandomMapArtworkServiceTests
 
         try
         {
-            var result = await service.TryBuildAlignedSvgAsync(layout, markers, destination);
+            var result = await service.TryBuildAlignedSvgAsync(
+                layout,
+                markers,
+                destination,
+                TestContext.Current.CancellationToken);
 
             Assert.True(result.Applied, result.Warning);
             Assert.Equal(4, result.MatchedMarkers);
@@ -52,7 +56,9 @@ public sealed class FandomMapArtworkServiceTests
             Assert.True(File.Exists(destination));
 
             var document = XDocument.Load(destination);
-            var image = Assert.Single(document.Descendants().Where(element => element.Name.LocalName == "image"));
+            var image = Assert.Single(
+                document.Descendants(),
+                element => element.Name.LocalName == "image");
             Assert.Contains("matrix(", image.Attribute("transform")?.Value);
             Assert.StartsWith("data:image/png;base64,", image.Attribute("href")?.Value);
         }
@@ -87,7 +93,8 @@ public sealed class FandomMapArtworkServiceTests
             var result = await service.TryBuildAlignedSvgAsync(
                 Layout(),
                 new[] { Marker("1", "Crossroads", 10, 20) },
-                destination);
+                destination,
+                TestContext.Current.CancellationToken);
 
             Assert.False(result.Applied);
             Assert.False(File.Exists(destination));
