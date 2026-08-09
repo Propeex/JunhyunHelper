@@ -27,7 +27,8 @@
 
 ### Korean-only publish
 
-- 현재 self-contained Windows publish에서 확인된 `ar`, `cs`, `da`, `de`, `es`, `fr`, `it`, `ja`, `ja-JP`, `lv`, `nl`, `pl`, `pt`, `pt-BR`, `ru`, `sk`, `sv`, `th`, `tr`, `zh`, `zh-Hans`, `zh-Hant`, `zh-TW` 폴더는 모두 satellite `*.resources.dll` 전용 폴더임을 확인했다.
-- 제품 언어는 한국어만 지원하므로 `ko`/`ko-KR`만 유지한다.
-- 안전을 위해 폴더 내부가 전부 `*.resources.dll`인 경우에만 자동 삭제한다. Assets/runtimes/Logs 등 기능 폴더는 건드리지 않는다.
-- publish 정리 후 동일 Startup + Map smoke를 통과해야 한다.
+- 기존 self-contained Windows artifact를 직접 검사한 결과 `ar`, `cs`, `da`, `de`, `es`, `fr`, `it`, `ja`, `ja-JP`, `lv`, `nl`, `pl`, `pt`, `pt-BR`, `ru`, `sk`, `sv`, `th`, `tr`, `zh`, `zh-Hans`, `zh-Hant`, `zh-TW` 폴더는 모두 satellite `*.resources.dll` 전용 폴더였다.
+- 제품 언어는 한국어만 지원한다.
+- 파일을 publish 후 임의 삭제하지 않고 .NET SDK의 `SatelliteResourceLanguages=ko`를 사용해 빌드 시점부터 한국어 satellite resource만 출력한다.
+- 첫 CI publish 결과에서도 실제 최상위 문화권 폴더가 `ko` 하나만 생성되는 것을 확인했다. 별도 삭제 스크립트는 불필요하므로 사용하지 않는다.
+- Korean-only publish 상태에서 동일 Startup + Map smoke를 통과해야 한다.
