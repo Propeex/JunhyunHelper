@@ -29,9 +29,6 @@ public partial class MainWindow : TarkovHelper.MainWindow
         _legacyMapTabHooked = true;
         MapTabButton.Click += LegacyMapTabButton_Click;
 
-        // CI publishes a real Windows build and asks it to construct the lazy Map
-        // subsystem. This catches runtime XAML/FindName/adapter regressions that a
-        // plain process-liveness smoke cannot see. It is inert in normal launches.
         if (string.Equals(
                 Environment.GetEnvironmentVariable(MapSmokeEnvironmentVariable),
                 "1",
@@ -77,7 +74,9 @@ public partial class MainWindow : TarkovHelper.MainWindow
                 sidebar,
                 () => QuestPage.CurrentContentForMap,
                 () => QuestPage.CurrentWorkspaceForMap);
-            _legacyMapProductRuntime = new LegacyMapProductRuntime(page);
+            _legacyMapProductRuntime = new LegacyMapProductRuntime(
+                page,
+                () => _legacyMapProductAdapter?.Refresh());
             _legacyAdditionalMapMarkers = new LegacyAdditionalMapMarkerController(page);
         }
         catch (Exception exception)
@@ -99,12 +98,8 @@ public partial class MainWindow : TarkovHelper.MainWindow
         }
     }
 
-    /// <summary>
-    /// The product no longer exposes Map full-screen mode. The method remains only
-    /// as a compatibility contract required by the pinned upstream MapPage type.
-    /// </summary>
     public void SetFullScreenMode(bool enabled)
     {
-        // Intentionally disabled.
+        // Product requirement: full-screen Map mode is removed.
     }
 }
