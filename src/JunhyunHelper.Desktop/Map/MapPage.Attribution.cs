@@ -10,7 +10,11 @@ public partial class MapPage
     protected override void OnInitialized(EventArgs e)
     {
         base.OnInitialized(e);
-        Loaded += (_, _) => EnsureAttributionOverlay();
+        Loaded += (_, _) =>
+        {
+            EnsureAttributionOverlay();
+            EnsureSpatialFloorTracking();
+        };
         EnsureAttributionOverlay();
     }
 
