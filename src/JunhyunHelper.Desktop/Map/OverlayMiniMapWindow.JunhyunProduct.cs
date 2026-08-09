@@ -1,9 +1,14 @@
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Shapes;
 using System.Windows.Threading;
 using JunhyunHelper.Desktop.Map;
+using TarkovHelper.Models;
 using TarkovHelper.Models.Map;
+using TarkovHelper.Services;
+using TarkovHelper.Services.Map;
 using TarkovHelper.Services.Settings;
 
 namespace TarkovHelper.Windows;
@@ -29,6 +34,7 @@ public partial class OverlayMiniMapWindow
     private bool _junhyunReanchoring;
     private int _junhyunLastQuestMarkerCount = -1;
     private string? _junhyunLastQuestMapKey;
+    private int _junhyunLastExtractSignature = -1;
 
     protected override void OnSourceInitialized(EventArgs e)
     {
@@ -39,6 +45,7 @@ public partial class OverlayMiniMapWindow
         _settings.Opacity = 1.0;
         MainBorder.Opacity = 1.0;
         PositionToTopRight();
+        JunhyunMiniMapProductRegistry.Register(this);
 
         SizeChanged += JunhyunMiniMap_SizeChanged;
         LocationChanged += JunhyunMiniMap_LocationChanged;
@@ -53,6 +60,8 @@ public partial class OverlayMiniMapWindow
         _junhyunProductTimer.Start();
 
         RenderJunhyunQuestProjection(force: true);
+        SynchronizeGeneralMarkerScale();
+        SynchronizeExtractPresentation(force: true);
     }
 
     public void IncreaseAnchoredSize() => ChangeAnchoredSize(+40);
@@ -127,6 +136,8 @@ public partial class OverlayMiniMapWindow
             Opacity = targetOpacity;
 
         RenderJunhyunQuestProjection(force: false);
+        SynchronizeGeneralMarkerScale();
+        SynchronizeExtractPresentation(force: false);
     }
 
     private bool IsCursorInsideMiniMap()
@@ -190,8 +201,188 @@ public partial class OverlayMiniMapWindow
         _junhyunLastQuestMapKey = mapKey;
     }
 
+    /// <summary>
+    /// Main Map uses 24px as the standard map-marker base size; the original MiniMap
+    /// used 18px. Apply the exact 4/3 presentation ratio after the original inverse
+    /// zoom transform so icon size stays synchronized with Main Map.
+    /// </summary>
+    private void SynchronizeGeneralMarkerScale()
+    {
+        var inverse = 1.0 / Math.Max(_settings.ZoomLevel, OverlayMiniMapSettings.MinZoom);
+        var synchronizedScale = inverse * (24.0 / 18.0);
+        foreach (FrameworkElement element in MapMarkersContainer.Children)
+        {
+            element.RenderTransform = new ScaleTransform(synchronizedScale, synchronizedScale);
+            element.RenderTransformOrigin = element is Canvas
+                ? new Point(0, 0)
+                : new Point(0.5, 0.5);
+        }
+    }
+
+    /// <summary>
+    /// The original MiniMap rendered extracts as small unlabeled dots while Main Map
+    /// rendered an emergency-exit marker plus name. Replace only that presentation
+    /// layer so MiniMap uses the same semantic color, base size and text-size setting.
+    /// </summary>
+    private void SynchronizeExtractPresentation(bool force)
+    {
+        if (string.IsNullOrWhiteSpace(_currentMapKey) || _currentMapConfig is null)
+            return;
+
+        var settings = MapSettings.Instance;
+        var signature = HashCode.Combine(
+            _currentMapKey,
+            _selectedFloorId,
+            settings.ShowExtracts,
+            settings.ShowPmcExtracts,
+            settings.ShowScavExtracts,
+            settings.ShowTransits,
+            settings.ExtractNameSize,
+            _settings.OtherFloorOpacity,
+            ExtractMarkersContainer.Children.Count);
+
+        if (!force && signature == _junhyunLastExtractSignature &&
+            ExtractMarkersContainer.Children.Cast<FrameworkElement>()
+                .All(child => child.Tag is JunhyunSynchronizedExtractTag))
+        {
+            return;
+        }
+
+        if (!ExtractService.Instance.IsLoaded)
+            return;
+
+        var extracts = ExtractService.Instance.GetExtractsForMap(_currentMapKey, _currentMapConfig);
+        ExtractMarkersContainer.Children.Clear();
+
+        if (!settings.ShowExtracts)
+        {
+            _junhyunLastExtractSignature = signature;
+            return;
+        }
+
+        foreach (var display in MapExtractDisplayGrouping.GroupForDisplay(extracts))
+        {
+            if (!IsExtractVisible(settings, display.Faction))
+                continue;
+
+            var extract = display.Extract;
+            var (screenX, screenY) = _currentMapConfig.GameToScreenForPlayer(extract.X, extract.Z);
+            var currentFloor = IsCurrentFloor(extract.FloorId, _selectedFloorId);
+            var visual = CreateSynchronizedExtractVisual(extract, display.Faction, currentFloor);
+            Canvas.SetLeft(visual, screenX);
+            Canvas.SetTop(visual, screenY);
+            ExtractMarkersContainer.Children.Add(visual);
+        }
+
+        _junhyunLastExtractSignature = signature;
+    }
+
+    private FrameworkElement CreateSynchronizedExtractVisual(
+        MapExtract extract,
+        ExtractFaction faction,
+        bool currentFloor)
+    {
+        var mapScale = _currentMapConfig?.MarkerScale ?? 1.0;
+        var markerSize = 20.0 * mapScale;
+        var textSize = MapSettings.Instance.ExtractNameSize * mapScale;
+        var fill = faction switch
+        {
+            ExtractFaction.Pmc => Color.FromRgb(76, 175, 80),
+            ExtractFaction.Scav => Color.FromRgb(158, 158, 158),
+            ExtractFaction.Shared => Color.FromRgb(76, 175, 80),
+            ExtractFaction.Transit => Color.FromRgb(255, 152, 0),
+            _ => Color.FromRgb(158, 158, 158),
+        };
+
+        var canvas = new Canvas
+        {
+            Width = 0,
+            Height = 0,
+            IsHitTestVisible = false,
+            Tag = new JunhyunSynchronizedExtractTag(),
+            Opacity = currentFloor ? 1.0 : Math.Clamp(_settings.OtherFloorOpacity, 0.0, 1.0),
+        };
+
+        var glowSize = markerSize * 1.5;
+        var glow = new Ellipse
+        {
+            Width = glowSize,
+            Height = glowSize,
+            Fill = new SolidColorBrush(Color.FromArgb(80, fill.R, fill.G, fill.B)),
+        };
+        Canvas.SetLeft(glow, -glowSize / 2);
+        Canvas.SetTop(glow, -glowSize / 2);
+        canvas.Children.Add(glow);
+
+        var circle = new Ellipse
+        {
+            Width = markerSize,
+            Height = markerSize,
+            Fill = new SolidColorBrush(fill),
+            Stroke = Brushes.White,
+            StrokeThickness = 2 * mapScale,
+        };
+        Canvas.SetLeft(circle, -markerSize / 2);
+        Canvas.SetTop(circle, -markerSize / 2);
+        canvas.Children.Add(circle);
+
+        // Simple exit glyph; Main Map and MiniMap retain the same semantic symbol.
+        var glyph = new TextBlock
+        {
+            Text = "↗",
+            Foreground = Brushes.White,
+            FontWeight = FontWeights.Bold,
+            FontSize = markerSize * 0.72,
+            TextAlignment = TextAlignment.Center,
+            Width = markerSize,
+            Height = markerSize,
+        };
+        Canvas.SetLeft(glyph, -markerSize / 2);
+        Canvas.SetTop(glyph, -markerSize / 2 - 1);
+        canvas.Children.Add(glyph);
+
+        var displayName = !string.IsNullOrWhiteSpace(extract.NameKo) ? extract.NameKo : extract.Name;
+        var label = new Border
+        {
+            Background = new SolidColorBrush(Color.FromArgb(200, 30, 30, 30)),
+            CornerRadius = new CornerRadius(3 * mapScale),
+            Padding = new Thickness(4 * mapScale, 2 * mapScale, 4 * mapScale, 2 * mapScale),
+            Child = new TextBlock
+            {
+                Text = displayName,
+                Foreground = new SolidColorBrush(fill),
+                FontSize = textSize,
+                FontWeight = FontWeights.SemiBold,
+                TextAlignment = TextAlignment.Center,
+            },
+        };
+        label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        Canvas.SetLeft(label, -label.DesiredSize.Width / 2);
+        Canvas.SetTop(label, -markerSize - label.DesiredSize.Height - 4 * mapScale);
+        canvas.Children.Add(label);
+
+        var inverse = 1.0 / Math.Max(_settings.ZoomLevel, OverlayMiniMapSettings.MinZoom);
+        canvas.RenderTransform = new ScaleTransform(inverse, inverse);
+        canvas.RenderTransformOrigin = new Point(0, 0);
+        return canvas;
+    }
+
+    private static bool IsExtractVisible(MapSettings settings, ExtractFaction faction) => faction switch
+    {
+        ExtractFaction.Pmc => settings.ShowPmcExtracts,
+        ExtractFaction.Scav => settings.ShowScavExtracts,
+        ExtractFaction.Shared => settings.ShowPmcExtracts || settings.ShowScavExtracts,
+        ExtractFaction.Transit => settings.ShowTransits,
+        _ => true,
+    };
+
+    private sealed class JunhyunSynchronizedExtractTag
+    {
+    }
+
     private void JunhyunMiniMap_Closed(object? sender, EventArgs e)
     {
+        JunhyunMiniMapProductRegistry.Unregister(this);
         Closed -= JunhyunMiniMap_Closed;
         SizeChanged -= JunhyunMiniMap_SizeChanged;
         LocationChanged -= JunhyunMiniMap_LocationChanged;
