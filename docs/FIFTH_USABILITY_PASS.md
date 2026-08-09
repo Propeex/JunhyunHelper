@@ -2,13 +2,13 @@
 
 기록일: **2026-08-09**
 
-상태: `UX FIXES IMPLEMENTED / SOURCE ANALYSIS COMPLETE / MAP PRODUCT DESIGN OPEN`
+상태: `MERGED / UX FIXES VERIFIED / MAP PRODUCT DESIGN OPEN`
 
 4차 Windows 테스트 빌드 실사용에서 확인된 즉시 수정 가능한 UX 문제와, Map 기능의 데이터 공급원 조사 결과를 기록합니다.
 
 ## 1. Ammo 즐겨찾기 이동
 
-`CONFIRMED / IMPLEMENTED`
+`CONFIRMED / IMPLEMENTED / MERGED`
 
 기존 즐겨찾기 ComboBox는 선택값을 상태로 유지하기 때문에, 즐겨찾기 A로 이동한 뒤 일반 구경 selector에서 B로 바꾸면 즐겨찾기 selector는 여전히 A를 선택한 상태로 남았습니다. 이 상태에서 A를 다시 눌러도 selection change가 발생하지 않아 A로 돌아갈 수 없는 문제가 있었습니다.
 
@@ -24,7 +24,7 @@
 
 ## 2. Item 용도 필터
 
-`CONFIRMED / IMPLEMENTED`
+`CONFIRMED / IMPLEMENTED / MERGED`
 
 기존 Item 종류(category)와 필요 상태(filter)와 별개로 **용도**를 구분해서 볼 수 있게 합니다.
 
@@ -92,15 +92,17 @@ Tarkov.dev 웹사이트 source code 자체의 MIT license와 지도 artwork lice
 
 ## 4. 검증
 
-최신 구현 checkpoint CI:
+PR #41 최종 documentation-inclusive CI:
 
 ```text
-CI run: 31290336689
+PR #41: merged
+CI run: 31290434791
 Windows Release Desktop build: success
 full automated tests: success
 Windows x64 publish: success
 ZIP/package creation: success
 artifact upload: success
+review threads: none
 ```
 
-Map 자체의 실제 UI/DB importer는 아직 구현하지 않았습니다. 이번 pass에서 확정·구현한 범위는 Ammo favorite shortcut과 Item 용도 filter이며, Map은 source feasibility 분석까지입니다.
+Map 자체의 실제 UI/DB importer는 아직 구현하지 않았습니다. 이번 pass에서 확정·구현·병합한 범위는 Ammo favorite shortcut과 Item 용도 filter이며, Map은 source feasibility 분석까지입니다.
