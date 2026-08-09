@@ -113,10 +113,16 @@ public sealed class LegacyAdditionalMapMarkerController : IDisposable
             Margin = new Thickness(6, 0, 0, 0),
         });
 
-        // Keep general marker types grouped together before the extract divider that
-        // the product adapter appends at the end of MapMarkersContent.
-        var insertIndex = Math.Max(0, _markerSettingsPanel.Children.Count - 4);
-        _markerSettingsPanel.Children.Insert(insertIndex, row);
+        // Product adapter inserts a 1px divider between general and extract settings.
+        // Anchor to that actual divider rather than relying on the number of settings
+        // that happen to follow it, so later extract controls cannot reorder Raider.
+        var divider = _markerSettingsPanel.Children
+            .OfType<Border>()
+            .FirstOrDefault(border => Math.Abs(border.Height - 1.0) < 0.01);
+        var insertIndex = divider is null
+            ? _markerSettingsPanel.Children.Count
+            : _markerSettingsPanel.Children.IndexOf(divider);
+        _markerSettingsPanel.Children.Insert(Math.Max(0, insertIndex), row);
     }
 
     private void RaiderToggle_Changed(object sender, RoutedEventArgs e)
