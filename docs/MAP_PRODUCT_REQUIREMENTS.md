@@ -38,7 +38,7 @@ Map marker, MiniMap, hotkey, map settings, position tracking, floor state는 Que
 
 기존 지도 마커 설정과 탈출구 필터를 하나의 마커 설정 계층으로 통합합니다.
 
-최소 포함:
+기본 포함:
 
 - PMC 스폰
 - 스나이퍼 스캐브
@@ -50,7 +50,21 @@ Map marker, MiniMap, hotkey, map settings, position tracking, floor state는 Que
 - Scav 탈출구
 - Transit
 
-원본 모델에 이미 존재하는 `ScavSpawn`, `RaiderSpawn`, `Keys`는 실제 bundled DB에 데이터가 있고 실사용 가치가 확인되면 추가합니다.
+#### 추가 마커 검토 결과
+
+PR #62에서 고정한 실제 bundled `Assets/tarkov_data.db`의 `MapMarkers`를 기준으로 모델에 존재하지만 UI에 없던 타입을 검토했습니다.
+
+```text
+ScavSpawn: 0
+Keys: 0
+RaiderSpawn: 2
+```
+
+따라서 빈 토글을 만드는 `ScavSpawn`, `Keys`는 현재 추가하지 않습니다.
+
+`RaiderSpawn`은 실제 데이터가 존재하며 둘 다 Reserve에 있으므로 **레이더** 마커를 추가합니다. 전용 Raider SVG가 bundled marker asset에 없으므로 Main Map/MiniMap이 함께 사용하는 명확한 전용 Raider visual을 하나 정의하고 양쪽에서 동일하게 사용합니다.
+
+향후 source DB에 `ScavSpawn`/`Keys` 데이터가 실제로 들어오면 같은 원칙으로 재검토합니다.
 
 ### MiniMap 위치/상호작용
 
@@ -98,7 +112,7 @@ MiniMap은 항상 Main Map의 표시 정책과 동기화합니다.
 - MiniMap 크기 증가
 - MiniMap 크기 감소
 
-추가 유지 권장 동작:
+추가 유지 동작:
 
 - 자동 층 추적 복귀
 
@@ -111,6 +125,23 @@ MiniMap은 항상 Main Map의 표시 정책과 동기화합니다.
 설정에 플레이어 마커 크기 조절 Slider를 제공합니다.
 
 Main Map과 MiniMap이 동일한 사용자 설정값을 사용하도록 합니다.
+
+## Quest 업데이트 경계
+
+Map 전체를 다시 JunhyunHelper Game Content에 결합하지 않습니다.
+
+온라인 update 대응을 위해 Quest domain에만 다음 위치 정보를 저장합니다.
+
+```text
+Quest objective
+→ possibleLocations / zones
+→ map id + world X/Y/Z (+ zone outline/top/bottom)
+→ current content snapshot
+```
+
+Map 화면에서만 현재 profile의 진행 중 Quest와 이 위치 geometry를 읽고, 정확한 old Tarkov Helper `playerMarkerTransform`을 이용해 screen 좌표로 투영합니다.
+
+Quest geometry 추가로 Content schema는 **v4**가 됩니다. 예전 v3 content snapshot은 기존 정책대로 online source에서 다시 구축하며 별도 `user.db`의 사용자 진행도에는 영향을 주지 않습니다.
 
 ## 변경 관리 방식
 
