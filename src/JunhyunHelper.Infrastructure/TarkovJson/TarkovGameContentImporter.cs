@@ -5,6 +5,7 @@ using JunhyunHelper.Core.Quests;
 using JunhyunHelper.Infrastructure.TarkovJson.Ammo;
 using JunhyunHelper.Infrastructure.TarkovJson.Hideout;
 using JunhyunHelper.Infrastructure.TarkovJson.Items;
+using JunhyunHelper.Infrastructure.TarkovJson.Maps;
 using JunhyunHelper.Infrastructure.TarkovJson.Quests;
 using JunhyunHelper.Infrastructure.TarkovJson.Reference;
 
@@ -15,6 +16,7 @@ public sealed class TarkovGameContentImporter
     private readonly TarkovItemImporter _itemImporter = new();
     private readonly TarkovTraderImporter _traderImporter = new();
     private readonly TarkovMapReferenceImporter _mapImporter = new();
+    private readonly TarkovMapMarkerImporter _mapMarkerImporter = new();
     private readonly TarkovQuestImporter _questImporter = new();
     private readonly TarkovQuestObjectiveImporter _questObjectiveImporter = new();
     private readonly TarkovHideoutImporter _hideoutImporter = new();
@@ -58,7 +60,8 @@ public sealed class TarkovGameContentImporter
                 items.BaseDocument,
                 barters.BaseDocument,
                 crafts.BaseDocument),
-            editions);
+            editions,
+            _mapMarkerImporter.Import(maps.BaseDocument, maps.Localization));
     }
 
     private static IReadOnlyList<QuestDefinition> ApplyUnsupportedAvailabilityRequirements(
