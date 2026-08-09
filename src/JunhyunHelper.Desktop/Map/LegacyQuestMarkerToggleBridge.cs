@@ -59,13 +59,10 @@ public sealed class LegacyQuestMarkerToggleBridge : IDisposable
         var incoming = JunhyunMapQuestProjection.Markers;
         var mapKey = JunhyunMapQuestProjection.MapKey;
 
-        // A non-empty publication is always a newly built current-Quest projection.
-        // Cache it even while hidden, then keep the shared MiniMap projection empty.
-        if (incoming.Count > 0 || !string.Equals(_lastMapKey, mapKey, StringComparison.OrdinalIgnoreCase))
-        {
-            _lastMapKey = mapKey;
-            _lastAvailable = incoming;
-        }
+        // Every external publication is the newest current-Quest state, including
+        // a legitimate empty result after the last Quest on this map is completed.
+        _lastMapKey = mapKey;
+        _lastAvailable = incoming;
 
         ApplyVisibility();
         if (!IsEnabled && incoming.Count > 0)
