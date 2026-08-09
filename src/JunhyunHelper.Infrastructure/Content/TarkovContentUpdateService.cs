@@ -1,4 +1,3 @@
-using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.Profiles;
 using JunhyunHelper.Infrastructure.Storage;
 using JunhyunHelper.Infrastructure.Validation;
@@ -15,21 +14,16 @@ public sealed class TarkovContentUpdateService
     private readonly TarkovContentBuildService _buildService;
     private readonly ContentSnapshotStore _snapshotStore;
     private readonly ContentActivationService _activationService;
-    private readonly Func<GameContentCatalog, CancellationToken, Task<IReadOnlyList<string>>>? _supplementalUpdater;
 
     public TarkovContentUpdateService(
         TarkovContentBuildService buildService,
         ContentActivationService activationService,
-        ContentSnapshotStore? snapshotStore = null,
-        Func<GameContentCatalog, CancellationToken, Task<IReadOnlyList<string>>>? supplementalUpdater = null)
+        ContentSnapshotStore? snapshotStore = null)
     {
         _buildService = buildService ?? throw new ArgumentNullException(nameof(buildService));
         _activationService = activationService ?? throw new ArgumentNullException(nameof(activationService));
         _snapshotStore = snapshotStore ?? new ContentSnapshotStore();
-        _supplementalUpdater = supplementalUpdater;
     }
-
-    public event Action<GameMode, GameContentCatalog>? ContentActivated;
 
     public async Task<ContentUpdateResult> UpdateAsync(
         GameMode gameMode,
@@ -80,41 +74,19 @@ public sealed class TarkovContentUpdateService
             trackedProgress.Report(new ContentUpdateProgress(
                 ContentUpdateStage.Activating,
                 "candidate를 다시 검증하고 최신 게임 데이터로 적용하는 중...",
-                94));
+                96));
 
             await _activationService.ActivateCandidateAsync(gameMode, cancellationToken);
 
-            var warnings = build.Warnings.ToList();
-            if (_supplementalUpdater is not null)
-            {
-                trackedProgress.Report(new ContentUpdateProgress(
-                    ContentUpdateStage.Activating,
-                    "지도 레이아웃과 지도 자산을 업데이트하는 중...",
-                    97));
-                try
-                {
-                    warnings.AddRange(await _supplementalUpdater(build.Content, cancellationToken));
-                }
-                catch (Exception exception) when (exception is not OperationCanceledException)
-                {
-                    // Supplemental presentation assets are independently recoverable.
-                    // A temporary map-artwork failure must not roll back otherwise valid
-                    // canonical game content; the previous validated map-cache stays active.
-                    warnings.Add($"Map asset update failed; previous validated map assets were kept: {exception.Message}");
-                }
-            }
-
-            ContentActivated?.Invoke(gameMode, build.Content);
-
             trackedProgress.Report(new ContentUpdateProgress(
                 ContentUpdateStage.Completed,
-                "게임 데이터 및 지도 업데이트 완료",
+                "게임 데이터 업데이트 완료",
                 100));
 
             return new ContentUpdateResult(
                 Applied: true,
                 build.Validation,
-                warnings.ToArray());
+                build.Warnings);
         }
         catch (OperationCanceledException)
         {
