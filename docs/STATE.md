@@ -6,7 +6,7 @@
 
 **Phase 2B — 핵심 Desktop 흐름 구현 + 실사용 피드백 반복 개선**
 
-상태: `LEGACY MAP + MINIMAP PORT IMPLEMENTED / AUTOMATED VALIDATION PASSED / WINDOWS USER VALIDATION NEXT`
+상태: `LEGACY MAP + MINIMAP PORT MERGED / AUTOMATED VALIDATION PASSED / WINDOWS USER VALIDATION NEXT`
 
 ---
 
@@ -42,25 +42,22 @@ PR #50 — Windows FileShare.None 다운로드 검증 실패 수정
 PR #53 — floor Name 표시 + high-contrast readable SVG presentation
 PR #55 — selected floor record dump 최종 수정
 PR #56–#60 — Wiki/RE3MR detailed artwork 실험 및 update-aware calibration
-PR #61 — legacy Tarkov Helper Map + MiniMap 이식, atomic upstream update 구조
+PR #61 — legacy Tarkov Helper Map + MiniMap 이식, atomic upstream update 구조 — MERGED
 ```
 
-PR #61의 현재 구현 브랜치:
+PR #61 병합 checkpoint:
 
 ```text
-agent/legacy-map-minimap-port
-```
-
-자동 검증 checkpoint:
-
-```text
+merge commit: 17a8988080aefc1c316c36dc3ef66c535dbdfd45
+validated head: 9d06c74235fb2819361ef9e9cdf2ad48ca791d86
+final CI: 31306395225
 Desktop Release build: success
 full automated tests: success
 Windows x64 self-contained publish: success
 ZIP creation/upload: success
 ```
 
-Windows 실제 화면 검증 전이므로 PR #61은 사용자 visual validation 전까지 Map UX 최종 완료로 보지 않습니다.
+PR #61은 `main`에 병합됐지만 자동화만으로 Map UX를 최종 확정하지 않습니다. 다음 gate는 사용자 Windows 실제 화면에서 artwork/좌표/floor/MiniMap을 검증하는 것입니다.
 
 ---
 
@@ -300,7 +297,7 @@ Loot marker는 기본 OFF이며 대량 marker는 `DrawingContext` bulk layer를 
 
 ## 현재 다음 작업
 
-1. PR #61 최신 Windows x64 빌드에서 **기존 Tarkov Helper artwork가 실제로 표시되는지** 확인
+1. 병합된 PR #61 Windows x64 빌드에서 **기존 Tarkov Helper artwork가 실제로 표시되는지** 확인
 2. Ground Zero를 시작으로 artwork crop/aspect/가독성 확인
 3. extract / Quest / player marker 좌표 정합 확인
 4. multi-floor 수동/자동 전환 확인
@@ -308,4 +305,3 @@ Loot marker는 기본 OFF이며 대량 marker는 `DrawingContext` bulk layer를 
 6. MiniMap click-through + hotkey 확인
 7. Map 탭 밖에서도 MiniMap 유지 확인
 8. Windows 결과를 반영해 Map/MiniMap 2차 수정
-9. visual/coordinate validation이 끝난 뒤 PR #61을 최종 Map 기준으로 확정
