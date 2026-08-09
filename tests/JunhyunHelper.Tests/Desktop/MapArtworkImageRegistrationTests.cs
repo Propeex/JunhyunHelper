@@ -25,7 +25,7 @@ public sealed class MapArtworkImageRegistrationTests
                 (float)(height * (0.5 + expectedTy)));
             canvas.Scale((float)expectedScale, (float)expectedScale);
             canvas.Translate(-width / 2f, -height / 2f);
-            canvas.DrawBitmap(baseline, 0, 0);
+            canvas.DrawBitmap(baseline, 0, 0, SKSamplingOptions.Default);
         }
 
         var ok = MapArtworkImageRegistration.TryRegister(
