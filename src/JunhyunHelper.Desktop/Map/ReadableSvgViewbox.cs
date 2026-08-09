@@ -7,14 +7,18 @@ public sealed class ReadableSvgViewbox : SvgViewbox
 {
     private static readonly object RenderGate = new();
 
-    public void SetReadableSource(Uri? source)
+    public new Uri? Source
     {
-        var prepared = PrepareReadableSource(source);
+        get => base.Source;
+        set
+        {
+            var prepared = PrepareReadableSource(value);
 
-        // Force SharpVectors to reload when a source file is refreshed in place but keeps the same URI.
-        ClearValue(SourceProperty);
-        if (prepared is not null)
-            base.Source = prepared;
+            // Force SharpVectors to reload when an updated asset keeps the same local URI.
+            ClearValue(SourceProperty);
+            if (prepared is not null)
+                base.Source = prepared;
+        }
     }
 
     private static Uri? PrepareReadableSource(Uri? source)
