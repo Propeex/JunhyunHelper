@@ -134,8 +134,17 @@ public sealed class MapAssetCacheService
             }
 
             if (effectiveLayouts.Count == 0)
+            {
+                var details = warnings
+                    .Where(warning => warning.StartsWith("Map '", StringComparison.Ordinal))
+                    .Take(3)
+                    .ToArray();
+                var detailText = details.Length == 0
+                    ? string.Empty
+                    : $"\n\n실패 예시:\n{string.Join("\n", details)}";
                 throw new InvalidDataException(
-                    "지도 SVG를 하나도 준비하지 못했습니다. 네트워크 또는 지도 원천 상태를 확인해주세요.");
+                    $"지도 SVG를 하나도 준비하지 못했습니다. 네트워크 또는 지도 원천 상태를 확인해주세요.{detailText}");
+            }
 
             foreach (var iconFile in iconFiles)
             {
@@ -389,27 +398,32 @@ public sealed class MapAssetCacheService
         if (response.Content.Headers.ContentLength is > MaxSvgBytes)
             throw new InvalidDataException($"Map SVG is too large: {url}");
 
-        await using var input = await response.Content.ReadAsStreamAsync(cancellationToken);
-        await using var output = new FileStream(
-            destination,
-            FileMode.Create,
-            FileAccess.Write,
-            FileShare.None,
-            bufferSize: 81920,
-            useAsync: true);
-        var buffer = new byte[81920];
-        var total = 0;
-        while (true)
+        await using (var input = await response.Content.ReadAsStreamAsync(cancellationToken))
+        await using (var output = new FileStream(
+                         destination,
+                         FileMode.Create,
+                         FileAccess.Write,
+                         FileShare.None,
+                         bufferSize: 81920,
+                         useAsync: true))
         {
-            var read = await input.ReadAsync(buffer, cancellationToken);
-            if (read == 0)
-                break;
-            total += read;
-            if (total > MaxSvgBytes)
-                throw new InvalidDataException($"Map SVG exceeded the maximum size: {url}");
-            await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+            var buffer = new byte[81920];
+            var total = 0;
+            while (true)
+            {
+                var read = await input.ReadAsync(buffer, cancellationToken);
+                if (read == 0)
+                    break;
+                total += read;
+                if (total > MaxSvgBytes)
+                    throw new InvalidDataException($"Map SVG exceeded the maximum size: {url}");
+                await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+            }
+            await output.FlushAsync(cancellationToken);
         }
-        await output.FlushAsync(cancellationToken);
+
+        // The downloaded file must be fully closed before XML validation reopens it.
+        // On Windows, FileShare.None correctly rejects the second open while the writer is alive.
         ValidateSvg(destination);
     }
 
@@ -426,27 +440,31 @@ public sealed class MapAssetCacheService
         if (response.Content.Headers.ContentLength is > MaxIconBytes)
             throw new InvalidDataException($"Map marker icon is too large: {url}");
 
-        await using var input = await response.Content.ReadAsStreamAsync(cancellationToken);
-        await using var output = new FileStream(
-            destination,
-            FileMode.Create,
-            FileAccess.Write,
-            FileShare.None,
-            bufferSize: 32768,
-            useAsync: true);
-        var buffer = new byte[32768];
-        var total = 0;
-        while (true)
+        await using (var input = await response.Content.ReadAsStreamAsync(cancellationToken))
+        await using (var output = new FileStream(
+                         destination,
+                         FileMode.Create,
+                         FileAccess.Write,
+                         FileShare.None,
+                         bufferSize: 32768,
+                         useAsync: true))
         {
-            var read = await input.ReadAsync(buffer, cancellationToken);
-            if (read == 0)
-                break;
-            total += read;
-            if (total > MaxIconBytes)
-                throw new InvalidDataException($"Map marker icon exceeded the maximum size: {url}");
-            await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+            var buffer = new byte[32768];
+            var total = 0;
+            while (true)
+            {
+                var read = await input.ReadAsync(buffer, cancellationToken);
+                if (read == 0)
+                    break;
+                total += read;
+                if (total > MaxIconBytes)
+                    throw new InvalidDataException($"Map marker icon exceeded the maximum size: {url}");
+                await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+            }
+            await output.FlushAsync(cancellationToken);
         }
-        await output.FlushAsync(cancellationToken);
+
+        // Same lifecycle rule as SVG: validate only after the exclusive writer has been disposed.
         ValidatePng(destination);
     }
 
