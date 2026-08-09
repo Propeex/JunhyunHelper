@@ -75,7 +75,11 @@ public sealed class TarkovMapLayoutCatalogClient
         if (layouts.Count == 0)
             throw new InvalidDataException("No canonical maps could be matched to Tarkov.dev interactive layouts.");
 
-        return new MapLayoutCatalogResult(layouts, warnings);
+        // The current online catalog remains the update-resilient source for Map IDs
+        // and spatial floor extents. The user explicitly selected the legacy
+        // Propeex/Tarkov-Helper artwork/calibration as the actual Map presentation.
+        return LegacyTarkovHelperMapLayoutAdapter.Apply(
+            new MapLayoutCatalogResult(layouts, warnings));
     }
 
     private static IReadOnlyList<LayoutTemplate> ParseTemplates(JsonElement root)
