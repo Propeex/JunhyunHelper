@@ -1,4 +1,6 @@
+using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using TarkovHelper.Services;
 
 namespace JunhyunHelper.Desktop.Map;
@@ -13,6 +15,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
     private readonly OverlayMiniMapService _overlay = OverlayMiniMapService.Instance;
     private readonly JunhyunMapHotkeyService _hotkeys = new();
     private readonly Slider? _playerMarkerSlider;
+    private Button? _hotkeySettingsButton;
     private bool _syncingPlayerMarker;
     private bool _disposed;
 
@@ -24,11 +27,46 @@ public sealed class LegacyMapProductRuntime : IDisposable
         if (_playerMarkerSlider is not null)
             _playerMarkerSlider.ValueChanged += PlayerMarkerSlider_ValueChanged;
 
+        InjectHotkeySettingsEntry();
         _overlay.SettingsChanged += Overlay_SettingsChanged;
         _page.Loaded += Page_Loaded;
     }
 
-    private void Page_Loaded(object sender, System.Windows.RoutedEventArgs e)
+    private void InjectHotkeySettingsEntry()
+    {
+        if (_page.FindName("SettingsPanel") is not Border settingsPanel ||
+            settingsPanel.Child is not ScrollViewer scrollViewer ||
+            scrollViewer.Content is not StackPanel stack)
+        {
+            return;
+        }
+
+        var header = new TextBlock
+        {
+            Text = "미니맵 / 단축키",
+            FontWeight = FontWeights.SemiBold,
+            Foreground = _page.TryFindResource("TextPrimaryBrush") as Brush ?? Brushes.White,
+            Margin = new Thickness(0, 0, 0, 8),
+        };
+        _hotkeySettingsButton = new Button
+        {
+            Content = "미니맵 및 단축키 설정",
+            Padding = new Thickness(12, 7, 12, 7),
+            Margin = new Thickness(0, 0, 0, 20),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+        _hotkeySettingsButton.Click += HotkeySettingsButton_Click;
+
+        // Put the product settings entry immediately below the original panel title.
+        var insertIndex = Math.Min(1, stack.Children.Count);
+        stack.Children.Insert(insertIndex, header);
+        stack.Children.Insert(insertIndex + 1, _hotkeySettingsButton);
+    }
+
+    private void HotkeySettingsButton_Click(object sender, RoutedEventArgs e) =>
+        _overlay.ShowSettingsWindow();
+
+    private void Page_Loaded(object sender, RoutedEventArgs e)
     {
         if (_playerMarkerSlider is not null)
             ApplyMainPlayerMarkerSizeToMiniMap(_playerMarkerSlider.Value);
@@ -36,7 +74,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
 
     private void PlayerMarkerSlider_ValueChanged(
         object sender,
-        System.Windows.RoutedPropertyChangedEventArgs<double> e)
+        RoutedPropertyChangedEventArgs<double> e)
     {
         if (_syncingPlayerMarker)
             return;
@@ -76,8 +114,6 @@ public sealed class LegacyMapProductRuntime : IDisposable
             _syncingPlayerMarker = true;
             try
             {
-                // The original MapPage handler remains attached and updates the
-                // Main Map marker immediately. Only our mirror handler is guarded.
                 _playerMarkerSlider.Value = target;
             }
             finally
@@ -98,5 +134,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
         _page.Loaded -= Page_Loaded;
         if (_playerMarkerSlider is not null)
             _playerMarkerSlider.ValueChanged -= PlayerMarkerSlider_ValueChanged;
+        if (_hotkeySettingsButton is not null)
+            _hotkeySettingsButton.Click -= HotkeySettingsButton_Click;
     }
 }
