@@ -183,7 +183,7 @@
 - 상태: `CONFIRMED`
 - 날짜: 2026-08-08
 - 결정: 게임 데이터의 값과 내용 변경은 자동으로 흡수하되, 외부 API의 데이터 형식 자체가 영원히 동일하다고 가정하지 않는다. 데이터 갱신 전 스키마/필수 필드를 검증하고 비호환 변경을 감지해야 한다.
-- 이유: API의 핵심 필드가 삭제되거나 타입/의미가 바뀐 상황에서 기존 변환기를 강제로 적용하면 조용히 잘못된 내부 데이터베이스를 만들 수 있다.
+- 이유: API의 핵심 필드가 삭제되거나 타입·의미가 바뀐 상황에서 기존 변환기를 강제로 적용하면 조용히 잘못된 내부 데이터베이스를 만들 수 있다.
 - 대안/배경: 모든 미래 API 응답이 현재 형식과 동일하다고 전제하고 무조건 파싱하는 방식은 채택하지 않는다.
 - 영향: 호환 가능한 데이터 내용 변화는 자동 업데이트한다. 비호환 스키마 변화 시에는 갱신을 안전하게 중단하고 마지막 정상 데이터를 보호하며, 필요한 경우 변환 코드 자체를 업데이트한다.
 - 대체한 결정: 없음
@@ -210,13 +210,13 @@
 
 ## DEC-020 — 사용자 보유량은 업데이트와 독립적으로 보존하고 초과분은 정리 필요로 지속 표시한다
 
-- 상태: `CONFIRMED`
+- 상태: `SUPERSEDED IN PART BY DEC-025`
 - 날짜: 2026-08-08
 - 결정: 사용자가 입력한 아이템 보유량은 User Progress의 독립 사실로 보존하며, Game Content 업데이트나 퀘스트/은신처 요구량 변화로 자동 삭제·차감하지 않는다. 최신 미래 필요량보다 보유량이 많은 경우 안전하게 처분 가능한 초과분을 `정리 필요`로 표시하고, 사용자가 실제 보유량을 수정할 때까지 목록에 남긴다.
 - 이유: 대형 업데이트 후 요구 아이템이 바뀌었는데 기존 필요 목록만 다시 계산하면, 사용자는 과거 정보를 믿고 모아둔 물건이 왜 필요 없어졌는지 알지 못한 채 계속 창고에 보관할 수 있다. 이 문제를 막는 것이 준현 헬퍼의 핵심 제작 목적 중 하나다.
 - 대안/배경: 필요량이 0이 된 아이템을 목록에서 조용히 제거하거나, 업데이트와 함께 사용자 보유량을 삭제하는 방식은 채택하지 않는다.
-- 영향: 필요량이 줄거나 사라져 새로운 초과 보유 상태가 생기면 사용자가 인지할 수 있게 알린다. Item 탭의 `정리 필요` 목록이 지속적인 기준이며, FIR 요구·대체 제출·미입력 은신처 등 안전하게 정리량을 확정할 수 없는 경우에는 `판단 보류`한다. 퀘스트 완료 시 자동 차감도 하지 않는다.
-- 대체한 결정: 없음
+- 영향: Game Content update로 보유량을 임의 삭제하지 않는 원칙은 유지한다. 다만 사용자가 명시적으로 Quest 완료/Hideout 업그레이드 조작을 한 경우 실제 소비된 고정 재료를 자동 차감하는 정책은 DEC-025가 대체 정의한다.
+- 대체한 결정: Quest/Hideout 진행 조작 시 자동 차감 금지 부분만 DEC-025가 대체
 
 ## DEC-021 — 탄약은 원본 성능과 수급 사실을 비교하는 읽기 전용 기능으로 둔다
 
@@ -257,3 +257,53 @@
 - 대안/배경: 모든 json.tarkov.dev Ammo를 무조건 표시하거나, 현재 탄약 이름을 코드에 고정 allowlist로 넣는 방식은 채택하지 않는다.
 - 영향: healthy Wiki enrichment에서는 current table unique-match 여부가 Ammo 표와 caliber dropdown의 inclusion 기준이 된다. Wiki source가 unavailable/비정상이라 membership을 신뢰할 수 없을 때는 기본 Game Content를 삭제하거나 빈 화면을 만들지 않고 raw Ammo를 임시 표시하며 source 상태를 명시한다. Armor effectiveness 자체는 계속 Wiki의 명시된 0~6 값만 사용하고 자체 heuristic을 만들지 않는다.
 - 대체한 결정: DEC-021의 read-only raw-stat 원칙을 유지하면서 화면의 비교 대상 범위를 추가로 정의한다.
+
+## DEC-025 — Quest/Hideout 진행 조작은 고정 소모 아이템 보유량을 자동 조정한다
+
+- 상태: `CONFIRMED`
+- 날짜: 2026-08-09
+- 결정: 사용자가 준현 헬퍼에서 Quest 완료 또는 Hideout 업그레이드를 명시적으로 처리하면 해당 진행에서 실제로 소모되는 고정 Item requirement를 tracked Inventory에서 자동 차감한다. 인레이드 필수 요구는 인레이드에서만, 일반 요구는 일반을 우선 사용하고 부족분만 인레이드에서 사용한다. 실제 자동 차감한 인레이드/일반 수량을 소비 ledger로 기록한다.
+- 이유: 진행 상태를 완료/업그레이드했는데 이미 사용한 재료가 보유량에 계속 남으면 Needed Items와 cleanup 판단이 실제 게임 상태에서 어긋난다.
+- 대안/배경: 모든 소비를 계속 수동으로만 수정하는 방식은 반복 입력을 만들며, requirement 수량 자체를 rollback 때 그대로 더하는 방식은 실제 당시 보유 부족량과 사용 타입을 복원하지 못한다.
+- 영향: rollback 시 소비 ledger가 있으면 복원 여부를 묻는다. 복원하면 정확한 실제 차감량만 되돌리고 ledger를 제거한다. 복원하지 않으면 ledger를 유지해 같은 Quest 재완료/동일 Hideout level 재업그레이드에서 중복 차감을 방지한다. Game Content update 자체는 보유량을 차감하지 않는다.
+- 대체한 결정: DEC-020의 `퀘스트 완료 시 자동 차감도 하지 않는다` 부분
+
+## DEC-026 — 유동 제출의 실제 소비 Item은 자동 추정하지 않는다
+
+- 상태: `CONFIRMED`
+- 날짜: 2026-08-09
+- 결정: 하나의 Quest objective가 여러 AcceptedItemIds 중 임의 조합을 허용하는 유동 제출인 경우 완료 처리 시 프로그램이 어느 후보 Item이 실제 제출됐는지 임의 선택해 Inventory를 차감하지 않는다.
+- 이유: 준현 헬퍼가 가진 Quest 완료 사실과 후보별 보유량만으로는 사용자가 게임에서 실제 어떤 후보를 제출했는지 확정할 수 없다.
+- 대안/배경: 보유량이 많은 후보부터 차감하거나 특정 정렬 순서의 후보를 자동 선택하는 휴리스틱은 실제 Inventory를 조용히 왜곡할 수 있어 채택하지 않는다.
+- 영향: 고정 제출은 DEC-025에 따라 자동 처리하지만 flexible hand-in 후보의 실제 소비량은 사용자가 보유량을 조정한다. 이는 DEC-018의 비추론 원칙을 따른다.
+- 대체한 결정: 없음
+
+## DEC-027 — Wiki Ballistics membership과 방탄 효율 매칭은 별도 사실이다
+
+- 상태: `CONFIRMED`
+- 날짜: 2026-08-09
+- 결정: Ammo가 현재 healthy Wiki Ballistics 표에 등록되어 있다는 사실과 Armor Class 1~6 effectiveness 여섯 값을 안전하게 파싱·매칭했다는 사실을 별도 canonical 필드로 관리한다.
+- 이유: 표에는 존재하지만 effectiveness cell 파싱/매칭만 실패한 Ammo를 전체 비교 대상에서 제거하면 `12.7x108mm`처럼 실제 표에 존재하는 탄약이 사라질 수 있다.
+- 대안/배경: `ArmorEffectiveness != null`을 곧 Wiki membership으로 간주하는 기존 3차 구현은 두 의미를 혼합했다.
+- 영향: Content snapshot schema는 v3가 되며 `IsWikiBallisticsListed`와 optional `ArmorEffectiveness`를 별도로 저장한다. listed=true인 Ammo는 effectiveness가 `?`여도 비교 목록에 유지된다. source 전체가 unhealthy하면 membership을 추측하지 않는다.
+- 대체한 결정: DEC-024의 membership 구현 의미를 명확히 보완
+
+## DEC-028 — Prestige는 미입력 없이 0을 기본 사실로 취급한다
+
+- 상태: `CONFIRMED`
+- 날짜: 2026-08-09
+- 결정: Profile의 Prestige는 사용자 제품 관점에서 nullable 입력이 아니라 0 이상의 정수이며 기본값은 0이다. 기존 payload의 null도 읽을 때 0으로 정규화한다.
+- 이유: Prestige를 하지 않은 캐릭터의 정상 상태는 알 수 없음이 아니라 0이며, `미입력`은 불필요한 판정 불확실성과 조작을 만든다.
+- 대안/배경: Prestige를 optional fact로 남겨 null이면 Quest를 Indeterminate로 두는 방식은 채택하지 않는다.
+- 영향: 새 profile과 수정 UI 모두 0을 기본으로 사용하고 Prestige 요구 Quest는 0을 실제 알려진 값으로 평가한다.
+- 대체한 결정: Profile에서 Prestige를 optional 입력으로 취급하던 과거 구현 의미
+
+## DEC-029 — 제품 아이콘은 Game Content update 후 선다운로드한다
+
+- 상태: `CONFIRMED`
+- 날짜: 2026-08-09
+- 결정: Quest 제출 후보, Hideout 재료, Ammo Item, Hideout station 등 현재 제품 화면에서 사용하는 이미지는 Game Content update가 성공한 뒤 로컬 image cache에 선다운로드한다. 동일 Item ID는 화면별로 별도 파일을 만들지 않고 공통 cache key를 사용한다.
+- 이유: 화면 진입 시점의 lazy download에만 의존하면 아이콘이 늦게 나타나거나 사용자 체감상 적용되지 않는 문제가 반복된다.
+- 대안/배경: 각 page가 표시될 때마다 독립 cache key로 네트워크 요청하는 방식은 중복과 지연을 만든다.
+- 영향: update progress 후반에 image prefetch stage가 추가된다. 개별 image 실패는 권위 Game Content 실패가 아니므로 update 전체를 실패시키지 않는다.
+- 대체한 결정: 기존 lazy-cache 정책을 보완
