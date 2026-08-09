@@ -87,6 +87,44 @@ public sealed class QuestInventoryConsumptionTests
         }
     }
 
+    [Fact]
+    public async Task UndoWithoutRestoreKeepsLedgerAndRecompletionDoesNotConsumeTwice()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"JunhyunHelper-QuestNoRestore-{Guid.NewGuid():N}.db");
+        try
+        {
+            var store = new UserProfileStore(path);
+            var service = new QuestApplicationService(store);
+            var profile = Profile() with
+            {
+                Inventory = new Dictionary<string, InventoryQuantity>(StringComparer.Ordinal)
+                {
+                    ["item"] = new(Fir: 3, NonFir: 3),
+                },
+            };
+            var content = Content([new QuestItemRequirement("q", "submit", ["item"], 2, FoundInRaid: false)]);
+            await store.SaveAsync(profile, TestContext.Current.CancellationToken);
+
+            var first = await service.CompleteAsync(content, profile.ProfileId, "q", TestContext.Current.CancellationToken);
+            Assert.Equal(new InventoryQuantity(Fir: 3, NonFir: 1), first.Profile.Inventory["item"]);
+
+            var undone = await service.UndoCompletionAsync(
+                content,
+                profile.ProfileId,
+                "q",
+                restoreInventory: false,
+                TestContext.Current.CancellationToken);
+            Assert.True(undone.Profile.QuestConsumptions.ContainsKey("q"));
+
+            var second = await service.CompleteAsync(content, profile.ProfileId, "q", TestContext.Current.CancellationToken);
+            Assert.Equal(new InventoryQuantity(Fir: 3, NonFir: 1), second.Profile.Inventory["item"]);
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
     private static GameProfileSnapshot Profile() => new()
     {
         ProfileId = "regular",
