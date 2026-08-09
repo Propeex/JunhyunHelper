@@ -29,7 +29,7 @@ public sealed class TarkovContentUpdateService
         _supplementalUpdater = supplementalUpdater;
     }
 
-    public event Action<GameContentCatalog>? ContentActivated;
+    public event Action<GameMode, GameContentCatalog>? ContentActivated;
 
     public async Task<ContentUpdateResult> UpdateAsync(
         GameMode gameMode,
@@ -104,7 +104,7 @@ public sealed class TarkovContentUpdateService
                 }
             }
 
-            ContentActivated?.Invoke(build.Content);
+            ContentActivated?.Invoke(gameMode, build.Content);
 
             trackedProgress.Report(new ContentUpdateProgress(
                 ContentUpdateStage.Completed,
