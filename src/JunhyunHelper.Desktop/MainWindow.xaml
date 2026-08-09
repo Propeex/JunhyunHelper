@@ -5,7 +5,6 @@
         xmlns:hideout="clr-namespace:JunhyunHelper.Desktop.Hideout"
         xmlns:items="clr-namespace:JunhyunHelper.Desktop.Items"
         xmlns:ammo="clr-namespace:JunhyunHelper.Desktop.Ammo"
-        xmlns:map="clr-namespace:JunhyunHelper.Desktop.Map"
         Title="준현 헬퍼"
         Width="1320"
         Height="820"
@@ -68,7 +67,7 @@
             <ammo:AmmoPage x:Name="AmmoPage" Loaded="AmmoPage_Loaded" Visibility="Collapsed" />
 
             <Grid x:Name="MapPlaceholder" Visibility="Collapsed">
-                <map:MapPage x:Name="MapPage" />
+                <Grid x:Name="MapPageHost" />
             </Grid>
 
             <Grid x:Name="ScannerPlaceholder" Visibility="Collapsed">
