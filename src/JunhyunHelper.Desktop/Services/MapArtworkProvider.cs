@@ -27,16 +27,23 @@ public interface IMapArtworkProvider
         CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Compatibility entry point used by the existing Map asset service. Detailed RE3MR artwork
+/// is attempted first; the machine-readable Escape from Tarkov Wiki artwork remains the
+/// secondary provider because it can independently prove alignment from named markers.
+/// </summary>
 public sealed class WikiMapArtworkProvider : IMapArtworkProvider
 {
-    private readonly FandomMapArtworkService _service;
+    private readonly Re3mrMapArtworkProvider _re3mr;
+    private readonly FandomMapArtworkService _wiki;
 
     public WikiMapArtworkProvider(HttpClient httpClient)
     {
-        _service = new FandomMapArtworkService(httpClient);
+        _re3mr = new Re3mrMapArtworkProvider(httpClient);
+        _wiki = new FandomMapArtworkService(httpClient);
     }
 
-    public string ProviderId => "eft-wiki";
+    public string ProviderId => "detailed-map-chain";
 
     public async Task<MapArtworkProviderResult> TryBuildAlignedSvgAsync(
         MapLayoutDefinition layout,
@@ -44,19 +51,40 @@ public sealed class WikiMapArtworkProvider : IMapArtworkProvider
         string destination,
         CancellationToken cancellationToken = default)
     {
-        var result = await _service.TryBuildAlignedSvgAsync(
+        var re3mr = await _re3mr.TryBuildAlignedSvgAsync(
+            layout,
+            canonicalMarkers,
+            destination,
+            cancellationToken);
+        if (re3mr.Applied)
+            return re3mr;
+
+        if (File.Exists(destination))
+            File.Delete(destination);
+
+        var wiki = await _wiki.TryBuildAlignedSvgAsync(
             layout,
             canonicalMarkers,
             destination,
             cancellationToken);
 
         return new MapArtworkProviderResult(
-            result.Applied,
-            result.Applied ? ProviderId : null,
+            wiki.Applied,
+            wiki.Applied ? "eft-wiki" : null,
             null,
-            result.Attribution,
-            result.AttributionUrl,
-            result.Warning);
+            wiki.Attribution,
+            wiki.AttributionUrl,
+            wiki.Applied
+                ? null
+                : JoinWarnings(re3mr.Warning, wiki.Warning));
+    }
+
+    private static string? JoinWarnings(string? first, string? second)
+    {
+        var warnings = new[] { first, second }
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .ToArray();
+        return warnings.Length == 0 ? null : string.Join(" | ", warnings);
     }
 }
 
