@@ -6,7 +6,7 @@
 
 **Phase 2B — 핵심 Desktop 흐름 구현 + 실사용 피드백 반복 개선**
 
-상태: `MAP V2 WINDOWS HOTFIX MERGED / AUTOMATED VALIDATION PASSED / WINDOWS USER VALIDATION NEXT`
+상태: `MAP QUEST UI / KOREAN-ONLY PUBLISH MERGED / AUTOMATED VALIDATION PASSED / WINDOWS USER VALIDATION NEXT`
 
 ---
 
@@ -82,8 +82,6 @@ ZIP creation/upload: success
 
 # PR #65 — Map V2 Windows feedback hotfix — MERGED
 
-사용자의 실제 Windows 테스트에서 다음 3개 문제/요구사항을 확인하고 즉시 수정했습니다.
-
 ```text
 PR #65: Fix Map V2 Quest toggle, screenshot switching, and app icon
 merge commit: 480a49ce7df5f1a17ca91d1caecbb6a81451811a
@@ -91,31 +89,52 @@ final PR head: ecde6d5167f051f53f88ef2b557240a61909e4d4
 final PR CI: 31324134472
 ```
 
-수정 내용:
+핵심 변경:
 
-- `지도 마커 > 퀘스트` section이 빈 회색 줄로 보이던 문제 수정
-  - 상단에서 숨긴 원본 global Quest checkbox를 section으로 이동할 때 `Visibility.Collapsed`가 유지되던 것이 원인
-  - `퀘스트 마커 표시` checkbox를 정상 표시/입력 가능 상태로 명시적으로 복구
-- screenshot Map 자동 전환 수정
-  - screenshot parser가 `MapTracker.CurrentMapKey`를 먼저 갱신한 뒤 `PositionUpdated`를 보내는 흐름에서 V2 bridge가 이미 전환됐다고 잘못 판단하던 것이 원인
-  - tracker 상태가 아니라 실제 Map selector의 선택값과 감지 MapKey를 비교하여 UI Map을 전환
-  - screenshot floor auto-detection은 계속 사용하지 않음
-- 브랜드 icon 추가
-  - 사용자가 첨부한 정사각형 얼굴 이미지를 source로 사용
-  - Main Window 좌측 상단 `준현 헬퍼` 텍스트 왼쪽에 표시
-  - Windows build에서 ICO를 생성하여 `JunhyunHelper.exe` application icon으로 embed
+- screenshot parser가 내부 MapKey를 먼저 갱신하는 순서 때문에 실제 UI Map selector가 전환되지 않던 버그 수정
+- screenshot Map 전환 유지, screenshot floor auto-detection은 계속 금지
+- 사용자 제공 얼굴 이미지를 JunhyunHelper EXE / Window / 좌측 상단 brand icon으로 적용
+
+상세: `docs/MAP_V2_HOTFIX_2026-08-10.md`
+
+---
+
+# PR #66 — Quest UI polish / Korean-only publish — MERGED
+
+사용자의 Windows 실사용 피드백에서 Quest sidebar 정렬과 Quest global marker toggle 문제를 다시 확인하여 구조적으로 수정했습니다.
+
+```text
+PR #66: Polish Quest sidebar and restore Quest marker control
+merge commit: 2f9f07f64d9c6a8259504a8425c254a95673f8ea
+final PR head: f55ac0a05bd9fabf180d9df5da36d430dd9181dd
+final PR CI: 31325539763
+artifact: 9041432054
+artifact digest: sha256:56fc31e6230efe5488da01586a3d1732f50e142f522863e215d5c468b6a20e9a
+```
+
+핵심 변경:
+
+- Quest sidebar 모든 row를 동일 폭과 왼쪽 기준으로 정렬
+- checkbox lane과 A/B/C marker-code lane을 고정하여 좌표 유무/마커 표시 유무에 따라 Quest 이름 시작점이 움직이지 않도록 수정
+- 숨겨진 원본 top-bar Quest checkbox visual을 marker panel로 재사용하는 방식을 폐기
+- `지도 마커 > 퀘스트`에 JunhyunHelper 제품용 `퀘스트 마커 표시` checkbox를 별도로 생성
+- 제품용 checkbox와 원본 Quest visibility behavior endpoint를 양방향 동기화
+- stale legacy OFF 상태 때문에 sidebar의 per-Quest checkbox가 체크되어도 모든 A/B/C marker가 숨겨질 수 있던 상태를 제거하고 기본 표시 ON으로 정규화
+- Windows self-contained publish에 `.NET SDK SatelliteResourceLanguages=ko` 적용
+- 최종 artifact에서 기능 폴더 `Assets`, `Logs` 외 문화권 폴더가 `ko` 하나만 존재함을 직접 확인
 
 최종 자동 검증:
 
 ```text
 Desktop Release build: success
-automated tests: success
+automated tests: 163/163 success
 Windows x64 self-contained publish: success
 Startup + Map smoke: success
 ZIP creation/upload: success
+culture folders in final artifact: ko only
 ```
 
-상세: `docs/MAP_V2_HOTFIX_2026-08-10.md`
+상세: `docs/MAP_V2_FEEDBACK_2026-08-10_02.md`
 
 ---
 
@@ -130,15 +149,20 @@ ZIP creation/upload: success
 - 접으면 지도 영역이 실제로 넓어짐
 - Quest 행 클릭 → JunhyunHelper `퀘스트` 탭 → 해당 Quest 상세 선택/스크롤
 - 좌표가 없는 Quest도 목록에는 표시하고 `정확한 좌표 없음` 표시
+- 모든 Quest row 동일 폭 / 왼쪽 정렬
+- checkbox lane 고정
+- A/B/C code lane 고정
+- 좌표가 없거나 marker code가 없는 row에도 같은 본문 시작점 유지
 
 ## Quest marker
 
-- `퀘스트 마커 표시` 전역 checkbox를 지도 marker 목록에 제공
+- `퀘스트 마커 표시` 전역 checkbox를 지도 marker 목록에 JunhyunHelper 제품 컨트롤로 제공
 - 좌표가 있는 Quest는 sidebar에 개별 marker checkbox 제공
 - 전역 OFF는 개별 선택 상태를 지우지 않음
 - 개별 표시 대상 Quest를 sidebar 순서대로 `A`, `B`, `C`...로 식별
 - 하나의 Quest에 위치가 여러 개면 모두 같은 문자 사용
 - sidebar와 Main Map/MiniMap이 동일한 문자 사용
+- global marker 기본 상태는 ON
 - old Quest marker style / color / name-size / marker-size 설정은 제거
 - source에 높이가 없으면 층을 추측하지 않음
 
@@ -147,8 +171,6 @@ Quest content schema는 **v4**이며 online `possibleLocations` / `zones`를 Que
 기존 v3 snapshot은 offline fallback으로 계속 읽고, Map 최초 사용 시 v4 online update를 1회 시도합니다. 실패하면 v3와 `user.db`를 그대로 유지합니다.
 
 ## 지도 marker 설정
-
-marker UI를 section/card 구조로 정리했습니다.
 
 ```text
 Quest
@@ -194,8 +216,6 @@ RaiderSpawn: 2
 
 스크린샷 좌표로 floor를 판정하지 않습니다.
 
-제품 callback은 원본 screenshot position handler에서 floor auto-switch 경로를 제거하고 Map 전환 + player tracking만 수행합니다.
-
 Floor 정책:
 
 - 사용자가 floor selector 또는 floor hotkey로 직접 선택
@@ -219,8 +239,6 @@ Quest source 자체에 신뢰 가능한 Height가 있는 경우에만 Quest mark
 - **ViewMode 항상 PlayerTracking**
 - **다른 층 opacity 항상 0%**
 - **AutoFloorSelection 항상 OFF**
-
-이 값들은 단순 UI 숨김이 아니라 settings model setter 단계에서도 legacy 저장값을 무시하므로 이전 설정이 다시 기능을 활성화할 수 없습니다.
 
 MiniMap 별도 설정창은 현재 조정 가능한 확대율/플레이어 marker 크기만 남기고 다음을 제거했습니다.
 
@@ -266,6 +284,17 @@ MiniMap 별도 설정창은 현재 조정 가능한 확대율/플레이어 marke
 
 ---
 
+# 배포 언어 정책
+
+JunhyunHelper 제품 UI는 한국어 전용입니다.
+
+- publish property: `SatelliteResourceLanguages=ko`
+- framework/package의 다른 언어 satellite resource를 배포하지 않음
+- 최종 artifact에서 `ko`만 존재하는 것을 CI artifact 직접 검사로 확인
+- `Assets`, `Logs`, native/runtime 기능 파일은 언어 정리 대상이 아님
+
+---
+
 # Map 외 Core 제품 상태
 
 유지:
@@ -303,11 +332,11 @@ Scanner는 탭/placeholder만 있으며 실제 요구사항은 아직 확정 전
 
 # 다음 작업
 
-1. PR #65 Windows 테스트 빌드 사용자 검증
+1. PR #66 Windows 테스트 빌드 사용자 검증
 2. 확인:
-   - `지도 마커 > 퀘스트` global checkbox 표시/동작
-   - screenshot 촬영 후 감지 Map 자동 전환
-   - screenshot Map 전환 시 사용자가 고른 floor가 자동으로 변경되지 않는지
-   - EXE / Window title / 좌측 상단 brand icon
-3. 실제 화면/사용감 차이만 보정
+   - Quest sidebar 모든 row의 폭/왼쪽 기준선이 일정한지
+   - `지도 마커 > 퀘스트`에 `퀘스트 마커 표시` checkbox가 정상 표시/작동하는지
+   - 왼쪽 per-Quest checkbox를 켠 Quest의 A/B/C marker가 Main Map과 MiniMap에 실제 표시되는지
+   - 배포 폴더에 `ko` 외 언어 satellite folder가 없는지
+3. 실제 화면/사용감 차이 보정
 4. 사용자 검증 이후 exact Map artwork/config/general-marker DB를 동일 revision으로 교체하는 atomic bundle updater 구현
