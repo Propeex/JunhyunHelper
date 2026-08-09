@@ -106,7 +106,9 @@ public sealed class MapContentImporterTests
         Assert.Equal(["map-1"], objective.MapIds);
         Assert.Equal(3, objective.MapLocations.Count);
         Assert.Equal(2, objective.MapLocations.Count(location => location.Kind == QuestMapLocationKind.PossibleLocation));
-        var zone = Assert.Single(objective.MapLocations.Where(location => location.Kind == QuestMapLocationKind.Zone));
+        var zone = Assert.Single(
+            objective.MapLocations,
+            location => location.Kind == QuestMapLocationKind.Zone);
         Assert.Equal(new MapWorldPosition(120, 9, 220), zone.Position);
         Assert.Equal(3, zone.Outline.Count);
         Assert.Equal(12d, zone.Top.GetValueOrDefault());
