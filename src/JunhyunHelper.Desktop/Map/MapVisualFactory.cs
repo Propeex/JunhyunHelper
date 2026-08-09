@@ -40,15 +40,15 @@ internal static class MapVisualFactory
     public static FrameworkElement CreateMarker(
         MapMarkerKind kind,
         string toolTip,
-        string? iconPath = null,
-        double size = 28) =>
+        double size = 28,
+        string? iconPath = null) =>
         TryCreateIcon(iconPath ?? ResolveMarkerIcon(kind), toolTip, size)
         ?? CreateBadge(SymbolFor(kind), BrushFor(kind), toolTip, size);
 
     public static FrameworkElement CreateQuestMarker(
         string toolTip,
-        string? iconPath = null,
-        double size = 30) =>
+        double size = 30,
+        string? iconPath = null) =>
         TryCreateIcon(iconPath ?? ResolveIcon("quest_objective.png"), toolTip, size)
         ?? CreateBadge("!", Brushes.Gold, toolTip, size);
 
@@ -62,8 +62,8 @@ internal static class MapVisualFactory
 
     public static FrameworkElement CreatePlayerMarker(
         double headingDegrees,
-        string? iconPath = null,
-        double size = 32)
+        double size = 32,
+        string? iconPath = null)
     {
         var icon = TryCreateIcon(iconPath ?? ResolveIcon("player-position.png"), "현재 위치", size);
         if (icon is not null)
