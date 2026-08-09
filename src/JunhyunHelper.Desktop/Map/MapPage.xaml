@@ -1,7 +1,7 @@
 <UserControl x:Class="JunhyunHelper.Desktop.Map.MapPage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:svgc="http://sharpvectors.codeplex.com/svgc/"
+             xmlns:map="clr-namespace:JunhyunHelper.Desktop.Map"
              Background="{StaticResource BackgroundDarkBrush}"
              Loaded="MapPage_Loaded"
              Unloaded="MapPage_Unloaded">
@@ -115,7 +115,7 @@
                                   PreviewMouseMove="MapScrollViewer_PreviewMouseMove">
                         <Grid x:Name="MapSurface" Width="1600" Height="1100" Background="#16191D"
                               MouseRightButtonUp="MapSurface_MouseRightButtonUp">
-                            <svgc:SvgViewbox x:Name="MapSvg" Stretch="Fill" IsHitTestVisible="False" />
+                            <map:ReadableSvgViewbox x:Name="MapSvg" Stretch="Fill" IsHitTestVisible="False" />
                             <Canvas x:Name="ZoneCanvas" IsHitTestVisible="False" />
                             <Canvas x:Name="TrailCanvas" IsHitTestVisible="False" />
                             <Canvas x:Name="MarkerCanvas" />
