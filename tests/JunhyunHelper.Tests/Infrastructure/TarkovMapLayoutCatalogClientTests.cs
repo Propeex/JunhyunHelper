@@ -55,7 +55,8 @@ public sealed class TarkovMapLayoutCatalogClientTests
         using var httpClient = new HttpClient(new StaticJsonHandler(metadata));
         var client = new TarkovMapLayoutCatalogClient(httpClient);
         var result = await client.LoadAsync(
-            [new MapReference("map-gz-21", null, "Ground Zero 21+", "ground-zero-21")]);
+            [new MapReference("map-gz-21", null, "Ground Zero 21+", "ground-zero-21")],
+            TestContext.Current.CancellationToken);
 
         var layout = Assert.Single(result.Layouts);
         Assert.Equal("map-gz-21", layout.MapId);
