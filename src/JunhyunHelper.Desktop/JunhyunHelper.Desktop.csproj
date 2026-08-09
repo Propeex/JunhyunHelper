@@ -12,9 +12,6 @@
     <Version>0.1.0</Version>
   </PropertyGroup>
 
-  <!-- Match the original Tarkov Helper compile environment. WinForms is only used by
-       the legacy Map color picker; implicit WinForms/Drawing imports would collide
-       with WPF types throughout both applications. -->
   <ItemGroup>
     <Using Remove="System.Drawing" />
     <Using Remove="System.Windows.Forms" />
@@ -22,7 +19,7 @@
 
   <ItemGroup>
     <PackageReference Include="Autoupdater.NET.Official" Version="1.9.2" />
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.11" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.10" />
     <PackageReference Include="SharpVectors.Wpf" Version="1.8.5" />
     <PackageReference Include="SkiaSharp" Version="4.150.1" />
     <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.150.1" />
@@ -35,12 +32,6 @@
     <ProjectReference Include="../JunhyunHelper.Application/JunhyunHelper.Application.csproj" />
   </ItemGroup>
 
-  <!--
-    The Map subsystem is compiled directly from the pinned Propeex/Tarkov-Helper
-    submodule. These are original source files, not JunhyunHelper rewrites.
-    Models and Services are included as the original subsystem's dependency layer;
-    unrelated old application Pages/MainWindow/App are intentionally not imported.
-  -->
   <ItemGroup>
     <Compile Include="../../vendor/Tarkov-Helper/TarkovHelper/Models/**/*.cs"
              Link="Legacy/TarkovHelper/Models/%(RecursiveDir)%(Filename)%(Extension)" />
