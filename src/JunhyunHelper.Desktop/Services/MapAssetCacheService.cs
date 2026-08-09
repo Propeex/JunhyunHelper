@@ -54,7 +54,7 @@ public sealed class MapAssetCacheService
 
     private readonly HttpClient _httpClient;
     private readonly TarkovMapLayoutCatalogClient _layoutClient;
-    private readonly FandomMapArtworkService _wikiArtwork;
+    private readonly MapArtworkProviderPipeline _artworkProviders;
     private readonly string _root;
 
     public MapAssetCacheService(HttpClient httpClient, string rootDirectory)
@@ -62,7 +62,10 @@ public sealed class MapAssetCacheService
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         ArgumentException.ThrowIfNullOrWhiteSpace(rootDirectory);
         _layoutClient = new TarkovMapLayoutCatalogClient(httpClient);
-        _wikiArtwork = new FandomMapArtworkService(httpClient);
+        _artworkProviders = new MapArtworkProviderPipeline(
+        [
+            new WikiMapArtworkProvider(httpClient),
+        ]);
         _root = Path.Combine(Path.GetFullPath(rootDirectory), "map-cache");
         Directory.CreateDirectory(_root);
     }
@@ -108,17 +111,17 @@ public sealed class MapAssetCacheService
                 try
                 {
                     var effectiveLayout = layout;
-                    var wikiArtwork = await _wikiArtwork.TryBuildAlignedSvgAsync(
+                    var artwork = await _artworkProviders.TryBuildAlignedSvgAsync(
                         layout,
                         content.MapMarkers,
                         destination,
                         cancellationToken);
-                    if (wikiArtwork.Applied)
+                    if (artwork.Applied)
                     {
                         effectiveLayout = layout with
                         {
-                            Attribution = wikiArtwork.Attribution,
-                            AttributionUrl = wikiArtwork.AttributionUrl,
+                            Attribution = artwork.Attribution,
+                            AttributionUrl = artwork.AttributionUrl,
                         };
                     }
                     else
@@ -127,10 +130,10 @@ public sealed class MapAssetCacheService
                             File.Delete(destination);
                         await DownloadSvgWithFallbackAsync(layout.SvgUrl, destination, cancellationToken);
 
-                        if (layout.Floors.Count <= 1 && !string.IsNullOrWhiteSpace(wikiArtwork.Warning))
+                        if (layout.Floors.Count <= 1 && !string.IsNullOrWhiteSpace(artwork.Warning))
                         {
                             warnings.Add(
-                                $"Map '{layout.NormalizedName}' kept the calibrated SVG fallback because the Wiki background was not safely aligned: {wikiArtwork.Warning}");
+                                $"Map '{layout.NormalizedName}' kept the calibrated schematic SVG because no detailed artwork provider passed alignment validation: {artwork.Warning}");
                         }
                     }
 
