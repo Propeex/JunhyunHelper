@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Threading;
 using JunhyunHelper.Desktop.Map;
 using TarkovHelper.Models.Map;
+using TarkovHelper.Services.Map;
 
 namespace TarkovHelper.Windows;
 
@@ -83,8 +84,6 @@ public partial class OverlayMiniMapWindow
         RemoveJunhyunAdditionalMarkerChildren();
         foreach (var marker in visible)
         {
-            // MiniMap's synchronization pass scales the original 18px marker base by
-            // 4/3, so use 18px here to land on the exact Main Map 24px presentation.
             var visual = JunhyunAdditionalMarkerVisualFactory.Create(marker, baseSize: 18);
             Canvas.SetLeft(visual, marker.X);
             Canvas.SetTop(visual, marker.Y);
