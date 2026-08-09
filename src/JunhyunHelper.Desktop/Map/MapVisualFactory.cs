@@ -35,7 +35,7 @@ internal static class MapVisualFactory
     public static void ConfigureIconDirectory(string iconDirectory) =>
         _iconDirectory = string.IsNullOrWhiteSpace(iconDirectory)
             ? null
-            : Path.GetFullPath(iconDirectory);
+            : System.IO.Path.GetFullPath(iconDirectory);
 
     public static FrameworkElement CreateMarker(
         MapMarkerKind kind,
@@ -148,7 +148,7 @@ internal static class MapVisualFactory
     {
         if (string.IsNullOrWhiteSpace(_iconDirectory))
             return null;
-        var path = Path.Combine(_iconDirectory, fileName);
+        var path = System.IO.Path.Combine(_iconDirectory, fileName);
         return File.Exists(path) ? path : null;
     }
 
