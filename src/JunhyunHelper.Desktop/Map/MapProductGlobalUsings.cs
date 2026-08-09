@@ -1,2 +1,2 @@
 global using JunhyunHelper.Application.Quests;
-global using TarkovHelper.Services;
+global using FloorDetectionService = TarkovHelper.Services.FloorDetectionService;
