@@ -237,22 +237,30 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
 
     private void SwitchMapFromScreenshot(string mapKey)
     {
-        if (_mapSelector is null ||
-            string.Equals(_tracker.CurrentMapKey, mapKey, StringComparison.OrdinalIgnoreCase))
-        {
+        if (_mapSelector is null)
             return;
-        }
 
-        for (var i = 0; i < _mapSelector.Items.Count; i++)
+        var selectedMapKey = (_mapSelector.SelectedItem as ComboBoxItem)?.Tag as string;
+
+        // Screenshot parsing updates MapTracker.CurrentMapKey before PositionUpdated is
+        // published. The V2 bridge previously treated that tracker value as proof that
+        // the UI had already switched and returned early, leaving the ComboBox and map
+        // artwork on the old map. Compare against the actual selected UI item instead.
+        if (!string.Equals(selectedMapKey, mapKey, StringComparison.OrdinalIgnoreCase))
         {
-            if (_mapSelector.Items[i] is ComboBoxItem item &&
-                string.Equals(item.Tag as string, mapKey, StringComparison.OrdinalIgnoreCase))
+            for (var i = 0; i < _mapSelector.Items.Count; i++)
             {
-                _mapSelector.SelectedIndex = i;
-                _tracker.SetCurrentMap(mapKey);
-                return;
+                if (_mapSelector.Items[i] is ComboBoxItem item &&
+                    string.Equals(item.Tag as string, mapKey, StringComparison.OrdinalIgnoreCase))
+                {
+                    _mapSelector.SelectedIndex = i;
+                    break;
+                }
             }
         }
+
+        if (!string.Equals(_tracker.CurrentMapKey, mapKey, StringComparison.OrdinalIgnoreCase))
+            _tracker.SetCurrentMap(mapKey);
     }
 
     private void Overlay_SettingsChanged(OverlayMiniMapSettings settings)

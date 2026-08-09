@@ -6,6 +6,7 @@
         xmlns:items="clr-namespace:JunhyunHelper.Desktop.Items"
         xmlns:ammo="clr-namespace:JunhyunHelper.Desktop.Ammo"
         Title="준현 헬퍼"
+        Icon="Assets/AppIcon.png"
         Width="1320"
         Height="820"
         MinWidth="900"
@@ -39,8 +40,15 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Column="0" Text="준현 헬퍼" FontSize="20" FontWeight="Bold"
-                           Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" Margin="0,0,24,0" />
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,24,0">
+                    <Image Source="Assets/AppIcon.png"
+                           Width="28" Height="28"
+                           Stretch="UniformToFill"
+                           VerticalAlignment="Center"
+                           Margin="0,0,9,0" />
+                    <TextBlock Text="준현 헬퍼" FontSize="20" FontWeight="Bold"
+                               Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" />
+                </StackPanel>
                 <Button x:Name="QuestTabButton" Grid.Column="1" Content="퀘스트" Margin="0,0,6,0" Padding="14,7" Click="QuestTabButton_Click" />
                 <Button x:Name="HideoutTabButton" Grid.Column="2" Content="은신처" Margin="0,0,6,0" Padding="14,7" Click="HideoutTabButton_Click" />
                 <Button x:Name="ItemsTabButton" Grid.Column="3" Content="아이템" Margin="0,0,6,0" Padding="14,7" Click="ItemsTabButton_Click" />
