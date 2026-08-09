@@ -37,6 +37,8 @@
              Link="Legacy/TarkovHelper/Models/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../../vendor/Tarkov-Helper/TarkovHelper/Services/**/*.cs"
              Link="Legacy/TarkovHelper/Services/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/ItemsDataService.cs" />
+    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/ItemsFilterService.cs" />
     <Compile Include="../../vendor/Tarkov-Helper/TarkovHelper/Debug/**/*.cs"
              Link="Legacy/TarkovHelper/Debug/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../../vendor/Tarkov-Helper/TarkovHelper/Pages/Map/**/*.cs"
