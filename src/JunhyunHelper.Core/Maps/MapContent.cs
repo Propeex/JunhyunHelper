@@ -102,4 +102,12 @@ public sealed record MapLayoutDefinition(
     string? BaseSvgLayer,
     IReadOnlyList<MapFloorDefinition> Floors,
     string? Attribution,
-    string? AttributionUrl);
+    string? AttributionUrl,
+    IReadOnlyList<double>? LegacyPlayerTransform = null,
+    double? SurfaceWidth = null,
+    double? SurfaceHeight = null)
+{
+    [JsonIgnore]
+    public bool UsesLegacyAffineTransform => LegacyPlayerTransform is { Count: 6 } &&
+                                             SurfaceWidth is > 0 && SurfaceHeight is > 0;
+}
