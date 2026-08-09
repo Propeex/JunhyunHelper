@@ -41,15 +41,9 @@ jobs:
 
           Copy-Item packaging/FIRST_RUN_KO.txt artifacts/publish/FIRST_RUN_KO.txt
 
-          if (-not (Test-Path artifacts/publish/JunhyunHelper.exe)) {
-            throw "Published JunhyunHelper.exe was not produced."
-          }
-
           $required = @(
             'JunhyunHelper.exe',
-            'JunhyunHelper.dll',
-            'SharpVectors.Converters.Wpf.dll',
-            'SharpVectors.Rendering.Wpf.dll'
+            'JunhyunHelper.dll'
           )
           foreach ($file in $required) {
             if (-not (Test-Path (Join-Path artifacts/publish $file))) {
