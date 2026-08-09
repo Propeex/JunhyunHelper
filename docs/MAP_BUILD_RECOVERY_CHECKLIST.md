@@ -1,0 +1,7 @@
+- [x] compile failure root cause identified
+- [x] bulk floor helper restored
+- [x] bulk preference persistence corrected
+- [ ] exact-head CI build
+- [ ] exact-head tests
+- [ ] exact-head win-x64 publish
+- [ ] artifact download and user delivery
