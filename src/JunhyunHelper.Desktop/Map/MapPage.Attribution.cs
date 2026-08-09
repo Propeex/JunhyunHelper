@@ -1,11 +1,13 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 
 namespace JunhyunHelper.Desktop.Map;
 
 public partial class MapPage
 {
     private bool _attributionAdded;
+    private bool _markerInputGuardAdded;
     private TextBlock? _attributionText;
 
     protected override void OnInitialized(EventArgs e)
@@ -15,12 +17,25 @@ public partial class MapPage
         {
             EnsureAttributionOverlay();
             EnsureSpatialFloorTracking();
+            EnsureMarkerInputGuard();
             MapComboBox.SelectionChanged -= MapComboBox_AttributionSelectionChanged;
             MapComboBox.SelectionChanged += MapComboBox_AttributionSelectionChanged;
             UpdateAttributionText();
         };
         EnsureAttributionOverlay();
     }
+
+    private void EnsureMarkerInputGuard()
+    {
+        if (_markerInputGuardAdded || MarkerCanvas is null)
+            return;
+
+        MarkerCanvas.MouseRightButtonUp += MarkerCanvas_MouseRightButtonUp;
+        _markerInputGuardAdded = true;
+    }
+
+    private static void MarkerCanvas_MouseRightButtonUp(object sender, MouseButtonEventArgs e) =>
+        e.Handled = true;
 
     private void EnsureAttributionOverlay()
     {
