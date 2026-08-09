@@ -9,11 +9,8 @@ namespace JunhyunHelper.Desktop;
 
 public partial class MainWindow
 {
-    private const string CurrentMapArtworkMigrationMarker = "wiki-background-v1.ready";
-
     private readonly SemaphoreSlim _mapAssetEnsureGate = new(1, 1);
     private bool _mapIntegrationInitialized;
-    private bool _mapArtworkMigrationAttempted;
     private MapPage? _mapPage;
 
     protected override void OnContentRendered(EventArgs e)
@@ -101,6 +98,20 @@ public partial class MainWindow
 
     private void ContentUpdater_ContentActivated(GameMode gameMode, GameContentCatalog content)
     {
+        // A Data Update is also a request to re-check Map layout/artwork sources. This is
+        // deliberately recorded even when the Map tab has never been opened so a later Map
+        // visit cannot silently keep stale coordinate transforms or stale artwork.
+        try
+        {
+            MapAssetRefreshPolicy.RequestRefresh(
+                _services.MapAssets,
+                $"Game Content activated for {gameMode}");
+        }
+        catch (Exception exception)
+        {
+            App.WriteDiagnostic("Map refresh request marker failed", exception);
+        }
+
         if (_activeProfile is null || _activeProfile.GameMode != gameMode || _mapPage is null)
             return;
 
@@ -111,6 +122,7 @@ public partial class MainWindow
 
             try
             {
+                await EnsureMapAssetsReadyAsync(_mapPage, content, forceRefresh: true);
                 var workspace = await _services.Quests.LoadAsync(content, _activeProfile.ProfileId);
                 await _mapPage.SetDataAsync(content, workspace);
             }
@@ -159,31 +171,25 @@ public partial class MainWindow
         try
         {
             var hasUsableActiveAssets = await _services.MapAssets.HasUsableActiveAssetsAsync();
-            var migrationMarkerPath = Path.Combine(
-                _services.MapAssets.ActiveDirectory,
-                CurrentMapArtworkMigrationMarker);
-            var requiresArtworkMigration =
-                hasUsableActiveAssets &&
-                !_mapArtworkMigrationAttempted &&
-                !File.Exists(migrationMarkerPath);
+            var requiresRefresh = forceRefresh ||
+                                  await MapAssetRefreshPolicy.NeedsRefreshAsync(
+                                      _services.MapAssets,
+                                      content);
 
-            if (!forceRefresh && hasUsableActiveAssets && !requiresArtworkMigration)
+            if (hasUsableActiveAssets && !requiresRefresh)
             {
                 page.SetAssetRecoveryState(null, retryEnabled: true);
                 return true;
             }
 
-            if (requiresArtworkMigration)
-                _mapArtworkMigrationAttempted = true;
-
             page.SetBusy(true);
             page.SetAssetRecoveryState(
-                requiresArtworkMigration
-                    ? "새 지도 배경을 준비하는 중입니다..."
-                    : "지도 레이아웃과 자산을 내려받는 중입니다...",
+                hasUsableActiveAssets
+                    ? "온라인 지도 좌표와 배경 업데이트를 확인하는 중입니다..."
+                    : "지도 좌표와 배경 자산을 내려받는 중입니다...",
                 retryEnabled: false);
-            StatusText.Text = requiresArtworkMigration
-                ? "새 지도 배경으로 업데이트하는 중..."
+            StatusText.Text = hasUsableActiveAssets
+                ? "지도 원천 업데이트를 확인하는 중..."
                 : "지도 자산을 준비하는 중...";
 
             var progress = new Progress<MapAssetUpdateProgress>(value =>
@@ -199,14 +205,15 @@ public partial class MainWindow
                 {
                     try
                     {
-                        Directory.CreateDirectory(_services.MapAssets.ActiveDirectory);
-                        await File.WriteAllTextAsync(
-                            Path.Combine(_services.MapAssets.ActiveDirectory, CurrentMapArtworkMigrationMarker),
-                            CurrentMapArtworkMigrationMarker);
+                        await MapAssetRefreshPolicy.RecordSuccessfulRefreshAsync(
+                            _services.MapAssets,
+                            content);
                     }
                     catch (Exception exception) when (exception is not OperationCanceledException)
                     {
-                        App.WriteDiagnostic("Map artwork migration marker write failed", exception);
+                        // The assets themselves are already valid. A state-write failure should
+                        // only cause another refresh attempt later, never discard the good Map.
+                        App.WriteDiagnostic("Map refresh state write failed", exception);
                     }
                 }
 
@@ -224,7 +231,7 @@ public partial class MainWindow
                 if (hasPrevious)
                 {
                     page.SetAssetRecoveryState(
-                        "최신 지도 자산을 다시 받지 못했지만 기존 정상 지도를 유지했습니다.",
+                        "최신 지도 원천을 갱신하지 못했지만 기존 정상 지도를 유지했습니다.",
                         retryEnabled: true);
                     StatusText.Text = "지도 업데이트 실패 · 기존 정상 지도 유지";
                     return true;
