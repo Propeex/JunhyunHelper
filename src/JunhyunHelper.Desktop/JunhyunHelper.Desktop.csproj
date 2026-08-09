@@ -10,7 +10,7 @@
     <!-- The pinned Tarkov-Helper source was not authored with warnings-as-errors.
          Preserve the exact upstream Map/MiniMap source instead of modifying it merely
          to satisfy JunhyunHelper's stricter compile policy. -->
-    <WarningsNotAsErrors>$(WarningsNotAsErrors);CS0067;CS4014;CS8602</WarningsNotAsErrors>
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);CS0067;CS4014;CS8602;CS8618;CS8625</WarningsNotAsErrors>
     <AssemblyName>JunhyunHelper</AssemblyName>
     <Product>준현 헬퍼</Product>
     <Version>0.1.0</Version>
@@ -42,13 +42,20 @@
     <Compile Include="../../vendor/Tarkov-Helper/TarkovHelper/Services/**/*.cs"
              Link="Legacy/TarkovHelper/Services/%(RecursiveDir)%(Filename)%(Extension)" />
 
-    <!-- These belong to the old application's content/update/item subsystems, not Map. -->
+    <!-- These belong to the old application's non-Map content/update subsystems. -->
+    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/Ammo/**/*.cs" />
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/ItemsDataService.cs" />
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/ItemsFilterService.cs" />
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/ContentStorageService.cs" />
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/ContentDatabaseSummary.cs" />
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/DatabaseUpdateService.cs" />
+    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/ConfigMigrationService.cs" />
+    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/MigrationService.cs" />
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/ItemIconUpdateService.cs" />
+    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/ImageCacheService.cs" />
+    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/ItemDbService.cs" />
+    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/TraderDbService.cs" />
+    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/HideoutDbService.cs" />
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/TarkovDataDatabaseBuilder*.cs" />
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/UserProgressResetService.cs" />
 
