@@ -187,7 +187,7 @@ public sealed class QuestApplicationServiceTests
             Assert.Equal(QuestAvailabilityState.Locked, entry.Availability.State);
             Assert.Contains(
                 entry.Availability.Reasons,
-                reason => reason.Kind == QuestAvailabilityReasonKind.PrestigeTooLow);
+                reason => reason.Kind == QuestAvailabilityReasonKind.Prestige);
         }
         finally
         {
