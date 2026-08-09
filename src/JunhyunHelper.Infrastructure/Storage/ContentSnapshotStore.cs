@@ -16,11 +16,10 @@ public sealed record StoredContentSnapshot(
 
 public sealed class ContentSnapshotStore
 {
-    // v2 added normalized item category metadata. v3 added explicit current Wiki
-    // Ballistics membership independently from optional armor-effectiveness ratings.
-    // v4 adds Quest-only world geometry (possibleLocations/zones) used by the
-    // independent Map subsystem. Old snapshots are intentionally rebuilt from
-    // online source; user.db remains separate and is never invalidated by this bump.
+    // v3 remains readable so an existing installation can still start offline while
+    // v4 (Quest-only map geometry) is being acquired. All newly written snapshots
+    // are v4. v1/v2 are too old to interpret safely and remain unsupported.
+    public const int MinimumReadableSchemaVersion = 3;
     public const int CurrentSchemaVersion = 4;
 
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
@@ -131,10 +130,11 @@ public sealed class ContentSnapshotStore
             throw new InvalidDataException("Content database has no active snapshot row.");
 
         var schemaVersion = reader.GetInt32(0);
-        if (schemaVersion != CurrentSchemaVersion)
+        if (schemaVersion < MinimumReadableSchemaVersion || schemaVersion > CurrentSchemaVersion)
         {
             throw new InvalidDataException(
-                $"Unsupported content schema version '{schemaVersion}'. Expected '{CurrentSchemaVersion}'.");
+                $"Unsupported content schema version '{schemaVersion}'. " +
+                $"Readable range is '{MinimumReadableSchemaVersion}' through '{CurrentSchemaVersion}'.");
         }
 
         var gameModeText = reader.GetString(1);
