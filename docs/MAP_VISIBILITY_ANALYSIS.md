@@ -15,17 +15,19 @@
 
 현재 배경은 `the-hideout/tarkov-dev-svg-maps`의 layered SVG입니다.
 
-세관 원본에는 건물, 바닥, 계단/사다리, 도로, 철도, 울타리 등 실제 구조 geometry가 존재합니다. 즉 준현 헬퍼의 floor filtering이 세관 구조물을 통째로 제거한 현상은 아닙니다.
+세관 원본 `Customs.svg`에는 `Ground_Level` 그룹 아래에 건물, 바닥, 계단/사다리, 도로, 철도, 울타리 등 실제 구조 geometry가 존재합니다. 따라서 준현 헬퍼의 floor filtering이 세관 구조물을 통째로 제거한 현상은 아닙니다.
 
-다만 원본 공통 palette 자체가 interactive overlay 기반 도구에 맞춘 저대비 도식입니다. 예를 들어 현재 원본 CSS는 다음처럼 서로 가까운 어두운 색을 사용합니다.
+다만 원본 공통 palette 자체가 interactive overlay 기반 도구에 맞춘 저대비 도식입니다. 현재 upstream `style_common.css`와 Customs SVG의 embedded style은 대표적으로 다음 색을 사용합니다.
 
 ```text
 land     #1f5054
 building #1a2632
 trees    #144043
+floor    #70777f
+tarmac   #768089
 ```
 
-전체 지도를 한 화면에 맞추면 건물 footprint가 지형과 쉽게 섞입니다. 또한 이 SVG는 커뮤니티의 완성형 안내 지도처럼 지명/랜드마크 텍스트를 촘촘히 포함하는 형태가 아닙니다.
+특히 `land #1f5054`와 `building #1a2632`가 모두 어두운 계열이라 전체 지도를 한 화면에 맞추면 건물 footprint가 지형과 쉽게 섞입니다. 또한 이 SVG는 커뮤니티의 완성형 안내 지도처럼 지명/랜드마크 텍스트를 촘촘히 포함하는 형태가 아닙니다.
 
 따라서 현재 첫 화면의 낮은 가독성은 두 요소가 합쳐진 결과입니다.
 
@@ -47,19 +49,24 @@ active raw SVG
 
 원본 파일은 수정하지 않습니다.
 
-### readable palette
+### readable-v1 palette
 
 구조물 우선 가독성을 위해 derivative에 별도 CSS override를 추가합니다.
 
-- building / floor: 밝은 회색 + 어두운 외곽선
-- cement / tarmac / road: 주변 지형과 명확히 분리
-- land / trees: 기존 계열을 유지하되 구분 강화
-- fence / map border: 밝은 외곽선
-- water / railroad / gravel: 역할별 대비 강화
+```text
+land        #244B4F
+building    #D7DEE5 + dark outline
+floor       #AEB8C2 + dark outline
+cement      #D8DDE1 + dark outline
+tarmac      #929DA7
+road_tarmac #C3CBD2
+fence       #E7F4E5
+map_border  #DDE3E8
+```
 
-이 보정은 SVG geometry와 viewBox를 변경하지 않으므로 기존 world→surface 좌표 변환과 marker alignment에는 영향을 주지 않습니다.
+그 외 water / trees / railroad / gravel도 역할별 대비를 강화합니다. 이 보정은 SVG geometry와 viewBox를 변경하지 않으므로 기존 world→surface 좌표 변환과 marker alignment에는 영향을 주지 않습니다.
 
-표시 사본은 `readable-v1` revision을 파일명에 포함해 과거 cached rendering과 섞이지 않습니다.
+표시 사본은 `readable-v1` revision을 파일명에 포함해 과거 cached rendering과 섞이지 않습니다. 원본 Map과 MiniMap이 동일한 presentation transform을 사용합니다.
 
 ## Floor UI 수정
 
@@ -74,10 +81,6 @@ Basement
 ```
 
 내부 `Id`, `SvgLayer`, height range, extent는 기존대로 선택/자동 층 판정에만 사용합니다.
-
-## MiniMap
-
-Map 본체와 MiniMap은 같은 readable SVG derivative를 사용해 색/구조물 인지가 서로 다르게 보이지 않도록 합니다.
 
 ## 향후 배경 source 교체 기준
 
