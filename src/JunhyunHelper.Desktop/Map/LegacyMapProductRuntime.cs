@@ -15,6 +15,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
     private readonly OverlayMiniMapService _overlay = OverlayMiniMapService.Instance;
     private readonly JunhyunMapHotkeyService _hotkeys = new();
     private readonly LegacyQuestMarkerScaleBridge _questScaleBridge;
+    private readonly LegacyQuestMarkerToggleBridge _questToggleBridge;
     private readonly Slider? _playerMarkerSlider;
     private Button? _hotkeySettingsButton;
     private bool _syncingPlayerMarker;
@@ -24,6 +25,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
     {
         _page = page ?? throw new ArgumentNullException(nameof(page));
         _questScaleBridge = new LegacyQuestMarkerScaleBridge(page);
+        _questToggleBridge = new LegacyQuestMarkerToggleBridge(page);
         _playerMarkerSlider = _page.FindName("SliderPlayerMarkerSize") as Slider;
 
         if (_playerMarkerSlider is not null)
@@ -130,6 +132,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
             return;
         _disposed = true;
 
+        _questToggleBridge.Dispose();
         _questScaleBridge.Dispose();
         _hotkeys.Dispose();
         _overlay.SettingsChanged -= Overlay_SettingsChanged;
