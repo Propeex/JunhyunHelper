@@ -6,26 +6,32 @@
 
 **Phase 2B — 핵심 Desktop 흐름 구현 + 실사용 피드백 반복 개선**
 
-상태: `FOURTH USABILITY PASS MERGED / USER TESTING`
+상태: `FIFTH USABILITY FIXES IMPLEMENTED / MAP SOURCE DESIGN`
 
-4차 실사용 피드백 1~13은 **PR #39로 main 병합 완료**되었고, 최종 Windows CI와 전달용 ZIP 무결성까지 검증되었습니다.
-
-상세 계약: `docs/FOURTH_USABILITY_PASS.md`
-
-검증 checkpoint:
+현재 작업:
 
 ```text
-PR #39: merged
-final CI: 31289134464
+branch: agent/fifth-usability-map-source
+PR: #41
+```
+
+4차 실사용 피드백은 PR #39로 main 병합 완료되어 사용자 테스트 중입니다.
+
+5차에서 새로 확인된 Ammo 즐겨찾기 이동 문제와 Item 용도 필터는 구현 완료했고 Windows CI를 통과했습니다. Map은 실제 기능 구현 전에 장기 유지 가능한 데이터 공급원을 조사했으며, **동적 gameplay/location data source는 확보 가능**한 것으로 확인했습니다. 실제 Map UI와 지도 배경 artwork 선택은 아직 제품 설계 단계입니다.
+
+상세:
+
+- `docs/FIFTH_USABILITY_PASS.md`
+- `docs/MAP_DATA_SOURCE_ANALYSIS.md`
+
+5차 구현 checkpoint:
+
+```text
+CI: 31290336689
 Release Desktop build: success
 full automated tests: success
 Windows x64 publish/package: success
 artifact upload: success
-review threads: none
-outer artifact ZIP CRC: success
-inner Windows ZIP CRC: success
-flat delivery ZIP CRC: success
-delivery ZIP SHA-256: 2c630286b1fec7682b3fd2af7e44c19c6be6c3d2421c02aa71170f33c719670a
 ```
 
 ---
@@ -54,6 +60,7 @@ delivery ZIP SHA-256: 2c630286b1fec7682b3fd2af7e44c19c6be6c3d2421c02aa71170f33c7
 - update 실패가 기존 정상 Game Content/User Progress를 손상시키지 않음
 - runtime AI/GPT 없음
 - 유동 제출에서 실제 사용 Item처럼 프로그램이 알 수 없는 사실은 임의 추정하지 않음
+- Map도 가능한 한 패치 때 수동 좌표 갱신이 아니라 온라인 source → canonical 변환 구조를 사용
 
 ---
 
@@ -89,6 +96,8 @@ v3에서 Ammo의 current Wiki Ballistics **표 등록 여부**를 Class 1~6 effe
 
 - v2 content snapshot → 온라인 source에서 자동 재구축
 - `user.db`는 유지
+
+Map 실제 importer/schema는 아직 추가하지 않았습니다. Map source 설계 확정 뒤 필요하면 다음 content schema에서 추가합니다.
 
 ### User Progress
 
@@ -194,6 +203,15 @@ rollback 시 복원 여부를 묻습니다. 복원하지 않은 ledger는 재업
 - 직접 입력 저장
 - Quest / Hideout 필요 출처를 동일한 clickable block으로 표시
 
+필터:
+
+- 검색
+- Item 종류
+- **용도: 모든 용도 / 퀘스트용 / 은신처용**
+- 필요 상태: 필요 / 전체 / 정리 필요 / 충분 / 판단 보류
+
+Quest와 Hideout 모두에 필요한 Item은 양쪽 용도 필터 모두에서 표시합니다. flexible Quest candidate도 퀘스트용으로 취급합니다.
+
 유동 제출:
 
 - 별도 view
@@ -202,16 +220,6 @@ rollback 시 복원 여부를 묻습니다. 복원하지 않은 ledger는 재업
 - 후보 Item click → Item
 - Quest click → Quest
 - cleanup 보수적 보호
-
-종류 dropdown은 현재 view/search/filter에 실제 row가 있는 category만 표시합니다.
-
-평상시 상단 status는:
-
-```text
-정리 필요 N
-```
-
-만 표시합니다. 작업 중에는 progress/save/error 메시지가 일시적으로 우선합니다.
 
 ---
 
@@ -243,11 +251,16 @@ Wiki source가 healthy하면 현재 Wiki 등록 Ammo만 비교합니다. source 
 12/70
 ```
 
-추가 UX:
+### 즐겨찾기
 
-- caliber 즐겨찾기 toggle
-- 즐겨찾기 전용 dropdown
+- 현재 caliber `☆/★ 즐겨찾기` toggle
 - `ammo-favorites.json` local persistence
+- 즐겨찾기 목록은 선택 상태를 가지는 ComboBox가 아니라 **shortcut popup**
+- 각 favorite caliber는 button/action이며 누를 때마다 해당 caliber로 이동
+- 일반 caliber에서 다른 값을 선택한 뒤에도 같은 favorite를 다시 누르면 정상 이동
+
+추가:
+
 - Ammo acquisition unlock Quest click → Quest
 - penetration → damage → name 고정 오름차순
 
@@ -280,9 +293,60 @@ URL
 
 ---
 
-## Map / Scanner
+## Map
 
-탭과 `준비 중` placeholder만 있습니다. 실제 기능은 후속 요구사항 확정 전까지 구현하지 않습니다.
+현재 Map 탭 자체는 placeholder입니다. 실제 지도 기능은 아직 구현하지 않았습니다.
+
+### 데이터 공급원 조사 결과
+
+동적 gameplay/location data의 우선 source:
+
+```text
+json.tarkov.dev/<game-mode>/maps
+```
+
+현재 Tarkov.dev 공개 구현에서 확인되는 map data 범위에는 다음이 포함됩니다.
+
+- spawn
+- extract
+- transit
+- boss / spawn location
+- lock
+- hazard
+- loot container / loose loot
+- switch
+- stationary weapon
+- artillery
+- BTR stop
+
+지도 표시용 좌표/레이아웃 metadata는 Tarkov.dev 공개 map configuration에서 다음을 얻을 수 있는 구조를 우선 검토합니다.
+
+- bounds
+- transform
+- coordinate rotation
+- zoom range
+- floor/layer + height range
+- SVG/tile asset reference
+
+Gameplay data와 visual layout을 분리해 canonical model로 변환하는 방향입니다.
+
+### 지도 artwork
+
+`the-hideout/tarkov-dev-svg-maps`는 layered SVG map source를 공개하고 있으나 license가 **CC BY-NC-SA 4.0**입니다.
+
+따라서 attribution / non-commercial / share-alike 의무가 있고 radar·ESP·cheat client·pixel-bot 같은 부정행위 소프트웨어 사용을 명시적으로 금지합니다.
+
+동적 데이터 공급원은 확보 가능하다고 판단하지만, 실제 배경 artwork로 이 자산을 사용할지는 사용자 제품 판단 후 확정합니다. Tarkov.dev site code의 MIT license를 map artwork에 확대 적용하지 않습니다.
+
+상세: `docs/MAP_DATA_SOURCE_ANALYSIS.md`
+
+---
+
+## Scanner
+
+탭과 `준비 중` placeholder만 있습니다. 실제 기능은 제품 요구사항 확정 전까지 구현하지 않습니다.
+
+Map artwork license의 cheating prohibition과 충돌하지 않도록 향후 Scanner는 정상적인 화면 인식 보조와 실시간 레이더/ESP 성격 기능을 명확히 구분해야 합니다.
 
 ---
 
@@ -291,12 +355,15 @@ URL
 - 첫 실사용 피드백: merged
 - 2차: PR #36 merged
 - 3차: PR #37 merged
-- 4차: **PR #39 merged / user testing**
+- 4차: PR #39 merged / user testing
+- 5차: **PR #41 — Ammo favorite shortcut + Item 용도 filter 구현 완료 / Map source 분석 완료 / 최종 문서 검증 중**
 
 ---
 
 ## 현재 다음 작업
 
-1. 사용자가 4차 Windows 테스트 빌드를 실제 사용
-2. 발견된 오류/불편을 다음 실사용 피드백으로 반영
-3. 실사용 안정화 후 Map 실제 기능 / Scanner 실제 기능 요구사항 정의
+1. PR #41 최종 documentation-inclusive CI 확인 및 병합
+2. 사용자에게 5차 UX 수정 결과와 Map source 조사 결과 전달
+3. Map artwork로 CC BY-NC-SA SVG source 사용 여부를 제품 관점에서 결정
+4. Map 실제 사용자 흐름/marker 범위/층 전환/Quest 연동을 확정
+5. 확정 후 Map canonical importer + Desktop 구현 시작
