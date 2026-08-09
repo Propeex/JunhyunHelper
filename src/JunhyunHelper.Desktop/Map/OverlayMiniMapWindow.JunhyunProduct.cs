@@ -145,10 +145,21 @@ public partial class OverlayMiniMapWindow
         if (!IsVisible || !GetCursorPos(out var cursor))
             return false;
 
-        var width = ActualWidth > 0 ? ActualWidth : Width;
-        var height = ActualHeight > 0 ? ActualHeight : Height;
-        return cursor.X >= Left && cursor.X < Left + width &&
-               cursor.Y >= Top && cursor.Y < Top + height;
+        try
+        {
+            // GetCursorPos uses physical screen pixels while WPF layout uses DIPs.
+            // PointFromScreen performs the per-monitor DPI conversion before bounds
+            // checking, so hover reveal remains correct at 125%/150% scaling too.
+            var local = PointFromScreen(new Point(cursor.X, cursor.Y));
+            var width = ActualWidth > 0 ? ActualWidth : Width;
+            var height = ActualHeight > 0 ? ActualHeight : Height;
+            return local.X >= 0 && local.X < width &&
+                   local.Y >= 0 && local.Y < height;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
     }
 
     private void JunhyunQuestProjection_Changed(object? sender, EventArgs e) =>
@@ -326,7 +337,6 @@ public partial class OverlayMiniMapWindow
         Canvas.SetTop(circle, -markerSize / 2);
         canvas.Children.Add(circle);
 
-        // Simple exit glyph; Main Map and MiniMap retain the same semantic symbol.
         var glyph = new TextBlock
         {
             Text = "↗",
