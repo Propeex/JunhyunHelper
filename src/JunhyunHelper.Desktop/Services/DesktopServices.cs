@@ -4,6 +4,7 @@ using JunhyunHelper.Application.Hideout;
 using JunhyunHelper.Application.Items;
 using JunhyunHelper.Application.Profiles;
 using JunhyunHelper.Application.Quests;
+using JunhyunHelper.Desktop.Map;
 using JunhyunHelper.Infrastructure.Content;
 using JunhyunHelper.Infrastructure.EditionData;
 using JunhyunHelper.Infrastructure.Storage;
@@ -36,6 +37,9 @@ public sealed class DesktopServices : IDisposable
 
         Images = new ImageCacheService(_httpClient, RootDirectory);
         AmmoFavorites = new AmmoFavoriteStore(RootDirectory);
+        MapAssets = new MapAssetCacheService(_httpClient, RootDirectory);
+        MapVisualFactory.ConfigureIconDirectory(Path.Combine(MapAssets.ActiveDirectory, "icons"));
+        MapUserData = new MapUserDataStore(RootDirectory);
 
         var sourceLoader = new TarkovEndpointSourceLoader(new TarkovJsonClient(_httpClient));
         var buildService = new TarkovContentBuildService(
@@ -43,7 +47,14 @@ public sealed class DesktopServices : IDisposable
             new TarkovEditionCatalogClient(_httpClient),
             effectivenessClient: new WikiBallisticsEffectivenessClient(_httpClient));
 
-        ContentUpdater = new TarkovContentUpdateService(buildService, Content);
+        ContentUpdater = new TarkovContentUpdateService(
+            buildService,
+            Content,
+            supplementalUpdater: async (content, cancellationToken) =>
+            {
+                var result = await MapAssets.UpdateAsync(content, cancellationToken: cancellationToken);
+                return result.Warnings;
+            });
         ProfileManagement = new ProfileApplicationService(Profiles);
         Quests = new QuestApplicationService(Profiles);
         Hideout = new HideoutApplicationService(Profiles);
@@ -61,6 +72,10 @@ public sealed class DesktopServices : IDisposable
     public ImageCacheService Images { get; }
 
     public AmmoFavoriteStore AmmoFavorites { get; }
+
+    public MapAssetCacheService MapAssets { get; }
+
+    public MapUserDataStore MapUserData { get; }
 
     public ProfileApplicationService ProfileManagement { get; }
 

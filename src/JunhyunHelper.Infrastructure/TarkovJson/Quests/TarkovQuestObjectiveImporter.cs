@@ -1,4 +1,5 @@
 using System.Text.Json;
+using JunhyunHelper.Core.Maps;
 using JunhyunHelper.Core.Quests;
 
 namespace JunhyunHelper.Infrastructure.TarkovJson.Quests;
@@ -77,6 +78,11 @@ public sealed class TarkovQuestObjectiveImporter
         var objectiveId = TarkovJsonReader.RequiredString(raw, "id", $"Quest '{questId}' objective");
         var type = TarkovJsonReader.RequiredString(raw, "type", $"Quest '{questId}' objective '{objectiveId}'");
         var description = localization.Resolve(TarkovJsonReader.OptionalString(raw, "description"));
+        var locations = ReadMapLocations(raw);
+        var mapIds = ReadReferenceArray(raw, "maps")
+            .Concat(locations.Select(location => location.MapId))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
 
         return new QuestObjective(
             questId,
@@ -87,11 +93,119 @@ public sealed class TarkovQuestObjectiveImporter
             TarkovJsonReader.OptionalBool(raw, "optional") ?? false,
             TarkovJsonReader.OptionalInt(raw, "count"),
             TarkovJsonReader.OptionalBool(raw, "foundInRaid") ?? false,
-            ReadReferenceArray(raw, "maps"),
+            mapIds,
             ReadItemIds(raw),
             ReadOptionalReference(raw, "questItem"),
-            ClassifyItemKind(type));
+            ClassifyItemKind(type),
+            locations);
     }
+
+    private static IReadOnlyList<QuestMapLocation> ReadMapLocations(JsonElement objective)
+    {
+        var result = new List<QuestMapLocation>();
+
+        if (objective.TryGetProperty("possibleLocations", out var possibleLocations) &&
+            possibleLocations.ValueKind is not JsonValueKind.Null and not JsonValueKind.Undefined)
+        {
+            foreach (var location in TarkovJsonReader.ReadCollectionValue(
+                         possibleLocations,
+                         "quest objective possibleLocations"))
+            {
+                if (!location.TryGetProperty("map", out var mapReference))
+                    continue;
+                var mapId = TarkovJsonReader.ReferenceId(mapReference);
+                if (string.IsNullOrWhiteSpace(mapId))
+                    continue;
+                if (!location.TryGetProperty("positions", out var positions) ||
+                    positions.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+                    continue;
+
+                foreach (var positionValue in TarkovJsonReader.ReadCollectionValue(
+                             positions,
+                             "quest objective possible location positions"))
+                {
+                    if (!TryReadPosition(positionValue, out var position))
+                        continue;
+                    result.Add(new QuestMapLocation(
+                        mapId,
+                        QuestMapLocationKind.PossibleLocation,
+                        position,
+                        Array.Empty<MapOutlinePoint>(),
+                        position.Y,
+                        position.Y));
+                }
+            }
+        }
+
+        if (objective.TryGetProperty("zones", out var zones) &&
+            zones.ValueKind is not JsonValueKind.Null and not JsonValueKind.Undefined)
+        {
+            foreach (var zone in TarkovJsonReader.ReadCollectionValue(zones, "quest objective zones"))
+            {
+                if (!zone.TryGetProperty("map", out var mapReference))
+                    continue;
+                var mapId = TarkovJsonReader.ReferenceId(mapReference);
+                if (string.IsNullOrWhiteSpace(mapId) || !TryReadPosition(zone, out var position))
+                    continue;
+
+                result.Add(new QuestMapLocation(
+                    mapId,
+                    QuestMapLocationKind.Zone,
+                    position,
+                    ReadOutline(zone),
+                    ReadNullableDouble(zone, "top") ?? position.Y,
+                    ReadNullableDouble(zone, "bottom") ?? position.Y));
+            }
+        }
+
+        return result;
+    }
+
+    private static bool TryReadPosition(JsonElement entity, out MapWorldPosition position)
+    {
+        position = new MapWorldPosition(0, 0, 0);
+        var value = entity;
+        if (entity.ValueKind == JsonValueKind.Object && entity.TryGetProperty("position", out var nested) &&
+            nested.ValueKind == JsonValueKind.Object)
+        {
+            value = nested;
+        }
+
+        if (!TryReadDouble(value, "x", out var x) || !TryReadDouble(value, "z", out var z))
+            return false;
+        _ = TryReadDouble(value, "y", out var y);
+        position = new MapWorldPosition(x, y, z);
+        return true;
+    }
+
+    private static IReadOnlyList<MapOutlinePoint> ReadOutline(JsonElement entity)
+    {
+        if (entity.ValueKind != JsonValueKind.Object ||
+            !entity.TryGetProperty("outline", out var value) ||
+            value.ValueKind != JsonValueKind.Array)
+            return Array.Empty<MapOutlinePoint>();
+
+        var result = new List<MapOutlinePoint>();
+        foreach (var point in value.EnumerateArray())
+        {
+            if (TryReadDouble(point, "x", out var x) && TryReadDouble(point, "z", out var z))
+                result.Add(new MapOutlinePoint(x, z));
+        }
+        return result;
+    }
+
+    private static bool TryReadDouble(JsonElement entity, string propertyName, out double value)
+    {
+        value = 0;
+        return entity.ValueKind == JsonValueKind.Object &&
+               entity.TryGetProperty(propertyName, out var property) &&
+               property.ValueKind == JsonValueKind.Number &&
+               property.TryGetDouble(out value) &&
+               double.IsFinite(value);
+    }
+
+    private static double? ReadNullableDouble(JsonElement entity, string propertyName) =>
+        TryReadDouble(entity, propertyName, out var value) ? value : null;
 
     private static QuestItemObjectiveKind ClassifyItemKind(string type)
     {

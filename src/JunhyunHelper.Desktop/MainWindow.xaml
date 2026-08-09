@@ -5,6 +5,7 @@
         xmlns:hideout="clr-namespace:JunhyunHelper.Desktop.Hideout"
         xmlns:items="clr-namespace:JunhyunHelper.Desktop.Items"
         xmlns:ammo="clr-namespace:JunhyunHelper.Desktop.Ammo"
+        xmlns:map="clr-namespace:JunhyunHelper.Desktop.Map"
         Title="준현 헬퍼"
         Width="1320"
         Height="820"
@@ -67,22 +68,7 @@
             <ammo:AmmoPage x:Name="AmmoPage" Loaded="AmmoPage_Loaded" Visibility="Collapsed" />
 
             <Grid x:Name="MapPlaceholder" Visibility="Collapsed">
-                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="560">
-                    <TextBlock Text="지도" FontSize="26" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,12" />
-                    <Border Background="{StaticResource BackgroundMediumBrush}"
-                            BorderBrush="{StaticResource BorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="10"
-                            Padding="18,10"
-                            HorizontalAlignment="Center"
-                            Margin="0,0,0,14">
-                        <TextBlock Text="준비 중" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" />
-                    </Border>
-                    <TextBlock Text="지도 데이터 공급원과 표시 규칙을 검증한 뒤 구현합니다. 현재 탭은 기능 위치만 먼저 확정한 상태입니다."
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               TextAlignment="Center"
-                               TextWrapping="Wrap" />
-                </StackPanel>
+                <map:MapPage x:Name="MapPage" />
             </Grid>
 
             <Grid x:Name="ScannerPlaceholder" Visibility="Collapsed">

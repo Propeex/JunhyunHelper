@@ -1,6 +1,7 @@
 using JunhyunHelper.Core.Ammo;
 using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.Editions;
+using JunhyunHelper.Core.Maps;
 
 namespace JunhyunHelper.Infrastructure.Validation;
 
@@ -96,6 +97,9 @@ public sealed class GameContentValidator
             }
         }
 
+        ValidateQuestMapLocations(content, mapIds, questIds, issues);
+        ValidateMapMarkers(content.MapMarkers, mapIds, issues);
+
         foreach (var requirement in content.QuestItemRequirements)
         {
             if (!questIds.Contains(requirement.QuestId))
@@ -146,6 +150,115 @@ public sealed class GameContentValidator
 
         return new ContentValidationResult(issues);
     }
+
+    private static void ValidateQuestMapLocations(
+        GameContentCatalog content,
+        IReadOnlySet<string> mapIds,
+        IReadOnlySet<string> questIds,
+        ICollection<ContentValidationIssue> issues)
+    {
+        var objectiveIds = new HashSet<(string QuestId, string ObjectiveId)>();
+        foreach (var objective in content.QuestObjectives)
+        {
+            if (!questIds.Contains(objective.QuestId))
+            {
+                Fatal(
+                    issues,
+                    "quest-objective.quest.missing",
+                    $"Quest objective '{objective.ObjectiveId}' references missing quest '{objective.QuestId}'.");
+            }
+
+            if (!objectiveIds.Add((objective.QuestId, objective.ObjectiveId)))
+            {
+                Fatal(
+                    issues,
+                    "quest-objective.duplicate",
+                    $"Quest '{objective.QuestId}' contains duplicate objective '{objective.ObjectiveId}'.");
+            }
+
+            foreach (var mapId in objective.MapIds)
+            {
+                if (!mapIds.Contains(mapId))
+                {
+                    Fatal(
+                        issues,
+                        "quest-objective.map.missing",
+                        $"Quest '{objective.QuestId}' objective '{objective.ObjectiveId}' references missing map '{mapId}'.");
+                }
+            }
+
+            foreach (var location in objective.MapLocations)
+            {
+                if (!mapIds.Contains(location.MapId))
+                {
+                    Fatal(
+                        issues,
+                        "quest-objective.location-map.missing",
+                        $"Quest '{objective.QuestId}' objective '{objective.ObjectiveId}' location references missing map '{location.MapId}'.");
+                }
+
+                if (!IsFinite(location.Position))
+                {
+                    Fatal(
+                        issues,
+                        "quest-objective.location.invalid",
+                        $"Quest '{objective.QuestId}' objective '{objective.ObjectiveId}' has a non-finite Map position.");
+                }
+
+                if (location.Outline.Any(point => !double.IsFinite(point.X) || !double.IsFinite(point.Z)) ||
+                    location.Top is { } top && !double.IsFinite(top) ||
+                    location.Bottom is { } bottom && !double.IsFinite(bottom))
+                {
+                    Fatal(
+                        issues,
+                        "quest-objective.location-shape.invalid",
+                        $"Quest '{objective.QuestId}' objective '{objective.ObjectiveId}' has invalid Map geometry.");
+                }
+            }
+        }
+    }
+
+    private static void ValidateMapMarkers(
+        IEnumerable<MapMarkerDefinition> markers,
+        IReadOnlySet<string> mapIds,
+        ICollection<ContentValidationIssue> issues)
+    {
+        var markerIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var marker in markers)
+        {
+            if (string.IsNullOrWhiteSpace(marker.Id) || !markerIds.Add(marker.Id))
+            {
+                Fatal(
+                    issues,
+                    "map-marker.duplicate-or-empty",
+                    $"Map marker id '{marker.Id}' is empty or duplicated.");
+            }
+
+            if (!mapIds.Contains(marker.MapId))
+            {
+                Fatal(
+                    issues,
+                    "map-marker.map.missing",
+                    $"Map marker '{marker.Id}' references missing map '{marker.MapId}'.");
+            }
+
+            if (!IsFinite(marker.Position) ||
+                marker.Outline.Any(point => !double.IsFinite(point.X) || !double.IsFinite(point.Z)) ||
+                marker.Top is { } top && !double.IsFinite(top) ||
+                marker.Bottom is { } bottom && !double.IsFinite(bottom))
+            {
+                Fatal(
+                    issues,
+                    "map-marker.geometry.invalid",
+                    $"Map marker '{marker.Id}' has invalid geometry.");
+            }
+        }
+    }
+
+    private static bool IsFinite(MapWorldPosition position) =>
+        double.IsFinite(position.X) &&
+        double.IsFinite(position.Y) &&
+        double.IsFinite(position.Z);
 
     private static void ValidateAmmo(
         IEnumerable<AmmoDefinition> ammunition,
