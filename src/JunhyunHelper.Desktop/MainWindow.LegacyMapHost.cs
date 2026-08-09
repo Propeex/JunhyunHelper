@@ -10,6 +10,8 @@ namespace JunhyunHelper.Desktop;
 /// </summary>
 public partial class MainWindow : TarkovHelper.MainWindow
 {
+    private const string MapSmokeEnvironmentVariable = "JUNHYUNHELPER_MAP_SMOKE";
+
     private TarkovHelper.Pages.Map.MapPage? _legacyMapPage;
     private LegacyMapProductAdapter? _legacyMapProductAdapter;
     private LegacyMapProductRuntime? _legacyMapProductRuntime;
@@ -26,6 +28,17 @@ public partial class MainWindow : TarkovHelper.MainWindow
 
         _legacyMapTabHooked = true;
         MapTabButton.Click += LegacyMapTabButton_Click;
+
+        // CI publishes a real Windows build and asks it to construct the lazy Map
+        // subsystem. This catches runtime XAML/FindName/adapter regressions that a
+        // plain process-liveness smoke cannot see. It is inert in normal launches.
+        if (string.Equals(
+                Environment.GetEnvironmentVariable(MapSmokeEnvironmentVariable),
+                "1",
+                StringComparison.Ordinal))
+        {
+            EnsureLegacyMapPage();
+        }
     }
 
     private void LegacyMapTabButton_Click(object sender, RoutedEventArgs e)
@@ -69,6 +82,14 @@ public partial class MainWindow : TarkovHelper.MainWindow
         }
         catch (Exception exception)
         {
+            if (string.Equals(
+                    Environment.GetEnvironmentVariable(MapSmokeEnvironmentVariable),
+                    "1",
+                    StringComparison.Ordinal))
+            {
+                throw;
+            }
+
             MessageBox.Show(
                 this,
                 $"기존 Tarkov Helper 지도 초기화에 실패했습니다.\n\n{exception.Message}",
