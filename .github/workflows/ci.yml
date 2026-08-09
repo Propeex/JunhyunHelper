@@ -55,8 +55,10 @@ jobs:
 
           Get-ChildItem artifacts/publish | Sort-Object Name | Select-Object Name,Length | Format-Table -AutoSize
 
-      - name: Startup smoke
+      - name: Startup + Map smoke
         shell: pwsh
+        env:
+          JUNHYUNHELPER_MAP_SMOKE: "1"
         run: |
           $exe = (Resolve-Path artifacts/publish/JunhyunHelper.exe).Path
           $process = Start-Process -FilePath $exe -WorkingDirectory artifacts/publish -PassThru
@@ -64,9 +66,9 @@ jobs:
             Start-Sleep -Seconds 12
             $process.Refresh()
             if ($process.HasExited) {
-              throw "Published JunhyunHelper exited during startup smoke with code $($process.ExitCode)."
+              throw "Published JunhyunHelper exited during Map startup smoke with code $($process.ExitCode)."
             }
-            Write-Host "Startup smoke passed: process remained alive for 12 seconds."
+            Write-Host "Startup + Map smoke passed: lazy Map product runtime constructed and process remained alive for 12 seconds."
           }
           finally {
             if (-not $process.HasExited) {
