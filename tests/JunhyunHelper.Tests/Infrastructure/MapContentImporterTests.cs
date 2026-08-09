@@ -55,6 +55,65 @@ public sealed class MapContentImporterTests
     }
 
     [Fact]
+    public void MapMarkerImporter_UsesBossSpawnKeysForSpecialAiAndImportsArtillery()
+    {
+        var source = Source(
+            """
+            {
+              "maps": {
+                "map-1": {
+                  "id": "map-1",
+                  "extracts": [],
+                  "transits": [],
+                  "bosses": [
+                    {
+                      "normalizedName": "rogue",
+                      "spawnLocations": [ { "spawnKey": "rogue-zone" } ]
+                    },
+                    {
+                      "normalizedName": "reshala",
+                      "spawnLocations": [ { "spawnKey": "boss-zone" } ]
+                    }
+                  ],
+                  "spawns": [
+                    { "id": "rogue-spawn", "zoneName": "rogue-zone", "categories": ["boss"], "sides": ["scav"], "position": { "x": 10, "y": 2, "z": 20 } },
+                    { "id": "boss-spawn", "zoneName": "boss-zone", "categories": ["boss"], "sides": ["scav"], "position": { "x": 30, "y": 3, "z": 40 } }
+                  ],
+                  "artillery": {
+                    "zones": [
+                      {
+                        "id": "mortar-zone",
+                        "position": { "x": 50, "y": 4, "z": 60 },
+                        "outline": [
+                          { "x": 45, "z": 55 },
+                          { "x": 55, "z": 55 },
+                          { "x": 55, "z": 65 }
+                        ]
+                      }
+                    ]
+                  },
+                  "hazards": [],
+                  "locks": [],
+                  "switches": [],
+                  "stationaryWeapons": [],
+                  "btrStops": [],
+                  "lootContainers": [],
+                  "lootLoose": []
+                }
+              }
+            }
+            """);
+
+        var markers = new TarkovMapMarkerImporter().Import(source, new TarkovLocalization());
+
+        Assert.Contains(markers, marker => marker.Kind == MapMarkerKind.SpecialAi && marker.Detail == "rogue-zone");
+        Assert.Contains(markers, marker => marker.Kind == MapMarkerKind.Boss && marker.Detail == "boss-zone");
+        var artillery = Assert.Single(markers, marker => marker.Detail == "artillery");
+        Assert.Equal(MapMarkerKind.Hazard, artillery.Kind);
+        Assert.Equal(3, artillery.Outline.Count);
+    }
+
+    [Fact]
     public void QuestObjectiveImporter_PreservesPossibleLocationsAndZones()
     {
         var source = Source(
