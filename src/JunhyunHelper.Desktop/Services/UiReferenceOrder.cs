@@ -88,6 +88,10 @@ internal static class UiReferenceOrder
         return normalizedKey is "factorynight" or "factory4night" || englishName == "factorynight";
     }
 
+    // Compatibility name used by the existing Quest filter projection. It now means
+    // "prefer the primary daytime/base variant as the group label", not only Ground Zero.
+    public static bool IsGroundZeroHighVariant(MapReference? map) => IsSecondaryMapVariant(map);
+
     private static string CanonicalMapName(MapReference? map)
     {
         if (map is null)
