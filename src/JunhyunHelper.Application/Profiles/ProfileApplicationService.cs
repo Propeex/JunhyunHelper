@@ -41,7 +41,7 @@ public sealed class ProfileApplicationService
             Level = level,
             Faction = faction,
             EditionId = NormalizeOptional(editionId),
-            PrestigeLevel = prestigeLevel,
+            PrestigeLevel = prestigeLevel ?? 0,
             Traders = CopyTraders(traders),
         };
 
@@ -69,7 +69,7 @@ public sealed class ProfileApplicationService
             Level = level,
             Faction = faction,
             EditionId = NormalizeOptional(editionId),
-            PrestigeLevel = prestigeLevel,
+            PrestigeLevel = prestigeLevel ?? 0,
             Traders = CopyTraders(traders),
         };
 
