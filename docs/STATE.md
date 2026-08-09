@@ -6,26 +6,41 @@
 
 **Phase 2B — 핵심 Desktop 흐름 구현 + 실사용 피드백 반복 개선**
 
-상태: `FIFTH USABILITY PASS MERGED / MAP PRODUCT DESIGN`
+상태: `MAP IMPLEMENTED / WINDOWS USER TESTING / MAP ASSET SELF-HEAL MERGED`
 
-5차에서 확인된 Ammo 즐겨찾기 이동 문제와 Item 용도 필터는 **PR #41로 main 병합 완료**되었습니다. Map은 실제 기능 구현 전에 장기 유지 가능한 데이터 공급원을 조사했으며, **동적 gameplay/location data source는 확보 가능**한 것으로 확인했습니다. 실제 Map UI와 지도 배경 artwork 선택은 제품 설계 단계입니다.
+Map 1차 기능은 구현되어 있으며 Windows 실사용 검증 중입니다. 최초 Map 빌드에서 발견된 시작/초기화/자산 복구 문제는 각각 후속 PR로 수정했습니다.
 
-상세:
-
-- `docs/FIFTH_USABILITY_PASS.md`
-- `docs/MAP_DATA_SOURCE_ANALYSIS.md`
-
-5차 검증 checkpoint:
+최근 Map 관련 병합:
 
 ```text
-PR #41: merged
-final CI: 31290434791
+PR #43 — Map 자동 업데이트 + SVG 라이선스 정책 확정
+PR #44 — Map 탭 / Quest marker / 위치 추적 / MiniMap 구현
+PR #45 — 대량 loot marker renderer build/persistence 복구
+PR #46 — 앱 시작 복구, Map lazy-load, startup diagnostics, self-contained folder package
+PR #47 — Map marker CheckBox 초기화 NRE 수정
+PR #48 — missing map-cache 자동 복구 + 지도별 부분 복구 + SVG source fallback
+```
+
+PR #48 검증:
+
+```text
+CI: 31296494454
 Release Desktop build: success
 full automated tests: success
-Windows x64 publish/package: success
-artifact upload: success
+Windows x64 self-contained publish: success
+ZIP creation/upload: success
 review threads: none
 ```
+
+상세 문서:
+
+- `docs/MAP_PRODUCT_DESIGN.md`
+- `docs/MAP_IMPLEMENTATION.md`
+- `docs/MAP_PERFORMANCE.md`
+- `docs/MAP_STARTUP_RECOVERY.md`
+- `docs/MAP_UI_INIT_FIX.md`
+- `docs/MAP_ASSET_RECOVERY.md`
+- `docs/MAP_DATA_SOURCE_ANALYSIS.md`
 
 ---
 
@@ -38,10 +53,9 @@ review threads: none
 → 다운로드
 → 외부 형식 검증
 → canonical model 변환
-→ candidate SQLite
+→ candidate SQLite / presentation candidate
 → 검증
-→ active content 교체
-→ icon 선다운로드
+→ active 교체
 → User Progress와 결합
 → 파생 결과 계산
 → Desktop 표시
@@ -52,16 +66,18 @@ review threads: none
 - Game Content와 `user.db` 분리
 - update 실패가 기존 정상 Game Content/User Progress를 손상시키지 않음
 - runtime AI/GPT 없음
-- 유동 제출에서 실제 사용 Item처럼 프로그램이 알 수 없는 사실은 임의 추정하지 않음
-- Map도 가능한 한 패치 때 수동 좌표 갱신이 아니라 온라인 source → canonical 변환 구조를 사용
+- 유동 제출처럼 프로그램이 실제 사용 사실을 알 수 없는 경우 임의 추정하지 않음
+- Map도 수동 좌표 DB가 아니라 온라인 source → canonical 변환 구조를 사용
+- Map gameplay data와 Map artwork/layout은 분리하고 각각 안전하게 갱신/복구
 
 ---
 
-## 기술 / 저장
+## 기술 / 배포
 
 - .NET 10 / C# / WPF
 - SQLite
 - SkiaSharp image decode + PNG normalize
+- SharpVectors WPF SVG rendering
 - Core / Infrastructure / Application / Desktop
 
 기본 root:
@@ -78,30 +94,47 @@ content/<game-mode>/content.db
 content/<game-mode>/content.candidate.db
 content/<game-mode>/content.previous.db
 image-cache/
+map-cache/active/
+map-cache/candidate/
+map-cache/previous/
+map-settings.json
+map-markers.json
+map-bulk-marker-settings.json
 ammo-favorites.json
+logs/startup.log
 ```
 
-### Content schema
+### Windows test package
 
-현재 **v3**.
+Map에서 사용하는 WPF/SVG runtime dependency 안정성을 위해 현재 Windows 테스트 전달본은 **self-contained folder ZIP**입니다.
 
-v3에서 Ammo의 current Wiki Ballistics **표 등록 여부**를 Class 1~6 effectiveness와 별도 사실로 저장합니다.
+- ZIP 전체를 새 폴더에 압축 해제
+- 폴더 안 `JunhyunHelper.exe` 실행
+- EXE만 따로 복사해서 실행하지 않음
+- 별도 .NET 설치 불필요
 
-- v2 content snapshot → 온라인 source에서 자동 재구축
-- `user.db`는 유지
+CI는 publish 결과에 최소 다음 파일이 존재하는지 확인합니다.
 
-Map 실제 importer/schema는 아직 추가하지 않았습니다. Map source 설계 확정 뒤 필요하면 다음 content schema에서 추가합니다.
+```text
+JunhyunHelper.exe
+JunhyunHelper.dll
+SharpVectors.Converters.Wpf.dll
+SharpVectors.Rendering.Wpf.dll
+```
 
-### User Progress
+앱 시작/dispatcher 예외는 `%LocalAppData%/JunhyunHelper/logs/startup.log`에 기록합니다.
 
-기존 Profile / Quest / Hideout / Trader / Inventory에 더해 자동 inventory bookkeeping용 실제 소비 ledger를 additive JSON field로 저장합니다.
+---
 
-- Quest별 실제 자동 차감량
-- Hideout station + target level별 실제 자동 차감량
+## Content schema
 
-SQLite table schema는 그대로여서 기존 user.db와 하위 호환됩니다.
+현재 **v4**.
 
-Prestige legacy null은 제품상 **0**으로 정규화합니다.
+- v2: Item category metadata
+- v3: Wiki Ballistics membership와 effectiveness 분리
+- v4: dynamic Map marker + Quest objective world geometry
+
+이전 Game Content snapshot은 온라인 source에서 자동 재구축합니다. `user.db`는 유지합니다.
 
 ---
 
@@ -111,11 +144,10 @@ Prestige legacy null은 제품상 **0**으로 정규화합니다.
 - Profile dropdown 안 `새 프로필`
 - `프로필 수정` 안 삭제
 - Player level: `- / 값 / +`
-- Prestige: **기본 0**, 미입력 없음
-- Fence reputation: 상단 주요 진행값, 0.1 단위
+- Prestige: 기본 0, 미입력 없음
+- Fence reputation: 상단 주요 진행값
 - 핵심 Trader: 게임식 순서
-- 일반 상인 밖 Trader: `특별` Expander, 기본 접힘
-- 필요한 비-Fence standing만 `고급` 입력
+- 기타 Trader: `특별` Expander, 기본 접힘
 
 ---
 
@@ -128,15 +160,12 @@ Prestige legacy null은 제품상 **0**으로 정규화합니다.
 - 사용 불가
 - 완료
 
-끝까지 남은 Core `Indeterminate`는 Application 제품 경계에서 진행 중으로 보여주되 diagnostic reason은 보존합니다.
-
 상세 연결:
 
 - Quest Item → Item
 - prerequisite Quest → Quest
 - `위키`
-
-### 완료와 Inventory
+- Map Quest list/marker → Quest
 
 고정 제출 요구는 Quest 완료와 함께 tracked Inventory에서 자동 차감합니다.
 
@@ -145,23 +174,15 @@ Prestige legacy null은 제품상 **0**으로 정규화합니다.
 일반 요구 → 일반 우선, 부족하면 인레이드
 ```
 
-유동 제출 후보는 실제 어느 Item을 사용했는지 알 수 없으므로 자동 차감하지 않습니다.
+유동 제출 후보는 실제 어떤 Item을 사용했는지 알 수 없으므로 자동 차감하지 않습니다.
 
-완료 취소 시 소비 ledger가 있으면 복원 여부를 묻습니다.
+완료 취소 시 실제 자동 소비 ledger가 있으면 복원 여부를 묻습니다.
 
-- 예: 정확한 실제 차감량 복원 + ledger 제거
-- 아니오: 차감 유지 + ledger 유지
-- 취소: 완료 취소 중단
-
-ledger가 남은 상태에서 다시 완료해도 같은 재료를 중복 차감하지 않습니다.
-
-### Quest Map filter
+Quest Map filter:
 
 - Ground Zero / Ground Zero 21+ → `Ground Zero`
 - Factory day/night → `Factory`
-- canonical Map ID는 변경하지 않음
-
-일반 refresh에서는 scroll 위치를 보존하고, 사용자가 링크 이동을 명시적으로 요청했을 때만 목표 row로 이동합니다.
+- canonical Map ID는 보존
 
 ---
 
@@ -170,48 +191,38 @@ ledger가 남은 상태에서 다시 완료해도 같은 재료를 중복 차감
 - 미입력 = Lv.0
 - `- / 현재 level / +`
 - 다음 upgrade material card/list
-- material click → Item 상세
-- Item 상세 Hideout source click → 해당 facility
-
-업그레이드 시 고정 재료를 Inventory에서 자동 차감하며 Quest와 같은 인레이드/일반 우선순위를 사용합니다.
-
-rollback 시 복원 여부를 묻습니다. 복원하지 않은 ledger는 재업그레이드 중복 차감을 막기 위해 유지합니다.
+- material click → Item
+- Item Hideout source click → facility
+- upgrade 시 고정 재료 자동 차감
+- rollback 시 ledger 기반 정확한 복원 선택
 
 ---
 
 ## Needed Items / Item
 
-일반 row:
+목록:
 
 - 필요 · 인레이드
 - 필요 · 일반
 - 보유 · 인레이드
 - 보유 · 일반
 
-상세:
-
-- 인레이드 필요 N
-- 일반 필요 N
-- `− / 수량 / +`, +/- 즉시 저장
-- 직접 입력 저장
-- Quest / Hideout 필요 출처를 동일한 clickable block으로 표시
-
 필터:
 
 - 검색
 - Item 종류
-- **용도: 모든 용도 / 퀘스트용 / 은신처용**
-- 필요 상태: 필요 / 전체 / 정리 필요 / 충분 / 판단 보류
+- 용도: `모든 용도 / 퀘스트용 / 은신처용`
+- 필요 상태: `필요 / 전체 / 정리 필요 / 충분 / 판단 보류`
 
-Quest와 Hideout 모두에 필요한 Item은 양쪽 용도 필터 모두에서 표시합니다. flexible Quest candidate도 퀘스트용으로 취급합니다.
+Quest와 Hideout 모두에 필요한 Item은 양쪽 용도 필터에 표시합니다.
 
 유동 제출:
 
 - 별도 view
 - Quest별 group
-- group/candidate full-width + left aligned
-- 후보 Item click → Item
-- Quest click → Quest
+- full-width / left aligned
+- 후보 Item → Item
+- Quest → Quest
 - cleanup 보수적 보호
 
 ---
@@ -222,55 +233,23 @@ raw 성능: `json.tarkov.dev`
 
 Wiki Ballistics 보조 사실:
 
-1. 현재 비교 표 등록 여부
+1. 현재 비교 표 membership
 2. Armor Class 1~6의 0~6 effectiveness
 
-두 의미를 분리합니다. 등록된 Ammo는 effectiveness를 안전하게 매칭하지 못해 `?`가 되더라도 표에서 제거하지 않습니다.
+Wiki source가 healthy하면 현재 Wiki 등록 Ammo만 비교합니다. effectiveness 매칭 실패만으로 등록 Ammo를 제거하지 않습니다.
 
-Wiki source가 healthy하면 현재 Wiki 등록 Ammo만 비교합니다. source 장애/구조 이상이면 raw Ammo를 임시 표시하여 빈 표나 손상된 content를 만들지 않습니다.
+즐겨찾기:
 
-대표 caliber label:
-
-```text
-.308 Marlin Express
-9.3x64mm
-9x18mm Makarov
-.50 Action Express
-12.7x108mm
-.45 ACP
-.300 Blackout
-.338 Lapua Magnum
-.366 TKM
-12/70
-```
-
-### 즐겨찾기
-
-- 현재 caliber `☆/★ 즐겨찾기` toggle
-- `ammo-favorites.json` local persistence
-- 즐겨찾기 목록은 선택 상태를 가지는 ComboBox가 아니라 **shortcut popup**
-- 각 favorite caliber는 button/action이며 누를 때마다 해당 caliber로 이동
-- 일반 caliber에서 다른 값을 선택한 뒤에도 같은 favorite를 다시 누르면 정상 이동
-
-추가:
-
-- Ammo acquisition unlock Quest click → Quest
-- penetration → damage → name 고정 오름차순
+- 현재 caliber `☆/★ 즐겨찾기`
+- `ammo-favorites.json`
+- favorite list는 selection ComboBox가 아니라 shortcut popup
+- 같은 favorite를 언제든 다시 눌러 이동 가능
 
 ---
 
-## 이미지
+## 일반 이미지
 
 Game Content update 성공 후 제품에서 사용하는 icon을 선다운로드합니다.
-
-대상:
-
-- Quest 제출 Item 후보
-- Hideout material
-- Ammo Item
-- Hideout station
-
-동일 Item은 공통 `item-{id}` cache key를 사용합니다.
 
 ```text
 URL
@@ -286,60 +265,246 @@ URL
 
 ---
 
-## Map
+# Map
 
-현재 Map 탭 자체는 placeholder입니다. 실제 지도 기능은 아직 구현하지 않았습니다.
+## 제품 상태
 
-### 데이터 공급원 조사 결과
+`IMPLEMENTED / WINDOWS USER TESTING`
 
-동적 gameplay/location data의 우선 source:
+지도 탭은 앱 시작과 분리되어 있으며 **처음 지도 탭을 열 때 lazy-create**됩니다. Map/SharpVectors 초기화 실패가 발생해도 Quest/Hideout/Items/Ammo는 계속 사용할 수 있습니다.
 
-```text
-json.tarkov.dev/<game-mode>/maps
-```
+## 지도 화면
 
-현재 Tarkov.dev 공개 구현에서 확인되는 map data 범위에는 다음이 포함됩니다.
+- Map dropdown
+- multi-floor selector
+- wheel zoom
+- drag pan
+- 보기 초기화
+- 좌측: 선택한 실제 Map의 **현재 진행 중 Quest만**
+- Map marker checkboxes는 지도 화면 상단에서 즉시 접근 가능
+- attribution 상시 표시
 
-- spawn
-- extract
+Marker 범위:
+
+- PMC extract
+- Scav extract
+- shared extract
 - transit
-- boss / spawn location
+- PMC spawn
+- Scav spawn
+- sniper Scav
+- boss
+- special AI
+- hazard/artillery
 - lock
-- hazard
-- loot container / loose loot
 - switch
 - stationary weapon
-- artillery
 - BTR stop
+- loot container
+- loose loot
+- Quest
+- custom user marker
+- current player position
+- optional trail
 
-지도 표시용 좌표/레이아웃 metadata는 Tarkov.dev 공개 map configuration에서 다음을 얻을 수 있는 구조를 우선 검토합니다.
+Loot container / loose loot는 기본 OFF이며, 켜도 수천 개의 WPF Control을 만들지 않고 `DrawingContext` 기반 bulk layer로 렌더링합니다. MiniMap도 같은 대량 marker 전략을 사용합니다.
 
-- bounds
+## Quest 위치
+
+현재 task 데이터의 `possibleLocations` / `zones`를 canonical Quest objective world geometry로 변환합니다.
+
+- 정확한 위치/zone 있음 → Quest marker/outline 표시
+- 정확한 위치 없음 → 좌측 Quest 목록에는 표시하되 `정확한 위치 없음`
+- 가짜 좌표 생성 금지
+- 좌측 Quest 선택 → 해당 위치 focus
+- marker 선택 → Quest와 목표 표시
+- `퀘스트 탭에서 보기` → Quest 탭 이동
+
+## 사용자 marker
+
+- 빈 지도 우클릭 → 추가
+- 이름 변경
+- 색상 변경
+- 삭제
+- floor ID 포함 저장
+- `map-markers.json`
+- Game Content/Map update와 독립, 업데이트로 삭제되지 않음
+
+## Screenshot 현재 위치
+
+EFT screenshot 파일명의 좌표/Quaternion을 사용합니다. 이미지 픽셀 OCR은 사용하지 않습니다.
+
+```text
+PrintScreen
+→ screenshot folder FileSystemWatcher
+→ filename X/Y/Z + quaternion parse
+→ world position + heading
+→ Map coordinate transform
+→ current player marker
+```
+
+- screenshot path 직접 선택
+- 자동 찾기
+- 위치에 따른 floor 자동 전환
+- floor 판정은 Y 높이뿐 아니라 metadata가 제공하는 X/Z spatial bounds도 사용
+
+## Raid Map 자동 전환
+
+EFT game log의 알려진 Map alias를 감지해 Map/MiniMap을 자동 전환합니다.
+
+- known alias만 사용
+- unknown alias를 추측하지 않음
+
+## 이동 경로
+
+- `이동 경로` checkbox
+- 기본 OFF
+- screenshot 위치가 갱신될 때 path 추가
+- `경로 지우기`
+
+## MiniMap
+
+별도 always-on-top window.
+
+- Map의 mini version
+- player 위치 갱신 시 player-centered follow
+- zoom 가능
+- 현재 floor/map/marker/filter 상태와 연동
+- Map 탭 버튼으로 ON/OFF
+
+---
+
+## Map 데이터 원천
+
+### gameplay / Quest geometry
+
+- `json.tarkov.dev/<game-mode>/maps`
+- task `possibleLocations`
+- task `zones`
+
+### layout metadata
+
+Tarkov.dev 공개 `src/data/maps.json`:
+
 - transform
 - coordinate rotation
+- bounds / svgBounds
 - zoom range
-- floor/layer + height range
-- SVG/tile asset reference
+- SVG layer
+- floor height/spatial extents
+- attribution
 
-Gameplay data와 visual layout을 분리해 canonical model로 변환하는 방향입니다.
+### artwork
 
-### 지도 artwork
+`the-hideout/tarkov-dev-svg-maps`
 
-`the-hideout/tarkov-dev-svg-maps`는 layered SVG map source를 공개하고 있으나 license가 **CC BY-NC-SA 4.0**입니다.
+- CC BY-NC-SA 4.0
+- 비상업적 준현 헬퍼에서 사용하기로 사용자 확정
+- attribution 표시
+- cheat/radar/ESP 용도 금지 조건 준수
 
-따라서 attribution / non-commercial / share-alike 의무가 있고 radar·ESP·cheat client·pixel-bot 같은 부정행위 소프트웨어 사용을 명시적으로 금지합니다.
+---
 
-동적 데이터 공급원은 확보 가능하다고 판단하지만, 실제 배경 artwork로 이 자산을 사용할지는 사용자 제품 판단 후 확정합니다. Tarkov.dev site code의 MIT license를 map artwork에 확대 적용하지 않습니다.
+## Map asset update / recovery
 
-상세: `docs/MAP_DATA_SOURCE_ANALYSIS.md`
+Map gameplay facts와 Map presentation assets를 분리합니다.
+
+```text
+Game Content update
+→ canonical Map gameplay/Quest geometry 갱신
+→ Map layout/SVG candidate 갱신
+→ 검증
+→ active Map assets 교체
+```
+
+Map presentation asset은 `map-cache/active / candidate / previous` 구조입니다.
+
+### self-heal
+
+PR #48부터 지도 탭 진입 시 active Map asset을 검증합니다.
+
+```text
+active Map asset 정상
+→ 즉시 사용
+
+active Map asset 없음/손상
+→ 현재 active Game Content만 이용해 Map asset 자동 재다운로드
+→ 전체 Game Content를 다시 받을 필요 없음
+```
+
+빈 지도 패널에는 `지도 자산 다시 받기` 버튼이 있습니다.
+
+### SVG source fallback
+
+동일 공개 artwork에 대해 다음 source를 fallback으로 사용합니다.
+
+```text
+assets.tarkov.dev/maps/svg/<file>
+↕
+raw.githubusercontent.com/the-hideout/tarkov-dev-svg-maps/.../<file>
+```
+
+### 부분 실패
+
+한 Map 실패가 전체 Map candidate를 폐기하지 않습니다.
+
+- 새 Map SVG 성공 → 새 버전
+- 실패 + 이전 정상 Map 있음 → 그 Map만 이전 정상본 유지
+- 실패 + 이전본 없음 → 그 Map만 일시 제외
+- 하나 이상 정상 Map 확보 → 정상 Map들 활성화
+- 모든 Map 실패 → 기존 active 있으면 보존, 없으면 명시적 오류 + 재시도 UI
+
+Marker PNG도 실패 시 이전 icon을 재사용하고, 이전 icon도 없으면 기본 marker visual을 사용합니다.
+
+---
+
+## Map에서 최근 해결한 문제
+
+### 앱 실행 무반응
+
+원인 후보였던 Map/SharpVectors를 앱 startup에서 분리했습니다.
+
+- MapPage lazy-create
+- guarded `App.OnStartup`
+- startup/unhandled exception logging
+- self-contained folder package
+
+### Map 탭 최초 진입 NRE
+
+원인:
+
+```text
+XAML IsChecked=True
+→ InitializeComponent 도중 Checked 발생
+→ MarkerToggle_Changed
+→ RenderCurrentMap
+→ 뒤쪽 Canvas 미생성
+→ NullReferenceException
+```
+
+해결:
+
+- XAML marker CheckBox의 declarative `IsChecked` 제거
+- MapUserSettings를 초기 checkbox state의 authority로 사용
+- 초기 설정 적용 중 event re-entry 차단
+- XAML 회귀 테스트 추가
+
+### Map asset 없음
+
+원인:
+
+- valid v4 `content.db`가 있으면 missing map-cache만으로 content update가 재실행되지 않음
+- 한 SVG 실패가 Map candidate 전체를 폐기할 수 있었음
+
+해결: 위 `Map asset update / recovery`의 self-heal/partial recovery 적용.
 
 ---
 
 ## Scanner
 
-탭과 `준비 중` placeholder만 있습니다. 실제 기능은 제품 요구사항 확정 전까지 구현하지 않습니다.
+탭과 `준비 중` placeholder만 있습니다. 실제 기능은 별도 제품 요구사항 확정 전까지 구현하지 않습니다.
 
-Map artwork license의 cheating prohibition과 충돌하지 않도록 향후 Scanner는 정상적인 화면 인식 보조와 실시간 레이더/ESP 성격 기능을 명확히 구분해야 합니다.
+향후 Scanner는 정상적인 화면 인식 보조와 실시간 radar/ESP 성격 기능을 명확히 구분해야 하며, Map artwork license의 anti-cheat 조건을 위반하지 않아야 합니다.
 
 ---
 
@@ -348,14 +513,24 @@ Map artwork license의 cheating prohibition과 충돌하지 않도록 향후 Sca
 - 첫 실사용 피드백: merged
 - 2차: PR #36 merged
 - 3차: PR #37 merged
-- 4차: PR #39 merged / user testing
-- 5차: **PR #41 merged — Ammo favorite shortcut + Item 용도 filter 구현/검증 완료, Map source 분석 완료**
+- 4차: PR #39 merged
+- 5차: PR #41 merged
+- Map source/license: PR #43 merged
+- Map implementation: PR #44 merged
+- Map build recovery: PR #45 merged
+- Map startup recovery: PR #46 merged
+- Map initial CheckBox crash: PR #47 merged
+- Map missing asset self-heal: **PR #48 merged / Windows user verification next**
 
 ---
 
 ## 현재 다음 작업
 
-1. Map artwork로 CC BY-NC-SA SVG source 사용 여부를 제품 관점에서 결정
-2. Map 실제 사용자 흐름 / marker 범위 / 층 전환 / Quest 연동을 확정
-3. 확정 후 Map canonical importer + Desktop 구현 시작
-4. Scanner 실제 기능은 별도 제품 요구사항 정렬 후 진행
+1. PR #48 Windows 사용자 환경에서 `map-cache` 자동 복구 확인
+2. 실제 SVG 표시 / coordinate alignment 확인
+3. marker 위치·아이콘·filter 사용감 확인
+4. multi-floor 자동/수동 전환 확인
+5. 실제 EFT screenshot filename 위치/방향 검증
+6. EFT log raid Map auto-switch 검증
+7. MiniMap follow/zoom ergonomics 검증
+8. 발견된 실사용 문제를 Map 2차 개선으로 반영
