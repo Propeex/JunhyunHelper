@@ -46,7 +46,14 @@ public sealed class DesktopServices : IDisposable
             new TarkovEditionCatalogClient(_httpClient),
             effectivenessClient: new WikiBallisticsEffectivenessClient(_httpClient));
 
-        ContentUpdater = new TarkovContentUpdateService(buildService, Content);
+        ContentUpdater = new TarkovContentUpdateService(
+            buildService,
+            Content,
+            supplementalUpdater: async (content, cancellationToken) =>
+            {
+                var result = await MapAssets.UpdateAsync(content, cancellationToken: cancellationToken);
+                return result.Warnings;
+            });
         ProfileManagement = new ProfileApplicationService(Profiles);
         Quests = new QuestApplicationService(Profiles);
         Hideout = new HideoutApplicationService(Profiles);
