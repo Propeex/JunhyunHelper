@@ -34,14 +34,12 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
             return;
         }
 
-        var divider = new Border
+        stack.Children.Add(new Border
         {
             Height = 1,
             Background = Brush("BorderBrush", Brushes.DimGray),
             Margin = new Thickness(0, 8, 0, 14),
-        };
-        stack.Children.Add(divider);
-
+        });
         stack.Children.Add(new TextBlock
         {
             Text = "단축키",
@@ -66,7 +64,6 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
         AddRow(stack, OverlayMiniMapHotkeyAction.FloorDown, "아래층 전환");
         AddRow(stack, OverlayMiniMapHotkeyAction.SizeIncrease, "미니맵 크기 증가");
         AddRow(stack, OverlayMiniMapHotkeyAction.SizeDecrease, "미니맵 크기 감소");
-
         UpdateDisplays();
     }
 
@@ -75,7 +72,6 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
         var row = new Grid { Margin = new Thickness(0, 3, 0, 3) };
         row.ColumnDefinitions.Add(new ColumnDefinition());
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
         row.Children.Add(new TextBlock
         {
             Text = label,
@@ -158,8 +154,22 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
         _captureAction = null;
         GlobalKeyboardHookService.Instance.OverlayHotkeysSuppressed = false;
         if (save)
+        {
+            SyncLegacyHook();
             _overlay.SaveSettings();
+        }
         UpdateDisplays();
+    }
+
+    private void SyncLegacyHook()
+    {
+        var settings = _overlay.Settings;
+        var hook = GlobalKeyboardHookService.Instance;
+        hook.ZoomInKey = settings.ZoomInKey;
+        hook.ZoomOutKey = settings.ZoomOutKey;
+        hook.FloorUpKey = settings.FloorUpKey;
+        hook.FloorDownKey = settings.FloorDownKey;
+        hook.ResumeAutoFloorKey = 0;
     }
 
     private void Overlay_SettingsChanged(OverlayMiniMapSettings settings)
@@ -168,9 +178,18 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
             return;
 
         if (_page.Dispatcher.CheckAccess())
+        {
+            SyncLegacyHook();
             UpdateDisplays();
+        }
         else
-            _page.Dispatcher.BeginInvoke(UpdateDisplays);
+        {
+            _page.Dispatcher.BeginInvoke(() =>
+            {
+                SyncLegacyHook();
+                UpdateDisplays();
+            });
+        }
     }
 
     private void UpdateDisplays()
