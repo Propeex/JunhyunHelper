@@ -16,10 +16,13 @@ public sealed record MapAssetUpdateResult(
 
 public sealed class MapAssetCacheService
 {
-    private const int MaxSvgBytes = 32 * 1024 * 1024;
+    private const int MaxSvgBytes = 64 * 1024 * 1024;
     private const int MaxIconBytes = 2 * 1024 * 1024;
     private const string MarkerAssetBaseUrl =
         "https://raw.githubusercontent.com/the-hideout/tarkov-dev/refs/heads/main/public/maps/interactive/";
+    private const string SvgAssetPrefix = "https://assets.tarkov.dev/maps/svg/";
+    private const string SvgRepositoryPrefix =
+        "https://raw.githubusercontent.com/the-hideout/tarkov-dev-svg-maps/refs/heads/main/";
 
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
     private static readonly IReadOnlyDictionary<MapMarkerKind, string> MarkerIconFiles =
@@ -72,6 +75,8 @@ public sealed class MapAssetCacheService
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(content);
+
+        var previousLayouts = await TryLoadActiveLayoutsAsync(cancellationToken);
         ResetCandidate();
         Directory.CreateDirectory(CandidateDirectory);
 
@@ -79,8 +84,8 @@ public sealed class MapAssetCacheService
         {
             progress?.Report(new MapAssetUpdateProgress(0, 1, "지도 레이아웃 정보를 확인하는 중..."));
             var catalog = await _layoutClient.LoadAsync(content.Maps, cancellationToken);
-            var layouts = catalog.Layouts;
-            if (layouts.Count == 0)
+            var requestedLayouts = catalog.Layouts;
+            if (requestedLayouts.Count == 0)
                 throw new InvalidDataException("No usable Map layouts were returned.");
 
             var warnings = catalog.Warnings.ToList();
@@ -88,20 +93,49 @@ public sealed class MapAssetCacheService
                 .Concat(SupplementalIconFiles)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
-            var total = layouts.Count + iconFiles.Length;
+            var total = requestedLayouts.Count + iconFiles.Length;
             var completed = 0;
-            foreach (var layout in layouts)
+            var effectiveLayouts = new List<MapLayoutDefinition>();
+
+            foreach (var layout in requestedLayouts)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var filePath = GetRawSvgPath(CandidateDirectory, layout);
-                Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
-                await DownloadSvgAsync(layout.SvgUrl, filePath, cancellationToken);
+                var destination = GetRawSvgPath(CandidateDirectory, layout);
+                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+
+                try
+                {
+                    await DownloadSvgWithFallbackAsync(layout.SvgUrl, destination, cancellationToken);
+                    effectiveLayouts.Add(layout);
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException)
+                {
+                    if (File.Exists(destination))
+                        File.Delete(destination);
+
+                    if (TryReusePreviousLayout(layout, previousLayouts, destination, out var previousLayout))
+                    {
+                        effectiveLayouts.Add(previousLayout);
+                        warnings.Add(
+                            $"Map '{layout.NormalizedName}' could not be refreshed; previous validated asset was kept: {exception.Message}");
+                    }
+                    else
+                    {
+                        warnings.Add(
+                            $"Map '{layout.NormalizedName}' could not be downloaded and has no previous validated asset; this map is temporarily unavailable: {exception.Message}");
+                    }
+                }
+
                 completed++;
                 progress?.Report(new MapAssetUpdateProgress(
                     completed,
                     total,
                     $"지도 다운로드 중... {completed}/{total}"));
             }
+
+            if (effectiveLayouts.Count == 0)
+                throw new InvalidDataException(
+                    "지도 SVG를 하나도 준비하지 못했습니다. 네트워크 또는 지도 원천 상태를 확인해주세요.");
 
             foreach (var iconFile in iconFiles)
             {
@@ -116,8 +150,21 @@ public sealed class MapAssetCacheService
                 {
                     if (File.Exists(destination))
                         File.Delete(destination);
-                    warnings.Add($"Map marker icon '{iconFile}' could not be refreshed; fallback marker will be used: {exception.Message}");
+
+                    var previousIcon = GetIconPath(ActiveDirectory, iconFile);
+                    if (File.Exists(previousIcon))
+                    {
+                        File.Copy(previousIcon, destination, overwrite: true);
+                        warnings.Add(
+                            $"Map marker icon '{iconFile}' could not be refreshed; previous icon was kept: {exception.Message}");
+                    }
+                    else
+                    {
+                        warnings.Add(
+                            $"Map marker icon '{iconFile}' could not be refreshed; fallback marker will be used: {exception.Message}");
+                    }
                 }
+
                 completed++;
                 progress?.Report(new MapAssetUpdateProgress(
                     completed,
@@ -125,13 +172,16 @@ public sealed class MapAssetCacheService
                     $"지도 마커 아이콘 다운로드 중... {completed}/{total}"));
             }
 
+            var finalLayouts = effectiveLayouts
+                .DistinctBy(layout => (layout.MapId, layout.Key))
+                .ToArray();
             await File.WriteAllTextAsync(
                 Path.Combine(CandidateDirectory, "layouts.json"),
-                JsonSerializer.Serialize(layouts, JsonOptions),
+                JsonSerializer.Serialize(finalLayouts, JsonOptions),
                 cancellationToken);
-            await ValidateDirectoryAsync(CandidateDirectory, layouts, cancellationToken);
+            await ValidateDirectoryAsync(CandidateDirectory, finalLayouts, cancellationToken);
             ActivateCandidate();
-            return new MapAssetUpdateResult(true, layouts, warnings.ToArray());
+            return new MapAssetUpdateResult(true, finalLayouts, warnings.ToArray());
         }
         catch
         {
@@ -152,6 +202,18 @@ public sealed class MapAssetCacheService
                       ?? Array.Empty<MapLayoutDefinition>();
         await ValidateDirectoryAsync(ActiveDirectory, layouts, cancellationToken);
         return layouts;
+    }
+
+    public async Task<bool> HasUsableActiveAssetsAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return (await LoadActiveAsync(cancellationToken)).Count > 0;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            return false;
+        }
     }
 
     public string? GetMarkerIconPath(MapMarkerKind kind) =>
@@ -218,7 +280,103 @@ public sealed class MapAssetCacheService
         }
     }
 
-    private async Task DownloadSvgAsync(
+    private async Task<IReadOnlyList<MapLayoutDefinition>> TryLoadActiveLayoutsAsync(
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await LoadActiveAsync(cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            return Array.Empty<MapLayoutDefinition>();
+        }
+    }
+
+    private bool TryReusePreviousLayout(
+        MapLayoutDefinition requestedLayout,
+        IReadOnlyList<MapLayoutDefinition> previousLayouts,
+        string destination,
+        out MapLayoutDefinition previousLayout)
+    {
+        previousLayout = previousLayouts.FirstOrDefault(layout =>
+                             string.Equals(layout.MapId, requestedLayout.MapId, StringComparison.Ordinal) &&
+                             string.Equals(layout.Key, requestedLayout.Key, StringComparison.Ordinal))
+                         ?? previousLayouts.FirstOrDefault(layout =>
+                             string.Equals(layout.MapId, requestedLayout.MapId, StringComparison.Ordinal) &&
+                             string.Equals(layout.NormalizedName, requestedLayout.NormalizedName, StringComparison.OrdinalIgnoreCase))!;
+
+        if (previousLayout is null)
+            return false;
+
+        var previousPath = GetRawSvgPath(ActiveDirectory, previousLayout);
+        if (!File.Exists(previousPath))
+            return false;
+
+        try
+        {
+            ValidateSvg(previousPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            File.Copy(previousPath, destination, overwrite: true);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private async Task DownloadSvgWithFallbackAsync(
+        string configuredUrl,
+        string destination,
+        CancellationToken cancellationToken)
+    {
+        var candidates = BuildSvgSourceCandidates(configuredUrl).ToArray();
+        Exception? lastException = null;
+
+        foreach (var url in candidates)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                await DownloadSvgCoreAsync(url, destination, cancellationToken);
+                return;
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                lastException = exception;
+                if (File.Exists(destination))
+                    File.Delete(destination);
+            }
+        }
+
+        throw new InvalidDataException(
+            $"Map SVG download failed from {candidates.Length} source(s): {string.Join(" | ", candidates)}",
+            lastException);
+    }
+
+    private static IEnumerable<string> BuildSvgSourceCandidates(string configuredUrl)
+    {
+        if (configuredUrl.StartsWith(SvgRepositoryPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var relative = configuredUrl[SvgRepositoryPrefix.Length..];
+            yield return SvgAssetPrefix + relative;
+            yield return configuredUrl;
+            yield break;
+        }
+
+        if (configuredUrl.StartsWith(SvgAssetPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var relative = configuredUrl[SvgAssetPrefix.Length..];
+            yield return configuredUrl;
+            yield return SvgRepositoryPrefix + relative;
+            yield break;
+        }
+
+        yield return configuredUrl;
+    }
+
+    private async Task DownloadSvgCoreAsync(
         string url,
         string destination,
         CancellationToken cancellationToken)

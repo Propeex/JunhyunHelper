@@ -3,11 +3,13 @@ using System.Windows.Controls;
 using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.Profiles;
 using JunhyunHelper.Desktop.Map;
+using JunhyunHelper.Desktop.Services;
 
 namespace JunhyunHelper.Desktop;
 
 public partial class MainWindow
 {
+    private readonly SemaphoreSlim _mapAssetEnsureGate = new(1, 1);
     private bool _mapIntegrationInitialized;
     private MapPage? _mapPage;
 
@@ -38,9 +40,11 @@ public partial class MainWindow
         if (_mapPage is not null)
         {
             _mapPage.QuestNavigationRequested -= MapPage_QuestNavigationRequested;
+            _mapPage.MapAssetRetryRequested -= MapPage_MapAssetRetryRequested;
             _mapPage.Dispose();
         }
 
+        _mapAssetEnsureGate.Dispose();
         base.OnClosed(e);
     }
 
@@ -54,6 +58,7 @@ public partial class MainWindow
             var page = new MapPage();
             page.SetServices(_services.MapAssets, _services.MapUserData);
             page.QuestNavigationRequested += MapPage_QuestNavigationRequested;
+            page.MapAssetRetryRequested += MapPage_MapAssetRetryRequested;
             MapPageHost.Children.Clear();
             MapPageHost.Children.Add(page);
             _mapPage = page;
@@ -114,7 +119,7 @@ public partial class MainWindow
         });
     }
 
-    private async Task RefreshMapPageFromActiveProfileAsync()
+    private async Task RefreshMapPageFromActiveProfileAsync(bool forceMapAssetRefresh = false)
     {
         if (_activeProfile is null || _activeContent is null)
             return;
@@ -125,6 +130,8 @@ public partial class MainWindow
 
         try
         {
+            await EnsureMapAssetsReadyAsync(page, _activeContent, forceMapAssetRefresh);
+
             var workspace = await _services.Quests.LoadAsync(
                 _activeContent,
                 _activeProfile.ProfileId);
@@ -133,8 +140,80 @@ public partial class MainWindow
         catch (Exception exception)
         {
             App.WriteDiagnostic("Map data load failed", exception);
+            page.SetAssetRecoveryState(
+                $"지도를 불러오지 못했습니다.\n{exception.Message}",
+                retryEnabled: true);
             StatusText.Text = $"지도를 불러오지 못했습니다 · {exception.Message}";
         }
+    }
+
+    private async Task<bool> EnsureMapAssetsReadyAsync(
+        MapPage page,
+        GameContentCatalog content,
+        bool forceRefresh)
+    {
+        await _mapAssetEnsureGate.WaitAsync();
+        try
+        {
+            if (!forceRefresh && await _services.MapAssets.HasUsableActiveAssetsAsync())
+            {
+                page.SetAssetRecoveryState(null, retryEnabled: true);
+                return true;
+            }
+
+            page.SetBusy(true);
+            page.SetAssetRecoveryState("지도 레이아웃과 SVG를 내려받는 중입니다...", retryEnabled: false);
+            StatusText.Text = "지도 자산을 준비하는 중...";
+
+            var progress = new Progress<MapAssetUpdateProgress>(value =>
+            {
+                StatusText.Text = value.Message;
+                page.SetAssetRecoveryState(value.Message, retryEnabled: false);
+            });
+
+            try
+            {
+                var result = await _services.MapAssets.UpdateAsync(content, progress);
+                page.SetAssetRecoveryState(null, retryEnabled: true);
+                StatusText.Text = result.Warnings.Count == 0
+                    ? $"지도 {result.Layouts.Count}개 준비 완료"
+                    : $"지도 {result.Layouts.Count}개 준비 완료 · 일부 자산은 이전본/기본 표시 사용";
+                return result.Layouts.Count > 0;
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                App.WriteDiagnostic("Map asset automatic recovery failed", exception);
+
+                var hasPrevious = await _services.MapAssets.HasUsableActiveAssetsAsync();
+                if (hasPrevious)
+                {
+                    page.SetAssetRecoveryState(
+                        "최신 지도 자산을 다시 받지 못했지만 기존 정상 지도를 유지했습니다.",
+                        retryEnabled: true);
+                    StatusText.Text = "지도 업데이트 실패 · 기존 정상 지도 유지";
+                    return true;
+                }
+
+                page.SetAssetRecoveryState(
+                    $"지도 자산을 내려받지 못했습니다.\n{exception.Message}\n\n아래 버튼으로 지도만 다시 받을 수 있습니다.",
+                    retryEnabled: true);
+                StatusText.Text = "지도 자산 다운로드 실패";
+                return false;
+            }
+            finally
+            {
+                page.SetBusy(false);
+            }
+        }
+        finally
+        {
+            _mapAssetEnsureGate.Release();
+        }
+    }
+
+    private async void MapPage_MapAssetRetryRequested(object? sender, EventArgs e)
+    {
+        await RefreshMapPageFromActiveProfileAsync(forceMapAssetRefresh: true);
     }
 
     private void MapPage_QuestNavigationRequested(object? sender, MapQuestNavigationRequestedEventArgs e)
