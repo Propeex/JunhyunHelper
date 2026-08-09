@@ -11,11 +11,11 @@ public enum QuestItemObjectiveKind
 }
 
 /// <summary>
-/// Quest-only world geometry used by the Map subsystem.
-/// This deliberately lives in Quests rather than a JunhyunHelper Map domain so that
-/// Map stays independent except for the explicitly allowed Quest projection boundary.
+/// Quest-only world geometry used by the Map subsystem. Y is nullable because some
+/// external location records define X/Z without a reliable height. Unknown height
+/// must not be guessed as zero and accidentally assigned to the wrong floor.
 /// </summary>
-public sealed record QuestWorldPosition(double X, double Y, double Z);
+public sealed record QuestWorldPosition(double X, double? Y, double Z);
 
 public sealed record QuestOutlinePoint(double X, double Z);
 
