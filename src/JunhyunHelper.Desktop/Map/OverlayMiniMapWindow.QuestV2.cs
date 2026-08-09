@@ -91,7 +91,7 @@ public partial class OverlayMiniMapWindow
             layer.Children.Clear();
             foreach (var marker in visible)
             {
-                var visual = JunhyunQuestMarkerVisualFactoryV2.Create(marker);
+                var visual = JunhyunQuestMarkerVisualFactoryV3.Create(marker);
                 Canvas.SetLeft(visual, marker.X);
                 Canvas.SetTop(visual, marker.Y);
                 layer.Children.Add(visual);
