@@ -47,8 +47,8 @@ public sealed class MapContentImporterTests
         Assert.Collection(
             markers.OrderBy(marker => marker.Id, StringComparer.Ordinal),
             marker => Assert.Equal(MapMarkerKind.PmcExtract, marker.Kind),
-            marker => Assert.Equal(MapMarkerKind.PmcSpawn, marker.Kind),
             marker => Assert.Equal(MapMarkerKind.ScavExtract, marker.Kind),
+            marker => Assert.Equal(MapMarkerKind.PmcSpawn, marker.Kind),
             marker => Assert.Equal(MapMarkerKind.SniperScav, marker.Kind),
             marker => Assert.Equal(MapMarkerKind.Transit, marker.Kind));
         Assert.All(markers, marker => Assert.Equal("map-1", marker.MapId));
@@ -109,8 +109,8 @@ public sealed class MapContentImporterTests
         var zone = Assert.Single(objective.MapLocations.Where(location => location.Kind == QuestMapLocationKind.Zone));
         Assert.Equal(new MapWorldPosition(120, 9, 220), zone.Position);
         Assert.Equal(3, zone.Outline.Count);
-        Assert.Equal(12, zone.Top);
-        Assert.Equal(5, zone.Bottom);
+        Assert.Equal(12d, zone.Top.GetValueOrDefault());
+        Assert.Equal(5d, zone.Bottom.GetValueOrDefault());
     }
 
     private static TarkovJsonDocument Source(string dataJson)
