@@ -168,7 +168,7 @@ public sealed class TarkovQuestObjectiveImporter
 
     private static bool TryReadPosition(JsonElement entity, out QuestWorldPosition position)
     {
-        position = new QuestWorldPosition(0, 0, 0);
+        position = new QuestWorldPosition(0, null, 0);
         var value = entity;
         if (entity.ValueKind == JsonValueKind.Object &&
             entity.TryGetProperty("position", out var nested) &&
@@ -180,7 +180,7 @@ public sealed class TarkovQuestObjectiveImporter
         if (!TryReadDouble(value, "x", out var x) || !TryReadDouble(value, "z", out var z))
             return false;
 
-        _ = TryReadDouble(value, "y", out var y);
+        var y = ReadNullableDouble(value, "y");
         position = new QuestWorldPosition(x, y, z);
         return true;
     }
