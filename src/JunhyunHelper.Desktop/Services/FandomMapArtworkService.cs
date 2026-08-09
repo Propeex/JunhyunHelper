@@ -489,8 +489,10 @@ public sealed class FandomMapArtworkService
 
         transform = bestTransform;
         inliers = finalInliers;
-        residual = RootMeanSquare(transform, finalInliers);
-        maxError = finalInliers.Count == 0 ? double.PositiveInfinity : finalInliers.Max(pair => Error(transform, pair));
+        residual = RootMeanSquare(bestTransform, finalInliers);
+        maxError = finalInliers.Count == 0
+            ? double.PositiveInfinity
+            : finalInliers.Max(pair => Error(bestTransform, pair));
         return double.IsFinite(residual) && double.IsFinite(maxError);
     }
 
