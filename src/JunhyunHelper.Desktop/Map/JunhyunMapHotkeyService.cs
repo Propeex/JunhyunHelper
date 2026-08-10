@@ -90,8 +90,11 @@ public sealed class JunhyunMapHotkeyService : IDisposable
             return CallNextHookEx(_hook, code, wParam, lParam);
         }
 
-        var overlaySettings = OverlayMiniMapService.Instance.Settings;
-        var action = overlaySettings.GetActionForHotkey(virtualKey);
+        // Resolve against the JunhyunHelper-owned persisted values directly. The legacy
+        // overlay settings object is only the fallback for users who have never saved a
+        // product value. This prevents late legacy initialization from making floor keys
+        // appear configured in the UI while the runtime dispatcher reads another value.
+        var action = GetProductActionForHotkey(virtualKey);
         if (action is null)
             return CallNextHookEx(_hook, code, wParam, lParam);
 
@@ -103,6 +106,23 @@ public sealed class JunhyunMapHotkeyService : IDisposable
         return CallNextHookEx(_hook, code, wParam, lParam);
     }
 
+    private static OverlayMiniMapHotkeyAction? GetProductActionForHotkey(int virtualKey)
+    {
+        if (virtualKey == 0)
+            return null;
+
+        var overlaySettings = OverlayMiniMapService.Instance.Settings;
+        var productSettings = JunhyunMapProductSettingsStore.Instance;
+        foreach (var action in Enum.GetValues<OverlayMiniMapHotkeyAction>())
+        {
+            var configuredKey = productSettings.GetHotkey(action, overlaySettings.GetHotkey(action));
+            if (configuredKey == virtualKey)
+                return action;
+        }
+
+        return null;
+    }
+
     private void Execute(OverlayMiniMapHotkeyAction action)
     {
         switch (action)
@@ -112,15 +132,19 @@ public sealed class JunhyunMapHotkeyService : IDisposable
                 break;
             case OverlayMiniMapHotkeyAction.ZoomIn:
                 _page.JunhyunZoomIn();
+                JunhyunMiniMapProductRegistry.ZoomIn();
                 break;
             case OverlayMiniMapHotkeyAction.ZoomOut:
                 _page.JunhyunZoomOut();
+                JunhyunMiniMapProductRegistry.ZoomOut();
                 break;
             case OverlayMiniMapHotkeyAction.FloorUp:
                 _page.JunhyunFloorUp();
+                JunhyunMiniMapProductRegistry.MoveFloorUp();
                 break;
             case OverlayMiniMapHotkeyAction.FloorDown:
                 _page.JunhyunFloorDown();
+                JunhyunMiniMapProductRegistry.MoveFloorDown();
                 break;
             case OverlayMiniMapHotkeyAction.SizeIncrease:
                 if (OverlayMiniMapService.Instance.IsOverlayVisible)
