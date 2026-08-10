@@ -2,7 +2,22 @@
 
 Release date: **2026-08-10**
 
-Status: **RELEASED**
+Status: **RELEASED / PUBLIC GITHUB RELEASE VERIFIED**
+
+## 공개 다운로드
+
+GitHub Release:
+
+https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.0
+
+Windows x64 asset:
+
+```text
+Junhyun-Helper-v0.1.0-win-x64.zip
+SHA-256: f3c1a4208fc70b7ec7fb6612933de9d383e4c54e84a7352f529dc7de21550f91
+```
+
+Release에는 공개 Windows ZIP과 `SHA256SUMS.txt` 두 asset만 게시합니다. Release는 draft/prerelease가 아닌 정식 공개 상태입니다.
 
 ## 배포 대상
 
@@ -71,7 +86,7 @@ Runtime Logs folder beside EXE        0
 Legacy forbidden dependencies         0
 ```
 
-## 최종 배포물
+## 검증된 CI 원본 artifact
 
 GitHub Actions artifact:
 
@@ -82,7 +97,9 @@ SHA-256: 6db752972b3b52d9e6239c746bb910904a91d364c2410062f4c1635ac61efcaa
 entries: 32
 ```
 
-ZIP 내부 확인:
+공개 GitHub Release ZIP은 위 검증 완료 artifact의 내용을 안정적인 공개 파일명으로 다시 패키징한 것입니다. 따라서 ZIP 컨테이너 SHA-256은 다르지만 내부 제품 구조는 동일합니다.
+
+ZIP 내부 기준:
 
 ```text
 root entries: 준현 헬퍼.exe / FIRST_RUN_KO.txt / Assets
@@ -91,6 +108,10 @@ PDB: 0
 nested ZIP: 0
 Logs: 0
 ```
+
+실제 GitHub Release 검증 기록:
+
+`docs/GITHUB_RELEASE_0.1.0.md`
 
 ## 사용자 데이터
 
@@ -110,6 +131,6 @@ Logs: 0
 - installer
 - application auto-updater
 - user.db 자동 backup/restore UX
-- 본격 공개 재배포 시 repository license / third-party notice 정책 확정
+- 공개 재배포 정책에 맞춘 repository license / third-party notice 정리
 
 위 항목은 v0.1.0의 기능/패키징 blocker로 판정하지 않았습니다.
