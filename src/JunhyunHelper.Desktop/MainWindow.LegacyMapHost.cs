@@ -249,6 +249,30 @@ public partial class MainWindow : TarkovHelper.MainWindow
         if (mapContainer.Children.OfType<System.Windows.Shapes.Path>().Any())
             throw new InvalidOperationException("MiniMap legacy bottom-right resize grip is still present.");
 
+        if (window.FindName("MapMarkersContainer") is not Canvas markerContainer)
+            throw new InvalidOperationException("MiniMap marker container was not found.");
+
+        // Verify the product marker-size path changes the actual live marker transform,
+        // not only a saved numeric setting. The synthetic marker avoids depending on
+        // external marker DB timing/content.
+        var persistedMarkerScale = JunhyunMapProductSettingsStore.Instance.MiniMapMarkerScale;
+        var markerProbe = new Canvas();
+        markerContainer.Children.Add(markerProbe);
+        window.ApplyJunhyunMarkerScale(1.0);
+        if (markerProbe.RenderTransform is not System.Windows.Media.ScaleTransform fullTransform)
+            throw new InvalidOperationException("MiniMap marker scale did not apply to a live marker.");
+        var fullScale = fullTransform.ScaleX;
+
+        window.ApplyJunhyunMarkerScale(0.5);
+        if (markerProbe.RenderTransform is not System.Windows.Media.ScaleTransform halfTransform ||
+            !(halfTransform.ScaleX < fullScale * 0.75))
+        {
+            throw new InvalidOperationException("MiniMap marker scale did not shrink live markers.");
+        }
+
+        markerContainer.Children.Remove(markerProbe);
+        window.ApplyJunhyunMarkerScale(persistedMarkerScale);
+
         var legacyHook = TarkovHelper.Services.GlobalKeyboardHookService.Instance;
         await WaitForAsync(
             () => legacyHook.ZoomInKey == 0 &&
