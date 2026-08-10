@@ -161,7 +161,9 @@ jobs:
           gh release view $tag --repo '${{ github.repository }}' *> $null
           if ($LASTEXITCODE -eq 0) {
             gh release upload $tag '준현-헬퍼-v0.1.0-win-x64.zip' 'SHA256SUMS.txt' --clobber --repo '${{ github.repository }}'
+            if ($LASTEXITCODE -ne 0) { throw 'Failed to upload release assets.' }
             gh release edit $tag --title '준현 헬퍼 v0.1.0' --notes-file 'release-notes.md' --repo '${{ github.repository }}'
+            if ($LASTEXITCODE -ne 0) { throw 'Failed to update GitHub Release metadata.' }
           }
           else {
             gh release create $tag '준현-헬퍼-v0.1.0-win-x64.zip' 'SHA256SUMS.txt' `
@@ -169,4 +171,52 @@ jobs:
               --title '준현 헬퍼 v0.1.0' `
               --notes-file 'release-notes.md' `
               --repo '${{ github.repository }}'
+            if ($LASTEXITCODE -ne 0) { throw 'Failed to create GitHub Release.' }
           }
+
+      - name: Verify public release and record result
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = 'v0.1.0'
+          $releaseJson = gh release view $tag --repo '${{ github.repository }}' --json url,isDraft,isPrerelease,tagName,name,assets,publishedAt
+          if ($LASTEXITCODE -ne 0) { throw 'Could not read the published GitHub Release.' }
+          $release = $releaseJson | ConvertFrom-Json
+          if ($release.isDraft) { throw 'GitHub Release is still a draft.' }
+          if ($release.isPrerelease) { throw 'GitHub Release was unexpectedly marked as a prerelease.' }
+          if ($release.tagName -ne $tag) { throw "Unexpected release tag: $($release.tagName)" }
+
+          $assetNames = @($release.assets | ForEach-Object { $_.name })
+          foreach ($requiredAsset in @('준현-헬퍼-v0.1.0-win-x64.zip', 'SHA256SUMS.txt')) {
+            if ($requiredAsset -notin $assetNames) {
+              throw "Published release is missing asset: $requiredAsset"
+            }
+          }
+
+          $hash = ((Get-Content 'SHA256SUMS.txt' -Raw).Trim() -split '\s+')[0]
+          $record = @"
+          # GitHub Release — 준현 헬퍼 v0.1.0
+
+          Status: PUBLISHED / VERIFIED
+
+          - Tag: ``$($release.tagName)``
+          - Name: $($release.name)
+          - Published: $($release.publishedAt)
+          - Release URL: $($release.url)
+          - Windows asset: ``준현-헬퍼-v0.1.0-win-x64.zip``
+          - SHA-256: ``$hash``
+          - Draft: $($release.isDraft)
+          - Prerelease: $($release.isPrerelease)
+
+          This record is written only after GitHub reports the public release and both required assets as present.
+          "@
+          $record | Set-Content -Path 'docs/GITHUB_RELEASE_0.1.0.md' -Encoding utf8
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/GITHUB_RELEASE_0.1.0.md
+          git commit -m 'Record published GitHub v0.1.0 release'
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to commit GitHub Release verification record.' }
+          git push origin HEAD:main
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to push GitHub Release verification record.' }
