@@ -17,6 +17,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
     private readonly JunhyunMapHotkeyService _hotkeys;
     private readonly LegacyQuestPresentationSettingsBridge _questSettingsBridge;
     private readonly LegacyMapHotkeySettingsBridge _hotkeySettingsBridge;
+    private readonly LegacyMiniMapOpacitySettingsBridge _miniMapOpacitySettingsBridge;
     private readonly LegacyMapMarkerSettingsV2Bridge _markerSettingsBridge;
     private readonly LegacyMapInteractionPolicyBridge _interactionPolicyBridge;
     private readonly LegacyQuestMarkerRenderV3 _questMarkerRenderer;
@@ -36,6 +37,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
         _ = new LegacyExtractSettingsMergeBridge(page);
         _questSettingsBridge = new LegacyQuestPresentationSettingsBridge(page, refreshQuestProjection);
         _hotkeySettingsBridge = new LegacyMapHotkeySettingsBridge(page);
+        _miniMapOpacitySettingsBridge = new LegacyMiniMapOpacitySettingsBridge(page);
         _markerSettingsBridge = new LegacyMapMarkerSettingsV2Bridge(page);
         _interactionPolicyBridge = new LegacyMapInteractionPolicyBridge(page);
         _questMarkerRenderer = new LegacyQuestMarkerRenderV3(page);
@@ -55,8 +57,6 @@ public sealed class LegacyMapProductRuntime : IDisposable
             _playerMarkerSlider.ValueChanged += PlayerMarkerSlider_ValueChanged;
         }
 
-        // Separate MiniMap settings UI is intentionally absent. The user-facing
-        // controls that remain configurable live in the Main Map Settings panel.
         _overlay.SettingsChanged += Overlay_SettingsChanged;
         _page.Loaded += Page_Loaded;
     }
@@ -130,6 +130,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
         _questMarkerRenderer.Dispose();
         _interactionPolicyBridge.Dispose();
         _markerSettingsBridge.Dispose();
+        _miniMapOpacitySettingsBridge.Dispose();
         _hotkeySettingsBridge.Dispose();
         _questSettingsBridge.Dispose();
         _hotkeys.Dispose();
