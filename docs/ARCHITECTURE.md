@@ -4,7 +4,7 @@
 
 ## 현재 상태
 
-`CONFIRMED — Phase 2B desktop/core architecture implemented, usability iteration ongoing`
+`CONFIRMED — v0.1.0 release candidate architecture`
 
 기술 스택:
 
@@ -13,6 +13,7 @@
 - WPF Desktop (`net10.0-windows`)
 - SQLite (`Microsoft.Data.Sqlite`)
 - SkiaSharp — external image decode / PNG normalize
+- SharpVectors — SVG Map rendering
 - 별도 backend 없음
 - runtime AI/GPT 없음
 
@@ -59,11 +60,12 @@ json.tarkov.dev / approved supplemental sources
 %LocalAppData%/JunhyunHelper/content/<game-mode>/content.previous.db
 ```
 
-현재 Content snapshot schema: **v3**.
+현재 Content snapshot schema: **v4**.
 
 - v1: 초기 canonical snapshot
 - v2: Item category metadata
 - v3: `AmmoDefinition.IsWikiBallisticsListed` 추가
+- v4: Quest `possibleLocations` / `zones` geometry를 canonical content에 저장
 
 v3에서 Wiki Ballistics의 두 의미를 분리합니다.
 
@@ -76,6 +78,8 @@ ArmorEffectiveness     : AmmoArmorEffectiveness?
 - `false`: healthy current Wiki table에 없음
 - `null`: source state를 안전하게 확정할 수 없음
 - effectiveness null은 membership false를 의미하지 않음
+
+v4 Quest geometry는 Map Quest projection용 canonical fact입니다. Map artwork/config/general-marker bundle과 같은 저장소가 아니며, content updater가 Map artwork를 교체하지 않습니다.
 
 이전 content schema는 새 source에서 재구축합니다. User Progress migration과 결합하지 않습니다.
 
@@ -317,7 +321,90 @@ Factory day / Factory night   → Factory
 
 canonical MapReference와 Quest.MapId는 변경하지 않습니다.
 
-## 12. 로컬 UI preferences
+## 12. Map + MiniMap architecture
+
+Map은 JunhyunHelper의 Core Game Content renderer를 확장한 기능이 아니라 **독립 subsystem**입니다.
+
+```text
+JunhyunHelper MainWindow
+└─ exact-source Tarkov Helper Map/MiniMap host
+   ├─ bundled Map artwork/config/general-marker DB
+   ├─ screenshot / player tracking
+   ├─ floor / zoom / MiniMap runtime
+   └─ JunhyunHelper product delta
+      ├─ product settings persistence
+      ├─ product global hotkey dispatch
+      ├─ Quest projection
+      ├─ extract/general marker synchronization
+      └─ MiniMap product policies
+```
+
+유일한 cross-feature dependency는 Quest입니다.
+
+```text
+JunhyunHelper Quest workspace + v4 Quest geometry
+→ LegacyMapQuestV2Controller
+→ Main Map / MiniMap Quest projection
+```
+
+Hideout / Item / Ammo runtime은 Map과 직접 결합하지 않습니다.
+
+### 12.1 Source boundary
+
+현재 pinned source:
+
+```text
+Propeex/Tarkov-Helper
+branch: junhyun-map-product-v2
+revision: d933792b6042a51cea38dc44b686a096fe30de67
+submodule: vendor/Tarkov-Helper
+```
+
+old Tarkov-Helper의 non-Map content/update subsystem은 JunhyunHelper Desktop compile에서 제외합니다.
+
+특히 v0.1.0 release hardening부터 old `TarkovHelper.Services.UpdateService`도 제외합니다. 이 legacy updater는 `Propeex/Tarkov-Helper/update.xml`을 대상으로 하며 JunhyunHelper release/update 경계와 무관합니다.
+
+### 12.2 Map product settings
+
+권위 저장소:
+
+```text
+%LocalAppData%/JunhyunHelper/map-product-settings.json
+```
+
+여기에 marker toggle, Quest marker toggle, 사용자 조정값, screenshot folder, product hotkey, MiniMap temporary hide, normal opacity, marker scale 등을 저장합니다.
+
+legacy settings는 Map 내부 compatibility를 위해 일부 존재할 수 있지만 제품에서 확정한 JunhyunHelper-owned 값이 최종 권위입니다.
+
+### 12.3 Global input
+
+JunhyunHelper-owned global keyboard dispatcher가 product hotkey를 처리합니다.
+
+허용 foreground:
+
+- `EscapeFromTarkov`
+- `EscapeFromTarkov_BE`
+- `JunhyunHelper`
+- legacy compatibility용 `TarkovHelper`
+
+MiniMap을 켤 때 transplanted legacy zoom/floor hook이 다시 같은 key를 잡지 못하도록 direct legacy mapping은 비활성 상태로 유지합니다.
+
+### 12.4 Map bundle update boundary
+
+v0.1.0에서는 Map artwork/config/general-marker DB를 검증된 pinned bundle로 배포합니다.
+
+향후 updater를 구현하면 반드시 다음을 한 unit으로 다룹니다.
+
+```text
+same upstream revision
+├─ artwork
+├─ config
+└─ general-marker DB
+```
+
+서로 다른 revision의 Map asset을 섞어 활성화하지 않습니다.
+
+## 13. 로컬 UI preferences
 
 Ammo caliber favorites:
 
@@ -325,9 +412,29 @@ Ammo caliber favorites:
 %LocalAppData%/JunhyunHelper/ammo-favorites.json
 ```
 
-Game Content/User Progress와 분리된 presentation preference입니다. content update로 삭제하지 않습니다.
+Map product settings:
 
-## 13. 실패 / 안전 원칙
+```text
+%LocalAppData%/JunhyunHelper/map-product-settings.json
+```
+
+둘 다 Game Content/User Progress와 분리된 presentation preference입니다. content update로 삭제하지 않습니다.
+
+## 14. 배포 경계
+
+v0.1.0은 Windows x64 self-contained portable 배포입니다.
+
+- installer 없음
+- 별도 .NET 설치 불필요
+- 관리자 권한 불필요
+- code signing 미구성
+- app 자체 auto-updater 미구현
+
+Release publish는 debug symbol을 포함하지 않으며, old AutoUpdater/WebView2/GraphX/QuikGraph dependency가 다시 들어오면 CI를 실패시킵니다.
+
+GitHub Actions Artifact에는 publish directory를 직접 업로드합니다. Artifact 자체가 다운로드 시 ZIP이 되므로 내부 ZIP을 한 번 더 만들지 않습니다.
+
+## 15. 실패 / 안전 원칙
 
 - API incompatible change → update 중단, previous active 유지
 - Wiki failure → base Ammo 유지, membership/effectiveness 추정 금지
@@ -335,3 +442,5 @@ Game Content/User Progress와 분리된 presentation preference입니다. conten
 - flexible hand-in consumption ambiguity → 자동 차감 금지
 - rollback restore 여부 → 사용자에게 확인
 - 저장된 consumption ledger가 없으면 존재하지 않는 과거 소비량을 추정해 복원하지 않음
+- Map initialization failure가 User Progress/Game Content를 수정하지 않음
+- release/update 기능은 old Tarkov-Helper updater에 위임하지 않음
