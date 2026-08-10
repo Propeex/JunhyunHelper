@@ -30,13 +30,17 @@
   - 현재는 `준비 중` placeholder만 표시
   - 실제 Scanner 동작은 요구사항 확정 후 후속 구현
 
+**공개 다운로드:** [준현 헬퍼 v0.1.0 GitHub Release](https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.0)
+
+Windows 배포 파일: `Junhyun-Helper-v0.1.0-win-x64.zip`
+
 v0.1.0 공식 릴리즈 기록: [`docs/RELEASE_0.1.0.md`](docs/RELEASE_0.1.0.md)
 
 ## 실행
 
 배포 빌드는 **Windows x64 portable / self-contained single-file** 형태입니다.
 
-1. 배포 ZIP을 원하는 폴더에 압축 해제합니다.
+1. GitHub Release에서 `Junhyun-Helper-v0.1.0-win-x64.zip`을 내려받아 원하는 폴더에 압축 해제합니다.
 2. **`준현 헬퍼.exe`**를 실행합니다.
 3. 처음 실행하면 프로필을 만들고 필요한 게임 데이터를 온라인에서 내려받습니다.
 
@@ -132,11 +136,13 @@ Quest/Hideout/Item/Ammo의 온라인 Game Content update와 Map artwork/config b
 - 실행 후에도 EXE 옆에 `Logs` 등 런타임 폴더가 생기지 않음
 - Main Window 정상 close 후 process 종료 확인
 
-최종 배포물 SHA-256:
+GitHub Release Windows ZIP SHA-256:
 
 ```text
-6db752972b3b52d9e6239c746bb910904a91d364c2410062f4c1635ac61efcaa
+f3c1a4208fc70b7ec7fb6612933de9d383e4c54e84a7352f529dc7de21550f91
 ```
+
+Release에는 위 ZIP과 `SHA256SUMS.txt` 두 asset만 게시합니다.
 
 ## 개발 문서
 
@@ -151,3 +157,4 @@ Quest/Hideout/Item/Ammo의 온라인 Game Content update와 Map artwork/config b
 7. [`docs/REFERENCE_POLICY.md`](docs/REFERENCE_POLICY.md) — 기존 구현 참고 규칙
 8. [`docs/MAP_PRODUCT_REQUIREMENTS.md`](docs/MAP_PRODUCT_REQUIREMENTS.md) — Map/MiniMap 제품 기준
 9. [`docs/RELEASE_0.1.0.md`](docs/RELEASE_0.1.0.md) — v0.1.0 릴리즈 기록
+10. [`docs/GITHUB_RELEASE_0.1.0.md`](docs/GITHUB_RELEASE_0.1.0.md) — 실제 GitHub Release 검증 기록
