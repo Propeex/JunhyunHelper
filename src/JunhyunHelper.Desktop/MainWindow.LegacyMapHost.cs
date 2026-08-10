@@ -216,12 +216,84 @@ public partial class MainWindow : TarkovHelper.MainWindow
                 () => floorSelector.SelectedIndex == targetFloorIndex &&
                       !string.Equals(sourceBefore, mapSvg.Source?.ToString(), StringComparison.Ordinal),
                 TimeSpan.FromSeconds(4));
+
+            await VerifyMiniMapProductAsync();
         }
         catch (Exception exception)
         {
             System.Diagnostics.Debug.WriteLine($"[MapSmoke] {exception}");
             Environment.Exit(86);
         }
+    }
+
+    private static async Task VerifyMiniMapProductAsync()
+    {
+        var overlay = TarkovHelper.Services.OverlayMiniMapService.Instance;
+        overlay.ShowOverlay();
+
+        await WaitForAsync(() => overlay.IsOverlayVisible, TimeSpan.FromSeconds(5));
+
+        var window = Application.Current.Windows
+            .OfType<TarkovHelper.Windows.OverlayMiniMapWindow>()
+            .FirstOrDefault(candidate => candidate.IsVisible)
+            ?? throw new InvalidOperationException("Visible MiniMap window was not found.");
+
+        await WaitForAsync(() => window.IsLoaded, TimeSpan.FromSeconds(2));
+
+        if (window.ResizeMode != ResizeMode.NoResize)
+            throw new InvalidOperationException("MiniMap still allows mouse resizing.");
+
+        if (window.FindName("MapContainer") is not Grid mapContainer)
+            throw new InvalidOperationException("MiniMap MapContainer was not found.");
+
+        if (mapContainer.Children.OfType<System.Windows.Shapes.Path>().Any())
+            throw new InvalidOperationException("MiniMap legacy bottom-right resize grip is still present.");
+
+        var legacyHook = TarkovHelper.Services.GlobalKeyboardHookService.Instance;
+        await WaitForAsync(
+            () => legacyHook.ZoomInKey == 0 &&
+                  legacyHook.ZoomOutKey == 0 &&
+                  legacyHook.FloorUpKey == 0 &&
+                  legacyHook.FloorDownKey == 0,
+            TimeSpan.FromSeconds(2));
+
+        var zoomBefore = overlay.Settings.ZoomLevel;
+        if (zoomBefore < TarkovHelper.Models.Map.OverlayMiniMapSettings.MaxZoom - 0.001)
+            overlay.ZoomIn();
+        else
+            overlay.ZoomOut();
+
+        await WaitForAsync(
+            () => Math.Abs(overlay.Settings.ZoomLevel - zoomBefore) > 0.0001,
+            TimeSpan.FromSeconds(2));
+
+        if (window.FindName("TxtFloorName") is not TextBlock floorText)
+            throw new InvalidOperationException("MiniMap floor indicator was not found.");
+
+        await WaitForAsync(
+            () => !string.IsNullOrWhiteSpace(floorText.Text),
+            TimeSpan.FromSeconds(4));
+
+        var floorBefore = floorText.Text;
+        overlay.MoveFloorUp();
+        await Task.Delay(350);
+        if (string.Equals(floorBefore, floorText.Text, StringComparison.Ordinal))
+            overlay.MoveFloorDown();
+
+        await WaitForAsync(
+            () => !string.Equals(floorBefore, floorText.Text, StringComparison.Ordinal),
+            TimeSpan.FromSeconds(4));
+
+        // MiniMap actions raise SettingsChanged, which used to re-arm the transplanted
+        // legacy direct hook. Verify it remains disabled after real zoom/floor actions.
+        await WaitForAsync(
+            () => legacyHook.ZoomInKey == 0 &&
+                  legacyHook.ZoomOutKey == 0 &&
+                  legacyHook.FloorUpKey == 0 &&
+                  legacyHook.FloorDownKey == 0,
+            TimeSpan.FromSeconds(2));
+
+        overlay.HideOverlay();
     }
 
     private static async Task WaitForAsync(Func<bool> condition, TimeSpan timeout)
