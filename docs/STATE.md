@@ -4,19 +4,27 @@
 
 ## 현재 상태
 
-**v0.1.0 RELEASED — `준현 헬퍼` Windows x64 single-file portable**
+**v0.1.0 RELEASED / PUBLIC — `준현 헬퍼` Windows x64 single-file portable**
 
 릴리즈일: **2026-08-10**
 
 ```text
 PR #74 — Restore Scanner tab and ship clean 준현 헬퍼 executable: MERGED
 merge: e282fffebcb1004ddab0b028b6db5ad0d88db279
-release code baseline: 47f3ec4cabf70879465b216bc42fecea23e514da
+release product baseline: 47f3ec4cabf70879465b216bc42fecea23e514da
 release CI: 31356282143 — SUCCESS
-release artifact: 9050775673
-release SHA-256: 6db752972b3b52d9e6239c746bb910904a91d364c2410062f4c1635ac61efcaa
+validated CI artifact: 9050775673
+validated CI artifact SHA-256: 6db752972b3b52d9e6239c746bb910904a91d364c2410062f4c1635ac61efcaa
+GitHub tag: v0.1.0
+GitHub tag target: 95112f487684db0c71db908d502419ae86b8d62c
+public Release: https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.0
+public Windows asset: Junhyun-Helper-v0.1.0-win-x64.zip
+public Windows asset SHA-256: f3c1a4208fc70b7ec7fb6612933de9d383e4c54e84a7352f529dc7de21550f91
 release record: docs/RELEASE_0.1.0.md
+live GitHub Release verification: docs/GITHUB_RELEASE_0.1.0.md
 ```
+
+GitHub 저장소는 **public**이며 Release는 `draft=false`, `prerelease=false`인 정식 공개 릴리즈입니다. 현재 Release asset은 `Junhyun-Helper-v0.1.0-win-x64.zip`과 `SHA256SUMS.txt` 두 개만 남겨 정리했습니다. 로그인하지 않은 사용자도 GitHub Release에서 Windows ZIP을 받을 수 있습니다.
 
 현재 확인된 기능/패키징 blocker는 없습니다. v0.1.0은 첫 정식 사용 버전으로 확정했습니다.
 
@@ -82,6 +90,8 @@ Assets/
 - AutoUpdater/WebView2/GraphX/QuikGraph: **없음**
 
 DLL을 임의의 `lib/` 폴더로 옮기는 방식은 사용하지 않습니다. .NET/native loader와 Map 회귀 위험이 있기 때문에 검증된 single-file bundle 방식으로 해결했습니다.
+
+공개 GitHub Release ZIP은 검증 완료된 Windows CI artifact의 **내용을 그대로 사용해 안정적인 공개 파일명으로 재패키징**한 것입니다. 따라서 ZIP 컨테이너 자체의 SHA-256은 CI artifact와 다르지만 내부 제품 구조는 동일합니다.
 
 ---
 
@@ -247,7 +257,7 @@ Map 제품 설정:
 # 9. v0.1.0 최종 Release Gate
 
 ```text
-release code baseline: 47f3ec4cabf70879465b216bc42fecea23e514da
+release product baseline: 47f3ec4cabf70879465b216bc42fecea23e514da
 CI run: 31356282143
 merge: e282fffebcb1004ddab0b028b6db5ad0d88db279
 ```
@@ -268,9 +278,14 @@ merge: e282fffebcb1004ddab0b028b6db5ad0d88db279
 [x] legacy forbidden dependency 없음
 [x] open release-blocking PR 없음
 [x] open release-blocking issue 없음
+[x] public GitHub repository
+[x] public non-draft/non-prerelease GitHub Release
+[x] public Windows ZIP asset
+[x] SHA256SUMS.txt asset
+[x] malformed/duplicate release asset cleanup
 ```
 
-공식 v0.1.0 배포물:
+검증된 CI 원본 artifact:
 
 ```text
 artifact id: 9050775673
@@ -279,9 +294,21 @@ sha256: 6db752972b3b52d9e6239c746bb910904a91d364c2410062f4c1635ac61efcaa
 entries: 32
 ```
 
-**v0.1.0은 2026-08-10에 RELEASED 상태로 확정했습니다.**
+공개 GitHub Release:
 
-공식 기록: `docs/RELEASE_0.1.0.md`
+```text
+https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.0
+asset: Junhyun-Helper-v0.1.0-win-x64.zip
+sha256: f3c1a4208fc70b7ec7fb6612933de9d383e4c54e84a7352f529dc7de21550f91
+assets total: 2 (Windows ZIP + SHA256SUMS.txt)
+```
+
+**v0.1.0은 2026-08-10에 PUBLIC RELEASED 상태로 확정했습니다.**
+
+공식 기록:
+
+- `docs/RELEASE_0.1.0.md`
+- `docs/GITHUB_RELEASE_0.1.0.md`
 
 ---
 
