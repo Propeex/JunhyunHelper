@@ -6,7 +6,7 @@
 
 **Phase 2B — 핵심 Desktop 흐름 구현 + Windows 실사용 피드백 반복 개선**
 
-상태: `PR #68 MERGED / AUTOMATED VALIDATION PASSED / WINDOWS USER VALIDATION NEXT`
+상태: `PR #69 MERGED / AUTOMATED VALIDATION PASSED / WINDOWS USER VALIDATION NEXT`
 
 기준일: **2026-08-10**
 
@@ -176,6 +176,7 @@ Shared extract는 PMC 또는 Scav 중 하나가 ON이면 표시합니다.
 
 - screenshot으로 floor를 판정하지 않음
 - 사용자가 exact Tarkov Helper 원본 `CmbFloorSelect` 또는 floor hotkey로 선택
+- floor hotkey는 PR #69부터 원본 `CmbFloorSelect.SelectionChanged` 경로와 MiniMap `MoveFloorUp/Down`을 함께 실행
 - 현재 선택 floor만 표시
 - 다른 floor opacity 0%
 - screenshot 사용: Map 감지/자동 Map 전환/player X-Z/가능한 경우 heading
@@ -184,6 +185,9 @@ Shared extract는 PMC 또는 Scav 중 하나가 ON이면 표시합니다.
 
 - 우측 상단 anchor
 - drag 불가
+- 마우스 resize 불가
+- 우측 하단 legacy resize grip 제거
+- 크기 조절은 size increase/decrease hotkey만 사용
 - resize 후 우측 상단 자동 재배치
 - opacity 100%
 - cursor hover → 일시 0%, 이탈 → 100%
@@ -198,8 +202,8 @@ Shared extract는 PMC 또는 Scav 중 하나가 ON이면 표시합니다.
 Main Map `설정`에서 편집합니다.
 
 - MiniMap ON/OFF
-- Main Map zoom in/out
-- floor up/down
+- Main Map + MiniMap zoom in/out
+- Main Map + MiniMap floor up/down
 - MiniMap size increase/decrease
 - MiniMap 일시 투명
 - 일시 투명 시간 1~15초
@@ -210,6 +214,8 @@ Main Map `설정`에서 편집합니다.
 - Delete / Backspace = 미지정
 - Esc = 취소
 - NumPad 0~5 = 직접 floor 선택 예약
+- JunhyunHelper-owned persisted hotkey가 runtime 권위값
+- `EscapeFromTarkov`, `EscapeFromTarkov_BE`, `JunhyunHelper`, `TarkovHelper` foreground에서 전역 hotkey 허용
 
 MiniMap timed hide와 hover hide는 같은 presentation loop에서 결합합니다.
 
@@ -239,7 +245,7 @@ PR #68부터 Map 제품 설정은 JunhyunHelper가 소유합니다.
 - 제품 hotkey
 - MiniMap timed-hide duration
 
-legacy Tarkov Helper가 async 초기화 후반에 옛 hotkey 값을 읽더라도 JunhyunHelper product 설정이 최종 권위값이 되도록 초기화 안정 구간에 재적용합니다.
+legacy Tarkov Helper가 async 초기화 후반에 옛 hotkey 값을 읽더라도 JunhyunHelper product 설정이 최종 권위값이 되도록 초기화 안정 구간에 재적용합니다. PR #69부터 실제 key dispatch도 이 persisted 값을 직접 우선 조회합니다.
 
 ## 제거된 Map 기능
 
@@ -249,6 +255,7 @@ legacy Tarkov Helper가 async 초기화 후반에 옛 hotkey 값을 읽더라도
 - Fixed View 선택
 - PlayerTracking 선택 UI
 - click-through 선택 UI
+- MiniMap mouse resize / 우측 하단 resize grip
 - 다른 층 opacity 설정
 - 현재 층만 표시 설정
 - auto-floor 관련 설정/복귀
@@ -324,6 +331,41 @@ ZIP creation/upload: success
 
 ---
 
+# PR #69 — Map/MiniMap hotkey + MiniMap input policy — MERGED
+
+```text
+PR: #69 Fix MiniMap zoom, floor hotkeys, and resize grip
+merge: 24a9bcb5c89ce30067b84427b7df7ec755aaa9de
+final head: 0753febeab62d1a41921c285d7e0ed2a4df0ab94
+CI: 31350388320
+artifact: 9048751983
+artifact digest: sha256:20521163d31bf58c8dbf25b12fe5a93f1195df6182aa7c003c40df3519e4d99b
+```
+
+상세: `docs/MAP_HOTKEY_FEEDBACK_2026-08-10_05.md`
+
+반영 사항:
+
+1. zoom in/out hotkey를 Main Map + active MiniMap에 동시 전달
+2. floor up/down hotkey를 Main Map original selector + active MiniMap에 동시 전달
+3. persisted JunhyunHelper hotkey를 실제 runtime dispatch 권위값으로 사용
+4. 게임 foreground에서 전역 hotkey 사용 정책 유지
+5. MiniMap mouse resize 비활성화
+6. MiniMap 우측 하단 resize grip 제거
+
+최종 CI:
+
+```text
+Desktop Release build: success
+automated tests: success
+Windows x64 self-contained publish: success
+Startup + exact Map smoke: success
+graceful Main Window close + process exit: success
+ZIP creation/upload: success
+```
+
+---
+
 # 최근 Map PR 이력
 
 - PR #64 — Map product refinement V2 — merge `2339ddff5773ee385ff32b4ff5a173aab52d8050`
@@ -331,24 +373,20 @@ ZIP creation/upload: success
 - PR #66 — Quest UI / Korean-only publish — merge `2f9f07f64d9c6a8259504a8425c254a95673f8ea`
 - PR #67 — Quest renderer / floor / marker visibility — merge `7d248d7346760d126b839d69318648e504ac39fc`
 - PR #68 — settings / lifecycle / performance — merge `f75644002766f45fc0b1d0929ab556bba55a801a`
+- PR #69 — MiniMap zoom / floor hotkey / resize grip — merge `24a9bcb5c89ce30067b84427b7df7ec755aaa9de`
 
 ---
 
 # 다음 작업
 
-1. **PR #68 Windows 사용자 검증**
+1. **PR #69 Windows 사용자 검증**
 2. 우선 확인:
-   - Map marker / 개별 Quest marker / hotkey 변경 → 재시작 후 유지
-   - Data Update 없이 cold-start icon 표시
-   - Main Map zoom/floor hotkey
-   - MiniMap ON/OFF / size / timed transparency hotkey
-   - timed transparency 시간이 지나면 복귀하고 hover transparency도 유지되는지
-   - Ammo 선택 행 focus-loss dark theme
-   - Ammo column separator
-   - 앱 종료 후 Task Manager에 JunhyunHelper process가 남지 않는지
-   - Map marker panel과 MiniMap 버튼 간섭이 사라졌는지
-   - Item / Hideout 연속 +/- 체감 반응성
-   - Quest 완료/취소 체감 반응성
-   - 기존 프로필 수정 후 X/닫기만으로 저장되는지
-3. 실사용 차이가 있으면 해당 경로만 수정
-4. Map 제품 동작 검증 완료 후 artwork/config/general-marker DB를 동일 revision 단위로 교체하는 atomic Map bundle updater 구현
+   - Escape from Tarkov가 foreground인 상태에서 zoom in/out hotkey
+   - Main Map과 MiniMap이 함께 확대/축소되는지
+   - 게임 foreground에서 floor up/down hotkey
+   - Main Map과 MiniMap이 동일 방향의 층으로 함께 전환되는지
+   - MiniMap 우측 하단 resize grip 제거 및 mouse resize 차단
+   - MiniMap size increase/decrease hotkey는 계속 정상인지
+3. PR #68의 나머지 사용자 피드백 항목은 사용자 실사용에서 정상 확인됨
+4. 실사용 차이가 있으면 해당 경로만 수정
+5. Map 제품 동작 검증 완료 후 artwork/config/general-marker DB를 동일 revision 단위로 교체하는 atomic Map bundle updater 구현
