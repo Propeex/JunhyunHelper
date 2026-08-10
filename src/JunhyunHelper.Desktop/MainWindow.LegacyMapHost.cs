@@ -233,7 +233,7 @@ public partial class MainWindow : TarkovHelper.MainWindow
 
         await WaitForAsync(() => overlay.IsOverlayVisible, TimeSpan.FromSeconds(5));
 
-        var window = Application.Current.Windows
+        var window = System.Windows.Application.Current.Windows
             .OfType<TarkovHelper.Windows.OverlayMiniMapWindow>()
             .FirstOrDefault(candidate => candidate.IsVisible)
             ?? throw new InvalidOperationException("Visible MiniMap window was not found.");
