@@ -13,8 +13,11 @@ public partial class MainWindow
     private void EnableFastMutationHandlers()
     {
         QuestPage.ActionRequested -= QuestPage_ActionRequested;
+        QuestPage.ActionRequested -= QuestPage_ActionRequestedFast;
         QuestPage.ActionRequested += QuestPage_ActionRequestedFast;
+
         HideoutPage.LevelChangeRequested -= HideoutPage_LevelChangeRequested;
+        HideoutPage.LevelChangeRequested -= HideoutPage_LevelChangeRequestedFast;
         HideoutPage.LevelChangeRequested += HideoutPage_LevelChangeRequestedFast;
     }
 
@@ -65,9 +68,6 @@ public partial class MainWindow
                 _ => throw new ArgumentOutOfRangeException(nameof(e.Action), e.Action, null),
             };
 
-            // Quest mutation already produced the authoritative Quest workspace. Only
-            // Items must be rebuilt because completion/undo may consume or restore items.
-            // Hideout presentation does not depend on Quest completion in the current UI.
             _activeProfile = questWorkspace.Profile;
             var itemsWorkspace = _services.Items.BuildFromProfile(_activeContent, _activeProfile);
             _activeItemsWorkspace = itemsWorkspace;
@@ -133,9 +133,6 @@ public partial class MainWindow
 
             _activeProfile = hideoutWorkspace.Profile;
 
-            // Hideout mutation already produced its own workspace. Rebuild Quest because
-            // material consumption can change Quest item readiness, and rebuild Items for
-            // the future-needed ledger. Do not reload the same profile from SQLite.
             var questWorkspace = _services.Quests.BuildFromProfile(_activeContent, _activeProfile);
             var itemsWorkspace = _services.Items.BuildFromProfile(_activeContent, _activeProfile);
             _activeItemsWorkspace = itemsWorkspace;
