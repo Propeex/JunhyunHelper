@@ -4,22 +4,21 @@
 
 ## 현재 상태
 
-**v0.1.0 RELEASE READY — `준현 헬퍼` Windows x64 single-file portable**
+**v0.1.0 RELEASED — `준현 헬퍼` Windows x64 single-file portable**
 
-기준일: **2026-08-10**
-
-최신 사용자 요청 반영:
+릴리즈일: **2026-08-10**
 
 ```text
 PR #74 — Restore Scanner tab and ship clean 준현 헬퍼 executable: MERGED
 merge: e282fffebcb1004ddab0b028b6db5ad0d88db279
-final PR head: 47f3ec4cabf70879465b216bc42fecea23e514da
-final PR CI: 31356282143 — SUCCESS
-final artifact: 9050775673
-artifact sha256: 6db752972b3b52d9e6239c746bb910904a91d364c2410062f4c1635ac61efcaa
+release code baseline: 47f3ec4cabf70879465b216bc42fecea23e514da
+release CI: 31356282143 — SUCCESS
+release artifact: 9050775673
+release SHA-256: 6db752972b3b52d9e6239c746bb910904a91d364c2410062f4c1635ac61efcaa
+release record: docs/RELEASE_0.1.0.md
 ```
 
-현재 확인된 기능/패키징 blocker는 없습니다.
+현재 확인된 기능/패키징 blocker는 없습니다. v0.1.0은 첫 정식 사용 버전으로 확정했습니다.
 
 ---
 
@@ -222,7 +221,7 @@ Map 제품 설정:
 
 ---
 
-# 8. 최근 릴리즈 하드닝
+# 8. 릴리즈 하드닝 이력
 
 ## PR #73
 
@@ -245,10 +244,10 @@ Map 제품 설정:
 
 ---
 
-# 9. PR #74 최종 Release Gate
+# 9. v0.1.0 최종 Release Gate
 
 ```text
-final head: 47f3ec4cabf70879465b216bc42fecea23e514da
+release code baseline: 47f3ec4cabf70879465b216bc42fecea23e514da
 CI run: 31356282143
 merge: e282fffebcb1004ddab0b028b6db5ad0d88db279
 ```
@@ -267,21 +266,26 @@ merge: e282fffebcb1004ddab0b028b6db5ad0d88db279
 [x] PDB 0개
 [x] nested ZIP 없음
 [x] legacy forbidden dependency 없음
+[x] open release-blocking PR 없음
+[x] open release-blocking issue 없음
 ```
 
-최종 PR artifact:
+공식 v0.1.0 배포물:
 
 ```text
 artifact id: 9050775673
 size: 73,973,345 bytes
 sha256: 6db752972b3b52d9e6239c746bb910904a91d364c2410062f4c1635ac61efcaa
+entries: 32
 ```
 
-**현재 v0.1.0은 release-ready입니다.**
+**v0.1.0은 2026-08-10에 RELEASED 상태로 확정했습니다.**
+
+공식 기록: `docs/RELEASE_0.1.0.md`
 
 ---
 
-# 10. 의도적으로 남긴 비차단 범위 / 다음 작업
+# 10. 비차단 후속 범위 / 다음 작업
 
 ## Scanner
 
