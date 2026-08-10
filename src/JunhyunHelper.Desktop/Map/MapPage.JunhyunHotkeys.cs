@@ -5,6 +5,8 @@ namespace TarkovHelper.Pages.Map;
 
 public partial class MapPage
 {
+    private bool _junhyunFloorHotkeyBusy;
+
     /// <summary>
     /// Product hotkey endpoint. Zoom around the visible Map viewport center so a
     /// keyboard zoom does not jump the user's current point of interest.
@@ -13,9 +15,16 @@ public partial class MapPage
 
     public void JunhyunZoomOut() => JunhyunZoom(1.0 / 1.15);
 
-    public void JunhyunFloorUp() => JunhyunMoveFloor(+1);
+    // Keep the original void endpoints for compatibility with any existing callers.
+    // The product hotkey service uses the async endpoints below so Main Map rendering
+    // finishes before the MiniMap starts its own floor render.
+    public void JunhyunFloorUp() => _ = JunhyunFloorUpAsync();
 
-    public void JunhyunFloorDown() => JunhyunMoveFloor(-1);
+    public void JunhyunFloorDown() => _ = JunhyunFloorDownAsync();
+
+    public Task JunhyunFloorUpAsync() => JunhyunMoveFloorAsync(+1);
+
+    public Task JunhyunFloorDownAsync() => JunhyunMoveFloorAsync(-1);
 
     private void JunhyunZoom(double factor)
     {
@@ -38,18 +47,62 @@ public partial class MapPage
         SetZoom(newZoom);
     }
 
-    private void JunhyunMoveFloor(int delta)
+    private async Task JunhyunMoveFloorAsync(int delta)
     {
-        // The visible ComboBox is the known-good manual floor route. Do not gate the
-        // hotkey on Visibility: WPF can transiently report inherited/non-visible state
-        // while the selector is still the active product control. Changing SelectedIndex
-        // deliberately runs the same SelectionChanged pipeline as a mouse selection.
-        if (delta == 0 || CmbFloorSelect.Items.Count == 0)
+        if (_junhyunFloorHotkeyBusy || delta == 0 || CmbFloorSelect.Items.Count == 0)
             return;
 
         var current = Math.Max(0, CmbFloorSelect.SelectedIndex);
         var next = Math.Clamp(current + delta, 0, CmbFloorSelect.Items.Count - 1);
-        if (next != current)
-            CmbFloorSelect.SelectedIndex = next;
+        if (next == current ||
+            CmbFloorSelect.Items[next] is not ComboBoxItem floorItem ||
+            floorItem.Tag is not string floorId ||
+            string.IsNullOrWhiteSpace(_currentMapKey))
+        {
+            return;
+        }
+
+        _junhyunFloorHotkeyBusy = true;
+        try
+        {
+            // A normal ComboBox selection is known-good, but its async-void handler lets
+            // the hotkey dispatcher continue immediately into the MiniMap render. For a
+            // product hotkey we perform the same state transition here and await the full
+            // Main Map SVG/marker pipeline before the MiniMap is allowed to move floors.
+            CmbFloorSelect.SelectionChanged -= CmbFloorSelect_SelectionChanged;
+            try
+            {
+                CmbFloorSelect.SelectedIndex = next;
+            }
+            finally
+            {
+                CmbFloorSelect.SelectionChanged += CmbFloorSelect_SelectionChanged;
+            }
+
+            var mapKey = _currentMapKey;
+            var ct = GetNewCancellationToken();
+            _currentFloorId = floorId;
+
+            await LoadMapImageAsync(mapKey, centerView: false, ct);
+            ct.ThrowIfCancellationRequested();
+
+            await RefreshExtractMarkers(ct);
+            await RefreshQuestMarkers(ct);
+            await RefreshMapMarkers(ct);
+            UpdateCustomMarkersParam();
+            _customMarkerManager?.UpdateMarkerDisplay();
+        }
+        catch (OperationCanceledException)
+        {
+            _log.Info("Junhyun floor hotkey render cancelled");
+        }
+        catch (Exception ex)
+        {
+            _log.Error("Error in Junhyun floor hotkey render", ex);
+        }
+        finally
+        {
+            _junhyunFloorHotkeyBusy = false;
+        }
     }
 }
