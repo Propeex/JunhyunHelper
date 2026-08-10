@@ -21,6 +21,11 @@ public partial class MainWindow
         ItemsPage.SetImageCache(_services.Images);
         AmmoPage.SetImageCache(_services.Images);
         AmmoPage.SetFavoriteStore(_services.AmmoFavorites);
+
+        // Replace the original full-refresh mutation handlers with dependency-aware
+        // product handlers. This keeps the existing UI events while avoiding duplicate
+        // DB reads/workspace rebuilds after each Quest/Hideout change.
+        EnableFastMutationHandlers();
     }
 
     protected override void OnClosed(EventArgs e)
