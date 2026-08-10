@@ -1,6 +1,6 @@
 # MiniMap marker size feedback — 2026-08-10
 
-Status: IMPLEMENTED / AUTOMATED VALIDATION PENDING / WINDOWS USER VALIDATION NEXT
+Status: IMPLEMENTED / AUTOMATED VALIDATION PASSED / WINDOWS USER VALIDATION NEXT
 
 ## User feedback
 
@@ -42,4 +42,23 @@ General marker source normalization remains in place, with the configured produc
 
 ## Validation
 
-The Map smoke test now inserts a live marker probe into the real MiniMap marker container and verifies that applying 50% scale changes its actual WPF `RenderTransform`, then restores the persisted value. This prevents a settings-only implementation from passing without affecting the rendered MiniMap.
+The Map smoke test inserts a live marker probe into the real MiniMap marker container and verifies that applying 50% scale changes its actual WPF `RenderTransform`, then restores the persisted value. This prevents a settings-only implementation from passing without affecting the rendered MiniMap.
+
+Final PR #72 validation:
+
+```text
+PR: #72 Add MiniMap marker size control
+merge: c2e9b79efc27178216b6f5c3b52135465f970d0c
+final head: f0ccd0cdc5c998058dd3a57603915624c0baa8ed
+CI: 31352660359
+artifact: 9049510735
+artifact digest: sha256:2e8ff51a8146051a42e15cbcce27377b0848c829ef88e1648a602618d2acca0b
+
+Desktop Release build: success
+automated tests: success
+Windows x64 self-contained publish: success
+Startup + exact Map/MiniMap smoke: success
+live MiniMap marker RenderTransform scale smoke: success
+graceful Main Window close + process exit: success
+ZIP creation/upload: success
+```
