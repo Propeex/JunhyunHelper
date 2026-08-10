@@ -4,17 +4,19 @@
 
 ## 현재 상태
 
-**v0.1.0 RELEASE READY — Windows x64 portable**
+**v0.1.0 RELEASE READY — `준현 헬퍼` Windows x64 single-file portable**
 
 기준일: **2026-08-10**
 
+최신 사용자 요청 반영:
+
 ```text
-PR #73 — Release hardening for v0.1.0: MERGED
-merge: 2458a8fadcaf2337e04fffe2c9d4c18fd21f8148
-final PR head: 2fea20ab36d775201b89c3e79b903cd0cba22917
-final PR CI: 31354780741 — SUCCESS
-final audited artifact: 9050273715
-artifact sha256: f4a378f86aeeb38b2e18147dd9b757aaef4e2106f9cf81ebd30b65d6f1ecc381
+PR #74 — Restore Scanner tab and ship clean 준현 헬퍼 executable: MERGED
+merge: e282fffebcb1004ddab0b028b6db5ad0d88db279
+final PR head: 47f3ec4cabf70879465b216bc42fecea23e514da
+final PR CI: 31356282143 — SUCCESS
+final artifact: 9050775673
+artifact sha256: 6db752972b3b52d9e6239c746bb910904a91d364c2410062f4c1635ac61efcaa
 ```
 
 현재 확인된 기능/패키징 blocker는 없습니다.
@@ -31,13 +33,80 @@ artifact sha256: f4a378f86aeeb38b2e18147dd9b757aaef4e2106f9cf81ebd30b65d6f1ecc38
 | Needed Items / Inventory | 구현 완료 |
 | Ammo | 구현 완료 |
 | Map + MiniMap | 구현 완료 / Windows 실사용 검증 완료 |
-| Scanner | 요구사항 미확정 / v0.1.0 public UI 비노출 |
+| Scanner | 요구사항 미확정 / **`준비 중` 탭은 사용자 요청으로 표시 유지** |
 
-사용자는 PR #72 Windows 빌드에서 최근 Map/MiniMap 피드백을 포함한 주요 사용자 기능이 정상 동작한다고 확인했습니다. 이후 PR #73은 제품 의미를 추가하지 않고 release hardening을 수행했습니다.
+Scanner는 실제 기능을 임의 구현하지 않습니다. 상단 탭은 항상 보이되 현재 화면에는 `준비 중`임을 명확히 표시합니다.
 
 ---
 
-# 2. 핵심 데이터 원칙
+# 2. 제품 이름 / Windows 실행 파일
+
+공식 사용자 표시 이름:
+
+```text
+준현 헬퍼
+```
+
+Windows 실행 파일:
+
+```text
+준현 헬퍼.exe
+```
+
+C# namespace / 저장소 내부 식별자는 기존 `JunhyunHelper`를 유지합니다. AssemblyName만 사용자 표시 이름과 일치시켜 소스 namespace를 불필요하게 변경하지 않습니다.
+
+EXE 이름 변경 때문에 Map 전역 hotkey의 foreground allowlist도 함께 갱신했습니다. Tarkov 게임과 `준현 헬퍼`가 활성 창일 때 기존 제품 단축키 계약을 유지합니다.
+
+---
+
+# 3. v0.1.0 배포 구조
+
+Windows x64 배포는 **self-contained single-file portable**입니다.
+
+사용자가 압축을 풀면 루트는 다음만 보이는 것을 기준으로 합니다.
+
+```text
+준현 헬퍼.exe
+FIRST_RUN_KO.txt
+Assets/
+```
+
+정책:
+
+- .NET / WPF / SQLite / SkiaSharp managed/native runtime → `준현 헬퍼.exe` bundle
+- `PublishTrimmed=false` 유지
+- native runtime은 .NET single-file host가 관리
+- Map이 파일 경로로 직접 읽는 artwork/config/general-marker asset만 `Assets/`에 외부 유지
+- root DLL: **0개**
+- PDB: **0개**
+- nested ZIP: **없음**
+- AutoUpdater/WebView2/GraphX/QuikGraph: **없음**
+
+DLL을 임의의 `lib/` 폴더로 옮기는 방식은 사용하지 않습니다. .NET/native loader와 Map 회귀 위험이 있기 때문에 검증된 single-file bundle 방식으로 해결했습니다.
+
+---
+
+# 4. 사용자 데이터 / 로그
+
+기본 사용자 데이터 루트:
+
+```text
+%LocalAppData%/JunhyunHelper
+├─ user.db
+├─ content/<game-mode>/...
+├─ image-cache/
+├─ map-product-settings.json
+├─ ammo-favorites.json
+└─ Logs/
+```
+
+PR #74에서 transplanted Map logger의 과거 `실행폴더/Logs` 정책을 제거했습니다. 이제 프로그램을 실행해도 EXE 옆에 `Logs` 폴더가 생기지 않습니다.
+
+프로그램 ZIP을 교체해도 User Progress와 위 로컬 데이터는 프로그램 폴더와 분리되어 유지됩니다.
+
+---
+
+# 5. 핵심 데이터 원칙
 
 ```text
 온라인 source
@@ -59,36 +128,21 @@ artifact sha256: f4a378f86aeeb38b2e18147dd9b757aaef4e2106f9cf81ebd30b65d6f1ecc38
 - runtime GPT/AI 의존성 없음
 - 현재 Content snapshot schema: **v4**
 
-사용자 데이터 루트:
-
-```text
-%LocalAppData%/JunhyunHelper
-├─ user.db
-├─ content/<game-mode>/...
-├─ image-cache/
-├─ map-product-settings.json
-└─ ammo-favorites.json
-```
-
-프로그램 ZIP을 교체해도 사용자 데이터는 프로그램 폴더와 분리되어 유지됩니다.
-
 ---
 
-# 3. Core 기능 기준
+# 6. Core 기능 기준
 
 ## Profile
 
 - GameMode별 독립 profile
 - level / faction / edition / prestige / Trader / Fence
 - 기존 profile 수정은 창 close 시 저장
-- 새 profile 생성은 명시적 생성 흐름
 
 ## Quest
 
 - Current / Locked / Unavailable / Completed
 - prerequisite / item requirement / stable-ID navigation
 - residual Indeterminate → user-facing Current fallback
-- 완료/완료 취소 / 필요한 permanent failure
 - 고정 제출 Item 자동 소비 ledger + rollback 복원 선택
 - v4 online Quest `possibleLocations` / `zones` geometry
 
@@ -104,21 +158,18 @@ artifact sha256: f4a378f86aeeb38b2e18147dd9b757aaef4e2106f9cf81ebd30b65d6f1ecc38
 - 인레이드 / 일반 필요량과 보유량
 - flexible hand-in 그룹
 - 안전하게 증명 가능한 초과분만 cleanup
-- Item 종류 / 용도 / 필요 상태 filter
-- rapid mutation coalescing + workspace reuse
 
 ## Ammo
 
 - json.tarkov.dev raw stats
 - healthy Wiki Ballistics membership + Armor Class 1~6 effectiveness
 - caliber / 공급 경로 / unlock Quest / favorite shortcut
-- dark inactive-selection / vertical grid
 
 ---
 
-# 4. Map + MiniMap 기준
+# 7. Map + MiniMap 기준
 
-Map/MiniMap은 사용자가 검증한 특정 `Propeex/Tarkov-Helper` 기준선을 명시적으로 채택한 예외적 subsystem입니다. 기존 Tarkov-Helper 전체를 제품 사양으로 승계한 것은 아닙니다.
+Map/MiniMap은 사용자가 검증한 특정 `Propeex/Tarkov-Helper` 기준선을 명시적으로 채택한 예외적 subsystem입니다.
 
 ```text
 exact baseline:
@@ -128,7 +179,7 @@ product source:
 Propeex/Tarkov-Helper
 branch: junhyun-map-product-v2
 
-JunhyunHelper pinned submodule revision:
+pinned submodule revision:
 d933792b6042a51cea38dc44b686a096fe30de67
 
 submodule:
@@ -161,152 +212,93 @@ Map subsystem = 독립
 - player marker size 별도
 - other-floor opacity 0%, auto-floor OFF
 
-Map 제품 설정 권위 저장소:
+Map 제품 설정:
 
 ```text
 %LocalAppData%/JunhyunHelper/map-product-settings.json
 ```
 
-상세 요구사항: `docs/MAP_PRODUCT_REQUIREMENTS.md`
+상세: `docs/MAP_PRODUCT_REQUIREMENTS.md`
 
 ---
 
-# 5. v0.1.0 Release Hardening 결과
+# 8. 최근 릴리즈 하드닝
 
-최종 감사에서 다음을 발견하고 수정했습니다.
+## PR #73
 
-1. `libSkiaSharp.pdb` 약 89MB가 publish에 포함됨
-   - 모든 PDB 제거
-   - CI에서 PDB 재유입 시 실패
-2. old Tarkov-Helper `UpdateService`가 legacy repository `update.xml`을 대상으로 함
-   - compile 제외
-   - AutoUpdater / WebView2 dependency 제거
-3. 사용하지 않는 GraphX / QuikGraph dependency가 남아 있음
-   - 제거
-4. CI Artifact가 ZIP 안에 ZIP을 만드는 구조
-   - publish directory 직접 업로드로 변경
-5. Scanner 요구사항 미확정인데 `준비 중` 탭 노출
-   - v0.1.0 public navigation에서 숨김
-6. Map fallback이 구현 전 `준비 중` 문구 사용
-   - 실제 역할에 맞는 `불러오는 중`으로 교정
-7. README / PRODUCT / ARCHITECTURE / STATE / AGENTS / DEVELOPMENT / REFERENCE_POLICY / Map 요구사항 / 배포 안내가 과거 단계와 충돌
-   - 현재 v0.1.0 기준으로 재정렬
-   - DEC-001~029 원문은 `docs/DECISIONS_HISTORY_THROUGH_2026-08-09.md`에 보존
-   - 현재 `DECISIONS.md`는 active/superseded 관계와 DEC-030~037을 관리
-8. 임시 CI PR #12와 완료된 초기 discovery issue #1이 열려 있었음
-   - 정리
-9. transplanted legacy keyboard hook에 제품과 무관한 숨은 동작이 존재
-   - `S → S+D → D → O` secret command 제거
-   - Ctrl+L legacy settings shortcut 제거
-   - legacy direct overlay hotkey dispatch 제거
-   - `%LocalAppData%/TarkovHelper/keyboard_hook.log` 입력/foreground logging 제거
-   - broad process-name substring 허용 제거
-   - vendor hook을 compile 제외하고 JunhyunHelper-owned compatibility hook으로 교체
-   - original Map NumPad0~5 direct floor-selection 계약만 유지
-   - 공개 product hotkey는 기존 JunhyunHelper dispatcher가 계속 담당
-10. dependency vulnerability audit가 release gate에 명시되지 않음
-   - direct/transitive NuGet audit 활성화
-   - `NU1901`~`NU1904`를 release-blocking
+- old Tarkov-Helper updater 제거
+- AutoUpdater/WebView2/GraphX/QuikGraph 제거
+- PDB 제거
+- nested ZIP 제거
+- 숨은 legacy keyboard command/logging 제거
+- NuGet direct/transitive vulnerability audit를 release gate로 적용
+
+## PR #74
+
+- 사용자 요청으로 Scanner `준비 중` 탭 복구
+- 프로그램/EXE 이름을 `준현 헬퍼`로 통일
+- single-file publish 도입
+- 배포 root DLL 0개
+- Map path-addressed asset만 `Assets/` 유지
+- runtime Map log를 `%LocalAppData%/JunhyunHelper/Logs`로 이동
+- 실제 `준현 헬퍼.exe`로 Map/MiniMap smoke 검증
 
 ---
 
-# 6. 최종 Release Gate
-
-최종 PR head:
+# 9. PR #74 최종 Release Gate
 
 ```text
-2fea20ab36d775201b89c3e79b903cd0cba22917
+final head: 47f3ec4cabf70879465b216bc42fecea23e514da
+CI run: 31356282143
+merge: e282fffebcb1004ddab0b028b6db5ad0d88db279
 ```
 
-최종 PR CI:
-
-```text
-run: 31354780741
-Desktop Release build: SUCCESS
-automated tests: SUCCESS
-Windows x64 self-contained publish: SUCCESS
-NuGet direct/transitive vulnerability audit: SUCCESS
-no PDB / forbidden legacy dependencies: SUCCESS
-real Map + MiniMap smoke: SUCCESS
-normal Main Window close + process exit: SUCCESS
-one-layer Artifact upload: SUCCESS
-```
-
-최종 배포물:
-
-```text
-artifact id: 9050273715
-size: 80,076,564 bytes
-sha256: f4a378f86aeeb38b2e18147dd9b757aaef4e2106f9cf81ebd30b65d6f1ecc381
-entries: 318
-nested ZIP: none
-PDB: none
-AutoUpdater/WebView2/GraphX/QuikGraph: none
-legacy hidden keyboard command/log markers in JunhyunHelper.dll: none
-```
-
-Release gate:
+검증:
 
 ```text
 [x] Desktop Release build
-[x] automated tests
-[x] Windows x64 self-contained publish
-[x] direct/transitive NuGet vulnerability audit
-[x] publish 안에 *.pdb 없음
-[x] AutoUpdater/WebView2/GraphX/QuikGraph 없음
-[x] hidden legacy keyboard behavior/logging 제거
-[x] real Map + MiniMap smoke
+[x] automated tests — 163 passed / 0 failed
+[x] Windows x64 self-contained single-file publish
+[x] Korean executable `준현 헬퍼.exe`
+[x] real Map + MiniMap startup smoke
 [x] normal Main Window close + process exit
-[x] direct one-layer Artifact
-[x] PR #73 main 병합
+[x] 실행 후 EXE 옆 `Logs` 폴더 없음
+[x] release root DLL 0개
+[x] PDB 0개
+[x] nested ZIP 없음
+[x] legacy forbidden dependency 없음
 ```
 
-**v0.1.0은 release-ready입니다.**
-
----
-
-# 7. 릴리즈 형태
+최종 PR artifact:
 
 ```text
-Windows x64
-portable ZIP
-self-contained .NET 10
-installer 없음
-관리자 권한 불필요
+artifact id: 9050775673
+size: 73,973,345 bytes
+sha256: 6db752972b3b52d9e6239c746bb910904a91d364c2410062f4c1635ac61efcaa
 ```
 
-코드 서명은 아직 구성하지 않아 SmartScreen 경고가 표시될 수 있습니다.
-
-JunhyunHelper application auto-updater는 v0.1.0 범위가 아닙니다. Game Content 업데이트는 상단 `데이터 업데이트` 기능이 담당합니다.
+**현재 v0.1.0은 release-ready입니다.**
 
 ---
 
-# 8. 의도적으로 남긴 비차단 범위
+# 10. 의도적으로 남긴 비차단 범위 / 다음 작업
 
 ## Scanner
 
-`PRODUCT OPEN` — 요구사항 확정 전. v0.1.0 UI 숨김.
+제품 surface는 유지하지만 실제 기능은 `PRODUCT OPEN`입니다. 다음 Scanner 작업은 기능 의미/입력/출력/검증 기준을 사용자와 확정한 뒤 구현합니다.
 
-## Map bundle update
+## Map bundle updater
 
 Map artwork/config/general-marker bundle은 현재 pinned bundle을 배포합니다. 향후 updater는 같은 upstream revision의 artwork/config/general-marker DB를 한 원자적 bundle로 갱신해야 합니다.
 
 ## Code signing / installer / app updater
 
-첫 portable v0.1.0의 기능 blocker로 보지 않습니다. 배포 규모가 커질 때 별도 제품/배포 설계 대상으로 둡니다.
-
-## WinForms runtime
-
-old Map source의 hidden color-dialog 코드가 compile-time dependency를 유지하므로 self-contained package에 WinForms runtime이 남습니다. 해당 UI는 제품에서 접근할 수 없습니다. 이를 제거하려면 exact Map source에 더 큰 수술이 필요하며 현재는 패키지 절감보다 회귀 위험이 커서 blocker로 보지 않습니다.
-
-## Legacy Map compile warnings
-
-exact-source transplant의 일부 nullable/fire-and-forget warning만 `WarningsNotAsErrors`로 분리합니다. JunhyunHelper 자체 warning-as-error 정책은 유지합니다.
+현재 v0.1.0 blocker가 아닙니다. 배포 규모가 커질 때 별도 설계합니다.
 
 ## User DB backup
 
-`user.db`는 Game Content/update 파일과 분리되어 있고 SQLite 저장/검증 경계를 사용합니다. 별도 자동 백업 UX는 v0.1.0 필수 범위로 확정하지 않았습니다. 장기 사용 편의 기능으로 후속 검토할 수 있습니다.
+`user.db`는 Game Content/update 파일과 분리되어 있습니다. 자동 백업 UX는 후속 편의 기능 후보입니다.
 
 ## Repository license / third-party notices
 
-저장소 자체 라이선스 선택은 제품 소유자의 배포 정책 결정이 필요한 영역이므로 개발자가 임의 지정하지 않습니다. 공개 배포/재배포 범위를 확대할 경우 프로젝트 license와 third-party notice 정책을 명시적으로 정리합니다.
+불특정 다수에게 본격 공개·재배포할 경우 프로젝트 license와 third-party notice 정책을 명시적으로 정리합니다.
