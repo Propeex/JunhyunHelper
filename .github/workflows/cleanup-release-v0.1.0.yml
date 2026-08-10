@@ -1,0 +1,75 @@
+name: Cleanup Release v0.1.0
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/cleanup-release-v0.1.0.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Remove malformed asset and record live state
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set +e
+          before="$(gh release view v0.1.0 --repo "$REPO" --json assets --jq '.assets[].name' 2>&1)"
+          delete_result='not needed'
+          if printf '%s\n' "$before" | grep -Fxq -- '-.-v0.1.0-win-x64.zip'; then
+            delete_result="$(gh release delete-asset v0.1.0 '-.-v0.1.0-win-x64.zip' -y --repo "$REPO" 2>&1)"
+            delete_exit=$?
+          else
+            delete_exit=0
+          fi
+
+          release_json="$(gh release view v0.1.0 --repo "$REPO" --json url,isDraft,isPrerelease,tagName,name,assets,publishedAt 2>&1)"
+          view_exit=$?
+          set -e
+
+          status='FAILED'
+          details="delete_exit=$delete_exit; delete_result=$delete_result"
+          asset_names='unknown'
+          if [ "$view_exit" -eq 0 ]; then
+            asset_names="$(printf '%s' "$release_json" | jq -r '[.assets[].name] | join(", ")')"
+            desired_zip="$(printf '%s' "$release_json" | jq '[.assets[] | select(.name == "Junhyun-Helper-v0.1.0-win-x64.zip")] | length')"
+            checksum="$(printf '%s' "$release_json" | jq '[.assets[] | select(.name == "SHA256SUMS.txt")] | length')"
+            malformed="$(printf '%s' "$release_json" | jq '[.assets[] | select(.name == "-.-v0.1.0-win-x64.zip")] | length')"
+            total="$(printf '%s' "$release_json" | jq '.assets | length')"
+            if [ "$delete_exit" -eq 0 ] && [ "$desired_zip" = '1' ] && [ "$checksum" = '1' ] && [ "$malformed" = '0' ] && [ "$total" = '2' ]; then
+              status='CLEAN / VERIFIED'
+            else
+              details="$details; desired_zip=$desired_zip checksum=$checksum malformed=$malformed total=$total"
+            fi
+          else
+            details="$details; release_view_failed=$release_json"
+          fi
+
+          cat > /tmp/cleanup-record.md <<EOF
+          # GitHub Release Cleanup — v0.1.0
+
+          Status: $status
+
+          - Assets after cleanup: $asset_names
+          - Details: $details
+
+          This file is generated from the live GitHub Release state.
+          EOF
+
+          content_b64="$(base64 -w 0 /tmp/cleanup-record.md)"
+          gh api --method PUT "repos/$REPO/contents/docs/GITHUB_RELEASE_CLEANUP_0.1.0.md" \
+            -f message='Record v0.1.0 release asset cleanup' \
+            -f content="$content_b64" >/dev/null
+
+          if [ "$status" != 'CLEAN / VERIFIED' ]; then
+            exit 1
+          fi
