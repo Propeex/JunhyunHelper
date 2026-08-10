@@ -35,6 +35,9 @@ public partial class OverlayMiniMapWindow
     private int _junhyunLastQuestMarkerCount = -1;
     private string? _junhyunLastQuestMapKey;
     private int _junhyunLastExtractSignature = -1;
+    private double _junhyunMarkerScale = 1.0;
+
+    public double JunhyunMarkerScale => _junhyunMarkerScale;
 
     protected override void OnSourceInitialized(EventArgs e)
     {
@@ -73,6 +76,19 @@ public partial class OverlayMiniMapWindow
         _settings.PlayerMarkerSize = Math.Clamp(mapPixelSize / 18.0, 0.5, 3.0);
         UpdateMapView();
         SaveSettings();
+    }
+
+    /// <summary>
+    /// Applies a MiniMap-only scale to Quest, general, and extract marker visuals.
+    /// Player position marker sizing remains independent.
+    /// </summary>
+    public void ApplyJunhyunMarkerScale(double scale)
+    {
+        _junhyunMarkerScale = Math.Clamp(scale, 0.25, 1.50);
+        SynchronizeGeneralMarkerScale();
+        RenderJunhyunQuestProjection(force: true);
+        _junhyunLastExtractSignature = -1;
+        SynchronizeExtractPresentation(force: true);
     }
 
     private void ChangeAnchoredSize(double delta)
@@ -131,8 +147,8 @@ public partial class OverlayMiniMapWindow
             MainBorder.Opacity = 1.0;
 
         // Timed transparency and hover transparency are independent product intents.
-        // Either one may temporarily hide the MiniMap; it returns to 100% only when
-        // the configured timer has expired AND the cursor is no longer over it.
+        // Either one may temporarily hide the MiniMap; the separate opacity mask owns
+        // the configured normal-state opacity when neither hide condition is active.
         var shouldHide = JunhyunTemporaryHideActive || IsCursorInsideMiniMap();
         var targetOpacity = shouldHide ? 0.0 : 1.0;
         if (Math.Abs(Opacity - targetOpacity) > 0.001)
@@ -201,7 +217,7 @@ public partial class OverlayMiniMapWindow
                 MapSettings.Instance.QuestNameSize);
             Canvas.SetLeft(visual, marker.X);
             Canvas.SetTop(visual, marker.Y);
-            ApplyInverseMapScale(visual);
+            ApplyJunhyunMarkerVisualScale(visual);
             QuestMarkersContainer.Children.Add(visual);
         }
 
@@ -215,7 +231,7 @@ public partial class OverlayMiniMapWindow
     private void SynchronizeGeneralMarkerScale()
     {
         var inverse = 1.0 / Math.Max(_settings.ZoomLevel, OverlayMiniMapSettings.MinZoom);
-        var synchronizedScale = inverse * (24.0 / 18.0);
+        var synchronizedScale = inverse * (24.0 / 18.0) * _junhyunMarkerScale;
         foreach (FrameworkElement element in MapMarkersContainer.Children)
         {
             element.RenderTransform = new ScaleTransform(synchronizedScale, synchronizedScale);
@@ -240,6 +256,7 @@ public partial class OverlayMiniMapWindow
             settings.ShowTransits,
             settings.ExtractNameSize,
             _settings.OtherFloorOpacity,
+            _junhyunMarkerScale,
             ExtractMarkersContainer.Children.Count);
 
         if (!force && signature == _junhyunLastExtractSignature &&
@@ -353,10 +370,18 @@ public partial class OverlayMiniMapWindow
         Canvas.SetTop(label, -markerSize - label.DesiredSize.Height - 4 * mapScale);
         canvas.Children.Add(label);
 
-        var inverse = 1.0 / Math.Max(_settings.ZoomLevel, OverlayMiniMapSettings.MinZoom);
-        canvas.RenderTransform = new ScaleTransform(inverse, inverse);
-        canvas.RenderTransformOrigin = new Point(0, 0);
+        ApplyJunhyunMarkerVisualScale(canvas);
         return canvas;
+    }
+
+    private void ApplyJunhyunMarkerVisualScale(FrameworkElement marker)
+    {
+        var inverse = 1.0 / Math.Max(_settings.ZoomLevel, OverlayMiniMapSettings.MinZoom);
+        var scale = inverse * _junhyunMarkerScale;
+        marker.RenderTransform = new ScaleTransform(scale, scale);
+        marker.RenderTransformOrigin = marker is Canvas
+            ? new Point(0, 0)
+            : new Point(0.5, 0.5);
     }
 
     private static bool IsExtractVisible(MapSettings settings, ExtractFaction faction) => faction switch
