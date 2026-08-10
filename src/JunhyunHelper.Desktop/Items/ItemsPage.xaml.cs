@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Threading;
 using JunhyunHelper.Application.Items;
 using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.Items;
@@ -16,12 +17,16 @@ public sealed record ItemHideoutNavigationRequestedEventArgs(string StationId);
 
 public partial class ItemsPage : UserControl
 {
+    private static readonly TimeSpan RapidInventoryClickWindow = TimeSpan.FromMilliseconds(160);
+
     private GameContentCatalog? _content;
     private ItemsWorkspace? _workspace;
     private ImageCacheService? _imageCache;
     private IReadOnlyList<ItemRow> _allRows = [];
     private ItemRow? _selectedRow;
     private CancellationTokenSource? _iconLoadCts;
+    private readonly DispatcherTimer _inventorySaveDebounceTimer;
+    private PendingInventorySave? _pendingInventorySave;
     private ItemViewMode _viewMode = ItemViewMode.Normal;
     private bool _busy;
     private bool _updatingFilters;
@@ -47,6 +52,13 @@ public partial class ItemsPage : UserControl
             new UsageChoice(ItemUsageFilter.Hideout, "은신처용"),
         };
         UsageComboBox.SelectedIndex = 0;
+
+        _inventorySaveDebounceTimer = new DispatcherTimer(
+            RapidInventoryClickWindow,
+            DispatcherPriority.Background,
+            (_, _) => FlushPendingInventorySave(),
+            Dispatcher);
+        _inventorySaveDebounceTimer.Stop();
         UpdateModeControls();
     }
 
@@ -63,7 +75,17 @@ public partial class ItemsPage : UserControl
         _workspace = workspace ?? throw new ArgumentNullException(nameof(workspace));
 
         var selectedItemId = _selectedRow?.ItemId;
+        var loadedIcons = _allRows
+            .Where(row => row.Icon is not null)
+            .ToDictionary(row => row.ItemId, row => row.Icon!, StringComparer.Ordinal);
+
         _allRows = BuildRows(content, workspace);
+        foreach (var row in _allRows)
+        {
+            if (loadedIcons.TryGetValue(row.ItemId, out var icon))
+                row.Icon = icon;
+        }
+
         ApplyFilter();
 
         if (!string.IsNullOrWhiteSpace(selectedItemId))
@@ -226,7 +248,7 @@ public partial class ItemsPage : UserControl
             foreach (var row in rows)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (string.IsNullOrWhiteSpace(row.IconUrl))
+                if (row.Icon is not null || string.IsNullOrWhiteSpace(row.IconUrl))
                     continue;
                 var image = await _imageCache.LoadAsync($"item-{row.ItemId}", row.IconUrl, cancellationToken);
                 if (image is null || cancellationToken.IsCancellationRequested)
@@ -527,7 +549,7 @@ public partial class ItemsPage : UserControl
         if (inRaid) fir = Math.Max(0, fir + delta); else nonFir = Math.Max(0, nonFir + delta);
         OwnedFirTextBox.Text = fir.ToString(CultureInfo.InvariantCulture);
         OwnedNonFirTextBox.Text = nonFir.ToString(CultureInfo.InvariantCulture);
-        RequestInventorySave(fir, nonFir);
+        ScheduleInventorySave(_selectedRow.ItemId, fir, nonFir);
     }
 
     private void SaveInventoryButton_Click(object sender, RoutedEventArgs e)
@@ -538,14 +560,31 @@ public partial class ItemsPage : UserControl
             ShowQuantityValidation();
             return;
         }
-        RequestInventorySave(fir, nonFir);
+
+        _inventorySaveDebounceTimer.Stop();
+        _pendingInventorySave = null;
+        RequestInventorySave(_selectedRow.ItemId, fir, nonFir);
     }
 
-    private void RequestInventorySave(int fir, int nonFir)
+    private void ScheduleInventorySave(string itemId, int fir, int nonFir)
     {
-        if (_selectedRow is not null)
-            InventoryChangeRequested?.Invoke(this, new InventoryChangeRequestedEventArgs(_selectedRow.ItemId, fir, nonFir));
+        _pendingInventorySave = new PendingInventorySave(itemId, fir, nonFir);
+        _inventorySaveDebounceTimer.Stop();
+        _inventorySaveDebounceTimer.Start();
     }
+
+    private void FlushPendingInventorySave()
+    {
+        _inventorySaveDebounceTimer.Stop();
+        if (_pendingInventorySave is not { } pending)
+            return;
+
+        _pendingInventorySave = null;
+        RequestInventorySave(pending.ItemId, pending.Fir, pending.NonFir);
+    }
+
+    private void RequestInventorySave(string itemId, int fir, int nonFir) =>
+        InventoryChangeRequested?.Invoke(this, new InventoryChangeRequestedEventArgs(itemId, fir, nonFir));
 
     private static bool TryParseQuantity(string? text, out int quantity) =>
         int.TryParse(text?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out quantity) && quantity >= 0;
@@ -600,6 +639,7 @@ public partial class ItemsPage : UserControl
         public event PropertyChangedEventHandler? PropertyChanged;
     }
 
+    private sealed record PendingInventorySave(string ItemId, int Fir, int NonFir);
     private sealed record SourceRow(string Title, string Detail, SourceNavigationKind Kind, string? TargetId)
     {
         public bool IsNavigable => Kind != SourceNavigationKind.None && !string.IsNullOrWhiteSpace(TargetId);
