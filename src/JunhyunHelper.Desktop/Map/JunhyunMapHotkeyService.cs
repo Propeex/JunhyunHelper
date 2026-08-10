@@ -53,10 +53,6 @@ public sealed class JunhyunMapHotkeyService : IDisposable
         _page = page ?? throw new ArgumentNullException(nameof(page));
         _callback = HookCallback;
 
-        // The transplanted OverlayMiniMapService re-populates its old direct zoom/floor
-        // hook keys during late initialization and whenever overlay settings change.
-        // JunhyunHelper owns those actions now, so immediately neutralize the legacy
-        // route and keep it neutralized after every overlay lifecycle transition.
         _overlay.OverlayVisibilityChanged += Overlay_VisibilityChanged;
         _overlay.SettingsChanged += Overlay_SettingsChanged;
         SuppressLegacyDirectMapHotkeys();
@@ -108,7 +104,8 @@ public sealed class JunhyunMapHotkeyService : IDisposable
         if (!firstPress && !repeatable)
             return CallNextHookEx(_hook, code, wParam, lParam);
 
-        System.Windows.Application.Current?.Dispatcher.BeginInvoke(() => Execute(action.Value));
+        System.Windows.Application.Current?.Dispatcher.BeginInvoke(async () =>
+            await ExecuteAsync(action.Value));
         return CallNextHookEx(_hook, code, wParam, lParam);
     }
 
@@ -129,9 +126,8 @@ public sealed class JunhyunMapHotkeyService : IDisposable
         return null;
     }
 
-    private void Execute(OverlayMiniMapHotkeyAction action)
+    private async Task ExecuteAsync(OverlayMiniMapHotkeyAction action)
     {
-        // Eliminate any late legacy re-registration before executing the product action.
         SuppressLegacyDirectMapHotkeys();
 
         switch (action)
@@ -148,11 +144,11 @@ public sealed class JunhyunMapHotkeyService : IDisposable
                 _overlay.ZoomOut();
                 break;
             case OverlayMiniMapHotkeyAction.FloorUp:
-                _page.JunhyunFloorUp();
+                await _page.JunhyunFloorUpAsync();
                 _overlay.MoveFloorUp();
                 break;
             case OverlayMiniMapHotkeyAction.FloorDown:
-                _page.JunhyunFloorDown();
+                await _page.JunhyunFloorDownAsync();
                 _overlay.MoveFloorDown();
                 break;
             case OverlayMiniMapHotkeyAction.SizeIncrease:
@@ -170,9 +166,6 @@ public sealed class JunhyunMapHotkeyService : IDisposable
     {
         if (_disposed)
             return;
-
-        // ShowOverlayCore raises this after the legacy service has called SyncHotkeys,
-        // so this is the authoritative point to remove the conflicting direct keys.
         SuppressLegacyDirectMapHotkeys();
     }
 
@@ -180,10 +173,6 @@ public sealed class JunhyunMapHotkeyService : IDisposable
     {
         if (_disposed)
             return;
-
-        // OverlayMiniMapService calls its legacy SyncHotkeys before raising this event.
-        // Re-zero the old route every time so one physical key produces exactly one
-        // JunhyunHelper product action.
         SuppressLegacyDirectMapHotkeys();
     }
 
