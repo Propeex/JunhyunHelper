@@ -26,16 +26,27 @@
   - MiniMap 크기 hotkey / 기본 투명도 / 일시 투명 / marker 크기
   - screenshot 기반 Map 전환 및 player tracking
 - 전체 dark control + rounded ScrollBar theme
-
-Scanner 요구사항은 아직 확정하지 않았기 때문에 **v0.1.0 UI에는 노출하지 않습니다.** 기능을 임의로 넣지 않고 후속 제품 설계에서 별도로 다룹니다.
+- 상단 `스캐너` 탭
+  - 현재는 `준비 중` placeholder만 표시
+  - 실제 Scanner 동작은 요구사항 확정 후 후속 구현
 
 ## 실행
 
-배포 빌드는 **Windows x64 portable/self-contained** 형태입니다.
+배포 빌드는 **Windows x64 portable / self-contained single-file** 형태입니다.
 
 1. 배포 ZIP을 원하는 폴더에 압축 해제합니다.
-2. `JunhyunHelper.exe`를 실행합니다.
+2. **`준현 헬퍼.exe`**를 실행합니다.
 3. 처음 실행하면 프로필을 만들고 필요한 게임 데이터를 온라인에서 내려받습니다.
+
+배포 폴더의 루트는 찾기 쉽게 다음만 둡니다.
+
+```text
+준현 헬퍼.exe
+FIRST_RUN_KO.txt
+Assets/
+```
+
+.NET/WPF/SQLite/Skia 런타임 DLL은 `준현 헬퍼.exe` 내부에 묶습니다. Map이 파일 경로로 직접 읽는 검증된 지도/마커 자산만 `Assets/`에 외부 파일로 유지합니다. 프로그램 로그는 실행 폴더가 아니라 `%LocalAppData%/JunhyunHelper/Logs`에 저장합니다.
 
 별도 .NET 설치나 관리자 권한은 필요하지 않습니다. 현재 코드 서명은 하지 않으므로 Windows SmartScreen 경고가 표시될 수 있습니다.
 
@@ -81,9 +92,10 @@ content/<game-mode>/content.previous.db
 image-cache/
 map-product-settings.json
 ammo-favorites.json
+Logs/
 ```
 
-프로그램 ZIP을 새 버전으로 교체해도 위 사용자 진행 데이터는 프로그램 폴더와 분리되어 유지됩니다.
+프로그램 ZIP을 새 버전으로 교체해도 위 사용자 진행 데이터와 로그는 프로그램 폴더와 분리되어 유지됩니다.
 
 ## Map 데이터 정책
 
@@ -112,9 +124,10 @@ Release Candidate는 다음 검증을 통과해야 합니다.
 
 - Desktop Release build
 - Core/Application/Infrastructure 자동 테스트
-- Windows x64 self-contained publish
-- 배포물 debug symbol / 불필요 legacy dependency 검사
-- 실제 Map + MiniMap startup/zoom/floor/marker smoke
+- Windows x64 self-contained single-file publish
+- `준현 헬퍼.exe` 실제 startup + Map/MiniMap smoke
+- 배포 루트 DLL 0개 / PDB 0개 / 중첩 ZIP 없음
+- 실행 후에도 EXE 옆에 `Logs` 등 런타임 폴더가 생기지 않음
 - Main Window 정상 close 후 process 종료 확인
 
 ## 개발 문서
