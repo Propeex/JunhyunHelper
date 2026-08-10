@@ -1,0 +1,172 @@
+name: Release v0.1.0
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/release-v0.1.0.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build desktop
+        run: dotnet build src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj --configuration Release
+
+      - name: Test core
+        run: dotnet test tests/JunhyunHelper.Tests/JunhyunHelper.Tests.csproj --configuration Release
+
+      - name: Publish Windows x64
+        shell: pwsh
+        run: |
+          dotnet publish src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            --output artifacts/publish `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true `
+            -p:PublishTrimmed=false `
+            -p:PublishReadyToRun=false `
+            -p:DebugType=None `
+            -p:DebugSymbols=false
+
+          Copy-Item packaging/FIRST_RUN_KO.txt artifacts/publish/FIRST_RUN_KO.txt
+
+          $required = @('준현 헬퍼.exe', 'FIRST_RUN_KO.txt', 'Assets/tarkov_data.db')
+          foreach ($file in $required) {
+            if (-not (Test-Path (Join-Path artifacts/publish $file))) {
+              throw "Required published file was not produced: $file"
+            }
+          }
+
+          $rootFiles = @(Get-ChildItem artifacts/publish -File)
+          $unexpectedRootFiles = @($rootFiles | Where-Object { $_.Name -notin @('준현 헬퍼.exe', 'FIRST_RUN_KO.txt') })
+          if ($unexpectedRootFiles.Count -gt 0) {
+            throw "Unexpected release root files: $($unexpectedRootFiles.Name -join ', ')"
+          }
+
+          $rootDirectories = @(Get-ChildItem artifacts/publish -Directory)
+          $unexpectedRootDirectories = @($rootDirectories | Where-Object { $_.Name -ne 'Assets' })
+          if ($unexpectedRootDirectories.Count -gt 0) {
+            throw "Unexpected release root directories: $($unexpectedRootDirectories.Name -join ', ')"
+          }
+
+          if (Get-ChildItem artifacts/publish -Recurse -File -Filter *.pdb) {
+            throw 'Release publish contains PDB debug symbols.'
+          }
+
+          $forbidden = @(
+            'AutoUpdater.NET.dll',
+            'Microsoft.Web.WebView2.Core.dll',
+            'Microsoft.Web.WebView2.WinForms.dll',
+            'Microsoft.Web.WebView2.Wpf.dll',
+            'WebView2Loader.dll',
+            'Westermo.GraphX.Controls.dll',
+            'Westermo.GraphX.Common.dll',
+            'QuikGraph.dll'
+          )
+          foreach ($file in $forbidden) {
+            if (Get-ChildItem artifacts/publish -Recurse -File -Filter $file) {
+              throw "Forbidden legacy dependency leaked into release: $file"
+            }
+          }
+
+      - name: Startup + Map + graceful shutdown smoke
+        shell: pwsh
+        env:
+          JUNHYUNHELPER_MAP_SMOKE: '1'
+        run: |
+          $exe = (Resolve-Path 'artifacts/publish/준현 헬퍼.exe').Path
+          $process = Start-Process -FilePath $exe -WorkingDirectory artifacts/publish -PassThru
+          try {
+            Start-Sleep -Seconds 12
+            $process.Refresh()
+            if ($process.HasExited) {
+              throw "Published 준현 헬퍼 exited during startup smoke with code $($process.ExitCode)."
+            }
+            if (-not $process.CloseMainWindow()) {
+              throw 'Could not request a normal Main Window close.'
+            }
+            if (-not $process.WaitForExit(7000)) {
+              throw 'Main Window closed but process did not terminate within 7 seconds.'
+            }
+            if (Test-Path 'artifacts/publish/Logs') {
+              throw 'Runtime smoke recreated Logs beside the portable executable.'
+            }
+          }
+          finally {
+            $process.Refresh()
+            if (-not $process.HasExited) {
+              Stop-Process -Id $process.Id -Force
+            }
+          }
+
+      - name: Package release asset
+        shell: pwsh
+        run: |
+          $asset = '준현-헬퍼-v0.1.0-win-x64.zip'
+          if (Test-Path $asset) { Remove-Item $asset -Force }
+          Compress-Archive -Path 'artifacts/publish/*' -DestinationPath $asset -CompressionLevel Optimal
+          $hash = (Get-FileHash $asset -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $asset" | Set-Content -Path 'SHA256SUMS.txt' -Encoding ascii
+          Write-Host "Release asset SHA-256: $hash"
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = 'v0.1.0'
+          $notes = @'
+          # 준현 헬퍼 v0.1.0
+
+          Escape from Tarkov 플레이를 지원하는 준현 헬퍼의 첫 정식 릴리즈입니다.
+
+          ## 주요 기능
+          - 프로필 및 게임 모드별 진행 관리
+          - 퀘스트 진행/선행 조건/완료 및 아이템 자동 소비·복원
+          - 은신처 레벨 및 업그레이드 재료 관리
+          - 미래 퀘스트 + 은신처 기준 필요 아이템 계산
+          - 탄약 성능/수급처/방어구 클래스 비교
+          - Map + MiniMap, 퀘스트/탈출구 마커, 층/줌/크기/투명도 단축키
+          - 온라인 게임 데이터 안전 업데이트
+          - 스캐너 탭은 현재 준비 중 상태로 유지
+
+          ## 실행
+          ZIP을 압축 해제한 뒤 `준현 헬퍼.exe`를 실행하세요.
+          Windows x64 portable/self-contained 빌드이며 별도 .NET 설치는 필요하지 않습니다.
+
+          코드 서명이 아직 없어 Windows SmartScreen 경고가 표시될 수 있습니다.
+          '@
+          $notes | Set-Content -Path 'release-notes.md' -Encoding utf8
+
+          gh release view $tag --repo '${{ github.repository }}' *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag '준현-헬퍼-v0.1.0-win-x64.zip' 'SHA256SUMS.txt' --clobber --repo '${{ github.repository }}'
+            gh release edit $tag --title '준현 헬퍼 v0.1.0' --notes-file 'release-notes.md' --repo '${{ github.repository }}'
+          }
+          else {
+            gh release create $tag '준현-헬퍼-v0.1.0-win-x64.zip' 'SHA256SUMS.txt' `
+              --target '${{ github.sha }}' `
+              --title '준현 헬퍼 v0.1.0' `
+              --notes-file 'release-notes.md' `
+              --repo '${{ github.repository }}'
+          }
