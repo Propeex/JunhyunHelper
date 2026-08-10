@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using TarkovHelper.Models.Map;
 using TarkovHelper.Services;
 
@@ -18,12 +19,14 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
     private readonly OverlayMiniMapService _overlay = OverlayMiniMapService.Instance;
     private readonly JunhyunMapProductSettingsStore _store = JunhyunMapProductSettingsStore.Instance;
     private readonly Dictionary<OverlayMiniMapHotkeyAction, Button> _buttons = new();
+    private readonly DispatcherTimer _authoritativeRestoreTimer;
     private OverlayMiniMapHotkeyAction? _captureAction;
     private Button? _temporaryHideButton;
     private Slider? _temporaryHideSecondsSlider;
     private TextBlock? _temporaryHideSecondsText;
     private bool _captureTemporaryHide;
     private bool _disposed;
+    private int _restoreTicks;
 
     public LegacyMapHotkeySettingsBridge(TarkovHelper.Pages.Map.MapPage page)
     {
@@ -32,6 +35,32 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
         Inject();
         SyncLegacyHook();
         _overlay.SettingsChanged += Overlay_SettingsChanged;
+
+        // OverlayMiniMapService loads the transplanted legacy DB late in MapPage's
+        // asynchronous Loaded flow. Keep the JunhyunHelper-owned values authoritative
+        // across that initialization window so legacy values cannot win after restart.
+        _authoritativeRestoreTimer = new DispatcherTimer(
+            TimeSpan.FromSeconds(1),
+            DispatcherPriority.Background,
+            (_, _) => ReassertProductHotkeys(),
+            _page.Dispatcher);
+        _authoritativeRestoreTimer.Start();
+    }
+
+    private void ReassertProductHotkeys()
+    {
+        if (_disposed)
+        {
+            _authoritativeRestoreTimer.Stop();
+            return;
+        }
+
+        RestorePersistedHotkeys();
+        SyncLegacyHook();
+        UpdateDisplays();
+        _restoreTicks++;
+        if (_restoreTicks >= 15)
+            _authoritativeRestoreTimer.Stop();
     }
 
     private void RestorePersistedHotkeys()
@@ -327,9 +356,6 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
 
     private void SyncLegacyHook()
     {
-        // JunhyunMapHotkeyService owns configured zoom/floor keys. Zero the legacy
-        // direct overlay actions to prevent the same key from firing twice when a
-        // MiniMap happens to be visible. NumPad0~5 direct floor selection is separate.
         var hook = GlobalKeyboardHookService.Instance;
         hook.ZoomInKey = 0;
         hook.ZoomOutKey = 0;
@@ -401,6 +427,7 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
             return;
         _disposed = true;
 
+        _authoritativeRestoreTimer.Stop();
         GlobalKeyboardHookService.Instance.OverlayHotkeysSuppressed = false;
         _overlay.SettingsChanged -= Overlay_SettingsChanged;
         foreach (var button in _buttons.Values)
