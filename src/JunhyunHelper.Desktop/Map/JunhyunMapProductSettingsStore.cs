@@ -123,6 +123,16 @@ public sealed class JunhyunMapProductSettingsStore
         set => Update(settings => settings.MiniMapOpacity = Math.Clamp(value, 0.10, 1.0));
     }
 
+    /// <summary>
+    /// MiniMap-only scale multiplier for non-player marker visuals. This deliberately
+    /// excludes the player position marker, which has its own existing size setting.
+    /// </summary>
+    public double MiniMapMarkerScale
+    {
+        get { lock (_gate) return Math.Clamp(_settings.MiniMapMarkerScale, 0.25, 1.50); }
+        set => Update(settings => settings.MiniMapMarkerScale = Math.Clamp(value, 0.25, 1.50));
+    }
+
     public bool RaiderVisible
     {
         get { lock (_gate) return _settings.RaiderVisible ?? true; }
@@ -216,4 +226,5 @@ public sealed class JunhyunMapProductSettings
     public int TemporaryHideKey { get; set; }
     public double TemporaryHideSeconds { get; set; } = 3.0;
     public double MiniMapOpacity { get; set; } = 1.0;
+    public double MiniMapMarkerScale { get; set; } = 1.0;
 }
