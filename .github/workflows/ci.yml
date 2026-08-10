@@ -69,6 +69,13 @@ jobs:
             throw "Single-file publish left runtime/dependency files beside the executable."
           }
 
+          $rootDirectories = @(Get-ChildItem artifacts/publish -Directory)
+          $unexpectedRootDirectories = @($rootDirectories | Where-Object { $_.Name -ne 'Assets' })
+          if ($unexpectedRootDirectories.Count -gt 0) {
+            $unexpectedRootDirectories | ForEach-Object { Write-Host "Unexpected root directory: $($_.Name)" }
+            throw "Release root contains an unexpected directory."
+          }
+
           $rootDlls = @(Get-ChildItem artifacts/publish -File -Filter *.dll)
           if ($rootDlls.Count -gt 0) {
             $rootDlls | ForEach-Object { Write-Host "Unexpected root DLL: $($_.Name)" }
@@ -128,7 +135,11 @@ jobs:
               throw "준현 헬퍼 Main Window closed but the process did not terminate within 7 seconds."
             }
 
-            Write-Host "Graceful shutdown smoke passed: 준현 헬퍼 process terminated after Main Window close."
+            if (Test-Path 'artifacts/publish/Logs') {
+              throw "Runtime smoke recreated a Logs folder beside the portable executable."
+            }
+
+            Write-Host "Graceful shutdown + clean portable root smoke passed."
           }
           finally {
             $process.Refresh()
