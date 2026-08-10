@@ -7,6 +7,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Audit direct and transitive runtime packages during restore/build. Any known
+         NuGet vulnerability warning blocks a release candidate. -->
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <WarningsAsErrors>$(WarningsAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsAsErrors>
     <!-- The pinned Tarkov-Helper source was not authored with warnings-as-errors.
          Preserve the exact upstream Map/MiniMap source instead of modifying it merely
          to satisfy JunhyunHelper's stricter compile policy. -->
