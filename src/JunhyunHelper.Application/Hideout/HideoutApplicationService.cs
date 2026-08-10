@@ -35,6 +35,19 @@ public sealed class HideoutApplicationService
         ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
 
         var profile = await LoadRequiredProfileAsync(profileId, cancellationToken);
+        return BuildFromProfile(content, profile);
+    }
+
+    /// <summary>
+    /// Rebuilds the derived Hideout workspace from an already loaded authoritative
+    /// profile snapshot without another user.db read.
+    /// </summary>
+    public HideoutWorkspace BuildFromProfile(
+        GameContentCatalog content,
+        GameProfileSnapshot profile)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        ArgumentNullException.ThrowIfNull(profile);
         return BuildWorkspace(content, profile);
     }
 
