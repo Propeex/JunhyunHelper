@@ -26,7 +26,7 @@ jobs:
           before="$(gh release view v0.1.0 --repo "$REPO" --json assets --jq '.assets[].name' 2>&1)"
           delete_result='not needed'
           if printf '%s\n' "$before" | grep -Fxq -- '-.-v0.1.0-win-x64.zip'; then
-            delete_result="$(gh release delete-asset v0.1.0 -y -- '-.-v0.1.0-win-x64.zip' --repo "$REPO" 2>&1)"
+            delete_result="$(gh release delete-asset -y --repo "$REPO" v0.1.0 -- '-.-v0.1.0-win-x64.zip' 2>&1)"
             delete_exit=$?
           else
             delete_exit=0
