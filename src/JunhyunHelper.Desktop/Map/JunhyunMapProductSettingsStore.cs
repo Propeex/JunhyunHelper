@@ -112,6 +112,17 @@ public sealed class JunhyunMapProductSettingsStore
         set => Update(settings => settings.TemporaryHideSeconds = Math.Clamp(value, 1.0, 15.0));
     }
 
+    /// <summary>
+    /// Base MiniMap opacity while neither hover-hide nor timed-hide is active.
+    /// Stored independently from the transplanted OverlayMiniMapSettings because the
+    /// product intentionally fixed/removed the legacy opacity controls.
+    /// </summary>
+    public double MiniMapOpacity
+    {
+        get { lock (_gate) return Math.Clamp(_settings.MiniMapOpacity, 0.10, 1.0); }
+        set => Update(settings => settings.MiniMapOpacity = Math.Clamp(value, 0.10, 1.0));
+    }
+
     public bool RaiderVisible
     {
         get { lock (_gate) return _settings.RaiderVisible ?? true; }
@@ -204,4 +215,5 @@ public sealed class JunhyunMapProductSettings
     public bool? RaiderVisible { get; set; }
     public int TemporaryHideKey { get; set; }
     public double TemporaryHideSeconds { get; set; } = 3.0;
+    public double MiniMapOpacity { get; set; } = 1.0;
 }
