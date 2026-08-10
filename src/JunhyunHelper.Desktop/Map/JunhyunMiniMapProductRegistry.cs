@@ -15,6 +15,7 @@ public static class JunhyunMiniMapProductRegistry
         lock (Gate)
             _active = new WeakReference<TarkovHelper.Windows.OverlayMiniMapWindow>(window);
 
+        window.ApplyJunhyunInputPolicy();
         window.InitializeQuestV2();
     }
 
@@ -27,6 +28,14 @@ public static class JunhyunMiniMapProductRegistry
                 _active = null;
         }
     }
+
+    public static void ZoomIn() => WithActive(window => window.ZoomIn());
+
+    public static void ZoomOut() => WithActive(window => window.ZoomOut());
+
+    public static void MoveFloorUp() => WithActive(window => window.MoveFloorUp());
+
+    public static void MoveFloorDown() => WithActive(window => window.MoveFloorDown());
 
     public static void IncreaseSize() => WithActive(window => window.IncreaseAnchoredSize());
 
