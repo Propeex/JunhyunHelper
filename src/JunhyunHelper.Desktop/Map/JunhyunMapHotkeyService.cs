@@ -6,9 +6,10 @@ using TarkovHelper.Services;
 namespace JunhyunHelper.Desktop.Map;
 
 /// <summary>
-/// Supplements the exact Tarkov Helper keyboard hook only for product actions that
-/// the original hook cannot perform: toggling a hidden MiniMap and anchored window
-/// resizing. Existing zoom/floor/auto-floor hotkeys remain owned by upstream.
+/// JunhyunHelper-owned Map keyboard hook. Configured Map actions must work while
+/// Escape from Tarkov or JunhyunHelper has focus, regardless of whether MiniMap is
+/// currently visible. The transplanted hook remains only for its direct NumPad floor
+/// selection compatibility path.
 /// </summary>
 public sealed class JunhyunMapHotkeyService : IDisposable
 {
@@ -40,13 +41,15 @@ public sealed class JunhyunMapHotkeyService : IDisposable
     [DllImport("user32.dll")]
     private static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
 
+    private readonly TarkovHelper.Pages.Map.MapPage _page;
     private readonly LowLevelKeyboardProc _callback;
-    private readonly HashSet<int> _pressed = new();
+    private readonly HashSet<int> _pressed = [];
     private IntPtr _hook;
     private bool _disposed;
 
-    public JunhyunMapHotkeyService()
+    public JunhyunMapHotkeyService(TarkovHelper.Pages.Map.MapPage page)
     {
+        _page = page ?? throw new ArgumentNullException(nameof(page));
         _callback = HookCallback;
         _hook = SetWindowsHookEx(WhKeyboardLl, _callback, IntPtr.Zero, 0);
     }
@@ -75,33 +78,49 @@ public sealed class JunhyunMapHotkeyService : IDisposable
             return CallNextHookEx(_hook, code, wParam, lParam);
         }
 
-        var settings = OverlayMiniMapService.Instance.Settings;
-        var action = settings.GetActionForHotkey(virtualKey);
-        if (action is null)
-            return CallNextHookEx(_hook, code, wParam, lParam);
-
-        // Upstream owns these actions already. Only supplement the actions that do
-        // not exist in the exact Tarkov Helper hook.
-        if (action is not OverlayMiniMapHotkeyAction.ToggleOverlay and
-            not OverlayMiniMapHotkeyAction.SizeIncrease and
-            not OverlayMiniMapHotkeyAction.SizeDecrease)
+        var productSettings = JunhyunMapProductSettingsStore.Instance;
+        if (virtualKey != 0 && virtualKey == productSettings.TemporaryHideKey)
         {
+            if (firstPress)
+            {
+                var seconds = productSettings.TemporaryHideSeconds;
+                System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
+                    JunhyunMiniMapProductRegistry.TemporarilyHide(seconds));
+            }
             return CallNextHookEx(_hook, code, wParam, lParam);
         }
 
-        if (!firstPress && action == OverlayMiniMapHotkeyAction.ToggleOverlay)
+        var overlaySettings = OverlayMiniMapService.Instance.Settings;
+        var action = overlaySettings.GetActionForHotkey(virtualKey);
+        if (action is null)
+            return CallNextHookEx(_hook, code, wParam, lParam);
+
+        var repeatable = action is OverlayMiniMapHotkeyAction.ZoomIn or OverlayMiniMapHotkeyAction.ZoomOut;
+        if (!firstPress && !repeatable)
             return CallNextHookEx(_hook, code, wParam, lParam);
 
         System.Windows.Application.Current?.Dispatcher.BeginInvoke(() => Execute(action.Value));
         return CallNextHookEx(_hook, code, wParam, lParam);
     }
 
-    private static void Execute(OverlayMiniMapHotkeyAction action)
+    private void Execute(OverlayMiniMapHotkeyAction action)
     {
         switch (action)
         {
             case OverlayMiniMapHotkeyAction.ToggleOverlay:
                 OverlayMiniMapService.Instance.ToggleOverlay();
+                break;
+            case OverlayMiniMapHotkeyAction.ZoomIn:
+                _page.JunhyunZoomIn();
+                break;
+            case OverlayMiniMapHotkeyAction.ZoomOut:
+                _page.JunhyunZoomOut();
+                break;
+            case OverlayMiniMapHotkeyAction.FloorUp:
+                _page.JunhyunFloorUp();
+                break;
+            case OverlayMiniMapHotkeyAction.FloorDown:
+                _page.JunhyunFloorDown();
                 break;
             case OverlayMiniMapHotkeyAction.SizeIncrease:
                 if (OverlayMiniMapService.Instance.IsOverlayVisible)
