@@ -6,7 +6,7 @@
 
 **Phase 2B — 핵심 Desktop 흐름 구현 + Windows 실사용 피드백 반복 개선**
 
-상태: `MAP QUEST RENDER / FLOOR / MARKER HOTFIX MERGED / AUTOMATED VALIDATION PASSED / WINDOWS USER VALIDATION NEXT`
+상태: `PR #68 MERGED / AUTOMATED VALIDATION PASSED / WINDOWS USER VALIDATION NEXT`
 
 기준일: **2026-08-10**
 
@@ -44,7 +44,7 @@
 - Hideout: 시설 level, next upgrade material, upgrade/rollback ledger
 - Needed Items: FIR/일반 필요량/보유량/검색/필터
 - Ammo: json.tarkov.dev raw 성능 + Wiki Ballistics 비교 + favorite
-- Map + MiniMap: Tarkov Helper exact subsystem 기반 제품화 진행 중
+- Map + MiniMap: Tarkov Helper exact subsystem 기반 제품화
 
 Scanner는 탭/placeholder만 있으며 실제 기능 요구사항은 아직 확정 전입니다.
 
@@ -64,7 +64,7 @@ Windows publish는 한국어 제품 정책에 따라 `SatelliteResourceLanguages
 
 JunhyunHelper에서 자체적으로 새로 만들었던 Map 구현은 폐기했습니다.
 
-PR #62에서 `Propeex/Tarkov-Helper`의 Map + MiniMap subsystem을 exact source 기준으로 이식했고 사용자가 Windows에서 이 지도 artwork/구조를 원하는 기준으로 직접 확인했습니다.
+PR #62에서 `Propeex/Tarkov-Helper`의 Map + MiniMap subsystem을 exact source 기준으로 이식했고, 사용자가 Windows에서 이 지도 artwork/구조를 원하는 기준으로 직접 확인했습니다.
 
 ```text
 exact baseline PR #62 merge:
@@ -108,60 +108,30 @@ Hideout / Item / Ammo 등과 Map runtime을 결합하지 않습니다.
 
 ---
 
-# 현재 Map UI / 기능
+# 현재 Map 제품 동작
 
-## Quest sidebar
+## Quest sidebar / marker
 
-- 현재 선택 Map의 **진행 중(Current) Quest만** 표시합니다.
-- 기본 접힘 상태이며 펼치면 300px입니다.
-- 접으면 실제 지도 영역이 넓어집니다.
-- Quest 행 클릭 → JunhyunHelper `퀘스트` 탭 → 해당 Quest 상세로 이동합니다.
-- 정확한 좌표가 없는 Quest도 목록에는 남기고 `정확한 좌표 없음`으로 표시합니다.
-- 좌표 Quest는 개별 marker checkbox를 가집니다.
-- 표시 대상으로 선택된 Quest는 sidebar 순서대로 `A`, `B`, `C`... 식별자를 사용합니다.
-- 한 Quest에 위치가 여러 개면 같은 식별자를 공유합니다.
-- checkbox lane / A-B-C badge lane / Quest text lane은 고정 column입니다.
-- A/B/C badge 자체의 X 위치와 Quest text 시작점이 모든 row에서 동일해야 합니다.
+- 현재 선택 Map의 **진행 중(Current) Quest만** 표시
+- 기본 접힘, 펼침 300px
+- Quest 행 클릭 → JunhyunHelper Quest 상세 이동
+- 좌표가 없는 Quest도 목록 유지 + `정확한 좌표 없음`
+- 좌표 Quest별 marker checkbox
+- 표시 대상 Quest를 sidebar 순서대로 `A`, `B`, `C`... 식별
+- 한 Quest의 여러 위치는 같은 식별자 공유
+- checkbox / A-B-C badge / Quest text 고정 column 정렬
+- 우측 `지도 마커 > 퀘스트` global toggle 제공
+- global OFF는 개별 Quest 선택 상태를 지우지 않음
+- Main Map / MiniMap 동일 A/B/C identity
+- Quest visual은 PR #67부터 **0x0 Canvas anchor + child offset** V3 renderer 사용
 
-## Quest 좌표 데이터
+Quest content schema는 **v4**이며 online `possibleLocations` / `zones`를 Quest domain에 저장합니다. v3는 offline fallback으로 계속 읽습니다.
 
-Quest content schema는 **v4**입니다.
+`좌표 N개` 표시는 raw metadata count가 아니라 Map filter와 `MapTrackerService.TransformGameCoordinate(X,Z)`까지 성공한 최종 projection 개수입니다.
 
-온라인 task objective에서 다음 위치 정보를 Quest domain에만 저장합니다.
+## Marker
 
-- `possibleLocations`
-- `zones`
-- Map ID
-- X/Z
-- source가 제공한 경우 Height
-- zone outline/top/bottom
-
-기존 v3 snapshot은 offline fallback으로 계속 읽습니다. Map 최초 사용 시 v4 online update를 한 번 시도하고 실패하면 기존 v3 + `user.db`를 유지합니다.
-
-중요한 현재 검증 결과:
-
-```text
-sidebar의 `좌표 N개`
-= raw metadata count가 아님
-= MapLocations 읽기 성공
-→ 현재 Map 필터 성공
-→ MapTrackerService.TransformGameCoordinate(X,Z) 성공
-→ 실제 render projection으로 남은 개수
-```
-
-따라서 사용자 화면에 `좌표 2개`, `좌표 3개`가 보이면 Quest 좌표 수집과 Map 좌표 변환은 이미 성공한 상태입니다.
-
-## Quest marker
-
-- 우측 `지도 마커 > 퀘스트`에 제품용 `퀘스트 마커 표시` global checkbox가 있습니다.
-- global OFF는 per-Quest 선택 상태를 지우지 않습니다.
-- Main Map / MiniMap은 동일 A/B/C identity를 사용합니다.
-- PR #67부터 Quest marker visual은 exact Tarkov Helper 일반 marker와 동일한 **0x0 Canvas anchor + child offset** 방식의 V3 renderer를 사용합니다.
-- 이전의 `0x0 Grid + child RenderTransform` 방식은 Windows에서 projection이 존재해도 badge가 arrange되지 않을 수 있어 폐기했습니다.
-
-## 일반 marker 설정
-
-현재 section:
+현재 product marker group:
 
 ```text
 Quest
@@ -184,7 +154,7 @@ Quest
 - Transit
 ```
 
-bundled DB 검토:
+bundled DB:
 
 ```text
 ScavSpawn: 0
@@ -192,82 +162,84 @@ Keys: 0
 RaiderSpawn: 2
 ```
 
-따라서 빈 ScavSpawn/Keys UI는 만들지 않고 Raider만 추가했습니다.
-
-PR #67에서 직전 Windows artifact의 일반 marker 데이터를 추가 검증했습니다.
+일반 marker 표시 규칙:
 
 ```text
-MapMarkers records: 454
-playerMarkerTransform 후 image bounds 밖: 0
-multi-floor FloorId와 config layerId 불일치: 0
-```
-
-일부 marker 미표시 원인은 좌표 손상이 아니라 V2 visibility bridge가 원본 category 상태를 덮어쓰던 충돌로 확인했습니다.
-
-현재 규칙:
-
-```text
-marker visible
-= 현재 선택 floor에 해당
-AND 실제 화면의 해당 category checkbox가 ON
+현재 선택 floor
+AND 해당 category checkbox ON
+→ 표시
 ```
 
 Shared extract는 PMC 또는 Scav 중 하나가 ON이면 표시합니다.
 
-## Floor
+## Floor / screenshot
 
-- screenshot으로 floor를 판정하지 않습니다.
-- 사용자가 floor selector / floor hotkey로 직접 선택합니다.
-- V2에서 만들었던 복제 floor ComboBox는 PR #67에서 폐기했습니다.
-- **exact Tarkov Helper 원본 `CmbFloorSelect`와 원본 `CmbFloorSelect_SelectionChanged` 로직을 직접 사용**합니다.
-- 선택된 현재 floor만 표시합니다.
-- non-selected floor opacity는 0% 정책입니다.
-- floor selection 직전 현재 선택 floor를 visual default로 지정하여 exact loader가 예전 default floor를 반투명 background로 추가하지 않게 합니다.
-
-## Screenshot tracking
-
-사용:
-
-- Map 감지
-- 감지 Map으로 Main Map 자동 전환
-- player X/Z 위치
-- 가능한 경우 heading
-
-사용하지 않음:
-
-- floor 자동 판정/전환
+- screenshot으로 floor를 판정하지 않음
+- 사용자가 exact Tarkov Helper 원본 `CmbFloorSelect` 또는 floor hotkey로 선택
+- 현재 선택 floor만 표시
+- 다른 floor opacity 0%
+- screenshot 사용: Map 감지/자동 Map 전환/player X-Z/가능한 경우 heading
 
 ## MiniMap 고정 정책
 
 - 우측 상단 anchor
-- drag 이동 불가
-- resize 후 우측 상단으로 자동 재배치
-- 기본 opacity 100%
-- cursor hover 시 일시적으로 완전 투명, 이탈 즉시 100% 복귀
+- drag 불가
+- resize 후 우측 상단 자동 재배치
+- opacity 100%
+- cursor hover → 일시 0%, 이탈 → 100%
 - click-through 항상 ON
-- ViewMode 항상 PlayerTracking
+- ViewMode = PlayerTracking 고정
 - 다른 floor opacity 0%
 - AutoFloorSelection OFF
 - Main Map과 Quest/general marker 표현 동기화
 
 ## Hotkey
 
-Main Map `설정` 안에서 편집합니다.
+Main Map `설정`에서 편집합니다.
 
 - MiniMap ON/OFF
-- Map zoom in/out
+- Main Map zoom in/out
 - floor up/down
 - MiniMap size increase/decrease
+- MiniMap 일시 투명
+- 일시 투명 시간 1~15초
 
 규칙:
 
-- 같은 key는 한 동작에만 지정
-- 새 배정이 이전 배정을 해제
+- 같은 key는 마지막으로 지정한 한 동작에만 남음
 - Delete / Backspace = 미지정
 - Esc = 취소
 - NumPad 0~5 = 직접 floor 선택 예약
 
-`자동 층 추적 복귀`는 삭제했습니다.
+MiniMap timed hide와 hover hide는 같은 presentation loop에서 결합합니다.
+
+```text
+timed hide 활성 OR cursor hover
+→ opacity 0%
+
+둘 다 비활성
+→ opacity 100%
+```
+
+## Map 설정 저장
+
+PR #68부터 Map 제품 설정은 JunhyunHelper가 소유합니다.
+
+```text
+%LocalAppData%/JunhyunHelper/map-product-settings.json
+```
+
+저장 대상:
+
+- 일반 / 탈출구 / Raider / Quest global marker toggle
+- 개별 Quest A/B/C marker toggle
+- marker/player/extract 조정값
+- Map 설정 combo 값
+- screenshot 폴더
+- 제품 hotkey
+- MiniMap timed-hide duration
+
+legacy Tarkov Helper가 async 초기화 후반에 옛 hotkey 값을 읽더라도 JunhyunHelper product 설정이 최종 권위값이 되도록 초기화 안정 구간에 재적용합니다.
 
 ## 제거된 Map 기능
 
@@ -281,87 +253,102 @@ Main Map `설정` 안에서 편집합니다.
 - 현재 층만 표시 설정
 - auto-floor 관련 설정/복귀
 - MiniMap 도움말 `?`
+- 별도 MiniMap settings 진입 UI
 - 의미 없는 old Quest marker style/color/name-size/marker-size 설정
 
 ---
 
-# 최근 Map PR
-
-## PR #64 — Map product refinement V2
+# PR #68 — Windows settings / input / lifecycle / performance — MERGED
 
 ```text
-merge: 2339ddff5773ee385ff32b4ff5a173aab52d8050
-CI: 31320921128
+PR: #68 Fix Windows product settings, controls, and lifecycle
+merge: f75644002766f45fc0b1d0929ab556bba55a801a
+final head: b990c32544c8740851e4b4f86d30918e0a218599
+CI: 31349320391
+artifact: 9048426054
+artifact digest: sha256:4ae8a9d530d710714b7a1b4606686f7f8d8cc3cce3673644fb30217eeeaaf112
 ```
 
-Quest sidebar, marker grouping, MiniMap fixed policies, hotkey UI 등 V2 제품 요구사항 구현.
+상세: `docs/PRODUCT_FEEDBACK_2026-08-10_04.md`
 
-## PR #65 — Windows hotfix / screenshot / icon
+## 반영 사항
+
+1. Map marker / Quest marker / hotkey / 사용자 조정값 재시작 영속화
+2. Hideout / Items / Ammo icon cache를 cold start부터 연결
+3. Main Map zoom/floor hotkey 직접 동작
+4. 별도 MiniMap settings 진입 UI 제거
+5. 설정 가능한 MiniMap N초 일시 투명 기능
+6. Ammo inactive-selection 백화 수정
+7. Ammo vertical column separator 추가
+8. Main Window 종료 시 Map/MiniMap/hook cleanup + process 종료 보장
+9. Map viewport clip + marker overlay max-height/scroll
+10. 상태 변경 성능 개선
+11. 기존 Profile editor close-to-save
+
+## 성능 개선 기준
+
+지연은 제품 특성상 불가피한 것으로 보지 않습니다. PR #68에서 다음 중복 작업을 제거했습니다.
+
+- `UserProfileStore` process-local canonical profile cache
+- Quest / Hideout / Items workspace memoization
+- Quest 변경: Quest 결과 재사용 + Items 영향 갱신, Hideout rebuild 생략
+- Hideout 변경: Hideout 결과 재사용 + Quest/Items 영향 갱신
+- Item 수량 변경: Items 결과 재사용 + Quest 영향 갱신, Hideout rebuild 생략
+- Item +/- 약 160ms 연속 입력 coalescing
+- Hideout level +/- 약 180ms 연속 입력 coalescing
+- Items/Hideout 기존 icon 재사용
+
+cache는 persisted SQLite round-trip과 동일한 canonical normalization을 유지합니다. 기존 자동 테스트가 `PrestigeLevel null → 0` 차이를 검출했고 이 의미 차이가 생기지 않도록 수정했습니다.
+
+## 종료 자동 검증
+
+CI는 이제 force-kill만 사용하는 smoke가 아닙니다.
 
 ```text
-merge: 480a49ce7df5f1a17ca91d1caecbb6a81451811a
-CI: 31324134472
+published JunhyunHelper.exe 실행
+→ exact Map subsystem 초기화
+→ Main Window에 정상 close 요청
+→ 7초 안에 process exit 확인
 ```
 
-- screenshot Map UI 전환 bug 수정
-- 사용자 brand icon 적용
-
-상세: `docs/MAP_V2_HOTFIX_2026-08-10.md`
-
-## PR #66 — Quest UI / Korean-only publish
-
-```text
-merge: 2f9f07f64d9c6a8259504a8425c254a95673f8ea
-CI: 31325539763
-```
-
-- Quest marker global product checkbox
-- sidebar 1차 정렬 보정
-- Korean-only satellite resource publish
-
-상세: `docs/MAP_V2_FEEDBACK_2026-08-10_02.md`
-
-## PR #67 — Quest rendering / floor / marker visibility — MERGED
-
-```text
-PR: #67 Fix Quest marker rendering and restore floor switching
-merge: 7d248d7346760d126b839d69318648e504ac39fc
-final head: 81cddd9bcd151a9b4bea19d764e00cc1798f7d65
-CI: 31328655090
-artifact: 9042291967
-artifact digest: sha256:bd0b18d3a9d54bd12b3e797f8f2b898a9fc57326b34d783a48e286dcf1a232bc
-```
-
-최종 자동 검증:
+최종 PR #68 CI 결과:
 
 ```text
 Desktop Release build: success
 automated tests: success
 Windows x64 self-contained publish: success
-enhanced Startup + Map smoke: success
+Startup + exact Map smoke: success
+graceful Main Window close + process exit: success
 ZIP creation/upload: success
 ```
 
-강화된 Map smoke에서 실제로 확인:
+---
 
-- V3 Quest Canvas marker visual 생성
-- Customs multi-floor selector 생성
-- 다른 floor 선택
-- floor 변경 후 Map SVG source 교체
+# 최근 Map PR 이력
 
-상세: `docs/MAP_V2_FEEDBACK_2026-08-10_03.md`
+- PR #64 — Map product refinement V2 — merge `2339ddff5773ee385ff32b4ff5a173aab52d8050`
+- PR #65 — screenshot Map switch / brand icon — merge `480a49ce7df5f1a17ca91d1caecbb6a81451811a`
+- PR #66 — Quest UI / Korean-only publish — merge `2f9f07f64d9c6a8259504a8425c254a95673f8ea`
+- PR #67 — Quest renderer / floor / marker visibility — merge `7d248d7346760d126b839d69318648e504ac39fc`
+- PR #68 — settings / lifecycle / performance — merge `f75644002766f45fc0b1d0929ab556bba55a801a`
 
 ---
 
 # 다음 작업
 
-1. PR #67 Windows 테스트 빌드 사용자 검증
-2. 확인:
-   - A/B/C badge 자체가 동일 X 위치인지
-   - `좌표 N개` Quest의 A/B/C가 Main Map에 실제 표시되는지
-   - MiniMap에도 동일 Quest marker가 표시되는지
-   - Customs / Reserve / Factory 등 multi-floor Map에서 floor 변경이 실제로 동작하는지
-   - 선택하지 않은 floor가 보이지 않는지
-   - 일반 marker checkbox ON/OFF와 실제 marker 표시가 일치하는지
+1. **PR #68 Windows 사용자 검증**
+2. 우선 확인:
+   - Map marker / 개별 Quest marker / hotkey 변경 → 재시작 후 유지
+   - Data Update 없이 cold-start icon 표시
+   - Main Map zoom/floor hotkey
+   - MiniMap ON/OFF / size / timed transparency hotkey
+   - timed transparency 시간이 지나면 복귀하고 hover transparency도 유지되는지
+   - Ammo 선택 행 focus-loss dark theme
+   - Ammo column separator
+   - 앱 종료 후 Task Manager에 JunhyunHelper process가 남지 않는지
+   - Map marker panel과 MiniMap 버튼 간섭이 사라졌는지
+   - Item / Hideout 연속 +/- 체감 반응성
+   - Quest 완료/취소 체감 반응성
+   - 기존 프로필 수정 후 X/닫기만으로 저장되는지
 3. 실사용 차이가 있으면 해당 경로만 수정
-4. 시각/동작 검증 완료 후 Map artwork/config/general-marker DB를 동일 revision 단위로 교체하는 atomic Map bundle updater 구현
+4. Map 제품 동작 검증 완료 후 artwork/config/general-marker DB를 동일 revision 단위로 교체하는 atomic Map bundle updater 구현
