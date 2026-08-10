@@ -79,6 +79,9 @@
     <!-- The old global hook contained unrelated hidden commands/logging. JunhyunHelper
          provides a product-safe compatibility replacement in Desktop/Map. -->
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/GlobalKeyboardHookService.cs" />
+    <!-- The old logger writes beside the executable. Replace it with a product-owned
+         implementation that keeps logs under %LocalAppData%/JunhyunHelper/Logs. -->
+    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/Logging/LoggingService.cs" />
     <!-- JunhyunHelper release/update ownership is separate from the transplanted Map.
          Never ship the old Tarkov-Helper updater, which targets the legacy repository. -->
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/UpdateService.cs" />
