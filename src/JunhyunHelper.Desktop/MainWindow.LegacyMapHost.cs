@@ -27,6 +27,11 @@ public partial class MainWindow : TarkovHelper.MainWindow
     {
         base.OnContentRendered(e);
 
+        // WPF can raise OnInitialized from inside InitializeComponent before the
+        // MainWindow constructor finishes attaching its original mutation events.
+        // Re-apply the idempotent product wiring here, after construction is complete.
+        EnableFastMutationHandlers();
+
         if (_legacyMapTabHooked)
             return;
 
@@ -161,9 +166,6 @@ public partial class MainWindow : TarkovHelper.MainWindow
         page.Loaded -= MapSmoke_PageLoaded;
         try
         {
-            // Quest marker regression: the visual must be a zero-size Canvas anchor with
-            // a real child badge. The previous zero-size Grid implementation compiled but
-            // disappeared at WPF arrange time on the user's machine.
             var probe = JunhyunQuestMarkerVisualFactoryV3.Create(
                 new JunhyunQuestMarkerProjectionV2(
                     "smoke-quest",
