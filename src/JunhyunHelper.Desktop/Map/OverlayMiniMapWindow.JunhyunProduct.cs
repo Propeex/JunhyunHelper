@@ -247,19 +247,18 @@ public partial class OverlayMiniMapWindow
             return;
 
         var settings = MapSettings.Instance;
-        var baseSignature = HashCode.Combine(
-            _currentMapKey,
-            _selectedFloorId,
-            settings.ShowExtracts,
-            settings.ShowPmcExtracts,
-            settings.ShowScavExtracts,
-            settings.ShowTransits,
-            settings.ExtractNameSize,
-            _settings.OtherFloorOpacity);
-        var signature = HashCode.Combine(
-            baseSignature,
-            _junhyunMarkerScale,
-            ExtractMarkersContainer.Children.Count);
+        var signatureBuilder = new System.HashCode();
+        signatureBuilder.Add(_currentMapKey, StringComparer.OrdinalIgnoreCase);
+        signatureBuilder.Add(_selectedFloorId, StringComparer.OrdinalIgnoreCase);
+        signatureBuilder.Add(settings.ShowExtracts);
+        signatureBuilder.Add(settings.ShowPmcExtracts);
+        signatureBuilder.Add(settings.ShowScavExtracts);
+        signatureBuilder.Add(settings.ShowTransits);
+        signatureBuilder.Add(settings.ExtractNameSize);
+        signatureBuilder.Add(_settings.OtherFloorOpacity);
+        signatureBuilder.Add(_junhyunMarkerScale);
+        signatureBuilder.Add(ExtractMarkersContainer.Children.Count);
+        var signature = signatureBuilder.ToHashCode();
 
         if (!force && signature == _junhyunLastExtractSignature &&
             ExtractMarkersContainer.Children.Cast<FrameworkElement>()
