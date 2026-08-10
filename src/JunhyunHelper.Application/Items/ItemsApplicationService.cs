@@ -30,6 +30,19 @@ public sealed class ItemsApplicationService
         var profile = await _profileStore.LoadAsync(profileId, cancellationToken)
             ?? throw new KeyNotFoundException($"Profile '{profileId}' does not exist.");
 
+        return BuildFromProfile(content, profile);
+    }
+
+    /// <summary>
+    /// Rebuilds the derived needed-items workspace from an already loaded authoritative
+    /// profile snapshot without another user.db read.
+    /// </summary>
+    public ItemsWorkspace BuildFromProfile(
+        GameContentCatalog content,
+        GameProfileSnapshot profile)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        ArgumentNullException.ThrowIfNull(profile);
         return Build(content, profile);
     }
 
