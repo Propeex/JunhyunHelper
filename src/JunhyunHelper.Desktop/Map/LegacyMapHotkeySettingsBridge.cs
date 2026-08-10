@@ -279,10 +279,23 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
         if (!_captureAction.HasValue)
             return;
 
-        _overlay.Settings.SetHotkey(_captureAction.Value, virtualKey);
-        _store.SetHotkey(_captureAction.Value, virtualKey);
-        if (virtualKey != 0 && _store.TemporaryHideKey == virtualKey)
-            _store.TemporaryHideKey = 0;
+        var targetAction = _captureAction.Value;
+        if (virtualKey != 0)
+        {
+            foreach (var action in Enum.GetValues<OverlayMiniMapHotkeyAction>())
+            {
+                if (action == targetAction || _overlay.Settings.GetHotkey(action) != virtualKey)
+                    continue;
+                _overlay.Settings.SetHotkey(action, 0);
+                _store.SetHotkey(action, 0);
+            }
+
+            if (_store.TemporaryHideKey == virtualKey)
+                _store.TemporaryHideKey = 0;
+        }
+
+        _overlay.Settings.SetHotkey(targetAction, virtualKey);
+        _store.SetHotkey(targetAction, virtualKey);
     }
 
     private void FinishCapture(bool save)
