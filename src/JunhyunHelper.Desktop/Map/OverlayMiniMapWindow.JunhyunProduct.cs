@@ -130,8 +130,11 @@ public partial class OverlayMiniMapWindow
         if (Math.Abs(MainBorder.Opacity - 1.0) > 0.001)
             MainBorder.Opacity = 1.0;
 
-        var shouldHideForHover = IsCursorInsideMiniMap();
-        var targetOpacity = shouldHideForHover ? 0.0 : 1.0;
+        // Timed transparency and hover transparency are independent product intents.
+        // Either one may temporarily hide the MiniMap; it returns to 100% only when
+        // the configured timer has expired AND the cursor is no longer over it.
+        var shouldHide = JunhyunTemporaryHideActive || IsCursorInsideMiniMap();
+        var targetOpacity = shouldHide ? 0.0 : 1.0;
         if (Math.Abs(Opacity - targetOpacity) > 0.001)
             Opacity = targetOpacity;
 

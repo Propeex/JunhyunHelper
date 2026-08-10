@@ -55,7 +55,7 @@ jobs:
 
           Get-ChildItem artifacts/publish | Sort-Object Name | Select-Object Name,Length | Format-Table -AutoSize
 
-      - name: Startup + Map smoke
+      - name: Startup + Map + graceful shutdown smoke
         shell: pwsh
         env:
           JUNHYUNHELPER_MAP_SMOKE: "1"
@@ -68,9 +68,20 @@ jobs:
             if ($process.HasExited) {
               throw "Published JunhyunHelper exited during Map startup smoke with code $($process.ExitCode)."
             }
-            Write-Host "Startup + Map smoke passed: lazy Map product runtime constructed and process remained alive for 12 seconds."
+
+            Write-Host "Startup + Map smoke passed. Requesting normal Main Window close..."
+            if (-not $process.CloseMainWindow()) {
+              throw "Could not send a normal close request to the JunhyunHelper Main Window."
+            }
+
+            if (-not $process.WaitForExit(7000)) {
+              throw "JunhyunHelper Main Window closed but the process did not terminate within 7 seconds."
+            }
+
+            Write-Host "Graceful shutdown smoke passed: JunhyunHelper process terminated after Main Window close."
           }
           finally {
+            $process.Refresh()
             if (-not $process.HasExited) {
               Stop-Process -Id $process.Id -Force
             }

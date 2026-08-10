@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Threading;
 using JunhyunHelper.Application.Hideout;
 using JunhyunHelper.Core.Content;
 using JunhyunHelper.Desktop.Services;
@@ -20,16 +21,26 @@ public sealed record HideoutItemNavigationRequestedEventArgs(string ItemId);
 
 public partial class HideoutPage : UserControl
 {
+    private static readonly TimeSpan RapidLevelClickWindow = TimeSpan.FromMilliseconds(180);
+
     private GameContentCatalog? _content;
     private HideoutWorkspace? _workspace;
     private ImageCacheService? _imageCache;
     private IReadOnlyList<StationRow> _rows = [];
     private CancellationTokenSource? _iconLoadCts;
     private CancellationTokenSource? _materialIconLoadCts;
+    private readonly DispatcherTimer _levelSaveDebounceTimer;
+    private PendingLevelChange? _pendingLevelChange;
 
     public HideoutPage()
     {
         InitializeComponent();
+        _levelSaveDebounceTimer = new DispatcherTimer(
+            RapidLevelClickWindow,
+            DispatcherPriority.Background,
+            (_, _) => FlushPendingLevelChange(),
+            Dispatcher);
+        _levelSaveDebounceTimer.Stop();
     }
 
     public event EventHandler<HideoutLevelChangeRequestedEventArgs>? LevelChangeRequested;
@@ -44,16 +55,25 @@ public partial class HideoutPage : UserControl
         ArgumentNullException.ThrowIfNull(workspace);
 
         var selectedStationId = (StationList.SelectedItem as StationRow)?.Entry.Station.Id;
+        var loadedIcons = _rows
+            .Where(row => row.Icon is not null)
+            .ToDictionary(row => row.Entry.Station.Id, row => row.Icon!, StringComparer.Ordinal);
+
+        _levelSaveDebounceTimer.Stop();
+        _pendingLevelChange = null;
         _content = content;
         _workspace = workspace;
         _rows = workspace.Stations
             .Select(entry =>
             {
                 var currentLevel = entry.CurrentLevel ?? 0;
-                return new StationRow(
+                var row = new StationRow(
                     entry,
                     DisplayName(entry.Station.NameKo, entry.Station.NameEn, entry.Station.Id),
                     $"Lv.{currentLevel} / {entry.MaximumLevel}");
+                if (loadedIcons.TryGetValue(entry.Station.Id, out var icon))
+                    row.Icon = icon;
+                return row;
             })
             .OrderBy(row => row.Name, StringComparer.CurrentCulture)
             .ToArray();
@@ -103,6 +123,9 @@ public partial class HideoutPage : UserControl
             foreach (var row in rows)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                if (row.Icon is not null)
+                    continue;
+
                 var image = await _imageCache.LoadAsync(
                     $"hideout-{row.Entry.Station.Id}",
                     row.Entry.Station.ImageUrl,
@@ -187,7 +210,7 @@ public partial class HideoutPage : UserControl
         DetailIcon.Source = row.Icon;
         DetailName.Text = row.Name;
 
-        var currentLevel = entry.CurrentLevel ?? 0;
+        var currentLevel = EffectiveLevel(row);
         CurrentLevelText.Text = $"Lv.{currentLevel} / {entry.MaximumLevel}";
         LevelMinusButton.IsEnabled = currentLevel > 0;
         LevelPlusButton.IsEnabled = currentLevel < entry.MaximumLevel;
@@ -237,6 +260,17 @@ public partial class HideoutPage : UserControl
             : string.Empty;
     }
 
+    private int EffectiveLevel(StationRow row)
+    {
+        if (_pendingLevelChange is { } pending &&
+            string.Equals(pending.StationId, row.Entry.Station.Id, StringComparison.Ordinal))
+        {
+            return pending.Level;
+        }
+
+        return row.Entry.CurrentLevel ?? 0;
+    }
+
     private void LevelMinusButton_Click(object sender, RoutedEventArgs e) => ChangeSelectedLevel(-1);
     private void LevelPlusButton_Click(object sender, RoutedEventArgs e) => ChangeSelectedLevel(1);
 
@@ -245,14 +279,39 @@ public partial class HideoutPage : UserControl
         if (StationList.SelectedItem is not StationRow row)
             return;
 
-        var currentLevel = row.Entry.CurrentLevel ?? 0;
+        var stationId = row.Entry.Station.Id;
+        if (_pendingLevelChange is { } existing &&
+            !string.Equals(existing.StationId, stationId, StringComparison.Ordinal))
+        {
+            FlushPendingLevelChange();
+            return;
+        }
+
+        var currentLevel = EffectiveLevel(row);
         var targetLevel = Math.Clamp(currentLevel + delta, 0, row.Entry.MaximumLevel);
         if (targetLevel == currentLevel)
             return;
 
+        _pendingLevelChange = new PendingLevelChange(stationId, targetLevel);
+        row.LevelText = $"Lv.{targetLevel} / {row.Entry.MaximumLevel}";
+        CurrentLevelText.Text = row.LevelText;
+        LevelMinusButton.IsEnabled = targetLevel > 0;
+        LevelPlusButton.IsEnabled = targetLevel < row.Entry.MaximumLevel;
+
+        _levelSaveDebounceTimer.Stop();
+        _levelSaveDebounceTimer.Start();
+    }
+
+    private void FlushPendingLevelChange()
+    {
+        _levelSaveDebounceTimer.Stop();
+        if (_pendingLevelChange is not { } pending)
+            return;
+
+        _pendingLevelChange = null;
         LevelChangeRequested?.Invoke(
             this,
-            new HideoutLevelChangeRequestedEventArgs(row.Entry.Station.Id, targetLevel));
+            new HideoutLevelChangeRequestedEventArgs(pending.StationId, pending.Level));
     }
 
     private void MaterialButton_Click(object sender, RoutedEventArgs e)
@@ -292,17 +351,28 @@ public partial class HideoutPage : UserControl
     private sealed class StationRow : INotifyPropertyChanged
     {
         private ImageSource? _icon;
+        private string _levelText;
 
         public StationRow(HideoutStationEntry entry, string name, string levelText)
         {
             Entry = entry;
             Name = name;
-            LevelText = levelText;
+            _levelText = levelText;
         }
 
         public HideoutStationEntry Entry { get; }
         public string Name { get; }
-        public string LevelText { get; }
+        public string LevelText
+        {
+            get => _levelText;
+            set
+            {
+                if (string.Equals(_levelText, value, StringComparison.Ordinal))
+                    return;
+                _levelText = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LevelText)));
+            }
+        }
 
         public ImageSource? Icon
         {
@@ -353,4 +423,6 @@ public partial class HideoutPage : UserControl
 
         public event PropertyChangedEventHandler? PropertyChanged;
     }
+
+    private sealed record PendingLevelChange(string StationId, int Level);
 }

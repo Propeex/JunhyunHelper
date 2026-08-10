@@ -13,6 +13,10 @@ public sealed record ItemsWorkspace(
 public sealed class ItemsApplicationService
 {
     private readonly UserProfileStore _profileStore;
+    private readonly object _workspaceCacheGate = new();
+    private GameContentCatalog? _cachedContent;
+    private GameProfileSnapshot? _cachedProfile;
+    private ItemsWorkspace? _cachedWorkspace;
 
     public ItemsApplicationService(UserProfileStore profileStore)
     {
@@ -30,7 +34,34 @@ public sealed class ItemsApplicationService
         var profile = await _profileStore.LoadAsync(profileId, cancellationToken)
             ?? throw new KeyNotFoundException($"Profile '{profileId}' does not exist.");
 
-        return Build(content, profile);
+        return BuildFromProfile(content, profile);
+    }
+
+    public ItemsWorkspace BuildFromProfile(
+        GameContentCatalog content,
+        GameProfileSnapshot profile)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        ArgumentNullException.ThrowIfNull(profile);
+
+        lock (_workspaceCacheGate)
+        {
+            if (ReferenceEquals(_cachedContent, content) &&
+                ReferenceEquals(_cachedProfile, profile) &&
+                _cachedWorkspace is not null)
+            {
+                return _cachedWorkspace;
+            }
+        }
+
+        var workspace = Build(content, profile);
+        lock (_workspaceCacheGate)
+        {
+            _cachedContent = content;
+            _cachedProfile = profile;
+            _cachedWorkspace = workspace;
+        }
+        return workspace;
     }
 
     public async Task<ItemsWorkspace> SetInventoryAsync(
@@ -61,7 +92,7 @@ public sealed class ItemsApplicationService
 
         var updated = profile with { Inventory = inventory };
         await _profileStore.SaveAsync(updated, cancellationToken);
-        return Build(content, updated);
+        return BuildFromProfile(content, updated);
     }
 
     private static ItemsWorkspace Build(

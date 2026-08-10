@@ -15,6 +15,10 @@ public sealed record QuestWorkspace(
 public sealed class QuestApplicationService
 {
     private readonly UserProfileStore _profileStore;
+    private readonly object _workspaceCacheGate = new();
+    private GameContentCatalog? _cachedContent;
+    private GameProfileSnapshot? _cachedProfile;
+    private QuestWorkspace? _cachedWorkspace;
 
     public QuestApplicationService(UserProfileStore profileStore)
     {
@@ -30,7 +34,39 @@ public sealed class QuestApplicationService
         ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
 
         var profile = await LoadRequiredProfileAsync(profileId, cancellationToken);
-        return BuildWorkspace(content, profile);
+        return BuildFromProfile(content, profile);
+    }
+
+    /// <summary>
+    /// Rebuilds the derived Quest workspace from an already loaded authoritative
+    /// profile snapshot. Repeated refreshes of the exact same immutable snapshot
+    /// reuse the previous evaluation.
+    /// </summary>
+    public QuestWorkspace BuildFromProfile(
+        GameContentCatalog content,
+        GameProfileSnapshot profile)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        ArgumentNullException.ThrowIfNull(profile);
+
+        lock (_workspaceCacheGate)
+        {
+            if (ReferenceEquals(_cachedContent, content) &&
+                ReferenceEquals(_cachedProfile, profile) &&
+                _cachedWorkspace is not null)
+            {
+                return _cachedWorkspace;
+            }
+        }
+
+        var workspace = BuildWorkspace(content, profile);
+        lock (_workspaceCacheGate)
+        {
+            _cachedContent = content;
+            _cachedProfile = profile;
+            _cachedWorkspace = workspace;
+        }
+        return workspace;
     }
 
     public async Task<QuestWorkspace> CompleteAsync(
@@ -95,7 +131,7 @@ public sealed class QuestApplicationService
         };
 
         await _profileStore.SaveAsync(updated, cancellationToken);
-        return BuildWorkspace(content, updated);
+        return BuildFromProfile(content, updated);
     }
 
     public async Task<QuestWorkspace> FailAsync(
@@ -129,7 +165,7 @@ public sealed class QuestApplicationService
         var updated = profile with { FailedQuestIds = failed };
 
         await _profileStore.SaveAsync(updated, cancellationToken);
-        return BuildWorkspace(content, updated);
+        return BuildFromProfile(content, updated);
     }
 
     public async Task<QuestWorkspace> UndoFailureAsync(
@@ -157,7 +193,7 @@ public sealed class QuestApplicationService
         var updated = profile with { FailedQuestIds = failed };
 
         await _profileStore.SaveAsync(updated, cancellationToken);
-        return BuildWorkspace(content, updated);
+        return BuildFromProfile(content, updated);
     }
 
     public Task<QuestWorkspace> UndoCompletionAsync(
@@ -210,7 +246,7 @@ public sealed class QuestApplicationService
         };
 
         await _profileStore.SaveAsync(updated, cancellationToken);
-        return BuildWorkspace(content, updated);
+        return BuildFromProfile(content, updated);
     }
 
     private async Task<GameProfileSnapshot> LoadRequiredProfileAsync(
@@ -221,15 +257,14 @@ public sealed class QuestApplicationService
             ?? throw new KeyNotFoundException($"Profile '{profileId}' does not exist.");
     }
 
-    private static QuestCatalogEntry FindQuest(
+    private QuestCatalogEntry FindQuest(
         GameContentCatalog content,
         GameProfileSnapshot profile,
         string questId)
     {
-        var entry = QuestCatalogQuery.Evaluate(content, profile)
+        return BuildFromProfile(content, profile).Quests
             .FirstOrDefault(candidate => string.Equals(candidate.Quest.Id, questId, StringComparison.Ordinal))
             ?? throw new KeyNotFoundException($"Quest '{questId}' does not exist in the active game content.");
-        return ApplyProductAvailabilityPolicy(entry);
     }
 
     private static QuestWorkspace BuildWorkspace(

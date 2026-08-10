@@ -50,6 +50,7 @@ public sealed class LegacyMapQuestV2Controller : IDisposable
     private readonly Func<QuestWorkspace?> _workspaceProvider;
     private readonly Action<string> _openQuest;
     private readonly MapTrackerService _tracker = MapTrackerService.Instance;
+    private readonly JunhyunMapProductSettingsStore _settingsStore = JunhyunMapProductSettingsStore.Instance;
     private readonly Canvas _layer;
     private readonly ScaleTransform? _mapScale;
     private readonly ComboBox? _floorSelector;
@@ -121,7 +122,13 @@ public sealed class LegacyMapQuestV2Controller : IDisposable
 
         var rawEntries = BuildEntries(content, workspace, mapKey);
         foreach (var entry in rawEntries.Where(entry => entry.Markers.Count > 0))
-            _questMarkerEnabled.TryAdd(entry.QuestId, true);
+        {
+            if (!_questMarkerEnabled.ContainsKey(entry.QuestId))
+            {
+                _questMarkerEnabled[entry.QuestId] =
+                    _settingsStore.GetQuestMarkerEnabled(entry.QuestId) ?? true;
+            }
+        }
 
         var codeByQuest = rawEntries
             .Where(entry => entry.Markers.Count > 0 && IsQuestMarkerEnabled(entry.QuestId))
@@ -278,6 +285,7 @@ public sealed class LegacyMapQuestV2Controller : IDisposable
     private void Sidebar_MarkerVisibilityChanged(object? sender, QuestSidebarMarkerEventArgs e)
     {
         _questMarkerEnabled[e.QuestId] = e.Enabled;
+        _settingsStore.SetQuestMarkerEnabled(e.QuestId, e.Enabled);
         Refresh();
     }
 

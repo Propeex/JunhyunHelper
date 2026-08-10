@@ -35,6 +35,9 @@ public static class JunhyunMiniMapProductRegistry
     public static void ApplyPlayerMarkerSize(double mapPixelSize) =>
         WithActive(window => window.ApplySharedPlayerMarkerSize(mapPixelSize));
 
+    public static void TemporarilyHide(double seconds) =>
+        WithActive(window => window.JunhyunTemporarilyHide(seconds));
+
     private static void WithActive(Action<TarkovHelper.Windows.OverlayMiniMapWindow> action)
     {
         TarkovHelper.Windows.OverlayMiniMapWindow? window = null;

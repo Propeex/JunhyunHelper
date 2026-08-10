@@ -1,6 +1,5 @@
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
 using TarkovHelper.Services;
 
 namespace JunhyunHelper.Desktop.Map;
@@ -15,14 +14,15 @@ public sealed class LegacyMapProductRuntime : IDisposable
 
     private readonly TarkovHelper.Pages.Map.MapPage _page;
     private readonly OverlayMiniMapService _overlay = OverlayMiniMapService.Instance;
-    private readonly JunhyunMapHotkeyService _hotkeys = new();
+    private readonly JunhyunMapHotkeyService _hotkeys;
     private readonly LegacyQuestPresentationSettingsBridge _questSettingsBridge;
     private readonly LegacyMapHotkeySettingsBridge _hotkeySettingsBridge;
     private readonly LegacyMapMarkerSettingsV2Bridge _markerSettingsBridge;
     private readonly LegacyMapInteractionPolicyBridge _interactionPolicyBridge;
     private readonly LegacyQuestMarkerRenderV3 _questMarkerRenderer;
+    private readonly LegacyMapSettingsPersistenceBridge _settingsPersistenceBridge;
+    private readonly LegacyMapViewportPolishBridge _viewportPolishBridge;
     private readonly Slider? _playerMarkerSlider;
-    private Button? _miniMapSettingsButton;
     private bool _syncingPlayerMarker;
     private bool _disposed;
 
@@ -39,6 +39,9 @@ public sealed class LegacyMapProductRuntime : IDisposable
         _markerSettingsBridge = new LegacyMapMarkerSettingsV2Bridge(page);
         _interactionPolicyBridge = new LegacyMapInteractionPolicyBridge(page);
         _questMarkerRenderer = new LegacyQuestMarkerRenderV3(page);
+        _settingsPersistenceBridge = new LegacyMapSettingsPersistenceBridge(page);
+        _viewportPolishBridge = new LegacyMapViewportPolishBridge(page);
+        _hotkeys = new JunhyunMapHotkeyService(page);
         _playerMarkerSlider = _page.FindName("SliderPlayerMarkerSize") as Slider;
 
         if (_playerMarkerSlider is not null)
@@ -52,43 +55,11 @@ public sealed class LegacyMapProductRuntime : IDisposable
             _playerMarkerSlider.ValueChanged += PlayerMarkerSlider_ValueChanged;
         }
 
-        InjectMiniMapSettingsEntry();
+        // Separate MiniMap settings UI is intentionally absent. The user-facing
+        // controls that remain configurable live in the Main Map Settings panel.
         _overlay.SettingsChanged += Overlay_SettingsChanged;
         _page.Loaded += Page_Loaded;
     }
-
-    private void InjectMiniMapSettingsEntry()
-    {
-        if (_page.FindName("SettingsPanel") is not Border settingsPanel ||
-            settingsPanel.Child is not ScrollViewer scrollViewer ||
-            scrollViewer.Content is not StackPanel stack)
-        {
-            return;
-        }
-
-        var header = new TextBlock
-        {
-            Text = "미니맵",
-            FontWeight = FontWeights.SemiBold,
-            Foreground = _page.TryFindResource("TextPrimaryBrush") as Brush ?? Brushes.White,
-            Margin = new Thickness(0, 0, 0, 8),
-        };
-        _miniMapSettingsButton = new Button
-        {
-            Content = "미니맵 표시 설정",
-            Padding = new Thickness(12, 7, 12, 7),
-            Margin = new Thickness(0, 0, 0, 20),
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-        };
-        _miniMapSettingsButton.Click += MiniMapSettingsButton_Click;
-
-        var insertIndex = Math.Min(1, stack.Children.Count);
-        stack.Children.Insert(insertIndex, header);
-        stack.Children.Insert(insertIndex + 1, _miniMapSettingsButton);
-    }
-
-    private void MiniMapSettingsButton_Click(object sender, RoutedEventArgs e) =>
-        _overlay.ShowSettingsWindow();
 
     private void Page_Loaded(object sender, RoutedEventArgs e)
     {
@@ -154,6 +125,8 @@ public sealed class LegacyMapProductRuntime : IDisposable
             return;
         _disposed = true;
 
+        _viewportPolishBridge.Dispose();
+        _settingsPersistenceBridge.Dispose();
         _questMarkerRenderer.Dispose();
         _interactionPolicyBridge.Dispose();
         _markerSettingsBridge.Dispose();
@@ -164,7 +137,5 @@ public sealed class LegacyMapProductRuntime : IDisposable
         _page.Loaded -= Page_Loaded;
         if (_playerMarkerSlider is not null)
             _playerMarkerSlider.ValueChanged -= PlayerMarkerSlider_ValueChanged;
-        if (_miniMapSettingsButton is not null)
-            _miniMapSettingsButton.Click -= MiniMapSettingsButton_Click;
     }
 }
