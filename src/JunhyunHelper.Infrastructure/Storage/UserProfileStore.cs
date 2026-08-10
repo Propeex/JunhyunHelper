@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using JunhyunHelper.Core.Items;
@@ -19,6 +20,8 @@ public sealed class UserProfileStore
     };
 
     private readonly string _databasePath;
+    private readonly ConcurrentDictionary<string, GameProfileSnapshot> _memoryCache =
+        new(StringComparer.Ordinal);
 
     public UserProfileStore(string databasePath)
     {
@@ -52,6 +55,11 @@ public sealed class UserProfileStore
         command.Parameters.AddWithValue("$payload", payload);
         command.Parameters.AddWithValue("$updatedAt", DateTimeOffset.UtcNow.ToString("O"));
         await command.ExecuteNonQueryAsync(cancellationToken);
+
+        // SaveAsync is the authoritative mutation boundary. Keep the exact immutable
+        // snapshot that was committed so subsequent Quest/Hideout/Items workspace
+        // refreshes in the same process do not re-open SQLite three times for one click.
+        _memoryCache[profile.ProfileId] = profile;
     }
 
     public async Task<GameProfileSnapshot?> LoadAsync(
@@ -59,6 +67,10 @@ public sealed class UserProfileStore
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
+        var normalizedProfileId = profileId.Trim();
+        if (_memoryCache.TryGetValue(normalizedProfileId, out var cached))
+            return cached;
+
         await EnsureSchemaAsync(cancellationToken);
 
         await using var connection = OpenConnection();
@@ -69,15 +81,17 @@ public sealed class UserProfileStore
             FROM profiles
             WHERE profile_id = $profileId;
             """;
-        command.Parameters.AddWithValue("$profileId", profileId);
+        command.Parameters.AddWithValue("$profileId", normalizedProfileId);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken))
             return null;
 
-        return Deserialize(
+        var snapshot = Deserialize(
             reader.GetInt32(0),
             reader.GetString(1));
+        _memoryCache[snapshot.ProfileId] = snapshot;
+        return snapshot;
     }
 
     public async Task<IReadOnlyList<GameProfileSnapshot>> LoadAllAsync(
@@ -98,10 +112,19 @@ public sealed class UserProfileStore
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
-            result.Add(Deserialize(
+            var snapshot = Deserialize(
                 reader.GetInt32(0),
-                reader.GetString(1)));
+                reader.GetString(1));
+            result.Add(snapshot);
+            _memoryCache[snapshot.ProfileId] = snapshot;
         }
+
+        // Profiles deleted outside this store are not a supported live-edit workflow,
+        // but LoadAllAsync is the full authoritative read used at startup/profile reload.
+        // Remove stale in-process entries so the cache exactly mirrors user.db afterwards.
+        var activeIds = result.Select(profile => profile.ProfileId).ToHashSet(StringComparer.Ordinal);
+        foreach (var cachedId in _memoryCache.Keys.Where(id => !activeIds.Contains(id)).ToArray())
+            _memoryCache.TryRemove(cachedId, out _);
 
         return result;
     }
@@ -111,6 +134,7 @@ public sealed class UserProfileStore
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
+        var normalizedProfileId = profileId.Trim();
         await EnsureSchemaAsync(cancellationToken);
 
         await using var connection = OpenConnection();
@@ -120,8 +144,11 @@ public sealed class UserProfileStore
             DELETE FROM profiles
             WHERE profile_id = $profileId;
             """;
-        command.Parameters.AddWithValue("$profileId", profileId.Trim());
-        return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
+        command.Parameters.AddWithValue("$profileId", normalizedProfileId);
+        var deleted = await command.ExecuteNonQueryAsync(cancellationToken) == 1;
+        if (deleted)
+            _memoryCache.TryRemove(normalizedProfileId, out _);
+        return deleted;
     }
 
     private async Task EnsureSchemaAsync(CancellationToken cancellationToken)
