@@ -4,6 +4,7 @@ using JunhyunHelper.Application.Items;
 using JunhyunHelper.Application.Quests;
 using JunhyunHelper.Core.Items;
 using JunhyunHelper.Desktop.Hideout;
+using JunhyunHelper.Desktop.Items;
 using JunhyunHelper.Desktop.Quests;
 
 namespace JunhyunHelper.Desktop;
@@ -19,6 +20,10 @@ public partial class MainWindow
         HideoutPage.LevelChangeRequested -= HideoutPage_LevelChangeRequested;
         HideoutPage.LevelChangeRequested -= HideoutPage_LevelChangeRequestedFast;
         HideoutPage.LevelChangeRequested += HideoutPage_LevelChangeRequestedFast;
+
+        ItemsPage.InventoryChangeRequested -= ItemsPage_InventoryChangeRequested;
+        ItemsPage.InventoryChangeRequested -= ItemsPage_InventoryChangeRequestedFast;
+        ItemsPage.InventoryChangeRequested += ItemsPage_InventoryChangeRequestedFast;
     }
 
     private async void QuestPage_ActionRequestedFast(object? sender, QuestActionRequestedEventArgs e)
@@ -146,6 +151,43 @@ public partial class MainWindow
         catch (Exception exception)
         {
             ShowFailure("은신처 진행 상태를 변경하지 못했습니다.", exception);
+        }
+        finally
+        {
+            SetBusy(false, StatusText.Text);
+        }
+    }
+
+    private async void ItemsPage_InventoryChangeRequestedFast(
+        object? sender,
+        InventoryChangeRequestedEventArgs e)
+    {
+        if (_activeProfile is null || _activeContent is null)
+            return;
+
+        try
+        {
+            SetBusy(true, "보유 아이템 수량을 저장하는 중...");
+            var previousPlan = _activeItemsWorkspace?.Plan;
+            var itemsWorkspace = await _services.Items.SetInventoryAsync(
+                _activeContent,
+                _activeProfile.ProfileId,
+                e.ItemId,
+                e.Fir,
+                e.NonFir);
+
+            _activeProfile = itemsWorkspace.Profile;
+            _activeItemsWorkspace = itemsWorkspace;
+
+            var questWorkspace = _services.Quests.BuildFromProfile(_activeContent, _activeProfile);
+            QuestPage.SetDataPreservingScroll(_activeContent, questWorkspace);
+            ItemsPage.SetData(_activeContent, itemsWorkspace);
+            ApplyCleanupChanges(previousPlan, itemsWorkspace);
+            StatusText.Text = BuildLoadedStatus(_activeProfile.GameMode);
+        }
+        catch (Exception exception)
+        {
+            ShowFailure("보유 아이템 수량을 저장하지 못했습니다.", exception);
         }
         finally
         {
