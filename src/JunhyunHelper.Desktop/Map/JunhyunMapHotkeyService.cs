@@ -42,6 +42,7 @@ public sealed class JunhyunMapHotkeyService : IDisposable
     private static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
 
     private readonly TarkovHelper.Pages.Map.MapPage _page;
+    private readonly OverlayMiniMapService _overlay = OverlayMiniMapService.Instance;
     private readonly LowLevelKeyboardProc _callback;
     private readonly HashSet<int> _pressed = [];
     private IntPtr _hook;
@@ -51,6 +52,15 @@ public sealed class JunhyunMapHotkeyService : IDisposable
     {
         _page = page ?? throw new ArgumentNullException(nameof(page));
         _callback = HookCallback;
+
+        // The transplanted OverlayMiniMapService re-populates its old direct zoom/floor
+        // hook keys during late initialization and whenever overlay settings change.
+        // JunhyunHelper owns those actions now, so immediately neutralize the legacy
+        // route and keep it neutralized after every overlay lifecycle transition.
+        _overlay.OverlayVisibilityChanged += Overlay_VisibilityChanged;
+        _overlay.SettingsChanged += Overlay_SettingsChanged;
+        SuppressLegacyDirectMapHotkeys();
+
         _hook = SetWindowsHookEx(WhKeyboardLl, _callback, IntPtr.Zero, 0);
     }
 
@@ -90,10 +100,6 @@ public sealed class JunhyunMapHotkeyService : IDisposable
             return CallNextHookEx(_hook, code, wParam, lParam);
         }
 
-        // Resolve against the JunhyunHelper-owned persisted values directly. The legacy
-        // overlay settings object is only the fallback for users who have never saved a
-        // product value. This prevents late legacy initialization from making floor keys
-        // appear configured in the UI while the runtime dispatcher reads another value.
         var action = GetProductActionForHotkey(virtualKey);
         if (action is null)
             return CallNextHookEx(_hook, code, wParam, lParam);
@@ -125,36 +131,70 @@ public sealed class JunhyunMapHotkeyService : IDisposable
 
     private void Execute(OverlayMiniMapHotkeyAction action)
     {
+        // Eliminate any late legacy re-registration before executing the product action.
+        SuppressLegacyDirectMapHotkeys();
+
         switch (action)
         {
             case OverlayMiniMapHotkeyAction.ToggleOverlay:
-                OverlayMiniMapService.Instance.ToggleOverlay();
+                _overlay.ToggleOverlay();
                 break;
             case OverlayMiniMapHotkeyAction.ZoomIn:
                 _page.JunhyunZoomIn();
-                JunhyunMiniMapProductRegistry.ZoomIn();
+                _overlay.ZoomIn();
                 break;
             case OverlayMiniMapHotkeyAction.ZoomOut:
                 _page.JunhyunZoomOut();
-                JunhyunMiniMapProductRegistry.ZoomOut();
+                _overlay.ZoomOut();
                 break;
             case OverlayMiniMapHotkeyAction.FloorUp:
                 _page.JunhyunFloorUp();
-                JunhyunMiniMapProductRegistry.MoveFloorUp();
+                _overlay.MoveFloorUp();
                 break;
             case OverlayMiniMapHotkeyAction.FloorDown:
                 _page.JunhyunFloorDown();
-                JunhyunMiniMapProductRegistry.MoveFloorDown();
+                _overlay.MoveFloorDown();
                 break;
             case OverlayMiniMapHotkeyAction.SizeIncrease:
-                if (OverlayMiniMapService.Instance.IsOverlayVisible)
+                if (_overlay.IsOverlayVisible)
                     JunhyunMiniMapProductRegistry.IncreaseSize();
                 break;
             case OverlayMiniMapHotkeyAction.SizeDecrease:
-                if (OverlayMiniMapService.Instance.IsOverlayVisible)
+                if (_overlay.IsOverlayVisible)
                     JunhyunMiniMapProductRegistry.DecreaseSize();
                 break;
         }
+    }
+
+    private void Overlay_VisibilityChanged(bool visible)
+    {
+        if (_disposed)
+            return;
+
+        // ShowOverlayCore raises this after the legacy service has called SyncHotkeys,
+        // so this is the authoritative point to remove the conflicting direct keys.
+        SuppressLegacyDirectMapHotkeys();
+    }
+
+    private void Overlay_SettingsChanged(OverlayMiniMapSettings settings)
+    {
+        if (_disposed)
+            return;
+
+        // OverlayMiniMapService calls its legacy SyncHotkeys before raising this event.
+        // Re-zero the old route every time so one physical key produces exactly one
+        // JunhyunHelper product action.
+        SuppressLegacyDirectMapHotkeys();
+    }
+
+    internal static void SuppressLegacyDirectMapHotkeys()
+    {
+        var hook = GlobalKeyboardHookService.Instance;
+        hook.ZoomInKey = 0;
+        hook.ZoomOutKey = 0;
+        hook.FloorUpKey = 0;
+        hook.FloorDownKey = 0;
+        hook.ResumeAutoFloorKey = 0;
     }
 
     private static bool IsTarkovOrHelperForeground()
@@ -188,6 +228,10 @@ public sealed class JunhyunMapHotkeyService : IDisposable
             return;
         _disposed = true;
         _pressed.Clear();
+
+        _overlay.OverlayVisibilityChanged -= Overlay_VisibilityChanged;
+        _overlay.SettingsChanged -= Overlay_SettingsChanged;
+        SuppressLegacyDirectMapHotkeys();
 
         if (_hook != IntPtr.Zero)
         {
