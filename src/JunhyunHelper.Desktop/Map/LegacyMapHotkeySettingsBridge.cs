@@ -9,20 +9,49 @@ namespace JunhyunHelper.Desktop.Map;
 
 /// <summary>
 /// Product hotkey editor embedded directly in the Main Map Settings panel.
+/// Existing keys and the temporary-MiniMap-hide action are persisted by
+/// JunhyunHelper rather than the transplanted legacy settings database.
 /// </summary>
 public sealed class LegacyMapHotkeySettingsBridge : IDisposable
 {
     private readonly TarkovHelper.Pages.Map.MapPage _page;
     private readonly OverlayMiniMapService _overlay = OverlayMiniMapService.Instance;
+    private readonly JunhyunMapProductSettingsStore _store = JunhyunMapProductSettingsStore.Instance;
     private readonly Dictionary<OverlayMiniMapHotkeyAction, Button> _buttons = new();
     private OverlayMiniMapHotkeyAction? _captureAction;
+    private Button? _temporaryHideButton;
+    private Slider? _temporaryHideSecondsSlider;
+    private TextBlock? _temporaryHideSecondsText;
+    private bool _captureTemporaryHide;
     private bool _disposed;
 
     public LegacyMapHotkeySettingsBridge(TarkovHelper.Pages.Map.MapPage page)
     {
         _page = page ?? throw new ArgumentNullException(nameof(page));
+        RestorePersistedHotkeys();
         Inject();
+        SyncLegacyHook();
         _overlay.SettingsChanged += Overlay_SettingsChanged;
+    }
+
+    private void RestorePersistedHotkeys()
+    {
+        foreach (var action in Enum.GetValues<OverlayMiniMapHotkeyAction>())
+        {
+            var current = _overlay.Settings.GetHotkey(action);
+            var persisted = _store.GetHotkey(action, current);
+            _overlay.Settings.SetHotkey(action, persisted);
+        }
+
+        var temporary = _store.TemporaryHideKey;
+        if (temporary != 0)
+        {
+            foreach (var action in Enum.GetValues<OverlayMiniMapHotkeyAction>())
+            {
+                if (_overlay.Settings.GetHotkey(action) == temporary)
+                    _overlay.Settings.SetHotkey(action, 0);
+            }
+        }
     }
 
     private void Inject()
@@ -64,10 +93,74 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
         AddRow(stack, OverlayMiniMapHotkeyAction.FloorDown, "아래층 전환");
         AddRow(stack, OverlayMiniMapHotkeyAction.SizeIncrease, "미니맵 크기 증가");
         AddRow(stack, OverlayMiniMapHotkeyAction.SizeDecrease, "미니맵 크기 감소");
+        AddTemporaryHideRow(stack);
         UpdateDisplays();
     }
 
     private void AddRow(StackPanel stack, OverlayMiniMapHotkeyAction action, string label)
+    {
+        var row = CreateRow(label);
+        var button = CreateHotkeyButton(action);
+        Grid.SetColumn(button, 1);
+        row.Children.Add(button);
+        stack.Children.Add(row);
+        _buttons[action] = button;
+    }
+
+    private void AddTemporaryHideRow(StackPanel stack)
+    {
+        var row = CreateRow("미니맵 일시 투명");
+        _temporaryHideButton = new Button
+        {
+            Width = 118,
+            Padding = new Thickness(6, 4, 6, 4),
+            Margin = new Thickness(8, 0, 0, 0),
+        };
+        _temporaryHideButton.Click += TemporaryHideButton_Click;
+        _temporaryHideButton.PreviewKeyDown += HotkeyButton_PreviewKeyDown;
+        Grid.SetColumn(_temporaryHideButton, 1);
+        row.Children.Add(_temporaryHideButton);
+        stack.Children.Add(row);
+
+        var durationRow = new Grid { Margin = new Thickness(0, 3, 0, 8) };
+        durationRow.ColumnDefinitions.Add(new ColumnDefinition());
+        durationRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        durationRow.Children.Add(new TextBlock
+        {
+            Text = "일시 투명 시간",
+            Foreground = Brush("TextSecondaryBrush", Brushes.LightGray),
+            FontSize = 12,
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+
+        var durationPanel = new StackPanel { Orientation = Orientation.Horizontal };
+        _temporaryHideSecondsSlider = new Slider
+        {
+            Minimum = 1,
+            Maximum = 15,
+            TickFrequency = 1,
+            IsSnapToTickEnabled = true,
+            Width = 82,
+            Value = _store.TemporaryHideSeconds,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        _temporaryHideSecondsSlider.ValueChanged += TemporaryHideSecondsSlider_ValueChanged;
+        durationPanel.Children.Add(_temporaryHideSecondsSlider);
+        _temporaryHideSecondsText = new TextBlock
+        {
+            Width = 36,
+            Margin = new Thickness(8, 0, 0, 0),
+            Foreground = Brush("TextPrimaryBrush", Brushes.White),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        durationPanel.Children.Add(_temporaryHideSecondsText);
+        Grid.SetColumn(durationPanel, 1);
+        durationRow.Children.Add(durationPanel);
+        stack.Children.Add(durationRow);
+        UpdateDurationText();
+    }
+
+    private Grid CreateRow(string label)
     {
         var row = new Grid { Margin = new Thickness(0, 3, 0, 3) };
         row.ColumnDefinitions.Add(new ColumnDefinition());
@@ -79,7 +172,11 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
             FontSize = 12,
             VerticalAlignment = VerticalAlignment.Center,
         });
+        return row;
+    }
 
+    private Button CreateHotkeyButton(OverlayMiniMapHotkeyAction action)
+    {
         var button = new Button
         {
             Width = 118,
@@ -87,12 +184,9 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
             Tag = action,
             Margin = new Thickness(8, 0, 0, 0),
         };
-        Grid.SetColumn(button, 1);
         button.Click += HotkeyButton_Click;
         button.PreviewKeyDown += HotkeyButton_PreviewKeyDown;
-        row.Children.Add(button);
-        stack.Children.Add(row);
-        _buttons[action] = button;
+        return button;
     }
 
     private void HotkeyButton_Click(object sender, RoutedEventArgs e)
@@ -100,7 +194,22 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
         if (sender is not Button button || button.Tag is not OverlayMiniMapHotkeyAction action)
             return;
 
+        _captureTemporaryHide = false;
         _captureAction = action;
+        BeginCapture(button);
+    }
+
+    private void TemporaryHideButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_temporaryHideButton is null)
+            return;
+        _captureAction = null;
+        _captureTemporaryHide = true;
+        BeginCapture(_temporaryHideButton);
+    }
+
+    private void BeginCapture(Button button)
+    {
         GlobalKeyboardHookService.Instance.OverlayHotkeysSuppressed = true;
         UpdateDisplays();
         button.Focus();
@@ -109,7 +218,7 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
 
     private void HotkeyButton_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (!_captureAction.HasValue)
+        if (!_captureAction.HasValue && !_captureTemporaryHide)
             return;
 
         e.Handled = true;
@@ -122,7 +231,7 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
 
         if (key is Key.Delete or Key.Back)
         {
-            _overlay.Settings.SetHotkey(_captureAction.Value, 0);
+            AssignCapturedKey(0);
             FinishCapture(save: true);
             return;
         }
@@ -145,13 +254,41 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
         if (virtualKey <= 0)
             return;
 
-        _overlay.Settings.SetHotkey(_captureAction.Value, virtualKey);
+        AssignCapturedKey(virtualKey);
         FinishCapture(save: true);
+    }
+
+    private void AssignCapturedKey(int virtualKey)
+    {
+        if (_captureTemporaryHide)
+        {
+            if (virtualKey != 0)
+            {
+                foreach (var action in Enum.GetValues<OverlayMiniMapHotkeyAction>())
+                {
+                    if (_overlay.Settings.GetHotkey(action) != virtualKey)
+                        continue;
+                    _overlay.Settings.SetHotkey(action, 0);
+                    _store.SetHotkey(action, 0);
+                }
+            }
+            _store.TemporaryHideKey = virtualKey;
+            return;
+        }
+
+        if (!_captureAction.HasValue)
+            return;
+
+        _overlay.Settings.SetHotkey(_captureAction.Value, virtualKey);
+        _store.SetHotkey(_captureAction.Value, virtualKey);
+        if (virtualKey != 0 && _store.TemporaryHideKey == virtualKey)
+            _store.TemporaryHideKey = 0;
     }
 
     private void FinishCapture(bool save)
     {
         _captureAction = null;
+        _captureTemporaryHide = false;
         GlobalKeyboardHookService.Instance.OverlayHotkeysSuppressed = false;
         if (save)
         {
@@ -161,14 +298,30 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
         UpdateDisplays();
     }
 
+    private void TemporaryHideSecondsSlider_ValueChanged(
+        object sender,
+        RoutedPropertyChangedEventArgs<double> e)
+    {
+        _store.TemporaryHideSeconds = Math.Round(e.NewValue);
+        UpdateDurationText();
+    }
+
+    private void UpdateDurationText()
+    {
+        if (_temporaryHideSecondsText is not null)
+            _temporaryHideSecondsText.Text = $"{_store.TemporaryHideSeconds:0}초";
+    }
+
     private void SyncLegacyHook()
     {
-        var settings = _overlay.Settings;
+        // JunhyunMapHotkeyService owns configured zoom/floor keys. Zero the legacy
+        // direct overlay actions to prevent the same key from firing twice when a
+        // MiniMap happens to be visible. NumPad0~5 direct floor selection is separate.
         var hook = GlobalKeyboardHookService.Instance;
-        hook.ZoomInKey = settings.ZoomInKey;
-        hook.ZoomOutKey = settings.ZoomOutKey;
-        hook.FloorUpKey = settings.FloorUpKey;
-        hook.FloorDownKey = settings.FloorDownKey;
+        hook.ZoomInKey = 0;
+        hook.ZoomOutKey = 0;
+        hook.FloorUpKey = 0;
+        hook.FloorDownKey = 0;
         hook.ResumeAutoFloorKey = 0;
     }
 
@@ -196,18 +349,28 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
     {
         foreach (var (action, button) in _buttons)
         {
-            if (_captureAction == action)
+            if (_captureAction == action && !_captureTemporaryHide)
             {
                 button.Content = "입력 대기...";
                 continue;
             }
 
             var virtualKey = _overlay.Settings.GetHotkey(action);
-            button.Content = virtualKey == 0
-                ? "미지정"
-                : KeyInterop.KeyFromVirtualKey(virtualKey).ToString();
+            button.Content = KeyText(virtualKey);
         }
+
+        if (_temporaryHideButton is not null)
+        {
+            _temporaryHideButton.Content = _captureTemporaryHide
+                ? "입력 대기..."
+                : KeyText(_store.TemporaryHideKey);
+        }
+        UpdateDurationText();
     }
+
+    private static string KeyText(int virtualKey) => virtualKey == 0
+        ? "미지정"
+        : KeyInterop.KeyFromVirtualKey(virtualKey).ToString();
 
     private Brush Brush(string key, Brush fallback) =>
         _page.TryFindResource(key) as Brush ?? fallback;
@@ -233,5 +396,13 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
             button.PreviewKeyDown -= HotkeyButton_PreviewKeyDown;
         }
         _buttons.Clear();
+
+        if (_temporaryHideButton is not null)
+        {
+            _temporaryHideButton.Click -= TemporaryHideButton_Click;
+            _temporaryHideButton.PreviewKeyDown -= HotkeyButton_PreviewKeyDown;
+        }
+        if (_temporaryHideSecondsSlider is not null)
+            _temporaryHideSecondsSlider.ValueChanged -= TemporaryHideSecondsSlider_ValueChanged;
     }
 }
