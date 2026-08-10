@@ -462,9 +462,11 @@ Map artwork/config/general-marker DB는 v0.1.0 배포물의 검증된 pinned bun
 
 ## 13. 현재 릴리즈 상태
 
+**v0.1.0 RELEASED — 2026-08-10**
+
 Core 사용성 개선 1~5차와 Map 제품화/실사용 피드백 반복이 완료되었습니다.
 
-최근 Map/MiniMap 제품화:
+릴리즈 완성 이력:
 
 ```text
 PR #62 — exact Map/MiniMap transplant
@@ -475,17 +477,29 @@ PR #70 — MiniMap legacy hook conflict + real MiniMap smoke
 PR #71 — Main Map floor render serialization + MiniMap opacity
 PR #72 — MiniMap marker size
 PR #73 — v0.1.0 release hardening
+PR #74 — Scanner placeholder 복구 / 준현 헬퍼 이름 / single-file packaging
 ```
 
-사용자는 PR #72 Windows 빌드에서 최근 요구사항을 포함한 주요 기능이 정상 동작한다고 확인했습니다. PR #73에서 legacy updater/dependency/debug symbol/숨은 keyboard behavior/nested archive 등을 제거하고 release gate를 통과했습니다.
+사용자는 PR #72 Windows 빌드에서 최근 기능 요구사항이 정상 동작함을 확인했습니다. PR #73에서 legacy updater/dependency/debug symbol/숨은 keyboard behavior/nested archive 등을 제거했고, PR #74에서 최종 제품명과 배포 구조를 확정했습니다.
 
-현재 PR #74의 제품/배포 정리 범위:
+v0.1.0 최종 검증:
 
-- 사용자 요청에 따라 Scanner placeholder 탭 복구
-- 표시 이름과 Windows EXE를 `준현 헬퍼`로 통일
-- self-contained single-file publish로 루트 DLL clutter 제거
-- `Assets/`만 path-addressed 외부 자산으로 유지
-- 프로그램 로그를 `%LocalAppData%/JunhyunHelper/Logs`로 이동
-- 실제 `준현 헬퍼.exe`로 Map/MiniMap startup + 정상 종료 smoke 검증
+```text
+Desktop Release build                 SUCCESS
+automated tests                       163 passed / 0 failed
+Windows x64 single-file publish       SUCCESS
+`준현 헬퍼.exe` Map/MiniMap smoke     SUCCESS
+normal process shutdown               SUCCESS
+root DLL / PDB / nested ZIP           0 / 0 / 0
+runtime Logs folder beside EXE        0
+```
 
-상세 현재 상태는 `docs/STATE.md`를 기준으로 합니다.
+공식 배포물 SHA-256:
+
+```text
+6db752972b3b52d9e6239c746bb910904a91d364c2410062f4c1635ac61efcaa
+```
+
+상세 릴리즈 기록: `docs/RELEASE_0.1.0.md`
+
+현재 상세 상태는 `docs/STATE.md`를 기준으로 합니다.
