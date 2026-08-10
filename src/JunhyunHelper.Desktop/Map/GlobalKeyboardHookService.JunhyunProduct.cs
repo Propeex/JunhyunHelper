@@ -186,6 +186,8 @@ public sealed class GlobalKeyboardHookService : IDisposable
             var name = process.ProcessName;
             return name.Equals("EscapeFromTarkov", StringComparison.OrdinalIgnoreCase)
                 || name.Equals("EscapeFromTarkov_BE", StringComparison.OrdinalIgnoreCase)
+                || name.Equals("준현 헬퍼", StringComparison.OrdinalIgnoreCase)
+                || name.Equals("Junhyun Helper", StringComparison.OrdinalIgnoreCase)
                 || name.Equals("JunhyunHelper", StringComparison.OrdinalIgnoreCase)
                 || name.Equals("TarkovHelper", StringComparison.OrdinalIgnoreCase);
         }

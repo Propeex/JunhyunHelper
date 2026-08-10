@@ -378,8 +378,10 @@ Game Content update 성공 후 제품에서 사용하는 이미지를 **미리 �
 
 동일 Item ID는 `item-{id}` cache key를 공유합니다. 개별 이미지 실패는 Game Content update 실패가 아닙니다.
 
-## 11. UI
+## 11. UI / 제품 표시
 
+- 사용자에게 보이는 공식 제품명: **준현 헬퍼**
+- Windows 실행 파일 이름: **`준현 헬퍼.exe`**
 - dark theme
 - dark dropdown popup / light text
 - 정렬된 full-width list rows
@@ -394,6 +396,8 @@ Game Content update 성공 후 제품에서 사용하는 이미지를 **미리 �
 ```
 
 작업 중에는 update/save/error 상태 메시지가 일시적으로 우선할 수 있습니다.
+
+배포 폴더는 사용자가 실행 파일을 쉽게 찾을 수 있도록 루트 파일을 최소화합니다. .NET/WPF/SQLite/Skia 런타임은 single-file 실행 파일에 묶고, Map이 파일 경로로 직접 읽는 검증된 자산만 `Assets/`에 외부 유지합니다. 로그와 사용자 데이터는 `%LocalAppData%/JunhyunHelper` 아래에 저장하며 실행 파일 옆에 런타임 로그 폴더를 만들지 않습니다.
 
 ## 12. Map / Scanner
 
@@ -435,7 +439,7 @@ Hideout / Item / Ammo runtime과 Map을 결합하지 않습니다.
 - 다른 floor opacity 0%, auto-floor OFF
 - MiniMap 우측 상단 고정 / mouse drag·resize 금지 / click-through ON
 
-제품 설정은 `%LocalAppData%/JunhyunHelper/map-product-settings.json`에 저장하고, 게임 또는 JunhyunHelper가 foreground일 때 제품 전역 hotkey를 처리합니다.
+제품 설정은 `%LocalAppData%/JunhyunHelper/map-product-settings.json`에 저장하고, Escape from Tarkov 또는 준현 헬퍼가 foreground일 때 제품 전역 hotkey를 처리합니다.
 
 Map artwork/config/general-marker DB는 v0.1.0 배포물의 검증된 pinned bundle을 사용합니다. Quest/Hideout/Item/Ammo 온라인 Game Content updater와 Map bundle updater는 별도 시스템입니다. 향후 Map bundle을 업데이트할 때는 artwork/config/general-marker DB를 **같은 upstream revision 단위로 원자적으로** 갱신해야 합니다.
 
@@ -443,9 +447,18 @@ Map artwork/config/general-marker DB는 v0.1.0 배포물의 검증된 pinned bun
 
 ### 12.2 Scanner
 
-`PRODUCT OPEN / V0.1.0 UI HIDDEN`
+`PRODUCT OPEN / PLACEHOLDER TAB VISIBLE`
 
-실제 Scanner 동작은 별도 제품 요구사항 확정 전까지 구현하지 않습니다. 기능이 없는 `준비 중` 탭을 release UI에 노출하지 않으며, 요구사항과 검증 기준이 확정된 후 다시 추가합니다.
+실제 Scanner 동작은 별도 제품 요구사항 확정 전까지 구현하지 않습니다. 다만 사용자의 명시적 요구에 따라 상단 **`스캐너` 탭 자체는 제품 UI에 유지**합니다.
+
+현재 Scanner 탭의 계약:
+
+- 탭은 항상 접근 가능
+- 화면에는 `준비 중` 상태만 명확하게 표시
+- 실제 인식/스캔 기능을 구현된 것처럼 가장하지 않음
+- Scanner 요구사항과 검증 기준이 확정되기 전까지 임의 기능을 추가하지 않음
+
+즉, **기능은 미구현이지만 탭은 의도적으로 유지하는 제품 surface**입니다.
 
 ## 13. 현재 릴리즈 상태
 
@@ -461,17 +474,18 @@ PR #69 — zoom/floor hotkey + resize policy
 PR #70 — MiniMap legacy hook conflict + real MiniMap smoke
 PR #71 — Main Map floor render serialization + MiniMap opacity
 PR #72 — MiniMap marker size
+PR #73 — v0.1.0 release hardening
 ```
 
-사용자는 PR #72 Windows 빌드에서 최근 요구사항을 포함한 주요 기능이 정상 동작한다고 확인했습니다.
+사용자는 PR #72 Windows 빌드에서 최근 요구사항을 포함한 주요 기능이 정상 동작한다고 확인했습니다. PR #73에서 legacy updater/dependency/debug symbol/숨은 keyboard behavior/nested archive 등을 제거하고 release gate를 통과했습니다.
 
-현재 **PR #73 v0.1.0 Release Hardening**에서 기능 로직을 바꾸지 않고 다음 릴리즈 품질만 정리합니다.
+현재 PR #74의 제품/배포 정리 범위:
 
-- old Tarkov-Helper updater / AutoUpdater / WebView2 제거
-- unused GraphX / QuikGraph 제거
-- publish debug symbol 제거
-- nested ZIP Artifact 구조 제거
-- Scanner placeholder tab release UI 비노출
-- release 안내/공식 상태 문서 최신화
+- 사용자 요청에 따라 Scanner placeholder 탭 복구
+- 표시 이름과 Windows EXE를 `준현 헬퍼`로 통일
+- self-contained single-file publish로 루트 DLL clutter 제거
+- `Assets/`만 path-addressed 외부 자산으로 유지
+- 프로그램 로그를 `%LocalAppData%/JunhyunHelper/Logs`로 이동
+- 실제 `준현 헬퍼.exe`로 Map/MiniMap startup + 정상 종료 smoke 검증
 
 상세 현재 상태는 `docs/STATE.md`를 기준으로 합니다.

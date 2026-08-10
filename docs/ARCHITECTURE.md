@@ -364,6 +364,8 @@ old Tarkov-Helper의 non-Map content/update subsystem은 JunhyunHelper Desktop c
 
 특히 v0.1.0 release hardening부터 old `TarkovHelper.Services.UpdateService`도 제외합니다. 이 legacy updater는 `Propeex/Tarkov-Helper/update.xml`을 대상으로 하며 JunhyunHelper release/update 경계와 무관합니다.
 
+old `LoggingService`도 실행 폴더에 `Logs`를 만들기 때문에 compile에서 제외하고 JunhyunHelper-owned source-compatible logger로 대체합니다. Map 로그 API는 유지하되 실제 로그 루트는 `%LocalAppData%/JunhyunHelper/Logs`입니다.
+
 ### 12.2 Map product settings
 
 권위 저장소:
@@ -380,12 +382,16 @@ legacy settings는 Map 내부 compatibility를 위해 일부 존재할 수 있�
 
 JunhyunHelper-owned global keyboard dispatcher가 product hotkey를 처리합니다.
 
-허용 foreground:
+허용 foreground exact process name:
 
 - `EscapeFromTarkov`
 - `EscapeFromTarkov_BE`
-- `JunhyunHelper`
+- `준현 헬퍼`
+- English fallback compatibility용 `Junhyun Helper`
+- 이전 build compatibility용 `JunhyunHelper`
 - legacy compatibility용 `TarkovHelper`
+
+현재 공식 실행 파일은 **`준현 헬퍼.exe`**입니다.
 
 MiniMap을 켤 때 transplanted legacy zoom/floor hook이 다시 같은 key를 잡지 못하도록 direct legacy mapping은 비활성 상태로 유지합니다.
 
@@ -404,7 +410,7 @@ same upstream revision
 
 서로 다른 revision의 Map asset을 섞어 활성화하지 않습니다.
 
-## 13. 로컬 UI preferences
+## 13. 로컬 UI preferences / logs
 
 Ammo caliber favorites:
 
@@ -418,21 +424,49 @@ Map product settings:
 %LocalAppData%/JunhyunHelper/map-product-settings.json
 ```
 
-둘 다 Game Content/User Progress와 분리된 presentation preference입니다. content update로 삭제하지 않습니다.
+Map/runtime logs:
+
+```text
+%LocalAppData%/JunhyunHelper/Logs
+```
+
+preferences는 Game Content/User Progress와 분리된 presentation state입니다. content update로 삭제하지 않습니다. 로그 또한 portable 실행 폴더와 분리합니다.
 
 ## 14. 배포 경계
 
-v0.1.0은 Windows x64 self-contained portable 배포입니다.
+v0.1.0은 **Windows x64 self-contained single-file portable** 배포입니다.
 
+사용자 표시 이름 / 실행 파일:
+
+```text
+준현 헬퍼
+준현 헬퍼.exe
+```
+
+release root:
+
+```text
+준현 헬퍼.exe
+FIRST_RUN_KO.txt
+Assets/
+```
+
+- .NET/WPF/SQLite/Skia managed/native runtime은 single-file EXE bundle에 포함
+- `PublishTrimmed=false`로 WPF/Map reflection/XAML 경로를 보수적으로 유지
+- native runtime은 `IncludeNativeLibrariesForSelfExtract=true`로 bundle하고 .NET host가 관리
+- Map이 `AppDomain.CurrentDomain.BaseDirectory` 기준으로 직접 읽는 artwork/config/marker DB만 `ExcludeFromSingleFile=true`로 `Assets/`에 유지
+- 실행 후 `Logs` 같은 runtime 폴더를 EXE 옆에 만들지 않음
 - installer 없음
 - 별도 .NET 설치 불필요
 - 관리자 권한 불필요
 - code signing 미구성
 - app 자체 auto-updater 미구현
 
-Release publish는 debug symbol을 포함하지 않으며, old AutoUpdater/WebView2/GraphX/QuikGraph dependency가 다시 들어오면 CI를 실패시킵니다.
+Release publish는 root DLL과 debug symbol을 포함하지 않으며, old AutoUpdater/WebView2/GraphX/QuikGraph dependency가 다시 들어오면 CI를 실패시킵니다.
 
 GitHub Actions Artifact에는 publish directory를 직접 업로드합니다. Artifact 자체가 다운로드 시 ZIP이 되므로 내부 ZIP을 한 번 더 만들지 않습니다.
+
+Windows CI는 실제 `준현 헬퍼.exe`를 실행하여 Map + MiniMap smoke, 정상 Main Window close/process 종료, 실행 후 portable root 오염 여부까지 확인합니다.
 
 ## 15. 실패 / 안전 원칙
 
