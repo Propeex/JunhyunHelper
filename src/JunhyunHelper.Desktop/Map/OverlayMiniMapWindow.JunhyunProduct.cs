@@ -247,7 +247,7 @@ public partial class OverlayMiniMapWindow
             return;
 
         var settings = MapSettings.Instance;
-        var signature = HashCode.Combine(
+        var baseSignature = HashCode.Combine(
             _currentMapKey,
             _selectedFloorId,
             settings.ShowExtracts,
@@ -255,7 +255,9 @@ public partial class OverlayMiniMapWindow
             settings.ShowScavExtracts,
             settings.ShowTransits,
             settings.ExtractNameSize,
-            _settings.OtherFloorOpacity,
+            _settings.OtherFloorOpacity);
+        var signature = HashCode.Combine(
+            baseSignature,
             _junhyunMarkerScale,
             ExtractMarkersContainer.Children.Count);
 
