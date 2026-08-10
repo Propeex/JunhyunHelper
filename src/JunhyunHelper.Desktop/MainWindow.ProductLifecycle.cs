@@ -11,8 +11,8 @@ public partial class MainWindow
 
         // Product rule: closing the main JunhyunHelper window closes the process even
         // when the always-on-top MiniMap window exists.
-        if (Application.Current is not null)
-            Application.Current.ShutdownMode = ShutdownMode.OnMainWindowClose;
+        if (System.Windows.Application.Current is not null)
+            System.Windows.Application.Current.ShutdownMode = ShutdownMode.OnMainWindowClose;
 
         // Pages previously received ImageCacheService only as a side-effect of the
         // Data Update path. Bind it at process startup so existing content can resolve
@@ -46,7 +46,7 @@ public partial class MainWindow
 
         // ShutdownMode handles the normal case. Explicit Shutdown is a final WPF-level
         // guarantee against a hidden auxiliary window keeping the message pump alive.
-        if (Application.Current is { } app && !app.Dispatcher.HasShutdownStarted)
+        if (System.Windows.Application.Current is { } app && !app.Dispatcher.HasShutdownStarted)
             app.Shutdown();
     }
 }
