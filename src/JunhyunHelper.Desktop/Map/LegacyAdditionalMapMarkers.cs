@@ -4,9 +4,7 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using TarkovHelper.Models;
-using TarkovHelper.Services;
 using TarkovHelper.Services.Map;
-using TarkovHelper.Services.Settings;
 
 namespace JunhyunHelper.Desktop.Map;
 
@@ -21,6 +19,7 @@ public sealed class LegacyAdditionalMapMarkerController : IDisposable
     private readonly TarkovHelper.Pages.Map.MapPage _page;
     private readonly MapTrackerService _tracker = MapTrackerService.Instance;
     private readonly MapMarkerDbService _db = MapMarkerDbService.Instance;
+    private readonly JunhyunMapProductSettingsStore _settings = JunhyunMapProductSettingsStore.Instance;
     private readonly Canvas _layer;
     private readonly StackPanel? _markerSettingsPanel;
     private readonly ComboBox? _floorSelector;
@@ -96,7 +95,7 @@ public sealed class LegacyAdditionalMapMarkerController : IDisposable
 
         _raiderToggle = new CheckBox
         {
-            IsChecked = MapSettings.Instance.ShowSpawns,
+            IsChecked = _settings.RaiderVisible,
             VerticalAlignment = VerticalAlignment.Center,
         };
         _raiderToggle.Checked += RaiderToggle_Changed;
@@ -124,7 +123,7 @@ public sealed class LegacyAdditionalMapMarkerController : IDisposable
 
     private void RaiderToggle_Changed(object sender, RoutedEventArgs e)
     {
-        MapSettings.Instance.ShowSpawns = _raiderToggle?.IsChecked == true;
+        _settings.RaiderVisible = _raiderToggle?.IsChecked == true;
         RenderRaiders();
     }
 
