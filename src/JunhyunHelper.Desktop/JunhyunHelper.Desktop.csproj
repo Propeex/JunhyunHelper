@@ -16,8 +16,13 @@
          Preserve the exact upstream Map/MiniMap source instead of modifying it merely
          to satisfy JunhyunHelper's stricter compile policy. -->
     <WarningsNotAsErrors>$(WarningsNotAsErrors);CS0067;CS4014;CS8602;CS8618;CS8625</WarningsNotAsErrors>
-    <AssemblyName>JunhyunHelper</AssemblyName>
+    <!-- Keep the C# namespace stable while making the Windows executable and assembly
+         use the user-facing Korean product name. -->
+    <RootNamespace>JunhyunHelper</RootNamespace>
+    <AssemblyName>준현 헬퍼</AssemblyName>
     <Product>준현 헬퍼</Product>
+    <Title>준현 헬퍼</Title>
+    <Description>Escape from Tarkov 진행도·아이템·탄약·지도 도우미</Description>
     <Version>0.1.0</Version>
     <ApplicationIcon>$(MSBuildProjectDirectory)\obj\JunhyunHelper.AppIcon.ico</ApplicationIcon>
     <!-- The product UI is Korean-only. Let the .NET SDK filter framework/package
@@ -97,27 +102,34 @@
           Link="Legacy/TarkovHelper/Windows/Dialogs/CustomMarkerEditorWindow.xaml" />
   </ItemGroup>
 
+  <!-- Map/MiniMap read these files directly by path. Keep them outside the single-file
+       executable while the framework/runtime/native dependencies are bundled. -->
   <ItemGroup>
     <Content Include="../../vendor/Tarkov-Helper/TarkovHelper/Assets/tarkov_data.db"
              Link="Assets/tarkov_data.db"
              CopyToOutputDirectory="PreserveNewest"
-             CopyToPublishDirectory="PreserveNewest" />
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true" />
     <Content Include="../../vendor/Tarkov-Helper/TarkovHelper/Assets/DB/Data/*.json"
              Link="Assets/DB/Data/%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest"
-             CopyToPublishDirectory="PreserveNewest" />
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true" />
     <Content Include="../../vendor/Tarkov-Helper/TarkovHelper/Assets/DB/Maps/*.svg"
              Link="Assets/DB/Maps/%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest"
-             CopyToPublishDirectory="PreserveNewest" />
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true" />
     <Content Include="../../vendor/Tarkov-Helper/TarkovHelper/Assets/DB/Icons/*.svg"
              Link="Assets/DB/Icons/%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest"
-             CopyToPublishDirectory="PreserveNewest" />
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true" />
     <Content Include="../../vendor/Tarkov-Helper/TarkovHelper/Assets/DB/Icons/Markers/*.svg"
              Link="Assets/DB/Icons/Markers/%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest"
-             CopyToPublishDirectory="PreserveNewest" />
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true" />
   </ItemGroup>
 
   <Target Name="GenerateJunhyunHelperApplicationIcon" BeforeTargets="CoreCompile">
