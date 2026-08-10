@@ -46,17 +46,23 @@ public sealed class JunhyunMapProductSettingsStore
     public void SetToggle(string controlName, bool value) => Update(settings =>
         settings.Toggles[controlName] = value);
 
-    public double? PlayerMarkerSize
+    public double? GetValue(string controlName)
     {
-        get { lock (_gate) return _settings.PlayerMarkerSize; }
-        set => Update(settings => settings.PlayerMarkerSize = value);
+        lock (_gate)
+            return _settings.Values.TryGetValue(controlName, out var value) ? value : null;
     }
 
-    public double? ExtractNameSize
+    public void SetValue(string controlName, double value) => Update(settings =>
+        settings.Values[controlName] = value);
+
+    public int? GetSelection(string controlName)
     {
-        get { lock (_gate) return _settings.ExtractNameSize; }
-        set => Update(settings => settings.ExtractNameSize = value);
+        lock (_gate)
+            return _settings.Selections.TryGetValue(controlName, out var value) ? value : null;
     }
+
+    public void SetSelection(string controlName, int value) => Update(settings =>
+        settings.Selections[controlName] = value);
 
     public string? ScreenshotFolder
     {
@@ -177,9 +183,9 @@ public sealed class JunhyunMapProductSettingsStore
 public sealed class JunhyunMapProductSettings
 {
     public Dictionary<string, bool> Toggles { get; set; } = new(StringComparer.Ordinal);
+    public Dictionary<string, double> Values { get; set; } = new(StringComparer.Ordinal);
+    public Dictionary<string, int> Selections { get; set; } = new(StringComparer.Ordinal);
     public Dictionary<string, int> Hotkeys { get; set; } = new(StringComparer.Ordinal);
-    public double? PlayerMarkerSize { get; set; }
-    public double? ExtractNameSize { get; set; }
     public string? ScreenshotFolder { get; set; }
     public bool? RaiderVisible { get; set; }
     public int TemporaryHideKey { get; set; }
