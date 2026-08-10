@@ -35,7 +35,9 @@ jobs:
             --runtime win-x64 `
             --self-contained true `
             --output artifacts/publish `
-            -p:PublishSingleFile=false `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true `
             -p:PublishTrimmed=false `
             -p:PublishReadyToRun=false `
             -p:DebugType=None `
@@ -44,14 +46,33 @@ jobs:
           Copy-Item packaging/FIRST_RUN_KO.txt artifacts/publish/FIRST_RUN_KO.txt
 
           $required = @(
-            'JunhyunHelper.exe',
-            'JunhyunHelper.dll',
-            'FIRST_RUN_KO.txt'
+            '준현 헬퍼.exe',
+            'FIRST_RUN_KO.txt',
+            'Assets/tarkov_data.db'
           )
           foreach ($file in $required) {
             if (-not (Test-Path (Join-Path artifacts/publish $file))) {
               throw "Required published file was not produced: $file"
             }
+          }
+
+          # The portable package should be easy to understand: the executable and
+          # first-run note live at the root, while path-addressed Map assets stay in
+          # Assets/. Framework, WPF, SQLite and Skia runtime binaries belong in the
+          # single-file executable rather than beside it.
+          $rootFiles = @(Get-ChildItem artifacts/publish -File)
+          $unexpectedRootFiles = @($rootFiles | Where-Object {
+            $_.Name -notin @('준현 헬퍼.exe', 'FIRST_RUN_KO.txt')
+          })
+          if ($unexpectedRootFiles.Count -gt 0) {
+            $unexpectedRootFiles | ForEach-Object { Write-Host "Unexpected root file: $($_.Name)" }
+            throw "Single-file publish left runtime/dependency files beside the executable."
+          }
+
+          $rootDlls = @(Get-ChildItem artifacts/publish -File -Filter *.dll)
+          if ($rootDlls.Count -gt 0) {
+            $rootDlls | ForEach-Object { Write-Host "Unexpected root DLL: $($_.Name)" }
+            throw "Release root still contains DLL clutter."
           }
 
           # Release packages must not contain debug symbols. Native NuGet assets can
@@ -75,37 +96,39 @@ jobs:
             'QuikGraph.dll'
           )
           foreach ($file in $forbidden) {
-            if (Test-Path (Join-Path artifacts/publish $file)) {
+            if (Get-ChildItem artifacts/publish -Recurse -File -Filter $file) {
               throw "Unused legacy dependency leaked into release publish: $file"
             }
           }
 
-          Get-ChildItem artifacts/publish | Sort-Object Name | Select-Object Name,Length | Format-Table -AutoSize
+          Write-Host "Release root:"
+          Get-ChildItem artifacts/publish | Sort-Object Name | Select-Object Name,Length,PSIsContainer | Format-Table -AutoSize
+          Write-Host "Total files: $(@(Get-ChildItem artifacts/publish -Recurse -File).Count)"
 
       - name: Startup + Map + graceful shutdown smoke
         shell: pwsh
         env:
           JUNHYUNHELPER_MAP_SMOKE: "1"
         run: |
-          $exe = (Resolve-Path artifacts/publish/JunhyunHelper.exe).Path
+          $exe = (Resolve-Path 'artifacts/publish/준현 헬퍼.exe').Path
           $process = Start-Process -FilePath $exe -WorkingDirectory artifacts/publish -PassThru
           try {
             Start-Sleep -Seconds 12
             $process.Refresh()
             if ($process.HasExited) {
-              throw "Published JunhyunHelper exited during Map startup smoke with code $($process.ExitCode)."
+              throw "Published 준현 헬퍼 exited during Map startup smoke with code $($process.ExitCode)."
             }
 
             Write-Host "Startup + Map smoke passed. Requesting normal Main Window close..."
             if (-not $process.CloseMainWindow()) {
-              throw "Could not send a normal close request to the JunhyunHelper Main Window."
+              throw "Could not send a normal close request to the 준현 헬퍼 Main Window."
             }
 
             if (-not $process.WaitForExit(7000)) {
-              throw "JunhyunHelper Main Window closed but the process did not terminate within 7 seconds."
+              throw "준현 헬퍼 Main Window closed but the process did not terminate within 7 seconds."
             }
 
-            Write-Host "Graceful shutdown smoke passed: JunhyunHelper process terminated after Main Window close."
+            Write-Host "Graceful shutdown smoke passed: 준현 헬퍼 process terminated after Main Window close."
           }
           finally {
             $process.Refresh()
