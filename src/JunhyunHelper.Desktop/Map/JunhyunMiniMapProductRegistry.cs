@@ -15,8 +15,10 @@ public static class JunhyunMiniMapProductRegistry
         lock (Gate)
             _active = new WeakReference<TarkovHelper.Windows.OverlayMiniMapWindow>(window);
 
+        var store = JunhyunMapProductSettingsStore.Instance;
         window.ApplyJunhyunInputPolicy();
-        window.ApplyJunhyunBaseOpacity(JunhyunMapProductSettingsStore.Instance.MiniMapOpacity);
+        window.ApplyJunhyunBaseOpacity(store.MiniMapOpacity);
+        window.ApplyJunhyunMarkerScale(store.MiniMapMarkerScale);
         window.InitializeQuestV2();
     }
 
@@ -47,6 +49,9 @@ public static class JunhyunMiniMapProductRegistry
 
     public static void ApplyBaseOpacity(double opacity) =>
         WithActive(window => window.ApplyJunhyunBaseOpacity(opacity));
+
+    public static void ApplyMarkerScale(double scale) =>
+        WithActive(window => window.ApplyJunhyunMarkerScale(scale));
 
     public static void TemporarilyHide(double seconds) =>
         WithActive(window => window.JunhyunTemporarilyHide(seconds));

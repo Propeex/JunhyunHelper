@@ -5,15 +5,18 @@ using System.Windows.Media;
 namespace JunhyunHelper.Desktop.Map;
 
 /// <summary>
-/// Adds the JunhyunHelper-owned MiniMap base-opacity control to the Main Map
-/// settings panel. Hover/timed-hide still override this value to fully transparent.
+/// Adds JunhyunHelper-owned MiniMap display controls to the Main Map settings panel.
+/// Hover/timed-hide still override base opacity to fully transparent, and marker scale
+/// applies only to non-player MiniMap markers.
 /// </summary>
 public sealed class LegacyMiniMapOpacitySettingsBridge : IDisposable
 {
     private readonly TarkovHelper.Pages.Map.MapPage _page;
     private readonly JunhyunMapProductSettingsStore _store = JunhyunMapProductSettingsStore.Instance;
-    private Slider? _slider;
-    private TextBlock? _valueText;
+    private Slider? _opacitySlider;
+    private TextBlock? _opacityValueText;
+    private Slider? _markerScaleSlider;
+    private TextBlock? _markerScaleValueText;
     private bool _disposed;
 
     public LegacyMiniMapOpacitySettingsBridge(TarkovHelper.Pages.Map.MapPage page)
@@ -47,19 +50,16 @@ public sealed class LegacyMiniMapOpacitySettingsBridge : IDisposable
             Margin = new Thickness(0, 0, 0, 8),
         });
 
-        var row = new Grid { Margin = new Thickness(0, 3, 0, 8) };
-        row.ColumnDefinitions.Add(new ColumnDefinition());
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        row.Children.Add(new TextBlock
-        {
-            Text = "미니맵 투명도",
-            Foreground = Brush("TextSecondaryBrush", Brushes.LightGray),
-            FontSize = 12,
-            VerticalAlignment = VerticalAlignment.Center,
-        });
+        AddOpacityRow(stack);
+        AddMarkerScaleRow(stack);
+    }
 
+    private void AddOpacityRow(StackPanel stack)
+    {
+        var row = CreateRow("미니맵 투명도");
         var panel = new StackPanel { Orientation = Orientation.Horizontal };
-        _slider = new Slider
+
+        _opacitySlider = new Slider
         {
             Minimum = 10,
             Maximum = 100,
@@ -69,37 +69,96 @@ public sealed class LegacyMiniMapOpacitySettingsBridge : IDisposable
             Value = Math.Round(_store.MiniMapOpacity * 100.0),
             VerticalAlignment = VerticalAlignment.Center,
         };
-        _slider.ValueChanged += Slider_ValueChanged;
-        panel.Children.Add(_slider);
+        _opacitySlider.ValueChanged += OpacitySlider_ValueChanged;
+        panel.Children.Add(_opacitySlider);
 
-        _valueText = new TextBlock
-        {
-            Width = 42,
-            Margin = new Thickness(8, 0, 0, 0),
-            Foreground = Brush("TextPrimaryBrush", Brushes.White),
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        panel.Children.Add(_valueText);
+        _opacityValueText = CreateValueText();
+        panel.Children.Add(_opacityValueText);
         Grid.SetColumn(panel, 1);
         row.Children.Add(panel);
         stack.Children.Add(row);
-        UpdateText();
+        UpdateOpacityText();
     }
 
-    private void Slider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    private void AddMarkerScaleRow(StackPanel stack)
+    {
+        var row = CreateRow("미니맵 마커 크기");
+        var panel = new StackPanel { Orientation = Orientation.Horizontal };
+
+        _markerScaleSlider = new Slider
+        {
+            Minimum = 25,
+            Maximum = 150,
+            TickFrequency = 5,
+            IsSnapToTickEnabled = true,
+            Width = 100,
+            Value = Math.Round(_store.MiniMapMarkerScale * 100.0),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        _markerScaleSlider.ValueChanged += MarkerScaleSlider_ValueChanged;
+        panel.Children.Add(_markerScaleSlider);
+
+        _markerScaleValueText = CreateValueText();
+        panel.Children.Add(_markerScaleValueText);
+        Grid.SetColumn(panel, 1);
+        row.Children.Add(panel);
+        stack.Children.Add(row);
+        UpdateMarkerScaleText();
+    }
+
+    private Grid CreateRow(string label)
+    {
+        var row = new Grid { Margin = new Thickness(0, 3, 0, 8) };
+        row.ColumnDefinitions.Add(new ColumnDefinition());
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.Children.Add(new TextBlock
+        {
+            Text = label,
+            Foreground = Brush("TextSecondaryBrush", Brushes.LightGray),
+            FontSize = 12,
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        return row;
+    }
+
+    private TextBlock CreateValueText() => new()
+    {
+        Width = 42,
+        Margin = new Thickness(8, 0, 0, 0),
+        Foreground = Brush("TextPrimaryBrush", Brushes.White),
+        VerticalAlignment = VerticalAlignment.Center,
+    };
+
+    private void OpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         if (_disposed)
             return;
 
         _store.MiniMapOpacity = e.NewValue / 100.0;
         JunhyunMiniMapProductRegistry.ApplyBaseOpacity(_store.MiniMapOpacity);
-        UpdateText();
+        UpdateOpacityText();
     }
 
-    private void UpdateText()
+    private void MarkerScaleSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
-        if (_valueText is not null)
-            _valueText.Text = $"{_store.MiniMapOpacity * 100.0:0}%";
+        if (_disposed)
+            return;
+
+        _store.MiniMapMarkerScale = e.NewValue / 100.0;
+        JunhyunMiniMapProductRegistry.ApplyMarkerScale(_store.MiniMapMarkerScale);
+        UpdateMarkerScaleText();
+    }
+
+    private void UpdateOpacityText()
+    {
+        if (_opacityValueText is not null)
+            _opacityValueText.Text = $"{_store.MiniMapOpacity * 100.0:0}%";
+    }
+
+    private void UpdateMarkerScaleText()
+    {
+        if (_markerScaleValueText is not null)
+            _markerScaleValueText.Text = $"{_store.MiniMapMarkerScale * 100.0:0}%";
     }
 
     private Brush Brush(string key, Brush fallback) =>
@@ -111,7 +170,9 @@ public sealed class LegacyMiniMapOpacitySettingsBridge : IDisposable
             return;
         _disposed = true;
 
-        if (_slider is not null)
-            _slider.ValueChanged -= Slider_ValueChanged;
+        if (_opacitySlider is not null)
+            _opacitySlider.ValueChanged -= OpacitySlider_ValueChanged;
+        if (_markerScaleSlider is not null)
+            _markerScaleSlider.ValueChanged -= MarkerScaleSlider_ValueChanged;
     }
 }
