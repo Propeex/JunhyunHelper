@@ -1,6 +1,6 @@
 # Map final functional feedback — 2026-08-10
 
-Status: IMPLEMENTED / AUTOMATED VALIDATION PENDING / WINDOWS USER VALIDATION NEXT
+Status: IMPLEMENTED / AUTOMATED VALIDATION PASSED / PR #71 MERGED / WINDOWS USER VALIDATION NEXT
 
 ## User feedback
 
@@ -53,3 +53,26 @@ cursor hover OR timed-hide active
 ```
 
 This preserves the existing hover-hide and temporary-hide semantics.
+
+## PR / validation
+
+```text
+PR: #71 Finalize floor hotkey rendering and MiniMap opacity control
+merge: 6fbd575d04fd469f2024e762958d75feda9de6c9
+final head: 718b7e2ab1dcad832fff3589053b57fe56c4fb3c
+CI: 31351937312
+artifact: 9049285539
+artifact digest: sha256:ec71f306da0f531aa48a30969bf88582188e376fdd12007fe3cb472c3eda2755
+```
+
+Final CI:
+
+```text
+Desktop Release build: success
+automated tests: success
+Windows x64 self-contained publish: success
+Startup + Map + MiniMap + graceful shutdown smoke: success
+ZIP creation/upload: success
+```
+
+Next gate: Windows user validation of Main Map floor-hotkey rendering and MiniMap opacity behavior.
