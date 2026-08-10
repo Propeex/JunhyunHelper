@@ -71,6 +71,9 @@
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/HideoutDbService.cs" />
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/TarkovDataDatabaseBuilder*.cs" />
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/UserProgressResetService.cs" />
+    <!-- The old global hook contained unrelated hidden commands/logging. JunhyunHelper
+         provides a product-safe compatibility replacement in Desktop/Map. -->
+    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/GlobalKeyboardHookService.cs" />
     <!-- JunhyunHelper release/update ownership is separate from the transplanted Map.
          Never ship the old Tarkov-Helper updater, which targets the legacy repository. -->
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/UpdateService.cs" />
