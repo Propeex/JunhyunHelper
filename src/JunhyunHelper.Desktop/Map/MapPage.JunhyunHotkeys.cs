@@ -40,7 +40,11 @@ public partial class MapPage
 
     private void JunhyunMoveFloor(int delta)
     {
-        if (delta == 0 || CmbFloorSelect.Visibility != Visibility.Visible || CmbFloorSelect.Items.Count == 0)
+        // The visible ComboBox is the known-good manual floor route. Do not gate the
+        // hotkey on Visibility: WPF can transiently report inherited/non-visible state
+        // while the selector is still the active product control. Changing SelectedIndex
+        // deliberately runs the same SelectionChanged pipeline as a mouse selection.
+        if (delta == 0 || CmbFloorSelect.Items.Count == 0)
             return;
 
         var current = Math.Max(0, CmbFloorSelect.SelectedIndex);
