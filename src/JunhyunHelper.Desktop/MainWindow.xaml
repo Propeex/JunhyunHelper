@@ -54,7 +54,11 @@
                 <Button x:Name="ItemsTabButton" Grid.Column="3" Content="아이템" Margin="0,0,6,0" Padding="14,7" Click="ItemsTabButton_Click" />
                 <Button x:Name="AmmoTabButton" Grid.Column="4" Content="탄약" Margin="0,0,6,0" Padding="14,7" Click="AmmoTabButton_Click" />
                 <Button x:Name="MapTabButton" Grid.Column="5" Content="지도" Margin="0,0,6,0" Padding="14,7" Click="MapTabButton_Click" />
-                <Button x:Name="ScannerTabButton" Grid.Column="6" Content="스캐너" Padding="14,7" Click="ScannerTabButton_Click" />
+                <!-- Scanner requirements are intentionally still open. Do not expose a
+                     dead/placeholder tab in a public release; re-enable it when the
+                     Scanner product flow is actually defined and implemented. -->
+                <Button x:Name="ScannerTabButton" Grid.Column="6" Content="스캐너" Padding="14,7"
+                        Visibility="Collapsed" Click="ScannerTabButton_Click" />
 
                 <TextBlock x:Name="StatusText" Grid.Column="7"
                            Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="18,0"
@@ -84,15 +88,17 @@
                             Padding="18,10"
                             HorizontalAlignment="Center"
                             Margin="0,0,0,14">
-                        <TextBlock Text="준비 중" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" />
+                        <TextBlock Text="불러오는 중" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" />
                     </Border>
-                    <TextBlock Text="지도 데이터 공급원과 표시 규칙을 검증한 뒤 구현합니다. 현재 탭은 기능 위치만 먼저 확정한 상태입니다."
+                    <TextBlock Text="지도 시스템을 준비하고 있습니다."
                                Foreground="{StaticResource TextSecondaryBrush}"
                                TextAlignment="Center"
                                TextWrapping="Wrap" />
                 </StackPanel>
             </Grid>
 
+            <!-- Kept as an internal placeholder so the future Scanner flow can be
+                 reintroduced without coupling release polish to its product design. -->
             <Grid x:Name="ScannerPlaceholder" Visibility="Collapsed">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="560">
                     <TextBlock Text="스캐너" FontSize="26" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,12" />

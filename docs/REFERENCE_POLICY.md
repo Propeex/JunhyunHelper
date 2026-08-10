@@ -8,9 +8,11 @@
 
 어떤 코드가 이미 존재하거나 과거에 잘 동작했다는 사실만으로 새 제품의 요구사항, 게임 정보, UX, 기술 선택을 확정하지 않습니다.
 
+단, 사용자가 실제 동작/자산을 확인한 뒤 **특정 구현과 revision을 명시적으로 제품 기준선으로 채택한 경우**에는 그 범위만 예외로 취급할 수 있습니다. 현재 유일한 예외는 아래 Map/MiniMap 기준선입니다.
+
 ## 2. 기존 `Propeex/Tarkov-Helper`
 
-허용되는 사용:
+허용되는 일반 사용:
 
 - 과거 해결하려 했던 사용자 문제 파악
 - 기능 아이디어 후보 발굴
@@ -26,6 +28,34 @@
 - 기존 아키텍처를 기본값으로 승계
 - “예전에도 이렇게 했으니”만으로 기술 선택
 - 기존 버그나 제한을 새 제품의 필수 제약으로 오인
+
+### 2.1 Map/MiniMap의 명시적 예외
+
+사용자는 `Propeex/Tarkov-Helper`의 특정 Map/MiniMap artwork와 사용 구조를 실제 Windows 환경에서 확인한 뒤 이를 JunhyunHelper Map 기준선으로 명시적으로 채택했습니다.
+
+```text
+exact baseline revision:
+9371c4769d8da8acb9df864a2c88f83ecdd42818
+
+product branch:
+junhyun-map-product-v2
+
+JunhyunHelper currently pinned revision:
+d933792b6042a51cea38dc44b686a096fe30de67
+```
+
+따라서 해당 Map/MiniMap subsystem은 단순 참고가 아니라 **명시적으로 채택한 source baseline**입니다.
+
+그러나 예외 범위는 엄격히 제한합니다.
+
+- JunhyunHelper 제품 요구사항이 항상 우선
+- old Tarkov-Helper의 Quest/Hideout/Item/Ammo/update/profile 시스템은 자동 승계하지 않음
+- Map source 안에 존재한다는 이유만으로 숨은 단축키/easter egg/logging/updater/설정 UI를 제품 기능으로 인정하지 않음
+- 사용자 요구에서 제거한 legacy surface는 접근 불가능하게 유지
+- 불필요하거나 제품 정책에 어긋나는 legacy runtime behavior는 JunhyunHelper product delta에서 차단/교체 가능
+- Game Content의 최신 사실은 JunhyunHelper의 검증된 online data pipeline을 우선
+
+상세 Map 제품 계약은 `docs/MAP_PRODUCT_REQUIREMENTS.md`를 따릅니다.
 
 ## 3. RatScanner 등 타 프로젝트
 
@@ -50,6 +80,8 @@
 5. **독립 설계** — 기존 구조에 얽매이지 않고 가장 적합한 새 설계를 선택
 6. **결정 기록** — 장기적인 영향이 있으면 `DECISIONS.md`에 이유와 함께 기록
 
+사용자가 특정 기존 구현을 기준선으로 직접 확정한 경우에도 3~6단계는 사라지지 않습니다. 채택한 범위와 제외할 범위를 명시해야 합니다.
+
 ## 5. 정보 출처의 신뢰도
 
 제품에 영향을 주는 게임 정보는 출처의 성격을 구분합니다.
@@ -62,7 +94,7 @@
 - 제3자 구현의 하드코딩 값
 - 오래된 문서/게시물/추정
 
-구체적인 데이터 공급원과 우선순위는 제품 요구사항을 파악한 뒤 별도로 확정합니다.
+Map artwork source를 채택했다고 해서 그 저장소의 하드코딩 게임 정보 전체가 최신 사실로 승격되지는 않습니다.
 
 ## 6. 불일치가 발견된 경우
 
@@ -76,9 +108,11 @@
 4. 필요하면 결정 기록
 5. 구현/테스트/문서를 새 기준에 맞춤
 
+Map 기준선에서도 동일합니다. 기준 source 내부의 legacy behavior가 JunhyunHelper 확정 요구사항과 충돌하면 JunhyunHelper product delta로 제거/교체합니다.
+
 ## 7. 핵심 판단 문장
 
-> “기존 Tarkov-Helper가 이렇게 한다”는 것은 조사 시작점일 수 있지만, 새 Tarkov Helper가 그렇게 해야 한다는 근거는 아니다.
+> “기존 Tarkov-Helper가 이렇게 한다”는 것은 조사 시작점일 뿐이며, 사용자가 특정 범위를 명시적으로 채택하지 않은 이상 새 JunhyunHelper가 그렇게 해야 한다는 근거가 아니다.
 
 ## 8. 기존 Tarkov-Helper 회수 분석
 
@@ -98,4 +132,4 @@
 - 회수 문서에 적혀 있다는 이유만으로 코드를 자동 복사하지 않습니다.
 - 특히 기존 UI, 퀘스트 판정 엔진, 레거시 프로필/DB 호환 구조는 새 제품의 기본값이 아닙니다.
 - 기존 저장소의 **실패 사례와 회귀 테스트**는 코드보다 높은 가치의 참고 자료로 취급할 수 있습니다.
-- 지도/외부 자산은 정확성뿐 아니라 출처와 라이선스를 확인하기 전까지 새 제품 자산으로 복사하지 않습니다.
+- 외부에서 새 자산/코드를 추가로 가져올 때는 정확성뿐 아니라 출처와 라이선스/재사용 조건을 확인합니다.

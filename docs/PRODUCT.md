@@ -47,10 +47,11 @@
 
 ### 2.1 Game Content schema
 
-현재 **v3**.
+현재 **v4**.
 
 - v2: Item category metadata
 - v3: Ammo의 현재 Wiki Ballistics 표 등록 여부를 Armor effectiveness와 별도 보존
+- v4: Quest의 online `possibleLocations` / `zones` geometry를 canonical content에 보존해 Map Quest projection에 사용
 
 이전 content snapshot은 온라인 source에서 자동 재구축합니다. `user.db`는 별도입니다.
 
@@ -396,44 +397,81 @@ Game Content update 성공 후 제품에서 사용하는 이미지를 **미리 �
 
 ## 12. Map / Scanner
 
-Map 탭과 Scanner 탭의 placeholder는 구현되어 있습니다.
-
 ### 12.1 Map
 
-`INTENT_CAPTURED / SOURCE ANALYSIS`
+`CONFIRMED / IMPLEMENTED / WINDOWS USER VALIDATED`
 
-사용자는 기존 `Propeex/Tarkov-Helper`의 지도 사용 경험을 대체로 쓸 만한 참고점으로 보고 있으며, 새 Map 기능에서 가장 먼저 해결할 문제를 **패치 후에도 유지 가능한 지도 API/데이터 공급원**으로 봅니다.
+Map은 기존 프로토타입의 동작을 사양으로 추정해 새로 구현한 기능이 아니라, 사용자가 실제 artwork/구조를 확인한 `Propeex/Tarkov-Helper` Map + MiniMap subsystem을 **검증된 고정 revision으로 이식**한 뒤 JunhyunHelper 제품 요구사항에 맞게 제한·연동한 독립 subsystem입니다.
 
-현재 source 조사 결과는 다음 구조를 우선 제안합니다.
+핵심 경계:
 
 ```text
-json.tarkov.dev/<game-mode>/maps
-→ extract / spawn / transit / boss / loot / switch 등 gameplay/location data
-
-Tarkov.dev public map metadata
-→ bounds / transform / rotation / layers / asset reference
-
-별도 license가 확인된 map artwork
-→ visual background
+Map subsystem = 독립
+└─ Quest만 JunhyunHelper current profile/content와 연결
 ```
 
-실제 Map UI/marker 범위/층 전환/Quest 연동/Scanner 연동은 아직 확정하지 않습니다. 기존 Tarkov-Helper는 UX와 좌표 처리 아이디어의 참고 자료일 뿐 데이터 진실의 원천이 아닙니다.
+Map이 JunhyunHelper에서 읽는 제품 정보:
 
-상세 조사: `docs/MAP_DATA_SOURCE_ANALYSIS.md`
+- 현재 profile의 Quest 진행 상태
+- online Quest location geometry (`possibleLocations` / `zones`)
+
+Hideout / Item / Ammo runtime과 Map을 결합하지 않습니다.
+
+현재 주요 사용자 기능:
+
+- 현재 Map의 Current Quest sidebar
+- Quest별 A/B/C... marker identity
+- Main Map / MiniMap 동일 Quest marker identity
+- 일반 marker / PMC·Scav·Transit extract
+- 수동 floor dropdown
+- Main Map + MiniMap floor up/down global hotkey
+- Main Map + MiniMap zoom in/out global hotkey
+- MiniMap size increase/decrease hotkey
+- MiniMap hover hide / 설정형 N초 temporary hide
+- MiniMap 기본 opacity 10%~100%
+- MiniMap non-player marker scale 25%~150%
+- player marker size는 기존 별도 설정
+- screenshot 기반 Map 전환 / player X-Z / 가능한 경우 heading
+- 다른 floor opacity 0%, auto-floor OFF
+- MiniMap 우측 상단 고정 / mouse drag·resize 금지 / click-through ON
+
+제품 설정은 `%LocalAppData%/JunhyunHelper/map-product-settings.json`에 저장하고, 게임 또는 JunhyunHelper가 foreground일 때 제품 전역 hotkey를 처리합니다.
+
+Map artwork/config/general-marker DB는 v0.1.0 배포물의 검증된 pinned bundle을 사용합니다. Quest/Hideout/Item/Ammo 온라인 Game Content updater와 Map bundle updater는 별도 시스템입니다. 향후 Map bundle을 업데이트할 때는 artwork/config/general-marker DB를 **같은 upstream revision 단위로 원자적으로** 갱신해야 합니다.
+
+상세 기준: `docs/MAP_PRODUCT_REQUIREMENTS.md`
 
 ### 12.2 Scanner
 
-`PLACEHOLDER IMPLEMENTED / PRODUCT OPEN`
+`PRODUCT OPEN / V0.1.0 UI HIDDEN`
 
-실제 Scanner 동작은 별도 제품 요구사항 확정 전까지 구현하지 않습니다.
+실제 Scanner 동작은 별도 제품 요구사항 확정 전까지 구현하지 않습니다. 기능이 없는 `준비 중` 탭을 release UI에 노출하지 않으며, 요구사항과 검증 기준이 확정된 후 다시 추가합니다.
 
-## 13. 현재 실사용 개선 상태
+## 13. 현재 릴리즈 상태
 
-- 첫 실사용 피드백: merged
-- 2차: PR #36 merged
-- 3차: PR #37 merged
-- 4차: PR #39 merged
-- 5차: Ammo favorite shortcut + Item 용도 filter 구현/검증 중, Map source 분석 진행
+Core 사용성 개선 1~5차와 Map 제품화/실사용 피드백 반복이 완료되었습니다.
 
-4차 세부 계약: `docs/FOURTH_USABILITY_PASS.md`
-5차 세부 계약: `docs/FIFTH_USABILITY_PASS.md`
+최근 Map/MiniMap 제품화:
+
+```text
+PR #62 — exact Map/MiniMap transplant
+PR #63~#67 — 제품 UI / Quest marker / floor / screenshot 정리
+PR #68 — settings / lifecycle / performance
+PR #69 — zoom/floor hotkey + resize policy
+PR #70 — MiniMap legacy hook conflict + real MiniMap smoke
+PR #71 — Main Map floor render serialization + MiniMap opacity
+PR #72 — MiniMap marker size
+```
+
+사용자는 PR #72 Windows 빌드에서 최근 요구사항을 포함한 주요 기능이 정상 동작한다고 확인했습니다.
+
+현재 **PR #73 v0.1.0 Release Hardening**에서 기능 로직을 바꾸지 않고 다음 릴리즈 품질만 정리합니다.
+
+- old Tarkov-Helper updater / AutoUpdater / WebView2 제거
+- unused GraphX / QuikGraph 제거
+- publish debug symbol 제거
+- nested ZIP Artifact 구조 제거
+- Scanner placeholder tab release UI 비노출
+- release 안내/공식 상태 문서 최신화
+
+상세 현재 상태는 `docs/STATE.md`를 기준으로 합니다.
