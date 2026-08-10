@@ -20,6 +20,10 @@ public sealed record HideoutWorkspace(
 public sealed class HideoutApplicationService
 {
     private readonly UserProfileStore _profileStore;
+    private readonly object _workspaceCacheGate = new();
+    private GameContentCatalog? _cachedContent;
+    private GameProfileSnapshot? _cachedProfile;
+    private HideoutWorkspace? _cachedWorkspace;
 
     public HideoutApplicationService(UserProfileStore profileStore)
     {
@@ -38,17 +42,31 @@ public sealed class HideoutApplicationService
         return BuildFromProfile(content, profile);
     }
 
-    /// <summary>
-    /// Rebuilds the derived Hideout workspace from an already loaded authoritative
-    /// profile snapshot without another user.db read.
-    /// </summary>
     public HideoutWorkspace BuildFromProfile(
         GameContentCatalog content,
         GameProfileSnapshot profile)
     {
         ArgumentNullException.ThrowIfNull(content);
         ArgumentNullException.ThrowIfNull(profile);
-        return BuildWorkspace(content, profile);
+
+        lock (_workspaceCacheGate)
+        {
+            if (ReferenceEquals(_cachedContent, content) &&
+                ReferenceEquals(_cachedProfile, profile) &&
+                _cachedWorkspace is not null)
+            {
+                return _cachedWorkspace;
+            }
+        }
+
+        var workspace = BuildWorkspace(content, profile);
+        lock (_workspaceCacheGate)
+        {
+            _cachedContent = content;
+            _cachedProfile = profile;
+            _cachedWorkspace = workspace;
+        }
+        return workspace;
     }
 
     public Task<HideoutWorkspace> SetLevelAsync(
@@ -96,7 +114,7 @@ public sealed class HideoutApplicationService
             ? savedLevel
             : 0;
         if (normalizedLevel == currentLevel)
-            return BuildWorkspace(content, profile);
+            return BuildFromProfile(content, profile);
 
         IReadOnlyDictionary<string, InventoryQuantity> inventory = profile.Inventory;
         var consumptions = new Dictionary<string, InventoryConsumption>(
@@ -109,11 +127,7 @@ public sealed class HideoutApplicationService
             {
                 var key = UpgradeConsumptionKey(stationId, targetLevel);
                 if (consumptions.TryGetValue(key, out var existingConsumption) && !existingConsumption.IsEmpty)
-                {
-                    // The level was previously rolled back without restoring inventory. Those
-                    // materials remain spent, so a later re-upgrade must not deduct them twice.
                     continue;
-                }
 
                 var upgrade = station.Levels.FirstOrDefault(candidate => candidate.Level == targetLevel);
                 if (upgrade is null)
@@ -143,8 +157,6 @@ public sealed class HideoutApplicationService
                     inventory = FixedInventoryConsumptionPolicy.Restore(inventory, consumption);
                     consumptions.Remove(key);
                 }
-                // Choosing not to restore deliberately keeps the ledger. If the user raises
-                // the level again, the same already-spent materials are not consumed twice.
             }
         }
 
@@ -161,7 +173,7 @@ public sealed class HideoutApplicationService
             HideoutUpgradeConsumptions = consumptions,
         };
         await _profileStore.SaveAsync(updated, cancellationToken);
-        return BuildWorkspace(content, updated);
+        return BuildFromProfile(content, updated);
     }
 
     public static string UpgradeConsumptionKey(string stationId, int targetLevel)
