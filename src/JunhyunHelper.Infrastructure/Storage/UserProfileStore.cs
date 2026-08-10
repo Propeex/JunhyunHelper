@@ -37,7 +37,12 @@ public sealed class UserProfileStore
         Validate(profile);
         await EnsureSchemaAsync(cancellationToken);
 
-        var payload = JsonSerializer.Serialize(ProfileDocument.From(profile), JsonOptions);
+        // The document is also the normalization boundary used by persisted reads
+        // (for example an unspecified prestige value becomes zero). Build it once and
+        // cache its canonical snapshot only after the SQLite transaction succeeds so
+        // cached and cold-start behavior are byte-for-byte semantically equivalent.
+        var document = ProfileDocument.From(profile);
+        var payload = JsonSerializer.Serialize(document, JsonOptions);
 
         await using var connection = OpenConnection();
         await connection.OpenAsync(cancellationToken);
@@ -50,16 +55,13 @@ public sealed class UserProfileStore
                 payload_json = excluded.payload_json,
                 updated_at_utc = excluded.updated_at_utc;
             """;
-        command.Parameters.AddWithValue("$profileId", profile.ProfileId);
+        command.Parameters.AddWithValue("$profileId", document.ProfileId);
         command.Parameters.AddWithValue("$schemaVersion", CurrentSchemaVersion);
         command.Parameters.AddWithValue("$payload", payload);
         command.Parameters.AddWithValue("$updatedAt", DateTimeOffset.UtcNow.ToString("O"));
         await command.ExecuteNonQueryAsync(cancellationToken);
 
-        // SaveAsync is the authoritative mutation boundary. Keep the exact immutable
-        // snapshot that was committed so subsequent Quest/Hideout/Items workspace
-        // refreshes in the same process do not re-open SQLite three times for one click.
-        _memoryCache[profile.ProfileId] = profile;
+        _memoryCache[document.ProfileId] = document.ToSnapshot();
     }
 
     public async Task<GameProfileSnapshot?> LoadAsync(
