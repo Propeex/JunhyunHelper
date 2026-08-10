@@ -92,6 +92,7 @@ public sealed class LegacyMiniMapOpacitySettingsBridge : IDisposable
             return;
 
         _store.MiniMapOpacity = e.NewValue / 100.0;
+        JunhyunMiniMapProductRegistry.ApplyBaseOpacity(_store.MiniMapOpacity);
         UpdateText();
     }
 
