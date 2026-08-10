@@ -46,6 +46,19 @@ public sealed class JunhyunMapProductSettingsStore
     public void SetToggle(string controlName, bool value) => Update(settings =>
         settings.Toggles[controlName] = value);
 
+    public bool? GetQuestMarkerEnabled(string questId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(questId);
+        lock (_gate)
+            return _settings.QuestMarkerToggles.TryGetValue(questId, out var value) ? value : null;
+    }
+
+    public void SetQuestMarkerEnabled(string questId, bool value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(questId);
+        Update(settings => settings.QuestMarkerToggles[questId.Trim()] = value);
+    }
+
     public double? GetValue(string controlName)
     {
         lock (_gate)
@@ -183,6 +196,7 @@ public sealed class JunhyunMapProductSettingsStore
 public sealed class JunhyunMapProductSettings
 {
     public Dictionary<string, bool> Toggles { get; set; } = new(StringComparer.Ordinal);
+    public Dictionary<string, bool> QuestMarkerToggles { get; set; } = new(StringComparer.Ordinal);
     public Dictionary<string, double> Values { get; set; } = new(StringComparer.Ordinal);
     public Dictionary<string, int> Selections { get; set; } = new(StringComparer.Ordinal);
     public Dictionary<string, int> Hotkeys { get; set; } = new(StringComparer.Ordinal);
