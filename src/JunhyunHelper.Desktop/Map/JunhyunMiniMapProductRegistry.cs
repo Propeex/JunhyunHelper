@@ -16,6 +16,7 @@ public static class JunhyunMiniMapProductRegistry
             _active = new WeakReference<TarkovHelper.Windows.OverlayMiniMapWindow>(window);
 
         window.ApplyJunhyunInputPolicy();
+        window.ApplyJunhyunBaseOpacity(JunhyunMapProductSettingsStore.Instance.MiniMapOpacity);
         window.InitializeQuestV2();
     }
 
@@ -43,6 +44,9 @@ public static class JunhyunMiniMapProductRegistry
 
     public static void ApplyPlayerMarkerSize(double mapPixelSize) =>
         WithActive(window => window.ApplySharedPlayerMarkerSize(mapPixelSize));
+
+    public static void ApplyBaseOpacity(double opacity) =>
+        WithActive(window => window.ApplyJunhyunBaseOpacity(opacity));
 
     public static void TemporarilyHide(double seconds) =>
         WithActive(window => window.JunhyunTemporarilyHide(seconds));
