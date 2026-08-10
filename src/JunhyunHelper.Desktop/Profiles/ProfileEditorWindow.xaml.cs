@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.Profiles;
 using JunhyunHelper.Desktop.Services;
@@ -79,6 +80,8 @@ public partial class ProfileEditorWindow : Window
     private readonly bool _editingExistingProfile;
     private int _level;
     private int _prestigeLevel;
+    private bool _allowClose;
+    private bool _autoCloseQueued;
 
     public ProfileEditorWindow(
         GameMode gameMode,
@@ -164,10 +167,55 @@ public partial class ProfileEditorWindow : Window
         var advancedRows = _traderRows.Where(row => row.NeedsAdvancedStanding).ToArray();
         AdvancedStandingItems.ItemsSource = advancedRows;
         AdvancedStandingExpander.Visibility = advancedRows.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        if (_editingExistingProfile)
+            Loaded += ExistingEditor_Loaded;
     }
 
     public ProfileSettingsResult? Result { get; private set; }
     public bool DeleteRequested { get; private set; }
+
+    private void ExistingEditor_Loaded(object sender, RoutedEventArgs e)
+    {
+        Loaded -= ExistingEditor_Loaded;
+        foreach (var button in FindVisualChildren<Button>(this))
+        {
+            if (button.Content is not string text)
+                continue;
+            if (string.Equals(text, "저장", StringComparison.Ordinal))
+                button.Content = "닫기";
+            else if (string.Equals(text, "취소", StringComparison.Ordinal))
+                button.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    protected override void OnClosing(CancelEventArgs e)
+    {
+        if (_editingExistingProfile && !_allowClose && !DeleteRequested)
+        {
+            if (!TryBuildResult(out var result))
+            {
+                e.Cancel = true;
+                return;
+            }
+
+            Result = result;
+            if (!_autoCloseQueued)
+            {
+                e.Cancel = true;
+                _autoCloseQueued = true;
+                _allowClose = true;
+                Dispatcher.BeginInvoke(() =>
+                {
+                    if (IsVisible)
+                        DialogResult = true;
+                });
+                return;
+            }
+        }
+
+        base.OnClosing(e);
+    }
 
     private void LevelMinusButton_Click(object sender, RoutedEventArgs e) { _level = Math.Max(1, _level - 1); UpdateTopValues(); }
     private void LevelPlusButton_Click(object sender, RoutedEventArgs e) { _level++; UpdateTopValues(); }
@@ -199,10 +247,21 @@ public partial class ProfileEditorWindow : Window
 
     private void SaveButton_Click(object sender, RoutedEventArgs e)
     {
+        if (!TryBuildResult(out var result))
+            return;
+
+        Result = result;
+        _allowClose = true;
+        DialogResult = true;
+    }
+
+    private bool TryBuildResult(out ProfileSettingsResult result)
+    {
+        result = null!;
         if (FactionComboBox.SelectedItem is not FactionChoice faction)
         {
             ShowValidation("진영을 선택해주세요.");
-            return;
+            return false;
         }
 
         var traders = new Dictionary<string, TraderProgress>(StringComparer.Ordinal);
@@ -215,8 +274,8 @@ public partial class ProfileEditorWindow : Window
         }
 
         var editionId = (EditionComboBox.SelectedItem as EditionChoice)?.Id;
-        Result = new ProfileSettingsResult(_level, faction.Value, editionId, _prestigeLevel, traders);
-        DialogResult = true;
+        result = new ProfileSettingsResult(_level, faction.Value, editionId, _prestigeLevel, traders);
+        return true;
     }
 
     private void DeleteProfileButton_Click(object sender, RoutedEventArgs e)
@@ -229,6 +288,7 @@ public partial class ProfileEditorWindow : Window
         if (result != MessageBoxResult.Yes) return;
         DeleteRequested = true;
         Result = null;
+        _allowClose = true;
         DialogResult = true;
     }
 
@@ -240,6 +300,19 @@ public partial class ProfileEditorWindow : Window
 
     private void ShowValidation(string message) => MessageBox.Show(
         this, message, "프로필 설정", MessageBoxButton.OK, MessageBoxImage.Information);
+
+    private static IEnumerable<T> FindVisualChildren<T>(DependencyObject root)
+        where T : DependencyObject
+    {
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            var child = VisualTreeHelper.GetChild(root, index);
+            if (child is T match)
+                yield return match;
+            foreach (var descendant in FindVisualChildren<T>(child))
+                yield return descendant;
+        }
+    }
 
     private static string DisplayName(string? korean, string? english, string fallback) =>
         !string.IsNullOrWhiteSpace(korean) ? korean : !string.IsNullOrWhiteSpace(english) ? english : fallback;
