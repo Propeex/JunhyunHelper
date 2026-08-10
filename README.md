@@ -4,7 +4,7 @@
 
 ## 현재 상태
 
-**v0.1.0 Release Candidate — Windows x64**
+**v0.1.0 RELEASED — Windows x64**
 
 현재 실제 Desktop 제품에서 다음 기능이 구현되어 있습니다.
 
@@ -29,6 +29,8 @@
 - 상단 `스캐너` 탭
   - 현재는 `준비 중` placeholder만 표시
   - 실제 Scanner 동작은 요구사항 확정 후 후속 구현
+
+v0.1.0 공식 릴리즈 기록: [`docs/RELEASE_0.1.0.md`](docs/RELEASE_0.1.0.md)
 
 ## 실행
 
@@ -118,17 +120,23 @@ Quest/Hideout/Item/Ammo의 온라인 Game Content update와 Map artwork/config b
 - SharpVectors — SVG Map rendering
 - Core / Infrastructure / Application / Desktop 계층 분리
 
-## 검증
+## v0.1.0 검증
 
-Release Candidate는 다음 검증을 통과해야 합니다.
+공식 v0.1.0 배포물은 다음 검증을 통과했습니다.
 
 - Desktop Release build
-- Core/Application/Infrastructure 자동 테스트
+- Core/Application/Infrastructure 자동 테스트 — 163 passed / 0 failed
 - Windows x64 self-contained single-file publish
 - `준현 헬퍼.exe` 실제 startup + Map/MiniMap smoke
 - 배포 루트 DLL 0개 / PDB 0개 / 중첩 ZIP 없음
 - 실행 후에도 EXE 옆에 `Logs` 등 런타임 폴더가 생기지 않음
 - Main Window 정상 close 후 process 종료 확인
+
+최종 배포물 SHA-256:
+
+```text
+6db752972b3b52d9e6239c746bb910904a91d364c2410062f4c1635ac61efcaa
+```
 
 ## 개발 문서
 
@@ -142,3 +150,4 @@ Release Candidate는 다음 검증을 통과해야 합니다.
 6. [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) — 개발/검증 절차
 7. [`docs/REFERENCE_POLICY.md`](docs/REFERENCE_POLICY.md) — 기존 구현 참고 규칙
 8. [`docs/MAP_PRODUCT_REQUIREMENTS.md`](docs/MAP_PRODUCT_REQUIREMENTS.md) — Map/MiniMap 제품 기준
+9. [`docs/RELEASE_0.1.0.md`](docs/RELEASE_0.1.0.md) — v0.1.0 릴리즈 기록
