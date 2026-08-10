@@ -7,7 +7,7 @@ namespace JunhyunHelper.Desktop.Map;
 
 /// <summary>
 /// JunhyunHelper-owned Map keyboard hook. Configured Map actions must work while
-/// Escape from Tarkov or JunhyunHelper has focus, regardless of whether MiniMap is
+/// Escape from Tarkov or 준현 헬퍼 has focus, regardless of whether MiniMap is
 /// currently visible. The transplanted hook remains only for its direct NumPad floor
 /// selection compatibility path.
 /// </summary>
@@ -202,6 +202,8 @@ public sealed class JunhyunMapHotkeyService : IDisposable
             var name = process.ProcessName;
             return name.Equals("EscapeFromTarkov", StringComparison.OrdinalIgnoreCase) ||
                    name.Equals("EscapeFromTarkov_BE", StringComparison.OrdinalIgnoreCase) ||
+                   name.Equals("준현 헬퍼", StringComparison.OrdinalIgnoreCase) ||
+                   name.Equals("Junhyun Helper", StringComparison.OrdinalIgnoreCase) ||
                    name.Equals("JunhyunHelper", StringComparison.OrdinalIgnoreCase) ||
                    name.Equals("TarkovHelper", StringComparison.OrdinalIgnoreCase);
         }
