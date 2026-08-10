@@ -30,12 +30,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Autoupdater.NET.Official" Version="1.9.2" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.10" />
     <PackageReference Include="SharpVectors.Wpf" Version="1.8.5" />
     <PackageReference Include="SkiaSharp" Version="4.150.1" />
     <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.150.1" />
-    <PackageReference Include="Westermo.GraphX.Controls" Version="3.0.1" />
   </ItemGroup>
 
   <ItemGroup>
@@ -68,6 +66,9 @@
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/HideoutDbService.cs" />
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/TarkovDataDatabaseBuilder*.cs" />
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/UserProgressResetService.cs" />
+    <!-- JunhyunHelper release/update ownership is separate from the transplanted Map.
+         Never ship the old Tarkov-Helper updater, which targets the legacy repository. -->
+    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/UpdateService.cs" />
 
     <Compile Include="../../vendor/Tarkov-Helper/TarkovHelper/Pages/Map/**/*.cs"
              Link="Legacy/TarkovHelper/Pages/Map/%(RecursiveDir)%(Filename)%(Extension)" />
@@ -113,5 +114,15 @@
 
   <Target Name="GenerateJunhyunHelperApplicationIcon" BeforeTargets="CoreCompile">
     <Exec Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\Build\GenerateApplicationIcon.ps1&quot; -Source &quot;$(MSBuildProjectDirectory)\Assets\AppIcon.png&quot; -Destination &quot;$(ApplicationIcon)&quot;" />
+  </Target>
+
+  <!-- Native NuGet packages can contribute PDBs even when DebugType=None. They are
+       useful to developers but not to users and previously added ~89 MB uncompressed
+       to the Windows package. Keep release ZIPs free of all debug symbol files. -->
+  <Target Name="RemovePublishDebugSymbols" AfterTargets="Publish">
+    <ItemGroup>
+      <PublishDebugSymbols Include="$(PublishDir)**\*.pdb" />
+    </ItemGroup>
+    <Delete Files="@(PublishDebugSymbols)" />
   </Target>
 </Project>
