@@ -132,19 +132,22 @@ public sealed class JunhyunMapHotkeyService : IDisposable
                 break;
             case OverlayMiniMapHotkeyAction.ZoomIn:
                 _page.JunhyunZoomIn();
-                JunhyunMiniMapProductRegistry.ZoomIn();
+                // Use the MiniMap service itself as the authoritative owner of the
+                // active overlay window. This avoids depending on a weak registry that
+                // can be empty during the first show/recreate transition.
+                OverlayMiniMapService.Instance.ZoomIn();
                 break;
             case OverlayMiniMapHotkeyAction.ZoomOut:
                 _page.JunhyunZoomOut();
-                JunhyunMiniMapProductRegistry.ZoomOut();
+                OverlayMiniMapService.Instance.ZoomOut();
                 break;
             case OverlayMiniMapHotkeyAction.FloorUp:
                 _page.JunhyunFloorUp();
-                JunhyunMiniMapProductRegistry.MoveFloorUp();
+                OverlayMiniMapService.Instance.MoveFloorUp();
                 break;
             case OverlayMiniMapHotkeyAction.FloorDown:
                 _page.JunhyunFloorDown();
-                JunhyunMiniMapProductRegistry.MoveFloorDown();
+                OverlayMiniMapService.Instance.MoveFloorDown();
                 break;
             case OverlayMiniMapHotkeyAction.SizeIncrease:
                 if (OverlayMiniMapService.Instance.IsOverlayVisible)
