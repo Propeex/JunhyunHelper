@@ -30,6 +30,20 @@ public sealed class QuestApplicationService
         ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
 
         var profile = await LoadRequiredProfileAsync(profileId, cancellationToken);
+        return BuildFromProfile(content, profile);
+    }
+
+    /// <summary>
+    /// Rebuilds the derived Quest workspace from an already loaded authoritative
+    /// profile snapshot. Product mutation paths use this to avoid re-reading the
+    /// same user.db row several times after one save.
+    /// </summary>
+    public QuestWorkspace BuildFromProfile(
+        GameContentCatalog content,
+        GameProfileSnapshot profile)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        ArgumentNullException.ThrowIfNull(profile);
         return BuildWorkspace(content, profile);
     }
 
