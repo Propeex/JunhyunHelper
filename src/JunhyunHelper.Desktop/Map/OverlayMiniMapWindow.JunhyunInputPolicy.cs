@@ -1,5 +1,4 @@
 using System.Windows;
-using System.Windows.Shapes;
 
 namespace TarkovHelper.Windows;
 
@@ -17,7 +16,7 @@ public partial class OverlayMiniMapWindow
         // directly under MapContainer. Remove it without changing the upstream source.
         for (var i = MapContainer.Children.Count - 1; i >= 0; i--)
         {
-            if (MapContainer.Children[i] is Path)
+            if (MapContainer.Children[i] is System.Windows.Shapes.Path)
                 MapContainer.Children.RemoveAt(i);
         }
     }
