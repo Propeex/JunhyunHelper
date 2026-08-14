@@ -68,7 +68,7 @@ public partial class OverlayMiniMapWindow
         }
 
         var markers = JunhyunAdditionalMapMarkerProjection.Markers.ToArray();
-        var signature = new HashCode();
+        var signature = new System.HashCode();
         signature.Add(mapKey, StringComparer.OrdinalIgnoreCase);
         signature.Add(_selectedFloorId, StringComparer.OrdinalIgnoreCase);
         foreach (var marker in markers)
