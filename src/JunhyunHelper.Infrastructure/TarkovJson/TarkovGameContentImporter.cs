@@ -20,6 +20,7 @@ public sealed class TarkovGameContentImporter
     private const string RefTraderId = "6617beeaa9cfa777ca915b7c";
     private const string RefRegularUnlockQuestId = "66058cb22cee99303f1ba067";
     private const string RefPveUnlockQuestId = "6834145ebc1f443d7603c8a7";
+    private const string AvailabilityDelayRequirementType = "availabilityDelay";
 
     private readonly TarkovItemImporter _itemImporter = new();
     private readonly TarkovTraderImporter _traderImporter = new();
@@ -83,8 +84,7 @@ public sealed class TarkovGameContentImporter
         // json.tarkov.dev taskRequirements on the quests offered by these traders. Keep
         // the compatibility overlay mode-aware and, critically, only apply a gate when
         // the current live mode actually contains the unlock quest. That makes an ID
-        // retirement/removal degrade to an explicit unsupported-source condition rather
-        // than creating a broken canonical prerequisite reference.
+        // retirement/removal degrade safely instead of creating a broken prerequisite.
         var questIds = quests
             .Select(static quest => quest.Id)
             .ToHashSet(StringComparer.Ordinal);
@@ -119,14 +119,9 @@ public sealed class TarkovGameContentImporter
         QuestDefinition quest,
         string unlockQuestId)
     {
-        // The unlock quest itself must never acquire a self-dependency. This also keeps
-        // the policy safe if the upstream source later assigns an unlock quest directly
-        // to the trader it unlocks.
         if (string.Equals(quest.Id, unlockQuestId, StringComparison.Ordinal))
             return quest;
 
-        // If upstream starts carrying the gate directly, strengthen an Active-compatible
-        // requirement to Complete instead of adding a duplicate prerequisite row.
         var found = false;
         var requirements = quest.TaskRequirements
             .Select(requirement =>
@@ -160,25 +155,39 @@ public sealed class TarkovGameContentImporter
         foreach (var rawTask in TarkovJsonReader.ReadCollection(taskData, "tasks"))
         {
             var questId = TarkovJsonReader.RequiredString(rawTask, "id", "Quest");
-            if (!rawTask.TryGetProperty("otherRequirements", out var rawRequirements) ||
-                rawRequirements.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+            var types = new HashSet<string>(StringComparer.Ordinal);
+
+            if (rawTask.TryGetProperty("otherRequirements", out var rawRequirements) &&
+                rawRequirements.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined))
             {
-                continue;
+                foreach (var raw in TarkovJsonReader.ReadCollectionValue(
+                             rawRequirements,
+                             $"quest {questId} other requirements"))
+                {
+                    types.Add(TarkovJsonReader.RequiredString(
+                        raw,
+                        "type",
+                        $"Quest '{questId}' additional requirement"));
+                }
             }
 
-            var types = TarkovJsonReader.ReadCollectionValue(
-                    rawRequirements,
-                    $"quest {questId} other requirements")
-                .Select(raw => TarkovJsonReader.RequiredString(
-                    raw,
-                    "type",
-                    $"Quest '{questId}' additional requirement"))
-                .Distinct(StringComparer.Ordinal)
-                .Order(StringComparer.Ordinal)
-                .ToArray();
+            var minDelay = TarkovJsonReader.OptionalInt(rawTask, "availableDelaySecondsMin") ?? 0;
+            var maxDelay = TarkovJsonReader.OptionalInt(rawTask, "availableDelaySecondsMax") ?? minDelay;
+            if (minDelay > 0 || maxDelay > 0)
+            {
+                // The source exposes a server-side delay window but JunhyunHelper does
+                // not know the player's real in-game prerequisite completion timestamp.
+                // Preserve the numeric metadata on QuestDefinition and mark availability
+                // as unresolved rather than inventing a countdown from a UI click time.
+                types.Add(AvailabilityDelayRequirementType);
+            }
 
-            if (types.Length > 0)
-                unsupportedByQuest[questId] = types;
+            if (types.Count > 0)
+            {
+                unsupportedByQuest[questId] = types
+                    .Order(StringComparer.Ordinal)
+                    .ToArray();
+            }
         }
 
         return quests
