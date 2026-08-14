@@ -475,7 +475,7 @@ Map artwork/config/general-marker DB는 v0.1.0 배포물의 검증된 pinned bun
 
 ## 13. 현재 릴리즈 상태
 
-**v0.1.0 RELEASED — 2026-08-10 / v0.1.1 QUEST CORRECTNESS CANDIDATE — 2026-08-15**
+**v0.1.1 RELEASED — 2026-08-15**
 
 Core 사용성 개선 1~5차와 Map 제품화/실사용 피드백 반복이 완료되었습니다.
 
@@ -491,6 +491,8 @@ PR #71 — Main Map floor render serialization + MiniMap opacity
 PR #72 — MiniMap marker size
 PR #73 — v0.1.0 release hardening
 PR #74 — Scanner placeholder 복구 / 준현 헬퍼 이름 / single-file packaging
+PR #75 — current Quest prerequisite / availability correctness
+PR #76 — v0.1.1 Windows version metadata
 ```
 
 사용자는 PR #72 Windows 빌드에서 최근 기능 요구사항이 정상 동작함을 확인했습니다. PR #73에서 legacy updater/dependency/debug symbol/숨은 keyboard behavior/nested archive 등을 제거했고, PR #74에서 최종 제품명과 배포 구조를 확정했습니다.
@@ -513,8 +515,12 @@ runtime Logs folder beside EXE        0
 6db752972b3b52d9e6239c746bb910904a91d364c2410062f4c1635ac61efcaa
 ```
 
-상세 릴리즈 기록: `docs/RELEASE_0.1.0.md`
+v0.1.0 기록: `docs/RELEASE_0.1.0.md`
 
-v0.1.1 후보에서는 2026-08-15 최신 live 데이터로 Quest prerequisite/availability를 재감사했습니다. regular 517 / PvE 513 / pvp-season 490 Quest와 Item/Trader/Map/Hideout/Ammo 전체를 실제 importer/validator에 통과시켰고 validation error/warning 없이 성공했습니다. 특수 상인 접근 조건을 보강하고, 현재 자동 판정할 수 없는 `globalVariable` / `dialogue` / availability delay는 더 이상 조용히 정확한 Current처럼 숨기지 않습니다.
+v0.1.1 기록: `docs/RELEASE_0.1.1.md`
+
+v0.1.1에서는 2026-08-15 최신 live 데이터로 Quest prerequisite/availability를 재감사했습니다. regular 517 / PvE 513 / pvp-season 490 Quest와 Item/Trader/Map/Hideout/Ammo 전체를 실제 importer/validator에 통과시켰고 validation error/warning 없이 성공했습니다. 특수 상인 접근 조건을 보강하고, 현재 자동 판정할 수 없는 `globalVariable` / `dialogue` / availability delay는 더 이상 조용히 정확한 Current처럼 숨기지 않습니다.
+
+v0.1.1 공개 Release: `https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.1` / Windows ZIP SHA-256 `91394101c5011b833c2810d8857fe2e9fd59b9f42f8710b90a899fe8169f0b54`.
 
 현재 상세 상태는 `docs/STATE.md`를 기준으로 합니다.
