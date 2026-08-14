@@ -1,0 +1,240 @@
+name: Release v0.1.2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/release-v0.1.2.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      RELEASE_TAG: v0.1.2
+      RELEASE_SHA: b974d942dbddf09ebe91c6c2af337b66ae1e1ba0
+      RELEASE_ASSET: Junhyun-Helper-v0.1.2-win-x64.zip
+
+    steps:
+      - name: Checkout exact release code
+        uses: actions/checkout@v4
+        with:
+          ref: b974d942dbddf09ebe91c6c2af337b66ae1e1ba0
+          submodules: recursive
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build desktop
+        run: dotnet build src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj --configuration Release
+
+      - name: Test core
+        shell: pwsh
+        run: |
+          $output = dotnet test tests/JunhyunHelper.Tests/JunhyunHelper.Tests.csproj --configuration Release 2>&1
+          $output | ForEach-Object { Write-Host $_ }
+          if ($LASTEXITCODE -ne 0) { throw 'Automated tests failed.' }
+          if (($output -join "`n") -notmatch 'Passed:\s+176') {
+            throw 'Expected 176 passing tests in the v0.1.2 release gate.'
+          }
+
+      - name: Publish and validate Windows x64 package
+        shell: pwsh
+        run: |
+          dotnet publish src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            --output artifacts/publish `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true `
+            -p:PublishTrimmed=false `
+            -p:PublishReadyToRun=false `
+            -p:DebugType=None `
+            -p:DebugSymbols=false
+
+          Copy-Item packaging/FIRST_RUN_KO.txt artifacts/publish/FIRST_RUN_KO.txt
+
+          $exe = 'artifacts/publish/준현 헬퍼.exe'
+          foreach ($required in @($exe, 'artifacts/publish/FIRST_RUN_KO.txt', 'artifacts/publish/Assets/tarkov_data.db')) {
+            if (-not (Test-Path $required)) { throw "Missing release file: $required" }
+          }
+
+          $productVersion = (Get-Item $exe).VersionInfo.ProductVersion
+          Write-Host "ProductVersion=$productVersion"
+          if (-not $productVersion.StartsWith('0.1.2', [StringComparison]::Ordinal)) {
+            throw "Expected executable ProductVersion 0.1.2, got '$productVersion'."
+          }
+
+          $rootFiles = @(Get-ChildItem artifacts/publish -File)
+          $unexpectedFiles = @($rootFiles | Where-Object { $_.Name -notin @('준현 헬퍼.exe', 'FIRST_RUN_KO.txt') })
+          if ($unexpectedFiles.Count -gt 0) { throw "Unexpected root files: $($unexpectedFiles.Name -join ', ')" }
+
+          $rootDirs = @(Get-ChildItem artifacts/publish -Directory)
+          $unexpectedDirs = @($rootDirs | Where-Object { $_.Name -ne 'Assets' })
+          if ($unexpectedDirs.Count -gt 0) { throw "Unexpected root directories: $($unexpectedDirs.Name -join ', ')" }
+
+          if (Get-ChildItem artifacts/publish -Recurse -File -Filter *.pdb) { throw 'PDB leaked into release.' }
+
+          foreach ($forbidden in @(
+            'AutoUpdater.NET.dll',
+            'Microsoft.Web.WebView2.Core.dll',
+            'Microsoft.Web.WebView2.WinForms.dll',
+            'Microsoft.Web.WebView2.Wpf.dll',
+            'WebView2Loader.dll',
+            'Westermo.GraphX.Controls.dll',
+            'Westermo.GraphX.Common.dll',
+            'QuikGraph.dll')) {
+            if (Get-ChildItem artifacts/publish -Recurse -File -Filter $forbidden) {
+              throw "Forbidden legacy dependency leaked into release: $forbidden"
+            }
+          }
+
+      - name: Startup + Map + graceful shutdown smoke
+        shell: pwsh
+        env:
+          JUNHYUNHELPER_MAP_SMOKE: '1'
+        run: |
+          $exe = (Resolve-Path 'artifacts/publish/준현 헬퍼.exe').Path
+          $diagnostic = Join-Path $env:TEMP 'junhyun-map-smoke-error.txt'
+          Remove-Item $diagnostic -Force -ErrorAction SilentlyContinue
+          $process = Start-Process -FilePath $exe -WorkingDirectory artifacts/publish -PassThru
+          try {
+            Start-Sleep -Seconds 12
+            $process.Refresh()
+            if ($process.HasExited) {
+              if (Test-Path $diagnostic) {
+                Get-Content $diagnostic | ForEach-Object { Write-Host $_ }
+              }
+              throw "준현 헬퍼 exited during startup smoke: $($process.ExitCode)"
+            }
+
+            $closeRequested = $false
+            for ($attempt = 1; $attempt -le 10; $attempt++) {
+              $process.Refresh()
+              if ($process.HasExited) {
+                $closeRequested = $true
+                break
+              }
+              if ($process.CloseMainWindow()) {
+                $closeRequested = $true
+                break
+              }
+              Start-Sleep -Milliseconds 500
+            }
+            if (-not $closeRequested) { throw 'Could not request normal Main Window close.' }
+
+            $process.Refresh()
+            if (-not $process.HasExited -and -not $process.WaitForExit(7000)) {
+              throw 'Process did not exit after Main Window close.'
+            }
+            if (Test-Path 'artifacts/publish/Logs') { throw 'Runtime Logs folder was created beside EXE.' }
+          }
+          finally {
+            $process.Refresh()
+            if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
+          }
+
+      - name: Package public asset
+        shell: pwsh
+        run: |
+          if (Test-Path $env:RELEASE_ASSET) { Remove-Item $env:RELEASE_ASSET -Force }
+          Compress-Archive -Path 'artifacts/publish/*' -DestinationPath $env:RELEASE_ASSET -CompressionLevel Optimal
+          $hash = (Get-FileHash $env:RELEASE_ASSET -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $($env:RELEASE_ASSET)" | Set-Content SHA256SUMS.txt -Encoding ascii
+          "RELEASE_ASSET_SHA256=$hash" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "Public release SHA-256: $hash"
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          @'
+          # 준현 헬퍼 v0.1.2
+
+          지도 층 전환과 아이템 관리 사용성을 개선한 패치 릴리즈입니다.
+
+          ## 주요 수정
+          - Main Map 층 위/아래 단축키 사용 시 기존 zoom과 보고 있던 지도 중심 위치 유지
+          - NumPad 0~5 직접 층 선택도 같은 viewport-safe Main Map 경로 사용
+          - 다른 층 marker를 숨기지 않고 약 50% 투명도로 표시
+          - 위층 `↑`, 아래층 `↓` badge로 현재 층과의 방향 구분
+          - Main Map / MiniMap의 Quest, 일반 marker, 탈출구, Raider 층 표현 통일
+          - 유동 제출 화면 상태 dropdown `필요 / 전체 / 충분`
+          - 유동 제출 아이템을 모두 모으면 기본 `필요` 목록에서 자동 제외
+          - Item 상세에 canonical Wiki URL 기반 `위키` 버튼 추가
+          - 타층 badge 재사용 및 MiniMap 타층 extract 캐시로 반복 UI 작업 감소
+
+          ## 데이터 업데이트
+          - **v0.1.1 → v0.1.2:** 필수 데이터 업데이트 없음. Content schema는 v5 그대로입니다.
+          - **v0.1.0 → v0.1.2:** 최신 Quest 선행 조건 판정을 위해 설치 후 `데이터 업데이트`를 한 번 실행해 주세요.
+          - Profile / Quest 완료 / Inventory / Hideout 진행 등 `user.db`는 유지됩니다.
+
+          ## 검증
+          - 176 automated tests passed / 0 failed
+          - Windows x64 self-contained single-file publish
+          - 실제 Main Map multi-floor SVG 전환
+          - 층 단축키 전후 zoom + map-space viewport center 보존
+          - 타층 marker `↑/↓` + opacity visual smoke
+          - 실제 MiniMap window / zoom / floor / marker-scale smoke
+          - 정상 Main Window close / process exit
+
+          ## 실행
+          `Junhyun-Helper-v0.1.2-win-x64.zip`을 압축 해제하고 `준현 헬퍼.exe`를 실행하세요. 별도 .NET 설치는 필요하지 않습니다.
+
+          코드 서명은 아직 적용하지 않아 Windows SmartScreen 경고가 표시될 수 있습니다.
+          '@ | Set-Content release-notes.md -Encoding utf8
+
+          gh release view $env:RELEASE_TAG --repo 'Propeex/JunhyunHelper' *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:RELEASE_TAG $env:RELEASE_ASSET SHA256SUMS.txt --clobber --repo 'Propeex/JunhyunHelper'
+            if ($LASTEXITCODE -ne 0) { throw 'Failed to upload v0.1.2 assets.' }
+            gh release edit $env:RELEASE_TAG --target $env:RELEASE_SHA --title '준현 헬퍼 v0.1.2' --notes-file release-notes.md --repo 'Propeex/JunhyunHelper'
+            if ($LASTEXITCODE -ne 0) { throw 'Failed to update v0.1.2 release.' }
+          } else {
+            gh release create $env:RELEASE_TAG $env:RELEASE_ASSET SHA256SUMS.txt `
+              --target $env:RELEASE_SHA `
+              --title '준현 헬퍼 v0.1.2' `
+              --notes-file release-notes.md `
+              --repo 'Propeex/JunhyunHelper'
+            if ($LASTEXITCODE -ne 0) { throw 'Failed to create v0.1.2 release.' }
+          }
+
+      - name: Verify live public release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $releaseJson = gh release view $env:RELEASE_TAG --repo 'Propeex/JunhyunHelper' --json url,isDraft,isPrerelease,tagName,name,assets,publishedAt,targetCommitish
+          if ($LASTEXITCODE -ne 0) { throw 'Could not read v0.1.2 release.' }
+          $release = $releaseJson | ConvertFrom-Json
+          if ($release.isDraft -or $release.isPrerelease) { throw 'v0.1.2 is not a final public release.' }
+          if ($release.tagName -ne $env:RELEASE_TAG) { throw "Unexpected tag $($release.tagName)" }
+
+          $names = @($release.assets | ForEach-Object { $_.name })
+          if ($names.Count -ne 2) { throw "Expected exactly two release assets, got $($names.Count): $($names -join ', ')" }
+          foreach ($required in @($env:RELEASE_ASSET, 'SHA256SUMS.txt')) {
+            if ($required -notin $names) { throw "Missing public release asset: $required" }
+          }
+
+          New-Item -ItemType Directory release-check -Force | Out-Null
+          gh release download $env:RELEASE_TAG --repo 'Propeex/JunhyunHelper' --pattern 'SHA256SUMS.txt' --dir release-check
+          if ($LASTEXITCODE -ne 0) { throw 'Could not re-download SHA256SUMS.txt.' }
+          gh release download $env:RELEASE_TAG --repo 'Propeex/JunhyunHelper' --pattern $env:RELEASE_ASSET --dir release-check
+          if ($LASTEXITCODE -ne 0) { throw 'Could not re-download public Windows ZIP.' }
+
+          $publishedHash = ((Get-Content release-check/SHA256SUMS.txt -Raw).Trim() -split '\s+')[0]
+          $downloadedHash = (Get-FileHash (Join-Path release-check $env:RELEASE_ASSET) -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($publishedHash -ne $env:RELEASE_ASSET_SHA256 -or $downloadedHash -ne $env:RELEASE_ASSET_SHA256) {
+            throw "Published checksum mismatch: manifest=$publishedHash downloaded=$downloadedHash expected=$($env:RELEASE_ASSET_SHA256)"
+          }
+
+          Write-Host "VERIFIED_RELEASE_URL=$($release.url)"
+          Write-Host "VERIFIED_RELEASE_SHA256=$downloadedHash"
