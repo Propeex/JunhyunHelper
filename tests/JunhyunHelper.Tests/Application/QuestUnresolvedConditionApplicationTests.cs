@@ -10,7 +10,7 @@ namespace JunhyunHelper.Tests.Application;
 public sealed class QuestUnresolvedConditionApplicationTests
 {
     [Fact]
-    public async Task UnsupportedLiveConditionRemainsManageableButIsExposedInProblems()
+    public async Task UnsupportedLiveConditionStaysIndeterminateAndCanBeManuallyCompleted()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         var databasePath = Path.Combine(
@@ -60,16 +60,27 @@ public sealed class QuestUnresolvedConditionApplicationTests
 
             var workspace = await service.LoadAsync(content, profile.ProfileId, cancellationToken);
 
-            var visible = Assert.Single(workspace.Quests);
-            Assert.Equal(QuestAvailabilityState.Current, visible.Availability.State);
+            var unresolved = Assert.Single(workspace.Quests);
+            Assert.Equal(QuestAvailabilityState.Indeterminate, unresolved.Availability.State);
             Assert.Contains(
-                visible.Availability.Reasons,
+                unresolved.Availability.Reasons,
                 reason => reason.Kind == QuestAvailabilityReasonKind.UnsupportedAvailabilityRequirement &&
                           reason.ReferenceId == "globalVariable");
 
             var problem = Assert.Single(workspace.Problems);
             Assert.Equal(QuestAvailabilityState.Indeterminate, problem.Availability.State);
             Assert.Equal(quest.Id, problem.Quest.Id);
+
+            var completed = await service.CompleteAsync(
+                content,
+                profile.ProfileId,
+                quest.Id,
+                cancellationToken);
+            Assert.Contains(quest.Id, completed.Profile.CompletedQuestIds);
+            Assert.Equal(
+                QuestAvailabilityState.Completed,
+                Assert.Single(completed.Quests).Availability.State);
+            Assert.Empty(completed.Problems);
         }
         finally
         {
