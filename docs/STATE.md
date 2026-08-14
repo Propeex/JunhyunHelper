@@ -4,23 +4,25 @@
 
 ## 현재 상태
 
-**v0.1.3 RELEASE CANDIDATE — Map/MiniMap hotfix / Windows x64**
+**v0.1.3 RELEASED — Map/MiniMap hotfix / Windows x64**
 
-현재 공개 릴리즈는 **v0.1.2**이며 v0.1.3은 PR #79에서 최종 release gate를 진행 중입니다.
+릴리즈일: **2026-08-15**
 
 ```text
-hotfix PR: #79 OPEN
-branch: agent/map-floor-performance-hotfix-2026-08-15
-latest functional RC code: 35485f1507b4b3424253b6752660c6a36447d42b
-RC verification run: 31834407168 — SUCCESS
+hotfix PR: #79 MERGED
+release baseline: 3c49d4ca5af549afb4a4a5ce376cb6f8869709fb
+pre-merge final RC run: 31834842097 — SUCCESS
+release workflow run: 31835116544 — SUCCESS
 Desktop ProductVersion: 0.1.3
+public asset: Junhyun-Helper-v0.1.3-win-x64.zip
+public SHA-256: 41e674d0186846076e62a1edd92c1a5ac9849f53ab48bbedeb2a6a00101f6941
+release: https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.3
 Content schema: unchanged (v5)
 user.db schema: unchanged
 required data update from v0.1.2: none
-public v0.1.3 release: PENDING final merge + exact-baseline release workflow
 ```
 
-현재 확인된 **기능/패키징 blocker는 없습니다.** 남은 release gate는 최신 문서 정합성 확인, PR 최종 review thread 정리, 병합, exact merged baseline 재검증과 공개 GitHub Release 무결성 확인입니다.
+현재 확인된 **기능/패키징 blocker는 없습니다.** 공개 Release는 draft/prerelease가 아니며 ZIP + `SHA256SUMS.txt` 두 asset을 게시했습니다. Release workflow가 공개 ZIP을 다시 내려받아 manifest와 로컬 생성 hash가 모두 일치하는지 검증했습니다.
 
 ## v0.1.3 변경 — Map/MiniMap 회귀 핫픽스
 
@@ -47,31 +49,33 @@ v0.1.2 실사용 피드백에서 다음 문제가 확인되었습니다.
 
 상세: `docs/RELEASE_0.1.3.md`, `docs/MAP_PRODUCT_REQUIREMENTS.md`
 
-## v0.1.3 release-candidate 검증
+## v0.1.3 최종 검증
 
-최신 기능 코드 `35485f1507b4b3424253b6752660c6a36447d42b` 기준:
+Exact release baseline `3c49d4ca5af549afb4a4a5ce376cb6f8869709fb` 기준:
 
 ```text
-CI run: 31834407168 — SUCCESS
+release workflow: 31835116544 — SUCCESS
 Desktop Release build: SUCCESS
 automated tests: 176 passed / 0 failed
 Windows x64 self-contained single-file publish: SUCCESS
+ProductVersion: 0.1.3+3c49d4ca5af549afb4a4a5ce376cb6f8869709fb
 Main Map + MiniMap startup/runtime smoke: SUCCESS
 multi-floor SVG switch: SUCCESS
 other-floor relation / ↑↓ / opacity smoke: SUCCESS
 floor-hotkey zoom + map-space viewport-center preservation: SUCCESS
 MiniMap window / zoom / floor / marker-scale smoke: SUCCESS
 normal Main Window close / process exit: SUCCESS
+release root contract: SUCCESS
+PDB / nested ZIP / runtime Logs contamination: none
+public asset re-download + SHA-256 verification: SUCCESS
 ```
 
-Codex 최종 review에서 기능 관련 P1/P2 지적은 수정했습니다.
+최종 review에서 발견된 release-blocking 항목은 모두 수정 후 해결 처리했습니다.
 
 - body-only opacity 실험과 smoke 불일치 → 최종 구현은 root 50% opacity 계약으로 복귀, smoke와 일치
 - Raider floor/scale stale 상태 → product pulse + dedicated renderer 연동으로 수정
 - empty legacy extract refresh → child-count transition cache invalidation으로 수정
 - release candidate 문서가 v0.1.2에 머물던 문제 → README/STATE/RELEASE_0.1.3 갱신
-
-최종 공개 릴리즈에서는 merged release baseline을 다시 build/test/publish/smoke하고 public asset을 재다운로드하여 SHA-256까지 검증해야 합니다.
 
 ## 이전 공개 릴리즈 — v0.1.2
 
@@ -127,7 +131,7 @@ importer warnings: 0
 | Hideout | 구현 완료 / current live validation 통과 |
 | Needed Items / Inventory | 구현 완료 / v0.1.2 flexible status + Item Wiki |
 | Ammo | 구현 완료 / current live validation 통과 |
-| Map + MiniMap | 구현 완료 / v0.1.3 release-candidate hotfix 검증 통과 |
+| Map + MiniMap | 구현 완료 / v0.1.3 RELEASED |
 | Scanner | `준비 중` placeholder 탭 유지 / 실제 기능 PRODUCT OPEN |
 
 ## Map 기준
@@ -137,10 +141,10 @@ Map subsystem은 독립이고 Quest만 JunhyunHelper current profile/content와 
 ## 현재 공개 릴리즈
 
 ```text
-v0.1.2
-https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.2
-asset: Junhyun-Helper-v0.1.2-win-x64.zip
-SHA-256: 163a2a33184a6f5d8abcefa542239cd2f29a686d924cf4d784081c47939398ab
+v0.1.3
+https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.3
+asset: Junhyun-Helper-v0.1.3-win-x64.zip
+SHA-256: 41e674d0186846076e62a1edd92c1a5ac9849f53ab48bbedeb2a6a00101f6941
 ```
 
 ## 비차단 후속 범위
