@@ -1,6 +1,6 @@
 # 2026-08-15 사용성 요구사항 — 층 전환 / 타층 마커 / 유동 제출 / Item Wiki
 
-Status: **CONFIRMED / IMPLEMENTATION IN PROGRESS**
+Status: **CONFIRMED / IMPLEMENTED / WINDOWS RUNTIME VERIFIED**
 
 ## 1. 데이터 업데이트 원칙 확인
 
@@ -12,6 +12,7 @@ Quest 분류는 런타임 GPT 작업이 아니다. `데이터 업데이트`에�
 - 층 변경 직전 사용자가 보고 있던 **같은 map-space 지점과 zoom**을 층 변경 후에도 유지한다.
 - 층 단축키가 지도 중앙/이동 offset을 초기화해서 사용자가 위치 추적 새로고침을 다시 해야 하는 동작은 금지한다.
 - Main Map 렌더가 완료된 뒤 MiniMap 층 이동을 계속 직렬화한다.
+- NumPad 0~5 직접 floor 선택도 같은 viewport-safe render 경로를 사용한다.
 
 ## 3. 다른 층 마커 표시
 
@@ -42,6 +43,7 @@ Map artwork는 기존 정책대로 선택한 현재 층만 명확하게 표시�
 - 보유량을 충분히 입력해 objective가 충족되면 `필요` 목록에서 자동으로 사라진다.
 - `정리 필요`, `판단 보류`는 일반 Item cleanup 의미이므로 유동 제출 상태 dropdown에서는 노출하지 않는다.
 - 유동 제출은 본질적으로 Quest 용도이므로 기존 용도 dropdown은 계속 비활성화한다.
+- 필터를 `필요 → 충분 → 전체`로 바꿔도 원본 group set을 잃지 않도록 unfiltered group cache를 권위 입력으로 사용한다.
 
 ## 5. Item Wiki
 
@@ -50,6 +52,27 @@ Map artwork는 기존 정책대로 선택한 현재 층만 명확하게 표시�
 - URL이 유효한 HTTP/HTTPS 링크일 때만 버튼을 활성화한다.
 - 런타임 검색이나 GPT 추론으로 Wiki URL을 만들지 않는다.
 
-## 6. 회귀 / 최적화 기준
+## 6. 회귀 / 최적화 검증
 
-이 변경 후 전체 자동 테스트와 Windows x64 publish를 통과한다. 실제 Map + MiniMap smoke에서 층 렌더/마커/정상 종료를 확인하고, 새 marker 표시가 기존 player marker / marker size / MiniMap click-through / current-floor artwork 정책을 깨지 않는지 확인한다.
+GitHub Actions run `31827542036`에서 다음을 통과했다.
+
+```text
+Desktop Release build: SUCCESS
+automated tests: 176 passed / 0 failed
+Windows x64 self-contained single-file publish: SUCCESS
+real Main Map + MiniMap smoke: SUCCESS
+floor SVG replacement: SUCCESS
+other-floor direction/opacity visual check: SUCCESS
+floor-hotkey zoom + map-space viewport-center preservation: SUCCESS
+MiniMap zoom/floor/marker-scale regression: SUCCESS
+graceful process shutdown: SUCCESS
+```
+
+추가 최적화:
+
+- 같은 타층 방향 badge를 200ms 주기마다 삭제/재생성하지 않고 상태가 달라질 때만 교체한다.
+- MiniMap 타층 extract overlay는 Map/floor/visibility/size/marker data signature가 바뀔 때만 다시 만든다.
+- Extract source가 아직 async loading 중일 때 빈 상태를 캐시하지 않는다.
+- direct NumPad floor와 product floor up/down의 Main Map floor renderer를 하나의 viewport-safe core로 통합했다.
+
+기존 player marker 크기, MiniMap non-player marker scale, click-through, selected-floor-only artwork 정책은 유지한다.
