@@ -22,14 +22,6 @@ public sealed record GameProfileSnapshot
     public IReadOnlySet<string> CompletedQuestIds { get; init; } =
         new HashSet<string>(StringComparer.Ordinal);
 
-    /// <summary>
-    /// Completion times known to JunhyunHelper. Old profiles intentionally have no
-    /// timestamps for historical completions; callers must treat a missing value as
-    /// legacy/unknown instead of inventing a recent completion time.
-    /// </summary>
-    public IReadOnlyDictionary<string, DateTimeOffset> QuestCompletedAtUtc { get; init; } =
-        new Dictionary<string, DateTimeOffset>(StringComparer.Ordinal);
-
     public IReadOnlySet<string> FailedQuestIds { get; init; } =
         new HashSet<string>(StringComparer.Ordinal);
 
