@@ -29,9 +29,6 @@ public partial class MainWindow : TarkovHelper.MainWindow
     {
         base.OnContentRendered(e);
 
-        // WPF can raise OnInitialized from inside InitializeComponent before the
-        // MainWindow constructor finishes attaching its original mutation events.
-        // Re-apply the idempotent product wiring here, after construction is complete.
         EnableFastMutationHandlers();
 
         if (_legacyMapTabHooked)
@@ -53,10 +50,6 @@ public partial class MainWindow : TarkovHelper.MainWindow
         _legacyAdditionalMapMarkers?.Refresh();
     }
 
-    /// <summary>
-    /// Older content remains a valid offline fallback. First Map use attempts an atomic
-    /// content update so Quest geometry is current without requiring manual cleanup.
-    /// </summary>
     private async Task EnsureQuestMapGeometryCurrentAsync()
     {
         if (_activeProfile is null ||
@@ -100,8 +93,6 @@ public partial class MainWindow : TarkovHelper.MainWindow
         {
             var page = new TarkovHelper.Pages.Map.MapPage();
 
-            // V1 adapter still owns the minimal exact-source UI cleanup. Its old Quest
-            // sidebar/projection is kept disconnected; V2 owns all real Quest UI/data.
             var disconnectedV1Sidebar = new LegacyMapQuestSidebar();
             var adapter = new LegacyMapProductAdapter(
                 page,
@@ -215,7 +206,6 @@ public partial class MainWindow : TarkovHelper.MainWindow
                 () => floorSelector.Items.Count >= 2 && floorSelector.Visibility == Visibility.Visible,
                 TimeSpan.FromSeconds(3));
 
-            // First verify the original selector path still replaces floor artwork.
             var originalFloorIndex = Math.Max(0, floorSelector.SelectedIndex);
             var targetFloorIndex = originalFloorIndex == 0 ? 1 : 0;
             var sourceBefore = mapSvg.Source?.ToString();
@@ -228,9 +218,13 @@ public partial class MainWindow : TarkovHelper.MainWindow
 
             VerifyOtherFloorDirectionPresentation(floorSelector);
 
-            // Reproduce the reported product-hotkey path with a non-default zoom and
-            // translation. The same map-space point must remain at the viewport center
-            // after the SVG floor is swapped.
+            // The page can raise Loaded while its containing product section is still
+            // Collapsed during asynchronous startup. Viewport geometry is meaningful only
+            // after the Map section has actually been arranged and made visible.
+            await WaitForAsync(
+                () => page.IsVisible && mapViewer.ActualWidth > 0 && mapViewer.ActualHeight > 0,
+                TimeSpan.FromSeconds(8));
+
             page.JunhyunZoomIn();
             mapTranslate.X += 137;
             mapTranslate.Y -= 91;
@@ -293,8 +287,6 @@ public partial class MainWindow : TarkovHelper.MainWindow
         }
         catch
         {
-            // The smoke failure itself must remain the exit reason even if diagnostics
-            // cannot be written on a particular runner.
         }
     }
 
@@ -370,9 +362,6 @@ public partial class MainWindow : TarkovHelper.MainWindow
         if (window.FindName("MapMarkersContainer") is not Canvas markerContainer)
             throw new InvalidOperationException("MiniMap marker container was not found.");
 
-        // Verify the product marker-size path changes the actual live marker transform,
-        // not only a saved numeric setting. The synthetic marker avoids depending on
-        // external marker DB timing/content.
         var persistedMarkerScale = JunhyunMapProductSettingsStore.Instance.MiniMapMarkerScale;
         var markerProbe = new Canvas();
         markerContainer.Children.Add(markerProbe);
@@ -426,8 +415,6 @@ public partial class MainWindow : TarkovHelper.MainWindow
             () => !string.Equals(floorBefore, floorText.Text, StringComparison.Ordinal),
             TimeSpan.FromSeconds(4));
 
-        // MiniMap actions raise SettingsChanged, which used to re-arm the transplanted
-        // legacy direct hook. Verify it remains disabled after real zoom/floor actions.
         await WaitForAsync(
             () => legacyHook.ZoomInKey == 0 &&
                   legacyHook.ZoomOutKey == 0 &&
@@ -460,6 +447,5 @@ public partial class MainWindow : TarkovHelper.MainWindow
 
     public void SetFullScreenMode(bool enabled)
     {
-        // Product requirement: full-screen Map mode is removed.
     }
 }
