@@ -22,7 +22,6 @@ public enum QuestAvailabilityReasonKind
     TraderLoyalty,
     Prerequisite,
     PrerequisiteUnavailable,
-    AvailabilityDelay,
     MissingProfileValue,
     UnsupportedAvailabilityRequirement,
     MissingReferencedQuest,
