@@ -58,6 +58,8 @@ public partial class OverlayMiniMapWindow
         signature.Add(projectionMap, StringComparer.OrdinalIgnoreCase);
         signature.Add(_currentMapKey, StringComparer.OrdinalIgnoreCase);
         signature.Add(_selectedFloorId, StringComparer.OrdinalIgnoreCase);
+        signature.Add(_settings.ZoomLevel);
+        signature.Add(_junhyunMarkerScale);
         foreach (var marker in visible)
         {
             signature.Add(marker.QuestId, StringComparer.Ordinal);
@@ -69,29 +71,27 @@ public partial class OverlayMiniMapWindow
         }
         var currentSignature = signature.ToHashCode();
 
-        if (force ||
-            currentSignature != _junhyunQuestV2Signature ||
-            !string.Equals(_junhyunQuestV2MapKey, _currentMapKey, StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(_junhyunQuestV2FloorId, _selectedFloorId, StringComparison.OrdinalIgnoreCase))
+        if (!force &&
+            currentSignature == _junhyunQuestV2Signature &&
+            string.Equals(_junhyunQuestV2MapKey, _currentMapKey, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(_junhyunQuestV2FloorId, _selectedFloorId, StringComparison.OrdinalIgnoreCase))
         {
-            layer.Children.Clear();
-            foreach (var marker in visible)
-            {
-                var visual = JunhyunQuestMarkerVisualFactoryV3.Create(marker);
-                var relation = JunhyunFloorPresentation.Resolve(
-                    _currentMapConfig,
-                    marker.FloorId,
-                    _selectedFloorId,
-                    JunhyunMissingFloorBehavior.KeepUnknown);
-                JunhyunFloorPresentation.ApplyToMarker(visual, relation);
-                Canvas.SetLeft(visual, marker.X);
-                Canvas.SetTop(visual, marker.Y);
-                layer.Children.Add(visual);
-            }
+            return;
+        }
 
-            _junhyunQuestV2Signature = currentSignature;
-            _junhyunQuestV2MapKey = _currentMapKey;
-            _junhyunQuestV2FloorId = _selectedFloorId;
+        layer.Children.Clear();
+        foreach (var marker in visible)
+        {
+            var visual = JunhyunQuestMarkerVisualFactoryV3.Create(marker);
+            var relation = JunhyunFloorPresentation.Resolve(
+                _currentMapConfig,
+                marker.FloorId,
+                _selectedFloorId,
+                JunhyunMissingFloorBehavior.KeepUnknown);
+            JunhyunFloorPresentation.ApplyToMarker(visual, relation);
+            Canvas.SetLeft(visual, marker.X);
+            Canvas.SetTop(visual, marker.Y);
+            layer.Children.Add(visual);
         }
 
         var inverse = 1.0 / Math.Max(_settings.ZoomLevel, TarkovHelper.Models.Map.OverlayMiniMapSettings.MinZoom);
@@ -102,5 +102,8 @@ public partial class OverlayMiniMapWindow
         }
 
         layer.Visibility = visible.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        _junhyunQuestV2Signature = currentSignature;
+        _junhyunQuestV2MapKey = _currentMapKey;
+        _junhyunQuestV2FloorId = _selectedFloorId;
     }
 }
