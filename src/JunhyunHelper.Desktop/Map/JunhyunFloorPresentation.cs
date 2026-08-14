@@ -1,0 +1,122 @@
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using TarkovHelper.Models.Map;
+
+namespace JunhyunHelper.Desktop.Map;
+
+public enum JunhyunFloorRelation
+{
+    Unknown,
+    Current,
+    Above,
+    Below,
+}
+
+public readonly record struct JunhyunFloorRelationInfo(
+    JunhyunFloorRelation Relation,
+    string Arrow,
+    string FloorLabel)
+{
+    public bool IsOtherFloor => Relation is JunhyunFloorRelation.Above or JunhyunFloorRelation.Below;
+}
+
+/// <summary>
+/// Product-owned floor relation semantics shared by Main Map and MiniMap marker renderers.
+/// Map artwork remains current-floor only; markers from other known floors remain visible
+/// and use a compact direction badge so the user can distinguish above from below.
+/// </summary>
+public static class JunhyunFloorPresentation
+{
+    public const double OtherFloorOpacity = 0.50;
+    private const string DirectionBadgeTag = "JunhyunFloorDirectionBadge";
+
+    public static JunhyunFloorRelationInfo Resolve(
+        MapConfig? config,
+        string? markerFloorId,
+        string? currentFloorId)
+    {
+        if (config?.Floors is null || config.Floors.Count == 0 || string.IsNullOrWhiteSpace(currentFloorId))
+            return new JunhyunFloorRelationInfo(JunhyunFloorRelation.Unknown, string.Empty, string.Empty);
+
+        var current = config.Floors.FirstOrDefault(floor =>
+            string.Equals(floor.LayerId, currentFloorId, StringComparison.OrdinalIgnoreCase));
+        if (current is null)
+            return new JunhyunFloorRelationInfo(JunhyunFloorRelation.Unknown, string.Empty, string.Empty);
+
+        var effectiveMarkerFloorId = string.IsNullOrWhiteSpace(markerFloorId) ? "main" : markerFloorId;
+        var marker = config.Floors.FirstOrDefault(floor =>
+            string.Equals(floor.LayerId, effectiveMarkerFloorId, StringComparison.OrdinalIgnoreCase));
+        if (marker is null)
+            return new JunhyunFloorRelationInfo(JunhyunFloorRelation.Unknown, string.Empty, string.Empty);
+
+        if (marker.Order == current.Order)
+        {
+            return new JunhyunFloorRelationInfo(
+                JunhyunFloorRelation.Current,
+                string.Empty,
+                marker.DisplayName ?? marker.LayerId);
+        }
+
+        var above = marker.Order > current.Order;
+        return new JunhyunFloorRelationInfo(
+            above ? JunhyunFloorRelation.Above : JunhyunFloorRelation.Below,
+            above ? "↑" : "↓",
+            marker.DisplayName ?? marker.LayerId);
+    }
+
+    public static void ApplyToMarker(
+        FrameworkElement markerVisual,
+        JunhyunFloorRelationInfo relation,
+        double badgeOffsetX = 8,
+        double badgeOffsetY = -16)
+    {
+        if (markerVisual is not Canvas canvas)
+            return;
+
+        RemoveDirectionBadge(canvas);
+        if (!relation.IsOtherFloor)
+            return;
+
+        markerVisual.Opacity = OtherFloorOpacity;
+
+        var background = relation.Relation == JunhyunFloorRelation.Above
+            ? Color.FromRgb(65, 145, 210)
+            : Color.FromRgb(220, 132, 38);
+        var badge = new Border
+        {
+            Tag = DirectionBadgeTag,
+            Width = 16,
+            Height = 16,
+            CornerRadius = new CornerRadius(8),
+            Background = new SolidColorBrush(Color.FromArgb(235, background.R, background.G, background.B)),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(235, 245, 245, 245)),
+            BorderThickness = new Thickness(1),
+            ToolTip = $"{relation.Arrow} {relation.FloorLabel}",
+            IsHitTestVisible = false,
+            Child = new TextBlock
+            {
+                Text = relation.Arrow,
+                Foreground = Brushes.White,
+                FontSize = 11,
+                FontWeight = FontWeights.Bold,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextAlignment = TextAlignment.Center,
+            },
+        };
+        Canvas.SetLeft(badge, badgeOffsetX);
+        Canvas.SetTop(badge, badgeOffsetY);
+        canvas.Children.Add(badge);
+    }
+
+    public static void RemoveDirectionBadge(Canvas canvas)
+    {
+        var badges = canvas.Children
+            .OfType<FrameworkElement>()
+            .Where(element => string.Equals(element.Tag as string, DirectionBadgeTag, StringComparison.Ordinal))
+            .ToArray();
+        foreach (var badge in badges)
+            canvas.Children.Remove(badge);
+    }
+}
