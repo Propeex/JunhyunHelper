@@ -56,6 +56,7 @@ jobs:
           using JunhyunHelper.Infrastructure.Content;
           using JunhyunHelper.Infrastructure.EditionData;
           using JunhyunHelper.Infrastructure.TarkovJson;
+          using JunhyunHelper.Infrastructure.Validation;
 
           using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(3) };
           var loader = new TarkovEndpointSourceLoader(new TarkovJsonClient(http));
@@ -78,8 +79,8 @@ jobs:
               Console.WriteLine($"warnings={result.Warnings.Count}");
               foreach (var warning in result.Warnings.Take(30))
                   Console.WriteLine($"WARNING {warning}");
-              foreach (var error in result.Validation.Errors)
-                  Console.WriteLine($"VALIDATION_ERROR {error}");
+              foreach (var issue in result.Validation.Issues)
+                  Console.WriteLine($"VALIDATION_{issue.Severity.ToString().ToUpperInvariant()} {issue.Code} {issue.Message}");
 
               var delayed = result.Content.Quests.Count(q => q.HasAvailabilityDelay);
               var lightkeeperGated = result.Content.Quests.Count(q =>
@@ -98,7 +99,7 @@ jobs:
               Console.WriteLine($"delayedQuests={delayed} lightkeeperGated={lightkeeperGated} btrGated={btrGated} refGated={refGated}");
 
               if (!result.IsValid)
-                  Environment.ExitCode = 2;
+                  throw new InvalidDataException($"Live product build for {mode} failed validation.");
               if (delayed != 13)
                   throw new InvalidDataException($"Expected 13 delayed quests in {mode}, found {delayed}.");
           }
