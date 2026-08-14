@@ -119,12 +119,19 @@ public sealed class QuestApplicationService
         {
             questId,
         };
+        var completedAt = new Dictionary<string, DateTimeOffset>(
+            profile.QuestCompletedAtUtc,
+            StringComparer.Ordinal)
+        {
+            [questId] = DateTimeOffset.UtcNow,
+        };
         var failed = new HashSet<string>(profile.FailedQuestIds, StringComparer.Ordinal);
         failed.Remove(questId);
 
         var updated = profile with
         {
             CompletedQuestIds = completed,
+            QuestCompletedAtUtc = completedAt,
             FailedQuestIds = failed,
             Inventory = inventory,
             QuestConsumptions = questConsumptions,
@@ -226,6 +233,10 @@ public sealed class QuestApplicationService
 
         var completed = new HashSet<string>(profile.CompletedQuestIds, StringComparer.Ordinal);
         completed.Remove(questId);
+        var completedAt = new Dictionary<string, DateTimeOffset>(
+            profile.QuestCompletedAtUtc,
+            StringComparer.Ordinal);
+        completedAt.Remove(questId);
         var questConsumptions = new Dictionary<string, InventoryConsumption>(
             profile.QuestConsumptions,
             StringComparer.Ordinal);
@@ -241,6 +252,7 @@ public sealed class QuestApplicationService
         var updated = profile with
         {
             CompletedQuestIds = completed,
+            QuestCompletedAtUtc = completedAt,
             Inventory = inventory,
             QuestConsumptions = questConsumptions,
         };
