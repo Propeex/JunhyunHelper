@@ -1,7 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Threading;
 using JunhyunHelper.Desktop.Map;
 
 namespace TarkovHelper.Windows;
@@ -9,7 +8,6 @@ namespace TarkovHelper.Windows;
 public partial class OverlayMiniMapWindow
 {
     private Canvas? _junhyunQuestV2Layer;
-    private DispatcherTimer? _junhyunQuestV2Timer;
     private string? _junhyunQuestV2MapKey;
     private string? _junhyunQuestV2FloorId;
     private int _junhyunQuestV2Signature = int.MinValue;
@@ -28,23 +26,12 @@ public partial class OverlayMiniMapWindow
         MapCanvas.Children.Add(_junhyunQuestV2Layer);
 
         JunhyunMapQuestProjectionV2.Changed += JunhyunQuestV2_Changed;
-        _junhyunQuestV2Timer = new DispatcherTimer(
-            TimeSpan.FromMilliseconds(120),
-            DispatcherPriority.Background,
-            (_, _) => RenderQuestV2(force: false),
-            Dispatcher);
-        _junhyunQuestV2Timer.Start();
         RenderQuestV2(force: true);
     }
 
     public void DisposeQuestV2()
     {
         JunhyunMapQuestProjectionV2.Changed -= JunhyunQuestV2_Changed;
-        if (_junhyunQuestV2Timer is not null)
-        {
-            _junhyunQuestV2Timer.Stop();
-            _junhyunQuestV2Timer = null;
-        }
 
         if (_junhyunQuestV2Layer is not null)
         {
@@ -91,7 +78,11 @@ public partial class OverlayMiniMapWindow
             foreach (var marker in visible)
             {
                 var visual = JunhyunQuestMarkerVisualFactoryV3.Create(marker);
-                var relation = JunhyunFloorPresentation.Resolve(_currentMapConfig, marker.FloorId, _selectedFloorId);
+                var relation = JunhyunFloorPresentation.Resolve(
+                    _currentMapConfig,
+                    marker.FloorId,
+                    _selectedFloorId,
+                    JunhyunMissingFloorBehavior.KeepUnknown);
                 JunhyunFloorPresentation.ApplyToMarker(visual, relation);
                 Canvas.SetLeft(visual, marker.X);
                 Canvas.SetTop(visual, marker.Y);
