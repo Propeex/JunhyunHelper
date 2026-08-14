@@ -4,37 +4,51 @@
 
 ## 현재 상태
 
-**v0.1.1 RELEASED — `준현 헬퍼` Windows x64 single-file portable**
+**v0.1.2 USABILITY RELEASE CANDIDATE — 2026-08-15**
 
-릴리즈일: **2026-08-15**
+현재 공개 버전은 **v0.1.1**입니다. PR #77에서 층 전환/타층 marker/유동 제출/Item Wiki 피드백을 반영했고, Windows runtime regression smoke까지 통과했습니다. 최종 문서/버전 반영 후 PR-head CI를 다시 통과시키고 v0.1.2로 공개합니다.
+
+## v0.1.2 변경
+
+- Main Map floor up/down hotkey가 zoom과 viewport 중앙의 map-space 위치를 보존
+- NumPad 0~5 직접 floor 선택도 같은 viewport-safe floor renderer 사용
+- 다른 층 marker를 숨기지 않고 약 50% opacity로 유지
+- `Floor.Order` 기준 위층 `↑` / 아래층 `↓` badge
+- Main Map / MiniMap의 Quest, 일반 marker, extract, Raider floor 표현 통일
+- 유동 제출 상태 dropdown `필요 / 전체 / 충분`
+- 유동 제출 기본 `필요`; 모든 objective 충족 group은 `필요`에서 자동 제외
+- Item 상세 canonical Wiki URL `위키` 버튼
+- 타층 badge 재사용 및 MiniMap 타층 extract signature cache로 불필요한 반복 UI 생성 감소
+
+상세: `docs/USABILITY_REQUIREMENTS_2026-08-15.md`, `docs/MAP_PRODUCT_REQUIREMENTS.md`
+
+## 검증
+
+기능 head 검증 run `31827542036`: SUCCESS
 
 ```text
-Quest correctness: PR #75 MERGED
-version metadata: PR #76 MERGED
-release code baseline: fc9d098c1312e837a205b5d08ba44ba6d516e779
-release workflow run: 31821096591 — SUCCESS
-public asset: Junhyun-Helper-v0.1.1-win-x64.zip
-public SHA-256: 91394101c5011b833c2810d8857fe2e9fd59b9f42f8710b90a899fe8169f0b54
-release: https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.1
+Desktop Release build: SUCCESS
+automated tests: 176 passed / 0 failed
+Windows x64 self-contained single-file publish: SUCCESS
+Main Map multi-floor SVG switch: SUCCESS
+other-floor ↑/↓ + opacity visual smoke: SUCCESS
+floor-hotkey zoom + map-space viewport-center preservation: SUCCESS
+MiniMap window / zoom / floor / marker-scale smoke: SUCCESS
+normal Main Window close / process exit: SUCCESS
 ```
 
-현재 확인된 기능/패키징 blocker는 없습니다.
+v0.1.2 version metadata와 공식 문서를 반영한 최종 PR-head CI를 release gate로 사용합니다.
 
-## v0.1.1 Quest 정확도 수정
+## v0.1.1 Quest 정확도 기준 유지
 
-- current `taskRequirements`의 `active / complete / failed` 상태 모델을 최신 live source로 재검증
-- prerequisite missing/self/duplicate reference: 0
-- Lightkeeper / BTR Driver / Ref 상인 접근 이후 후속 Quest가 너무 일찍 열릴 수 있던 공백 보강
-- `globalVariable` / `dialogue`처럼 자동 확정할 수 없는 조건을 추측하지 않고 `판정 문제`에 원래 Indeterminate 진단 보존
-- 각 GameMode 13개의 `availableDelaySecondsMin/Max`를 canonical metadata에 보존
-- 실제 게임 완료 시각을 알 수 없으므로 UI 완료 클릭 시각 기반 가짜 countdown은 만들지 않음
+- current `taskRequirements`의 `active / complete / failed` 상태 모델
+- Lightkeeper / BTR Driver / Ref 상인 접근 gate 보강
+- `globalVariable` / `dialogue` unresolved condition은 `판정 문제`에 보존
+- `availableDelaySecondsMin/Max` canonical 보존, 가짜 countdown 없음
 - Content snapshot schema **v5**
-- v3/v4는 offline last-known-good read 유지
 - `user.db` schema/progress 변경 없음
 
-상세: `docs/QUEST_PREREQUISITE_AUDIT_2026-08-15.md`
-
-## 최신 데이터 전체 검증
+2026-08-15 live product importer/validator 기준:
 
 ```text
 regular:    517 quests / 5312 items / 16 traders / 17 maps / 26 hideout / 200 ammo
@@ -44,38 +58,22 @@ validation errors: 0
 importer warnings: 0
 ```
 
-v0.1.1 Release gate:
+## 업그레이드 정책
 
-```text
-Desktop Release build: SUCCESS
-automated tests: 173 passed / 0 failed
-Windows x64 self-contained single-file publish: SUCCESS
-EXE ProductVersion: 0.1.1
-real Map + MiniMap startup smoke: SUCCESS
-normal Main Window close / process exit: SUCCESS
-root DLL / PDB / nested ZIP: 0 / 0 / 0
-runtime Logs beside EXE: 0
-GitHub Release draft/prerelease: false / false
-public assets: exactly 2
-published checksum re-download: VERIFIED
-```
-
-## 사용자 업그레이드 정책
-
-**v0.1.0 사용자는 v0.1.1로 교체한 뒤 상단 `데이터 업데이트`를 한 번 실행합니다.** 그러면 현재 online source에서 v5 Game Content를 새로 만들고 최신 Quest availability semantics를 적용합니다.
-
-`%LocalAppData%/JunhyunHelper/user.db`의 Profile / Quest 완료 / Inventory / Hideout 진행은 그대로 유지됩니다.
+- **v0.1.1 → v0.1.2:** 필수 `데이터 업데이트` 없음. Content schema는 그대로 v5이며 이번 패치는 UI/Map 사용성 변경입니다.
+- **v0.1.0 → v0.1.2:** v0.1.1에서 도입된 최신 Quest 판정을 적용하려면 설치 후 `데이터 업데이트`를 한 번 실행합니다.
+- `%LocalAppData%/JunhyunHelper/user.db`의 Profile / Quest 완료 / Inventory / Hideout 진행은 유지됩니다.
 
 ## 제품 기능 상태
 
 | 영역 | 상태 |
 |---|---|
 | Profile | 구현 완료 |
-| Quest | 구현 완료 / v0.1.1 current live prerequisite audit 반영 |
+| Quest | 구현 완료 / v0.1.1 live prerequisite audit 유지 |
 | Hideout | 구현 완료 / current live validation 통과 |
-| Needed Items / Inventory | 구현 완료 |
+| Needed Items / Inventory | 구현 완료 / v0.1.2 유동 제출 상태 filter + Item Wiki |
 | Ammo | 구현 완료 / current live validation 통과 |
-| Map + MiniMap | 구현 완료 / Windows 실사용 및 release smoke 검증 |
+| Map + MiniMap | 구현 완료 / v0.1.2 floor viewport + other-floor marker semantics |
 | Scanner | `준비 중` placeholder 탭 유지 / 실제 기능 PRODUCT OPEN |
 
 ## 핵심 데이터 원칙
@@ -91,7 +89,7 @@ online source
 → User Progress와 결합
 ```
 
-실패 candidate는 last-known-good active content를 덮지 않으며 Game Content update는 `user.db`를 삭제/덮어쓰지 않습니다. Runtime GPT/AI 의존성은 없습니다.
+Quest를 포함한 Game Content 분류는 프로그램 importer가 수행하며 runtime GPT/AI 의존성은 없습니다. 실패 candidate는 last-known-good active content를 덮지 않고 Game Content update는 `user.db`를 삭제/덮어쓰지 않습니다.
 
 ## Map 기준
 
@@ -110,6 +108,7 @@ SHA-256: 91394101c5011b833c2810d8857fe2e9fd59b9f42f8710b90a899fe8169f0b54
 
 - Scanner 실제 기능 설계/구현
 - Map artwork/config/general-marker atomic bundle updater
+- deeper pinned Map renderer refactor only when regression risk is justified
 - code signing / installer / application updater
 - user.db backup/restore UX
 - repository license / third-party notice 정책

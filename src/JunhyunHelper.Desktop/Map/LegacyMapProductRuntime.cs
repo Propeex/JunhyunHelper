@@ -19,6 +19,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
     private readonly LegacyMapHotkeySettingsBridge _hotkeySettingsBridge;
     private readonly LegacyMiniMapOpacitySettingsBridge _miniMapOpacitySettingsBridge;
     private readonly LegacyMapMarkerSettingsV2Bridge _markerSettingsBridge;
+    private readonly LegacyStandardMarkerFloorPresentationBridge _standardMarkerFloorPresentationBridge;
     private readonly LegacyMapInteractionPolicyBridge _interactionPolicyBridge;
     private readonly LegacyQuestMarkerRenderV3 _questMarkerRenderer;
     private readonly LegacyMapSettingsPersistenceBridge _settingsPersistenceBridge;
@@ -39,12 +40,15 @@ public sealed class LegacyMapProductRuntime : IDisposable
         _hotkeySettingsBridge = new LegacyMapHotkeySettingsBridge(page);
         _miniMapOpacitySettingsBridge = new LegacyMiniMapOpacitySettingsBridge(page);
         _markerSettingsBridge = new LegacyMapMarkerSettingsV2Bridge(page);
+        _standardMarkerFloorPresentationBridge = new LegacyStandardMarkerFloorPresentationBridge(page);
         _interactionPolicyBridge = new LegacyMapInteractionPolicyBridge(page);
         _questMarkerRenderer = new LegacyQuestMarkerRenderV3(page);
         _settingsPersistenceBridge = new LegacyMapSettingsPersistenceBridge(page);
         _viewportPolishBridge = new LegacyMapViewportPolishBridge(page);
         _hotkeys = new JunhyunMapHotkeyService(page);
         _playerMarkerSlider = _page.FindName("SliderPlayerMarkerSize") as Slider;
+
+        GlobalKeyboardHookService.Instance.DirectFloorSelectionPressed += DirectFloorSelectionPressed;
 
         if (_playerMarkerSlider is not null)
         {
@@ -59,6 +63,14 @@ public sealed class LegacyMapProductRuntime : IDisposable
 
         _overlay.SettingsChanged += Overlay_SettingsChanged;
         _page.Loaded += Page_Loaded;
+    }
+
+    private async void DirectFloorSelectionPressed(int floorIndex)
+    {
+        if (_disposed)
+            return;
+
+        await _page.JunhyunSelectFloorAsync(floorIndex);
     }
 
     private void Page_Loaded(object sender, RoutedEventArgs e)
@@ -125,10 +137,12 @@ public sealed class LegacyMapProductRuntime : IDisposable
             return;
         _disposed = true;
 
+        GlobalKeyboardHookService.Instance.DirectFloorSelectionPressed -= DirectFloorSelectionPressed;
         _viewportPolishBridge.Dispose();
         _settingsPersistenceBridge.Dispose();
         _questMarkerRenderer.Dispose();
         _interactionPolicyBridge.Dispose();
+        _standardMarkerFloorPresentationBridge.Dispose();
         _markerSettingsBridge.Dispose();
         _miniMapOpacitySettingsBridge.Dispose();
         _hotkeySettingsBridge.Dispose();

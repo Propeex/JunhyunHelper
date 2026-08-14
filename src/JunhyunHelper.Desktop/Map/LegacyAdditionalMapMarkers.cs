@@ -148,9 +148,6 @@ public sealed class LegacyAdditionalMapMarkerController : IDisposable
 
         foreach (var marker in _db.GetMarkersForMapByType(mapKey, MarkerType.RaiderSpawn))
         {
-            if (!FloorMatches(marker.FloorId, selectedFloor))
-                continue;
-
             var (x, y) = config.GameToScreenForPlayer(marker.X, marker.Z);
             var projection = new JunhyunAdditionalMapMarker(
                 marker.Id,
@@ -163,6 +160,8 @@ public sealed class LegacyAdditionalMapMarkerController : IDisposable
             projections.Add(projection);
 
             var visual = JunhyunAdditionalMarkerVisualFactory.Create(projection, baseSize: 24);
+            var relation = JunhyunFloorPresentation.Resolve(config, marker.FloorId, selectedFloor);
+            JunhyunFloorPresentation.ApplyToMarker(visual, relation);
             Canvas.SetLeft(visual, x);
             Canvas.SetTop(visual, y);
             _layer.Children.Add(visual);
@@ -185,14 +184,6 @@ public sealed class LegacyAdditionalMapMarkerController : IDisposable
 
     private string? SelectedFloorId() =>
         (_floorSelector?.SelectedItem as ComboBoxItem)?.Tag as string;
-
-    private static bool FloorMatches(string? markerFloor, string? selectedFloor)
-    {
-        if (string.IsNullOrWhiteSpace(selectedFloor))
-            return true;
-        var effective = string.IsNullOrWhiteSpace(markerFloor) ? "main" : markerFloor;
-        return string.Equals(effective, selectedFloor, StringComparison.OrdinalIgnoreCase);
-    }
 
     public void Dispose()
     {

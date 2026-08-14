@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using JunhyunHelper.Desktop.Map;
 using JunhyunHelper.Infrastructure.Storage;
 
@@ -12,6 +13,7 @@ namespace JunhyunHelper.Desktop;
 public partial class MainWindow : TarkovHelper.MainWindow
 {
     private const string MapSmokeEnvironmentVariable = "JUNHYUNHELPER_MAP_SMOKE";
+    private const string MapSmokeDiagnosticFileName = "junhyun-map-smoke-error.txt";
 
     private TarkovHelper.Pages.Map.MapPage? _legacyMapPage;
     private LegacyMapProductAdapter? _legacyMapProductAdapter;
@@ -27,9 +29,6 @@ public partial class MainWindow : TarkovHelper.MainWindow
     {
         base.OnContentRendered(e);
 
-        // WPF can raise OnInitialized from inside InitializeComponent before the
-        // MainWindow constructor finishes attaching its original mutation events.
-        // Re-apply the idempotent product wiring here, after construction is complete.
         EnableFastMutationHandlers();
 
         if (_legacyMapTabHooked)
@@ -51,10 +50,6 @@ public partial class MainWindow : TarkovHelper.MainWindow
         _legacyAdditionalMapMarkers?.Refresh();
     }
 
-    /// <summary>
-    /// v3 content remains a valid offline fallback. First Map use attempts an atomic
-    /// content update so Quest geometry becomes v4 without requiring manual cleanup.
-    /// </summary>
     private async Task EnsureQuestMapGeometryCurrentAsync()
     {
         if (_activeProfile is null ||
@@ -98,8 +93,6 @@ public partial class MainWindow : TarkovHelper.MainWindow
         {
             var page = new TarkovHelper.Pages.Map.MapPage();
 
-            // V1 adapter still owns the minimal exact-source UI cleanup. Its old Quest
-            // sidebar/projection is kept disconnected; V2 owns all real Quest UI/data.
             var disconnectedV1Sidebar = new LegacyMapQuestSidebar();
             var adapter = new LegacyMapProductAdapter(
                 page,
@@ -185,6 +178,12 @@ public partial class MainWindow : TarkovHelper.MainWindow
                 ?? throw new InvalidOperationException("Floor selector was not found.");
             var mapSvg = page.FindName("MapSvg") as SharpVectors.Converters.SvgViewbox
                 ?? throw new InvalidOperationException("Map SVG view was not found.");
+            var mapViewer = page.FindName("MapViewerGrid") as FrameworkElement
+                ?? throw new InvalidOperationException("Map viewport was not found.");
+            var mapScale = page.FindName("MapScale") as ScaleTransform
+                ?? throw new InvalidOperationException("Map scale transform was not found.");
+            var mapTranslate = page.FindName("MapTranslate") as TranslateTransform
+                ?? throw new InvalidOperationException("Map translate transform was not found.");
 
             await WaitForAsync(() => mapSelector.Items.Count > 0, TimeSpan.FromSeconds(3));
 
@@ -217,13 +216,124 @@ public partial class MainWindow : TarkovHelper.MainWindow
                       !string.Equals(sourceBefore, mapSvg.Source?.ToString(), StringComparison.Ordinal),
                 TimeSpan.FromSeconds(4));
 
+            VerifyOtherFloorDirectionPresentation(floorSelector);
+
+            // The page can raise Loaded while its containing product section is still
+            // Collapsed during asynchronous startup. Viewport geometry is meaningful only
+            // after the Map section has actually been arranged and made visible.
+            await WaitForAsync(
+                () => page.IsVisible && mapViewer.ActualWidth > 0 && mapViewer.ActualHeight > 0,
+                TimeSpan.FromSeconds(8));
+
+            page.JunhyunZoomIn();
+            mapTranslate.X += 137;
+            mapTranslate.Y -= 91;
+            await Task.Delay(100);
+
+            var zoomBefore = mapScale.ScaleX;
+            if (zoomBefore <= 0 || mapViewer.ActualWidth <= 0 || mapViewer.ActualHeight <= 0)
+                throw new InvalidOperationException("Map viewport was not measurable for floor hotkey smoke.");
+
+            var centerX = mapViewer.ActualWidth / 2.0;
+            var centerY = mapViewer.ActualHeight / 2.0;
+            var canvasXBefore = (centerX - mapTranslate.X) / zoomBefore;
+            var canvasYBefore = (centerY - mapTranslate.Y) / zoomBefore;
+            var floorBeforeHotkey = floorSelector.SelectedIndex;
+            var sourceBeforeHotkey = mapSvg.Source?.ToString();
+
+            if (floorBeforeHotkey < floorSelector.Items.Count - 1)
+                await page.JunhyunFloorUpAsync();
+            else
+                await page.JunhyunFloorDownAsync();
+
+            await WaitForAsync(
+                () => floorSelector.SelectedIndex != floorBeforeHotkey &&
+                      !string.Equals(sourceBeforeHotkey, mapSvg.Source?.ToString(), StringComparison.Ordinal),
+                TimeSpan.FromSeconds(5));
+
+            var zoomAfter = mapScale.ScaleX;
+            centerX = mapViewer.ActualWidth / 2.0;
+            centerY = mapViewer.ActualHeight / 2.0;
+            var canvasXAfter = (centerX - mapTranslate.X) / zoomAfter;
+            var canvasYAfter = (centerY - mapTranslate.Y) / zoomAfter;
+
+            if (Math.Abs(zoomAfter - zoomBefore) > 0.001 ||
+                Math.Abs(canvasXAfter - canvasXBefore) > 0.75 ||
+                Math.Abs(canvasYAfter - canvasYBefore) > 0.75)
+            {
+                throw new InvalidOperationException(
+                    $"Floor hotkey changed Main Map viewport: zoom {zoomBefore:F4}->{zoomAfter:F4}, " +
+                    $"center ({canvasXBefore:F2},{canvasYBefore:F2})->({canvasXAfter:F2},{canvasYAfter:F2}).");
+            }
+
             await VerifyMiniMapProductAsync();
         }
         catch (Exception exception)
         {
-            System.Diagnostics.Debug.WriteLine($"[MapSmoke] {exception}");
+            WriteMapSmokeDiagnostic(exception);
             Environment.Exit(86);
         }
+    }
+
+    private static void WriteMapSmokeDiagnostic(Exception exception)
+    {
+        System.Diagnostics.Debug.WriteLine($"[MapSmoke] {exception}");
+        try
+        {
+            var path = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(),
+                MapSmokeDiagnosticFileName);
+            System.IO.File.WriteAllText(path, exception.ToString());
+        }
+        catch
+        {
+        }
+    }
+
+    private static void VerifyOtherFloorDirectionPresentation(ComboBox floorSelector)
+    {
+        if (floorSelector.Items.Count < 2 ||
+            floorSelector.SelectedItem is not ComboBoxItem selectedItem ||
+            selectedItem.Tag is not string selectedFloor)
+        {
+            throw new InvalidOperationException("Floor selector did not expose two smoke floors.");
+        }
+
+        var otherItem = floorSelector.Items
+            .OfType<ComboBoxItem>()
+            .FirstOrDefault(item =>
+                item.Tag is string floor &&
+                !string.Equals(floor, selectedFloor, StringComparison.OrdinalIgnoreCase));
+        if (otherItem?.Tag is not string otherFloor)
+            throw new InvalidOperationException("Could not choose an alternate floor for marker smoke.");
+
+        var config = TarkovHelper.Services.Map.MapTrackerService.Instance.GetMapConfig("Customs")
+            ?? throw new InvalidOperationException("Customs map config was unavailable for marker smoke.");
+        var relation = JunhyunFloorPresentation.Resolve(config, otherFloor, selectedFloor);
+        if (!relation.IsOtherFloor || relation.Arrow is not ("↑" or "↓"))
+            throw new InvalidOperationException("Other-floor relation did not resolve to an up/down direction.");
+
+        var visual = JunhyunQuestMarkerVisualFactoryV3.Create(
+            new JunhyunQuestMarkerProjectionV2(
+                "smoke-other-floor",
+                "Other Floor Smoke",
+                "objective",
+                "Objective",
+                "A",
+                100,
+                100,
+                otherFloor));
+        JunhyunFloorPresentation.ApplyToMarker(visual, relation);
+        if (visual is not Canvas canvas || Math.Abs(canvas.Opacity - JunhyunFloorPresentation.OtherFloorOpacity) > 0.001)
+            throw new InvalidOperationException("Other-floor marker opacity smoke failed.");
+
+        var arrowFound = canvas.Children
+            .OfType<Border>()
+            .Select(border => border.Child)
+            .OfType<TextBlock>()
+            .Any(text => string.Equals(text.Text, relation.Arrow, StringComparison.Ordinal));
+        if (!arrowFound)
+            throw new InvalidOperationException("Other-floor direction badge smoke failed.");
     }
 
     private static async Task VerifyMiniMapProductAsync()
@@ -252,19 +362,16 @@ public partial class MainWindow : TarkovHelper.MainWindow
         if (window.FindName("MapMarkersContainer") is not Canvas markerContainer)
             throw new InvalidOperationException("MiniMap marker container was not found.");
 
-        // Verify the product marker-size path changes the actual live marker transform,
-        // not only a saved numeric setting. The synthetic marker avoids depending on
-        // external marker DB timing/content.
         var persistedMarkerScale = JunhyunMapProductSettingsStore.Instance.MiniMapMarkerScale;
         var markerProbe = new Canvas();
         markerContainer.Children.Add(markerProbe);
         window.ApplyJunhyunMarkerScale(1.0);
-        if (markerProbe.RenderTransform is not System.Windows.Media.ScaleTransform fullTransform)
+        if (markerProbe.RenderTransform is not ScaleTransform fullTransform)
             throw new InvalidOperationException("MiniMap marker scale did not apply to a live marker.");
         var fullScale = fullTransform.ScaleX;
 
         window.ApplyJunhyunMarkerScale(0.5);
-        if (markerProbe.RenderTransform is not System.Windows.Media.ScaleTransform halfTransform ||
+        if (markerProbe.RenderTransform is not ScaleTransform halfTransform ||
             !(halfTransform.ScaleX < fullScale * 0.75))
         {
             throw new InvalidOperationException("MiniMap marker scale did not shrink live markers.");
@@ -308,8 +415,6 @@ public partial class MainWindow : TarkovHelper.MainWindow
             () => !string.Equals(floorBefore, floorText.Text, StringComparison.Ordinal),
             TimeSpan.FromSeconds(4));
 
-        // MiniMap actions raise SettingsChanged, which used to re-arm the transplanted
-        // legacy direct hook. Verify it remains disabled after real zoom/floor actions.
         await WaitForAsync(
             () => legacyHook.ZoomInKey == 0 &&
                   legacyHook.ZoomOutKey == 0 &&
@@ -342,6 +447,5 @@ public partial class MainWindow : TarkovHelper.MainWindow
 
     public void SetFullScreenMode(bool enabled)
     {
-        // Product requirement: full-screen Map mode is removed.
     }
 }

@@ -78,12 +78,12 @@ public sealed class LegacyQuestMarkerRenderV3 : IDisposable
         }
 
         var selectedFloor = SelectedFloorId();
+        var config = _tracker.GetMapConfig(currentMap);
         foreach (var marker in JunhyunMapQuestProjectionV2.Markers)
         {
-            if (!FloorMatches(marker.FloorId, selectedFloor))
-                continue;
-
+            var relation = JunhyunFloorPresentation.Resolve(config, marker.FloorId, selectedFloor);
             var visual = JunhyunQuestMarkerVisualFactoryV3.Create(marker);
+            JunhyunFloorPresentation.ApplyToMarker(visual, relation);
             Canvas.SetLeft(visual, marker.X);
             Canvas.SetTop(visual, marker.Y);
             _layer.Children.Add(visual);
@@ -105,13 +105,6 @@ public sealed class LegacyQuestMarkerRenderV3 : IDisposable
 
     private string? SelectedFloorId() =>
         (_floorSelector?.SelectedItem as ComboBoxItem)?.Tag as string;
-
-    private static bool FloorMatches(string? markerFloor, string? selectedFloor)
-    {
-        if (string.IsNullOrWhiteSpace(markerFloor) || string.IsNullOrWhiteSpace(selectedFloor))
-            return true;
-        return string.Equals(markerFloor, selectedFloor, StringComparison.OrdinalIgnoreCase);
-    }
 
     public void Dispose()
     {
