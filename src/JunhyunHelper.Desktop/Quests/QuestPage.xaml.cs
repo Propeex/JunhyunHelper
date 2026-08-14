@@ -276,8 +276,10 @@ public partial class QuestPage : UserControl
         PrimaryActionButton.Tag = entry;
 
         var explicitlyFailed = _workspace?.Profile.FailedQuestIds.Contains(quest.Id) == true;
+        var canRecordFailure = quest.RequiresExplicitFailureInput &&
+                               entry.Availability.State is QuestAvailabilityState.Current or QuestAvailabilityState.Indeterminate;
         FailureActionButton.Visibility =
-            ((entry.Availability.State == QuestAvailabilityState.Current && quest.RequiresExplicitFailureInput) ||
+            (canRecordFailure ||
              (entry.Availability.State == QuestAvailabilityState.Unavailable && explicitlyFailed))
                 ? Visibility.Visible
                 : Visibility.Collapsed;
