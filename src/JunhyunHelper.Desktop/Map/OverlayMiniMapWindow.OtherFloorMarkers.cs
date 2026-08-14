@@ -2,7 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
 using JunhyunHelper.Desktop.Map;
-using TarkovHelper.Models.Map;
+using TarkovHelper.Models;
 using TarkovHelper.Services.Map;
 using TarkovHelper.Services.Settings;
 
@@ -52,7 +52,7 @@ public partial class OverlayMiniMapWindow
 
         Closed += JunhyunOtherFloorMarker_Closed;
         _junhyunOtherFloorMarkerTimer = new DispatcherTimer(
-            TimeSpan.FromMilliseconds(150),
+            TimeSpan.FromMilliseconds(200),
             DispatcherPriority.Background,
             (_, _) => RefreshJunhyunOtherFloorMarkerPresentation(),
             Dispatcher);
@@ -99,15 +99,41 @@ public partial class OverlayMiniMapWindow
             return;
 
         var settings = MapSettings.Instance;
-        var signature = new HashCode();
+        if (!settings.ShowExtracts)
+        {
+            if (layer.Children.Count > 0)
+                layer.Children.Clear();
+            _junhyunOtherFloorExtractSignature = int.MinValue;
+            return;
+        }
+
+        // ExtractService finishes loading asynchronously. Do not cache an empty state
+        // while it is still loading or the later valid data would be skipped.
+        if (!ExtractService.Instance.IsLoaded)
+        {
+            _junhyunOtherFloorExtractSignature = int.MinValue;
+            return;
+        }
+
+        var extracts = ExtractService.Instance.GetExtractsForMap(_currentMapKey, _currentMapConfig);
+        var displays = MapExtractDisplayGrouping.GroupForDisplay(extracts).ToArray();
+
+        var signature = new System.HashCode();
         signature.Add(_currentMapKey, StringComparer.OrdinalIgnoreCase);
         signature.Add(_selectedFloorId, StringComparer.OrdinalIgnoreCase);
-        signature.Add(settings.ShowExtracts);
         signature.Add(settings.ShowPmcExtracts);
         signature.Add(settings.ShowScavExtracts);
         signature.Add(settings.ShowTransits);
         signature.Add(settings.ExtractNameSize);
         signature.Add(_junhyunMarkerScale);
+        foreach (var display in displays)
+        {
+            signature.Add(display.Extract.Name, StringComparer.Ordinal);
+            signature.Add(display.Extract.FloorId, StringComparer.OrdinalIgnoreCase);
+            signature.Add(display.Extract.X);
+            signature.Add(display.Extract.Z);
+            signature.Add(display.Faction);
+        }
         var currentSignature = signature.ToHashCode();
         if (currentSignature == _junhyunOtherFloorExtractSignature)
             return;
@@ -115,11 +141,7 @@ public partial class OverlayMiniMapWindow
         layer.Children.Clear();
         _junhyunOtherFloorExtractSignature = currentSignature;
 
-        if (!settings.ShowExtracts || !ExtractService.Instance.IsLoaded)
-            return;
-
-        var extracts = ExtractService.Instance.GetExtractsForMap(_currentMapKey, _currentMapConfig);
-        foreach (var display in MapExtractDisplayGrouping.GroupForDisplay(extracts))
+        foreach (var display in displays)
         {
             if (!IsExtractVisible(settings, display.Faction))
                 continue;
