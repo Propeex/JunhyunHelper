@@ -90,7 +90,8 @@ public sealed class SpecialTraderQuestGateTests
         var quest = Assert.Single(result, candidate => candidate.Id == "lightkeeper-followup");
         var gate = Assert.Single(quest.TaskRequirements);
         Assert.Equal(LightkeeperUnlock, gate.RequiredQuestId);
-        Assert.Equal([QuestRequiredStatus.Complete], gate.AcceptedStatuses);
+        Assert.Single(gate.AcceptedStatuses);
+        Assert.Contains(QuestRequiredStatus.Complete, gate.AcceptedStatuses);
     }
 
     private static void AssertCompleteGate(
