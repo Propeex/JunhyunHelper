@@ -1,0 +1,34 @@
+name: Live Trader Unlock Derivation Audit
+
+on:
+  push:
+    branches:
+      - agent/live-quest-prereq-audit-2026-08-15
+    paths:
+      - '.github/workflows/live-trader-unlock-derivation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Inspect trader unlock rewards
+        shell: bash
+        run: |
+          set -euo pipefail
+          for mode in regular pve pvp-season; do
+            echo "===== MODE: $mode ====="
+            curl -fsSL "https://json.tarkov.dev/$mode/tasks" -o tasks.json
+            echo '-- all trader unlock rewards --'
+            jq -r '.data.tasks | to_entries[].value as $q | (($q.finishRewards.traderUnlock // []) | if type=="object" then to_entries[].value else .[] end) | "UNLOCK quest=\($q.id) | \($q.name) | trader=\((if type=="object" then (.id // .trader.id // .trader // .target // .) else . end)) | raw=\(.|tostring)"' tasks.json || true
+            echo '-- special trader quest givers --'
+            for tid in 638f541a29ffd1183d187f57 656f0f98d80a697f855d34b1 6617beeaa9cfa777ca915b7c; do
+              count="$(jq --arg tid "$tid" '[.data.tasks | to_entries[].value | select((if (.trader|type)=="object" then .trader.id else .trader end) == $tid)] | length' tasks.json)"
+              echo "GIVER trader=$tid quests=$count"
+            done
+            echo "===== END MODE: $mode ====="
+          done
