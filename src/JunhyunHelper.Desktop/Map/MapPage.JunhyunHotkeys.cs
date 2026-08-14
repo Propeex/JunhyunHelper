@@ -130,8 +130,6 @@ public partial class MapPage
         var centerY = MapViewerGrid.ActualHeight / 2.0;
         return new JunhyunViewportSnapshot(
             zoom,
-            centerX,
-            centerY,
             (centerX - MapTranslate.X) / zoom,
             (centerY - MapTranslate.Y) / zoom);
     }
@@ -157,8 +155,6 @@ public partial class MapPage
 
     private readonly record struct JunhyunViewportSnapshot(
         double Zoom,
-        double ViewportCenterX,
-        double ViewportCenterY,
         double CanvasX,
         double CanvasY);
 }
