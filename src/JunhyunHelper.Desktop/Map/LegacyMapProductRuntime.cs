@@ -48,6 +48,8 @@ public sealed class LegacyMapProductRuntime : IDisposable
         _hotkeys = new JunhyunMapHotkeyService(page);
         _playerMarkerSlider = _page.FindName("SliderPlayerMarkerSize") as Slider;
 
+        GlobalKeyboardHookService.Instance.DirectFloorSelectionPressed += DirectFloorSelectionPressed;
+
         if (_playerMarkerSlider is not null)
         {
             _playerMarkerSlider.Minimum = SharedPlayerMarkerMinPixels;
@@ -61,6 +63,14 @@ public sealed class LegacyMapProductRuntime : IDisposable
 
         _overlay.SettingsChanged += Overlay_SettingsChanged;
         _page.Loaded += Page_Loaded;
+    }
+
+    private async void DirectFloorSelectionPressed(int floorIndex)
+    {
+        if (_disposed)
+            return;
+
+        await _page.JunhyunSelectFloorAsync(floorIndex);
     }
 
     private void Page_Loaded(object sender, RoutedEventArgs e)
@@ -127,6 +137,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
             return;
         _disposed = true;
 
+        GlobalKeyboardHookService.Instance.DirectFloorSelectionPressed -= DirectFloorSelectionPressed;
         _viewportPolishBridge.Dispose();
         _settingsPersistenceBridge.Dispose();
         _questMarkerRenderer.Dispose();
