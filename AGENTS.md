@@ -152,6 +152,8 @@ Map/MiniMap은 사용자가 검증한 특정 Tarkov-Helper revision을 **명시�
 
 릴리즈는 "빌드가 된다"만으로 완료하지 않습니다.
 
+모든 릴리즈 후보는 **GitHub 릴리즈 직전에 변경 범위 전체를 다시 최종 검토**합니다. 이 검토에서 기능 회귀, 미해결 review 지적, 성능 위험, 패키징 문제, 문서/실제 동작 불일치가 발견되면 릴리즈하지 않고 먼저 수정한 뒤 release gate를 처음부터 다시 통과시킵니다. 최종 검토와 release gate에 문제가 없으면 사용자의 별도 Git/PR/CI 확인을 요구하지 않고 개발자가 병합, 버전 확정, GitHub Release 및 배포물 게시까지 완료합니다.
+
 최소한 다음을 확인합니다.
 
 - 사용자 검증이 필요한 핵심 흐름의 실제 동작
@@ -161,5 +163,7 @@ Map/MiniMap은 사용자가 검증한 특정 Tarkov-Helper revision을 **명시�
 - 배포물에 debug symbol/임시 파일/불필요 dependency가 없는지
 - 배포 안내문과 공식 문서가 실제 기능과 일치하는지
 - 미구현 기능을 완성된 제품 surface처럼 노출하지 않는지
+- PR/review에서 제기된 release-blocking 지적이 모두 해결되었는지
+- 최종 배포 ZIP의 root layout, 실행 파일, PDB/DLL/nested ZIP/Logs 오염 여부와 SHA-256
 
 현재 구체적인 release gate는 `docs/STATE.md`를 따릅니다.
