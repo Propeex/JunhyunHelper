@@ -119,19 +119,12 @@ public sealed class QuestApplicationService
         {
             questId,
         };
-        var completedAt = new Dictionary<string, DateTimeOffset>(
-            profile.QuestCompletedAtUtc,
-            StringComparer.Ordinal)
-        {
-            [questId] = DateTimeOffset.UtcNow,
-        };
         var failed = new HashSet<string>(profile.FailedQuestIds, StringComparer.Ordinal);
         failed.Remove(questId);
 
         var updated = profile with
         {
             CompletedQuestIds = completed,
-            QuestCompletedAtUtc = completedAt,
             FailedQuestIds = failed,
             Inventory = inventory,
             QuestConsumptions = questConsumptions,
@@ -233,10 +226,6 @@ public sealed class QuestApplicationService
 
         var completed = new HashSet<string>(profile.CompletedQuestIds, StringComparer.Ordinal);
         completed.Remove(questId);
-        var completedAt = new Dictionary<string, DateTimeOffset>(
-            profile.QuestCompletedAtUtc,
-            StringComparer.Ordinal);
-        completedAt.Remove(questId);
         var questConsumptions = new Dictionary<string, InventoryConsumption>(
             profile.QuestConsumptions,
             StringComparer.Ordinal);
@@ -252,7 +241,6 @@ public sealed class QuestApplicationService
         var updated = profile with
         {
             CompletedQuestIds = completed,
-            QuestCompletedAtUtc = completedAt,
             Inventory = inventory,
             QuestConsumptions = questConsumptions,
         };
@@ -283,11 +271,19 @@ public sealed class QuestApplicationService
         GameContentCatalog content,
         GameProfileSnapshot profile)
     {
-        var quests = QuestCatalogQuery.Evaluate(content, profile)
+        var evaluated = QuestCatalogQuery.Evaluate(content, profile).ToArray();
+        var problems = evaluated
+            .Where(static entry => entry.Availability.State == QuestAvailabilityState.Indeterminate)
+            .ToArray();
+        var quests = evaluated
             .Select(ApplyProductAvailabilityPolicy)
             .ToArray();
 
-        return new QuestWorkspace(profile, quests, Array.Empty<QuestCatalogEntry>());
+        // Keep the established optimistic product behavior so an opaque upstream condition
+        // never makes a quest impossible to manage in JunhyunHelper. Unlike v0.1.0, retain
+        // the original Indeterminate entries in Problems so the fallback is visible rather
+        // than silently presenting an unsupported live condition as exact availability.
+        return new QuestWorkspace(profile, quests, problems);
     }
 
     private static QuestCatalogEntry ApplyProductAvailabilityPolicy(QuestCatalogEntry entry)
