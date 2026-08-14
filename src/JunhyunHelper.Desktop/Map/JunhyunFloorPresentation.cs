@@ -74,11 +74,25 @@ public static class JunhyunFloorPresentation
         if (markerVisual is not Canvas canvas)
             return;
 
-        RemoveDirectionBadge(canvas);
         if (!relation.IsOtherFloor)
+        {
+            RemoveDirectionBadge(canvas);
             return;
+        }
 
         markerVisual.Opacity = OtherFloorOpacity;
+        var tooltip = $"{relation.Arrow} {relation.FloorLabel}";
+        var existing = FindDirectionBadge(canvas);
+        if (existing is not null &&
+            string.Equals(existing.ToolTip as string, tooltip, StringComparison.Ordinal) &&
+            Math.Abs(Canvas.GetLeft(existing) - badgeOffsetX) < 0.01 &&
+            Math.Abs(Canvas.GetTop(existing) - badgeOffsetY) < 0.01)
+        {
+            return;
+        }
+
+        if (existing is not null)
+            canvas.Children.Remove(existing);
 
         var background = relation.Relation == JunhyunFloorRelation.Above
             ? Color.FromRgb(65, 145, 210)
@@ -92,7 +106,7 @@ public static class JunhyunFloorPresentation
             Background = new SolidColorBrush(Color.FromArgb(235, background.R, background.G, background.B)),
             BorderBrush = new SolidColorBrush(Color.FromArgb(235, 245, 245, 245)),
             BorderThickness = new Thickness(1),
-            ToolTip = $"{relation.Arrow} {relation.FloorLabel}",
+            ToolTip = tooltip,
             IsHitTestVisible = false,
             Child = new TextBlock
             {
@@ -112,11 +126,14 @@ public static class JunhyunFloorPresentation
 
     public static void RemoveDirectionBadge(Canvas canvas)
     {
-        var badges = canvas.Children
-            .OfType<FrameworkElement>()
-            .Where(element => string.Equals(element.Tag as string, DirectionBadgeTag, StringComparison.Ordinal))
-            .ToArray();
-        foreach (var badge in badges)
+        var badge = FindDirectionBadge(canvas);
+        if (badge is not null)
             canvas.Children.Remove(badge);
     }
+
+    private static FrameworkElement? FindDirectionBadge(Canvas canvas) =>
+        canvas.Children
+            .OfType<FrameworkElement>()
+            .FirstOrDefault(element =>
+                string.Equals(element.Tag as string, DirectionBadgeTag, StringComparison.Ordinal));
 }
