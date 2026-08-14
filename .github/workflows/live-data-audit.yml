@@ -34,13 +34,28 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+
+          function Get-CollectionValues($value) {
+            if ($null -eq $value) { return @() }
+            if ($value -is [System.Array]) { return @($value) }
+            if ($value -is [System.Management.Automation.PSCustomObject]) {
+              return @($value.PSObject.Properties | ForEach-Object { $_.Value })
+            }
+            return @($value)
+          }
+
           $modes = @('regular', 'pve', 'pvp-season')
+          $specialTraderUnlocks = @{
+            'lightkeeper' = '625d700cc48e6c62a440fab5'
+            'btr-driver' = '6752f6d83038f7df520c83e8'
+          }
 
           foreach ($mode in $modes) {
             Write-Host "===== MODE: $mode ====="
             $uri = "https://json.tarkov.dev/$mode/tasks"
             $doc = Invoke-RestMethod -Uri $uri -Method Get -Headers @{ Accept = 'application/json' }
-            $tasks = @($doc.data.tasks)
+            $tasks = @(Get-CollectionValues $doc.data.tasks)
+            Write-Host "task_collection_runtime_type=$($doc.data.tasks.GetType().FullName)"
             Write-Host "task_count=$($tasks.Count)"
 
             $taskIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
@@ -52,6 +67,7 @@ jobs:
             $traderCompareMethods = @{}
             $failConditionTypes = @{}
             $factions = @{}
+            $traderNames = @{}
             $missingTaskRefs = [System.Collections.Generic.List[string]]::new()
             $activeOnly = [System.Collections.Generic.List[string]]::new()
             $failedOnly = [System.Collections.Generic.List[string]]::new()
@@ -61,24 +77,30 @@ jobs:
             $selfRefs = [System.Collections.Generic.List[string]]::new()
             $duplicatePrereqRefs = [System.Collections.Generic.List[string]]::new()
             $prestigeShapes = @{}
+            $specialTraderTasks = [System.Collections.Generic.List[string]]::new()
+            $specialTraderMissingUnlock = [System.Collections.Generic.List[string]]::new()
+
+            $refUnlock = if ($mode -eq 'pve') { '6834145ebc1f443d7603c8a7' } else { '66058cb22cee99303f1ba067' }
+            $modeSpecialUnlocks = @{} + $specialTraderUnlocks
+            $modeSpecialUnlocks['ref'] = $refUnlock
 
             foreach ($task in $tasks) {
               $taskId = [string]$task.id
               $taskName = [string]$task.name
-              $reqs = @($task.taskRequirements)
+              $reqs = @(Get-CollectionValues $task.taskRequirements)
               if ($reqs.Count -gt 1) { $multiPrereq.Add("$taskId | $taskName | count=$($reqs.Count)") }
 
-              $seenReqIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+              $reqIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
               foreach ($req in $reqs) {
                 $requiredId = [string]$req.task.id
                 if (-not $requiredId) { $requiredId = [string]$req.task }
                 if ($requiredId) {
+                  [void]$reqIds.Add($requiredId)
                   if ($requiredId -eq $taskId) { $selfRefs.Add("$taskId | $taskName") }
-                  if (-not $seenReqIds.Add($requiredId)) { $duplicatePrereqRefs.Add("$taskId | $taskName | $requiredId") }
                   if (-not $taskIds.Contains($requiredId)) { $missingTaskRefs.Add("$taskId | $taskName -> $requiredId") }
                 }
 
-                $statuses = @($req.status | ForEach-Object { ([string]$_).Trim().ToLowerInvariant() } | Where-Object { $_ })
+                $statuses = @(Get-CollectionValues $req.status | ForEach-Object { ([string]$_).Trim().ToLowerInvariant() } | Where-Object { $_ })
                 if ($statuses.Count -eq 0) { $statuses = @('<missing>') }
                 $shape = ($statuses | Sort-Object) -join ','
                 if (-not $requirementShapeCounts.ContainsKey($shape)) { $requirementShapeCounts[$shape] = 0 }
@@ -100,25 +122,50 @@ jobs:
                 }
               }
 
-              foreach ($tr in @($task.traderRequirements)) {
-                $type = ([string]$tr.requirementType).Trim().ToLowerInvariant()
-                $cmp = ([string]$tr.compareMethod).Trim()
-                if (-not $traderRequirementTypes.ContainsKey($type)) { $traderRequirementTypes[$type] = 0 }
-                $traderRequirementTypes[$type]++
-                if (-not $traderCompareMethods.ContainsKey($cmp)) { $traderCompareMethods[$cmp] = 0 }
-                $traderCompareMethods[$cmp]++
+              if ($reqs.Count -gt 1) {
+                $distinctCount = $reqIds.Count
+                if ($distinctCount -lt $reqs.Count) { $duplicatePrereqRefs.Add("$taskId | $taskName | reqs=$($reqs.Count) unique=$distinctCount") }
               }
 
-              foreach ($fc in @($task.failConditions)) {
+              foreach ($tr in @(Get-CollectionValues $task.traderRequirements)) {
+                $type = ([string]$tr.requirementType).Trim().ToLowerInvariant()
+                $cmp = ([string]$tr.compareMethod).Trim()
+                if ($type) {
+                  if (-not $traderRequirementTypes.ContainsKey($type)) { $traderRequirementTypes[$type] = 0 }
+                  $traderRequirementTypes[$type]++
+                }
+                if ($cmp) {
+                  if (-not $traderCompareMethods.ContainsKey($cmp)) { $traderCompareMethods[$cmp] = 0 }
+                  $traderCompareMethods[$cmp]++
+                }
+              }
+
+              foreach ($fc in @(Get-CollectionValues $task.failConditions)) {
                 $type = ([string]$fc.type).Trim()
-                if (-not $failConditionTypes.ContainsKey($type)) { $failConditionTypes[$type] = 0 }
-                $failConditionTypes[$type]++
+                if ($type) {
+                  if (-not $failConditionTypes.ContainsKey($type)) { $failConditionTypes[$type] = 0 }
+                  $failConditionTypes[$type]++
+                }
               }
 
               $faction = ([string]$task.factionName).Trim()
               if ($faction) {
                 if (-not $factions.ContainsKey($faction)) { $factions[$faction] = 0 }
                 $factions[$faction]++
+              }
+
+              $traderNormalized = ([string]$task.trader.normalizedName).Trim().ToLowerInvariant()
+              if (-not $traderNormalized) { $traderNormalized = ([string]$task.trader.name).Trim().ToLowerInvariant().Replace(' ', '-') }
+              if ($traderNormalized) {
+                if (-not $traderNames.ContainsKey($traderNormalized)) { $traderNames[$traderNormalized] = 0 }
+                $traderNames[$traderNormalized]++
+                if ($modeSpecialUnlocks.ContainsKey($traderNormalized)) {
+                  $unlockId = [string]$modeSpecialUnlocks[$traderNormalized]
+                  $specialTraderTasks.Add("$traderNormalized | $taskId | $taskName | unlock=$unlockId")
+                  if ($taskId -ne $unlockId -and -not $reqIds.Contains($unlockId)) {
+                    $specialTraderMissingUnlock.Add("$traderNormalized | $taskId | $taskName | missing=$unlockId")
+                  }
+                }
               }
 
               $minDelay = [int]($task.availableDelaySecondsMin ?? 0)
@@ -146,6 +193,8 @@ jobs:
             $failConditionTypes.GetEnumerator() | Sort-Object Name | ForEach-Object { Write-Host "$($_.Name)=$($_.Value)" }
             Write-Host '-- factions --'
             $factions.GetEnumerator() | Sort-Object Name | ForEach-Object { Write-Host "$($_.Name)=$($_.Value)" }
+            Write-Host '-- traders --'
+            $traderNames.GetEnumerator() | Sort-Object Name | ForEach-Object { Write-Host "$($_.Name)=$($_.Value)" }
             Write-Host '-- requiredPrestige runtime shapes --'
             $prestigeShapes.GetEnumerator() | Sort-Object Name | ForEach-Object { Write-Host "$($_.Name)=$($_.Value)" }
 
@@ -162,8 +211,12 @@ jobs:
             Write-Host "mixed_status_count=$($mixedStatus.Count)"
             $mixedStatus | ForEach-Object { Write-Host "MIXED_STATUS $_" }
             Write-Host "multi_prereq_count=$($multiPrereq.Count)"
-            $multiPrereq | Select-Object -First 80 | ForEach-Object { Write-Host "MULTI_REQ $_" }
+            $multiPrereq | Select-Object -First 120 | ForEach-Object { Write-Host "MULTI_REQ $_" }
             Write-Host "delayed_count=$($delayed.Count)"
             $delayed | ForEach-Object { Write-Host "DELAYED $_" }
+            Write-Host "special_trader_task_count=$($specialTraderTasks.Count)"
+            $specialTraderTasks | ForEach-Object { Write-Host "SPECIAL_TRADER_TASK $_" }
+            Write-Host "special_trader_missing_unlock_count=$($specialTraderMissingUnlock.Count)"
+            $specialTraderMissingUnlock | ForEach-Object { Write-Host "SPECIAL_TRADER_MISSING_UNLOCK $_" }
             Write-Host "===== END MODE: $mode ====="
           }
