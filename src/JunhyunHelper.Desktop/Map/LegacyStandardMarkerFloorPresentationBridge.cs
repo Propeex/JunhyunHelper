@@ -78,8 +78,8 @@ public sealed class LegacyStandardMarkerFloorPresentationBridge : IDisposable
 
         // Marker loading can replace children asynchronously after SelectionChanged.
         // Restart a short one-shot settle window instead of traversing the whole marker
-        // collection forever. Full presentation work only runs when this O(1) signature
-        // actually changes.
+        // collection forever. Full presentation work only runs while that bounded settle
+        // is active or when the O(1) marker signature changes.
         _debounceTimer.Stop();
         _debounceTimer.Start();
     }
@@ -109,7 +109,8 @@ public sealed class LegacyStandardMarkerFloorPresentationBridge : IDisposable
 
         var signature = ObserveSignature();
         _lastObservedSignature = signature;
-        if (signature != _lastAppliedSignature)
+        var forceSettleApply = _settleChecksRemaining > 0;
+        if (signature != _lastAppliedSignature || forceSettleApply)
         {
             Apply();
             _lastAppliedSignature = signature;
