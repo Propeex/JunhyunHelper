@@ -2,7 +2,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
-using System.Windows.Threading;
 using TarkovHelper.Models;
 using TarkovHelper.Services;
 using TarkovHelper.Services.Map;
@@ -25,7 +24,6 @@ public sealed class LegacyAdditionalMapMarkerController : IDisposable
     private readonly StackPanel? _markerSettingsPanel;
     private readonly ComboBox? _floorSelector;
     private readonly ScaleTransform? _mapScale;
-    private readonly DispatcherTimer _scaleTimer;
     private CheckBox? _raiderToggle;
     private bool _disposed;
 
@@ -48,13 +46,8 @@ public sealed class LegacyAdditionalMapMarkerController : IDisposable
         _db.DataRefreshed += Db_DataRefreshed;
         if (_floorSelector is not null)
             _floorSelector.SelectionChanged += FloorSelector_SelectionChanged;
-
-        _scaleTimer = new DispatcherTimer(
-            TimeSpan.FromMilliseconds(120),
-            DispatcherPriority.Background,
-            (_, _) => UpdateScale(),
-            _page.Dispatcher);
-        _scaleTimer.Start();
+        if (_mapScale is not null)
+            _mapScale.Changed += MapScale_Changed;
     }
 
     public void Refresh() => _ = RefreshAsync();
@@ -67,6 +60,8 @@ public sealed class LegacyAdditionalMapMarkerController : IDisposable
 
     private void FloorSelector_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
         _page.Dispatcher.BeginInvoke(Refresh);
+
+    private void MapScale_Changed(object? sender, EventArgs e) => UpdateScale();
 
     private async Task RefreshAsync()
     {
@@ -191,12 +186,13 @@ public sealed class LegacyAdditionalMapMarkerController : IDisposable
             return;
         _disposed = true;
 
-        _scaleTimer.Stop();
         _page.Loaded -= Page_Loaded;
         _tracker.MapChanged -= Tracker_MapChanged;
         _db.DataRefreshed -= Db_DataRefreshed;
         if (_floorSelector is not null)
             _floorSelector.SelectionChanged -= FloorSelector_SelectionChanged;
+        if (_mapScale is not null)
+            _mapScale.Changed -= MapScale_Changed;
         if (_raiderToggle is not null)
         {
             _raiderToggle.Checked -= RaiderToggle_Changed;
