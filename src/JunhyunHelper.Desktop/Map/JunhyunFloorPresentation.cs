@@ -13,6 +13,12 @@ public enum JunhyunFloorRelation
     Below,
 }
 
+public enum JunhyunMissingFloorBehavior
+{
+    TreatAsMain,
+    KeepUnknown,
+}
+
 public readonly record struct JunhyunFloorRelationInfo(
     JunhyunFloorRelation Relation,
     string Arrow,
@@ -34,21 +40,28 @@ public static class JunhyunFloorPresentation
     public static JunhyunFloorRelationInfo Resolve(
         MapConfig? config,
         string? markerFloorId,
-        string? currentFloorId)
+        string? currentFloorId,
+        JunhyunMissingFloorBehavior missingFloorBehavior = JunhyunMissingFloorBehavior.TreatAsMain)
     {
         if (config?.Floors is null || config.Floors.Count == 0 || string.IsNullOrWhiteSpace(currentFloorId))
-            return new JunhyunFloorRelationInfo(JunhyunFloorRelation.Unknown, string.Empty, string.Empty);
+            return Unknown();
 
         var current = config.Floors.FirstOrDefault(floor =>
             string.Equals(floor.LayerId, currentFloorId, StringComparison.OrdinalIgnoreCase));
         if (current is null)
-            return new JunhyunFloorRelationInfo(JunhyunFloorRelation.Unknown, string.Empty, string.Empty);
+            return Unknown();
+
+        if (string.IsNullOrWhiteSpace(markerFloorId) &&
+            missingFloorBehavior == JunhyunMissingFloorBehavior.KeepUnknown)
+        {
+            return Unknown();
+        }
 
         var effectiveMarkerFloorId = string.IsNullOrWhiteSpace(markerFloorId) ? "main" : markerFloorId;
         var marker = config.Floors.FirstOrDefault(floor =>
             string.Equals(floor.LayerId, effectiveMarkerFloorId, StringComparison.OrdinalIgnoreCase));
         if (marker is null)
-            return new JunhyunFloorRelationInfo(JunhyunFloorRelation.Unknown, string.Empty, string.Empty);
+            return Unknown();
 
         if (marker.Order == current.Order)
         {
@@ -69,18 +82,26 @@ public static class JunhyunFloorPresentation
         FrameworkElement markerVisual,
         JunhyunFloorRelationInfo relation,
         double badgeOffsetX = 8,
-        double badgeOffsetY = -16)
+        double badgeOffsetY = -16,
+        double currentFloorOpacity = 1.0)
     {
         if (markerVisual is not Canvas canvas)
             return;
 
+        markerVisual.Opacity = Math.Clamp(currentFloorOpacity, 0.0, 1.0);
+
         if (!relation.IsOtherFloor)
         {
+            RestoreMarkerBodyOpacity(canvas);
             RemoveDirectionBadge(canvas);
             return;
         }
 
-        markerVisual.Opacity = OtherFloorOpacity;
+        // Keep the direction badge fully legible. Dim the marker body rather than the
+        // root Canvas; otherwise WPF also applies the 50% parent opacity to the arrow.
+        markerVisual.Opacity = 1.0;
+        SetMarkerBodyOpacity(canvas, OtherFloorOpacity);
+
         var tooltip = $"{relation.Arrow} {relation.FloorLabel}";
         var existing = FindDirectionBadge(canvas);
         if (existing is not null &&
@@ -103,11 +124,12 @@ public static class JunhyunFloorPresentation
             Width = 16,
             Height = 16,
             CornerRadius = new CornerRadius(8),
-            Background = new SolidColorBrush(Color.FromArgb(235, background.R, background.G, background.B)),
-            BorderBrush = new SolidColorBrush(Color.FromArgb(235, 245, 245, 245)),
+            Background = new SolidColorBrush(Color.FromArgb(245, background.R, background.G, background.B)),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(245, 245, 245, 245)),
             BorderThickness = new Thickness(1),
             ToolTip = tooltip,
             IsHitTestVisible = false,
+            Opacity = 1.0,
             Child = new TextBlock
             {
                 Text = relation.Arrow,
@@ -131,9 +153,26 @@ public static class JunhyunFloorPresentation
             canvas.Children.Remove(badge);
     }
 
+    private static void SetMarkerBodyOpacity(Canvas canvas, double opacity)
+    {
+        foreach (var child in canvas.Children.OfType<FrameworkElement>())
+        {
+            if (IsDirectionBadge(child))
+                continue;
+            child.Opacity = opacity;
+        }
+    }
+
+    private static void RestoreMarkerBodyOpacity(Canvas canvas) => SetMarkerBodyOpacity(canvas, 1.0);
+
+    private static bool IsDirectionBadge(FrameworkElement element) =>
+        string.Equals(element.Tag as string, DirectionBadgeTag, StringComparison.Ordinal);
+
     private static FrameworkElement? FindDirectionBadge(Canvas canvas) =>
         canvas.Children
             .OfType<FrameworkElement>()
-            .FirstOrDefault(element =>
-                string.Equals(element.Tag as string, DirectionBadgeTag, StringComparison.Ordinal));
+            .FirstOrDefault(IsDirectionBadge);
+
+    private static JunhyunFloorRelationInfo Unknown() =>
+        new(JunhyunFloorRelation.Unknown, string.Empty, string.Empty);
 }
