@@ -1,0 +1,68 @@
+name: Finish v0.1.1 Repository State
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/finish-v0.1.1-state.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  finish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Update PRODUCT and remove one-off workflows
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('docs/PRODUCT.md')
+          text = path.read_text(encoding='utf-8')
+          replacements = [
+              ('**v0.1.0 RELEASED — 2026-08-10 / v0.1.1 QUEST CORRECTNESS CANDIDATE — 2026-08-15**',
+               '**v0.1.1 RELEASED — 2026-08-15**'),
+              ('PR #74 — Scanner placeholder 복구 / 준현 헬퍼 이름 / single-file packaging',
+               'PR #74 — Scanner placeholder 복구 / 준현 헬퍼 이름 / single-file packaging\nPR #75 — current Quest prerequisite / availability correctness\nPR #76 — v0.1.1 Windows version metadata'),
+              ('상세 릴리즈 기록: `docs/RELEASE_0.1.0.md`',
+               'v0.1.0 기록: `docs/RELEASE_0.1.0.md`\n\nv0.1.1 기록: `docs/RELEASE_0.1.1.md`'),
+              ('v0.1.1 후보에서는 2026-08-15 최신 live 데이터로 Quest prerequisite/availability를 재감사했습니다.',
+               'v0.1.1에서는 2026-08-15 최신 live 데이터로 Quest prerequisite/availability를 재감사했습니다.'),
+          ]
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit(f'PRODUCT marker missing: {old}')
+              text = text.replace(old, new, 1)
+          marker = '현재 상세 상태는 `docs/STATE.md`를 기준으로 합니다.'
+          release_line = 'v0.1.1 공개 Release: `https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.1` / Windows ZIP SHA-256 `91394101c5011b833c2810d8857fe2e9fd59b9f42f8710b90a899fe8169f0b54`.\n\n'
+          if release_line.strip() not in text:
+              if marker not in text:
+                  raise SystemExit('PRODUCT final state marker missing')
+              text = text.replace(marker, release_line + marker, 1)
+          path.write_text(text, encoding='utf-8')
+
+          for filename in [
+              '.github/workflows/release-v0.1.1.yml',
+              '.github/workflows/finalize-v0.1.1.yml',
+              '.github/workflows/finish-v0.1.1-state.yml',
+          ]:
+              Path(filename).unlink(missing_ok=True)
+          PY
+
+      - name: Commit final state
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Finalize v0.1.1 public release state'
+          git push origin HEAD:main
