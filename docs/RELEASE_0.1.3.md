@@ -2,11 +2,11 @@
 
 기록일: **2026-08-15**
 
-상태: **RELEASE CANDIDATE / PUBLIC RELEASE PENDING**
+상태: **RELEASED / PUBLIC RELEASE VERIFIED**
 
 ## 목적
 
-v0.1.2 실사용에서 확인된 두 가지 사용자 문제를 우선 해결합니다.
+v0.1.2 실사용에서 확인된 두 가지 사용자 문제를 우선 해결했습니다.
 
 1. 지도 탭 진입 시 프로그램이 멈추려는 것처럼 느껴지는 UI 지연
 2. 다른 층 marker가 올바른 층 방향/가시성으로 표시되지 않는 문제
@@ -72,43 +72,70 @@ v0.1.2 → v0.1.3 필수 데이터 업데이트: 없음
 
 기존 Profile / Quest 완료 / Inventory / Hideout 진행 / Map product settings / Ammo favorites는 유지합니다.
 
-## Release-candidate 검증
+## 최종 검토에서 추가로 발견해 수정한 항목
 
-기능 코드 기준:
+공개 릴리즈 직전 전체 변경 범위를 다시 검토했고 다음 release-blocking 항목을 추가로 발견해 수정했습니다.
+
+- MiniMap Raider/additional marker가 floor/scale 변경 뒤 stale 상태를 유지할 수 있던 경로
+- legacy extract refresh가 컨테이너를 비운 뒤 타층 extract가 자동 복구되지 않을 수 있던 경로
+- EXE ProductVersion / FIRST_RUN / README / STATE가 v0.1.3 후보와 불일치하던 릴리즈 메타데이터
+
+모든 PR review thread를 해결한 뒤 release gate를 다시 처음부터 통과시켰습니다.
+
+## 최종 공개 release gate
+
+Exact release baseline:
 
 ```text
-RC code: 35485f1507b4b3424253b6752660c6a36447d42b
-CI run: 31834407168
-Desktop Release build: SUCCESS
+PR: #79 MERGED
+release baseline: 3c49d4ca5af549afb4a4a5ce376cb6f8869709fb
+pre-merge final CI: 31834842097 — SUCCESS
+release workflow: 31835116544 — SUCCESS
+Desktop ProductVersion: 0.1.3+3c49d4ca5af549afb4a4a5ce376cb6f8869709fb
 Automated tests: 176 passed / 0 failed
 Windows x64 self-contained single-file publish: SUCCESS
 Main Map + MiniMap runtime smoke: SUCCESS
 multi-floor SVG switch: SUCCESS
 other-floor relation / ↑↓ / opacity smoke: SUCCESS
-floor-hotkey zoom + viewport-center preservation: SUCCESS
+floor-hotkey zoom + map-space viewport-center preservation: SUCCESS
 MiniMap window / zoom / floor / marker-scale smoke: SUCCESS
-normal close / process exit: SUCCESS
+normal Main Window close / process exit: SUCCESS
+package root / PDB / nested ZIP / runtime Logs validation: SUCCESS
 ```
 
-## 최종 공개 release gate
+## 공개 GitHub Release
 
-PR #79 병합 후 exact merged baseline에서 다음을 다시 실행합니다.
+```text
+tag: v0.1.3
+title: 준현 헬퍼 v0.1.3
+release URL: https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.3
+target commit: 3c49d4ca5af549afb4a4a5ce376cb6f8869709fb
+draft: false
+prerelease: false
+```
 
-1. Release build
-2. 176 automated tests
-3. Windows x64 self-contained single-file publish
-4. 실제 Main Map + MiniMap smoke
-5. 정상 Main Window close / process exit
-6. package root 검증
-   - `준현 헬퍼.exe`
-   - `FIRST_RUN_KO.txt`
-   - `Assets/`
-   - PDB 없음
-   - root DLL 없음
-   - nested ZIP 없음
-   - runtime `Logs/` 없음
-7. `Junhyun-Helper-v0.1.3-win-x64.zip` + `SHA256SUMS.txt` GitHub Release 게시
-8. 공개 asset 재다운로드 후 SHA-256 재검증
-9. Release가 draft/prerelease가 아닌지 확인
+공개 asset은 정확히 두 개입니다.
 
-최종 release baseline / workflow run / public SHA-256 / URL은 공개 릴리즈 완료 후 이 문서와 `docs/STATE.md`, `README.md`에 기록합니다.
+```text
+Junhyun-Helper-v0.1.3-win-x64.zip
+SHA256SUMS.txt
+```
+
+Windows ZIP:
+
+```text
+size: 74,030,429 bytes
+SHA-256: 41e674d0186846076e62a1edd92c1a5ac9849f53ab48bbedeb2a6a00101f6941
+```
+
+Release workflow가 GitHub에 게시된 ZIP과 `SHA256SUMS.txt`를 다시 다운로드하여 생성 직후 hash, manifest hash, 공개 다운로드 hash가 모두 같은지 확인했습니다.
+
+```text
+VERIFIED_RELEASE_SHA256=41e674d0186846076e62a1edd92c1a5ac9849f53ab48bbedeb2a6a00101f6941
+```
+
+릴리즈 게시에 사용한 일회성 workflow는 성공 후 저장소에서 제거했습니다.
+
+## 결론
+
+**v0.1.3은 RELEASED / PUBLIC RELEASE VERIFIED 상태이며 현재 알려진 기능 또는 패키징 blocker는 없습니다.**
