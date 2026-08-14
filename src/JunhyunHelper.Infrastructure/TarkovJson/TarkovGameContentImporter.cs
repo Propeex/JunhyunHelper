@@ -1,6 +1,7 @@
 using System.Text.Json;
 using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.Editions;
+using JunhyunHelper.Core.Profiles;
 using JunhyunHelper.Core.Quests;
 using JunhyunHelper.Infrastructure.TarkovJson.Ammo;
 using JunhyunHelper.Infrastructure.TarkovJson.Hideout;
@@ -12,6 +13,15 @@ namespace JunhyunHelper.Infrastructure.TarkovJson;
 
 public sealed class TarkovGameContentImporter
 {
+    private const string LightkeeperTraderId = "638f541a29ffd1183d187f57";
+    private const string LightkeeperUnlockQuestId = "625d700cc48e6c62a440fab5";
+    private const string BtrDriverTraderId = "656f0f98d80a697f855d34b1";
+    private const string BtrDriverUnlockQuestId = "6752f6d83038f7df520c83e8";
+    private const string RefTraderId = "6617beeaa9cfa777ca915b7c";
+    private const string RefRegularUnlockQuestId = "66058cb22cee99303f1ba067";
+    private const string RefPveUnlockQuestId = "6834145ebc1f443d7603c8a7";
+    private const string AvailabilityDelayRequirementType = "availabilityDelay";
+
     private readonly TarkovItemImporter _itemImporter = new();
     private readonly TarkovTraderImporter _traderImporter = new();
     private readonly TarkovMapReferenceImporter _mapImporter = new();
@@ -28,7 +38,8 @@ public sealed class TarkovGameContentImporter
         TarkovEndpointSource hideout,
         TarkovEndpointSource barters,
         TarkovEndpointSource crafts,
-        IReadOnlyList<EditionDefinition> editions)
+        IReadOnlyList<EditionDefinition> editions,
+        GameMode gameMode = GameMode.Regular)
     {
         ArgumentNullException.ThrowIfNull(items);
         ArgumentNullException.ThrowIfNull(traders);
@@ -42,9 +53,11 @@ public sealed class TarkovGameContentImporter
         var questObjectives = _questObjectiveImporter.Import(
             tasks.BaseDocument,
             tasks.Localization);
-        var quests = ApplyUnsupportedAvailabilityRequirements(
-            _questImporter.Import(tasks.BaseDocument, tasks.Localization),
-            tasks.BaseDocument.Data);
+        var quests = ApplySpecialTraderAccessRequirements(
+            ApplyUnsupportedAvailabilityRequirements(
+                _questImporter.Import(tasks.BaseDocument, tasks.Localization),
+                tasks.BaseDocument.Data),
+            gameMode);
 
         return new GameContentCatalog(
             _itemImporter.Import(items.BaseDocument, items.Localization),
@@ -61,6 +74,78 @@ public sealed class TarkovGameContentImporter
             editions);
     }
 
+    internal static IReadOnlyList<QuestDefinition> ApplySpecialTraderAccessRequirements(
+        IReadOnlyList<QuestDefinition> quests,
+        GameMode gameMode)
+    {
+        ArgumentNullException.ThrowIfNull(quests);
+
+        // These trader-access relationships are real game gates but are not repeated in
+        // json.tarkov.dev taskRequirements on the quests offered by these traders. Keep
+        // the compatibility overlay mode-aware and, critically, only apply a gate when
+        // the current live mode actually contains the unlock quest. That makes an ID
+        // retirement/removal degrade safely instead of creating a broken prerequisite.
+        var questIds = quests
+            .Select(static quest => quest.Id)
+            .ToHashSet(StringComparer.Ordinal);
+        var refUnlockQuestId = gameMode == GameMode.Pve
+            ? RefPveUnlockQuestId
+            : RefRegularUnlockQuestId;
+
+        var gates = new Dictionary<string, string>(StringComparer.Ordinal);
+        AddGateIfPresent(gates, questIds, LightkeeperTraderId, LightkeeperUnlockQuestId);
+        AddGateIfPresent(gates, questIds, BtrDriverTraderId, BtrDriverUnlockQuestId);
+        AddGateIfPresent(gates, questIds, RefTraderId, refUnlockQuestId);
+
+        return quests
+            .Select(quest => quest.TraderId is { } traderId &&
+                             gates.TryGetValue(traderId, out var unlockQuestId)
+                ? StrengthenTraderGate(quest, unlockQuestId)
+                : quest)
+            .ToArray();
+    }
+
+    private static void AddGateIfPresent(
+        IDictionary<string, string> gates,
+        IReadOnlySet<string> questIds,
+        string traderId,
+        string unlockQuestId)
+    {
+        if (questIds.Contains(unlockQuestId))
+            gates[traderId] = unlockQuestId;
+    }
+
+    private static QuestDefinition StrengthenTraderGate(
+        QuestDefinition quest,
+        string unlockQuestId)
+    {
+        if (string.Equals(quest.Id, unlockQuestId, StringComparison.Ordinal))
+            return quest;
+
+        var found = false;
+        var requirements = quest.TaskRequirements
+            .Select(requirement =>
+            {
+                if (!string.Equals(requirement.RequiredQuestId, unlockQuestId, StringComparison.Ordinal))
+                    return requirement;
+
+                found = true;
+                return new QuestTaskRequirement(
+                    unlockQuestId,
+                    new HashSet<QuestRequiredStatus> { QuestRequiredStatus.Complete });
+            })
+            .ToList();
+
+        if (!found)
+        {
+            requirements.Add(new QuestTaskRequirement(
+                unlockQuestId,
+                new HashSet<QuestRequiredStatus> { QuestRequiredStatus.Complete }));
+        }
+
+        return quest with { TaskRequirements = requirements.ToArray() };
+    }
+
     private static IReadOnlyList<QuestDefinition> ApplyUnsupportedAvailabilityRequirements(
         IReadOnlyList<QuestDefinition> quests,
         JsonElement taskData)
@@ -70,25 +155,39 @@ public sealed class TarkovGameContentImporter
         foreach (var rawTask in TarkovJsonReader.ReadCollection(taskData, "tasks"))
         {
             var questId = TarkovJsonReader.RequiredString(rawTask, "id", "Quest");
-            if (!rawTask.TryGetProperty("otherRequirements", out var rawRequirements) ||
-                rawRequirements.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+            var types = new HashSet<string>(StringComparer.Ordinal);
+
+            if (rawTask.TryGetProperty("otherRequirements", out var rawRequirements) &&
+                rawRequirements.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined))
             {
-                continue;
+                foreach (var raw in TarkovJsonReader.ReadCollectionValue(
+                             rawRequirements,
+                             $"quest {questId} other requirements"))
+                {
+                    types.Add(TarkovJsonReader.RequiredString(
+                        raw,
+                        "type",
+                        $"Quest '{questId}' additional requirement"));
+                }
             }
 
-            var types = TarkovJsonReader.ReadCollectionValue(
-                    rawRequirements,
-                    $"quest {questId} other requirements")
-                .Select(raw => TarkovJsonReader.RequiredString(
-                    raw,
-                    "type",
-                    $"Quest '{questId}' additional requirement"))
-                .Distinct(StringComparer.Ordinal)
-                .Order(StringComparer.Ordinal)
-                .ToArray();
+            var minDelay = TarkovJsonReader.OptionalInt(rawTask, "availableDelaySecondsMin") ?? 0;
+            var maxDelay = TarkovJsonReader.OptionalInt(rawTask, "availableDelaySecondsMax") ?? minDelay;
+            if (minDelay > 0 || maxDelay > 0)
+            {
+                // The source exposes a server-side delay window but JunhyunHelper does
+                // not know the player's real in-game prerequisite completion timestamp.
+                // Preserve the numeric metadata on QuestDefinition and mark availability
+                // as unresolved rather than inventing a countdown from a UI click time.
+                types.Add(AvailabilityDelayRequirementType);
+            }
 
-            if (types.Length > 0)
-                unsupportedByQuest[questId] = types;
+            if (types.Count > 0)
+            {
+                unsupportedByQuest[questId] = types
+                    .Order(StringComparer.Ordinal)
+                    .ToArray();
+            }
         }
 
         return quests

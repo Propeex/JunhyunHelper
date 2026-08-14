@@ -14,4 +14,8 @@
   <ItemGroup>
     <ProjectReference Include="../JunhyunHelper.Core/JunhyunHelper.Core.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="JunhyunHelper.Tests" />
+  </ItemGroup>
 </Project>

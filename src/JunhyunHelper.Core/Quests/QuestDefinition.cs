@@ -52,7 +52,9 @@ public sealed record QuestDefinition(
     IReadOnlyList<string>? UnsupportedAvailabilityRequirementTypes = null,
     IReadOnlyList<QuestCompletionFailureCondition>? CompletionFailureConditionData = null,
     bool Restartable = false,
-    IReadOnlyList<string>? UnsupportedFailureConditionTypes = null)
+    IReadOnlyList<string>? UnsupportedFailureConditionTypes = null,
+    int AvailableDelaySecondsMin = 0,
+    int AvailableDelaySecondsMax = 0)
 {
     [JsonIgnore]
     public IReadOnlyList<string> UnsupportedAvailabilityRequirements =>
@@ -69,4 +71,7 @@ public sealed record QuestDefinition(
     [JsonIgnore]
     public bool RequiresExplicitFailureInput =>
         !Restartable && UnsupportedFailureConditions.Count > 0;
+
+    [JsonIgnore]
+    public bool HasAvailabilityDelay => AvailableDelaySecondsMax > 0;
 }
