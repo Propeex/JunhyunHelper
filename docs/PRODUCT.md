@@ -47,11 +47,12 @@
 
 ### 2.1 Game Content schema
 
-현재 **v4**.
+현재 **v5**.
 
 - v2: Item category metadata
 - v3: Ammo의 현재 Wiki Ballistics 표 등록 여부를 Armor effectiveness와 별도 보존
 - v4: Quest의 online `possibleLocations` / `zones` geometry를 canonical content에 보존해 Map Quest projection에 사용
+- v5: 최신 Quest availability semantics — 특수 상인 접근 선행 조건 보정, `availableDelaySecondsMin/Max` 보존, 미지원 `otherRequirements`를 숨기지 않고 진단 정보로 유지
 
 이전 content snapshot은 온라인 source에서 자동 재구축합니다. `user.db`는 별도입니다.
 
@@ -127,7 +128,7 @@ Wiki는 raw Ammo stats의 대체 원천이 아닙니다. Wiki 장애/구조 이�
 - 사용 불가
 - 완료
 
-Core `Indeterminate`는 diagnostic으로 유지하되 현재 지원 규칙을 모두 적용한 후에도 남는 residual Indeterminate는 Application 제품 경계에서 **진행 중**으로 보여줍니다. 확정 가능한 Locked/Unavailable은 변경하지 않습니다.
+Core `Indeterminate`는 diagnostic으로 유지합니다. 현재 지원 규칙을 모두 적용한 후에도 남는 residual Indeterminate는 사용자가 진행 관리를 계속할 수 있도록 Application 제품 목록에서는 **진행 중**으로 보여주되, 원래 `Indeterminate` 판정과 이유를 `판정 문제` 목록에 그대로 보존합니다. 따라서 알 수 없는 해금 조건을 정확한 Current로 가장하지 않습니다. 확정 가능한 Locked/Unavailable은 변경하지 않습니다.
 
 사용자 조작:
 
@@ -156,6 +157,18 @@ canonical Map ID와 Quest 원본 MapId는 보존합니다.
 ### 5.2 자동 scroll 정책
 
 일반 refresh/진행 변경 때문에 목록이 임의로 이동하지 않습니다. 사용자가 cross-navigation을 명시적으로 요청했을 때만 목표 row로 이동할 수 있습니다.
+
+### 5.3 최신 availability / 선행 조건 정책
+
+`CONFIRMED / v0.1.1`
+
+- `taskRequirements`의 `active / complete / failed` 상태 조합은 source 그대로 canonical prerequisite로 해석합니다. 여러 prerequisite는 모두 충족해야 합니다.
+- json.tarkov.dev가 개별 후속 Quest에 반복하지 않는 **Lightkeeper / BTR Driver / Ref 상인 접근 조건**은 현재 GameMode에 해당 unlock Quest가 실제 존재할 때만 `Complete` prerequisite로 보강합니다. upstream이 같은 requirement를 제공하기 시작하면 중복하지 않고 source와 합칩니다.
+- 현재 source의 `globalVariable` / `dialogue` 같은 opaque `otherRequirements`는 의미를 추측하지 않습니다. 해당 Quest는 `판정 문제`에 명시해 사용자가 자동 판정의 한계를 볼 수 있게 합니다.
+- `availableDelaySecondsMin / Max`는 canonical metadata로 저장합니다. 그러나 준현 헬퍼의 완료 버튼 시각은 실제 게임 완료 시각이 아니므로 가짜 countdown을 만들지 않고 `availabilityDelay` 미지원 조건으로 명시합니다.
+- 위 availability 의미 변화 때문에 Content snapshot schema는 v5입니다. v3/v4 snapshot은 오프라인 last-known-good로 읽을 수 있지만, v0.1.1의 최신 판정을 받으려면 한 번 `데이터 업데이트`해 v5를 재구축합니다.
+
+상세 감사 기록: `docs/QUEST_PREREQUISITE_AUDIT_2026-08-15.md`
 
 ## 6. Hideout
 
@@ -462,7 +475,7 @@ Map artwork/config/general-marker DB는 v0.1.0 배포물의 검증된 pinned bun
 
 ## 13. 현재 릴리즈 상태
 
-**v0.1.0 RELEASED — 2026-08-10**
+**v0.1.0 RELEASED — 2026-08-10 / v0.1.1 QUEST CORRECTNESS CANDIDATE — 2026-08-15**
 
 Core 사용성 개선 1~5차와 Map 제품화/실사용 피드백 반복이 완료되었습니다.
 
@@ -501,5 +514,7 @@ runtime Logs folder beside EXE        0
 ```
 
 상세 릴리즈 기록: `docs/RELEASE_0.1.0.md`
+
+v0.1.1 후보에서는 2026-08-15 최신 live 데이터로 Quest prerequisite/availability를 재감사했습니다. regular 517 / PvE 513 / pvp-season 490 Quest와 Item/Trader/Map/Hideout/Ammo 전체를 실제 importer/validator에 통과시켰고 validation error/warning 없이 성공했습니다. 특수 상인 접근 조건을 보강하고, 현재 자동 판정할 수 없는 `globalVariable` / `dialogue` / availability delay는 더 이상 조용히 정확한 Current처럼 숨기지 않습니다.
 
 현재 상세 상태는 `docs/STATE.md`를 기준으로 합니다.

@@ -111,6 +111,16 @@
 - 영향: v0.1.0은 검증된 pinned Map bundle을 포함하고 자동 Map bundle update는 후속 범위로 둔다.
 - 대체한 결정: 없음
 
+
+## DEC-038 — 불완전한 Quest availability source는 추측하지 않고 확정 가능한 gate만 보강한다
+
+- 상태: `CONFIRMED`
+- 날짜: 2026-08-15
+- 결정: 최신 Quest availability 판정에서 source가 의미를 명확히 제공하는 `taskRequirements`, level/faction/prestige/trader 조건은 자동 판정한다. 반면 `globalVariable`, `dialogue`, 실제 게임 완료 시각이 필요한 availability delay처럼 JunhyunHelper의 User Progress만으로 참/거짓을 증명할 수 없는 조건은 임의 추정하지 않고 `Indeterminate` 진단으로 보존한다. 제품 목록에서는 관리 가능성을 위해 기존 optimistic Current fallback을 유지하되 `판정 문제`에 원 판정과 이유를 노출한다. Lightkeeper/BTR Driver/Ref처럼 게임의 상인 접근 gate가 현 API의 개별 후속 `taskRequirements`에서 빠진 경우에는 현재 GameMode에 검증된 unlock Quest가 실제 존재할 때만 Complete prerequisite를 보강한다.
+- 이유: 2026-08-15 live source에는 각 GameMode별 `globalVariable` 162건, `dialogue` 12건, delay Quest 13건이 존재한다. 이 조건을 Current로 조용히 확정하거나 UI 클릭 시각으로 타이머를 계산하면 실제 게임과 다른 availability를 만들 수 있다. 반대로 특수 상인 접근 gate 누락은 후속 Quest를 명백히 너무 일찍 열어주는 오류다.
+- 영향: Content schema v5. v3/v4는 last-known-good offline snapshot으로 읽을 수 있으나 최신 판정은 `데이터 업데이트` 후 v5 content에서 적용된다. 세부 감사는 `docs/QUEST_PREREQUISITE_AUDIT_2026-08-15.md`를 따른다.
+- 대체한 결정: 없음
+
 ---
 
 # 현재 결정 확인 방법
