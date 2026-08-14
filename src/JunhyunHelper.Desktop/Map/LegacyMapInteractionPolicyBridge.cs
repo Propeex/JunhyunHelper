@@ -12,9 +12,16 @@ namespace JunhyunHelper.Desktop.Map;
 /// <summary>
 /// Enforces JunhyunHelper product policies while leaving the exact Tarkov Helper
 /// floor selector and its native floor-change loading path intact.
+///
+/// Important: floor is a presentation relation, not a visibility filter. Enabled
+/// markers/extracts from other floors stay visible so JunhyunFloorPresentation can
+/// distinguish current/above/below. A short stabilization window handles late legacy
+/// refreshes without the old permanent 200 ms full-tree scan.
 /// </summary>
 public sealed class LegacyMapInteractionPolicyBridge : IDisposable
 {
+    private const int StabilizationPasses = 8;
+
     private readonly TarkovHelper.Pages.Map.MapPage _page;
     private readonly MapTrackerService _tracker = MapTrackerService.Instance;
     private readonly OverlayMiniMapService _overlay = OverlayMiniMapService.Instance;
@@ -31,7 +38,8 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
     private readonly CheckBox? _pmcExtractToggle;
     private readonly CheckBox? _scavExtractToggle;
     private readonly CheckBox? _transitToggle;
-    private readonly DispatcherTimer _policyTimer;
+    private readonly DispatcherTimer _stabilizationTimer;
+    private int _stabilizationPassesRemaining;
     private bool _disposed;
 
     public LegacyMapInteractionPolicyBridge(TarkovHelper.Pages.Map.MapPage page)
@@ -53,31 +61,63 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
         _scavExtractToggle = _page.FindName("ChkShowScavExtracts") as CheckBox;
         _transitToggle = _page.FindName("ChkShowTransitExtracts") as CheckBox;
 
+        _stabilizationTimer = new DispatcherTimer(
+            TimeSpan.FromMilliseconds(180),
+            DispatcherPriority.Background,
+            (_, _) => StabilizationTick(),
+            _page.Dispatcher)
+        {
+            IsEnabled = false,
+        };
+
         RemoveCustomMarkers();
         ApplyFixedPolicies();
+        ApplyProductMarkerFilters();
 
         _tracker.PositionUpdated += Tracker_PositionUpdated;
+        _tracker.MapChanged += Tracker_MapChanged;
         _overlay.SettingsChanged += Overlay_SettingsChanged;
         if (_floorSelector is not null)
             _floorSelector.SelectionChanged += FloorSelector_SelectionChanged;
 
-        _policyTimer = new DispatcherTimer(
-            TimeSpan.FromMilliseconds(200),
-            DispatcherPriority.Background,
-            (_, _) => MaintainPolicies(),
-            _page.Dispatcher);
-        _policyTimer.Start();
-        _page.Dispatcher.BeginInvoke(MaintainPolicies, DispatcherPriority.Loaded);
+        HookFilter(_pmcSpawnToggle);
+        HookFilter(_sniperToggle);
+        HookFilter(_rogueToggle);
+        HookFilter(_cultistToggle);
+        HookFilter(_leverToggle);
+        HookFilter(_bossToggle);
+        HookFilter(_pmcExtractToggle);
+        HookFilter(_scavExtractToggle);
+        HookFilter(_transitToggle);
+
+        RestartStabilization();
     }
 
-    private void MaintainPolicies()
+    private void RestartStabilization()
     {
         if (_disposed)
             return;
 
+        _stabilizationPassesRemaining = StabilizationPasses;
+        _stabilizationTimer.Stop();
+        _stabilizationTimer.Start();
+    }
+
+    private void StabilizationTick()
+    {
+        if (_disposed)
+        {
+            _stabilizationTimer.Stop();
+            return;
+        }
+
         ApplyFixedPolicies();
-        EnforceCurrentFloorAndFilters();
+        ApplyProductMarkerFilters();
         RemoveCustomMarkers();
+
+        _stabilizationPassesRemaining--;
+        if (_stabilizationPassesRemaining <= 0)
+            _stabilizationTimer.Stop();
     }
 
     private void ApplyFixedPolicies()
@@ -105,13 +145,22 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
             _overlay.SaveSettings();
     }
 
-    private void FloorSelector_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
-        _page.Dispatcher.BeginInvoke(EnforceCurrentFloorAndFilters, DispatcherPriority.Background);
-
-    private void EnforceCurrentFloorAndFilters()
+    private void FloorSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        var selectedFloor = (_floorSelector?.SelectedItem as ComboBoxItem)?.Tag as string;
+        _page.Dispatcher.BeginInvoke(ApplyProductMarkerFilters, DispatcherPriority.Background);
+        RestartStabilization();
+    }
 
+    private void Tracker_MapChanged(string mapKey)
+    {
+        _page.Dispatcher.BeginInvoke(ApplyProductMarkerFilters, DispatcherPriority.Background);
+        RestartStabilization();
+    }
+
+    private void ApplyProductMarkerFilters()
+    {
+        // Floor must never participate in visibility. The dedicated floor presentation
+        // bridge owns current/above/below opacity/ring semantics.
         if (_mapMarkers is not null)
         {
             foreach (FrameworkElement child in _mapMarkers.Children)
@@ -119,8 +168,7 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
                 if (child.Tag is not MapMarker marker)
                     continue;
 
-                child.Visibility = IsCurrentFloor(marker.FloorId, selectedFloor) &&
-                                   IsGeneralMarkerEnabled(marker.Type)
+                child.Visibility = IsGeneralMarkerEnabled(marker.Type)
                     ? Visibility.Visible
                     : Visibility.Collapsed;
             }
@@ -133,8 +181,7 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
                 if (child.Tag is not MapExtract extract)
                     continue;
 
-                child.Visibility = IsCurrentFloor(extract.FloorId, selectedFloor) &&
-                                   IsExtractEnabled(extract.Faction)
+                child.Visibility = IsExtractEnabled(extract.Faction)
                     ? Visibility.Visible
                     : Visibility.Collapsed;
             }
@@ -163,14 +210,24 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
 
     private static bool IsChecked(CheckBox? checkBox) => checkBox?.IsChecked != false;
 
-    private static bool IsCurrentFloor(string? markerFloor, string? selectedFloor)
+    private void HookFilter(CheckBox? checkBox)
     {
-        if (string.IsNullOrWhiteSpace(selectedFloor))
-            return true;
-
-        var effectiveMarkerFloor = string.IsNullOrWhiteSpace(markerFloor) ? "main" : markerFloor;
-        return string.Equals(effectiveMarkerFloor, selectedFloor, StringComparison.OrdinalIgnoreCase);
+        if (checkBox is null)
+            return;
+        checkBox.Checked += FilterToggle_Changed;
+        checkBox.Unchecked += FilterToggle_Changed;
     }
+
+    private void UnhookFilter(CheckBox? checkBox)
+    {
+        if (checkBox is null)
+            return;
+        checkBox.Checked -= FilterToggle_Changed;
+        checkBox.Unchecked -= FilterToggle_Changed;
+    }
+
+    private void FilterToggle_Changed(object sender, RoutedEventArgs e) =>
+        _page.Dispatcher.BeginInvoke(ApplyProductMarkerFilters, DispatcherPriority.Background);
 
     private void Tracker_PositionUpdated(object? sender, ScreenPosition position)
     {
@@ -205,8 +262,11 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
 
     private void Overlay_SettingsChanged(OverlayMiniMapSettings settings)
     {
-        if (!_disposed)
-            _page.Dispatcher.BeginInvoke(ApplyFixedPolicies);
+        if (_disposed)
+            return;
+
+        _page.Dispatcher.BeginInvoke(ApplyFixedPolicies);
+        RestartStabilization();
     }
 
     private void RemoveCustomMarkers()
@@ -245,10 +305,21 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
             return;
         _disposed = true;
 
-        _policyTimer.Stop();
+        _stabilizationTimer.Stop();
         _tracker.PositionUpdated -= Tracker_PositionUpdated;
+        _tracker.MapChanged -= Tracker_MapChanged;
         _overlay.SettingsChanged -= Overlay_SettingsChanged;
         if (_floorSelector is not null)
             _floorSelector.SelectionChanged -= FloorSelector_SelectionChanged;
+
+        UnhookFilter(_pmcSpawnToggle);
+        UnhookFilter(_sniperToggle);
+        UnhookFilter(_rogueToggle);
+        UnhookFilter(_cultistToggle);
+        UnhookFilter(_leverToggle);
+        UnhookFilter(_bossToggle);
+        UnhookFilter(_pmcExtractToggle);
+        UnhookFilter(_scavExtractToggle);
+        UnhookFilter(_transitToggle);
     }
 }
