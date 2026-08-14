@@ -6,8 +6,8 @@ namespace TarkovHelper.Services;
 /// <summary>
 /// JunhyunHelper-owned compatibility replacement for the transplanted Tarkov Helper
 /// global keyboard hook. Product overlay hotkeys are dispatched by JunhyunHelper's
-/// own runtime. This class exists only for the original Map page's direct NumPad
-/// floor-selection contract and for source compatibility with the overlay service.
+/// own runtime. This class retains only the direct NumPad floor-selection input needed
+/// by the Map product and exposes it through a Junhyun-owned viewport-safe endpoint.
 ///
 /// Deliberately absent from the old implementation:
 /// - hidden S/S+D/D/O command sequence
@@ -60,10 +60,17 @@ public sealed class GlobalKeyboardHookService : IDisposable
     }
 
     /// <summary>
-    /// Direct floor-selection event retained for the original Map page.
-    /// NumPad0..5 map to floor indexes 0..5.
+    /// Legacy source compatibility only. The pinned MapPage still subscribes to this
+    /// event, but JunhyunHelper deliberately does not dispatch it because that path
+    /// changes ComboBox selection directly and can reset the user's viewport.
     /// </summary>
-    public event Action<int>? FloorKeyPressed;
+    public event Action<int>? FloorKeyPressed { add { } remove { } }
+
+    /// <summary>
+    /// Product direct floor-selection event. NumPad0..5 map to floor indexes 0..5 and
+    /// are handled by LegacyMapProductRuntime through MapPage.JunhyunSelectFloorAsync.
+    /// </summary>
+    public event Action<int>? DirectFloorSelectionPressed;
 
     // Compatibility-only events. The transplanted overlay service may attach handlers,
     // but JunhyunHelper never lets this legacy hook dispatch those product actions.
@@ -163,7 +170,7 @@ public sealed class GlobalKeyboardHookService : IDisposable
         {
             System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
             {
-                FloorKeyPressed?.Invoke(floorIndex.Value);
+                DirectFloorSelectionPressed?.Invoke(floorIndex.Value);
             });
         }
 
