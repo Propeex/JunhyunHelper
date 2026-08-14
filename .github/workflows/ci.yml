@@ -118,11 +118,17 @@ jobs:
           JUNHYUNHELPER_MAP_SMOKE: "1"
         run: |
           $exe = (Resolve-Path 'artifacts/publish/준현 헬퍼.exe').Path
+          $diagnostic = Join-Path $env:TEMP 'junhyun-map-smoke-error.txt'
+          Remove-Item $diagnostic -Force -ErrorAction SilentlyContinue
           $process = Start-Process -FilePath $exe -WorkingDirectory artifacts/publish -PassThru
           try {
             Start-Sleep -Seconds 12
             $process.Refresh()
             if ($process.HasExited) {
+              if (Test-Path $diagnostic) {
+                Write-Host 'Map smoke diagnostic:'
+                Get-Content $diagnostic | ForEach-Object { Write-Host $_ }
+              }
               throw "Published 준현 헬퍼 exited during Map startup smoke with code $($process.ExitCode)."
             }
 
