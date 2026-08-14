@@ -133,11 +133,34 @@ jobs:
             }
 
             Write-Host "Startup + Map smoke passed. Requesting normal Main Window close..."
-            if (-not $process.CloseMainWindow()) {
-              throw "Could not send a normal close request to the 준현 헬퍼 Main Window."
+
+            # Process.MainWindowHandle can briefly be unavailable on hosted Windows
+            # runners after the smoke opens/hides the MiniMap. Refresh and retry the
+            # normal WM_CLOSE request instead of turning a transient handle race into a
+            # false product failure. This still requires a real normal-window close;
+            # force-kill remains cleanup-only in finally.
+            $closeRequested = $false
+            for ($attempt = 1; $attempt -le 10; $attempt++) {
+              $process.Refresh()
+              if ($process.HasExited) {
+                $closeRequested = $true
+                break
+              }
+
+              if ($process.CloseMainWindow()) {
+                $closeRequested = $true
+                break
+              }
+
+              Start-Sleep -Milliseconds 500
             }
 
-            if (-not $process.WaitForExit(7000)) {
+            if (-not $closeRequested) {
+              throw "Could not send a normal close request to the 준현 헬퍼 Main Window after retries."
+            }
+
+            $process.Refresh()
+            if (-not $process.HasExited -and -not $process.WaitForExit(7000)) {
               throw "준현 헬퍼 Main Window closed but the process did not terminate within 7 seconds."
             }
 
