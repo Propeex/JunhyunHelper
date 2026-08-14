@@ -129,7 +129,8 @@ public sealed class TarkovContentBuildService
             hideout.Source,
             barters.Source,
             crafts.Source,
-            editions);
+            editions,
+            gameMode);
 
         var warnings = new[]
             {
