@@ -13,6 +13,7 @@ namespace JunhyunHelper.Desktop;
 public partial class MainWindow : TarkovHelper.MainWindow
 {
     private const string MapSmokeEnvironmentVariable = "JUNHYUNHELPER_MAP_SMOKE";
+    private const string MapSmokeDiagnosticFileName = "junhyun-map-smoke-error.txt";
 
     private TarkovHelper.Pages.Map.MapPage? _legacyMapPage;
     private LegacyMapProductAdapter? _legacyMapProductAdapter;
@@ -275,8 +276,25 @@ public partial class MainWindow : TarkovHelper.MainWindow
         }
         catch (Exception exception)
         {
-            System.Diagnostics.Debug.WriteLine($"[MapSmoke] {exception}");
+            WriteMapSmokeDiagnostic(exception);
             Environment.Exit(86);
+        }
+    }
+
+    private static void WriteMapSmokeDiagnostic(Exception exception)
+    {
+        System.Diagnostics.Debug.WriteLine($"[MapSmoke] {exception}");
+        try
+        {
+            var path = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(),
+                MapSmokeDiagnosticFileName);
+            System.IO.File.WriteAllText(path, exception.ToString());
+        }
+        catch
+        {
+            // The smoke failure itself must remain the exit reason even if diagnostics
+            // cannot be written on a particular runner.
         }
     }
 
