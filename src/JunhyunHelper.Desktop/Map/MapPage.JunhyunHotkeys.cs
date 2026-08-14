@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 
 namespace TarkovHelper.Pages.Map;
 
@@ -62,6 +63,7 @@ public partial class MapPage
             return;
         }
 
+        var viewport = CaptureJunhyunViewport();
         _junhyunFloorHotkeyBusy = true;
         try
         {
@@ -91,6 +93,15 @@ public partial class MapPage
             await RefreshMapMarkers(ct);
             UpdateCustomMarkersParam();
             _customMarkerManager?.UpdateMarkerDisplay();
+
+            // SvgViewbox may complete layout after LoadMapImageAsync. Restore the exact
+            // map-space point that was under the viewport center only after the floor
+            // artwork and marker refresh have settled, so a floor hotkey never behaves
+            // like a new map selection or forces the user to re-center on tracking.
+            await Dispatcher.InvokeAsync(
+                () => RestoreJunhyunViewport(viewport),
+                DispatcherPriority.ContextIdle,
+                ct);
         }
         catch (OperationCanceledException)
         {
@@ -105,4 +116,49 @@ public partial class MapPage
             _junhyunFloorHotkeyBusy = false;
         }
     }
+
+    private JunhyunViewportSnapshot? CaptureJunhyunViewport()
+    {
+        var zoom = _zoomLevel;
+        if (!double.IsFinite(zoom) || zoom <= 0 ||
+            MapViewerGrid.ActualWidth <= 0 || MapViewerGrid.ActualHeight <= 0)
+        {
+            return null;
+        }
+
+        var centerX = MapViewerGrid.ActualWidth / 2.0;
+        var centerY = MapViewerGrid.ActualHeight / 2.0;
+        return new JunhyunViewportSnapshot(
+            zoom,
+            centerX,
+            centerY,
+            (centerX - MapTranslate.X) / zoom,
+            (centerY - MapTranslate.Y) / zoom);
+    }
+
+    private void RestoreJunhyunViewport(JunhyunViewportSnapshot? snapshot)
+    {
+        if (snapshot is not { } value ||
+            MapViewerGrid.ActualWidth <= 0 || MapViewerGrid.ActualHeight <= 0)
+        {
+            return;
+        }
+
+        var zoom = Math.Clamp(value.Zoom, MinZoom, MaxZoom);
+        SetZoom(zoom);
+
+        // Re-evaluate the current viewport center in case layout changed by a few pixels
+        // while the SVG floor artwork was replaced.
+        var centerX = MapViewerGrid.ActualWidth / 2.0;
+        var centerY = MapViewerGrid.ActualHeight / 2.0;
+        MapTranslate.X = centerX - value.CanvasX * zoom;
+        MapTranslate.Y = centerY - value.CanvasY * zoom;
+    }
+
+    private readonly record struct JunhyunViewportSnapshot(
+        double Zoom,
+        double ViewportCenterX,
+        double ViewportCenterY,
+        double CanvasX,
+        double CanvasY);
 }
