@@ -25,7 +25,7 @@ jobs:
             curl -fsSL "https://json.tarkov.dev/$mode/tasks" -o tasks.json
             curl -fsSL "https://json.tarkov.dev/$mode/traders" -o traders.json
 
-            jq -r '.data.traders | to_entries[] | [.value.id, (.value.normalizedName // .value.name // "")] | @tsv' traders.json > traders.tsv
+            jq -r '.data | to_entries[] | [.value.id, (.value.normalizedName // .value.name // "")] | @tsv' traders.json > traders.tsv
             echo '-- special trader references --'
             grep -Ei $'\t(lightkeeper|btr-driver|ref)$' traders.tsv || true
 
