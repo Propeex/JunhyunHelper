@@ -226,6 +226,7 @@ canonical Map ID와 Quest 원본 MapId는 보존합니다.
 - Quest와 Hideout 필요 출처를 동일한 clickable block 형태로 표시
 - Quest 출처 → Quest
 - Hideout 출처 → Hideout facility
+- Item 상세 `위키` → canonical `GameItem.WikiUrl`의 유효한 HTTP/HTTPS 링크
 
 종류 dropdown은 현재 view/search/filter에서 실제 Item이 있는 category만 표시합니다.
 
@@ -248,6 +249,9 @@ canonical Map ID와 Quest 원본 MapId는 보존합니다.
 - 후보 row와 group은 full-width / left aligned
 - Quest → Quest, 후보 → Item
 - 목표 종료 전 후보별 cleanup은 보수적으로 보호
+- 유동 제출 view의 상태 dropdown은 `필요 / 전체 / 충분`
+- 기본 `필요`에서는 해당 Quest의 flexible objective를 모두 충족한 group을 자동 제외
+- 충족 여부는 별도 영구 상태가 아니라 현재 Inventory에서 계산한 `FlexibleQuestItemProgress`를 권위값으로 사용
 
 ### 7.5 Item 용도 필터
 
@@ -442,6 +446,9 @@ Hideout / Item / Ammo runtime과 Map을 결합하지 않습니다.
 - 일반 marker / PMC·Scav·Transit extract
 - 수동 floor dropdown
 - Main Map + MiniMap floor up/down global hotkey
+- Main Map floor hotkey는 floor 변경 전후 zoom + viewport 중앙 map-space 좌표 유지
+- NumPad 0~5 direct floor 선택도 같은 viewport-safe Main Map render 경로 사용
+- 타층 marker는 숨기지 않고 약 50% opacity + `Floor.Order` 기준 `↑`/`↓` 표시
 - Main Map + MiniMap zoom in/out global hotkey
 - MiniMap size increase/decrease hotkey
 - MiniMap hover hide / 설정형 N초 temporary hide
@@ -449,7 +456,7 @@ Hideout / Item / Ammo runtime과 Map을 결합하지 않습니다.
 - MiniMap non-player marker scale 25%~150%
 - player marker size는 기존 별도 설정
 - screenshot 기반 Map 전환 / player X-Z / 가능한 경우 heading
-- 다른 floor opacity 0%, auto-floor OFF
+- 지도 artwork는 선택 floor만 표시 / 타층 marker는 약 50% + 위층 `↑` / 아래층 `↓` / auto-floor OFF
 - MiniMap 우측 상단 고정 / mouse drag·resize 금지 / click-through ON
 
 제품 설정은 `%LocalAppData%/JunhyunHelper/map-product-settings.json`에 저장하고, Escape from Tarkov 또는 준현 헬퍼가 foreground일 때 제품 전역 hotkey를 처리합니다.
@@ -475,7 +482,7 @@ Map artwork/config/general-marker DB는 v0.1.0 배포물의 검증된 pinned bun
 
 ## 13. 현재 릴리즈 상태
 
-**v0.1.1 RELEASED — 2026-08-15**
+**v0.1.2 RELEASED — 2026-08-15**
 
 Core 사용성 개선 1~5차와 Map 제품화/실사용 피드백 반복이 완료되었습니다.
 
@@ -493,6 +500,8 @@ PR #73 — v0.1.0 release hardening
 PR #74 — Scanner placeholder 복구 / 준현 헬퍼 이름 / single-file packaging
 PR #75 — current Quest prerequisite / availability correctness
 PR #76 — v0.1.1 Windows version metadata
+PR #77 — floor viewport / other-floor marker / flexible status / Item Wiki
+PR #78 — Windows graceful-close smoke 안정화
 ```
 
 사용자는 PR #72 Windows 빌드에서 최근 기능 요구사항이 정상 동작함을 확인했습니다. PR #73에서 legacy updater/dependency/debug symbol/숨은 keyboard behavior/nested archive 등을 제거했고, PR #74에서 최종 제품명과 배포 구조를 확정했습니다.
@@ -522,5 +531,9 @@ v0.1.1 기록: `docs/RELEASE_0.1.1.md`
 v0.1.1에서는 2026-08-15 최신 live 데이터로 Quest prerequisite/availability를 재감사했습니다. regular 517 / PvE 513 / pvp-season 490 Quest와 Item/Trader/Map/Hideout/Ammo 전체를 실제 importer/validator에 통과시켰고 validation error/warning 없이 성공했습니다. 특수 상인 접근 조건을 보강하고, 현재 자동 판정할 수 없는 `globalVariable` / `dialogue` / availability delay는 더 이상 조용히 정확한 Current처럼 숨기지 않습니다.
 
 v0.1.1 공개 Release: `https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.1` / Windows ZIP SHA-256 `91394101c5011b833c2810d8857fe2e9fd59b9f42f8710b90a899fe8169f0b54`.
+
+v0.1.2에서는 floor viewport 보존, 타층 marker 방향 표현, 유동 제출 상태 filter, Item Wiki와 관련 최적화를 추가했습니다. 176개 자동 테스트와 실제 Main Map/MiniMap runtime smoke를 통과했습니다.
+
+v0.1.2 공개 Release: `https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.2` / Windows ZIP SHA-256 `163a2a33184a6f5d8abcefa542239cd2f29a686d924cf4d784081c47939398ab`.
 
 현재 상세 상태는 `docs/STATE.md`를 기준으로 합니다.

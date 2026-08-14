@@ -4,18 +4,18 @@ Escape from Tarkov 플레이를 지원하는 Windows 데스크톱 헬퍼 **준�
 
 ## 현재 버전
 
-**v0.1.1 RELEASED — Windows x64**
+**v0.1.2 RELEASED — Windows x64**
 
-**공개 다운로드:** https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.1
+**공개 다운로드:** https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.2
 
 Windows 배포 파일:
 
 ```text
-Junhyun-Helper-v0.1.1-win-x64.zip
-SHA-256: 91394101c5011b833c2810d8857fe2e9fd59b9f42f8710b90a899fe8169f0b54
+Junhyun-Helper-v0.1.2-win-x64.zip
+SHA-256: 163a2a33184a6f5d8abcefa542239cd2f29a686d924cf4d784081c47939398ab
 ```
 
-> **v0.1.0에서 업그레이드하는 경우:** v0.1.1을 처음 실행한 뒤 상단 **`데이터 업데이트`를 한 번 실행**해 주세요. 최신 Quest 판정 규칙이 포함된 v5 Game Content를 재구축합니다. 기존 프로필, Quest 완료 기록, Inventory, Hideout 진행(`user.db`)은 유지됩니다.
+> **업그레이드:** v0.1.1 → v0.1.2는 필수 `데이터 업데이트`가 없습니다. v0.1.0에서 바로 올리는 경우에만 최신 Quest 선행 조건 판정을 위해 `데이터 업데이트`를 한 번 실행해 주세요. 기존 프로필, Quest 완료 기록, Inventory, Hideout 진행(`user.db`)은 유지됩니다.
 
 ## 주요 기능
 
@@ -25,17 +25,30 @@ SHA-256: 91394101c5011b833c2810d8857fe2e9fd59b9f42f8710b90a899fe8169f0b54
 - Hideout 레벨 / 미래 업그레이드 재료
 - 미래 Quest + Hideout 기준 Needed Items
 - FIR / 일반 Inventory와 안전한 cleanup 계산
-- flexible hand-in 그룹
-- Item 종류/용도/필요 상태 필터와 cross-navigation
+- flexible hand-in 그룹 + `필요 / 전체 / 충분` 상태 필터
+- Item 종류/용도/필요 상태 필터, cross-navigation, Item Wiki
 - Ammo 성능/수급처/Armor Class 1~6 비교와 caliber favorites
 - 온라인 Game Content 안전 업데이트와 image cache
 - Map + MiniMap
   - 현재 Quest sidebar / A·B·C marker identity
   - 일반 marker / PMC·Scav·Transit 탈출구
   - floor / zoom / MiniMap 크기 hotkey
+  - floor hotkey 전환 시 zoom/지도 중심 위치 보존
+  - 타층 marker 50% + 위층 `↑` / 아래층 `↓` 표시
   - MiniMap opacity / temporary hide / marker scale
   - screenshot 기반 Map 전환 / player tracking
 - 상단 `스캐너` 탭 — 현재 `준비 중` placeholder 유지
+
+## v0.1.2 사용성 패치
+
+- 층 단축키로 floor를 바꿔도 기존 zoom과 보고 있던 지도 중심 위치를 유지
+- 다른 층 marker를 숨기지 않고 약 50% 투명도 + 위층 `↑` / 아래층 `↓`로 구분
+- Main Map / MiniMap의 Quest·일반 marker·탈출구·Raider 층 표현 통일
+- 유동 제출 상태 dropdown `필요 / 전체 / 충분`; 모두 모은 그룹은 기본 `필요` 목록에서 자동 제외
+- Item 상세에 canonical Wiki URL 기반 `위키` 버튼 추가
+- 타층 badge 재사용 / MiniMap 타층 extract signature cache로 불필요한 반복 UI 작업 감소
+
+검증: **176 tests passed / 0 failed**, 실제 Main Map + MiniMap runtime smoke, floor-hotkey viewport 보존, 정상 종료까지 통과했습니다.
 
 ## v0.1.1 Quest 정확도 패치
 
@@ -60,7 +73,7 @@ importer warnings: 0
 
 ## 실행
 
-1. GitHub Release에서 `Junhyun-Helper-v0.1.1-win-x64.zip`을 다운로드합니다.
+1. GitHub Release에서 `Junhyun-Helper-v0.1.2-win-x64.zip`을 다운로드합니다.
 2. 원하는 폴더에 압축을 풉니다.
 3. **`준현 헬퍼.exe`**를 실행합니다.
 
@@ -99,4 +112,6 @@ online source
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — 기술 구조
 - [`docs/QUEST_PREREQUISITE_AUDIT_2026-08-15.md`](docs/QUEST_PREREQUISITE_AUDIT_2026-08-15.md) — 최신 Quest 선행/해금 조건 감사
 - [`docs/RELEASE_0.1.1.md`](docs/RELEASE_0.1.1.md) — v0.1.1 릴리즈 기록
+- [`docs/USABILITY_REQUIREMENTS_2026-08-15.md`](docs/USABILITY_REQUIREMENTS_2026-08-15.md) — 층/유동 제출/Item Wiki 요구사항과 검증
+- [`docs/RELEASE_0.1.2.md`](docs/RELEASE_0.1.2.md) — v0.1.2 릴리즈 기록
 - [`docs/MAP_PRODUCT_REQUIREMENTS.md`](docs/MAP_PRODUCT_REQUIREMENTS.md) — Map/MiniMap 제품 기준
