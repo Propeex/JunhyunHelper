@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using System.Windows.Threading;
 using JunhyunHelper.Desktop.Map;
 using TarkovHelper.Models.Map;
@@ -17,7 +18,7 @@ public partial class OverlayMiniMapWindow
         RegisterJunhyunAdditionalMarkerClassHandler();
 
     private DispatcherTimer? _junhyunAdditionalMarkerTimer;
-    private int _junhyunAdditionalMarkerCount = -1;
+    private int _junhyunAdditionalMarkerSignature = int.MinValue;
     private string? _junhyunAdditionalMarkerMapKey;
 
     private static bool RegisterJunhyunAdditionalMarkerClassHandler()
@@ -62,36 +63,58 @@ public partial class OverlayMiniMapWindow
         {
             RemoveJunhyunAdditionalMarkerChildren();
             _junhyunAdditionalMarkerMapKey = mapKey;
-            _junhyunAdditionalMarkerCount = 0;
+            _junhyunAdditionalMarkerSignature = 0;
             return;
         }
 
-        var visible = JunhyunAdditionalMapMarkerProjection.Markers
-            .Where(marker => MiniMapMarkerVisibilityState.IsCurrentFloor(marker.FloorId, _selectedFloorId))
-            .ToArray();
+        var markers = JunhyunAdditionalMapMarkerProjection.Markers.ToArray();
+        var signature = new HashCode();
+        signature.Add(mapKey, StringComparer.OrdinalIgnoreCase);
+        signature.Add(_selectedFloorId, StringComparer.OrdinalIgnoreCase);
+        foreach (var marker in markers)
+        {
+            signature.Add(marker.Id, StringComparer.Ordinal);
+            signature.Add(marker.FloorId, StringComparer.OrdinalIgnoreCase);
+            signature.Add(marker.X);
+            signature.Add(marker.Y);
+        }
+        var currentSignature = signature.ToHashCode();
 
         var existing = MapMarkersContainer.Children
             .OfType<FrameworkElement>()
             .Count(element => element.Tag is JunhyunAdditionalMapMarker);
         if (!force &&
             string.Equals(_junhyunAdditionalMarkerMapKey, mapKey, StringComparison.OrdinalIgnoreCase) &&
-            _junhyunAdditionalMarkerCount == visible.Length &&
-            existing == visible.Length)
+            _junhyunAdditionalMarkerSignature == currentSignature &&
+            existing == markers.Length)
         {
             return;
         }
 
         RemoveJunhyunAdditionalMarkerChildren();
-        foreach (var marker in visible)
+        foreach (var marker in markers)
         {
             var visual = JunhyunAdditionalMarkerVisualFactory.Create(marker, baseSize: 18);
+            var relation = JunhyunFloorPresentation.Resolve(_currentMapConfig, marker.FloorId, _selectedFloorId);
+            JunhyunFloorPresentation.ApplyToMarker(visual, relation, badgeOffsetX: 6, badgeOffsetY: -14);
             Canvas.SetLeft(visual, marker.X);
             Canvas.SetTop(visual, marker.Y);
+            ApplyJunhyunAdditionalMarkerScale(visual);
             MapMarkersContainer.Children.Add(visual);
         }
 
         _junhyunAdditionalMarkerMapKey = mapKey;
-        _junhyunAdditionalMarkerCount = visible.Length;
+        _junhyunAdditionalMarkerSignature = currentSignature;
+    }
+
+    private void ApplyJunhyunAdditionalMarkerScale(FrameworkElement marker)
+    {
+        var inverse = 1.0 / Math.Max(_settings.ZoomLevel, OverlayMiniMapSettings.MinZoom);
+        var scale = inverse * _junhyunMarkerScale;
+        marker.RenderTransform = new ScaleTransform(scale, scale);
+        marker.RenderTransformOrigin = marker is Canvas
+            ? new Point(0, 0)
+            : new Point(0.5, 0.5);
     }
 
     private void RemoveJunhyunAdditionalMarkerChildren()
