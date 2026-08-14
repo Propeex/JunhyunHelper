@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
+using JunhyunHelper.Core.Items;
 
 namespace JunhyunHelper.Desktop.Items;
 
@@ -224,16 +225,15 @@ public partial class ItemsPage
         if (_workspace is null)
             return false;
 
-        var progresses = _workspace.FlexibleQuestItemProgresses
-            .Where(progress => string.Equals(progress.QuestId, questId, StringComparison.Ordinal))
-            .ToArray();
-        var fulfilled = progresses.Length > 0 && progresses.All(progress => progress.IsFulfilled);
+        var state = FlexibleQuestItemGroupStateEvaluator.Evaluate(
+            _workspace.FlexibleQuestItemProgresses.Where(progress =>
+                string.Equals(progress.QuestId, questId, StringComparison.Ordinal)));
 
         return filter switch
         {
             ItemFilter.All => true,
-            ItemFilter.Needed => !fulfilled,
-            ItemFilter.Satisfied => fulfilled,
+            ItemFilter.Needed => state == FlexibleQuestItemGroupState.Needed,
+            ItemFilter.Satisfied => state == FlexibleQuestItemGroupState.Satisfied,
             _ => false,
         };
     }
