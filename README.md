@@ -4,13 +4,13 @@ Escape from Tarkov 플레이를 지원하는 Windows 데스크톱 헬퍼 **준�
 
 ## 현재 상태
 
-**v0.1.3 RELEASE CANDIDATE — Windows x64**
+**v0.1.3 RELEASED — Windows x64**
 
-v0.1.3은 v0.1.2에서 발견된 Map/MiniMap 회귀를 수정하는 핫픽스입니다. 공개 GitHub Release는 최종 release gate와 병합 후 게시합니다.
+v0.1.3은 v0.1.2에서 발견된 Map/MiniMap 회귀를 수정하는 핫픽스입니다.
 
-현재 공개 버전은 **v0.1.2**입니다.
+**다운로드:** https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.3
 
-**현재 공개 다운로드:** https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.2
+**Windows ZIP SHA-256:** `41e674d0186846076e62a1edd92c1a5ac9849f53ab48bbedeb2a6a00101f6941`
 
 > **v0.1.2 → v0.1.3:** 필수 `데이터 업데이트`가 없습니다. Content schema와 `user.db`는 변경하지 않습니다. 기존 프로필, Quest 완료 기록, Inventory, Hideout 진행은 유지됩니다.
 
@@ -38,7 +38,7 @@ v0.1.3은 v0.1.2에서 발견된 Map/MiniMap 회귀를 수정하는 핫픽스입
 
 ## v0.1.3 Map/MiniMap 핫픽스
 
-v0.1.2 실사용에서 확인된 지도 탭 지연과 타층 marker 표시 회귀를 수정합니다.
+v0.1.2 실사용에서 확인된 지도 탭 지연과 타층 marker 표시 회귀를 수정했습니다.
 
 - Main Map 표준 marker 전체를 200ms마다 순회하던 영구 UI polling 제거
 - marker tree/map/floor가 실제로 바뀔 때만 one-shot debounce로 floor presentation 갱신
@@ -49,7 +49,19 @@ v0.1.2 실사용에서 확인된 지도 탭 지연과 타층 marker 표시 회�
 - legacy extract refresh가 컨테이너를 비운 뒤 타층 extract가 사라진 채 남는 경우 복구
 - v0.1.2의 floor-hotkey zoom + map-space viewport-center 보존 유지
 
-최신 코드 release-candidate 검증: **176 tests passed / 0 failed**, Windows x64 publish, 실제 Main Map + MiniMap runtime smoke, floor-hotkey viewport 보존, 정상 종료까지 통과했습니다. 최종 공개 릴리즈는 병합 후 동일한 검증을 exact release baseline에서 다시 수행합니다.
+최종 공개 릴리즈 검증:
+
+```text
+release baseline: 3c49d4ca5af549afb4a4a5ce376cb6f8869709fb
+release workflow: 31835116544 — SUCCESS
+176 tests passed / 0 failed
+Windows x64 self-contained single-file publish: SUCCESS
+ProductVersion: 0.1.3
+Main Map + MiniMap runtime smoke: SUCCESS
+floor-hotkey viewport preservation: SUCCESS
+normal Main Window close / process exit: SUCCESS
+public ZIP re-download + SHA-256 verification: SUCCESS
+```
 
 ## v0.1.2 사용성 패치
 
@@ -123,5 +135,5 @@ online source
 - [`docs/RELEASE_0.1.1.md`](docs/RELEASE_0.1.1.md) — v0.1.1 릴리즈 기록
 - [`docs/USABILITY_REQUIREMENTS_2026-08-15.md`](docs/USABILITY_REQUIREMENTS_2026-08-15.md) — 층/유동 제출/Item Wiki 요구사항과 검증
 - [`docs/RELEASE_0.1.2.md`](docs/RELEASE_0.1.2.md) — v0.1.2 릴리즈 기록
-- [`docs/RELEASE_0.1.3.md`](docs/RELEASE_0.1.3.md) — v0.1.3 핫픽스 릴리즈 후보/최종 검증 기록
+- [`docs/RELEASE_0.1.3.md`](docs/RELEASE_0.1.3.md) — v0.1.3 핫픽스 릴리즈 기록
 - [`docs/MAP_PRODUCT_REQUIREMENTS.md`](docs/MAP_PRODUCT_REQUIREMENTS.md) — Map/MiniMap 제품 기준
