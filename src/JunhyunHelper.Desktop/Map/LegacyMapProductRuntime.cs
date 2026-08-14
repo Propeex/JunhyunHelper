@@ -19,6 +19,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
     private readonly LegacyMapHotkeySettingsBridge _hotkeySettingsBridge;
     private readonly LegacyMiniMapOpacitySettingsBridge _miniMapOpacitySettingsBridge;
     private readonly LegacyMapMarkerSettingsV2Bridge _markerSettingsBridge;
+    private readonly LegacyStandardMarkerFloorPresentationBridge _standardMarkerFloorPresentationBridge;
     private readonly LegacyMapInteractionPolicyBridge _interactionPolicyBridge;
     private readonly LegacyQuestMarkerRenderV3 _questMarkerRenderer;
     private readonly LegacyMapSettingsPersistenceBridge _settingsPersistenceBridge;
@@ -39,6 +40,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
         _hotkeySettingsBridge = new LegacyMapHotkeySettingsBridge(page);
         _miniMapOpacitySettingsBridge = new LegacyMiniMapOpacitySettingsBridge(page);
         _markerSettingsBridge = new LegacyMapMarkerSettingsV2Bridge(page);
+        _standardMarkerFloorPresentationBridge = new LegacyStandardMarkerFloorPresentationBridge(page);
         _interactionPolicyBridge = new LegacyMapInteractionPolicyBridge(page);
         _questMarkerRenderer = new LegacyQuestMarkerRenderV3(page);
         _settingsPersistenceBridge = new LegacyMapSettingsPersistenceBridge(page);
@@ -129,6 +131,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
         _settingsPersistenceBridge.Dispose();
         _questMarkerRenderer.Dispose();
         _interactionPolicyBridge.Dispose();
+        _standardMarkerFloorPresentationBridge.Dispose();
         _markerSettingsBridge.Dispose();
         _miniMapOpacitySettingsBridge.Dispose();
         _hotkeySettingsBridge.Dispose();
