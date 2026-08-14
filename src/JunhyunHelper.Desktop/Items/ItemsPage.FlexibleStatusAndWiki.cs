@@ -14,6 +14,7 @@ public partial class ItemsPage
     private bool _junhyunItemEnhancementsInitialized;
     private bool _junhyunApplyingFlexibleStatusFilter;
     private FilterChoice[]? _junhyunNormalFilterChoices;
+    private IReadOnlyList<FlexibleGroupRow> _junhyunFlexibleAllGroups = Array.Empty<FlexibleGroupRow>();
     private readonly FilterChoice[] _junhyunFlexibleFilterChoices =
     [
         new FilterChoice(ItemFilter.Needed, "필요"),
@@ -60,7 +61,7 @@ public partial class ItemsPage
             JunhyunFlexibleItemsSourceChanged);
 
         AddJunhyunItemWikiButton();
-        SynchronizeJunhyunFlexibleStatusUi();
+        SynchronizeJunhyunFlexibleStatusUi(forceFlexibleNeeded: false);
         UpdateJunhyunItemWikiButton();
     }
 
@@ -86,7 +87,10 @@ public partial class ItemsPage
         Dispatcher.BeginInvoke(
             () =>
             {
-                SynchronizeJunhyunFlexibleStatusUi();
+                // A deliberate switch into the flexible view always starts with the
+                // actionable list. Cross-navigation uses NavigateToItem instead and may
+                // explicitly select All so the requested item cannot be hidden.
+                SynchronizeJunhyunFlexibleStatusUi(forceFlexibleNeeded: _viewMode == ItemViewMode.Flexible);
                 if (_viewMode == ItemViewMode.Flexible)
                     ApplyJunhyunFlexibleStatusFilter();
                 UpdateJunhyunItemWikiButton();
@@ -126,10 +130,19 @@ public partial class ItemsPage
         if (_junhyunApplyingFlexibleStatusFilter)
             return;
 
+        // The original ItemsPage rebuilds the complete group set whenever inventory,
+        // search or category changes. Keep that complete set as the authoritative source
+        // so switching Needed -> Satisfied -> All is fully reversible.
+        if (_viewMode == ItemViewMode.Flexible &&
+            FlexibleGroupItems.ItemsSource is IEnumerable<FlexibleGroupRow> source)
+        {
+            _junhyunFlexibleAllGroups = source.ToArray();
+        }
+
         Dispatcher.BeginInvoke(
             () =>
             {
-                SynchronizeJunhyunFlexibleStatusUi();
+                SynchronizeJunhyunFlexibleStatusUi(forceFlexibleNeeded: false);
                 if (_viewMode == ItemViewMode.Flexible)
                     ApplyJunhyunFlexibleStatusFilter();
                 UpdateJunhyunItemWikiButton();
@@ -137,26 +150,31 @@ public partial class ItemsPage
             DispatcherPriority.Background);
     }
 
-    private void SynchronizeJunhyunFlexibleStatusUi()
+    private void SynchronizeJunhyunFlexibleStatusUi(bool forceFlexibleNeeded)
     {
         if (_junhyunNormalFilterChoices is null)
             return;
 
-        var selectedValue = (FilterComboBox.SelectedItem as FilterChoice)?.Value ?? ItemFilter.Needed;
+        var selectedValue = forceFlexibleNeeded
+            ? ItemFilter.Needed
+            : (FilterComboBox.SelectedItem as FilterChoice)?.Value ?? ItemFilter.Needed;
         var targetChoices = _viewMode == ItemViewMode.Flexible
             ? _junhyunFlexibleFilterChoices
             : _junhyunNormalFilterChoices;
 
         var currentChoices = FilterComboBox.ItemsSource as IEnumerable<FilterChoice>;
         var needsReplacement = currentChoices is null || !currentChoices.SequenceEqual(targetChoices);
-        if (needsReplacement)
+        var targetSelection = targetChoices.FirstOrDefault(choice => choice.Value == selectedValue)
+            ?? targetChoices.First(choice => choice.Value == ItemFilter.Needed);
+
+        if (needsReplacement || !ReferenceEquals(FilterComboBox.SelectedItem, targetSelection))
         {
             _updatingFilters = true;
             try
             {
-                FilterComboBox.ItemsSource = targetChoices;
-                FilterComboBox.SelectedItem = targetChoices.FirstOrDefault(choice => choice.Value == selectedValue)
-                    ?? targetChoices.First(choice => choice.Value == ItemFilter.Needed);
+                if (needsReplacement)
+                    FilterComboBox.ItemsSource = targetChoices;
+                FilterComboBox.SelectedItem = targetSelection;
             }
             finally
             {
@@ -172,20 +190,15 @@ public partial class ItemsPage
     {
         if (_junhyunApplyingFlexibleStatusFilter ||
             _viewMode != ItemViewMode.Flexible ||
-            _workspace is null ||
-            FlexibleGroupItems.ItemsSource is not IEnumerable<FlexibleGroupRow> source)
+            _workspace is null)
         {
             return;
         }
 
-        var groups = source.ToArray();
         var filter = (FilterComboBox.SelectedItem as FilterChoice)?.Value ?? ItemFilter.Needed;
-        var filtered = groups.Where(group => JunhyunFlexibleGroupMatches(group.QuestId, filter)).ToArray();
-        if (groups.Length == filtered.Length && groups.SequenceEqual(filtered))
-        {
-            EmptyListText.Visibility = filtered.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
-            return;
-        }
+        var filtered = _junhyunFlexibleAllGroups
+            .Where(group => JunhyunFlexibleGroupMatches(group.QuestId, filter))
+            .ToArray();
 
         _junhyunApplyingFlexibleStatusFilter = true;
         try
@@ -256,10 +269,22 @@ public partial class ItemsPage
             return;
         }
 
-        Process.Start(new ProcessStartInfo(uri!.AbsoluteUri)
+        try
         {
-            UseShellExecute = true,
-        });
+            Process.Start(new ProcessStartInfo(uri!.AbsoluteUri)
+            {
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                Window.GetWindow(this),
+                $"위키 페이지를 열 수 없습니다.\n{ex.Message}",
+                "아이템 위키",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
     }
 
     private static bool TryGetJunhyunWikiUri(string? value, out Uri? uri)
