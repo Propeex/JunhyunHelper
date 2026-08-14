@@ -1,7 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Threading;
 using JunhyunHelper.Desktop.Map;
 using TarkovHelper.Models.Map;
 using TarkovHelper.Services.Map;
@@ -17,9 +16,9 @@ public partial class OverlayMiniMapWindow
     private static readonly bool JunhyunAdditionalMarkerClassHandlerRegistered =
         RegisterJunhyunAdditionalMarkerClassHandler();
 
-    private DispatcherTimer? _junhyunAdditionalMarkerTimer;
     private int _junhyunAdditionalMarkerSignature = int.MinValue;
     private string? _junhyunAdditionalMarkerMapKey;
+    private bool _junhyunAdditionalMarkersInitialized;
 
     private static bool RegisterJunhyunAdditionalMarkerClassHandler()
     {
@@ -38,18 +37,12 @@ public partial class OverlayMiniMapWindow
 
     private void InitializeJunhyunAdditionalMarkers()
     {
-        if (_junhyunAdditionalMarkerTimer is not null)
+        if (_junhyunAdditionalMarkersInitialized)
             return;
+        _junhyunAdditionalMarkersInitialized = true;
 
         JunhyunAdditionalMapMarkerProjection.Changed += JunhyunAdditionalMarkerProjection_Changed;
         Closed += JunhyunAdditionalMarkerWindow_Closed;
-
-        _junhyunAdditionalMarkerTimer = new DispatcherTimer(
-            TimeSpan.FromMilliseconds(150),
-            DispatcherPriority.Background,
-            (_, _) => RenderJunhyunAdditionalMarkers(force: false),
-            Dispatcher);
-        _junhyunAdditionalMarkerTimer.Start();
         RenderJunhyunAdditionalMarkers(force: true);
     }
 
@@ -58,6 +51,9 @@ public partial class OverlayMiniMapWindow
 
     private void RenderJunhyunAdditionalMarkers(bool force)
     {
+        if (!_junhyunAdditionalMarkersInitialized)
+            return;
+
         var mapKey = JunhyunAdditionalMapMarkerProjection.MapKey;
         if (!string.Equals(mapKey, _currentMapKey, StringComparison.OrdinalIgnoreCase))
         {
@@ -71,6 +67,8 @@ public partial class OverlayMiniMapWindow
         var signature = new System.HashCode();
         signature.Add(mapKey, StringComparer.OrdinalIgnoreCase);
         signature.Add(_selectedFloorId, StringComparer.OrdinalIgnoreCase);
+        signature.Add(_settings.ZoomLevel);
+        signature.Add(_junhyunMarkerScale);
         foreach (var marker in markers)
         {
             signature.Add(marker.Id, StringComparer.Ordinal);
@@ -105,6 +103,7 @@ public partial class OverlayMiniMapWindow
 
         _junhyunAdditionalMarkerMapKey = mapKey;
         _junhyunAdditionalMarkerSignature = currentSignature;
+        _junhyunLastGeneralMarkerSignature = int.MinValue;
     }
 
     private void ApplyJunhyunAdditionalMarkerScale(FrameworkElement marker)
@@ -131,10 +130,6 @@ public partial class OverlayMiniMapWindow
     {
         Closed -= JunhyunAdditionalMarkerWindow_Closed;
         JunhyunAdditionalMapMarkerProjection.Changed -= JunhyunAdditionalMarkerProjection_Changed;
-        if (_junhyunAdditionalMarkerTimer is not null)
-        {
-            _junhyunAdditionalMarkerTimer.Stop();
-            _junhyunAdditionalMarkerTimer = null;
-        }
+        _junhyunAdditionalMarkersInitialized = false;
     }
 }
