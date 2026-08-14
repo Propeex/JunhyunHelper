@@ -54,6 +54,44 @@ public sealed class FlexibleQuestItemRequirementCalculatorTests
     }
 
     [Fact]
+    public void GroupStatusIsNeededWhenAnyFlexibleObjectiveStillNeedsItems()
+    {
+        var fulfilled = FlexibleQuestItemRequirementCalculator.Calculate(
+            new QuestItemRequirement("quest", "done", ["a", "b"], 2, false),
+            Inventory(("a", new InventoryQuantity(Fir: 0, NonFir: 2))));
+        var remaining = FlexibleQuestItemRequirementCalculator.Calculate(
+            new QuestItemRequirement("quest", "remaining", ["c", "d"], 3, false),
+            Inventory(("c", new InventoryQuantity(Fir: 0, NonFir: 2))));
+
+        var state = FlexibleQuestItemGroupStateEvaluator.Evaluate([fulfilled, remaining]);
+
+        Assert.Equal(FlexibleQuestItemGroupState.Needed, state);
+    }
+
+    [Fact]
+    public void GroupStatusIsSatisfiedOnlyWhenEveryFlexibleObjectiveIsFulfilled()
+    {
+        var first = FlexibleQuestItemRequirementCalculator.Calculate(
+            new QuestItemRequirement("quest", "one", ["a", "b"], 2, false),
+            Inventory(("a", new InventoryQuantity(Fir: 0, NonFir: 2))));
+        var second = FlexibleQuestItemRequirementCalculator.Calculate(
+            new QuestItemRequirement("quest", "two", ["c", "d"], 1, true),
+            Inventory(("d", new InventoryQuantity(Fir: 1, NonFir: 0))));
+
+        var state = FlexibleQuestItemGroupStateEvaluator.Evaluate([first, second]);
+
+        Assert.Equal(FlexibleQuestItemGroupState.Satisfied, state);
+    }
+
+    [Fact]
+    public void EmptyFlexibleGroupIsNeverReportedAsSatisfied()
+    {
+        var state = FlexibleQuestItemGroupStateEvaluator.Evaluate(Array.Empty<FlexibleQuestItemProgress>());
+
+        Assert.Equal(FlexibleQuestItemGroupState.Needed, state);
+    }
+
+    [Fact]
     public void RejectsSingleItemRequirementBecauseItIsNotFlexible()
     {
         var requirement = Requirement(["a"], count: 1, foundInRaid: false);
