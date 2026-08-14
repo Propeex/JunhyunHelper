@@ -67,6 +67,7 @@ public partial class OverlayMiniMapWindow
         RenderJunhyunQuestProjection(force: true);
         RenderQuestV2(force: true);
         SynchronizeGeneralMarkerScale(force: true);
+        RenderJunhyunAdditionalMarkers(force: true);
         SynchronizeExtractPresentation(force: true);
     }
 
@@ -90,6 +91,7 @@ public partial class OverlayMiniMapWindow
         _junhyunMarkerScale = Math.Clamp(scale, 0.25, 1.50);
         _junhyunLastGeneralMarkerSignature = int.MinValue;
         SynchronizeGeneralMarkerScale(force: true);
+        RenderJunhyunAdditionalMarkers(force: true);
         RenderJunhyunQuestProjection(force: true);
         RenderQuestV2(force: true);
         _junhyunLastExtractSignature = -1;
@@ -162,6 +164,7 @@ public partial class OverlayMiniMapWindow
         RenderJunhyunQuestProjection(force: false);
         RenderQuestV2(force: false);
         SynchronizeGeneralMarkerScale(force: false);
+        RenderJunhyunAdditionalMarkers(force: false);
         SynchronizeExtractPresentation(force: false);
     }
 
@@ -257,6 +260,12 @@ public partial class OverlayMiniMapWindow
 
         foreach (FrameworkElement element in MapMarkersContainer.Children)
         {
+            // Junhyun-only markers own a different base size and scaling contract.
+            // Leave them to RenderJunhyunAdditionalMarkers so the standard-marker
+            // synchronization path cannot overwrite their transform.
+            if (element.Tag is JunhyunAdditionalMapMarker)
+                continue;
+
             element.RenderTransform = new ScaleTransform(synchronizedScale, synchronizedScale);
             element.RenderTransformOrigin = element is Canvas
                 ? new Point(0, 0)
