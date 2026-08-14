@@ -30,6 +30,7 @@ public sealed class TarkovQuestImporter
             var name = localization.Resolve(TarkovJsonReader.OptionalString(rawTask, "name"));
             var traderRequirements = ReadTraderRequirements(rawTask, taskId);
             var failureConditions = ReadFailureConditions(rawTask, taskId);
+            var availabilityDelay = ReadAvailabilityDelay(rawTask, taskId);
 
             result.Add(new QuestDefinition(
                 taskId,
@@ -51,10 +52,32 @@ public sealed class TarkovQuestImporter
                 UnsupportedAvailabilityRequirementTypes: null,
                 CompletionFailureConditionData: failureConditions.CompletionTriggers,
                 Restartable: TarkovJsonReader.OptionalBool(rawTask, "restartable") ?? false,
-                UnsupportedFailureConditionTypes: failureConditions.UnsupportedTypes));
+                UnsupportedFailureConditionTypes: failureConditions.UnsupportedTypes,
+                AvailableDelaySecondsMin: availabilityDelay.MinimumSeconds,
+                AvailableDelaySecondsMax: availabilityDelay.MaximumSeconds));
         }
 
         return result;
+    }
+
+    private static QuestAvailabilityDelay ReadAvailabilityDelay(JsonElement task, string taskId)
+    {
+        var minimum = TarkovJsonReader.OptionalInt(task, "availableDelaySecondsMin") ?? 0;
+        var maximum = TarkovJsonReader.OptionalInt(task, "availableDelaySecondsMax") ?? minimum;
+
+        if (minimum < 0 || maximum < 0)
+        {
+            throw new InvalidDataException(
+                $"Quest '{taskId}' has a negative availability delay ({minimum}..{maximum}).");
+        }
+
+        if (maximum < minimum)
+        {
+            throw new InvalidDataException(
+                $"Quest '{taskId}' has availability delay max '{maximum}' below min '{minimum}'.");
+        }
+
+        return new QuestAvailabilityDelay(minimum, maximum);
     }
 
     private static IReadOnlyDictionary<string, int> ReadPrestigeLevels(JsonElement data)
@@ -383,6 +406,8 @@ public sealed class TarkovQuestImporter
             throw new InvalidDataException($"Quest '{taskId}' has invalid {description} reference.");
         return id;
     }
+
+    private sealed record QuestAvailabilityDelay(int MinimumSeconds, int MaximumSeconds);
 
     private sealed record ParsedFailureConditions(
         IReadOnlyList<QuestCompletionFailureCondition> CompletionTriggers,
