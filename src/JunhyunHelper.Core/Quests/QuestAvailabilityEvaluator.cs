@@ -10,6 +10,7 @@ public sealed class QuestAvailabilityEvaluator
     private readonly IReadOnlySet<string> _exclusiveQuestIds;
     private readonly IReadOnlySet<string> _editionSensitiveQuestIds;
     private readonly GameProfileSnapshot _profile;
+    private readonly DateTimeOffset _nowUtc;
     private readonly IReadOnlyDictionary<string, InferredQuestFailure> _inferredFailures;
     private readonly IReadOnlySet<string> _effectiveFailedQuestIds;
     private readonly Dictionary<string, QuestAvailabilityResult> _memo =
@@ -22,7 +23,8 @@ public sealed class QuestAvailabilityEvaluator
         IReadOnlySet<string> exclusiveQuestIds,
         IReadOnlySet<string> editionSensitiveQuestIds,
         GameProfileSnapshot profile,
-        IReadOnlyDictionary<string, InferredQuestFailure> inferredFailures)
+        IReadOnlyDictionary<string, InferredQuestFailure> inferredFailures,
+        DateTimeOffset nowUtc)
     {
         _questsById = questsById;
         _editionsById = editionsById;
@@ -30,6 +32,7 @@ public sealed class QuestAvailabilityEvaluator
         _editionSensitiveQuestIds = editionSensitiveQuestIds;
         _profile = profile;
         _inferredFailures = inferredFailures;
+        _nowUtc = nowUtc.ToUniversalTime();
         _effectiveFailedQuestIds = questsById.Values
             .Where(quest => quest.RequiresExplicitFailureInput && profile.FailedQuestIds.Contains(quest.Id))
             .Select(quest => quest.Id)
@@ -45,7 +48,8 @@ public sealed class QuestAvailabilityEvaluator
     public static IReadOnlyDictionary<string, QuestAvailabilityResult> Evaluate(
         IEnumerable<QuestDefinition> quests,
         GameProfileSnapshot profile,
-        IEnumerable<EditionDefinition> editions)
+        IEnumerable<EditionDefinition> editions,
+        DateTimeOffset? nowUtc = null)
     {
         ArgumentNullException.ThrowIfNull(quests);
         ArgumentNullException.ThrowIfNull(profile);
@@ -81,7 +85,8 @@ public sealed class QuestAvailabilityEvaluator
             exclusiveQuestIds,
             editionSensitiveQuestIds,
             profile,
-            inferredFailures);
+            inferredFailures,
+            nowUtc ?? DateTimeOffset.UtcNow);
         foreach (var questId in byId.Keys)
             evaluator.EvaluateQuest(questId);
 
@@ -153,6 +158,7 @@ public sealed class QuestAvailabilityEvaluator
 
             EvaluateStaticRules(quest, unavailableReasons, lockedReasons, unknownReasons);
             EvaluatePrerequisites(quest, unavailableReasons, lockedReasons, unknownReasons);
+            EvaluateAvailabilityDelay(quest, lockedReasons);
 
             QuestAvailabilityResult result;
             if (unavailableReasons.Count > 0)
@@ -361,6 +367,42 @@ public sealed class QuestAvailabilityEvaluator
         }
     }
 
+    private void EvaluateAvailabilityDelay(
+        QuestDefinition quest,
+        ICollection<QuestAvailabilityReason> lockedReasons)
+    {
+        if (!quest.HasAvailabilityDelay)
+            return;
+
+        // The API provides a min/max server-side availability window, but it does not
+        // expose which random point the game selected for this profile. Use the maximum
+        // as the conservative boundary so JunhyunHelper never claims a timed quest is
+        // definitely available before the source says it must be. Legacy completions
+        // without a timestamp are deliberately not re-locked after upgrading.
+        var anchor = quest.TaskRequirements
+            .Select(requirement => requirement.RequiredQuestId)
+            .Distinct(StringComparer.Ordinal)
+            .Where(_profile.CompletedQuestIds.Contains)
+            .Select(questId => _profile.QuestCompletedAtUtc.TryGetValue(questId, out var completedAt)
+                ? new CompletionAnchor(questId, completedAt.ToUniversalTime())
+                : null)
+            .Where(static candidate => candidate is not null)
+            .Cast<CompletionAnchor>()
+            .OrderByDescending(static candidate => candidate.CompletedAtUtc)
+            .FirstOrDefault();
+
+        if (anchor is null)
+            return;
+
+        var unlockAt = anchor.CompletedAtUtc.AddSeconds(quest.AvailableDelaySecondsMax);
+        if (_nowUtc < unlockAt)
+        {
+            lockedReasons.Add(new QuestAvailabilityReason(
+                QuestAvailabilityReasonKind.AvailabilityDelay,
+                anchor.QuestId));
+        }
+    }
+
     private PrerequisiteOutcome EvaluatePrerequisite(QuestTaskRequirement requirement)
     {
         if (!_questsById.ContainsKey(requirement.RequiredQuestId))
@@ -404,6 +446,8 @@ public sealed class QuestAvailabilityEvaluator
 
         return PrerequisiteOutcome.NotMet;
     }
+
+    private sealed record CompletionAnchor(string QuestId, DateTimeOffset CompletedAtUtc);
 
     private enum PrerequisiteOutcome
     {
