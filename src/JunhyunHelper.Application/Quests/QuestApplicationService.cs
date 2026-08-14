@@ -146,10 +146,10 @@ public sealed class QuestApplicationService
 
         var profile = await LoadRequiredProfileAsync(profileId, cancellationToken);
         var entry = FindQuest(content, profile, questId);
-        if (entry.Availability.State != QuestAvailabilityState.Current)
+        if (entry.Availability.State is not (QuestAvailabilityState.Current or QuestAvailabilityState.Indeterminate))
         {
             throw new InvalidOperationException(
-                $"Quest '{questId}' can only be failed while it is Current, but it is '{entry.Availability.State}'.");
+                $"Quest '{questId}' can only be failed while it is Current or Indeterminate, but it is '{entry.Availability.State}'.");
         }
 
         if (!entry.Quest.RequiresExplicitFailureInput)
@@ -279,7 +279,7 @@ public sealed class QuestApplicationService
         // Do not convert opaque upstream conditions into Current. Indeterminate means the
         // program cannot prove the condition from its own authoritative User Progress.
         // Keep it explicit so Current remains a meaningful statement while the user can
-        // still manually complete a quest they know is active/completed in the game.
+        // still manually synchronize completion/failure they know from the game.
         return new QuestWorkspace(profile, quests, problems);
     }
 }
