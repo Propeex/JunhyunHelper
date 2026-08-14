@@ -16,11 +16,13 @@ public sealed record StoredContentSnapshot(
 
 public sealed class ContentSnapshotStore
 {
-    // v3 remains readable so an existing installation can still start offline while
-    // v4 (Quest-only map geometry) is being acquired. All newly written snapshots
-    // are v4. v1/v2 are too old to interpret safely and remain unsupported.
+    // v3/v4 remain readable as last-known-good offline snapshots. v5 adds current
+    // Quest availability semantics (special-trader prerequisite enrichment, explicit
+    // delay metadata and unresolved-condition preservation). A successful data update
+    // writes v5; older readable snapshots are never destroyed merely because the app
+    // was upgraded while offline.
     public const int MinimumReadableSchemaVersion = 3;
-    public const int CurrentSchemaVersion = 4;
+    public const int CurrentSchemaVersion = 5;
 
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
 
