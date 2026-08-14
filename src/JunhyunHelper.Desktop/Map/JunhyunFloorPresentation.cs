@@ -88,20 +88,14 @@ public static class JunhyunFloorPresentation
         if (markerVisual is not Canvas canvas)
             return;
 
-        markerVisual.Opacity = Math.Clamp(currentFloorOpacity, 0.0, 1.0);
-
         if (!relation.IsOtherFloor)
         {
-            RestoreMarkerBodyOpacity(canvas);
+            markerVisual.Opacity = Math.Clamp(currentFloorOpacity, 0.0, 1.0);
             RemoveDirectionBadge(canvas);
             return;
         }
 
-        // Keep the direction badge fully legible. Dim the marker body rather than the
-        // root Canvas; otherwise WPF also applies the 50% parent opacity to the arrow.
-        markerVisual.Opacity = 1.0;
-        SetMarkerBodyOpacity(canvas, OtherFloorOpacity);
-
+        markerVisual.Opacity = OtherFloorOpacity;
         var tooltip = $"{relation.Arrow} {relation.FloorLabel}";
         var existing = FindDirectionBadge(canvas);
         if (existing is not null &&
@@ -129,7 +123,6 @@ public static class JunhyunFloorPresentation
             BorderThickness = new Thickness(1),
             ToolTip = tooltip,
             IsHitTestVisible = false,
-            Opacity = 1.0,
             Child = new TextBlock
             {
                 Text = relation.Arrow,
@@ -153,25 +146,11 @@ public static class JunhyunFloorPresentation
             canvas.Children.Remove(badge);
     }
 
-    private static void SetMarkerBodyOpacity(Canvas canvas, double opacity)
-    {
-        foreach (var child in canvas.Children.OfType<FrameworkElement>())
-        {
-            if (IsDirectionBadge(child))
-                continue;
-            child.Opacity = opacity;
-        }
-    }
-
-    private static void RestoreMarkerBodyOpacity(Canvas canvas) => SetMarkerBodyOpacity(canvas, 1.0);
-
-    private static bool IsDirectionBadge(FrameworkElement element) =>
-        string.Equals(element.Tag as string, DirectionBadgeTag, StringComparison.Ordinal);
-
     private static FrameworkElement? FindDirectionBadge(Canvas canvas) =>
         canvas.Children
             .OfType<FrameworkElement>()
-            .FirstOrDefault(IsDirectionBadge);
+            .FirstOrDefault(element =>
+                string.Equals(element.Tag as string, DirectionBadgeTag, StringComparison.Ordinal));
 
     private static JunhyunFloorRelationInfo Unknown() =>
         new(JunhyunFloorRelation.Unknown, string.Empty, string.Empty);
