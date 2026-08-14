@@ -65,9 +65,7 @@ public partial class OverlayMiniMapWindow
         var projectionMap = JunhyunMapQuestProjectionV2.MapKey;
         var markers = JunhyunMapQuestProjectionV2.Markers;
         var mapMatches = string.Equals(projectionMap, _currentMapKey, StringComparison.OrdinalIgnoreCase);
-        var visible = mapMatches
-            ? markers.Where(marker => FloorMatchesV2(marker.FloorId, _selectedFloorId)).ToArray()
-            : Array.Empty<JunhyunQuestMarkerProjectionV2>();
+        var visible = mapMatches ? markers.ToArray() : Array.Empty<JunhyunQuestMarkerProjectionV2>();
 
         var signature = new System.HashCode();
         signature.Add(projectionMap, StringComparer.OrdinalIgnoreCase);
@@ -78,6 +76,7 @@ public partial class OverlayMiniMapWindow
             signature.Add(marker.QuestId, StringComparer.Ordinal);
             signature.Add(marker.ObjectiveId, StringComparer.Ordinal);
             signature.Add(marker.MarkerCode, StringComparer.Ordinal);
+            signature.Add(marker.FloorId, StringComparer.OrdinalIgnoreCase);
             signature.Add(marker.X);
             signature.Add(marker.Y);
         }
@@ -92,6 +91,8 @@ public partial class OverlayMiniMapWindow
             foreach (var marker in visible)
             {
                 var visual = JunhyunQuestMarkerVisualFactoryV3.Create(marker);
+                var relation = JunhyunFloorPresentation.Resolve(_currentMapConfig, marker.FloorId, _selectedFloorId);
+                JunhyunFloorPresentation.ApplyToMarker(visual, relation);
                 Canvas.SetLeft(visual, marker.X);
                 Canvas.SetTop(visual, marker.Y);
                 layer.Children.Add(visual);
@@ -105,17 +106,10 @@ public partial class OverlayMiniMapWindow
         var inverse = 1.0 / Math.Max(_settings.ZoomLevel, TarkovHelper.Models.Map.OverlayMiniMapSettings.MinZoom);
         foreach (FrameworkElement child in layer.Children)
         {
-            child.RenderTransform = new ScaleTransform(inverse, inverse);
+            child.RenderTransform = new ScaleTransform(inverse * _junhyunMarkerScale, inverse * _junhyunMarkerScale);
             child.RenderTransformOrigin = new Point(0, 0);
         }
 
         layer.Visibility = visible.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-    }
-
-    private static bool FloorMatchesV2(string? markerFloor, string? selectedFloor)
-    {
-        if (string.IsNullOrWhiteSpace(markerFloor) || string.IsNullOrWhiteSpace(selectedFloor))
-            return true;
-        return string.Equals(markerFloor, selectedFloor, StringComparison.OrdinalIgnoreCase);
     }
 }
