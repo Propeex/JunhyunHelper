@@ -2,20 +2,17 @@
 
 Escape from Tarkov 플레이를 지원하는 Windows 데스크톱 헬퍼 **준현 헬퍼**의 공식 저장소입니다.
 
-## 현재 버전
+## 현재 상태
 
-**v0.1.2 RELEASED — Windows x64**
+**v0.1.3 RELEASE CANDIDATE — Windows x64**
 
-**공개 다운로드:** https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.2
+v0.1.3은 v0.1.2에서 발견된 Map/MiniMap 회귀를 수정하는 핫픽스입니다. 공개 GitHub Release는 최종 release gate와 병합 후 게시합니다.
 
-Windows 배포 파일:
+현재 공개 버전은 **v0.1.2**입니다.
 
-```text
-Junhyun-Helper-v0.1.2-win-x64.zip
-SHA-256: 163a2a33184a6f5d8abcefa542239cd2f29a686d924cf4d784081c47939398ab
-```
+**현재 공개 다운로드:** https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.2
 
-> **업그레이드:** v0.1.1 → v0.1.2는 필수 `데이터 업데이트`가 없습니다. v0.1.0에서 바로 올리는 경우에만 최신 Quest 선행 조건 판정을 위해 `데이터 업데이트`를 한 번 실행해 주세요. 기존 프로필, Quest 완료 기록, Inventory, Hideout 진행(`user.db`)은 유지됩니다.
+> **v0.1.2 → v0.1.3:** 필수 `데이터 업데이트`가 없습니다. Content schema와 `user.db`는 변경하지 않습니다. 기존 프로필, Quest 완료 기록, Inventory, Hideout 진행은 유지됩니다.
 
 ## 주요 기능
 
@@ -39,6 +36,21 @@ SHA-256: 163a2a33184a6f5d8abcefa542239cd2f29a686d924cf4d784081c47939398ab
   - screenshot 기반 Map 전환 / player tracking
 - 상단 `스캐너` 탭 — 현재 `준비 중` placeholder 유지
 
+## v0.1.3 Map/MiniMap 핫픽스
+
+v0.1.2 실사용에서 확인된 지도 탭 지연과 타층 marker 표시 회귀를 수정합니다.
+
+- Main Map 표준 marker 전체를 200ms마다 순회하던 영구 UI polling 제거
+- marker tree/map/floor가 실제로 바뀔 때만 one-shot debounce로 floor presentation 갱신
+- 신뢰 가능한 Quest height가 없는 경우 `main`으로 추측하지 않고 floor unknown으로 유지
+- MiniMap의 중복 off-floor renderer/timer 제거, 기존 canonical marker/extract 경로로 통합
+- Quest/Raider scale 갱신의 별도 polling을 event/signature 기반으로 전환
+- MiniMap Raider가 floor/zoom/marker-scale/container reload 뒤에도 올바른 `↑/↓`, opacity, scale을 유지하도록 수정
+- legacy extract refresh가 컨테이너를 비운 뒤 타층 extract가 사라진 채 남는 경우 복구
+- v0.1.2의 floor-hotkey zoom + map-space viewport-center 보존 유지
+
+최신 코드 release-candidate 검증: **176 tests passed / 0 failed**, Windows x64 publish, 실제 Main Map + MiniMap runtime smoke, floor-hotkey viewport 보존, 정상 종료까지 통과했습니다. 최종 공개 릴리즈는 병합 후 동일한 검증을 exact release baseline에서 다시 수행합니다.
+
 ## v0.1.2 사용성 패치
 
 - 층 단축키로 floor를 바꿔도 기존 zoom과 보고 있던 지도 중심 위치를 유지
@@ -46,9 +58,6 @@ SHA-256: 163a2a33184a6f5d8abcefa542239cd2f29a686d924cf4d784081c47939398ab
 - Main Map / MiniMap의 Quest·일반 marker·탈출구·Raider 층 표현 통일
 - 유동 제출 상태 dropdown `필요 / 전체 / 충분`; 모두 모은 그룹은 기본 `필요` 목록에서 자동 제외
 - Item 상세에 canonical Wiki URL 기반 `위키` 버튼 추가
-- 타층 badge 재사용 / MiniMap 타층 extract signature cache로 불필요한 반복 UI 작업 감소
-
-검증: **176 tests passed / 0 failed**, 실제 Main Map + MiniMap runtime smoke, floor-hotkey viewport 보존, 정상 종료까지 통과했습니다.
 
 ## v0.1.1 Quest 정확도 패치
 
@@ -73,7 +82,7 @@ importer warnings: 0
 
 ## 실행
 
-1. GitHub Release에서 `Junhyun-Helper-v0.1.2-win-x64.zip`을 다운로드합니다.
+1. GitHub Release에서 최신 `Junhyun-Helper-vX.Y.Z-win-x64.zip`을 다운로드합니다.
 2. 원하는 폴더에 압축을 풉니다.
 3. **`준현 헬퍼.exe`**를 실행합니다.
 
@@ -114,4 +123,5 @@ online source
 - [`docs/RELEASE_0.1.1.md`](docs/RELEASE_0.1.1.md) — v0.1.1 릴리즈 기록
 - [`docs/USABILITY_REQUIREMENTS_2026-08-15.md`](docs/USABILITY_REQUIREMENTS_2026-08-15.md) — 층/유동 제출/Item Wiki 요구사항과 검증
 - [`docs/RELEASE_0.1.2.md`](docs/RELEASE_0.1.2.md) — v0.1.2 릴리즈 기록
+- [`docs/RELEASE_0.1.3.md`](docs/RELEASE_0.1.3.md) — v0.1.3 핫픽스 릴리즈 후보/최종 검증 기록
 - [`docs/MAP_PRODUCT_REQUIREMENTS.md`](docs/MAP_PRODUCT_REQUIREMENTS.md) — Map/MiniMap 제품 기준
