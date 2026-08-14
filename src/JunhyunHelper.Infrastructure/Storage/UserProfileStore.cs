@@ -234,19 +234,6 @@ public sealed class UserProfileStore
             throw new InvalidDataException("Failed quest ids cannot contain empty values.");
         if (profile.CompletedQuestIds.Overlaps(profile.FailedQuestIds))
             throw new InvalidDataException("A quest cannot be both completed and explicitly failed.");
-
-        foreach (var (questId, completedAt) in profile.QuestCompletedAtUtc)
-        {
-            if (string.IsNullOrWhiteSpace(questId))
-                throw new InvalidDataException("Quest completion timestamp ids cannot be empty.");
-            if (!profile.CompletedQuestIds.Contains(questId))
-            {
-                throw new InvalidDataException(
-                    $"Quest completion timestamp '{questId}' does not reference a completed quest.");
-            }
-            if (completedAt == default)
-                throw new InvalidDataException($"Quest '{questId}' has an invalid completion timestamp.");
-        }
     }
 
     private static void ValidateInventory(
@@ -283,8 +270,6 @@ public sealed class UserProfileStore
         public Dictionary<string, TraderProgress> Traders { get; init; } =
             new(StringComparer.Ordinal);
         public string[] CompletedQuestIds { get; init; } = [];
-        public Dictionary<string, DateTimeOffset> QuestCompletedAtUtc { get; init; } =
-            new(StringComparer.Ordinal);
         public string[] FailedQuestIds { get; init; } = [];
         public Dictionary<string, int> HideoutLevels { get; init; } =
             new(StringComparer.Ordinal);
@@ -306,10 +291,6 @@ public sealed class UserProfileStore
                 PrestigeLevel = snapshot.PrestigeLevel ?? 0,
                 Traders = new Dictionary<string, TraderProgress>(snapshot.Traders, StringComparer.Ordinal),
                 CompletedQuestIds = snapshot.CompletedQuestIds.Order(StringComparer.Ordinal).ToArray(),
-                QuestCompletedAtUtc = snapshot.QuestCompletedAtUtc.ToDictionary(
-                    pair => pair.Key,
-                    pair => pair.Value.ToUniversalTime(),
-                    StringComparer.Ordinal),
                 FailedQuestIds = snapshot.FailedQuestIds.Order(StringComparer.Ordinal).ToArray(),
                 HideoutLevels = new Dictionary<string, int>(snapshot.HideoutLevels, StringComparer.Ordinal),
                 Inventory = new Dictionary<string, InventoryQuantity>(snapshot.Inventory, StringComparer.Ordinal),
@@ -328,10 +309,6 @@ public sealed class UserProfileStore
                 PrestigeLevel = PrestigeLevel ?? 0,
                 Traders = new Dictionary<string, TraderProgress>(Traders, StringComparer.Ordinal),
                 CompletedQuestIds = new HashSet<string>(CompletedQuestIds, StringComparer.Ordinal),
-                QuestCompletedAtUtc = QuestCompletedAtUtc.ToDictionary(
-                    pair => pair.Key,
-                    pair => pair.Value.ToUniversalTime(),
-                    StringComparer.Ordinal),
                 FailedQuestIds = new HashSet<string>(FailedQuestIds, StringComparer.Ordinal),
                 HideoutLevels = new Dictionary<string, int>(HideoutLevels, StringComparer.Ordinal),
                 Inventory = new Dictionary<string, InventoryQuantity>(Inventory, StringComparer.Ordinal),
