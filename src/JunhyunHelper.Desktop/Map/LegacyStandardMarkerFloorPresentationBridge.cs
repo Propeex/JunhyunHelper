@@ -1,7 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
-using TarkovHelper.Models.Map;
+using TarkovHelper.Models;
 using TarkovHelper.Services.Map;
 
 namespace JunhyunHelper.Desktop.Map;
@@ -27,7 +27,7 @@ public sealed class LegacyStandardMarkerFloorPresentationBridge : IDisposable
         _floorSelector = _page.FindName("CmbFloorSelect") as ComboBox;
 
         _timer = new DispatcherTimer(
-            TimeSpan.FromMilliseconds(150),
+            TimeSpan.FromMilliseconds(200),
             DispatcherPriority.Background,
             (_, _) => Apply(),
             _page.Dispatcher);
