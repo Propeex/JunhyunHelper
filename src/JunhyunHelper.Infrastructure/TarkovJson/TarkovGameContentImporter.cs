@@ -79,19 +79,40 @@ public sealed class TarkovGameContentImporter
     {
         ArgumentNullException.ThrowIfNull(quests);
 
+        // These trader-access relationships are real game gates but are not repeated in
+        // json.tarkov.dev taskRequirements on the quests offered by these traders. Keep
+        // the compatibility overlay mode-aware and, critically, only apply a gate when
+        // the current live mode actually contains the unlock quest. That makes an ID
+        // retirement/removal degrade to an explicit unsupported-source condition rather
+        // than creating a broken canonical prerequisite reference.
+        var questIds = quests
+            .Select(static quest => quest.Id)
+            .ToHashSet(StringComparer.Ordinal);
         var refUnlockQuestId = gameMode == GameMode.Pve
             ? RefPveUnlockQuestId
             : RefRegularUnlockQuestId;
 
+        var gates = new Dictionary<string, string>(StringComparer.Ordinal);
+        AddGateIfPresent(gates, questIds, LightkeeperTraderId, LightkeeperUnlockQuestId);
+        AddGateIfPresent(gates, questIds, BtrDriverTraderId, BtrDriverUnlockQuestId);
+        AddGateIfPresent(gates, questIds, RefTraderId, refUnlockQuestId);
+
         return quests
-            .Select(quest => quest.TraderId switch
-            {
-                LightkeeperTraderId => StrengthenTraderGate(quest, LightkeeperUnlockQuestId),
-                BtrDriverTraderId => StrengthenTraderGate(quest, BtrDriverUnlockQuestId),
-                RefTraderId => StrengthenTraderGate(quest, refUnlockQuestId),
-                _ => quest,
-            })
+            .Select(quest => quest.TraderId is { } traderId &&
+                             gates.TryGetValue(traderId, out var unlockQuestId)
+                ? StrengthenTraderGate(quest, unlockQuestId)
+                : quest)
             .ToArray();
+    }
+
+    private static void AddGateIfPresent(
+        IDictionary<string, string> gates,
+        IReadOnlySet<string> questIds,
+        string traderId,
+        string unlockQuestId)
+    {
+        if (questIds.Contains(unlockQuestId))
+            gates[traderId] = unlockQuestId;
     }
 
     private static QuestDefinition StrengthenTraderGate(
@@ -104,12 +125,8 @@ public sealed class TarkovGameContentImporter
         if (string.Equals(quest.Id, unlockQuestId, StringComparison.Ordinal))
             return quest;
 
-        // json.tarkov.dev currently does not repeat trader-access gates on most quests
-        // offered by Lightkeeper, BTR Driver or Ref. Treat trader access as a canonical
-        // prerequisite so availability, future reachability and Needed Items all share
-        // the same truth. If upstream already references the unlock quest with a weaker
-        // Active-compatible condition, strengthen it to Complete rather than rendering
-        // duplicate prerequisite rows.
+        // If upstream starts carrying the gate directly, strengthen an Active-compatible
+        // requirement to Complete instead of adding a duplicate prerequisite row.
         var found = false;
         var requirements = quest.TaskRequirements
             .Select(requirement =>
