@@ -155,7 +155,8 @@ public sealed class LegacyStandardMarkerFloorPresentationBridge : IDisposable
         MapConfig config,
         string selectedFloor)
     {
-        if (markers.Count < 2 || config.Floors.Count == 0)
+        var floors = config.Floors;
+        if (markers.Count < 2 || floors is null || floors.Count == 0)
             return;
 
         var selectedOrder = FloorOrder(config, selectedFloor);
@@ -246,10 +247,10 @@ public sealed class LegacyStandardMarkerFloorPresentationBridge : IDisposable
 
     private static int? FloorOrder(MapConfig config, string? floorId)
     {
-        if (string.IsNullOrWhiteSpace(floorId))
+        if (string.IsNullOrWhiteSpace(floorId) || config.Floors is not { } floors)
             return null;
 
-        var floor = config.Floors.FirstOrDefault(candidate =>
+        var floor = floors.FirstOrDefault(candidate =>
             string.Equals(candidate.LayerId, floorId, StringComparison.OrdinalIgnoreCase));
         return floor?.Order;
     }
