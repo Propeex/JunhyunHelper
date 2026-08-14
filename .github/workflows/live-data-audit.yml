@@ -1,0 +1,169 @@
+name: Live Tarkov Data Audit
+
+on:
+  push:
+    branches:
+      - agent/live-quest-prereq-audit-2026-08-15
+    paths:
+      - '.github/workflows/live-data-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Existing test suite
+        run: dotnet test tests/JunhyunHelper.Tests/JunhyunHelper.Tests.csproj --configuration Release
+
+      - name: Audit live json.tarkov.dev quest prerequisite shapes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $modes = @('regular', 'pve', 'pvp-season')
+
+          foreach ($mode in $modes) {
+            Write-Host "===== MODE: $mode ====="
+            $uri = "https://json.tarkov.dev/$mode/tasks"
+            $doc = Invoke-RestMethod -Uri $uri -Method Get -Headers @{ Accept = 'application/json' }
+            $tasks = @($doc.data.tasks)
+            Write-Host "task_count=$($tasks.Count)"
+
+            $taskIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+            foreach ($task in $tasks) { if ($task.id) { [void]$taskIds.Add([string]$task.id) } }
+
+            $statusCounts = @{}
+            $requirementShapeCounts = @{}
+            $traderRequirementTypes = @{}
+            $traderCompareMethods = @{}
+            $failConditionTypes = @{}
+            $factions = @{}
+            $missingTaskRefs = [System.Collections.Generic.List[string]]::new()
+            $activeOnly = [System.Collections.Generic.List[string]]::new()
+            $failedOnly = [System.Collections.Generic.List[string]]::new()
+            $mixedStatus = [System.Collections.Generic.List[string]]::new()
+            $delayed = [System.Collections.Generic.List[string]]::new()
+            $multiPrereq = [System.Collections.Generic.List[string]]::new()
+            $selfRefs = [System.Collections.Generic.List[string]]::new()
+            $duplicatePrereqRefs = [System.Collections.Generic.List[string]]::new()
+            $prestigeShapes = @{}
+
+            foreach ($task in $tasks) {
+              $taskId = [string]$task.id
+              $taskName = [string]$task.name
+              $reqs = @($task.taskRequirements)
+              if ($reqs.Count -gt 1) { $multiPrereq.Add("$taskId | $taskName | count=$($reqs.Count)") }
+
+              $seenReqIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+              foreach ($req in $reqs) {
+                $requiredId = [string]$req.task.id
+                if (-not $requiredId) { $requiredId = [string]$req.task }
+                if ($requiredId) {
+                  if ($requiredId -eq $taskId) { $selfRefs.Add("$taskId | $taskName") }
+                  if (-not $seenReqIds.Add($requiredId)) { $duplicatePrereqRefs.Add("$taskId | $taskName | $requiredId") }
+                  if (-not $taskIds.Contains($requiredId)) { $missingTaskRefs.Add("$taskId | $taskName -> $requiredId") }
+                }
+
+                $statuses = @($req.status | ForEach-Object { ([string]$_).Trim().ToLowerInvariant() } | Where-Object { $_ })
+                if ($statuses.Count -eq 0) { $statuses = @('<missing>') }
+                $shape = ($statuses | Sort-Object) -join ','
+                if (-not $requirementShapeCounts.ContainsKey($shape)) { $requirementShapeCounts[$shape] = 0 }
+                $requirementShapeCounts[$shape]++
+                foreach ($s in $statuses) {
+                  if (-not $statusCounts.ContainsKey($s)) { $statusCounts[$s] = 0 }
+                  $statusCounts[$s]++
+                }
+
+                $normalized = @($statuses | Where-Object { $_ -ne '<missing>' })
+                if ($normalized.Count -eq 1 -and $normalized[0] -in @('active','accept','accepted')) {
+                  $activeOnly.Add("$taskId | $taskName <- $requiredId")
+                }
+                if ($normalized.Count -eq 1 -and $normalized[0] -eq 'failed') {
+                  $failedOnly.Add("$taskId | $taskName <- $requiredId")
+                }
+                if ($normalized.Count -gt 1) {
+                  $mixedStatus.Add("$taskId | $taskName <- $requiredId | $shape")
+                }
+              }
+
+              foreach ($tr in @($task.traderRequirements)) {
+                $type = ([string]$tr.requirementType).Trim().ToLowerInvariant()
+                $cmp = ([string]$tr.compareMethod).Trim()
+                if (-not $traderRequirementTypes.ContainsKey($type)) { $traderRequirementTypes[$type] = 0 }
+                $traderRequirementTypes[$type]++
+                if (-not $traderCompareMethods.ContainsKey($cmp)) { $traderCompareMethods[$cmp] = 0 }
+                $traderCompareMethods[$cmp]++
+              }
+
+              foreach ($fc in @($task.failConditions)) {
+                $type = ([string]$fc.type).Trim()
+                if (-not $failConditionTypes.ContainsKey($type)) { $failConditionTypes[$type] = 0 }
+                $failConditionTypes[$type]++
+              }
+
+              $faction = ([string]$task.factionName).Trim()
+              if ($faction) {
+                if (-not $factions.ContainsKey($faction)) { $factions[$faction] = 0 }
+                $factions[$faction]++
+              }
+
+              $minDelay = [int]($task.availableDelaySecondsMin ?? 0)
+              $maxDelay = [int]($task.availableDelaySecondsMax ?? 0)
+              if ($minDelay -gt 0 -or $maxDelay -gt 0) {
+                $delayed.Add("$taskId | $taskName | min=$minDelay max=$maxDelay")
+              }
+
+              if ($null -ne $task.requiredPrestige) {
+                $shape = $task.requiredPrestige.GetType().FullName
+                if (-not $prestigeShapes.ContainsKey($shape)) { $prestigeShapes[$shape] = 0 }
+                $prestigeShapes[$shape]++
+              }
+            }
+
+            Write-Host '-- prerequisite status values --'
+            $statusCounts.GetEnumerator() | Sort-Object Name | ForEach-Object { Write-Host "$($_.Name)=$($_.Value)" }
+            Write-Host '-- prerequisite status shapes --'
+            $requirementShapeCounts.GetEnumerator() | Sort-Object Name | ForEach-Object { Write-Host "$($_.Name)=$($_.Value)" }
+            Write-Host '-- trader requirement types --'
+            $traderRequirementTypes.GetEnumerator() | Sort-Object Name | ForEach-Object { Write-Host "$($_.Name)=$($_.Value)" }
+            Write-Host '-- trader compare methods --'
+            $traderCompareMethods.GetEnumerator() | Sort-Object Name | ForEach-Object { Write-Host "$($_.Name)=$($_.Value)" }
+            Write-Host '-- fail condition types --'
+            $failConditionTypes.GetEnumerator() | Sort-Object Name | ForEach-Object { Write-Host "$($_.Name)=$($_.Value)" }
+            Write-Host '-- factions --'
+            $factions.GetEnumerator() | Sort-Object Name | ForEach-Object { Write-Host "$($_.Name)=$($_.Value)" }
+            Write-Host '-- requiredPrestige runtime shapes --'
+            $prestigeShapes.GetEnumerator() | Sort-Object Name | ForEach-Object { Write-Host "$($_.Name)=$($_.Value)" }
+
+            Write-Host "missing_task_refs=$($missingTaskRefs.Count)"
+            $missingTaskRefs | ForEach-Object { Write-Host "MISSING_REF $_" }
+            Write-Host "self_refs=$($selfRefs.Count)"
+            $selfRefs | ForEach-Object { Write-Host "SELF_REF $_" }
+            Write-Host "duplicate_prereq_refs=$($duplicatePrereqRefs.Count)"
+            $duplicatePrereqRefs | ForEach-Object { Write-Host "DUP_REQ $_" }
+            Write-Host "active_only_count=$($activeOnly.Count)"
+            $activeOnly | ForEach-Object { Write-Host "ACTIVE_ONLY $_" }
+            Write-Host "failed_only_count=$($failedOnly.Count)"
+            $failedOnly | ForEach-Object { Write-Host "FAILED_ONLY $_" }
+            Write-Host "mixed_status_count=$($mixedStatus.Count)"
+            $mixedStatus | ForEach-Object { Write-Host "MIXED_STATUS $_" }
+            Write-Host "multi_prereq_count=$($multiPrereq.Count)"
+            $multiPrereq | Select-Object -First 80 | ForEach-Object { Write-Host "MULTI_REQ $_" }
+            Write-Host "delayed_count=$($delayed.Count)"
+            $delayed | ForEach-Object { Write-Host "DELAYED $_" }
+            Write-Host "===== END MODE: $mode ====="
+          }
