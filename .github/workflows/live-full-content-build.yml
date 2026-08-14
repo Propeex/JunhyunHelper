@@ -1,4 +1,5 @@
 name: Live Full Content Build Audit
+# 2026-08-15 final quest-prerequisite rerun
 
 on:
   push:
@@ -83,6 +84,7 @@ jobs:
                   Console.WriteLine($"VALIDATION_{issue.Severity.ToString().ToUpperInvariant()} {issue.Code} {issue.Message}");
 
               var delayed = result.Content.Quests.Count(q => q.HasAvailabilityDelay);
+              var unresolved = result.Content.Quests.Count(q => q.UnsupportedAvailabilityRequirements.Count > 0);
               var lightkeeperGated = result.Content.Quests.Count(q =>
                   q.TraderId == "638f541a29ffd1183d187f57" &&
                   q.Id != "625d700cc48e6c62a440fab5" &&
@@ -96,7 +98,7 @@ jobs:
                   q.TraderId == "6617beeaa9cfa777ca915b7c" &&
                   q.Id != refUnlock &&
                   q.TaskRequirements.Any(r => r.RequiredQuestId == refUnlock && r.AcceptedStatuses.Contains(JunhyunHelper.Core.Quests.QuestRequiredStatus.Complete)));
-              Console.WriteLine($"delayedQuests={delayed} lightkeeperGated={lightkeeperGated} btrGated={btrGated} refGated={refGated}");
+              Console.WriteLine($"delayedQuests={delayed} unresolvedQuests={unresolved} lightkeeperGated={lightkeeperGated} btrGated={btrGated} refGated={refGated}");
 
               if (!result.IsValid)
                   throw new InvalidDataException($"Live product build for {mode} failed validation.");
