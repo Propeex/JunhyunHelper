@@ -1,0 +1,83 @@
+name: Finalize Quest Audit Docs
+
+on:
+  push:
+    branches:
+      - agent/live-quest-prereq-audit-2026-08-15
+    paths:
+      - '.github/workflows/finalize-quest-audit-docs.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/live-quest-prereq-audit-2026-08-15
+          fetch-depth: 0
+
+      - name: Update official project documentation and remove audit workflows
+        shell: python
+        run: |
+          from pathlib import Path
+
+          product_path = Path('docs/PRODUCT.md')
+          product = product_path.read_text(encoding='utf-8')
+          product = product.replace(
+              '현재 **v4**.\n\n- v2: Item category metadata\n- v3: Ammo의 현재 Wiki Ballistics 표 등록 여부를 Armor effectiveness와 별도 보존\n- v4: Quest의 online `possibleLocations` / `zones` geometry를 canonical content에 보존해 Map Quest projection에 사용',
+              '현재 **v5**.\n\n- v2: Item category metadata\n- v3: Ammo의 현재 Wiki Ballistics 표 등록 여부를 Armor effectiveness와 별도 보존\n- v4: Quest의 online `possibleLocations` / `zones` geometry를 canonical content에 보존해 Map Quest projection에 사용\n- v5: 최신 Quest availability semantics — 특수 상인 접근 선행 조건 보정, `availableDelaySecondsMin/Max` 보존, 미지원 `otherRequirements`를 숨기지 않고 진단 정보로 유지')
+          product = product.replace(
+              'Core `Indeterminate`는 diagnostic으로 유지하되 현재 지원 규칙을 모두 적용한 후에도 남는 residual Indeterminate는 Application 제품 경계에서 **진행 중**으로 보여줍니다. 확정 가능한 Locked/Unavailable은 변경하지 않습니다.',
+              'Core `Indeterminate`는 diagnostic으로 유지합니다. 현재 지원 규칙을 모두 적용한 후에도 남는 residual Indeterminate는 사용자가 진행 관리를 계속할 수 있도록 Application 제품 목록에서는 **진행 중**으로 보여주되, 원래 `Indeterminate` 판정과 이유를 `판정 문제` 목록에 그대로 보존합니다. 따라서 알 수 없는 해금 조건을 정확한 Current로 가장하지 않습니다. 확정 가능한 Locked/Unavailable은 변경하지 않습니다.')
+          marker = '### 5.2 자동 scroll 정책\n\n일반 refresh/진행 변경 때문에 목록이 임의로 이동하지 않습니다. 사용자가 cross-navigation을 명시적으로 요청했을 때만 목표 row로 이동할 수 있습니다.\n'
+          addition = marker + '''\n### 5.3 최신 availability / 선행 조건 정책\n\n`CONFIRMED / v0.1.1`\n\n- `taskRequirements`의 `active / complete / failed` 상태 조합은 source 그대로 canonical prerequisite로 해석합니다. 여러 prerequisite는 모두 충족해야 합니다.\n- json.tarkov.dev가 개별 후속 Quest에 반복하지 않는 **Lightkeeper / BTR Driver / Ref 상인 접근 조건**은 현재 GameMode에 해당 unlock Quest가 실제 존재할 때만 `Complete` prerequisite로 보강합니다. upstream이 같은 requirement를 제공하기 시작하면 중복하지 않고 source와 합칩니다.\n- 현재 source의 `globalVariable` / `dialogue` 같은 opaque `otherRequirements`는 의미를 추측하지 않습니다. 해당 Quest는 `판정 문제`에 명시해 사용자가 자동 판정의 한계를 볼 수 있게 합니다.\n- `availableDelaySecondsMin / Max`는 canonical metadata로 저장합니다. 그러나 준현 헬퍼의 완료 버튼 시각은 실제 게임 완료 시각이 아니므로 가짜 countdown을 만들지 않고 `availabilityDelay` 미지원 조건으로 명시합니다.\n- 위 availability 의미 변화 때문에 Content snapshot schema는 v5입니다. v3/v4 snapshot은 오프라인 last-known-good로 읽을 수 있지만, v0.1.1의 최신 판정을 받으려면 한 번 `데이터 업데이트`해 v5를 재구축합니다.\n\n상세 감사 기록: `docs/QUEST_PREREQUISITE_AUDIT_2026-08-15.md`\n'''
+          if marker not in product:
+              raise SystemExit('PRODUCT 5.2 marker not found')
+          product = product.replace(marker, addition, 1)
+          product = product.replace(
+              '**v0.1.0 RELEASED — 2026-08-10**',
+              '**v0.1.0 RELEASED — 2026-08-10 / v0.1.1 QUEST CORRECTNESS CANDIDATE — 2026-08-15**')
+          product = product.replace(
+              '상세 릴리즈 기록: `docs/RELEASE_0.1.0.md`\n\n현재 상세 상태는 `docs/STATE.md`를 기준으로 합니다.',
+              '상세 릴리즈 기록: `docs/RELEASE_0.1.0.md`\n\nv0.1.1 후보에서는 2026-08-15 최신 live 데이터로 Quest prerequisite/availability를 재감사했습니다. regular 517 / PvE 513 / pvp-season 490 Quest와 Item/Trader/Map/Hideout/Ammo 전체를 실제 importer/validator에 통과시켰고 validation error/warning 없이 성공했습니다. 특수 상인 접근 조건을 보강하고, 현재 자동 판정할 수 없는 `globalVariable` / `dialogue` / availability delay는 더 이상 조용히 정확한 Current처럼 숨기지 않습니다.\n\n현재 상세 상태는 `docs/STATE.md`를 기준으로 합니다.')
+          product_path.write_text(product, encoding='utf-8')
+
+          decision_path = Path('docs/DECISIONS.md')
+          decisions = decision_path.read_text(encoding='utf-8')
+          decision = '''\n## DEC-038 — 불완전한 Quest availability source는 추측하지 않고 확정 가능한 gate만 보강한다\n\n- 상태: `CONFIRMED`\n- 날짜: 2026-08-15\n- 결정: 최신 Quest availability 판정에서 source가 의미를 명확히 제공하는 `taskRequirements`, level/faction/prestige/trader 조건은 자동 판정한다. 반면 `globalVariable`, `dialogue`, 실제 게임 완료 시각이 필요한 availability delay처럼 JunhyunHelper의 User Progress만으로 참/거짓을 증명할 수 없는 조건은 임의 추정하지 않고 `Indeterminate` 진단으로 보존한다. 제품 목록에서는 관리 가능성을 위해 기존 optimistic Current fallback을 유지하되 `판정 문제`에 원 판정과 이유를 노출한다. Lightkeeper/BTR Driver/Ref처럼 게임의 상인 접근 gate가 현 API의 개별 후속 `taskRequirements`에서 빠진 경우에는 현재 GameMode에 검증된 unlock Quest가 실제 존재할 때만 Complete prerequisite를 보강한다.\n- 이유: 2026-08-15 live source에는 각 GameMode별 `globalVariable` 162건, `dialogue` 12건, delay Quest 13건이 존재한다. 이 조건을 Current로 조용히 확정하거나 UI 클릭 시각으로 타이머를 계산하면 실제 게임과 다른 availability를 만들 수 있다. 반대로 특수 상인 접근 gate 누락은 후속 Quest를 명백히 너무 일찍 열어주는 오류다.\n- 영향: Content schema v5. v3/v4는 last-known-good offline snapshot으로 읽을 수 있으나 최신 판정은 `데이터 업데이트` 후 v5 content에서 적용된다. 세부 감사는 `docs/QUEST_PREREQUISITE_AUDIT_2026-08-15.md`를 따른다.\n- 대체한 결정: 없음\n\n'''
+          anchor = '---\n\n# 현재 결정 확인 방법'
+          if '## DEC-038 ' not in decisions:
+              if anchor not in decisions:
+                  raise SystemExit('DECISIONS anchor not found')
+              decisions = decisions.replace(anchor, decision + anchor, 1)
+          decision_path.write_text(decisions, encoding='utf-8')
+
+          audit = '''# Quest prerequisite / live data audit — 2026-08-15\n\n## 결론\n\n2026-08-15 현재 json.tarkov.dev의 regular / pve / pvp-season 데이터를 준현 헬퍼의 실제 importer와 validator로 다시 검증했다. 기존 `taskRequirements`의 상태 모델 자체는 유효하지만, v0.1.0에는 최신 데이터에서 availability를 너무 낙관적으로 보일 수 있는 두 가지 공백이 있었다.\n\n1. Lightkeeper / BTR Driver / Ref 상인 접근 gate가 후속 Quest의 `taskRequirements`에 반복되지 않아 일부 Quest가 너무 일찍 열릴 수 있었다.\n2. `globalVariable`, `dialogue`, timed availability가 Core에서 Indeterminate여도 Application이 Problems를 버리고 Current로만 보여 자동 판정의 한계가 사용자에게 보이지 않았다.\n\n두 문제를 v0.1.1 후보에서 수정했다.\n\n## 현재 live Quest 구조\n\n| GameMode | Quest | Objective | Quest item requirement |\n|---|---:|---:|---:|\n| regular | 517 | 1457 | 307 |\n| pve | 513 | 1428 | 291 |\n| pvp-season | 490 | 1392 | 286 |\n\n`taskRequirements.status`에서 확인된 값은 `active`, `complete`, `failed`뿐이다. 현재 prerequisite graph에서 missing reference, self reference, duplicate prerequisite reference는 발견되지 않았다. Trader requirement는 `level`, `reputation`과 기존 지원 비교 연산자 `>=`, `<=`, `<` 범위였다.\n\n## 특수 상인 접근 gate\n\n현재 source는 Lightkeeper / BTR Driver / Ref가 제공하는 후속 Quest 대부분에 상인 접근 unlock Quest를 직접 prerequisite로 반복하지 않는다. JunhyunHelper는 current GameMode에 해당 unlock Quest가 존재할 때만 Complete requirement를 canonical prerequisite에 보강한다.\n\n검증된 보강 결과:\n\n| GameMode | Lightkeeper | BTR Driver | Ref |\n|---|---:|---:|---:|\n| regular | 14 | 19 | 20 |\n| pve | 14 | 19 | 20 |\n| pvp-season | 13 | 19 | 0 |\n\nseason에서 Ref unlock Quest가 current quest set에 없으므로 dangling prerequisite를 만들지 않는다. upstream이 이후 같은 prerequisite를 직접 제공하면 중복하지 않고 기존 requirement를 Complete로 강화한다.\n\n## opaque otherRequirements\n\n현재 각 mode에서 확인된 opaque availability 조건:\n\n- `globalVariable`: 162\n- `dialogue`: 12\n\nupstream data manager도 일부 알려진 global variable만 의미 있는 구조로 변환하고 나머지는 opaque variable/comparison/value로 남긴다. JunhyunHelper는 이 의미를 추측하지 않는다. Core `Indeterminate`는 그대로 보존하고, 제품 목록은 관리 가능성을 위해 Current fallback을 유지하되 `QuestWorkspace.Problems`와 기존 `판정 문제` UI에서 원 판정과 이유를 보여준다.\n\n## timed availability\n\n각 mode에 `availableDelaySecondsMin/Max`가 있는 Quest가 정확히 13개 존재한다. 범위는 수 초부터 24시간까지 포함한다.\n\nJunhyunHelper는 min/max를 canonical metadata로 저장하지만 자동 countdown은 하지 않는다. Helper에서 사용자가 완료 버튼을 누른 시각은 실제 Tarkov 완료 시각이 아닐 수 있으므로 그 시각을 기준으로 9시간/24시간 잠금을 걸면 잘못된 상태를 만들 수 있기 때문이다. timed Quest는 `availabilityDelay` unresolved condition으로 표시한다.\n\n## fail condition 점검\n\n현재 `taskStatus` fail condition은 Complete 기반이며 기존 completion-triggered failure 모델로 처리 가능하다. 그 외 `useItem`, `visit`, `shoot`, `extract`, `traderStanding`, `plantItem` 등은 restartable 여부와 함께 기존 보수적 manual permanent-failure 정책을 유지한다. 자동으로 실패를 추정하지 않는다.\n\n## 전체 live content 검증\n\nGitHub Actions run `31819603896`, job `94829428837`에서 실제 product importer/validator로 세 GameMode를 전부 빌드했다.\n\n| 항목 | regular | pve | pvp-season |\n|---|---:|---:|---:|\n| Items | 5312 | 5312 | 5312 |\n| Traders | 16 | 16 | 16 |\n| Maps | 17 | 17 | 17 |\n| Quests | 517 | 513 | 490 |\n| Hideout stations | 26 | 26 | 26 |\n| Ammo | 200 | 200 | 200 |\n| importer warnings | 0 | 0 | 0 |\n| validation | valid | valid | valid |\n\n동일 run에서 Desktop Release build 성공, 자동 테스트 173 passed / 0 failed였다. 이후 마지막 assertion 표현만 명확히 한 test-only commit이 추가되므로 PR 최종 head에서 정식 CI를 다시 통과시켜야 한다.\n\n## Content schema\n\nCurrent schema는 v5다. v3/v4 content DB는 offline last-known-good로 계속 읽을 수 있다. 다만 v0.1.1의 최신 Quest availability semantics를 받으려면 프로그램 업그레이드 후 `데이터 업데이트`를 한 번 실행해 v5 content를 재구축해야 한다. `user.db`는 이 변경과 독립이며 삭제/덮어쓰기하지 않는다.\n'''
+          Path('docs/QUEST_PREREQUISITE_AUDIT_2026-08-15.md').write_text(audit, encoding='utf-8')
+
+          state = '''# STATE — 현재 프로젝트 상태\n\n> 새 대화/새 개발자는 이 문서를 먼저 읽습니다. 대화 기억이 아니라 저장소의 공식 문서와 코드가 프로젝트의 기준입니다.\n\n## 현재 상태\n\n**v0.1.1 QUEST CORRECTNESS CANDIDATE — 2026-08-15**\n\n현재 공개 버전은 v0.1.0이다. 2026-08-15 최신 Tarkov live 데이터 재감사에서 Quest availability 정확도 수정이 필요해 v0.1.1 패치를 준비한다.\n\n### 이번 패치 핵심\n\n- current taskRequirements `active / complete / failed` 모델 재검증 — 기존 evaluator 유효\n- Lightkeeper / BTR Driver / Ref 후속 Quest에 누락된 상인 접근 Complete gate 보강\n- `globalVariable` 162건 / `dialogue` 12건을 임의 해석하지 않고 `판정 문제`로 노출\n- 각 mode 13개의 `availableDelaySecondsMin/Max`를 canonical metadata로 저장하되 가짜 UI 완료 시각 기반 타이머는 만들지 않음\n- Content snapshot schema **v5**; v3/v4는 offline last-known-good로 읽기 유지\n- 기존 사용자 `user.db` 변경 없음\n\n상세: `docs/QUEST_PREREQUISITE_AUDIT_2026-08-15.md`\n\n## 2026-08-15 live 검증\n\nGitHub Actions run `31819603896`, job `94829428837`: SUCCESS\n\n```text\nDesktop Release build: SUCCESS\nautomated tests: 173 passed / 0 failed\nregular:    517 quests / 5312 items / 16 traders / 17 maps / 26 hideout / 200 ammo / valid / warnings 0\npve:        513 quests / 5312 items / 16 traders / 17 maps / 26 hideout / 200 ammo / valid / warnings 0\npvp-season: 490 quests / 5312 items / 16 traders / 17 maps / 26 hideout / 200 ammo / valid / warnings 0\n```\n\n최종 test-only assertion commit 이후 PR 최종 head CI를 다시 통과시킨 뒤 main 병합 및 v0.1.1 공개 릴리즈한다.\n\n## 사용자 업그레이드 정책\n\nv0.1.1 설치 후 기존 사용자는 **`데이터 업데이트`를 한 번 실행**한다. 그러면 현재 online source로 v5 content DB를 재구축하고 새 Quest availability semantics를 적용한다. User Progress / inventory / 완료 기록은 `%LocalAppData%/JunhyunHelper/user.db`에 별도로 유지된다.\n\n## 제품 기능 상태\n\n| 영역 | 상태 |\n|---|---|\n| Profile | 구현 완료 |\n| Quest | 구현 완료 / v0.1.1 최신 prerequisite audit 반영 |\n| Hideout | 구현 완료 / current live validation 통과 |\n| Needed Items / Inventory | 구현 완료 |\n| Ammo | 구현 완료 / current live validation 통과 |\n| Map + MiniMap | 구현 완료 / Windows 실사용 검증 완료 |\n| Scanner | `준비 중` placeholder 탭 유지 / 실제 기능 PRODUCT OPEN |\n\n## 핵심 데이터 원칙\n\n```text\nonline source\n→ download\n→ external shape/semantic validation\n→ canonical transform\n→ candidate DB\n→ relationship/read-back validation\n→ active swap\n→ User Progress와 결합\n```\n\n실패 candidate가 last-known-good active content를 덮지 않으며 Game Content update가 `user.db`를 삭제/덮어쓰지 않는다. Runtime GPT/AI 의존성은 없다.\n\n## Map 기준\n\nMap subsystem은 독립이고 Quest만 JunhyunHelper current profile/content와 연결한다. pinned submodule revision은 `d933792b6042a51cea38dc44b686a096fe30de67`. 상세는 `docs/MAP_PRODUCT_REQUIREMENTS.md`.\n\n## 현재 공개 릴리즈\n\n```text\nv0.1.0\nhttps://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.0\npublic asset: Junhyun-Helper-v0.1.0-win-x64.zip\nSHA-256: f3c1a4208fc70b7ec7fb6612933de9d383e4c54e84a7352f529dc7de21550f91\n```\n\n## 다음 작업\n\n1. v0.1.1 candidate final CI\n2. main 병합\n3. Windows x64 single-file package 생성 / Map+MiniMap smoke\n4. public GitHub v0.1.1 Release\n5. 공개 ZIP/SHA256 재다운로드 검증\n\n비차단 후속 범위: Scanner 실제 기능, Map bundle updater, code signing/installer/app updater, user.db backup UX, license/third-party notice 정책.\n'''
+          Path('docs/STATE.md').write_text(state, encoding='utf-8')
+
+          for path in [
+              '.github/workflows/live-data-audit.yml',
+              '.github/workflows/live-special-trader-audit.yml',
+              '.github/workflows/live-full-content-build.yml',
+              '.github/workflows/live-quest-edge-audit.yml',
+              '.github/workflows/live-trader-unlock-derivation.yml',
+              '.github/workflows/finalize-quest-audit-docs.yml',
+          ]:
+              Path(path).unlink(missing_ok=True)
+
+      - name: Commit finalized audit state
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Finalize current quest prerequisite audit'
+          git push origin HEAD:agent/live-quest-prereq-audit-2026-08-15
