@@ -27,6 +27,8 @@ public partial class MapPage
 
     public Task JunhyunFloorDownAsync() => JunhyunMoveFloorAsync(-1);
 
+    public Task JunhyunSelectFloorAsync(int floorIndex) => JunhyunSelectFloorCoreAsync(floorIndex);
+
     private void JunhyunZoom(double factor)
     {
         if (factor <= 0 || MapViewerGrid.ActualWidth <= 0 || MapViewerGrid.ActualHeight <= 0)
@@ -48,15 +50,23 @@ public partial class MapPage
         SetZoom(newZoom);
     }
 
-    private async Task JunhyunMoveFloorAsync(int delta)
+    private Task JunhyunMoveFloorAsync(int delta)
     {
-        if (_junhyunFloorHotkeyBusy || delta == 0 || CmbFloorSelect.Items.Count == 0)
-            return;
+        if (delta == 0 || CmbFloorSelect.Items.Count == 0)
+            return Task.CompletedTask;
 
         var current = Math.Max(0, CmbFloorSelect.SelectedIndex);
         var next = Math.Clamp(current + delta, 0, CmbFloorSelect.Items.Count - 1);
-        if (next == current ||
-            CmbFloorSelect.Items[next] is not ComboBoxItem floorItem ||
+        return JunhyunSelectFloorCoreAsync(next);
+    }
+
+    private async Task JunhyunSelectFloorCoreAsync(int floorIndex)
+    {
+        if (_junhyunFloorHotkeyBusy ||
+            floorIndex < 0 ||
+            floorIndex >= CmbFloorSelect.Items.Count ||
+            floorIndex == CmbFloorSelect.SelectedIndex ||
+            CmbFloorSelect.Items[floorIndex] is not ComboBoxItem floorItem ||
             floorItem.Tag is not string floorId ||
             string.IsNullOrWhiteSpace(_currentMapKey))
         {
@@ -74,7 +84,7 @@ public partial class MapPage
             CmbFloorSelect.SelectionChanged -= CmbFloorSelect_SelectionChanged;
             try
             {
-                CmbFloorSelect.SelectedIndex = next;
+                CmbFloorSelect.SelectedIndex = floorIndex;
             }
             finally
             {
