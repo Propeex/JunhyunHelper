@@ -1,7 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Threading;
 using TarkovHelper.Services.Map;
 
 namespace JunhyunHelper.Desktop.Map;
@@ -17,7 +16,6 @@ public sealed class LegacyQuestMarkerRenderV3 : IDisposable
     private readonly Canvas _layer;
     private readonly ComboBox? _floorSelector;
     private readonly ScaleTransform? _mapScale;
-    private readonly DispatcherTimer _scaleTimer;
     private bool _disposed;
 
     public LegacyQuestMarkerRenderV3(TarkovHelper.Pages.Map.MapPage page)
@@ -41,13 +39,8 @@ public sealed class LegacyQuestMarkerRenderV3 : IDisposable
         _tracker.MapChanged += Tracker_MapChanged;
         if (_floorSelector is not null)
             _floorSelector.SelectionChanged += FloorSelector_SelectionChanged;
-
-        _scaleTimer = new DispatcherTimer(
-            TimeSpan.FromMilliseconds(120),
-            DispatcherPriority.Background,
-            (_, _) => UpdateScale(),
-            _page.Dispatcher);
-        _scaleTimer.Start();
+        if (_mapScale is not null)
+            _mapScale.Changed += MapScale_Changed;
 
         Render();
     }
@@ -60,6 +53,8 @@ public sealed class LegacyQuestMarkerRenderV3 : IDisposable
 
     private void FloorSelector_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
         _page.Dispatcher.BeginInvoke(Render);
+
+    private void MapScale_Changed(object? sender, EventArgs e) => UpdateScale();
 
     private void Render()
     {
@@ -81,7 +76,13 @@ public sealed class LegacyQuestMarkerRenderV3 : IDisposable
         var config = _tracker.GetMapConfig(currentMap);
         foreach (var marker in JunhyunMapQuestProjectionV2.Markers)
         {
-            var relation = JunhyunFloorPresentation.Resolve(config, marker.FloorId, selectedFloor);
+            // A missing Quest floor means the online geometry did not provide a reliable
+            // height. It must stay visible as unknown rather than being invented as main.
+            var relation = JunhyunFloorPresentation.Resolve(
+                config,
+                marker.FloorId,
+                selectedFloor,
+                JunhyunMissingFloorBehavior.KeepUnknown);
             var visual = JunhyunQuestMarkerVisualFactoryV3.Create(marker);
             JunhyunFloorPresentation.ApplyToMarker(visual, relation);
             Canvas.SetLeft(visual, marker.X);
@@ -112,11 +113,12 @@ public sealed class LegacyQuestMarkerRenderV3 : IDisposable
             return;
         _disposed = true;
 
-        _scaleTimer.Stop();
         JunhyunMapQuestProjectionV2.Changed -= Projection_Changed;
         _tracker.MapChanged -= Tracker_MapChanged;
         if (_floorSelector is not null)
             _floorSelector.SelectionChanged -= FloorSelector_SelectionChanged;
+        if (_mapScale is not null)
+            _mapScale.Changed -= MapScale_Changed;
 
         if (_layer.Parent is Panel parent)
             parent.Children.Remove(_layer);

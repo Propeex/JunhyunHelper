@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
@@ -35,6 +36,7 @@ public partial class OverlayMiniMapWindow
     private int _junhyunLastQuestMarkerCount = -1;
     private string? _junhyunLastQuestMapKey;
     private int _junhyunLastExtractSignature = -1;
+    private int _junhyunLastGeneralMarkerSignature = int.MinValue;
     private double _junhyunMarkerScale = 1.0;
 
     public double JunhyunMarkerScale => _junhyunMarkerScale;
@@ -63,7 +65,9 @@ public partial class OverlayMiniMapWindow
         _junhyunProductTimer.Start();
 
         RenderJunhyunQuestProjection(force: true);
-        SynchronizeGeneralMarkerScale();
+        RenderQuestV2(force: true);
+        SynchronizeGeneralMarkerScale(force: true);
+        RenderJunhyunAdditionalMarkers(force: true);
         SynchronizeExtractPresentation(force: true);
     }
 
@@ -85,8 +89,11 @@ public partial class OverlayMiniMapWindow
     public void ApplyJunhyunMarkerScale(double scale)
     {
         _junhyunMarkerScale = Math.Clamp(scale, 0.25, 1.50);
-        SynchronizeGeneralMarkerScale();
+        _junhyunLastGeneralMarkerSignature = int.MinValue;
+        SynchronizeGeneralMarkerScale(force: true);
+        RenderJunhyunAdditionalMarkers(force: true);
         RenderJunhyunQuestProjection(force: true);
+        RenderQuestV2(force: true);
         _junhyunLastExtractSignature = -1;
         SynchronizeExtractPresentation(force: true);
     }
@@ -155,7 +162,9 @@ public partial class OverlayMiniMapWindow
             Opacity = targetOpacity;
 
         RenderJunhyunQuestProjection(force: false);
-        SynchronizeGeneralMarkerScale();
+        RenderQuestV2(force: false);
+        SynchronizeGeneralMarkerScale(force: false);
+        RenderJunhyunAdditionalMarkers(force: false);
         SynchronizeExtractPresentation(force: false);
     }
 
@@ -228,17 +237,56 @@ public partial class OverlayMiniMapWindow
         _junhyunLastQuestMapKey = mapKey;
     }
 
-    private void SynchronizeGeneralMarkerScale()
+    private void SynchronizeGeneralMarkerScale(bool force)
     {
         var inverse = 1.0 / Math.Max(_settings.ZoomLevel, OverlayMiniMapSettings.MinZoom);
         var synchronizedScale = inverse * (24.0 / 18.0) * _junhyunMarkerScale;
+
+        var signatureBuilder = new System.HashCode();
+        signatureBuilder.Add(_currentMapKey, StringComparer.OrdinalIgnoreCase);
+        signatureBuilder.Add(_selectedFloorId, StringComparer.OrdinalIgnoreCase);
+        signatureBuilder.Add(_settings.ZoomLevel);
+        signatureBuilder.Add(_junhyunMarkerScale);
+        var count = MapMarkersContainer.Children.Count;
+        signatureBuilder.Add(count);
+        if (count > 0)
+        {
+            signatureBuilder.Add(RuntimeHelpers.GetHashCode(MapMarkersContainer.Children[0]));
+            signatureBuilder.Add(RuntimeHelpers.GetHashCode(MapMarkersContainer.Children[count - 1]));
+        }
+        var signature = signatureBuilder.ToHashCode();
+        if (!force && signature == _junhyunLastGeneralMarkerSignature)
+            return;
+
         foreach (FrameworkElement element in MapMarkersContainer.Children)
         {
+            // Junhyun-only markers own a different base size and scaling contract.
+            // Leave them to RenderJunhyunAdditionalMarkers so the standard-marker
+            // synchronization path cannot overwrite their transform.
+            if (element.Tag is JunhyunAdditionalMapMarker)
+                continue;
+
             element.RenderTransform = new ScaleTransform(synchronizedScale, synchronizedScale);
             element.RenderTransformOrigin = element is Canvas
                 ? new Point(0, 0)
                 : new Point(0.5, 0.5);
+
+            if (element is Canvas canvas && canvas.Tag is MapMarker marker)
+            {
+                var relation = JunhyunFloorPresentation.Resolve(
+                    _currentMapConfig,
+                    marker.FloorId,
+                    _selectedFloorId);
+                JunhyunFloorPresentation.ApplyToMarker(
+                    canvas,
+                    relation,
+                    badgeOffsetX: 6,
+                    badgeOffsetY: -14,
+                    currentFloorOpacity: 0.95);
+            }
         }
+
+        _junhyunLastGeneralMarkerSignature = signature;
     }
 
     private void SynchronizeExtractPresentation(bool force)
@@ -255,9 +303,7 @@ public partial class OverlayMiniMapWindow
         signatureBuilder.Add(settings.ShowScavExtracts);
         signatureBuilder.Add(settings.ShowTransits);
         signatureBuilder.Add(settings.ExtractNameSize);
-        signatureBuilder.Add(_settings.OtherFloorOpacity);
         signatureBuilder.Add(_junhyunMarkerScale);
-        signatureBuilder.Add(ExtractMarkersContainer.Children.Count);
         var signature = signatureBuilder.ToHashCode();
 
         if (!force && signature == _junhyunLastExtractSignature &&
@@ -286,8 +332,16 @@ public partial class OverlayMiniMapWindow
 
             var extract = display.Extract;
             var (screenX, screenY) = _currentMapConfig.GameToScreenForPlayer(extract.X, extract.Z);
-            var currentFloor = IsCurrentFloor(extract.FloorId, _selectedFloorId);
-            var visual = CreateSynchronizedExtractVisual(extract, display.Faction, currentFloor);
+            var relation = JunhyunFloorPresentation.Resolve(
+                _currentMapConfig,
+                extract.FloorId,
+                _selectedFloorId);
+            var visual = CreateSynchronizedExtractVisual(extract, display.Faction);
+            JunhyunFloorPresentation.ApplyToMarker(
+                visual,
+                relation,
+                badgeOffsetX: 7,
+                badgeOffsetY: -15);
             Canvas.SetLeft(visual, screenX);
             Canvas.SetTop(visual, screenY);
             ExtractMarkersContainer.Children.Add(visual);
@@ -298,8 +352,7 @@ public partial class OverlayMiniMapWindow
 
     private FrameworkElement CreateSynchronizedExtractVisual(
         MapExtract extract,
-        ExtractFaction faction,
-        bool currentFloor)
+        ExtractFaction faction)
     {
         var mapScale = _currentMapConfig?.MarkerScale ?? 1.0;
         var markerSize = 20.0 * mapScale;
@@ -319,7 +372,7 @@ public partial class OverlayMiniMapWindow
             Height = 0,
             IsHitTestVisible = false,
             Tag = new JunhyunSynchronizedExtractTag(),
-            Opacity = currentFloor ? 1.0 : Math.Clamp(_settings.OtherFloorOpacity, 0.0, 1.0),
+            Opacity = 1.0,
         };
 
         var glowSize = markerSize * 1.5;

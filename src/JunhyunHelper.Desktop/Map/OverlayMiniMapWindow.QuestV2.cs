@@ -1,7 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Threading;
 using JunhyunHelper.Desktop.Map;
 
 namespace TarkovHelper.Windows;
@@ -9,7 +8,6 @@ namespace TarkovHelper.Windows;
 public partial class OverlayMiniMapWindow
 {
     private Canvas? _junhyunQuestV2Layer;
-    private DispatcherTimer? _junhyunQuestV2Timer;
     private string? _junhyunQuestV2MapKey;
     private string? _junhyunQuestV2FloorId;
     private int _junhyunQuestV2Signature = int.MinValue;
@@ -28,23 +26,12 @@ public partial class OverlayMiniMapWindow
         MapCanvas.Children.Add(_junhyunQuestV2Layer);
 
         JunhyunMapQuestProjectionV2.Changed += JunhyunQuestV2_Changed;
-        _junhyunQuestV2Timer = new DispatcherTimer(
-            TimeSpan.FromMilliseconds(120),
-            DispatcherPriority.Background,
-            (_, _) => RenderQuestV2(force: false),
-            Dispatcher);
-        _junhyunQuestV2Timer.Start();
         RenderQuestV2(force: true);
     }
 
     public void DisposeQuestV2()
     {
         JunhyunMapQuestProjectionV2.Changed -= JunhyunQuestV2_Changed;
-        if (_junhyunQuestV2Timer is not null)
-        {
-            _junhyunQuestV2Timer.Stop();
-            _junhyunQuestV2Timer = null;
-        }
 
         if (_junhyunQuestV2Layer is not null)
         {
@@ -71,6 +58,8 @@ public partial class OverlayMiniMapWindow
         signature.Add(projectionMap, StringComparer.OrdinalIgnoreCase);
         signature.Add(_currentMapKey, StringComparer.OrdinalIgnoreCase);
         signature.Add(_selectedFloorId, StringComparer.OrdinalIgnoreCase);
+        signature.Add(_settings.ZoomLevel);
+        signature.Add(_junhyunMarkerScale);
         foreach (var marker in visible)
         {
             signature.Add(marker.QuestId, StringComparer.Ordinal);
@@ -82,25 +71,27 @@ public partial class OverlayMiniMapWindow
         }
         var currentSignature = signature.ToHashCode();
 
-        if (force ||
-            currentSignature != _junhyunQuestV2Signature ||
-            !string.Equals(_junhyunQuestV2MapKey, _currentMapKey, StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(_junhyunQuestV2FloorId, _selectedFloorId, StringComparison.OrdinalIgnoreCase))
+        if (!force &&
+            currentSignature == _junhyunQuestV2Signature &&
+            string.Equals(_junhyunQuestV2MapKey, _currentMapKey, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(_junhyunQuestV2FloorId, _selectedFloorId, StringComparison.OrdinalIgnoreCase))
         {
-            layer.Children.Clear();
-            foreach (var marker in visible)
-            {
-                var visual = JunhyunQuestMarkerVisualFactoryV3.Create(marker);
-                var relation = JunhyunFloorPresentation.Resolve(_currentMapConfig, marker.FloorId, _selectedFloorId);
-                JunhyunFloorPresentation.ApplyToMarker(visual, relation);
-                Canvas.SetLeft(visual, marker.X);
-                Canvas.SetTop(visual, marker.Y);
-                layer.Children.Add(visual);
-            }
+            return;
+        }
 
-            _junhyunQuestV2Signature = currentSignature;
-            _junhyunQuestV2MapKey = _currentMapKey;
-            _junhyunQuestV2FloorId = _selectedFloorId;
+        layer.Children.Clear();
+        foreach (var marker in visible)
+        {
+            var visual = JunhyunQuestMarkerVisualFactoryV3.Create(marker);
+            var relation = JunhyunFloorPresentation.Resolve(
+                _currentMapConfig,
+                marker.FloorId,
+                _selectedFloorId,
+                JunhyunMissingFloorBehavior.KeepUnknown);
+            JunhyunFloorPresentation.ApplyToMarker(visual, relation);
+            Canvas.SetLeft(visual, marker.X);
+            Canvas.SetTop(visual, marker.Y);
+            layer.Children.Add(visual);
         }
 
         var inverse = 1.0 / Math.Max(_settings.ZoomLevel, TarkovHelper.Models.Map.OverlayMiniMapSettings.MinZoom);
@@ -111,5 +102,8 @@ public partial class OverlayMiniMapWindow
         }
 
         layer.Visibility = visible.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        _junhyunQuestV2Signature = currentSignature;
+        _junhyunQuestV2MapKey = _currentMapKey;
+        _junhyunQuestV2FloorId = _selectedFloorId;
     }
 }
