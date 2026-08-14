@@ -1,9 +1,9 @@
 # MAP PRODUCT REQUIREMENTS — 준현 헬퍼 Map + MiniMap
 
 기록일: **2026-08-09**  
-최종 갱신: **2026-08-10**
+최종 갱신: **2026-08-15**
 
-상태: `USER CONFIRMED / IMPLEMENTED / WINDOWS USER VALIDATED / V0.1.0 BASELINE`
+상태: `USER CONFIRMED / IMPLEMENTED / WINDOWS RUNTIME VERIFIED / V0.1.2`
 
 ---
 
@@ -35,8 +35,8 @@ vendor/Tarkov-Helper
 ```text
 Map subsystem = 독립
 └─ 유일한 cross-feature dependency: Quest
-   └─ JunhyunHelper current profile
-   └─ Quest 진행 상태
+   ├─ JunhyunHelper current profile
+   ├─ Quest 진행 상태
    └─ online Quest location geometry
 ```
 
@@ -71,7 +71,7 @@ Quest 위치 source:
 
 ```text
 online possibleLocations / zones
-→ canonical Content schema v4
+→ canonical Content schema v4+
 → exact Tarkov Helper coordinate transform
 → JunhyunHelper Quest projection
 ```
@@ -109,7 +109,7 @@ Quest
 
 bundled DB에서 실제 데이터가 없는 category를 억지로 UI에 만들지 않습니다.
 
-현재 확인 기준:
+현재 pinned bundle 확인 기준:
 
 ```text
 ScavSpawn: 0
@@ -117,17 +117,15 @@ Keys: 0
 RaiderSpawn: 2
 ```
 
-일반 marker 표시 규칙:
+marker 표시 규칙:
 
 ```text
-현재 선택 floor
-AND 해당 category ON
-→ 표시
+해당 category ON
+AND marker가 현재 Map에 속함
+→ floor와 관계없이 marker 자체는 유지
 ```
 
-Shared extract는 PMC 또는 Scav 중 하나가 ON이면 표시합니다.
-
-Main Map과 MiniMap의 일반 marker / extract 표시 설정은 동기화합니다.
+Floor 표현은 4절의 공통 규칙을 따릅니다. Shared extract는 PMC 또는 Scav 중 하나가 ON이면 표시합니다. Main Map과 MiniMap의 일반 marker / extract 표시 설정은 동기화합니다.
 
 ---
 
@@ -139,18 +137,48 @@ Floor는 사용자가 직접 선택합니다.
 
 - 원본 `CmbFloorSelect` dropdown
 - floor up/down product hotkey
+- NumPad 0~5 direct floor selection compatibility
 
 정책:
 
 - screenshot으로 floor를 자동 판정하지 않음
 - AutoFloorSelection OFF
-- 선택된 현재 floor만 정상 표시
-- 다른 floor opacity 0% 고정
-- `다른 층 투명도` 사용자 설정 없음
-- `현재 층만 표시` 사용자 설정 없음
+- **지도 artwork는 선택한 현재 floor만 표시**
+- marker는 다른 floor라는 이유만으로 숨기지 않음
+- 다른 floor opacity를 사용자가 조절하는 별도 설정은 없음
 - 자동 층 추적 복귀 없음
 
-floor hotkey는 **Main Map의 실제 dropdown SelectionChanged 경로를 완료한 뒤 MiniMap floor를 변경**하도록 직렬화합니다. Main Map SVG 비동기 floor render와 MiniMap render를 경쟁 상태로 시작하지 않습니다.
+## 4.1 다른 층 marker 표현
+
+현재 선택 floor와 marker floor를 Map config의 `Floor.Order`로 비교합니다.
+
+```text
+현재 층 marker → 기존 정상 강조
+위층 marker     → opacity 약 50% + 작은 ↑ badge
+아래층 marker   → opacity 약 50% + 작은 ↓ badge
+floor 불명확    → 방향 추측 안 함
+```
+
+- 층 이름 문자열을 보고 위/아래를 추정하지 않음
+- Main Map과 MiniMap에서 같은 의미를 사용
+- Quest A/B/C marker, 일반 marker, Raider 등 JunhyunHelper 추가 marker, extract에 동일 원칙 적용
+- 화살표 badge는 marker를 가리지 않도록 작게 배치하며 hit-test를 받지 않음
+
+## 4.2 floor hotkey 시 viewport 보존
+
+floor up/down product hotkey는 다음 순서로 동작합니다.
+
+```text
+현재 zoom + viewport 중앙의 map-space 좌표 저장
+→ Main Map floor SVG 변경
+→ Main Map extract / Quest / 일반 marker refresh 완료
+→ 같은 zoom + 같은 map-space 중앙 좌표 복원
+→ MiniMap floor 변경
+```
+
+따라서 층을 바꿔도 사용자가 보고 있던 지도 위치가 중앙 초기값으로 돌아가지 않으며, 위치 추적을 다시 새로고침할 필요가 없어야 합니다.
+
+NumPad 0~5 직접 floor 선택도 동일한 viewport-safe render 경로를 사용합니다. legacy direct SelectionChanged 단축키 경로는 제품 입력으로 dispatch하지 않습니다.
 
 ---
 
@@ -208,7 +236,8 @@ Player marker size와 extract name size 등 실제 제품에서 사용하는 조
 ## Floor
 
 - manual selected floor 사용
-- other-floor opacity 0%
+- artwork는 selected floor만 표시
+- 다른 층 marker는 4절 규칙대로 50% + ↑/↓로 표시
 - AutoFloorSelection OFF
 
 ## Hover / temporary hide
@@ -255,9 +284,10 @@ MiniMap의 비플레이어 marker를 별도로 조절합니다.
 
 적용 대상:
 
-- Quest marker + label
-- 일반 Map marker
-- PMC / Scav / Transit extract marker + label
+- Quest marker + floor badge
+- 일반 Map marker + floor badge
+- PMC / Scav / Transit extract marker + label + floor badge
+- Raider 등 JunhyunHelper 추가 marker
 
 제외:
 
@@ -298,6 +328,7 @@ Main Map `설정`에서 편집합니다.
 - Delete / Backspace → 미지정
 - Esc → 편집 취소
 - NumPad 0~5 → 직접 floor 선택용 예약 범위
+- direct floor와 floor up/down 모두 viewport-safe Main Map floor render 사용
 
 JunhyunHelper-owned persisted hotkey가 runtime 권위값입니다.
 
@@ -305,7 +336,7 @@ JunhyunHelper-owned persisted hotkey가 runtime 권위값입니다.
 
 - `EscapeFromTarkov`
 - `EscapeFromTarkov_BE`
-- `JunhyunHelper`
+- `준현 헬퍼` / `JunhyunHelper`
 - legacy host compatibility용 `TarkovHelper`
 
 즉, **게임 플레이 중 게임 창이 활성 상태여도 hotkey가 동작해야 합니다.**
@@ -369,7 +400,7 @@ legacy Tarkov Helper settings가 async 초기화 후반에 값을 다시 읽더�
 
 # 12. Map bundle 데이터 정책
 
-v0.1.0에서는 artwork/config/general-marker DB를 **검증된 pinned bundle**로 배포합니다.
+현재 artwork/config/general-marker DB는 **검증된 pinned bundle**로 배포합니다.
 
 이는 Quest/Hideout/Item/Ammo 온라인 Game Content updater와 분리됩니다.
 
@@ -395,6 +426,11 @@ Release candidate에서 최소 다음을 실제 WPF runtime으로 검증합니�
 - exact Map subsystem 초기화
 - multi-floor Map 선택
 - Main Map dropdown floor 전환 시 SVG source 실제 변경
+- 타층 floor relation이 `Floor.Order` 기준 ↑/↓로 계산되는지 확인
+- 타층 marker visual이 50% opacity + direction badge를 받는지 확인
+- product floor hotkey가 실제 Main Map SVG를 변경
+- product floor hotkey 전후 zoom 유지
+- product floor hotkey 전후 viewport 중앙의 map-space 좌표 유지
 - MiniMap 실제 window 표시
 - MiniMap `ResizeMode=NoResize`
 - legacy bottom-right resize grip 없음
@@ -410,15 +446,13 @@ Release candidate에서 최소 다음을 실제 WPF runtime으로 검증합니�
 
 ---
 
-# 14. v0.1.0 완료 기준
+# 14. 현재 완료 기준
 
-현재 Map/MiniMap 기능은 사용자의 Windows 실사용 피드백을 반복 반영한 **v0.1.0 기능 기준선**으로 봅니다.
+v0.1.2에서는 다음 사용자 피드백을 제품 기준선에 포함합니다.
 
-릴리즈를 막는 Map 기능 미구현 항목은 현재 없습니다.
+- floor hotkey 전환 시 Main Map 시점/중앙 위치 보존
+- NumPad direct floor도 동일한 viewport-safe 경로 사용
+- 타층 marker 유지 + ↑/↓ 방향 표현
+- Main Map/MiniMap marker floor 의미 통일
 
-향후 변경은 다음 중 하나일 때 진행합니다.
-
-- 실제 사용 중 새 버그 발견
-- 새 제품 요구사항 확정
-- upstream Map bundle 갱신 필요
-- 게임 패치로 현재 pinned Map data가 실제 게임과 불일치
+현재 확인된 Map 기능 release blocker는 없습니다. 향후 변경은 실제 사용 중 새 버그, 새 제품 요구사항, upstream Map bundle 갱신 또는 게임 패치로 pinned Map data가 실제 게임과 불일치할 때 진행합니다.
