@@ -79,9 +79,6 @@ public partial class MainWindow
             throw new InvalidOperationException("Factory Office Window did not remain visible as an above-floor marker on main.");
         }
 
-        // Gate 3 has PMC and Scav source rows at the same physical exit. Turning PMC off
-        // must reveal the Scav representative rather than losing the exit because a source
-        // visual was deleted during deduplication.
         pmcExtractToggle.IsChecked = false;
         await WaitForAsync(
             () =>
@@ -105,7 +102,9 @@ public partial class MainWindow
         await Task.Delay(700);
 
         var officeOnLevel3 = VisibleExtractVisuals(extractContainer, "Office Window").SingleOrDefault()
-            ?? throw new InvalidOperationException("Factory Office Window disappeared on its own level3 floor.");
+            ?? throw new InvalidOperationException(
+                "Factory Office Window disappeared on its own level3 floor. " +
+                DescribeExtractVisuals(extractContainer, "Office Window", pmcExtractToggle, scavExtractToggle));
         if (officeOnLevel3.Tag is not MapExtract officeLevel3Extract ||
             officeLevel3Extract.Faction != ExtractFaction.Scav)
         {
@@ -118,11 +117,15 @@ public partial class MainWindow
         }
 
         var gate3Below = VisibleExtractVisuals(extractContainer, "Gate 3").SingleOrDefault()
-            ?? throw new InvalidOperationException("Factory Gate 3 disappeared when level3 was selected.");
+            ?? throw new InvalidOperationException(
+                "Factory Gate 3 disappeared when level3 was selected. " +
+                DescribeExtractVisuals(extractContainer, "Gate 3", pmcExtractToggle, scavExtractToggle));
         if (!JunhyunFloorPresentation.HasFloorIndicator(gate3Below, JunhyunFloorRelation.Below) ||
             gate3Below.Opacity < 0.70)
         {
-            throw new InvalidOperationException("Factory Gate 3 did not remain visible as a below-floor marker on level3.");
+            throw new InvalidOperationException(
+                "Factory Gate 3 did not remain visible as a below-floor marker on level3. " +
+                DescribeExtractVisuals(extractContainer, "Gate 3", pmcExtractToggle, scavExtractToggle));
         }
     }
 
@@ -152,4 +155,26 @@ public partial class MainWindow
         ExtractVisuals(container, extractName)
             .Where(canvas => canvas.Visibility == Visibility.Visible && canvas.Opacity > 0.05)
             .ToArray();
+
+    private static string DescribeExtractVisuals(
+        Canvas container,
+        string extractName,
+        CheckBox pmcToggle,
+        CheckBox scavToggle)
+    {
+        var visuals = ExtractVisuals(container, extractName);
+        var rows = visuals.Select(canvas =>
+        {
+            var extract = (MapExtract)canvas.Tag;
+            return $"id={extract.Id},faction={extract.Faction},floor={extract.FloorId}," +
+                   $"visibility={canvas.Visibility},opacity={canvas.Opacity:F2}," +
+                   $"currentRing={JunhyunFloorPresentation.HasFloorIndicator(canvas, JunhyunFloorRelation.Current)}," +
+                   $"aboveRing={JunhyunFloorPresentation.HasFloorIndicator(canvas, JunhyunFloorRelation.Above)}," +
+                   $"belowRing={JunhyunFloorPresentation.HasFloorIndicator(canvas, JunhyunFloorRelation.Below)}";
+        });
+
+        return $"pmcToggle={pmcToggle.IsChecked},scavToggle={scavToggle.IsChecked}," +
+               $"containerCount={container.Children.Count},matches={visuals.Count}; " +
+               string.Join(" | ", rows);
+    }
 }
