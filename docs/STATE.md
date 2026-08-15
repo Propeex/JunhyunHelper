@@ -4,9 +4,12 @@
 
 ## 현재 상태
 
-**v0.1.5 RELEASE CANDIDATE — Main Map 타층 일반 marker 소실 회귀 패치 / Windows x64**
+**v0.1.5 RELEASE CANDIDATE — Main Map 타층 marker + MiniMap floor viewport 회귀 패치 / Windows x64**
 
-현재 공개 릴리즈는 **v0.1.4**입니다. v0.1.5는 v0.1.4 실사용에서 확인된 `다른 층 일반 marker가 잠깐 보인 뒤 깜박이며 사라짐` 회귀만 우선 수정하는 패치입니다.
+현재 공개 릴리즈는 **v0.1.4**입니다. v0.1.5는 v0.1.4 실사용에서 확인된 두 Map 회귀를 수정합니다.
+
+1. 다른 층 일반 marker가 잠깐 보인 뒤 깜박이며 사라짐
+2. 층 변경 시 MiniMap의 현재 지도 중심이 초기/이전 위치로 돌아감
 
 ```text
 feature PR: #82 OPEN
@@ -18,7 +21,7 @@ required data update from v0.1.4: none
 public v0.1.5 release: PENDING final CI + merge + exact-baseline release gate
 ```
 
-### v0.1.5 원인과 수정
+### 회귀 1 — 타층 일반 marker 소실
 
 원인은 Main Map standard marker의 cross-floor near-overlap `vertical stack` 최적화였습니다.
 
@@ -31,7 +34,7 @@ AND X/Z가 가까움
 
 legacy marker renderer가 marker를 비동기로 순차 추가하기 때문에 초기에는 타층 marker가 보였고, marker tree가 완성된 뒤 위 정리 로직이 실행되면서 `보임 → 깜박임 → 사라짐` 현상이 발생했습니다.
 
-v0.1.5에서는 다음처럼 정정합니다.
+수정:
 
 - 일반 marker는 서로 다른 floor라는 이유만으로 중복 제거하지 않음
 - category ON + current Map이면 각 marker visual 유지
@@ -41,25 +44,44 @@ v0.1.5에서는 다음처럼 정정합니다.
   - 예: Factory `Gate 3` same-name / same normalized floor / near-identical-position PMC+Scav raw rows
 - permanent full-tree polling 재도입 없음
 
+### 회귀 2 — MiniMap floor 변경 시 중심 초기화
+
+MiniMap은 `PlayerTracking` 고정입니다. 이 모드의 실제 player-centered viewport는 live `MapTranslate`에 갱신되지만 persisted `_settings.MapOffsetX/Y`는 이전 값으로 남을 수 있습니다. 기존 floor renderer는 SVG 교체 뒤 `UpdateMapView()`에서 이 stale offset을 다시 적용하여 중심을 초기/이전 위치로 되돌렸습니다.
+
+수정:
+
+- floor 변경 직전 MiniMap live `MapScale` + `MapTranslate`에서 zoom과 viewport 중앙 map-space X/Y 캡처
+- legacy floor render 전에 live transform을 persisted offset에도 동기화하여 중간 점프 방지
+- floor SVG render 완료까지 await
+- layout 안정 후 동일 zoom + 동일 map-space 중심 복원
+- 최종 persisted offset과 live transform 재동기화
+- floor up/down product hotkey와 NumPad 0~5 direct floor selection 모두 동일 viewport-safe 경로 사용
+- Map 자체 변경이나 새로운 screenshot player position은 정상적으로 중심을 바꿀 수 있음
+
 ### v0.1.5 검증 상태
 
-수정 핵심 head `ea4ccfc6cd25885e302d5d790933ce20f2192cf3`에서 CI run `31861199425`가 성공했습니다.
+타층 marker 단독 수정 head `ea4ccfc6cd25885e302d5d790933ce20f2192cf3` / CI run `31861199425`에서는 이미 다음을 통과했습니다.
 
 ```text
 Desktop Release build: SUCCESS
 automated tests: SUCCESS
 Windows x64 self-contained single-file publish: SUCCESS
-Main Map + MiniMap startup/runtime smoke: SUCCESS
 actual MapMarkersContainer off-floor standard-marker async-settle assertion: SUCCESS
 Factory Gate 3 / Office Window regression smoke: SUCCESS
-floor-hotkey zoom + map-space viewport-center preservation: SUCCESS
+Main Map floor-hotkey zoom + map-space viewport-center preservation: SUCCESS
+MiniMap existing runtime smoke: SUCCESS
 normal Main Window close / process exit: SUCCESS
-release artifact upload: SUCCESS
 ```
 
-그 뒤 ProductVersion/배포 문서를 v0.1.5로 정합화했으므로 **최종 PR head CI를 다시 통과한 뒤** 병합합니다. 공개 릴리즈는 병합된 exact baseline에서 release gate를 다시 실행합니다.
+이후 MiniMap viewport regression fix와 direct smoke를 추가했습니다. **최종 PR head에서 전체 CI/runtime smoke를 다시 통과한 뒤** 병합합니다. 공개 릴리즈는 병합된 exact baseline에서 release gate를 다시 실행합니다.
 
-상세: `docs/FEEDBACK_2026-08-15_OFF_FLOOR_MARKER_FLICKER.md`, `docs/MAP_PRODUCT_REQUIREMENTS.md`, `docs/DECISIONS.md` DEC-041.
+상세:
+
+- `docs/FEEDBACK_2026-08-15_OFF_FLOOR_MARKER_FLICKER.md`
+- `docs/FEEDBACK_2026-08-15_MINIMAP_FLOOR_CENTER_RESET.md`
+- `docs/MAP_PRODUCT_REQUIREMENTS.md`
+- `docs/DECISIONS.md` DEC-041 / DEC-042
+- `docs/RELEASE_0.1.5.md`
 
 ## 현재 공개 릴리즈 — v0.1.4
 
@@ -82,7 +104,7 @@ v0.1.4에서 도입한 핵심은 유지합니다.
 - `확인 필요`는 Current count/Map Current sidebar에서 제외
 - Future Needed Items의 `IndeterminatePotential` 보수 보호 유지
 
-단, v0.1.4의 일반 marker cross-floor vertical-stack representative 예외는 실사용 회귀 때문에 DEC-041 / v0.1.5에서 폐기합니다.
+단, v0.1.4의 일반 marker cross-floor vertical-stack representative 예외는 DEC-041 / v0.1.5에서 폐기하고, MiniMap floor viewport는 DEC-042에서 명시적으로 보존합니다.
 
 ## v0.1.3 변경 — Map/MiniMap 회귀 핫픽스
 
@@ -149,7 +171,7 @@ importer warnings: 0
 | Hideout | 구현 완료 / current live validation 통과 |
 | Needed Items / Inventory | 구현 완료 / flexible status + Item Wiki |
 | Ammo | 구현 완료 / current live validation 통과 |
-| Map + MiniMap | 구현 완료 / v0.1.5 off-floor standard-marker regression patch 검증 중 |
+| Map + MiniMap | 구현 완료 / v0.1.5 off-floor marker + MiniMap floor viewport regression patch 검증 중 |
 | Scanner | `준비 중` placeholder 탭 유지 / 실제 기능 PRODUCT OPEN |
 
 ## Map 기준
