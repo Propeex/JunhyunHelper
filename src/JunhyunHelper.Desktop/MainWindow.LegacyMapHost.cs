@@ -217,6 +217,7 @@ public partial class MainWindow : TarkovHelper.MainWindow
                 TimeSpan.FromSeconds(4));
 
             VerifyOtherFloorDirectionPresentation(floorSelector);
+            await VerifyFactoryMainMapFloorPresentationAsync(page, mapSelector, floorSelector);
 
             // The page can raise Loaded while its containing product section is still
             // Collapsed during asynchronous startup. Viewport geometry is meaningful only
