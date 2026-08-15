@@ -378,6 +378,12 @@ public partial class MainWindow : TarkovHelper.MainWindow
 
         if (window.FindName("MapMarkersContainer") is not Canvas markerContainer)
             throw new InvalidOperationException("MiniMap marker container was not found.");
+        if (window.FindName("MapCanvas") is not Canvas mapCanvas)
+            throw new InvalidOperationException("MiniMap MapCanvas was not found.");
+        if (window.FindName("MapScale") is not ScaleTransform miniMapScale)
+            throw new InvalidOperationException("MiniMap scale transform was not found.");
+        if (window.FindName("MapTranslate") is not TranslateTransform miniMapTranslate)
+            throw new InvalidOperationException("MiniMap translate transform was not found.");
 
         var persistedMarkerScale = JunhyunMapProductSettingsStore.Instance.MiniMapMarkerScale;
         var markerProbe = new Canvas();
@@ -405,32 +411,74 @@ public partial class MainWindow : TarkovHelper.MainWindow
                   legacyHook.FloorDownKey == 0,
             TimeSpan.FromSeconds(2));
 
-        var zoomBefore = overlay.Settings.ZoomLevel;
-        if (zoomBefore < TarkovHelper.Models.Map.OverlayMiniMapSettings.MaxZoom - 0.001)
+        var zoomBeforeControl = overlay.Settings.ZoomLevel;
+        if (zoomBeforeControl < TarkovHelper.Models.Map.OverlayMiniMapSettings.MaxZoom - 0.001)
             overlay.ZoomIn();
         else
             overlay.ZoomOut();
 
         await WaitForAsync(
-            () => Math.Abs(overlay.Settings.ZoomLevel - zoomBefore) > 0.0001,
+            () => Math.Abs(overlay.Settings.ZoomLevel - zoomBeforeControl) > 0.0001,
             TimeSpan.FromSeconds(2));
 
         if (window.FindName("TxtFloorName") is not TextBlock floorText)
             throw new InvalidOperationException("MiniMap floor indicator was not found.");
 
         await WaitForAsync(
-            () => !string.IsNullOrWhiteSpace(floorText.Text),
+            () => !string.IsNullOrWhiteSpace(floorText.Text) &&
+                  mapContainer.ActualWidth > 0 &&
+                  mapContainer.ActualHeight > 0 &&
+                  mapCanvas.Width > 0 &&
+                  mapCanvas.Height > 0 &&
+                  miniMapScale.ScaleX > 0,
             TimeSpan.FromSeconds(4));
 
+        // Reproduce the PlayerTracking failure mode directly: the live transform is the
+        // authoritative player-centered viewport, while persisted offsets are stale.
+        // The old floor renderer read the stale offsets after swapping SVG artwork and
+        // snapped the MiniMap back to them.
+        var liveTranslateX = miniMapTranslate.X;
+        var liveTranslateY = miniMapTranslate.Y;
+        overlay.Settings.MapOffsetX = liveTranslateX + 67;
+        overlay.Settings.MapOffsetY = liveTranslateY - 43;
+
+        var miniZoomBefore = miniMapScale.ScaleX;
+        var miniCenterX = mapContainer.ActualWidth / 2.0;
+        var miniCenterY = mapContainer.ActualHeight / 2.0;
+        var miniCanvasXBefore = (miniCenterX - miniMapTranslate.X) / miniZoomBefore;
+        var miniCanvasYBefore = (miniCenterY - miniMapTranslate.Y) / miniZoomBefore;
         var floorBefore = floorText.Text;
-        overlay.MoveFloorUp();
-        await Task.Delay(350);
+
+        await window.JunhyunMoveFloorUpAsync();
         if (string.Equals(floorBefore, floorText.Text, StringComparison.Ordinal))
-            overlay.MoveFloorDown();
+            await window.JunhyunMoveFloorDownAsync();
 
         await WaitForAsync(
             () => !string.Equals(floorBefore, floorText.Text, StringComparison.Ordinal),
             TimeSpan.FromSeconds(4));
+
+        var miniZoomAfter = miniMapScale.ScaleX;
+        miniCenterX = mapContainer.ActualWidth / 2.0;
+        miniCenterY = mapContainer.ActualHeight / 2.0;
+        var miniCanvasXAfter = (miniCenterX - miniMapTranslate.X) / miniZoomAfter;
+        var miniCanvasYAfter = (miniCenterY - miniMapTranslate.Y) / miniZoomAfter;
+
+        if (Math.Abs(miniZoomAfter - miniZoomBefore) > 0.001 ||
+            Math.Abs(miniCanvasXAfter - miniCanvasXBefore) > 0.75 ||
+            Math.Abs(miniCanvasYAfter - miniCanvasYBefore) > 0.75)
+        {
+            throw new InvalidOperationException(
+                $"Floor change reset MiniMap viewport: zoom {miniZoomBefore:F4}->{miniZoomAfter:F4}, " +
+                $"center ({miniCanvasXBefore:F2},{miniCanvasYBefore:F2})->" +
+                $"({miniCanvasXAfter:F2},{miniCanvasYAfter:F2}).");
+        }
+
+        if (Math.Abs(overlay.Settings.MapOffsetX - miniMapTranslate.X) > 0.01 ||
+            Math.Abs(overlay.Settings.MapOffsetY - miniMapTranslate.Y) > 0.01)
+        {
+            throw new InvalidOperationException(
+                "MiniMap live viewport and persisted offsets diverged after floor preservation.");
+        }
 
         await WaitForAsync(
             () => legacyHook.ZoomInKey == 0 &&
