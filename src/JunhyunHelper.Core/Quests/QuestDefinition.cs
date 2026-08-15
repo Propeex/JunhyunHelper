@@ -21,6 +21,18 @@ public sealed record QuestTaskRequirement(
     string RequiredQuestId,
     IReadOnlyCollection<QuestRequiredStatus> AcceptedStatuses);
 
+/// <summary>
+/// Models access to a special trader when that access is not faithfully repeated in
+/// every upstream quest taskRequirement. The automatic unlock remains quest-based,
+/// while AllowManualOverride is reserved for access that can later be lost/restored
+/// by game events not reconstructible from monotonic completion facts (Lightkeeper).
+/// </summary>
+public sealed record QuestSpecialTraderAccessRequirement(
+    string TraderId,
+    string UnlockQuestId,
+    IReadOnlyCollection<QuestRequiredStatus> AcceptedUnlockStatuses,
+    bool AllowManualOverride);
+
 public sealed record QuestCompletionFailureCondition(string TriggerQuestId);
 
 public sealed record QuestTraderStandingRequirement(
@@ -54,7 +66,8 @@ public sealed record QuestDefinition(
     bool Restartable = false,
     IReadOnlyList<string>? UnsupportedFailureConditionTypes = null,
     int AvailableDelaySecondsMin = 0,
-    int AvailableDelaySecondsMax = 0)
+    int AvailableDelaySecondsMax = 0,
+    QuestSpecialTraderAccessRequirement? SpecialTraderAccessRequirement = null)
 {
     [JsonIgnore]
     public IReadOnlyList<string> UnsupportedAvailabilityRequirements =>
