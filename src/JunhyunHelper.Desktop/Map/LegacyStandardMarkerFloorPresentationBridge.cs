@@ -138,10 +138,6 @@ public sealed class LegacyStandardMarkerFloorPresentationBridge : IDisposable
             if (canvas.Tag is not MapMarker marker)
                 continue;
 
-            // Restore the pinned interaction contract before each stack pass. Boss and
-            // Lever markers own hover/name interaction; the remaining standard categories
-            // are deliberately mouse-through. A previous stack pass may have disabled a
-            // marker that becomes the representative after a floor/filter change.
             canvas.IsHitTestVisible = marker.Type is MarkerType.BossSpawn or MarkerType.Lever;
 
             var relation = JunhyunFloorPresentation.Resolve(config, marker.FloorId, selectedFloor);
@@ -169,86 +165,77 @@ public sealed class LegacyStandardMarkerFloorPresentationBridge : IDisposable
         var consumed = new bool[markers.Count];
         var maxDistanceSquared = VerticalStackGameDistance * VerticalStackGameDistance;
 
-        for (var start = 0; start < markers.Count; start++)
+        // Choose the visible representative first, then form the stack around that exact
+        // representative. Current-floor markers have first priority; otherwise the closest
+        // known Floor.Order wins. This guarantees every hidden member is physically within
+        // the overlap threshold of the icon that remains visible.
+        var representativeOrder = Enumerable.Range(0, markers.Count)
+            .Where(index =>
+                markers[index].Canvas.Visibility == Visibility.Visible &&
+                FloorOrder(config, EffectiveFloorId(markers[index].Marker.FloorId)).HasValue)
+            .OrderBy(index => RepresentativeRank(markers[index], config, selectedOrder.Value))
+            .ThenBy(index => index)
+            .ToArray();
+
+        foreach (var representativeIndex in representativeOrder)
         {
-            if (consumed[start] || markers[start].Canvas.Visibility != Visibility.Visible)
+            if (consumed[representativeIndex])
                 continue;
 
-            var anchor = markers[start];
-            var anchorOrder = FloorOrder(config, EffectiveFloorId(anchor.Marker.FloorId));
-            if (!anchorOrder.HasValue)
-            {
-                consumed[start] = true;
+            var representative = markers[representativeIndex];
+            var representativeFloorOrder = FloorOrder(
+                config,
+                EffectiveFloorId(representative.Marker.FloorId));
+            if (!representativeFloorOrder.HasValue)
                 continue;
-            }
 
-            var cluster = new List<int> { start };
-            consumed[start] = true;
+            consumed[representativeIndex] = true;
 
-            // A vertical stack represents one physical overlap site. Every candidate is
-            // compared directly with the anchor; candidates never pull in another marker
-            // transitively. At most one marker per other floor participates, choosing the
-            // physically closest candidate on that floor. This prevents a 0→7→14 chain
-            // (or two distinct markers on one floor) from being collapsed as one site.
+            // At most one marker from each other floor is collapsed into this physical
+            // site, selecting the closest candidate to the visible representative.
             var candidatesByFloor = new Dictionary<int, (int Index, double DistanceSquared)>();
             for (var candidateIndex = 0; candidateIndex < markers.Count; candidateIndex++)
             {
-                if (consumed[candidateIndex] || candidateIndex == start)
+                if (consumed[candidateIndex] || candidateIndex == representativeIndex)
                     continue;
 
                 var candidate = markers[candidateIndex];
                 if (candidate.Canvas.Visibility != Visibility.Visible ||
-                    candidate.Marker.Type != anchor.Marker.Type)
+                    candidate.Marker.Type != representative.Marker.Type)
                 {
                     continue;
                 }
 
-                var candidateOrder = FloorOrder(config, EffectiveFloorId(candidate.Marker.FloorId));
-                if (!candidateOrder.HasValue || candidateOrder.Value == anchorOrder.Value)
+                var candidateFloorOrder = FloorOrder(
+                    config,
+                    EffectiveFloorId(candidate.Marker.FloorId));
+                if (!candidateFloorOrder.HasValue ||
+                    candidateFloorOrder.Value == representativeFloorOrder.Value)
+                {
                     continue;
+                }
 
-                var dx = candidate.Marker.X - anchor.Marker.X;
-                var dz = candidate.Marker.Z - anchor.Marker.Z;
+                var dx = candidate.Marker.X - representative.Marker.X;
+                var dz = candidate.Marker.Z - representative.Marker.Z;
                 var distanceSquared = (dx * dx) + (dz * dz);
                 if (distanceSquared > maxDistanceSquared)
                     continue;
 
-                if (!candidatesByFloor.TryGetValue(candidateOrder.Value, out var previous) ||
+                if (!candidatesByFloor.TryGetValue(candidateFloorOrder.Value, out var previous) ||
                     distanceSquared < previous.DistanceSquared)
                 {
-                    candidatesByFloor[candidateOrder.Value] = (candidateIndex, distanceSquared);
+                    candidatesByFloor[candidateFloorOrder.Value] = (candidateIndex, distanceSquared);
                 }
             }
 
-            foreach (var candidate in candidatesByFloor.Values.OrderBy(value => value.Index))
+            foreach (var candidate in candidatesByFloor.Values)
             {
                 if (consumed[candidate.Index])
                     continue;
 
                 consumed[candidate.Index] = true;
-                cluster.Add(candidate.Index);
-            }
-
-            if (cluster.Count <= 1)
-                continue;
-
-            var representative = cluster
-                .Select(index => (Index: index, Rank: RepresentativeRank(
-                    markers[index],
-                    config,
-                    selectedOrder.Value)))
-                .OrderBy(candidate => candidate.Rank)
-                .ThenBy(candidate => candidate.Index)
-                .First()
-                .Index;
-
-            foreach (var index in cluster)
-            {
-                if (index == representative)
-                    continue;
-
-                markers[index].Canvas.Opacity = 0.0;
-                markers[index].Canvas.IsHitTestVisible = false;
+                markers[candidate.Index].Canvas.Opacity = 0.0;
+                markers[candidate.Index].Canvas.IsHitTestVisible = false;
             }
         }
     }
