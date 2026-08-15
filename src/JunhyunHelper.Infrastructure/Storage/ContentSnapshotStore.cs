@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.Profiles;
+using JunhyunHelper.Infrastructure.TarkovJson;
 using Microsoft.Data.Sqlite;
 
 namespace JunhyunHelper.Infrastructure.Storage;
@@ -154,6 +155,16 @@ public sealed class ContentSnapshotStore
 
         var content = JsonSerializer.Deserialize<GameContentCatalog>(reader.GetString(3), JsonOptions)
                       ?? throw new InvalidDataException("Content payload could not be deserialized.");
+        if (schemaVersion < 6)
+        {
+            content = content with
+            {
+                Quests = TarkovGameContentImporter.UpgradeLegacySpecialTraderAccessRequirements(
+                    content.Quests,
+                    gameMode),
+            };
+        }
+
         var warnings = JsonSerializer.Deserialize<string[]>(reader.GetString(4), JsonOptions)
                        ?? Array.Empty<string>();
 
