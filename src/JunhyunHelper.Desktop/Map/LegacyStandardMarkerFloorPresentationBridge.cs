@@ -52,6 +52,8 @@ public sealed class LegacyStandardMarkerFloorPresentationBridge : IDisposable
         _page.Loaded += Page_Loaded;
     }
 
+    public void Refresh() => ScheduleApply(force: true);
+
     private void Page_Loaded(object sender, RoutedEventArgs e) => ScheduleApply(force: true);
 
     private void Tracker_MapChanged(string mapKey) =>
@@ -75,11 +77,6 @@ public sealed class LegacyStandardMarkerFloorPresentationBridge : IDisposable
             return;
 
         _lastObservedSignature = signature;
-
-        // Marker loading can replace children asynchronously after SelectionChanged.
-        // Restart a short one-shot settle window instead of traversing the whole marker
-        // collection forever. Full presentation work only runs while that bounded settle
-        // is active or when the O(1) marker signature changes.
         _debounceTimer.Stop();
         _debounceTimer.Start();
     }
@@ -223,9 +220,6 @@ public sealed class LegacyStandardMarkerFloorPresentationBridge : IDisposable
                 if (index == representative)
                     continue;
 
-                // Keep category visibility ownership with the legacy renderer. Opacity is
-                // reset by ApplyToMarker on every real map/floor/tree change before the
-                // current representative is chosen again.
                 markers[index].Canvas.Opacity = 0.0;
             }
         }
