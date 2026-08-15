@@ -89,10 +89,20 @@ public partial class OverlayMiniMapWindow
         if (ct.IsCancellationRequested)
             return;
 
-        await Dispatcher.InvokeAsync(
-            () => RestoreJunhyunMiniMapViewport(viewport),
-            DispatcherPriority.ContextIdle,
-            ct);
+        try
+        {
+            await Dispatcher.InvokeAsync(
+                () => RestoreJunhyunMiniMapViewport(viewport),
+                DispatcherPriority.ContextIdle,
+                ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // A newer floor render superseded this request after the SVG render completed.
+            // The live transform was already copied into persisted offsets above, so the
+            // replacement render inherits the same viewport. Cancellation is expected,
+            // not a user-visible failure.
+        }
     }
 
     private JunhyunMiniMapViewportSnapshot? CaptureJunhyunMiniMapViewport()
