@@ -2,7 +2,7 @@
 
 기록일: **2026-08-15**
 
-상태: **RELEASE CANDIDATE**
+상태: **PUBLIC RELEASE / VERIFIED**
 
 ## 목적
 
@@ -98,11 +98,11 @@ v3~v5 content snapshot은 오프라인에서도 읽을 수 있으며 읽는 시�
 
 ## Release gate
 
-공개 v0.1.6은 다음을 모두 통과한 뒤에만 생성합니다.
+공개 v0.1.6은 다음을 모두 통과한 뒤 생성했습니다.
 
 1. Desktop ProductVersion `0.1.6`
 2. Desktop Release build
-3. 전체 automated tests — 현재 기준 190 passed / 0 failed / 0 skipped
+3. 전체 automated tests — 190 passed / 0 failed / 0 skipped
 4. Content v3~v5 legacy special-trader migration 회귀 테스트
 5. BTR Active / Ref Complete / Lightkeeper recoverable access 회귀 테스트
 6. Quest graph validator 회귀 테스트
@@ -122,6 +122,26 @@ v3~v5 content snapshot은 오프라인에서도 읽을 수 있으며 읽는 시�
 13. 공개 ZIP 재다운로드 후 SHA-256 재검증
 14. draft/prerelease가 아닌 정식 공개 상태 확인
 
+## 최종 공개 검증 기록
+
+```text
+release baseline: 0e4683409b62fd326c5605f1485be896e2216836
+candidate CI run: 31872459229 — SUCCESS
+release workflow run: 31872620863 — SUCCESS
+Desktop ProductVersion: 0.1.6+0e4683409b62fd326c5605f1485be896e2216836
+automated tests: 190 passed / 0 failed / 0 skipped
+Windows x64 self-contained single-file publish: SUCCESS
+startup + Main Map + Factory + MiniMap runtime smoke: SUCCESS
+graceful shutdown: SUCCESS
+release root validation: SUCCESS
+public asset: Junhyun-Helper-v0.1.6-win-x64.zip
+public SHA-256: be642e076d265944282ff3edd3a91323e57ced702e839b3111a0779884fd0111
+public ZIP re-download + SHA-256 verification: SUCCESS
+draft: false
+prerelease: false
+release: https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.6
+```
+
 ## 관련 설계 문서
 
 - `docs/QUEST_PREREQUISITE_AUDIT_2026-08-15.md`
@@ -130,4 +150,4 @@ v3~v5 content snapshot은 오프라인에서도 읽을 수 있으며 읽는 시�
 - `docs/DECISIONS.md` DEC-043
 - `docs/CONTENT_STORAGE.md`
 
-최종 release workflow / SHA-256 / 공개 URL은 공개 검증 완료 후 이 문서와 `docs/STATE.md`에 기록합니다.
+임시 `.github/workflows/release-v0.1.6.yml`은 공개 검증 완료 후 제거했습니다. 상시 workflow는 다시 `ci.yml`만 유지합니다.
