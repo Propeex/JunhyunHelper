@@ -3,7 +3,7 @@
 기록일: **2026-08-09**  
 최종 갱신: **2026-08-15**
 
-상태: `USER CONFIRMED / IMPLEMENTED / WINDOWS RUNTIME VERIFIED / POST-V0.1.3 FIX IN PR #80`
+상태: `USER CONFIRMED / IMPLEMENTED / V0.1.4 OFF-FLOOR MARKER REGRESSION FIX IN PROGRESS`
 
 ---
 
@@ -127,7 +127,7 @@ AND marker가 현재 Map에 속함
 → floor와 관계없이 marker/extract 자체는 유지
 ```
 
-**Floor는 visibility filter가 아닙니다.** 다른 층이라는 이유로 `Visibility.Collapsed`하지 않습니다. Floor 표현은 4절의 공통 규칙을 따릅니다. Shared extract는 PMC 또는 Scav 중 하나가 ON이면 표시합니다. Main Map과 MiniMap의 일반 marker / extract 표시 설정은 동기화합니다.
+**Floor는 visibility filter가 아닙니다.** 다른 층이라는 이유로 `Visibility.Collapsed`하거나 `Opacity=0`으로 숨기지 않습니다. Floor 표현은 4절의 공통 규칙을 따릅니다. Shared extract는 PMC 또는 Scav 중 하나가 ON이면 표시합니다. Main Map과 MiniMap의 일반 marker / extract 표시 설정은 동기화합니다.
 
 ---
 
@@ -170,24 +170,20 @@ floor 불명확    → floor 색상/방향 추측 안 함
 - 기존처럼 marker를 가리는 큰 `↑/↓` badge는 사용하지 않음
 - floor indicator는 hit-test를 받지 않음
 
-### 4.1.1 Main Map vertical stack
+### 4.1.1 Main Map 동일/근접 X/Z의 서로 다른 floor marker
 
-Main Map에서 같은 marker type의 서로 다른 known floor marker가 X/Z상 사실상 같은 위치에 겹치면 아이콘을 여러 개 포개지 않습니다.
+서로 다른 known floor의 일반 marker가 같은 type이고 X/Z상 겹치거나 가까워도, 그것만으로 대표 하나만 남기거나 다른 marker를 `Opacity=0`/`Collapsed` 처리하지 않습니다.
 
 ```text
-같은 type
-AND 서로 다른 Floor.Order
-AND X/Z 거리 ≤ 제품 near-overlap threshold
-→ vertical stack
+category ON
+AND marker가 현재 Map에 속함
+→ 각 marker visual을 모두 유지
+→ 각 marker의 Current / Above / Below relation presentation 적용
 ```
 
-대표 선택:
+서로 다른 floor라는 사실은 일반 marker를 같은 물리 항목으로 간주할 근거가 아닙니다. 겹쳐 보일 수 있더라도 floor ring과 작은 방향 glyph로 관계를 구분하며, 타층 marker 자체를 삭제하거나 숨기지 않습니다.
 
-1. 현재 선택 floor marker가 있으면 그것을 대표로 표시
-2. 없으면 선택 floor와 `Floor.Order`가 가장 가까운 marker 하나를 대표로 표시
-3. 나머지 stack member는 중복 표시하지 않음
-
-이 규칙은 Main Map의 시각 중복을 줄이기 위한 것이며 marker 데이터 자체를 삭제하거나 합치지 않습니다.
+source상 실제로 **같은 물리 항목의 중복 record**라고 확인할 수 있는 경우에만 별도의 semantic duplicate 규칙을 적용합니다. 예를 들어 Factory `Gate 3`처럼 같은 이름·같은 정규화 floor·거의 같은 위치의 PMC/Scav extract는 faction filter 의미를 보존하면서 대표 visual 하나로 정규화할 수 있습니다. 이 규칙을 서로 다른 floor의 일반 marker에 확대 적용하지 않습니다.
 
 ## 4.2 floor hotkey 시 viewport 보존
 
@@ -219,6 +215,7 @@ transplanted Map의 async refresh가 floor/map 변경 직후 marker tree를 다�
 
 - 프로그램이 켜져 있는 동안 200ms마다 marker 전체를 영구 순회
 - floor가 다르다는 이유로 별도 policy timer가 marker를 반복적으로 `Collapsed` 처리
+- async load가 완료된 뒤 cross-floor near-overlap marker를 뒤늦게 `Opacity=0`으로 처리
 
 ---
 
@@ -469,7 +466,8 @@ Release candidate에서 최소 다음을 실제 WPF runtime으로 검증합니�
 - 타층 floor relation이 `Floor.Order` 기준 Above/Below로 계산되는지 확인
 - 현재/위/아래 marker floor indicator가 초록/빨강/파랑 의미를 갖는지 확인
 - 알려진 타층 marker가 약 75% opacity로 유지되고 floor 때문에 Collapsed되지 않는지 확인
-- Main Map same-type cross-floor near-overlap stack에서 현재층 representative가 우선되는지 확인
+- 실제 async Main Map standard-marker build와 bounded settle 이후에도 enabled known off-floor marker가 `Opacity=0`으로 사라지지 않는지 확인
+- same-type cross-floor near-overlap이 존재해도 타층 일반 marker를 대표 하나로 축약하지 않는지 확인
 - product floor hotkey가 실제 Main Map SVG를 변경
 - product floor hotkey 전후 zoom 유지
 - product floor hotkey 전후 viewport 중앙의 map-space 좌표 유지
@@ -490,13 +488,14 @@ Release candidate에서 최소 다음을 실제 WPF runtime으로 검증합니�
 
 # 14. 현재 완료 기준
 
-현재 public release는 v0.1.3이며, 그 이후 사용자 실사용 피드백을 반영한 PR #80의 완료 기준은 다음입니다.
+현재 public release v0.1.4에서 확인된 타층 일반 marker 소실 회귀의 패치 완료 기준은 다음입니다.
 
-- Main Map에서 enabled 타층 marker가 실제로 보임
-- current-floor-only visibility loop 제거
+- Main Map에서 enabled 타층 marker가 async 로딩과 안정화 이후에도 실제로 보임
+- current-floor-only visibility loop 없음
 - current/above/below relation을 초록/빨강/파랑 compact ring으로 표시
 - 위/아래의 방향 glyph는 marker를 가리지 않는 매우 작은 보조 표현
-- Main Map vertical stack 중복 표시 제거
+- same-type cross-floor near-overlap을 이유로 타층 일반 marker를 숨기지 않음
+- 실제 같은 물리 항목의 semantic duplicate extract 정규화는 유지
 - floor/map 변경 뒤 legacy async refresh가 relation presentation을 영구적으로 덮어쓰지 않음
 - 이를 위해 permanent full-tree polling을 재도입하지 않음
 - 기존 floor hotkey viewport 보존 유지
