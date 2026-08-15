@@ -218,6 +218,12 @@ public sealed class UserProfileStore
                 throw new InvalidDataException($"Trader '{traderId}' loyalty level cannot be negative.");
         }
 
+        foreach (var traderId in profile.SpecialTraderAccessOverrides.Keys)
+        {
+            if (string.IsNullOrWhiteSpace(traderId))
+                throw new InvalidDataException("Special trader access override id cannot be empty.");
+        }
+
         foreach (var (stationId, level) in profile.HideoutLevels)
         {
             if (string.IsNullOrWhiteSpace(stationId) || level < 0)
@@ -271,6 +277,8 @@ public sealed class UserProfileStore
             new(StringComparer.Ordinal);
         public string[] CompletedQuestIds { get; init; } = [];
         public string[] FailedQuestIds { get; init; } = [];
+        public Dictionary<string, bool> SpecialTraderAccessOverrides { get; init; } =
+            new(StringComparer.Ordinal);
         public Dictionary<string, int> HideoutLevels { get; init; } =
             new(StringComparer.Ordinal);
         public Dictionary<string, InventoryQuantity> Inventory { get; init; } =
@@ -292,6 +300,9 @@ public sealed class UserProfileStore
                 Traders = new Dictionary<string, TraderProgress>(snapshot.Traders, StringComparer.Ordinal),
                 CompletedQuestIds = snapshot.CompletedQuestIds.Order(StringComparer.Ordinal).ToArray(),
                 FailedQuestIds = snapshot.FailedQuestIds.Order(StringComparer.Ordinal).ToArray(),
+                SpecialTraderAccessOverrides = new Dictionary<string, bool>(
+                    snapshot.SpecialTraderAccessOverrides,
+                    StringComparer.Ordinal),
                 HideoutLevels = new Dictionary<string, int>(snapshot.HideoutLevels, StringComparer.Ordinal),
                 Inventory = new Dictionary<string, InventoryQuantity>(snapshot.Inventory, StringComparer.Ordinal),
                 QuestConsumptions = CopyConsumptions(snapshot.QuestConsumptions),
@@ -310,6 +321,9 @@ public sealed class UserProfileStore
                 Traders = new Dictionary<string, TraderProgress>(Traders, StringComparer.Ordinal),
                 CompletedQuestIds = new HashSet<string>(CompletedQuestIds, StringComparer.Ordinal),
                 FailedQuestIds = new HashSet<string>(FailedQuestIds, StringComparer.Ordinal),
+                SpecialTraderAccessOverrides = new Dictionary<string, bool>(
+                    SpecialTraderAccessOverrides,
+                    StringComparer.Ordinal),
                 HideoutLevels = new Dictionary<string, int>(HideoutLevels, StringComparer.Ordinal),
                 Inventory = new Dictionary<string, InventoryQuantity>(Inventory, StringComparer.Ordinal),
                 QuestConsumptions = CopyConsumptions(QuestConsumptions),
