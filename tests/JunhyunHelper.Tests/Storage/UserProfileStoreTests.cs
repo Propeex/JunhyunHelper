@@ -36,6 +36,10 @@ public sealed class UserProfileStoreTests
                 {
                     "quest-failed",
                 },
+                SpecialTraderAccessOverrides = new Dictionary<string, bool>(StringComparer.Ordinal)
+                {
+                    ["lightkeeper"] = false,
+                },
                 HideoutLevels = new Dictionary<string, int>(StringComparer.Ordinal)
                 {
                     ["workbench"] = 3,
@@ -59,6 +63,7 @@ public sealed class UserProfileStoreTests
             Assert.Equal(profile.Traders["fence"], loaded.Traders["fence"]);
             Assert.True(loaded.CompletedQuestIds.SetEquals(profile.CompletedQuestIds));
             Assert.True(loaded.FailedQuestIds.SetEquals(profile.FailedQuestIds));
+            Assert.False(loaded.SpecialTraderAccessOverrides["lightkeeper"]);
             Assert.Equal(3, loaded.HideoutLevels["workbench"]);
             Assert.Equal(new InventoryQuantity(4, 7), loaded.Inventory["item-a"]);
         }
