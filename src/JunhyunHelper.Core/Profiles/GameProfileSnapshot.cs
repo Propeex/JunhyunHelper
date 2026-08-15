@@ -25,6 +25,16 @@ public sealed record GameProfileSnapshot
     public IReadOnlySet<string> FailedQuestIds { get; init; } =
         new HashSet<string>(StringComparer.Ordinal);
 
+    /// <summary>
+    /// Exceptional user facts for special trader access that the normal quest graph
+    /// cannot reconstruct exactly. Missing keys mean "use automatic quest-based
+    /// inference". This is intentionally sparse: normal BTR/Ref access never needs
+    /// manual state, while Lightkeeper access can be lost and restored independently
+    /// of monotonic quest completion facts.
+    /// </summary>
+    public IReadOnlyDictionary<string, bool> SpecialTraderAccessOverrides { get; init; } =
+        new Dictionary<string, bool>(StringComparer.Ordinal);
+
     public IReadOnlyDictionary<string, int> HideoutLevels { get; init; } =
         new Dictionary<string, int>(StringComparer.Ordinal);
 
