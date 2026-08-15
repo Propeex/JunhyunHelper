@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using JunhyunHelper.Desktop.Map;
 using TarkovHelper.Models.Map;
+using TarkovHelper.Services.Map;
 
 namespace JunhyunHelper.Desktop;
 
@@ -17,6 +18,11 @@ public partial class MainWindow
         ComboBox mapSelector,
         ComboBox floorSelector)
     {
+        // This method is called while Customs is still selected. Verify the live standard
+        // marker container before switching to Factory so the regression where an async
+        // vertical-stack pass faded enabled off-floor markers to Opacity=0 cannot return.
+        await VerifyCurrentMainMapStandardOffFloorVisibilityAsync(page, floorSelector);
+
         var extractContainer = page.FindName("ExtractMarkersContainer") as Canvas
             ?? throw new InvalidOperationException("Factory smoke could not find Main Map extract container.");
         var pmcExtractToggle = page.FindName("ChkShowPmcExtracts") as CheckBox
@@ -136,6 +142,63 @@ public partial class MainWindow
             officeLevel3Extract.Faction != ExtractFaction.Scav)
         {
             throw new InvalidOperationException("Factory Office Window faction identity changed with floor selection.");
+        }
+    }
+
+    private static async Task VerifyCurrentMainMapStandardOffFloorVisibilityAsync(
+        TarkovHelper.Pages.Map.MapPage page,
+        ComboBox floorSelector)
+    {
+        var markerContainer = page.FindName("MapMarkersContainer") as Canvas
+            ?? throw new InvalidOperationException("Main Map standard marker container was not found.");
+
+        await WaitForAsync(
+            () => markerContainer.Children.OfType<Canvas>().Any(canvas => canvas.Tag is MapMarker),
+            TimeSpan.FromSeconds(6));
+
+        // The transplanted renderer appends markers asynchronously and the product bridge
+        // performs bounded settle passes. Inspect only after those competing updates have
+        // had time to finish; the original bug appeared as visible -> flicker -> opacity 0.
+        await Task.Delay(1200);
+
+        var mapKey = MapTrackerService.Instance.CurrentMapKey;
+        var config = string.IsNullOrWhiteSpace(mapKey)
+            ? null
+            : MapTrackerService.Instance.GetMapConfig(mapKey);
+        var selectedFloor = (floorSelector.SelectedItem as ComboBoxItem)?.Tag as string;
+
+        var knownOffFloor = markerContainer.Children
+            .OfType<Canvas>()
+            .Where(canvas => canvas.Tag is MapMarker)
+            .Select(canvas => new
+            {
+                Canvas = canvas,
+                Marker = (MapMarker)canvas.Tag,
+                Relation = JunhyunFloorPresentation.Resolve(
+                    config,
+                    ((MapMarker)canvas.Tag).FloorId,
+                    selectedFloor),
+            })
+            .Where(item =>
+                item.Canvas.Visibility == Visibility.Visible &&
+                item.Relation.IsOtherFloor)
+            .ToArray();
+
+        if (knownOffFloor.Length == 0)
+            throw new InvalidOperationException("Main Map smoke found no enabled known off-floor standard marker to verify.");
+
+        var suppressed = knownOffFloor
+            .Where(item => item.Canvas.Opacity < 0.70)
+            .ToArray();
+        if (suppressed.Length > 0)
+        {
+            var detail = string.Join(
+                " | ",
+                suppressed.Take(8).Select(item =>
+                    $"type={item.Marker.Type},floor={item.Marker.FloorId}," +
+                    $"relation={item.Relation.Relation},opacity={item.Canvas.Opacity:F2}"));
+            throw new InvalidOperationException(
+                "Enabled off-floor standard markers were suppressed after async Main Map settle: " + detail);
         }
     }
 
