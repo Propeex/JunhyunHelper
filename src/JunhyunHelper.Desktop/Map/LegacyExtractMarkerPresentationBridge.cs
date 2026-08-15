@@ -14,8 +14,8 @@ namespace JunhyunHelper.Desktop.Map;
 /// Normalizes the transplanted Main Map extract visuals after the pinned renderer finishes
 /// a real refresh. The source can contain separate PMC/Scav rows for the same physical exit;
 /// rendering those rows independently produces the green+gray duplicates seen in Factory.
-/// This bridge keeps the pinned loader/filter/calibration behavior, but collapses only true
-/// same-name/same-floor/same-position duplicates and applies the shared floor presentation.
+/// This bridge keeps every source visual alive so faction filters remain reversible, but
+/// suppresses duplicate visible representations and applies the shared floor presentation.
 /// </summary>
 public sealed class LegacyExtractMarkerPresentationBridge : IDisposable
 {
@@ -112,15 +112,14 @@ public sealed class LegacyExtractMarkerPresentationBridge : IDisposable
         var visuals = _container.Children
             .OfType<Canvas>()
             .Where(static canvas => canvas.Tag is MapExtract)
-            .ToList();
+            .ToArray();
 
-        CollapseDuplicateExtractVisuals(visuals);
-
-        foreach (var canvas in _container.Children.OfType<Canvas>().ToArray())
+        // Always restore each source visual to its canonical state first. A previous pass
+        // may have visually suppressed one member of a PMC/Scav duplicate pair. Restoring
+        // before grouping makes later faction-filter changes fully reversible.
+        foreach (var canvas in visuals)
         {
-            if (canvas.Tag is not MapExtract extract)
-                continue;
-
+            var extract = (MapExtract)canvas.Tag;
             RemoveLegacyFloorBadge(canvas);
             RestoreFactionBrushStrength(canvas, extract.Faction);
 
@@ -130,42 +129,59 @@ public sealed class LegacyExtractMarkerPresentationBridge : IDisposable
                 relation,
                 badgeOffsetX: 8,
                 badgeOffsetY: -13);
+
+            canvas.IsHitTestVisible = true;
         }
+
+        SuppressDuplicateExtractVisuals(visuals);
     }
 
-    private void CollapseDuplicateExtractVisuals(IReadOnlyList<Canvas> visuals)
+    private static void SuppressDuplicateExtractVisuals(IReadOnlyList<Canvas> visuals)
     {
-        if (_container is null || visuals.Count < 2)
+        if (visuals.Count < 2)
             return;
 
         var consumed = new HashSet<Canvas>();
         foreach (var anchor in visuals)
         {
-            if (consumed.Contains(anchor) || anchor.Tag is not MapExtract anchorExtract)
+            if (consumed.Contains(anchor) ||
+                anchor.Visibility != Visibility.Visible ||
+                anchor.Tag is not MapExtract anchorExtract)
+            {
                 continue;
+            }
 
             var group = visuals
                 .Where(candidate =>
                     !consumed.Contains(candidate) &&
+                    candidate.Visibility == Visibility.Visible &&
                     candidate.Tag is MapExtract candidateExtract &&
                     IsSamePhysicalExit(anchorExtract, candidateExtract))
                 .ToArray();
 
-            if (group.Length <= 1)
-            {
-                consumed.Add(anchor);
-                continue;
-            }
+            foreach (var candidate in group)
+                consumed.Add(candidate);
 
-            var keep = group
+            if (group.Length <= 1)
+                continue;
+
+            var representative = group
                 .OrderBy(candidate => FactionPriority(((MapExtract)candidate.Tag).Faction))
                 .First();
 
             foreach (var candidate in group)
             {
-                consumed.Add(candidate);
-                if (!ReferenceEquals(candidate, keep))
-                    _container.Children.Remove(candidate);
+                if (ReferenceEquals(candidate, representative))
+                {
+                    candidate.IsHitTestVisible = true;
+                    continue;
+                }
+
+                // Never remove the source visual: a later PMC/Scav filter change may need
+                // this exact row to become the representative. Visual suppression is reset
+                // by ApplyToMarker at the start of every explicit presentation refresh.
+                candidate.Opacity = 0.0;
+                candidate.IsHitTestVisible = false;
             }
         }
     }
