@@ -56,7 +56,6 @@ public partial class MainWindow
                   ExtractVisuals(extractContainer, "Office Window").Count >= 1,
             TimeSpan.FromSeconds(6));
 
-        // Allow the bounded product presentation pass to settle after the pinned renderer.
         await Task.Delay(700);
 
         await WaitForAsync(
@@ -69,6 +68,11 @@ public partial class MainWindow
 
         var officeOnMain = VisibleExtractVisuals(extractContainer, "Office Window").SingleOrDefault()
             ?? throw new InvalidOperationException("Factory Office Window was hidden while main floor was selected.");
+        if (officeOnMain.Tag is not MapExtract officeMainExtract ||
+            officeMainExtract.Faction != ExtractFaction.Scav)
+        {
+            throw new InvalidOperationException("Factory Office Window no longer carries its Scav faction identity.");
+        }
         if (!JunhyunFloorPresentation.HasFloorIndicator(officeOnMain, JunhyunFloorRelation.Above) ||
             officeOnMain.Opacity < 0.70)
         {
@@ -102,6 +106,11 @@ public partial class MainWindow
 
         var officeOnLevel3 = VisibleExtractVisuals(extractContainer, "Office Window").SingleOrDefault()
             ?? throw new InvalidOperationException("Factory Office Window disappeared on its own level3 floor.");
+        if (officeOnLevel3.Tag is not MapExtract officeLevel3Extract ||
+            officeLevel3Extract.Faction != ExtractFaction.Scav)
+        {
+            throw new InvalidOperationException("Factory Office Window faction identity changed with floor selection.");
+        }
         if (!JunhyunFloorPresentation.HasFloorIndicator(officeOnLevel3, JunhyunFloorRelation.Current) ||
             officeOnLevel3.Opacity < 0.95)
         {
