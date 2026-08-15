@@ -113,12 +113,12 @@
 
 ## DEC-038 — 불완전한 Quest availability source는 추측하지 않고 확정 가능한 gate만 보강한다
 
-- 상태: `CONFIRMED / PARTIALLY SUPERSEDED by DEC-039`
+- 상태: `CONFIRMED / PARTIALLY SUPERSEDED by DEC-039 and DEC-043`
 - 날짜: 2026-08-15
-- 결정: 최신 Quest availability 판정에서 source가 의미를 명확히 제공하는 `taskRequirements`, level/faction/prestige/trader 조건은 자동 판정한다. 반면 `globalVariable`, `dialogue`, 실제 게임 완료 시각이 필요한 availability delay처럼 JunhyunHelper의 User Progress만으로 참/거짓을 증명할 수 없는 조건은 임의 추정하지 않고 `Indeterminate` 진단으로 보존한다. Lightkeeper/BTR Driver/Ref처럼 게임의 상인 접근 gate가 현 API의 개별 후속 `taskRequirements`에서 빠진 경우에는 현재 GameMode에 검증된 unlock Quest가 실제 존재할 때만 Complete prerequisite를 보강한다.
+- 결정: 최신 Quest availability 판정에서 source가 의미를 명확히 제공하는 `taskRequirements`, level/faction/prestige/trader 조건은 자동 판정한다. 반면 `globalVariable`, `dialogue`, 실제 게임 완료 시각이 필요한 availability delay처럼 JunhyunHelper의 User Progress만으로 참/거짓을 증명할 수 없는 조건은 임의 추정하지 않고 `Indeterminate` 진단으로 보존한다. 특수 상인 접근 gate의 구체적인 보강 의미는 DEC-043을 따른다.
 - 이유: 2026-08-15 live source에는 각 GameMode별 `globalVariable` 162건, `dialogue` 12건, delay Quest 13건이 존재한다. 이 조건을 Current로 조용히 확정하거나 UI 클릭 시각으로 타이머를 계산하면 실제 게임과 다른 availability를 만들 수 있다. 반대로 특수 상인 접근 gate 누락은 후속 Quest를 명백히 너무 일찍 열어주는 오류다.
-- 영향: Content schema v5. v3/v4는 last-known-good offline snapshot으로 읽을 수 있으나 최신 판정은 `데이터 업데이트` 후 v5 content에서 적용된다. 세부 감사는 `docs/QUEST_PREREQUISITE_AUDIT_2026-08-15.md`를 따른다.
-- 대체한 결정: 없음. 단, 기존의 `Indeterminate → optimistic Current` 제품 표시 정책은 DEC-039가 대체한다.
+- 영향: 당시 Content schema v5를 도입했다. 이후 special-trader semantics 정정으로 development main은 DEC-043의 Content schema v6를 사용한다. 세부 감사는 `docs/QUEST_PREREQUISITE_AUDIT_2026-08-15.md`와 `docs/QUEST_PREREQUISITE_SEMANTICS.md`를 따른다.
+- 대체한 결정: 없음. 단, 기존의 `Indeterminate → optimistic Current` 제품 표시 정책은 DEC-039가 대체하고, 특수 상인에 일괄 Complete gate를 주입하는 부분은 DEC-043이 대체한다.
 
 ## DEC-039 — 프로그램이 입증할 수 없는 Quest availability는 `확인 필요`로 분리한다
 
@@ -156,6 +156,15 @@
 - 영향: JunhyunHelper가 MiniMap floor 변경의 viewport-safe async 경로를 소유한다. floor render 직전 live transform을 persisted offset에도 동기화하여 중간 점프를 막고, render 완료 후 map-space 중심을 복원한다. 실제 Map 변경이나 새로운 screenshot player position처럼 의미상 중심이 바뀌어야 하는 이벤트는 이 규칙의 대상이 아니다. Windows runtime smoke에서 stale persisted offset을 의도적으로 만들어도 floor 변경 전후 MiniMap zoom과 map-space 중심이 동일한지 검증한다.
 - 대체한 결정: 없음. 기존 Main Map viewport 보존 계약을 MiniMap까지 명시적으로 완성한다.
 
+## DEC-043 — 특수 상인 접근은 upstream 조건을 보존하고 recoverable 접근은 별도 상태로 모델링한다
+
+- 상태: `CONFIRMED`
+- 날짜: 2026-08-15
+- 결정: Quest compatibility overlay는 upstream이 이미 제공한 직접 prerequisite를 덮어쓰지 않는다. BTR Driver의 누락 gate는 `A Helping Hand = Active`로만 보강하고, Ref의 누락 gate는 현재 GameMode의 검증된 unlock Quest `Complete`로 보강한다. Lightkeeper는 최초 Getting Acquainted 완료 이후에도 접근을 잃고 Make Amends로 복구할 수 있으므로 모든 후속 Quest에 `Getting Acquainted = Complete`를 ordinary prerequisite로 영구 주입하지 않고 `QuestSpecialTraderAccessRequirement`로 분리한다. 최초 unlock 전에는 수동 접근 동기화로 진행을 우회할 수 없으며, unlock이 완료 또는 실제 영구 실패로 종결된 뒤 실제 게임에서 접근 상실/복구가 발생한 경우에만 sparse profile fact를 기록한다.
+- 이유: 2026-08-15 live raw source에서 `Shipping Delay - Part 2`는 `A Helping Hand = Active`인데 기존 overlay가 이를 `Complete`로 덮어써 실제보다 늦게 열었다. 또한 Lightkeeper의 실제 접근권은 monotonic Quest 완료 집합만으로 항상 복원할 수 없어서 Getting Acquainted 완료 하나를 영구 gate로 쓰면 실패→Make Amends 복구 경로를 막는다.
+- 영향: development main의 Content schema는 v6이며 v3~v5 snapshot은 읽는 시점에 legacy special-trader overlay를 메모리에서 정규화한다. `user.db` SQLite schema는 v1을 유지하고 optional `SpecialTraderAccessOverrides` JSON fact만 추가한다. recoverable 접근 상실은 영구 `Unavailable`이 아니라 `Locked`다. 일반 Quest에는 별도 `수주 가능` 상태를 추가하지 않으며 DEC-010 자동 수락 원칙을 유지한다. 상세 규칙은 `docs/QUEST_PREREQUISITE_SEMANTICS.md`를 따른다.
+- 대체한 결정: `DEC-038`의 Lightkeeper/BTR Driver/Ref에 일괄적으로 `Complete` prerequisite를 보강한다는 부분
+
 ---
 
 # 현재 결정 확인 방법
@@ -163,6 +172,7 @@
 - 제품 요구사항: `docs/PRODUCT.md`
 - 기술 경계: `docs/ARCHITECTURE.md`
 - 현재 구현/릴리즈 상태: `docs/STATE.md`
+- Quest 선행조건/특수 상인 접근: `docs/QUEST_PREREQUISITE_SEMANTICS.md`
 - Map 세부 계약: `docs/MAP_PRODUCT_REQUIREMENTS.md`
 - 기존 구현 예외/참고 정책: `docs/REFERENCE_POLICY.md`
 
