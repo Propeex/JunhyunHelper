@@ -5,9 +5,9 @@
 2026-08-15 현재 json.tarkov.dev의 regular / pve / pvp-season 데이터를 준현 헬퍼의 실제 importer와 validator로 다시 검증했다. 기존 `taskRequirements`의 상태 모델 자체는 유효하지만, v0.1.0에는 최신 데이터에서 availability를 너무 낙관적으로 보일 수 있는 두 가지 공백이 있었다.
 
 1. Lightkeeper / BTR Driver / Ref 상인 접근 gate가 후속 Quest의 `taskRequirements`에 반복되지 않아 일부 Quest가 너무 일찍 열릴 수 있었다.
-2. `globalVariable`, `dialogue`, timed availability가 Core에서 Indeterminate여도 Application이 Problems를 버리고 Current로만 보여 자동 판정의 한계가 사용자에게 보이지 않았다.
+2. `globalVariable`, `dialogue`, timed availability가 Core에서 `Indeterminate`여도 제품이 이를 정확한 `Current`처럼 보이게 할 수 있었다.
 
-두 문제를 v0.1.1 후보에서 수정했다.
+특수 상인 gate와 opaque 조건 보존은 v0.1.1에서 도입했다. 이후 실사용에서 `Indeterminate → Current` fallback 때문에 `진행 중` Quest가 200개 이상으로 부풀어 보이는 문제가 확인되어 **v0.1.4부터 제품 표현 정책을 `확인 필요`로 변경**한다. 이 문서의 live 데이터 감사 결과는 그대로 유효하지만, v0.1.1 당시의 optimistic Current 제품 표현은 DEC-039에 의해 대체되었다.
 
 ## 현재 live Quest 구조
 
@@ -40,13 +40,25 @@ season에서 Ref unlock Quest가 current quest set에 없으므로 dangling prer
 - `globalVariable`: 162
 - `dialogue`: 12
 
-upstream data manager도 일부 알려진 global variable만 의미 있는 구조로 변환하고 나머지는 opaque variable/comparison/value로 남긴다. JunhyunHelper는 이 의미를 추측하지 않는다. Core `Indeterminate`는 그대로 보존하고, 제품 목록은 관리 가능성을 위해 Current fallback을 유지하되 `QuestWorkspace.Problems`와 기존 `판정 문제` UI에서 원 판정과 이유를 보여준다.
+upstream data manager도 일부 알려진 global variable만 의미 있는 구조로 변환하고 나머지는 opaque variable/comparison/value로 남긴다. JunhyunHelper는 이 의미를 추측하지 않는다.
+
+현재 제품 정책(v0.1.4 후보):
+
+```text
+Core Indeterminate
+→ UI: 확인 필요
+→ 정확한 Current(진행 중) 수치/기본 필터에서 제외
+→ Map Current Quest sidebar에서 제외
+→ QuestWorkspace.Problems / 자동 판정 제한에 원인 보존
+```
+
+`확인 필요`를 거짓으로 `잠김` 처리하지도 않는다. 사용자가 실제 게임에서 Quest를 받았거나 완료한 사실을 알고 있으면 수동 완료할 수 있고, 비재시작형 영구 실패 동기화가 필요한 Quest라면 수동 실패도 허용한다. Future Needed Items는 기존 `IndeterminatePotential` 보수 정책을 유지하여 잠재적으로 필요한 아이템을 안전하게 보호한다.
 
 ## timed availability
 
 각 mode에 `availableDelaySecondsMin/Max`가 있는 Quest가 정확히 13개 존재한다. 범위는 수 초부터 24시간까지 포함한다.
 
-JunhyunHelper는 min/max를 canonical metadata로 저장하지만 자동 countdown은 하지 않는다. Helper에서 사용자가 완료 버튼을 누른 시각은 실제 Tarkov 완료 시각이 아닐 수 있으므로 그 시각을 기준으로 9시간/24시간 잠금을 걸면 잘못된 상태를 만들 수 있기 때문이다. timed Quest는 `availabilityDelay` unresolved condition으로 표시한다.
+JunhyunHelper는 min/max를 canonical metadata로 저장하지만 자동 countdown은 하지 않는다. Helper에서 사용자가 완료 버튼을 누른 시각은 실제 Tarkov 완료 시각이 아닐 수 있으므로 그 시각을 기준으로 9시간/24시간 잠금을 걸면 잘못된 상태를 만들 수 있기 때문이다. timed Quest는 `availabilityDelay` unresolved condition으로 보존하며 v0.1.4부터 UI에서는 `확인 필요`로 분리된다.
 
 ## fail condition 점검
 
@@ -67,8 +79,8 @@ GitHub Actions run `31819603896`, job `94829428837`에서 실제 product importe
 | importer warnings | 0 | 0 | 0 |
 | validation | valid | valid | valid |
 
-동일 run에서 Desktop Release build 성공, 자동 테스트 173 passed / 0 failed였다. 이후 마지막 assertion 표현만 명확히 한 test-only commit이 추가되므로 PR 최종 head에서 정식 CI를 다시 통과시켜야 한다.
+당시 live data 감사 run에서 Desktop Release build 성공, 자동 테스트 173 passed / 0 failed였다. 이후 v0.1.2~v0.1.4 기능/회귀 테스트가 추가되었으며 각 릴리즈는 별도의 최신 release gate를 기준으로 한다.
 
 ## Content schema
 
-Current schema는 v5다. v3/v4 content DB는 offline last-known-good로 계속 읽을 수 있다. 다만 v0.1.1의 최신 Quest availability semantics를 받으려면 프로그램 업그레이드 후 `데이터 업데이트`를 한 번 실행해 v5 content를 재구축해야 한다. `user.db`는 이 변경과 독립이며 삭제/덮어쓰기하지 않는다.
+Current schema는 v5다. v3/v4 content DB는 offline last-known-good로 계속 읽을 수 있다. v0.1.1의 availability metadata와 특수 상인 gate를 받으려면 v5 content가 필요하다. 이미 v0.1.1 이상에서 v5 content를 사용 중인 사용자는 **v0.1.3 → v0.1.4에서 필수 데이터 업데이트가 없다.** `확인 필요` 분리는 기존 v5 metadata를 제품 UI에서 다르게 해석하는 변경이다. `user.db`는 이 변경과 독립이며 삭제/덮어쓰기하지 않는다.
