@@ -25,6 +25,7 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
     private readonly TarkovHelper.Pages.Map.MapPage _page;
     private readonly MapTrackerService _tracker = MapTrackerService.Instance;
     private readonly OverlayMiniMapService _overlay = OverlayMiniMapService.Instance;
+    private readonly Action? _presentationRefresh;
     private readonly ComboBox? _floorSelector;
     private readonly ComboBox? _mapSelector;
     private readonly Canvas? _mapMarkers;
@@ -42,9 +43,12 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
     private int _stabilizationPassesRemaining;
     private bool _disposed;
 
-    public LegacyMapInteractionPolicyBridge(TarkovHelper.Pages.Map.MapPage page)
+    public LegacyMapInteractionPolicyBridge(
+        TarkovHelper.Pages.Map.MapPage page,
+        Action? presentationRefresh = null)
     {
         _page = page ?? throw new ArgumentNullException(nameof(page));
+        _presentationRefresh = presentationRefresh;
         _page.EnableJunhyunManualFloorPolicy();
 
         _floorSelector = _page.FindName("CmbFloorSelect") as ComboBox;
@@ -147,20 +151,28 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
 
     private void FloorSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        _page.Dispatcher.BeginInvoke(ApplyProductMarkerFilters, DispatcherPriority.Background);
+        _page.Dispatcher.BeginInvoke(() =>
+        {
+            ApplyProductMarkerFilters();
+            _presentationRefresh?.Invoke();
+        }, DispatcherPriority.Background);
         RestartStabilization();
     }
 
     private void Tracker_MapChanged(string mapKey)
     {
-        _page.Dispatcher.BeginInvoke(ApplyProductMarkerFilters, DispatcherPriority.Background);
+        _page.Dispatcher.BeginInvoke(() =>
+        {
+            ApplyProductMarkerFilters();
+            _presentationRefresh?.Invoke();
+        }, DispatcherPriority.Background);
         RestartStabilization();
     }
 
     private void ApplyProductMarkerFilters()
     {
         // Floor must never participate in visibility. The dedicated floor presentation
-        // bridge owns current/above/below opacity/ring semantics.
+        // bridges own current/above/below opacity/ring semantics.
         if (_mapMarkers is not null)
         {
             foreach (FrameworkElement child in _mapMarkers.Children)
@@ -226,8 +238,15 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
         checkBox.Unchecked -= FilterToggle_Changed;
     }
 
-    private void FilterToggle_Changed(object sender, RoutedEventArgs e) =>
-        _page.Dispatcher.BeginInvoke(ApplyProductMarkerFilters, DispatcherPriority.Background);
+    private void FilterToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        _page.Dispatcher.BeginInvoke(() =>
+        {
+            ApplyProductMarkerFilters();
+            _presentationRefresh?.Invoke();
+        }, DispatcherPriority.Background);
+        RestartStabilization();
+    }
 
     private void Tracker_PositionUpdated(object? sender, ScreenPosition position)
     {
