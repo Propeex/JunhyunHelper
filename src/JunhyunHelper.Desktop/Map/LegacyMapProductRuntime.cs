@@ -43,7 +43,13 @@ public sealed class LegacyMapProductRuntime : IDisposable
         _markerSettingsBridge = new LegacyMapMarkerSettingsV2Bridge(page);
         _standardMarkerFloorPresentationBridge = new LegacyStandardMarkerFloorPresentationBridge(page);
         _extractMarkerPresentationBridge = new LegacyExtractMarkerPresentationBridge(page);
-        _interactionPolicyBridge = new LegacyMapInteractionPolicyBridge(page);
+        _interactionPolicyBridge = new LegacyMapInteractionPolicyBridge(
+            page,
+            () =>
+            {
+                _standardMarkerFloorPresentationBridge.Refresh();
+                _extractMarkerPresentationBridge.Refresh();
+            });
         _questMarkerRenderer = new LegacyQuestMarkerRenderV3(page);
         _settingsPersistenceBridge = new LegacyMapSettingsPersistenceBridge(page);
         _viewportPolishBridge = new LegacyMapViewportPolishBridge(page);
