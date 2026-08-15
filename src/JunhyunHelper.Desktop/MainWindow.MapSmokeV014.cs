@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using JunhyunHelper.Desktop.Map;
+using TarkovHelper.Models;
 using TarkovHelper.Models.Map;
 using TarkovHelper.Services.Map;
 
@@ -179,16 +180,16 @@ public partial class MainWindow
                     ((MapMarker)canvas.Tag).FloorId,
                     selectedFloor),
             })
-            .Where(item =>
-                item.Canvas.Visibility == Visibility.Visible &&
-                item.Relation.IsOtherFloor)
+            .Where(item => item.Relation.IsOtherFloor)
             .ToArray();
 
         if (knownOffFloor.Length == 0)
             throw new InvalidOperationException("Main Map smoke found no enabled known off-floor standard marker to verify.");
 
         var suppressed = knownOffFloor
-            .Where(item => item.Canvas.Opacity < 0.70)
+            .Where(item =>
+                item.Canvas.Visibility != Visibility.Visible ||
+                item.Canvas.Opacity < 0.70)
             .ToArray();
         if (suppressed.Length > 0)
         {
@@ -196,7 +197,8 @@ public partial class MainWindow
                 " | ",
                 suppressed.Take(8).Select(item =>
                     $"type={item.Marker.Type},floor={item.Marker.FloorId}," +
-                    $"relation={item.Relation.Relation},opacity={item.Canvas.Opacity:F2}"));
+                    $"relation={item.Relation.Relation},visibility={item.Canvas.Visibility}," +
+                    $"opacity={item.Canvas.Opacity:F2}"));
             throw new InvalidOperationException(
                 "Enabled off-floor standard markers were suppressed after async Main Map settle: " + detail);
         }
