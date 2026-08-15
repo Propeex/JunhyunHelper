@@ -1,7 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using JunhyunHelper.Desktop.Map;
-using TarkovHelper.Models;
+using TarkovHelper.Models.Map;
 
 namespace JunhyunHelper.Desktop;
 
