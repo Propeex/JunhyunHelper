@@ -3,7 +3,7 @@
 기록일: **2026-08-09**  
 최종 갱신: **2026-08-15**
 
-상태: `USER CONFIRMED / IMPLEMENTED / V0.1.4 OFF-FLOOR MARKER REGRESSION FIX IN PROGRESS`
+상태: `USER CONFIRMED / IMPLEMENTED / V0.1.5 MAP REGRESSION FIX IN PROGRESS`
 
 ---
 
@@ -185,21 +185,34 @@ AND marker가 현재 Map에 속함
 
 source상 실제로 **같은 물리 항목의 중복 record**라고 확인할 수 있는 경우에만 별도의 semantic duplicate 규칙을 적용합니다. 예를 들어 Factory `Gate 3`처럼 같은 이름·같은 정규화 floor·거의 같은 위치의 PMC/Scav extract는 faction filter 의미를 보존하면서 대표 visual 하나로 정규화할 수 있습니다. 이 규칙을 서로 다른 floor의 일반 marker에 확대 적용하지 않습니다.
 
-## 4.2 floor hotkey 시 viewport 보존
+## 4.2 floor 변경 시 viewport 보존
 
-floor up/down product hotkey는 다음 순서로 동작합니다.
+floor up/down product hotkey와 NumPad 0~5 direct floor selection은 **층 artwork를 바꾸는 동작**이며, 사용자가 보고 있던 위치를 다시 중앙 초기값으로 보내는 동작이 아닙니다.
+
+Main Map:
 
 ```text
 현재 zoom + viewport 중앙의 map-space 좌표 저장
 → Main Map floor SVG 변경
 → Main Map extract / Quest / 일반 marker refresh 완료
 → 같은 zoom + 같은 map-space 중앙 좌표 복원
-→ MiniMap floor 변경
 ```
 
-따라서 층을 바꿔도 사용자가 보고 있던 지도 위치가 중앙 초기값으로 돌아가지 않으며, 위치 추적을 다시 새로고침할 필요가 없어야 합니다.
+MiniMap:
 
-NumPad 0~5 직접 floor 선택도 동일한 viewport-safe render 경로를 사용합니다. legacy direct SelectionChanged 단축키 경로는 제품 입력으로 dispatch하지 않습니다.
+```text
+현재 live MapScale + MapTranslate에서 zoom / map-space 중심 저장
+→ live transform을 persisted MapOffset에도 동기화
+→ MiniMap floor SVG 변경 완료까지 await
+→ 같은 zoom + 같은 map-space 중앙 좌표 복원
+→ persisted MapOffset과 live MapTranslate 재동기화
+```
+
+MiniMap은 `PlayerTracking` 고정이므로 실제 현재 viewport는 persisted offset보다 live transform이 우선합니다. PlayerTracking이 `MapTranslate`만 갱신한 상태에서 floor renderer가 stale `MapOffsetX/Y`를 다시 적용하여 중심을 초기/이전 위치로 되돌려서는 안 됩니다.
+
+따라서 층을 바꿔도 Main Map과 MiniMap 모두 사용자가 보고 있던 지도 위치와 zoom을 유지해야 합니다. 새로운 screenshot player position이나 Map 자체 변경처럼 의미상 viewport가 바뀌어야 하는 이벤트는 이 규칙의 대상이 아닙니다.
+
+legacy direct SelectionChanged 단축키 경로는 제품 입력으로 dispatch하지 않습니다.
 
 ## 4.3 legacy refresh와 안정화
 
@@ -216,6 +229,7 @@ transplanted Map의 async refresh가 floor/map 변경 직후 marker tree를 다�
 - 프로그램이 켜져 있는 동안 200ms마다 marker 전체를 영구 순회
 - floor가 다르다는 이유로 별도 policy timer가 marker를 반복적으로 `Collapsed` 처리
 - async load가 완료된 뒤 cross-floor near-overlap marker를 뒤늦게 `Opacity=0`으로 처리
+- MiniMap floor SVG 교체 뒤 stale persisted offset으로 live PlayerTracking viewport를 덮어쓰기
 
 ---
 
@@ -275,6 +289,7 @@ Player marker size와 extract name size 등 실제 제품에서 사용하는 조
 - manual selected floor 사용
 - artwork는 selected floor만 표시
 - enabled 다른 층 marker/extract는 숨기지 않고 4.1의 floor relation presentation 적용
+- floor 변경 시 4.2의 live viewport 보존 적용
 - AutoFloorSelection OFF
 
 ## Hover / temporary hide
@@ -365,7 +380,7 @@ Main Map `설정`에서 편집합니다.
 - Delete / Backspace → 미지정
 - Esc → 편집 취소
 - NumPad 0~5 → 직접 floor 선택용 예약 범위
-- direct floor와 floor up/down 모두 viewport-safe Main Map floor render 사용
+- direct floor와 floor up/down 모두 Main Map과 MiniMap의 viewport-safe floor render 사용
 
 JunhyunHelper-owned persisted hotkey가 runtime 권위값입니다.
 
@@ -469,8 +484,8 @@ Release candidate에서 최소 다음을 실제 WPF runtime으로 검증합니�
 - 실제 async Main Map standard-marker build와 bounded settle 이후에도 enabled known off-floor marker가 `Opacity=0`으로 사라지지 않는지 확인
 - same-type cross-floor near-overlap이 존재해도 타층 일반 marker를 대표 하나로 축약하지 않는지 확인
 - product floor hotkey가 실제 Main Map SVG를 변경
-- product floor hotkey 전후 zoom 유지
-- product floor hotkey 전후 viewport 중앙의 map-space 좌표 유지
+- product floor hotkey 전후 Main Map zoom 유지
+- product floor hotkey 전후 Main Map viewport 중앙의 map-space 좌표 유지
 - MiniMap 실제 window 표시
 - MiniMap `ResizeMode=NoResize`
 - legacy bottom-right resize grip 없음
@@ -478,7 +493,10 @@ Release candidate에서 최소 다음을 실제 WPF runtime으로 검증합니�
 - 100% → 50% scale에서 실제 `RenderTransform` 감소
 - transplanted legacy zoom/floor hotkey mapping이 0으로 비활성
 - MiniMap zoom API 사용 시 실제 ZoomLevel 변경
-- MiniMap floor API 사용 시 실제 floor indicator 변경
+- MiniMap floor product API 사용 시 실제 floor indicator 변경
+- PlayerTracking 상황처럼 live `MapTranslate`와 persisted `MapOffsetX/Y`가 서로 다르더라도 MiniMap floor 변경 전후 zoom 유지
+- 같은 조건에서 MiniMap floor 변경 전후 viewport 중앙의 map-space X/Y 유지
+- floor render 완료 후 persisted `MapOffsetX/Y`와 live `MapTranslate` 재동기화
 - zoom/floor 이후에도 legacy hook이 다시 활성화되지 않음
 - Main Window 정상 close 후 process 종료
 
@@ -488,7 +506,7 @@ Release candidate에서 최소 다음을 실제 WPF runtime으로 검증합니�
 
 # 14. 현재 완료 기준
 
-현재 public release v0.1.4에서 확인된 타층 일반 marker 소실 회귀의 패치 완료 기준은 다음입니다.
+현재 public release v0.1.4에서 확인된 두 Map 회귀를 v0.1.5에서 수정합니다.
 
 - Main Map에서 enabled 타층 marker가 async 로딩과 안정화 이후에도 실제로 보임
 - current-floor-only visibility loop 없음
@@ -497,8 +515,11 @@ Release candidate에서 최소 다음을 실제 WPF runtime으로 검증합니�
 - same-type cross-floor near-overlap을 이유로 타층 일반 marker를 숨기지 않음
 - 실제 같은 물리 항목의 semantic duplicate extract 정규화는 유지
 - floor/map 변경 뒤 legacy async refresh가 relation presentation을 영구적으로 덮어쓰지 않음
-- 이를 위해 permanent full-tree polling을 재도입하지 않음
-- 기존 floor hotkey viewport 보존 유지
-- MiniMap 기존 정상 동작 유지
+- permanent full-tree polling을 재도입하지 않음
+- Main Map floor 변경 전후 zoom + map-space 중심 유지
+- MiniMap floor 변경 전후 zoom + map-space 중심 유지
+- PlayerTracking의 stale persisted offset이 MiniMap floor 변경 시 live viewport를 초기화하지 않음
+- floor up/down과 NumPad direct floor selection 모두 viewport-safe 경로 사용
+- MiniMap 기존 opacity / marker scale / 우측 상단 고정 / click-through 정상 동작 유지
 
 향후 변경은 실제 사용 중 새 버그, 새 제품 요구사항, upstream Map bundle 갱신 또는 게임 패치로 pinned Map data가 실제 게임과 불일치할 때 진행합니다.
