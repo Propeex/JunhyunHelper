@@ -130,7 +130,9 @@ public sealed class LegacyExtractMarkerPresentationBridge : IDisposable
                 badgeOffsetX: 8,
                 badgeOffsetY: -13);
 
-            canvas.IsHitTestVisible = true;
+            // Pinned Main Map extracts are deliberately mouse-through outside calibration.
+            // Floor/dedup presentation must not change that interaction contract.
+            canvas.IsHitTestVisible = false;
         }
 
         SuppressDuplicateExtractVisuals(visuals);
@@ -172,16 +174,12 @@ public sealed class LegacyExtractMarkerPresentationBridge : IDisposable
             foreach (var candidate in group)
             {
                 if (ReferenceEquals(candidate, representative))
-                {
-                    candidate.IsHitTestVisible = true;
                     continue;
-                }
 
                 // Never remove the source visual: a later PMC/Scav filter change may need
                 // this exact row to become the representative. Visual suppression is reset
                 // by ApplyToMarker at the start of every explicit presentation refresh.
                 candidate.Opacity = 0.0;
-                candidate.IsHitTestVisible = false;
             }
         }
     }
