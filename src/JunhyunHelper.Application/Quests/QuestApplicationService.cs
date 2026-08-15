@@ -81,10 +81,10 @@ public sealed class QuestApplicationService
 
         var profile = await LoadRequiredProfileAsync(profileId, cancellationToken);
         var entry = FindQuest(content, profile, questId);
-        if (entry.Availability.State != QuestAvailabilityState.Current)
+        if (entry.Availability.State is not (QuestAvailabilityState.Current or QuestAvailabilityState.Indeterminate))
         {
             throw new InvalidOperationException(
-                $"Quest '{questId}' can only be completed while it is Current, but it is '{entry.Availability.State}'.");
+                $"Quest '{questId}' can only be completed while it is Current or requires manual availability confirmation, but it is '{entry.Availability.State}'.");
         }
 
         var questConsumptions = new Dictionary<string, InventoryConsumption>(
@@ -275,28 +275,11 @@ public sealed class QuestApplicationService
         var problems = evaluated
             .Where(static entry => entry.Availability.State == QuestAvailabilityState.Indeterminate)
             .ToArray();
-        var quests = evaluated
-            .Select(ApplyProductAvailabilityPolicy)
-            .ToArray();
 
-        // Keep the established optimistic product behavior so an opaque upstream condition
-        // never makes a quest impossible to manage in JunhyunHelper. Unlike v0.1.0, retain
-        // the original Indeterminate entries in Problems so the fallback is visible rather
-        // than silently presenting an unsupported live condition as exact availability.
-        return new QuestWorkspace(profile, quests, problems);
-    }
-
-    private static QuestCatalogEntry ApplyProductAvailabilityPolicy(QuestCatalogEntry entry)
-    {
-        if (entry.Availability.State != QuestAvailabilityState.Indeterminate)
-            return entry;
-
-        return entry with
-        {
-            Availability = new QuestAvailabilityResult(
-                entry.Quest.Id,
-                QuestAvailabilityState.Current,
-                entry.Availability.Reasons),
-        };
+        // Do not turn an opaque server/dialogue/global-variable condition into Current.
+        // Exact Current now means JunhyunHelper can prove the supported availability gates.
+        // Indeterminate remains visible/manageable as a separate user-facing "확인 필요"
+        // state, and the user can still mark it complete after confirming it exists in game.
+        return new QuestWorkspace(profile, evaluated, problems);
     }
 }
