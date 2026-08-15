@@ -2,7 +2,7 @@
 
 기록일: **2026-08-15**
 
-상태: **RELEASE CANDIDATE / PUBLIC RELEASE PENDING**
+상태: **PUBLIC RELEASE / VERIFIED**
 
 ## 목적
 
@@ -126,21 +126,29 @@ v0.1.4 → v0.1.5 필수 데이터 업데이트: 없음
 14. 공개 asset 재다운로드 후 SHA-256 재검증
 15. draft/prerelease가 아닌 정식 공개 상태 확인
 
-## 현재 검증 기록
-
-타층 marker 핵심 수정 head `ea4ccfc6cd25885e302d5d790933ce20f2192cf3` / CI run `31861199425`:
+## 최종 공개 검증 기록
 
 ```text
-Desktop Release build: SUCCESS
-automated tests: SUCCESS
-Windows x64 publish: SUCCESS
-actual Main Map off-floor standard-marker async-settle smoke: SUCCESS
-Factory Main Map regression smoke: SUCCESS
-Main Map floor-hotkey viewport preservation: SUCCESS
-MiniMap existing runtime smoke: SUCCESS
+PR: #82 — MERGED
+release baseline: 2ff504c24661b6e37ec40e685dd344ce5581350f
+branch CI run: 31863894702 — SUCCESS
+main CI run: 31864041783 — SUCCESS
+release workflow run: 31864223946 — SUCCESS
+Desktop ProductVersion: 0.1.5
+automated tests: 177 passed / 0 failed
+Windows x64 self-contained single-file publish: SUCCESS
+Main Map off-floor standard-marker async-settle smoke: SUCCESS
+Factory Gate 3 / Office Window regression smoke: SUCCESS
+Main Map viewport preservation smoke: SUCCESS
+MiniMap stale-offset floor viewport preservation smoke: SUCCESS
+MiniMap marker-scale/floor runtime smoke: SUCCESS
 graceful shutdown: SUCCESS
+public asset: Junhyun-Helper-v0.1.5-win-x64.zip
+public SHA-256: 565bf0ad01ac9ec8385e99b26aa692e0962550a0c975a889e4b56ad33a6a41f7
+public ZIP re-download + SHA-256 verification: SUCCESS
+draft: false
+prerelease: false
+release: https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.5
 ```
 
-그 이후 MiniMap viewport 보존 구현과 direct smoke가 추가되었습니다. 최종 PR head는 전체 CI를 다시 통과해야 합니다.
-
-최종 merge baseline / release workflow run / public SHA-256 / URL은 공개 완료 후 이 문서와 `docs/STATE.md`, `README.md`에 기록합니다.
+`v0.1.4 → v0.1.5` 업그레이드에는 필수 데이터 업데이트가 없습니다. Content schema v5와 `user.db` schema는 변경하지 않았으며 기존 사용자 진행과 Map 설정을 유지합니다.

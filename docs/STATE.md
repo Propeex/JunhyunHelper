@@ -4,21 +4,25 @@
 
 ## 현재 상태
 
-**v0.1.5 RELEASE CANDIDATE — Main Map 타층 marker + MiniMap floor viewport 회귀 패치 / Windows x64**
+**v0.1.5 PUBLIC RELEASE — Main Map 타층 marker + MiniMap floor viewport 회귀 패치 / Windows x64**
 
-현재 공개 릴리즈는 **v0.1.4**입니다. v0.1.5는 v0.1.4 실사용에서 확인된 두 Map 회귀를 수정합니다.
+현재 공개 릴리즈는 **v0.1.5**입니다. v0.1.4 실사용에서 확인된 두 Map 회귀를 수정했습니다.
 
-1. 다른 층 일반 marker가 잠깐 보인 뒤 깜박이며 사라짐
-2. 층 변경 시 MiniMap의 현재 지도 중심이 초기/이전 위치로 돌아감
+1. 다른 층 일반 marker가 잠깐 보인 뒤 깜박이며 사라지는 문제
+2. 층 변경 시 MiniMap의 현재 지도 중심이 초기/이전 위치로 돌아가는 문제
 
 ```text
-feature PR: #82 OPEN
-branch: agent/fix-off-floor-marker-flicker-2026-08-15
+feature PR: #82 MERGED
+release baseline: 2ff504c24661b6e37ec40e685dd344ce5581350f
 Desktop ProductVersion: 0.1.5
 Content schema: unchanged (v5)
 user.db schema: unchanged
 required data update from v0.1.4: none
-public v0.1.5 release: PENDING final CI + merge + exact-baseline release gate
+branch CI: 31863894702 — SUCCESS
+main CI: 31864041783 — SUCCESS
+release workflow: 31864223946 — SUCCESS
+public asset SHA-256: 565bf0ad01ac9ec8385e99b26aa692e0962550a0c975a889e4b56ad33a6a41f7
+release: https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.5
 ```
 
 ### 회귀 1 — 타층 일반 marker 소실
@@ -60,20 +64,25 @@ MiniMap은 `PlayerTracking` 고정입니다. 이 모드의 실제 player-centere
 
 ### v0.1.5 검증 상태
 
-타층 marker 단독 수정 head `ea4ccfc6cd25885e302d5d790933ce20f2192cf3` / CI run `31861199425`에서는 이미 다음을 통과했습니다.
+최종 변경 범위와 exact release baseline에서 전체 검증을 완료했습니다.
 
 ```text
+release baseline: 2ff504c24661b6e37ec40e685dd344ce5581350f
+branch CI: 31863894702 — SUCCESS
+main CI: 31864041783 — SUCCESS
+release workflow: 31864223946 — SUCCESS
 Desktop Release build: SUCCESS
-automated tests: SUCCESS
+automated tests: 177 passed / 0 failed
 Windows x64 self-contained single-file publish: SUCCESS
 actual MapMarkersContainer off-floor standard-marker async-settle assertion: SUCCESS
 Factory Gate 3 / Office Window regression smoke: SUCCESS
 Main Map floor-hotkey zoom + map-space viewport-center preservation: SUCCESS
-MiniMap existing runtime smoke: SUCCESS
+MiniMap stale-offset floor viewport preservation: SUCCESS
+MiniMap marker-scale / floor runtime smoke: SUCCESS
 normal Main Window close / process exit: SUCCESS
+public ZIP re-download + SHA-256 verification: SUCCESS
+public SHA-256: 565bf0ad01ac9ec8385e99b26aa692e0962550a0c975a889e4b56ad33a6a41f7
 ```
-
-이후 MiniMap viewport regression fix와 direct smoke를 추가했습니다. **최종 PR head에서 전체 CI/runtime smoke를 다시 통과한 뒤** 병합합니다. 공개 릴리즈는 병합된 exact baseline에서 release gate를 다시 실행합니다.
 
 상세:
 
@@ -83,28 +92,28 @@ normal Main Window close / process exit: SUCCESS
 - `docs/DECISIONS.md` DEC-041 / DEC-042
 - `docs/RELEASE_0.1.5.md`
 
-## 현재 공개 릴리즈 — v0.1.4
+## 현재 공개 릴리즈 — v0.1.5
 
 릴리즈일: **2026-08-15**
 
 ```text
-release baseline: 68038c6aac43e91f9ba8e810918eed389c753dea
-public asset: Junhyun-Helper-v0.1.4-win-x64.zip
-public SHA-256: 0238d059f3c714c826c2a962b30e5361b6e3e16c247d2657993a612aed8d8ef9
-release: https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.4
+release baseline: 2ff504c24661b6e37ec40e685dd344ce5581350f
+public asset: Junhyun-Helper-v0.1.5-win-x64.zip
+public SHA-256: 565bf0ad01ac9ec8385e99b26aa692e0962550a0c975a889e4b56ad33a6a41f7
+release workflow: 31864223946 — SUCCESS
+release: https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.5
 ```
 
-v0.1.4에서 도입한 핵심은 유지합니다.
+v0.1.5의 현재 Map 제품 기준:
 
-- Main Map에서 floor를 visibility filter로 사용하지 않는 제품 정책
+- floor는 marker visibility filter가 아니라 presentation relation
+- enabled 타층 일반 marker는 same-type/near-XZ라도 각각 유지
 - current/above/below 초록/빨강/파랑 compact ring, known off-floor 약 75% opacity
-- Factory `Gate 3` 같은 동일 물리 PMC/Scav extract 대표 visual 정규화
-- `Office Window` 같은 Scav 회색 body와 floor ring 의미 분리
-- Core Indeterminate Quest를 `진행 중`으로 강제하지 않고 UI `확인 필요`로 분리
-- `확인 필요`는 Current count/Map Current sidebar에서 제외
-- Future Needed Items의 `IndeterminatePotential` 보수 보호 유지
-
-단, v0.1.4의 일반 marker cross-floor vertical-stack representative 예외는 DEC-041 / v0.1.5에서 폐기하고, MiniMap floor viewport는 DEC-042에서 명시적으로 보존합니다.
+- legacy current-floor-only filter와 cross-floor vertical-stack suppression은 제품 경로에서 비활성
+- Factory `Gate 3` 같은 실제 동일 물리 semantic duplicate extract 정규화는 유지
+- MiniMap floor 변경은 live zoom + map-space viewport center를 보존
+- 빠른 연속 floor 변경에서 superseded render cancellation은 정상 처리
+- v0.1.4의 Quest `확인 필요` 정확도 정책과 Future Needed Items 보수 보호 유지
 
 ## v0.1.3 변경 — Map/MiniMap 회귀 핫픽스
 
@@ -171,7 +180,7 @@ importer warnings: 0
 | Hideout | 구현 완료 / current live validation 통과 |
 | Needed Items / Inventory | 구현 완료 / flexible status + Item Wiki |
 | Ammo | 구현 완료 / current live validation 통과 |
-| Map + MiniMap | 구현 완료 / v0.1.5 off-floor marker + MiniMap floor viewport regression patch 검증 중 |
+| Map + MiniMap | 구현 완료 / v0.1.5 off-floor marker + MiniMap floor viewport regression patch 공개 완료 |
 | Scanner | `준비 중` placeholder 탭 유지 / 실제 기능 PRODUCT OPEN |
 
 ## Map 기준

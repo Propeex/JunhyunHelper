@@ -4,11 +4,11 @@ Escape from Tarkov 플레이를 지원하는 Windows 데스크톱 헬퍼 **준�
 
 ## 현재 상태
 
-**v0.1.5 RELEASE CANDIDATE — Windows x64**
+**v0.1.5 PUBLIC RELEASE — Windows x64**
 
-현재 공개 버전은 **v0.1.4**입니다.
+현재 공개 버전은 **v0.1.5**입니다.
 
-**현재 공개 다운로드:** https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.4
+**현재 공개 다운로드:** https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.5
 
 v0.1.5는 v0.1.4 실사용에서 확인된 두 Map 회귀를 수정하는 패치입니다.
 
@@ -39,7 +39,7 @@ v0.1.5는 v0.1.4 실사용에서 확인된 두 Map 회귀를 수정하는 패치
   - screenshot 기반 Map 전환 / player tracking
 - 상단 `스캐너` 탭 — 현재 `준비 중` placeholder 유지
 
-## v0.1.5 Map 회귀 패치 후보
+## v0.1.5 Map 회귀 패치
 
 ### 타층 일반 marker
 
@@ -52,6 +52,24 @@ v0.1.5에서는 서로 다른 floor라는 이유만으로 일반 marker를 숨�
 MiniMap의 PlayerTracking 현재 중심은 live `MapTranslate`에 갱신되지만 persisted offset은 이전 값일 수 있습니다. 기존 floor renderer가 SVG 교체 뒤 stale offset을 다시 적용하여 중심이 초기/이전 위치로 점프할 수 있었습니다.
 
 v0.1.5에서는 floor up/down과 NumPad 직접 층 선택 모두 변경 직전의 live zoom + map-space 중심을 저장하고 floor render 뒤 복원합니다. 층을 바꿔도 Main Map과 MiniMap에서 보고 있던 위치가 유지되어야 합니다.
+
+공개 릴리즈 검증:
+
+```text
+release baseline: 2ff504c24661b6e37ec40e685dd344ce5581350f
+branch CI: 31863894702 — SUCCESS
+main CI: 31864041783 — SUCCESS
+release workflow: 31864223946 — SUCCESS
+177 tests passed / 0 failed
+Windows x64 self-contained single-file publish: SUCCESS
+Main Map off-floor async-settle smoke: SUCCESS
+Factory Gate 3 / Office Window smoke: SUCCESS
+MiniMap floor viewport preservation smoke: SUCCESS
+normal Main Window close / process exit: SUCCESS
+asset: Junhyun-Helper-v0.1.5-win-x64.zip
+SHA-256: 565bf0ad01ac9ec8385e99b26aa692e0962550a0c975a889e4b56ad33a6a41f7
+release: https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.5
+```
 
 ## v0.1.4 Main Map / Quest 정확도 패치
 
