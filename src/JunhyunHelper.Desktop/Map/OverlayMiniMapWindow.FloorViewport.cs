@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Threading;
 using TarkovHelper.Models.Map;
+using TarkovHelper.Services.Map;
 
 namespace TarkovHelper.Windows;
 
