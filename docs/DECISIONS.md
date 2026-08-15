@@ -131,12 +131,30 @@
 
 ## DEC-040 — Map의 floor 관계는 visibility가 아니라 presentation이다
 
-- 상태: `CONFIRMED`
+- 상태: `CONFIRMED / PARTIALLY SUPERSEDED by DEC-041`
 - 날짜: 2026-08-15
 - 결정: 사용자가 category/faction을 켠 Main Map/MiniMap marker와 extract는 다른 floor라는 이유로 `Collapsed`하지 않는다. 현재 선택 floor와 marker floor의 `Floor.Order` 관계를 presentation으로 표현한다. marker 고유 type/icon 색은 유지하고 floor 관계는 작은 ring으로 표현한다: 현재층=초록, 위층=빨강, 아래층=파랑. 알려진 타층은 약 75% opacity와 매우 작은 방향 glyph를 보조적으로 사용하며, floor가 불명확하면 관계를 추측하지 않는다. Main Map에서 같은 type의 서로 다른 floor marker가 사실상 같은 X/Z에 겹치는 vertical stack은 현재층을 우선하고, 현재층이 없으면 선택 floor와 가장 가까운 `Floor.Order`의 하나를 대표로 표시한다.
 - 이유: current-floor-only visibility policy가 타층 marker를 완전히 숨겼고, 큰 화살표와 겹친 회색/초록 marker는 지도 가독성을 떨어뜨렸다. 색상 ring은 기존 marker 의미를 보존하면서 층 관계를 즉시 구분할 수 있다.
 - 영향: 지도 artwork 자체는 계속 선택 floor만 표시한다. floor 관계와 category/faction visibility 책임을 분리한다. permanent full-tree polling으로 이 정책을 유지하지 않고 실제 변화 후 bounded/event-driven stabilization을 사용한다.
-- 대체한 결정: 과거 `other-floor opacity 50% + 큰 ↑/↓ badge` 표현 및 current-floor-only visibility 구현
+- 대체한 결정: 과거 `other-floor opacity 50% + 큰 ↑/↓ badge` 표현 및 current-floor-only visibility 구현. 단, 일반 marker vertical-stack 대표 하나만 남기는 예외는 DEC-041이 대체한다.
+
+## DEC-041 — 서로 다른 floor의 일반 marker는 X/Z가 겹쳐도 숨기지 않는다
+
+- 상태: `CONFIRMED`
+- 날짜: 2026-08-15
+- 결정: Main Map의 일반 marker는 같은 type이고 서로 다른 known floor이며 X/Z가 같거나 가까워도 그 사실만으로 대표 하나만 남기지 않는다. category가 켜져 있고 현재 Map에 속하는 각 marker visual을 유지하고, 각자의 Current/Above/Below relation presentation을 적용한다. 다른 floor marker에 `Opacity=0` 또는 `Collapsed`를 적용하는 vertical-stack suppression은 사용하지 않는다. 같은 물리 항목의 source 중복이라고 의미적으로 확인할 수 있는 경우에만 별도 duplicate 정규화를 허용하며, Factory `Gate 3`처럼 같은 이름·같은 정규화 floor·거의 같은 위치의 extract 대표 visual 정규화는 유지한다.
+- 이유: v0.1.4 실사용에서 legacy 일반 marker가 비동기로 추가된 뒤 vertical-stack pass가 타층 marker를 `Opacity=0`으로 바꾸어 `표시됨 → 깜박임 → 사라짐` 회귀가 발생했다. 서로 다른 floor라는 사실은 일반 marker를 같은 물리 항목으로 판단할 충분한 근거가 아니며, DEC-040의 핵심인 “floor는 visibility가 아니라 presentation”과도 충돌했다.
+- 영향: `LegacyStandardMarkerFloorPresentationBridge`의 cross-floor near-overlap suppression을 제거한다. async settle 이후 실제 `MapMarkersContainer`의 known off-floor standard marker가 계속 visible/약 75% opacity인지 runtime smoke로 검증한다. 일부 다른 층 아이콘이 같은 X/Z에서 시각적으로 겹칠 수 있으나 floor ring/작은 방향 glyph로 구분하며 표시 자체를 보존한다.
+- 대체한 결정: `DEC-040`의 일반 marker vertical-stack representative 예외
+
+## DEC-042 — 층 변경은 Main Map과 MiniMap의 현재 viewport를 보존한다
+
+- 상태: `CONFIRMED`
+- 날짜: 2026-08-15
+- 결정: floor up/down product hotkey와 NumPad 0~5 direct floor selection은 층 artwork를 바꾸는 동작일 뿐, 사용자가 보고 있던 지도 위치를 재중앙화하는 동작이 아니다. Main Map과 MiniMap은 각각 floor 변경 직전의 live zoom과 viewport 중앙의 map-space 좌표를 캡처하고, 해당 floor render가 끝난 뒤 같은 zoom과 같은 map-space 중심을 복원한다. MiniMap `PlayerTracking`에서는 persisted `MapOffsetX/Y`보다 실제 `MapTranslate`가 현재 viewport의 권위값이며, floor SVG 교체가 stale persisted offset을 다시 적용해 중심을 초기화해서는 안 된다.
+- 이유: v0.1.4 실사용에서 MiniMap의 player-centered live transform은 `MapTranslate`에만 갱신되는 반면 floor renderer의 `UpdateMapView()`가 과거 `_settings.MapOffsetX/Y`를 재적용하여 층 변경 때 지도 중심이 초기/이전 위치로 점프했다.
+- 영향: JunhyunHelper가 MiniMap floor 변경의 viewport-safe async 경로를 소유한다. floor render 직전 live transform을 persisted offset에도 동기화하여 중간 점프를 막고, render 완료 후 map-space 중심을 복원한다. 실제 Map 변경이나 새로운 screenshot player position처럼 의미상 중심이 바뀌어야 하는 이벤트는 이 규칙의 대상이 아니다. Windows runtime smoke에서 stale persisted offset을 의도적으로 만들어도 floor 변경 전후 MiniMap zoom과 map-space 중심이 동일한지 검증한다.
+- 대체한 결정: 없음. 기존 Main Map viewport 보존 계약을 MiniMap까지 명시적으로 완성한다.
 
 ---
 

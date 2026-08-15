@@ -10,13 +10,14 @@ namespace JunhyunHelper.Desktop.Map;
 
 /// <summary>
 /// Applies JunhyunHelper floor presentation to the transplanted Main Map standard markers.
-/// The legacy renderer owns coordinates and category visibility. This bridge reacts only
-/// around real marker/map/floor changes and performs a bounded settle after floor switches;
-/// it never returns to the old permanent full-tree polling behavior.
+/// The legacy renderer owns coordinates and category visibility. Floor relationship is
+/// presentation only: this bridge must never suppress an enabled marker merely because
+/// another marker on a different floor occupies the same or a nearby X/Z position.
+/// The bridge reacts only around real marker/map/floor changes and performs a bounded
+/// settle after floor switches; it never returns to permanent full-tree polling.
 /// </summary>
 public sealed class LegacyStandardMarkerFloorPresentationBridge : IDisposable
 {
-    private const double VerticalStackGameDistance = 8.0;
     private const int ForcedSettleChecks = 6;
 
     private readonly TarkovHelper.Pages.Map.MapPage _page;
@@ -131,7 +132,6 @@ public sealed class LegacyStandardMarkerFloorPresentationBridge : IDisposable
 
         var config = _tracker.GetMapConfig(mapKey);
         var selectedFloor = CurrentFloorId();
-        var rendered = new List<RenderedMarker>();
 
         foreach (var canvas in _markers.Children.OfType<Canvas>())
         {
@@ -142,130 +142,8 @@ public sealed class LegacyStandardMarkerFloorPresentationBridge : IDisposable
 
             var relation = JunhyunFloorPresentation.Resolve(config, marker.FloorId, selectedFloor);
             JunhyunFloorPresentation.ApplyToMarker(canvas, relation);
-            rendered.Add(new RenderedMarker(canvas, marker, relation));
-        }
-
-        if (config is not null && !string.IsNullOrWhiteSpace(selectedFloor))
-            CollapseVerticalStacks(rendered, config, selectedFloor);
-    }
-
-    private static void CollapseVerticalStacks(
-        IReadOnlyList<RenderedMarker> markers,
-        MapConfig config,
-        string selectedFloor)
-    {
-        var floors = config.Floors;
-        if (markers.Count < 2 || floors is null || floors.Count == 0)
-            return;
-
-        var selectedOrder = FloorOrder(config, selectedFloor);
-        if (!selectedOrder.HasValue)
-            return;
-
-        var consumed = new bool[markers.Count];
-        var maxDistanceSquared = VerticalStackGameDistance * VerticalStackGameDistance;
-
-        // Choose the visible representative first, then form the stack around that exact
-        // representative. Current-floor markers have first priority; otherwise the closest
-        // known Floor.Order wins. This guarantees every hidden member is physically within
-        // the overlap threshold of the icon that remains visible.
-        var representativeOrder = Enumerable.Range(0, markers.Count)
-            .Where(index =>
-                markers[index].Canvas.Visibility == Visibility.Visible &&
-                FloorOrder(config, EffectiveFloorId(markers[index].Marker.FloorId)).HasValue)
-            .OrderBy(index => RepresentativeRank(markers[index], config, selectedOrder.Value))
-            .ThenBy(index => index)
-            .ToArray();
-
-        foreach (var representativeIndex in representativeOrder)
-        {
-            if (consumed[representativeIndex])
-                continue;
-
-            var representative = markers[representativeIndex];
-            var representativeFloorOrder = FloorOrder(
-                config,
-                EffectiveFloorId(representative.Marker.FloorId));
-            if (!representativeFloorOrder.HasValue)
-                continue;
-
-            consumed[representativeIndex] = true;
-
-            // At most one marker from each other floor is collapsed into this physical
-            // site, selecting the closest candidate to the visible representative.
-            var candidatesByFloor = new Dictionary<int, (int Index, double DistanceSquared)>();
-            for (var candidateIndex = 0; candidateIndex < markers.Count; candidateIndex++)
-            {
-                if (consumed[candidateIndex] || candidateIndex == representativeIndex)
-                    continue;
-
-                var candidate = markers[candidateIndex];
-                if (candidate.Canvas.Visibility != Visibility.Visible ||
-                    candidate.Marker.Type != representative.Marker.Type)
-                {
-                    continue;
-                }
-
-                var candidateFloorOrder = FloorOrder(
-                    config,
-                    EffectiveFloorId(candidate.Marker.FloorId));
-                if (!candidateFloorOrder.HasValue ||
-                    candidateFloorOrder.Value == representativeFloorOrder.Value)
-                {
-                    continue;
-                }
-
-                var dx = candidate.Marker.X - representative.Marker.X;
-                var dz = candidate.Marker.Z - representative.Marker.Z;
-                var distanceSquared = (dx * dx) + (dz * dz);
-                if (distanceSquared > maxDistanceSquared)
-                    continue;
-
-                if (!candidatesByFloor.TryGetValue(candidateFloorOrder.Value, out var previous) ||
-                    distanceSquared < previous.DistanceSquared)
-                {
-                    candidatesByFloor[candidateFloorOrder.Value] = (candidateIndex, distanceSquared);
-                }
-            }
-
-            foreach (var candidate in candidatesByFloor.Values)
-            {
-                if (consumed[candidate.Index])
-                    continue;
-
-                consumed[candidate.Index] = true;
-                markers[candidate.Index].Canvas.Opacity = 0.0;
-                markers[candidate.Index].Canvas.IsHitTestVisible = false;
-            }
         }
     }
-
-    private static int RepresentativeRank(
-        RenderedMarker marker,
-        MapConfig config,
-        int selectedOrder)
-    {
-        if (marker.Relation.Relation == JunhyunFloorRelation.Current)
-            return 0;
-
-        var order = FloorOrder(config, EffectiveFloorId(marker.Marker.FloorId));
-        return order.HasValue
-            ? 10 + Math.Abs(order.Value - selectedOrder)
-            : 10_000;
-    }
-
-    private static int? FloorOrder(MapConfig config, string? floorId)
-    {
-        if (string.IsNullOrWhiteSpace(floorId) || config.Floors is not { } floors)
-            return null;
-
-        var floor = floors.FirstOrDefault(candidate =>
-            string.Equals(candidate.LayerId, floorId, StringComparison.OrdinalIgnoreCase));
-        return floor?.Order;
-    }
-
-    private static string EffectiveFloorId(string? floorId) =>
-        string.IsNullOrWhiteSpace(floorId) ? "main" : floorId;
 
     private string? CurrentFloorId() =>
         (_floorSelector?.SelectedItem as ComboBoxItem)?.Tag as string;
@@ -284,9 +162,4 @@ public sealed class LegacyStandardMarkerFloorPresentationBridge : IDisposable
             _markers.LayoutUpdated -= Markers_LayoutUpdated;
         _page.Loaded -= Page_Loaded;
     }
-
-    private sealed record RenderedMarker(
-        Canvas Canvas,
-        MapMarker Marker,
-        JunhyunFloorRelationInfo Relation);
 }

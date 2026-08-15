@@ -33,6 +33,16 @@ public partial class MapPage
         CmbFloorSelect.SelectionChanged += CmbFloorSelect_SelectionChanged;
     }
 
+    /// <summary>
+    /// The transplanted shared-floor integration owns an older current-floor-only marker
+    /// filter and screenshot-driven automatic-floor behavior. Both conflict with the
+    /// JunhyunHelper product contract. The product runtime calls this after Loaded so the
+    /// legacy class handler has had a chance to attach, then removes that integration at
+    /// its source instead of racing its 200 ms marker-filter timer.
+    /// </summary>
+    public void DisableJunhyunLegacySharedFloorIntegration() =>
+        DetachSharedFloorIntegration();
+
     private void OnJunhyunManualFloorPreparing(object sender, SelectionChangedEventArgs e)
     {
         if (CmbFloorSelect.SelectedItem is not ComboBoxItem selectedItem ||

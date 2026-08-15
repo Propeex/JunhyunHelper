@@ -81,6 +81,7 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
         _tracker.PositionUpdated += Tracker_PositionUpdated;
         _tracker.MapChanged += Tracker_MapChanged;
         _overlay.SettingsChanged += Overlay_SettingsChanged;
+        _page.Loaded += Page_Loaded;
         if (_floorSelector is not null)
             _floorSelector.SelectionChanged += FloorSelector_SelectionChanged;
 
@@ -94,7 +95,37 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
         HookFilter(_scavExtractToggle);
         HookFilter(_transitToggle);
 
+        // If the page is already loaded, the transplanted class handler may already have
+        // attached its obsolete shared-floor filter. Otherwise Page_Loaded performs this
+        // after that class handler runs.
+        if (_page.IsLoaded)
+            ScheduleLegacySharedFloorDetach();
+
         RestartStabilization();
+    }
+
+    private void Page_Loaded(object sender, RoutedEventArgs e) =>
+        ScheduleLegacySharedFloorDetach();
+
+    private void ScheduleLegacySharedFloorDetach()
+    {
+        if (_disposed)
+            return;
+
+        _page.Dispatcher.BeginInvoke(() =>
+        {
+            if (_disposed)
+                return;
+
+            // The pinned SharedFloor integration contains a bounded 200 ms
+            // current-floor-only marker filter. Leaving it attached makes it race the
+            // product presentation and eventually hide enabled off-floor markers.
+            _page.DisableJunhyunLegacySharedFloorIntegration();
+            ApplyFixedPolicies();
+            ApplyProductMarkerFilters();
+            _presentationRefresh?.Invoke();
+            RestartStabilization();
+        }, DispatcherPriority.ContextIdle);
     }
 
     private void RestartStabilization()
@@ -328,6 +359,7 @@ public sealed class LegacyMapInteractionPolicyBridge : IDisposable
         _tracker.PositionUpdated -= Tracker_PositionUpdated;
         _tracker.MapChanged -= Tracker_MapChanged;
         _overlay.SettingsChanged -= Overlay_SettingsChanged;
+        _page.Loaded -= Page_Loaded;
         if (_floorSelector is not null)
             _floorSelector.SelectionChanged -= FloorSelector_SelectionChanged;
 

@@ -36,9 +36,18 @@ public static class JunhyunMiniMapProductRegistry
 
     public static void ZoomOut() => WithActive(window => window.ZoomOut());
 
-    public static void MoveFloorUp() => WithActive(window => window.MoveFloorUp());
+    public static void MoveFloorUp() => _ = MoveFloorUpAsync();
 
-    public static void MoveFloorDown() => WithActive(window => window.MoveFloorDown());
+    public static void MoveFloorDown() => _ = MoveFloorDownAsync();
+
+    public static Task MoveFloorUpAsync() =>
+        WithActiveAsync(window => window.JunhyunMoveFloorUpAsync());
+
+    public static Task MoveFloorDownAsync() =>
+        WithActiveAsync(window => window.JunhyunMoveFloorDownAsync());
+
+    public static Task SelectFloorIndexAsync(int floorIndex) =>
+        WithActiveAsync(window => window.JunhyunSelectFloorIndexAsync(floorIndex));
 
     public static void IncreaseSize() => WithActive(window => window.IncreaseAnchoredSize());
 
@@ -56,15 +65,19 @@ public static class JunhyunMiniMapProductRegistry
     public static void TemporarilyHide(double seconds) =>
         WithActive(window => window.JunhyunTemporarilyHide(seconds));
 
-    private static void WithActive(Action<TarkovHelper.Windows.OverlayMiniMapWindow> action)
+    private static TarkovHelper.Windows.OverlayMiniMapWindow? ActiveWindow()
     {
-        TarkovHelper.Windows.OverlayMiniMapWindow? window = null;
         lock (Gate)
         {
-            if (_active?.TryGetTarget(out var current) == true)
-                window = current;
+            return _active?.TryGetTarget(out var current) == true
+                ? current
+                : null;
         }
+    }
 
+    private static void WithActive(Action<TarkovHelper.Windows.OverlayMiniMapWindow> action)
+    {
+        var window = ActiveWindow();
         if (window is null)
             return;
 
@@ -72,5 +85,17 @@ public static class JunhyunMiniMapProductRegistry
             action(window);
         else
             window.Dispatcher.BeginInvoke(() => action(window));
+    }
+
+    private static Task WithActiveAsync(Func<TarkovHelper.Windows.OverlayMiniMapWindow, Task> action)
+    {
+        var window = ActiveWindow();
+        if (window is null)
+            return Task.CompletedTask;
+
+        if (window.Dispatcher.CheckAccess())
+            return action(window);
+
+        return window.Dispatcher.InvokeAsync(() => action(window)).Task.Unwrap();
     }
 }
