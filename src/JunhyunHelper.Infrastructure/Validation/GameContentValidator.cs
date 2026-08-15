@@ -1,6 +1,7 @@
 using JunhyunHelper.Core.Ammo;
 using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.Editions;
+using JunhyunHelper.Core.Quests;
 
 namespace JunhyunHelper.Infrastructure.Validation;
 
@@ -35,14 +36,91 @@ public sealed class GameContentValidator
 
         foreach (var quest in content.Quests)
         {
+            var prerequisiteIds = new HashSet<string>(StringComparer.Ordinal);
             foreach (var requirement in quest.TaskRequirements)
             {
+                if (requirement.AcceptedStatuses.Count == 0)
+                {
+                    Fatal(
+                        issues,
+                        "quest.prerequisite.status-empty",
+                        $"Quest '{quest.Id}' prerequisite '{requirement.RequiredQuestId}' has no accepted status.");
+                }
+
+                if (string.Equals(quest.Id, requirement.RequiredQuestId, StringComparison.Ordinal))
+                {
+                    Fatal(
+                        issues,
+                        "quest.prerequisite.self",
+                        $"Quest '{quest.Id}' references itself as a prerequisite.");
+                }
+
+                if (!prerequisiteIds.Add(requirement.RequiredQuestId))
+                {
+                    Fatal(
+                        issues,
+                        "quest.prerequisite.duplicate",
+                        $"Quest '{quest.Id}' repeats prerequisite quest '{requirement.RequiredQuestId}'.");
+                }
+
                 if (!questIds.Contains(requirement.RequiredQuestId))
                 {
                     Fatal(
                         issues,
                         "quest.prerequisite.missing",
                         $"Quest '{quest.Id}' references missing prerequisite quest '{requirement.RequiredQuestId}'.");
+                }
+            }
+
+            if (quest.SpecialTraderAccessRequirement is { } specialAccess)
+            {
+                if (specialAccess.AcceptedUnlockStatuses.Count == 0)
+                {
+                    Fatal(
+                        issues,
+                        "quest.special-trader-access.status-empty",
+                        $"Quest '{quest.Id}' special trader access has no accepted unlock status.");
+                }
+
+                if (!traderIds.Contains(specialAccess.TraderId))
+                {
+                    Fatal(
+                        issues,
+                        "quest.special-trader-access.trader-missing",
+                        $"Quest '{quest.Id}' references missing special trader '{specialAccess.TraderId}'.");
+                }
+
+                if (quest.TraderId is not null &&
+                    !string.Equals(quest.TraderId, specialAccess.TraderId, StringComparison.Ordinal))
+                {
+                    Fatal(
+                        issues,
+                        "quest.special-trader-access.trader-mismatch",
+                        $"Quest '{quest.Id}' is offered by trader '{quest.TraderId}' but its special access gate targets '{specialAccess.TraderId}'.");
+                }
+
+                if (string.Equals(quest.Id, specialAccess.UnlockQuestId, StringComparison.Ordinal))
+                {
+                    Fatal(
+                        issues,
+                        "quest.special-trader-access.self",
+                        $"Quest '{quest.Id}' uses itself as its special trader access unlock quest.");
+                }
+
+                if (!questIds.Contains(specialAccess.UnlockQuestId))
+                {
+                    Fatal(
+                        issues,
+                        "quest.special-trader-access.unlock-missing",
+                        $"Quest '{quest.Id}' references missing special trader unlock quest '{specialAccess.UnlockQuestId}'.");
+                }
+
+                if (prerequisiteIds.Contains(specialAccess.UnlockQuestId))
+                {
+                    Fatal(
+                        issues,
+                        "quest.special-trader-access.duplicate-gate",
+                        $"Quest '{quest.Id}' evaluates unlock quest '{specialAccess.UnlockQuestId}' both as a normal prerequisite and as special trader access.");
                 }
             }
 
@@ -96,6 +174,8 @@ public sealed class GameContentValidator
             }
         }
 
+        ValidateQuestDependencyCycles(content.Quests, questIds, issues);
+
         foreach (var requirement in content.QuestItemRequirements)
         {
             if (!questIds.Contains(requirement.QuestId))
@@ -145,6 +225,72 @@ public sealed class GameContentValidator
         ValidateEditions(content.Editions, questIds, issues);
 
         return new ContentValidationResult(issues);
+    }
+
+    private static void ValidateQuestDependencyCycles(
+        IReadOnlyList<QuestDefinition> quests,
+        IReadOnlySet<string> questIds,
+        ICollection<ContentValidationIssue> issues)
+    {
+        var byId = quests.ToDictionary(quest => quest.Id, StringComparer.Ordinal);
+        var state = new Dictionary<string, int>(StringComparer.Ordinal);
+        var stack = new List<string>();
+        var reported = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var questId in byId.Keys)
+            Visit(questId);
+
+        void Visit(string questId)
+        {
+            if (state.TryGetValue(questId, out var existing) && existing == 2)
+                return;
+            if (existing == 1)
+                return;
+
+            state[questId] = 1;
+            stack.Add(questId);
+
+            foreach (var dependencyId in Dependencies(byId[questId]))
+            {
+                if (!questIds.Contains(dependencyId))
+                    continue;
+
+                state.TryGetValue(dependencyId, out var dependencyState);
+                if (dependencyState == 0)
+                {
+                    Visit(dependencyId);
+                    continue;
+                }
+
+                if (dependencyState != 1)
+                    continue;
+
+                var start = stack.IndexOf(dependencyId);
+                if (start < 0)
+                    continue;
+
+                var cycle = stack.Skip(start).Append(dependencyId).ToArray();
+                var key = string.Join("|", cycle.Take(cycle.Length - 1).Order(StringComparer.Ordinal));
+                if (reported.Add(key))
+                {
+                    Fatal(
+                        issues,
+                        "quest.prerequisite.cycle",
+                        $"Quest prerequisite cycle detected: {string.Join(" -> ", cycle)}.");
+                }
+            }
+
+            stack.RemoveAt(stack.Count - 1);
+            state[questId] = 2;
+        }
+
+        static IEnumerable<string> Dependencies(QuestDefinition quest)
+        {
+            foreach (var requirement in quest.TaskRequirements)
+                yield return requirement.RequiredQuestId;
+            if (quest.SpecialTraderAccessRequirement is { } specialAccess)
+                yield return specialAccess.UnlockQuestId;
+        }
     }
 
     private static void ValidateAmmo(
