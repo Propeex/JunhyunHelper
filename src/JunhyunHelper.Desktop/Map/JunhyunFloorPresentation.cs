@@ -143,6 +143,9 @@ public static class JunhyunFloorPresentation
                stroke.Color == RelationColor(relation);
     }
 
+    public static bool IsFloorIndicator(Ellipse ellipse) =>
+        string.Equals(ellipse.Tag as string, FloorIndicatorTag, StringComparison.Ordinal);
+
     private static void UpsertRing(Canvas canvas, Color color, string tooltip)
     {
         var existing = FindFloorIndicator(canvas);
