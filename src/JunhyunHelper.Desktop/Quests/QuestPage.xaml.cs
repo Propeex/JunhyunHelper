@@ -55,7 +55,6 @@ public partial class QuestPage : UserControl
         var maps = content.Maps.ToDictionary(map => map.Id, StringComparer.Ordinal);
 
         _rows = workspace.Quests
-            .Where(entry => entry.Availability.State != QuestAvailabilityState.Indeterminate)
             .Select(entry => new QuestRow(
                 entry,
                 DisplayName(entry.Quest.NameKo, entry.Quest.NameEn, entry.Quest.Id),
@@ -67,7 +66,7 @@ public partial class QuestPage : UserControl
             .ToArray();
 
         PopulateReferenceFilters(traders, maps);
-        ProblemsButton.Content = $"판정 문제 {workspace.Problems.Count}";
+        ProblemsButton.Content = $"자동 판정 제한 {workspace.Problems.Count}";
         ProblemsButton.IsEnabled = workspace.Problems.Count > 0;
 
         ApplyFilters();
@@ -95,6 +94,7 @@ public partial class QuestPage : UserControl
         StatusFilter.ItemsSource = new[]
         {
             new FilterOption("진행 중", QuestAvailabilityState.Current.ToString()),
+            new FilterOption("확인 필요", QuestAvailabilityState.Indeterminate.ToString()),
             new FilterOption("전체", null),
             new FilterOption("잠김", QuestAvailabilityState.Locked.ToString()),
             new FilterOption("사용 불가", QuestAvailabilityState.Unavailable.ToString()),
@@ -228,6 +228,7 @@ public partial class QuestPage : UserControl
 
         QuestList.ItemsSource = filtered;
         SummaryText.Text = $"{filtered.Length}개 표시 · 진행 중 {_rows.Count(row => row.Entry.Availability.State == QuestAvailabilityState.Current)} · " +
+                           $"확인 필요 {_rows.Count(row => row.Entry.Availability.State == QuestAvailabilityState.Indeterminate)} · " +
                            $"잠김 {_rows.Count(row => row.Entry.Availability.State == QuestAvailabilityState.Locked)} · " +
                            $"사용 불가 {_rows.Count(row => row.Entry.Availability.State == QuestAvailabilityState.Unavailable)} · " +
                            $"완료 {_rows.Count(row => row.Entry.Availability.State == QuestAvailabilityState.Completed)}";
@@ -265,6 +266,7 @@ public partial class QuestPage : UserControl
         PrimaryActionButton.Visibility = entry.Availability.State switch
         {
             QuestAvailabilityState.Current => Visibility.Visible,
+            QuestAvailabilityState.Indeterminate => Visibility.Visible,
             QuestAvailabilityState.Completed => Visibility.Visible,
             _ => Visibility.Collapsed,
         };
@@ -387,7 +389,7 @@ public partial class QuestPage : UserControl
             lines.Add($"• 제외 에디션: {string.Join(", ", excluded)}");
 
         foreach (var unsupported in quest.UnsupportedAvailabilityRequirements)
-            lines.Add($"• 현재 판정 미지원 조건: {unsupported}");
+            lines.Add($"• 현재 자동 판정 불가 조건: {unsupported}");
 
         if (quest.RequiresExplicitFailureInput)
         {
@@ -462,7 +464,7 @@ public partial class QuestPage : UserControl
         MessageBox.Show(
             Window.GetWindow(this),
             text,
-            $"판정 문제 {_workspace.Problems.Count}건",
+            $"자동 판정 제한 {_workspace.Problems.Count}건",
             MessageBoxButton.OK,
             MessageBoxImage.Warning);
     }
@@ -512,7 +514,7 @@ public partial class QuestPage : UserControl
             QuestAvailabilityReasonKind.Prerequisite => $"선행 퀘스트 '{QuestName(reason.ReferenceId, content)}' 조건을 충족하지 않았습니다.",
             QuestAvailabilityReasonKind.PrerequisiteUnavailable => $"선행 퀘스트 '{QuestName(reason.ReferenceId, content)}' 경로가 더 이상 사용 가능하지 않습니다.",
             QuestAvailabilityReasonKind.MissingProfileValue => $"프로필 값이 필요합니다: {reason.ReferenceId ?? "알 수 없음"}",
-            QuestAvailabilityReasonKind.UnsupportedAvailabilityRequirement => $"아직 지원하지 않는 해금 조건입니다: {reason.ReferenceId ?? "알 수 없음"}",
+            QuestAvailabilityReasonKind.UnsupportedAvailabilityRequirement => $"프로그램만으로 자동 판정할 수 없는 해금 조건입니다: {reason.ReferenceId ?? "알 수 없음"}",
             QuestAvailabilityReasonKind.MissingReferencedQuest => $"참조 퀘스트를 찾을 수 없습니다: {reason.ReferenceId ?? "알 수 없음"}",
             QuestAvailabilityReasonKind.DependencyCycle => $"퀘스트 선행 관계에 순환 참조가 있습니다: {reason.ReferenceId ?? "알 수 없음"}",
             _ => reason.Kind.ToString(),
@@ -551,7 +553,7 @@ public partial class QuestPage : UserControl
         QuestAvailabilityState.Locked => "잠김",
         QuestAvailabilityState.Unavailable => "사용 불가",
         QuestAvailabilityState.Completed => "완료",
-        QuestAvailabilityState.Indeterminate => "판정 문제",
+        QuestAvailabilityState.Indeterminate => "확인 필요",
         _ => state.ToString(),
     };
 
