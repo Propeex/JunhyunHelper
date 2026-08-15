@@ -174,38 +174,59 @@ public sealed class LegacyStandardMarkerFloorPresentationBridge : IDisposable
             if (consumed[start] || markers[start].Canvas.Visibility != Visibility.Visible)
                 continue;
 
+            var anchor = markers[start];
+            var anchorOrder = FloorOrder(config, EffectiveFloorId(anchor.Marker.FloorId));
+            if (!anchorOrder.HasValue)
+            {
+                consumed[start] = true;
+                continue;
+            }
+
             var cluster = new List<int> { start };
             consumed[start] = true;
 
-            for (var cursor = 0; cursor < cluster.Count; cursor++)
+            // A vertical stack represents one physical overlap site. Every candidate is
+            // compared directly with the anchor; candidates never pull in another marker
+            // transitively. At most one marker per other floor participates, choosing the
+            // physically closest candidate on that floor. This prevents a 0→7→14 chain
+            // (or two distinct markers on one floor) from being collapsed as one site.
+            var candidatesByFloor = new Dictionary<int, (int Index, double DistanceSquared)>();
+            for (var candidateIndex = 0; candidateIndex < markers.Count; candidateIndex++)
             {
-                var leftIndex = cluster[cursor];
-                var left = markers[leftIndex];
-                var leftOrder = FloorOrder(config, EffectiveFloorId(left.Marker.FloorId));
-                if (!leftOrder.HasValue)
+                if (consumed[candidateIndex] || candidateIndex == start)
                     continue;
 
-                for (var candidateIndex = 0; candidateIndex < markers.Count; candidateIndex++)
+                var candidate = markers[candidateIndex];
+                if (candidate.Canvas.Visibility != Visibility.Visible ||
+                    candidate.Marker.Type != anchor.Marker.Type)
                 {
-                    if (consumed[candidateIndex])
-                        continue;
-
-                    var right = markers[candidateIndex];
-                    if (right.Canvas.Visibility != Visibility.Visible || right.Marker.Type != left.Marker.Type)
-                        continue;
-
-                    var rightOrder = FloorOrder(config, EffectiveFloorId(right.Marker.FloorId));
-                    if (!rightOrder.HasValue || rightOrder.Value == leftOrder.Value)
-                        continue;
-
-                    var dx = right.Marker.X - left.Marker.X;
-                    var dz = right.Marker.Z - left.Marker.Z;
-                    if ((dx * dx) + (dz * dz) > maxDistanceSquared)
-                        continue;
-
-                    consumed[candidateIndex] = true;
-                    cluster.Add(candidateIndex);
+                    continue;
                 }
+
+                var candidateOrder = FloorOrder(config, EffectiveFloorId(candidate.Marker.FloorId));
+                if (!candidateOrder.HasValue || candidateOrder.Value == anchorOrder.Value)
+                    continue;
+
+                var dx = candidate.Marker.X - anchor.Marker.X;
+                var dz = candidate.Marker.Z - anchor.Marker.Z;
+                var distanceSquared = (dx * dx) + (dz * dz);
+                if (distanceSquared > maxDistanceSquared)
+                    continue;
+
+                if (!candidatesByFloor.TryGetValue(candidateOrder.Value, out var previous) ||
+                    distanceSquared < previous.DistanceSquared)
+                {
+                    candidatesByFloor[candidateOrder.Value] = (candidateIndex, distanceSquared);
+                }
+            }
+
+            foreach (var candidate in candidatesByFloor.Values.OrderBy(value => value.Index))
+            {
+                if (consumed[candidate.Index])
+                    continue;
+
+                consumed[candidate.Index] = true;
+                cluster.Add(candidate.Index);
             }
 
             if (cluster.Count <= 1)
