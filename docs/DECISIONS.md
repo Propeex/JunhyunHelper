@@ -147,6 +147,15 @@
 - 영향: `LegacyStandardMarkerFloorPresentationBridge`의 cross-floor near-overlap suppression을 제거한다. async settle 이후 실제 `MapMarkersContainer`의 known off-floor standard marker가 계속 visible/약 75% opacity인지 runtime smoke로 검증한다. 일부 다른 층 아이콘이 같은 X/Z에서 시각적으로 겹칠 수 있으나 floor ring/작은 방향 glyph로 구분하며 표시 자체를 보존한다.
 - 대체한 결정: `DEC-040`의 일반 marker vertical-stack representative 예외
 
+## DEC-042 — 층 변경은 Main Map과 MiniMap의 현재 viewport를 보존한다
+
+- 상태: `CONFIRMED`
+- 날짜: 2026-08-15
+- 결정: floor up/down product hotkey와 NumPad 0~5 direct floor selection은 층 artwork를 바꾸는 동작일 뿐, 사용자가 보고 있던 지도 위치를 재중앙화하는 동작이 아니다. Main Map과 MiniMap은 각각 floor 변경 직전의 live zoom과 viewport 중앙의 map-space 좌표를 캡처하고, 해당 floor render가 끝난 뒤 같은 zoom과 같은 map-space 중심을 복원한다. MiniMap `PlayerTracking`에서는 persisted `MapOffsetX/Y`보다 실제 `MapTranslate`가 현재 viewport의 권위값이며, floor SVG 교체가 stale persisted offset을 다시 적용해 중심을 초기화해서는 안 된다.
+- 이유: v0.1.4 실사용에서 MiniMap의 player-centered live transform은 `MapTranslate`에만 갱신되는 반면 floor renderer의 `UpdateMapView()`가 과거 `_settings.MapOffsetX/Y`를 재적용하여 층 변경 때 지도 중심이 초기/이전 위치로 점프했다.
+- 영향: JunhyunHelper가 MiniMap floor 변경의 viewport-safe async 경로를 소유한다. floor render 직전 live transform을 persisted offset에도 동기화하여 중간 점프를 막고, render 완료 후 map-space 중심을 복원한다. 실제 Map 변경이나 새로운 screenshot player position처럼 의미상 중심이 바뀌어야 하는 이벤트는 이 규칙의 대상이 아니다. Windows runtime smoke에서 stale persisted offset을 의도적으로 만들어도 floor 변경 전후 MiniMap zoom과 map-space 중심이 동일한지 검증한다.
+- 대체한 결정: 없음. 기존 Main Map viewport 보존 계약을 MiniMap까지 명시적으로 완성한다.
+
 ---
 
 # 현재 결정 확인 방법
