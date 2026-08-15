@@ -1,0 +1,46 @@
+name: Wire v0.1.4 Factory smoke
+
+on:
+  push:
+    branches:
+      - agent/main-map-floor-quest-availability-2026-08-15
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/main-map-floor-quest-availability-2026-08-15
+          fetch-depth: 0
+
+      - name: Wire Factory Main Map regression smoke
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/JunhyunHelper.Desktop/MainWindow.LegacyMapHost.cs')
+          text = path.read_text(encoding='utf-8')
+          old = '            VerifyOtherFloorDirectionPresentation(floorSelector);\n\n            // The page can raise Loaded'
+          new = '            VerifyOtherFloorDirectionPresentation(floorSelector);\n            await VerifyFactoryMainMapFloorPresentationAsync(page, mapSelector, floorSelector);\n\n            // The page can raise Loaded'
+          if new in text:
+              pass
+          elif old in text:
+              text = text.replace(old, new, 1)
+          else:
+              raise SystemExit('Could not locate Main Map smoke insertion point.')
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Commit and remove temporary workflow
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/v014-smoke-patch-temp.yml
+          git add src/JunhyunHelper.Desktop/MainWindow.LegacyMapHost.cs
+          git commit -m 'Run Factory Main Map regression smoke'
+          git push origin HEAD:agent/main-map-floor-quest-availability-2026-08-15
