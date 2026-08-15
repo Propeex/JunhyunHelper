@@ -138,6 +138,12 @@ public sealed class LegacyStandardMarkerFloorPresentationBridge : IDisposable
             if (canvas.Tag is not MapMarker marker)
                 continue;
 
+            // Restore the pinned interaction contract before each stack pass. Boss and
+            // Lever markers own hover/name interaction; the remaining standard categories
+            // are deliberately mouse-through. A previous stack pass may have disabled a
+            // marker that becomes the representative after a floor/filter change.
+            canvas.IsHitTestVisible = marker.Type is MarkerType.BossSpawn or MarkerType.Lever;
+
             var relation = JunhyunFloorPresentation.Resolve(config, marker.FloorId, selectedFloor);
             JunhyunFloorPresentation.ApplyToMarker(canvas, relation);
             rendered.Add(new RenderedMarker(canvas, marker, relation));
@@ -221,6 +227,7 @@ public sealed class LegacyStandardMarkerFloorPresentationBridge : IDisposable
                     continue;
 
                 markers[index].Canvas.Opacity = 0.0;
+                markers[index].Canvas.IsHitTestVisible = false;
             }
         }
     }
