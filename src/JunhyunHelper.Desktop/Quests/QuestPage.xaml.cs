@@ -55,7 +55,6 @@ public partial class QuestPage : UserControl
         var maps = content.Maps.ToDictionary(map => map.Id, StringComparer.Ordinal);
 
         _rows = workspace.Quests
-            .Where(entry => entry.Availability.State != QuestAvailabilityState.Indeterminate)
             .Select(entry => new QuestRow(
                 entry,
                 DisplayName(entry.Quest.NameKo, entry.Quest.NameEn, entry.Quest.Id),
@@ -67,7 +66,7 @@ public partial class QuestPage : UserControl
             .ToArray();
 
         PopulateReferenceFilters(traders, maps);
-        ProblemsButton.Content = $"판정 문제 {workspace.Problems.Count}";
+        ProblemsButton.Content = $"확인 필요 원인 {workspace.Problems.Count}";
         ProblemsButton.IsEnabled = workspace.Problems.Count > 0;
 
         ApplyFilters();
@@ -96,6 +95,7 @@ public partial class QuestPage : UserControl
         {
             new FilterOption("진행 중", QuestAvailabilityState.Current.ToString()),
             new FilterOption("전체", null),
+            new FilterOption("확인 필요", QuestAvailabilityState.Indeterminate.ToString()),
             new FilterOption("잠김", QuestAvailabilityState.Locked.ToString()),
             new FilterOption("사용 불가", QuestAvailabilityState.Unavailable.ToString()),
             new FilterOption("완료", QuestAvailabilityState.Completed.ToString()),
@@ -228,6 +228,7 @@ public partial class QuestPage : UserControl
 
         QuestList.ItemsSource = filtered;
         SummaryText.Text = $"{filtered.Length}개 표시 · 진행 중 {_rows.Count(row => row.Entry.Availability.State == QuestAvailabilityState.Current)} · " +
+                           $"확인 필요 {_rows.Count(row => row.Entry.Availability.State == QuestAvailabilityState.Indeterminate)} · " +
                            $"잠김 {_rows.Count(row => row.Entry.Availability.State == QuestAvailabilityState.Locked)} · " +
                            $"사용 불가 {_rows.Count(row => row.Entry.Availability.State == QuestAvailabilityState.Unavailable)} · " +
                            $"완료 {_rows.Count(row => row.Entry.Availability.State == QuestAvailabilityState.Completed)}";
@@ -265,6 +266,7 @@ public partial class QuestPage : UserControl
         PrimaryActionButton.Visibility = entry.Availability.State switch
         {
             QuestAvailabilityState.Current => Visibility.Visible,
+            QuestAvailabilityState.Indeterminate => Visibility.Visible,
             QuestAvailabilityState.Completed => Visibility.Visible,
             _ => Visibility.Collapsed,
         };
@@ -274,8 +276,10 @@ public partial class QuestPage : UserControl
         PrimaryActionButton.Tag = entry;
 
         var explicitlyFailed = _workspace?.Profile.FailedQuestIds.Contains(quest.Id) == true;
+        var canRecordFailure = quest.RequiresExplicitFailureInput &&
+                               entry.Availability.State is QuestAvailabilityState.Current or QuestAvailabilityState.Indeterminate;
         FailureActionButton.Visibility =
-            ((entry.Availability.State == QuestAvailabilityState.Current && quest.RequiresExplicitFailureInput) ||
+            (canRecordFailure ||
              (entry.Availability.State == QuestAvailabilityState.Unavailable && explicitlyFailed))
                 ? Visibility.Visible
                 : Visibility.Collapsed;
@@ -462,7 +466,7 @@ public partial class QuestPage : UserControl
         MessageBox.Show(
             Window.GetWindow(this),
             text,
-            $"판정 문제 {_workspace.Problems.Count}건",
+            $"확인 필요 원인 {_workspace.Problems.Count}건",
             MessageBoxButton.OK,
             MessageBoxImage.Warning);
     }
@@ -551,7 +555,7 @@ public partial class QuestPage : UserControl
         QuestAvailabilityState.Locked => "잠김",
         QuestAvailabilityState.Unavailable => "사용 불가",
         QuestAvailabilityState.Completed => "완료",
-        QuestAvailabilityState.Indeterminate => "판정 문제",
+        QuestAvailabilityState.Indeterminate => "확인 필요",
         _ => state.ToString(),
     };
 

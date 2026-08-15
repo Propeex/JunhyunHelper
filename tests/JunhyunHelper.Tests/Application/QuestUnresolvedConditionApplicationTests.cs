@@ -10,66 +10,43 @@ namespace JunhyunHelper.Tests.Application;
 public sealed class QuestUnresolvedConditionApplicationTests
 {
     [Fact]
-    public async Task UnsupportedLiveConditionRemainsManageableButIsExposedInProblems()
+    public async Task UnsupportedLiveConditionStaysIndeterminateAndCanBeManuallyCompleted()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        var databasePath = Path.Combine(
-            Path.GetTempPath(),
-            $"JunhyunHelper-UnresolvedQuest-{Guid.NewGuid():N}.db");
+        var databasePath = TempDatabasePath();
 
         try
         {
             var store = new UserProfileStore(databasePath);
             var service = new QuestApplicationService(store);
-            var profile = new GameProfileSnapshot
-            {
-                ProfileId = "regular",
-                GameMode = GameMode.Regular,
-                Level = 50,
-                Faction = PmcFaction.Usec,
-                PrestigeLevel = 0,
-            };
+            var profile = CreateProfile();
             await store.SaveAsync(profile, cancellationToken);
 
-            var quest = new QuestDefinition(
-                Id: "opaque-condition",
-                NameKo: "조건 퀘스트",
-                NameEn: "Condition Quest",
-                TraderId: null,
-                MapId: null,
-                WikiUrl: null,
-                Experience: null,
-                KappaRequired: false,
-                LightkeeperRequired: false,
-                Disabled: false,
-                MinimumPlayerLevel: 1,
-                RequiredFaction: null,
-                RequiredPrestigeLevel: null,
-                TaskRequirements: [],
-                TraderStandingRequirements: [],
-                TraderLoyaltyRequirements: [],
-                UnsupportedAvailabilityRequirementTypes: ["globalVariable"]);
-            var content = new GameContentCatalog(
-                Items: [],
-                Traders: [],
-                Maps: [],
-                Quests: [quest],
-                QuestObjectives: [],
-                QuestItemRequirements: [],
-                HideoutStations: []);
-
+            var quest = CreateOpaqueQuest();
+            var content = CreateContent(quest);
             var workspace = await service.LoadAsync(content, profile.ProfileId, cancellationToken);
 
-            var visible = Assert.Single(workspace.Quests);
-            Assert.Equal(QuestAvailabilityState.Current, visible.Availability.State);
+            var unresolved = Assert.Single(workspace.Quests);
+            Assert.Equal(QuestAvailabilityState.Indeterminate, unresolved.Availability.State);
             Assert.Contains(
-                visible.Availability.Reasons,
+                unresolved.Availability.Reasons,
                 reason => reason.Kind == QuestAvailabilityReasonKind.UnsupportedAvailabilityRequirement &&
                           reason.ReferenceId == "globalVariable");
 
             var problem = Assert.Single(workspace.Problems);
             Assert.Equal(QuestAvailabilityState.Indeterminate, problem.Availability.State);
             Assert.Equal(quest.Id, problem.Quest.Id);
+
+            var completed = await service.CompleteAsync(
+                content,
+                profile.ProfileId,
+                quest.Id,
+                cancellationToken);
+            Assert.Contains(quest.Id, completed.Profile.CompletedQuestIds);
+            Assert.Equal(
+                QuestAvailabilityState.Completed,
+                Assert.Single(completed.Quests).Availability.State);
+            Assert.Empty(completed.Problems);
         }
         finally
         {
@@ -77,4 +54,86 @@ public sealed class QuestUnresolvedConditionApplicationTests
                 File.Delete(databasePath);
         }
     }
+
+    [Fact]
+    public async Task IndeterminateQuestWithPermanentFailureConditionCanBeManuallyFailed()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var databasePath = TempDatabasePath();
+
+        try
+        {
+            var store = new UserProfileStore(databasePath);
+            var service = new QuestApplicationService(store);
+            var profile = CreateProfile();
+            await store.SaveAsync(profile, cancellationToken);
+
+            var quest = CreateOpaqueQuest(unsupportedFailureConditionTypes: ["counterCreator"]);
+            Assert.True(quest.RequiresExplicitFailureInput);
+            var content = CreateContent(quest);
+
+            var workspace = await service.LoadAsync(content, profile.ProfileId, cancellationToken);
+            Assert.Equal(
+                QuestAvailabilityState.Indeterminate,
+                Assert.Single(workspace.Quests).Availability.State);
+
+            var failed = await service.FailAsync(
+                content,
+                profile.ProfileId,
+                quest.Id,
+                cancellationToken);
+
+            Assert.Contains(quest.Id, failed.Profile.FailedQuestIds);
+            var entry = Assert.Single(failed.Quests);
+            Assert.Equal(QuestAvailabilityState.Unavailable, entry.Availability.State);
+        }
+        finally
+        {
+            if (File.Exists(databasePath))
+                File.Delete(databasePath);
+        }
+    }
+
+    private static string TempDatabasePath() => Path.Combine(
+        Path.GetTempPath(),
+        $"JunhyunHelper-UnresolvedQuest-{Guid.NewGuid():N}.db");
+
+    private static GameProfileSnapshot CreateProfile() => new()
+    {
+        ProfileId = "regular",
+        GameMode = GameMode.Regular,
+        Level = 50,
+        Faction = PmcFaction.Usec,
+        PrestigeLevel = 0,
+    };
+
+    private static QuestDefinition CreateOpaqueQuest(
+        IReadOnlyList<string>? unsupportedFailureConditionTypes = null) => new(
+        Id: "opaque-condition",
+        NameKo: "조건 퀘스트",
+        NameEn: "Condition Quest",
+        TraderId: null,
+        MapId: null,
+        WikiUrl: null,
+        Experience: null,
+        KappaRequired: false,
+        LightkeeperRequired: false,
+        Disabled: false,
+        MinimumPlayerLevel: 1,
+        RequiredFaction: null,
+        RequiredPrestigeLevel: null,
+        TaskRequirements: [],
+        TraderStandingRequirements: [],
+        TraderLoyaltyRequirements: [],
+        UnsupportedAvailabilityRequirementTypes: ["globalVariable"],
+        UnsupportedFailureConditionTypes: unsupportedFailureConditionTypes);
+
+    private static GameContentCatalog CreateContent(QuestDefinition quest) => new(
+        Items: [],
+        Traders: [],
+        Maps: [],
+        Quests: [quest],
+        QuestObjectives: [],
+        QuestItemRequirements: [],
+        HideoutStations: []);
 }

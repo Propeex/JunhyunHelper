@@ -56,10 +56,6 @@ jobs:
             }
           }
 
-          # The portable package should be easy to understand: the executable and
-          # first-run note live at the root, while path-addressed Map assets stay in
-          # Assets/. Framework, WPF, SQLite and Skia runtime binaries belong in the
-          # single-file executable rather than beside it.
           $rootFiles = @(Get-ChildItem artifacts/publish -File)
           $unexpectedRootFiles = @($rootFiles | Where-Object {
             $_.Name -notin @('준현 헬퍼.exe', 'FIRST_RUN_KO.txt')
@@ -82,16 +78,12 @@ jobs:
             throw "Release root still contains DLL clutter."
           }
 
-          # Release packages must not contain debug symbols. Native NuGet assets can
-          # otherwise contribute very large PDB files even with DebugType=None.
           $pdbs = @(Get-ChildItem artifacts/publish -Recurse -File -Filter *.pdb)
           if ($pdbs.Count -gt 0) {
             $pdbs | ForEach-Object { Write-Host "Unexpected PDB: $($_.FullName)" }
             throw "Release publish contains debug symbols."
           }
 
-          # These belong to old Tarkov-Helper application features, not the transplanted
-          # JunhyunHelper Map product. Keep them out of the release dependency surface.
           $forbidden = @(
             'AutoUpdater.NET.dll',
             'Microsoft.Web.WebView2.Core.dll',
@@ -119,26 +111,48 @@ jobs:
         run: |
           $exe = (Resolve-Path 'artifacts/publish/준현 헬퍼.exe').Path
           $diagnostic = Join-Path $env:TEMP 'junhyun-map-smoke-error.txt'
+          $success = Join-Path $env:TEMP 'junhyun-map-smoke-success.txt'
           Remove-Item $diagnostic -Force -ErrorAction SilentlyContinue
+          Remove-Item $success -Force -ErrorAction SilentlyContinue
+
           $process = Start-Process -FilePath $exe -WorkingDirectory artifacts/publish -PassThru
           try {
-            Start-Sleep -Seconds 12
-            $process.Refresh()
-            if ($process.HasExited) {
+            # The Map smoke now contains real asynchronous Factory/MainMap assertions.
+            # Process liveness is not a success condition: wait for the application to
+            # explicitly publish its success marker, or surface its diagnostic/exit.
+            $deadline = (Get-Date).AddSeconds(75)
+            $smokeCompleted = $false
+            while ((Get-Date) -lt $deadline) {
+              $process.Refresh()
+
+              if (Test-Path $diagnostic) {
+                Write-Host 'Map smoke diagnostic:'
+                Get-Content $diagnostic | ForEach-Object { Write-Host $_ }
+                throw 'Published 준현 헬퍼 reported a Map smoke failure.'
+              }
+
+              if (Test-Path $success) {
+                $smokeCompleted = $true
+                break
+              }
+
+              if ($process.HasExited) {
+                throw "Published 준현 헬퍼 exited before Map smoke completion with code $($process.ExitCode)."
+              }
+
+              Start-Sleep -Milliseconds 250
+            }
+
+            if (-not $smokeCompleted) {
               if (Test-Path $diagnostic) {
                 Write-Host 'Map smoke diagnostic:'
                 Get-Content $diagnostic | ForEach-Object { Write-Host $_ }
               }
-              throw "Published 준현 헬퍼 exited during Map startup smoke with code $($process.ExitCode)."
+              throw 'Map smoke did not publish an explicit success signal within 75 seconds.'
             }
 
-            Write-Host "Startup + Map smoke passed. Requesting normal Main Window close..."
+            Write-Host "Startup + full Map/Factory/MiniMap smoke passed. Requesting normal Main Window close..."
 
-            # Process.MainWindowHandle can briefly be unavailable on hosted Windows
-            # runners after the smoke opens/hides the MiniMap. Refresh and retry the
-            # normal WM_CLOSE request instead of turning a transient handle race into a
-            # false product failure. This still requires a real normal-window close;
-            # force-kill remains cleanup-only in finally.
             $closeRequested = $false
             for ($attempt = 1; $attempt -le 10; $attempt++) {
               $process.Refresh()
@@ -177,9 +191,6 @@ jobs:
             }
           }
 
-      # actions/upload-artifact already delivers a ZIP when downloaded. Upload the
-      # publish directory directly so users get one archive layer rather than a ZIP
-      # containing another ZIP.
       - name: Upload Windows x64 release candidate
         uses: actions/upload-artifact@v4
         with:

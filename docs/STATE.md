@@ -4,25 +4,32 @@
 
 ## 현재 상태
 
-**v0.1.3 RELEASED — Map/MiniMap hotfix / Windows x64**
+**v0.1.4 RELEASE CANDIDATE — Main Map floor/extract + Quest availability / Windows x64**
 
-릴리즈일: **2026-08-15**
+현재 공개 릴리즈는 **v0.1.3**입니다. v0.1.4는 사용자 Factory 캡처로 확인된 Main Map floor/extract 표시와 Quest availability 과다 Current 문제를 수정하는 패치입니다.
 
 ```text
-hotfix PR: #79 MERGED
-release baseline: 3c49d4ca5af549afb4a4a5ce376cb6f8869709fb
-pre-merge final RC run: 31834842097 — SUCCESS
-release workflow run: 31835116544 — SUCCESS
-Desktop ProductVersion: 0.1.3
-public asset: Junhyun-Helper-v0.1.3-win-x64.zip
-public SHA-256: 41e674d0186846076e62a1edd92c1a5ac9849f53ab48bbedeb2a6a00101f6941
-release: https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.3
+feature PR: #80 OPEN
+branch: agent/main-map-floor-quest-availability-2026-08-15
+Desktop ProductVersion: 0.1.4
 Content schema: unchanged (v5)
 user.db schema: unchanged
-required data update from v0.1.2: none
+required data update from v0.1.3: none
+public v0.1.4 release: PENDING final whole-change review + CI + merge + exact-baseline release gate
 ```
 
-현재 확인된 **기능/패키징 blocker는 없습니다.** 공개 Release는 draft/prerelease가 아니며 ZIP + `SHA256SUMS.txt` 두 asset을 게시했습니다. Release workflow가 공개 ZIP을 다시 내려받아 manifest와 로컬 생성 hash가 모두 일치하는지 검증했습니다.
+v0.1.4 후보 핵심:
+
+- Main Map에서 floor를 visibility filter로 사용하지 않음
+- current/above/below를 초록/빨강/파랑 compact ring으로 표현, known off-floor는 약 75% opacity
+- Factory `Gate 3` 같은 동일 물리 PMC/Scav extract 중복은 원본을 삭제하지 않고 활성 faction filter 기준 대표 visual 하나만 표시
+- `Office Window` 같은 Scav 회색 body는 faction 의미를 유지하고 floor ring과 분리
+- 큰 floor arrow badge 제거, 위/아래는 매우 작은 보조 glyph만 사용
+- Core Indeterminate Quest를 `진행 중`으로 강제하지 않고 UI `확인 필요`로 분리
+- `확인 필요`는 Current count/Map Current sidebar에서 제외하되 실제 게임 상태를 아는 사용자의 수동 완료/필요한 영구 실패 동기화는 허용
+- Future Needed Items의 `IndeterminatePotential` 보수 보호 유지
+
+현재 release gate는 최신 PR head의 Windows CI/runtime smoke와 최종 review를 다시 통과한 뒤 병합하고, **병합된 exact baseline**에서 공개 ZIP을 다시 빌드/검증하는 것입니다.
 
 ## v0.1.3 변경 — Map/MiniMap 회귀 핫픽스
 
@@ -100,7 +107,7 @@ v0.1.1에서 도입한 Quest 정확도 기준은 유지됩니다.
 
 - `taskRequirements`의 `active / complete / failed` 상태 모델
 - Lightkeeper / BTR Driver / Ref 상인 접근 gate 보강
-- `globalVariable` / `dialogue` unresolved condition은 `판정 문제`에 보존
+- `globalVariable` / `dialogue` unresolved condition은 `확인 필요`로 보존
 - `availableDelaySecondsMin/Max` canonical 보존, 가짜 countdown 없음
 - Content snapshot schema **v5**
 - `user.db` schema/progress 변경 없음
@@ -117,6 +124,7 @@ importer warnings: 0
 
 ## 업그레이드 정책
 
+- **v0.1.3 → v0.1.4:** 필수 `데이터 업데이트` 없음. Content schema v5 / `user.db` 그대로입니다.
 - **v0.1.2 → v0.1.3:** 필수 `데이터 업데이트` 없음. Map runtime hotfix이며 Content schema v5 / `user.db` 그대로입니다.
 - **v0.1.1 → v0.1.3:** 필수 `데이터 업데이트` 없음. Content schema는 v5입니다.
 - **v0.1.0 → v0.1.3:** 최신 Quest 판정을 위해 설치 후 `데이터 업데이트`를 한 번 실행합니다.
@@ -127,11 +135,11 @@ importer warnings: 0
 | 영역 | 상태 |
 |---|---|
 | Profile | 구현 완료 |
-| Quest | 구현 완료 / v0.1.1 live prerequisite audit 유지 |
+| Quest | 구현 완료 / v0.1.4 `확인 필요` availability 분리 후보 |
 | Hideout | 구현 완료 / current live validation 통과 |
 | Needed Items / Inventory | 구현 완료 / v0.1.2 flexible status + Item Wiki |
 | Ammo | 구현 완료 / current live validation 통과 |
-| Map + MiniMap | 구현 완료 / v0.1.3 RELEASED |
+| Map + MiniMap | 구현 완료 / v0.1.4 Main Map floor/extract 후보 검증 중 |
 | Scanner | `준비 중` placeholder 탭 유지 / 실제 기능 PRODUCT OPEN |
 
 ## Map 기준

@@ -111,15 +111,32 @@
 - 영향: v0.1.0은 검증된 pinned Map bundle을 포함하고 자동 Map bundle update는 후속 범위로 둔다.
 - 대체한 결정: 없음
 
-
 ## DEC-038 — 불완전한 Quest availability source는 추측하지 않고 확정 가능한 gate만 보강한다
+
+- 상태: `CONFIRMED / PARTIALLY SUPERSEDED by DEC-039`
+- 날짜: 2026-08-15
+- 결정: 최신 Quest availability 판정에서 source가 의미를 명확히 제공하는 `taskRequirements`, level/faction/prestige/trader 조건은 자동 판정한다. 반면 `globalVariable`, `dialogue`, 실제 게임 완료 시각이 필요한 availability delay처럼 JunhyunHelper의 User Progress만으로 참/거짓을 증명할 수 없는 조건은 임의 추정하지 않고 `Indeterminate` 진단으로 보존한다. Lightkeeper/BTR Driver/Ref처럼 게임의 상인 접근 gate가 현 API의 개별 후속 `taskRequirements`에서 빠진 경우에는 현재 GameMode에 검증된 unlock Quest가 실제 존재할 때만 Complete prerequisite를 보강한다.
+- 이유: 2026-08-15 live source에는 각 GameMode별 `globalVariable` 162건, `dialogue` 12건, delay Quest 13건이 존재한다. 이 조건을 Current로 조용히 확정하거나 UI 클릭 시각으로 타이머를 계산하면 실제 게임과 다른 availability를 만들 수 있다. 반대로 특수 상인 접근 gate 누락은 후속 Quest를 명백히 너무 일찍 열어주는 오류다.
+- 영향: Content schema v5. v3/v4는 last-known-good offline snapshot으로 읽을 수 있으나 최신 판정은 `데이터 업데이트` 후 v5 content에서 적용된다. 세부 감사는 `docs/QUEST_PREREQUISITE_AUDIT_2026-08-15.md`를 따른다.
+- 대체한 결정: 없음. 단, 기존의 `Indeterminate → optimistic Current` 제품 표시 정책은 DEC-039가 대체한다.
+
+## DEC-039 — 프로그램이 입증할 수 없는 Quest availability는 `확인 필요`로 분리한다
 
 - 상태: `CONFIRMED`
 - 날짜: 2026-08-15
-- 결정: 최신 Quest availability 판정에서 source가 의미를 명확히 제공하는 `taskRequirements`, level/faction/prestige/trader 조건은 자동 판정한다. 반면 `globalVariable`, `dialogue`, 실제 게임 완료 시각이 필요한 availability delay처럼 JunhyunHelper의 User Progress만으로 참/거짓을 증명할 수 없는 조건은 임의 추정하지 않고 `Indeterminate` 진단으로 보존한다. 제품 목록에서는 관리 가능성을 위해 기존 optimistic Current fallback을 유지하되 `판정 문제`에 원 판정과 이유를 노출한다. Lightkeeper/BTR Driver/Ref처럼 게임의 상인 접근 gate가 현 API의 개별 후속 `taskRequirements`에서 빠진 경우에는 현재 GameMode에 검증된 unlock Quest가 실제 존재할 때만 Complete prerequisite를 보강한다.
-- 이유: 2026-08-15 live source에는 각 GameMode별 `globalVariable` 162건, `dialogue` 12건, delay Quest 13건이 존재한다. 이 조건을 Current로 조용히 확정하거나 UI 클릭 시각으로 타이머를 계산하면 실제 게임과 다른 availability를 만들 수 있다. 반대로 특수 상인 접근 gate 누락은 후속 Quest를 명백히 너무 일찍 열어주는 오류다.
-- 영향: Content schema v5. v3/v4는 last-known-good offline snapshot으로 읽을 수 있으나 최신 판정은 `데이터 업데이트` 후 v5 content에서 적용된다. 세부 감사는 `docs/QUEST_PREREQUISITE_AUDIT_2026-08-15.md`를 따른다.
-- 대체한 결정: 없음
+- 결정: Core가 `Indeterminate`로 판정한 Quest를 Application에서 `Current`로 바꾸지 않는다. 사용자에게는 `확인 필요` 상태로 표시하고 `진행 중` 수치와 Map Current Quest sidebar에서 제외한다. 이를 `잠김`으로도 거짓 확정하지 않는다. 사용자가 실제 게임에서 Quest의 완료 또는 비재시작형 영구 실패 사실을 알고 있을 때는 해당 `확인 필요` Quest를 수동으로 완료/실패 동기화할 수 있다.
+- 이유: 판별할 수 없는 `globalVariable`, `dialogue`, 실제 게임 완료 시각 기반 delay 등이 200개 이상의 Quest를 `진행 중`처럼 보이게 하여 Current의 의미를 훼손했다. 프로그램이 모르는 사실은 별도 상태로 드러내는 편이 정확하다.
+- 영향: Future Needed Items는 기존 `IndeterminatePotential`을 계속 보수적으로 포함하여 사용자가 잠재적으로 필요한 Item을 잘못 버리지 않게 한다. Content schema와 `user.db` schema는 변경하지 않는다.
+- 대체한 결정: `DEC-038`의 residual Indeterminate를 Application에서 optimistic Current로 표시한다는 부분
+
+## DEC-040 — Map의 floor 관계는 visibility가 아니라 presentation이다
+
+- 상태: `CONFIRMED`
+- 날짜: 2026-08-15
+- 결정: 사용자가 category/faction을 켠 Main Map/MiniMap marker와 extract는 다른 floor라는 이유로 `Collapsed`하지 않는다. 현재 선택 floor와 marker floor의 `Floor.Order` 관계를 presentation으로 표현한다. marker 고유 type/icon 색은 유지하고 floor 관계는 작은 ring으로 표현한다: 현재층=초록, 위층=빨강, 아래층=파랑. 알려진 타층은 약 75% opacity와 매우 작은 방향 glyph를 보조적으로 사용하며, floor가 불명확하면 관계를 추측하지 않는다. Main Map에서 같은 type의 서로 다른 floor marker가 사실상 같은 X/Z에 겹치는 vertical stack은 현재층을 우선하고, 현재층이 없으면 선택 floor와 가장 가까운 `Floor.Order`의 하나를 대표로 표시한다.
+- 이유: current-floor-only visibility policy가 타층 marker를 완전히 숨겼고, 큰 화살표와 겹친 회색/초록 marker는 지도 가독성을 떨어뜨렸다. 색상 ring은 기존 marker 의미를 보존하면서 층 관계를 즉시 구분할 수 있다.
+- 영향: 지도 artwork 자체는 계속 선택 floor만 표시한다. floor 관계와 category/faction visibility 책임을 분리한다. permanent full-tree polling으로 이 정책을 유지하지 않고 실제 변화 후 bounded/event-driven stabilization을 사용한다.
+- 대체한 결정: 과거 `other-floor opacity 50% + 큰 ↑/↓ badge` 표현 및 current-floor-only visibility 구현
 
 ---
 

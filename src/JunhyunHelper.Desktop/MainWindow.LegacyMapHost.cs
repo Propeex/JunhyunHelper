@@ -14,6 +14,7 @@ public partial class MainWindow : TarkovHelper.MainWindow
 {
     private const string MapSmokeEnvironmentVariable = "JUNHYUNHELPER_MAP_SMOKE";
     private const string MapSmokeDiagnosticFileName = "junhyun-map-smoke-error.txt";
+    private const string MapSmokeSuccessFileName = "junhyun-map-smoke-success.txt";
 
     private TarkovHelper.Pages.Map.MapPage? _legacyMapPage;
     private LegacyMapProductAdapter? _legacyMapProductAdapter;
@@ -217,6 +218,7 @@ public partial class MainWindow : TarkovHelper.MainWindow
                 TimeSpan.FromSeconds(4));
 
             VerifyOtherFloorDirectionPresentation(floorSelector);
+            await VerifyFactoryMainMapFloorPresentationAsync(page, mapSelector, floorSelector);
 
             // The page can raise Loaded while its containing product section is still
             // Collapsed during asynchronous startup. Viewport geometry is meaningful only
@@ -267,11 +269,26 @@ public partial class MainWindow : TarkovHelper.MainWindow
             }
 
             await VerifyMiniMapProductAsync();
+            WriteMapSmokeSuccess();
         }
         catch (Exception exception)
         {
             WriteMapSmokeDiagnostic(exception);
             Environment.Exit(86);
+        }
+    }
+
+    private static void WriteMapSmokeSuccess()
+    {
+        try
+        {
+            var path = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(),
+                MapSmokeSuccessFileName);
+            System.IO.File.WriteAllText(path, "OK");
+        }
+        catch
+        {
         }
     }
 

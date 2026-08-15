@@ -3,7 +3,7 @@
 기록일: **2026-08-09**  
 최종 갱신: **2026-08-15**
 
-상태: `USER CONFIRMED / IMPLEMENTED / WINDOWS RUNTIME VERIFIED / V0.1.2`
+상태: `USER CONFIRMED / IMPLEMENTED / WINDOWS RUNTIME VERIFIED / POST-V0.1.3 FIX IN PR #80`
 
 ---
 
@@ -47,6 +47,8 @@ Hideout / Item / Ammo runtime을 Map과 결합하지 않습니다.
 # 2. Map Quest sidebar
 
 왼쪽 sidebar는 **현재 선택 Map + 현재 profile에서 Current(진행 중)인 Quest만** 표시합니다.
+
+`확인 필요(Indeterminate)` Quest는 현재 진행 중임을 프로그램이 입증하지 못하므로 sidebar에서 제외합니다.
 
 - 기본 접힘
 - 펼침 폭 약 300px
@@ -120,12 +122,12 @@ RaiderSpawn: 2
 marker 표시 규칙:
 
 ```text
-해당 category ON
+해당 category/faction ON
 AND marker가 현재 Map에 속함
-→ floor와 관계없이 marker 자체는 유지
+→ floor와 관계없이 marker/extract 자체는 유지
 ```
 
-Floor 표현은 4절의 공통 규칙을 따릅니다. Shared extract는 PMC 또는 Scav 중 하나가 ON이면 표시합니다. Main Map과 MiniMap의 일반 marker / extract 표시 설정은 동기화합니다.
+**Floor는 visibility filter가 아닙니다.** 다른 층이라는 이유로 `Visibility.Collapsed`하지 않습니다. Floor 표현은 4절의 공통 규칙을 따릅니다. Shared extract는 PMC 또는 Scav 중 하나가 ON이면 표시합니다. Main Map과 MiniMap의 일반 marker / extract 표시 설정은 동기화합니다.
 
 ---
 
@@ -144,25 +146,48 @@ Floor는 사용자가 직접 선택합니다.
 - screenshot으로 floor를 자동 판정하지 않음
 - AutoFloorSelection OFF
 - **지도 artwork는 선택한 현재 floor만 표시**
-- marker는 다른 floor라는 이유만으로 숨기지 않음
+- enabled marker/extract는 다른 floor라는 이유만으로 숨기지 않음
 - 다른 floor opacity를 사용자가 조절하는 별도 설정은 없음
 - 자동 층 추적 복귀 없음
 
-## 4.1 다른 층 marker 표현
+## 4.1 marker floor 표현
 
 현재 선택 floor와 marker floor를 Map config의 `Floor.Order`로 비교합니다.
 
+marker의 고유 type/icon 색상은 그대로 유지하고, floor 관계는 작고 일정한 색상 ring으로 표현합니다.
+
 ```text
-현재 층 marker → 기존 정상 강조
-위층 marker     → opacity 약 50% + 작은 ↑ badge
-아래층 marker   → opacity 약 50% + 작은 ↓ badge
-floor 불명확    → 방향 추측 안 함
+현재 층 marker → 작은 초록 ring + 정상 opacity
+위층 marker     → 작은 빨강 ring + 약 75% opacity
+아래층 marker   → 작은 파랑 ring + 약 75% opacity
+floor 불명확    → floor 색상/방향 추측 안 함
 ```
 
 - 층 이름 문자열을 보고 위/아래를 추정하지 않음
 - Main Map과 MiniMap에서 같은 의미를 사용
-- Quest A/B/C marker, 일반 marker, Raider 등 JunhyunHelper 추가 marker, extract에 동일 원칙 적용
-- 화살표 badge는 marker를 가리지 않도록 작게 배치하며 hit-test를 받지 않음
+- Quest A/B/C marker, 일반 marker, Raider 등 JunhyunHelper 추가 marker, extract에 같은 relation 의미 적용
+- 빨강/파랑 색상만으로 관계를 구분하기 어려운 경우를 위해 위/아래에는 **매우 작은 방향 glyph**를 보조적으로 둘 수 있음
+- 기존처럼 marker를 가리는 큰 `↑/↓` badge는 사용하지 않음
+- floor indicator는 hit-test를 받지 않음
+
+### 4.1.1 Main Map vertical stack
+
+Main Map에서 같은 marker type의 서로 다른 known floor marker가 X/Z상 사실상 같은 위치에 겹치면 아이콘을 여러 개 포개지 않습니다.
+
+```text
+같은 type
+AND 서로 다른 Floor.Order
+AND X/Z 거리 ≤ 제품 near-overlap threshold
+→ vertical stack
+```
+
+대표 선택:
+
+1. 현재 선택 floor marker가 있으면 그것을 대표로 표시
+2. 없으면 선택 floor와 `Floor.Order`가 가장 가까운 marker 하나를 대표로 표시
+3. 나머지 stack member는 중복 표시하지 않음
+
+이 규칙은 Main Map의 시각 중복을 줄이기 위한 것이며 marker 데이터 자체를 삭제하거나 합치지 않습니다.
 
 ## 4.2 floor hotkey 시 viewport 보존
 
@@ -179,6 +204,21 @@ floor up/down product hotkey는 다음 순서로 동작합니다.
 따라서 층을 바꿔도 사용자가 보고 있던 지도 위치가 중앙 초기값으로 돌아가지 않으며, 위치 추적을 다시 새로고침할 필요가 없어야 합니다.
 
 NumPad 0~5 직접 floor 선택도 동일한 viewport-safe render 경로를 사용합니다. legacy direct SelectionChanged 단축키 경로는 제품 입력으로 dispatch하지 않습니다.
+
+## 4.3 legacy refresh와 안정화
+
+transplanted Map의 async refresh가 floor/map 변경 직후 marker tree를 다시 만들 수 있습니다. JunhyunHelper는 이를 보정할 수 있으나 **permanent full-tree polling을 사용하지 않습니다.**
+
+허용 방식:
+
+- 실제 map/floor/filter 변경 event
+- marker container의 O(1) 구조 signature 변화
+- 변경 직후 제한된 횟수의 bounded stabilization
+
+금지 방식:
+
+- 프로그램이 켜져 있는 동안 200ms마다 marker 전체를 영구 순회
+- floor가 다르다는 이유로 별도 policy timer가 marker를 반복적으로 `Collapsed` 처리
 
 ---
 
@@ -237,7 +277,7 @@ Player marker size와 extract name size 등 실제 제품에서 사용하는 조
 
 - manual selected floor 사용
 - artwork는 selected floor만 표시
-- 다른 층 marker는 4절 규칙대로 50% + ↑/↓로 표시
+- enabled 다른 층 marker/extract는 숨기지 않고 4.1의 floor relation presentation 적용
 - AutoFloorSelection OFF
 
 ## Hover / temporary hide
@@ -284,9 +324,9 @@ MiniMap의 비플레이어 marker를 별도로 조절합니다.
 
 적용 대상:
 
-- Quest marker + floor badge
-- 일반 Map marker + floor badge
-- PMC / Scav / Transit extract marker + label + floor badge
+- Quest marker + floor indicator
+- 일반 Map marker + floor indicator
+- PMC / Scav / Transit extract marker + label + floor indicator
 - Raider 등 JunhyunHelper 추가 marker
 
 제외:
@@ -426,8 +466,10 @@ Release candidate에서 최소 다음을 실제 WPF runtime으로 검증합니�
 - exact Map subsystem 초기화
 - multi-floor Map 선택
 - Main Map dropdown floor 전환 시 SVG source 실제 변경
-- 타층 floor relation이 `Floor.Order` 기준 ↑/↓로 계산되는지 확인
-- 타층 marker visual이 50% opacity + direction badge를 받는지 확인
+- 타층 floor relation이 `Floor.Order` 기준 Above/Below로 계산되는지 확인
+- 현재/위/아래 marker floor indicator가 초록/빨강/파랑 의미를 갖는지 확인
+- 알려진 타층 marker가 약 75% opacity로 유지되고 floor 때문에 Collapsed되지 않는지 확인
+- Main Map same-type cross-floor near-overlap stack에서 현재층 representative가 우선되는지 확인
 - product floor hotkey가 실제 Main Map SVG를 변경
 - product floor hotkey 전후 zoom 유지
 - product floor hotkey 전후 viewport 중앙의 map-space 좌표 유지
@@ -442,17 +484,22 @@ Release candidate에서 최소 다음을 실제 WPF runtime으로 검증합니�
 - zoom/floor 이후에도 legacy hook이 다시 활성화되지 않음
 - Main Window 정상 close 후 process 종료
 
-자동 검증은 사용자 실사용 검증을 대체하지 않지만, 과거 발생했던 “코드는 연결됐지만 실제 MiniMap에서는 안 됨” 회귀를 CI에서 막는 역할을 합니다.
+자동 검증은 사용자 실사용 검증을 대체하지 않지만, 과거 발생했던 “코드는 연결됐지만 실제 Main Map/MiniMap에서는 안 됨” 회귀를 CI에서 막는 역할을 합니다.
 
 ---
 
 # 14. 현재 완료 기준
 
-v0.1.2에서는 다음 사용자 피드백을 제품 기준선에 포함합니다.
+현재 public release는 v0.1.3이며, 그 이후 사용자 실사용 피드백을 반영한 PR #80의 완료 기준은 다음입니다.
 
-- floor hotkey 전환 시 Main Map 시점/중앙 위치 보존
-- NumPad direct floor도 동일한 viewport-safe 경로 사용
-- 타층 marker 유지 + ↑/↓ 방향 표현
-- Main Map/MiniMap marker floor 의미 통일
+- Main Map에서 enabled 타층 marker가 실제로 보임
+- current-floor-only visibility loop 제거
+- current/above/below relation을 초록/빨강/파랑 compact ring으로 표시
+- 위/아래의 방향 glyph는 marker를 가리지 않는 매우 작은 보조 표현
+- Main Map vertical stack 중복 표시 제거
+- floor/map 변경 뒤 legacy async refresh가 relation presentation을 영구적으로 덮어쓰지 않음
+- 이를 위해 permanent full-tree polling을 재도입하지 않음
+- 기존 floor hotkey viewport 보존 유지
+- MiniMap 기존 정상 동작 유지
 
-현재 확인된 Map 기능 release blocker는 없습니다. 향후 변경은 실제 사용 중 새 버그, 새 제품 요구사항, upstream Map bundle 갱신 또는 게임 패치로 pinned Map data가 실제 게임과 불일치할 때 진행합니다.
+향후 변경은 실제 사용 중 새 버그, 새 제품 요구사항, upstream Map bundle 갱신 또는 게임 패치로 pinned Map data가 실제 게임과 불일치할 때 진행합니다.
