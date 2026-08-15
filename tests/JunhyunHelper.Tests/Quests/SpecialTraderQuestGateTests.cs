@@ -89,6 +89,44 @@ public sealed class SpecialTraderQuestGateTests
     }
 
     [Fact]
+    public void LegacySnapshotOverlayMigratesBtrAndLightkeeperWithoutNetworkRefresh()
+    {
+        var legacy = new[]
+        {
+            Quest(BtrUnlock),
+            Quest(LightkeeperUnlock),
+            Quest(
+                "legacy-btr-followup",
+                BtrTrader,
+                [new QuestTaskRequirement(
+                    BtrUnlock,
+                    new HashSet<QuestRequiredStatus> { QuestRequiredStatus.Complete })]),
+            Quest(
+                "legacy-lightkeeper-followup",
+                LightkeeperTrader,
+                [new QuestTaskRequirement(
+                    LightkeeperUnlock,
+                    new HashSet<QuestRequiredStatus> { QuestRequiredStatus.Complete })]),
+        };
+
+        var result = TarkovGameContentImporter.UpgradeLegacySpecialTraderAccessRequirements(
+            legacy,
+            GameMode.Regular);
+
+        AssertGate(result, "legacy-btr-followup", BtrUnlock, QuestRequiredStatus.Active);
+        var lightkeeper = Assert.Single(
+            result,
+            candidate => candidate.Id == "legacy-lightkeeper-followup");
+        Assert.DoesNotContain(
+            lightkeeper.TaskRequirements,
+            requirement => requirement.RequiredQuestId == LightkeeperUnlock);
+        var access = Assert.IsType<QuestSpecialTraderAccessRequirement>(
+            lightkeeper.SpecialTraderAccessRequirement);
+        Assert.Equal(LightkeeperUnlock, access.UnlockQuestId);
+        Assert.True(access.AllowManualOverride);
+    }
+
+    [Fact]
     public void UsesPveSpecificRefUnlockQuest()
     {
         var quests = new[]
