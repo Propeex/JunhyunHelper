@@ -249,6 +249,92 @@ public sealed class QuestApplicationService
         return BuildFromProfile(content, updated);
     }
 
+    public async Task<QuestWorkspace> SetSpecialTraderAccessAsync(
+        GameContentCatalog content,
+        string profileId,
+        string traderId,
+        bool accessAvailable,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(traderId);
+
+        var requirements = content.Quests
+            .Select(quest => quest.SpecialTraderAccessRequirement)
+            .Where(requirement => requirement is not null &&
+                                  requirement.AllowManualOverride &&
+                                  string.Equals(requirement.TraderId, traderId, StringComparison.Ordinal))
+            .Cast<QuestSpecialTraderAccessRequirement>()
+            .ToArray();
+        if (requirements.Length == 0)
+        {
+            throw new InvalidOperationException(
+                $"Trader '{traderId}' does not expose manually synchronizable access in the active content.");
+        }
+
+        var first = requirements[0];
+        if (requirements.Any(requirement =>
+                !string.Equals(requirement.UnlockQuestId, first.UnlockQuestId, StringComparison.Ordinal) ||
+                !requirement.AcceptedUnlockStatuses.ToHashSet().SetEquals(first.AcceptedUnlockStatuses)))
+        {
+            throw new InvalidDataException(
+                $"Trader '{traderId}' has inconsistent special access requirements.");
+        }
+
+        var profile = await LoadRequiredProfileAsync(profileId, cancellationToken);
+        var effectiveFailed = QuestFailureEvaluator.EffectiveFailedQuestIds(content.Quests, profile);
+        var unlockReachedTerminalState =
+            profile.CompletedQuestIds.Contains(first.UnlockQuestId) ||
+            effectiveFailed.Contains(first.UnlockQuestId);
+        if (!unlockReachedTerminalState)
+        {
+            throw new InvalidOperationException(
+                $"Trader '{traderId}' access cannot be manually synchronized before its initial unlock quest reaches a terminal state.");
+        }
+
+        var automaticAvailability = QuestAvailabilityEvaluator.Evaluate(
+            content.Quests,
+            profile with
+            {
+                SpecialTraderAccessOverrides = new Dictionary<string, bool>(StringComparer.Ordinal),
+            },
+            content.Editions);
+        var automaticAccessAvailable = AutomaticAccessSatisfied(first, automaticAvailability, profile, effectiveFailed);
+
+        var overrides = new Dictionary<string, bool>(
+            profile.SpecialTraderAccessOverrides,
+            StringComparer.Ordinal);
+        if (accessAvailable == automaticAccessAvailable)
+            overrides.Remove(traderId);
+        else
+            overrides[traderId] = accessAvailable;
+
+        var updated = profile with { SpecialTraderAccessOverrides = overrides };
+        await _profileStore.SaveAsync(updated, cancellationToken);
+        return BuildFromProfile(content, updated);
+    }
+
+    private static bool AutomaticAccessSatisfied(
+        QuestSpecialTraderAccessRequirement requirement,
+        IReadOnlyDictionary<string, QuestAvailabilityResult> availability,
+        GameProfileSnapshot profile,
+        IReadOnlySet<string> effectiveFailed)
+    {
+        if (profile.CompletedQuestIds.Contains(requirement.UnlockQuestId))
+        {
+            return requirement.AcceptedUnlockStatuses.Contains(QuestRequiredStatus.Complete) ||
+                   requirement.AcceptedUnlockStatuses.Contains(QuestRequiredStatus.Active);
+        }
+
+        if (effectiveFailed.Contains(requirement.UnlockQuestId))
+            return requirement.AcceptedUnlockStatuses.Contains(QuestRequiredStatus.Failed);
+
+        return requirement.AcceptedUnlockStatuses.Contains(QuestRequiredStatus.Active) &&
+               availability.TryGetValue(requirement.UnlockQuestId, out var unlock) &&
+               unlock.State is QuestAvailabilityState.Current or QuestAvailabilityState.Completed;
+    }
+
     private async Task<GameProfileSnapshot> LoadRequiredProfileAsync(
         string profileId,
         CancellationToken cancellationToken)
