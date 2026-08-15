@@ -69,7 +69,9 @@
         </Border>
 
         <Grid Grid.Row="1">
-            <quests:QuestPage x:Name="QuestPage" Visibility="Collapsed" />
+            <quests:QuestPage x:Name="QuestPage"
+                              SpecialTraderAccessRequested="QuestPage_SpecialTraderAccessRequested"
+                              Visibility="Collapsed" />
             <hideout:HideoutPage x:Name="HideoutPage" Loaded="HideoutPage_Loaded" Visibility="Collapsed" />
             <items:ItemsPage x:Name="ItemsPage" Loaded="ItemsPage_Loaded" Visibility="Collapsed" />
             <ammo:AmmoPage x:Name="AmmoPage" Loaded="AmmoPage_Loaded" Visibility="Collapsed" />
