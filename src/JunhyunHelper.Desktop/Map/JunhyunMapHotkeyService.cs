@@ -145,11 +145,11 @@ public sealed class JunhyunMapHotkeyService : IDisposable
                 break;
             case OverlayMiniMapHotkeyAction.FloorUp:
                 await _page.JunhyunFloorUpAsync();
-                _overlay.MoveFloorUp();
+                await JunhyunMiniMapProductRegistry.MoveFloorUpAsync();
                 break;
             case OverlayMiniMapHotkeyAction.FloorDown:
                 await _page.JunhyunFloorDownAsync();
-                _overlay.MoveFloorDown();
+                await JunhyunMiniMapProductRegistry.MoveFloorDownAsync();
                 break;
             case OverlayMiniMapHotkeyAction.SizeIncrease:
                 if (_overlay.IsOverlayVisible)
