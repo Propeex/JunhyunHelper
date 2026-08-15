@@ -129,10 +129,6 @@ public sealed class LegacyExtractMarkerPresentationBridge : IDisposable
                 relation,
                 badgeOffsetX: 8,
                 badgeOffsetY: -13);
-
-            // Pinned Main Map extracts are deliberately mouse-through outside calibration.
-            // Floor/dedup presentation must not change that interaction contract.
-            canvas.IsHitTestVisible = false;
         }
 
         SuppressDuplicateExtractVisuals(visuals);
