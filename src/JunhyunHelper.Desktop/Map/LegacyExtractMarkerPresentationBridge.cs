@@ -50,6 +50,8 @@ public sealed class LegacyExtractMarkerPresentationBridge : IDisposable
         _page.Loaded += Page_Loaded;
     }
 
+    public void Refresh() => ScheduleApply(force: true);
+
     private void Page_Loaded(object sender, RoutedEventArgs e) => ScheduleApply(force: true);
 
     private void Tracker_MapChanged(string mapKey) =>
@@ -197,8 +199,6 @@ public sealed class LegacyExtractMarkerPresentationBridge : IDisposable
     {
         foreach (var stack in canvas.Children.OfType<StackPanel>())
         {
-            // The pinned extract renderer puts the name at index 0 and its large
-            // arrow/floor badge at index 1. Floor relation is product-owned now.
             while (stack.Children.Count > 1)
                 stack.Children.RemoveAt(stack.Children.Count - 1);
         }
@@ -216,7 +216,6 @@ public sealed class LegacyExtractMarkerPresentationBridge : IDisposable
 
         foreach (var ellipse in canvas.Children.OfType<Ellipse>())
         {
-            // Do not rewrite JunhyunHelper's floor relation ring.
             if (JunhyunFloorPresentation.IsFloorIndicator(ellipse))
                 continue;
 
