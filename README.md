@@ -4,15 +4,15 @@ Escape from Tarkov 플레이를 지원하는 Windows 데스크톱 헬퍼 **준�
 
 ## 현재 상태
 
-**v0.1.3 RELEASED — Windows x64**
+**v0.1.4 RELEASE CANDIDATE — Windows x64**
 
-v0.1.3은 v0.1.2에서 발견된 Map/MiniMap 회귀를 수정하는 핫픽스입니다.
+현재 공개 버전은 **v0.1.3**입니다.
 
-**다운로드:** https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.3
+**현재 공개 다운로드:** https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.3
 
-**Windows ZIP SHA-256:** `41e674d0186846076e62a1edd92c1a5ac9849f53ab48bbedeb2a6a00101f6941`
+v0.1.4는 Main Map의 타층 marker/extract 표시와 Factory 중복 extract를 수정하고, 프로그램만으로 해금 여부를 증명할 수 없는 Quest를 `진행 중`이 아닌 `확인 필요`로 분리하는 패치입니다.
 
-> **v0.1.2 → v0.1.3:** 필수 `데이터 업데이트`가 없습니다. Content schema와 `user.db`는 변경하지 않습니다. 기존 프로필, Quest 완료 기록, Inventory, Hideout 진행은 유지됩니다.
+> **v0.1.3 → v0.1.4:** 필수 `데이터 업데이트`가 없습니다. Content schema v5와 `user.db`는 변경하지 않습니다.
 
 ## 주요 기능
 
@@ -31,7 +31,7 @@ v0.1.3은 v0.1.2에서 발견된 Map/MiniMap 회귀를 수정하는 핫픽스입
   - 일반 marker / PMC·Scav·Transit 탈출구
   - floor / zoom / MiniMap 크기 hotkey
   - floor hotkey 전환 시 zoom/지도 중심 위치 보존
-  - 타층 marker 50% + 위층 `↑` / 아래층 `↓` 표시
+  - 타층 marker 유지 + 현재층 초록 / 위층 빨강 / 아래층 파랑 compact ring
   - MiniMap opacity / temporary hide / marker scale
   - screenshot 기반 Map 전환 / player tracking
 - 상단 `스캐너` 탭 — 현재 `준비 중` placeholder 유지
@@ -77,7 +77,7 @@ public ZIP re-download + SHA-256 verification: SUCCESS
 
 - `taskRequirements`의 `active / complete / failed` 상태 모델 재검증
 - Lightkeeper / BTR Driver / Ref 상인 접근 이후 후속 Quest가 너무 일찍 열릴 수 있던 공백 수정
-- `globalVariable` / `dialogue`처럼 현재 User Progress만으로 확정할 수 없는 조건은 추측하지 않고 `판정 문제`에 표시
+- `globalVariable` / `dialogue`처럼 현재 User Progress만으로 확정할 수 없는 조건은 추측하지 않고 `확인 필요`로 분리
 - 각 GameMode의 시간 지연 Quest 13개에 대한 min/max delay metadata 보존
 - 실제 게임 완료 시각을 알 수 없으므로 잘못된 가짜 countdown은 생성하지 않음
 - Content snapshot schema v5

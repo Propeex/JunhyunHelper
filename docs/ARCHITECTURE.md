@@ -4,7 +4,7 @@
 
 ## 현재 상태
 
-`CONFIRMED — v0.1.0 release candidate architecture`
+`CONFIRMED — current architecture through v0.1.4 candidate`
 
 기술 스택:
 
@@ -60,12 +60,13 @@ json.tarkov.dev / approved supplemental sources
 %LocalAppData%/JunhyunHelper/content/<game-mode>/content.previous.db
 ```
 
-현재 Content snapshot schema: **v4**.
+현재 Content snapshot schema: **v5**.
 
 - v1: 초기 canonical snapshot
 - v2: Item category metadata
 - v3: `AmmoDefinition.IsWikiBallisticsListed` 추가
 - v4: Quest `possibleLocations` / `zones` geometry를 canonical content에 저장
+- v5: Quest availability semantics — special-trader gate 보강, delay metadata, unsupported availability 조건 보존
 
 v3에서 Wiki Ballistics의 두 의미를 분리합니다.
 
@@ -183,12 +184,19 @@ Core states:
 Application 제품 policy:
 
 ```text
+확정 가능한 조건 충족
+→ Current (진행 중)
+
 residual Indeterminate
-→ Current for user-facing workflow
+→ Indeterminate 유지
+→ UI: 확인 필요
+→ Current 수치/기본 필터/Map Current Quest에서 제외
 → diagnostic reasons preserved
 ```
 
-확정 가능한 Locked/Unavailable은 승격하지 않습니다.
+`globalVariable`, `dialogue`, 실제 게임 완료 시각이 필요한 availability delay처럼 현재 User Progress만으로 증명할 수 없는 조건을 Current 또는 Locked로 추측하지 않습니다. 사용자가 실제 게임 상태를 확인한 경우에는 `확인 필요` Quest를 수동 완료할 수 있고, 비재시작형 영구 실패 동기화가 필요한 경우 수동 실패도 허용합니다. Future Needed Items는 `IndeterminatePotential`을 보수적으로 보호합니다.
+
+확정 가능한 Locked/Unavailable/Completed는 그대로 유지합니다.
 
 Quest refresh와 navigation은 분리합니다.
 
