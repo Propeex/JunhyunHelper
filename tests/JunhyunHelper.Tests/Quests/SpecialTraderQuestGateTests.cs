@@ -16,14 +16,12 @@ public sealed class SpecialTraderQuestGateTests
     private const string RefPveUnlock = "6834145ebc1f443d7603c8a7";
 
     [Fact]
-    public void AddsCompleteGateForCurrentSpecialTraderUnlocks()
+    public void AddsActiveGateForBtrAndCompleteGateForRefWhenSourceOmitsThem()
     {
         var quests = new[]
         {
-            Quest(LightkeeperUnlock),
             Quest(BtrUnlock),
             Quest(RefRegularUnlock),
-            Quest("lightkeeper-followup", LightkeeperTrader),
             Quest("btr-followup", BtrTrader),
             Quest("ref-followup", RefTrader),
         };
@@ -32,9 +30,62 @@ public sealed class SpecialTraderQuestGateTests
             quests,
             GameMode.Regular);
 
-        AssertCompleteGate(result, "lightkeeper-followup", LightkeeperUnlock);
-        AssertCompleteGate(result, "btr-followup", BtrUnlock);
-        AssertCompleteGate(result, "ref-followup", RefRegularUnlock);
+        AssertGate(result, "btr-followup", BtrUnlock, QuestRequiredStatus.Active);
+        AssertGate(result, "ref-followup", RefRegularUnlock, QuestRequiredStatus.Complete);
+    }
+
+    [Fact]
+    public void PreservesExistingSourceGateInsteadOfStrengtheningIt()
+    {
+        var quests = new[]
+        {
+            Quest(BtrUnlock),
+            Quest(
+                "btr-followup",
+                BtrTrader,
+                [new QuestTaskRequirement(
+                    BtrUnlock,
+                    new HashSet<QuestRequiredStatus> { QuestRequiredStatus.Active })]),
+        };
+
+        var result = TarkovGameContentImporter.ApplySpecialTraderAccessRequirements(
+            quests,
+            GameMode.Regular);
+
+        var quest = Assert.Single(result, candidate => candidate.Id == "btr-followup");
+        var gate = Assert.Single(quest.TaskRequirements);
+        Assert.Single(gate.AcceptedStatuses);
+        Assert.Contains(QuestRequiredStatus.Active, gate.AcceptedStatuses);
+        Assert.DoesNotContain(QuestRequiredStatus.Complete, gate.AcceptedStatuses);
+    }
+
+    [Fact]
+    public void LightkeeperUsesRecoverableAccessInsteadOfPermanentCompletePrerequisite()
+    {
+        var quests = new[]
+        {
+            Quest(LightkeeperUnlock),
+            Quest(
+                "lightkeeper-followup",
+                LightkeeperTrader,
+                [new QuestTaskRequirement(
+                    LightkeeperUnlock,
+                    new HashSet<QuestRequiredStatus> { QuestRequiredStatus.Complete })]),
+        };
+
+        var result = TarkovGameContentImporter.ApplySpecialTraderAccessRequirements(
+            quests,
+            GameMode.Regular);
+
+        var quest = Assert.Single(result, candidate => candidate.Id == "lightkeeper-followup");
+        Assert.DoesNotContain(
+            quest.TaskRequirements,
+            requirement => requirement.RequiredQuestId == LightkeeperUnlock);
+        var access = Assert.IsType<QuestSpecialTraderAccessRequirement>(quest.SpecialTraderAccessRequirement);
+        Assert.Equal(LightkeeperTrader, access.TraderId);
+        Assert.Equal(LightkeeperUnlock, access.UnlockQuestId);
+        Assert.Contains(QuestRequiredStatus.Complete, access.AcceptedUnlockStatuses);
+        Assert.True(access.AllowManualOverride);
     }
 
     [Fact]
@@ -50,7 +101,7 @@ public sealed class SpecialTraderQuestGateTests
             quests,
             GameMode.Pve);
 
-        AssertCompleteGate(result, "ref-followup", RefPveUnlock);
+        AssertGate(result, "ref-followup", RefPveUnlock, QuestRequiredStatus.Complete);
     }
 
     [Fact]
@@ -67,43 +118,20 @@ public sealed class SpecialTraderQuestGateTests
 
         var quest = Assert.Single(result);
         Assert.Empty(quest.TaskRequirements);
+        Assert.Null(quest.SpecialTraderAccessRequirement);
     }
 
-    [Fact]
-    public void ExistingActiveGateIsStrengthenedWithoutDuplicate()
-    {
-        var quests = new[]
-        {
-            Quest(LightkeeperUnlock),
-            Quest(
-                "lightkeeper-followup",
-                LightkeeperTrader,
-                [new QuestTaskRequirement(
-                    LightkeeperUnlock,
-                    new HashSet<QuestRequiredStatus> { QuestRequiredStatus.Active })]),
-        };
-
-        var result = TarkovGameContentImporter.ApplySpecialTraderAccessRequirements(
-            quests,
-            GameMode.Regular);
-
-        var quest = Assert.Single(result, candidate => candidate.Id == "lightkeeper-followup");
-        var gate = Assert.Single(quest.TaskRequirements);
-        Assert.Equal(LightkeeperUnlock, gate.RequiredQuestId);
-        Assert.Single(gate.AcceptedStatuses);
-        Assert.Contains(QuestRequiredStatus.Complete, gate.AcceptedStatuses);
-    }
-
-    private static void AssertCompleteGate(
+    private static void AssertGate(
         IReadOnlyList<QuestDefinition> quests,
         string questId,
-        string unlockQuestId)
+        string unlockQuestId,
+        QuestRequiredStatus status)
     {
         var quest = Assert.Single(quests, candidate => candidate.Id == questId);
         var gate = Assert.Single(
             quest.TaskRequirements,
             requirement => requirement.RequiredQuestId == unlockQuestId);
-        Assert.Contains(QuestRequiredStatus.Complete, gate.AcceptedStatuses);
+        Assert.Contains(status, gate.AcceptedStatuses);
     }
 
     private static QuestDefinition Quest(
