@@ -79,6 +79,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
             return;
 
         await _page.JunhyunSelectFloorAsync(floorIndex);
+        await JunhyunMiniMapProductRegistry.SelectFloorIndexAsync(floorIndex);
     }
 
     private void Page_Loaded(object sender, RoutedEventArgs e)
