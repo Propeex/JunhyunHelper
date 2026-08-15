@@ -80,70 +80,113 @@ public sealed class TarkovGameContentImporter
     {
         ArgumentNullException.ThrowIfNull(quests);
 
-        // These trader-access relationships are real game gates but are not repeated in
-        // json.tarkov.dev taskRequirements on the quests offered by these traders. Keep
-        // the compatibility overlay mode-aware and, critically, only apply a gate when
-        // the current live mode actually contains the unlock quest. That makes an ID
-        // retirement/removal degrade safely instead of creating a broken prerequisite.
+        // Special trader access is a real game gate, but the upstream task feed does not
+        // repeat it on every quest sold by that trader. Fill only the missing monotonic
+        // BTR/Ref gates and never overwrite a more precise upstream requirement.
+        // Lightkeeper is different: access can be lost and restored after the initial
+        // unlock, so its access gate is modeled separately from ordinary monotonic quest
+        // prerequisites and may use one sparse user override fact.
         var questIds = quests
             .Select(static quest => quest.Id)
             .ToHashSet(StringComparer.Ordinal);
+        var hasLightkeeperUnlock = questIds.Contains(LightkeeperUnlockQuestId);
+        var hasBtrUnlock = questIds.Contains(BtrDriverUnlockQuestId);
         var refUnlockQuestId = gameMode == GameMode.Pve
             ? RefPveUnlockQuestId
             : RefRegularUnlockQuestId;
-
-        var gates = new Dictionary<string, string>(StringComparer.Ordinal);
-        AddGateIfPresent(gates, questIds, LightkeeperTraderId, LightkeeperUnlockQuestId);
-        AddGateIfPresent(gates, questIds, BtrDriverTraderId, BtrDriverUnlockQuestId);
-        AddGateIfPresent(gates, questIds, RefTraderId, refUnlockQuestId);
+        var hasRefUnlock = questIds.Contains(refUnlockQuestId);
 
         return quests
-            .Select(quest => quest.TraderId is { } traderId &&
-                             gates.TryGetValue(traderId, out var unlockQuestId)
-                ? StrengthenTraderGate(quest, unlockQuestId)
-                : quest)
+            .Select(quest =>
+            {
+                if (hasLightkeeperUnlock &&
+                    string.Equals(quest.TraderId, LightkeeperTraderId, StringComparison.Ordinal))
+                {
+                    return AttachRecoverableTraderAccess(
+                        quest,
+                        LightkeeperTraderId,
+                        LightkeeperUnlockQuestId,
+                        QuestRequiredStatus.Complete);
+                }
+
+                if (hasBtrUnlock &&
+                    string.Equals(quest.TraderId, BtrDriverTraderId, StringComparison.Ordinal))
+                {
+                    return AddMissingMonotonicTraderGate(
+                        quest,
+                        BtrDriverUnlockQuestId,
+                        QuestRequiredStatus.Active);
+                }
+
+                if (hasRefUnlock &&
+                    string.Equals(quest.TraderId, RefTraderId, StringComparison.Ordinal))
+                {
+                    return AddMissingMonotonicTraderGate(
+                        quest,
+                        refUnlockQuestId,
+                        QuestRequiredStatus.Complete);
+                }
+
+                return quest;
+            })
             .ToArray();
     }
 
-    private static void AddGateIfPresent(
-        IDictionary<string, string> gates,
-        IReadOnlySet<string> questIds,
-        string traderId,
-        string unlockQuestId)
+    private static QuestDefinition AddMissingMonotonicTraderGate(
+        QuestDefinition quest,
+        string unlockQuestId,
+        QuestRequiredStatus fallbackStatus)
     {
-        if (questIds.Contains(unlockQuestId))
-            gates[traderId] = unlockQuestId;
+        if (string.Equals(quest.Id, unlockQuestId, StringComparison.Ordinal) ||
+            quest.TaskRequirements.Any(requirement =>
+                string.Equals(requirement.RequiredQuestId, unlockQuestId, StringComparison.Ordinal)))
+        {
+            // The source already knows more than the compatibility overlay. Preserve it.
+            return quest;
+        }
+
+        return quest with
+        {
+            TaskRequirements = quest.TaskRequirements
+                .Append(new QuestTaskRequirement(
+                    unlockQuestId,
+                    new HashSet<QuestRequiredStatus> { fallbackStatus }))
+                .ToArray(),
+        };
     }
 
-    private static QuestDefinition StrengthenTraderGate(
+    private static QuestDefinition AttachRecoverableTraderAccess(
         QuestDefinition quest,
-        string unlockQuestId)
+        string traderId,
+        string unlockQuestId,
+        QuestRequiredStatus fallbackStatus)
     {
         if (string.Equals(quest.Id, unlockQuestId, StringComparison.Ordinal))
             return quest;
 
-        var found = false;
-        var requirements = quest.TaskRequirements
-            .Select(requirement =>
-            {
-                if (!string.Equals(requirement.RequiredQuestId, unlockQuestId, StringComparison.Ordinal))
-                    return requirement;
+        var sourceGate = quest.TaskRequirements.FirstOrDefault(requirement =>
+            string.Equals(requirement.RequiredQuestId, unlockQuestId, StringComparison.Ordinal));
+        var acceptedStatuses = sourceGate?.AcceptedStatuses ??
+            new HashSet<QuestRequiredStatus> { fallbackStatus };
 
-                found = true;
-                return new QuestTaskRequirement(
-                    unlockQuestId,
-                    new HashSet<QuestRequiredStatus> { QuestRequiredStatus.Complete });
-            })
-            .ToList();
+        // If upstream starts repeating the initial Lightkeeper unlock on individual
+        // quests, move that condition into the recoverable access gate instead of
+        // evaluating it twice. Keeping it as an ordinary Complete prerequisite would
+        // make a later Make Amends recovery impossible to represent.
+        var remainingRequirements = quest.TaskRequirements
+            .Where(requirement =>
+                !string.Equals(requirement.RequiredQuestId, unlockQuestId, StringComparison.Ordinal))
+            .ToArray();
 
-        if (!found)
+        return quest with
         {
-            requirements.Add(new QuestTaskRequirement(
+            TaskRequirements = remainingRequirements,
+            SpecialTraderAccessRequirement = new QuestSpecialTraderAccessRequirement(
+                traderId,
                 unlockQuestId,
-                new HashSet<QuestRequiredStatus> { QuestRequiredStatus.Complete }));
-        }
-
-        return quest with { TaskRequirements = requirements.ToArray() };
+                new HashSet<QuestRequiredStatus>(acceptedStatuses),
+                AllowManualOverride: true),
+        };
     }
 
     private static IReadOnlyList<QuestDefinition> ApplyUnsupportedAvailabilityRequirements(
