@@ -69,17 +69,19 @@ public partial class MainWindow : TarkovHelper.MainWindow
             var update = await RunContentUpdateAsync(_activeProfile.GameMode);
             if (!update.Applied)
             {
-                StatusText.Text = "퀘스트 지도 좌표 업데이트 실패 — 기존 데이터 유지";
+                StatusText.Text = "기존 게임 데이터로 지도 표시 중";
                 return;
             }
 
-            await ReloadActiveProfileAsync();
+            var upgraded = await _services.Content.ReadActiveOrRecoverAsync(_activeProfile.GameMode);
+            _activeContent = upgraded.Content;
+            await RefreshActiveWorkspacesAsync(detectCleanupChanges: false);
+            AmmoPage.SetData(_activeContent);
             StatusText.Text = "퀘스트 지도 좌표 업데이트 완료";
         }
-        catch (Exception ex)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            System.Diagnostics.Debug.WriteLine($"Quest map geometry refresh failed: {ex}");
-            StatusText.Text = "퀘스트 지도 좌표 업데이트 실패 — 기존 데이터 유지";
+            StatusText.Text = "기존 게임 데이터로 지도 표시 중";
         }
     }
 
@@ -88,90 +90,61 @@ public partial class MainWindow : TarkovHelper.MainWindow
         if (_legacyMapPage is not null)
             return;
 
-        _legacyMapPage = new TarkovHelper.Pages.Map.MapPage();
-        _legacyMapProductAdapter = new LegacyMapProductAdapter(_legacyMapPage);
-        _legacyMapProductRuntime = new LegacyMapProductRuntime(
-            _legacyMapPage,
-            RefreshLegacyQuestMapProjection);
-        _legacyAdditionalMapMarkers = new LegacyAdditionalMapMarkerController(_legacyMapPage);
-        _legacyMapQuestV2 = new LegacyMapQuestV2Controller(_legacyMapPage);
-        _legacyMapQuestSidebarV2 = new LegacyMapQuestSidebarV2(_legacyMapPage);
-        _legacyMapQuestSidebarPolish = new LegacyMapQuestSidebarPolishBridge(_legacyMapPage);
-
-        MapHost.Content = _legacyMapPage;
-        RefreshLegacyQuestMapProjection();
-
-        if (IsMapSmokeEnabled())
-            _legacyMapPage.Loaded += MapSmoke_PageLoaded;
-    }
-
-    private void RefreshLegacyQuestMapProjection()
-    {
-        if (_activeProfile is null || _activeContent is null || _questWorkspace is null)
+        try
         {
-            JunhyunMapQuestProjectionV2.Set(string.Empty, []);
-            return;
+            var page = new TarkovHelper.Pages.Map.MapPage();
+
+            var disconnectedV1Sidebar = new LegacyMapQuestSidebar();
+            var adapter = new LegacyMapProductAdapter(
+                page,
+                disconnectedV1Sidebar,
+                () => null,
+                () => null);
+
+            var sidebar = new LegacyMapQuestSidebarV2();
+            var host = new Grid();
+            host.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            Grid.SetColumn(sidebar, 0);
+            Grid.SetColumn(page, 1);
+            host.Children.Add(sidebar);
+            host.Children.Add(page);
+
+            MapPlaceholder.Children.Clear();
+            MapPlaceholder.Children.Add(host);
+
+            _legacyMapPage = page;
+            _legacyMapProductAdapter = adapter;
+            _legacyMapQuestSidebarV2 = sidebar;
+            _legacyMapQuestSidebarPolish = new LegacyMapQuestSidebarPolishBridge(sidebar);
+            _legacyMapQuestV2 = new LegacyMapQuestV2Controller(
+                page,
+                sidebar,
+                () => QuestPage.CurrentContentForMap,
+                () => QuestPage.CurrentWorkspaceForMap,
+                OpenQuestFromMap);
+            _legacyMapProductRuntime = new LegacyMapProductRuntime(
+                page,
+                () => _legacyMapQuestV2?.Refresh());
+            _legacyAdditionalMapMarkers = new LegacyAdditionalMapMarkerController(page);
+
+            if (IsMapSmokeEnabled())
+                page.Loaded += MapSmoke_PageLoaded;
         }
-
-        var mapKey = TarkovHelper.Services.Map.MapTrackerService.Instance.CurrentMapKey;
-        if (string.IsNullOrWhiteSpace(mapKey))
+        catch (Exception exception)
         {
-            JunhyunMapQuestProjectionV2.Set(string.Empty, []);
-            return;
-        }
+            if (IsMapSmokeEnabled())
+                throw;
 
-        var markers = _questWorkspace.Quests
-            .Where(entry => entry.Availability.State == Core.Quests.QuestAvailabilityState.Current)
-            .Where(entry => string.Equals(
-                entry.Quest.MapId,
-                mapKey,
-                StringComparison.OrdinalIgnoreCase))
-            .SelectMany(entry => BuildQuestMapProjection(entry, mapKey))
-            .ToArray();
-
-        JunhyunMapQuestProjectionV2.Set(mapKey, markers);
-    }
-
-    private IEnumerable<JunhyunMapQuestProjectionV2> BuildQuestMapProjection(
-        Core.Quests.QuestCatalogEntry entry,
-        string mapKey)
-    {
-        if (_activeContent is null)
-            yield break;
-
-        var objectives = _activeContent.QuestObjectives
-            .Where(objective => objective.QuestId == entry.Quest.Id)
-            .ToArray();
-        var questName = DisplayName(entry.Quest.NameKo, entry.Quest.NameEn, entry.Quest.Id);
-        var letter = 'A';
-
-        foreach (var objective in objectives)
-        {
-            foreach (var location in objective.Locations)
-            {
-                if (!string.Equals(location.MapId, mapKey, StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                yield return new JunhyunMapQuestProjectionV2(
-                    entry.Quest.Id,
-                    questName,
-                    objective.Id,
-                    DisplayName(objective.DescriptionKo, objective.DescriptionEn, objective.Id),
-                    letter.ToString(),
-                    location.X,
-                    location.Y,
-                    location.FloorId);
-                letter++;
-            }
+            MessageBox.Show(
+                this,
+                $"기존 Tarkov Helper 지도 초기화에 실패했습니다.\n\n{exception.Message}",
+                "지도",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
     }
-
-    private static string DisplayName(string? korean, string? english, string fallback) =>
-        !string.IsNullOrWhiteSpace(korean)
-            ? korean
-            : !string.IsNullOrWhiteSpace(english)
-                ? english
-                : fallback;
 
     private static bool IsMapSmokeEnabled() =>
         string.Equals(
@@ -181,11 +154,10 @@ public partial class MainWindow : TarkovHelper.MainWindow
 
     private async void MapSmoke_PageLoaded(object sender, RoutedEventArgs e)
     {
-        if (_legacyMapPage is not { } page)
+        if (sender is not TarkovHelper.Pages.Map.MapPage page)
             return;
 
         page.Loaded -= MapSmoke_PageLoaded;
-
         try
         {
             var probe = JunhyunQuestMarkerVisualFactoryV3.Create(
@@ -248,6 +220,9 @@ public partial class MainWindow : TarkovHelper.MainWindow
             VerifyOtherFloorDirectionPresentation(floorSelector);
             await VerifyFactoryMainMapFloorPresentationAsync(page, mapSelector, floorSelector);
 
+            // The page can raise Loaded while its containing product section is still
+            // Collapsed during asynchronous startup. Viewport geometry is meaningful only
+            // after the Map section has actually been arranged and made visible.
             await WaitForAsync(
                 () => page.IsVisible && mapViewer.ActualWidth > 0 && mapViewer.ActualHeight > 0,
                 TimeSpan.FromSeconds(8));
@@ -356,7 +331,7 @@ public partial class MainWindow : TarkovHelper.MainWindow
             throw new InvalidOperationException("Other-floor relation did not resolve to an up/down direction.");
 
         var visual = JunhyunQuestMarkerVisualFactoryV3.Create(
-            new JunhyunMapQuestProjectionV2(
+            new JunhyunQuestMarkerProjectionV2(
                 "smoke-other-floor",
                 "Other Floor Smoke",
                 "objective",
@@ -399,66 +374,95 @@ public partial class MainWindow : TarkovHelper.MainWindow
             throw new InvalidOperationException("MiniMap MapContainer was not found.");
 
         if (mapContainer.Children.OfType<System.Windows.Shapes.Path>().Any())
-            throw new InvalidOperationException("MiniMap still contains legacy resize grip geometry.");
+            throw new InvalidOperationException("MiniMap legacy bottom-right resize grip is still present.");
 
-        if (window.FindName("MapCanvas") is not Canvas mapCanvas)
-            throw new InvalidOperationException("MiniMap MapCanvas was not found.");
+        if (window.FindName("MapMarkersContainer") is not Canvas markerContainer)
+            throw new InvalidOperationException("MiniMap marker container was not found.");
 
-        if (mapCanvas.RenderTransform is not TransformGroup group)
-            throw new InvalidOperationException("MiniMap transform group was not found.");
+        var persistedMarkerScale = JunhyunMapProductSettingsStore.Instance.MiniMapMarkerScale;
+        var markerProbe = new Canvas();
+        markerContainer.Children.Add(markerProbe);
+        window.ApplyJunhyunMarkerScale(1.0);
+        if (markerProbe.RenderTransform is not ScaleTransform fullTransform)
+            throw new InvalidOperationException("MiniMap marker scale did not apply to a live marker.");
+        var fullScale = fullTransform.ScaleX;
 
-        var scale = group.Children.OfType<ScaleTransform>().FirstOrDefault()
-            ?? throw new InvalidOperationException("MiniMap scale transform was not found.");
-        var beforeZoom = scale.ScaleX;
-        var beforeFloor = window.JunhyunSelectedFloorId;
-        var beforeMarkerScale = window.JunhyunMarkerScale;
+        window.ApplyJunhyunMarkerScale(0.5);
+        if (markerProbe.RenderTransform is not ScaleTransform halfTransform ||
+            !(halfTransform.ScaleX < fullScale * 0.75))
+        {
+            throw new InvalidOperationException("MiniMap marker scale did not shrink live markers.");
+        }
 
-        overlay.ZoomIn();
-        await WaitForAsync(() => scale.ScaleX > beforeZoom, TimeSpan.FromSeconds(2));
+        markerContainer.Children.Remove(markerProbe);
+        window.ApplyJunhyunMarkerScale(persistedMarkerScale);
 
-        overlay.SelectNextFloor();
+        var legacyHook = TarkovHelper.Services.GlobalKeyboardHookService.Instance;
         await WaitForAsync(
-            () => !string.Equals(beforeFloor, window.JunhyunSelectedFloorId, StringComparison.OrdinalIgnoreCase),
-            TimeSpan.FromSeconds(3));
+            () => legacyHook.ZoomInKey == 0 &&
+                  legacyHook.ZoomOutKey == 0 &&
+                  legacyHook.FloorUpKey == 0 &&
+                  legacyHook.FloorDownKey == 0,
+            TimeSpan.FromSeconds(2));
 
-        window.ApplyJunhyunMarkerScale(beforeMarkerScale + 0.05);
+        var zoomBefore = overlay.Settings.ZoomLevel;
+        if (zoomBefore < TarkovHelper.Models.Map.OverlayMiniMapSettings.MaxZoom - 0.001)
+            overlay.ZoomIn();
+        else
+            overlay.ZoomOut();
+
         await WaitForAsync(
-            () => Math.Abs(window.JunhyunMarkerScale - (beforeMarkerScale + 0.05)) < 0.001,
+            () => Math.Abs(overlay.Settings.ZoomLevel - zoomBefore) > 0.0001,
+            TimeSpan.FromSeconds(2));
+
+        if (window.FindName("TxtFloorName") is not TextBlock floorText)
+            throw new InvalidOperationException("MiniMap floor indicator was not found.");
+
+        await WaitForAsync(
+            () => !string.IsNullOrWhiteSpace(floorText.Text),
+            TimeSpan.FromSeconds(4));
+
+        var floorBefore = floorText.Text;
+        overlay.MoveFloorUp();
+        await Task.Delay(350);
+        if (string.Equals(floorBefore, floorText.Text, StringComparison.Ordinal))
+            overlay.MoveFloorDown();
+
+        await WaitForAsync(
+            () => !string.Equals(floorBefore, floorText.Text, StringComparison.Ordinal),
+            TimeSpan.FromSeconds(4));
+
+        await WaitForAsync(
+            () => legacyHook.ZoomInKey == 0 &&
+                  legacyHook.ZoomOutKey == 0 &&
+                  legacyHook.FloorUpKey == 0 &&
+                  legacyHook.FloorDownKey == 0,
             TimeSpan.FromSeconds(2));
 
         overlay.HideOverlay();
-        await WaitForAsync(() => !overlay.IsOverlayVisible, TimeSpan.FromSeconds(2));
     }
 
-    private static async Task WaitForAsync(Func<bool> predicate, TimeSpan timeout)
+    private static async Task WaitForAsync(Func<bool> condition, TimeSpan timeout)
     {
         var deadline = DateTime.UtcNow + timeout;
         while (DateTime.UtcNow < deadline)
         {
-            if (predicate())
+            if (condition())
                 return;
-
-            await Task.Delay(50);
+            await Task.Delay(100);
         }
 
-        throw new TimeoutException($"Condition was not met within {timeout.TotalSeconds:F0} seconds.");
+        throw new TimeoutException("Map smoke condition timed out.");
     }
 
-    protected override void OnClosed(EventArgs e)
+    private void OpenQuestFromMap(string questId)
     {
-        _legacyMapQuestSidebarPolish?.Dispose();
-        _legacyMapQuestSidebarPolish = null;
-        _legacyMapQuestSidebarV2?.Dispose();
-        _legacyMapQuestSidebarV2 = null;
-        _legacyMapQuestV2?.Dispose();
-        _legacyMapQuestV2 = null;
-        _legacyAdditionalMapMarkers?.Dispose();
-        _legacyAdditionalMapMarkers = null;
-        _legacyMapProductRuntime?.Dispose();
-        _legacyMapProductRuntime = null;
-        _legacyMapProductAdapter?.Dispose();
-        _legacyMapProductAdapter = null;
-        _legacyMapPage = null;
-        base.OnClosed(e);
+        _activeSection = DesktopSection.Quest;
+        ShowActiveSection();
+        QuestPage.FocusQuest(questId);
+    }
+
+    public void SetFullScreenMode(bool enabled)
+    {
     }
 }
