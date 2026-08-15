@@ -20,8 +20,8 @@ public partial class MainWindow
         ComboBox floorSelector)
     {
         // This method is called while Customs is still selected. Verify the live standard
-        // marker container before switching to Factory so the regression where an async
-        // vertical-stack pass faded enabled off-floor markers to Opacity=0 cannot return.
+        // marker container before switching to Factory so the regressions where legacy
+        // floor filters or overlap suppression hide enabled off-floor markers cannot return.
         await VerifyCurrentMainMapStandardOffFloorVisibilityAsync(page, floorSelector);
 
         var extractContainer = page.FindName("ExtractMarkersContainer") as Canvas
@@ -157,10 +157,11 @@ public partial class MainWindow
             () => markerContainer.Children.OfType<Canvas>().Any(canvas => canvas.Tag is MapMarker),
             TimeSpan.FromSeconds(6));
 
-        // The transplanted renderer appends markers asynchronously and the product bridge
-        // performs bounded settle passes. Inspect only after those competing updates have
-        // had time to finish; the original bug appeared as visible -> flicker -> opacity 0.
-        await Task.Delay(1200);
+        // The pinned shared-floor integration used to run a current-floor-only filter for
+        // twelve 200 ms ticks while the Junhyun product recovery window ended earlier.
+        // Waiting beyond both windows is essential: a 1-second smoke can pass while the
+        // marker is still flickering and then disappear shortly afterward.
+        await Task.Delay(3200);
 
         var mapKey = MapTrackerService.Instance.CurrentMapKey;
         var config = string.IsNullOrWhiteSpace(mapKey)
@@ -200,7 +201,7 @@ public partial class MainWindow
                     $"relation={item.Relation.Relation},visibility={item.Canvas.Visibility}," +
                     $"opacity={item.Canvas.Opacity:F2}"));
             throw new InvalidOperationException(
-                "Enabled off-floor standard markers were suppressed after async Main Map settle: " + detail);
+                "Enabled off-floor standard markers were suppressed after all legacy/product settle windows: " + detail);
         }
     }
 
