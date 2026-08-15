@@ -56,27 +56,27 @@ public partial class MainWindow
                   ExtractVisuals(extractContainer, "Office Window").Count >= 1,
             TimeSpan.FromSeconds(6));
 
-        await Task.Delay(700);
-
         await WaitForAsync(
-            () => VisibleExtractVisuals(extractContainer, "Gate 3").Count == 1,
-            TimeSpan.FromSeconds(4));
+            () =>
+            {
+                var gate = VisibleExtractVisuals(extractContainer, "Gate 3");
+                var office = VisibleExtractVisuals(extractContainer, "Office Window");
+                return gate.Count == 1 &&
+                       office.Count == 1 &&
+                       JunhyunFloorPresentation.HasFloorIndicator(gate[0], JunhyunFloorRelation.Current) &&
+                       JunhyunFloorPresentation.HasFloorIndicator(office[0], JunhyunFloorRelation.Above);
+            },
+            TimeSpan.FromSeconds(5));
 
         var gate3Main = VisibleExtractVisuals(extractContainer, "Gate 3").Single();
-        if (!JunhyunFloorPresentation.HasFloorIndicator(gate3Main, JunhyunFloorRelation.Current))
-            throw new InvalidOperationException("Factory Gate 3 did not resolve to the current-floor green ring on main.");
-
-        var officeOnMain = VisibleExtractVisuals(extractContainer, "Office Window").SingleOrDefault()
-            ?? throw new InvalidOperationException("Factory Office Window was hidden while main floor was selected.");
+        var officeOnMain = VisibleExtractVisuals(extractContainer, "Office Window").Single();
         if (officeOnMain.Tag is not MapExtract officeMainExtract ||
-            officeMainExtract.Faction != ExtractFaction.Scav)
-        {
-            throw new InvalidOperationException("Factory Office Window no longer carries its Scav faction identity.");
-        }
-        if (!JunhyunFloorPresentation.HasFloorIndicator(officeOnMain, JunhyunFloorRelation.Above) ||
+            officeMainExtract.Faction != ExtractFaction.Scav ||
             officeOnMain.Opacity < 0.70)
         {
-            throw new InvalidOperationException("Factory Office Window did not remain visible as an above-floor marker on main.");
+            throw new InvalidOperationException(
+                "Factory Office Window did not preserve Scav identity/above-floor visibility on main. " +
+                DescribeExtractVisuals(extractContainer, "Office Window", pmcExtractToggle, scavExtractToggle));
         }
 
         pmcExtractToggle.IsChecked = false;
@@ -88,44 +88,54 @@ public partial class MainWindow
                        visible[0].Tag is MapExtract extract &&
                        extract.Faction == ExtractFaction.Scav;
             },
-            TimeSpan.FromSeconds(4));
+            TimeSpan.FromSeconds(5));
 
         pmcExtractToggle.IsChecked = true;
         await WaitForAsync(
-            () => VisibleExtractVisuals(extractContainer, "Gate 3").Count == 1,
-            TimeSpan.FromSeconds(4));
+            () =>
+            {
+                var visible = VisibleExtractVisuals(extractContainer, "Gate 3");
+                return visible.Count == 1 &&
+                       JunhyunFloorPresentation.HasFloorIndicator(visible[0], JunhyunFloorRelation.Current);
+            },
+            TimeSpan.FromSeconds(5));
 
         floorSelector.SelectedIndex = level3Index;
         await WaitForAsync(
             () => floorSelector.SelectedIndex == level3Index,
             TimeSpan.FromSeconds(3));
-        await Task.Delay(700);
 
-        var officeOnLevel3 = VisibleExtractVisuals(extractContainer, "Office Window").SingleOrDefault()
-            ?? throw new InvalidOperationException(
-                "Factory Office Window disappeared on its own level3 floor. " +
-                DescribeExtractVisuals(extractContainer, "Office Window", pmcExtractToggle, scavExtractToggle));
+        try
+        {
+            await WaitForAsync(
+                () =>
+                {
+                    var office = VisibleExtractVisuals(extractContainer, "Office Window");
+                    var gate = VisibleExtractVisuals(extractContainer, "Gate 3");
+                    return office.Count == 1 &&
+                           gate.Count == 1 &&
+                           JunhyunFloorPresentation.HasFloorIndicator(office[0], JunhyunFloorRelation.Current) &&
+                           office[0].Opacity >= 0.95 &&
+                           JunhyunFloorPresentation.HasFloorIndicator(gate[0], JunhyunFloorRelation.Below) &&
+                           gate[0].Opacity >= 0.70;
+                },
+                TimeSpan.FromSeconds(5));
+        }
+        catch (TimeoutException ex)
+        {
+            throw new InvalidOperationException(
+                "Factory floor presentation did not settle after selecting level3. " +
+                DescribeExtractVisuals(extractContainer, "Office Window", pmcExtractToggle, scavExtractToggle) +
+                " || " +
+                DescribeExtractVisuals(extractContainer, "Gate 3", pmcExtractToggle, scavExtractToggle),
+                ex);
+        }
+
+        var officeOnLevel3 = VisibleExtractVisuals(extractContainer, "Office Window").Single();
         if (officeOnLevel3.Tag is not MapExtract officeLevel3Extract ||
             officeLevel3Extract.Faction != ExtractFaction.Scav)
         {
             throw new InvalidOperationException("Factory Office Window faction identity changed with floor selection.");
-        }
-        if (!JunhyunFloorPresentation.HasFloorIndicator(officeOnLevel3, JunhyunFloorRelation.Current) ||
-            officeOnLevel3.Opacity < 0.95)
-        {
-            throw new InvalidOperationException("Factory Office Window did not resolve to the current-floor green ring on level3.");
-        }
-
-        var gate3Below = VisibleExtractVisuals(extractContainer, "Gate 3").SingleOrDefault()
-            ?? throw new InvalidOperationException(
-                "Factory Gate 3 disappeared when level3 was selected. " +
-                DescribeExtractVisuals(extractContainer, "Gate 3", pmcExtractToggle, scavExtractToggle));
-        if (!JunhyunFloorPresentation.HasFloorIndicator(gate3Below, JunhyunFloorRelation.Below) ||
-            gate3Below.Opacity < 0.70)
-        {
-            throw new InvalidOperationException(
-                "Factory Gate 3 did not remain visible as a below-floor marker on level3. " +
-                DescribeExtractVisuals(extractContainer, "Gate 3", pmcExtractToggle, scavExtractToggle));
         }
     }
 
