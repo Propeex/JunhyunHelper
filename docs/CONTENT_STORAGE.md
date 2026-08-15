@@ -70,11 +70,22 @@ SQLite를 사용하는 이유:
 
 Game Content 모델이 호환 불가능하게 바뀌면 `ContentSnapshotStore.CurrentSchemaVersion`을 올립니다.
 
-구형 content.db를 복잡하게 migration하는 것을 기본으로 하지 않습니다.
+현재 최신 schema는 **v6**입니다.
 
-Game Content는 온라인에서 재생성 가능하므로 새 스키마로 다시 다운로드/빌드합니다.
+- v5: Quest availability opaque condition / special trader compatibility overlay
+- v6: recoverable special-trader access를 ordinary Quest prerequisite와 분리하고 BTR/Ref source prerequisite 상태를 보존
 
-사용자 데이터인 `user.db`에는 이 원칙을 자동 적용하지 않습니다. 사용자 진행은 재생성 불가능하므로 별도 migration 정책을 가집니다.
+현재 읽기 가능 last-known-good 범위는 **v3~v6**입니다.
+
+일반적으로 Game Content는 온라인에서 다시 만들 수 있으므로 새 schema로 재빌드하는 것을 우선합니다. 다만 v6 변경은 과거 v3~v5 snapshot에 이미 저장된 잘못된 special-trader compatibility overlay를 앱 자체에서 결정론적으로 정규화할 수 있으므로, 네트워크가 없어도 읽는 시점에 메모리에서 다음 변환을 적용합니다.
+
+- 과거 BTR Driver의 강제 `A Helping Hand = Complete` gate 제거 후 `Active` compatibility gate 적용
+- 과거 Lightkeeper의 `Getting Acquainted = Complete` ordinary prerequisite를 recoverable special-trader access gate로 전환
+- Ref의 Complete 의미는 유지
+
+이 in-memory 정규화는 active `content.db` 파일을 몰래 재작성하지 않습니다. 다음 정상 `데이터 업데이트` 성공 시 v6 snapshot이 새로 저장됩니다.
+
+사용자 데이터인 `user.db`에는 Game Content 재생성 원칙을 자동 적용하지 않습니다. 사용자 진행은 재생성 불가능하므로 별도 migration 정책을 가집니다. 이번 v6 변경에서 `user.db` SQLite table schema는 그대로 v1이며, Lightkeeper 실제 접근 상실/복구 같은 예외 사용자 사실은 optional JSON property로 추가되어 기존 DB와 호환됩니다.
 
 ## 5. 안전한 활성화
 
