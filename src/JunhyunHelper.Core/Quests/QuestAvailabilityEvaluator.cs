@@ -152,6 +152,7 @@ public sealed class QuestAvailabilityEvaluator
             var unknownReasons = new List<QuestAvailabilityReason>();
 
             EvaluateStaticRules(quest, unavailableReasons, lockedReasons, unknownReasons);
+            EvaluateSpecialTraderAccess(quest, unavailableReasons, lockedReasons, unknownReasons);
             EvaluatePrerequisites(quest, unavailableReasons, lockedReasons, unknownReasons);
 
             QuestAvailabilityResult result;
@@ -290,6 +291,67 @@ public sealed class QuestAvailabilityEvaluator
                     QuestAvailabilityReasonKind.TraderLoyalty,
                     requirement.TraderId));
             }
+        }
+    }
+
+    private void EvaluateSpecialTraderAccess(
+        QuestDefinition quest,
+        ICollection<QuestAvailabilityReason> unavailableReasons,
+        ICollection<QuestAvailabilityReason> lockedReasons,
+        ICollection<QuestAvailabilityReason> unknownReasons)
+    {
+        var access = quest.SpecialTraderAccessRequirement;
+        if (access is null)
+            return;
+
+        if (_profile.SpecialTraderAccessOverrides.TryGetValue(access.TraderId, out var overrideAvailable))
+        {
+            if (!overrideAvailable)
+            {
+                lockedReasons.Add(new QuestAvailabilityReason(
+                    QuestAvailabilityReasonKind.SpecialTraderAccess,
+                    access.TraderId));
+            }
+            return;
+        }
+
+        var outcome = EvaluatePrerequisite(new QuestTaskRequirement(
+            access.UnlockQuestId,
+            access.AcceptedUnlockStatuses));
+        switch (outcome)
+        {
+            case PrerequisiteOutcome.Met:
+                return;
+            case PrerequisiteOutcome.NotMet:
+                lockedReasons.Add(new QuestAvailabilityReason(
+                    QuestAvailabilityReasonKind.SpecialTraderAccess,
+                    access.TraderId));
+                return;
+            case PrerequisiteOutcome.Unavailable:
+                // Recoverable access (currently Lightkeeper) is not a permanently closed
+                // quest path. The user can later restore access in-game and synchronize
+                // that exceptional fact without rewriting quest completion history.
+                if (access.AllowManualOverride)
+                {
+                    lockedReasons.Add(new QuestAvailabilityReason(
+                        QuestAvailabilityReasonKind.SpecialTraderAccess,
+                        access.TraderId));
+                }
+                else
+                {
+                    unavailableReasons.Add(new QuestAvailabilityReason(
+                        QuestAvailabilityReasonKind.SpecialTraderAccess,
+                        access.TraderId));
+                }
+                return;
+            case PrerequisiteOutcome.Indeterminate:
+                unknownReasons.Add(new QuestAvailabilityReason(
+                    QuestAvailabilityReasonKind.MissingReferencedQuest,
+                    access.UnlockQuestId));
+                return;
+            default:
+                throw new InvalidDataException(
+                    $"Unsupported special trader access outcome '{outcome}'.");
         }
     }
 
