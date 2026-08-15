@@ -13,7 +13,7 @@ public sealed class SpecialTraderAccessAvailabilityTests
     [Fact]
     public void InitialUnlockCompletionAutomaticallyAllowsAccess()
     {
-        var result = Evaluate(Profile(completed: [UnlockId]));
+        var result = Evaluate(Profile(completed: QuestSet(UnlockId)));
 
         Assert.Equal(QuestAvailabilityState.Current, result[FollowupId].State);
     }
@@ -21,7 +21,7 @@ public sealed class SpecialTraderAccessAvailabilityTests
     [Fact]
     public void FailedInitialUnlockKeepsRecoverableAccessLockedNotUnavailable()
     {
-        var result = Evaluate(Profile(failed: [UnlockId]));
+        var result = Evaluate(Profile(failed: QuestSet(UnlockId)));
 
         Assert.Equal(QuestAvailabilityState.Locked, result[FollowupId].State);
         Assert.Contains(
@@ -33,7 +33,7 @@ public sealed class SpecialTraderAccessAvailabilityTests
     public void ManualRecoveryFactAllowsAccessAfterInitialUnlockFailure()
     {
         var result = Evaluate(Profile(
-            failed: [UnlockId],
+            failed: QuestSet(UnlockId),
             overrides: new Dictionary<string, bool>(StringComparer.Ordinal)
             {
                 [TraderId] = true,
@@ -46,7 +46,7 @@ public sealed class SpecialTraderAccessAvailabilityTests
     public void ManualLossFactLocksAccessAfterInitialUnlockCompletion()
     {
         var result = Evaluate(Profile(
-            completed: [UnlockId],
+            completed: QuestSet(UnlockId),
             overrides: new Dictionary<string, bool>(StringComparer.Ordinal)
             {
                 [TraderId] = false,
@@ -57,6 +57,9 @@ public sealed class SpecialTraderAccessAvailabilityTests
 
     private static IReadOnlyDictionary<string, QuestAvailabilityResult> Evaluate(GameProfileSnapshot profile) =>
         QuestAvailabilityEvaluator.Evaluate([UnlockQuest(), FollowupQuest()], profile);
+
+    private static HashSet<string> QuestSet(params string[] questIds) =>
+        new(questIds, StringComparer.Ordinal);
 
     private static QuestDefinition UnlockQuest() => new(
         Id: UnlockId,
