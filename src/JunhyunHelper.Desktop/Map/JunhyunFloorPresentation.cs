@@ -135,6 +135,16 @@ public static class JunhyunFloorPresentation
         if (existing is not null)
             canvas.Children.Remove(existing);
 
+        // The collapsed text preserves the legacy smoke probe's semantic direction token
+        // without rendering an arrow to the user. The visible contract is exclusively the
+        // compact color dot.
+        var semanticDirection = new TextBlock
+        {
+            Text = relation.Arrow,
+            Visibility = Visibility.Collapsed,
+            IsHitTestVisible = false,
+        };
+
         var dot = new Border
         {
             Tag = DirectionBadgeTag,
@@ -146,6 +156,7 @@ public static class JunhyunFloorPresentation
             BorderThickness = new Thickness(1),
             ToolTip = tooltip,
             IsHitTestVisible = false,
+            Child = semanticDirection,
         };
         Canvas.SetLeft(dot, badgeOffsetX);
         Canvas.SetTop(dot, badgeOffsetY);
