@@ -132,6 +132,40 @@ public sealed class TarkovGameContentImporter
             .ToArray();
     }
 
+    /// <summary>
+    /// v5 and older snapshots contain the previous compatibility overlay, which forced
+    /// every special-trader gate to Complete. Normalize those already-built snapshots in
+    /// memory so an application upgrade does not require a network data refresh merely to
+    /// obtain the corrected prerequisite semantics.
+    /// </summary>
+    internal static IReadOnlyList<QuestDefinition> UpgradeLegacySpecialTraderAccessRequirements(
+        IReadOnlyList<QuestDefinition> quests,
+        GameMode gameMode)
+    {
+        ArgumentNullException.ThrowIfNull(quests);
+
+        var normalized = quests
+            .Select(quest =>
+            {
+                if (!string.Equals(quest.TraderId, BtrDriverTraderId, StringComparison.Ordinal))
+                    return quest;
+
+                return quest with
+                {
+                    TaskRequirements = quest.TaskRequirements
+                        .Where(requirement =>
+                            !string.Equals(
+                                requirement.RequiredQuestId,
+                                BtrDriverUnlockQuestId,
+                                StringComparison.Ordinal))
+                        .ToArray(),
+                };
+            })
+            .ToArray();
+
+        return ApplySpecialTraderAccessRequirements(normalized, gameMode);
+    }
+
     private static QuestDefinition AddMissingMonotonicTraderGate(
         QuestDefinition quest,
         string unlockQuestId,
