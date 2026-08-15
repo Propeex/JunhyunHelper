@@ -29,12 +29,14 @@ public readonly record struct JunhyunFloorRelationInfo(
 
 /// <summary>
 /// Product-owned floor relation semantics shared by Main Map and MiniMap marker renderers.
-/// Map artwork remains current-floor only; markers from other known floors remain visible
-/// and use a compact direction badge so the user can distinguish above from below.
+/// Map artwork remains current-floor only; markers from other known floors remain visible.
+/// Floor state is deliberately a small color dot instead of a large arrow badge:
+/// current=green, above=red, below=blue. The marker body remains free to communicate
+/// marker type/faction semantics without competing with floor meaning.
 /// </summary>
 public static class JunhyunFloorPresentation
 {
-    public const double OtherFloorOpacity = 0.50;
+    public const double OtherFloorOpacity = 0.85;
     private const string DirectionBadgeTag = "JunhyunFloorDirectionBadge";
 
     public static JunhyunFloorRelationInfo Resolve(
@@ -78,6 +80,14 @@ public static class JunhyunFloorPresentation
             marker.DisplayName ?? marker.LayerId);
     }
 
+    public static Color StatusColor(JunhyunFloorRelation relation) => relation switch
+    {
+        JunhyunFloorRelation.Current => Color.FromRgb(76, 175, 80),
+        JunhyunFloorRelation.Above => Color.FromRgb(239, 83, 80),
+        JunhyunFloorRelation.Below => Color.FromRgb(66, 165, 245),
+        _ => Colors.Transparent,
+    };
+
     public static void ApplyToMarker(
         FrameworkElement markerVisual,
         JunhyunFloorRelationInfo relation,
@@ -88,20 +98,36 @@ public static class JunhyunFloorPresentation
         if (markerVisual is not Canvas canvas)
             return;
 
-        if (!relation.IsOtherFloor)
+        if (relation.Relation == JunhyunFloorRelation.Unknown)
         {
             markerVisual.Opacity = Math.Clamp(currentFloorOpacity, 0.0, 1.0);
             RemoveDirectionBadge(canvas);
             return;
         }
 
-        markerVisual.Opacity = OtherFloorOpacity;
-        var tooltip = $"{relation.Arrow} {relation.FloorLabel}";
+        markerVisual.Opacity = relation.IsOtherFloor
+            ? OtherFloorOpacity
+            : Math.Clamp(currentFloorOpacity, 0.0, 1.0);
+
+        var stateText = relation.Relation switch
+        {
+            JunhyunFloorRelation.Current => "현재 층",
+            JunhyunFloorRelation.Above => "위층",
+            JunhyunFloorRelation.Below => "아래층",
+            _ => "층 미확인",
+        };
+        var tooltip = string.IsNullOrWhiteSpace(relation.FloorLabel)
+            ? stateText
+            : $"{stateText}: {relation.FloorLabel}";
+        var statusColor = StatusColor(relation.Relation);
+
         var existing = FindDirectionBadge(canvas);
-        if (existing is not null &&
-            string.Equals(existing.ToolTip as string, tooltip, StringComparison.Ordinal) &&
-            Math.Abs(Canvas.GetLeft(existing) - badgeOffsetX) < 0.01 &&
-            Math.Abs(Canvas.GetTop(existing) - badgeOffsetY) < 0.01)
+        if (existing is Border existingDot &&
+            string.Equals(existingDot.ToolTip as string, tooltip, StringComparison.Ordinal) &&
+            existingDot.Background is SolidColorBrush existingBrush &&
+            existingBrush.Color == statusColor &&
+            Math.Abs(Canvas.GetLeft(existingDot) - badgeOffsetX) < 0.01 &&
+            Math.Abs(Canvas.GetTop(existingDot) - badgeOffsetY) < 0.01)
         {
             return;
         }
@@ -109,34 +135,21 @@ public static class JunhyunFloorPresentation
         if (existing is not null)
             canvas.Children.Remove(existing);
 
-        var background = relation.Relation == JunhyunFloorRelation.Above
-            ? Color.FromRgb(65, 145, 210)
-            : Color.FromRgb(220, 132, 38);
-        var badge = new Border
+        var dot = new Border
         {
             Tag = DirectionBadgeTag,
-            Width = 16,
-            Height = 16,
-            CornerRadius = new CornerRadius(8),
-            Background = new SolidColorBrush(Color.FromArgb(245, background.R, background.G, background.B)),
-            BorderBrush = new SolidColorBrush(Color.FromArgb(245, 245, 245, 245)),
+            Width = 9,
+            Height = 9,
+            CornerRadius = new CornerRadius(4.5),
+            Background = new SolidColorBrush(statusColor),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(235, 245, 245, 245)),
             BorderThickness = new Thickness(1),
             ToolTip = tooltip,
             IsHitTestVisible = false,
-            Child = new TextBlock
-            {
-                Text = relation.Arrow,
-                Foreground = Brushes.White,
-                FontSize = 11,
-                FontWeight = FontWeights.Bold,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                TextAlignment = TextAlignment.Center,
-            },
         };
-        Canvas.SetLeft(badge, badgeOffsetX);
-        Canvas.SetTop(badge, badgeOffsetY);
-        canvas.Children.Add(badge);
+        Canvas.SetLeft(dot, badgeOffsetX);
+        Canvas.SetTop(dot, badgeOffsetY);
+        canvas.Children.Add(dot);
     }
 
     public static void RemoveDirectionBadge(Canvas canvas)
