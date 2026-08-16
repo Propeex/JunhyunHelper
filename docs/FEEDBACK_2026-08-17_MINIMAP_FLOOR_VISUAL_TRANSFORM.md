@@ -28,9 +28,9 @@ Windows runtime Map smoke에서 실제 MiniMap을 띄운 뒤 PlayerTracking 상�
 그 상태에서:
 
 1. 층 A → B
-2. 층 B → A
+2. direct floor selection으로 원래 층 A를 다시 선택
 
-를 실행하고 각 단계마다 다음을 검증한다.
+을 실행하고 각 단계마다 다음을 검증한다.
 
 - ScaleX 동일
 - ScaleY 동일
@@ -39,7 +39,7 @@ Windows runtime Map smoke에서 실제 MiniMap을 띄운 뒤 PlayerTracking 상�
 - map-space viewport center 동일
 - persisted Zoom/Offset과 live transform 동기화
 
-A→B→A 검사는 반복 층 전환에서 미세 오차가 누적되는 회귀까지 막기 위한 것이다.
+A→B→A 검사는 반복 층 전환에서 미세 오차가 누적되는 회귀까지 막기 위한 것이다. B→A는 floor ordering이나 up/down 방향을 추측하지 않고 원래 floor를 직접 다시 선택한다.
 
 ## 제품 결과
 
