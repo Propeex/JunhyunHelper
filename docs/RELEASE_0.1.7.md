@@ -48,6 +48,7 @@ EFT 1.1 `globalVariable` 조건을 더 이상 단순 미지원 조건으로 버�
 - Windows x64 self-contained single-file publish
 - startup + Main Map + Factory + MiniMap runtime smoke
 - MiniMap exact transform A→B / A→B→A 회귀 검증
+- A→B 검증 뒤에는 direct floor selection으로 원래 floor를 명시적으로 다시 선택하여 방향/정렬 추측 없이 A→B→A 누적 drift를 검증
 - floor command 자체의 비동기 렌더 완료 이후 실제 floor와 transform을 즉시 검증하여 단순 UI 문자열 polling을 성공 조건으로 사용하지 않음
 - graceful shutdown
 - clean portable root
