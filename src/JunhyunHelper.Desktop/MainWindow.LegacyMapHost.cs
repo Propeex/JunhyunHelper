@@ -442,43 +442,62 @@ public partial class MainWindow : TarkovHelper.MainWindow
         overlay.Settings.MapOffsetX = liveTranslateX + 67;
         overlay.Settings.MapOffsetY = liveTranslateY - 43;
 
-        var miniZoomBefore = miniMapScale.ScaleX;
+        var miniScaleXBefore = miniMapScale.ScaleX;
+        var miniScaleYBefore = miniMapScale.ScaleY;
+        var miniTranslateXBefore = miniMapTranslate.X;
+        var miniTranslateYBefore = miniMapTranslate.Y;
         var miniCenterX = mapContainer.ActualWidth / 2.0;
         var miniCenterY = mapContainer.ActualHeight / 2.0;
-        var miniCanvasXBefore = (miniCenterX - miniMapTranslate.X) / miniZoomBefore;
-        var miniCanvasYBefore = (miniCenterY - miniMapTranslate.Y) / miniZoomBefore;
+        var miniCanvasXBefore = (miniCenterX - miniTranslateXBefore) / miniScaleXBefore;
+        var miniCanvasYBefore = (miniCenterY - miniTranslateYBefore) / miniScaleYBefore;
         var floorBefore = floorText.Text;
 
+        var movedUp = true;
         await window.JunhyunMoveFloorUpAsync();
         if (string.Equals(floorBefore, floorText.Text, StringComparison.Ordinal))
+        {
+            movedUp = false;
             await window.JunhyunMoveFloorDownAsync();
+        }
 
         await WaitForAsync(
             () => !string.Equals(floorBefore, floorText.Text, StringComparison.Ordinal),
             TimeSpan.FromSeconds(4));
 
-        var miniZoomAfter = miniMapScale.ScaleX;
-        miniCenterX = mapContainer.ActualWidth / 2.0;
-        miniCenterY = mapContainer.ActualHeight / 2.0;
-        var miniCanvasXAfter = (miniCenterX - miniMapTranslate.X) / miniZoomAfter;
-        var miniCanvasYAfter = (miniCenterY - miniMapTranslate.Y) / miniZoomAfter;
+        AssertMiniMapFloorTransformPreserved(
+            miniMapScale,
+            miniMapTranslate,
+            mapContainer,
+            overlay.Settings,
+            miniScaleXBefore,
+            miniScaleYBefore,
+            miniTranslateXBefore,
+            miniTranslateYBefore,
+            miniCanvasXBefore,
+            miniCanvasYBefore,
+            "A→B");
 
-        if (Math.Abs(miniZoomAfter - miniZoomBefore) > 0.001 ||
-            Math.Abs(miniCanvasXAfter - miniCanvasXBefore) > 0.75 ||
-            Math.Abs(miniCanvasYAfter - miniCanvasYBefore) > 0.75)
-        {
-            throw new InvalidOperationException(
-                $"Floor change reset MiniMap viewport: zoom {miniZoomBefore:F4}->{miniZoomAfter:F4}, " +
-                $"center ({miniCanvasXBefore:F2},{miniCanvasYBefore:F2})->" +
-                $"({miniCanvasXAfter:F2},{miniCanvasYAfter:F2}).");
-        }
+        if (movedUp)
+            await window.JunhyunMoveFloorDownAsync();
+        else
+            await window.JunhyunMoveFloorUpAsync();
 
-        if (Math.Abs(overlay.Settings.MapOffsetX - miniMapTranslate.X) > 0.01 ||
-            Math.Abs(overlay.Settings.MapOffsetY - miniMapTranslate.Y) > 0.01)
-        {
-            throw new InvalidOperationException(
-                "MiniMap live viewport and persisted offsets diverged after floor preservation.");
-        }
+        await WaitForAsync(
+            () => string.Equals(floorBefore, floorText.Text, StringComparison.Ordinal),
+            TimeSpan.FromSeconds(4));
+
+        AssertMiniMapFloorTransformPreserved(
+            miniMapScale,
+            miniMapTranslate,
+            mapContainer,
+            overlay.Settings,
+            miniScaleXBefore,
+            miniScaleYBefore,
+            miniTranslateXBefore,
+            miniTranslateYBefore,
+            miniCanvasXBefore,
+            miniCanvasYBefore,
+            "A→BₒA");
 
         await WaitForAsync(
             () => legacyHook.ZoomInKey == 0 &&
@@ -488,6 +507,47 @@ public partial class MainWindow : TarkovHelper.MainWindow
             TimeSpan.FromSeconds(2));
 
         overlay.HideOverlay();
+    }
+
+    private static void AssertMiniMapFloorTransformPreserved(
+        ScaleTransform scale,
+        TranslateTransform translate,
+        Grid mapContainer,
+        TarkovHelper.Models.Map.OverlayMiniMapSettings settings,
+        double scaleXBefore,
+        double scaleYBefore,
+        double translateXBefore,
+        double translateYBefore,
+        double canvasXBefore,
+        double canvasYBefore,
+        string transition)
+    {
+        var centerX = mapContainer.ActualWidth / 2.0;
+        var centerY = mapContainer.ActualHeight / 2.0;
+        var canvasXAfter = (centerX - translate.X) / scale.ScaleX;
+        var canvasYAfter = (centerY - translate.Y) / scale.ScaleY;
+
+        if (Math.Abs(scale.ScaleX - scaleXBefore) > 0.000001 ||
+            Math.Abs(scale.ScaleY - scaleYBefore) > 0.000001 ||
+            Math.Abs(translate.X - translateXBefore) > 0.01 ||
+            Math.Abs(translate.Y - translateYBefore) > 0.01 ||
+            Math.Abs(canvasXAfter - canvasXBefore) > 0.01 ||
+            Math.Abs(canvasYAfter - canvasYBefore) > 0.01)
+        {
+            throw new InvalidOperationException(
+                $"MiniMap floor transition {transition} changed the visual transform: " +
+                $"scale ({scaleXBefore:F6},{scaleYBefore:F6})->({scale.ScaleX:F6},{scale.ScaleY:F6}), " +
+                $"translate ({translateXBefore:F2},{translateYBefore:F2})->({translate.X:F2},{translate.Y:F2}), " +
+                $"center ({canvasXBefore:F4},{canvasYBefore:F4})->({canvasXAfter:F4},{canvasYAfter:F4}).");
+        }
+
+        if (Math.Abs(settings.MapOffsetX - translate.X) > 0.01 ||
+            Math.Abs(settings.MapOffsetY - translate.Y) > 0.01 ||
+            Math.Abs(settings.ZoomLevel - scale.ScaleX) > 0.000001)
+        {
+            throw new InvalidOperationException(
+                $"MiniMap floor transition {transition} left persisted viewport state out of sync with the live transform.");
+        }
     }
 
     private static async Task WaitForAsync(Func<bool> condition, TimeSpan timeout)
