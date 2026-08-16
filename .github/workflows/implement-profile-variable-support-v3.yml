@@ -1,0 +1,69 @@
+name: Implement Profile Variable Support V3
+
+on:
+  push:
+    branches: [agent/task-pool-support-2026-08-17]
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/task-pool-support-2026-08-17
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Reapply implementation with corrected tests
+        shell: python
+        run: |
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/implement-profile-variable-support.yml').read_text(encoding='utf-8')
+          marker = '      - name: Apply profile-variable support\n        shell: python\n        run: |\n'
+          start = workflow.index(marker) + len(marker)
+          end = workflow.index('\n      - name: Test', start)
+          block = workflow[start:end]
+          patch_script = '\n'.join(line[10:] if line.startswith('          ') else line for line in block.splitlines())
+          exec(compile(patch_script, '<profile-variable-patch>', 'exec'), {})
+
+          p = Path('tests/JunhyunHelper.Tests/TarkovJson/TarkovProfileVariableRequirementTests.cs')
+          t = p.read_text(encoding='utf-8')
+          # Avoid raw-string indentation sensitivity in the generated test source.
+          import re
+          raw_blocks = list(re.finditer(r'using var json = JsonDocument\.Parse\(""".*?"""\);', t, flags=re.S))
+          if len(raw_blocks) != 2:
+              raise SystemExit(f'Expected two raw JSON blocks, found {len(raw_blocks)}')
+          replacements = [
+              'using var json = JsonDocument.Parse("{\\"tasks\\":[{\\"id\\":\\"quest-a\\",\\"otherRequirements\\":[{\\"type\\":\\"globalVariable\\",\\"variableId\\":\\"pool-x\\",\\"compareMethod\\":\\">=\\",\\"value\\":3}]}]}");',
+              'using var json = JsonDocument.Parse("{\\"tasks\\":[{\\"id\\":\\"quest-a\\",\\"otherRequirements\\":[{\\"type\\":\\"globalVariable\\",\\"variableId\\":\\"pool-x\\",\\"compareMethod\\":\\"!=\\",\\"value\\":3}]}]}");',
+          ]
+          for match, replacement in reversed(list(zip(raw_blocks, replacements))):
+              t = t[:match.start()] + replacement + t[match.end():]
+          p.write_text(t, encoding='utf-8')
+
+          p = Path('tests/JunhyunHelper.Tests/Storage/UserProfileStoreTests.cs')
+          t = p.read_text(encoding='utf-8')
+          t = t.replace(
+              'await store.SaveAsync(profile);\n            var loaded = await new UserProfileStore(path).LoadAsync(profile.ProfileId);',
+              'await store.SaveAsync(profile, TestContext.Current.CancellationToken);\n            var loaded = await new UserProfileStore(path).LoadAsync(\n                profile.ProfileId,\n                TestContext.Current.CancellationToken);',
+              1)
+          p.write_text(t, encoding='utf-8')
+      - name: Test
+        run: dotnet test tests/JunhyunHelper.Tests/JunhyunHelper.Tests.csproj --configuration Release
+      - name: Commit implementation
+        shell: bash
+        run: |
+          rm .github/workflows/implement-profile-variable-support.yml
+          rm .github/workflows/implement-profile-variable-support-v2.yml
+          rm .github/workflows/implement-profile-variable-support-v3.yml
+          git config user.name "Propeex"
+          git config user.email "60839060+Propeex@users.noreply.github.com"
+          git add -A
+          git commit -m "Support exact EFT profile variable quest gates"
+          git push origin HEAD:agent/task-pool-support-2026-08-17
