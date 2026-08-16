@@ -1,0 +1,44 @@
+name: Cleanup Tracked Build Artifacts
+
+on:
+  push:
+    branches: [agent/task-pool-support-2026-08-17]
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/task-pool-support-2026-08-17
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Untrack generated build artifacts
+        shell: bash
+        run: |
+          git ls-files -z | grep -zE '(^|/)(bin|obj)/' | xargs -0 -r git rm -r --cached --ignore-unmatch
+          find src tests -type d \( -name bin -o -name obj \) -prune -exec rm -rf {} +
+      - name: Run full tests
+        run: dotnet test tests/JunhyunHelper.Tests/JunhyunHelper.Tests.csproj --configuration Release
+      - name: Verify generated files stay ignored
+        shell: bash
+        run: |
+          if git status --short | grep -E '(^|/)(bin|obj)/'; then
+            echo 'Generated build artifacts are still tracked.' >&2
+            exit 1
+          fi
+      - name: Commit cleanup
+        shell: bash
+        run: |
+          rm .github/workflows/cleanup-tracked-build-artifacts.yml
+          git config user.name "Propeex"
+          git config user.email "60839060+Propeex@users.noreply.github.com"
+          git add -A
+          git commit -m "Stop tracking generated build artifacts"
+          git push origin HEAD:agent/task-pool-support-2026-08-17
