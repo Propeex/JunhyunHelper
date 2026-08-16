@@ -479,15 +479,21 @@ public partial class MainWindow : TarkovHelper.MainWindow
             miniCanvasYBefore,
             "A→B");
 
-        if (movedUp)
-            await window.JunhyunMoveFloorDownAsync();
-        else
-            await window.JunhyunMoveFloorUpAsync();
+        var returnedToOriginalFloor = false;
+        for (var floorIndex = 0; floorIndex <= 5; floorIndex++)
+        {
+            await window.JunhyunSelectFloorIndexAsync(floorIndex);
+            if (string.Equals(floorBefore, floorText.Text, StringComparison.Ordinal))
+            {
+                returnedToOriginalFloor = true;
+                break;
+            }
+        }
 
-        if (!string.Equals(floorBefore, floorText.Text, StringComparison.Ordinal))
+        if (!returnedToOriginalFloor)
         {
             throw new InvalidOperationException(
-                $"MiniMap A→B→A floor command did not return to the original floor: " +
+                $"MiniMap direct floor selection could not return to the original floor: " +
                 $"{floorBefore} -> {floorText.Text}.");
         }
 
