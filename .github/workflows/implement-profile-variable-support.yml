@@ -1,0 +1,343 @@
+name: Implement Profile Variable Support
+
+on:
+  push:
+    branches: [agent/task-pool-support-2026-08-17]
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/task-pool-support-2026-08-17
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Apply profile-variable support
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              if old not in text:
+                  raise SystemExit(f'Expected patch anchor missing in {path}: {old[:120]!r}')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          # Canonical quest model: preserve read-side profile variable requirements.
+          replace(
+              'src/JunhyunHelper.Core/Quests/QuestDefinition.cs',
+              '''public sealed record QuestTraderLoyaltyRequirement(\n    string TraderId,\n    int RequiredLoyaltyLevel);\n''',
+              '''public sealed record QuestTraderLoyaltyRequirement(\n    string TraderId,\n    int RequiredLoyaltyLevel);\n\npublic enum ProfileVariableRequirementOperator\n{\n    AtLeast,\n}\n\n/// <summary>\n/// Exact read-side condition exposed by EFT/json.tarkov.dev for per-profile integer\n/// variables. The condition is deterministic only when the current profile value is\n/// known; JunhyunHelper never invents the server-side write/increment rule.\n/// </summary>\npublic sealed record QuestProfileVariableRequirement(\n    string VariableId,\n    int RequiredValue,\n    ProfileVariableRequirementOperator Operator);\n''')
+
+          replace(
+              'src/JunhyunHelper.Core/Quests/QuestDefinition.cs',
+              '''    int AvailableDelaySecondsMin = 0,\n    int AvailableDelaySecondsMax = 0,\n    QuestSpecialTraderAccessRequirement? SpecialTraderAccessRequirement = null)\n{\n    [JsonIgnore]\n    public IReadOnlyList<string> UnsupportedAvailabilityRequirements =>\n        UnsupportedAvailabilityRequirementTypes ?? Array.Empty<string>();\n''',
+              '''    int AvailableDelaySecondsMin = 0,\n    int AvailableDelaySecondsMax = 0,\n    QuestSpecialTraderAccessRequirement? SpecialTraderAccessRequirement = null,\n    IReadOnlyList<QuestProfileVariableRequirement>? ProfileVariableRequirementData = null)\n{\n    [JsonIgnore]\n    public IReadOnlyList<string> UnsupportedAvailabilityRequirements =>\n        UnsupportedAvailabilityRequirementTypes ?? Array.Empty<string>();\n\n    [JsonIgnore]\n    public IReadOnlyList<QuestProfileVariableRequirement> ProfileVariableRequirements =>\n        ProfileVariableRequirementData ?? Array.Empty<QuestProfileVariableRequirement>();\n''')
+
+          # Profile snapshot can carry exact EFT Variables values when a future scanner/import source supplies them.
+          replace(
+              'src/JunhyunHelper.Core/Profiles/GameProfileSnapshot.cs',
+              '''    public IReadOnlyDictionary<string, bool> SpecialTraderAccessOverrides { get; init; } =\n        new Dictionary<string, bool>(StringComparer.Ordinal);\n\n    public IReadOnlyDictionary<string, int> HideoutLevels { get; init; } =\n''',
+              '''    public IReadOnlyDictionary<string, bool> SpecialTraderAccessOverrides { get; init; } =\n        new Dictionary<string, bool>(StringComparer.Ordinal);\n\n    /// <summary>\n    /// Exact EFT profile integer variables (the client profile payload calls this\n    /// collection \"Variables\"). Missing keys are unknown facts, never zero.\n    /// </summary>\n    public IReadOnlyDictionary<string, int> ProfileVariables { get; init; } =\n        new Dictionary<string, int>(StringComparer.Ordinal);\n\n    public IReadOnlyDictionary<string, int> HideoutLevels { get; init; } =\n''')
+
+          # Availability reason distinguishes a known-but-too-low variable from missing data.
+          replace(
+              'src/JunhyunHelper.Core/Quests/QuestAvailability.cs',
+              '''    TraderLoyalty,\n    SpecialTraderAccess,\n''',
+              '''    TraderLoyalty,\n    ProfileVariable,\n    SpecialTraderAccess,\n''')
+
+          # Evaluate exact variable facts. Missing values remain Indeterminate.
+          replace(
+              'src/JunhyunHelper.Core/Quests/QuestAvailabilityEvaluator.cs',
+              '''        foreach (var requirementType in quest.UnsupportedAvailabilityRequirements)\n        {\n            unknownReasons.Add(new QuestAvailabilityReason(\n                QuestAvailabilityReasonKind.UnsupportedAvailabilityRequirement,\n                requirementType));\n        }\n\n        if (_profile.Level < quest.MinimumPlayerLevel)\n''',
+              '''        foreach (var requirement in quest.ProfileVariableRequirements)\n        {\n            if (!_profile.ProfileVariables.TryGetValue(requirement.VariableId, out var currentValue))\n            {\n                unknownReasons.Add(new QuestAvailabilityReason(\n                    QuestAvailabilityReasonKind.MissingProfileValue,\n                    $\"profileVariable:{requirement.VariableId}\"));\n                continue;\n            }\n\n            var met = requirement.Operator switch\n            {\n                ProfileVariableRequirementOperator.AtLeast =>\n                    currentValue >= requirement.RequiredValue,\n                _ => throw new InvalidDataException(\n                    $\"Unsupported profile variable operator '{requirement.Operator}'.\"),\n            };\n\n            if (!met)\n            {\n                lockedReasons.Add(new QuestAvailabilityReason(\n                    QuestAvailabilityReasonKind.ProfileVariable,\n                    requirement.VariableId));\n            }\n        }\n\n        foreach (var requirementType in quest.UnsupportedAvailabilityRequirements)\n        {\n            unknownReasons.Add(new QuestAvailabilityReason(\n                QuestAvailabilityReasonKind.UnsupportedAvailabilityRequirement,\n                requirementType));\n        }\n\n        if (_profile.Level < quest.MinimumPlayerLevel)\n''')
+
+          # Parse globalVariable as a supported structured condition instead of throwing away its payload.
+          path = Path('src/JunhyunHelper.Infrastructure/TarkovJson/TarkovGameContentImporter.cs')
+          text = path.read_text(encoding='utf-8')
+          start = text.index('    private static IReadOnlyList<QuestDefinition> ApplyUnsupportedAvailabilityRequirements(')
+          end = text.index('\n}', start)
+          old_method = text[start:end]
+          new_method = '''    private static IReadOnlyList<QuestDefinition> ApplyUnsupportedAvailabilityRequirements(\n        IReadOnlyList<QuestDefinition> quests,\n        JsonElement taskData)\n    {\n        var unsupportedByQuest = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);\n        var profileVariablesByQuest =\n            new Dictionary<string, IReadOnlyList<QuestProfileVariableRequirement>>(StringComparer.Ordinal);\n\n        foreach (var rawTask in TarkovJsonReader.ReadCollection(taskData, \"tasks\"))\n        {\n            var questId = TarkovJsonReader.RequiredString(rawTask, \"id\", \"Quest\");\n            var types = new HashSet<string>(StringComparer.Ordinal);\n            var profileVariables = new List<QuestProfileVariableRequirement>();\n\n            if (rawTask.TryGetProperty(\"otherRequirements\", out var rawRequirements) &&\n                rawRequirements.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined))\n            {\n                foreach (var raw in TarkovJsonReader.ReadCollectionValue(\n                             rawRequirements,\n                             $\"quest {questId} other requirements\"))\n                {\n                    var type = TarkovJsonReader.RequiredString(\n                        raw,\n                        \"type\",\n                        $\"Quest '{questId}' additional requirement\");\n\n                    if (string.Equals(type, \"globalVariable\", StringComparison.Ordinal) &&\n                        TryParseProfileVariableRequirement(raw, out var profileVariable))\n                    {\n                        profileVariables.Add(profileVariable);\n                        continue;\n                    }\n\n                    // Unknown/malformed future conditions stay fail-closed. In particular,\n                    // a changed globalVariable schema is never guessed.\n                    types.Add(type);\n                }\n            }\n\n            var minDelay = TarkovJsonReader.OptionalInt(rawTask, \"availableDelaySecondsMin\") ?? 0;\n            var maxDelay = TarkovJsonReader.OptionalInt(rawTask, \"availableDelaySecondsMax\") ?? minDelay;\n            if (minDelay > 0 || maxDelay > 0)\n            {\n                types.Add(AvailabilityDelayRequirementType);\n            }\n\n            if (types.Count > 0)\n            {\n                unsupportedByQuest[questId] = types\n                    .Order(StringComparer.Ordinal)\n                    .ToArray();\n            }\n\n            if (profileVariables.Count > 0)\n            {\n                profileVariablesByQuest[questId] = profileVariables\n                    .OrderBy(requirement => requirement.VariableId, StringComparer.Ordinal)\n                    .ThenBy(requirement => requirement.RequiredValue)\n                    .ToArray();\n            }\n        }\n\n        return quests\n            .Select(quest =>\n            {\n                unsupportedByQuest.TryGetValue(quest.Id, out var types);\n                profileVariablesByQuest.TryGetValue(quest.Id, out var profileVariables);\n                return quest with\n                {\n                    UnsupportedAvailabilityRequirementTypes = types,\n                    ProfileVariableRequirementData = profileVariables,\n                };\n            })\n            .ToArray();\n    }\n\n    private static bool TryParseProfileVariableRequirement(\n        JsonElement raw,\n        out QuestProfileVariableRequirement requirement)\n    {\n        requirement = null!;\n\n        var variableId = TarkovJsonReader.OptionalString(raw, \"variableId\");\n        var compareMethod = TarkovJsonReader.OptionalString(raw, \"compareMethod\");\n        var value = TarkovJsonReader.OptionalInt(raw, \"value\");\n\n        // Some producers may nest the payload under globalVariable. Accept that exact\n        // shape too, but never infer missing fields.\n        if (raw.TryGetProperty(\"globalVariable\", out var nested) &&\n            nested.ValueKind == JsonValueKind.Object)\n        {\n            variableId ??= TarkovJsonReader.OptionalString(nested, \"id\") ??\n                           TarkovJsonReader.OptionalString(nested, \"variableId\");\n            compareMethod ??= TarkovJsonReader.OptionalString(nested, \"compareMethod\");\n            value ??= TarkovJsonReader.OptionalInt(nested, \"value\");\n        }\n\n        if (string.IsNullOrWhiteSpace(variableId) ||\n            !string.Equals(compareMethod, \">=\", StringComparison.Ordinal) ||\n            value is null)\n        {\n            return false;\n        }\n\n        requirement = new QuestProfileVariableRequirement(\n            variableId.Trim(),\n            value.Value,\n            ProfileVariableRequirementOperator.AtLeast);\n        return true;\n    }\n'''
+          path.write_text(text[:start] + new_method + text[end:], encoding='utf-8')
+
+          # Persist optional exact profile variables in user.db JSON without a table migration.
+          replace(
+              'src/JunhyunHelper.Infrastructure/Storage/UserProfileStore.cs',
+              '''        foreach (var traderId in profile.SpecialTraderAccessOverrides.Keys)\n        {\n            if (string.IsNullOrWhiteSpace(traderId))\n                throw new InvalidDataException(\"Special trader access override id cannot be empty.\");\n        }\n\n        foreach (var (stationId, level) in profile.HideoutLevels)\n''',
+              '''        foreach (var traderId in profile.SpecialTraderAccessOverrides.Keys)\n        {\n            if (string.IsNullOrWhiteSpace(traderId))\n                throw new InvalidDataException(\"Special trader access override id cannot be empty.\");\n        }\n\n        foreach (var variableId in profile.ProfileVariables.Keys)\n        {\n            if (string.IsNullOrWhiteSpace(variableId))\n                throw new InvalidDataException(\"Profile variable id cannot be empty.\");\n        }\n\n        foreach (var (stationId, level) in profile.HideoutLevels)\n''')
+
+          replace(
+              'src/JunhyunHelper.Infrastructure/Storage/UserProfileStore.cs',
+              '''        public Dictionary<string, bool> SpecialTraderAccessOverrides { get; init; } =\n            new(StringComparer.Ordinal);\n        public Dictionary<string, int> HideoutLevels { get; init; } =\n''',
+              '''        public Dictionary<string, bool> SpecialTraderAccessOverrides { get; init; } =\n            new(StringComparer.Ordinal);\n        public Dictionary<string, int> ProfileVariables { get; init; } =\n            new(StringComparer.Ordinal);\n        public Dictionary<string, int> HideoutLevels { get; init; } =\n''')
+
+          replace(
+              'src/JunhyunHelper.Infrastructure/Storage/UserProfileStore.cs',
+              '''                SpecialTraderAccessOverrides = new Dictionary<string, bool>(\n                    snapshot.SpecialTraderAccessOverrides,\n                    StringComparer.Ordinal),\n                HideoutLevels = new Dictionary<string, int>(snapshot.HideoutLevels, StringComparer.Ordinal),\n''',
+              '''                SpecialTraderAccessOverrides = new Dictionary<string, bool>(\n                    snapshot.SpecialTraderAccessOverrides,\n                    StringComparer.Ordinal),\n                ProfileVariables = new Dictionary<string, int>(\n                    snapshot.ProfileVariables,\n                    StringComparer.Ordinal),\n                HideoutLevels = new Dictionary<string, int>(snapshot.HideoutLevels, StringComparer.Ordinal),\n''')
+
+          replace(
+              'src/JunhyunHelper.Infrastructure/Storage/UserProfileStore.cs',
+              '''                SpecialTraderAccessOverrides = new Dictionary<string, bool>(\n                    SpecialTraderAccessOverrides,\n                    StringComparer.Ordinal),\n                HideoutLevels = new Dictionary<string, int>(HideoutLevels, StringComparer.Ordinal),\n''',
+              '''                SpecialTraderAccessOverrides = new Dictionary<string, bool>(\n                    SpecialTraderAccessOverrides,\n                    StringComparer.Ordinal),\n                ProfileVariables = new Dictionary<string, int>(\n                    ProfileVariables,\n                    StringComparer.Ordinal),\n                HideoutLevels = new Dictionary<string, int>(HideoutLevels, StringComparer.Ordinal),\n''')
+
+          # New canonical content payload field: write v7 while retaining v3-v6 read compatibility.
+          replace(
+              'src/JunhyunHelper.Infrastructure/Storage/ContentSnapshotStore.cs',
+              '''    // v3-v5 remain readable as last-known-good offline snapshots. v6 separates\n    // recoverable special-trader access (Lightkeeper) from monotonic quest prerequisites\n    // and preserves precise upstream BTR/Ref prerequisite statuses. A successful data\n    // update writes v6; older readable snapshots are never destroyed merely because the\n    // app was upgraded while offline.\n    public const int MinimumReadableSchemaVersion = 3;\n    public const int CurrentSchemaVersion = 6;\n''',
+              '''    // v3-v6 remain readable as last-known-good offline snapshots. v7 preserves\n    // structured EFT profile-variable availability requirements instead of collapsing\n    // globalVariable into an opaque unsupported type. A successful data update writes v7;\n    // older readable snapshots remain usable while offline and simply lack that new data.\n    public const int MinimumReadableSchemaVersion = 3;\n    public const int CurrentSchemaVersion = 7;\n''')
+
+          # Tests: exact known value, missing value, and supported import parsing.
+          Path('tests/JunhyunHelper.Tests/Quests/ProfileVariableAvailabilityTests.cs').write_text(r'''using JunhyunHelper.Core.Profiles;
+          using JunhyunHelper.Core.Quests;
+          using Xunit;
+
+          namespace JunhyunHelper.Tests.Quests;
+
+          public sealed class ProfileVariableAvailabilityTests
+          {
+              [Fact]
+              public void ExactProfileVariableMeetingThresholdMakesQuestCurrent()
+              {
+                  var quest = CreateQuest("pool-x", 3);
+                  var profile = CreateProfile(new Dictionary<string, int> { ["pool-x"] = 3 });
+
+                  var result = QuestAvailabilityEvaluator.Evaluate([quest], profile)[quest.Id];
+
+                  Assert.Equal(QuestAvailabilityState.Current, result.State);
+                  Assert.Empty(result.Reasons);
+              }
+
+              [Fact]
+              public void ExactProfileVariableBelowThresholdKeepsQuestLocked()
+              {
+                  var quest = CreateQuest("pool-x", 3);
+                  var profile = CreateProfile(new Dictionary<string, int> { ["pool-x"] = 2 });
+
+                  var result = QuestAvailabilityEvaluator.Evaluate([quest], profile)[quest.Id];
+
+                  Assert.Equal(QuestAvailabilityState.Locked, result.State);
+                  Assert.Contains(result.Reasons, reason =>
+                      reason.Kind == QuestAvailabilityReasonKind.ProfileVariable &&
+                      reason.ReferenceId == "pool-x");
+              }
+
+              [Fact]
+              public void MissingProfileVariableRemainsIndeterminateInsteadOfAssumingZero()
+              {
+                  var quest = CreateQuest("pool-x", 3);
+                  var profile = CreateProfile(new Dictionary<string, int>());
+
+                  var result = QuestAvailabilityEvaluator.Evaluate([quest], profile)[quest.Id];
+
+                  Assert.Equal(QuestAvailabilityState.Indeterminate, result.State);
+                  Assert.Contains(result.Reasons, reason =>
+                      reason.Kind == QuestAvailabilityReasonKind.MissingProfileValue &&
+                      reason.ReferenceId == "profileVariable:pool-x");
+              }
+
+              private static QuestDefinition CreateQuest(string variableId, int value) =>
+                  new(
+                      Id: "quest-a",
+                      NameKo: null,
+                      NameEn: "Quest A",
+                      TraderId: null,
+                      MapId: null,
+                      WikiUrl: null,
+                      Experience: null,
+                      KappaRequired: false,
+                      LightkeeperRequired: false,
+                      Disabled: false,
+                      MinimumPlayerLevel: 1,
+                      RequiredFaction: null,
+                      RequiredPrestigeLevel: null,
+                      TaskRequirements: [],
+                      TraderStandingRequirements: [],
+                      TraderLoyaltyRequirements: [],
+                      ProfileVariableRequirementData:
+                      [
+                          new QuestProfileVariableRequirement(
+                              variableId,
+                              value,
+                              ProfileVariableRequirementOperator.AtLeast),
+                      ]);
+
+              private static GameProfileSnapshot CreateProfile(IReadOnlyDictionary<string, int> variables) =>
+                  new()
+                  {
+                      ProfileId = "profile-a",
+                      GameMode = GameMode.Regular,
+                      Level = 50,
+                      Faction = PmcFaction.Usec,
+                      ProfileVariables = variables,
+                  };
+          }
+          '''.replace('          ', ''), encoding='utf-8')
+
+          Path('tests/JunhyunHelper.Tests/TarkovJson/TarkovProfileVariableRequirementTests.cs').write_text(r'''using System.Reflection;
+          using System.Text.Json;
+          using JunhyunHelper.Core.Quests;
+          using JunhyunHelper.Infrastructure.TarkovJson;
+          using Xunit;
+
+          namespace JunhyunHelper.Tests.TarkovJson;
+
+          public sealed class TarkovProfileVariableRequirementTests
+          {
+              [Fact]
+              public void GlobalVariablePayloadBecomesStructuredSupportedRequirement()
+              {
+                  using var json = JsonDocument.Parse("""
+                      {
+                        "tasks": [
+                          {
+                            "id": "quest-a",
+                            "otherRequirements": [
+                              {
+                                "type": "globalVariable",
+                                "variableId": "pool-x",
+                                "compareMethod": ">=",
+                                "value": 3
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                      """);
+                  var quest = CreateQuest();
+                  var method = typeof(TarkovGameContentImporter).GetMethod(
+                      "ApplyUnsupportedAvailabilityRequirements",
+                      BindingFlags.NonPublic | BindingFlags.Static)
+                      ?? throw new InvalidOperationException("Importer method not found.");
+
+                  var result = Assert.IsAssignableFrom<IReadOnlyList<QuestDefinition>>(
+                      method.Invoke(null, new object[] { new[] { quest }, json.RootElement }));
+                  var imported = Assert.Single(result);
+
+                  var requirement = Assert.Single(imported.ProfileVariableRequirements);
+                  Assert.Equal("pool-x", requirement.VariableId);
+                  Assert.Equal(3, requirement.RequiredValue);
+                  Assert.Equal(ProfileVariableRequirementOperator.AtLeast, requirement.Operator);
+                  Assert.DoesNotContain("globalVariable", imported.UnsupportedAvailabilityRequirements);
+              }
+
+              [Fact]
+              public void UnknownGlobalVariableShapeFailsClosedAsUnsupported()
+              {
+                  using var json = JsonDocument.Parse("""
+                      {
+                        "tasks": [
+                          {
+                            "id": "quest-a",
+                            "otherRequirements": [
+                              {
+                                "type": "globalVariable",
+                                "variableId": "pool-x",
+                                "compareMethod": "!=",
+                                "value": 3
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                      """);
+                  var method = typeof(TarkovGameContentImporter).GetMethod(
+                      "ApplyUnsupportedAvailabilityRequirements",
+                      BindingFlags.NonPublic | BindingFlags.Static)
+                      ?? throw new InvalidOperationException("Importer method not found.");
+
+                  var result = Assert.IsAssignableFrom<IReadOnlyList<QuestDefinition>>(
+                      method.Invoke(null, new object[] { new[] { CreateQuest() }, json.RootElement }));
+                  var imported = Assert.Single(result);
+
+                  Assert.Empty(imported.ProfileVariableRequirements);
+                  Assert.Contains("globalVariable", imported.UnsupportedAvailabilityRequirements);
+              }
+
+              private static QuestDefinition CreateQuest() =>
+                  new(
+                      Id: "quest-a",
+                      NameKo: null,
+                      NameEn: null,
+                      TraderId: null,
+                      MapId: null,
+                      WikiUrl: null,
+                      Experience: null,
+                      KappaRequired: false,
+                      LightkeeperRequired: false,
+                      Disabled: false,
+                      MinimumPlayerLevel: 1,
+                      RequiredFaction: null,
+                      RequiredPrestigeLevel: null,
+                      TaskRequirements: [],
+                      TraderStandingRequirements: [],
+                      TraderLoyaltyRequirements: []);
+          }
+          '''.replace('          ', ''), encoding='utf-8')
+
+          # Storage round-trip coverage is intentionally tiny and uses the existing public store.
+          p = Path('tests/JunhyunHelper.Tests/Storage/UserProfileStoreTests.cs')
+          text = p.read_text(encoding='utf-8')
+          marker = '\n}'
+          test = r'''
+
+              [Fact]
+              public async Task RoundTripsProfileVariablesWithoutSchemaMigration()
+              {
+                  var path = Path.Combine(Path.GetTempPath(), $"junhyun-helper-profile-vars-{Guid.NewGuid():N}.db");
+                  try
+                  {
+                      var store = new UserProfileStore(path);
+                      var profile = new GameProfileSnapshot
+                      {
+                          ProfileId = "profile-vars",
+                          GameMode = GameMode.Regular,
+                          Level = 10,
+                          Faction = PmcFaction.Usec,
+                          ProfileVariables = new Dictionary<string, int>
+                          {
+                              ["6a20540cf1b67a977cc5a088"] = 3,
+                          },
+                      };
+
+                      await store.SaveAsync(profile);
+                      var loaded = await new UserProfileStore(path).LoadAsync(profile.ProfileId);
+
+                      Assert.NotNull(loaded);
+                      Assert.Equal(3, loaded!.ProfileVariables["6a20540cf1b67a977cc5a088"]);
+                  }
+                  finally
+                  {
+                      if (File.Exists(path))
+                          File.Delete(path);
+                  }
+              }
+          '''
+          idx = text.rfind(marker)
+          if idx < 0:
+              raise SystemExit('Could not append storage test')
+          p.write_text(text[:idx] + test + text[idx:], encoding='utf-8')
+
+      - name: Test
+        run: dotnet test tests/JunhyunHelper.Tests/JunhyunHelper.Tests.csproj --configuration Release
+
+      - name: Commit implementation
+        shell: bash
+        run: |
+          rm .github/workflows/implement-profile-variable-support.yml
+          git config user.name "Propeex"
+          git config user.email "60839060+Propeex@users.noreply.github.com"
+          git add -A
+          git commit -m "Support exact EFT profile variable quest gates"
+          git push origin HEAD:agent/task-pool-support-2026-08-17
