@@ -1,0 +1,152 @@
+name: Prepare v0.1.7 MiniMap
+
+on:
+  push:
+    branches: [agent/v0.1.7-minimap-floor-transform]
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - name: Strengthen MiniMap transform smoke and bump version
+        shell: python
+        run: |
+          from pathlib import Path
+
+          host = Path('src/JunhyunHelper.Desktop/MainWindow.LegacyMapHost.cs')
+          text = host.read_text(encoding='utf-8')
+          start_marker = '        var miniZoomBefore = miniMapScale.ScaleX;\n'
+          end_marker = '        await WaitForAsync(\n            () => legacyHook.ZoomInKey == 0 &&\n'
+          start = text.index(start_marker)
+          end = text.index(end_marker, start)
+          replacement = '''        var miniScaleXBefore = miniMapScale.ScaleX;
+        var miniScaleYBefore = miniMapScale.ScaleY;
+        var miniTranslateXBefore = miniMapTranslate.X;
+        var miniTranslateYBefore = miniMapTranslate.Y;
+        var miniCenterX = mapContainer.ActualWidth / 2.0;
+        var miniCenterY = mapContainer.ActualHeight / 2.0;
+        var miniCanvasXBefore = (miniCenterX - miniTranslateXBefore) / miniScaleXBefore;
+        var miniCanvasYBefore = (miniCenterY - miniTranslateYBefore) / miniScaleYBefore;
+        var floorBefore = floorText.Text;
+
+        var movedUp = true;
+        await window.JunhyunMoveFloorUpAsync();
+        if (string.Equals(floorBefore, floorText.Text, StringComparison.Ordinal))
+        {
+            movedUp = false;
+            await window.JunhyunMoveFloorDownAsync();
+        }
+
+        await WaitForAsync(
+            () => !string.Equals(floorBefore, floorText.Text, StringComparison.Ordinal),
+            TimeSpan.FromSeconds(4));
+
+        AssertMiniMapFloorTransformPreserved(
+            miniMapScale,
+            miniMapTranslate,
+            mapContainer,
+            overlay.Settings,
+            miniScaleXBefore,
+            miniScaleYBefore,
+            miniTranslateXBefore,
+            miniTranslateYBefore,
+            miniCanvasXBefore,
+            miniCanvasYBefore,
+            "A→B");
+
+        if (movedUp)
+            await window.JunhyunMoveFloorDownAsync();
+        else
+            await window.JunhyunMoveFloorUpAsync();
+
+        await WaitForAsync(
+            () => string.Equals(floorBefore, floorText.Text, StringComparison.Ordinal),
+            TimeSpan.FromSeconds(4));
+
+        AssertMiniMapFloorTransformPreserved(
+            miniMapScale,
+            miniMapTranslate,
+            mapContainer,
+            overlay.Settings,
+            miniScaleXBefore,
+            miniScaleYBefore,
+            miniTranslateXBefore,
+            miniTranslateYBefore,
+            miniCanvasXBefore,
+            miniCanvasYBefore,
+            "A→B→A");
+
+'''
+          text = text[:start] + replacement + text[end:]
+
+          helper_marker = '    private static async Task WaitForAsync(Func<bool> condition, TimeSpan timeout)\n'
+          helper = '''    private static void AssertMiniMapFloorTransformPreserved(
+        ScaleTransform scale,
+        TranslateTransform translate,
+        Grid mapContainer,
+        TarkovHelper.Models.Map.OverlayMiniMapSettings settings,
+        double scaleXBefore,
+        double scaleYBefore,
+        double translateXBefore,
+        double translateYBefore,
+        double canvasXBefore,
+        double canvasYBefore,
+        string transition)
+    {
+        var centerX = mapContainer.ActualWidth / 2.0;
+        var centerY = mapContainer.ActualHeight / 2.0;
+        var canvasXAfter = (centerX - translate.X) / scale.ScaleX;
+        var canvasYAfter = (centerY - translate.Y) / scale.ScaleY;
+
+        if (Math.Abs(scale.ScaleX - scaleXBefore) > 0.000001 ||
+            Math.Abs(scale.ScaleY - scaleYBefore) > 0.000001 ||
+            Math.Abs(translate.X - translateXBefore) > 0.01 ||
+            Math.Abs(translate.Y - translateYBefore) > 0.01 ||
+            Math.Abs(canvasXAfter - canvasXBefore) > 0.01 ||
+            Math.Abs(canvasYAfter - canvasYBefore) > 0.01)
+        {
+            throw new InvalidOperationException(
+                $"MiniMap floor transition {transition} changed the visual transform: " +
+                $"scale ({scaleXBefore:F6},{scaleYBefore:F6})->({scale.ScaleX:F6},{scale.ScaleY:F6}), " +
+                $"translate ({translateXBefore:F2},{translateYBefore:F2})->({translate.X:F2},{translate.Y:F2}), " +
+                $"center ({canvasXBefore:F4},{canvasYBefore:F4})->({canvasXAfter:F4},{canvasYAfter:F4}).");
+        }
+
+        if (Math.Abs(settings.MapOffsetX - translate.X) > 0.01 ||
+            Math.Abs(settings.MapOffsetY - translate.Y) > 0.01 ||
+            Math.Abs(settings.ZoomLevel - scale.ScaleX) > 0.000001)
+        {
+            throw new InvalidOperationException(
+                $"MiniMap floor transition {transition} left persisted viewport state out of sync with the live transform.");
+        }
+    }
+
+'''
+          if helper_marker not in text:
+              raise SystemExit('WaitForAsync insertion marker not found')
+          text = text.replace(helper_marker, helper + helper_marker, 1)
+          host.write_text(text, encoding='utf-8')
+
+          project = Path('src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj')
+          project_text = project.read_text(encoding='utf-8')
+          old = '<Version>0.1.6</Version>'
+          if project_text.count(old) != 1:
+              raise SystemExit('Expected exactly one 0.1.6 version marker')
+          project.write_text(project_text.replace(old, '<Version>0.1.7</Version>', 1), encoding='utf-8')
+
+      - name: Remove one-shot workflow and commit
+        shell: bash
+        run: |
+          rm .github/workflows/prepare-v017-minimap.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/JunhyunHelper.Desktop/MainWindow.LegacyMapHost.cs src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj .github/workflows/prepare-v017-minimap.yml
+          git commit -m "Validate exact MiniMap floor transform"
+          git push
