@@ -452,13 +452,9 @@ public partial class MainWindow : TarkovHelper.MainWindow
         var miniCanvasYBefore = (miniCenterY - miniTranslateYBefore) / miniScaleYBefore;
         var floorBefore = floorText.Text;
 
-        var movedUp = true;
         await window.JunhyunMoveFloorUpAsync();
         if (string.Equals(floorBefore, floorText.Text, StringComparison.Ordinal))
-        {
-            movedUp = false;
             await window.JunhyunMoveFloorDownAsync();
-        }
 
         if (string.Equals(floorBefore, floorText.Text, StringComparison.Ordinal))
         {
