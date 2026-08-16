@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("JunhyunHelper.Core")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+bd4631b1b40e7a748645590f9ee12feb426393b0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+18e89e5511f3b3e7928fb3606b47971470502aad")]
 [assembly: System.Reflection.AssemblyProductAttribute("JunhyunHelper.Core")]
 [assembly: System.Reflection.AssemblyTitleAttribute("JunhyunHelper.Core")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
