@@ -16,8 +16,9 @@ jobs:
           submodules: recursive
           fetch-depth: 0
       - name: Strengthen MiniMap transform smoke and bump version
-        shell: python
+        shell: bash
         run: |
+          python - <<'PY'
           from pathlib import Path
 
           host = Path('src/JunhyunHelper.Desktop/MainWindow.LegacyMapHost.cs')
@@ -140,6 +141,7 @@ jobs:
           if project_text.count(old) != 1:
               raise SystemExit('Expected exactly one 0.1.6 version marker')
           project.write_text(project_text.replace(old, '<Version>0.1.7</Version>', 1), encoding='utf-8')
+          PY
 
       - name: Remove one-shot workflow and commit
         shell: bash
@@ -147,6 +149,6 @@ jobs:
           rm .github/workflows/prepare-v017-minimap.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/JunhyunHelper.Desktop/MainWindow.LegacyMapHost.cs src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj .github/workflows/prepare-v017-minimap.yml
+          git add -A
           git commit -m "Validate exact MiniMap floor transform"
           git push
