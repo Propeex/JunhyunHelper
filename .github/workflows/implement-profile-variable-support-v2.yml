@@ -1,0 +1,49 @@
+name: Implement Profile Variable Support V2
+
+on:
+  push:
+    branches: [agent/task-pool-support-2026-08-17]
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/task-pool-support-2026-08-17
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Reapply implementation and fix test source
+        shell: python
+        run: |
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/implement-profile-variable-support.yml').read_text(encoding='utf-8')
+          marker = '      - name: Apply profile-variable support\n        shell: python\n        run: |\n'
+          start = workflow.index(marker) + len(marker)
+          end = workflow.index('\n      - name: Test', start)
+          block = workflow[start:end]
+          patch_script = '\n'.join(
+              line[10:] if line.startswith('          ') else line
+              for line in block.splitlines())
+          exec(compile(patch_script, '<profile-variable-patch>', 'exec'), {})
+
+          Path('tests/JunhyunHelper.Tests/TarkovJson/TarkovProfileVariableRequirementTests.cs').write_text('''using System.Reflection;\nusing System.Text.Json;\nusing JunhyunHelper.Core.Quests;\nusing JunhyunHelper.Infrastructure.TarkovJson;\nusing Xunit;\n\nnamespace JunhyunHelper.Tests.TarkovJson;\n\npublic sealed class TarkovProfileVariableRequirementTests\n{\n    [Fact]\n    public void GlobalVariablePayloadBecomesStructuredSupportedRequirement()\n    {\n        using var json = JsonDocument.Parse(\n            \"{\\\"tasks\\\":[{\\\"id\\\":\\\"quest-a\\\",\\\"otherRequirements\\\":[{\\\"type\\\":\\\"globalVariable\\\",\\\"variableId\\\":\\\"pool-x\\\",\\\"compareMethod\\\":\\\">=\\\",\\\"value\\\":3}]}]}\");\n        var method = ImportMethod();\n\n        var result = Assert.IsAssignableFrom<IReadOnlyList<QuestDefinition>>(\n            method.Invoke(null, new object[] { new[] { CreateQuest() }, json.RootElement }));\n        var imported = Assert.Single(result);\n\n        var requirement = Assert.Single(imported.ProfileVariableRequirements);\n        Assert.Equal(\"pool-x\", requirement.VariableId);\n        Assert.Equal(3, requirement.RequiredValue);\n        Assert.Equal(ProfileVariableRequirementOperator.AtLeast, requirement.Operator);\n        Assert.DoesNotContain(\"globalVariable\", imported.UnsupportedAvailabilityRequirements);\n    }\n\n    [Fact]\n    public void UnknownGlobalVariableShapeFailsClosedAsUnsupported()\n    {\n        using var json = JsonDocument.Parse(\n            \"{\\\"tasks\\\":[{\\\"id\\\":\\\"quest-a\\\",\\\"otherRequirements\\\":[{\\\"type\\\":\\\"globalVariable\\\",\\\"variableId\\\":\\\"pool-x\\\",\\\"compareMethod\\\":\\\"!=\\\",\\\"value\\\":3}]}]}\");\n        var method = ImportMethod();\n\n        var result = Assert.IsAssignableFrom<IReadOnlyList<QuestDefinition>>(\n            method.Invoke(null, new object[] { new[] { CreateQuest() }, json.RootElement }));\n        var imported = Assert.Single(result);\n\n        Assert.Empty(imported.ProfileVariableRequirements);\n        Assert.Contains(\"globalVariable\", imported.UnsupportedAvailabilityRequirements);\n    }\n\n    private static MethodInfo ImportMethod() =>\n        typeof(TarkovGameContentImporter).GetMethod(\n            \"ApplyUnsupportedAvailabilityRequirements\",\n            BindingFlags.NonPublic | BindingFlags.Static)\n        ?? throw new InvalidOperationException(\"Importer method not found.\");\n\n    private static QuestDefinition CreateQuest() =>\n        new(\n            Id: \"quest-a\",\n            NameKo: null,\n            NameEn: null,\n            TraderId: null,\n            MapId: null,\n            WikiUrl: null,\n            Experience: null,\n            KappaRequired: false,\n            LightkeeperRequired: false,\n            Disabled: false,\n            MinimumPlayerLevel: 1,\n            RequiredFaction: null,\n            RequiredPrestigeLevel: null,\n            TaskRequirements: [],\n            TraderStandingRequirements: [],\n            TraderLoyaltyRequirements: []);\n}\n''', encoding='utf-8')
+      - name: Test
+        run: dotnet test tests/JunhyunHelper.Tests/JunhyunHelper.Tests.csproj --configuration Release
+      - name: Commit implementation
+        shell: bash
+        run: |
+          rm .github/workflows/implement-profile-variable-support.yml
+          rm .github/workflows/implement-profile-variable-support-v2.yml
+          git config user.name "Propeex"
+          git config user.email "60839060+Propeex@users.noreply.github.com"
+          git add -A
+          git commit -m "Support exact EFT profile variable quest gates"
+          git push origin HEAD:agent/task-pool-support-2026-08-17
