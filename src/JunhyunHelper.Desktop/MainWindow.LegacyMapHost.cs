@@ -460,9 +460,11 @@ public partial class MainWindow : TarkovHelper.MainWindow
             await window.JunhyunMoveFloorDownAsync();
         }
 
-        await WaitForAsync(
-            () => !string.Equals(floorBefore, floorText.Text, StringComparison.Ordinal),
-            TimeSpan.FromSeconds(4));
+        if (string.Equals(floorBefore, floorText.Text, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"MiniMap did not change floor after product floor command. floor={floorBefore}");
+        }
 
         AssertMiniMapFloorTransformPreserved(
             miniMapScale,
@@ -482,9 +484,12 @@ public partial class MainWindow : TarkovHelper.MainWindow
         else
             await window.JunhyunMoveFloorUpAsync();
 
-        await WaitForAsync(
-            () => string.Equals(floorBefore, floorText.Text, StringComparison.Ordinal),
-            TimeSpan.FromSeconds(4));
+        if (!string.Equals(floorBefore, floorText.Text, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"MiniMap A→B:→A floor command did not return to the original floor: " +
+                $${floorBefore} -> ${floorText.Text}.");
+        }
 
         AssertMiniMapFloorTransformPreserved(
             miniMapScale,
