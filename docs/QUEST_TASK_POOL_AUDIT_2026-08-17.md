@@ -2,9 +2,21 @@
 
 ## Status
 
-**AUDIT COMPLETE / PRODUCT SEMANTICS NOT YET CONFIRMED**
+**AUDIT COMPLETE / PRODUCT POLICY CONFIRMED — DEC-044**
 
-This document records evidence gathered after v0.1.6 when many quests appeared as `확인 필요` because their live `otherRequirements` contained `globalVariable`. It intentionally does **not** authorize guessing unknown profile-variable values. A product decision is still required before the staged-pool inference described below becomes an availability rule.
+This document records evidence gathered after v0.1.6 when many quests appeared as `확인 필요` because their live `otherRequirements` contained `globalVariable`. It intentionally does **not** authorize guessing unknown profile-variable values. DEC-044 now defines the product boundary: exact read-side conditions are supported, while unobserved values and undocumented server write rules remain conservative.
+
+## Confirmed implementation policy — 2026-08-17
+
+The user confirmed that JunhyunHelper should implement every exact part of this mechanism and leave only the genuinely unknowable part conservative. DEC-044 therefore adopts the following boundary:
+
+- preserve and evaluate the exact read-side `globalVariable` condition,
+- persist exact EFT profile `Variables` values when a safe observation/import source provides them,
+- never invent a missing variable value from trader LL or completed-task counts,
+- keep only the unobserved current value / undocumented server write rule as `확인 필요`,
+- fail closed if a future patch changes the supported `>= integer` shape.
+
+This supersedes the pre-decision option analysis below where it conflicts with DEC-044.
 
 ## Executive conclusion
 

@@ -177,3 +177,13 @@
 - 기존 구현 예외/참고 정책: `docs/REFERENCE_POLICY.md`
 
 과거 DEC-001~029의 원문 이유가 필요하면 반드시 역사 파일의 같은 ID를 확인합니다.
+
+## DEC-044 — EFT profile-variable Quest gate는 정확한 read-side 조건을 지원하고 미관측 값은 추측하지 않는다
+
+- 상태: `CONFIRMED`
+- 날짜: 2026-08-17
+- 결정: `json.tarkov.dev`의 `globalVariable` availability requirement를 더 이상 opaque unsupported 문자열로 축약하지 않고 `variableId`, 비교 연산자, 요구값을 canonical Quest 조건으로 보존한다. 현재 EFT profile의 동일 변수 정수값이 관측되어 있으면 그 값으로 gate를 정확히 판정하고, 값이 요구 임계값보다 낮으면 `Locked`, 충족하면 해당 gate를 통과한 것으로 판정한다. 현재 변수값을 관측할 수 없으면 0이나 완료 Quest 수로 임의 재구성하지 않고 해당 fact만 `Indeterminate`로 남긴다. 향후 scanner/importer가 EFT profile payload의 `Variables` 값을 안전하게 확보하면 동일 user profile fact에 동기화한다.
+- 이유: 2026-08-17 live 감사에서 162개의 `globalVariable` 사용은 27개의 trader-local 단계형 변수로 압축되며 EFT 1.1 side-task pool 구조와 강하게 일치했다. 그러나 공개 task feed에는 `X >= N`이라는 read-side 조건만 있고 어떤 Quest 완료가 X를 증가/설정하는지에 대한 authoritative server write rule은 없다. 반면 EFT client profile model에는 정수 `Variables` dictionary가 존재하므로 정확한 현재 값을 관측할 수 있는 source가 확보되면 server write rule을 역추정할 필요 없이 정확 판정할 수 있다.
+- 영향: development Content schema는 v7이다. v3~v6 snapshot은 계속 읽을 수 있고, 새 정상 데이터 업데이트는 structured profile-variable requirement를 v7에 저장한다. `GameProfileSnapshot.ProfileVariables`는 optional exact fact이며 key 부재는 unknown을 뜻한다. user.db SQLite schema는 v1을 유지하고 optional JSON property로 값을 저장한다. 지원하지 않는 미래 연산자/변형된 globalVariable shape는 계속 fail-closed `확인 필요`로 처리한다.
+- 대체한 결정: `DEC-038`의 “globalVariable 자체를 unsupported availability로 취급한다”는 부분을 대체한다. `프로그램이 증명할 수 없는 fact는 추측하지 않는다`는 보수적 정확도 원칙과 `DEC-039`의 `확인 필요` 정책은 유지한다.
+

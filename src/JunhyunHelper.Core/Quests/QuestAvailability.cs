@@ -20,6 +20,7 @@ public enum QuestAvailabilityReasonKind
     Prestige,
     TraderStanding,
     TraderLoyalty,
+    ProfileVariable,
     SpecialTraderAccess,
     Prerequisite,
     PrerequisiteUnavailable,

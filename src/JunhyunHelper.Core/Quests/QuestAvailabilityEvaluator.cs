@@ -206,6 +206,32 @@ public sealed class QuestAvailabilityEvaluator
                 QuestAvailabilityReasonKind.Disabled));
         }
 
+        foreach (var requirement in quest.ProfileVariableRequirements)
+        {
+            if (!_profile.ProfileVariables.TryGetValue(requirement.VariableId, out var currentValue))
+            {
+                unknownReasons.Add(new QuestAvailabilityReason(
+                    QuestAvailabilityReasonKind.MissingProfileValue,
+                    $"profileVariable:{requirement.VariableId}"));
+                continue;
+            }
+
+            var met = requirement.Operator switch
+            {
+                ProfileVariableRequirementOperator.AtLeast =>
+                    currentValue >= requirement.RequiredValue,
+                _ => throw new InvalidDataException(
+                    $"Unsupported profile variable operator '{requirement.Operator}'."),
+            };
+
+            if (!met)
+            {
+                lockedReasons.Add(new QuestAvailabilityReason(
+                    QuestAvailabilityReasonKind.ProfileVariable,
+                    requirement.VariableId));
+            }
+        }
+
         foreach (var requirementType in quest.UnsupportedAvailabilityRequirements)
         {
             unknownReasons.Add(new QuestAvailabilityReason(

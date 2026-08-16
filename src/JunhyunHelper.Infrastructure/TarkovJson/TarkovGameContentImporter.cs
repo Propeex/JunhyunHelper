@@ -228,11 +228,14 @@ public sealed class TarkovGameContentImporter
         JsonElement taskData)
     {
         var unsupportedByQuest = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+        var profileVariablesByQuest =
+            new Dictionary<string, IReadOnlyList<QuestProfileVariableRequirement>>(StringComparer.Ordinal);
 
         foreach (var rawTask in TarkovJsonReader.ReadCollection(taskData, "tasks"))
         {
             var questId = TarkovJsonReader.RequiredString(rawTask, "id", "Quest");
             var types = new HashSet<string>(StringComparer.Ordinal);
+            var profileVariables = new List<QuestProfileVariableRequirement>();
 
             if (rawTask.TryGetProperty("otherRequirements", out var rawRequirements) &&
                 rawRequirements.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined))
@@ -241,10 +244,21 @@ public sealed class TarkovGameContentImporter
                              rawRequirements,
                              $"quest {questId} other requirements"))
                 {
-                    types.Add(TarkovJsonReader.RequiredString(
+                    var type = TarkovJsonReader.RequiredString(
                         raw,
                         "type",
-                        $"Quest '{questId}' additional requirement"));
+                        $"Quest '{questId}' additional requirement");
+
+                    if (string.Equals(type, "globalVariable", StringComparison.Ordinal) &&
+                        TryParseProfileVariableRequirement(raw, out var profileVariable))
+                    {
+                        profileVariables.Add(profileVariable);
+                        continue;
+                    }
+
+                    // Unknown/malformed future conditions stay fail-closed. In particular,
+                    // a changed globalVariable schema is never guessed.
+                    types.Add(type);
                 }
             }
 
@@ -252,10 +266,6 @@ public sealed class TarkovGameContentImporter
             var maxDelay = TarkovJsonReader.OptionalInt(rawTask, "availableDelaySecondsMax") ?? minDelay;
             if (minDelay > 0 || maxDelay > 0)
             {
-                // The source exposes a server-side delay window but JunhyunHelper does
-                // not know the player's real in-game prerequisite completion timestamp.
-                // Preserve the numeric metadata on QuestDefinition and mark availability
-                // as unresolved rather than inventing a countdown from a UI click time.
                 types.Add(AvailabilityDelayRequirementType);
             }
 
@@ -265,12 +275,63 @@ public sealed class TarkovGameContentImporter
                     .Order(StringComparer.Ordinal)
                     .ToArray();
             }
+
+            if (profileVariables.Count > 0)
+            {
+                profileVariablesByQuest[questId] = profileVariables
+                    .OrderBy(requirement => requirement.VariableId, StringComparer.Ordinal)
+                    .ThenBy(requirement => requirement.RequiredValue)
+                    .ToArray();
+            }
         }
 
         return quests
-            .Select(quest => unsupportedByQuest.TryGetValue(quest.Id, out var types)
-                ? quest with { UnsupportedAvailabilityRequirementTypes = types }
-                : quest)
+            .Select(quest =>
+            {
+                unsupportedByQuest.TryGetValue(quest.Id, out var types);
+                profileVariablesByQuest.TryGetValue(quest.Id, out var profileVariables);
+                return quest with
+                {
+                    UnsupportedAvailabilityRequirementTypes = types,
+                    ProfileVariableRequirementData = profileVariables,
+                };
+            })
             .ToArray();
     }
+
+    private static bool TryParseProfileVariableRequirement(
+        JsonElement raw,
+        out QuestProfileVariableRequirement requirement)
+    {
+        requirement = null!;
+
+        var variableId = TarkovJsonReader.OptionalString(raw, "variableId");
+        var compareMethod = TarkovJsonReader.OptionalString(raw, "compareMethod");
+        var value = TarkovJsonReader.OptionalInt(raw, "value");
+
+        // Some producers may nest the payload under globalVariable. Accept that exact
+        // shape too, but never infer missing fields.
+        if (raw.TryGetProperty("globalVariable", out var nested) &&
+            nested.ValueKind == JsonValueKind.Object)
+        {
+            variableId ??= TarkovJsonReader.OptionalString(nested, "id") ??
+                           TarkovJsonReader.OptionalString(nested, "variableId");
+            compareMethod ??= TarkovJsonReader.OptionalString(nested, "compareMethod");
+            value ??= TarkovJsonReader.OptionalInt(nested, "value");
+        }
+
+        if (string.IsNullOrWhiteSpace(variableId) ||
+            !string.Equals(compareMethod, ">=", StringComparison.Ordinal) ||
+            value is null)
+        {
+            return false;
+        }
+
+        requirement = new QuestProfileVariableRequirement(
+            variableId.Trim(),
+            value.Value,
+            ProfileVariableRequirementOperator.AtLeast);
+        return true;
+    }
+
 }

@@ -8,6 +8,17 @@
 
 현재 공개 릴리즈는 **v0.1.6**입니다.
 
+### Post-v0.1.6 development main — EFT 1.1 profile-variable Quest gates
+
+- development Content schema: **v7**; readable: v3~v7
+- live `globalVariable` availability를 `variableId / operator / value` 구조로 canonical DB에 보존
+- exact profile variable value가 있으면 Quest gate를 정확 판정
+- exact value가 없으면 0이나 완료 Quest 수를 추측하지 않고 해당 fact만 `확인 필요`
+- `GameProfileSnapshot.ProfileVariables` 및 user.db optional JSON property로 exact value 저장 가능
+- 미래 source가 `>= integer` 계약을 벗어나면 자동 추측하지 않고 fail-closed
+- 공개 feed에 없는 server-side 변수 증가/write rule은 여전히 외부에서 증명할 수 없는 영역
+- 상세: `docs/QUEST_TASK_POOL_AUDIT_2026-08-17.md`, `DEC-044`
+
 ```text
 release baseline: 0e4683409b62fd326c5605f1485be896e2216836
 Desktop ProductVersion: 0.1.6
