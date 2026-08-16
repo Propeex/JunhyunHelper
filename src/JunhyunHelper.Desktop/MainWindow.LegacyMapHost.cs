@@ -487,8 +487,8 @@ public partial class MainWindow : TarkovHelper.MainWindow
         if (!string.Equals(floorBefore, floorText.Text, StringComparison.Ordinal))
         {
             throw new InvalidOperationException(
-                $"MiniMap A→B:→A floor command did not return to the original floor: " +
-                $${floorBefore} -> ${floorText.Text}.");
+                $"MiniMap A→B→A floor command did not return to the original floor: " +
+                $"{floorBefore} -> {floorText.Text}.");
         }
 
         AssertMiniMapFloorTransformPreserved(
@@ -502,7 +502,7 @@ public partial class MainWindow : TarkovHelper.MainWindow
             miniTranslateYBefore,
             miniCanvasXBefore,
             miniCanvasYBefore,
-            "A→BₒA");
+            "A→B→A");
 
         await WaitForAsync(
             () => legacyHook.ZoomInKey == 0 &&
