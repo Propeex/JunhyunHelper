@@ -210,4 +210,39 @@ public sealed class UserProfileStoreTests
         Directory.CreateDirectory(path);
         return path;
     }
+
+    [Fact]
+    public async Task RoundTripsProfileVariablesWithoutSchemaMigration()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"junhyun-helper-profile-vars-{Guid.NewGuid():N}.db");
+        try
+        {
+            var store = new UserProfileStore(path);
+            var profile = new GameProfileSnapshot
+            {
+                ProfileId = "profile-vars",
+                GameMode = GameMode.Regular,
+                Level = 10,
+                Faction = PmcFaction.Usec,
+                ProfileVariables = new Dictionary<string, int>
+                {
+                    ["6a20540cf1b67a977cc5a088"] = 3,
+                },
+            };
+
+            await store.SaveAsync(profile, TestContext.Current.CancellationToken);
+            var loaded = await new UserProfileStore(path).LoadAsync(
+                profile.ProfileId,
+                TestContext.Current.CancellationToken);
+
+            Assert.NotNull(loaded);
+            Assert.Equal(3, loaded!.ProfileVariables["6a20540cf1b67a977cc5a088"]);
+        }
+        finally
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+    }
+
 }

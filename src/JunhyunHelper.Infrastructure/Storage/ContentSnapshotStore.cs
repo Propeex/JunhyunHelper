@@ -17,13 +17,12 @@ public sealed record StoredContentSnapshot(
 
 public sealed class ContentSnapshotStore
 {
-    // v3-v5 remain readable as last-known-good offline snapshots. v6 separates
-    // recoverable special-trader access (Lightkeeper) from monotonic quest prerequisites
-    // and preserves precise upstream BTR/Ref prerequisite statuses. A successful data
-    // update writes v6; older readable snapshots are never destroyed merely because the
-    // app was upgraded while offline.
+    // v3-v6 remain readable as last-known-good offline snapshots. v7 preserves
+    // structured EFT profile-variable availability requirements instead of collapsing
+    // globalVariable into an opaque unsupported type. A successful data update writes v7;
+    // older readable snapshots remain usable while offline and simply lack that new data.
     public const int MinimumReadableSchemaVersion = 3;
-    public const int CurrentSchemaVersion = 6;
+    public const int CurrentSchemaVersion = 7;
 
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
 

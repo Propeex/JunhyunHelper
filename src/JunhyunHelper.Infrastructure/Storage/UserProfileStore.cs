@@ -224,6 +224,12 @@ public sealed class UserProfileStore
                 throw new InvalidDataException("Special trader access override id cannot be empty.");
         }
 
+        foreach (var variableId in profile.ProfileVariables.Keys)
+        {
+            if (string.IsNullOrWhiteSpace(variableId))
+                throw new InvalidDataException("Profile variable id cannot be empty.");
+        }
+
         foreach (var (stationId, level) in profile.HideoutLevels)
         {
             if (string.IsNullOrWhiteSpace(stationId) || level < 0)
@@ -279,6 +285,8 @@ public sealed class UserProfileStore
         public string[] FailedQuestIds { get; init; } = [];
         public Dictionary<string, bool> SpecialTraderAccessOverrides { get; init; } =
             new(StringComparer.Ordinal);
+        public Dictionary<string, int> ProfileVariables { get; init; } =
+            new(StringComparer.Ordinal);
         public Dictionary<string, int> HideoutLevels { get; init; } =
             new(StringComparer.Ordinal);
         public Dictionary<string, InventoryQuantity> Inventory { get; init; } =
@@ -303,6 +311,9 @@ public sealed class UserProfileStore
                 SpecialTraderAccessOverrides = new Dictionary<string, bool>(
                     snapshot.SpecialTraderAccessOverrides,
                     StringComparer.Ordinal),
+                ProfileVariables = new Dictionary<string, int>(
+                    snapshot.ProfileVariables,
+                    StringComparer.Ordinal),
                 HideoutLevels = new Dictionary<string, int>(snapshot.HideoutLevels, StringComparer.Ordinal),
                 Inventory = new Dictionary<string, InventoryQuantity>(snapshot.Inventory, StringComparer.Ordinal),
                 QuestConsumptions = CopyConsumptions(snapshot.QuestConsumptions),
@@ -323,6 +334,9 @@ public sealed class UserProfileStore
                 FailedQuestIds = new HashSet<string>(FailedQuestIds, StringComparer.Ordinal),
                 SpecialTraderAccessOverrides = new Dictionary<string, bool>(
                     SpecialTraderAccessOverrides,
+                    StringComparer.Ordinal),
+                ProfileVariables = new Dictionary<string, int>(
+                    ProfileVariables,
                     StringComparer.Ordinal),
                 HideoutLevels = new Dictionary<string, int>(HideoutLevels, StringComparer.Ordinal),
                 Inventory = new Dictionary<string, InventoryQuantity>(Inventory, StringComparer.Ordinal),

@@ -35,6 +35,13 @@ public sealed record GameProfileSnapshot
     public IReadOnlyDictionary<string, bool> SpecialTraderAccessOverrides { get; init; } =
         new Dictionary<string, bool>(StringComparer.Ordinal);
 
+    /// <summary>
+    /// Exact EFT profile integer variables (the client profile payload calls this
+    /// collection "Variables"). Missing keys are unknown facts, never zero.
+    /// </summary>
+    public IReadOnlyDictionary<string, int> ProfileVariables { get; init; } =
+        new Dictionary<string, int>(StringComparer.Ordinal);
+
     public IReadOnlyDictionary<string, int> HideoutLevels { get; init; } =
         new Dictionary<string, int>(StringComparer.Ordinal);
 

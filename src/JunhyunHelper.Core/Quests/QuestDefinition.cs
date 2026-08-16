@@ -44,6 +44,21 @@ public sealed record QuestTraderLoyaltyRequirement(
     string TraderId,
     int RequiredLoyaltyLevel);
 
+public enum ProfileVariableRequirementOperator
+{
+    AtLeast,
+}
+
+/// <summary>
+/// Exact read-side condition exposed by EFT/json.tarkov.dev for per-profile integer
+/// variables. The condition is deterministic only when the current profile value is
+/// known; JunhyunHelper never invents the server-side write/increment rule.
+/// </summary>
+public sealed record QuestProfileVariableRequirement(
+    string VariableId,
+    int RequiredValue,
+    ProfileVariableRequirementOperator Operator);
+
 public sealed record QuestDefinition(
     string Id,
     string? NameKo,
@@ -67,11 +82,16 @@ public sealed record QuestDefinition(
     IReadOnlyList<string>? UnsupportedFailureConditionTypes = null,
     int AvailableDelaySecondsMin = 0,
     int AvailableDelaySecondsMax = 0,
-    QuestSpecialTraderAccessRequirement? SpecialTraderAccessRequirement = null)
+    QuestSpecialTraderAccessRequirement? SpecialTraderAccessRequirement = null,
+    IReadOnlyList<QuestProfileVariableRequirement>? ProfileVariableRequirementData = null)
 {
     [JsonIgnore]
     public IReadOnlyList<string> UnsupportedAvailabilityRequirements =>
         UnsupportedAvailabilityRequirementTypes ?? Array.Empty<string>();
+
+    [JsonIgnore]
+    public IReadOnlyList<QuestProfileVariableRequirement> ProfileVariableRequirements =>
+        ProfileVariableRequirementData ?? Array.Empty<QuestProfileVariableRequirement>();
 
     [JsonIgnore]
     public IReadOnlyList<QuestCompletionFailureCondition> CompletionFailureConditions =>
