@@ -4,32 +4,34 @@
 
 ## 현재 공개 상태
 
-**v0.1.10 PUBLIC RELEASE / VERIFIED — Windows x64**
+**v0.1.11 PUBLIC RELEASE / VERIFIED — Windows x64**
 
 ```text
-release tag: v0.1.10
-release baseline: cc8d968deb6cbb07029fa35186ec3a3881d5c97f
-Desktop ProductVersion: 0.1.10+cc8d968deb6cbb07029fa35186ec3a3881d5c97f
+release tag: v0.1.11
+release baseline: 88a732c70380b4c764634eff6fd01a16eb849b14
+Desktop ProductVersion: 0.1.11+88a732c70380b4c764634eff6fd01a16eb849b14
 Content schema: v7
 Readable Content schemas: v3, v4, v5, v6, v7
 user.db SQLite schema: v1
-feature PR: #90
-feature PR CI: 32007776178 — SUCCESS
-feature main CI: 32008009801 — SUCCESS
-release candidate PR: #91
-release candidate PR CI: 32011089823 — SUCCESS
-release baseline main CI: 32011299363 — SUCCESS
-release workflow: 32011564563 — SUCCESS
+feature PR: #92
+feature PR CI: 32014857527 — SUCCESS
+feature main CI: 32015175679 — SUCCESS
+release candidate PR: #93
+release candidate PR CI: 32015691464 — SUCCESS
+release baseline main CI: 32015968523 — SUCCESS
+release workflow: 32018616694 — SUCCESS
 automated tests: 210 passed / 0 failed / 0 skipped
-public asset: Junhyun-Helper-v0.1.10-win-x64.zip
-public asset size: 74,067,151 bytes
-public SHA-256: 0d32f2344feb1e9088460830e6cff4bbd527198b1e191a177f7a8652e6efd998
-public release: https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.10
+public asset: Junhyun-Helper-v0.1.11-win-x64.zip
+public asset size: 74,063,248 bytes
+public SHA-256: 1293cc20c09240c4bdafd6fb45ecb5d0bc37857e12e58f60e31dff620e01b426
+public release: https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.11
 ```
 
-공개 ZIP은 Release 생성 뒤 다시 다운로드해 SHA-256을 재검증했습니다. Release는 draft/prerelease가 아닌 정식 공개 상태이며 target commit은 정확히 release baseline과 일치합니다.
+공개 ZIP은 Release 생성 뒤 다시 다운로드해 SHA-256을 재검증했습니다. Release는 `draft=false`, `prerelease=false`이며 target commit은 정확히 release baseline과 일치합니다.
 
-상세: `docs/RELEASE_0.1.10.md`
+상세: `docs/RELEASE_0.1.11.md`
+
+v0.1.11은 v0.1.10의 Quest `확인 필요` 수정은 그대로 유지하면서, v0.1.10에서 runtime visual-tree 후처리로 구현되어 실제 화면에 안정적으로 반영되지 않던 Items / Ammo / Map UI를 **원본 XAML / 원본 UI 생성 코드에서 직접 수정한 교정 릴리즈**입니다.
 
 ---
 
@@ -90,7 +92,7 @@ v0.1.10부터 LL1은 **증명 가능한 초기 상태만** 추가 처리합니�
 
 이 규칙은 generic server write rule을 발명한 것이 아닙니다. 새 variable ID나 진행된 LL1 값을 Quest 이름/ObjectId/유사성으로 역산하지 않습니다.
 
-상세: `docs/QUEST_TASK_POOL_AUDIT_2026-08-17.md`, `docs/DECISION_TASK_POOL_RUNTIME_COMPATIBILITY_2026-08-17.md`, `docs/RELEASE_0.1.10.md`, `DEC-044`
+상세: `docs/QUEST_TASK_POOL_AUDIT_2026-08-17.md`, `docs/DECISION_TASK_POOL_RUNTIME_COMPATIBILITY_2026-08-17.md`, `DEC-044`
 
 ### Dialogue availability compatibility
 
@@ -113,9 +115,9 @@ v0.1.10부터 LL1은 **증명 가능한 초기 상태만** 추가 처리합니�
 - 검증되지 않은 새 dialogue는 `확인 필요`
 - LL1 task-pool은 pristine LL1 zero 또는 exact current 값으로 증명되지 않으면 `확인 필요`
 - 실제 완료 시각 기반 availability delay는 completion timestamp가 없으면 `확인 필요`
-- Battery Change처럼 upstream 자체가 의심스러운 데이터는 근거 없이 임의 보정하지 않음
+- upstream 자체가 의심스러운 데이터는 근거 없이 임의 보정하지 않음
 
-raw source 자체의 unresolved ceiling은 profile fact를 적용하기 전 기준으로 여전히 다음과 같습니다.
+profile fact 적용 전 raw unresolved ceiling:
 
 ```text
 LL1 task-pool globalVariable: 48 Quest
@@ -123,20 +125,20 @@ availability delay: 13 Quest
 structural union: 61 Quest
 ```
 
-v0.1.10의 pristine LL1 rule은 **사용자 profile fact를 이용해 이 중 일부를 Locked로 확정**하므로, 새 LL1 profile의 실제 UI `확인 필요`는 이 raw 구조 수치보다 크게 줄 수 있습니다. 진행된 profile은 exact 값이 없으면 일부 LL1 항목이 계속 남을 수 있습니다.
+pristine LL1 rule은 사용자 profile fact로 이 중 일부를 `Locked`로 확정합니다. 진행된 profile은 exact 값이 없으면 일부 LL1 항목이 계속 남을 수 있습니다.
 
 ---
 
 ## Needed Items / cleanup 안전성
 
-Quest 화면에서 false `확인 필요`를 줄이는 compatibility와 future item cleanup의 보수성은 분리합니다.
+Quest 화면의 availability compatibility와 future item cleanup의 보수성은 분리합니다.
 
 - `FutureNeededItemsPlanner`의 future reachability는 missing profile-variable fact를 계속 `IndeterminatePotential`로 보호
 - unresolved future Quest의 Item도 Needed Items에 포함
 - flexible hand-in alternative candidate도 cleanup protection 유지
 - Quest 완료/실패처럼 prerequisite/필요 Item이 바뀌는 사건은 full recalculation 유지
 
-따라서 Quest UI를 더 정확하게 분류하기 위해 실제 필요한 미래 아이템을 잘못 `정리 가능`으로 완화하지 않습니다.
+따라서 Quest UI의 false `확인 필요`를 줄이기 위해 실제 필요한 미래 Item을 잘못 `정리 가능`으로 완화하지 않습니다.
 
 ---
 
@@ -152,14 +154,7 @@ v0.1.9부터 inventory 수량 변경은 수량과 무관한 planning 구조를 �
 - cleanup protections
 - unentered Hideout station state
 
-수량 변경에서는 다음만 다시 계산합니다.
-
-- Needed quantity
-- cleanup/surplus
-- flexible-owned progress
-- 변경된 Items row 표시
-
-이미 decode된 Item icon도 재사용하고 전체 icon load pipeline을 수량 변경마다 취소/재시작하지 않습니다.
+수량 변경에서는 Needed quantity / cleanup·surplus / flexible-owned progress / 변경된 Items row 표시만 다시 계산합니다. 이미 decode된 Item icon도 재사용하고 전체 icon load pipeline을 매번 취소/재시작하지 않습니다.
 
 Quest 완료/실패, Hideout level, profile prerequisite fact 변경은 정확성을 위해 planning basis를 full rebuild합니다.
 
@@ -171,7 +166,7 @@ Quest 완료/실패, Hideout level, profile prerequisite fact 변경은 정확�
 Current Content schema: v7
 Readable Content schemas: v3, v4, v5, v6, v7
 user.db SQLite schema: v1 unchanged
-v0.1.9 → v0.1.10 mandatory data update: none
+v0.1.10 → v0.1.11 mandatory data update: none
 ```
 
 다음 정상 `데이터 업데이트`가 성공하면 v7 snapshot으로 저장합니다.
@@ -197,12 +192,12 @@ Map subsystem은 독립이고 Quest만 JunhyunHelper current profile/content와 
 - 제품용 marker setting은 `%LocalAppData%/JunhyunHelper/map-product-settings.json`을 권위값으로 사용
 - `퀘스트 마커 표시`도 persisted product value를 권위값으로 하며 late legacy initialization이 덮지 못하도록 재적용
 - MiniMap hover 투명화는 heavy map synchronization과 분리한 lightweight 16ms Input-priority 감지 사용
-- v0.1.10에서 current Quest sidebar의 **실제 동적 인스턴스에도** polish bridge를 자동 연결
-- sidebar Quest row는 checkbox / 34px A·B·C marker lane / text star lane을 분리하고 제목을 marker 바로 뒤에서 좌측 정렬
+- v0.1.11에서 current Quest sidebar는 생성 시점부터 `30px checkbox | 34px A·B·C marker | * quest text` 구조를 사용
+- runtime `LegacyMapQuestSidebarPolishBridge`는 제거됨
 
-상세: `docs/MINIMAP_FLOOR_FRAME_2026-08-17.md`, `docs/USABILITY_STABILITY_PASS_2026-08-17.md`, `docs/FEEDBACK_FIXES_2026-08-17.md`, `docs/RELEASE_0.1.10.md`
+상세: `docs/MINIMAP_FLOOR_FRAME_2026-08-17.md`, `docs/USABILITY_STABILITY_PASS_2026-08-17.md`, `docs/FEEDBACK_FIXES_2026-08-17.md`, `docs/RELEASE_0.1.11.md`
 
-v0.1.10 공개 baseline publish 실행본으로 startup + Main Map + Factory + MiniMap + 정상 종료를 재검증했습니다.
+v0.1.11 공개 baseline publish 실행본으로 startup + Main Map + Factory + MiniMap + 정상 종료를 재검증했습니다.
 
 ---
 
@@ -210,14 +205,15 @@ v0.1.10 공개 baseline publish 실행본으로 startup + Main Map + Factory + M
 
 ### Items / flexible hand-in
 
-v0.1.10에서 flexible candidate row를 일반 Item list와 동일한 구조로 다시 만들었습니다.
+v0.1.11에서 `FlexibleCandidateTemplate` 자체가 최종 레이아웃을 소유합니다.
 
 - 68px row rhythm
-- icon frame 44px / image 44px
+- icon frame 44px
 - 아이콘 clipping 없음
 - icon + 이름/분류 좌측 정렬
 - 인레이드 / 일반 보유량 우측 고정 lane
 - 한 줄 이름 + ellipsis
+- runtime visual-tree rewrite 제거
 
 ### Ammo
 
@@ -225,11 +221,11 @@ v0.1.10에서 flexible candidate row를 일반 Item list와 동일한 구조로 
 - 검색은 name/caliber로 가능하고 결과 클릭 시 exact caliber table + exact Ammo row 선택
 - 검색 popup 표시는 image + name
 - 중복 `구경`, `즐겨찾기` label 제거
-- caliber selector 폭 축소
-- 즐겨찾기 toggle은 `☆ / ★`만 표시
-- favorites 선택 버튼 별도 유지
-- 하단 detail은 중앙 정렬 전용 접기/펼치기 toggle
-- 접으면 detail row와 splitter까지 축소
+- caliber selector 160px fixed
+- 즐겨찾기 toggle은 `☆ / ★`, 38px fixed
+- favorites selector 170px fixed
+- 하단 detail toggle과 detail host는 원본 XAML에 직접 존재
+- runtime 코드는 expansion state만 제어
 
 ### 검색 clear
 
@@ -250,8 +246,8 @@ Quest / Hideout / Items / Ammo 검색창 우측에 `×` 버튼을 제공합니�
 | Quest | 구현 완료 / `확인 필요` 분리 / special trader + exact profile-variable + audited LL2~LL4 + pristine LL1 zero + audited dialogue gate 지원 |
 | Hideout | 구현 완료 |
 | Needed Items / Inventory | 구현 완료 / unresolved future Quest item 보호 / inventory-only planning cache 및 icon refresh 최적화 |
-| Ammo | 구현 완료 / 검색·정확 선택 / compact header / centered detail toggle / star-only favorite |
-| Map + MiniMap | 구현 완료 / exact MiniMap floor-frame / Quest marker setting 영속화 / map-key 동기화 / 동적 Quest sidebar 정렬 / 빠른 hover transparency |
+| Ammo | 구현 완료 / 검색·정확 선택 / canonical compact header / centered detail toggle / star-only favorite |
+| Map + MiniMap | 구현 완료 / exact MiniMap floor-frame / Quest marker setting 영속화 / map-key 동기화 / canonical Quest sidebar layout / 빠른 hover transparency |
 | Scanner | `준비 중` placeholder / 실제 기능 PRODUCT OPEN |
 
 ## 비차단 후속 범위
@@ -265,8 +261,8 @@ Quest / Hideout / Items / Ammo 검색창 우측에 `×` 버튼을 제공합니�
 
 ## 저장소 상태
 
-- 공개 릴리즈: **v0.1.10**
-- release baseline: `cc8d968deb6cbb07029fa35186ec3a3881d5c97f`
-- 공개 release workflow run: `32011564563` — SUCCESS
-- 임시 `.github/workflows/release-v0.1.10.yml`은 공개 검증 후 제거함
+- 공개 릴리즈: **v0.1.11**
+- release baseline: `88a732c70380b4c764634eff6fd01a16eb849b14`
+- 공개 release workflow run: `32018616694` — SUCCESS
+- 임시 `.github/workflows/release-v0.1.11.yml`은 공개 검증 후 제거함
 - 상시 workflow는 `.github/workflows/ci.yml`만 유지
