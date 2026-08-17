@@ -87,14 +87,20 @@ public partial class MainWindow
         var nameX = nameStack.TranslatePoint(new Point(0, 0), rowGrid).X;
         var firX = firStack.TranslatePoint(new Point(0, 0), rowGrid).X;
         var generalX = generalStack.TranslatePoint(new Point(0, 0), rowGrid).X;
+        var firRight = firX + firStack.ActualWidth;
+        var generalRight = generalX + generalStack.ActualWidth;
+
+        // Name begins 8 px inside the second lane (52 + 8 = 60). FIR/general are
+        // intentionally right-aligned *inside* their fixed columns, so their right edges,
+        // not their content-width-dependent left edges, are the stable product axes.
         if (Math.Abs(iconX) > 0.5 ||
-            Math.Abs(nameX - 52) > 0.5 ||
-            Math.Abs(firX - (rowGrid.ActualWidth - 204)) > 0.75 ||
-            Math.Abs(generalX - (rowGrid.ActualWidth - 96)) > 0.75)
+            Math.Abs(nameX - 60) > 0.5 ||
+            Math.Abs(firRight - (rowGrid.ActualWidth - 96)) > 0.75 ||
+            Math.Abs(generalRight - rowGrid.ActualWidth) > 0.75)
         {
             throw new InvalidOperationException(
-                $"Flexible candidate rendered X lanes drifted: icon={iconX:F1}, name={nameX:F1}, " +
-                $"fir={firX:F1}, general={generalX:F1}, row={rowGrid.ActualWidth:F1}.");
+                $"Flexible candidate rendered axes drifted: icon={iconX:F1}, name={nameX:F1}, " +
+                $"firRight={firRight:F1}, generalRight={generalRight:F1}, row={rowGrid.ActualWidth:F1}.");
         }
     }
 
