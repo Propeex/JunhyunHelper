@@ -2,7 +2,7 @@
 
 ## 목적
 
-2026-08-17 사용자 피드백 묶음의 구현 상태를 다음 대화에서도 복구할 수 있도록 기록한다.
+2026-08-17 사용자 피드백 묶음의 구현/검증 상태를 다음 대화에서도 복구할 수 있도록 기록한다.
 
 ## 반영 항목
 
@@ -15,6 +15,8 @@
 - unknown/new dialogue는 계속 `확인 필요`다.
 - 기존 content snapshot에도 read-time으로 동일 규칙을 적용하여 강제 업데이트가 필요 없다.
 - Future Needed Items는 unresolved availability를 `IndeterminatePotential`로 보호하므로 불명확한 Quest 때문에 필요한 아이템을 정리 가능으로 만들지 않는다.
+- post-fix live audit에서 세 GameMode 모두 raw dialogue 12건이 compatibility 후 잔여 0건임을 확인했다.
+- 남는 구조적 unresolved source는 `globalVariable` 162 Quest + availability delay 13 Quest = 175 Quest다. 실제 UI 개수는 프로필 완료/잠김/사용 불가 상태가 우선하므로 이보다 작을 수 있다.
 - 세부 근거: `DIALOGUE_GATE_AUDIT_2026-08-17.md`.
 
 ### Map / MiniMap
@@ -40,12 +42,23 @@
 - 하단 `탄약 / 수급 경로 상세정보`를 접고 펼칠 수 있게 했다.
 - 접을 때 detail row 자체가 `Auto/MinHeight=0`으로 축소되고 splitter가 숨겨져 표가 실제로 더 넓게 사용된다.
 
-## 아직 검증해야 하는 항목
+## 검증 결과
 
-- 전체 Release build / unit tests
-- Windows Map/MiniMap smoke
-- live content three-mode validation 후 `확인 필요` 수 재측정
-- Map selector → tracker → MiniMap map identity 회귀 확인
-- UI 동적 생성 코드가 Windows WPF build에서 warning/error 없이 통과하는지 확인
+PR #86의 Windows CI에서 다음을 통과했다.
 
-이 문서는 구현 중 상태 기록이며 최종 릴리즈 완료 문서가 아니다. CI/스모크 결과에 따라 이 상태를 갱신한다.
+- Desktop Release build 성공
+- unit tests: **203 passed / 0 failed / 0 skipped**
+- Windows x64 self-contained single-file publish 성공
+- published executable 실제 시작 성공
+- Map / Factory / MiniMap runtime smoke 성공
+- 정상 Main Window 종료 및 portable root 정리 검증 성공
+
+Build warning은 기존 vendor/Tarkov-Helper 이식 코드의 allowlisted nullable / unawaited / unused-event warning뿐이며 이번 제품 코드에서 새 compile error는 없다.
+
+별도 temporary live audit도 성공 후 workflow를 제거했다.
+
+## 현재 상태
+
+사용자 피드백 묶음의 코드 구현과 자동 검증은 완료됐다. 작업 브랜치는 `fix/2026-08-17-usability-stability-pass`, 검증용 draft PR은 #86이다.
+
+최종 병합/릴리즈 단계에서는 이 브랜치의 latest CI가 다시 green인지 확인하고, release version/state 문서를 갱신한다.
