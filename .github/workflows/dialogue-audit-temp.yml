@@ -17,10 +17,15 @@ jobs:
           foreach ($mode in @('regular', 'pve', 'pvp-season')) {
             Write-Host "=== MODE $mode ==="
             $feed = Invoke-RestMethod -Uri "https://json.tarkov.dev/$mode/tasks"
-            $tasks = @($feed.data.tasks)
+            $collection = $feed.data.tasks
+            $tasks = if ($collection -is [System.Array]) {
+              @($collection)
+            } else {
+              @($collection.PSObject.Properties | ForEach-Object { $_.Value })
+            }
 
-            $allRequirements = @($tasks | ForEach-Object { @($_.otherRequirements) })
-            $types = @($allRequirements | Where-Object { $_ -ne $null } | Group-Object type | Sort-Object Name)
+            $allRequirements = @($tasks | ForEach-Object { @($_.otherRequirements) } | Where-Object { $_ -ne $null })
+            $types = @($allRequirements | Group-Object type | Sort-Object Name)
             Write-Host "task count=$($tasks.Count); other requirement count=$($allRequirements.Count)"
             foreach ($type in $types) {
               Write-Host "TYPE '$($type.Name)' count=$($type.Count)"
