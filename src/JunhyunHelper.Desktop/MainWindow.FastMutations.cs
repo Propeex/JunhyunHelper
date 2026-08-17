@@ -138,12 +138,13 @@ public partial class MainWindow
 
             _activeProfile = hideoutWorkspace.Profile;
 
-            var questWorkspace = _services.Quests.BuildFromProfile(_activeContent, _activeProfile);
+            // Hideout levels and inventory quantities do not participate in current
+            // quest availability. Rebuilding/re-rendering the entire Quest workspace
+            // here was pure UI work and was the main source of mutation stutter.
             var itemsWorkspace = _services.Items.BuildFromProfile(_activeContent, _activeProfile);
             _activeItemsWorkspace = itemsWorkspace;
 
             HideoutPage.SetData(_activeContent, hideoutWorkspace);
-            QuestPage.SetDataPreservingScroll(_activeContent, questWorkspace);
             ItemsPage.SetData(_activeContent, itemsWorkspace);
             ApplyCleanupChanges(previousPlan, itemsWorkspace);
             StatusText.Text = BuildLoadedStatus(_activeProfile.GameMode);
@@ -179,8 +180,8 @@ public partial class MainWindow
             _activeProfile = itemsWorkspace.Profile;
             _activeItemsWorkspace = itemsWorkspace;
 
-            var questWorkspace = _services.Quests.BuildFromProfile(_activeContent, _activeProfile);
-            QuestPage.SetDataPreservingScroll(_activeContent, questWorkspace);
+            // Inventory quantities affect Needed Items/Cleanup only. Quest availability
+            // depends on quest/profile gates, not on the user's current stash counts.
             ItemsPage.SetData(_activeContent, itemsWorkspace);
             ApplyCleanupChanges(previousPlan, itemsWorkspace);
             StatusText.Text = BuildLoadedStatus(_activeProfile.GameMode);
