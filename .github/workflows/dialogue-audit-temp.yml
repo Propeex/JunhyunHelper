@@ -1,0 +1,40 @@
+name: Temporary dialogue gate audit
+
+on:
+  push:
+    branches:
+      - fix/2026-08-17-usability-stability-pass
+
+jobs:
+  dialogue-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Audit current dialogue-gated quests
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($mode in @('regular', 'pve', 'pvp-season')) {
+            Write-Host "=== MODE $mode ==="
+            $feed = Invoke-RestMethod -Uri "https://json.tarkov.dev/$mode/tasks"
+            $tasks = @($feed.data.tasks)
+            $matches = @()
+            foreach ($task in $tasks) {
+              $dialogues = @($task.otherRequirements | Where-Object { $_.type -eq 'dialogue' })
+              if ($dialogues.Count -eq 0) { continue }
+              $matches += [pscustomobject]@{
+                id = $task.id
+                name = $task.name
+                trader = $task.trader
+                minPlayerLevel = $task.minPlayerLevel
+                taskRequirements = @($task.taskRequirements)
+                traderRequirements = @($task.traderRequirements)
+                dialogueRequirements = $dialogues
+                otherRequirements = @($task.otherRequirements)
+                availableDelaySecondsMin = $task.availableDelaySecondsMin
+                availableDelaySecondsMax = $task.availableDelaySecondsMax
+              }
+            }
+            Write-Host "dialogue quest count=$($matches.Count)"
+            $matches | ConvertTo-Json -Depth 20 -Compress | Write-Host
+          }
