@@ -23,7 +23,7 @@
     <Product>준현 헬퍼</Product>
     <Title>준현 헬퍼</Title>
     <Description>Escape from Tarkov 진행도·아이템·탄약·지도 도우미</Description>
-    <Version>0.1.9</Version>
+    <Version>0.1.10</Version>
     <ApplicationIcon>$(MSBuildProjectDirectory)\obj\JunhyunHelper.AppIcon.ico</ApplicationIcon>
     <!-- The product UI is Korean-only. Let the .NET SDK filter framework/package
          satellite assemblies at publish time instead of deleting files afterward. -->
