@@ -62,19 +62,49 @@ public sealed class QuestTaskPoolVariableCompatibilityTests
     }
 
     [Fact]
-    public void Ll1PoolWithoutPublishedSeedRuleRemainsUnknown()
+    public void Ll1PoolAtLl1WithNoCompletedTraderQuestIsDeterministicallyZero()
     {
-        var quests = Enumerable.Range(1, 8)
-            .Select(index => PoolQuest(
-                $"ll1-{index}",
-                PraporLl1Pool,
-                index <= 2 ? 1 : index <= 5 ? 3 : 5))
-            .ToArray();
+        var quests = BuildPraporLl1Shape(includeOrdinaryQuest: true);
+        var profile = CreateProfile(loyalty: 1, completed: new HashSet<string>(StringComparer.Ordinal));
+
+        var enriched = QuestTaskPoolVariableCompatibility.ApplyInferredProfileValues(quests, profile);
+
+        Assert.Equal(0, enriched.ProfileVariables[PraporLl1Pool]);
+    }
+
+    [Fact]
+    public void Ll1PoolAfterAnySameTraderCompletionRemainsUnknownWithoutExactValue()
+    {
+        var quests = BuildPraporLl1Shape(includeOrdinaryQuest: true);
+        var profile = CreateProfile(loyalty: 1, completed: new HashSet<string> { "ordinary-ll1" });
+
+        var enriched = QuestTaskPoolVariableCompatibility.ApplyInferredProfileValues(quests, profile);
+
+        Assert.False(enriched.ProfileVariables.ContainsKey(PraporLl1Pool));
+    }
+
+    [Fact]
+    public void HigherLoyaltyProfileDoesNotBackfillLl1ZeroFromIncompleteHelperHistory()
+    {
+        var quests = BuildPraporLl1Shape(includeOrdinaryQuest: false);
         var profile = CreateProfile(loyalty: 4, completed: new HashSet<string>(StringComparer.Ordinal));
 
         var enriched = QuestTaskPoolVariableCompatibility.ApplyInferredProfileValues(quests, profile);
 
         Assert.False(enriched.ProfileVariables.ContainsKey(PraporLl1Pool));
+    }
+
+    private static QuestDefinition[] BuildPraporLl1Shape(bool includeOrdinaryQuest)
+    {
+        var pool = Enumerable.Range(1, 8)
+            .Select(index => PoolQuest(
+                $"ll1-{index}",
+                PraporLl1Pool,
+                index <= 2 ? 1 : index <= 5 ? 3 : 5))
+            .ToList();
+        if (includeOrdinaryQuest)
+            pool.Add(CreateQuest("ordinary-ll1", [], []));
+        return pool.ToArray();
     }
 
     private static QuestDefinition[] BuildPraporLl2Shape()
