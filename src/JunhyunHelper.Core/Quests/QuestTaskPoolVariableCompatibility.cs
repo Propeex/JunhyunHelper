@@ -10,8 +10,8 @@ namespace JunhyunHelper.Core.Quests;
 /// LL1→LL4 staged structure (Ragman currently has three stages) and direct LL2–LL4
 /// seed batches. We use that exact audited structure only while it continues to match.
 ///
-/// Exact profile variable values always win in QuestAvailabilityEvaluator. This class
-/// is only a fallback when the value is absent. Any structural drift fails closed.
+/// Exact profile variable values always win. Synthetic values are runtime-only and are
+/// never persisted back into user.db. Any structural drift fails closed.
 /// </summary>
 public sealed class QuestTaskPoolVariableCompatibility
 {
@@ -53,6 +53,37 @@ public sealed class QuestTaskPoolVariableCompatibility
         }
     }
 
+    /// <summary>
+    /// Adds only the task-pool values that can be reconstructed by the audited LL2–LL4
+    /// model. Exact imported/profile values are preserved and take precedence.
+    /// </summary>
+    public static GameProfileSnapshot ApplyInferredProfileValues(
+        IEnumerable<QuestDefinition> quests,
+        GameProfileSnapshot profile)
+    {
+        ArgumentNullException.ThrowIfNull(quests);
+        ArgumentNullException.ThrowIfNull(profile);
+
+        var questList = quests.ToArray();
+        var resolver = new QuestTaskPoolVariableCompatibility(questList, profile);
+        var values = new Dictionary<string, int>(profile.ProfileVariables, StringComparer.Ordinal);
+        var changed = false;
+
+        foreach (var variableId in questList
+                     .SelectMany(quest => quest.ProfileVariableRequirements)
+                     .Select(requirement => requirement.VariableId)
+                     .Distinct(StringComparer.Ordinal))
+        {
+            if (values.ContainsKey(variableId) || !resolver.TryInferCurrentValue(variableId, out var inferredValue))
+                continue;
+
+            values[variableId] = inferredValue;
+            changed = true;
+        }
+
+        return changed ? profile with { ProfileVariables = values } : profile;
+    }
+
     public bool TryEvaluate(QuestProfileVariableRequirement requirement, out bool satisfied)
     {
         ArgumentNullException.ThrowIfNull(requirement);
@@ -66,8 +97,15 @@ public sealed class QuestTaskPoolVariableCompatibility
             return false;
         }
 
-        // The LL1 seed/write rule is not published. We can still use completed gated
-        // quests as a conservative lower-bound witness, but never infer a false result.
+        if (TryInferCurrentValue(requirement.VariableId, out var currentValue))
+        {
+            satisfied = currentValue >= requirement.RequiredValue;
+            return true;
+        }
+
+        // The LL1 seed/write rule is not published. A completed gated quest is still a
+        // conservative witness that its own threshold was reached; this can prove true
+        // for equal/lower thresholds, but never prove false for a higher one.
         if (rule.LoyaltyLevel == 1)
         {
             var witnessedThreshold = pool
@@ -83,20 +121,29 @@ public sealed class QuestTaskPoolVariableCompatibility
                 satisfied = true;
                 return true;
             }
-
-            return false;
         }
 
-        if (!_profile.Traders.TryGetValue(rule.TraderId, out var trader) ||
+        return false;
+    }
+
+    private bool TryInferCurrentValue(string variableId, out int inferredValue)
+    {
+        inferredValue = 0;
+        if (!Rules.TryGetValue(variableId, out var rule) ||
+            rule.LoyaltyLevel == 1 ||
+            !_validPools.Contains(variableId) ||
+            !_poolQuests.TryGetValue(variableId, out var pool) ||
+            !_profile.Traders.TryGetValue(rule.TraderId, out var trader) ||
             trader.LoyaltyLevel is not { } currentLoyalty)
         {
             return false;
         }
 
-        // Under the audited stage mapping, a future LL pool cannot have started yet.
+        // Under the audited current-version stage mapping, future LL pools have not
+        // begun yet, so zero is the deterministic counter value for this model.
         if (currentLoyalty < rule.LoyaltyLevel)
         {
-            satisfied = false;
+            inferredValue = 0;
             return true;
         }
 
@@ -104,9 +151,8 @@ public sealed class QuestTaskPoolVariableCompatibility
         if (seedQuests.Length != rule.ExpectedSeedQuestCount)
             return false;
 
-        var inferredValue = seedQuests.Count(quest => _profile.CompletedQuestIds.Contains(quest.Id)) +
-                            pool.Count(quest => _profile.CompletedQuestIds.Contains(quest.Id));
-        satisfied = inferredValue >= requirement.RequiredValue;
+        inferredValue = seedQuests.Count(quest => _profile.CompletedQuestIds.Contains(quest.Id)) +
+                        pool.Count(quest => _profile.CompletedQuestIds.Contains(quest.Id));
         return true;
     }
 
