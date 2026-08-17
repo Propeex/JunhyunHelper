@@ -11,6 +11,9 @@ public partial class AmmoPage
     private TextBox? _productSearchBox;
     private Popup? _productSearchPopup;
     private ListBox? _productSearchResults;
+    private Expander? _productDetailExpander;
+    private Grid? _productRootGrid;
+    private UIElement? _productDetailSplitter;
     private bool _productDetailsPrepared;
 
     static AmmoPage()
@@ -29,7 +32,11 @@ public partial class AmmoPage
 
     private void InitializeProductSearchAndDetails()
     {
-        if (_productSearchBox is null && Content is Grid root)
+        if (Content is not Grid root)
+            return;
+
+        _productRootGrid ??= root;
+        if (_productSearchBox is null)
         {
             var header = root.Children
                 .OfType<Grid>()
@@ -41,7 +48,7 @@ public partial class AmmoPage
         if (!_productDetailsPrepared)
         {
             _productDetailsPrepared = true;
-            WrapDetailSections();
+            PrepareCollapsibleDetailPanel(root);
         }
     }
 
@@ -163,38 +170,66 @@ public partial class AmmoPage
             _productSearchPopup.IsOpen = false;
     }
 
-    private void WrapDetailSections()
+    private void PrepareCollapsibleDetailPanel(Grid root)
     {
-        if (DetailGrid is null)
+        if (root.RowDefinitions.Count < 5 || _productDetailExpander is not null)
             return;
 
-        var left = DetailGrid.Children
-            .OfType<ScrollViewer>()
-            .FirstOrDefault(viewer => Grid.GetColumn(viewer) == 0);
-        var right = DetailGrid.Children
-            .OfType<ScrollViewer>()
-            .FirstOrDefault(viewer => Grid.GetColumn(viewer) == 2);
+        var detailHost = root.Children
+            .OfType<Border>()
+            .FirstOrDefault(element => Grid.GetRow(element) == 4 &&
+                                       ReferenceEquals(element.Child, DetailGrid));
+        if (detailHost is null)
+            return;
 
-        if (left is not null)
-            WrapDetailSection(left, "탄약 상세정보", 0);
-        if (right is not null)
-            WrapDetailSection(right, "수급 경로 상세정보", 2);
-    }
+        _productDetailSplitter = root.Children
+            .OfType<GridSplitter>()
+            .FirstOrDefault(element => Grid.GetRow(element) == 3);
 
-    private void WrapDetailSection(ScrollViewer content, string header, int column)
-    {
-        DetailGrid.Children.Remove(content);
-        var expander = new Expander
+        root.Children.Remove(detailHost);
+        _productDetailExpander = new Expander
         {
-            Header = header,
+            Header = "탄약 / 수급 경로 상세정보",
             IsExpanded = true,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Stretch,
             Foreground = TryFindResource("TextPrimaryBrush") as Brush ?? Brushes.White,
-            Content = content,
+            Content = detailHost,
         };
-        Grid.SetColumn(expander, column);
-        DetailGrid.Children.Add(expander);
+        _productDetailExpander.Expanded += ProductDetailExpander_StateChanged;
+        _productDetailExpander.Collapsed += ProductDetailExpander_StateChanged;
+        Grid.SetRow(_productDetailExpander, 4);
+        root.Children.Add(_productDetailExpander);
+        ApplyProductDetailExpansionState();
+    }
+
+    private void ProductDetailExpander_StateChanged(object sender, RoutedEventArgs e) =>
+        ApplyProductDetailExpansionState();
+
+    private void ApplyProductDetailExpansionState()
+    {
+        if (_productRootGrid is null ||
+            _productRootGrid.RowDefinitions.Count < 5 ||
+            _productDetailExpander is null)
+        {
+            return;
+        }
+
+        var detailRow = _productRootGrid.RowDefinitions[4];
+        if (_productDetailExpander.IsExpanded)
+        {
+            detailRow.MinHeight = 190;
+            detailRow.Height = new GridLength(2, GridUnitType.Star);
+            if (_productDetailSplitter is not null)
+                _productDetailSplitter.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            detailRow.MinHeight = 0;
+            detailRow.Height = GridLength.Auto;
+            if (_productDetailSplitter is not null)
+                _productDetailSplitter.Visibility = Visibility.Collapsed;
+        }
     }
 
     private sealed record AmmoSearchHit(AmmoRow Row, string Label);
