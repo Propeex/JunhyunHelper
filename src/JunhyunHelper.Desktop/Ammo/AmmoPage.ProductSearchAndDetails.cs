@@ -14,10 +14,12 @@ public partial class AmmoPage
     private TextBox? _productSearchBox;
     private Popup? _productSearchPopup;
     private ListBox? _productSearchResults;
-    private Expander? _productDetailExpander;
     private Grid? _productRootGrid;
+    private Border? _productDetailHost;
     private UIElement? _productDetailSplitter;
+    private Button? _productDetailToggleButton;
     private bool _productDetailsPrepared;
+    private bool _productDetailsExpanded = true;
     private bool _productFavoriteHandlersAttached;
 
     static AmmoPage()
@@ -40,12 +42,13 @@ public partial class AmmoPage
             return;
 
         _productRootGrid ??= root;
-        if (_productSearchBox is null)
+        var header = root.Children
+            .OfType<Grid>()
+            .FirstOrDefault(element => Grid.GetRow(element) == 0);
+        if (header is not null)
         {
-            var header = root.Children
-                .OfType<Grid>()
-                .FirstOrDefault(element => Grid.GetRow(element) == 0);
-            if (header is not null)
+            NormalizeProductHeader(header);
+            if (_productSearchBox is null)
                 CreateProductSearch(header);
         }
 
@@ -59,10 +62,40 @@ public partial class AmmoPage
         NormalizeProductFavoriteButton();
     }
 
+    private void NormalizeProductHeader(Grid header)
+    {
+        // The labels repeat information already expressed by the controls themselves.
+        // Collapse them instead of merely shrinking their text so the header follows
+        // the compact search -> caliber -> star -> favorites -> columns rhythm.
+        foreach (var label in header.Children.OfType<TextBlock>())
+        {
+            if (label.Text is "구경" or "즐겨찾기")
+                label.Visibility = Visibility.Collapsed;
+        }
+
+        CaliberComboBox.Width = 160;
+        CaliberComboBox.MinWidth = 160;
+        CaliberComboBox.MaxWidth = 160;
+
+        FavoriteCaliberMenuButton.Width = 170;
+        FavoriteCaliberMenuButton.MinWidth = 170;
+        FavoriteCaliberMenuButton.MaxWidth = 170;
+
+        // Before the product search column is inserted these are the two label lanes.
+        // Once search has already been inserted, the labels are still collapsed and
+        // these widths are harmless because the named controls own their own width.
+        if (_productSearchBox is null && header.ColumnDefinitions.Count >= 8)
+        {
+            header.ColumnDefinitions[0].Width = new GridLength(0);
+            header.ColumnDefinitions[1].Width = new GridLength(160);
+            header.ColumnDefinitions[4].Width = new GridLength(0);
+            header.ColumnDefinitions[5].Width = new GridLength(170);
+        }
+    }
+
     private void CreateProductSearch(Grid header)
     {
-        // Search is the primary discovery action, so give it the left-most header lane
-        // instead of appending it after all caliber/favorite controls.
+        // Search is the primary discovery action, so give it the left-most header lane.
         header.ColumnDefinitions.Insert(0, new ColumnDefinition { Width = new GridLength(300) });
         foreach (UIElement child in header.Children)
             Grid.SetColumn(child, Grid.GetColumn(child) + 1);
@@ -223,67 +256,73 @@ public partial class AmmoPage
 
     private void PrepareCollapsibleDetailPanel(Grid root)
     {
-        if (root.RowDefinitions.Count < 5 || _productDetailExpander is not null)
+        if (root.RowDefinitions.Count < 5 || _productDetailToggleButton is not null)
             return;
 
-        // Row 4 owns one outer Border whose child is a Grid containing both
-        // EmptyDetailText and DetailGrid. The v0.1.8 code incorrectly required the
-        // Border.Child itself to be DetailGrid, so this lookup could never succeed.
-        var detailHost = root.Children
+        _productDetailHost = root.Children
             .OfType<Border>()
             .FirstOrDefault(element => Grid.GetRow(element) == 4);
-        if (detailHost is null)
+        if (_productDetailHost is null)
             return;
 
         _productDetailSplitter = root.Children
             .OfType<GridSplitter>()
             .FirstOrDefault(element => Grid.GetRow(element) == 3);
+        if (_productDetailSplitter is not null)
+            _productDetailSplitter.Visibility = Visibility.Collapsed;
 
-        root.Children.Remove(detailHost);
-        _productDetailExpander = new Expander
+        // The default Expander header is left-aligned and visually unrelated to the
+        // Map sidebar control the user referenced. Row 3 now owns one compact centered
+        // toggle while row 4 remains the original detail content.
+        root.RowDefinitions[3].Height = GridLength.Auto;
+        _productDetailToggleButton = new Button
         {
-            Header = "탄약 / 수급 경로 상세정보",
-            IsExpanded = true,
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            VerticalAlignment = VerticalAlignment.Stretch,
-            HorizontalContentAlignment = HorizontalAlignment.Stretch,
-            VerticalContentAlignment = VerticalAlignment.Stretch,
-            Foreground = TryFindResource("TextPrimaryBrush") as Brush ?? Brushes.White,
-            Content = detailHost,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            MinWidth = 260,
+            Height = 30,
+            Margin = new Thickness(0, 3, 0, 3),
+            Padding = new Thickness(14, 2, 14, 2),
+            FontWeight = FontWeights.SemiBold,
         };
-        _productDetailExpander.Expanded += ProductDetailExpander_StateChanged;
-        _productDetailExpander.Collapsed += ProductDetailExpander_StateChanged;
-        Grid.SetRow(_productDetailExpander, 4);
-        root.Children.Add(_productDetailExpander);
+        _productDetailToggleButton.Click += ProductDetailToggleButton_Click;
+        Grid.SetRow(_productDetailToggleButton, 3);
+        root.Children.Add(_productDetailToggleButton);
         ApplyProductDetailExpansionState();
     }
 
-    private void ProductDetailExpander_StateChanged(object sender, RoutedEventArgs e) =>
+    private void ProductDetailToggleButton_Click(object sender, RoutedEventArgs e)
+    {
+        _productDetailsExpanded = !_productDetailsExpanded;
         ApplyProductDetailExpansionState();
+    }
 
     private void ApplyProductDetailExpansionState()
     {
         if (_productRootGrid is null ||
             _productRootGrid.RowDefinitions.Count < 5 ||
-            _productDetailExpander is null)
+            _productDetailHost is null ||
+            _productDetailToggleButton is null)
         {
             return;
         }
 
         var detailRow = _productRootGrid.RowDefinitions[4];
-        if (_productDetailExpander.IsExpanded)
+        if (_productDetailsExpanded)
         {
+            _productDetailHost.Visibility = Visibility.Visible;
             detailRow.MinHeight = 190;
             detailRow.Height = new GridLength(2, GridUnitType.Star);
-            if (_productDetailSplitter is not null)
-                _productDetailSplitter.Visibility = Visibility.Visible;
+            _productDetailToggleButton.Content = "▲  탄약 / 수급 경로 상세정보";
+            _productDetailToggleButton.ToolTip = "상세정보 접기";
         }
         else
         {
+            _productDetailHost.Visibility = Visibility.Collapsed;
             detailRow.MinHeight = 0;
-            detailRow.Height = GridLength.Auto;
-            if (_productDetailSplitter is not null)
-                _productDetailSplitter.Visibility = Visibility.Collapsed;
+            detailRow.Height = new GridLength(0);
+            _productDetailToggleButton.Content = "▼  탄약 / 수급 경로 상세정보";
+            _productDetailToggleButton.ToolTip = "상세정보 펼치기";
         }
     }
 
@@ -309,6 +348,8 @@ public partial class AmmoPage
         var isFavorite = caliber is not null && _favoriteCalibers.Contains(caliber);
         FavoriteCaliberButton.Content = isFavorite ? "★" : "☆";
         FavoriteCaliberButton.Width = 38;
+        FavoriteCaliberButton.MinWidth = 38;
+        FavoriteCaliberButton.MaxWidth = 38;
         FavoriteCaliberButton.Padding = new Thickness(0);
         FavoriteCaliberButton.FontSize = 16;
         FavoriteCaliberButton.ToolTip = isFavorite ? "즐겨찾기 해제" : "즐겨찾기 추가";
