@@ -4,48 +4,47 @@ Escape from Tarkov 플레이를 지원하는 Windows 데스크톱 헬퍼 **준�
 
 ## 현재 공개 버전
 
-**v0.1.9 PUBLIC RELEASE — Windows x64**
+**v0.1.10 PUBLIC RELEASE — Windows x64**
 
-**다운로드:** https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.9
+**다운로드:** https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.10
 
-v0.1.9는 v0.1.8 실사용에서 확인된 Quest `확인 필요` 과다, 아이템 수량 변경 버벅임, 유동 제출/지도 Quest 행 정렬, Ammo UI, Quest marker setting, MiniMap hover 반응 문제를 수정한 패치 릴리즈입니다.
+v0.1.10은 v0.1.9 실사용에서 확인된 유동 제출 아이콘/정렬, Ammo header/detail 배치, Map Quest sidebar 정렬 연결 누락과 초기 LL1 Quest `확인 필요`를 수정한 패치 릴리즈입니다.
 
-### v0.1.9 핵심 변경
+### v0.1.10 핵심 변경
 
-- EFT 1.1 `globalVariable` 162 Quest / 27 trader task-pool 변수를 재감사
-- exact profile variable 값이 있으면 항상 exact 값 우선
-- exact audited 구조가 유지되는 LL2~LL4 task-pool **114 Quest**는 trader LL + 완료 Quest로 current availability 복원
-- LL1 pool 48 Quest는 public initial write rule이 없어 exact 값이 없으면 계속 `확인 필요`
-- availability delay 13 Quest는 실제 completion timestamp가 없으면 계속 `확인 필요`
-- raw unresolved ceiling은 이전 175에서 현재 구조 기준 최대 61로 감소. 실제 UI 수치는 profile 상태에 따라 더 작을 수 있음
-- inventory 수량 변경 때 Quest future reachability / Hideout static requirement 전체 재계산 제거
-- static Needed Items planning basis와 기존 Item icon 재사용
-- flexible hand-in row를 일반 Item list 기준 68px / 44px icon 리듬으로 정돈
-- Ammo 검색을 header 최좌측으로 이동하고 결과를 `이미지 + 이름`만 표시
-- Ammo 하단 상세정보 실제 접기/펼치기 수정
-- Ammo 즐겨찾기 버튼을 `☆ / ★`만 표시
-- 지도 `퀘스트 마커 표시` 설정도 재시작 후 persisted value 복원
-- Map Quest sidebar 모든 row를 구조 기반으로 68px 정렬
-- MiniMap hover 투명화를 heavy Map sync와 분리한 lightweight 16ms 감지로 개선
-- Quest / Hideout / Items / Ammo 검색창 우측에 `×` clear 버튼 추가
+- exact EFT profile variable 값은 계속 최우선
+- audited EFT 1.1 LL2~LL4 trader task-pool runtime reconstruction 유지
+- **현재 trader가 LL1이고 그 trader의 완료 Quest가 0개인 증명 가능한 초기 상태**는 LL1 pool counter를 0으로 확정
+- 완료 Quest가 하나라도 있거나 LL2 이상인 progressed LL1 상태는 exact 값 없이 추측하지 않음
+- availability delay는 실제 completion timestamp가 없으면 계속 `확인 필요`
+- future Needed Items는 unresolved Quest를 계속 잠재 필요 아이템으로 보호
+- flexible hand-in row를 일반 Item list 구조로 재작성
+  - 44px icon frame/image로 clipping 제거
+  - icon + 이름/분류 좌측 정렬
+  - 인레이드/일반 보유량 우측 고정 정렬
+- Ammo header의 중복 `구경`, `즐겨찾기` label 제거
+- Ammo caliber selector 폭 축소, favorite toggle `☆ / ★` 유지
+- Ammo 상세정보 접기/펼치기 버튼을 중앙 정렬
+- Map current Quest의 실제 동적 sidebar에도 layout polish 연결
+- Map Quest row를 checkbox / A·B·C marker / title lane으로 분리하고 title 좌측 정렬
 
 공개 릴리즈 검증:
 
 ```text
-release baseline: 95d3bb139fb9c5f5b7a6e353ea560768c03d20f4
-ProductVersion: 0.1.9+95d3bb139fb9c5f5b7a6e353ea560768c03d20f4
-feature PR #88 CI: 32002897379 — SUCCESS
-feature main CI: 32003122340 — SUCCESS
-release candidate PR #89 CI: 32003361260 — SUCCESS
-release baseline main CI: 32003570258 — SUCCESS
-release workflow: 32003799898 — SUCCESS
-automated tests: 208 passed / 0 failed / 0 skipped
+release baseline: cc8d968deb6cbb07029fa35186ec3a3881d5c97f
+ProductVersion: 0.1.10+cc8d968deb6cbb07029fa35186ec3a3881d5c97f
+feature PR #90 CI: 32007776178 — SUCCESS
+feature main CI: 32008009801 — SUCCESS
+release candidate PR #91 CI: 32011089823 — SUCCESS
+release baseline main CI: 32011299363 — SUCCESS
+release workflow: 32011564563 — SUCCESS
+automated tests: 210 passed / 0 failed / 0 skipped
 Windows x64 self-contained single-file publish: SUCCESS
 startup + Main Map + Factory + MiniMap runtime smoke: SUCCESS
 normal Main Window close / process exit: SUCCESS
-asset: Junhyun-Helper-v0.1.9-win-x64.zip
-asset size: 74,065,677 bytes
-SHA-256: c9a12ba52e2774c9a127c9f9d8740918bf8837df26e821bc11fcd793ae521952
+asset: Junhyun-Helper-v0.1.10-win-x64.zip
+asset size: 74,067,151 bytes
+SHA-256: 0d32f2344feb1e9088460830e6cff4bbd527198b1e191a177f7a8652e6efd998
 public ZIP re-download + SHA-256 verification: SUCCESS
 ```
 
@@ -75,7 +74,7 @@ public ZIP re-download + SHA-256 verification: SUCCESS
 
 - 서로 다른 `taskRequirements`는 AND
 - 한 requirement 내부 `status[]`는 OR
-- `complete` / `active` / `failed`의 source 의미를 보존
+- `complete` / `active` / `failed`의 source 의미 보존
 - 별도 `수주 가능` 상태를 만들지 않고 받을 수 있는 Quest는 Helper에서 즉시 수락한 것으로 간주
 - source가 직접 제공한 prerequisite를 compatibility overlay가 더 강한 조건으로 바꾸지 않음
 - BTR Driver 누락 gate는 `A Helping Hand = Active`로만 보강
@@ -84,7 +83,8 @@ public ZIP re-download + SHA-256 verification: SUCCESS
 - 12개 audited dialogue gate는 exact-ID compatibility를 적용하고 새/변경 dialogue는 추측하지 않음
 - EFT profile-variable requirement는 exact current value가 있으면 정확 판정
 - exact 값이 없으면 current EFT 1.1의 감사된 27-ID 구조가 완전히 일치하는 LL2~LL4 task-pool만 runtime에서 복원
-- LL1 task-pool과 실제 완료 시각 기반 delay는 증명할 수 없으면 `확인 필요`
+- LL1은 audited 구조 + 현재 LL1 + 해당 trader 완료 Quest 0개의 초기 상태만 counter 0으로 확정
+- 그 밖의 LL1 task-pool과 실제 완료 시각 기반 delay는 증명할 수 없으면 `확인 필요`
 - compatibility 구조가 upstream과 달라지면 자동으로 fail-closed
 
 ## Needed Items 안전성
@@ -107,6 +107,7 @@ Quest 화면의 current task-pool compatibility는 future item cleanup을 낙관
 - MiniMap floor 변경 시 **exact live Scale + Translate X/Y 보존**
 - Main Map selector와 MiniMap shared map key 동기화
 - `퀘스트 마커 표시`를 포함한 product setting은 `%LocalAppData%/JunhyunHelper/map-product-settings.json`에서 복원
+- current Quest sidebar는 checkbox / marker / title lane으로 고정 정렬
 - MiniMap hover transparency는 dedicated lightweight 16ms input check 사용
 
 ## 실행
@@ -145,7 +146,7 @@ online source
 - Runtime GPT/AI 의존성은 없습니다.
 - Content schema는 v7이며 v3~v7 snapshot을 오프라인에서 읽을 수 있습니다.
 - `user.db` SQLite schema는 v1 그대로입니다.
-- **v0.1.8 → v0.1.9 필수 데이터 업데이트 없음**
+- **v0.1.9 → v0.1.10 필수 데이터 업데이트 없음**
 
 ## 개발 문서
 
@@ -156,7 +157,7 @@ online source
 - [`docs/QUEST_PREREQUISITE_SEMANTICS.md`](docs/QUEST_PREREQUISITE_SEMANTICS.md) — Quest 선행조건 의미
 - [`docs/QUEST_TASK_POOL_AUDIT_2026-08-17.md`](docs/QUEST_TASK_POOL_AUDIT_2026-08-17.md) — EFT 1.1 trader task-pool 감사 및 current-version compatibility 경계
 - [`docs/DIALOGUE_GATE_AUDIT_2026-08-17.md`](docs/DIALOGUE_GATE_AUDIT_2026-08-17.md) — dialogue Quest 감사
-- [`docs/FEEDBACK_FIXES_2026-08-17.md`](docs/FEEDBACK_FIXES_2026-08-17.md) — v0.1.8 사용자 피드백 10건 수정 기록
+- [`docs/FEEDBACK_FIXES_2026-08-17.md`](docs/FEEDBACK_FIXES_2026-08-17.md) — 성능/UI/Quest feedback 수정 기록
 - [`docs/MINIMAP_FLOOR_FRAME_2026-08-17.md`](docs/MINIMAP_FLOOR_FRAME_2026-08-17.md) — MiniMap exact floor-frame 계약
 - [`docs/MAP_PRODUCT_REQUIREMENTS.md`](docs/MAP_PRODUCT_REQUIREMENTS.md) — Map/MiniMap 제품 기준
-- [`docs/RELEASE_0.1.9.md`](docs/RELEASE_0.1.9.md) — v0.1.9 공개 검증 기록
+- [`docs/RELEASE_0.1.10.md`](docs/RELEASE_0.1.10.md) — v0.1.10 공개 검증 기록
