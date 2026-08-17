@@ -10,10 +10,23 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Trace dialogue gate identifiers through live task data
+      - name: Resolve audited prerequisite quest IDs
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+          $wanted = @(
+            'Shortage',
+            'Pharmacist',
+            'Burning Rubber',
+            'Saving the Mole',
+            'Only Business',
+            'Big Sale',
+            'Make ULTRA Great Again',
+            'Gratitude',
+            'Farming - Part 2',
+            'Gunsmith - MP-133',
+            'Gunsmith - Part 1'
+          )
           foreach ($mode in @('regular', 'pve', 'pvp-season')) {
             Write-Host "=== MODE $mode ==="
             $feed = Invoke-RestMethod -Uri "https://json.tarkov.dev/$mode/tasks"
@@ -25,41 +38,14 @@ jobs:
               @($collection.PSObject.Properties | ForEach-Object { $_.Value })
             }
 
-            $gated = @()
+            $resolved = @()
             foreach ($task in $tasks) {
-              foreach ($req in @($task.otherRequirements | Where-Object { $_.type -eq 'dialogue' })) {
-                $gated += [pscustomobject]@{ task = $task; requirement = $req }
-              }
-            }
-
-            foreach ($entry in $gated) {
-              $task = $entry.task
-              $req = $entry.requirement
-              $gateId = [string]$req.id
               $nameKey = [string]$task.name
-              $nameProperty = $english.data.PSObject.Properties[$nameKey]
-              $name = if ($nameProperty) { $nameProperty.Value } else { $nameKey }
-              Write-Host "GATE task=$($task.id) name='$name' gate=$gateId"
-
-              $references = @()
-              foreach ($candidate in $tasks) {
-                $json = $candidate | ConvertTo-Json -Depth 50 -Compress
-                if ($json -notmatch [regex]::Escape($gateId)) { continue }
-                $candidateNameKey = [string]$candidate.name
-                $candidateNameProperty = $english.data.PSObject.Properties[$candidateNameKey]
-                $candidateName = if ($candidateNameProperty) { $candidateNameProperty.Value } else { $candidateNameKey }
-                $references += [pscustomobject]@{
-                  id = $candidate.id
-                  name = $candidateName
-                  isGatedQuest = ($candidate.id -eq $task.id)
-                  taskRequirements = @($candidate.taskRequirements)
-                  otherRequirements = @($candidate.otherRequirements)
-                  startRewards = @($candidate.startRewards)
-                  finishRewards = @($candidate.finishRewards)
-                  failConditions = @($candidate.failConditions)
-                }
+              $property = $english.data.PSObject.Properties[$nameKey]
+              $name = if ($property) { [string]$property.Value } else { $nameKey }
+              if ($wanted -contains $name) {
+                $resolved += [pscustomobject]@{ id = $task.id; name = $name }
               }
-              Write-Host "references=$($references.Count)"
-              $references | ConvertTo-Json -Depth 30 -Compress | Write-Host
             }
+            $resolved | Sort-Object name | ConvertTo-Json -Compress | Write-Host
           }
