@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace JunhyunHelper.Desktop.Map;
 
@@ -13,8 +14,10 @@ public sealed class LegacyMapQuestSidebarPolishBridge : IDisposable
     private static readonly Color QuestRowColor = Color.FromRgb(40, 40, 40);
     private const double CheckBoxLaneWidth = 28;
     private const double MarkerBadgeLaneWidth = 29;
+    private const double QuestRowHeight = 62;
 
     private readonly LegacyMapQuestSidebarV2 _sidebar;
+    private bool _applyQueued;
     private bool _applying;
     private bool _disposed;
 
@@ -23,15 +26,26 @@ public sealed class LegacyMapQuestSidebarPolishBridge : IDisposable
         _sidebar = sidebar ?? throw new ArgumentNullException(nameof(sidebar));
         _sidebar.Loaded += Sidebar_Loaded;
         _sidebar.LayoutUpdated += Sidebar_LayoutUpdated;
-        _sidebar.Dispatcher.BeginInvoke(Apply);
+        QueueApply();
     }
 
-    private void Sidebar_Loaded(object sender, RoutedEventArgs e) => Apply();
+    private void Sidebar_Loaded(object sender, RoutedEventArgs e) => QueueApply();
 
-    private void Sidebar_LayoutUpdated(object? sender, EventArgs e)
+    private void Sidebar_LayoutUpdated(object? sender, EventArgs e) => QueueApply();
+
+    private void QueueApply()
     {
-        if (!_applying)
-            Apply();
+        if (_disposed || _applyQueued || _applying)
+            return;
+
+        _applyQueued = true;
+        _sidebar.Dispatcher.BeginInvoke(
+            () =>
+            {
+                _applyQueued = false;
+                Apply();
+            },
+            DispatcherPriority.ContextIdle);
     }
 
     private void Apply()
@@ -53,9 +67,12 @@ public sealed class LegacyMapQuestSidebarPolishBridge : IDisposable
 
     private static void PolishRow(Border row)
     {
+        row.Height = QuestRowHeight;
+        row.MinHeight = QuestRowHeight;
+        row.MaxHeight = QuestRowHeight;
         row.HorizontalAlignment = HorizontalAlignment.Stretch;
         row.VerticalAlignment = VerticalAlignment.Top;
-        row.Padding = new Thickness(10, 8, 10, 8);
+        row.Padding = new Thickness(10, 7, 10, 7);
         row.Margin = new Thickness(0, 0, 0, 7);
 
         if (row.Child is not Grid grid)
@@ -63,11 +80,6 @@ public sealed class LegacyMapQuestSidebarPolishBridge : IDisposable
 
         grid.HorizontalAlignment = HorizontalAlignment.Stretch;
         grid.VerticalAlignment = VerticalAlignment.Center;
-
-        // The checkbox, A/B/C badge and Quest text each own a fixed lane. This is the
-        // important distinction from the previous polish pass: the badge is no longer
-        // part of a variable-width Button content panel, so A/B/C always starts at the
-        // exact same X coordinate regardless of Quest-name length.
         EnsureThreeColumnLayout(grid);
 
         var markerToggle = grid.Children.OfType<CheckBox>().FirstOrDefault();
@@ -85,7 +97,7 @@ public sealed class LegacyMapQuestSidebarPolishBridge : IDisposable
 
         Grid.SetColumn(button, 2);
         button.HorizontalAlignment = HorizontalAlignment.Stretch;
-        button.HorizontalContentAlignment = HorizontalAlignment.Left;
+        button.HorizontalContentAlignment = HorizontalAlignment.Stretch;
         button.VerticalContentAlignment = VerticalAlignment.Center;
         button.Padding = new Thickness(0);
         button.Margin = new Thickness(0);
@@ -100,15 +112,18 @@ public sealed class LegacyMapQuestSidebarPolishBridge : IDisposable
             .FirstOrDefault(panel => panel.Orientation == Orientation.Horizontal);
         if (titleLine is not null)
         {
-            titleLine.HorizontalAlignment = HorizontalAlignment.Left;
-            titleLine.VerticalAlignment = VerticalAlignment.Center;
             MoveMarkerBadgeIntoFixedLane(grid, titleLine);
+            titleLine.Orientation = Orientation.Vertical;
+            titleLine.HorizontalAlignment = HorizontalAlignment.Stretch;
+            titleLine.VerticalAlignment = VerticalAlignment.Center;
         }
 
         foreach (var text in FindDescendants<TextBlock>(content))
         {
-            text.HorizontalAlignment = HorizontalAlignment.Left;
+            text.HorizontalAlignment = HorizontalAlignment.Stretch;
             text.TextAlignment = TextAlignment.Left;
+            text.TextWrapping = TextWrapping.NoWrap;
+            text.TextTrimming = TextTrimming.CharacterEllipsis;
         }
     }
 
@@ -130,9 +145,6 @@ public sealed class LegacyMapQuestSidebarPolishBridge : IDisposable
 
     private static void MoveMarkerBadgeIntoFixedLane(Grid grid, StackPanel titleLine)
     {
-        // A previous build inserted a transparent placeholder Border for rows without a
-        // marker code. Remove either kind from the title panel; only a real coded badge
-        // is moved into the fixed badge column.
         var leadingBorder = titleLine.Children.OfType<Border>().FirstOrDefault();
         if (leadingBorder is null)
             return;
@@ -141,15 +153,13 @@ public sealed class LegacyMapQuestSidebarPolishBridge : IDisposable
         if (leadingBorder.Child is not TextBlock codeText || string.IsNullOrWhiteSpace(codeText.Text))
             return;
 
-        if (grid.Children.Contains(leadingBorder))
-            return;
-
         leadingBorder.HorizontalAlignment = HorizontalAlignment.Left;
         leadingBorder.VerticalAlignment = VerticalAlignment.Center;
         leadingBorder.Margin = new Thickness(0);
         leadingBorder.IsHitTestVisible = false;
         Grid.SetColumn(leadingBorder, 1);
-        grid.Children.Add(leadingBorder);
+        if (!grid.Children.Contains(leadingBorder))
+            grid.Children.Add(leadingBorder);
     }
 
     private static bool IsQuestRow(Border border) =>
