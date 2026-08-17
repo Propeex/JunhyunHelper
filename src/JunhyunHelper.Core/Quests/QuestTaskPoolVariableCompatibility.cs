@@ -54,7 +54,7 @@ public sealed class QuestTaskPoolVariableCompatibility
     }
 
     /// <summary>
-    /// Adds only the task-pool values that can be reconstructed by the audited LL2–LL4
+    /// Adds only task-pool values that can be reconstructed by the audited current
     /// model. Exact imported/profile values are preserved and take precedence.
     /// </summary>
     public static GameProfileSnapshot ApplyInferredProfileValues(
@@ -103,7 +103,8 @@ public sealed class QuestTaskPoolVariableCompatibility
             return true;
         }
 
-        // The LL1 seed/write rule is not published. A completed gated quest is still a
+        // Once LL1 has any completed quest for this trader, the exact initial seed
+        // membership/write rule is still not published. A completed gated quest is a
         // conservative witness that its own threshold was reached; this can prove true
         // for equal/lower thresholds, but never prove false for a higher one.
         if (rule.LoyaltyLevel == 1)
@@ -130,7 +131,6 @@ public sealed class QuestTaskPoolVariableCompatibility
     {
         inferredValue = 0;
         if (!Rules.TryGetValue(variableId, out var rule) ||
-            rule.LoyaltyLevel == 1 ||
             !_validPools.Contains(variableId) ||
             !_poolQuests.TryGetValue(variableId, out var pool) ||
             !_profile.Traders.TryGetValue(rule.TraderId, out var trader) ||
@@ -147,6 +147,22 @@ public sealed class QuestTaskPoolVariableCompatibility
             return true;
         }
 
+        if (rule.LoyaltyLevel == 1)
+        {
+            // BSG's 1.1 task-system description establishes that the LL1 side-task
+            // progression advances by completing that trader's tasks. We still do not
+            // know which ordinary LL1 tasks are the initial seed set, so after any
+            // same-trader completion we remain conservative. Before the first recorded
+            // completion, however, the counter cannot have advanced and zero is exact.
+            // Restrict this to a current LL1 trader so imported/legacy higher-LL
+            // profiles with incomplete Helper history are never back-filled as zero.
+            if (currentLoyalty != 1 || HasCompletedQuestForTrader(rule.TraderId))
+                return false;
+
+            inferredValue = 0;
+            return true;
+        }
+
         var seedQuests = FindSeedQuests(rule);
         if (seedQuests.Length != rule.ExpectedSeedQuestCount)
             return false;
@@ -155,6 +171,11 @@ public sealed class QuestTaskPoolVariableCompatibility
                         pool.Count(quest => _profile.CompletedQuestIds.Contains(quest.Id));
         return true;
     }
+
+    private bool HasCompletedQuestForTrader(string traderId) =>
+        _quests.Any(quest =>
+            string.Equals(quest.TraderId, traderId, StringComparison.Ordinal) &&
+            _profile.CompletedQuestIds.Contains(quest.Id));
 
     private bool ValidatePool(string variableId, PoolRule rule)
     {

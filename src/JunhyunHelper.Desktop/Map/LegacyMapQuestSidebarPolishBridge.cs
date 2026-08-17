@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -71,17 +72,14 @@ public sealed class LegacyMapQuestSidebarPolishBridge : IDisposable
         row.MaxHeight = QuestRowHeight;
         row.HorizontalAlignment = HorizontalAlignment.Stretch;
         row.VerticalAlignment = VerticalAlignment.Top;
-        row.Padding = new Thickness(10, 7, 10, 7);
+        row.Padding = new Thickness(8, 6, 8, 6);
         row.Margin = new Thickness(0, 0, 0, 7);
 
         if (row.Child is not Grid grid)
             return;
 
-        grid.Height = QuestRowHeight - row.Padding.Top - row.Padding.Bottom;
-        grid.MinHeight = grid.Height;
-        grid.MaxHeight = grid.Height;
         grid.HorizontalAlignment = HorizontalAlignment.Stretch;
-        grid.VerticalAlignment = VerticalAlignment.Center;
+        grid.VerticalAlignment = VerticalAlignment.Stretch;
         EnsureThreeColumnLayout(grid);
 
         var markerToggle = grid.Children.OfType<CheckBox>().FirstOrDefault();
@@ -100,12 +98,9 @@ public sealed class LegacyMapQuestSidebarPolishBridge : IDisposable
             return;
 
         Grid.SetColumn(button, 2);
-        button.Height = grid.Height;
-        button.MinHeight = grid.Height;
-        button.MaxHeight = grid.Height;
         button.HorizontalAlignment = HorizontalAlignment.Stretch;
         button.HorizontalContentAlignment = HorizontalAlignment.Stretch;
-        button.VerticalAlignment = VerticalAlignment.Center;
+        button.VerticalAlignment = VerticalAlignment.Stretch;
         button.VerticalContentAlignment = VerticalAlignment.Center;
         button.Padding = new Thickness(0);
         button.Margin = new Thickness(0);
@@ -113,7 +108,6 @@ public sealed class LegacyMapQuestSidebarPolishBridge : IDisposable
         if (button.Content is not StackPanel content)
             return;
 
-        content.Height = grid.Height;
         content.HorizontalAlignment = HorizontalAlignment.Stretch;
         content.VerticalAlignment = VerticalAlignment.Center;
 
@@ -122,19 +116,17 @@ public sealed class LegacyMapQuestSidebarPolishBridge : IDisposable
         if (titleLine is not null)
         {
             MoveMarkerBadgeIntoFixedLane(grid, titleLine);
-            titleLine.Orientation = Orientation.Vertical;
-            titleLine.Height = grid.Height;
             titleLine.HorizontalAlignment = HorizontalAlignment.Stretch;
             titleLine.VerticalAlignment = VerticalAlignment.Center;
         }
 
         foreach (var text in FindDescendants<TextBlock>(content))
         {
-            text.HorizontalAlignment = HorizontalAlignment.Stretch;
+            text.HorizontalAlignment = HorizontalAlignment.Left;
             text.TextAlignment = TextAlignment.Left;
             text.TextWrapping = TextWrapping.NoWrap;
             text.TextTrimming = TextTrimming.CharacterEllipsis;
-            text.MaxHeight = 22;
+            text.MaxWidth = double.PositiveInfinity;
         }
     }
 
@@ -166,7 +158,7 @@ public sealed class LegacyMapQuestSidebarPolishBridge : IDisposable
 
         leadingBorder.Width = 28;
         leadingBorder.Height = 28;
-        leadingBorder.HorizontalAlignment = HorizontalAlignment.Left;
+        leadingBorder.HorizontalAlignment = HorizontalAlignment.Center;
         leadingBorder.VerticalAlignment = VerticalAlignment.Center;
         leadingBorder.Margin = new Thickness(0);
         leadingBorder.IsHitTestVisible = false;
@@ -180,14 +172,11 @@ public sealed class LegacyMapQuestSidebarPolishBridge : IDisposable
 
     private static bool IsQuestRow(Border border)
     {
-        // v0.1.8 matched one exact RGB background value. Rows whose template/background
-        // differed slightly were skipped, which is why the sidebar still looked uneven.
-        // Identify quest rows by their actual structure instead.
         if (border.Child is not Grid grid)
             return false;
 
-        return grid.Children.OfType<CheckBox>().Any() &&
-               grid.Children.OfType<Button>().Any();
+        return grid.Children.OfType<Button>().Any(button => button.Tag is string) &&
+               (grid.Children.OfType<CheckBox>().Any() || grid.ColumnDefinitions.Count >= 2);
     }
 
     private static IEnumerable<T> FindDescendants<T>(DependencyObject root)
@@ -212,5 +201,30 @@ public sealed class LegacyMapQuestSidebarPolishBridge : IDisposable
         _disposed = true;
         _sidebar.Loaded -= Sidebar_Loaded;
         _sidebar.LayoutUpdated -= Sidebar_LayoutUpdated;
+    }
+}
+
+/// <summary>
+/// The sidebar is created dynamically inside the Map host, so there is no XAML owner
+/// that can reliably instantiate the polish bridge. Attach it at module load to every
+/// product sidebar instance and keep only a weak association with the control.
+/// </summary>
+internal static class LegacyMapQuestSidebarPolishAutoHook
+{
+    private static readonly ConditionalWeakTable<LegacyMapQuestSidebarV2, LegacyMapQuestSidebarPolishBridge> Bridges = new();
+
+    [ModuleInitializer]
+    internal static void Initialize()
+    {
+        EventManager.RegisterClassHandler(
+            typeof(LegacyMapQuestSidebarV2),
+            FrameworkElement.LoadedEvent,
+            new RoutedEventHandler(OnSidebarLoaded));
+    }
+
+    private static void OnSidebarLoaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is LegacyMapQuestSidebarV2 sidebar)
+            _ = Bridges.GetValue(sidebar, static control => new LegacyMapQuestSidebarPolishBridge(control));
     }
 }
