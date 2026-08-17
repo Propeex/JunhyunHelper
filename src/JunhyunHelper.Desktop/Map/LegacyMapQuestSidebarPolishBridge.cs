@@ -11,10 +11,9 @@ namespace JunhyunHelper.Desktop.Map;
 /// </summary>
 public sealed class LegacyMapQuestSidebarPolishBridge : IDisposable
 {
-    private static readonly Color QuestRowColor = Color.FromRgb(40, 40, 40);
-    private const double CheckBoxLaneWidth = 28;
-    private const double MarkerBadgeLaneWidth = 29;
-    private const double QuestRowHeight = 62;
+    private const double CheckBoxLaneWidth = 30;
+    private const double MarkerBadgeLaneWidth = 34;
+    private const double QuestRowHeight = 68;
 
     private readonly LegacyMapQuestSidebarV2 _sidebar;
     private bool _applyQueued;
@@ -78,6 +77,9 @@ public sealed class LegacyMapQuestSidebarPolishBridge : IDisposable
         if (row.Child is not Grid grid)
             return;
 
+        grid.Height = QuestRowHeight - row.Padding.Top - row.Padding.Bottom;
+        grid.MinHeight = grid.Height;
+        grid.MaxHeight = grid.Height;
         grid.HorizontalAlignment = HorizontalAlignment.Stretch;
         grid.VerticalAlignment = VerticalAlignment.Center;
         EnsureThreeColumnLayout(grid);
@@ -86,6 +88,8 @@ public sealed class LegacyMapQuestSidebarPolishBridge : IDisposable
         if (markerToggle is not null)
         {
             Grid.SetColumn(markerToggle, 0);
+            markerToggle.Width = 20;
+            markerToggle.Height = 20;
             markerToggle.HorizontalAlignment = HorizontalAlignment.Left;
             markerToggle.VerticalAlignment = VerticalAlignment.Center;
             markerToggle.Margin = new Thickness(0);
@@ -96,8 +100,12 @@ public sealed class LegacyMapQuestSidebarPolishBridge : IDisposable
             return;
 
         Grid.SetColumn(button, 2);
+        button.Height = grid.Height;
+        button.MinHeight = grid.Height;
+        button.MaxHeight = grid.Height;
         button.HorizontalAlignment = HorizontalAlignment.Stretch;
         button.HorizontalContentAlignment = HorizontalAlignment.Stretch;
+        button.VerticalAlignment = VerticalAlignment.Center;
         button.VerticalContentAlignment = VerticalAlignment.Center;
         button.Padding = new Thickness(0);
         button.Margin = new Thickness(0);
@@ -105,6 +113,7 @@ public sealed class LegacyMapQuestSidebarPolishBridge : IDisposable
         if (button.Content is not StackPanel content)
             return;
 
+        content.Height = grid.Height;
         content.HorizontalAlignment = HorizontalAlignment.Stretch;
         content.VerticalAlignment = VerticalAlignment.Center;
 
@@ -114,6 +123,7 @@ public sealed class LegacyMapQuestSidebarPolishBridge : IDisposable
         {
             MoveMarkerBadgeIntoFixedLane(grid, titleLine);
             titleLine.Orientation = Orientation.Vertical;
+            titleLine.Height = grid.Height;
             titleLine.HorizontalAlignment = HorizontalAlignment.Stretch;
             titleLine.VerticalAlignment = VerticalAlignment.Center;
         }
@@ -124,6 +134,7 @@ public sealed class LegacyMapQuestSidebarPolishBridge : IDisposable
             text.TextAlignment = TextAlignment.Left;
             text.TextWrapping = TextWrapping.NoWrap;
             text.TextTrimming = TextTrimming.CharacterEllipsis;
+            text.MaxHeight = 22;
         }
     }
 
@@ -153,17 +164,31 @@ public sealed class LegacyMapQuestSidebarPolishBridge : IDisposable
         if (leadingBorder.Child is not TextBlock codeText || string.IsNullOrWhiteSpace(codeText.Text))
             return;
 
+        leadingBorder.Width = 28;
+        leadingBorder.Height = 28;
         leadingBorder.HorizontalAlignment = HorizontalAlignment.Left;
         leadingBorder.VerticalAlignment = VerticalAlignment.Center;
         leadingBorder.Margin = new Thickness(0);
         leadingBorder.IsHitTestVisible = false;
+        codeText.HorizontalAlignment = HorizontalAlignment.Center;
+        codeText.VerticalAlignment = VerticalAlignment.Center;
+        codeText.TextAlignment = TextAlignment.Center;
         Grid.SetColumn(leadingBorder, 1);
         if (!grid.Children.Contains(leadingBorder))
             grid.Children.Add(leadingBorder);
     }
 
-    private static bool IsQuestRow(Border border) =>
-        border.Background is SolidColorBrush brush && brush.Color == QuestRowColor && border.Child is Grid;
+    private static bool IsQuestRow(Border border)
+    {
+        // v0.1.8 matched one exact RGB background value. Rows whose template/background
+        // differed slightly were skipped, which is why the sidebar still looked uneven.
+        // Identify quest rows by their actual structure instead.
+        if (border.Child is not Grid grid)
+            return false;
+
+        return grid.Children.OfType<CheckBox>().Any() &&
+               grid.Children.OfType<Button>().Any();
+    }
 
     private static IEnumerable<T> FindDescendants<T>(DependencyObject root)
         where T : DependencyObject
