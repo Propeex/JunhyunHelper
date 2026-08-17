@@ -1,0 +1,73 @@
+name: Global variable audit v2
+
+on:
+  push:
+    branches: [agent/global-variable-audit-v2-2026-08-17]
+    paths:
+      - '.github/workflows/global-variable-audit-v2.yml'
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Audit live task pools
+        shell: python
+        run: |
+          import json, urllib.request
+          url='https://json.tarkov.dev/regular/tasks'
+          with urllib.request.urlopen(url, timeout=60) as r:
+              doc=json.load(r)
+          data=doc.get('data', doc) if isinstance(doc, dict) else doc
+          tasks=data.get('tasks', data) if isinstance(data, dict) else data
+          if isinstance(tasks, dict): tasks=list(tasks.values())
+          assert isinstance(tasks, list), type(tasks)
+          def rid(v):
+              if isinstance(v,str): return v
+              if isinstance(v,dict): return v.get('id') or v.get('_id')
+              return None
+          def rname(v):
+              if isinstance(v,dict): return v.get('name') or v.get('id') or '?'
+              return str(v)
+          groups={}
+          direct={}
+          traders={}
+          for t in tasks:
+              trader=t.get('trader')
+              tid=rid(trader) or 'none'
+              traders[tid]=rname(trader)
+              globals=[]
+              for req in (t.get('otherRequirements') or []):
+                  if req.get('type')!='globalVariable': continue
+                  nested=req.get('globalVariable') or {}
+                  vid=req.get('variableId') or nested.get('variableId') or nested.get('id')
+                  val=req.get('value') if req.get('value') is not None else nested.get('value')
+                  op=req.get('compareMethod') or nested.get('compareMethod')
+                  globals.append((vid,op,val))
+                  groups.setdefault(vid, {'traderId':tid,'trader':traders[tid],'quests':[]})['quests'].append({
+                      'id':t.get('id'),'name':t.get('name'),'threshold':val,'op':op,
+                      'minPlayerLevel':t.get('minPlayerLevel'),
+                      'taskReqCount':len(t.get('taskRequirements') or []),
+                      'traderReqs':t.get('traderRequirements') or []})
+              if not globals:
+                  for req in (t.get('traderRequirements') or []):
+                      if str(req.get('requirementType','')).lower()!='level': continue
+                      tr=rid(req.get('trader')) or tid
+                      direct.setdefault((tr, int(req.get('value',0))), []).append({'id':t.get('id'),'name':t.get('name'),'minPlayerLevel':t.get('minPlayerLevel'),'taskReqCount':len(t.get('taskRequirements') or [])})
+          print('TASK_COUNT',len(tasks))
+          print('VARIABLE_COUNT',len(groups))
+          bytr={}
+          for vid,g in groups.items(): bytr.setdefault(g['traderId'],[]).append(vid)
+          for tid, vids in sorted(bytr.items(), key=lambda kv: traders.get(kv[0],kv[0])):
+              print('\nTRADER',tid,traders.get(tid), 'VARIABLES', len(vids))
+              for idx,vid in enumerate(sorted(vids),1):
+                  g=groups[vid]
+                  print(' VAR',idx,vid,'thresholds',sorted({q['threshold'] for q in g['quests']}),'quests',len(g['quests']))
+                  for q in sorted(g['quests'], key=lambda q:(q['threshold'],q['name'] or '')):
+                      print('   G',q['threshold'],q['id'],q['name'],'minLv',q['minPlayerLevel'],'taskReq',q['taskReqCount'])
+              for (dtid,ll), qs in sorted(direct.items(), key=lambda kv:(kv[0][0],kv[0][1])):
+                  if dtid!=tid: continue
+                  print(' DIRECT_LL',ll,'count',len(qs))
+                  for q in sorted(qs,key=lambda x:x['name'] or ''):
+                      print('   D',q['id'],q['name'],'minLv',q['minPlayerLevel'],'taskReq',q['taskReqCount'])
+          print('\nJSON_GROUPS')
+          print(json.dumps(groups,ensure_ascii=False,sort_keys=True))
