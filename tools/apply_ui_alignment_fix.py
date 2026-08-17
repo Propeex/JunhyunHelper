@@ -68,7 +68,8 @@ ammo_xaml = replace_once(
 ammo_xaml_path.write_text(ammo_xaml, encoding="utf-8", newline="\n")
 
 ammo_code_path = Path("src/JunhyunHelper.Desktop/Ammo/AmmoPage.xaml.cs")
-ammo_code = ammo_code_path.read_text(encoding="utf-8")nammo_old = '''        var caliber = (CaliberComboBox.SelectedItem as CaliberChoice)?.RawCaliber;
+ammo_code = ammo_code_path.read_text(encoding="utf-8")
+ammo_old = '''        var caliber = (CaliberComboBox.SelectedItem as CaliberChoice)?.RawCaliber;
         FavoriteCaliberButton.IsEnabled = caliber is not null;
         FavoriteCaliberButton.Content = caliber is not null && _favoriteCalibers.Contains(caliber)
             ? "★ 즐겨찾기"
@@ -78,7 +79,7 @@ ammo_new = '''        var caliber = (CaliberComboBox.SelectedItem as CaliberChoi
         FavoriteCaliberButton.IsEnabled = caliber is not null;
         FavoriteCaliberButton.Content = isFavorite ? "★" : "☆";
         FavoriteCaliberButton.ToolTip = isFavorite ? "즐겨찾기 해제" : "즐겨찾기 추가";'''
-ammo_code = replace_once(ammo_code, nammo_old, nammo_new, "ammo favorite star-only state")
+ammo_code = replace_once(ammo_code, ammo_old, ammo_new, "ammo favorite star-only state")
 ammo_code_path.write_text(ammo_code, encoding="utf-8", newline="\n")
 
 ammo_product_path = Path("src/JunhyunHelper.Desktop/Ammo/AmmoPage.ProductSearchAndDetails.cs")
@@ -162,7 +163,7 @@ if count != 1:
 map_path.write_text(map_code, encoding="utf-8", newline="\n")
 
 
-# Make the existing release smoke validate the *rendered* coordinates/state before it
+# Make the existing release smoke validate the rendered coordinates/state before it
 # publishes success, so future source-only fixes cannot pass this regression again.
 host_path = Path("src/JunhyunHelper.Desktop/MainWindow.LegacyMapHost.cs")
 host = host_path.read_text(encoding="utf-8")
