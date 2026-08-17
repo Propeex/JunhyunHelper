@@ -40,9 +40,30 @@ public sealed record FutureNeededItemsPlan(
     IReadOnlyList<string> UnenteredHideoutStationIds,
     IReadOnlyDictionary<string, QuestFutureReachabilityResult> QuestReachability);
 
+/// <summary>
+/// The expensive part of Needed Items planning. None of these values depend on the
+/// current inventory quantities, so inventory-only mutations can reuse this basis.
+/// </summary>
+public sealed record FutureNeededItemsBasis(
+    IReadOnlyList<ItemRequirement> FixedRequirements,
+    IReadOnlyList<QuestItemRequirement> AlternativeQuestRequirements,
+    IReadOnlyList<CleanupProtection> CleanupProtections,
+    IReadOnlyList<string> UnenteredHideoutStationIds,
+    IReadOnlyDictionary<string, QuestFutureReachabilityResult> QuestReachability);
+
 public static class FutureNeededItemsPlanner
 {
     public static FutureNeededItemsPlan Calculate(
+        GameContentCatalog content,
+        GameProfileSnapshot profile)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        ArgumentNullException.ThrowIfNull(profile);
+
+        return Calculate(BuildBasis(content, profile), profile.Inventory);
+    }
+
+    public static FutureNeededItemsBasis BuildBasis(
         GameContentCatalog content,
         GameProfileSnapshot profile)
     {
@@ -69,8 +90,6 @@ public static class FutureNeededItemsPlanner
         foreach (var station in content.HideoutStations)
         {
             // Product rule: no saved station value means the station is at Lv.0.
-            // Therefore every future level above zero is a real planning requirement
-            // instead of an unknown range that blocks cleanup globally.
             var currentLevel = profile.HideoutLevels.TryGetValue(station.Id, out var savedLevel)
                 ? savedLevel
                 : 0;
@@ -95,19 +114,8 @@ public static class FutureNeededItemsPlanner
             }
         }
 
-        var fixedRequirements = built.FixedRequirements.ToArray();
-        var neededItems = NeededItemCalculator.Calculate(fixedRequirements, profile.Inventory);
-        var protectedItemIds = protections
-            .Select(static protection => protection.ItemId)
-            .ToHashSet(StringComparer.Ordinal);
-        var cleanupItems = InventorySurplusCalculator.Calculate(
-            fixedRequirements,
-            profile.Inventory,
-            protectedItemIds);
-
-        return new FutureNeededItemsPlan(
-            neededItems,
-            cleanupItems,
+        return new FutureNeededItemsBasis(
+            built.FixedRequirements.ToArray(),
             built.AlternativeQuestRequirements,
             protections
                 .Distinct()
@@ -117,6 +125,31 @@ public static class FutureNeededItemsPlanner
                 .ToArray(),
             Array.Empty<string>(),
             reachability);
+    }
+
+    public static FutureNeededItemsPlan Calculate(
+        FutureNeededItemsBasis basis,
+        IReadOnlyDictionary<string, InventoryQuantity> inventory)
+    {
+        ArgumentNullException.ThrowIfNull(basis);
+        ArgumentNullException.ThrowIfNull(inventory);
+
+        var neededItems = NeededItemCalculator.Calculate(basis.FixedRequirements, inventory);
+        var protectedItemIds = basis.CleanupProtections
+            .Select(static protection => protection.ItemId)
+            .ToHashSet(StringComparer.Ordinal);
+        var cleanupItems = InventorySurplusCalculator.Calculate(
+            basis.FixedRequirements,
+            inventory,
+            protectedItemIds);
+
+        return new FutureNeededItemsPlan(
+            neededItems,
+            cleanupItems,
+            basis.AlternativeQuestRequirements,
+            basis.CleanupProtections,
+            basis.UnenteredHideoutStationIds,
+            basis.QuestReachability);
     }
 }
 
@@ -160,13 +193,8 @@ public static class InventorySurplusCalculator
             var requiredFir = itemRequirements.Sum(static requirement => requirement.RequiredFir);
             var unrestrictedRequired = Math.Max(0, requiredTotal - requiredFir);
 
-            // Non-FIR can only satisfy the unrestricted portion, so anything above that
-            // amount is always safe to remove even when the user is still missing FIR items.
             var usefulNonFir = Math.Min(owned.NonFir, unrestrictedRequired);
             var surplusNonFir = Math.Max(0, owned.NonFir - unrestrictedRequired);
-
-            // FIR must first cover the FIR requirement, then it can cover any unrestricted
-            // amount not already covered by Non-FIR inventory.
             var firNeededForUnrestricted = Math.Max(0, unrestrictedRequired - usefulNonFir);
             var usefulFir = requiredFir + firNeededForUnrestricted;
             var surplusFir = Math.Max(0, owned.Fir - usefulFir);
