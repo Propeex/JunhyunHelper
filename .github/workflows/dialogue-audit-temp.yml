@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Audit current dialogue quest requirements
+      - name: Trace dialogue gate identifiers through live task data
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -25,25 +25,41 @@ jobs:
               @($collection.PSObject.Properties | ForEach-Object { $_.Value })
             }
 
-            $dialogueLike = @()
+            $gated = @()
             foreach ($task in $tasks) {
-              $matches = @($task.otherRequirements | Where-Object { $_.type -eq 'dialogue' })
-              if ($matches.Count -eq 0) { continue }
-              $nameKey = [string]$task.name
-              $descriptionKey = [string]$task.description
-              $nameProperty = $english.data.PSObject.Properties[$nameKey]
-              $descriptionProperty = $english.data.PSObject.Properties[$descriptionKey]
-              $dialogueLike += [pscustomobject]@{
-                id = $task.id
-                name = if ($nameProperty) { $nameProperty.Value } else { $nameKey }
-                description = if ($descriptionProperty) { $descriptionProperty.Value } else { $descriptionKey }
-                trader = $task.trader
-                minPlayerLevel = $task.minPlayerLevel
-                taskRequirements = @($task.taskRequirements)
-                traderRequirements = @($task.traderRequirements)
-                dialogueRequirements = $matches
+              foreach ($req in @($task.otherRequirements | Where-Object { $_.type -eq 'dialogue' })) {
+                $gated += [pscustomobject]@{ task = $task; requirement = $req }
               }
             }
-            Write-Host "dialogue quest count=$($dialogueLike.Count)"
-            $dialogueLike | ConvertTo-Json -Depth 20 -Compress | Write-Host
+
+            foreach ($entry in $gated) {
+              $task = $entry.task
+              $req = $entry.requirement
+              $gateId = [string]$req.id
+              $nameKey = [string]$task.name
+              $nameProperty = $english.data.PSObject.Properties[$nameKey]
+              $name = if ($nameProperty) { $nameProperty.Value } else { $nameKey }
+              Write-Host "GATE task=$($task.id) name='$name' gate=$gateId"
+
+              $references = @()
+              foreach ($candidate in $tasks) {
+                $json = $candidate | ConvertTo-Json -Depth 50 -Compress
+                if ($json -notmatch [regex]::Escape($gateId)) { continue }
+                $candidateNameKey = [string]$candidate.name
+                $candidateNameProperty = $english.data.PSObject.Properties[$candidateNameKey]
+                $candidateName = if ($candidateNameProperty) { $candidateNameProperty.Value } else { $candidateNameKey }
+                $references += [pscustomobject]@{
+                  id = $candidate.id
+                  name = $candidateName
+                  isGatedQuest = ($candidate.id -eq $task.id)
+                  taskRequirements = @($candidate.taskRequirements)
+                  otherRequirements = @($candidate.otherRequirements)
+                  startRewards = @($candidate.startRewards)
+                  finishRewards = @($candidate.finishRewards)
+                  failConditions = @($candidate.failConditions)
+                }
+              }
+              Write-Host "references=$($references.Count)"
+              $references | ConvertTo-Json -Depth 30 -Compress | Write-Host
+            }
           }
