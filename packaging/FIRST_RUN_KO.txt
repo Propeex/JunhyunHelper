@@ -1,4 +1,4 @@
-준현 헬퍼 v0.1.9 — Windows x64
+준현 헬퍼 v0.1.10 — Windows x64
 
 실행 방법
 1. 받은 ZIP 파일을 원하는 폴더에 압축 해제합니다.
@@ -20,23 +20,18 @@
 - 지도 제품 설정: %LocalAppData%\JunhyunHelper\map-product-settings.json
 - 탄약 즐겨찾기: %LocalAppData%\JunhyunHelper\ammo-favorites.json
 - 프로그램 로그: %LocalAppData%\JunhyunHelper\Logs
-- v0.1.8에서 v0.1.9로 교체해도 기존 Profile / Quest / Inventory / Hideout / Map 설정은 유지됩니다.
+- v0.1.9에서 v0.1.10으로 교체해도 기존 Profile / Quest / Inventory / Hideout / Map 설정은 유지됩니다.
 
-v0.1.9 주요 변경
-- EFT 1.1의 globalVariable Quest 162개를 다시 감사했습니다. 27개 trader task-pool 변수 중 정확히 검증된 LL2~LL4 pool 114개는 현재 상인 LL과 완료 Quest를 이용해 runtime에서 판정합니다.
-- exact profile variable 값이 있으면 항상 그 값을 우선합니다. LL1 48개는 공개 데이터에 initial write 규칙이 없어 exact 값이 없을 때 계속 '확인 필요'로 보수적으로 유지합니다.
-- 현재 live 구조가 ID / 상인 / Quest 수 / threshold / seed 수 중 하나라도 달라지면 task-pool 호환 규칙은 자동으로 중단되고 '확인 필요'로 fail-closed 합니다.
-- 실제 완료 시각이 필요한 availability delay는 완료 시각을 모르면 계속 '확인 필요'입니다.
-- 아이템 수량 변경 때 Quest future reachability, 은신처 미래 요구조건, cleanup protection을 매번 전부 다시 만들던 병목을 제거했습니다. 수량 변경에는 inventory-dependent 계산만 다시 수행합니다.
-- 아이템 수량 변경 때 전체 아이콘 로딩 파이프라인을 취소/재시작하지 않고 이미 로드한 아이콘을 재사용합니다.
-- 유동 제출 아이템 행을 일반 아이템 목록 기준 68px 행 / 44px 아이콘 리듬으로 통일했습니다.
-- 탄약 검색창을 헤더 가장 왼쪽으로 옮겼고 검색 결과는 탄약 이미지 + 이름만 표시합니다.
-- 탄약 하단 상세정보를 실제로 접고 펼칠 수 있도록 Expander 연결 오류를 수정했습니다.
-- 탄약 즐겨찾기 버튼은 '☆ / ★' 기호만 표시합니다.
-- 지도 '퀘스트 마커 표시' 체크 설정도 재시작 후 저장값이 권위값으로 복원되도록 수정했습니다.
-- 지도 진행 중 Quest 목록은 행 68px, checkbox / A·B·C marker / 이름 영역을 고정해 정렬을 통일했습니다.
-- MiniMap에 마우스를 올렸을 때 투명화 감지를 무거운 지도 동기화 주기와 분리해 더 빠르게 반응하도록 했습니다.
-- Quest / Hideout / Items / Ammo 검색창 우측에 검색어 전체 삭제용 × 버튼을 추가했습니다.
+v0.1.10 주요 변경
+- 유동 제출 아이템 행을 일반 아이템 목록과 같은 구조로 다시 만들었습니다. 아이콘 + 이름/분류는 좌측, 인레이드/일반 보유량은 우측 고정 영역에 정렬됩니다.
+- 유동 제출 아이콘의 36px 프레임 안에 44px 이미지를 넣던 clipping 문제를 제거해 아이콘이 잘리거나 깨져 보이지 않도록 수정했습니다.
+- 탄약 탭의 중복 '구경', '즐겨찾기' 라벨을 제거하고 구경 선택 박스 폭을 줄였습니다.
+- 탄약 즐겨찾기 버튼은 ☆/★만 표시하며, 즐겨찾기 목록 선택 버튼은 별도로 유지합니다.
+- 탄약 상세정보 접기/펼치기를 지도 탭처럼 중앙 정렬된 전용 버튼으로 변경했습니다.
+- 지도 진행 중 Quest 목록의 실제 동적 sidebar에도 정렬 보정이 연결되도록 수정했습니다. checkbox / A·B·C marker / Quest 이름 영역을 분리하고 Quest 이름은 marker 영역 바로 뒤에서 좌측 정렬됩니다.
+- EFT 1.1 trader task-pool의 LL1 초기 상태 판정을 보강했습니다. 감사된 current-version 구조가 그대로이고, 현재 해당 상인이 LL1이며 그 상인의 완료 Quest가 하나도 없을 때만 LL1 pool counter를 0으로 확정합니다.
+- LL1 상인 Quest 완료 기록이 하나라도 있거나 LL2 이상인 경우에는 exact profile variable 값 없이 LL1 counter를 추측하지 않습니다.
+- exact profile variable 값이 있으면 항상 그 값을 최우선으로 사용합니다.
 
 퀘스트 판정 기준
 - 서로 다른 taskRequirements는 AND, 한 requirement의 status[]는 OR입니다.
@@ -44,14 +39,20 @@ v0.1.9 주요 변경
 - source가 직접 제공한 prerequisite 의미를 우선하며 BTR Driver / Ref / Lightkeeper 특수 규칙도 기존 검증 정책을 유지합니다.
 - 2026-08-17 live 데이터의 검증된 dialogue Quest 12개는 정확한 compatibility 규칙을 적용하고, 새로운/변경된 dialogue는 자동 통과시키지 않습니다.
 - EFT profile-variable은 exact current 값이 있으면 정확히 판정합니다.
-- exact 값이 없더라도 현재 EFT 1.1의 감사된 27-ID task-pool 구조가 완전히 일치하면 LL2~LL4만 현재 상인 LL과 완료 Quest로 복원합니다.
-- LL1 task-pool과 실제 완료 시각 기반 delay처럼 현재 정확히 복원할 수 없는 조건은 임의 추측하지 않고 '확인 필요'로 남깁니다.
+- 현재 EFT 1.1의 감사된 27-ID task-pool 구조가 완전히 일치하면 LL2~LL4는 현재 상인 LL과 완료 Quest로 복원합니다.
+- LL1은 위의 '완료 Quest 0개 + 현재 LL1' 초기 상태만 0으로 확정합니다. 그 밖의 LL1 진행 상태는 exact 값 없이 임의 추측하지 않습니다.
+- 실제 완료 시각이 필요한 availability delay는 완료 시각을 모르면 계속 '확인 필요'입니다.
+- current live 구조의 ID / 상인 / Quest 수 / threshold / seed 수가 감사 결과와 달라지면 해당 compatibility는 자동 중단되고 '확인 필요'로 fail-closed 합니다.
 
 필요 아이템 / 보유량
 - 미래에 진행할 수 있는 Quest와 은신처 업그레이드를 기준으로 필요한 아이템을 계산합니다.
 - Quest 화면의 task-pool 호환 판정과 별개로 Needed Items는 불확실한 미래 Quest도 계속 잠재 필요 아이템으로 보호합니다.
 - 따라서 '확인 필요'를 줄이기 위해 실제 필요한 아이템을 잘못 '정리 가능'으로 판단하도록 완화하지 않습니다.
 - 유동 제출처럼 여러 후보 중 하나를 제출하는 요구사항도 후보 아이템을 보호합니다.
+
+성능
+- 아이템 수량 변경 시 Quest future reachability와 은신처 미래 요구조건 전체를 매번 다시 만들지 않고 inventory-dependent 계산만 갱신합니다.
+- 아이템 수량 변경 때 전체 아이콘 로딩 파이프라인을 취소/재시작하지 않고 이미 로드한 아이콘을 재사용합니다.
 
 지도 / MiniMap
 - 지도 단축키, 마커, MiniMap 투명도/마커 크기 등 제품 설정은 %LocalAppData%\JunhyunHelper\map-product-settings.json에 저장됩니다.
@@ -69,7 +70,7 @@ v0.1.9 주요 변경
 - Content schema: v7
 - Readable Content schemas: v3, v4, v5, v6, v7
 - user.db SQLite schema: v1
-- v0.1.8 → v0.1.9 필수 데이터 업데이트: 없음
+- v0.1.9 → v0.1.10 필수 데이터 업데이트: 없음
 - 다음 정상 데이터 업데이트가 성공하면 v7 snapshot으로 저장합니다.
 
 현재 범위
