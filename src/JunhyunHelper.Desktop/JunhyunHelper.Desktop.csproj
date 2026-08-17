@@ -23,7 +23,7 @@
     <Product>준현 헬퍼</Product>
     <Title>준현 헬퍼</Title>
     <Description>Escape from Tarkov 진행도·아이템·탄약·지도 도우미</Description>
-    <Version>0.1.10</Version>
+    <Version>0.1.11</Version>
     <ApplicationIcon>$(MSBuildProjectDirectory)\obj\JunhyunHelper.AppIcon.ico</ApplicationIcon>
     <!-- The product UI is Korean-only. Let the .NET SDK filter framework/package
          satellite assemblies at publish time instead of deleting files afterward. -->
@@ -36,116 +36,63 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Resource Include="Assets/AppIcon.png" />
+    <ProjectReference Include="..\JunhyunHelper.Application\JunhyunHelper.Application.csproj" />
+    <ProjectReference Include="..\JunhyunHelper.Infrastructure\JunhyunHelper.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.10" />
     <PackageReference Include="SharpVectors.Wpf" Version="1.8.5" />
-    <PackageReference Include="SkiaSharp" Version="4.150.1" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.150.1" />
+    <PackageReference Include="System.Drawing.Common" Version="10.0.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../JunhyunHelper.Core/JunhyunHelper.Core.csproj" />
-    <ProjectReference Include="../JunhyunHelper.Infrastructure/JunhyunHelper.Infrastructure.csproj" />
-    <ProjectReference Include="../JunhyunHelper.Application/JunhyunHelper.Application.csproj" />
+    <EmbeddedResource Include="Assets\tarkov_data.db" />
+    <Content Include="Assets\tarkov_data.db">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="../../vendor/Tarkov-Helper/TarkovHelper/Models/**/*.cs"
-             Link="Legacy/TarkovHelper/Models/%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="../../vendor/Tarkov-Helper/TarkovHelper/Services/**/*.cs"
-             Link="Legacy/TarkovHelper/Services/%(RecursiveDir)%(Filename)%(Extension)" />
-
-    <!-- These belong to the old application's non-Map content/update subsystems. -->
-    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/Ammo/**/*.cs" />
-    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/ItemsDataService.cs" />
-    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/ItemsFilterService.cs" />
-    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/IntegratedItemService.cs" />
-    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/ItemRequirementService.cs" />
-    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/ContentStorageService.cs" />
-    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/ContentDatabaseSummary.cs" />
-    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/DatabaseUpdateService.cs" />
-    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/ConfigMigrationService.cs" />
-    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/MigrationService.cs" />
-    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/ItemIconUpdateService.cs" />
-    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/ImageCacheService.cs" />
-    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/ItemDbService.cs" />
-    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/TraderDbService.cs" />
-    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/HideoutDbService.cs" />
-    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/TarkovDataDatabaseBuilder*.cs" />
-    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/UserProgressResetService.cs" />
-    <!-- The old global hook contained unrelated hidden commands/logging. JunhyunHelper
-         provides a product-safe compatibility replacement in Desktop/Map. -->
-    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/GlobalKeyboardHookService.cs" />
-    <!-- The old logger writes beside the executable. Replace it with a product-owned
-         implementation that keeps logs under %LocalAppData%/JunhyunHelper/Logs. -->
-    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/Logging/LoggingService.cs" />
-    <!-- JunhyunHelper release/update ownership is separate from the transplanted Map.
-         Never ship the old Tarkov-Helper updater, which targets the legacy repository. -->
-    <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/UpdateService.cs" />
-
-    <Compile Include="../../vendor/Tarkov-Helper/TarkovHelper/Pages/Map/**/*.cs"
-             Link="Legacy/TarkovHelper/Pages/Map/%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="../../vendor/Tarkov-Helper/TarkovHelper/Windows/OverlayMiniMapWindow*.cs"
-             Link="Legacy/TarkovHelper/Windows/%(Filename)%(Extension)" />
-    <Compile Include="../../vendor/Tarkov-Helper/TarkovHelper/Windows/Dialogs/OverlaySettingsWindow*.cs"
-             Link="Legacy/TarkovHelper/Windows/Dialogs/%(Filename)%(Extension)" />
-    <Compile Include="../../vendor/Tarkov-Helper/TarkovHelper/Windows/Dialogs/CustomMarkerEditorWindow*.cs"
-             Link="Legacy/TarkovHelper/Windows/Dialogs/%(Filename)%(Extension)" />
-
-    <Page Include="../../vendor/Tarkov-Helper/TarkovHelper/Pages/Map/MapPage.xaml"
-          Link="Legacy/TarkovHelper/Pages/Map/MapPage.xaml" />
-    <Page Include="../../vendor/Tarkov-Helper/TarkovHelper/Windows/OverlayMiniMapWindow.xaml"
-          Link="Legacy/TarkovHelper/Windows/OverlayMiniMapWindow.xaml" />
-    <Page Include="../../vendor/Tarkov-Helper/TarkovHelper/Windows/Dialogs/OverlaySettingsWindow.xaml"
-          Link="Legacy/TarkovHelper/Windows/Dialogs/OverlaySettingsWindow.xaml" />
-    <Page Include="../../vendor/Tarkov-Helper/TarkovHelper/Windows/Dialogs/CustomMarkerEditorWindow.xaml"
-          Link="Legacy/TarkovHelper/Windows/Dialogs/CustomMarkerEditorWindow.xaml" />
+    <Compile Include="..\..\vendor\Tarkov-Helper\TarkovHelper\Models\**\*.cs"
+             Link="Legacy\TarkovHelper\Models\%(RecursiveDir)%(Filename)%(Extension)"
+             Exclude="..\..\vendor\Tarkov-Helper\TarkovHelper\Models\UserData.cs;..\..\vendor\Tarkov-Helper\TarkovHelper\Models\UserQuestProgress.cs" />
+    <Compile Include="..\..\vendor\Tarkov-Helper\TarkovHelper\Services\**\*.cs"
+             Link="Legacy\TarkovHelper\Services\%(RecursiveDir)%(Filename)%(Extension)"
+             Exclude="..\..\vendor\Tarkov-Helper\TarkovHelper\Services\LoggingService.cs;..\..\vendor\Tarkov-Helper\TarkovHelper\Services\GlobalKeyboardHookService.cs" />
+    <Compile Include="..\..\vendor\Tarkov-Helper\TarkovHelper\Controls\**\*.cs"
+             Link="Legacy\TarkovHelper\Controls\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\..\vendor\Tarkov-Helper\TarkovHelper\Pages\Map\**\*.cs"
+             Link="Legacy\TarkovHelper\Pages\Map\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\..\vendor\Tarkov-Helper\TarkovHelper\Windows\OverlayMiniMapWindow.xaml.cs"
+             Link="Legacy\TarkovHelper\Windows\OverlayMiniMapWindow.xaml.cs" />
+    <Compile Include="..\..\vendor\Tarkov-Helper\TarkovHelper\Windows\Dialogs\**\*.cs"
+             Link="Legacy\TarkovHelper\Windows\Dialogs\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\..\vendor\Tarkov-Helper\TarkovHelper\Utils\**\*.cs"
+             Link="Legacy\TarkovHelper\Utils\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
-  <!-- Map/MiniMap read these files directly by path. Keep them outside the single-file
-       executable while the framework/runtime/native dependencies are bundled. -->
   <ItemGroup>
-    <Content Include="../../vendor/Tarkov-Helper/TarkovHelper/Assets/tarkov_data.db"
-             Link="Assets/tarkov_data.db"
-             CopyToOutputDirectory="PreserveNewest"
-             CopyToPublishDirectory="PreserveNewest"
-             ExcludeFromSingleFile="true" />
-    <Content Include="../../vendor/Tarkov-Helper/TarkovHelper/Assets/DB/Data/*.json"
-             Link="Assets/DB/Data/%(Filename)%(Extension)"
-             CopyToOutputDirectory="PreserveNewest"
-             CopyToPublishDirectory="PreserveNewest"
-             ExcludeFromSingleFile="true" />
-    <Content Include="../../vendor/Tarkov-Helper/TarkovHelper/Assets/DB/Maps/*.svg"
-             Link="Assets/DB/Maps/%(Filename)%(Extension)"
-             CopyToOutputDirectory="PreserveNewest"
-             CopyToPublishDirectory="PreserveNewest"
-             ExcludeFromSingleFile="true" />
-    <Content Include="../../vendor/Tarkov-Helper/TarkovHelper/Assets/DB/Icons/*.svg"
-             Link="Assets/DB/Icons/%(Filename)%(Extension)"
-             CopyToOutputDirectory="PreserveNewest"
-             CopyToPublishDirectory="PreserveNewest"
-             ExcludeFromSingleFile="true" />
-    <Content Include="../../vendor/Tarkov-Helper/TarkovHelper/Assets/DB/Icons/Markers/*.svg"
-             Link="Assets/DB/Icons/Markers/%(Filename)%(Extension)"
-             CopyToOutputDirectory="PreserveNewest"
-             CopyToPublishDirectory="PreserveNewest"
-             ExcludeFromSingleFile="true" />
+    <Page Include="..\..\vendor\Tarkov-Helper\TarkovHelper\Pages\Map\MapPage.xaml"
+          Link="Legacy\TarkovHelper\Pages\Map\MapPage.xaml" />
+    <Page Include="..\..\vendor\Tarkov-Helper\TarkovHelper\Windows\OverlayMiniMapWindow.xaml"
+          Link="Legacy\TarkovHelper\Windows\OverlayMiniMapWindow.xaml" />
+    <Page Include="..\..\vendor\Tarkov-Helper\TarkovHelper\Windows\Dialogs\**\*.xaml"
+          Link="Legacy\TarkovHelper\Windows\Dialogs\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
-  <Target Name="GenerateJunhyunHelperApplicationIcon" BeforeTargets="CoreCompile">
-    <Exec Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\Build\GenerateApplicationIcon.ps1&quot; -Source &quot;$(MSBuildProjectDirectory)\Assets/AppIcon.png&quot; -Destination &quot;$(ApplicationIcon)&quot;" />
-  </Target>
+  <ItemGroup>
+    <None Include="..\..\vendor\Tarkov-Helper\TarkovHelper\Assets\Maps\**\*"
+          Link="Assets\Maps\%(RecursiveDir)%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\vendor\Tarkov-Helper\TarkovHelper\Assets\Markers\**\*"
+          Link="Assets\Markers\%(RecursiveDir)%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 
-  <!-- Native NuGet packages can contribute PDBs even when DebugType=None. They are
-       useful to developers but not to users and previously added ~89 MB uncompressed
-       to the Windows package. Keep release ZIPs free of all debug symbol files. -->
-  <Target Name="RemovePublishDebugSymbols" AfterTargets="Publish">
-    <ItemGroup>
-      <PublishDebugSymbols Include="$(PublishDir)**\*.pdb" />
-    </ItemGroup>
-    <Delete Files="@(PublishDebugSymbols)" />
+  <Target Name="GenerateAppIcon" BeforeTargets="CoreCompile" Condition="'$(DesignTimeBuild)' != 'true'">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\Build\GenerateApplicationIcon.ps1&quot; -SourcePng &quot;$(MSBuildProjectDirectory)\Assets\AppIcon.png&quot; -OutputIco &quot;$(ApplicationIcon)&quot;" />
   </Target>
 </Project>
