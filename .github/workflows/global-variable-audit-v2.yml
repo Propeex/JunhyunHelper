@@ -10,53 +10,35 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-      - name: Audit live task pools
+      - name: Verify trader-owned seed batches
         shell: python
         run: |
           import json, urllib.request
           url='https://json.tarkov.dev/regular/tasks'
           req=urllib.request.Request(url,headers={'User-Agent':'JunhyunHelper/0.1.9 (+https://github.com/Propeex/JunhyunHelper)','Accept':'application/json'})
-          with urllib.request.urlopen(req, timeout=60) as r:
-              doc=json.load(r)
-          data=doc.get('data', doc) if isinstance(doc, dict) else doc
-          tasks=data.get('tasks', data) if isinstance(data, dict) else data
-          if isinstance(tasks, dict): tasks=list(tasks.values())
-          assert isinstance(tasks, list), type(tasks)
+          with urllib.request.urlopen(req, timeout=60) as r: doc=json.load(r)
+          data=doc.get('data',doc) if isinstance(doc,dict) else doc
+          tasks=data.get('tasks',data) if isinstance(data,dict) else data
+          if isinstance(tasks,dict): tasks=list(tasks.values())
           def rid(v):
               if isinstance(v,str): return v
               if isinstance(v,dict): return v.get('id') or v.get('_id')
-              return None
-          def rname(v):
-              if isinstance(v,dict): return v.get('name') or v.get('id') or '?'
-              return str(v)
-          groups={}; direct={}; traders={}
-          for t in tasks:
-              trader=t.get('trader'); tid=rid(trader) or 'none'; traders[tid]=rname(trader); globals=[]
-              for req in (t.get('otherRequirements') or []):
-                  if req.get('type')!='globalVariable': continue
-                  nested=req.get('globalVariable') or {}
-                  vid=req.get('variableId') or nested.get('variableId') or nested.get('id')
-                  val=req.get('value') if req.get('value') is not None else nested.get('value')
-                  op=req.get('compareMethod') or nested.get('compareMethod')
-                  globals.append((vid,op,val))
-                  groups.setdefault(vid, {'traderId':tid,'trader':traders[tid],'quests':[]})['quests'].append({'id':t.get('id'),'name':t.get('name'),'threshold':val,'op':op,'minPlayerLevel':t.get('minPlayerLevel'),'taskReqCount':len(t.get('taskRequirements') or [])})
-              if not globals:
-                  for req in (t.get('traderRequirements') or []):
-                      if str(req.get('requirementType','')).lower()!='level': continue
-                      tr=rid(req.get('trader')) or tid
-                      direct.setdefault((tr, int(req.get('value',0))), []).append({'id':t.get('id'),'name':t.get('name'),'minPlayerLevel':t.get('minPlayerLevel'),'taskReqCount':len(t.get('taskRequirements') or [])})
-          print('TASK_COUNT',len(tasks)); print('VARIABLE_COUNT',len(groups))
-          bytr={}
-          for vid,g in groups.items(): bytr.setdefault(g['traderId'],[]).append(vid)
-          for tid, vids in sorted(bytr.items(), key=lambda kv: traders.get(kv[0],kv[0])):
-              print('\nTRADER',tid,traders.get(tid),'VARIABLES',len(vids))
-              for idx,vid in enumerate(sorted(vids),1):
-                  g=groups[vid]
-                  print(' VAR',idx,vid,'thresholds',sorted({q['threshold'] for q in g['quests']}),'quests',len(g['quests']))
-                  for q in sorted(g['quests'], key=lambda q:(q['threshold'],q['name'] or '')):
-                      print('   G',q['threshold'],q['id'],q['name'],'minLv',q['minPlayerLevel'],'taskReq',q['taskReqCount'])
-              for (dtid,ll), qs in sorted(direct.items(), key=lambda kv:(kv[0][0],kv[0][1])):
-                  if dtid!=tid: continue
-                  print(' DIRECT_LL',ll,'count',len(qs))
-                  for q in sorted(qs,key=lambda x:x['name'] or ''):
-                      print('   D',q['id'],q['name'],'minLv',q['minPlayerLevel'],'taskReq',q['taskReqCount'])
+          traders={
+            'Prapor':'54cb50c76803fa8b248b4571','Therapist':'54cb57776803fa99248b456e',
+            'Skier':'58330581ace78e27b8b10cee','Peacekeeper':'5935c25fb3acc3127c3d8cd9',
+            'Mechanic':'5a7c2eca46aef81a7ca2145d','Ragman':'5ac3b934156ae10c4430e83c',
+            'Jaeger':'5c0647fdd443bc2504c2d371'}
+          for name,tid in traders.items():
+              print('\nTRADER',name,tid)
+              for ll in (2,3,4):
+                  matches=[]
+                  for t in tasks:
+                      if rid(t.get('trader'))!=tid: continue
+                      if any(r.get('type')=='globalVariable' for r in (t.get('otherRequirements') or [])): continue
+                      ok=False
+                      for r in (t.get('traderRequirements') or []):
+                          if str(r.get('requirementType','')).lower()!='level': continue
+                          rtid=rid(r.get('trader')) or tid
+                          if rtid==tid and int(r.get('value',0))==ll: ok=True
+                      if ok: matches.append((t.get('id'),len(t.get('taskRequirements') or [])))
+                  print(' OWN_SEED_LL',ll,'count',len(matches),'ids',','.join(x[0] for x in matches),'taskReqCounts',','.join(str(x[1]) for x in matches))
