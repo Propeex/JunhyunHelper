@@ -4,47 +4,53 @@ Escape from Tarkov 플레이를 지원하는 Windows 데스크톱 헬퍼 **준�
 
 ## 현재 공개 버전
 
-**v0.1.10 PUBLIC RELEASE — Windows x64**
+**v0.1.11 PUBLIC RELEASE — Windows x64**
 
-**다운로드:** https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.10
+**다운로드:** https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.11
 
-v0.1.10은 v0.1.9 실사용에서 확인된 유동 제출 아이콘/정렬, Ammo header/detail 배치, Map Quest sidebar 정렬 연결 누락과 초기 LL1 Quest `확인 필요`를 수정한 패치 릴리즈입니다.
+v0.1.11은 v0.1.10에서 Quest `확인 필요` 수정은 정상 동작했지만, 일부 Items / Ammo / Map UI 변경이 runtime visual-tree 후처리 방식이라 실제 화면에 안정적으로 적용되지 않던 문제를 교정한 릴리즈입니다. 해당 UI는 이제 원본 XAML / 실제 UI 생성 코드 자체에서 직접 구성됩니다.
 
-### v0.1.10 핵심 변경
+### v0.1.11 핵심 변경
 
-- exact EFT profile variable 값은 계속 최우선
-- audited EFT 1.1 LL2~LL4 trader task-pool runtime reconstruction 유지
-- **현재 trader가 LL1이고 그 trader의 완료 Quest가 0개인 증명 가능한 초기 상태**는 LL1 pool counter를 0으로 확정
-- 완료 Quest가 하나라도 있거나 LL2 이상인 progressed LL1 상태는 exact 값 없이 추측하지 않음
-- availability delay는 실제 completion timestamp가 없으면 계속 `확인 필요`
-- future Needed Items는 unresolved Quest를 계속 잠재 필요 아이템으로 보호
-- flexible hand-in row를 일반 Item list 구조로 재작성
-  - 44px icon frame/image로 clipping 제거
+- v0.1.10의 audited EFT 1.1 Quest availability / LL1 초기 상태 개선 유지
+- exact EFT profile variable 값 최우선 정책 유지
+- audited LL2~LL4 task-pool reconstruction 유지
+- 증명 가능한 pristine LL1 상태만 counter 0으로 확정
+- future Needed Items의 unresolved Quest 보호 유지
+- flexible hand-in row를 원본 XAML에서 직접 구성
+  - 68px 고정 행
+  - 44px icon frame
   - icon + 이름/분류 좌측 정렬
-  - 인레이드/일반 보유량 우측 고정 정렬
-- Ammo header의 중복 `구경`, `즐겨찾기` label 제거
-- Ammo caliber selector 폭 축소, favorite toggle `☆ / ★` 유지
-- Ammo 상세정보 접기/펼치기 버튼을 중앙 정렬
-- Map current Quest의 실제 동적 sidebar에도 layout polish 연결
-- Map Quest row를 checkbox / A·B·C marker / title lane으로 분리하고 title 좌측 정렬
+  - 인레이드/일반 보유량 우측 고정 lane
+  - runtime layout rewrite 제거
+- Ammo header/detail layout을 원본 XAML에 직접 구성
+  - 중복 `구경`, `즐겨찾기` label 제거
+  - caliber selector 160px
+  - favorite `☆ / ★` button 38px
+  - favorites selector 170px
+  - 중앙 detail toggle + detail host 직접 배치
+- Map current Quest sidebar를 생성 시점부터 3열 구조로 구성
+  - `30px checkbox | 34px A·B·C marker | remaining quest title`
+  - title 좌측 정렬 + ellipsis
+  - runtime `LegacyMapQuestSidebarPolishBridge` 제거
 
 공개 릴리즈 검증:
 
 ```text
-release baseline: cc8d968deb6cbb07029fa35186ec3a3881d5c97f
-ProductVersion: 0.1.10+cc8d968deb6cbb07029fa35186ec3a3881d5c97f
-feature PR #90 CI: 32007776178 — SUCCESS
-feature main CI: 32008009801 — SUCCESS
-release candidate PR #91 CI: 32011089823 — SUCCESS
-release baseline main CI: 32011299363 — SUCCESS
-release workflow: 32011564563 — SUCCESS
+release baseline: 88a732c70380b4c764634eff6fd01a16eb849b14
+ProductVersion: 0.1.11+88a732c70380b4c764634eff6fd01a16eb849b14
+feature PR #92 CI: 32014857527 — SUCCESS
+feature main CI: 32015175679 — SUCCESS
+release candidate PR #93 CI: 32015691464 — SUCCESS
+release baseline main CI: 32015968523 — SUCCESS
+release workflow: 32018616694 — SUCCESS
 automated tests: 210 passed / 0 failed / 0 skipped
 Windows x64 self-contained single-file publish: SUCCESS
 startup + Main Map + Factory + MiniMap runtime smoke: SUCCESS
 normal Main Window close / process exit: SUCCESS
-asset: Junhyun-Helper-v0.1.10-win-x64.zip
-asset size: 74,067,151 bytes
-SHA-256: 0d32f2344feb1e9088460830e6cff4bbd527198b1e191a177f7a8652e6efd998
+asset: Junhyun-Helper-v0.1.11-win-x64.zip
+asset size: 74,063,248 bytes
+SHA-256: 1293cc20c09240c4bdafd6fb45ecb5d0bc37857e12e58f60e31dff620e01b426
 public ZIP re-download + SHA-256 verification: SUCCESS
 ```
 
@@ -107,7 +113,7 @@ Quest 화면의 current task-pool compatibility는 future item cleanup을 낙관
 - MiniMap floor 변경 시 **exact live Scale + Translate X/Y 보존**
 - Main Map selector와 MiniMap shared map key 동기화
 - `퀘스트 마커 표시`를 포함한 product setting은 `%LocalAppData%/JunhyunHelper/map-product-settings.json`에서 복원
-- current Quest sidebar는 checkbox / marker / title lane으로 고정 정렬
+- current Quest sidebar는 생성 시점부터 checkbox / marker / title lane으로 고정 정렬
 - MiniMap hover transparency는 dedicated lightweight 16ms input check 사용
 
 ## 실행
@@ -146,7 +152,7 @@ online source
 - Runtime GPT/AI 의존성은 없습니다.
 - Content schema는 v7이며 v3~v7 snapshot을 오프라인에서 읽을 수 있습니다.
 - `user.db` SQLite schema는 v1 그대로입니다.
-- **v0.1.9 → v0.1.10 필수 데이터 업데이트 없음**
+- **v0.1.10 → v0.1.11 필수 데이터 업데이트 없음**
 
 ## 개발 문서
 
@@ -160,4 +166,4 @@ online source
 - [`docs/FEEDBACK_FIXES_2026-08-17.md`](docs/FEEDBACK_FIXES_2026-08-17.md) — 성능/UI/Quest feedback 수정 기록
 - [`docs/MINIMAP_FLOOR_FRAME_2026-08-17.md`](docs/MINIMAP_FLOOR_FRAME_2026-08-17.md) — MiniMap exact floor-frame 계약
 - [`docs/MAP_PRODUCT_REQUIREMENTS.md`](docs/MAP_PRODUCT_REQUIREMENTS.md) — Map/MiniMap 제품 기준
-- [`docs/RELEASE_0.1.10.md`](docs/RELEASE_0.1.10.md) — v0.1.10 공개 검증 기록
+- [`docs/RELEASE_0.1.11.md`](docs/RELEASE_0.1.11.md) — v0.1.11 공개 검증 기록
