@@ -4,26 +4,29 @@
 
 ## 현재 공개 상태
 
-**v0.1.7 PUBLIC RELEASE / VERIFIED — Windows x64**
+**v0.1.8 PUBLIC RELEASE / VERIFIED — Windows x64**
 
 ```text
-release tag: v0.1.7
-release baseline: 8cf2f76003bf2603b8c0f8c0a7d9297bfc62bd43
-Desktop ProductVersion: 0.1.7
+release tag: v0.1.8
+release baseline: 1605d4bc9838486c6290827cebc10d9f3fd57d84
+Desktop ProductVersion: 0.1.8
 Content schema: v7
 Readable Content schemas: v3, v4, v5, v6, v7
 user.db SQLite schema: v1
-candidate PR CI: 31986395934 — SUCCESS
-main CI: 31986585081 — SUCCESS
-release workflow: 31986801215 — SUCCESS
-public asset: Junhyun-Helper-v0.1.7-win-x64.zip
-public SHA-256: b1f935ba47a48e66a46fc028f2d7f631ffb795dada0f3d50b1c42b57ca7caceb
-public release: https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.7
+candidate PR: #87
+candidate PR CI: 31991531760 — SUCCESS
+main CI: 31999094668 — SUCCESS
+release workflow: 31999304667 — SUCCESS
+automated tests: 203 passed / 0 failed / 0 skipped
+public asset: Junhyun-Helper-v0.1.8-win-x64.zip
+public asset size: 74,057,364 bytes
+public SHA-256: 0a75f1a2a987e6eec41307eea6149090db90f9855e51b2e72e3a4708d22b9394
+public release: https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.8
 ```
 
 공개 ZIP은 Release 생성 뒤 다시 다운로드해 SHA-256을 재검증했습니다. Release는 draft/prerelease가 아닌 정식 공개 상태입니다.
 
-상세: `docs/RELEASE_0.1.7.md`
+상세: `docs/RELEASE_0.1.8.md`
 
 ---
 
@@ -51,7 +54,7 @@ public release: https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.7
 
 ### EFT profile-variable gate
 
-v0.1.7에서 `globalVariable` availability를 opaque 문자열로만 취급하지 않고 structured requirement로 보존합니다.
+v0.1.7부터 `globalVariable` availability를 opaque 문자열로만 취급하지 않고 structured requirement로 보존합니다.
 
 - `variableId / operator / value`를 canonical Content에 저장
 - exact current profile variable 값이 있으면 정확히 판정
@@ -93,8 +96,7 @@ v0.1.7에서 `globalVariable` availability를 opaque 문자열로만 취급하�
 Current Content schema: v7
 Readable Content schemas: v3, v4, v5, v6, v7
 user.db SQLite schema: v1 unchanged
-v0.1.6 → v0.1.7 mandatory data update: none
-post-v0.1.7 dialogue compatibility mandatory data update: none
+v0.1.7 → v0.1.8 mandatory data update: none
 ```
 
 다음 정상 `데이터 업데이트`가 성공하면 v7 snapshot으로 저장합니다.
@@ -126,7 +128,7 @@ Map subsystem은 독립이고 Quest만 JunhyunHelper current profile/content와 
 - 진행 중 Quest sidebar 행 높이와 checkbox / marker-code / text lane을 고정하고 layout 보정을 batch 처리
 - 상세: `docs/MINIMAP_FLOOR_FRAME_2026-08-17.md`, `docs/USABILITY_STABILITY_PASS_2026-08-17.md`
 
-v0.1.7 Windows runtime smoke와 post-v0.1.7 usability/stability candidate smoke에서 startup + Main Map + Factory + MiniMap + 정상 종료를 실제 publish 실행본으로 검증했습니다.
+v0.1.8 release workflow에서 startup + Main Map + Factory + MiniMap + 정상 종료를 실제 공개 baseline publish 실행본으로 재검증했습니다.
 
 ---
 
@@ -150,7 +152,7 @@ v0.1.7 Windows runtime smoke와 post-v0.1.7 usability/stability candidate smoke�
 - Quest 완료/실패는 prerequisite와 Needed Items에 실제 영향을 주므로 Quest + Items 재계산 유지
 - Ammo 검색 결과는 기존 `AmmoRow`를 직접 선택하여 정확한 caliber table과 상세정보를 함께 이동
 - Ammo 하단 상세정보를 접으면 실제 detail row와 splitter까지 축소되어 탄약표 공간이 늘어남
-- 세부 구현/검증 기록: `docs/USABILITY_STABILITY_PASS_2026-08-17.md`
+- 세부 구현/검증 기록: `docs/USABILITY_STABILITY_PASS_2026-08-17.md`, `docs/RELEASE_0.1.8.md`
 
 ## 비차단 후속 범위
 
@@ -163,6 +165,7 @@ v0.1.7 Windows runtime smoke와 post-v0.1.7 usability/stability candidate smoke�
 
 ## 저장소 상태
 
-- 공개 릴리즈는 여전히 v0.1.7
-- post-v0.1.7 usability/stability pass는 코드/자동 검증 완료 상태
+- 공개 릴리즈: **v0.1.8**
+- release baseline: `1605d4bc9838486c6290827cebc10d9f3fd57d84`
+- 임시 `.github/workflows/release-v0.1.8.yml`은 공개 검증 후 제거함
 - 상시 workflow는 `.github/workflows/ci.yml`만 유지
