@@ -454,8 +454,8 @@ public sealed class LegacyMapQuestSidebarV2 : Border
         BorderThickness = new Thickness(0, 0, 1, 0);
 
         _root = new Grid();
-        _root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(CollapsedWidth) });
         _root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0) });
+        _root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(CollapsedWidth) });
 
         _toggle = new Button
         {
@@ -469,7 +469,7 @@ public sealed class LegacyMapQuestSidebarV2 : Border
             Cursor = Cursors.Hand,
         };
         _toggle.Click += Toggle_Click;
-        Grid.SetColumn(_toggle, 0);
+        Grid.SetColumn(_toggle, 1);
         _root.Children.Add(_toggle);
 
         _summary = new TextBlock
@@ -505,7 +505,7 @@ public sealed class LegacyMapQuestSidebarV2 : Border
         };
         Grid.SetRow(scroll, 2);
         _expandedContent.Children.Add(scroll);
-        Grid.SetColumn(_expandedContent, 1);
+        Grid.SetColumn(_expandedContent, 0);
         _root.Children.Add(_expandedContent);
         Child = _root;
     }
@@ -598,15 +598,19 @@ public sealed class LegacyMapQuestSidebarV2 : Border
             Padding = new Thickness(0),
             Margin = new Thickness(0),
             HorizontalAlignment = HorizontalAlignment.Stretch,
-            HorizontalContentAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Stretch,
-            VerticalContentAlignment = VerticalAlignment.Center,
             Cursor = Cursors.Hand,
-            Content = CreateQuestContent(entry),
+            Content = null,
         };
         button.Click += QuestButton_Click;
         Grid.SetColumn(button, 2);
         grid.Children.Add(button);
+
+        var content = CreateQuestContent(entry);
+        content.IsHitTestVisible = false;
+        content.Margin = new Thickness(8, 0, 0, 0);
+        Grid.SetColumn(content, 2);
+        grid.Children.Add(content);
 
         return new Border
         {
@@ -681,7 +685,7 @@ public sealed class LegacyMapQuestSidebarV2 : Border
         _expanded = !_expanded;
         Width = _expanded ? ExpandedWidth : CollapsedWidth;
         _expandedContent.Visibility = _expanded ? Visibility.Visible : Visibility.Collapsed;
-        _root.ColumnDefinitions[1].Width = _expanded
+        _root.ColumnDefinitions[0].Width = _expanded
             ? new GridLength(1, GridUnitType.Star)
             : new GridLength(0);
         _toggle.Content = _expanded ? "◀" : "▶";

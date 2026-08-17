@@ -287,7 +287,7 @@ public partial class AmmoPage
             _productDetailHost.Visibility = Visibility.Visible;
             detailRow.MinHeight = 190;
             detailRow.Height = new GridLength(2, GridUnitType.Star);
-            _productDetailToggleButton.Content = "▲  탄약 / 수급 경로 상세정보";
+            _productDetailToggleButton.Content = "▼";
             _productDetailToggleButton.ToolTip = "상세정보 접기";
         }
         else
@@ -295,7 +295,7 @@ public partial class AmmoPage
             _productDetailHost.Visibility = Visibility.Collapsed;
             detailRow.MinHeight = 0;
             detailRow.Height = new GridLength(0);
-            _productDetailToggleButton.Content = "▼  탄약 / 수급 경로 상세정보";
+            _productDetailToggleButton.Content = "▲";
             _productDetailToggleButton.ToolTip = "상세정보 펼치기";
         }
     }

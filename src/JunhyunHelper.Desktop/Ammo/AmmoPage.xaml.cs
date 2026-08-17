@@ -218,10 +218,10 @@ public partial class AmmoPage : UserControl
             return;
 
         var caliber = (CaliberComboBox.SelectedItem as CaliberChoice)?.RawCaliber;
+        var isFavorite = caliber is not null && _favoriteCalibers.Contains(caliber);
         FavoriteCaliberButton.IsEnabled = caliber is not null;
-        FavoriteCaliberButton.Content = caliber is not null && _favoriteCalibers.Contains(caliber)
-            ? "★ 즐겨찾기"
-            : "☆ 즐겨찾기";
+        FavoriteCaliberButton.Content = isFavorite ? "★" : "☆";
+        FavoriteCaliberButton.ToolTip = isFavorite ? "즐겨찾기 해제" : "즐겨찾기 추가";
     }
 
     private void ShowDetail(AmmoRow? row)

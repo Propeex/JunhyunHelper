@@ -85,6 +85,30 @@
                     Height="68" MinHeight="68" MaxHeight="68"
                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                     VerticalContentAlignment="Center" Padding="10,6" Margin="4,3">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="FlexibleCandidateButtonBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="7"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter Content="{TemplateBinding Content}"
+                                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                                              HorizontalAlignment="Stretch"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="FlexibleCandidateButtonBorder" Property="Background" Value="{StaticResource BackgroundHoverBrush}" />
+                                <Setter TargetName="FlexibleCandidateButtonBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="FlexibleCandidateButtonBorder" Property="Background" Value="{StaticResource BackgroundMediumBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Button.Template>
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="52" />

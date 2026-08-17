@@ -267,6 +267,7 @@ public partial class MainWindow : TarkovHelper.MainWindow
             }
 
             await VerifyMiniMapProductAsync();
+            await VerifyProductUiLayoutAsync();
             WriteMapSmokeSuccess();
         }
         catch (Exception exception)
