@@ -82,22 +82,47 @@
 
         <DataTemplate x:Key="FlexibleCandidateTemplate">
             <Button Tag="{Binding ItemId}" Click="FlexibleCandidateButton_Click"
-                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="8" Margin="0,0,0,6">
+                    Height="68" MinHeight="68" MaxHeight="68"
+                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                    VerticalContentAlignment="Center" Padding="10,6" Margin="4,3">
                 <Grid>
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="44" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                    <Border Width="36" Height="36" Background="{StaticResource BackgroundDarkBrush}"
-                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="52" />
+                        <ColumnDefinition Width="*" MinWidth="170" />
+                        <ColumnDefinition Width="108" />
+                        <ColumnDefinition Width="96" />
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Width="44" Height="44"
+                            Background="{StaticResource BackgroundDarkBrush}"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                            CornerRadius="6" HorizontalAlignment="Left" VerticalAlignment="Center">
                         <Grid>
-                            <TextBlock Text="?" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                            <Image Source="{Binding Icon}" Stretch="Uniform" Margin="2" />
+                            <TextBlock Text="?" Foreground="{StaticResource TextSecondaryBrush}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <Image Source="{Binding Icon}" Stretch="Uniform" Margin="3" />
                         </Grid>
                     </Border>
-                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="7,0,10,0">
-                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
-                        <TextBlock Text="{Binding CategoryLabel}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="8,0,12,0">
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
+                        <Border Background="{StaticResource BackgroundLightBrush}" CornerRadius="7"
+                                Padding="6,2" Margin="0,4,0,0" HorizontalAlignment="Left">
+                            <TextBlock Text="{Binding CategoryLabel}" Foreground="{StaticResource TextSecondaryBrush}"
+                                       FontSize="10" TextWrapping="NoWrap" />
+                        </Border>
                     </StackPanel>
-                    <TextBlock Grid.Column="2" Text="{Binding FlexibleOwnedText}" Foreground="{StaticResource TextSecondaryBrush}"
-                               FontSize="11" VerticalAlignment="Center" />
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
+                        <TextBlock Text="인레이드" Foreground="{StaticResource TextSecondaryBrush}"
+                                   FontSize="10" HorizontalAlignment="Right" />
+                        <TextBlock Text="{Binding OwnedFir}" FontWeight="SemiBold" FontSize="15"
+                                   HorizontalAlignment="Right" Margin="0,2,0,0" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Right">
+                        <TextBlock Text="일반" Foreground="{StaticResource TextSecondaryBrush}"
+                                   FontSize="10" HorizontalAlignment="Right" />
+                        <TextBlock Text="{Binding OwnedNonFir}" FontWeight="SemiBold" FontSize="15"
+                                   HorizontalAlignment="Right" Margin="0,2,0,0" />
+                    </StackPanel>
                 </Grid>
             </Button>
         </DataTemplate>

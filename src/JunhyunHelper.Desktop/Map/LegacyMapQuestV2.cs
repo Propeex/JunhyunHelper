@@ -536,8 +536,13 @@ public sealed class LegacyMapQuestSidebarV2 : Border
 
     private FrameworkElement CreateQuestRow(LegacyMapQuestEntryV2 entry)
     {
-        var grid = new Grid();
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var grid = new Grid
+        {
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch,
+        };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(34) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
         if (entry.Markers.Count > 0)
@@ -545,55 +550,31 @@ public sealed class LegacyMapQuestSidebarV2 : Border
             var markerToggle = new CheckBox
             {
                 IsChecked = entry.MarkerEnabled,
+                Width = 20,
+                Height = 20,
+                HorizontalAlignment = HorizontalAlignment.Left,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 8, 0),
+                Margin = new Thickness(0),
                 Tag = entry.QuestId,
                 ToolTip = "이 퀘스트의 지도 마커 표시",
             };
             markerToggle.Checked += MarkerToggle_Changed;
             markerToggle.Unchecked += MarkerToggle_Changed;
+            Grid.SetColumn(markerToggle, 0);
             grid.Children.Add(markerToggle);
         }
 
-        var button = new Button
-        {
-            Tag = entry.QuestId,
-            Background = Brushes.Transparent,
-            BorderThickness = new Thickness(0),
-            Padding = new Thickness(0),
-            HorizontalContentAlignment = HorizontalAlignment.Stretch,
-            Cursor = Cursors.Hand,
-            Content = CreateQuestContent(entry),
-        };
-        button.Click += QuestButton_Click;
-        Grid.SetColumn(button, 1);
-        grid.Children.Add(button);
-
-        return new Border
-        {
-            Background = new SolidColorBrush(Color.FromRgb(40, 40, 40)),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(63, 63, 63)),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(6),
-            Padding = new Thickness(8),
-            Margin = new Thickness(0, 0, 0, 7),
-            Child = grid,
-        };
-    }
-
-    private static FrameworkElement CreateQuestContent(LegacyMapQuestEntryV2 entry)
-    {
-        var content = new StackPanel();
-        var titleLine = new StackPanel { Orientation = Orientation.Horizontal };
         if (!string.IsNullOrWhiteSpace(entry.MarkerCode))
         {
-            titleLine.Children.Add(new Border
+            var badge = new Border
             {
-                Width = 22,
-                Height = 22,
-                CornerRadius = new CornerRadius(11),
+                Width = 28,
+                Height = 28,
+                CornerRadius = new CornerRadius(14),
                 Background = new SolidColorBrush(Color.FromRgb(197, 168, 74)),
-                Margin = new Thickness(0, 0, 7, 0),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                IsHitTestVisible = false,
                 Child = new TextBlock
                 {
                     Text = entry.MarkerCode,
@@ -604,18 +585,65 @@ public sealed class LegacyMapQuestSidebarV2 : Border
                     VerticalAlignment = VerticalAlignment.Center,
                     TextAlignment = TextAlignment.Center,
                 },
-            });
+            };
+            Grid.SetColumn(badge, 1);
+            grid.Children.Add(badge);
         }
-        titleLine.Children.Add(new TextBlock
+
+        var button = new Button
+        {
+            Tag = entry.QuestId,
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            Padding = new Thickness(0),
+            Margin = new Thickness(0),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Cursor = Cursors.Hand,
+            Content = CreateQuestContent(entry),
+        };
+        button.Click += QuestButton_Click;
+        Grid.SetColumn(button, 2);
+        grid.Children.Add(button);
+
+        return new Border
+        {
+            Height = 68,
+            MinHeight = 68,
+            MaxHeight = 68,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Top,
+            Background = new SolidColorBrush(Color.FromRgb(40, 40, 40)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(63, 63, 63)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(8, 6, 8, 6),
+            Margin = new Thickness(0, 0, 0, 7),
+            Child = grid,
+        };
+    }
+
+    private static FrameworkElement CreateQuestContent(LegacyMapQuestEntryV2 entry)
+    {
+        var content = new StackPanel
+        {
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        content.Children.Add(new TextBlock
         {
             Text = entry.Name,
             Foreground = Brushes.White,
             FontSize = 13,
             FontWeight = FontWeights.SemiBold,
-            TextWrapping = TextWrapping.Wrap,
+            TextWrapping = TextWrapping.NoWrap,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            TextAlignment = TextAlignment.Left,
             VerticalAlignment = VerticalAlignment.Center,
         });
-        content.Children.Add(titleLine);
         content.Children.Add(new TextBlock
         {
             Text = entry.Markers.Count > 0 ? $"좌표 {entry.Markers.Count}개" : "정확한 좌표 없음",
@@ -624,6 +652,10 @@ public sealed class LegacyMapQuestSidebarV2 : Border
                 : new SolidColorBrush(Color.FromRgb(130, 130, 130)),
             FontSize = 10,
             Margin = new Thickness(0, 3, 0, 0),
+            TextWrapping = TextWrapping.NoWrap,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            TextAlignment = TextAlignment.Left,
         });
         return content;
     }
