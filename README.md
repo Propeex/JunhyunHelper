@@ -4,39 +4,48 @@ Escape from Tarkov 플레이를 지원하는 Windows 데스크톱 헬퍼 **준�
 
 ## 현재 공개 버전
 
-**v0.1.8 PUBLIC RELEASE — Windows x64**
+**v0.1.9 PUBLIC RELEASE — Windows x64**
 
-**다운로드:** https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.8
+**다운로드:** https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.9
 
-v0.1.8은 v0.1.7 이후 확인된 Quest availability, 지도/MiniMap 상태 동기화, Items UI/성능, Ammo 탐색 문제를 정리한 패치 릴리즈입니다.
+v0.1.9는 v0.1.8 실사용에서 확인된 Quest `확인 필요` 과다, 아이템 수량 변경 버벅임, 유동 제출/지도 Quest 행 정렬, Ammo UI, Quest marker setting, MiniMap hover 반응 문제를 수정한 패치 릴리즈입니다.
 
-- live `dialogue` Quest 12건 전수 감사 및 검증된 prerequisite 복원
-- unknown/new dialogue는 계속 fail-closed `확인 필요`
-- 지도 마커 설정 재시작 영속화 충돌 수정
-- Main Map selector ↔ tracker ↔ MiniMap map key 동기화 강화
-- `나들목` 표시를 `인터체인지`로 변경
-- 지도 Quest sidebar / 유동 제출 아이템 행 정렬 통일
-- Inventory/Hideout 변경 시 불필요한 Quest 전체 재계산 제거
-- Ammo 이름·구경 검색 및 검색 결과 정확한 row 이동
-- Ammo 상세정보 패널 접기/펼치기
-- Content schema v7 / v3~v7 readable
-- `user.db` SQLite schema v1 유지
-- **v0.1.7 → v0.1.8 필수 데이터 업데이트 없음**
+### v0.1.9 핵심 변경
+
+- EFT 1.1 `globalVariable` 162 Quest / 27 trader task-pool 변수를 재감사
+- exact profile variable 값이 있으면 항상 exact 값 우선
+- exact audited 구조가 유지되는 LL2~LL4 task-pool **114 Quest**는 trader LL + 완료 Quest로 current availability 복원
+- LL1 pool 48 Quest는 public initial write rule이 없어 exact 값이 없으면 계속 `확인 필요`
+- availability delay 13 Quest는 실제 completion timestamp가 없으면 계속 `확인 필요`
+- raw unresolved ceiling은 이전 175에서 현재 구조 기준 최대 61로 감소. 실제 UI 수치는 profile 상태에 따라 더 작을 수 있음
+- inventory 수량 변경 때 Quest future reachability / Hideout static requirement 전체 재계산 제거
+- static Needed Items planning basis와 기존 Item icon 재사용
+- flexible hand-in row를 일반 Item list 기준 68px / 44px icon 리듬으로 정돈
+- Ammo 검색을 header 최좌측으로 이동하고 결과를 `이미지 + 이름`만 표시
+- Ammo 하단 상세정보 실제 접기/펼치기 수정
+- Ammo 즐겨찾기 버튼을 `☆ / ★`만 표시
+- 지도 `퀘스트 마커 표시` 설정도 재시작 후 persisted value 복원
+- Map Quest sidebar 모든 row를 구조 기반으로 68px 정렬
+- MiniMap hover 투명화를 heavy Map sync와 분리한 lightweight 16ms 감지로 개선
+- Quest / Hideout / Items / Ammo 검색창 우측에 `×` clear 버튼 추가
 
 공개 릴리즈 검증:
 
 ```text
-release baseline: 1605d4bc9838486c6290827cebc10d9f3fd57d84
-candidate PR CI: 31991531760 — SUCCESS
-main CI: 31999094668 — SUCCESS
-release workflow: 31999304667 — SUCCESS
-automated tests: 203 passed / 0 failed / 0 skipped
+release baseline: 95d3bb139fb9c5f5b7a6e353ea560768c03d20f4
+ProductVersion: 0.1.9+95d3bb139fb9c5f5b7a6e353ea560768c03d20f4
+feature PR #88 CI: 32002897379 — SUCCESS
+feature main CI: 32003122340 — SUCCESS
+release candidate PR #89 CI: 32003361260 — SUCCESS
+release baseline main CI: 32003570258 — SUCCESS
+release workflow: 32003799898 — SUCCESS
+automated tests: 208 passed / 0 failed / 0 skipped
 Windows x64 self-contained single-file publish: SUCCESS
 startup + Main Map + Factory + MiniMap runtime smoke: SUCCESS
 normal Main Window close / process exit: SUCCESS
-asset: Junhyun-Helper-v0.1.8-win-x64.zip
-asset size: 74,057,364 bytes
-SHA-256: 0a75f1a2a987e6eec41307eea6149090db90f9855e51b2e72e3a4708d22b9394
+asset: Junhyun-Helper-v0.1.9-win-x64.zip
+asset size: 74,065,677 bytes
+SHA-256: c9a12ba52e2774c9a127c9f9d8740918bf8837df26e821bc11fcd793ae521952
 public ZIP re-download + SHA-256 verification: SUCCESS
 ```
 
@@ -51,9 +60,6 @@ public ZIP re-download + SHA-256 verification: SUCCESS
 - flexible hand-in 그룹 + `필요 / 전체 / 충분` 상태 필터
 - Item 종류/용도/필요 상태 필터, cross-navigation, Item Wiki
 - Ammo 성능/수급처/Armor Class 1~6 비교와 caliber favorites
-  - 이름/구경 검색
-  - 검색 결과 클릭 시 해당 caliber table + 정확한 ammo row 선택
-  - 탄약/수급 경로 상세정보 접기/펼치기
 - 온라인 Game Content 안전 업데이트와 image cache
 - Map + MiniMap
   - 현재 Quest sidebar / A·B·C marker identity
@@ -63,8 +69,6 @@ public ZIP re-download + SHA-256 verification: SUCCESS
   - MiniMap opacity / temporary transparency / marker scale
   - screenshot 기반 Map 전환 / player tracking
   - MiniMap 층 변경 시 같은 화면 구도에서 floor layer만 교체
-  - 지도 마커 설정 영속화
-  - Main Map / MiniMap map identity 동기화 강화
 - 상단 `스캐너` 탭 — 현재 `준비 중` placeholder 유지
 
 ## Quest 정확도 기준
@@ -77,12 +81,21 @@ public ZIP re-download + SHA-256 verification: SUCCESS
 - BTR Driver 누락 gate는 `A Helping Hand = Active`로만 보강
 - Ref 누락 gate는 현재 GameMode의 검증된 unlock Quest `Complete`로만 보강
 - Lightkeeper는 최초 해금 이후 접근 상실/복구가 가능하므로 별도 special trader access로 판정
-- EFT profile-variable requirement는 exact current value가 있을 때 정확 판정
-- 2026-08-17 live `dialogue` 12건은 exact Quest ID 기반 감사 규칙으로 처리
-  - 시작 Quest 3개는 opaque dialogue gate 제거
-  - 나머지 9개는 검증된 prerequisite / minimum level 복원
-  - Introduction의 `Active` prerequisite 보존
-- allowlist 밖의 새 dialogue, exact 값을 알 수 없는 profile variable, 실제 완료 시각 기반 delay는 임의 추측하지 않고 `확인 필요`
+- 12개 audited dialogue gate는 exact-ID compatibility를 적용하고 새/변경 dialogue는 추측하지 않음
+- EFT profile-variable requirement는 exact current value가 있으면 정확 판정
+- exact 값이 없으면 current EFT 1.1의 감사된 27-ID 구조가 완전히 일치하는 LL2~LL4 task-pool만 runtime에서 복원
+- LL1 task-pool과 실제 완료 시각 기반 delay는 증명할 수 없으면 `확인 필요`
+- compatibility 구조가 upstream과 달라지면 자동으로 fail-closed
+
+## Needed Items 안전성
+
+Quest 화면의 current task-pool compatibility는 future item cleanup을 낙관적으로 바꾸지 않습니다.
+
+- missing future profile-variable fact는 계속 `IndeterminatePotential`로 보호
+- unresolved future Quest의 Item도 Needed Items에 포함
+- flexible hand-in 후보도 cleanup protection 유지
+
+따라서 `확인 필요`를 줄이기 위해 실제 필요한 Item을 잘못 `정리 가능`으로 판단하도록 완화하지 않습니다.
 
 ## Map / MiniMap 안정화 기준
 
@@ -92,9 +105,9 @@ public ZIP re-download + SHA-256 verification: SUCCESS
 - 실제 동일 물리 extract의 semantic duplicate 정규화 유지
 - Main Map floor 변경 시 live zoom + map-space viewport center 보존
 - MiniMap floor 변경 시 **exact live Scale + Translate X/Y 보존**
-- MiniMap 다층 지도는 같은 canonical SVG canvas의 floor layer이므로 층별 임의 zoom 보정값을 만들지 않음
-- 제품용 Map marker 설정은 저장된 제품 설정을 권위값으로 복원
-- Main Map selector와 shared tracker의 map key를 동기화하여 MiniMap의 stale map identity를 방지
+- Main Map selector와 MiniMap shared map key 동기화
+- `퀘스트 마커 표시`를 포함한 product setting은 `%LocalAppData%/JunhyunHelper/map-product-settings.json`에서 복원
+- MiniMap hover transparency는 dedicated lightweight 16ms input check 사용
 
 ## 실행
 
@@ -130,9 +143,9 @@ online source
 - 실패 candidate가 마지막 정상 Game Content를 덮어쓰지 않습니다.
 - Game Content update가 `user.db`를 삭제하거나 덮어쓰지 않습니다.
 - Runtime GPT/AI 의존성은 없습니다.
-- v0.1.8 Content schema는 v7이며 v3~v6 snapshot도 오프라인에서 읽을 수 있습니다.
-- 다음 정상 데이터 업데이트가 성공하면 v7 snapshot으로 저장됩니다.
+- Content schema는 v7이며 v3~v7 snapshot을 오프라인에서 읽을 수 있습니다.
 - `user.db` SQLite schema는 v1 그대로입니다.
+- **v0.1.8 → v0.1.9 필수 데이터 업데이트 없음**
 
 ## 개발 문서
 
@@ -140,10 +153,10 @@ online source
 - [`docs/PRODUCT.md`](docs/PRODUCT.md) — 공식 제품 요구사항
 - [`docs/DECISIONS.md`](docs/DECISIONS.md) — 장기 설계 결정
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — 기술 구조
-- [`docs/QUEST_PREREQUISITE_SEMANTICS.md`](docs/QUEST_PREREQUISITE_SEMANTICS.md) — 현재 Quest 선행조건 의미
-- [`docs/QUEST_TASK_POOL_AUDIT_2026-08-17.md`](docs/QUEST_TASK_POOL_AUDIT_2026-08-17.md) — EFT 1.1 profile-variable Quest gate 감사
-- [`docs/DIALOGUE_GATE_AUDIT_2026-08-17.md`](docs/DIALOGUE_GATE_AUDIT_2026-08-17.md) — live dialogue Quest 12건 감사
+- [`docs/QUEST_PREREQUISITE_SEMANTICS.md`](docs/QUEST_PREREQUISITE_SEMANTICS.md) — Quest 선행조건 의미
+- [`docs/QUEST_TASK_POOL_AUDIT_2026-08-17.md`](docs/QUEST_TASK_POOL_AUDIT_2026-08-17.md) — EFT 1.1 trader task-pool 감사 및 current-version compatibility 경계
+- [`docs/DIALOGUE_GATE_AUDIT_2026-08-17.md`](docs/DIALOGUE_GATE_AUDIT_2026-08-17.md) — dialogue Quest 감사
+- [`docs/FEEDBACK_FIXES_2026-08-17.md`](docs/FEEDBACK_FIXES_2026-08-17.md) — v0.1.8 사용자 피드백 10건 수정 기록
 - [`docs/MINIMAP_FLOOR_FRAME_2026-08-17.md`](docs/MINIMAP_FLOOR_FRAME_2026-08-17.md) — MiniMap exact floor-frame 계약
-- [`docs/USABILITY_STABILITY_PASS_2026-08-17.md`](docs/USABILITY_STABILITY_PASS_2026-08-17.md) — v0.1.8 usability/stability 구현 기록
 - [`docs/MAP_PRODUCT_REQUIREMENTS.md`](docs/MAP_PRODUCT_REQUIREMENTS.md) — Map/MiniMap 제품 기준
-- [`docs/RELEASE_0.1.8.md`](docs/RELEASE_0.1.8.md) — v0.1.8 공개 검증 기록
+- [`docs/RELEASE_0.1.9.md`](docs/RELEASE_0.1.9.md) — v0.1.9 공개 검증 기록
