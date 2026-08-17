@@ -1,0 +1,45 @@
+name: Temporary LL1 task-pool audit
+on:
+  push:
+    branches: [fix/v0.1.9-feedback-round2]
+    paths: ['.github/workflows/ll1-audit-temp.yml']
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect live task structure and LL1 candidates
+        shell: python
+        run: |
+          import json, urllib.request
+          url='https://json.tarkov.dev/regular/tasks'
+          with urllib.request.urlopen(url, timeout=30) as r:
+              data=json.load(r)
+          tasks=list(data.values()) if isinstance(data,dict) else data
+          print('TASKS',len(tasks))
+          print('SAMPLE_KEYS',sorted(tasks[0].keys()))
+          ids=['6a20540cf1b67a977cc5a088','6a4e4ab3ecd1145894d00990','6a59f3ba06c8949abad30871','6a5ba40fe5c4eaef5610f232','6a3171c927ca9591bf4db1c4','6a4b339f18db62e03b4f7ded','6a43a01ccc83aceedd35f09c']
+          by_trader={}
+          for t in tasks:
+              tr=(t.get('trader') or {}).get('id') if isinstance(t.get('trader'),dict) else t.get('traderId')
+              by_trader.setdefault(tr,[]).append(t)
+          for vid in ids:
+              gated=[]
+              for t in tasks:
+                  reqs=t.get('requirements') or t.get('taskRequirements') or []
+                  text=json.dumps(t,ensure_ascii=False)
+                  if vid in text:
+                      gated.append(t)
+              print('\nVAR',vid,'GATED',len(gated))
+              if gated:
+                  print('GATED_SAMPLE',json.dumps(gated[0],ensure_ascii=False)[:5000])
+                  tr=(gated[0].get('trader') or {}).get('id') if isinstance(gated[0].get('trader'),dict) else gated[0].get('traderId')
+                  roots=[]
+                  for t in by_trader.get(tr,[]):
+                      reqs=t.get('requirements') or t.get('taskRequirements') or []
+                      # candidate LL1 seeds: no variable gate and no explicit task/trader-loyalty prerequisite
+                      reqtext=json.dumps(reqs,ensure_ascii=False).lower()
+                      if 'globalvariable' in reqtext or 'task' in reqtext or 'traderloyalty' in reqtext:
+                          continue
+                      roots.append((t.get('id'),t.get('name'),t.get('minPlayerLevel'),reqs))
+                  print('TRADER',tr,'ROOT_CANDIDATES',len(roots))
+                  for x in roots[:30]: print('ROOT',json.dumps(x,ensure_ascii=False)[:2000])
