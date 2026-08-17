@@ -180,9 +180,10 @@ public partial class MainWindow
             _activeProfile = itemsWorkspace.Profile;
             _activeItemsWorkspace = itemsWorkspace;
 
-            // Inventory quantities affect Needed Items/Cleanup only. Quest availability
-            // depends on quest/profile gates, not on the user's current stash counts.
-            ItemsPage.SetData(_activeContent, itemsWorkspace);
+            // Inventory quantities affect Needed Items/Cleanup only. Reuse the static
+            // planning basis and preserve already-loaded icons instead of rebuilding all
+            // quest reachability and restarting the entire item image pipeline.
+            ItemsPage.SetInventoryData(_activeContent, itemsWorkspace);
             ApplyCleanupChanges(previousPlan, itemsWorkspace);
             StatusText.Text = BuildLoadedStatus(_activeProfile.GameMode);
         }

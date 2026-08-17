@@ -16,9 +16,15 @@ public static class QuestCatalogQuery
         ArgumentNullException.ThrowIfNull(content);
         ArgumentNullException.ThrowIfNull(profile);
 
+        // Exact imported profile variable values remain authoritative. When they are
+        // absent, current quest presentation may use the fail-closed audited EFT 1.1
+        // LL2–LL4 task-pool reconstruction. The enriched values are runtime-only.
+        var availabilityProfile = QuestTaskPoolVariableCompatibility.ApplyInferredProfileValues(
+            content.Quests,
+            profile);
         var availability = QuestAvailabilityEvaluator.Evaluate(
             content.Quests,
-            profile,
+            availabilityProfile,
             content.Editions);
         return content.Quests
             .Select(quest => new QuestCatalogEntry(quest, availability[quest.Id]))

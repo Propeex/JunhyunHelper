@@ -8,7 +8,8 @@ namespace JunhyunHelper.Application.Items;
 public sealed record ItemsWorkspace(
     GameProfileSnapshot Profile,
     FutureNeededItemsPlan Plan,
-    IReadOnlyList<FlexibleQuestItemProgress> FlexibleQuestItemProgresses);
+    IReadOnlyList<FlexibleQuestItemProgress> FlexibleQuestItemProgresses,
+    FutureNeededItemsBasis? PlanningBasis = null);
 
 public sealed class ItemsApplicationService
 {
@@ -55,12 +56,7 @@ public sealed class ItemsApplicationService
         }
 
         var workspace = Build(content, profile);
-        lock (_workspaceCacheGate)
-        {
-            _cachedContent = content;
-            _cachedProfile = profile;
-            _cachedWorkspace = workspace;
-        }
+        Cache(content, profile, workspace);
         return workspace;
     }
 
@@ -92,20 +88,89 @@ public sealed class ItemsApplicationService
 
         var updated = profile with { Inventory = inventory };
         await _profileStore.SaveAsync(updated, cancellationToken);
-        return BuildFromProfile(content, updated);
+
+        FutureNeededItemsBasis? reusableBasis = null;
+        lock (_workspaceCacheGate)
+        {
+            if (ReferenceEquals(_cachedContent, content) &&
+                _cachedProfile is not null &&
+                _cachedWorkspace?.PlanningBasis is { } cachedBasis &&
+                PlanningStateEquals(_cachedProfile, profile))
+            {
+                reusableBasis = cachedBasis;
+            }
+        }
+
+        var workspace = reusableBasis is null
+            ? Build(content, updated)
+            : BuildFromBasis(updated, reusableBasis);
+        Cache(content, updated, workspace);
+        return workspace;
     }
 
     private static ItemsWorkspace Build(
         GameContentCatalog content,
         GameProfileSnapshot profile)
     {
-        var plan = FutureNeededItemsPlanner.Calculate(content, profile);
-        var flexibleProgresses = plan.AlternativeQuestRequirements
+        var basis = FutureNeededItemsPlanner.BuildBasis(content, profile);
+        return BuildFromBasis(profile, basis);
+    }
+
+    private static ItemsWorkspace BuildFromBasis(
+        GameProfileSnapshot profile,
+        FutureNeededItemsBasis basis)
+    {
+        var plan = FutureNeededItemsPlanner.Calculate(basis, profile.Inventory);
+        var flexibleProgresses = basis.AlternativeQuestRequirements
             .Select(requirement => FlexibleQuestItemRequirementCalculator.Calculate(requirement, profile.Inventory))
             .OrderBy(progress => progress.QuestId, StringComparer.Ordinal)
             .ThenBy(progress => progress.ObjectiveId, StringComparer.Ordinal)
             .ToArray();
 
-        return new ItemsWorkspace(profile, plan, flexibleProgresses);
+        return new ItemsWorkspace(profile, plan, flexibleProgresses, basis);
+    }
+
+    private void Cache(GameContentCatalog content, GameProfileSnapshot profile, ItemsWorkspace workspace)
+    {
+        lock (_workspaceCacheGate)
+        {
+            _cachedContent = content;
+            _cachedProfile = profile;
+            _cachedWorkspace = workspace;
+        }
+    }
+
+    private static bool PlanningStateEquals(GameProfileSnapshot left, GameProfileSnapshot right) =>
+        left.ProfileId == right.ProfileId &&
+        left.GameMode == right.GameMode &&
+        left.Level == right.Level &&
+        left.Faction == right.Faction &&
+        left.EditionId == right.EditionId &&
+        left.PrestigeLevel == right.PrestigeLevel &&
+        DictionaryEquals(left.Traders, right.Traders) &&
+        SetEquals(left.CompletedQuestIds, right.CompletedQuestIds) &&
+        SetEquals(left.FailedQuestIds, right.FailedQuestIds) &&
+        DictionaryEquals(left.SpecialTraderAccessOverrides, right.SpecialTraderAccessOverrides) &&
+        DictionaryEquals(left.ProfileVariables, right.ProfileVariables) &&
+        DictionaryEquals(left.HideoutLevels, right.HideoutLevels);
+
+    private static bool SetEquals<T>(IReadOnlySet<T> left, IReadOnlySet<T> right) where T : notnull =>
+        left.Count == right.Count && left.All(right.Contains);
+
+    private static bool DictionaryEquals<TKey, TValue>(
+        IReadOnlyDictionary<TKey, TValue> left,
+        IReadOnlyDictionary<TKey, TValue> right)
+        where TKey : notnull
+    {
+        if (left.Count != right.Count)
+            return false;
+
+        var comparer = EqualityComparer<TValue>.Default;
+        foreach (var (key, value) in left)
+        {
+            if (!right.TryGetValue(key, out var other) || !comparer.Equals(value, other))
+                return false;
+        }
+        return true;
     }
 }
