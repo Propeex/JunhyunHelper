@@ -52,3 +52,5 @@ jobs:
           git status --short
           git commit -m 'Fix requested UI layouts at source'
           git push origin HEAD:fix/v0.1.10-ui-actual-layout
+
+# retry after removing every obsolete map polish reference
