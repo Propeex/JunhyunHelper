@@ -29,6 +29,7 @@ public sealed class LegacyMapMarkerSettingsV2Bridge : IDisposable
     {
         _page = page ?? throw new ArgumentNullException(nameof(page));
         _content = _page.FindName("MapMarkersContent") as StackPanel;
+        _page.Loaded += Page_Loaded;
 
         if (_content is not null)
             InitializeLayout();
@@ -40,6 +41,9 @@ public sealed class LegacyMapMarkerSettingsV2Bridge : IDisposable
             _page.Dispatcher);
         _retryTimer.Start();
     }
+
+    private void Page_Loaded(object sender, RoutedEventArgs e) =>
+        ApplyPersistedQuestToggle();
 
     private void InitializeLayout()
     {
@@ -73,18 +77,13 @@ public sealed class LegacyMapMarkerSettingsV2Bridge : IDisposable
     {
         var rows = new StackPanel();
         _legacyQuestToggle = _page.FindName(QuestMarkerToggleName) as CheckBox;
+        var persisted = JunhyunMapProductSettingsStore.Instance.GetToggle(QuestMarkerToggleName) ?? true;
 
         if (_legacyQuestToggle is not null)
         {
-            // Product persistence is authoritative. Apply it before exposing the new
-            // checkbox so a hidden legacy default can never overwrite a saved opt-out.
-            if (JunhyunMapProductSettingsStore.Instance.GetToggle(QuestMarkerToggleName) is { } persisted)
-                _legacyQuestToggle.IsChecked = persisted;
-
-            // The transplanted checkbox belongs to the old top bar and is hidden by the
-            // product adapter. Reusing that visual directly proved unreliable on Windows:
-            // its inherited collapsed state and template could survive after reparenting.
-            // Keep it as the behavior endpoint only and expose a clean product control.
+            // Product persistence is authoritative. Seed the vendor behavior endpoint
+            // before exposing the product control, then keep it hidden.
+            _legacyQuestToggle.IsChecked = persisted;
             Detach(_legacyQuestToggle);
             _legacyQuestToggle.Visibility = Visibility.Collapsed;
             _legacyQuestToggle.Checked += LegacyQuestToggle_Changed;
@@ -94,8 +93,7 @@ public sealed class LegacyMapMarkerSettingsV2Bridge : IDisposable
         _productQuestToggle = new CheckBox
         {
             Content = "퀘스트 마커 표시",
-            IsChecked = _legacyQuestToggle?.IsChecked ??
-                        JunhyunMapProductSettingsStore.Instance.GetToggle(QuestMarkerToggleName) ?? true,
+            IsChecked = persisted,
             IsThreeState = false,
             IsEnabled = true,
             IsHitTestVisible = true,
@@ -133,16 +131,28 @@ public sealed class LegacyMapMarkerSettingsV2Bridge : IDisposable
 
     private void LegacyQuestToggle_Changed(object sender, RoutedEventArgs e)
     {
-        if (_syncingQuestToggle || _productQuestToggle is null || _legacyQuestToggle is null)
+        if (_syncingQuestToggle)
             return;
 
-        var enabled = _legacyQuestToggle.IsChecked == true;
-        JunhyunMapProductSettingsStore.Instance.SetToggle(QuestMarkerToggleName, enabled);
+        // The legacy checkbox is hidden and is only a behavior endpoint. Vendor startup
+        // code may still assign its default later; never let that late assignment overwrite
+        // the user's persisted product preference. Re-assert the saved value instead.
+        ApplyPersistedQuestToggle();
+    }
+
+    private void ApplyPersistedQuestToggle()
+    {
+        var enabled = JunhyunMapProductSettingsStore.Instance.GetToggle(QuestMarkerToggleName)
+                      ?? _productQuestToggle?.IsChecked
+                      ?? true;
 
         _syncingQuestToggle = true;
         try
         {
-            _productQuestToggle.IsChecked = enabled;
+            if (_productQuestToggle is not null)
+                _productQuestToggle.IsChecked = enabled;
+            if (_legacyQuestToggle is not null)
+                _legacyQuestToggle.IsChecked = enabled;
         }
         finally
         {
@@ -217,6 +227,7 @@ public sealed class LegacyMapMarkerSettingsV2Bridge : IDisposable
         _retries++;
         TryMoveRaiderRow();
         CollapseLegacyDividers();
+        ApplyPersistedQuestToggle();
         if (_retries >= 24)
             _retryTimer.Stop();
     }
@@ -267,6 +278,7 @@ public sealed class LegacyMapMarkerSettingsV2Bridge : IDisposable
     public void Dispose()
     {
         _retryTimer.Stop();
+        _page.Loaded -= Page_Loaded;
 
         if (_productQuestToggle is not null)
         {
