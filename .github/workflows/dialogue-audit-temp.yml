@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Audit current dialogue-gated quests
+      - name: Audit current additional quest requirements
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -18,23 +18,31 @@ jobs:
             Write-Host "=== MODE $mode ==="
             $feed = Invoke-RestMethod -Uri "https://json.tarkov.dev/$mode/tasks"
             $tasks = @($feed.data.tasks)
-            $matches = @()
+
+            $allRequirements = @($tasks | ForEach-Object { @($_.otherRequirements) })
+            $types = @($allRequirements | Where-Object { $_ -ne $null } | Group-Object type | Sort-Object Name)
+            Write-Host "task count=$($tasks.Count); other requirement count=$($allRequirements.Count)"
+            foreach ($type in $types) {
+              Write-Host "TYPE '$($type.Name)' count=$($type.Count)"
+            }
+
+            $dialogueLike = @()
             foreach ($task in $tasks) {
-              $dialogues = @($task.otherRequirements | Where-Object { $_.type -eq 'dialogue' })
-              if ($dialogues.Count -eq 0) { continue }
-              $matches += [pscustomobject]@{
+              $matches = @($task.otherRequirements | Where-Object {
+                $_.type -match 'dialog' -or (($_ | ConvertTo-Json -Depth 10 -Compress) -match 'dialog')
+              })
+              if ($matches.Count -eq 0) { continue }
+              $dialogueLike += [pscustomobject]@{
                 id = $task.id
                 name = $task.name
                 trader = $task.trader
                 minPlayerLevel = $task.minPlayerLevel
                 taskRequirements = @($task.taskRequirements)
                 traderRequirements = @($task.traderRequirements)
-                dialogueRequirements = $dialogues
+                matchingRequirements = $matches
                 otherRequirements = @($task.otherRequirements)
-                availableDelaySecondsMin = $task.availableDelaySecondsMin
-                availableDelaySecondsMax = $task.availableDelaySecondsMax
               }
             }
-            Write-Host "dialogue quest count=$($matches.Count)"
-            $matches | ConvertTo-Json -Depth 20 -Compress | Write-Host
+            Write-Host "dialog-like quest count=$($dialogueLike.Count)"
+            $dialogueLike | ConvertTo-Json -Depth 20 -Compress | Write-Host
           }
