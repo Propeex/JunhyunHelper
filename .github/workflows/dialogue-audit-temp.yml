@@ -10,13 +10,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Audit current additional quest requirements
+      - name: Audit current dialogue quest requirements
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           foreach ($mode in @('regular', 'pve', 'pvp-season')) {
             Write-Host "=== MODE $mode ==="
             $feed = Invoke-RestMethod -Uri "https://json.tarkov.dev/$mode/tasks"
+            $english = Invoke-RestMethod -Uri "https://json.tarkov.dev/$mode/tasks_en"
             $collection = $feed.data.tasks
             $tasks = if ($collection -is [System.Array]) {
               @($collection)
@@ -24,30 +25,25 @@ jobs:
               @($collection.PSObject.Properties | ForEach-Object { $_.Value })
             }
 
-            $allRequirements = @($tasks | ForEach-Object { @($_.otherRequirements) } | Where-Object { $_ -ne $null })
-            $types = @($allRequirements | Group-Object type | Sort-Object Name)
-            Write-Host "task count=$($tasks.Count); other requirement count=$($allRequirements.Count)"
-            foreach ($type in $types) {
-              Write-Host "TYPE '$($type.Name)' count=$($type.Count)"
-            }
-
             $dialogueLike = @()
             foreach ($task in $tasks) {
-              $matches = @($task.otherRequirements | Where-Object {
-                $_.type -match 'dialog' -or (($_ | ConvertTo-Json -Depth 10 -Compress) -match 'dialog')
-              })
+              $matches = @($task.otherRequirements | Where-Object { $_.type -eq 'dialogue' })
               if ($matches.Count -eq 0) { continue }
+              $nameKey = [string]$task.name
+              $descriptionKey = [string]$task.description
+              $nameProperty = $english.data.PSObject.Properties[$nameKey]
+              $descriptionProperty = $english.data.PSObject.Properties[$descriptionKey]
               $dialogueLike += [pscustomobject]@{
                 id = $task.id
-                name = $task.name
+                name = if ($nameProperty) { $nameProperty.Value } else { $nameKey }
+                description = if ($descriptionProperty) { $descriptionProperty.Value } else { $descriptionKey }
                 trader = $task.trader
                 minPlayerLevel = $task.minPlayerLevel
                 taskRequirements = @($task.taskRequirements)
                 traderRequirements = @($task.traderRequirements)
-                matchingRequirements = $matches
-                otherRequirements = @($task.otherRequirements)
+                dialogueRequirements = $matches
               }
             }
-            Write-Host "dialog-like quest count=$($dialogueLike.Count)"
+            Write-Host "dialogue quest count=$($dialogueLike.Count)"
             $dialogueLike | ConvertTo-Json -Depth 20 -Compress | Write-Host
           }
