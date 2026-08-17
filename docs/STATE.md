@@ -61,12 +61,28 @@ v0.1.7에서 `globalVariable` availability를 opaque 문자열로만 취급하�
 - 공개 source로 증명할 수 없는 server-side variable write rule은 임의 복원하지 않음
 - 상세: `docs/QUEST_TASK_POOL_AUDIT_2026-08-17.md`, `DEC-044`
 
+### Dialogue availability compatibility
+
+2026-08-17 live feed의 `dialogue` Quest 12건은 regular / pve / pvp-season에서 동일하며 전수 감사했습니다.
+
+- 정확히 검증된 12개 Quest ID에만 compatibility 적용
+- 실제 시작 Quest 3개는 opaque dialogue gate를 제거
+- 나머지 9개는 검증된 prerequisite와 minimum level을 복원
+- Introduction은 Gunsmith - MP-133 `Active` 의미를 보존
+- upstream이 향후 ordinary `taskRequirements`를 제공하면 source rule이 자동 우선
+- 새로운/변경된 dialogue Quest는 allowlist 밖이므로 추측하지 않고 계속 `확인 필요`
+- 기존 content snapshot에도 read-time 적용하므로 데이터 DB 삭제/강제 재다운로드 불필요
+- post-fix live audit에서 세 GameMode 모두 raw dialogue 12건 → compatibility 후 잔여 0건 확인
+- 상세: `docs/DIALOGUE_GATE_AUDIT_2026-08-17.md`
+
 ### 실패 / 불명확 availability
 
 - 다른 Quest 완료로 확정되는 sibling failure는 자동 추론
 - 프로그램이 알 수 없는 비재시작형 영구 실패만 사용자 입력
 - 재시작 가능한 raid failure는 영구 저장하지 않음
-- dialogue / 미관측 profile variable / 실제 완료 시각 기반 delay는 추측하지 않고 `확인 필요`
+- **검증되지 않은 새 dialogue / 미관측 profile variable / 실제 완료 시각 기반 delay**는 추측하지 않고 `확인 필요`
+- 현재 live 구조에서 dialogue compatibility 이후 남는 source-level unresolved 원인은 `globalVariable` 162 Quest와 availability delay 13 Quest뿐이며 서로 겹치지 않음
+- 구조적 unresolved union 175는 실제 UI `확인 필요` 개수와 동일하지 않음. 완료/Unavailable/Locked 등 프로필별 확정 상태가 우선하면 화면 수치는 더 작아짐
 - Battery Change처럼 upstream 자체가 의심스러운 데이터는 근거 없이 임의 보정하지 않음
 
 ---
@@ -78,6 +94,7 @@ Current Content schema: v7
 Readable Content schemas: v3, v4, v5, v6, v7
 user.db SQLite schema: v1 unchanged
 v0.1.6 → v0.1.7 mandatory data update: none
+post-v0.1.7 dialogue compatibility mandatory data update: none
 ```
 
 다음 정상 `데이터 업데이트`가 성공하면 v7 snapshot으로 저장합니다.
@@ -103,9 +120,13 @@ Map subsystem은 독립이고 Quest만 JunhyunHelper current profile/content와 
   - live Translate X/Y 보존
   - PlayerTracking live transform과 stale persisted offset이 달라도 live 화면 우선
   - floor-only change 후 불필요한 re-center/re-clamp를 하지 않음
-- 상세: `docs/MINIMAP_FLOOR_FRAME_2026-08-17.md`
+- 제품용 Map marker 설정은 `%LocalAppData%/JunhyunHelper/map-product-settings.json`의 저장값을 권위값으로 복원하며 hidden legacy Quest toggle이 이를 덮지 않음
+- Main Map selector와 shared `MapTrackerService.CurrentMapKey`를 양방향 동기화하여 MiniMap이 오래된 다른 맵 키를 유지하지 않도록 함
+- Interchange 사용자 표시 명칭은 `인터체인지`로 통일
+- 진행 중 Quest sidebar 행 높이와 checkbox / marker-code / text lane을 고정하고 layout 보정을 batch 처리
+- 상세: `docs/MINIMAP_FLOOR_FRAME_2026-08-17.md`, `docs/USABILITY_STABILITY_PASS_2026-08-17.md`
 
-v0.1.7 Windows runtime smoke에서 startup + Main Map + Factory + MiniMap floor 전환 + stale persisted offset + 정상 종료를 실제 publish 실행본으로 검증했습니다.
+v0.1.7 Windows runtime smoke와 post-v0.1.7 usability/stability candidate smoke에서 startup + Main Map + Factory + MiniMap + 정상 종료를 실제 publish 실행본으로 검증했습니다.
 
 ---
 
@@ -114,12 +135,22 @@ v0.1.7 Windows runtime smoke에서 startup + Main Map + Factory + MiniMap floor 
 | 영역 | 상태 |
 |---|---|
 | Profile | 구현 완료 |
-| Quest | 구현 완료 / `확인 필요` 분리 / special trader + exact profile-variable gate 지원 |
+| Quest | 구현 완료 / `확인 필요` 분리 / special trader + exact profile-variable + audited dialogue gate 지원 |
 | Hideout | 구현 완료 |
-| Needed Items / Inventory | 구현 완료 |
-| Ammo | 구현 완료 |
-| Map + MiniMap | 구현 완료 / v0.1.7 exact MiniMap floor-frame 보존 |
+| Needed Items / Inventory | 구현 완료 / unresolved future Quest item 보호 / inventory mutation 재렌더 최적화 |
+| Ammo | 구현 완료 / 이름·구경 검색 / 선택 동기화 / 상세정보 접기 |
+| Map + MiniMap | 구현 완료 / exact MiniMap floor-frame 보존 / 설정 영속화 / map-key 동기화 강화 |
 | Scanner | `준비 중` placeholder / 실제 기능 PRODUCT OPEN |
+
+### 현재 usability / stability 구현 상태
+
+- 유동 제출 후보 아이템 행 크기/수량 lane 정돈
+- 지도 진행 중 Quest 행 크기/marker lane 정돈
+- item 수량 변경과 hideout level 변경에서 불필요한 Quest 전체 재계산/재렌더링 제거
+- Quest 완료/실패는 prerequisite와 Needed Items에 실제 영향을 주므로 Quest + Items 재계산 유지
+- Ammo 검색 결과는 기존 `AmmoRow`를 직접 선택하여 정확한 caliber table과 상세정보를 함께 이동
+- Ammo 하단 상세정보를 접으면 실제 detail row와 splitter까지 축소되어 탄약표 공간이 늘어남
+- 세부 구현/검증 기록: `docs/USABILITY_STABILITY_PASS_2026-08-17.md`
 
 ## 비차단 후속 범위
 
@@ -130,6 +161,8 @@ v0.1.7 Windows runtime smoke에서 startup + Main Map + Factory + MiniMap floor 
 - user.db backup/restore UX
 - repository license / third-party notice 정책
 
-## 이번 릴리즈 후 저장소 상태
+## 저장소 상태
 
-임시 `.github/workflows/release-v0.1.7.yml`은 공개 검증 후 제거했습니다. 상시 workflow는 `.github/workflows/ci.yml`만 유지합니다.
+- 공개 릴리즈는 여전히 v0.1.7
+- post-v0.1.7 usability/stability pass는 코드/자동 검증 완료 상태
+- 상시 workflow는 `.github/workflows/ci.yml`만 유지

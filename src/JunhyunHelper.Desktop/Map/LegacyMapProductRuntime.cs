@@ -25,6 +25,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
     private readonly LegacyQuestMarkerRenderV3 _questMarkerRenderer;
     private readonly LegacyMapSettingsPersistenceBridge _settingsPersistenceBridge;
     private readonly LegacyMapViewportPolishBridge _viewportPolishBridge;
+    private readonly LegacyMapSelectionConsistencyBridge _selectionConsistencyBridge;
     private readonly Slider? _playerMarkerSlider;
     private bool _syncingPlayerMarker;
     private bool _disposed;
@@ -53,6 +54,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
         _questMarkerRenderer = new LegacyQuestMarkerRenderV3(page);
         _settingsPersistenceBridge = new LegacyMapSettingsPersistenceBridge(page);
         _viewportPolishBridge = new LegacyMapViewportPolishBridge(page);
+        _selectionConsistencyBridge = new LegacyMapSelectionConsistencyBridge(page);
         _hotkeys = new JunhyunMapHotkeyService(page);
         _playerMarkerSlider = _page.FindName("SliderPlayerMarkerSize") as Slider;
 
@@ -147,6 +149,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
         _disposed = true;
 
         GlobalKeyboardHookService.Instance.DirectFloorSelectionPressed -= DirectFloorSelectionPressed;
+        _selectionConsistencyBridge.Dispose();
         _viewportPolishBridge.Dispose();
         _settingsPersistenceBridge.Dispose();
         _questMarkerRenderer.Dispose();

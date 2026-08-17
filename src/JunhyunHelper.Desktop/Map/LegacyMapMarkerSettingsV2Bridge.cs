@@ -11,6 +11,8 @@ namespace JunhyunHelper.Desktop.Map;
 /// </summary>
 public sealed class LegacyMapMarkerSettingsV2Bridge : IDisposable
 {
+    private const string QuestMarkerToggleName = "ChkShowQuestMarkers";
+
     private readonly TarkovHelper.Pages.Map.MapPage _page;
     private readonly StackPanel? _content;
     private readonly StackPanel _combatRows = new();
@@ -70,10 +72,15 @@ public sealed class LegacyMapMarkerSettingsV2Bridge : IDisposable
     private StackPanel CreateQuestRows()
     {
         var rows = new StackPanel();
-        _legacyQuestToggle = _page.FindName("ChkShowQuestMarkers") as CheckBox;
+        _legacyQuestToggle = _page.FindName(QuestMarkerToggleName) as CheckBox;
 
         if (_legacyQuestToggle is not null)
         {
+            // Product persistence is authoritative. Apply it before exposing the new
+            // checkbox so a hidden legacy default can never overwrite a saved opt-out.
+            if (JunhyunMapProductSettingsStore.Instance.GetToggle(QuestMarkerToggleName) is { } persisted)
+                _legacyQuestToggle.IsChecked = persisted;
+
             // The transplanted checkbox belongs to the old top bar and is hidden by the
             // product adapter. Reusing that visual directly proved unreliable on Windows:
             // its inherited collapsed state and template could survive after reparenting.
@@ -82,17 +89,13 @@ public sealed class LegacyMapMarkerSettingsV2Bridge : IDisposable
             _legacyQuestToggle.Visibility = Visibility.Collapsed;
             _legacyQuestToggle.Checked += LegacyQuestToggle_Changed;
             _legacyQuestToggle.Unchecked += LegacyQuestToggle_Changed;
-
-            // Quest markers are opt-out. Ensure a stale hidden legacy state cannot silently
-            // suppress every A/B/C marker while the per-Quest checkboxes appear enabled.
-            if (_legacyQuestToggle.IsChecked != true)
-                _legacyQuestToggle.IsChecked = true;
         }
 
         _productQuestToggle = new CheckBox
         {
             Content = "퀘스트 마커 표시",
-            IsChecked = _legacyQuestToggle?.IsChecked ?? true,
+            IsChecked = _legacyQuestToggle?.IsChecked ??
+                        JunhyunMapProductSettingsStore.Instance.GetToggle(QuestMarkerToggleName) ?? true,
             IsThreeState = false,
             IsEnabled = true,
             IsHitTestVisible = true,
@@ -113,11 +116,14 @@ public sealed class LegacyMapMarkerSettingsV2Bridge : IDisposable
         if (_syncingQuestToggle || _productQuestToggle is null)
             return;
 
+        var enabled = _productQuestToggle.IsChecked == true;
+        JunhyunMapProductSettingsStore.Instance.SetToggle(QuestMarkerToggleName, enabled);
+
         _syncingQuestToggle = true;
         try
         {
             if (_legacyQuestToggle is not null)
-                _legacyQuestToggle.IsChecked = _productQuestToggle.IsChecked == true;
+                _legacyQuestToggle.IsChecked = enabled;
         }
         finally
         {
@@ -130,10 +136,13 @@ public sealed class LegacyMapMarkerSettingsV2Bridge : IDisposable
         if (_syncingQuestToggle || _productQuestToggle is null || _legacyQuestToggle is null)
             return;
 
+        var enabled = _legacyQuestToggle.IsChecked == true;
+        JunhyunMapProductSettingsStore.Instance.SetToggle(QuestMarkerToggleName, enabled);
+
         _syncingQuestToggle = true;
         try
         {
-            _productQuestToggle.IsChecked = _legacyQuestToggle.IsChecked == true;
+            _productQuestToggle.IsChecked = enabled;
         }
         finally
         {

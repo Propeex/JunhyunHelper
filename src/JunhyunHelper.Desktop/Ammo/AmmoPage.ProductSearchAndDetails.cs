@@ -1,0 +1,236 @@
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Input;
+using System.Windows.Media;
+
+namespace JunhyunHelper.Desktop.Ammo;
+
+public partial class AmmoPage
+{
+    private TextBox? _productSearchBox;
+    private Popup? _productSearchPopup;
+    private ListBox? _productSearchResults;
+    private Expander? _productDetailExpander;
+    private Grid? _productRootGrid;
+    private UIElement? _productDetailSplitter;
+    private bool _productDetailsPrepared;
+
+    static AmmoPage()
+    {
+        EventManager.RegisterClassHandler(
+            typeof(AmmoPage),
+            LoadedEvent,
+            new RoutedEventHandler(ProductLoaded));
+    }
+
+    private static void ProductLoaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is AmmoPage page)
+            page.InitializeProductSearchAndDetails();
+    }
+
+    private void InitializeProductSearchAndDetails()
+    {
+        if (Content is not Grid root)
+            return;
+
+        _productRootGrid ??= root;
+        if (_productSearchBox is null)
+        {
+            var header = root.Children
+                .OfType<Grid>()
+                .FirstOrDefault(element => Grid.GetRow(element) == 0);
+            if (header is not null)
+                CreateProductSearch(header);
+        }
+
+        if (!_productDetailsPrepared)
+        {
+            _productDetailsPrepared = true;
+            PrepareCollapsibleDetailPanel(root);
+        }
+    }
+
+    private void CreateProductSearch(Grid header)
+    {
+        _productSearchBox = new TextBox
+        {
+            Width = 270,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(12, 0, 0, 0),
+            ToolTip = "탄약 이름 또는 구경 검색",
+        };
+        _productSearchBox.TextChanged += ProductSearchBox_TextChanged;
+        _productSearchBox.PreviewKeyDown += ProductSearchBox_PreviewKeyDown;
+        Grid.SetColumn(_productSearchBox, Math.Max(0, header.ColumnDefinitions.Count - 1));
+        header.Children.Add(_productSearchBox);
+
+        _productSearchResults = new ListBox
+        {
+            MinWidth = 270,
+            MaxHeight = 340,
+            DisplayMemberPath = nameof(AmmoSearchHit.Label),
+            Background = TryFindResource("BackgroundMediumBrush") as Brush ?? Brushes.Black,
+            Foreground = TryFindResource("TextPrimaryBrush") as Brush ?? Brushes.White,
+            BorderThickness = new Thickness(0),
+        };
+        _productSearchResults.PreviewMouseLeftButtonUp += ProductSearchResults_PreviewMouseLeftButtonUp;
+
+        var border = new Border
+        {
+            MinWidth = 270,
+            Background = TryFindResource("BackgroundMediumBrush") as Brush ?? Brushes.Black,
+            BorderBrush = TryFindResource("BorderBrush") as Brush ?? Brushes.DimGray,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(6),
+            Child = _productSearchResults,
+        };
+
+        _productSearchPopup = new Popup
+        {
+            PlacementTarget = _productSearchBox,
+            Placement = PlacementMode.Bottom,
+            StaysOpen = false,
+            AllowsTransparency = true,
+            Child = border,
+        };
+        header.Children.Add(_productSearchPopup);
+    }
+
+    private void ProductSearchBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_productSearchBox is null || _productSearchPopup is null || _productSearchResults is null)
+            return;
+
+        var query = _productSearchBox.Text.Trim();
+        if (query.Length == 0)
+        {
+            _productSearchPopup.IsOpen = false;
+            _productSearchResults.ItemsSource = null;
+            return;
+        }
+
+        var hits = _allRows
+            .Where(row =>
+                row.Name.Contains(query, StringComparison.CurrentCultureIgnoreCase) ||
+                row.CaliberLabel.Contains(query, StringComparison.CurrentCultureIgnoreCase) ||
+                row.RawCaliber.Contains(query, StringComparison.OrdinalIgnoreCase))
+            .Take(20)
+            .Select(row => new AmmoSearchHit(row, $"{row.Name} · {row.CaliberLabel}"))
+            .ToArray();
+
+        _productSearchResults.ItemsSource = hits;
+        _productSearchPopup.IsOpen = hits.Length > 0;
+        if (hits.Length > 0)
+            _productSearchResults.SelectedIndex = 0;
+    }
+
+    private void ProductSearchBox_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+        {
+            if (_productSearchPopup is not null)
+                _productSearchPopup.IsOpen = false;
+            return;
+        }
+
+        if (e.Key == Key.Enter && _productSearchResults?.SelectedItem is AmmoSearchHit hit)
+        {
+            NavigateToSearchHit(hit.Row);
+            e.Handled = true;
+        }
+    }
+
+    private void ProductSearchResults_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_productSearchResults?.SelectedItem is AmmoSearchHit hit)
+            NavigateToSearchHit(hit.Row);
+    }
+
+    private void NavigateToSearchHit(AmmoRow row)
+    {
+        if (CaliberComboBox.ItemsSource is IEnumerable<CaliberChoice> choices)
+        {
+            var caliber = choices.FirstOrDefault(choice =>
+                string.Equals(choice.RawCaliber, row.RawCaliber, StringComparison.Ordinal));
+            if (caliber is not null)
+                CaliberComboBox.SelectedItem = caliber;
+        }
+
+        ApplyFilter();
+        _selectedRow = row;
+        AmmoGrid.SelectedItem = row;
+        AmmoGrid.ScrollIntoView(row);
+        ShowDetail(row);
+
+        if (_productSearchPopup is not null)
+            _productSearchPopup.IsOpen = false;
+    }
+
+    private void PrepareCollapsibleDetailPanel(Grid root)
+    {
+        if (root.RowDefinitions.Count < 5 || _productDetailExpander is not null)
+            return;
+
+        var detailHost = root.Children
+            .OfType<Border>()
+            .FirstOrDefault(element => Grid.GetRow(element) == 4 &&
+                                       ReferenceEquals(element.Child, DetailGrid));
+        if (detailHost is null)
+            return;
+
+        _productDetailSplitter = root.Children
+            .OfType<GridSplitter>()
+            .FirstOrDefault(element => Grid.GetRow(element) == 3);
+
+        root.Children.Remove(detailHost);
+        _productDetailExpander = new Expander
+        {
+            Header = "탄약 / 수급 경로 상세정보",
+            IsExpanded = true,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch,
+            Foreground = TryFindResource("TextPrimaryBrush") as Brush ?? Brushes.White,
+            Content = detailHost,
+        };
+        _productDetailExpander.Expanded += ProductDetailExpander_StateChanged;
+        _productDetailExpander.Collapsed += ProductDetailExpander_StateChanged;
+        Grid.SetRow(_productDetailExpander, 4);
+        root.Children.Add(_productDetailExpander);
+        ApplyProductDetailExpansionState();
+    }
+
+    private void ProductDetailExpander_StateChanged(object sender, RoutedEventArgs e) =>
+        ApplyProductDetailExpansionState();
+
+    private void ApplyProductDetailExpansionState()
+    {
+        if (_productRootGrid is null ||
+            _productRootGrid.RowDefinitions.Count < 5 ||
+            _productDetailExpander is null)
+        {
+            return;
+        }
+
+        var detailRow = _productRootGrid.RowDefinitions[4];
+        if (_productDetailExpander.IsExpanded)
+        {
+            detailRow.MinHeight = 190;
+            detailRow.Height = new GridLength(2, GridUnitType.Star);
+            if (_productDetailSplitter is not null)
+                _productDetailSplitter.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            detailRow.MinHeight = 0;
+            detailRow.Height = GridLength.Auto;
+            if (_productDetailSplitter is not null)
+                _productDetailSplitter.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private sealed record AmmoSearchHit(AmmoRow Row, string Label);
+}

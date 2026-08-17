@@ -2,6 +2,7 @@ using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.Profiles;
 using JunhyunHelper.Infrastructure.EditionData;
 using JunhyunHelper.Infrastructure.TarkovJson;
+using JunhyunHelper.Infrastructure.TarkovJson.Quests;
 using JunhyunHelper.Infrastructure.Validation;
 
 namespace JunhyunHelper.Infrastructure.Content;
@@ -131,6 +132,15 @@ public sealed class TarkovContentBuildService
             crafts.Source,
             editions,
             gameMode);
+
+        // json.tarkov.dev currently exposes a small legacy/introductory quest set only
+        // through opaque dialogue gates. Apply the narrow audited compatibility mapping
+        // before validation so both live builds and persisted snapshots share the exact
+        // same prerequisite semantics.
+        content = content with
+        {
+            Quests = TarkovDialogueAvailabilityCompatibility.Apply(content.Quests),
+        };
 
         var warnings = new[]
             {
