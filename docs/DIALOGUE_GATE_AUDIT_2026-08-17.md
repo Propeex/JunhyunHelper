@@ -56,6 +56,29 @@ upstream이 미래에 이 Quest의 정확한 `taskRequirements`를 직접 제공
 
 ---
 
+## Post-fix live 재계수
+
+구현 후 temporary live audit로 세 GameMode를 다시 계수했다.
+
+| GameMode | globalVariable Quest | delay Quest | raw dialogue Quest | compatibility 후 dialogue 잔여 | 기타 unknown | 구조적 unresolved union |
+|---|---:|---:|---:|---:|---:|---:|
+| regular | 162 | 13 | 12 | 0 | 0 | 175 |
+| pve | 162 | 13 | 12 | 0 | 0 | 175 |
+| pvp-season | 162 | 13 | 12 | 0 | 0 | 175 |
+
+12개 dialogue Quest는 `globalVariable`, delay, 기타 unknown과 겹치지 않았다. 따라서 이 compatibility가 처리하는 dialogue 원인은 세 모드 모두 **12 → 0**이 된다.
+
+여기서 175는 사용자 UI의 `확인 필요` 표시 개수와 동일한 수치가 아니다. UI availability는 이미 완료됨, permanently unavailable, level/prerequisite locked 같은 더 확정적인 상태를 먼저 적용한다. 따라서 같은 source condition 집합이라도 실제 프로필의 진행도에 따라 화면 `확인 필요` 개수는 더 작아질 수 있다.
+
+남은 175개의 구조적 source 원인은 정확히 두 부류다.
+
+- 162개: 현재 프로필 값이 관측되지 않은 EFT `globalVariable`
+- 13개: 실제 Tarkov 완료 시각이 없으면 안전한 countdown을 만들 수 없는 availability delay
+
+이 둘은 별도 데이터 없이 추측해 없애지 않는다.
+
+---
+
 ## 기존 Content snapshot 호환
 
 이 변경은 저장 구조를 바꾸는 것이 아니라 이미 저장된 Quest availability metadata의 **해석을 정정**하는 변경이다.
@@ -102,3 +125,5 @@ Quest 필요 아이템 계획은 Quest availability와 별도의 future-reachabi
 - future upstream `taskRequirements`가 생기면 compatibility가 덮어쓰지 않음
 - prerequisite가 누락되면 fail-closed
 - 함께 존재하는 다른 unsupported requirement는 보존
+
+검증 PR의 Windows Release build, 203개 unit test, publish, Map/Factory/MiniMap runtime smoke가 모두 성공했다.
