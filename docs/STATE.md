@@ -4,29 +4,32 @@
 
 ## 현재 공개 상태
 
-**v0.1.8 PUBLIC RELEASE / VERIFIED — Windows x64**
+**v0.1.9 PUBLIC RELEASE / VERIFIED — Windows x64**
 
 ```text
-release tag: v0.1.8
-release baseline: 1605d4bc9838486c6290827cebc10d9f3fd57d84
-Desktop ProductVersion: 0.1.8
+release tag: v0.1.9
+release baseline: 95d3bb139fb9c5f5b7a6e353ea560768c03d20f4
+Desktop ProductVersion: 0.1.9+95d3bb139fb9c5f5b7a6e353ea560768c03d20f4
 Content schema: v7
 Readable Content schemas: v3, v4, v5, v6, v7
 user.db SQLite schema: v1
-candidate PR: #87
-candidate PR CI: 31991531760 — SUCCESS
-main CI: 31999094668 — SUCCESS
-release workflow: 31999304667 — SUCCESS
-automated tests: 203 passed / 0 failed / 0 skipped
-public asset: Junhyun-Helper-v0.1.8-win-x64.zip
-public asset size: 74,057,364 bytes
-public SHA-256: 0a75f1a2a987e6eec41307eea6149090db90f9855e51b2e72e3a4708d22b9394
-public release: https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.8
+feature PR: #88
+feature PR CI: 32002897379 — SUCCESS
+feature main CI: 32003122340 — SUCCESS
+release candidate PR: #89
+release candidate PR CI: 32003361260 — SUCCESS
+release baseline main CI: 32003570258 — SUCCESS
+release workflow: 32003799898 — SUCCESS
+automated tests: 208 passed / 0 failed / 0 skipped
+public asset: Junhyun-Helper-v0.1.9-win-x64.zip
+public asset size: 74,065,677 bytes
+public SHA-256: c9a12ba52e2774c9a127c9f9d8740918bf8837df26e821bc11fcd793ae521952
+public release: https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.9
 ```
 
-공개 ZIP은 Release 생성 뒤 다시 다운로드해 SHA-256을 재검증했습니다. Release는 draft/prerelease가 아닌 정식 공개 상태입니다.
+공개 ZIP은 Release 생성 뒤 다시 다운로드해 SHA-256을 재검증했습니다. Release는 draft/prerelease가 아닌 정식 공개 상태이며 target commit은 정확히 release baseline과 일치합니다.
 
-상세: `docs/RELEASE_0.1.8.md`
+상세: `docs/RELEASE_0.1.9.md`
 
 ---
 
@@ -52,30 +55,46 @@ public release: https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.8
 - recoverable 접근 상실은 영구 `Unavailable`이 아니라 `Locked`
 - 상세: `docs/QUEST_PREREQUISITE_SEMANTICS.md`, `DEC-043`
 
-### EFT profile-variable gate
+### EFT profile-variable / trader task-pool gate
 
-v0.1.7부터 `globalVariable` availability를 opaque 문자열로만 취급하지 않고 structured requirement로 보존합니다.
+`globalVariable` requirement는 `variableId / operator / value`를 canonical Content에 구조적으로 보존합니다.
 
-- `variableId / operator / value`를 canonical Content에 저장
-- exact current profile variable 값이 있으면 정확히 판정
-- 값이 부족하면 `Locked`
-- exact current 값이 없으면 0이나 완료 Quest 수를 추측하지 않고 해당 fact만 `확인 필요(Indeterminate)`
-- 미래 source가 현재 지원 계약을 벗어나면 fail-closed
-- 공개 source로 증명할 수 없는 server-side variable write rule은 임의 복원하지 않음
-- 상세: `docs/QUEST_TASK_POOL_AUDIT_2026-08-17.md`, `DEC-044`
+우선순위:
+
+1. exact current profile variable 값이 존재하면 항상 그 값이 권위값
+2. exact 값이 없고 current EFT 1.1 audited task-pool 구조가 완전히 일치하면 LL2~LL4에 한해 runtime compatibility
+3. 어느 쪽도 증명할 수 없으면 `확인 필요(Indeterminate)`
+
+2026-08-17 live 재감사 결과:
+
+- `globalVariable` Quest: 162개
+- unique trader-local task-pool variable: 27개
+- exact audited LL2~LL4 Quest: 114개
+- LL1 pool Quest: 48개
+
+LL2~LL4 compatibility는 **정확한 variable ID / trader / pool Quest count / threshold set / direct same-trader LL seed count**가 모두 감사값과 일치할 때만 동작합니다.
+
+- 현재 trader LL이 pool 단계보다 낮으면 해당 future pool current value는 0으로 확정
+- trader LL이 단계에 도달했으면 완료한 direct LL seed Quest + 같은 pool의 완료 Quest로 current value를 재구성
+- exact profile variable 값이 있으면 synthetic compatibility 값보다 항상 우선
+- synthetic 값은 Quest 화면의 runtime profile copy에만 존재하며 `user.db`에 저장하지 않음
+- source 구조가 바뀌면 compatibility는 자동 중단되고 원래 `Indeterminate`로 fail closed
+- LL1은 public feed에 initial seed/write rule이 없으므로 exact profile variable 값이 없는 한 합성하지 않음
+- 상세: `docs/QUEST_TASK_POOL_AUDIT_2026-08-17.md`, `docs/FEEDBACK_FIXES_2026-08-17.md`, `DEC-044`
+
+이 current-version compatibility는 generic server write rule을 발명한 것이 아닙니다. 새로운 variable ID나 구조 변경은 자동 추론하지 않습니다.
 
 ### Dialogue availability compatibility
 
 2026-08-17 live feed의 `dialogue` Quest 12건은 regular / pve / pvp-season에서 동일하며 전수 감사했습니다.
 
 - 정확히 검증된 12개 Quest ID에만 compatibility 적용
-- 실제 시작 Quest 3개는 opaque dialogue gate를 제거
-- 나머지 9개는 검증된 prerequisite와 minimum level을 복원
-- Introduction은 Gunsmith - MP-133 `Active` 의미를 보존
+- 실제 시작 Quest 3개는 opaque dialogue gate 제거
+- 나머지 9개는 검증된 prerequisite와 minimum level 복원
+- Introduction은 Gunsmith - MP-133 `Active` 의미 보존
 - upstream이 향후 ordinary `taskRequirements`를 제공하면 source rule이 자동 우선
-- 새로운/변경된 dialogue Quest는 allowlist 밖이므로 추측하지 않고 계속 `확인 필요`
+- 새로운/변경된 dialogue Quest는 allowlist 밖이므로 추측하지 않고 `확인 필요`
 - 기존 content snapshot에도 read-time 적용하므로 데이터 DB 삭제/강제 재다운로드 불필요
-- post-fix live audit에서 세 GameMode 모두 raw dialogue 12건 → compatibility 후 잔여 0건 확인
 - 상세: `docs/DIALOGUE_GATE_AUDIT_2026-08-17.md`
 
 ### 실패 / 불명확 availability
@@ -83,10 +102,62 @@ v0.1.7부터 `globalVariable` availability를 opaque 문자열로만 취급하�
 - 다른 Quest 완료로 확정되는 sibling failure는 자동 추론
 - 프로그램이 알 수 없는 비재시작형 영구 실패만 사용자 입력
 - 재시작 가능한 raid failure는 영구 저장하지 않음
-- **검증되지 않은 새 dialogue / 미관측 profile variable / 실제 완료 시각 기반 delay**는 추측하지 않고 `확인 필요`
-- 현재 live 구조에서 dialogue compatibility 이후 남는 source-level unresolved 원인은 `globalVariable` 162 Quest와 availability delay 13 Quest뿐이며 서로 겹치지 않음
-- 구조적 unresolved union 175는 실제 UI `확인 필요` 개수와 동일하지 않음. 완료/Unavailable/Locked 등 프로필별 확정 상태가 우선하면 화면 수치는 더 작아짐
+- 검증되지 않은 새 dialogue는 `확인 필요`
+- LL1 task-pool variable은 exact current 값이 없으면 `확인 필요`
+- 실제 완료 시각 기반 availability delay는 completion timestamp가 없으면 `확인 필요`
 - Battery Change처럼 upstream 자체가 의심스러운 데이터는 근거 없이 임의 보정하지 않음
+
+현재 raw live 구조에서 compatibility 적용 후 source-level unresolved ceiling은:
+
+```text
+LL1 task-pool globalVariable: 48 Quest
+availability delay: 13 Quest
+structural union: 61 Quest
+```
+
+이는 특정 사용자 UI의 `확인 필요` 숫자와 동일하다는 뜻이 아닙니다. 완료/Locked/Unavailable 상태가 우선하거나 exact profile variable 값이 있으면 실제 화면 수치는 더 작아질 수 있습니다.
+
+---
+
+## Needed Items / cleanup 안전성
+
+Quest 화면에서 false `확인 필요`를 줄이는 current-version task-pool compatibility와 future item cleanup의 보수성은 분리합니다.
+
+- `FutureNeededItemsPlanner`의 Quest future reachability는 여전히 missing profile-variable fact를 `IndeterminatePotential`로 보호
+- 따라서 task-pool UI compatibility 때문에 실제 필요한 미래 아이템이 잘못 `정리 가능`으로 바뀌지 않음
+- flexible hand-in의 alternative candidate도 cleanup protection 유지
+- Quest 완료/실패처럼 실제 prerequisite/필요 Item이 바뀌는 사건은 full recalculation 유지
+
+---
+
+## Inventory mutation 성능 기준
+
+v0.1.9부터 inventory 수량 변경은 수량과 무관한 planning 구조를 매번 다시 만들지 않습니다.
+
+### static planning basis
+
+`FutureNeededItemsBasis`에 다음을 캐시/재사용합니다.
+
+- Quest future reachability
+- fixed future Quest/Hideout item requirements
+- flexible alternative requirements
+- cleanup protections
+- unentered Hideout station state
+
+### inventory-only mutation
+
+수량 변경에서는 다음만 다시 계산합니다.
+
+- Needed quantity
+- cleanup/surplus
+- flexible-owned progress
+- 변경된 Items row 표시
+
+또한 이미 decode된 Item icon을 재사용하고 전체 icon load pipeline을 매번 취소/재시작하지 않습니다.
+
+planning basis를 실제로 무효화하는 Quest 완료/실패, Hideout level, profile prerequisite fact 변경은 정확성을 위해 full rebuild합니다.
+
+상세: `docs/FEEDBACK_FIXES_2026-08-17.md`
 
 ---
 
@@ -96,12 +167,12 @@ v0.1.7부터 `globalVariable` availability를 opaque 문자열로만 취급하�
 Current Content schema: v7
 Readable Content schemas: v3, v4, v5, v6, v7
 user.db SQLite schema: v1 unchanged
-v0.1.7 → v0.1.8 mandatory data update: none
+v0.1.8 → v0.1.9 mandatory data update: none
 ```
 
 다음 정상 `데이터 업데이트`가 성공하면 v7 snapshot으로 저장합니다.
 
-기존 `%LocalAppData%/JunhyunHelper/user.db`의 Profile / Quest 완료·실패 / Inventory / Hideout 진행은 유지됩니다. profile-variable exact value와 special trader access override는 optional user facts로 저장됩니다.
+기존 `%LocalAppData%/JunhyunHelper/user.db`의 Profile / Quest 완료·실패 / Inventory / Hideout 진행은 유지됩니다. exact profile-variable 값과 special trader access override는 optional user facts로 저장됩니다.
 
 `GameContentValidator`는 prerequisite missing/self/duplicate/cycle/empty status 및 잘못된 special-trader gate를 candidate activation 전에 차단합니다.
 
@@ -115,20 +186,50 @@ Map subsystem은 독립이고 Quest만 JunhyunHelper current profile/content와 
 - enabled 타층 일반 marker는 same-type/near-XZ라도 각각 유지
 - current/above/below compact ring + known off-floor opacity
 - semantic duplicate extract 정규화 유지
-- Main Map floor 변경은 live zoom + map-space viewport center를 보존
-- MiniMap floor 변경은 **exact live visual frame**을 보존
+- Main Map floor 변경은 live zoom + map-space viewport center 보존
+- MiniMap floor 변경은 **exact live visual frame** 보존
   - 같은 SVG/canonical canvas에서 floor layer만 교체
   - live Zoom/Scale 보존
   - live Translate X/Y 보존
   - PlayerTracking live transform과 stale persisted offset이 달라도 live 화면 우선
-  - floor-only change 후 불필요한 re-center/re-clamp를 하지 않음
-- 제품용 Map marker 설정은 `%LocalAppData%/JunhyunHelper/map-product-settings.json`의 저장값을 권위값으로 복원하며 hidden legacy Quest toggle이 이를 덮지 않음
-- Main Map selector와 shared `MapTrackerService.CurrentMapKey`를 양방향 동기화하여 MiniMap이 오래된 다른 맵 키를 유지하지 않도록 함
-- Interchange 사용자 표시 명칭은 `인터체인지`로 통일
-- 진행 중 Quest sidebar 행 높이와 checkbox / marker-code / text lane을 고정하고 layout 보정을 batch 처리
-- 상세: `docs/MINIMAP_FLOOR_FRAME_2026-08-17.md`, `docs/USABILITY_STABILITY_PASS_2026-08-17.md`
+- Main Map selector와 shared `MapTrackerService.CurrentMapKey`를 양방향 동기화
+- Interchange 사용자 표시 명칭은 `인터체인지`
+- 제품용 marker setting은 `%LocalAppData%/JunhyunHelper/map-product-settings.json`을 권위값으로 사용
+- `퀘스트 마커 표시`도 persisted product value를 권위값으로 하며 late legacy initialization이 덮지 못하도록 재적용
+- 진행 중 Quest sidebar는 구조 기반으로 모든 Quest row를 찾아 68px 행 / 30px checkbox lane / 34px marker lane / 28px badge / text star lane으로 정돈
+- MiniMap hover 투명화는 무거운 80ms map synchronization과 분리한 lightweight 16ms Input-priority 감지를 사용
+- 상세: `docs/MINIMAP_FLOOR_FRAME_2026-08-17.md`, `docs/USABILITY_STABILITY_PASS_2026-08-17.md`, `docs/FEEDBACK_FIXES_2026-08-17.md`
 
-v0.1.8 release workflow에서 startup + Main Map + Factory + MiniMap + 정상 종료를 실제 공개 baseline publish 실행본으로 재검증했습니다.
+v0.1.9 release workflow에서 startup + Main Map + Factory + MiniMap + 정상 종료를 실제 공개 baseline publish 실행본으로 재검증했습니다.
+
+---
+
+## UI 현재 상태
+
+### Items / flexible hand-in
+
+- 일반 Item list visual rhythm을 기준으로 flexible candidate row를 68px로 정돈
+- icon lane 52px / icon 44px / quantity lane 118px
+- 한 줄 이름 + ellipsis
+- virtualization/layout 재생성 뒤에도 scoped batch polish 재적용
+
+### Ammo
+
+- 검색창은 header 가장 왼쪽
+- 검색은 name/caliber로 가능하지만 popup 표시는 `이미지 + 이름`만 사용
+- 검색 결과 클릭 시 exact caliber table + exact Ammo row 선택
+- 하단 detail host를 실제 Expander로 연결해 접기/펼치기 동작
+- 접으면 detail row와 splitter까지 축소
+- 즐겨찾기 버튼은 `☆ / ★`만 표시
+
+### 검색 clear
+
+Quest / Hideout / Items / Ammo 검색창 우측에 `×` 버튼을 제공합니다.
+
+- 빈 검색어에서는 숨김
+- 클릭 시 전체 삭제
+- 기존 TextChanged filtering 사용
+- 삭제 후 검색창 focus 유지
 
 ---
 
@@ -136,23 +237,13 @@ v0.1.8 release workflow에서 startup + Main Map + Factory + MiniMap + 정상 �
 
 | 영역 | 상태 |
 |---|---|
-| Profile | 구현 완료 |
-| Quest | 구현 완료 / `확인 필요` 분리 / special trader + exact profile-variable + audited dialogue gate 지원 |
+| Profile | 구현 완료 / 핵심 trader LL 저장 지원 |
+| Quest | 구현 완료 / `확인 필요` 분리 / special trader + exact profile-variable + audited LL2~LL4 task-pool + audited dialogue gate 지원 |
 | Hideout | 구현 완료 |
-| Needed Items / Inventory | 구현 완료 / unresolved future Quest item 보호 / inventory mutation 재렌더 최적화 |
-| Ammo | 구현 완료 / 이름·구경 검색 / 선택 동기화 / 상세정보 접기 |
-| Map + MiniMap | 구현 완료 / exact MiniMap floor-frame 보존 / 설정 영속화 / map-key 동기화 강화 |
+| Needed Items / Inventory | 구현 완료 / unresolved future Quest item 보호 / inventory-only planning cache 및 icon refresh 최적화 |
+| Ammo | 구현 완료 / 좌측 검색 / image+name result / 선택 동기화 / 실제 detail Expander / star-only favorite |
+| Map + MiniMap | 구현 완료 / exact MiniMap floor-frame / Quest marker setting 영속화 / map-key 동기화 / 빠른 hover transparency |
 | Scanner | `준비 중` placeholder / 실제 기능 PRODUCT OPEN |
-
-### 현재 usability / stability 구현 상태
-
-- 유동 제출 후보 아이템 행 크기/수량 lane 정돈
-- 지도 진행 중 Quest 행 크기/marker lane 정돈
-- item 수량 변경과 hideout level 변경에서 불필요한 Quest 전체 재계산/재렌더링 제거
-- Quest 완료/실패는 prerequisite와 Needed Items에 실제 영향을 주므로 Quest + Items 재계산 유지
-- Ammo 검색 결과는 기존 `AmmoRow`를 직접 선택하여 정확한 caliber table과 상세정보를 함께 이동
-- Ammo 하단 상세정보를 접으면 실제 detail row와 splitter까지 축소되어 탄약표 공간이 늘어남
-- 세부 구현/검증 기록: `docs/USABILITY_STABILITY_PASS_2026-08-17.md`, `docs/RELEASE_0.1.8.md`
 
 ## 비차단 후속 범위
 
@@ -165,7 +256,7 @@ v0.1.8 release workflow에서 startup + Main Map + Factory + MiniMap + 정상 �
 
 ## 저장소 상태
 
-- 공개 릴리즈: **v0.1.8**
-- release baseline: `1605d4bc9838486c6290827cebc10d9f3fd57d84`
-- 임시 `.github/workflows/release-v0.1.8.yml`은 공개 검증 후 제거함
+- 공개 릴리즈: **v0.1.9**
+- release baseline: `95d3bb139fb9c5f5b7a6e353ea560768c03d20f4`
+- 임시 `.github/workflows/release-v0.1.9.yml`은 공개 검증 후 제거함
 - 상시 workflow는 `.github/workflows/ci.yml`만 유지
