@@ -34,7 +34,6 @@ public partial class MainWindow
         try { _legacyMapProductRuntime?.Dispose(); } catch { }
         try { _legacyAdditionalMapMarkers?.Dispose(); } catch { }
         try { _legacyMapQuestV2?.Dispose(); } catch { }
-        try { _legacyMapQuestSidebarPolish?.Dispose(); } catch { }
         try { (_legacyMapProductAdapter as IDisposable)?.Dispose(); } catch { }
 
         try { OverlayMiniMapService.Instance.HideOverlay(); } catch { }

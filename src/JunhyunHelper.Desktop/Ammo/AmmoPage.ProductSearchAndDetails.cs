@@ -16,7 +16,6 @@ public partial class AmmoPage
     private ListBox? _productSearchResults;
     private Grid? _productRootGrid;
     private Border? _productDetailHost;
-    private UIElement? _productDetailSplitter;
     private Button? _productDetailToggleButton;
     private bool _productDetailsPrepared;
     private bool _productDetailsExpanded = true;
@@ -259,35 +258,10 @@ public partial class AmmoPage
         if (root.RowDefinitions.Count < 5 || _productDetailToggleButton is not null)
             return;
 
-        _productDetailHost = root.Children
-            .OfType<Border>()
-            .FirstOrDefault(element => Grid.GetRow(element) == 4);
-        if (_productDetailHost is null)
-            return;
-
-        _productDetailSplitter = root.Children
-            .OfType<GridSplitter>()
-            .FirstOrDefault(element => Grid.GetRow(element) == 3);
-        if (_productDetailSplitter is not null)
-            _productDetailSplitter.Visibility = Visibility.Collapsed;
-
-        // The default Expander header is left-aligned and visually unrelated to the
-        // Map sidebar control the user referenced. Row 3 now owns one compact centered
-        // toggle while row 4 remains the original detail content.
+        // Canonical XAML owns the visual tree. Runtime code owns state only.
+        _productDetailHost = ProductDetailHost;
+        _productDetailToggleButton = ProductDetailToggleButton;
         root.RowDefinitions[3].Height = GridLength.Auto;
-        _productDetailToggleButton = new Button
-        {
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            MinWidth = 260,
-            Height = 30,
-            Margin = new Thickness(0, 3, 0, 3),
-            Padding = new Thickness(14, 2, 14, 2),
-            FontWeight = FontWeights.SemiBold,
-        };
-        _productDetailToggleButton.Click += ProductDetailToggleButton_Click;
-        Grid.SetRow(_productDetailToggleButton, 3);
-        root.Children.Add(_productDetailToggleButton);
         ApplyProductDetailExpansionState();
     }
 
