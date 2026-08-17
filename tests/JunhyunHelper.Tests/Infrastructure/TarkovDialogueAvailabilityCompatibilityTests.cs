@@ -43,7 +43,7 @@ public sealed class TarkovDialogueAvailabilityCompatibilityTests
         Assert.Equal(5, mapped.MinimumPlayerLevel);
         var requirement = Assert.Single(mapped.TaskRequirements);
         Assert.Equal(burningRubber.Id, requirement.RequiredQuestId);
-        Assert.Equal([QuestRequiredStatus.Complete], requirement.AcceptedStatuses);
+        Assert.Equal(QuestRequiredStatus.Complete, Assert.Single(requirement.AcceptedStatuses));
 
         var locked = QuestAvailabilityEvaluator.Evaluate(
             result,
@@ -73,7 +73,7 @@ public sealed class TarkovDialogueAvailabilityCompatibilityTests
         Assert.Equal(2, mapped.MinimumPlayerLevel);
         var requirement = Assert.Single(mapped.TaskRequirements);
         Assert.Equal(gunsmith.Id, requirement.RequiredQuestId);
-        Assert.Equal([QuestRequiredStatus.Active], requirement.AcceptedStatuses);
+        Assert.Equal(QuestRequiredStatus.Active, Assert.Single(requirement.AcceptedStatuses));
     }
 
     [Fact]
@@ -163,17 +163,12 @@ public sealed class TarkovDialogueAvailabilityCompatibilityTests
     private static GameProfileSnapshot Profile(
         int level,
         IReadOnlySet<string>? completedQuestIds = null) =>
-        new(
-            "profile",
-            "Profile",
-            GameMode.Regular,
-            PmcFaction.Usec,
-            level,
-            null,
-            null,
-            completedQuestIds ?? new HashSet<string>(StringComparer.Ordinal),
-            new HashSet<string>(StringComparer.Ordinal),
-            new Dictionary<string, TraderProgress>(StringComparer.Ordinal),
-            new Dictionary<string, int>(StringComparer.Ordinal),
-            new Dictionary<string, InventoryQuantity>(StringComparer.Ordinal));
+        new()
+        {
+            ProfileId = "profile",
+            GameMode = GameMode.Regular,
+            Level = level,
+            Faction = PmcFaction.Usec,
+            CompletedQuestIds = completedQuestIds ?? new HashSet<string>(StringComparer.Ordinal),
+        };
 }
