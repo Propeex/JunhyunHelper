@@ -43,7 +43,7 @@ public sealed class QuestTaskPoolVariableCompatibilityTests
     public void FutureLoyaltyPoolCanBeDeterministicallyZero()
     {
         var quests = BuildPraporLl2Shape();
-        var profile = CreateProfile(loyalty: 1, completed: []);
+        var profile = CreateProfile(loyalty: 1, completed: new HashSet<string>(StringComparer.Ordinal));
 
         var enriched = QuestTaskPoolVariableCompatibility.ApplyInferredProfileValues(quests, profile);
 
@@ -70,7 +70,7 @@ public sealed class QuestTaskPoolVariableCompatibilityTests
                 PraporLl1Pool,
                 index <= 2 ? 1 : index <= 5 ? 3 : 5))
             .ToArray();
-        var profile = CreateProfile(loyalty: 4, completed: []);
+        var profile = CreateProfile(loyalty: 4, completed: new HashSet<string>(StringComparer.Ordinal));
 
         var enriched = QuestTaskPoolVariableCompatibility.ApplyInferredProfileValues(quests, profile);
 
