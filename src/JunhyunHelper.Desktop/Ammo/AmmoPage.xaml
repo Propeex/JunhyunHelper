@@ -198,9 +198,9 @@
         </DataGrid>
 
         <Button x:Name="ProductDetailToggleButton" Grid.Row="3"
-                Content="▲  탄약 / 수급 경로 상세정보" ToolTip="상세정보 접기"
+                Content="▼" ToolTip="상세정보 접기"
                 HorizontalAlignment="Center" VerticalAlignment="Center"
-                MinWidth="260" Height="30" Margin="0,3" Padding="14,2" FontWeight="SemiBold"
+                Width="42" MinWidth="42" MaxWidth="42" Height="30" Margin="0,3" Padding="0" FontWeight="SemiBold"
                 Click="ProductDetailToggleButton_Click" />
 
         <Border x:Name="ProductDetailHost" Grid.Row="4" Background="{StaticResource BackgroundMediumBrush}" CornerRadius="8" Padding="16">
