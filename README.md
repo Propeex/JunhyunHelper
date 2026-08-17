@@ -4,54 +4,53 @@ Escape from Tarkov 플레이를 지원하는 Windows 데스크톱 헬퍼 **준�
 
 ## 현재 공개 버전
 
-**v0.1.11 PUBLIC RELEASE — Windows x64**
+**v0.1.12 PUBLIC RELEASE / VERIFIED — Windows x64**
 
-**다운로드:** https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.11
+**다운로드:** https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.12
 
-v0.1.11은 v0.1.10에서 Quest `확인 필요` 수정은 정상 동작했지만, 일부 Items / Ammo / Map UI 변경이 runtime visual-tree 후처리 방식이라 실제 화면에 안정적으로 적용되지 않던 문제를 교정한 릴리즈입니다. 해당 UI는 이제 원본 XAML / 실제 UI 생성 코드 자체에서 직접 구성됩니다.
+v0.1.12는 v0.1.11 공개본에서 사용자 실제 화면 기준으로 여전히 남아 있던 Items / Ammo / Map UI 정렬·손잡이 문제를 수정하고, 같은 회귀를 다시 놓치지 않도록 **실제 WPF 렌더링 좌표 검증을 릴리즈 게이트에 추가한 교정 릴리즈**입니다.
 
-### v0.1.11 핵심 변경
+### v0.1.12 핵심 변경
 
-- v0.1.10의 audited EFT 1.1 Quest availability / LL1 초기 상태 개선 유지
-- exact EFT profile variable 값 최우선 정책 유지
-- audited LL2~LL4 task-pool reconstruction 유지
-- 증명 가능한 pristine LL1 상태만 counter 0으로 확정
-- future Needed Items의 unresolved Quest 보호 유지
-- flexible hand-in row를 원본 XAML에서 직접 구성
-  - 68px 고정 행
-  - 44px icon frame
-  - icon + 이름/분류 좌측 정렬
-  - 인레이드/일반 보유량 우측 고정 lane
-  - runtime layout rewrite 제거
-- Ammo header/detail layout을 원본 XAML에 직접 구성
-  - 중복 `구경`, `즐겨찾기` label 제거
-  - caliber selector 160px
-  - favorite `☆ / ★` button 38px
-  - favorites selector 170px
-  - 중앙 detail toggle + detail host 직접 배치
-- Map current Quest sidebar를 생성 시점부터 3열 구조로 구성
-  - `30px checkbox | 34px A·B·C marker | remaining quest title`
-  - title 좌측 정렬 + ellipsis
-  - runtime `LegacyMapQuestSidebarPolishBridge` 제거
+- Flexible hand-in row
+  - 전역 Button template의 가운데 정렬 때문에 내부 Grid가 실제 행 폭을 사용하지 못하던 근본 원인 수정
+  - candidate 전용 stretch template 적용
+  - `52px icon | * name/category | 108px in-raid | 96px normal`
+  - icon/name 좌측 축, in-raid/normal 우측 축 유지
+- Ammo
+  - runtime refresh 이후에도 favorite 버튼은 `☆ / ★` 하나만 표시
+  - detail handle은 42px 화살표 전용
+  - 펼쳐짐 `▼`, 접힘 `▲`
+- Map current Quest sidebar
+  - Quest title을 전역 centered Button ContentPresenter에서 분리
+  - `30px checkbox | 34px A·B·C·D marker | * Quest text`
+  - marker/check 유무와 관계없이 title 시작 X축 통일
+  - 펼친 sidebar handle을 패널 오른쪽 바깥 경계, 즉 지도와 패널 사이에 배치
+- UI 검증 강화
+  - 실제 publish된 Windows 앱에서 WPF Measure/Arrange 결과 검사
+  - Map Quest title 시작 X 편차 `<= 0.75px`
+  - expanded sidebar handle right gap `<= 6px`
+  - 기존 Main Map / Factory / MiniMap runtime smoke와 함께 수행
 
 공개 릴리즈 검증:
 
 ```text
-release baseline: 88a732c70380b4c764634eff6fd01a16eb849b14
-ProductVersion: 0.1.11+88a732c70380b4c764634eff6fd01a16eb849b14
-feature PR #92 CI: 32014857527 — SUCCESS
-feature main CI: 32015175679 — SUCCESS
-release candidate PR #93 CI: 32015691464 — SUCCESS
-release baseline main CI: 32015968523 — SUCCESS
-release workflow: 32018616694 — SUCCESS
+release baseline: cfacee6cfa893932d74d6a71725b6c711282981e
+ProductVersion: 0.1.12+cfacee6cfa893932d74d6a71725b6c711282981e
+feature correction PR #94 CI: 32022249988 — SUCCESS
+feature correction main CI: 32022514487 — SUCCESS
+release candidate PR #95 CI: 32025523609 — SUCCESS
+release baseline main CI: 32025837427 — SUCCESS
+release workflow: 32026123215 — SUCCESS
 automated tests: 210 passed / 0 failed / 0 skipped
 Windows x64 self-contained single-file publish: SUCCESS
+published rendered Product UI smoke: SUCCESS
 startup + Main Map + Factory + MiniMap runtime smoke: SUCCESS
 normal Main Window close / process exit: SUCCESS
-asset: Junhyun-Helper-v0.1.11-win-x64.zip
-asset size: 74,063,248 bytes
-SHA-256: 1293cc20c09240c4bdafd6fb45ecb5d0bc37857e12e58f60e31dff620e01b426
-public ZIP re-download + SHA-256 verification: SUCCESS
+asset: Junhyun-Helper-v0.1.12-win-x64.zip
+asset size: 74,067,018 bytes
+SHA-256: bc91f17f94c6554d09da3fed6db6ebb679c6e1d57ff7017d4a624e8dcd8eae89
+public ZIP re-download + size/SHA-256 verification: SUCCESS
 ```
 
 ## 주요 기능
@@ -67,7 +66,7 @@ public ZIP re-download + SHA-256 verification: SUCCESS
 - Ammo 성능/수급처/Armor Class 1~6 비교와 caliber favorites
 - 온라인 Game Content 안전 업데이트와 image cache
 - Map + MiniMap
-  - 현재 Quest sidebar / A·B·C marker identity
+  - 현재 Quest sidebar / A·B·C·D marker identity
   - 일반 marker / PMC·Scav·Transit 탈출구
   - floor / zoom / MiniMap 크기 hotkey
   - 타층 marker 유지 + 현재층/위층/아래층 relation 표시
@@ -113,7 +112,7 @@ Quest 화면의 current task-pool compatibility는 future item cleanup을 낙관
 - MiniMap floor 변경 시 **exact live Scale + Translate X/Y 보존**
 - Main Map selector와 MiniMap shared map key 동기화
 - `퀘스트 마커 표시`를 포함한 product setting은 `%LocalAppData%/JunhyunHelper/map-product-settings.json`에서 복원
-- current Quest sidebar는 생성 시점부터 checkbox / marker / title lane으로 고정 정렬
+- current Quest sidebar는 checkbox / marker / title 고정 lane으로 렌더하고 실제 title X축을 release smoke에서 검증
 - MiniMap hover transparency는 dedicated lightweight 16ms input check 사용
 
 ## 실행
@@ -152,18 +151,19 @@ online source
 - Runtime GPT/AI 의존성은 없습니다.
 - Content schema는 v7이며 v3~v7 snapshot을 오프라인에서 읽을 수 있습니다.
 - `user.db` SQLite schema는 v1 그대로입니다.
-- **v0.1.10 → v0.1.11 필수 데이터 업데이트 없음**
+- **v0.1.11 → v0.1.12 필수 데이터 업데이트 없음**
 
 ## 개발 문서
 
 - [`docs/STATE.md`](docs/STATE.md) — 현재 프로젝트 상태
+- [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md) — 짧은 현재 상태 인덱스
 - [`docs/PRODUCT.md`](docs/PRODUCT.md) — 공식 제품 요구사항
 - [`docs/DECISIONS.md`](docs/DECISIONS.md) — 장기 설계 결정
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — 기술 구조
 - [`docs/QUEST_PREREQUISITE_SEMANTICS.md`](docs/QUEST_PREREQUISITE_SEMANTICS.md) — Quest 선행조건 의미
-- [`docs/QUEST_TASK_POOL_AUDIT_2026-08-17.md`](docs/QUEST_TASK_POOL_AUDIT_2026-08-17.md) — EFT 1.1 trader task-pool 감사 및 current-version compatibility 경계
+- [`docs/QUEST_TASK_POOL_AUDIT_2026-08-17.md`](docs/QUEST_TASK_POOL_AUDIT_2026-08-17.md) — EFT 1.1 trader task-pool 감사
 - [`docs/DIALOGUE_GATE_AUDIT_2026-08-17.md`](docs/DIALOGUE_GATE_AUDIT_2026-08-17.md) — dialogue Quest 감사
-- [`docs/FEEDBACK_FIXES_2026-08-17.md`](docs/FEEDBACK_FIXES_2026-08-17.md) — 성능/UI/Quest feedback 수정 기록
+- [`docs/RENDERED_UI_ALIGNMENT_FIX_2026-08-17.md`](docs/RENDERED_UI_ALIGNMENT_FIX_2026-08-17.md) — 실제 렌더 UI 정렬 수정 및 검증 계약
 - [`docs/MINIMAP_FLOOR_FRAME_2026-08-17.md`](docs/MINIMAP_FLOOR_FRAME_2026-08-17.md) — MiniMap exact floor-frame 계약
 - [`docs/MAP_PRODUCT_REQUIREMENTS.md`](docs/MAP_PRODUCT_REQUIREMENTS.md) — Map/MiniMap 제품 기준
-- [`docs/RELEASE_0.1.11.md`](docs/RELEASE_0.1.11.md) — v0.1.11 공개 검증 기록
+- [`docs/RELEASE_0.1.12.md`](docs/RELEASE_0.1.12.md) — v0.1.12 공개 검증 기록
