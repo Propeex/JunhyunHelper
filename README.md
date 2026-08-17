@@ -4,32 +4,33 @@ Escape from Tarkov 플레이를 지원하는 Windows 데스크톱 헬퍼 **준�
 
 ## 현재 공개 버전
 
-**v0.1.6 PUBLIC RELEASE — Windows x64**
+**v0.1.7 PUBLIC RELEASE — Windows x64**
 
-**다운로드:** https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.6
+**다운로드:** https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.7
 
-v0.1.6은 Quest 선행조건과 특수 상인 접근 판정의 의미를 정정하고, 향후 데이터 변경에서 잘못된 Quest graph가 조용히 활성화되지 않도록 검증을 강화한 정확도 패치입니다.
+v0.1.7은 Quest 선행/availability 판정을 한 단계 더 정확하게 만들고, MiniMap 층 전환 때 화면 구도가 움직이지 않도록 고정한 릴리즈입니다.
 
-- upstream이 이미 제공한 prerequisite 상태를 compatibility overlay가 덮어쓰지 않음
-- BTR Driver의 `A Helping Hand = Active` 의미 보존
-- Ref의 GameMode별 unlock `Complete` 의미 보존
-- Lightkeeper의 recoverable 접근권을 ordinary prerequisite와 분리
-- Content schema v6 / v3~v6 readable
+- v0.1.6의 BTR Driver / Ref / Lightkeeper prerequisite semantics 수정 포함
+- EFT profile-variable Quest gate를 structured 조건으로 보존
+- exact profile variable 값이 있을 때 정확 판정
+- 알 수 없는 server/dialogue/time state는 추측하지 않고 `확인 필요`
+- MiniMap 층 변경 시 exact live zoom + X/Y 화면 위치 보존
+- Content schema v7 / v3~v7 readable
 - `user.db` SQLite schema v1 유지
-- **v0.1.5 → v0.1.6 필수 데이터 업데이트 없음**
+- **v0.1.6 → v0.1.7 필수 데이터 업데이트 없음**
 
 공개 릴리즈 검증:
 
 ```text
-release baseline: 0e4683409b62fd326c5605f1485be896e2216836
-candidate CI: 31872459229 — SUCCESS
-release workflow: 31872620863 — SUCCESS
-190 tests passed / 0 failed / 0 skipped
+release baseline: 8cf2f76003bf2603b8c0f8c0a7d9297bfc62bd43
+candidate PR CI: 31986395934 — SUCCESS
+main CI: 31986585081 — SUCCESS
+release workflow: 31986801215 — SUCCESS
 Windows x64 self-contained single-file publish: SUCCESS
 startup + Main Map + Factory + MiniMap runtime smoke: SUCCESS
 normal Main Window close / process exit: SUCCESS
-asset: Junhyun-Helper-v0.1.6-win-x64.zip
-SHA-256: be642e076d265944282ff3edd3a91323e57ced702e839b3111a0779884fd0111
+asset: Junhyun-Helper-v0.1.7-win-x64.zip
+SHA-256: b1f935ba47a48e66a46fc028f2d7f631ffb795dada0f3d50b1c42b57ca7caceb
 public ZIP re-download + SHA-256 verification: SUCCESS
 ```
 
@@ -49,10 +50,10 @@ public ZIP re-download + SHA-256 verification: SUCCESS
   - 현재 Quest sidebar / A·B·C marker identity
   - 일반 marker / PMC·Scav·Transit 탈출구
   - floor / zoom / MiniMap 크기 hotkey
-  - floor 변경 시 Main Map + MiniMap zoom/지도 중심 위치 보존
-  - 타층 marker 유지 + 현재층 초록 / 위층 빨강 / 아래층 파랑 compact ring
-  - MiniMap opacity / temporary hide / marker scale
+  - 타층 marker 유지 + 현재층/위층/아래층 relation 표시
+  - MiniMap opacity / temporary transparency / marker scale
   - screenshot 기반 Map 전환 / player tracking
+  - MiniMap 층 변경 시 같은 화면 구도에서 floor layer만 교체
 - 상단 `스캐너` 탭 — 현재 `준비 중` placeholder 유지
 
 ## Quest 정확도 기준
@@ -65,18 +66,18 @@ public ZIP re-download + SHA-256 verification: SUCCESS
 - BTR Driver 누락 gate는 `A Helping Hand = Active`로만 보강
 - Ref 누락 gate는 현재 GameMode의 검증된 unlock Quest `Complete`로만 보강
 - Lightkeeper는 최초 해금 이후 접근 상실/복구가 가능하므로 별도 special trader access로 판정
-- `globalVariable`, `dialogue`, 실제 게임 완료 시각이 필요한 delay처럼 프로그램이 입증할 수 없는 조건은 `확인 필요`로 유지
-- 실제 게임 완료 시각을 알 수 없는 delay에 가짜 countdown을 만들지 않음
+- EFT profile-variable requirement는 exact current value가 있을 때 정확 판정
+- exact 값을 알 수 없는 profile variable, dialogue, 실제 완료 시각 기반 delay는 임의 추측하지 않고 `확인 필요`
 
-## v0.1.5 Map 안정화 기준
-
-v0.1.5에서 확정한 Map/MiniMap 동작은 v0.1.6에서도 그대로 유지합니다.
+## Map / MiniMap 안정화 기준
 
 - 서로 다른 floor라는 이유만으로 일반 marker를 숨기지 않음
-- current/above/below floor relation은 compact ring으로 표현
+- current/above/below floor relation을 별도 presentation으로 표현
 - 알려진 타층 marker도 유지
-- 실제 동일 물리 extract의 semantic duplicate 정규화는 유지
-- floor 변경 시 Main Map과 MiniMap의 live zoom + map-space viewport center 보존
+- 실제 동일 물리 extract의 semantic duplicate 정규화 유지
+- Main Map floor 변경 시 live zoom + map-space viewport center 보존
+- MiniMap floor 변경 시 **exact live Scale + Translate X/Y 보존**
+- MiniMap 다층 지도는 같은 canonical SVG canvas의 floor layer이므로 층별 임의 zoom 보정값을 만들지 않음
 
 ## 실행
 
@@ -112,9 +113,8 @@ online source
 - 실패 candidate가 마지막 정상 Game Content를 덮어쓰지 않습니다.
 - Game Content update가 `user.db`를 삭제하거나 덮어쓰지 않습니다.
 - Runtime GPT/AI 의존성은 없습니다.
-- v0.1.6 Content schema는 v6이며 v3~v5 snapshot도 오프라인에서 읽을 수 있습니다.
-- v3~v5의 과거 BTR/Lightkeeper compatibility gate는 읽는 시점에 메모리에서 새 의미로 정규화됩니다.
-- 다음 정상 데이터 업데이트가 성공하면 v6 snapshot으로 저장됩니다.
+- v0.1.7 Content schema는 v7이며 v3~v6 snapshot도 오프라인에서 읽을 수 있습니다.
+- 다음 정상 데이터 업데이트가 성공하면 v7 snapshot으로 저장됩니다.
 - `user.db` SQLite schema는 v1 그대로입니다.
 
 ## 개발 문서
@@ -124,7 +124,7 @@ online source
 - [`docs/DECISIONS.md`](docs/DECISIONS.md) — 장기 설계 결정
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — 기술 구조
 - [`docs/QUEST_PREREQUISITE_SEMANTICS.md`](docs/QUEST_PREREQUISITE_SEMANTICS.md) — 현재 Quest 선행조건 의미
-- [`docs/QUEST_PREREQUISITE_AUDIT_2026-08-15.md`](docs/QUEST_PREREQUISITE_AUDIT_2026-08-15.md) — Quest 선행/해금 조건 감사
+- [`docs/QUEST_TASK_POOL_AUDIT_2026-08-17.md`](docs/QUEST_TASK_POOL_AUDIT_2026-08-17.md) — EFT 1.1 profile-variable Quest gate 감사
+- [`docs/MINIMAP_FLOOR_FRAME_2026-08-17.md`](docs/MINIMAP_FLOOR_FRAME_2026-08-17.md) — MiniMap exact floor-frame 계약
 - [`docs/MAP_PRODUCT_REQUIREMENTS.md`](docs/MAP_PRODUCT_REQUIREMENTS.md) — Map/MiniMap 제품 기준
-- [`docs/RELEASE_0.1.6.md`](docs/RELEASE_0.1.6.md) — v0.1.6 공개 검증 기록
-- [`docs/RELEASE_0.1.5.md`](docs/RELEASE_0.1.5.md) — v0.1.5 Map 회귀 패치 기록
+- [`docs/RELEASE_0.1.7.md`](docs/RELEASE_0.1.7.md) — v0.1.7 공개 검증 기록
