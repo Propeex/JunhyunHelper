@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.Profiles;
 using JunhyunHelper.Infrastructure.TarkovJson;
+using JunhyunHelper.Infrastructure.TarkovJson.Quests;
 using Microsoft.Data.Sqlite;
 
 namespace JunhyunHelper.Infrastructure.Storage;
@@ -163,6 +164,14 @@ public sealed class ContentSnapshotStore
                     gameMode),
             };
         }
+
+        // Dialogue compatibility is an interpretation fix, not a storage-shape change.
+        // Apply it to every readable snapshot in memory so upgrading the application does
+        // not force a network refresh or rewrite the user's last-known-good content DB.
+        content = content with
+        {
+            Quests = TarkovDialogueAvailabilityCompatibility.Apply(content.Quests),
+        };
 
         var warnings = JsonSerializer.Deserialize<string[]>(reader.GetString(4), JsonOptions)
                        ?? Array.Empty<string>();
