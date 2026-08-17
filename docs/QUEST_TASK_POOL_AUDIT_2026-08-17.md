@@ -4,7 +4,7 @@
 
 **AUDIT COMPLETE / CURRENT-VERSION COMPATIBILITY ADOPTED**
 
-This document records the evidence and product boundary for EFT 1.1 `globalVariable` Quest availability. DEC-044 remains the generic rule: preserve exact read-side requirements and prefer exact observed profile values. The post-v0.1.8 usability pass adds a narrower current-version compatibility because treating all 162 usages as unrelated unknown facts produces a clearly over-broad `확인 필요` result.
+This document records the evidence and product boundary for EFT 1.1 `globalVariable` Quest availability. DEC-044 remains the generic rule: preserve exact read-side requirements and prefer exact observed profile values. The current-version compatibility exists because treating all 162 usages as unrelated unknown facts produces a clearly over-broad `확인 필요` result.
 
 ## Current live structure
 
@@ -18,11 +18,11 @@ A fresh 2026-08-17 regular-mode audit found:
 - the variables form LL1→LL4 staged groups; Ragman currently has three staged groups,
 - the global-variable Quest itself has no ordinary task/trader prerequisite that could replace the variable gate.
 
-The same 162 / 27 shape had already been observed across regular / PvE / PvP Season in the earlier audit.
+The same 162 / 27 shape had already been observed across regular / PvE / PvP Season.
 
 ## Direct LL seed cross-check
 
-The live feed was audited again for non-global Quest batches gated directly by the same trader's loyalty level. The exact current counts are:
+The live feed was audited for non-global Quest batches gated directly by the same trader's loyalty level. The exact current counts are:
 
 | Trader | LL2 seeds | LL3 seeds | LL4 seeds |
 |---|---:|---:|---:|
@@ -97,7 +97,7 @@ The public task feed still does not publish the generic server-side write rule. 
 
 ## Product compatibility boundary
 
-The current Quest UI may reconstruct a missing value only when **all** of the following remain true:
+The current Quest UI may reconstruct a missing value only when the audited current-version structure remains intact:
 
 1. exact variable ID is in the audited 27-ID table,
 2. trader ID matches,
@@ -126,48 +126,56 @@ Current profile settings already store core-trader LL values, so this model is a
 
 Across the current 162 global-variable quests, **114 belong to LL2–LL4 pools** and are eligible for this reconstruction.
 
-## LL1 remains conservative
+## LL1 conservative boundary and pristine-zero exception
 
-The 48 LL1 pool quests do not have an equivalent public direct-LL seed batch that proves the initial write rule. The application therefore does **not** synthesize LL1 counter values from the current live feed alone.
+The 48 LL1 pool quests do not have an equivalent public direct-LL seed batch that proves the current counter after progression. The application therefore still does **not** reconstruct a progressed LL1 counter from completed Quest counts alone.
 
-A completed LL1 gated quest can provide a conservative lower-bound witness in diagnostic logic, but no missing LL1 current value is persisted or globally guessed.
+v0.1.10 adds one narrower fact that can be established without inventing the write rule:
 
-If a future exact profile `Variables` importer provides these values, normal exact evaluation handles them automatically.
+- the variable belongs to the exact audited LL1 pool,
+- current trader loyalty is LL1,
+- the profile has **zero completed Quest for that trader**.
+
+Only in that pristine state is the missing LL1 current value synthesized as **0**. If any Quest for that trader is completed, or trader loyalty is above LL1, this zero inference no longer applies.
+
+A completed LL1 gated Quest can still provide a conservative lower-bound witness when evaluating its threshold, but no progressed LL1 current value is persisted or globally guessed.
+
+If a future exact profile `Variables` importer provides these values, normal exact evaluation handles them automatically and overrides compatibility.
 
 ## Needed Items safety boundary
 
-Current Quest presentation and future item cleanup do not have to use the same optimism level.
+Current Quest presentation and future item cleanup do not use the same optimism level.
 
 The audited task-pool reconstruction is applied to current Quest catalog presentation. `FutureNeededItemsPlanner` continues to use the conservative reachability evaluator, where missing profile-variable facts stay `IndeterminatePotential`. Therefore reducing false `확인 필요` rows cannot make a genuinely needed future item incorrectly appear safe to discard.
 
-## Expected unresolved structure after compatibility
+## Expected unresolved structure
 
-Before this pass, raw source-level unresolved causes after dialogue compatibility were:
+Before task-pool compatibility, raw source-level unresolved causes after dialogue compatibility were:
 
 - `globalVariable`: 162 quests
 - availability delay: 13 quests
 - total structural union: 175
 
-With validated LL2–LL4 task-pool compatibility and no exact LL1 variable values, the remaining raw unresolved ceiling becomes:
+With validated LL2–LL4 compatibility but before applying user-profile facts, the raw structural ceiling is:
 
 - LL1 task-pool variables: 48 quests
 - availability delay: 13 quests
 - structural union: 61
 
-This is **not** a promise that the UI will show exactly 61 `확인 필요` entries. Completed / Locked / Unavailable profile states can mask an unresolved condition, and exact imported variable values can resolve additional cases.
+This is not a promise that the UI will show 61 `확인 필요` entries. Completed / Locked / Unavailable states, exact variable values, and v0.1.10's pristine LL1 zero rule can resolve or mask additional rows for an actual profile.
 
 ## Why this does not become a generic heuristic
 
-The public feed still does not define:
+The public feed still does not define a generic rule such as:
 
 ```text
 variable X = trader Y LLZ side-task completion count
 quest Q completion increments X
 ```
 
-Therefore the application does not infer future variable mappings by ObjectId order, quest naming, or similarity. New IDs remain unknown until audited or exactly observed.
+Therefore the application does not infer future variable mappings or progressed LL1 values by ObjectId order, quest naming, or similarity. New IDs remain unknown until audited or exactly observed.
 
-This preserves the main DEC-044 principle while correcting the v0.1.8 user-visible over-conservatism for the exact current EFT 1.1 dataset.
+This preserves DEC-044 while using only current-version facts that can be demonstrated safely.
 
 ## Verification
 
@@ -177,6 +185,8 @@ Automated tests lock:
 - audited LL2 reconstruction,
 - future LL pool deterministic zero,
 - structural drift fail-closed,
-- LL1 missing-value conservatism.
+- pristine LL1/current LL1 + zero trader completions → zero,
+- any completed Quest for the trader → no pristine LL1 zero inference,
+- LL2+ trader → no pristine LL1 zero inference.
 
-The live audit used temporary GitHub Actions on `agent/global-variable-audit-v2-2026-08-17`; the temporary workflow is removed after the evidence is recorded.
+v0.1.10 public verification: `docs/RELEASE_0.1.10.md`.
