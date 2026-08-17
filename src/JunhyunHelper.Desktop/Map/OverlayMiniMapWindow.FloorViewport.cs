@@ -1,5 +1,3 @@
-using System.Windows;
-using System.Windows.Threading;
 using TarkovHelper.Models.Map;
 using TarkovHelper.Services.Map;
 
@@ -8,11 +6,9 @@ namespace TarkovHelper.Windows;
 public partial class OverlayMiniMapWindow
 {
     /// <summary>
-    /// Product-owned MiniMap floor movement. The legacy floor renderer replaces the SVG
-    /// and then calls UpdateMapView(), which reads persisted MapOffsetX/Y. In
-    /// PlayerTracking mode the live player-centered translation is intentionally kept only
-    /// in MapTranslate, so those persisted offsets can be stale. Capture the live viewport
-    /// before replacing the floor artwork and restore the same map-space center afterward.
+    /// Product-owned MiniMap floor movement. Every floor is a layer inside the same
+    /// canonical map SVG/canvas, so switching floors must not reframe the map at all.
+    /// Preserve the exact live scale + translation and replace only the rendered layer.
     /// </summary>
     public Task JunhyunMoveFloorUpAsync() => JunhyunMoveFloorPreservingViewportAsync(+1);
 
@@ -62,15 +58,17 @@ public partial class OverlayMiniMapWindow
 
         var viewport = CaptureJunhyunMiniMapViewport();
 
-        // Make the live transform authoritative before the transplanted renderer runs.
-        // This prevents its internal UpdateMapView() from visibly jumping to an old
-        // PlayerTracking offset even before the post-render restoration executes.
+        // The legacy renderer calls UpdateMapView() after replacing the SVG and reads
+        // persisted offsets. PlayerTracking intentionally keeps its authoritative live
+        // position in MapTranslate, so copy the exact frame into settings first. This
+        // prevents the renderer from using a stale player-centered offset while the new
+        // floor layer is installed.
         if (viewport is { } live)
         {
             _settings.ZoomLevel = live.Zoom;
             _appliedZoomLevel = live.Zoom;
-            _settings.MapOffsetX = MapTranslate.X;
-            _settings.MapOffsetY = MapTranslate.Y;
+            _settings.MapOffsetX = live.TranslateX;
+            _settings.MapOffsetY = live.TranslateY;
         }
 
         _selectedFloorId = targetFloorId;
@@ -89,20 +87,12 @@ public partial class OverlayMiniMapWindow
         if (ct.IsCancellationRequested)
             return;
 
-        try
-        {
-            await Dispatcher.InvokeAsync(
-                () => RestoreJunhyunMiniMapViewport(viewport),
-                DispatcherPriority.ContextIdle,
-                ct);
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            // A newer floor render superseded this request after the SVG render completed.
-            // The live transform was already copied into persisted offsets above, so the
-            // replacement render inherits the same viewport. Cancellation is expected,
-            // not a user-visible failure.
-        }
+        // RenderCurrentFloorAsync does not change the canonical canvas dimensions; it
+        // only swaps which SVG floor layer is visible. Restore the exact live transform
+        // immediately. Recomputing from a map-space center or clamping the offset here
+        // can move the image by a few pixels and makes floor switching look like a zoom/
+        // pan even though the user asked for only the floor artwork to change.
+        RestoreJunhyunMiniMapViewport(viewport);
     }
 
     private JunhyunMiniMapViewportSnapshot? CaptureJunhyunMiniMapViewport()
@@ -111,17 +101,15 @@ public partial class OverlayMiniMapWindow
         if (!double.IsFinite(zoom) || zoom <= 0)
             zoom = _settings.ZoomLevel;
 
-        var viewWidth = MapContainer.ActualWidth > 0 ? MapContainer.ActualWidth : ActualWidth;
-        var viewHeight = MapContainer.ActualHeight > 0 ? MapContainer.ActualHeight : ActualHeight;
-        if (!double.IsFinite(zoom) || zoom <= 0 || viewWidth <= 0 || viewHeight <= 0)
+        var translateX = MapTranslate.X;
+        var translateY = MapTranslate.Y;
+        if (!double.IsFinite(zoom) || zoom <= 0 ||
+            !double.IsFinite(translateX) || !double.IsFinite(translateY))
+        {
             return null;
+        }
 
-        var centerX = viewWidth / 2.0;
-        var centerY = viewHeight / 2.0;
-        return new JunhyunMiniMapViewportSnapshot(
-            zoom,
-            (centerX - MapTranslate.X) / zoom,
-            (centerY - MapTranslate.Y) / zoom);
+        return new JunhyunMiniMapViewportSnapshot(zoom, translateX, translateY);
     }
 
     private void RestoreJunhyunMiniMapViewport(JunhyunMiniMapViewportSnapshot? snapshot)
@@ -129,34 +117,24 @@ public partial class OverlayMiniMapWindow
         if (snapshot is not { } value)
             return;
 
-        var viewWidth = MapContainer.ActualWidth > 0 ? MapContainer.ActualWidth : ActualWidth;
-        var viewHeight = MapContainer.ActualHeight > 0 ? MapContainer.ActualHeight : ActualHeight;
-        if (viewWidth <= 0 || viewHeight <= 0)
-            return;
-
         var zoom = Math.Clamp(
             value.Zoom,
             OverlayMiniMapSettings.MinZoom,
             OverlayMiniMapSettings.MaxZoom);
-        var centerX = viewWidth / 2.0;
-        var centerY = viewHeight / 2.0;
-        var translateX = centerX - (value.CanvasX * zoom);
-        var translateY = centerY - (value.CanvasY * zoom);
-        (translateX, translateY) = ClampMapOffset(translateX, translateY);
 
         _settings.ZoomLevel = zoom;
         _appliedZoomLevel = zoom;
-        _settings.MapOffsetX = translateX;
-        _settings.MapOffsetY = translateY;
+        _settings.MapOffsetX = value.TranslateX;
+        _settings.MapOffsetY = value.TranslateY;
         MapScale.ScaleX = zoom;
         MapScale.ScaleY = zoom;
-        MapTranslate.X = translateX;
-        MapTranslate.Y = translateY;
+        MapTranslate.X = value.TranslateX;
+        MapTranslate.Y = value.TranslateY;
         UpdateOverlayMarkerScales();
     }
 
     private readonly record struct JunhyunMiniMapViewportSnapshot(
         double Zoom,
-        double CanvasX,
-        double CanvasY);
+        double TranslateX,
+        double TranslateY);
 }
