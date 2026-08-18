@@ -6,7 +6,7 @@
 
 핵심 원칙:
 
-> 원본 JSON을 제품 모델로 사용하지 않는다. 개발 단계에서 의미가 검증된 값만 작은 canonical model로 변환한다.
+> 원본 JSON을 제품 모델로 사용하지 않는다. 의미가 검증된 값만 작은 canonical model로 변환한다.
 
 ---
 
@@ -24,6 +24,8 @@
 
 게임 모드별로 독립된 snapshot을 사용합니다.
 
+현재 Content snapshot schema는 **v7**, 읽기 지원 범위는 **v3~v7**입니다.
+
 ### User Progress
 
 사용자가 실제 게임에서 만든 상태이며 온라인 Game Content로 복구할 수 없습니다.
@@ -31,17 +33,23 @@
 - 프로필 ID / game mode
 - level / faction / edition / prestige
 - trader progress
-- completed quest IDs
+- completed Quest / 필요한 explicit permanent failure
+- exact profile-variable 값이 실제로 관측된 경우의 `ProfileVariables`
+- recoverable special-trader access의 sparse override fact
 - hideout current levels
 - inventory FIR / Non-FIR
+- Quest / Hideout 자동 소비와 rollback을 위한 consumption ledger
+
+`user.db` SQLite schema는 현재 v1입니다.
 
 ### Derived State
 
 위 두 데이터에서 계산할 수 있는 결과입니다. 기본적으로 저장하지 않습니다.
 
-- Quest `Current / Locked / Indeterminate`
-- Needed Items
-- 남은 수량/집계
+- Quest availability / presentation state
+- Future Needed Items planning
+- Needed Items / cleanup 결과
+- Flexible hand-in progress
 - 화면용 그룹/정렬 결과
 
 ---
@@ -57,6 +65,7 @@
 - TraderId
 - MapId
 - StationId
+- ProfileVariableId
 
 번역 문자열은 관계를 만들거나 식별자를 대체할 수 없습니다.
 
@@ -98,11 +107,14 @@ API에 필드가 있다는 이유만으로 가격/무게/크기 등 모든 속�
 - prerequisite Quest + accepted statuses
 - trader reputation requirements
 - trader loyalty requirements
+- structured profile-variable requirements
+- recoverable special-trader access requirement
+- availability delay metadata
 - 아직 판정하지 못하는 availability requirement type 목록
 
 ### 선행 Quest 상태
 
-현재 canonical 상태:
+canonical prerequisite 상태:
 
 - `Complete`
 - `Active`
@@ -110,13 +122,13 @@ API에 필드가 있다는 이유만으로 가격/무게/크기 등 모든 속�
 
 준현 헬퍼는 수주 가능한 Quest를 이미 수락한 것으로 간주하므로, 해금된 Quest는 `Active` 조건에 사용할 수 있습니다.
 
-`Failed` 상태는 원천 의미를 보존하지만 사용자 실패 진행 UX가 아직 정의되지 않아 현재 판정에서는 `Indeterminate`를 만듭니다.
+`Failed` 의미는 source 그대로 보존합니다. 사용자가 동기화할 수 있는 실제 비재시작형 영구 실패 fact와 결합해 판정하며, 프로그램이 실패 여부를 모르는 경우 거짓으로 확정하지 않습니다.
 
 ### Trader requirement
 
-2026-08-08 live raw에서 `traderRequirements`는 `requirementType + compareMethod + value + trader` 구조입니다.
+canonical 의미는 raw `requirementType + compareMethod + value + trader`를 검증한 뒤 명시적인 비교로 보존합니다.
 
-현재 canonical 의미:
+예:
 
 - reputation `>=` → `AtLeast`
 - reputation `<=` → `AtMost`
@@ -125,28 +137,54 @@ API에 필드가 있다는 이유만으로 가격/무게/크기 등 모든 속�
 
 숫자 부호를 보고 비교 방향을 추측하지 않습니다.
 
-새 requirement type / comparison이 나타나면 importer가 실패합니다.
+새 requirement type / comparison이 importer가 이해하는 범위를 벗어나면 fail-closed 합니다.
 
-### 추가 availability requirement
+### Profile-variable requirement — schema v7
 
-현재 live data에서 비어 있지 않은 `otherRequirements`는 일부 Quest의 `dialogue` 유형으로 확인했습니다.
+`globalVariable` requirement는 opaque 문자열이 아니라 다음 의미를 구조적으로 보존합니다.
 
-현재 제품이 이 상태를 입력/판정하지 않으므로:
+- `VariableId`
+- comparison operator
+- required integer value
 
-- Game Content에는 type을 보존
-- Quest availability는 `Indeterminate`
+판정:
 
-로 처리합니다.
+1. 동일 ID의 exact current `ProfileVariables` 값이 있으면 그 값 사용
+2. current-version audited task-pool compatibility가 정확히 증명되는 범위는 검증된 reconstruction 사용 가능
+3. 어느 쪽도 아니면 `Indeterminate`
 
-조건을 조용히 무시하여 Quest를 `Current`로 오판하지 않습니다.
+key 부재를 값 0으로 해석하지 않습니다.
+
+### Special trader access
+
+Lightkeeper처럼 최초 unlock 이후에도 접근을 잃고 복구할 수 있는 상태는 ordinary prerequisite와 분리합니다.
+
+- BTR Driver 누락 gate는 검증된 `A Helping Hand = Active` 의미
+- Ref 누락 gate는 GameMode별 검증된 unlock Quest `Complete` 의미
+- Lightkeeper recoverable access는 별도 special-trader access requirement
+
+recoverable 접근 상실은 영구 Quest 불가가 아니라 `Locked` 원인이 될 수 있습니다.
+
+### Dialogue / 기타 availability
+
+정확히 감사된 dialogue Quest에는 exact-ID compatibility를 적용할 수 있습니다.
+
+새롭거나 변경된 unsupported availability condition은 조용히 무시하지 않습니다.
+
+- type/diagnostic 의미 보존
+- 안전하게 판정할 수 없으면 `Indeterminate`
+
+### Availability delay
+
+`availableDelaySecondsMin / Max`는 canonical metadata로 보존합니다.
+
+실제 게임 완료 시각이 필요한데 User Progress에 그 fact가 없으면 `Indeterminate`입니다. Helper 버튼 클릭 시각으로 가짜 completion timestamp를 만들지 않습니다.
 
 ### Edition
 
 사용자 프로필의 `EditionId`는 실제 사용자 사실로 저장합니다.
 
-하지만 현재 `json.tarkov.dev/tasks` raw에는 Quest edition 허용/제외 규칙이 직접 존재하지 않습니다.
-
-따라서 **신뢰 가능한 데이터 원천을 확정하기 전까지 edition 기준 Quest filtering 규칙을 canonical Quest model에 하드코딩하지 않습니다.**
+Quest edition 허용/제외 규칙은 신뢰 가능한 source/overlay에서 검증된 경우에만 적용하며 이름이나 추측으로 canonical 규칙을 만들지 않습니다.
 
 ---
 
@@ -185,6 +223,11 @@ Needed Items는 Objective를 화면마다 다시 해석하지 않습니다. Impo
 
 합니다.
 
+v0.1.13 final canonical validation은 다음을 fatal로 차단합니다.
+
+- accepted item 후보가 비어 있음
+- `Count <= 0`
+
 ---
 
 ## 6. Hideout
@@ -198,7 +241,7 @@ Needed Items는 Objective를 화면마다 다시 해석하지 않습니다. Impo
 
 ### HideoutLevel
 
-현재 핵심 구현은 시설 레벨과 Item Requirement를 보존합니다.
+시설 레벨과 Item Requirement를 보존합니다.
 
 ### HideoutItemRequirement
 
@@ -208,11 +251,11 @@ Needed Items는 Objective를 화면마다 다시 해석하지 않습니다. Impo
 - Count
 - FoundInRaid
 
+`Count <= 0`은 final validation에서 fatal입니다.
+
 User Progress에는 Game Content 요구사항을 복사하지 않고 **현재 station level만 저장**합니다.
 
-Needed Items에서 어느 레벨 범위를 포함할지는 아직 제품 정책이므로 Core가 임의로 결정하지 않습니다.
-
-호출자가 명시적으로 선택한 Hideout requirement만 계산 입력으로 사용합니다.
+Needed Items는 현재 station level 이후의 미래 upgrade requirement를 Application planning에서 선택합니다.
 
 ---
 
@@ -222,17 +265,17 @@ Ammo는 별도 아이템 체계가 아니라 `ItemId`를 참조하는 전용 정
 
 ### 탄약 식별
 
-현재 live raw 기준:
+현재 raw 기준:
 
 `properties.propertiesType == "ItemPropertiesAmmo"`
 
 만 탄약 성능 레코드로 인정합니다.
 
-`types`에 `ammo`가 있다는 이유만으로 포함하지 않습니다. 현재 raw에는 grenade/ammo box도 `ammo` type을 가질 수 있기 때문입니다.
+`types`에 `ammo`가 있다는 이유만으로 포함하지 않습니다. grenade/ammo box도 `ammo` type을 가질 수 있기 때문입니다.
 
 ### AmmoDefinition
 
-현재 canonical 성능:
+canonical 성능:
 
 - ItemId
 - Caliber / AmmoType
@@ -243,8 +286,8 @@ Ammo는 별도 아이템 체계가 아니라 `ItemId`를 참조하는 전용 정
 - InitialSpeed
 - HeavyBleedModifier / LightBleedModifier
 - Tracer / TracerColor
-
-추가 raw 속성은 실제 제품 요구가 생기기 전까지 넣지 않습니다.
+- Wiki Ballistics table membership
+- Armor Class 1~6 effectiveness when available
 
 ### AmmoAcquisition
 
@@ -268,6 +311,8 @@ Ammo는 별도 아이템 체계가 아니라 `ItemId`를 참조하는 전용 정
 
 수급처를 사람이 작성한 문자열로 저장하지 않습니다.
 
+Ammo favorite는 Game Content가 아니라 presentation preference이며 `%LocalAppData%/JunhyunHelper/ammo-favorites.json`에 별도 저장합니다.
+
 ---
 
 ## 8. User Progress
@@ -282,37 +327,42 @@ Ammo는 별도 아이템 체계가 아니라 `ItemId`를 참조하는 전용 정
 - GameMode (`regular / pve / pvp-season`)
 - Level
 - Faction
-- EditionId?
-- PrestigeLevel?
+- EditionId
+- PrestigeLevel (기본 0)
 - Traders `{TraderId → LoyaltyLevel, Standing}`
 - CompletedQuestIds
+- 필요한 permanent failed Quest facts
+- ProfileVariables `{VariableId → exact current integer}` — 관측된 key만 저장
+- SpecialTraderAccessOverrides — recoverable 상태가 실제로 동기화된 경우만 저장
 - HideoutLevels `{StationId → Level}`
 - Inventory `{ItemId → FIR, NonFIR}`
+- Quest/Hideout consumption ledger
 
-현재 Quest/Needed Items 계산 결과는 저장하지 않습니다.
+Quest/Needed Items 계산 결과는 저장하지 않습니다.
 
 ---
 
 ## 9. Quest Availability
 
-계산 결과:
+Core 계산 결과의 핵심 상태:
 
 - `Completed`
 - `Current`
 - `Locked`
 - `Indeterminate`
 
+Application은 faction/permanent branch 같은 제품 상태와 결합해 사용자에게 `사용 불가` 등을 표시할 수 있지만, Core `Indeterminate`를 optimistic `Current`로 바꾸지 않습니다.
+
 `Indeterminate`는 오류를 숨기기 위한 상태가 아니라 **현재 입력과 지원 규칙만으로는 참/거짓을 안전하게 결정할 수 없다는 명시적인 결과**입니다.
 
 예:
 
-- 필요한 trader 값 미입력
-- 필요한 prestige 값 미입력
-- Failed-only prerequisite
-- 미지원 `dialogue` requirement
-- dependency cycle
+- 필요한 exact profile-variable 값이 없고 audited compatibility도 적용할 수 없음
+- 새로운/변경된 unsupported dialogue condition
+- 실제 completion timestamp가 필요한 delay
+- dependency cycle 또는 안전하게 판정할 수 없는 prerequisite fact
 
-시간 지연 해금은 확정 제품 결정에 따라 판정하지 않습니다.
+사용자에게는 `확인 필요`로 표시합니다.
 
 ---
 
@@ -341,6 +391,8 @@ FIR 규칙:
 
 대체 아이템 요구는 자동 선택하지 않고 별도 그룹으로 반환합니다.
 
+Future planning은 `IndeterminatePotential`을 보수적으로 보호하여 프로그램이 미래 필요 가능성을 증명 없이 제거하지 않습니다.
+
 ---
 
 ## 11. GameContentCatalog / Snapshot
@@ -360,7 +412,9 @@ FIR 규칙:
 
 Game Content는 모드별 `content.db`에 versioned snapshot으로 저장합니다.
 
-계산 편의를 위한 convenience property는 `[JsonIgnore]` 처리하여 같은 사실을 snapshot에 중복 저장하지 않습니다.
+현재 최신 schema는 **v7**이고 v3~v7을 last-known-good 범위로 읽습니다.
+
+계산 편의를 위한 convenience property는 같은 사실을 snapshot에 중복 저장하지 않습니다.
 
 Game Content는 재생성 가능하므로 내부 모델이 호환 불가능하게 바뀌면 긴 migration chain보다 새 API 데이터에서 재구축하는 것을 기본으로 합니다.
 
