@@ -51,7 +51,9 @@ public sealed class ProgramUpdateTests
         using var httpClient = new HttpClient(handler);
         using var client = new GitHubProgramUpdateClient(httpClient);
 
-        var release = await client.GetLatestReleaseAsync(Version.Parse(currentVersion));
+        var release = await client.GetLatestReleaseAsync(
+            Version.Parse(currentVersion),
+            TestContext.Current.CancellationToken);
 
         Assert.Equal(expectedUpdate, release is not null);
     }
@@ -144,7 +146,10 @@ public sealed class ProgramUpdateTests
             File.WriteAllText(Path.Combine(target, "user-note.txt"), "keep me");
             File.WriteAllText(Path.Combine(target, "Assets", "stale.asset"), "old only");
 
-            await ProgramUpdateApplier.ReplaceProductFilesAsync(staging, target);
+            await ProgramUpdateApplier.ReplaceProductFilesAsync(
+                staging,
+                target,
+                TestContext.Current.CancellationToken);
 
             Assert.Equal("new executable", File.ReadAllText(Path.Combine(target, "준현 헬퍼.exe")));
             Assert.Equal("new first run", File.ReadAllText(Path.Combine(target, "FIRST_RUN_KO.txt")));
@@ -181,7 +186,10 @@ public sealed class ProgramUpdateTests
                        FileShare.Read))
             {
                 await Assert.ThrowsAnyAsync<IOException>(() =>
-                    ProgramUpdateApplier.ReplaceProductFilesAsync(staging, target));
+                    ProgramUpdateApplier.ReplaceProductFilesAsync(
+                        staging,
+                        target,
+                        TestContext.Current.CancellationToken));
             }
 
             Assert.Equal("old executable", File.ReadAllText(executablePath));
