@@ -119,7 +119,7 @@ public static class ProgramUpdateApplier
         if (parentProcessId <= 0)
             return;
 
-        Process? process = null;
+        Process process;
         try
         {
             process = Process.GetProcessById(parentProcessId);
