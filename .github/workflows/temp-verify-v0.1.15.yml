@@ -1,0 +1,38 @@
+name: Verify temporary v0.1.15 release
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/temp-verify-v0.1.15.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - name: Confirm temporary release is updater-visible
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $meta = $null
+          for ($i = 0; $i -lt 18; $i++) {
+            try {
+              $meta = gh release view v0.1.15 --repo 'Propeex/JunhyunHelper' --json isDraft,isPrerelease,assets | ConvertFrom-Json
+              if ($LASTEXITCODE -eq 0 -and $meta) { break }
+            } catch {}
+            Start-Sleep -Seconds 5
+          }
+
+          if (-not $meta) { throw 'Temporary v0.1.15 release was not found.' }
+          if ($meta.isDraft) { throw 'Temporary release is draft and updater will not see it.' }
+          if ($meta.isPrerelease) { throw 'Temporary release is prerelease and updater will not use it.' }
+
+          $names = @($meta.assets | ForEach-Object { $_.name })
+          if ('Junhyun-Helper-v0.1.15-win-x64.zip' -notin $names) { throw 'Temporary Windows ZIP asset is missing.' }
+          if ('SHA256SUMS.txt' -notin $names) { throw 'SHA256SUMS.txt is missing.' }
+
+          Write-Host 'TEMP_UPDATER_RELEASE_READY=true'
