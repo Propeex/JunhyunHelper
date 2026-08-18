@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using JunhyunHelper.Infrastructure.Storage;
 using TarkovHelper.Models.Map;
 
 namespace JunhyunHelper.Desktop.Map;
@@ -22,7 +23,7 @@ public sealed class JunhyunMapProductSettingsStore
     };
 
     private readonly object _gate = new();
-    private readonly string _path;
+    private readonly AtomicJsonFileStore _fileStore;
     private JunhyunMapProductSettings _settings;
 
     private JunhyunMapProductSettingsStore()
@@ -31,7 +32,7 @@ public sealed class JunhyunMapProductSettingsStore
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "JunhyunHelper");
         Directory.CreateDirectory(root);
-        _path = Path.Combine(root, "map-product-settings.json");
+        _fileStore = new AtomicJsonFileStore(Path.Combine(root, "map-product-settings.json"));
         _settings = Load();
     }
 
@@ -68,6 +69,22 @@ public sealed class JunhyunMapProductSettingsStore
     public void SetValue(string controlName, double value) => Update(settings =>
         settings.Values[controlName] = value);
 
+    public void SetValues(IReadOnlyDictionary<string, double> values)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+        if (values.Count == 0)
+            return;
+
+        Update(settings =>
+        {
+            foreach (var (controlName, value) in values)
+            {
+                if (!string.IsNullOrWhiteSpace(controlName) && double.IsFinite(value))
+                    settings.Values[controlName] = value;
+            }
+        });
+    }
+
     public int? GetSelection(string controlName)
     {
         lock (_gate)
@@ -86,7 +103,11 @@ public sealed class JunhyunMapProductSettingsStore
     public int GetHotkey(OverlayMiniMapHotkeyAction action, int fallback)
     {
         lock (_gate)
-            return _settings.Hotkeys.TryGetValue(action.ToString(), out var value) ? value : fallback;
+        {
+            return _settings.Hotkeys.TryGetValue(action.ToString(), out var value)
+                ? Math.Max(0, value)
+                : Math.Max(0, fallback);
+        }
     }
 
     public void SetHotkey(OverlayMiniMapHotkeyAction action, int virtualKey) => Update(settings =>
@@ -97,7 +118,7 @@ public sealed class JunhyunMapProductSettingsStore
 
     public int TemporaryHideKey
     {
-        get { lock (_gate) return _settings.TemporaryHideKey; }
+        get { lock (_gate) return Math.Max(0, _settings.TemporaryHideKey); }
         set => Update(settings =>
         {
             var key = Math.Max(0, value);
@@ -178,39 +199,56 @@ public sealed class JunhyunMapProductSettingsStore
     {
         try
         {
-            if (!File.Exists(_path))
-                return new JunhyunMapProductSettings();
-
-            var json = File.ReadAllText(_path);
-            return JsonSerializer.Deserialize<JunhyunMapProductSettings>(json, JsonOptions)
-                   ?? new JunhyunMapProductSettings();
+            return Normalize(_fileStore.LoadOrDefault(
+                () => new JunhyunMapProductSettings(),
+                JsonOptions));
         }
-        catch
+        catch (Exception exception)
         {
+            App.WriteDiagnostic("Failed to load map product settings", exception);
             return new JunhyunMapProductSettings();
         }
     }
 
     private void SaveLocked()
     {
-        var temporary = $"{_path}.{Guid.NewGuid():N}.tmp";
         try
         {
-            var json = JsonSerializer.Serialize(_settings, JsonOptions);
-            File.WriteAllText(temporary, json);
-            File.Move(temporary, _path, overwrite: true);
+            _fileStore.Save(_settings, JsonOptions);
         }
-        finally
+        catch (Exception exception)
         {
-            try
-            {
-                if (File.Exists(temporary))
-                    File.Delete(temporary);
-            }
-            catch
-            {
-            }
+            // Map settings are presentation preferences. Keep the live setting and log
+            // the persistence problem instead of terminating the application.
+            App.WriteDiagnostic("Failed to save map product settings", exception);
         }
+    }
+
+    private static JunhyunMapProductSettings Normalize(JunhyunMapProductSettings settings)
+    {
+        settings.Toggles ??= new Dictionary<string, bool>(StringComparer.Ordinal);
+        settings.QuestMarkerToggles ??= new Dictionary<string, bool>(StringComparer.Ordinal);
+        settings.Values ??= new Dictionary<string, double>(StringComparer.Ordinal);
+        settings.Selections ??= new Dictionary<string, int>(StringComparer.Ordinal);
+        settings.Hotkeys ??= new Dictionary<string, int>(StringComparer.Ordinal);
+
+        settings.TemporaryHideKey = Math.Max(0, settings.TemporaryHideKey);
+        settings.TemporaryHideSeconds = Math.Clamp(settings.TemporaryHideSeconds, 1.0, 15.0);
+        settings.MiniMapOpacity = Math.Clamp(settings.MiniMapOpacity, 0.10, 1.0);
+        settings.MiniMapMarkerScale = Math.Clamp(settings.MiniMapMarkerScale, 0.25, 1.50);
+
+        foreach (var key in settings.Hotkeys.Keys.ToArray())
+            settings.Hotkeys[key] = Math.Max(0, settings.Hotkeys[key]);
+
+        foreach (var key in settings.Values
+                     .Where(pair => !double.IsFinite(pair.Value))
+                     .Select(pair => pair.Key)
+                     .ToArray())
+        {
+            settings.Values.Remove(key);
+        }
+
+        return settings;
     }
 }
 
