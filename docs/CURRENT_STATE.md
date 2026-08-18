@@ -2,9 +2,9 @@
 
 > 최신 개발 상태의 짧은 인덱스입니다. 상세 설계/이력은 `docs/STATE.md` 및 개별 문서를 참조합니다.
 
-기준일: 2026-08-17
+기준일: 2026-08-18
 
-상태: `v0.1.12 PUBLIC RELEASE / VERIFIED`
+상태: `v0.1.12 PUBLIC RELEASE / VERIFIED / POST-RELEASE FINAL AUDIT COMPLETE / MAINTENANCE FREEZE`
 
 ## 현재 공개 제품
 
@@ -30,6 +30,71 @@ mandatory data update from v0.1.11: none
 공개 ZIP은 Release 생성 뒤 다시 다운로드하여 크기와 SHA-256을 재검증했습니다. Release는 `draft=false`, `prerelease=false`이며 target commit은 정확히 release baseline과 일치합니다.
 
 상세: `docs/RELEASE_0.1.12.md`
+
+## 2026-08-18 최종 감사
+
+기능 추가를 잠시 중단하기 전 전체 maintenance audit를 수행했습니다.
+
+상세 기록: `docs/FINAL_AUDIT_2026-08-18.md`
+
+최종 판정:
+
+- **v0.1.12를 현재 안정 기준선으로 동결 가능**
+- 지원하는 ordinary task/hideout/item source 범위에서 blocking correctness bug 발견 없음
+- Quest → mandatory submit Item → Future Needed Items → cleanup pipeline current live 검증 통과
+- current live Regular / PvE / PvP Season canonical build 모두 valid, fatal validation 0
+- mandatory `giveItem` objective와 derived Quest item requirement 누락/중복 0
+- current live Quest/Hideout item reference 누락 0, non-positive requirement 0
+- existing 210 automated tests 재통과
+
+### current live 데이터 요약
+
+```text
+Regular
+  quests 517 / objectives 1457 / quest item requirements 307
+  mandatory submit 307 / missing-derived 0 / malformed 0
+  items 5312 / hideout stations 26 / hideout item requirements 317
+
+PvE
+  quests 513 / objectives 1428 / quest item requirements 291
+  mandatory submit 291 / missing-derived 0 / malformed 0
+  items 5312 / hideout stations 26 / hideout item requirements 317
+
+PvP Season
+  quests 490 / objectives 1392 / quest item requirements 286
+  mandatory submit 286 / missing-derived 0 / malformed 0
+  items 5312 / hideout stations 26 / hideout item requirements 317
+```
+
+모든 mode에서 현재 residual unsupported availability는 실제 completion timing을 알아야 하는 `availabilityDelay` 13건뿐이며, 검증된 dialogue compatibility 이후 residual `dialogue`는 0입니다.
+
+### PvE task-pool drift
+
+current audited trader task-pool 구조:
+
+```text
+Regular:   27 / 27 valid
+PvE:       26 / 27 valid
+PvPSeason: 27 / 27 valid
+```
+
+PvE Skier LL2 variable `6a5a111de1f417ac80a163e5`만 기존 감사 구조와 달라졌습니다.
+
+- pool count/threshold는 동일
+- direct LL2 seed가 3→4로 증가
+- 추가 candidate: `Easy Money - Part 1 [PVE ZONE]`
+
+현재 compatibility는 이 drift를 감지하면 해당 pool만 추측하지 않고 fail-closed 합니다. 따라서 exact variable이 없을 경우 일부 관련 Quest가 `확인 필요`로 남을 수 있으나, 잘못된 해금 판정은 하지 않습니다. Future Needed Items도 IndeterminatePotential을 계속 보호합니다.
+
+증명 없이 seed count를 변경하지 않습니다.
+
+## 가장 중요한 알려진 coverage gap
+
+**EFT 1.0 Story Chapters는 현재 준현 헬퍼의 ordinary `json.tarkov.dev/tasks` 기반 progression model에 포함되지 않습니다.**
+
+따라서 현재 Quest/Needed Items는 가져온 task feed 범위에서는 정합성이 높지만, Story Chapter 전용 hand-in/해금까지 포함한 'EFT 전체 progression'을 완전히 대표한다고 주장하지 않습니다.
+
+향후 개발 재개 시 가장 높은 정확도 개선 항목은 Story Chapters를 canonical progression/Needed Items에 안전하게 연결하는 것입니다.
 
 ## v0.1.12 핵심 수정
 
@@ -82,9 +147,17 @@ v0.1.12부터 위 UI 계약은 source inspection이나 build 성공만으로 완
 - runtime GPT/AI 의존성 없음
 - 온라인 Tarkov 데이터는 프로그램 importer가 다운로드 → 검증 → canonical DB 재구축
 
-## 다음 작업
+## 기술부채 / 다음 maintenance 후보
 
-- 사용자 v0.1.12 실사용 피드백 처리
-- Scanner 실제 기능은 별도 제품 설계 후 진행
-- Map artwork/config/general-marker atomic bundle updater
-- code signing / installer / updater 등 배포 UX는 후속 범위
+우선순위 순서:
+
+1. Story Chapters coverage 설계/통합
+2. PvE Skier LL2 새 PVE ZONE seed의 실제 counter semantics 확인
+3. final validator에 Quest/Hideout requirement `Count > 0` redundant guard 추가
+4. `user.db` backup/export/restore UX
+5. multi-DPI visual regression
+6. Map의 disconnected V1 adapter/sidebar path 정리 — **Map을 다시 손볼 때만**
+7. stale unentered-hideout cleanup API 정리
+8. code signing / installer / updater
+
+현재 승인된 v0.1.12 UI, conservative Indeterminate/IndeterminatePotential 정책, task-pool fail-closed, FIR cleanup 계산은 단순 정리 목적으로 변경하지 않습니다.
