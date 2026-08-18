@@ -38,6 +38,7 @@ public sealed class AtomicJsonFileStore
     }
 
     public void Save<T>(T value, JsonSerializerOptions? options = null)
+        where T : class
     {
         ArgumentNullException.ThrowIfNull(value);
 
