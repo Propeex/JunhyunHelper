@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using TarkovHelper.Models.Map;
@@ -58,6 +59,12 @@ public sealed class JunhyunMapHotkeyService : IDisposable
         SuppressLegacyDirectMapHotkeys();
 
         _hook = SetWindowsHookEx(WhKeyboardLl, _callback, IntPtr.Zero, 0);
+        if (_hook == IntPtr.Zero)
+        {
+            App.WriteDiagnostic(
+                "Failed to install Map product keyboard hook",
+                new Win32Exception(Marshal.GetLastWin32Error()));
+        }
     }
 
     private IntPtr HookCallback(int code, IntPtr wParam, IntPtr lParam)
@@ -104,8 +111,8 @@ public sealed class JunhyunMapHotkeyService : IDisposable
         if (!firstPress && !repeatable)
             return CallNextHookEx(_hook, code, wParam, lParam);
 
-        System.Windows.Application.Current?.Dispatcher.BeginInvoke(async () =>
-            await ExecuteAsync(action.Value));
+        System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
+            _ = ExecuteSafelyAsync(action.Value));
         return CallNextHookEx(_hook, code, wParam, lParam);
     }
 
@@ -124,6 +131,18 @@ public sealed class JunhyunMapHotkeyService : IDisposable
         }
 
         return null;
+    }
+
+    private async Task ExecuteSafelyAsync(OverlayMiniMapHotkeyAction action)
+    {
+        try
+        {
+            await ExecuteAsync(action);
+        }
+        catch (Exception exception)
+        {
+            App.WriteDiagnostic($"Map hotkey action '{action}' failed", exception);
+        }
     }
 
     private async Task ExecuteAsync(OverlayMiniMapHotkeyAction action)
