@@ -22,17 +22,19 @@ public sealed class AtomicJsonFileStore
     public string BackupPath => _path + ".bak";
 
     public T LoadOrDefault<T>(
-        JsonSerializerOptions? options = null,
-        Func<T>? defaultFactory = null)
-        where T : class, new()
+        Func<T> defaultFactory,
+        JsonSerializerOptions? options = null)
+        where T : class
     {
+        ArgumentNullException.ThrowIfNull(defaultFactory);
+
         if (TryRead(_path, options, out T? primary))
             return primary;
 
         if (TryRead(BackupPath, options, out T? backup))
             return backup;
 
-        return defaultFactory is null ? new T() : defaultFactory();
+        return defaultFactory();
     }
 
     public void Save<T>(T value, JsonSerializerOptions? options = null)
