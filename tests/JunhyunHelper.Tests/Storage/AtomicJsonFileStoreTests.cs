@@ -52,6 +52,30 @@ public sealed class AtomicJsonFileStoreTests
     }
 
     [Fact]
+    public void CorruptedPrimaryDoesNotReplaceValidBackupDuringNextSave()
+    {
+        var directory = CreateTempDirectory();
+        try
+        {
+            var path = Path.Combine(directory, "preferences.json");
+            var store = new AtomicJsonFileStore(path);
+
+            store.Save(new PreferenceDocument { Value = 10 });
+            store.Save(new PreferenceDocument { Value = 20 });
+            File.WriteAllText(path, "{ definitely-not-json");
+
+            store.Save(new PreferenceDocument { Value = 30 });
+
+            Assert.Equal(30, Read(path).Value);
+            Assert.Equal(10, Read(store.BackupPath).Value);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public void SaveCreatesMissingParentDirectory()
     {
         var directory = CreateTempDirectory();
