@@ -75,13 +75,25 @@ public sealed class LegacyMapProductRuntime : IDisposable
         _page.Loaded += Page_Loaded;
     }
 
-    private async void DirectFloorSelectionPressed(int floorIndex)
+    private void DirectFloorSelectionPressed(int floorIndex)
     {
         if (_disposed)
             return;
 
-        await _page.JunhyunSelectFloorAsync(floorIndex);
-        await JunhyunMiniMapProductRegistry.SelectFloorIndexAsync(floorIndex);
+        _ = SelectDirectFloorSafelyAsync(floorIndex);
+    }
+
+    private async Task SelectDirectFloorSafelyAsync(int floorIndex)
+    {
+        try
+        {
+            await _page.JunhyunSelectFloorAsync(floorIndex);
+            await JunhyunMiniMapProductRegistry.SelectFloorIndexAsync(floorIndex);
+        }
+        catch (Exception exception)
+        {
+            App.WriteDiagnostic($"Direct Map floor selection '{floorIndex}' failed", exception);
+        }
     }
 
     private void Page_Loaded(object sender, RoutedEventArgs e)
