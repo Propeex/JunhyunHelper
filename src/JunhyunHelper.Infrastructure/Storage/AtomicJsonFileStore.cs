@@ -14,7 +14,7 @@ public sealed class AtomicJsonFileStore
     public AtomicJsonFileStore(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        _path = Path.GetFullPath(path);
+        _path = System.IO.Path.GetFullPath(path);
     }
 
     public string Path => _path;
@@ -28,10 +28,10 @@ public sealed class AtomicJsonFileStore
     {
         ArgumentNullException.ThrowIfNull(defaultFactory);
 
-        if (TryRead(_path, options, out T? primary))
+        if (TryRead(_path, options, out T? primary) && primary is not null)
             return primary;
 
-        if (TryRead(BackupPath, options, out T? backup))
+        if (TryRead(BackupPath, options, out T? backup) && backup is not null)
             return backup;
 
         return defaultFactory();
