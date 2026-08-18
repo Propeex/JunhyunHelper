@@ -68,7 +68,7 @@
 
 ## DEC-033 — v0.1.0에서는 미구현 Scanner를 public UI에 노출하지 않는다
 
-- 상태: `CONFIRMED`
+- 상태: `SUPERSEDED by DEC-045`
 - 날짜: 2026-08-10
 - 결정: Scanner 요구사항이 확정되기 전까지 `준비 중` placeholder 탭을 v0.1.0 사용자 UI에 노출하지 않는다.
 - 이유: 기능이 없는 탭은 제품이 미완성처럼 보이게 하고 사용자가 기대할 동작도 정의하지 못한다.
@@ -187,3 +187,11 @@
 - 영향: development Content schema는 v7이다. v3~v6 snapshot은 계속 읽을 수 있고, 새 정상 데이터 업데이트는 structured profile-variable requirement를 v7에 저장한다. `GameProfileSnapshot.ProfileVariables`는 optional exact fact이며 key 부재는 unknown을 뜻한다. user.db SQLite schema는 v1을 유지하고 optional JSON property로 값을 저장한다. 지원하지 않는 미래 연산자/변형된 globalVariable shape는 계속 fail-closed `확인 필요`로 처리한다.
 - 대체한 결정: `DEC-038`의 “globalVariable 자체를 unsupported availability로 취급한다”는 부분을 대체한다. `프로그램이 증명할 수 없는 fact는 추측하지 않는다`는 보수적 정확도 원칙과 `DEC-039`의 `확인 필요` 정책은 유지한다.
 
+## DEC-045 — Scanner는 미완성 placeholder 탭을 제품 UI에 유지하되 기능을 가장하지 않는다
+
+- 상태: `CONFIRMED`
+- 날짜: 2026-08-18
+- 결정: Scanner의 실제 제품 요구사항이 확정되기 전까지 상단 `스캐너` 탭은 사용자 UI에 유지하고, 내용은 명확한 `준비 중` placeholder 상태로만 둔다. 실제 인식·스캔·import 동작은 별도 요구사항 확정 전까지 추가하지 않는다.
+- 이유: 현재 사용자는 미완성 Scanner 탭 자체를 유지하기를 명시적으로 요구했고, 현행 `PRODUCT.md`와 공개 제품도 placeholder-visible 계약을 사용한다. 과거 v0.1.0 준비 단계의 숨김 결정은 현재 제품 계약과 충돌한다.
+- 영향: Scanner placeholder의 존재는 프로그램 미완성 기능을 구현된 것으로 주장하지 않는다. maintenance/refactor 작업은 이 탭을 제거하거나 임의 기능으로 채우지 않는다.
+- 대체한 결정: `DEC-033` 전체
