@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 using SysDiag = System.Diagnostics;
 
@@ -131,6 +132,12 @@ public sealed class GlobalKeyboardHookService : IDisposable
 
         _hookId = SetWindowsHookEx(WhKeyboardLl, _callback, IntPtr.Zero, 0);
         _isHooked = _hookId != IntPtr.Zero;
+        if (!_isHooked)
+        {
+            JunhyunHelper.Desktop.App.WriteDiagnostic(
+                "Failed to install direct Map floor-selection keyboard hook",
+                new Win32Exception(Marshal.GetLastWin32Error()));
+        }
     }
 
     private void StopHook()
