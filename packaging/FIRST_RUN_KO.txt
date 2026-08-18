@@ -1,9 +1,20 @@
-준현 헬퍼 v0.1.13 — Windows x64
+준현 헬퍼 v0.1.14 — Windows x64
 
 실행 방법
 1. 받은 ZIP 파일을 원하는 폴더에 압축 해제합니다.
 2. '준현 헬퍼.exe'를 실행합니다.
 3. 처음 실행하면 프로필을 만들고 필요한 최신 게임 데이터를 온라인에서 내려받습니다.
+4. 프로그램 실행 시 GitHub의 최신 정식 준현 헬퍼 릴리즈를 확인합니다. 더 최신 버전이 있으면 업데이트 여부를 묻습니다.
+
+프로그램 업데이트
+- 새 정식 버전이 있을 때만 업데이트 확인창을 표시합니다.
+- 사용자가 업데이트에 동의하면 새 Windows x64 ZIP과 SHA256SUMS.txt를 내려받습니다.
+- 공개된 SHA-256과 다운로드 파일이 일치하고 패키지 구조가 정상인지 확인한 뒤에만 교체를 시작합니다.
+- 교체할 때 현재 준현 헬퍼가 종료되고, 임시 updater 프로세스가 프로그램 파일을 교체한 뒤 새 버전을 자동으로 다시 실행합니다.
+- 업데이트 확인 실패나 인터넷 연결 문제는 프로그램 실행을 막지 않습니다.
+- 다운로드/검증 실패 시 기존 프로그램 파일을 변경하지 않습니다.
+- 실제 파일 교체 중 실패하면 기존 프로그램 파일을 가능한 범위에서 복구하고 기존 버전을 다시 실행합니다.
+- updater는 별도 설치 프로그램이나 상시 Updater.exe가 아니라 실행 중 임시로 생성되는 준현 헬퍼 자체 복사본입니다.
 
 배포 형태
 - 설치 프로그램이 필요 없는 portable/self-contained Windows x64 빌드입니다.
@@ -21,22 +32,29 @@
 - 지도 제품 설정 복구본: %LocalAppData%\JunhyunHelper\map-product-settings.json.bak
 - 탄약 즐겨찾기: %LocalAppData%\JunhyunHelper\ammo-favorites.json
 - 탄약 즐겨찾기 복구본: %LocalAppData%\JunhyunHelper\ammo-favorites.json.bak
+- 프로그램 업데이트 임시 파일: %LocalAppData%\JunhyunHelper\updates\pending
 - 프로그램 로그: %LocalAppData%\JunhyunHelper\logs\startup.log
-- v0.1.12에서 v0.1.13으로 교체해도 기존 Profile / Quest / Inventory / Hideout / Map 설정은 유지됩니다.
+- 프로그램 파일 교체와 사용자 데이터는 분리되어 있으므로 기존 Profile / Quest / Inventory / Hideout / Map 설정 / Ammo 즐겨찾기는 유지됩니다.
 
-v0.1.13 주요 변경 — 기존 기능 안정화
-- 새로운 제품 기능은 추가하지 않았습니다.
-- 지도 제품 설정과 탄약 즐겨찾기를 같은 폴더의 임시 파일에서 원자적으로 교체하고, 직전 정상본을 .bak 복구본으로 유지합니다.
-- 설정 JSON이 손상된 경우 정상 복구본을 사용할 수 있으며, 손상된 primary가 다음 저장 때 정상 backup을 덮어쓰지 않도록 보호합니다.
-- 지도/탄약의 부가 설정 저장 실패가 프로그램 전체 종료로 확대되지 않고 진단 로그로 남도록 처리했습니다.
-- 지도 크기/마커 크기 등 슬라이더를 드래그하는 동안 매 변화마다 파일을 다시 쓰지 않고 짧게 묶어서 저장하며, 종료 전에 남은 값을 반영합니다.
-- 지도 단축키와 NumPad 0~5 직접 층 선택의 비동기 실패를 앱 전체 오류로 확대하지 않고 진단 로그로 격리합니다.
-- 키보드 hook 설치가 실패하면 원인을 진단 로그에 남깁니다.
-- 게임 데이터 최종 검증에서 제출 아이템 후보가 비어 있거나 Quest/Hideout 필요 수량이 0 이하인 비정상 데이터를 active DB 적용 전에 차단합니다.
+v0.1.14 주요 변경 — 사용자 동의형 프로그램 업데이트
+- 프로그램을 실행할 때 최신 정식 GitHub Release를 확인합니다.
+- 현재 설치된 버전보다 최신 버전이 있으면 업데이트 여부를 사용자에게 묻습니다.
+- 동의 시 다운로드 → SHA-256 검증 → 패키지 검증 → 프로그램 파일 교체 → 자동 재시작 순서로 진행합니다.
+- draft/prerelease나 예상 패키지 이름이 아닌 릴리즈는 자동 업데이트 대상으로 사용하지 않습니다.
+- 업데이트 실패를 일반 프로그램 실행 실패로 확대하지 않습니다.
+- 업데이트 대상은 프로그램 소유 파일인 '준현 헬퍼.exe', 'FIRST_RUN_KO.txt', 'Assets/'이며 LocalAppData의 사용자 데이터는 건드리지 않습니다.
 - 스캐너 탭은 기존대로 '준비 중' placeholder를 유지하며 실제 Scanner 기능은 추가하지 않았습니다.
+
+v0.1.13에서 유지되는 안정화
+- 지도 제품 설정과 탄약 즐겨찾기는 원자적으로 저장하고 직전 정상본을 .bak 복구본으로 유지합니다.
+- 지도/탄약의 부가 설정 저장 실패는 프로그램 전체 종료로 확대하지 않습니다.
+- 지도 slider 연속 입력은 짧게 묶어 저장하고 종료 전에 남은 값을 반영합니다.
+- 지도 단축키와 NumPad 0~5 직접 층 선택의 비동기 실패를 앱 전체 오류로 확대하지 않습니다.
+- 비정상 Quest/Hideout item requirement 데이터는 active DB 적용 전에 차단합니다.
 
 검증 방식
 - Release 빌드와 전체 자동 테스트를 통과해야 합니다.
+- 업데이트 release parsing, checksum parsing, ZIP path traversal 차단, portable package 검증, 파일 교체를 자동 테스트합니다.
 - Windows x64 self-contained single-file publish 결과를 검사합니다.
 - 실제 publish된 EXE를 실행해 기존 WPF 렌더 UI 계약을 검증합니다.
 - Main Map / Factory / MiniMap / 정상 종료 smoke를 함께 실행합니다.
@@ -56,14 +74,15 @@ v0.1.13 주요 변경 — 기존 기능 안정화
 - 유동 제출처럼 여러 후보 중 하나를 제출하는 요구사항도 후보 아이템을 보수적으로 보호합니다.
 
 게임 데이터 업데이트 / 호환성
-- 온라인 데이터를 다운로드 → 검증 → canonical 변환 → candidate DB 생성 → 관계/read-back 검증 후에만 active 데이터로 교체합니다.
+- 프로그램 업데이트와 Game Content 업데이트는 서로 다른 작업입니다.
+- 온라인 게임 데이터를 다운로드 → 검증 → canonical 변환 → candidate DB 생성 → 관계/read-back 검증 후에만 active 데이터로 교체합니다.
 - 실패 candidate가 마지막 정상 Game Content를 덮어쓰지 않습니다.
 - 데이터 업데이트는 user.db를 삭제하거나 덮어쓰지 않습니다.
 - Runtime GPT/AI 의존성은 없습니다.
 - Content schema: v7
 - Readable Content schemas: v3, v4, v5, v6, v7
 - user.db SQLite schema: v1
-- v0.1.12 → v0.1.13 필수 데이터 업데이트: 없음
+- v0.1.13 → v0.1.14 필수 데이터 업데이트: 없음
 
 현재 범위
 - 스캐너 탭은 현재 '준비 중' placeholder입니다.
