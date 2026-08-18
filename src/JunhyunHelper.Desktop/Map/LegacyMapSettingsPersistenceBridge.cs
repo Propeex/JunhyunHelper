@@ -52,6 +52,8 @@ public sealed class LegacyMapSettingsPersistenceBridge : IDisposable
     private readonly List<CheckBox> _toggles = [];
     private readonly List<Slider> _sliders = [];
     private readonly List<ComboBox> _combos = [];
+    private readonly Dictionary<string, double> _pendingSliderValues = new(StringComparer.Ordinal);
+    private readonly DispatcherTimer _sliderSaveTimer;
     private TextBox? _screenshotFolder;
     private bool _applying;
     private bool _hooked;
@@ -60,6 +62,12 @@ public sealed class LegacyMapSettingsPersistenceBridge : IDisposable
     public LegacyMapSettingsPersistenceBridge(TarkovHelper.Pages.Map.MapPage page)
     {
         _page = page ?? throw new ArgumentNullException(nameof(page));
+        _sliderSaveTimer = new DispatcherTimer(DispatcherPriority.Background, _page.Dispatcher)
+        {
+            Interval = TimeSpan.FromMilliseconds(250),
+        };
+        _sliderSaveTimer.Tick += SliderSaveTimer_Tick;
+
         _page.Loaded += Page_Loaded;
         if (_page.IsLoaded)
             _page.Dispatcher.BeginInvoke(ApplyAndHook, DispatcherPriority.ContextIdle);
@@ -180,8 +188,25 @@ public sealed class LegacyMapSettingsPersistenceBridge : IDisposable
 
     private void Slider_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
-        if (!_applying && sender is Slider { Name.Length: > 0 } slider)
-            _store.SetValue(slider.Name, e.NewValue);
+        if (_applying || sender is not Slider { Name.Length: > 0 } slider)
+            return;
+
+        _pendingSliderValues[slider.Name] = e.NewValue;
+        _sliderSaveTimer.Stop();
+        _sliderSaveTimer.Start();
+    }
+
+    private void SliderSaveTimer_Tick(object? sender, EventArgs e) => FlushPendingSliderValues();
+
+    private void FlushPendingSliderValues()
+    {
+        _sliderSaveTimer.Stop();
+        if (_pendingSliderValues.Count == 0)
+            return;
+
+        var values = new Dictionary<string, double>(_pendingSliderValues, StringComparer.Ordinal);
+        _pendingSliderValues.Clear();
+        _store.SetValues(values);
     }
 
     private void Combo_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -207,6 +232,9 @@ public sealed class LegacyMapSettingsPersistenceBridge : IDisposable
         _disposed = true;
 
         _page.Loaded -= Page_Loaded;
+        FlushPendingSliderValues();
+        _sliderSaveTimer.Tick -= SliderSaveTimer_Tick;
+
         if (!_hooked)
             return;
 

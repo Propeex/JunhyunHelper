@@ -186,6 +186,22 @@ public sealed class GameContentValidator
                     $"Quest item requirement references missing quest '{requirement.QuestId}'.");
             }
 
+            if (requirement.AcceptedItemIds.Count == 0)
+            {
+                Fatal(
+                    issues,
+                    "quest-item.items-empty",
+                    $"Quest '{requirement.QuestId}' requirement '{requirement.ObjectiveId}' has no accepted item.");
+            }
+
+            if (requirement.Count <= 0)
+            {
+                Fatal(
+                    issues,
+                    "quest-item.count.nonpositive",
+                    $"Quest '{requirement.QuestId}' requirement '{requirement.ObjectiveId}' has non-positive count '{requirement.Count}'.");
+            }
+
             foreach (var itemId in requirement.AcceptedItemIds)
             {
                 if (!itemIds.Contains(itemId))
@@ -204,6 +220,14 @@ public sealed class GameContentValidator
             {
                 foreach (var requirement in level.ItemRequirements)
                 {
+                    if (requirement.Count <= 0)
+                    {
+                        Fatal(
+                            issues,
+                            "hideout-item.count.nonpositive",
+                            $"Hideout '{station.Id}' level '{level.Level}' item '{requirement.ItemId}' has non-positive count '{requirement.Count}'.");
+                    }
+
                     if (!itemIds.Contains(requirement.ItemId))
                     {
                         Fatal(

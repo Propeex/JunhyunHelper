@@ -4,7 +4,7 @@
 
 기준일: 2026-08-18
 
-상태: `v0.1.12 PUBLIC RELEASE / VERIFIED / POST-RELEASE FINAL AUDIT COMPLETE / MAINTENANCE FREEZE`
+상태: `v0.1.12 PUBLIC RELEASE / VERIFIED / POST-RELEASE FINAL AUDIT COMPLETE / MAINTENANCE HARDENING`
 
 ## 현재 공개 제품
 
@@ -16,7 +16,7 @@ release candidate PR: #95
 release candidate CI: 32025523609 — SUCCESS
 release baseline main CI: 32025837427 — SUCCESS
 release workflow: 32026123215 — SUCCESS
-tests: 210 passed / 0 failed / 0 skipped
+tests at release: 210 passed / 0 failed / 0 skipped
 asset: Junhyun-Helper-v0.1.12-win-x64.zip
 size: 74,067,018 bytes
 SHA-256: bc91f17f94c6554d09da3fed6db6ebb679c6e1d57ff7017d4a624e8dcd8eae89
@@ -39,13 +39,13 @@ mandatory data update from v0.1.11: none
 
 최종 판정:
 
-- **v0.1.12를 현재 안정 기준선으로 동결 가능**
+- **v0.1.12를 현재 안정 기준선으로 유지 가능**
 - 지원하는 ordinary task/hideout/item source 범위에서 blocking correctness bug 발견 없음
 - Quest → mandatory submit Item → Future Needed Items → cleanup pipeline current live 검증 통과
 - current live Regular / PvE / PvP Season canonical build 모두 valid, fatal validation 0
 - mandatory `giveItem` objective와 derived Quest item requirement 누락/중복 0
 - current live Quest/Hideout item reference 누락 0, non-positive requirement 0
-- existing 210 automated tests 재통과
+- release baseline automated tests 재통과
 
 ### current live 데이터 요약
 
@@ -87,6 +87,23 @@ PvE Skier LL2 variable `6a5a111de1f417ac80a163e5`만 기존 감사 구조와 달
 현재 compatibility는 이 drift를 감지하면 해당 pool만 추측하지 않고 fail-closed 합니다. 따라서 exact variable이 없을 경우 일부 관련 Quest가 `확인 필요`로 남을 수 있으나, 잘못된 해금 판정은 하지 않습니다. Future Needed Items도 IndeterminatePotential을 계속 보호합니다.
 
 증명 없이 seed count를 변경하지 않습니다.
+
+## 2026-08-18 maintenance hardening
+
+새 기능을 추가하지 않고 기존 제품의 failure containment와 persistence를 보강합니다.
+
+- Map 제품 설정과 Ammo 즐겨찾기 JSON은 같은 디렉터리의 temporary file에서 원자적으로 교체
+- 직전 정상 preference는 `.bak` recovery copy로 유지
+- primary JSON이 손상되어도 정상 backup으로 읽기 복구
+- 손상된 primary를 다음 저장 때 정상 backup에 덮어쓰지 않음
+- Map/Ammo presentation preference 저장 실패는 앱 전체 종료로 확대하지 않고 진단 로그로 격리
+- Map slider 연속 변경은 250ms 단위로 묶어 저장하고 종료 시 pending 값을 flush
+- Map hotkey 및 NumPad 직접 층 선택 비동기 실패는 전역 dispatcher fatal로 확대하지 않음
+- product/direct-floor keyboard hook 설치 실패는 `%LocalAppData%/JunhyunHelper/logs/startup.log`에 기록
+- canonical final validator에서 empty Quest accepted-item set과 Quest/Hideout `Count <= 0`을 fatal로 차단
+- Scanner는 실제 기능을 추가하지 않고 `준비 중` placeholder 탭을 유지하며 DEC-045가 과거 숨김 결정을 대체
+
+이 변경은 `user.db` schema, Content schema, Quest/Hideout/Needed Items 계산 의미, 현재 승인된 UI를 변경하지 않습니다.
 
 ## 가장 중요한 알려진 coverage gap
 
@@ -143,7 +160,7 @@ v0.1.12부터 위 UI 계약은 source inspection이나 build 성공만으로 완
 - Needed Items / Inventory: 구현 완료 / unresolved future item 보호 / inventory mutation cache
 - Ammo: 구현 완료 / v0.1.12 rendered alignment gate 적용
 - Map + MiniMap: 구현 완료 / exact floor-frame / current Quest sidebar rendered alignment gate 적용
-- Scanner: `준비 중` placeholder
+- Scanner: `준비 중` placeholder / 실제 기능 PRODUCT OPEN
 - runtime GPT/AI 의존성 없음
 - 온라인 Tarkov 데이터는 프로그램 importer가 다운로드 → 검증 → canonical DB 재구축
 
@@ -153,11 +170,10 @@ v0.1.12부터 위 UI 계약은 source inspection이나 build 성공만으로 완
 
 1. Story Chapters coverage 설계/통합
 2. PvE Skier LL2 새 PVE ZONE seed의 실제 counter semantics 확인
-3. final validator에 Quest/Hideout requirement `Count > 0` redundant guard 추가
-4. `user.db` backup/export/restore UX
-5. multi-DPI visual regression
-6. Map의 disconnected V1 adapter/sidebar path 정리 — **Map을 다시 손볼 때만**
-7. stale unentered-hideout cleanup API 정리
-8. code signing / installer / updater
+3. `user.db` backup/export/restore UX
+4. multi-DPI visual regression
+5. Map의 disconnected V1 adapter/sidebar path 정리 — **Map을 다시 손볼 때만**
+6. stale unentered-hideout cleanup API 정리
+7. code signing / installer / updater
 
 현재 승인된 v0.1.12 UI, conservative Indeterminate/IndeterminatePotential 정책, task-pool fail-closed, FIR cleanup 계산은 단순 정리 목적으로 변경하지 않습니다.

@@ -36,6 +36,81 @@ public sealed class GameContentValidatorTests
     }
 
     [Fact]
+    public void EmptyAcceptedQuestItemSetIsFatal()
+    {
+        var content = CreateCatalog(itemRequirementId: "item-a", prerequisiteId: "quest-prereq") with
+        {
+            QuestItemRequirements =
+            [
+                new QuestItemRequirement(
+                    "quest-a",
+                    "objective-a",
+                    Array.Empty<string>(),
+                    2,
+                    true),
+            ],
+        };
+
+        var result = new GameContentValidator().Validate(content);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Issues, issue => issue.Code == "quest-item.items-empty");
+    }
+
+    [Fact]
+    public void NonPositiveQuestItemCountIsFatal()
+    {
+        var content = CreateCatalog(itemRequirementId: "item-a", prerequisiteId: "quest-prereq") with
+        {
+            QuestItemRequirements =
+            [
+                new QuestItemRequirement(
+                    "quest-a",
+                    "objective-a",
+                    new[] { "item-a" },
+                    0,
+                    true),
+            ],
+        };
+
+        var result = new GameContentValidator().Validate(content);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Issues, issue => issue.Code == "quest-item.count.nonpositive");
+    }
+
+    [Fact]
+    public void NonPositiveHideoutItemCountIsFatal()
+    {
+        var content = CreateCatalog(itemRequirementId: "item-a", prerequisiteId: "quest-prereq");
+        var station = content.HideoutStations.Single() with
+        {
+            Levels =
+            [
+                new HideoutLevel(
+                    "station-a",
+                    1,
+                    null,
+                    new[]
+                    {
+                        new HideoutItemRequirement(
+                            "station-a",
+                            1,
+                            "item-a",
+                            0,
+                            false),
+                    }),
+            ],
+        };
+        content = content with { HideoutStations = [station] };
+
+        var result = new GameContentValidator().Validate(content);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Issues, issue => issue.Code == "hideout-item.count.nonpositive");
+    }
+
+    [Fact]
     public void MissingPrerequisiteQuestIsFatal()
     {
         var content = CreateCatalog(itemRequirementId: "item-a", prerequisiteId: "missing-quest");
@@ -45,7 +120,6 @@ public sealed class GameContentValidatorTests
         Assert.False(result.IsValid);
         Assert.Contains(result.Issues, issue => issue.Code == "quest.prerequisite.missing");
     }
-
 
     [Fact]
     public void MissingQuestFailureTriggerIsFatal()
