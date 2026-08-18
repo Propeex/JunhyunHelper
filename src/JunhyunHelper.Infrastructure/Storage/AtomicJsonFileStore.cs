@@ -70,14 +70,25 @@ public sealed class AtomicJsonFileStore
                     replacementBackup,
                     ignoreMetadataErrors: true);
 
-                try
+                // Only promote the replaced primary to the recovery slot when it is
+                // still readable as the same document type. If the primary had already
+                // become corrupt, preserve the older known-good .bak instead of
+                // replacing it with the corrupt bytes.
+                if (TryRead(replacementBackup, options, out T? previous) && previous is not null)
                 {
-                    File.Move(replacementBackup, BackupPath, overwrite: true);
+                    try
+                    {
+                        File.Move(replacementBackup, BackupPath, overwrite: true);
+                    }
+                    catch
+                    {
+                        // The new primary is already committed. Losing a newer recovery
+                        // copy must not turn a successful preference save into a product error.
+                        TryDelete(replacementBackup);
+                    }
                 }
-                catch
+                else
                 {
-                    // The new primary is already committed. Losing a recovery copy
-                    // must not turn a successful preference save into a product error.
                     TryDelete(replacementBackup);
                 }
             }
