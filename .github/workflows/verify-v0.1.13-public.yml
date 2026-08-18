@@ -1,0 +1,89 @@
+name: Verify public v0.1.13
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-v0.1.13-public.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify-public-release:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    env:
+      RELEASE_TAG: v0.1.13
+      RELEASE_SHA: f43190494ce91b3adf389e57a3a790fd45db8b20
+      RELEASE_ASSET: Junhyun-Helper-v0.1.13-win-x64.zip
+      REPO: Propeex/JunhyunHelper
+
+    steps:
+      - name: Verify tag, release metadata and public assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $tagSha = gh api "repos/$env:REPO/git/ref/tags/$env:RELEASE_TAG" --jq '.object.sha'
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to resolve public release tag.' }
+          Write-Host "PUBLIC_TAG_SHA=$tagSha"
+          if ($tagSha.Trim() -ne $env:RELEASE_SHA) {
+            throw "Release tag points at '$tagSha' instead of '$env:RELEASE_SHA'."
+          }
+
+          $meta = gh release view $env:RELEASE_TAG --repo $env:REPO --json isDraft,isPrerelease,targetCommitish,assets | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to read public release metadata.' }
+          if ($meta.isDraft) { throw 'Public release is still draft.' }
+          if ($meta.isPrerelease) { throw 'Public release is still prerelease.' }
+          if ($meta.targetCommitish -ne $env:RELEASE_SHA) {
+            throw "Unexpected targetCommitish '$($meta.targetCommitish)'."
+          }
+
+          $zipAsset = $meta.assets | Where-Object { $_.name -eq $env:RELEASE_ASSET }
+          $sumAsset = $meta.assets | Where-Object { $_.name -eq 'SHA256SUMS.txt' }
+          if (-not $zipAsset) { throw 'Public ZIP asset is missing.' }
+          if (-not $sumAsset) { throw 'SHA256SUMS.txt asset is missing.' }
+
+          Remove-Item verify-public -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item verify-public -ItemType Directory | Out-Null
+          gh release download $env:RELEASE_TAG --repo $env:REPO --pattern $env:RELEASE_ASSET --pattern 'SHA256SUMS.txt' --dir verify-public
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to download public release assets.' }
+
+          $zip = Join-Path verify-public $env:RELEASE_ASSET
+          $sumFile = Join-Path verify-public 'SHA256SUMS.txt'
+          $publicHash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          $publicSize = (Get-Item $zip).Length
+          $sumLine = (Get-Content $sumFile | Where-Object { $_ -match [regex]::Escape($env:RELEASE_ASSET) } | Select-Object -First 1)
+          if (-not $sumLine) { throw 'Checksum file does not name the public ZIP.' }
+          $declaredHash = ($sumLine -split '\s+')[0].Trim().ToLowerInvariant()
+          if ($declaredHash -ne $publicHash) {
+            throw "Public ZIP SHA-256 mismatch: declared=$declaredHash actual=$publicHash"
+          }
+
+          Remove-Item verify-public/unpacked -Recurse -Force -ErrorAction SilentlyContinue
+          Expand-Archive -Path $zip -DestinationPath verify-public/unpacked
+          $rootFiles = @(Get-ChildItem verify-public/unpacked -File)
+          $rootDirs = @(Get-ChildItem verify-public/unpacked -Directory)
+          $unexpectedFiles = @($rootFiles | Where-Object { $_.Name -notin @('준현 헬퍼.exe', 'FIRST_RUN_KO.txt') })
+          $unexpectedDirs = @($rootDirs | Where-Object { $_.Name -ne 'Assets' })
+          if ($unexpectedFiles.Count -gt 0) { throw "Unexpected public root files: $($unexpectedFiles.Name -join ', ')" }
+          if ($unexpectedDirs.Count -gt 0) { throw "Unexpected public root directories: $($unexpectedDirs.Name -join ', ')" }
+          if (Get-ChildItem verify-public/unpacked -Recurse -File -Filter *.pdb) { throw 'PDB leaked into public ZIP.' }
+
+          $exe = 'verify-public/unpacked/준현 헬퍼.exe'
+          $guide = Get-Content 'verify-public/unpacked/FIRST_RUN_KO.txt' -Raw
+          $productVersion = (Get-Item $exe).VersionInfo.ProductVersion
+          if (-not $productVersion.StartsWith('0.1.13', [StringComparison]::Ordinal)) {
+            throw "Unexpected public executable ProductVersion '$productVersion'."
+          }
+          if ($guide -notmatch '준현 헬퍼 v0\.1\.13') { throw 'Public FIRST_RUN_KO.txt version mismatch.' }
+          if ($guide -notmatch 'v0\.1\.12 → v0\.1\.13 필수 데이터 업데이트:\s*없음') { throw 'Public upgrade compatibility text mismatch.' }
+          if ($guide -notmatch "스캐너 탭은 현재 '준비 중' placeholder") { throw 'Public Scanner placeholder contract mismatch.' }
+
+          Write-Host 'PUBLIC_RELEASE_VERIFIED=true'
+          Write-Host "PUBLIC_SIZE=$publicSize"
+          Write-Host "PUBLIC_SHA256=$publicHash"
+          Write-Host "PUBLIC_PRODUCT_VERSION=$productVersion"
