@@ -1,0 +1,63 @@
+name: Collect final live audit diagnostics 2026-08-18
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/final-audit-collector-2026-08-18.yml'
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Wait for audit and collect its log
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id=""
+          for i in $(seq 1 90); do
+            row=$(gh run list --repo Propeex/JunhyunHelper --workflow final-audit-2026-08-18.yml --limit 1 --json databaseId,status,conclusion,headSha 2>/dev/null || true)
+            run_id=$(echo "$row" | jq -r '.[0].databaseId // empty')
+            status=$(echo "$row" | jq -r '.[0].status // empty')
+            if [ -n "$run_id" ] && [ "$status" = "completed" ]; then
+              echo "$row" > /tmp/audit-meta.json
+              break
+            fi
+            sleep 10
+          done
+          if [ -z "$run_id" ]; then
+            echo "Could not locate audit run" >&2
+            exit 1
+          fi
+          status=$(jq -r '.[0].status' /tmp/audit-meta.json)
+          conclusion=$(jq -r '.[0].conclusion' /tmp/audit-meta.json)
+          head_sha=$(jq -r '.[0].headSha' /tmp/audit-meta.json)
+          {
+            echo "AUDIT_RUN_ID=$run_id"
+            echo "AUDIT_HEAD_SHA=$head_sha"
+            echo "AUDIT_STATUS=$status"
+            echo "AUDIT_CONCLUSION=$conclusion"
+            echo
+            gh run view "$run_id" --repo Propeex/JunhyunHelper --log
+          } > docs/LIVE_AUDIT_TMP_2026-08-18.txt
+
+      - name: Publish temporary audit report for review
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git pull --rebase origin main
+          git add docs/LIVE_AUDIT_TMP_2026-08-18.txt
+          git commit -m 'Record temporary final audit diagnostics'
+          git push origin HEAD:main
