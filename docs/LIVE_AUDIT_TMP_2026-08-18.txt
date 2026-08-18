@@ -1,0 +1,399 @@
+AUDIT_RUN_ID=32087695371
+AUDIT_HEAD_SHA=59fac5d168a9eb5f5a92dab8ec10cbeeba79c339
+AUDIT_STATUS=completed
+AUDIT_CONCLUSION=success
+
+audit	Set up job	﻿2026-08-18T01:17:46.2138610Z Current runner version: '2.336.0'
+audit	Set up job	2026-08-18T01:17:46.2505791Z ##[group]Runner Image Provisioner
+audit	Set up job	2026-08-18T01:17:46.2506724Z Hosted Compute Agent
+audit	Set up job	2026-08-18T01:17:46.2507319Z Version: 20260729.566
+audit	Set up job	2026-08-18T01:17:46.2507965Z Commit: cf7153fe6e25b664e8693c24944bf2b00355d109
+audit	Set up job	2026-08-18T01:17:46.2508788Z Build Date: 2026-07-29T19:17:02Z
+audit	Set up job	2026-08-18T01:17:46.2509456Z Worker ID: {f4c9ce6b-03db-4c93-98b1-cc013242095c}
+audit	Set up job	2026-08-18T01:17:46.2510141Z Azure Region: eastus
+audit	Set up job	2026-08-18T01:17:46.2510661Z ##[endgroup]
+audit	Set up job	2026-08-18T01:17:46.2512162Z ##[group]Operating System
+audit	Set up job	2026-08-18T01:17:46.2512848Z Microsoft Windows Server 2025
+audit	Set up job	2026-08-18T01:17:46.2513416Z 10.0.26100
+audit	Set up job	2026-08-18T01:17:46.2513884Z Datacenter
+audit	Set up job	2026-08-18T01:17:46.2514357Z ##[endgroup]
+audit	Set up job	2026-08-18T01:17:46.2514836Z ##[group]Runner Image
+audit	Set up job	2026-08-18T01:17:46.2515393Z Image: windows-2025-vs2026
+audit	Set up job	2026-08-18T01:17:46.2515958Z Version: 20260810.198.2
+audit	Set up job	2026-08-18T01:17:46.2517040Z Included Software: https://github.com/actions/runner-images/blob/win25-vs2026/20260810.198/images/windows/Windows2025-VS2026-Readme.md
+audit	Set up job	2026-08-18T01:17:46.2519522Z Image Release: https://github.com/actions/runner-images/releases/tag/win25-vs2026%2F20260810.198
+audit	Set up job	2026-08-18T01:17:46.2520660Z ##[endgroup]
+audit	Set up job	2026-08-18T01:17:46.2521663Z ##[group]GITHUB_TOKEN Permissions
+audit	Set up job	2026-08-18T01:17:46.2523792Z Contents: read
+audit	Set up job	2026-08-18T01:17:46.2524386Z Metadata: read
+audit	Set up job	2026-08-18T01:17:46.2524868Z ##[endgroup]
+audit	Set up job	2026-08-18T01:17:46.2527136Z Secret source: Actions
+audit	Set up job	2026-08-18T01:17:46.2528283Z Prepare workflow directory
+audit	Set up job	2026-08-18T01:17:46.4058940Z Prepare all required actions
+audit	Set up job	2026-08-18T01:17:46.4107142Z Getting action download info
+audit	Set up job	2026-08-18T01:17:46.5493518Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+audit	Set up job	2026-08-18T01:17:46.7363725Z Download action repository 'actions/setup-dotnet@v4' (SHA:67a3573c9a986a3f9c594539f4ab511d57bb3ce9)
+audit	Set up job	2026-08-18T01:17:47.4767057Z Complete job name: audit
+audit	Run actions/checkout@v4	﻿2026-08-18T01:17:48.3431665Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+audit	Run actions/checkout@v4	2026-08-18T01:17:48.3441002Z ##[group]Run actions/checkout@v4
+audit	Run actions/checkout@v4	2026-08-18T01:17:48.3441716Z with:
+audit	Run actions/checkout@v4	2026-08-18T01:17:48.3442124Z   submodules: recursive
+audit	Run actions/checkout@v4	2026-08-18T01:17:48.3442594Z   repository: Propeex/JunhyunHelper
+audit	Run actions/checkout@v4	2026-08-18T01:17:48.3446782Z   token: ***
+audit	Run actions/checkout@v4	2026-08-18T01:17:48.3447199Z   ssh-strict: true
+audit	Run actions/checkout@v4	2026-08-18T01:17:48.3447610Z   ssh-user: git
+audit	Run actions/checkout@v4	2026-08-18T01:17:48.3448016Z   persist-credentials: true
+audit	Run actions/checkout@v4	2026-08-18T01:17:48.3448472Z   clean: true
+audit	Run actions/checkout@v4	2026-08-18T01:17:48.3448889Z   sparse-checkout-cone-mode: true
+audit	Run actions/checkout@v4	2026-08-18T01:17:48.3449381Z   fetch-depth: 1
+audit	Run actions/checkout@v4	2026-08-18T01:17:48.3449784Z   fetch-tags: false
+audit	Run actions/checkout@v4	2026-08-18T01:17:48.3450194Z   show-progress: true
+audit	Run actions/checkout@v4	2026-08-18T01:17:48.3450598Z   lfs: false
+audit	Run actions/checkout@v4	2026-08-18T01:17:48.3451051Z   set-safe-directory: true
+audit	Run actions/checkout@v4	2026-08-18T01:17:48.3451517Z   allow-unsafe-pr-checkout: false
+audit	Run actions/checkout@v4	2026-08-18T01:17:48.3452287Z ##[endgroup]
+audit	Run actions/checkout@v4	2026-08-18T01:17:48.5960502Z Syncing repository: Propeex/JunhyunHelper
+audit	Run actions/checkout@v4	2026-08-18T01:17:48.5962327Z ##[group]Getting Git version info
+audit	Run actions/checkout@v4	2026-08-18T01:17:48.5963037Z Working directory is 'D:\a\JunhyunHelper\JunhyunHelper'
+audit	Run actions/checkout@v4	2026-08-18T01:17:48.6910355Z [command]"C:\Program Files\Git\bin\git.exe" version
+audit	Run actions/checkout@v4	2026-08-18T01:17:49.0267023Z git version 2.55.0.windows.3
+audit	Run actions/checkout@v4	2026-08-18T01:17:49.0319811Z ##[endgroup]
+audit	Run actions/checkout@v4	2026-08-18T01:17:49.0405233Z Temporarily overriding HOME='D:\a\_temp\33d2360a-021e-43ff-8971-2c10bebf72d2' before making global git config changes
+audit	Run actions/checkout@v4	2026-08-18T01:17:49.0406677Z Adding repository directory to the temporary git global config as a safe directory
+audit	Run actions/checkout@v4	2026-08-18T01:17:49.0407951Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\JunhyunHelper\JunhyunHelper
+audit	Run actions/checkout@v4	2026-08-18T01:17:49.1064131Z Deleting the contents of 'D:\a\JunhyunHelper\JunhyunHelper'
+audit	Run actions/checkout@v4	2026-08-18T01:17:49.1152298Z ##[group]Initializing the repository
+audit	Run actions/checkout@v4	2026-08-18T01:17:49.1153319Z [command]"C:\Program Files\Git\bin\git.exe" init D:\a\JunhyunHelper\JunhyunHelper
+audit	Run actions/checkout@v4	2026-08-18T01:17:49.1923732Z Initialized empty Git repository in D:/a/JunhyunHelper/JunhyunHelper/.git/
+audit	Run actions/checkout@v4	2026-08-18T01:17:49.1968086Z [command]"C:\Program Files\Git\bin\git.exe" remote add origin https://github.com/Propeex/JunhyunHelper
+audit	Run actions/checkout@v4	2026-08-18T01:17:49.2484800Z ##[endgroup]
+audit	Run actions/checkout@v4	2026-08-18T01:17:49.2486001Z ##[group]Disabling automatic garbage collection
+audit	Run actions/checkout@v4	2026-08-18T01:17:49.2492820Z [command]"C:\Program Files\Git\bin\git.exe" config --local gc.auto 0
+audit	Run actions/checkout@v4	2026-08-18T01:17:49.2772111Z ##[endgroup]
+audit	Run actions/checkout@v4	2026-08-18T01:17:49.2773251Z ##[group]Setting up auth
+audit	Run actions/checkout@v4	2026-08-18T01:17:49.2784021Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+audit	Run actions/checkout@v4	2026-08-18T01:17:49.3070468Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+audit	Run actions/checkout@v4	2026-08-18T01:17:50.7123870Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+audit	Run actions/checkout@v4	2026-08-18T01:17:50.7412869Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+audit	Run actions/checkout@v4	2026-08-18T01:17:51.2648580Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+audit	Run actions/checkout@v4	2026-08-18T01:17:51.2934640Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+audit	Run actions/checkout@v4	2026-08-18T01:17:51.8202331Z [command]"C:\Program Files\Git\bin\git.exe" config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ***"
+audit	Run actions/checkout@v4	2026-08-18T01:17:51.8513286Z ##[endgroup]
+audit	Run actions/checkout@v4	2026-08-18T01:17:51.8513849Z ##[group]Fetching the repository
+audit	Run actions/checkout@v4	2026-08-18T01:17:51.8525942Z [command]"C:\Program Files\Git\bin\git.exe" -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +59fac5d168a9eb5f5a92dab8ec10cbeeba79c339:refs/remotes/origin/main
+audit	Run actions/checkout@v4	2026-08-18T01:17:52.8226349Z From https://github.com/Propeex/JunhyunHelper
+audit	Run actions/checkout@v4	2026-08-18T01:17:52.8227324Z  * [new ref]         59fac5d168a9eb5f5a92dab8ec10cbeeba79c339 -> origin/main
+audit	Run actions/checkout@v4	2026-08-18T01:17:52.8271750Z ##[endgroup]
+audit	Run actions/checkout@v4	2026-08-18T01:17:52.8272439Z ##[group]Determining the checkout info
+audit	Run actions/checkout@v4	2026-08-18T01:17:52.8275873Z ##[endgroup]
+audit	Run actions/checkout@v4	2026-08-18T01:17:52.8285257Z [command]"C:\Program Files\Git\bin\git.exe" sparse-checkout disable
+audit	Run actions/checkout@v4	2026-08-18T01:17:52.8765644Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all extensions.worktreeConfig
+audit	Run actions/checkout@v4	2026-08-18T01:17:52.9074085Z ##[group]Checking out the ref
+audit	Run actions/checkout@v4	2026-08-18T01:17:52.9083065Z [command]"C:\Program Files\Git\bin\git.exe" checkout --progress --force -B main refs/remotes/origin/main
+audit	Run actions/checkout@v4	2026-08-18T01:17:53.0825301Z Switched to a new branch 'main'
+audit	Run actions/checkout@v4	2026-08-18T01:17:53.0853488Z branch 'main' set up to track 'origin/main'.
+audit	Run actions/checkout@v4	2026-08-18T01:17:53.0901047Z ##[endgroup]
+audit	Run actions/checkout@v4	2026-08-18T01:17:53.0901466Z ##[group]Setting up auth for fetching submodules
+audit	Run actions/checkout@v4	2026-08-18T01:17:53.0909724Z [command]"C:\Program Files\Git\bin\git.exe" config --global http.https://github.com/.extraheader "AUTHORIZATION: basic ***"
+audit	Run actions/checkout@v4	2026-08-18T01:17:53.1209643Z [command]"C:\Program Files\Git\bin\git.exe" config --global --unset-all url.https://github.com/.insteadOf
+audit	Run actions/checkout@v4	2026-08-18T01:17:53.1495997Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add url.https://github.com/.insteadOf git@github.com:
+audit	Run actions/checkout@v4	2026-08-18T01:17:53.1782155Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add url.https://github.com/.insteadOf org-60839060@github.com:
+audit	Run actions/checkout@v4	2026-08-18T01:17:53.2063036Z ##[endgroup]
+audit	Run actions/checkout@v4	2026-08-18T01:17:53.2063429Z ##[group]Fetching submodules
+audit	Run actions/checkout@v4	2026-08-18T01:17:53.2110849Z [command]"C:\Program Files\Git\bin\git.exe" submodule sync --recursive
+audit	Run actions/checkout@v4	2026-08-18T01:17:53.7391379Z [command]"C:\Program Files\Git\bin\git.exe" -c protocol.version=2 submodule update --init --force --depth=1 --recursive
+audit	Run actions/checkout@v4	2026-08-18T01:17:54.2689327Z Submodule 'vendor/Tarkov-Helper' (https://github.com/Propeex/Tarkov-Helper.git) registered for path 'vendor/Tarkov-Helper'
+audit	Run actions/checkout@v4	2026-08-18T01:17:54.3223164Z Cloning into 'D:/a/JunhyunHelper/JunhyunHelper/vendor/Tarkov-Helper'...
+audit	Run actions/checkout@v4	2026-08-18T01:17:56.5954285Z From https://github.com/Propeex/Tarkov-Helper
+audit	Run actions/checkout@v4	2026-08-18T01:17:56.5955109Z  * branch            d933792b6042a51cea38dc44b686a096fe30de67 -> FETCH_HEAD
+audit	Run actions/checkout@v4	2026-08-18T01:17:58.8580366Z Submodule path 'vendor/Tarkov-Helper': checked out 'd933792b6042a51cea38dc44b686a096fe30de67'
+audit	Run actions/checkout@v4	2026-08-18T01:17:58.8818411Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local gc.auto 0"
+audit	Run actions/checkout@v4	2026-08-18T01:17:59.3972895Z Entering 'vendor/Tarkov-Helper'
+audit	Run actions/checkout@v4	2026-08-18T01:17:59.4553777Z ##[endgroup]
+audit	Run actions/checkout@v4	2026-08-18T01:17:59.4554209Z ##[group]Persisting credentials for submodules
+audit	Run actions/checkout@v4	2026-08-18T01:17:59.4566939Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'url\.https\:\/\/github\.com\/\.insteadOf' && git config --local --unset-all 'url.https://github.com/.insteadOf' || :\""
+audit	Run actions/checkout@v4	2026-08-18T01:17:59.9508652Z Entering 'vendor/Tarkov-Helper'
+audit	Run actions/checkout@v4	2026-08-18T01:18:00.0412583Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local 'http.https://github.com/.extraheader' 'AUTHORIZATION: basic ***' && git config --local --show-origin --name-only --get-regexp remote.origin.url\""
+audit	Run actions/checkout@v4	2026-08-18T01:18:00.5693853Z Entering 'vendor/Tarkov-Helper'
+audit	Run actions/checkout@v4	2026-08-18T01:18:00.6472813Z file:D:/a/JunhyunHelper/JunhyunHelper/.git/modules/vendor/Tarkov-Helper/config	remote.origin.url
+audit	Run actions/checkout@v4	2026-08-18T01:18:00.6744893Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --add 'url.https://github.com/.insteadOf' 'git@github.com:'"
+audit	Run actions/checkout@v4	2026-08-18T01:18:01.2001876Z Entering 'vendor/Tarkov-Helper'
+audit	Run actions/checkout@v4	2026-08-18T01:18:01.2596277Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --add 'url.https://github.com/.insteadOf' 'org-60839060@github.com:'"
+audit	Run actions/checkout@v4	2026-08-18T01:18:01.7894490Z Entering 'vendor/Tarkov-Helper'
+audit	Run actions/checkout@v4	2026-08-18T01:18:01.8520098Z ##[endgroup]
+audit	Run actions/checkout@v4	2026-08-18T01:18:01.8935511Z [command]"C:\Program Files\Git\bin\git.exe" log -1 --format=%H
+audit	Run actions/checkout@v4	2026-08-18T01:18:01.9190608Z 59fac5d168a9eb5f5a92dab8ec10cbeeba79c339
+audit	Run actions/setup-dotnet@v4	﻿2026-08-18T01:18:02.4025437Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+audit	Run actions/setup-dotnet@v4	2026-08-18T01:18:02.4027794Z ##[group]Run actions/setup-dotnet@v4
+audit	Run actions/setup-dotnet@v4	2026-08-18T01:18:02.4028103Z with:
+audit	Run actions/setup-dotnet@v4	2026-08-18T01:18:02.4028306Z   dotnet-version: 10.0.x
+audit	Run actions/setup-dotnet@v4	2026-08-18T01:18:02.4028558Z   cache: false
+audit	Run actions/setup-dotnet@v4	2026-08-18T01:18:02.4028761Z ##[endgroup]
+audit	Run actions/setup-dotnet@v4	2026-08-18T01:18:02.6426907Z (node:8876) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+audit	Run actions/setup-dotnet@v4	2026-08-18T01:18:02.6427827Z (Use `node --trace-deprecation ...` to show where the warning was created)
+audit	Run actions/setup-dotnet@v4	2026-08-18T01:18:02.7717412Z [command]"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -Sta -NoProfile -NonInteractive -ExecutionPolicy Unrestricted -Command & 'D:\a\_actions\actions\setup-dotnet\v4\externals\install-dotnet.ps1' -SkipNonVersionedFiles -Runtime dotnet -Channel LTS
+audit	Run actions/setup-dotnet@v4	2026-08-18T01:18:04.5338925Z dotnet-install: Downloaded file https://builds.dotnet.microsoft.com/dotnet/Runtime/10.0.11/dotnet-runtime-10.0.11-win-x64.zip size is 36886847 bytes.
+audit	Run actions/setup-dotnet@v4	2026-08-18T01:18:04.5341879Z dotnet-install: Either downloaded or local package size can not be measured. One of them may be corrupted.
+audit	Run actions/setup-dotnet@v4	2026-08-18T01:18:04.5369269Z dotnet-install: Extracting the archive.
+audit	Run actions/setup-dotnet@v4	2026-08-18T01:18:05.6372839Z dotnet-install: Note that the script does not ensure your Windows version is supported during the installation.
+audit	Run actions/setup-dotnet@v4	2026-08-18T01:18:05.6379099Z dotnet-install: To check the list of supported versions, go to https://learn.microsoft.com/dotnet/core/install/windows#supported-versions
+audit	Run actions/setup-dotnet@v4	2026-08-18T01:18:05.6385446Z dotnet-install: Installed version is 10.0.11
+audit	Run actions/setup-dotnet@v4	2026-08-18T01:18:05.6391718Z dotnet-install: Installation finished
+audit	Run actions/setup-dotnet@v4	2026-08-18T01:18:05.7998283Z [command]"C:\Program Files\PowerShell\7\pwsh.exe" -NoLogo -Sta -NoProfile -NonInteractive -ExecutionPolicy Unrestricted -Command & 'D:\a\_actions\actions\setup-dotnet\v4\externals\install-dotnet.ps1' -SkipNonVersionedFiles -Channel 10.0
+audit	Run actions/setup-dotnet@v4	2026-08-18T01:18:12.3056963Z dotnet-install: Downloaded file https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.400/dotnet-sdk-10.0.400-win-x64.zip size is 300546129 bytes.
+audit	Run actions/setup-dotnet@v4	2026-08-18T01:18:12.3063881Z dotnet-install: Either downloaded or local package size can not be measured. One of them may be corrupted.
+audit	Run actions/setup-dotnet@v4	2026-08-18T01:18:12.3090651Z dotnet-install: Extracting the archive.
+audit	Run actions/setup-dotnet@v4	2026-08-18T01:18:34.0017767Z dotnet-install: Note that the script does not ensure your Windows version is supported during the installation.
+audit	Run actions/setup-dotnet@v4	2026-08-18T01:18:34.0022858Z dotnet-install: To check the list of supported versions, go to https://learn.microsoft.com/dotnet/core/install/windows#supported-versions
+audit	Run actions/setup-dotnet@v4	2026-08-18T01:18:34.0027668Z dotnet-install: Installed version is 10.0.400
+audit	Run actions/setup-dotnet@v4	2026-08-18T01:18:34.0033019Z dotnet-install: Installation finished
+audit	Build existing product and run tests	﻿2026-08-18T01:18:34.0792528Z ##[group]Run dotnet build src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj --configuration Release
+audit	Build existing product and run tests	2026-08-18T01:18:34.0793670Z ^[[36;1mdotnet build src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj --configuration Release^[[0m
+audit	Build existing product and run tests	2026-08-18T01:18:34.0794488Z ^[[36;1mdotnet test tests/JunhyunHelper.Tests/JunhyunHelper.Tests.csproj --configuration Release^[[0m
+audit	Build existing product and run tests	2026-08-18T01:18:34.1391880Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+audit	Build existing product and run tests	2026-08-18T01:18:34.1392338Z env:
+audit	Build existing product and run tests	2026-08-18T01:18:34.1392565Z   DOTNET_ROOT: C:\Program Files\dotnet
+audit	Build existing product and run tests	2026-08-18T01:18:34.1392865Z ##[endgroup]
+audit	Build existing product and run tests	2026-08-18T01:18:36.7640618Z   Determining projects to restore...
+audit	Build existing product and run tests	2026-08-18T01:18:37.9348532Z   Restored D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Core\JunhyunHelper.Core.csproj (in 115 ms).
+audit	Build existing product and run tests	2026-08-18T01:18:40.7003503Z   Restored D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Infrastructure\JunhyunHelper.Infrastructure.csproj (in 2.9 sec).
+audit	Build existing product and run tests	2026-08-18T01:18:40.7033942Z   Restored D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Application\JunhyunHelper.Application.csproj (in 2.9 sec).
+audit	Build existing product and run tests	2026-08-18T01:18:41.9842694Z   Restored D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop.csproj (in 4.18 sec).
+audit	Build existing product and run tests	2026-08-18T01:18:46.2578381Z   JunhyunHelper.Core -> D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Core\bin\Release\net10.0\JunhyunHelper.Core.dll
+audit	Build existing product and run tests	2026-08-18T01:18:47.7035403Z   JunhyunHelper.Infrastructure -> D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Infrastructure\bin\Release\net10.0\JunhyunHelper.Infrastructure.dll
+audit	Build existing product and run tests	2026-08-18T01:18:48.2728857Z   JunhyunHelper.Application -> D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Application\bin\Release\net10.0\JunhyunHelper.Application.dll
+audit	Build existing product and run tests	2026-08-18T01:19:01.0289367Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Windows\Dialogs\CustomMarkerEditorWindow.xaml.cs(19,24): warning CS8625: Cannot convert null literal to non-nullable reference type. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop_rwpfxccl_wpftmp.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:01.0305403Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Windows\Dialogs\CustomMarkerEditorWindow.xaml.cs(15,12): warning CS8618: Non-nullable property 'ResultMarker' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop_rwpfxccl_wpftmp.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:01.0313548Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Pages\Map\MapPage.xaml.cs(1040,9): warning CS4014: Because this call is not awaited, execution of the current method continues before the call is completed. Consider applying the 'await' operator to the result of the call. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop_rwpfxccl_wpftmp.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:01.0321826Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Pages\Map\MapPage.xaml.cs(1497,9): warning CS4014: Because this call is not awaited, execution of the current method continues before the call is completed. Consider applying the 'await' operator to the result of the call. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop_rwpfxccl_wpftmp.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:01.0327180Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Pages\Map\MapPage.xaml.cs(1523,13): warning CS4014: Because this call is not awaited, execution of the current method continues before the call is completed. Consider applying the 'await' operator to the result of the call. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop_rwpfxccl_wpftmp.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:01.0331355Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Pages\Map\MapPage.xaml.cs(2251,13): warning CS4014: Because this call is not awaited, execution of the current method continues before the call is completed. Consider applying the 'await' operator to the result of the call. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop_rwpfxccl_wpftmp.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:01.0337119Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Pages\Map\MapPage.xaml.cs(3709,19): warning CS8602: Dereference of a possibly null reference. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop_rwpfxccl_wpftmp.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:01.0339835Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Pages\Map\MapPage.xaml.cs(3717,19): warning CS8602: Dereference of a possibly null reference. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop_rwpfxccl_wpftmp.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:01.0342977Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Services\LocalizationService.Core.cs(36,45): warning CS0067: The event 'LocalizationService.LanguageChanged' is never used [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop_rwpfxccl_wpftmp.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:07.6722813Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Windows\Dialogs\CustomMarkerEditorWindow.xaml.cs(19,24): warning CS8625: Cannot convert null literal to non-nullable reference type. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:07.6730697Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Windows\Dialogs\CustomMarkerEditorWindow.xaml.cs(15,12): warning CS8618: Non-nullable property 'ResultMarker' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:07.6738586Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Pages\Map\MapPage.xaml.cs(1040,9): warning CS4014: Because this call is not awaited, execution of the current method continues before the call is completed. Consider applying the 'await' operator to the result of the call. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:07.6772427Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Pages\Map\MapPage.xaml.cs(1497,9): warning CS4014: Because this call is not awaited, execution of the current method continues before the call is completed. Consider applying the 'await' operator to the result of the call. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:07.6784832Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Pages\Map\MapPage.xaml.cs(1523,13): warning CS4014: Because this call is not awaited, execution of the current method continues before the call is completed. Consider applying the 'await' operator to the result of the call. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:07.6792458Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Pages\Map\MapPage.xaml.cs(2251,13): warning CS4014: Because this call is not awaited, execution of the current method continues before the call is completed. Consider applying the 'await' operator to the result of the call. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:07.6800366Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Pages\Map\MapPage.xaml.cs(3709,19): warning CS8602: Dereference of a possibly null reference. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:07.6807885Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Pages\Map\MapPage.xaml.cs(3717,19): warning CS8602: Dereference of a possibly null reference. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:07.6815441Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Services\LocalizationService.Core.cs(36,45): warning CS0067: The event 'LocalizationService.LanguageChanged' is never used [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:08.2629954Z   JunhyunHelper.Desktop -> D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\bin\Release\net10.0-windows\준현 헬퍼.dll
+audit	Build existing product and run tests	2026-08-18T01:19:08.2828068Z 
+audit	Build existing product and run tests	2026-08-18T01:19:08.2837139Z Build succeeded.
+audit	Build existing product and run tests	2026-08-18T01:19:08.2837412Z 
+audit	Build existing product and run tests	2026-08-18T01:19:08.2842316Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Windows\Dialogs\CustomMarkerEditorWindow.xaml.cs(19,24): warning CS8625: Cannot convert null literal to non-nullable reference type. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop_rwpfxccl_wpftmp.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:08.2854603Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Windows\Dialogs\CustomMarkerEditorWindow.xaml.cs(15,12): warning CS8618: Non-nullable property 'ResultMarker' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop_rwpfxccl_wpftmp.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:08.2863066Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Pages\Map\MapPage.xaml.cs(1040,9): warning CS4014: Because this call is not awaited, execution of the current method continues before the call is completed. Consider applying the 'await' operator to the result of the call. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop_rwpfxccl_wpftmp.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:08.2871364Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Pages\Map\MapPage.xaml.cs(1497,9): warning CS4014: Because this call is not awaited, execution of the current method continues before the call is completed. Consider applying the 'await' operator to the result of the call. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop_rwpfxccl_wpftmp.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:08.2879641Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Pages\Map\MapPage.xaml.cs(1523,13): warning CS4014: Because this call is not awaited, execution of the current method continues before the call is completed. Consider applying the 'await' operator to the result of the call. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop_rwpfxccl_wpftmp.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:08.2887670Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Pages\Map\MapPage.xaml.cs(2251,13): warning CS4014: Because this call is not awaited, execution of the current method continues before the call is completed. Consider applying the 'await' operator to the result of the call. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop_rwpfxccl_wpftmp.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:08.2894399Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Pages\Map\MapPage.xaml.cs(3709,19): warning CS8602: Dereference of a possibly null reference. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop_rwpfxccl_wpftmp.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:08.2900496Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Pages\Map\MapPage.xaml.cs(3717,19): warning CS8602: Dereference of a possibly null reference. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop_rwpfxccl_wpftmp.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:08.2908950Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Services\LocalizationService.Core.cs(36,45): warning CS0067: The event 'LocalizationService.LanguageChanged' is never used [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop_rwpfxccl_wpftmp.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:08.2916253Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Windows\Dialogs\CustomMarkerEditorWindow.xaml.cs(19,24): warning CS8625: Cannot convert null literal to non-nullable reference type. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:08.2923415Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Windows\Dialogs\CustomMarkerEditorWindow.xaml.cs(15,12): warning CS8618: Non-nullable property 'ResultMarker' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:08.2931541Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Pages\Map\MapPage.xaml.cs(1040,9): warning CS4014: Because this call is not awaited, execution of the current method continues before the call is completed. Consider applying the 'await' operator to the result of the call. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:08.2940319Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Pages\Map\MapPage.xaml.cs(1497,9): warning CS4014: Because this call is not awaited, execution of the current method continues before the call is completed. Consider applying the 'await' operator to the result of the call. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:08.2947330Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Pages\Map\MapPage.xaml.cs(1523,13): warning CS4014: Because this call is not awaited, execution of the current method continues before the call is completed. Consider applying the 'await' operator to the result of the call. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:08.2954861Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Pages\Map\MapPage.xaml.cs(2251,13): warning CS4014: Because this call is not awaited, execution of the current method continues before the call is completed. Consider applying the 'await' operator to the result of the call. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:08.2960932Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Pages\Map\MapPage.xaml.cs(3709,19): warning CS8602: Dereference of a possibly null reference. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:08.2965962Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Pages\Map\MapPage.xaml.cs(3717,19): warning CS8602: Dereference of a possibly null reference. [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:08.2971451Z ##[warning]D:\a\JunhyunHelper\JunhyunHelper\vendor\Tarkov-Helper\TarkovHelper\Services\LocalizationService.Core.cs(36,45): warning CS0067: The event 'LocalizationService.LanguageChanged' is never used [D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Desktop\JunhyunHelper.Desktop.csproj]
+audit	Build existing product and run tests	2026-08-18T01:19:08.2974840Z     18 Warning(s)
+audit	Build existing product and run tests	2026-08-18T01:19:08.2975168Z     0 Error(s)
+audit	Build existing product and run tests	2026-08-18T01:19:08.2975352Z 
+audit	Build existing product and run tests	2026-08-18T01:19:08.2975529Z Time Elapsed 00:00:33.33
+audit	Build existing product and run tests	2026-08-18T01:19:09.4826756Z   Determining projects to restore...
+audit	Build existing product and run tests	2026-08-18T01:19:17.6800164Z   Restored D:\a\JunhyunHelper\JunhyunHelper\tests\JunhyunHelper.Tests\JunhyunHelper.Tests.csproj (in 7.02 sec).
+audit	Build existing product and run tests	2026-08-18T01:19:17.6857359Z   3 of 4 projects are up-to-date for restore.
+audit	Build existing product and run tests	2026-08-18T01:19:18.5283175Z   JunhyunHelper.Core -> D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Core\bin\Release\net10.0\JunhyunHelper.Core.dll
+audit	Build existing product and run tests	2026-08-18T01:19:18.8029179Z   JunhyunHelper.Infrastructure -> D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Infrastructure\bin\Release\net10.0\JunhyunHelper.Infrastructure.dll
+audit	Build existing product and run tests	2026-08-18T01:19:19.0243934Z   JunhyunHelper.Application -> D:\a\JunhyunHelper\JunhyunHelper\src\JunhyunHelper.Application\bin\Release\net10.0\JunhyunHelper.Application.dll
+audit	Build existing product and run tests	2026-08-18T01:19:20.2991990Z   JunhyunHelper.Tests -> D:\a\JunhyunHelper\JunhyunHelper\tests\JunhyunHelper.Tests\bin\Release\net10.0\JunhyunHelper.Tests.dll
+audit	Build existing product and run tests	2026-08-18T01:19:20.3351544Z Test run for D:\a\JunhyunHelper\JunhyunHelper\tests\JunhyunHelper.Tests\bin\Release\net10.0\JunhyunHelper.Tests.dll (.NETCoreApp,Version=v10.0)
+audit	Build existing product and run tests	2026-08-18T01:19:20.6241447Z A total of 1 test files matched the specified pattern.
+audit	Build existing product and run tests	2026-08-18T01:19:27.2442574Z 
+audit	Build existing product and run tests	2026-08-18T01:19:27.2488917Z Passed!  - Failed:     0, Passed:   210, Skipped:     0, Total:   210, Duration: 4 s - JunhyunHelper.Tests.dll (net10.0)
+audit	Create live audit runner	﻿2026-08-18T01:19:27.4524654Z ##[group]Run New-Item artifacts/final-audit -ItemType Directory -Force | Out-Null
+audit	Create live audit runner	2026-08-18T01:19:27.4525445Z ^[[36;1mNew-Item artifacts/final-audit -ItemType Directory -Force | Out-Null^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4525836Z ^[[36;1m@'^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4526046Z ^[[36;1m<Project Sdk="Microsoft.NET.Sdk">^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4526327Z ^[[36;1m  <PropertyGroup>^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4526562Z ^[[36;1m    <OutputType>Exe</OutputType>^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4526883Z ^[[36;1m    <TargetFramework>net10.0</TargetFramework>^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4527213Z ^[[36;1m    <ImplicitUsings>enable</ImplicitUsings>^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4527499Z ^[[36;1m    <Nullable>enable</Nullable>^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4527741Z ^[[36;1m  </PropertyGroup>^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4527951Z ^[[36;1m  <ItemGroup>^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4528350Z ^[[36;1m    <ProjectReference Include="../../src/JunhyunHelper.Core/JunhyunHelper.Core.csproj" />^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4529074Z ^[[36;1m    <ProjectReference Include="../../src/JunhyunHelper.Infrastructure/JunhyunHelper.Infrastructure.csproj" />^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4529646Z ^[[36;1m  </ItemGroup>^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4529853Z ^[[36;1m</Project>^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4530155Z ^[[36;1m'@ | Set-Content artifacts/final-audit/Audit.csproj -Encoding utf8^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4530508Z ^[[36;1m^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4530658Z ^[[36;1m@'^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4530834Z ^[[36;1musing System.Reflection;^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4531290Z ^[[36;1musing JunhyunHelper.Core.Items;^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4531580Z ^[[36;1musing JunhyunHelper.Core.Profiles;^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4531864Z ^[[36;1musing JunhyunHelper.Core.Quests;^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4532174Z ^[[36;1musing JunhyunHelper.Infrastructure.Content;^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4532538Z ^[[36;1musing JunhyunHelper.Infrastructure.EditionData;^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4532908Z ^[[36;1musing JunhyunHelper.Infrastructure.TarkovJson;^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4533201Z ^[[36;1m^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4533486Z ^[[36;1musing var http = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4534022Z ^[[36;1mvar sourceLoader = new TarkovEndpointSourceLoader(new TarkovJsonClient(http));^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4534924Z ^[[36;1mvar editionClient = new TarkovEditionCatalogClient(http);^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4535423Z ^[[36;1mvar buildService = new TarkovContentBuildService(sourceLoader, editionClient);^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4535823Z ^[[36;1m^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4536033Z ^[[36;1mvar criticalFailures = new List<string>();^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4536591Z ^[[36;1mforeach (var mode in new[] { GameMode.Regular, GameMode.Pve, GameMode.PvpSeason })^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4537025Z ^[[36;1m{^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4537234Z ^[[36;1m    Console.WriteLine($"=== MODE {mode} ===");^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4537572Z ^[[36;1m    var build = await buildService.BuildAsync(mode);^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4537887Z ^[[36;1m    var content = build.Content;^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4538359Z ^[[36;1m    var fatalIssues = build.Validation.Issues.Where(i => i.Severity.ToString() == "Fatal").ToArray();^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4539130Z ^[[36;1m    Console.WriteLine($"valid={build.IsValid}; fatalValidation={fatalIssues.Length}; warnings={build.Warnings.Count}");^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4540370Z ^[[36;1m    Console.WriteLine($"quests={content.Quests.Count}; objectives={content.QuestObjectives.Count}; questItemReqs={content.QuestItemRequirements.Count}; items={content.Items.Count}; hideoutStations={content.HideoutStations.Count}");^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4541317Z ^[[36;1m^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4541481Z ^[[36;1m    if (!build.IsValid)^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4541915Z ^[[36;1m        criticalFailures.Add($"{mode}: canonical build invalid ({fatalIssues.Length} fatal issues)");^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4542357Z ^[[36;1m^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4542542Z ^[[36;1m    var unsupported = content.Quests^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4542903Z ^[[36;1m        .SelectMany(q => q.UnsupportedAvailabilityRequirements)^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4543288Z ^[[36;1m        .GroupBy(x => x, StringComparer.Ordinal)^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4545713Z ^[[36;1m        .OrderBy(g => g.Key, StringComparer.Ordinal)^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4546063Z ^[[36;1m        .Select(g => $"{g.Key}:{g.Count()}")^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4546348Z ^[[36;1m        .ToArray();^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4546786Z ^[[36;1m    var profileVarQuests = content.Quests.Count(q => q.ProfileVariableRequirements.Count > 0);^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4547702Z ^[[36;1m    var profileVarUnique = content.Quests.SelectMany(q => q.ProfileVariableRequirements).Select(r => r.VariableId).Distinct(StringComparer.Ordinal).Count();^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4548501Z ^[[36;1m    var delayQuests = content.Quests.Count(q => q.HasAvailabilityDelay);^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4549409Z ^[[36;1m    Console.WriteLine($"profileVariableQuests={profileVarQuests}; uniqueProfileVariables={profileVarUnique}; delayQuests={delayQuests}; unsupported=[{string.Join(",", unsupported)}]");^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4550176Z ^[[36;1m^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4550388Z ^[[36;1m    var auditProfile = new GameProfileSnapshot^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4550667Z ^[[36;1m    {^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4550863Z ^[[36;1m        ProfileId = "final-audit",^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4551122Z ^[[36;1m        GameMode = mode,^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4551341Z ^[[36;1m        Level = 1,^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4551563Z ^[[36;1m        Faction = PmcFaction.Usec,^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4551801Z ^[[36;1m    };^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4552927Z ^[[36;1m    var compatibility = new QuestTaskPoolVariableCompatibility(content.Quests, auditProfile);^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4553796Z ^[[36;1m    var validPoolField = typeof(QuestTaskPoolVariableCompatibility).GetField("_validPools", BindingFlags.Instance | BindingFlags.NonPublic);^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4555031Z ^[[36;1m    var validPools = validPoolField?.GetValue(compatibility) as System.Collections.ICollection;^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4555699Z ^[[36;1m    Console.WriteLine($"auditedTaskPoolStructuresValid={validPools?.Count ?? -1}");^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4556125Z ^[[36;1m^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4556352Z ^[[36;1m    var submitObjectives = content.QuestObjectives^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4556781Z ^[[36;1m        .Where(o => o.ItemKind == QuestItemObjectiveKind.Submit && !o.Optional)^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4557164Z ^[[36;1m        .ToArray();^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4557404Z ^[[36;1m    var malformedSubmit = submitObjectives^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4557775Z ^[[36;1m        .Where(o => o.ItemIds.Count == 0 || o.Count is null or <= 0)^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4558103Z ^[[36;1m        .ToArray();^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4558420Z ^[[36;1m    var requirementsByObjective = content.QuestItemRequirements^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4558807Z ^[[36;1m        .GroupBy(r => (r.QuestId, r.ObjectiveId))^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4559143Z ^[[36;1m        .ToDictionary(g => g.Key, g => g.ToArray());^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4559471Z ^[[36;1m    var missingRequirement = submitObjectives^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4560016Z ^[[36;1m        .Where(o => o.ItemIds.Count > 0 && o.Count is > 0 && !requirementsByObjective.ContainsKey((o.QuestId, o.ObjectiveId)))^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4560529Z ^[[36;1m        .ToArray();^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4560984Z ^[[36;1m    var duplicateRequirement = requirementsByObjective.Where(pair => pair.Value.Length != 1).ToArray();^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4561734Z ^[[36;1m    var alternativeRequirements = content.QuestItemRequirements.Count(r => r.AcceptedItemIds.Count > 1);^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4562402Z ^[[36;1m    var firRequirements = content.QuestItemRequirements.Count(r => r.FoundInRaid);^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4563047Z ^[[36;1m    var nonPositiveQuestCounts = content.QuestItemRequirements.Where(r => r.Count <= 0).ToArray();^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4564664Z ^[[36;1m    Console.WriteLine($"mandatorySubmitObjectives={submitObjectives.Length}; malformedSubmit={malformedSubmit.Length}; missingDerivedReq={missingRequirement.Length}; duplicateDerivedReq={duplicateRequirement.Length}; alternatives={alternativeRequirements}; firReqs={firRequirements}; nonPositiveQuestReqCounts={nonPositiveQuestCounts.Length}");^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4566599Z ^[[36;1m^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4566935Z ^[[36;1m    var itemIds = content.Items.Select(i => i.Id).ToHashSet(StringComparer.Ordinal);^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4567442Z ^[[36;1m    var missingQuestItemRefs = content.QuestItemRequirements^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4567973Z ^[[36;1m        .SelectMany(r => r.AcceptedItemIds.Select(id => (r.QuestId, r.ObjectiveId, ItemId:id)))^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4568456Z ^[[36;1m        .Where(x => !itemIds.Contains(x.ItemId))^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4568736Z ^[[36;1m        .ToArray();^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4569265Z ^[[36;1m    var hideoutRequirements = content.HideoutStations.SelectMany(s => s.Levels).SelectMany(l => l.ItemRequirements).ToArray();^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4570022Z ^[[36;1m    var nonPositiveHideoutCounts = hideoutRequirements.Where(r => r.Count <= 0).ToArray();^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4570702Z ^[[36;1m    var missingHideoutItemRefs = hideoutRequirements.Where(r => !itemIds.Contains(r.ItemId)).ToArray();^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4571959Z ^[[36;1m    Console.WriteLine($"missingQuestItemRefs={missingQuestItemRefs.Length}; hideoutItemReqs={hideoutRequirements.Length}; nonPositiveHideoutCounts={nonPositiveHideoutCounts.Length}; missingHideoutItemRefs={missingHideoutItemRefs.Length}");^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4572979Z ^[[36;1m^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4573470Z ^[[36;1m    if (malformedSubmit.Length > 0) criticalFailures.Add($"{mode}: {malformedSubmit.Length} malformed mandatory giveItem objectives");^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4574652Z ^[[36;1m    if (missingRequirement.Length > 0) criticalFailures.Add($"{mode}: {missingRequirement.Length} valid mandatory giveItem objectives omitted from derived requirements");^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4576110Z ^[[36;1m    if (duplicateRequirement.Length > 0) criticalFailures.Add($"{mode}: duplicate derived quest item requirement keys");^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4576911Z ^[[36;1m    if (nonPositiveQuestCounts.Length > 0) criticalFailures.Add($"{mode}: non-positive quest item counts");^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4577641Z ^[[36;1m    if (missingQuestItemRefs.Length > 0) criticalFailures.Add($"{mode}: missing quest item references");^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4578383Z ^[[36;1m    if (nonPositiveHideoutCounts.Length > 0) criticalFailures.Add($"{mode}: non-positive hideout item counts");^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4579136Z ^[[36;1m    if (missingHideoutItemRefs.Length > 0) criticalFailures.Add($"{mode}: missing hideout item references");^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4579622Z ^[[36;1m}^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4579778Z ^[[36;1m^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4579961Z ^[[36;1mConsole.WriteLine("=== FINAL ===");^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4580239Z ^[[36;1mif (criticalFailures.Count == 0)^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4580478Z ^[[36;1m{^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4580742Z ^[[36;1m    Console.WriteLine("FINAL_LIVE_AUDIT_CRITICAL_FAILURES=0");^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4581079Z ^[[36;1m    return;^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4581256Z ^[[36;1m}^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4581405Z ^[[36;1m^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4581615Z ^[[36;1mforeach (var failure in criticalFailures)^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4581931Z ^[[36;1m    Console.WriteLine("CRITICAL: " + failure);^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4582378Z ^[[36;1mConsole.WriteLine($"FINAL_LIVE_AUDIT_CRITICAL_FAILURES={criticalFailures.Count}");^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4582806Z ^[[36;1mEnvironment.ExitCode = 2;^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4583144Z ^[[36;1m'@ | Set-Content artifacts/final-audit/Program.cs -Encoding utf8^[[0m
+audit	Create live audit runner	2026-08-18T01:19:27.4655217Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+audit	Create live audit runner	2026-08-18T01:19:27.4655559Z env:
+audit	Create live audit runner	2026-08-18T01:19:27.4655747Z   DOTNET_ROOT: C:\Program Files\dotnet
+audit	Create live audit runner	2026-08-18T01:19:27.4655991Z ##[endgroup]
+audit	Audit current live Tarkov content through product importer	﻿2026-08-18T01:19:27.9448186Z ##[group]Run dotnet run --project artifacts/final-audit/Audit.csproj --configuration Release
+audit	Audit current live Tarkov content through product importer	2026-08-18T01:19:27.9449403Z ^[[36;1mdotnet run --project artifacts/final-audit/Audit.csproj --configuration Release^[[0m
+audit	Audit current live Tarkov content through product importer	2026-08-18T01:19:27.9563294Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+audit	Audit current live Tarkov content through product importer	2026-08-18T01:19:27.9563886Z env:
+audit	Audit current live Tarkov content through product importer	2026-08-18T01:19:27.9564197Z   DOTNET_ROOT: C:\Program Files\dotnet
+audit	Audit current live Tarkov content through product importer	2026-08-18T01:19:27.9564618Z ##[endgroup]
+audit	Audit current live Tarkov content through product importer	2026-08-18T01:19:31.9148374Z === MODE Regular ===
+audit	Audit current live Tarkov content through product importer	2026-08-18T01:19:33.1805003Z valid=True; fatalValidation=0; warnings=0
+audit	Audit current live Tarkov content through product importer	2026-08-18T01:19:33.1806178Z quests=517; objectives=1457; questItemReqs=307; items=5312; hideoutStations=26
+audit	Audit current live Tarkov content through product importer	2026-08-18T01:19:33.1833427Z profileVariableQuests=162; uniqueProfileVariables=27; delayQuests=13; unsupported=[availabilityDelay:13]
+audit	Audit current live Tarkov content through product importer	2026-08-18T01:19:33.2275344Z auditedTaskPoolStructuresValid=-1
+audit	Audit current live Tarkov content through product importer	2026-08-18T01:19:33.2381142Z mandatorySubmitObjectives=307; malformedSubmit=0; missingDerivedReq=0; duplicateDerivedReq=0; alternatives=60; firReqs=245; nonPositiveQuestReqCounts=0
+audit	Audit current live Tarkov content through product importer	2026-08-18T01:19:33.2469548Z missingQuestItemRefs=0; hideoutItemReqs=317; nonPositiveHideoutCounts=0; missingHideoutItemRefs=0
+audit	Audit current live Tarkov content through product importer	2026-08-18T01:19:33.2470726Z === MODE Pve ===
+audit	Audit current live Tarkov content through product importer	2026-08-18T01:19:33.7735608Z valid=True; fatalValidation=0; warnings=0
+audit	Audit current live Tarkov content through product importer	2026-08-18T01:19:33.7737115Z quests=513; objectives=1428; questItemReqs=291; items=5312; hideoutStations=26
+audit	Audit current live Tarkov content through product importer	2026-08-18T01:19:33.7738545Z profileVariableQuests=162; uniqueProfileVariables=27; delayQuests=13; unsupported=[availabilityDelay:13]
+audit	Audit current live Tarkov content through product importer	2026-08-18T01:19:33.7747919Z auditedTaskPoolStructuresValid=-1
+audit	Audit current live Tarkov content through product importer	2026-08-18T01:19:33.7753497Z mandatorySubmitObjectives=291; malformedSubmit=0; missingDerivedReq=0; duplicateDerivedReq=0; alternatives=44; firReqs=233; nonPositiveQuestReqCounts=0
+audit	Audit current live Tarkov content through product importer	2026-08-18T01:19:33.7766944Z missingQuestItemRefs=0; hideoutItemReqs=317; nonPositiveHideoutCounts=0; missingHideoutItemRefs=0
+audit	Audit current live Tarkov content through product importer	2026-08-18T01:19:33.7767919Z === MODE PvpSeason ===
+audit	Audit current live Tarkov content through product importer	2026-08-18T01:19:34.1596460Z valid=True; fatalValidation=0; warnings=0
+audit	Audit current live Tarkov content through product importer	2026-08-18T01:19:34.1597797Z quests=490; objectives=1392; questItemReqs=286; items=5312; hideoutStations=26
+audit	Audit current live Tarkov content through product importer	2026-08-18T01:19:34.1611576Z profileVariableQuests=162; uniqueProfileVariables=27; delayQuests=13; unsupported=[availabilityDelay:13]
+audit	Audit current live Tarkov content through product importer	2026-08-18T01:19:34.1616271Z auditedTaskPoolStructuresValid=-1
+audit	Audit current live Tarkov content through product importer	2026-08-18T01:19:34.1623616Z mandatorySubmitObjectives=286; malformedSubmit=0; missingDerivedReq=0; duplicateDerivedReq=0; alternatives=41; firReqs=230; nonPositiveQuestReqCounts=0
+audit	Audit current live Tarkov content through product importer	2026-08-18T01:19:34.1642022Z missingQuestItemRefs=0; hideoutItemReqs=317; nonPositiveHideoutCounts=0; missingHideoutItemRefs=0
+audit	Audit current live Tarkov content through product importer	2026-08-18T01:19:34.1643174Z === FINAL ===
+audit	Audit current live Tarkov content through product importer	2026-08-18T01:19:34.1643737Z FINAL_LIVE_AUDIT_CRITICAL_FAILURES=0
+audit	Post Run actions/setup-dotnet@v4	﻿2026-08-18T01:19:34.3495214Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+audit	Post Run actions/setup-dotnet@v4	2026-08-18T01:19:34.3497542Z Post job cleanup.
+audit	Post Run actions/setup-dotnet@v4	2026-08-18T01:19:34.5053847Z (node:7832) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+audit	Post Run actions/setup-dotnet@v4	2026-08-18T01:19:34.5054817Z (Use `node --trace-deprecation ...` to show where the warning was created)
+audit	Post Run actions/checkout@v4	﻿2026-08-18T01:19:34.5413255Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+audit	Post Run actions/checkout@v4	2026-08-18T01:19:34.5414752Z Post job cleanup.
+audit	Post Run actions/checkout@v4	2026-08-18T01:19:34.7765142Z [command]"C:\Program Files\Git\bin\git.exe" version
+audit	Post Run actions/checkout@v4	2026-08-18T01:19:34.8050367Z git version 2.55.0.windows.3
+audit	Post Run actions/checkout@v4	2026-08-18T01:19:34.8134108Z Temporarily overriding HOME='D:\a\_temp\0d5ba1bd-4885-4585-bcba-23a0b4ff24af' before making global git config changes
+audit	Post Run actions/checkout@v4	2026-08-18T01:19:34.8135504Z Adding repository directory to the temporary git global config as a safe directory
+audit	Post Run actions/checkout@v4	2026-08-18T01:19:34.8145787Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\JunhyunHelper\JunhyunHelper
+audit	Post Run actions/checkout@v4	2026-08-18T01:19:34.8492203Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+audit	Post Run actions/checkout@v4	2026-08-18T01:19:34.8935102Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+audit	Post Run actions/checkout@v4	2026-08-18T01:19:35.4640487Z Entering 'vendor/Tarkov-Helper'
+audit	Post Run actions/checkout@v4	2026-08-18T01:19:35.5636567Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+audit	Post Run actions/checkout@v4	2026-08-18T01:19:35.5918135Z http.https://github.com/.extraheader
+audit	Post Run actions/checkout@v4	2026-08-18T01:19:35.5966505Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all http.https://github.com/.extraheader
+audit	Post Run actions/checkout@v4	2026-08-18T01:19:35.6357994Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+audit	Post Run actions/checkout@v4	2026-08-18T01:19:36.2046453Z Entering 'vendor/Tarkov-Helper'
+audit	Post Run actions/checkout@v4	2026-08-18T01:19:36.2736951Z http.https://github.com/.extraheader
+audit	Post Run actions/checkout@v4	2026-08-18T01:19:36.3365214Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+audit	Post Run actions/checkout@v4	2026-08-18T01:19:36.3696975Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+audit	Post Run actions/checkout@v4	2026-08-18T01:19:36.9655238Z Entering 'vendor/Tarkov-Helper'
+audit	Post Run actions/checkout@v4	2026-08-18T01:19:37.0028289Z file:D:/a/JunhyunHelper/JunhyunHelper/.git/modules/vendor/Tarkov-Helper/config	remote.origin.url
+audit	Post Run actions/checkout@v4	2026-08-18T01:19:37.0320431Z [command]"C:\Program Files\Git\bin\git.exe" config --file D:/a/JunhyunHelper/JunhyunHelper/.git/modules/vendor/Tarkov-Helper/config --name-only --get-regexp ^includeIf\.gitdir:
+audit	Complete job	﻿2026-08-18T01:19:37.0829693Z Cleaning up orphan processes
+audit	Complete job	2026-08-18T01:19:37.1324005Z Terminate orphan process: pid (1132) (dotnet)
+audit	Complete job	2026-08-18T01:19:37.1547266Z Terminate orphan process: pid (628) (dotnet)
+audit	Complete job	2026-08-18T01:19:37.1868770Z Terminate orphan process: pid (5676) (VBCSCompiler)
+audit	Complete job	2026-08-18T01:19:37.1973812Z Terminate orphan process: pid (2672) (conhost)
+audit	Complete job	2026-08-18T01:19:37.1984912Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-dotnet@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
