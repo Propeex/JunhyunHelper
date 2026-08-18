@@ -1,0 +1,302 @@
+name: Release v0.1.14
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/release-v0.1.14.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      RELEASE_TAG: v0.1.14
+      RELEASE_SHA: bb0611e9263c24018825a87a58aba2c5474b6cc4
+      RELEASE_ASSET: Junhyun-Helper-v0.1.14-win-x64.zip
+
+    steps:
+      - name: Checkout exact release code
+        uses: actions/checkout@v4
+        with:
+          ref: bb0611e9263c24018825a87a58aba2c5474b6cc4
+          submodules: recursive
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build desktop
+        run: dotnet build src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj --configuration Release
+
+      - name: Test all automated tests
+        run: dotnet test tests/JunhyunHelper.Tests/JunhyunHelper.Tests.csproj --configuration Release
+
+      - name: Publish and validate Windows x64 package
+        shell: pwsh
+        run: |
+          dotnet publish src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            --output artifacts/publish `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true `
+            -p:PublishTrimmed=false `
+            -p:PublishReadyToRun=false `
+            -p:DebugType=None `
+            -p:DebugSymbols=false
+
+          Copy-Item packaging/FIRST_RUN_KO.txt artifacts/publish/FIRST_RUN_KO.txt
+
+          $exe = 'artifacts/publish/준현 헬퍼.exe'
+          foreach ($required in @($exe, 'artifacts/publish/FIRST_RUN_KO.txt', 'artifacts/publish/Assets/tarkov_data.db')) {
+            if (-not (Test-Path $required)) { throw "Missing release file: $required" }
+          }
+
+          $productVersion = (Get-Item $exe).VersionInfo.ProductVersion
+          Write-Host "ProductVersion=$productVersion"
+          if (-not $productVersion.StartsWith('0.1.14', [StringComparison]::Ordinal)) {
+            throw "Expected executable ProductVersion 0.1.14, got '$productVersion'."
+          }
+
+          $guide = Get-Content 'artifacts/publish/FIRST_RUN_KO.txt' -Raw
+          if ($guide -notmatch '준현 헬퍼 v0\.1\.14') { throw 'FIRST_RUN_KO.txt does not identify v0.1.14.' }
+          if ($guide -notmatch 'Content schema:\s*v7') { throw 'FIRST_RUN_KO.txt does not document Content schema v7.' }
+          if ($guide -notmatch 'user\.db SQLite schema:\s*v1') { throw 'FIRST_RUN_KO.txt does not document user.db schema v1.' }
+          if ($guide -notmatch 'v0\.1\.13 → v0\.1\.14 필수 데이터 업데이트:\s*없음') { throw 'FIRST_RUN_KO.txt does not document upgrade compatibility.' }
+          if ($guide -notmatch '프로그램을 실행할 때 최신 정식 GitHub Release를 확인') { throw 'FIRST_RUN_KO.txt does not document startup update checking.' }
+          if ($guide -notmatch "스캐너 탭은 현재 '준비 중' placeholder") { throw 'FIRST_RUN_KO.txt does not preserve the Scanner placeholder contract.' }
+
+          $rootFiles = @(Get-ChildItem artifacts/publish -File)
+          $unexpectedFiles = @($rootFiles | Where-Object { $_.Name -notin @('준현 헬퍼.exe', 'FIRST_RUN_KO.txt') })
+          if ($unexpectedFiles.Count -gt 0) { throw "Unexpected root files: $($unexpectedFiles.Name -join ', ')" }
+
+          $rootDirs = @(Get-ChildItem artifacts/publish -Directory)
+          $unexpectedDirs = @($rootDirs | Where-Object { $_.Name -ne 'Assets' })
+          if ($unexpectedDirs.Count -gt 0) { throw "Unexpected root directories: $($unexpectedDirs.Name -join ', ')" }
+          if (Get-ChildItem artifacts/publish -File -Filter *.dll) { throw 'Root DLL leaked into release.' }
+          if (Get-ChildItem artifacts/publish -Recurse -File -Filter *.pdb) { throw 'PDB leaked into release.' }
+          if (Get-ChildItem artifacts/publish -Recurse -File -Filter *.zip) { throw 'Nested ZIP leaked into release.' }
+          if (Test-Path 'artifacts/publish/Logs') { throw 'Logs directory leaked into release package.' }
+
+          foreach ($forbidden in @(
+            'AutoUpdater.NET.dll',
+            'Microsoft.Web.WebView2.Core.dll',
+            'Microsoft.Web.WebView2.WinForms.dll',
+            'Microsoft.Web.WebView2.Wpf.dll',
+            'WebView2Loader.dll',
+            'Westermo.GraphX.Controls.dll',
+            'Westermo.GraphX.Common.dll',
+            'QuikGraph.dll')) {
+            if (Get-ChildItem artifacts/publish -Recurse -File -Filter $forbidden) {
+              throw "Forbidden legacy dependency leaked into release: $forbidden"
+            }
+          }
+
+      - name: Startup + rendered product UI + Main Map + Factory + MiniMap smoke
+        shell: pwsh
+        env:
+          JUNHYUNHELPER_MAP_SMOKE: '1'
+        run: |
+          $exe = (Resolve-Path 'artifacts/publish/준현 헬퍼.exe').Path
+          $diagnostic = Join-Path $env:TEMP 'junhyun-map-smoke-error.txt'
+          $success = Join-Path $env:TEMP 'junhyun-map-smoke-success.txt'
+          Remove-Item $diagnostic -Force -ErrorAction SilentlyContinue
+          Remove-Item $success -Force -ErrorAction SilentlyContinue
+
+          $process = Start-Process -FilePath $exe -WorkingDirectory artifacts/publish -PassThru
+          try {
+            $deadline = (Get-Date).AddSeconds(90)
+            $smokeCompleted = $false
+            while ((Get-Date) -lt $deadline) {
+              $process.Refresh()
+              if (Test-Path $diagnostic) {
+                Write-Host 'Published smoke diagnostic:'
+                Get-Content $diagnostic | ForEach-Object { Write-Host $_ }
+                throw 'Published 준현 헬퍼 reported a rendered UI/Map smoke failure.'
+              }
+              if (Test-Path $success) {
+                $smokeCompleted = $true
+                break
+              }
+              if ($process.HasExited) {
+                throw "Published 준현 헬퍼 exited before smoke completion with code $($process.ExitCode)."
+              }
+              Start-Sleep -Milliseconds 250
+            }
+            if (-not $smokeCompleted) { throw 'Full rendered UI/Main Map/Factory/MiniMap smoke timed out.' }
+
+            Write-Host 'PUBLISHED_RENDERED_UI_MAP_SMOKE=true'
+
+            $closeRequested = $false
+            for ($attempt = 1; $attempt -le 10; $attempt++) {
+              $process.Refresh()
+              if ($process.HasExited) { $closeRequested = $true; break }
+              if ($process.CloseMainWindow()) { $closeRequested = $true; break }
+              Start-Sleep -Milliseconds 500
+            }
+            if (-not $closeRequested) { throw 'Could not request normal Main Window close.' }
+            $process.Refresh()
+            if (-not $process.HasExited -and -not $process.WaitForExit(7000)) {
+              throw 'Process did not exit after Main Window close.'
+            }
+            if (Test-Path 'artifacts/publish/Logs') { throw 'Runtime Logs folder was created beside EXE.' }
+          }
+          finally {
+            $process.Refresh()
+            if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
+          }
+
+      - name: Package release assets
+        shell: pwsh
+        run: |
+          if (Test-Path $env:RELEASE_ASSET) { Remove-Item $env:RELEASE_ASSET -Force }
+          Compress-Archive -Path 'artifacts/publish/*' -DestinationPath $env:RELEASE_ASSET -CompressionLevel Optimal
+          $size = (Get-Item $env:RELEASE_ASSET).Length
+          $hash = (Get-FileHash $env:RELEASE_ASSET -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $($env:RELEASE_ASSET)" | Set-Content SHA256SUMS.txt -Encoding ascii
+          "RELEASE_ASSET_SHA256=$hash" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "RELEASE_ASSET_SIZE=$size" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "Release asset size: $size bytes"
+          Write-Host "Release asset SHA-256: $hash"
+
+      - name: Create draft GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          @'
+          # 준현 헬퍼 v0.1.14
+
+          프로그램 자체 업데이트를 도입한 릴리즈입니다.
+
+          ## 프로그램 업데이트
+          - 실행 시 최신 정식 JunhyunHelper GitHub Release 확인
+          - 현재 버전보다 최신 버전이 있으면 사용자에게 업데이트 여부 확인
+          - 동의 시 Windows x64 ZIP과 SHA256SUMS를 다운로드하고 SHA-256/패키지 구조 검증
+          - 검증 후 현재 프로그램을 종료하고 program-owned files를 교체
+          - 성공 시 새 버전 자동 재시작
+          - 업데이트 확인/다운로드/검증 실패는 기존 프로그램 사용을 막지 않음
+          - 교체 실패 시 기존 파일 rollback 및 재시작 시도
+          - user.db, Game Content, Map 설정, Ammo 즐겨찾기 등 LocalAppData 사용자 데이터는 유지
+
+          ## 최초 전환
+          v0.1.13에는 updater 자체가 없으므로 v0.1.13 → v0.1.14는 한 번 수동 교체가 필요합니다. v0.1.14 이후부터 후속 정식 버전은 프로그램 안에서 업데이트할 수 있습니다.
+
+          ## 기존 기능
+          Quest / Hideout / Needed Items / Ammo / Map / MiniMap의 기존 제품 의미를 유지합니다. Scanner는 기존대로 `준비 중` placeholder이며 실제 Scanner 기능은 추가하지 않았습니다.
+
+          Content schema v7, v3~v7 읽기 지원, user.db SQLite schema v1을 유지하며 v0.1.13 → v0.1.14 필수 데이터 업데이트는 없습니다.
+
+          Windows x64 portable/self-contained 빌드입니다. 코드 서명은 아직 적용하지 않아 Windows SmartScreen 경고가 표시될 수 있습니다.
+          '@ | Set-Content release-notes.md -Encoding utf8
+
+          gh release create $env:RELEASE_TAG $env:RELEASE_ASSET SHA256SUMS.txt `
+            --target $env:RELEASE_SHA `
+            --title '준현 헬퍼 v0.1.14' `
+            --notes-file release-notes.md `
+            --draft `
+            --repo 'Propeex/JunhyunHelper'
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to create draft v0.1.14 release.' }
+
+      - name: Verify draft release assets before publication
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $meta = gh release view $env:RELEASE_TAG --repo 'Propeex/JunhyunHelper' --json isDraft,isPrerelease,targetCommitish,assets | ConvertFrom-Json
+          if (-not $meta.isDraft) { throw 'Release must remain draft during pre-public verification.' }
+          if ($meta.isPrerelease) { throw 'Release unexpectedly marked prerelease.' }
+          if ($meta.targetCommitish -ne $env:RELEASE_SHA) { throw "Unexpected release target: $($meta.targetCommitish)" }
+          if (-not ($meta.assets | Where-Object { $_.name -eq $env:RELEASE_ASSET })) { throw 'Draft ZIP asset missing.' }
+          if (-not ($meta.assets | Where-Object { $_.name -eq 'SHA256SUMS.txt' })) { throw 'Draft SHA256SUMS.txt asset missing.' }
+
+          Remove-Item artifacts/draft-verify -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item artifacts/draft-verify -ItemType Directory | Out-Null
+          gh release download $env:RELEASE_TAG --repo 'Propeex/JunhyunHelper' --pattern $env:RELEASE_ASSET --pattern 'SHA256SUMS.txt' --dir artifacts/draft-verify
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to re-download draft release assets.' }
+
+          $downloaded = Join-Path artifacts/draft-verify $env:RELEASE_ASSET
+          $draftHash = (Get-FileHash $downloaded -Algorithm SHA256).Hash.ToLowerInvariant()
+          $draftSize = (Get-Item $downloaded).Length
+          if ($draftHash -ne $env:RELEASE_ASSET_SHA256) { throw "Draft ZIP hash mismatch: local=$($env:RELEASE_ASSET_SHA256), draft=$draftHash" }
+          if ($draftSize.ToString() -ne $env:RELEASE_ASSET_SIZE) { throw "Draft ZIP size mismatch: local=$($env:RELEASE_ASSET_SIZE), draft=$draftSize" }
+
+          $sumLine = Get-Content (Join-Path artifacts/draft-verify 'SHA256SUMS.txt') | Where-Object { $_ -match [regex]::Escape($env:RELEASE_ASSET) } | Select-Object -First 1
+          if (-not $sumLine) { throw 'Draft SHA256SUMS lacks release ZIP entry.' }
+          $publishedSum = ($sumLine -split '\s+')[0].ToLowerInvariant()
+          if ($publishedSum -ne $draftHash) { throw "Draft SHA256SUMS mismatch: sums=$publishedSum, zip=$draftHash" }
+
+          Remove-Item artifacts/draft-expanded -Recurse -Force -ErrorAction SilentlyContinue
+          Expand-Archive $downloaded artifacts/draft-expanded
+          $rootFiles = @(Get-ChildItem artifacts/draft-expanded -File)
+          $unexpectedFiles = @($rootFiles | Where-Object { $_.Name -notin @('준현 헬퍼.exe', 'FIRST_RUN_KO.txt') })
+          if ($unexpectedFiles.Count -gt 0) { throw "Draft ZIP unexpected root files: $($unexpectedFiles.Name -join ', ')" }
+          $rootDirs = @(Get-ChildItem artifacts/draft-expanded -Directory)
+          $unexpectedDirs = @($rootDirs | Where-Object { $_.Name -ne 'Assets' })
+          if ($unexpectedDirs.Count -gt 0) { throw "Draft ZIP unexpected root directories: $($unexpectedDirs.Name -join ', ')" }
+
+          $draftExe = 'artifacts/draft-expanded/준현 헬퍼.exe'
+          if (-not (Test-Path $draftExe)) { throw 'Draft ZIP executable missing.' }
+          if (-not (Test-Path 'artifacts/draft-expanded/FIRST_RUN_KO.txt')) { throw 'Draft FIRST_RUN_KO.txt missing.' }
+          if (-not (Test-Path 'artifacts/draft-expanded/Assets/tarkov_data.db')) { throw 'Draft Assets missing.' }
+          $draftVersion = (Get-Item $draftExe).VersionInfo.ProductVersion
+          if (-not $draftVersion.StartsWith('0.1.14', [StringComparison]::Ordinal)) { throw "Draft ZIP ProductVersion invalid: $draftVersion" }
+
+          Write-Host 'DRAFT_RELEASE_VERIFIED=true'
+
+      - name: Publish verified release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release edit $env:RELEASE_TAG --repo 'Propeex/JunhyunHelper' --draft=false --latest
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to publish verified v0.1.14 release.' }
+
+      - name: Verify live public release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $meta = gh release view $env:RELEASE_TAG --repo 'Propeex/JunhyunHelper' --json isDraft,isPrerelease,targetCommitish,assets | ConvertFrom-Json
+          if ($meta.isDraft) { throw 'Release is still draft.' }
+          if ($meta.isPrerelease) { throw 'Release is still prerelease.' }
+          if ($meta.targetCommitish -ne $env:RELEASE_SHA) { throw "Unexpected public release target: $($meta.targetCommitish)" }
+          if (-not ($meta.assets | Where-Object { $_.name -eq $env:RELEASE_ASSET })) { throw 'Public ZIP asset missing.' }
+          if (-not ($meta.assets | Where-Object { $_.name -eq 'SHA256SUMS.txt' })) { throw 'Public SHA256SUMS.txt asset missing.' }
+
+          Remove-Item artifacts/public-verify -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item artifacts/public-verify -ItemType Directory | Out-Null
+          gh release download $env:RELEASE_TAG --repo 'Propeex/JunhyunHelper' --pattern $env:RELEASE_ASSET --pattern 'SHA256SUMS.txt' --dir artifacts/public-verify
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to re-download public release assets.' }
+
+          $downloaded = Join-Path artifacts/public-verify $env:RELEASE_ASSET
+          $publicHash = (Get-FileHash $downloaded -Algorithm SHA256).Hash.ToLowerInvariant()
+          $publicSize = (Get-Item $downloaded).Length
+          if ($publicHash -ne $env:RELEASE_ASSET_SHA256) { throw "Public ZIP hash mismatch: local=$($env:RELEASE_ASSET_SHA256), public=$publicHash" }
+          if ($publicSize.ToString() -ne $env:RELEASE_ASSET_SIZE) { throw "Public ZIP size mismatch: local=$($env:RELEASE_ASSET_SIZE), public=$publicSize" }
+
+          $sumLine = Get-Content (Join-Path artifacts/public-verify 'SHA256SUMS.txt') | Where-Object { $_ -match [regex]::Escape($env:RELEASE_ASSET) } | Select-Object -First 1
+          if (-not $sumLine) { throw 'Public SHA256SUMS lacks release ZIP entry.' }
+          $publicSum = ($sumLine -split '\s+')[0].ToLowerInvariant()
+          if ($publicSum -ne $publicHash) { throw "Public SHA256SUMS mismatch: sums=$publicSum, zip=$publicHash" }
+
+          Remove-Item artifacts/public-expanded -Recurse -Force -ErrorAction SilentlyContinue
+          Expand-Archive $downloaded artifacts/public-expanded
+          $publicExe = 'artifacts/public-expanded/준현 헬퍼.exe'
+          $publicVersion = (Get-Item $publicExe).VersionInfo.ProductVersion
+          if (-not $publicVersion.StartsWith('0.1.14', [StringComparison]::Ordinal)) { throw "Public ProductVersion invalid: $publicVersion" }
+          if (-not (Test-Path 'artifacts/public-expanded/FIRST_RUN_KO.txt')) { throw 'Public FIRST_RUN_KO.txt missing.' }
+          if (-not (Test-Path 'artifacts/public-expanded/Assets/tarkov_data.db')) { throw 'Public Assets missing.' }
+          if (Get-ChildItem artifacts/public-expanded -Recurse -File -Filter *.pdb) { throw 'Public ZIP contains PDB.' }
+
+          Write-Host 'PUBLIC_RELEASE_VERIFIED=true'
+          Write-Host "PUBLIC_SIZE=$publicSize"
+          Write-Host "PUBLIC_SHA256=$publicHash"
+          Write-Host "PUBLIC_PRODUCT_VERSION=$publicVersion"
