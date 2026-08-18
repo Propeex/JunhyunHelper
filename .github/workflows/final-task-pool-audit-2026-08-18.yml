@@ -1,0 +1,76 @@
+name: Verify final task-pool structures 2026-08-18
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/final-task-pool-audit-2026-08-18.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: windows-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Create task-pool audit runner
+        shell: pwsh
+        run: |
+          New-Item artifacts/task-pool-audit -ItemType Directory -Force | Out-Null
+          @'
+          <Project Sdk="Microsoft.NET.Sdk">
+            <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup>
+            <ItemGroup>
+              <ProjectReference Include="../../src/JunhyunHelper.Core/JunhyunHelper.Core.csproj" />
+              <ProjectReference Include="../../src/JunhyunHelper.Infrastructure/JunhyunHelper.Infrastructure.csproj" />
+            </ItemGroup>
+          </Project>
+          '@ | Set-Content artifacts/task-pool-audit/Audit.csproj -Encoding utf8
+          @'
+          using System.Reflection;
+          using JunhyunHelper.Core.Profiles;
+          using JunhyunHelper.Core.Quests;
+          using JunhyunHelper.Infrastructure.Content;
+          using JunhyunHelper.Infrastructure.EditionData;
+          using JunhyunHelper.Infrastructure.TarkovJson;
+
+          using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
+          var service = new TarkovContentBuildService(
+              new TarkovEndpointSourceLoader(new TarkovJsonClient(http)),
+              new TarkovEditionCatalogClient(http));
+          foreach (var mode in new[] { GameMode.Regular, GameMode.Pve, GameMode.PvpSeason })
+          {
+              var build = await service.BuildAsync(mode);
+              var profile = new GameProfileSnapshot { ProfileId="audit", GameMode=mode, Level=1, Faction=PmcFaction.Usec };
+              var resolver = new QuestTaskPoolVariableCompatibility(build.Content.Quests, profile);
+              var field = typeof(QuestTaskPoolVariableCompatibility).GetField("_validPools", BindingFlags.Instance | BindingFlags.NonPublic)
+                  ?? throw new Exception("_validPools field missing");
+              var value = field.GetValue(resolver) ?? throw new Exception("_validPools null");
+              var countProp = value.GetType().GetProperty("Count") ?? throw new Exception("Count missing");
+              var validCount = (int)(countProp.GetValue(value) ?? -1);
+              var uniqueVariables = build.Content.Quests.SelectMany(q => q.ProfileVariableRequirements).Select(r => r.VariableId).Distinct(StringComparer.Ordinal).Count();
+              var dialogueResidual = build.Content.Quests.SelectMany(q => q.UnsupportedAvailabilityRequirements).Count(t => t == "dialogue");
+              Console.WriteLine($"{mode}: validTaskPoolStructures={validCount}; uniqueProfileVariables={uniqueVariables}; dialogueResidual={dialogueResidual}");
+          }
+          '@ | Set-Content artifacts/task-pool-audit/Program.cs -Encoding utf8
+      - name: Run and save report
+        shell: pwsh
+        run: |
+          dotnet run --project artifacts/task-pool-audit/Audit.csproj --configuration Release | Tee-Object -FilePath docs/TASK_POOL_AUDIT_TMP_2026-08-18.txt
+      - name: Publish temporary result
+        shell: pwsh
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git pull --rebase origin main
+          git add docs/TASK_POOL_AUDIT_TMP_2026-08-18.txt
+          git commit -m 'Record temporary task-pool audit result'
+          git push origin HEAD:main
