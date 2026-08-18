@@ -64,7 +64,7 @@ internal sealed class ProgramUpdateCoordinator : IDisposable
             progressWindow.UpdateProgress(new ProgramUpdateProgress("프로그램을 재시작하는 중...", 1));
             LaunchUpdater(preparedUpdate);
             progressWindow.Close();
-            Current.Shutdown(0);
+            System.Windows.Application.Current.Shutdown(0);
         }
         catch (Exception exception)
         {
