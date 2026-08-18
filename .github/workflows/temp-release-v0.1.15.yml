@@ -1,0 +1,99 @@
+name: Temporary updater check v0.1.15
+
+on:
+  push:
+    branches:
+      - agent/temp-updater-check-v0.1.15
+    paths:
+      - '.github/workflows/temp-release-v0.1.15.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      RELEASE_TAG: v0.1.15
+      RELEASE_ASSET: Junhyun-Helper-v0.1.15-win-x64.zip
+
+    steps:
+      - name: Checkout temporary release source
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Apply temporary visual marker
+        shell: pwsh
+        run: |
+          $path = 'src/JunhyunHelper.Desktop/MainWindow.xaml'
+          $text = Get-Content $path -Raw
+          $text = $text.Replace('Title="준현 헬퍼"', 'Title="태영 헬퍼"')
+          $text = $text.Replace('Text="준현 헬퍼" FontSize="20"', 'Text="태영 헬퍼" FontSize="20"')
+          Set-Content $path $text -Encoding utf8
+
+          if ((Get-Content $path -Raw) -notmatch 'Title="태영 헬퍼"') { throw 'Temporary window title patch failed.' }
+          if ((Get-Content $path -Raw) -notmatch 'Text="태영 헬퍼" FontSize="20"') { throw 'Temporary header patch failed.' }
+
+      - name: Publish temporary Windows package
+        shell: pwsh
+        run: |
+          dotnet publish src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            --output artifacts/publish `
+            -p:Version=0.1.15 `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true `
+            -p:PublishTrimmed=false `
+            -p:PublishReadyToRun=false `
+            -p:DebugType=None `
+            -p:DebugSymbols=false
+
+          Copy-Item packaging/FIRST_RUN_KO.txt artifacts/publish/FIRST_RUN_KO.txt
+          $guide = Get-Content artifacts/publish/FIRST_RUN_KO.txt -Raw
+          $guide = $guide.Replace('준현 헬퍼 v0.1.14 — Windows x64', '태영 헬퍼 v0.1.15 — 임시 업데이트 확인용')
+          Set-Content artifacts/publish/FIRST_RUN_KO.txt $guide -Encoding utf8
+
+          $exe = 'artifacts/publish/준현 헬퍼.exe'
+          if (-not (Test-Path $exe)) { throw 'Published executable missing.' }
+          if (-not (Test-Path 'artifacts/publish/FIRST_RUN_KO.txt')) { throw 'FIRST_RUN_KO.txt missing.' }
+          if (-not (Test-Path 'artifacts/publish/Assets/tarkov_data.db')) { throw 'Assets missing.' }
+
+          $productVersion = (Get-Item $exe).VersionInfo.ProductVersion
+          Write-Host "ProductVersion=$productVersion"
+          if (-not $productVersion.StartsWith('0.1.15', [StringComparison]::Ordinal)) {
+            throw "Temporary executable version is not 0.1.15: $productVersion"
+          }
+
+      - name: Package and publish temporary stable release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          New-Item artifacts/release -ItemType Directory -Force | Out-Null
+          $zip = Join-Path artifacts/release $env:RELEASE_ASSET
+          Compress-Archive -Path 'artifacts/publish/*' -DestinationPath $zip -CompressionLevel Optimal
+
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $($env:RELEASE_ASSET)" | Set-Content artifacts/release/SHA256SUMS.txt -Encoding ascii
+          Write-Host "TEMP_RELEASE_SHA256=$hash"
+          Write-Host "TEMP_RELEASE_SIZE=$((Get-Item $zip).Length)"
+
+          gh release create $env:RELEASE_TAG `
+            $zip `
+            artifacts/release/SHA256SUMS.txt `
+            --repo 'Propeex/JunhyunHelper' `
+            --target $env:GITHUB_SHA `
+            --title 'v0.1.15 — 임시 업데이트 확인용' `
+            --notes '자동 업데이트 실제 동작 확인을 위한 임시 정식 릴리즈입니다. 업데이트 성공 후 메인 창 제목과 좌측 상단 제품명이 태영 헬퍼로 표시됩니다. 확인 후 릴리즈와 태그를 삭제할 예정입니다.'
+
+          gh release view $env:RELEASE_TAG --repo 'Propeex/JunhyunHelper' --json isDraft,isPrerelease,tagName,targetCommitish
