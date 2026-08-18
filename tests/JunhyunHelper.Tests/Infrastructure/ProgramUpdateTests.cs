@@ -1,4 +1,6 @@
 using System.IO.Compression;
+using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using JunhyunHelper.Infrastructure.Updates;
@@ -8,26 +10,28 @@ namespace JunhyunHelper.Tests.Infrastructure;
 
 public sealed class ProgramUpdateTests
 {
+    private const string StableReleaseJson = """
+        {
+          "tag_name": "v0.1.14",
+          "draft": false,
+          "prerelease": false,
+          "assets": [
+            {
+              "name": "Junhyun-Helper-v0.1.14-win-x64.zip",
+              "browser_download_url": "https://github.com/Propeex/JunhyunHelper/releases/download/v0.1.14/Junhyun-Helper-v0.1.14-win-x64.zip"
+            },
+            {
+              "name": "SHA256SUMS.txt",
+              "browser_download_url": "https://github.com/Propeex/JunhyunHelper/releases/download/v0.1.14/SHA256SUMS.txt"
+            }
+          ]
+        }
+        """;
+
     [Fact]
     public void LatestReleaseParserRequiresStableExactWindowsAssets()
     {
-        using var document = JsonDocument.Parse("""
-            {
-              "tag_name": "v0.1.14",
-              "draft": false,
-              "prerelease": false,
-              "assets": [
-                {
-                  "name": "Junhyun-Helper-v0.1.14-win-x64.zip",
-                  "browser_download_url": "https://github.com/Propeex/JunhyunHelper/releases/download/v0.1.14/Junhyun-Helper-v0.1.14-win-x64.zip"
-                },
-                {
-                  "name": "SHA256SUMS.txt",
-                  "browser_download_url": "https://github.com/Propeex/JunhyunHelper/releases/download/v0.1.14/SHA256SUMS.txt"
-                }
-              ]
-            }
-            """);
+        using var document = JsonDocument.Parse(StableReleaseJson);
 
         var release = GitHubProgramUpdateClient.ParseLatestRelease(document.RootElement);
 
@@ -35,6 +39,21 @@ public sealed class ProgramUpdateTests
         Assert.Equal(new Version(0, 1, 14), release.Version);
         Assert.Equal("v0.1.14", release.TagName);
         Assert.Equal("Junhyun-Helper-v0.1.14-win-x64.zip", release.PackageFileName);
+    }
+
+    [Theory]
+    [InlineData("0.1.13", true)]
+    [InlineData("0.1.14", false)]
+    [InlineData("0.1.15", false)]
+    public async Task LatestReleaseCheckOnlyReturnsStrictlyNewerStableVersion(string currentVersion, bool expectedUpdate)
+    {
+        using var handler = new StubHttpMessageHandler(StableReleaseJson);
+        using var httpClient = new HttpClient(handler);
+        using var client = new GitHubProgramUpdateClient(httpClient);
+
+        var release = await client.GetLatestReleaseAsync(Version.Parse(currentVersion));
+
+        Assert.Equal(expectedUpdate, release is not null);
     }
 
     [Theory]
@@ -139,6 +158,46 @@ public sealed class ProgramUpdateTests
         }
     }
 
+    [Fact]
+    public async Task ProductReplacementRollsBackEarlierFilesWhenExecutableSwapFails()
+    {
+        if (!OperatingSystem.IsWindows())
+            return;
+
+        var root = CreateTempDirectory();
+        try
+        {
+            var staging = Path.Combine(root, "staging");
+            var target = Path.Combine(root, "target");
+            CreateProductTree(staging, "new");
+            CreateProductTree(target, "old");
+            File.WriteAllText(Path.Combine(target, "Assets", "old-only.asset"), "old only");
+
+            var executablePath = Path.Combine(target, "준현 헬퍼.exe");
+            using (var lockStream = new FileStream(
+                       executablePath,
+                       FileMode.Open,
+                       FileAccess.Read,
+                       FileShare.Read))
+            {
+                await Assert.ThrowsAnyAsync<IOException>(() =>
+                    ProgramUpdateApplier.ReplaceProductFilesAsync(staging, target));
+            }
+
+            Assert.Equal("old executable", File.ReadAllText(executablePath));
+            Assert.Equal("old first run", File.ReadAllText(Path.Combine(target, "FIRST_RUN_KO.txt")));
+            Assert.Equal("old asset", File.ReadAllText(Path.Combine(target, "Assets", "current.asset")));
+            Assert.Equal("old only", File.ReadAllText(Path.Combine(target, "Assets", "old-only.asset")));
+            Assert.DoesNotContain(
+                Directory.EnumerateFileSystemEntries(target),
+                path => Path.GetFileName(path).StartsWith(".__junhyun_", StringComparison.Ordinal));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static void CreateProductTree(string root, string value)
     {
         Directory.CreateDirectory(Path.Combine(root, "Assets"));
@@ -162,5 +221,21 @@ public sealed class ProgramUpdateTests
             Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
         return directory;
+    }
+
+    private sealed class StubHttpMessageHandler(string responseJson) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            Assert.Equal(GitHubProgramUpdateClient.LatestReleaseUri, request.RequestUri);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(responseJson, Encoding.UTF8, "application/json"),
+            });
+        }
     }
 }
