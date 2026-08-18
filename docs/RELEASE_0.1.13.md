@@ -88,20 +88,49 @@ graceful shutdown: SUCCESS
 
 ## v0.1.13 릴리즈 후보 검증
 
-이 문서와 version/first-run guide를 포함한 별도 release candidate PR에서 다시 다음을 검증합니다.
+release candidate PR #97에서 버전/첫 실행 안내/릴리즈 기록만 추가한 상태로 기존 Windows 품질 게이트를 다시 통과했습니다.
 
-- Release build
-- automated tests 217개 이상 전체 통과
-- Windows x64 self-contained single-file publish
-- ProductVersion `0.1.13`
-- FIRST_RUN_KO.txt v0.1.13 / Content schema v7 / user.db v1 / 무필수 데이터 업데이트 표기
-- package root hygiene / no root DLL / no PDB / no legacy forbidden dependency
-- 실제 publish EXE startup
-- 기존 rendered Product UI assertions
-- Main Map / Factory / MiniMap smoke
-- 정상 Main Window close / process exit
+```text
+release candidate PR: #97
+release candidate CI: 32105275116 — SUCCESS
+automated tests: 217 passed / 0 failed / 0 skipped
+Release build: SUCCESS
+Windows x64 self-contained single-file publish: SUCCESS
+published EXE Main Map / Factory / MiniMap smoke: SUCCESS
+graceful shutdown: SUCCESS
+release baseline: f43190494ce91b3adf389e57a3a790fd45db8b20
+```
 
-공개 릴리즈가 완료된 뒤 exact release baseline, release CI, asset size와 SHA-256을 이 문서에 기록합니다.
+## 최종 공개 릴리즈 검증
+
+공개 Release 생성 뒤 별도의 one-shot 검증 PR #99가 **GitHub에 실제 공개된 asset을 다시 다운로드**하여 검증했습니다.
+
+```text
+release: v0.1.13
+release baseline: f43190494ce91b3adf389e57a3a790fd45db8b20
+public verification PR: #99
+public verification workflow: 32111533861 — SUCCESS
+public tag SHA: f43190494ce91b3adf389e57a3a790fd45db8b20
+ProductVersion: 0.1.13+f43190494ce91b3adf389e57a3a790fd45db8b20
+asset: Junhyun-Helper-v0.1.13-win-x64.zip
+asset size: 74,069,173 bytes
+SHA-256: 77a8e5d70bacfa8054fb3eafbe03a892456f17fc63c00776379e2730e55c4120
+public release: https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.13
+```
+
+공개 검증은 다음을 모두 확인했습니다.
+
+- Release가 `draft=false`, `prerelease=false`
+- Release target commit과 public tag가 exact release baseline과 일치
+- 공개 ZIP과 `SHA256SUMS.txt`가 모두 존재
+- 공개 ZIP을 다시 다운로드해 SHA-256을 직접 재계산
+- 재계산 SHA-256이 `SHA256SUMS.txt`와 정확히 일치
+- 공개 ZIP root가 `준현 헬퍼.exe`, `FIRST_RUN_KO.txt`, `Assets/` 계약을 유지
+- 공개 ZIP에 PDB가 없음
+- 공개 EXE ProductVersion이 exact v0.1.13 baseline을 포함
+- 공개 FIRST_RUN_KO.txt가 v0.1.13, 무필수 데이터 업데이트, Scanner `준비 중` 계약을 유지
+
+따라서 v0.1.13 공개 asset은 검증된 release baseline의 최종 배포본으로 확정합니다.
 
 ## 알려진 비차단 범위
 

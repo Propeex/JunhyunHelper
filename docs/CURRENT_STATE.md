@@ -4,32 +4,34 @@
 
 기준일: 2026-08-18
 
-상태: `v0.1.12 PUBLIC RELEASE / VERIFIED / POST-RELEASE FINAL AUDIT COMPLETE / MAINTENANCE HARDENING`
+상태: `v0.1.13 PUBLIC RELEASE / VERIFIED / MAINTENANCE HARDENING COMPLETE`
 
 ## 현재 공개 제품
 
 ```text
-release: v0.1.12
-release baseline: cfacee6cfa893932d74d6a71725b6c711282981e
-ProductVersion: 0.1.12+cfacee6cfa893932d74d6a71725b6c711282981e
-release candidate PR: #95
-release candidate CI: 32025523609 — SUCCESS
-release baseline main CI: 32025837427 — SUCCESS
-release workflow: 32026123215 — SUCCESS
-tests at release: 210 passed / 0 failed / 0 skipped
-asset: Junhyun-Helper-v0.1.12-win-x64.zip
-size: 74,067,018 bytes
-SHA-256: bc91f17f94c6554d09da3fed6db6ebb679c6e1d57ff7017d4a624e8dcd8eae89
-public release: https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.12
+release: v0.1.13
+release baseline: f43190494ce91b3adf389e57a3a790fd45db8b20
+ProductVersion: 0.1.13+f43190494ce91b3adf389e57a3a790fd45db8b20
+hardening PR: #96
+hardening CI: 32104689932 — SUCCESS
+release candidate PR: #97
+release candidate CI: 32105275116 — SUCCESS
+public verification PR: #99
+public verification workflow: 32111533861 — SUCCESS
+tests at release: 217 passed / 0 failed / 0 skipped
+asset: Junhyun-Helper-v0.1.13-win-x64.zip
+size: 74,069,173 bytes
+SHA-256: 77a8e5d70bacfa8054fb3eafbe03a892456f17fc63c00776379e2730e55c4120
+public release: https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.13
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
-mandatory data update from v0.1.11: none
+mandatory data update from v0.1.12: none
 ```
 
-공개 ZIP은 Release 생성 뒤 다시 다운로드하여 크기와 SHA-256을 재검증했습니다. Release는 `draft=false`, `prerelease=false`이며 target commit은 정확히 release baseline과 일치합니다.
+공개 ZIP은 Release 생성 뒤 다시 다운로드하여 크기와 SHA-256을 재검증했습니다. Release는 `draft=false`, `prerelease=false`이며 public tag와 target commit은 정확히 release baseline `f43190494ce91b3adf389e57a3a790fd45db8b20`과 일치합니다.
 
-상세: `docs/RELEASE_0.1.12.md`
+상세: `docs/RELEASE_0.1.13.md`
 
 ## 2026-08-18 최종 감사
 
@@ -39,13 +41,12 @@ mandatory data update from v0.1.11: none
 
 최종 판정:
 
-- **v0.1.12를 현재 안정 기준선으로 유지 가능**
 - 지원하는 ordinary task/hideout/item source 범위에서 blocking correctness bug 발견 없음
 - Quest → mandatory submit Item → Future Needed Items → cleanup pipeline current live 검증 통과
 - current live Regular / PvE / PvP Season canonical build 모두 valid, fatal validation 0
 - mandatory `giveItem` objective와 derived Quest item requirement 누락/중복 0
 - current live Quest/Hideout item reference 누락 0, non-positive requirement 0
-- release baseline automated tests 재통과
+- maintenance hardening 이후 automated tests와 published-app smoke 재통과
 
 ### current live 데이터 요약
 
@@ -88,9 +89,9 @@ PvE Skier LL2 variable `6a5a111de1f417ac80a163e5`만 기존 감사 구조와 달
 
 증명 없이 seed count를 변경하지 않습니다.
 
-## 2026-08-18 maintenance hardening
+## v0.1.13 maintenance hardening — 완료
 
-새 기능을 추가하지 않고 기존 제품의 failure containment와 persistence를 보강합니다.
+새 기능을 추가하지 않고 기존 제품의 failure containment와 persistence를 보강했습니다.
 
 - Map 제품 설정과 Ammo 즐겨찾기 JSON은 같은 디렉터리의 temporary file에서 원자적으로 교체
 - 직전 정상 preference는 `.bak` recovery copy로 유지
@@ -105,6 +106,15 @@ PvE Skier LL2 variable `6a5a111de1f417ac80a163e5`만 기존 감사 구조와 달
 
 이 변경은 `user.db` schema, Content schema, Quest/Hideout/Needed Items 계산 의미, 현재 승인된 UI를 변경하지 않습니다.
 
+검증:
+
+- PR #96 final hardening CI `32104689932` — SUCCESS
+- automated tests `217 / 217` — SUCCESS
+- release candidate PR #97 CI `32105275116` — SUCCESS
+- Windows x64 self-contained publish — SUCCESS
+- published EXE Main Map / Factory / MiniMap / 정상 종료 smoke — SUCCESS
+- 공개 v0.1.13 ZIP 재다운로드 및 SHA-256 검증 workflow `32111533861` — SUCCESS
+
 ## 가장 중요한 알려진 coverage gap
 
 **EFT 1.0 Story Chapters는 현재 준현 헬퍼의 ordinary `json.tarkov.dev/tasks` 기반 progression model에 포함되지 않습니다.**
@@ -113,7 +123,7 @@ PvE Skier LL2 variable `6a5a111de1f417ac80a163e5`만 기존 감사 구조와 달
 
 향후 개발 재개 시 가장 높은 정확도 개선 항목은 Story Chapters를 canonical progression/Needed Items에 안전하게 연결하는 것입니다.
 
-## v0.1.12 핵심 수정
+## v0.1.12에서 도입된 UI 계약 — v0.1.13 유지
 
 ### Flexible hand-in
 
@@ -137,7 +147,7 @@ PvE Skier LL2 variable `6a5a111de1f417ac80a163e5`만 기존 감사 구조와 달
 
 ## UI 완료 판정 기준
 
-v0.1.12부터 위 UI 계약은 source inspection이나 build 성공만으로 완료 처리하지 않습니다.
+v0.1.12부터 위 UI 계약은 source inspection이나 build 성공만으로 완료 처리하지 않습니다. v0.1.13에서도 동일 게이트를 유지합니다.
 
 실제 publish된 Windows 앱에서 `MainWindow.ProductUiLayoutSmoke`가 WPF Measure/Arrange 결과를 검사합니다.
 
@@ -150,15 +160,13 @@ v0.1.12부터 위 UI 계약은 source inspection이나 build 성공만으로 완
 
 동일 실행에서 Main Map / Factory / MiniMap / 정상 종료 smoke도 수행합니다.
 
-릴리즈 실행 로그에서 `PUBLISHED_RENDERED_UI_MAP_SMOKE=true`가 확인됐습니다.
-
 ## 제품 기능 상태
 
 - Profile: 구현 완료
 - Quest: 구현 완료 / conservative unknown 유지 / audited compatibility 적용
 - Hideout: 구현 완료
 - Needed Items / Inventory: 구현 완료 / unresolved future item 보호 / inventory mutation cache
-- Ammo: 구현 완료 / v0.1.12 rendered alignment gate 적용
+- Ammo: 구현 완료 / rendered alignment gate 적용
 - Map + MiniMap: 구현 완료 / exact floor-frame / current Quest sidebar rendered alignment gate 적용
 - Scanner: `준비 중` placeholder / 실제 기능 PRODUCT OPEN
 - runtime GPT/AI 의존성 없음
@@ -176,4 +184,4 @@ v0.1.12부터 위 UI 계약은 source inspection이나 build 성공만으로 완
 6. stale unentered-hideout cleanup API 정리
 7. code signing / installer / updater
 
-현재 승인된 v0.1.12 UI, conservative Indeterminate/IndeterminatePotential 정책, task-pool fail-closed, FIR cleanup 계산은 단순 정리 목적으로 변경하지 않습니다.
+현재 승인된 UI, conservative Indeterminate/IndeterminatePotential 정책, task-pool fail-closed, FIR cleanup 계산은 단순 정리 목적으로 변경하지 않습니다.

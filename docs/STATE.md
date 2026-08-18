@@ -22,27 +22,26 @@
 
 ## 현재 공개 상태
 
-**v0.1.12 PUBLIC RELEASE / VERIFIED — Windows x64**
+**v0.1.13 PUBLIC RELEASE / VERIFIED — Windows x64**
 
 ```text
-release tag: v0.1.12
-release baseline: cfacee6cfa893932d74d6a71725b6c711282981e
-Desktop ProductVersion: 0.1.12+cfacee6cfa893932d74d6a71725b6c711282981e
+release tag: v0.1.13
+release baseline: f43190494ce91b3adf389e57a3a790fd45db8b20
+Desktop ProductVersion: 0.1.13+f43190494ce91b3adf389e57a3a790fd45db8b20
 Content schema: v7
 Readable Content schemas: v3, v4, v5, v6, v7
 user.db SQLite schema: v1
-feature correction PR: #94
-feature correction PR CI: 32022249988 — SUCCESS
-feature correction main CI: 32022514487 — SUCCESS
-release candidate PR: #95
-release candidate PR CI: 32025523609 — SUCCESS
-release baseline main CI: 32025837427 — SUCCESS
-release workflow: 32026123215 — SUCCESS
-automated tests: 210 passed / 0 failed / 0 skipped
-public asset: Junhyun-Helper-v0.1.12-win-x64.zip
-public asset size: 74,067,018 bytes
-public SHA-256: bc91f17f94c6554d09da3fed6db6ebb679c6e1d57ff7017d4a624e8dcd8eae89
-public release: https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.12
+maintenance hardening PR: #96
+maintenance hardening CI: 32104689932 — SUCCESS
+release candidate PR: #97
+release candidate PR CI: 32105275116 — SUCCESS
+public verification PR: #99
+public verification workflow: 32111533861 — SUCCESS
+automated tests: 217 passed / 0 failed / 0 skipped
+public asset: Junhyun-Helper-v0.1.13-win-x64.zip
+public asset size: 74,069,173 bytes
+public SHA-256: 77a8e5d70bacfa8054fb3eafbe03a892456f17fc63c00776379e2730e55c4120
+public release: https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.13
 ```
 
 공개 ZIP은 Release 생성 뒤 다시 다운로드하여 크기와 SHA-256을 재검증했습니다.
@@ -51,17 +50,18 @@ Release는:
 
 - `draft=false`
 - `prerelease=false`
+- public tag SHA = exact release baseline
 - target commit = exact release baseline
 
-상세: `docs/RELEASE_0.1.12.md`
+상세: `docs/RELEASE_0.1.13.md`
 
 ---
 
-## v0.1.12의 핵심 의미
+## v0.1.12에서 도입된 rendered UI gate — v0.1.13 유지
 
 v0.1.11까지 여러 차례 UI 수정이 소스상으로는 반영됐지만 사용자 실제 화면에서 그대로인 문제가 반복됐습니다.
 
-v0.1.12부터 해당 UI 계약은 **소스 문자열/빌드 성공만으로 완료 처리하지 않습니다.**
+v0.1.12부터 해당 UI 계약은 **소스 문자열/빌드 성공만으로 완료 처리하지 않습니다.** v0.1.13도 동일 기준을 유지합니다.
 
 실제 publish된 Windows 실행 파일에서 WPF `Measure` / `Arrange` 결과를 검사합니다.
 
@@ -77,16 +77,26 @@ v0.1.12부터 해당 UI 계약은 **소스 문자열/빌드 성공만으로 완�
 
 같은 published-app smoke에서 Main Map / Factory / MiniMap / 정상 종료도 검증합니다.
 
-릴리즈 실행에서 명시적으로:
+상세: `docs/RENDERED_UI_ALIGNMENT_FIX_2026-08-17.md`, `docs/RELEASE_0.1.12.md`, `docs/RELEASE_0.1.13.md`
 
-```text
-PUBLISHED_RENDERED_UI_MAP_SMOKE=true
-PUBLIC_RELEASE_VERIFIED=true
-```
+---
 
-를 확인했습니다.
+## v0.1.13 maintenance hardening
 
-상세: `docs/RENDERED_UI_ALIGNMENT_FIX_2026-08-17.md`, `docs/RELEASE_0.1.12.md`
+기능을 추가하지 않고 기존 프로그램의 안정성 경계를 보강했습니다.
+
+- Map 제품 설정 / Ammo 즐겨찾기 JSON atomic replacement
+- 직전 정상 preference `.bak` 복구본 유지
+- 손상 primary에서 정상 backup fallback
+- 손상 primary가 기존 정상 backup을 오염시키지 않도록 보호
+- presentation preference I/O 실패를 전역 WPF fatal로 확대하지 않음
+- Map slider 연속 변경을 250ms 단위로 coalesce하고 dispose 시 flush
+- Map hotkey / NumPad 0~5 직접 층 선택 비동기 실패를 dispatcher fatal로 확대하지 않음
+- keyboard hook 설치 실패 진단 기록
+- canonical final validator에서 empty Quest accepted-item set 및 Quest/Hideout `Count <= 0` 차단
+- Scanner는 실제 기능을 추가하지 않고 `준비 중` placeholder 유지
+
+이 hardening은 Quest / Hideout / Needed Items / Ammo / Map의 확정 제품 의미, Content schema, user.db schema를 변경하지 않습니다.
 
 ---
 
@@ -211,12 +221,14 @@ Quest 완료/실패, Hideout level, profile prerequisite fact 변경은 정확�
 Current Content schema: v7
 Readable Content schemas: v3, v4, v5, v6, v7
 user.db SQLite schema: v1 unchanged
-v0.1.11 → v0.1.12 mandatory data update: none
+v0.1.12 → v0.1.13 mandatory data update: none
 ```
 
 기존 `%LocalAppData%/JunhyunHelper/user.db`의 Profile / Quest 완료·실패 / Inventory / Hideout 진행은 유지됩니다.
 
-Map 제품 설정은 `%LocalAppData%/JunhyunHelper/map-product-settings.json`에 유지됩니다.
+Map 제품 설정은 `%LocalAppData%/JunhyunHelper/map-product-settings.json`에 유지되며 `.bak` 복구본을 사용합니다.
+
+Ammo 즐겨찾기는 `%LocalAppData%/JunhyunHelper/ammo-favorites.json`에 유지되며 `.bak` 복구본을 사용합니다.
 
 Game Content update는 user.db를 삭제하거나 덮어쓰지 않습니다.
 
@@ -243,7 +255,7 @@ d933792b6042a51cea38dc44b686a096fe30de67
 - `퀘스트 마커 표시` 포함 제품 설정은 persisted product value가 권위값
 - MiniMap hover transparency는 lightweight Input-priority 감지
 
-### Current Quest sidebar — v0.1.12
+### Current Quest sidebar
 
 구조:
 
@@ -300,16 +312,16 @@ Quest / Hideout / Items / Ammo 검색창 우측 `×` 버튼:
 | Quest | 구현 완료 / `확인 필요` 분리 / special trader + exact profile-variable + audited task-pool + audited dialogue 지원 |
 | Hideout | 구현 완료 |
 | Needed Items / Inventory | 구현 완료 / unresolved future Quest item 보호 / mutation cache |
-| Ammo | 구현 완료 / v0.1.12 rendered UI gate 적용 |
-| Map + MiniMap | 구현 완료 / exact floor-frame / persisted settings / map-key sync / v0.1.12 rendered sidebar gate |
-| Scanner | `준비 중` placeholder / 실제 기능 PRODUCT OPEN |
+| Ammo | 구현 완료 / rendered UI gate 적용 / preference recovery 적용 |
+| Map + MiniMap | 구현 완료 / exact floor-frame / persisted settings recovery / map-key sync / rendered sidebar gate |
+| Scanner | `준비 중` placeholder / 사용자 별도 요구 전 구현 보류 |
 
 ---
 
 ## 비차단 후속 범위
 
-- 사용자 v0.1.12 실사용 피드백
-- Scanner 실제 기능 설계/구현
+- 사용자 v0.1.13 실사용 피드백
+- Scanner는 사용자 별도 제품 요구가 확정되기 전까지 현재 placeholder 유지
 - Map artwork/config/general-marker atomic bundle updater
 - pinned Map renderer deeper refactor는 concrete regression/performance value가 있을 때만 수행
 - code signing / installer / application updater
@@ -320,17 +332,22 @@ Quest / Hideout / Items / Ammo 검색창 우측 `×` 버튼:
 
 ## 저장소 상태
 
-- 공개 릴리즈: **v0.1.12**
-- release baseline: `cfacee6cfa893932d74d6a71725b6c711282981e`
-- release workflow run: `32026123215` — SUCCESS
-- public ZIP re-download + size/hash verification — SUCCESS
-- 임시 `.github/workflows/release-v0.1.12.yml`은 공개 검증 후 제거
+- 공개 릴리즈: **v0.1.13**
+- release baseline: `f43190494ce91b3adf389e57a3a790fd45db8b20`
+- release candidate CI: `32105275116` — SUCCESS
+- public verification workflow: `32111533861` — SUCCESS
+- public ZIP re-download + size/hash/ProductVersion verification — SUCCESS
+- 공개 ZIP: `Junhyun-Helper-v0.1.13-win-x64.zip`
+- 공개 ZIP size: `74,069,173 bytes`
+- 공개 ZIP SHA-256: `77a8e5d70bacfa8054fb3eafbe03a892456f17fc63c00776379e2730e55c4120`
+- 임시 `.github/workflows/release-v0.1.13.yml` / `verify-v0.1.13-public.yml`은 공개 검증 후 제거
 - 상시 workflow는 `.github/workflows/ci.yml`만 유지
 
 관련 문서:
 
 - `docs/CURRENT_STATE.md`
-- `docs/RELEASE_0.1.12.md`
+- `docs/RELEASE_0.1.13.md`
+- `docs/FINAL_AUDIT_2026-08-18.md`
 - `docs/RENDERED_UI_ALIGNMENT_FIX_2026-08-17.md`
 - `docs/PRODUCT.md`
 - `docs/ARCHITECTURE.md`
