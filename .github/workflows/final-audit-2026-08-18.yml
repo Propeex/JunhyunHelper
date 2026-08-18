@@ -1,0 +1,150 @@
+name: Final live content audit 2026-08-18
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/final-audit-2026-08-18.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build existing product and run tests
+        run: |
+          dotnet build src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj --configuration Release
+          dotnet test tests/JunhyunHelper.Tests/JunhyunHelper.Tests.csproj --configuration Release
+
+      - name: Create live audit runner
+        shell: pwsh
+        run: |
+          New-Item artifacts/final-audit -ItemType Directory -Force | Out-Null
+          @'
+          <Project Sdk="Microsoft.NET.Sdk">
+            <PropertyGroup>
+              <OutputType>Exe</OutputType>
+              <TargetFramework>net10.0</TargetFramework>
+              <ImplicitUsings>enable</ImplicitUsings>
+              <Nullable>enable</Nullable>
+            </PropertyGroup>
+            <ItemGroup>
+              <ProjectReference Include="../../src/JunhyunHelper.Core/JunhyunHelper.Core.csproj" />
+              <ProjectReference Include="../../src/JunhyunHelper.Infrastructure/JunhyunHelper.Infrastructure.csproj" />
+            </ItemGroup>
+          </Project>
+          '@ | Set-Content artifacts/final-audit/Audit.csproj -Encoding utf8
+
+          @'
+          using System.Reflection;
+          using JunhyunHelper.Core.Items;
+          using JunhyunHelper.Core.Profiles;
+          using JunhyunHelper.Core.Quests;
+          using JunhyunHelper.Infrastructure.Content;
+          using JunhyunHelper.Infrastructure.EditionData;
+          using JunhyunHelper.Infrastructure.TarkovJson;
+
+          using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
+          var sourceLoader = new TarkovEndpointSourceLoader(new TarkovJsonClient(http));
+          var editionClient = new TarkovEditionCatalogClient(http);
+          var buildService = new TarkovContentBuildService(sourceLoader, editionClient);
+
+          var criticalFailures = new List<string>();
+          foreach (var mode in new[] { GameMode.Regular, GameMode.Pve, GameMode.PvpSeason })
+          {
+              Console.WriteLine($"=== MODE {mode} ===");
+              var build = await buildService.BuildAsync(mode);
+              var content = build.Content;
+              var fatalIssues = build.Validation.Issues.Where(i => i.Severity.ToString() == "Fatal").ToArray();
+              Console.WriteLine($"valid={build.IsValid}; fatalValidation={fatalIssues.Length}; warnings={build.Warnings.Count}");
+              Console.WriteLine($"quests={content.Quests.Count}; objectives={content.QuestObjectives.Count}; questItemReqs={content.QuestItemRequirements.Count}; items={content.Items.Count}; hideoutStations={content.HideoutStations.Count}");
+
+              if (!build.IsValid)
+                  criticalFailures.Add($"{mode}: canonical build invalid ({fatalIssues.Length} fatal issues)");
+
+              var unsupported = content.Quests
+                  .SelectMany(q => q.UnsupportedAvailabilityRequirements)
+                  .GroupBy(x => x, StringComparer.Ordinal)
+                  .OrderBy(g => g.Key, StringComparer.Ordinal)
+                  .Select(g => $"{g.Key}:{g.Count()}")
+                  .ToArray();
+              var profileVarQuests = content.Quests.Count(q => q.ProfileVariableRequirements.Count > 0);
+              var profileVarUnique = content.Quests.SelectMany(q => q.ProfileVariableRequirements).Select(r => r.VariableId).Distinct(StringComparer.Ordinal).Count();
+              var delayQuests = content.Quests.Count(q => q.HasAvailabilityDelay);
+              Console.WriteLine($"profileVariableQuests={profileVarQuests}; uniqueProfileVariables={profileVarUnique}; delayQuests={delayQuests}; unsupported=[{string.Join(",", unsupported)}]");
+
+              var auditProfile = new GameProfileSnapshot
+              {
+                  ProfileId = "final-audit",
+                  GameMode = mode,
+                  Level = 1,
+                  Faction = PmcFaction.Usec,
+              };
+              var compatibility = new QuestTaskPoolVariableCompatibility(content.Quests, auditProfile);
+              var validPoolField = typeof(QuestTaskPoolVariableCompatibility).GetField("_validPools", BindingFlags.Instance | BindingFlags.NonPublic);
+              var validPools = validPoolField?.GetValue(compatibility) as System.Collections.ICollection;
+              Console.WriteLine($"auditedTaskPoolStructuresValid={validPools?.Count ?? -1}");
+
+              var submitObjectives = content.QuestObjectives
+                  .Where(o => o.ItemKind == QuestItemObjectiveKind.Submit && !o.Optional)
+                  .ToArray();
+              var malformedSubmit = submitObjectives
+                  .Where(o => o.ItemIds.Count == 0 || o.Count is null or <= 0)
+                  .ToArray();
+              var requirementsByObjective = content.QuestItemRequirements
+                  .GroupBy(r => (r.QuestId, r.ObjectiveId))
+                  .ToDictionary(g => g.Key, g => g.ToArray());
+              var missingRequirement = submitObjectives
+                  .Where(o => o.ItemIds.Count > 0 && o.Count is > 0 && !requirementsByObjective.ContainsKey((o.QuestId, o.ObjectiveId)))
+                  .ToArray();
+              var duplicateRequirement = requirementsByObjective.Where(pair => pair.Value.Length != 1).ToArray();
+              var alternativeRequirements = content.QuestItemRequirements.Count(r => r.AcceptedItemIds.Count > 1);
+              var firRequirements = content.QuestItemRequirements.Count(r => r.FoundInRaid);
+              var nonPositiveQuestCounts = content.QuestItemRequirements.Where(r => r.Count <= 0).ToArray();
+              Console.WriteLine($"mandatorySubmitObjectives={submitObjectives.Length}; malformedSubmit={malformedSubmit.Length}; missingDerivedReq={missingRequirement.Length}; duplicateDerivedReq={duplicateRequirement.Length}; alternatives={alternativeRequirements}; firReqs={firRequirements}; nonPositiveQuestReqCounts={nonPositiveQuestCounts.Length}");
+
+              var itemIds = content.Items.Select(i => i.Id).ToHashSet(StringComparer.Ordinal);
+              var missingQuestItemRefs = content.QuestItemRequirements
+                  .SelectMany(r => r.AcceptedItemIds.Select(id => (r.QuestId, r.ObjectiveId, ItemId:id)))
+                  .Where(x => !itemIds.Contains(x.ItemId))
+                  .ToArray();
+              var hideoutRequirements = content.HideoutStations.SelectMany(s => s.Levels).SelectMany(l => l.ItemRequirements).ToArray();
+              var nonPositiveHideoutCounts = hideoutRequirements.Where(r => r.Count <= 0).ToArray();
+              var missingHideoutItemRefs = hideoutRequirements.Where(r => !itemIds.Contains(r.ItemId)).ToArray();
+              Console.WriteLine($"missingQuestItemRefs={missingQuestItemRefs.Length}; hideoutItemReqs={hideoutRequirements.Length}; nonPositiveHideoutCounts={nonPositiveHideoutCounts.Length}; missingHideoutItemRefs={missingHideoutItemRefs.Length}");
+
+              if (malformedSubmit.Length > 0) criticalFailures.Add($"{mode}: {malformedSubmit.Length} malformed mandatory giveItem objectives");
+              if (missingRequirement.Length > 0) criticalFailures.Add($"{mode}: {missingRequirement.Length} valid mandatory giveItem objectives omitted from derived requirements");
+              if (duplicateRequirement.Length > 0) criticalFailures.Add($"{mode}: duplicate derived quest item requirement keys");
+              if (nonPositiveQuestCounts.Length > 0) criticalFailures.Add($"{mode}: non-positive quest item counts");
+              if (missingQuestItemRefs.Length > 0) criticalFailures.Add($"{mode}: missing quest item references");
+              if (nonPositiveHideoutCounts.Length > 0) criticalFailures.Add($"{mode}: non-positive hideout item counts");
+              if (missingHideoutItemRefs.Length > 0) criticalFailures.Add($"{mode}: missing hideout item references");
+          }
+
+          Console.WriteLine("=== FINAL ===");
+          if (criticalFailures.Count == 0)
+          {
+              Console.WriteLine("FINAL_LIVE_AUDIT_CRITICAL_FAILURES=0");
+              return;
+          }
+
+          foreach (var failure in criticalFailures)
+              Console.WriteLine("CRITICAL: " + failure);
+          Console.WriteLine($"FINAL_LIVE_AUDIT_CRITICAL_FAILURES={criticalFailures.Count}");
+          Environment.ExitCode = 2;
+          '@ | Set-Content artifacts/final-audit/Program.cs -Encoding utf8
+
+      - name: Audit current live Tarkov content through product importer
+        run: dotnet run --project artifacts/final-audit/Audit.csproj --configuration Release
