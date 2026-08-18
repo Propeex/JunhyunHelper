@@ -26,12 +26,17 @@ public partial class App : System.Windows.Application
 
         try
         {
+            ProgramUpdateCoordinator.ScheduleStaleUpdaterRunnerCleanup();
+
             var window = new MainWindow();
             MainWindow = window;
             window.Show();
 
-            _programUpdateCoordinator = new ProgramUpdateCoordinator();
-            _ = _programUpdateCoordinator.CheckAtStartupAsync(window);
+            if (!IsProductSmokeRun())
+            {
+                _programUpdateCoordinator = new ProgramUpdateCoordinator();
+                _ = _programUpdateCoordinator.CheckAtStartupAsync(window);
+            }
         }
         catch (Exception exception)
         {
@@ -105,6 +110,12 @@ public partial class App : System.Windows.Application
             Shutdown(2);
         }
     }
+
+    private static bool IsProductSmokeRun() =>
+        string.Equals(
+            Environment.GetEnvironmentVariable("JUNHYUNHELPER_MAP_SMOKE"),
+            "1",
+            StringComparison.Ordinal);
 
     private static void StartProduct(string executablePath, string workingDirectory)
     {
