@@ -39,7 +39,7 @@ internal sealed class ProgramUpdateCoordinator : IDisposable
             "준현 헬퍼 업데이트",
             MessageBoxButton.YesNo,
             MessageBoxImage.Information,
-            MessageBoxResult.Yes);
+            MessageBoxResult.No);
 
         if (consent != MessageBoxResult.Yes)
             return;
@@ -85,6 +85,54 @@ internal sealed class ProgramUpdateCoordinator : IDisposable
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
         }
+    }
+
+    internal static void ScheduleStaleUpdaterRunnerCleanup()
+    {
+        var updaterRoot = Path.Combine(Path.GetTempPath(), "JunhyunHelper", "updater");
+        if (!Directory.Exists(updaterRoot))
+            return;
+
+        _ = Task.Run(async () =>
+        {
+            for (var attempt = 0; attempt < 8; attempt++)
+            {
+                try
+                {
+                    foreach (var directory in Directory.EnumerateDirectories(updaterRoot))
+                    {
+                        try
+                        {
+                            Directory.Delete(directory, recursive: true);
+                        }
+                        catch
+                        {
+                            // A just-finished updater may still hold its self-copy open.
+                        }
+                    }
+
+                    if (!Directory.EnumerateDirectories(updaterRoot).Any())
+                    {
+                        try
+                        {
+                            Directory.Delete(updaterRoot, recursive: false);
+                        }
+                        catch
+                        {
+                            // Parent cleanup is optional.
+                        }
+
+                        return;
+                    }
+                }
+                catch
+                {
+                    return;
+                }
+
+                await Task.Delay(TimeSpan.FromMilliseconds(500)).ConfigureAwait(false);
+            }
+        });
     }
 
     private static Version GetCurrentProductVersion()
