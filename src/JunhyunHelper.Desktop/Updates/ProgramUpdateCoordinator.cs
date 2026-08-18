@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Reflection;
 using System.Windows;
@@ -63,7 +64,7 @@ internal sealed class ProgramUpdateCoordinator : IDisposable
 
             progressWindow.UpdateProgress(new ProgramUpdateProgress("프로그램을 재시작하는 중...", 1));
             LaunchUpdater(preparedUpdate);
-            progressWindow.Close();
+            progressWindow.CompleteAndClose();
             System.Windows.Application.Current.Shutdown(0);
         }
         catch (Exception exception)
@@ -72,7 +73,7 @@ internal sealed class ProgramUpdateCoordinator : IDisposable
                 ProgramUpdateApplier.TryCleanupPreparedUpdate(preparedUpdate);
 
             App.WriteDiagnostic("Program update preparation failed", exception);
-            progressWindow.Close();
+            progressWindow.CompleteAndClose();
             owner.IsEnabled = true;
             owner.Activate();
 
@@ -210,6 +211,7 @@ internal sealed class ProgramUpdateProgressWindow : Window
 {
     private readonly TextBlock _statusText;
     private readonly ProgressBar _progressBar;
+    private bool _allowClose;
 
     public ProgramUpdateProgressWindow()
     {
@@ -250,6 +252,23 @@ internal sealed class ProgramUpdateProgressWindow : Window
         root.Children.Add(_progressBar);
 
         Content = root;
+    }
+
+    protected override void OnClosing(CancelEventArgs e)
+    {
+        if (!_allowClose)
+        {
+            e.Cancel = true;
+            return;
+        }
+
+        base.OnClosing(e);
+    }
+
+    public void CompleteAndClose()
+    {
+        _allowClose = true;
+        Close();
     }
 
     public void UpdateProgress(ProgramUpdateProgress progress)
