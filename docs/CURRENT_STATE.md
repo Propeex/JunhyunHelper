@@ -4,184 +4,157 @@
 
 기준일: 2026-08-18
 
-상태: `v0.1.13 PUBLIC RELEASE / VERIFIED / MAINTENANCE HARDENING COMPLETE`
+상태: **`v0.1.14 PUBLIC RELEASE / VERIFIED`**
 
 ## 현재 공개 제품
 
 ```text
-release: v0.1.13
-release baseline: f43190494ce91b3adf389e57a3a790fd45db8b20
-ProductVersion: 0.1.13+f43190494ce91b3adf389e57a3a790fd45db8b20
-hardening PR: #96
-hardening CI: 32104689932 — SUCCESS
-release candidate PR: #97
-release candidate CI: 32105275116 — SUCCESS
-public verification PR: #99
-public verification workflow: 32111533861 — SUCCESS
-tests at release: 217 passed / 0 failed / 0 skipped
-asset: Junhyun-Helper-v0.1.13-win-x64.zip
-size: 74,069,173 bytes
-SHA-256: 77a8e5d70bacfa8054fb3eafbe03a892456f17fc63c00776379e2730e55c4120
-public release: https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.13
+release: v0.1.14
+release baseline / tag SHA: bb0611e9263c24018825a87a58aba2c5474b6cc4
+ProductVersion: 0.1.14+bb0611e9263c24018825a87a58aba2c5474b6cc4
+feature PR: #100
+feature CI: 32115435656 — SUCCESS
+release PR: #101
+release PR CI: 32115953069 — SUCCESS
+public verification PR: #102
+public verification workflow: 32116726491 — SUCCESS
+tests at release: 232 passed / 0 failed / 0 skipped
+asset: Junhyun-Helper-v0.1.14-win-x64.zip
+size: 74,086,942 bytes
+SHA-256: 9b3aaff8ba2182b146ea6b1ec463efd8dc8b1c5532a8d4db6cf716938536ae02
+public release: https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.14
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
-mandatory data update from v0.1.12: none
+mandatory data update from v0.1.13: none
 ```
 
-공개 ZIP은 Release 생성 뒤 다시 다운로드하여 크기와 SHA-256을 재검증했습니다. Release는 `draft=false`, `prerelease=false`이며 public tag와 target commit은 정확히 release baseline `f43190494ce91b3adf389e57a3a790fd45db8b20`과 일치합니다.
+공개 Release는 `draft=false`, `prerelease=false`이고 public tag SHA와 release target은 exact release baseline과 일치합니다. 공개 ZIP과 `SHA256SUMS.txt`를 다시 다운로드해 checksum, package root, ProductVersion을 검증했고 실제 공개 EXE의 rendered UI / Main Map / Factory / MiniMap / 정상 종료 smoke까지 통과했습니다.
 
-상세: `docs/RELEASE_0.1.13.md`
+상세: `docs/RELEASE_0.1.14.md`
 
-## 2026-08-18 최종 감사
+## v0.1.14 — 사용자 동의형 프로그램 업데이트
 
-기능 추가를 잠시 중단하기 전 전체 maintenance audit를 수행했습니다.
-
-상세 기록: `docs/FINAL_AUDIT_2026-08-18.md`
-
-최종 판정:
-
-- 지원하는 ordinary task/hideout/item source 범위에서 blocking correctness bug 발견 없음
-- Quest → mandatory submit Item → Future Needed Items → cleanup pipeline current live 검증 통과
-- current live Regular / PvE / PvP Season canonical build 모두 valid, fatal validation 0
-- mandatory `giveItem` objective와 derived Quest item requirement 누락/중복 0
-- current live Quest/Hideout item reference 누락 0, non-positive requirement 0
-- maintenance hardening 이후 automated tests와 published-app smoke 재통과
-
-### current live 데이터 요약
+확정 제품 동작:
 
 ```text
-Regular
-  quests 517 / objectives 1457 / quest item requirements 307
-  mandatory submit 307 / missing-derived 0 / malformed 0
-  items 5312 / hideout stations 26 / hideout item requirements 317
-
-PvE
-  quests 513 / objectives 1428 / quest item requirements 291
-  mandatory submit 291 / missing-derived 0 / malformed 0
-  items 5312 / hideout stations 26 / hideout item requirements 317
-
-PvP Season
-  quests 490 / objectives 1392 / quest item requirements 286
-  mandatory submit 286 / missing-derived 0 / malformed 0
-  items 5312 / hideout stations 26 / hideout item requirements 317
+일반 실행
+→ latest public stable GitHub Release 조회
+→ 현재 버전보다 최신이면 사용자에게 업데이트 여부 질문
+→ 동의 시 ZIP + SHA256SUMS 다운로드
+→ SHA-256 / package security contract 검증
+→ 현재 프로그램 종료
+→ 임시 self-copy updater가 program-owned files 교체
+→ 새 버전 자동 재실행
 ```
 
-모든 mode에서 현재 residual unsupported availability는 실제 completion timing을 알아야 하는 `availabilityDelay` 13건뿐이며, 검증된 dialogue compatibility 이후 residual `dialogue`는 0입니다.
+실패 정책:
 
-### PvE task-pool drift
+- update check 실패 → 앱 정상 사용
+- 사용자 거절 → 앱 정상 사용
+- download/checksum/package validation 실패 → 현재 프로그램 파일 미변경
+- updater 시작 실패 → 현재 프로그램 파일 미변경
+- 교체 실패 → previous program files rollback 시도 + 기존 EXE 재실행 시도
+- 실패 진단 → `%LocalAppData%/JunhyunHelper/logs/startup.log`
 
-current audited trader task-pool 구조:
+업데이트 대상:
 
 ```text
-Regular:   27 / 27 valid
-PvE:       26 / 27 valid
-PvPSeason: 27 / 27 valid
+준현 헬퍼.exe
+FIRST_RUN_KO.txt
+Assets/
 ```
 
-PvE Skier LL2 variable `6a5a111de1f417ac80a163e5`만 기존 감사 구조와 달라졌습니다.
+업데이트 비대상:
 
-- pool count/threshold는 동일
-- direct LL2 seed가 3→4로 증가
-- 추가 candidate: `Easy Money - Part 1 [PVE ZONE]`
+```text
+%LocalAppData%/JunhyunHelper/user.db
+content/
+image-cache/
+map-product-settings.json(.bak)
+ammo-favorites.json(.bak)
+logs/
+```
 
-현재 compatibility는 이 drift를 감지하면 해당 pool만 추측하지 않고 fail-closed 합니다. 따라서 exact variable이 없을 경우 일부 관련 Quest가 `확인 필요`로 남을 수 있으나, 잘못된 해금 판정은 하지 않습니다. Future Needed Items도 IndeterminatePotential을 계속 보호합니다.
+상시 `Updater.exe`는 배포하지 않습니다. 현재 EXE의 임시 복사본을 `%TEMP%/JunhyunHelper/updater/<guid>`에서 updater mode로 실행합니다.
 
-증명 없이 seed count를 변경하지 않습니다.
+**Bootstrap:** 공개 v0.1.13에는 updater 코드가 없으므로 v0.1.13 → v0.1.14는 한 번 수동 교체가 필요합니다. v0.1.14 이후 후속 정식 릴리즈는 프로그램 안에서 업데이트 가능합니다.
 
-## v0.1.13 maintenance hardening — 완료
-
-새 기능을 추가하지 않고 기존 제품의 failure containment와 persistence를 보강했습니다.
-
-- Map 제품 설정과 Ammo 즐겨찾기 JSON은 같은 디렉터리의 temporary file에서 원자적으로 교체
-- 직전 정상 preference는 `.bak` recovery copy로 유지
-- primary JSON이 손상되어도 정상 backup으로 읽기 복구
-- 손상된 primary를 다음 저장 때 정상 backup에 덮어쓰지 않음
-- Map/Ammo presentation preference 저장 실패는 앱 전체 종료로 확대하지 않고 진단 로그로 격리
-- Map slider 연속 변경은 250ms 단위로 묶어 저장하고 종료 시 pending 값을 flush
-- Map hotkey 및 NumPad 직접 층 선택 비동기 실패는 전역 dispatcher fatal로 확대하지 않음
-- product/direct-floor keyboard hook 설치 실패는 `%LocalAppData%/JunhyunHelper/logs/startup.log`에 기록
-- canonical final validator에서 empty Quest accepted-item set과 Quest/Hideout `Count <= 0`을 fatal로 차단
-- Scanner는 실제 기능을 추가하지 않고 `준비 중` placeholder 탭을 유지하며 DEC-045가 과거 숨김 결정을 대체
-
-이 변경은 `user.db` schema, Content schema, Quest/Hideout/Needed Items 계산 의미, 현재 승인된 UI를 변경하지 않습니다.
-
-검증:
-
-- PR #96 final hardening CI `32104689932` — SUCCESS
-- automated tests `217 / 217` — SUCCESS
-- release candidate PR #97 CI `32105275116` — SUCCESS
-- Windows x64 self-contained publish — SUCCESS
-- published EXE Main Map / Factory / MiniMap / 정상 종료 smoke — SUCCESS
-- 공개 v0.1.13 ZIP 재다운로드 및 SHA-256 검증 workflow `32111533861` — SUCCESS
-
-## 가장 중요한 알려진 coverage gap
-
-**EFT 1.0 Story Chapters는 현재 준현 헬퍼의 ordinary `json.tarkov.dev/tasks` 기반 progression model에 포함되지 않습니다.**
-
-따라서 현재 Quest/Needed Items는 가져온 task feed 범위에서는 정합성이 높지만, Story Chapter 전용 hand-in/해금까지 포함한 'EFT 전체 progression'을 완전히 대표한다고 주장하지 않습니다.
-
-향후 개발 재개 시 가장 높은 정확도 개선 항목은 Story Chapters를 canonical progression/Needed Items에 안전하게 연결하는 것입니다.
-
-## v0.1.12에서 도입된 UI 계약 — v0.1.13 유지
-
-### Flexible hand-in
-
-- 전역 Button template의 centered ContentPresenter 때문에 내부 Grid가 행 전체 폭을 사용하지 못하던 근본 원인 수정
-- candidate 전용 stretch template 적용
-- 실제 렌더 구조: `52px icon | * name/category | 108px in-raid | 96px normal`
-- icon/name은 좌측 축, in-raid/normal은 우측 축 유지
-
-### Ammo
-
-- runtime data/filter refresh 이후에도 favorite Button은 `☆` / `★`만 표시
-- detail handle은 42px 화살표 전용
-- expanded=`▼`, collapsed=`▲`
-
-### Map current Quest sidebar
-
-- Quest title을 전역 centered Button ContentPresenter에서 분리
-- `30px checkbox | 34px A/B/C/D | * Quest text` 고정 lane
-- marker/check 상태와 관계없이 Quest title 시작 X축 유지
-- expanded sidebar handle은 panel의 오른쪽 바깥 경계, 즉 지도와 panel 사이에 위치
-
-## UI 완료 판정 기준
-
-v0.1.12부터 위 UI 계약은 source inspection이나 build 성공만으로 완료 처리하지 않습니다. v0.1.13에서도 동일 게이트를 유지합니다.
-
-실제 publish된 Windows 앱에서 `MainWindow.ProductUiLayoutSmoke`가 WPF Measure/Arrange 결과를 검사합니다.
-
-- Flexible candidate가 실제 row 폭으로 확장
-- icon/name 좌측 축과 in-raid/normal 우측 축
-- Ammo favorite 실제 Content가 단일 `☆`/`★`
-- Ammo detail expanded=`▼`, collapsed=`▲`
-- 서로 다른 Map Quest 행의 title 시작 X 편차 `<= 0.75px`
-- expanded Map sidebar handle right gap `<= 6px`
-
-동일 실행에서 Main Map / Factory / MiniMap / 정상 종료 smoke도 수행합니다.
+상세: `docs/PROGRAM_UPDATE.md`
 
 ## 제품 기능 상태
 
-- Profile: 구현 완료
-- Quest: 구현 완료 / conservative unknown 유지 / audited compatibility 적용
-- Hideout: 구현 완료
-- Needed Items / Inventory: 구현 완료 / unresolved future item 보호 / inventory mutation cache
-- Ammo: 구현 완료 / rendered alignment gate 적용
-- Map + MiniMap: 구현 완료 / exact floor-frame / current Quest sidebar rendered alignment gate 적용
-- Scanner: `준비 중` placeholder / 실제 기능 PRODUCT OPEN
-- runtime GPT/AI 의존성 없음
-- 온라인 Tarkov 데이터는 프로그램 importer가 다운로드 → 검증 → canonical DB 재구축
+| 영역 | 상태 |
+|---|---|
+| Profile | 구현 완료 / GameMode별 독립 진행 |
+| Quest | 구현 완료 / `확인 필요` 분리 / special trader + exact profile-variable + audited compatibility |
+| Hideout | 구현 완료 |
+| Needed Items / Inventory | 구현 완료 / unresolved future Quest Item 보호 / consumption ledger |
+| Ammo | 구현 완료 / caliber favorites / atomic preference recovery |
+| Map + MiniMap | 구현 완료 / exact floor-frame / persisted settings recovery / rendered sidebar gate |
+| Program Update | 구현 완료 / v0.1.14 public verified |
+| Scanner | **`준비 중` placeholder** / 별도 사용자 요구 전 실제 기능 구현 금지 |
 
-## 기술부채 / 다음 maintenance 후보
+## Content / User Progress
 
-우선순위 순서:
+```text
+Content schema: v7
+Readable: v3, v4, v5, v6, v7
+user.db SQLite schema: v1
+v0.1.13 → v0.1.14 mandatory data update: none
+```
 
-1. Story Chapters coverage 설계/통합
-2. PvE Skier LL2 새 PVE ZONE seed의 실제 counter semantics 확인
-3. `user.db` backup/export/restore UX
-4. multi-DPI visual regression
-5. Map의 disconnected V1 adapter/sidebar path 정리 — **Map을 다시 손볼 때만**
-6. stale unentered-hideout cleanup API 정리
-7. code signing / installer / updater
+- exact profile-variable fact가 있으면 권위값으로 판정
+- 증명 불가능한 Quest availability는 `확인 필요`
+- unresolved future Quest Item은 `IndeterminatePotential`로 Needed Items 보호
+- Game Content update는 `user.db`를 삭제하거나 덮어쓰지 않음
+- program update와 Game Content update는 별도 subsystem
 
-현재 승인된 UI, conservative Indeterminate/IndeterminatePotential 정책, task-pool fail-closed, FIR cleanup 계산은 단순 정리 목적으로 변경하지 않습니다.
+## Map / MiniMap 기준
+
+Pinned donor-derived product revision:
+
+```text
+d933792b6042a51cea38dc44b686a096fe30de67
+```
+
+- floor는 visibility filter가 아니라 presentation relation
+- enabled 타층 marker 유지
+- Main Map floor 변경 시 zoom + map-space center 보존
+- MiniMap floor 변경 시 exact Scale + Translate X/Y 보존
+- current Quest sidebar: `30px checkbox | 34px A/B/C/D | * Quest text`
+- rendered title X-axis/handle 위치를 release smoke가 실제 WPF layout으로 검증
+- 안정적인 donor Map 경로는 구체적 regression/performance 이유 없이 wholesale refactor하지 않음
+
+## 유지되는 v0.1.13 hardening
+
+- Map/Ammo preference atomic replacement + `.bak` recovery
+- corrupt primary → good backup fallback
+- presentation preference save failure nonfatal
+- Map slider save coalescing + dispose flush
+- Map hotkey / NumPad direct floor async failure containment
+- keyboard hook failure diagnostics
+- canonical validator의 empty Quest item candidate / non-positive Quest·Hideout count 차단
+
+## 현재 알려진 비차단 범위
+
+- EFT 1.0 Story Chapters는 ordinary `json.tarkov.dev/tasks` progression source 밖이며 현재 미지원
+- PvE Skier LL2 task-pool drift는 exact fact가 없으면 해당 pool만 fail-closed
+- Map donor/bridge maintenance debt는 안정성이 유지되는 동안 임의 정리하지 않음
+- code signing / installer는 현재 제품 필수 범위 아님
+- Scanner는 사용자 별도 요구 전 `준비 중` 유지
+
+## 검증 기준
+
+상시 `.github/workflows/ci.yml`:
+
+1. Release build
+2. 전체 자동 테스트
+3. win-x64 self-contained single-file publish
+4. package/dependency hygiene
+5. 실제 published EXE 실행
+6. rendered Product UI assertions
+7. Main Map / Factory / MiniMap smoke
+8. graceful shutdown
+
+v0.1.14 릴리즈부터 public Release는 **Draft asset 검증 → public 전환 → public asset 재다운로드 검증** 순서를 사용합니다.
