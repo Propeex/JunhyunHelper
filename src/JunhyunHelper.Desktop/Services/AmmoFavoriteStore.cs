@@ -1,35 +1,26 @@
-using System.IO;
-using System.Text.Json;
+using JunhyunHelper.Infrastructure.Storage;
 
 namespace JunhyunHelper.Desktop.Services;
 
 public sealed class AmmoFavoriteStore
 {
-    private readonly string _path;
+    private readonly AtomicJsonFileStore _store;
 
     public AmmoFavoriteStore(string rootDirectory)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rootDirectory);
-        _path = Path.Combine(Path.GetFullPath(rootDirectory), "ammo-favorites.json");
+        _store = new AtomicJsonFileStore(Path.Combine(
+            Path.GetFullPath(rootDirectory),
+            "ammo-favorites.json"));
     }
 
     public IReadOnlySet<string> Load()
     {
-        try
-        {
-            if (!File.Exists(_path))
-                return new HashSet<string>(StringComparer.Ordinal);
-
-            var values = JsonSerializer.Deserialize<string[]>(File.ReadAllText(_path)) ?? [];
-            return values
-                .Where(value => !string.IsNullOrWhiteSpace(value))
-                .Select(value => value.Trim())
-                .ToHashSet(StringComparer.Ordinal);
-        }
-        catch
-        {
-            return new HashSet<string>(StringComparer.Ordinal);
-        }
+        var values = _store.LoadOrDefault(() => Array.Empty<string>());
+        return values
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value.Trim())
+            .ToHashSet(StringComparer.Ordinal);
     }
 
     public void Save(IEnumerable<string> calibers)
@@ -41,22 +32,16 @@ public sealed class AmmoFavoriteStore
             .Distinct(StringComparer.Ordinal)
             .Order(StringComparer.Ordinal)
             .ToArray();
-        var temporary = $"{_path}.{Guid.NewGuid():N}.tmp";
+
         try
         {
-            File.WriteAllText(temporary, JsonSerializer.Serialize(values));
-            File.Move(temporary, _path, overwrite: true);
+            _store.Save(values);
         }
-        finally
+        catch (Exception exception)
         {
-            try
-            {
-                if (File.Exists(temporary))
-                    File.Delete(temporary);
-            }
-            catch
-            {
-            }
+            // Favorites are presentation preferences. A transient disk/permission
+            // failure must not escalate through a WPF click handler and terminate the app.
+            App.WriteDiagnostic("Failed to save ammo favorites", exception);
         }
     }
 }
