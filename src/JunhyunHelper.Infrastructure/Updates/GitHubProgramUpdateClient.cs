@@ -69,7 +69,7 @@ public sealed class GitHubProgramUpdateClient : IDisposable
         using var document = await JsonDocument.ParseAsync(responseStream, cancellationToken: timeout.Token).ConfigureAwait(false);
         var release = ParseLatestRelease(document.RootElement);
 
-        return release is not null && release.Version > currentVersion
+        return release is not null && release.Version.CompareTo(currentVersion) > 0
             ? release
             : null;
     }
@@ -154,15 +154,21 @@ public sealed class GitHubProgramUpdateClient : IDisposable
             }
 
             var name = nameElement.GetString();
+            if (!string.Equals(name, packageFileName, StringComparison.Ordinal) &&
+                !string.Equals(name, "SHA256SUMS.txt", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
             var uriText = uriElement.GetString();
             if (string.IsNullOrWhiteSpace(uriText) || !Uri.TryCreate(uriText, UriKind.Absolute, out var uri))
-                continue;
+                throw new InvalidDataException($"The release asset URL for {name} is invalid.");
 
             ValidateReleaseAssetUri(uri);
 
             if (string.Equals(name, packageFileName, StringComparison.Ordinal))
                 packageUri = uri;
-            else if (string.Equals(name, "SHA256SUMS.txt", StringComparison.Ordinal))
+            else
                 checksumUri = uri;
         }
 
@@ -189,7 +195,11 @@ public sealed class GitHubProgramUpdateClient : IDisposable
         if (components.Length != 3 || components.Any(component => !int.TryParse(component, out var value) || value < 0))
             return false;
 
-        return Version.TryParse(text, out version!);
+        if (!Version.TryParse(text, out var parsed) || parsed is null)
+            return false;
+
+        version = parsed;
+        return true;
     }
 
     internal static string ParseExpectedSha256(string checksumText, string packageFileName)
@@ -241,7 +251,7 @@ public sealed class GitHubProgramUpdateClient : IDisposable
             if (normalized.Length == 0)
                 continue;
 
-            if (normalized.StartsWith('/') || normalized.Contains(':'))
+            if (normalized.StartsWith("/", StringComparison.Ordinal) || normalized.Contains(':'))
                 throw new InvalidDataException($"Unsafe update archive path: {entry.FullName}");
 
             var segments = normalized.Split('/', StringSplitOptions.RemoveEmptyEntries);
@@ -262,7 +272,7 @@ public sealed class GitHubProgramUpdateClient : IDisposable
                 throw new InvalidDataException("Debug symbols are not allowed in the update package.");
 
             var destinationPath = Path.Combine(stagingDirectory, Path.Combine(segments));
-            var isDirectory = normalized.EndsWith('/', StringComparison.Ordinal) || string.IsNullOrEmpty(entry.Name);
+            var isDirectory = normalized.EndsWith("/", StringComparison.Ordinal) || string.IsNullOrEmpty(entry.Name);
 
             if (isDirectory)
             {
