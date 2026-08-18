@@ -4,53 +4,52 @@ Escape from Tarkov 플레이를 지원하는 Windows 데스크톱 헬퍼 **준�
 
 ## 현재 공개 버전
 
-**v0.1.12 PUBLIC RELEASE / VERIFIED — Windows x64**
+**v0.1.13 PUBLIC RELEASE / VERIFIED — Windows x64**
 
-**다운로드:** https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.12
+**다운로드:** https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.13
 
-v0.1.12는 v0.1.11 공개본에서 사용자 실제 화면 기준으로 여전히 남아 있던 Items / Ammo / Map UI 정렬·손잡이 문제를 수정하고, 같은 회귀를 다시 놓치지 않도록 **실제 WPF 렌더링 좌표 검증을 릴리즈 게이트에 추가한 교정 릴리즈**입니다.
+v0.1.13은 v0.1.12의 기능 범위와 실제 렌더 UI 계약을 그대로 유지하면서, **설정 저장·복구와 런타임 오류 격리, 최종 데이터 validation을 강화한 유지보수 릴리즈**입니다. 새로운 제품 기능은 추가하지 않았고, 스캐너 탭도 기존 `준비 중` placeholder 그대로 유지합니다.
 
-### v0.1.12 핵심 변경
+### v0.1.13 핵심 변경
 
-- Flexible hand-in row
-  - 전역 Button template의 가운데 정렬 때문에 내부 Grid가 실제 행 폭을 사용하지 못하던 근본 원인 수정
-  - candidate 전용 stretch template 적용
-  - `52px icon | * name/category | 108px in-raid | 96px normal`
-  - icon/name 좌측 축, in-raid/normal 우측 축 유지
-- Ammo
-  - runtime refresh 이후에도 favorite 버튼은 `☆ / ★` 하나만 표시
-  - detail handle은 42px 화살표 전용
-  - 펼쳐짐 `▼`, 접힘 `▲`
-- Map current Quest sidebar
-  - Quest title을 전역 centered Button ContentPresenter에서 분리
-  - `30px checkbox | 34px A·B·C·D marker | * Quest text`
-  - marker/check 유무와 관계없이 title 시작 X축 통일
-  - 펼친 sidebar handle을 패널 오른쪽 바깥 경계, 즉 지도와 패널 사이에 배치
-- UI 검증 강화
-  - 실제 publish된 Windows 앱에서 WPF Measure/Arrange 결과 검사
-  - Map Quest title 시작 X 편차 `<= 0.75px`
-  - expanded sidebar handle right gap `<= 6px`
-  - 기존 Main Map / Factory / MiniMap runtime smoke와 함께 수행
+- Map / Ammo 설정 저장 안정성
+  - 같은 디렉터리의 temporary file을 이용한 atomic replacement
+  - 직전 정상 설정을 `.bak` 복구본으로 유지
+  - primary JSON 손상 시 정상 backup fallback
+  - 손상 primary가 정상 backup을 오염시키지 않도록 보호
+  - 설정 저장 실패를 앱 전체 종료로 확대하지 않고 진단 로그로 격리
+- Map 입력 안정성
+  - slider 연속 변경의 파일 저장을 250ms 단위로 묶음
+  - runtime dispose 시 pending 설정 flush
+  - Map hotkey / NumPad 0~5 직접 층 선택의 비동기 실패 격리
+  - keyboard hook 설치 실패 진단 기록
+- Game Content 최종 검증
+  - 비어 있는 Quest 제출 아이템 후보 차단
+  - Quest / Hideout 필요 수량 `Count <= 0` 차단
+  - 정상 Quest / Hideout / Needed Items 계산 의미는 변경 없음
+- Scanner
+  - 상단 `스캐너` 탭 유지
+  - `준비 중` placeholder 유지
+  - 실제 Scanner 기능 추가 없음
+- v0.1.12에서 도입한 실제 WPF 렌더링 좌표 검증 게이트와 Main Map / Factory / MiniMap smoke를 그대로 유지
 
 공개 릴리즈 검증:
 
 ```text
-release baseline: cfacee6cfa893932d74d6a71725b6c711282981e
-ProductVersion: 0.1.12+cfacee6cfa893932d74d6a71725b6c711282981e
-feature correction PR #94 CI: 32022249988 — SUCCESS
-feature correction main CI: 32022514487 — SUCCESS
-release candidate PR #95 CI: 32025523609 — SUCCESS
-release baseline main CI: 32025837427 — SUCCESS
-release workflow: 32026123215 — SUCCESS
-automated tests: 210 passed / 0 failed / 0 skipped
+release baseline: f43190494ce91b3adf389e57a3a790fd45db8b20
+ProductVersion: 0.1.13+f43190494ce91b3adf389e57a3a790fd45db8b20
+maintenance hardening PR #96 CI: 32104689932 — SUCCESS
+release candidate PR #97 CI: 32105275116 — SUCCESS
+public verification workflow: 32111533861 — SUCCESS
+automated tests: 217 passed / 0 failed / 0 skipped
 Windows x64 self-contained single-file publish: SUCCESS
 published rendered Product UI smoke: SUCCESS
 startup + Main Map + Factory + MiniMap runtime smoke: SUCCESS
 normal Main Window close / process exit: SUCCESS
-asset: Junhyun-Helper-v0.1.12-win-x64.zip
-asset size: 74,067,018 bytes
-SHA-256: bc91f17f94c6554d09da3fed6db6ebb679c6e1d57ff7017d4a624e8dcd8eae89
-public ZIP re-download + size/SHA-256 verification: SUCCESS
+asset: Junhyun-Helper-v0.1.13-win-x64.zip
+asset size: 74,069,173 bytes
+SHA-256: 77a8e5d70bacfa8054fb3eafbe03a892456f17fc63c00776379e2730e55c4120
+public ZIP re-download + SHA-256/ProductVersion/package verification: SUCCESS
 ```
 
 ## 주요 기능
@@ -112,6 +111,7 @@ Quest 화면의 current task-pool compatibility는 future item cleanup을 낙관
 - MiniMap floor 변경 시 **exact live Scale + Translate X/Y 보존**
 - Main Map selector와 MiniMap shared map key 동기화
 - `퀘스트 마커 표시`를 포함한 product setting은 `%LocalAppData%/JunhyunHelper/map-product-settings.json`에서 복원
+- Map 제품 설정은 `.bak` recovery copy를 유지
 - current Quest sidebar는 checkbox / marker / title 고정 lane으로 렌더하고 실제 title X축을 release smoke에서 검증
 - MiniMap hover transparency는 dedicated lightweight 16ms input check 사용
 
@@ -151,7 +151,8 @@ online source
 - Runtime GPT/AI 의존성은 없습니다.
 - Content schema는 v7이며 v3~v7 snapshot을 오프라인에서 읽을 수 있습니다.
 - `user.db` SQLite schema는 v1 그대로입니다.
-- **v0.1.11 → v0.1.12 필수 데이터 업데이트 없음**
+- **v0.1.12 → v0.1.13 필수 데이터 업데이트 없음**
+- 기존 Profile / Quest / Inventory / Hideout / Map 설정과 Ammo 즐겨찾기는 그대로 유지됩니다.
 
 ## 개발 문서
 
@@ -166,4 +167,4 @@ online source
 - [`docs/RENDERED_UI_ALIGNMENT_FIX_2026-08-17.md`](docs/RENDERED_UI_ALIGNMENT_FIX_2026-08-17.md) — 실제 렌더 UI 정렬 수정 및 검증 계약
 - [`docs/MINIMAP_FLOOR_FRAME_2026-08-17.md`](docs/MINIMAP_FLOOR_FRAME_2026-08-17.md) — MiniMap exact floor-frame 계약
 - [`docs/MAP_PRODUCT_REQUIREMENTS.md`](docs/MAP_PRODUCT_REQUIREMENTS.md) — Map/MiniMap 제품 기준
-- [`docs/RELEASE_0.1.12.md`](docs/RELEASE_0.1.12.md) — v0.1.12 공개 검증 기록
+- [`docs/RELEASE_0.1.13.md`](docs/RELEASE_0.1.13.md) — v0.1.13 공개 검증 기록
