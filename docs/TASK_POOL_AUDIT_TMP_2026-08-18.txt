@@ -1,0 +1,3 @@
+Regular: validTaskPoolStructures=27; uniqueProfileVariables=27; dialogueResidual=0
+Pve: validTaskPoolStructures=26; uniqueProfileVariables=27; dialogueResidual=0
+PvpSeason: validTaskPoolStructures=27; uniqueProfileVariables=27; dialogueResidual=0
