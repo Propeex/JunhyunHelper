@@ -1,0 +1,76 @@
+name: Audit PvE task-pool drift detail 2026-08-18
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/final-pve-pool-drift-audit-2026-08-18.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive, fetch-depth: 0 }
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: 10.0.x }
+      - name: Create runner
+        shell: pwsh
+        run: |
+          New-Item artifacts/pve-pool-audit -ItemType Directory -Force | Out-Null
+          @'
+          <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup><ItemGroup><ProjectReference Include="../../src/JunhyunHelper.Core/JunhyunHelper.Core.csproj" /><ProjectReference Include="../../src/JunhyunHelper.Infrastructure/JunhyunHelper.Infrastructure.csproj" /></ItemGroup></Project>
+          '@ | Set-Content artifacts/pve-pool-audit/Audit.csproj -Encoding utf8
+          @'
+          using System.Collections;
+          using System.Reflection;
+          using JunhyunHelper.Core.Profiles;
+          using JunhyunHelper.Core.Quests;
+          using JunhyunHelper.Infrastructure.Content;
+          using JunhyunHelper.Infrastructure.EditionData;
+          using JunhyunHelper.Infrastructure.TarkovJson;
+
+          using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
+          var build = await new TarkovContentBuildService(new TarkovEndpointSourceLoader(new TarkovJsonClient(http)), new TarkovEditionCatalogClient(http)).BuildAsync(GameMode.Pve);
+          var profile = new GameProfileSnapshot { ProfileId="audit", GameMode=GameMode.Pve, Level=1, Faction=PmcFaction.Usec };
+          var resolver = new QuestTaskPoolVariableCompatibility(build.Content.Quests, profile);
+          var t = typeof(QuestTaskPoolVariableCompatibility);
+          var validObj = t.GetField("_validPools", BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(resolver)!;
+          var valid = ((IEnumerable)validObj).Cast<object>().Select(x => x.ToString()!).ToHashSet(StringComparer.Ordinal);
+          var rulesObj = t.GetField("Rules", BindingFlags.Static|BindingFlags.NonPublic)!.GetValue(null)!;
+          foreach (DictionaryEntry entry in (IDictionary)rulesObj)
+          {
+              var variableId = (string)entry.Key;
+              if (valid.Contains(variableId)) continue;
+              var rule = entry.Value!;
+              object? P(string name) => rule.GetType().GetProperty(name)!.GetValue(rule);
+              var traderId = (string)P("TraderId")!;
+              var ll = (int)P("LoyaltyLevel")!;
+              var expectedQuestCount = (int)P("ExpectedQuestCount")!;
+              var expectedThresholds = (int[])P("ExpectedThresholds")!;
+              var expectedSeeds = (int)P("ExpectedSeedQuestCount")!;
+              var pool = build.Content.Quests.Where(q => q.ProfileVariableRequirements.Any(r => r.VariableId == variableId)).ToArray();
+              var actualThresholds = pool.SelectMany(q => q.ProfileVariableRequirements).Where(r => r.VariableId == variableId).Select(r => r.RequiredValue).Distinct().Order().ToArray();
+              var seed = build.Content.Quests.Where(q => q.TraderId == traderId && q.ProfileVariableRequirements.Count == 0 && q.TraderLoyaltyRequirements.Any(r => r.TraderId == traderId && r.RequiredLoyaltyLevel == ll)).ToArray();
+              Console.WriteLine($"invalidVariable={variableId}");
+              Console.WriteLine($"trader={traderId}; loyalty={ll}; expectedPoolCount={expectedQuestCount}; actualPoolCount={pool.Length}; expectedThresholds={string.Join(',', expectedThresholds)}; actualThresholds={string.Join(',', actualThresholds)}; expectedSeeds={expectedSeeds}; actualSeeds={seed.Length}");
+              foreach (var q in pool.OrderBy(q => q.Id)) Console.WriteLine($"poolQuest={q.Id}|{q.NameEn}|threshold={q.ProfileVariableRequirements.Single(r => r.VariableId == variableId).RequiredValue}");
+              foreach (var q in seed.OrderBy(q => q.Id)) Console.WriteLine($"seedQuest={q.Id}|{q.NameEn}");
+          }
+          '@ | Set-Content artifacts/pve-pool-audit/Program.cs -Encoding utf8
+      - name: Run and save report
+        shell: pwsh
+        run: dotnet run --project artifacts/pve-pool-audit/Audit.csproj --configuration Release | Tee-Object -FilePath docs/PVE_POOL_DRIFT_TMP_2026-08-18.txt
+      - name: Publish temporary result
+        shell: pwsh
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git pull --rebase origin main
+          git add docs/PVE_POOL_DRIFT_TMP_2026-08-18.txt
+          git commit -m 'Record temporary PvE task-pool drift detail'
+          git push origin HEAD:main
