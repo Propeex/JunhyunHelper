@@ -26,6 +26,7 @@
 - 버전/배포 identity 일치 강화
 - 테스트/CI gate 강화
 - 문서 추적성 강화
+- 실제 release gate가 검출한 기존 제품 계약 위반의 최소 범위 수정
 
 이번 감사에서 금지한 변경:
 
@@ -177,9 +178,35 @@ release parsing, URL trust, SHA-256, archive traversal/symlink/duplicate/PDB 차
 
 Scanner는 기존 결정대로 visible `준비 중` placeholder를 유지합니다. 구현/숨김/삭제하지 않았습니다.
 
-### Map
+### Map — donor current-floor-only late suppression 제거
 
-pinned donor subsystem은 실제 defect 근거 없이 구조 정리를 하지 않았습니다. first-party bridge와 current smoke contract만 확인했습니다.
+초기 v1.0.0 hardening에서는 pinned donor source를 변경하지 않고 first-party bridge와 smoke contract만 확인했습니다. 이후 exact release baseline을 다시 publish해 실행한 release-only smoke에서 Factory 전환 후 타층 standard marker가 최종적으로 `Opacity=0.50`에 남는 release-blocking 상태를 검출했습니다.
+
+진단 결과:
+
+- JunhyunHelper 제품 계약은 **floor = presentation only**이며 타층 marker를 숨기지 않고 약 75% opacity + 위/아래 방향 표시를 사용합니다.
+- first-party `LegacyStandardMarkerFloorPresentationBridge`는 이 계약대로 75% presentation을 적용하고 있었습니다.
+- 그러나 pinned donor `MapPage.SharedFloor.cs`에는 과거 current-floor-only filter가 남아 있었습니다.
+- donor는 map/floor/position/render 변화 때 `ScheduleSharedMarkerFilter()`를 예약하고 200ms 간격으로 최대 12회 marker container를 다시 검사합니다.
+- 타층 element가 그 시점에 Visible이면 donor의 `_sharedFloorHiddenMarkers`에 기록한 뒤 `Collapsed`로 바꿉니다.
+- 따라서 first-party 90ms bounded settle이 끝난 뒤에도 donor가 늦게 visibility를 다시 덮어쓸 수 있으며 position update가 해당 window를 다시 시작할 수도 있었습니다.
+- 이 race는 일반 PR smoke에서는 재현되지 않았지만 exact release workflow의 실제 Windows EXE smoke에서 재현되어 public Release 생성 전에 차단되었습니다.
+
+수정 원칙:
+
+- donor revision/pin 자체는 변경하지 않습니다.
+- smoke threshold를 낮추지 않습니다.
+- category/faction visibility를 다시 추론하지 않습니다.
+- donor가 **floor 때문에 Visible → Collapsed로 직접 변경한 element만** `_sharedFloorHiddenMarkers`를 권위 목록으로 사용해 각 donor filter tick 직후 복구합니다.
+- 복구 직후 기존 JunhyunHelper floor presentation bridge를 다시 호출해 standard marker의 75% opacity/층 관계 표시를 최종 상태로 고정합니다.
+- donor의 bounded timer에 post-filter callback만 부착하므로 새로운 영구 full-tree polling을 추가하지 않습니다.
+
+구현:
+
+- `Map/MapPage.JunhyunCrossFloorMarkerPolicy.cs`
+- `Map/LegacyStandardMarkerFloorPresentationBridge.cs`
+
+이 변경은 Map 기능 추가가 아니라 이미 확정된 타층 marker 표시 계약의 race-condition 수정입니다.
 
 ---
 
@@ -207,7 +234,9 @@ v1.0.0에서 추가한 gate:
 - release tree 내부 nested `.zip/.7z/.rar` 차단
 - smoke 단계 이름/설명을 실제 Product UI + Map 검증 범위와 일치시킴
 
-목적은 “코드는 1.0.0인데 안내문/실행 파일/패키지는 다른 버전” 같은 릴리즈 drift를 CI에서 차단하는 것입니다.
+release-only exact-baseline smoke는 실제로 PR CI에서 간헐적으로 보이지 않았던 donor Map late-suppression race를 검출했고 public Release 생성 전에 작업을 중단시켰습니다. 따라서 v1.0.0의 실제 release gate는 단순 중복 검증이 아니라 독립적인 최종 안정성 검증으로 유지합니다.
+
+목적은 “코드는 1.0.0인데 안내문/실행 파일/패키지는 다른 버전” 또는 “일반 CI에서는 지나갔지만 실제 release package의 late runtime state가 제품 계약을 위반”하는 상황을 차단하는 것입니다.
 
 ---
 
@@ -238,7 +267,7 @@ v1.0.0에서 추가/강화:
 
 다음은 “미처 정리하지 못한 것”이 아니라 **정식판 안정성을 위해 의도적으로 그대로 둔 것**입니다.
 
-- pinned Map donor의 broad refactor
+- pinned Map donor의 broad refactor — 단, release smoke가 검출한 구체적인 legacy visibility race는 first-party compatibility layer에서 최소 수정
 - Scanner 실제 구현
 - Story Chapters 추측 지원
 - unsupported Quest condition optimistic support
@@ -265,5 +294,7 @@ v1.0.0에서 추가/강화:
 10. public v1.0.0이 latest이고 assets가 유효한지 최종 확인
 11. release-only workflow 정리
 12. `STATE.md`, `DECISIONS.md`, 이 audit 문서에 최종 SHA/hash/test 결과 기록
+
+release-only smoke에서 blocker가 발견되면 public Release를 만들지 않고 수정 후 **새 exact baseline으로 전체 gate를 처음부터 다시 실행**합니다. 이 원칙에 따라 첫 v1.0.0 release attempt는 public state를 변경하지 않은 채 중단되었고 Map compatibility fix 후 재검증합니다.
 
 이 단계 중 하나라도 실패하면 v1.0.0 완료로 기록하지 않습니다.
