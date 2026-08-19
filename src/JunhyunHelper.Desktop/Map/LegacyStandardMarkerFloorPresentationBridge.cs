@@ -45,6 +45,12 @@ public sealed class LegacyStandardMarkerFloorPresentationBridge : IDisposable
             IsEnabled = false,
         };
 
+        // The pinned donor still contains a bounded current-floor-only marker filter.
+        // JunhyunHelper's product contract intentionally keeps enabled markers on other
+        // floors visible, so restore only the elements that that donor filter hid and
+        // immediately reapply the product-owned floor presentation after each donor tick.
+        _page.JunhyunAttachCrossFloorMarkerPolicy(Apply);
+
         _tracker.MapChanged += Tracker_MapChanged;
         if (_floorSelector is not null)
             _floorSelector.SelectionChanged += FloorSelector_SelectionChanged;
@@ -154,6 +160,7 @@ public sealed class LegacyStandardMarkerFloorPresentationBridge : IDisposable
             return;
         _disposed = true;
 
+        _page.JunhyunDetachCrossFloorMarkerPolicy(Apply);
         _debounceTimer.Stop();
         _tracker.MapChanged -= Tracker_MapChanged;
         if (_floorSelector is not null)
