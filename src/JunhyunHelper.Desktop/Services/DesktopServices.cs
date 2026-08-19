@@ -32,7 +32,7 @@ public sealed class DesktopServices : IDisposable
             Timeout = TimeSpan.FromMinutes(3),
         };
         _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(
-            "JunhyunHelper/0.1 (+https://github.com/Propeex/JunhyunHelper)");
+            $"JunhyunHelper/{ProductUserAgentVersion()} (+https://github.com/Propeex/JunhyunHelper)");
 
         Images = new ImageCacheService(_httpClient, RootDirectory);
         AmmoFavorites = new AmmoFavoriteStore(RootDirectory);
@@ -71,4 +71,12 @@ public sealed class DesktopServices : IDisposable
     public ItemsApplicationService Items { get; }
 
     public void Dispose() => _httpClient.Dispose();
+
+    private static string ProductUserAgentVersion()
+    {
+        var version = typeof(DesktopServices).Assembly.GetName().Version;
+        return version is null
+            ? "1.0"
+            : $"{Math.Max(0, version.Major)}.{Math.Max(0, version.Minor)}";
+    }
 }

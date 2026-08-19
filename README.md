@@ -2,61 +2,28 @@
 
 Escape from Tarkov 플레이를 지원하는 Windows 데스크톱 헬퍼 **준현 헬퍼**의 공식 저장소입니다.
 
-## 현재 공개 버전
+## 현재 릴리즈 상태
 
-**v0.1.14 PUBLIC RELEASE / VERIFIED — Windows x64**
+**v1.0.0 RELEASE CANDIDATE — Windows x64**
 
-**다운로드:** https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.14
+v1.0.0은 v0.1.14까지 검증된 사용자 기능을 그대로 유지하면서 first-party 내부 코드, persistence, 배포 검증과 개발 문서를 최종 하드닝한 첫 정식 안정판 후보입니다.
 
-v0.1.14는 사용자가 확정한 **프로그램 자체 업데이트**를 도입한 릴리즈입니다.
+릴리즈 후보가 public 검증을 끝내기 전까지 현재 공개 stable은 v0.1.14입니다. v1.0.0은 Draft asset과 public asset을 각각 재다운로드해 검증한 뒤에만 latest stable로 전환합니다.
 
-```text
-프로그램 실행
-→ 최신 정식 GitHub Release 확인
-→ 새 버전이 있으면 사용자에게 업데이트 여부 질문
-→ 동의 시 다운로드 + SHA-256/패키지 검증
-→ 프로그램 파일 교체
-→ 새 버전 자동 재시작
-```
+### v1.0.0에서 바뀌는 것
 
-- 최신 버전이 없으면 별도 UI 없이 기존처럼 실행됩니다.
-- 사용자가 업데이트를 거절하면 현재 버전을 그대로 사용하고 다음 실행 때 다시 확인합니다.
-- GitHub/네트워크 조회 실패는 프로그램 실행을 막지 않습니다.
-- 다운로드/검증 실패 시 현재 프로그램 파일을 변경하지 않습니다.
-- 실제 교체 중 실패하면 기존 program-owned files로 rollback을 시도하고 기존 실행 파일을 다시 실행합니다.
-- 프로그램 업데이트는 `%LocalAppData%/JunhyunHelper`의 `user.db`, Game Content, image cache, Map 설정, Ammo 즐겨찾기를 건드리지 않습니다.
-- 상시 `Updater.exe`를 배포하지 않고 현재 실행 파일의 임시 self-copy를 updater mode로 사용합니다.
-- Scanner는 기존대로 상단 `스캐너` 탭의 **`준비 중` placeholder**이며 실제 Scanner 기능은 추가하지 않았습니다.
+사용자 기능을 새로 추가하거나 축소하지 않습니다.
 
-### v0.1.13 사용자의 최초 전환
+- 현재 제품 규칙에서 사용되지 않는 과거 Hideout cleanup compatibility surface 제거
+- `user.db` schema initialization의 반복 SQLite I/O 제거
+- 온라인 데이터 요청 User-Agent를 product assembly version에서 파생
+- project version / published ProductVersion / FIRST_RUN version identity를 CI에서 검증
+- release tree nested archive 및 기존 debug/legacy dependency 오염 차단
+- 전체 시스템의 입력/출력/참조/변경 영향을 `docs/DEVELOPER_REFERENCE.md`에 공식화
+- v1 이후 버전 정책을 `docs/VERSIONING.md`에 공식화
+- Scanner는 기존대로 상단 `스캐너` 탭의 **`준비 중` placeholder** 유지
 
-**v0.1.13에는 updater 코드가 없으므로 v0.1.13 → v0.1.14는 한 번 수동으로 ZIP을 받아 교체해야 합니다.**
-
-v0.1.14를 한 번 실행한 이후부터는 후속 정식 릴리즈를 프로그램 안에서 업데이트할 수 있습니다.
-
-## v0.1.14 공개 검증
-
-```text
-release baseline / tag SHA: bb0611e9263c24018825a87a58aba2c5474b6cc4
-ProductVersion: 0.1.14+bb0611e9263c24018825a87a58aba2c5474b6cc4
-feature PR: #100
-feature CI: 32115435656 — SUCCESS
-release PR: #101
-release PR CI: 32115953069 — SUCCESS
-public verification PR: #102
-public verification workflow: 32116726491 — SUCCESS
-automated tests: 232 passed / 0 failed / 0 skipped
-Windows x64 self-contained single-file publish: SUCCESS
-published/public rendered Product UI smoke: SUCCESS
-Main Map / Factory / MiniMap runtime smoke: SUCCESS
-normal Main Window close / process exit: SUCCESS
-asset: Junhyun-Helper-v0.1.14-win-x64.zip
-asset size: 74,086,942 bytes
-SHA-256: 9b3aaff8ba2182b146ea6b1ec463efd8dc8b1c5532a8d4db6cf716938536ae02
-public ZIP re-download + checksum/ProductVersion/package verification: SUCCESS
-```
-
-정식 릴리즈는 먼저 Draft 상태에서 업로드한 자산을 다시 내려받아 검증하고, 검증 성공 후에만 public/latest로 전환합니다. 공개 후에도 ZIP을 다시 내려받아 동일 검증을 반복합니다.
+상세 감사: [`docs/FINAL_AUDIT_1.0.0.md`](docs/FINAL_AUDIT_1.0.0.md)
 
 ## 주요 기능
 
@@ -81,18 +48,40 @@ public ZIP re-download + checksum/ProductVersion/package verification: SUCCESS
 - 상단 `스캐너` 탭 — 현재 `준비 중` placeholder
 - 실행 시 사용자 동의형 프로그램 업데이트
 
+## 프로그램 업데이트
+
+v0.1.14부터 일반 실행 시 latest public stable GitHub Release를 확인합니다.
+
+```text
+프로그램 실행
+→ 최신 정식 GitHub Release 확인
+→ 새 버전이 있으면 사용자에게 업데이트 여부 질문
+→ 동의 시 ZIP + SHA-256/패키지 검증
+→ program-owned files 교체
+→ 새 버전 자동 재시작
+```
+
+- 최신 버전이 없으면 별도 UI 없이 실행됩니다.
+- 사용자가 업데이트를 거절하면 현재 버전을 그대로 사용합니다.
+- GitHub/네트워크 조회 실패는 프로그램 실행을 막지 않습니다.
+- 다운로드/검증 실패 시 현재 프로그램 파일을 변경하지 않습니다.
+- 실제 교체 중 실패하면 기존 program-owned files rollback과 기존 EXE 재실행을 시도합니다.
+- `%LocalAppData%/JunhyunHelper`의 사용자 데이터는 프로그램 업데이트 대상이 아닙니다.
+- 상시 `Updater.exe` 없이 현재 single-file EXE의 임시 self-copy를 updater mode로 사용합니다.
+
 ## 데이터 / 호환성
 
 ```text
 Content schema: v7
 Readable Content schemas: v3, v4, v5, v6, v7
 user.db SQLite schema: v1
-v0.1.13 → v0.1.14 mandatory data update: none
+v0.1.14 → v1.0.0 mandatory Game Content update: none
+v0.1.14 → v1.0.0 user data migration: none
 ```
 
-기존 Profile / Quest / Inventory / Hideout / Map 설정 / Ammo 즐겨찾기는 그대로 유지됩니다.
+기존 Profile / Quest / Inventory / Hideout / Map 설정 / Ammo 즐겨찾기는 유지됩니다.
 
-Game Content update와 프로그램 업데이트는 별도 subsystem입니다.
+Game Content update와 Program update는 별도 subsystem입니다.
 
 ```text
 Game Content update
@@ -106,9 +95,7 @@ Runtime GPT/AI 의존성은 없습니다.
 
 ## 실행 / 배포 형태
 
-1. GitHub Release에서 `Junhyun-Helper-v0.1.14-win-x64.zip`을 다운로드합니다.
-2. 원하는 폴더에 압축을 풉니다.
-3. **`준현 헬퍼.exe`**를 실행합니다.
+v1.0.0 public 완료 후 배포 asset은 `Junhyun-Helper-v1.0.0-win-x64.zip`입니다.
 
 배포 루트:
 
@@ -118,7 +105,7 @@ FIRST_RUN_KO.txt
 Assets/
 ```
 
-Windows x64 portable / self-contained single-file 빌드이며 별도 .NET 설치나 관리자 권한은 필요하지 않습니다. 코드 서명은 아직 적용하지 않아 Windows SmartScreen 경고가 표시될 수 있습니다.
+Windows x64 portable / self-contained single-file 빌드이며 별도 .NET 설치나 관리자 권한은 필요하지 않습니다. 코드 서명은 현재 필수 범위가 아니므로 Windows SmartScreen 경고가 표시될 수 있습니다.
 
 사용자 데이터와 로그는 프로그램 폴더가 아니라 `%LocalAppData%/JunhyunHelper`에 저장됩니다.
 
@@ -133,16 +120,30 @@ Windows x64 portable / self-contained single-file 빌드이며 별도 .NET 설�
 - 설정/즐겨찾기 JSON은 atomic replacement + `.bak` recovery를 사용합니다.
 - 공개 릴리즈 ZIP은 `SHA256SUMS.txt`와 대조하여 검증합니다.
 
+## v1 이후 버전 정책
+
+- 새 기능 추가 → **MINOR +1**, PATCH는 0으로 초기화
+- 기존 기능 수정/보완/변경, 버그 수정, 성능·안정성 개선 → **PATCH +1**
+
+예:
+
+- `1.0.0`에서 Scanner 실제 기능 추가 → `1.1.0`
+- `1.0.0`에서 Quest 수정 → `1.0.1`
+- `1.0.1`에서 Scanner 실제 기능 추가 → `1.1.0`
+
+상세: [`docs/VERSIONING.md`](docs/VERSIONING.md)
+
 ## 개발 문서
 
-- [`docs/STATE.md`](docs/STATE.md) — canonical 현재 프로젝트 상태
-- [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md) — 짧은 현재 상태 인덱스
+- [`docs/STATE.md`](docs/STATE.md) — canonical 현재 프로젝트/릴리즈 상태
 - [`docs/PRODUCT.md`](docs/PRODUCT.md) — 공식 제품 요구사항
 - [`docs/DECISIONS.md`](docs/DECISIONS.md) — 현재 유효한 장기 결정
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — 기술 구조
+- [`docs/DEVELOPER_REFERENCE.md`](docs/DEVELOPER_REFERENCE.md) — 시스템별 책임, 입력/출력, 참조, data flow, 변경 영향
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — 기술 구조와 layer 경계
+- [`docs/VERSIONING.md`](docs/VERSIONING.md) — 공식 버전 정책
 - [`docs/PROGRAM_UPDATE.md`](docs/PROGRAM_UPDATE.md) — 프로그램 업데이트 제품/실패 계약
 - [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — 배포 및 공개 검증 계약
-- [`docs/RELEASE_0.1.14.md`](docs/RELEASE_0.1.14.md) — v0.1.14 공개 검증 기록
+- [`docs/RELEASE_1.0.0.md`](docs/RELEASE_1.0.0.md) — v1.0.0 릴리즈 계약
+- [`docs/FINAL_AUDIT_1.0.0.md`](docs/FINAL_AUDIT_1.0.0.md) — v1.0.0 전체 하드닝 감사
 - [`docs/MAP_PRODUCT_REQUIREMENTS.md`](docs/MAP_PRODUCT_REQUIREMENTS.md) — Map/MiniMap 제품 기준
 - [`docs/QUEST_PREREQUISITE_SEMANTICS.md`](docs/QUEST_PREREQUISITE_SEMANTICS.md) — Quest 선행조건 의미
-- [`docs/FINAL_AUDIT_2026-08-18.md`](docs/FINAL_AUDIT_2026-08-18.md) — v0.1.13 hardening 전 전체 프로그램 감사

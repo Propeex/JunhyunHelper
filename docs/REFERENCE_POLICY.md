@@ -42,9 +42,21 @@ junhyun-map-product-v2
 
 JunhyunHelper currently pinned revision:
 d933792b6042a51cea38dc44b686a096fe30de67
+
+current reproducible fetch origin:
+https://github.com/SIGDrone/Tarkov-Helper.git
 ```
 
 따라서 해당 Map/MiniMap subsystem은 단순 참고가 아니라 **명시적으로 채택한 source baseline**입니다.
+
+v1.0.0 최종 감사 과정에서 과거 작업 fork인 `Propeex/Tarkov-Helper` 원격이 더 이상 CI에서 재현 가능하지 않은 상태가 확인되었습니다. 그러나 JunhyunHelper가 pin한 exact Git object `d933792b6042a51cea38dc44b686a096fe30de67`와 역사적 baseline `9371c4769d8da8acb9df864a2c88f83ecdd42818`은 원본 공개 저장소 `SIGDrone/Tarkov-Helper`에 동일 SHA로 존재합니다. 따라서 `.gitmodules`의 fetch origin만 원본 공개 저장소로 바꾸고 **gitlink SHA는 그대로 유지**합니다. 이는 Map source 변경이 아니라 dependency location의 재현성 하드닝입니다.
+
+앞으로도 donor fetch origin을 바꿔야 할 경우 다음 조건을 모두 만족해야 합니다.
+
+- 현재 제품 pin과 정확히 같은 Git object SHA를 새 원격에서 확인
+- gitlink SHA 자체는 변경하지 않음
+- CI에서 clean checkout이 재현됨
+- source code가 바뀌는 donor revision 변경은 별도 제품/회귀 검토로 취급
 
 그러나 예외 범위는 엄격히 제한합니다.
 

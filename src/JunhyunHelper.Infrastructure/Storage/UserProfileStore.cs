@@ -22,6 +22,8 @@ public sealed class UserProfileStore
     private readonly string _databasePath;
     private readonly ConcurrentDictionary<string, GameProfileSnapshot> _memoryCache =
         new(StringComparer.Ordinal);
+    private readonly SemaphoreSlim _schemaInitializationGate = new(1, 1);
+    private volatile bool _schemaInitialized;
 
     public UserProfileStore(string databasePath)
     {
@@ -39,8 +41,8 @@ public sealed class UserProfileStore
 
         // The document is also the normalization boundary used by persisted reads
         // (for example an unspecified prestige value becomes zero). Build it once and
-        // cache its canonical snapshot only after the SQLite transaction succeeds so
-        // cached and cold-start behavior are byte-for-byte semantically equivalent.
+        // cache its canonical snapshot only after the SQLite upsert succeeds so cached
+        // and cold-start behavior are byte-for-byte semantically equivalent.
         var document = ProfileDocument.From(profile);
         var payload = JsonSerializer.Serialize(document, JsonOptions);
 
@@ -155,22 +157,37 @@ public sealed class UserProfileStore
 
     private async Task EnsureSchemaAsync(CancellationToken cancellationToken)
     {
-        var directory = Path.GetDirectoryName(_databasePath);
-        if (!string.IsNullOrWhiteSpace(directory))
-            Directory.CreateDirectory(directory);
+        if (_schemaInitialized)
+            return;
 
-        await using var connection = OpenConnection();
-        await connection.OpenAsync(cancellationToken);
-        await using var command = connection.CreateCommand();
-        command.CommandText = """
-            CREATE TABLE IF NOT EXISTS profiles(
-                profile_id TEXT PRIMARY KEY,
-                schema_version INTEGER NOT NULL,
-                payload_json TEXT NOT NULL,
-                updated_at_utc TEXT NOT NULL
-            );
-            """;
-        await command.ExecuteNonQueryAsync(cancellationToken);
+        await _schemaInitializationGate.WaitAsync(cancellationToken);
+        try
+        {
+            if (_schemaInitialized)
+                return;
+
+            var directory = Path.GetDirectoryName(_databasePath);
+            if (!string.IsNullOrWhiteSpace(directory))
+                Directory.CreateDirectory(directory);
+
+            await using var connection = OpenConnection();
+            await connection.OpenAsync(cancellationToken);
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                CREATE TABLE IF NOT EXISTS profiles(
+                    profile_id TEXT PRIMARY KEY,
+                    schema_version INTEGER NOT NULL,
+                    payload_json TEXT NOT NULL,
+                    updated_at_utc TEXT NOT NULL
+                );
+                """;
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            _schemaInitialized = true;
+        }
+        finally
+        {
+            _schemaInitializationGate.Release();
+        }
     }
 
     private SqliteConnection OpenConnection()

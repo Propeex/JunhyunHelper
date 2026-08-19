@@ -10,10 +10,12 @@
 2. `docs/STATE.md`
 3. `docs/PRODUCT.md`
 4. `docs/DECISIONS.md`
-5. `docs/ARCHITECTURE.md`
-6. `docs/DEVELOPMENT.md`
-7. `docs/REFERENCE_POLICY.md`
-8. 현재 작업과 관련된 코드/테스트/이슈/PR
+5. `docs/DEVELOPER_REFERENCE.md`
+6. `docs/ARCHITECTURE.md`
+7. `docs/VERSIONING.md`
+8. `docs/DEVELOPMENT.md`
+9. `docs/REFERENCE_POLICY.md`
+10. 현재 작업과 관련된 전문 문서/코드/테스트/이슈/PR
 
 문서와 코드가 충돌하면 임의로 추측하지 말고 **사용자 의도와 확정 기록을 우선하여 원인을 조사**합니다.
 
@@ -30,6 +32,8 @@
 7. 기존 `Propeex/Tarkov-Helper`, RatScanner 등 참고 구현
 
 **기존 구현이 현재 새 제품의 요구사항을 결정해서는 안 됩니다.**
+
+`docs/DEVELOPER_REFERENCE.md`는 구현 위치와 참조 관계를 복구하는 지도이지 사용자 요구사항을 새로 정의하는 문서가 아닙니다.
 
 ## 3. 확정과 가설을 분리
 
@@ -68,7 +72,7 @@
 
 ## 5. 설계와 구현의 관계
 
-준현 헬퍼의 핵심 v0.1 기능은 이미 구현되어 있으며 현재는 release/maintenance 단계입니다.
+준현 헬퍼의 v1.0.0 기준 핵심 기능은 이미 구현되어 있으며 현재는 release/maintenance 단계입니다.
 
 따라서 다음을 구분합니다.
 
@@ -77,6 +81,7 @@
 - 사용자에게 개발 절차를 다시 묻지 않고 현재 요구사항/테스트/코드를 조사해 바로 수정할 수 있습니다.
 - 기존 확정 동작을 바꾸지 않는 범위에서는 불필요한 재설계를 하지 않습니다.
 - 변경 후 관련 회귀 테스트와 실제 제품 경로를 검증합니다.
+- 새 기능이 아닌 수정/보완의 버전은 `docs/VERSIONING.md`에 따라 PATCH를 올립니다.
 
 ### 새 기능 / 제품 의미가 바뀌는 변경
 
@@ -89,7 +94,7 @@
 - 사용자가 기능 방향을 확정함
 - 검증 방법이 정의됨
 
-제품 의도가 불명확한 새 기능을 기존 코드의 동작만 보고 임의 구현하지 않습니다.
+제품 의도가 불명확한 새 기능을 기존 코드의 동작만 보고 임의 구현하지 않습니다. 새 기능의 버전은 `docs/VERSIONING.md`에 따라 MINOR를 올리고 PATCH를 0으로 되돌립니다.
 
 ## 6. 기능 추적성
 
@@ -99,6 +104,8 @@
 
 무엇을 구현했는지는 물론 **왜 존재하는 기능인지**까지 저장소만 보고 설명할 수 있어야 합니다.
 
+구현 위치, 입력/출력, 참조 관계와 변경 영향은 `docs/DEVELOPER_REFERENCE.md`에 지속적으로 반영합니다. 새 subsystem이나 중요한 data flow를 추가했는데 reference 문서가 이전 구조를 가리키도록 방치하면 작업이 끝난 것이 아닙니다.
+
 ## 7. 대화 종료/작업 종료 시 인수인계
 
 의미 있는 작업이 끝날 때 반드시 필요한 문서를 갱신합니다.
@@ -107,6 +114,8 @@
 - `docs/PRODUCT.md`: 새로 확정/변경된 제품 요구사항 및 아직 정렬 중인 사용자 의도
 - `docs/DECISIONS.md`: 장기적으로 의미 있는 확정 결정
 - `docs/ARCHITECTURE.md`: 기술 구조가 실제로 바뀐 경우
+- `docs/DEVELOPER_REFERENCE.md`: subsystem 책임/입출력/참조/변경 영향이 바뀐 경우
+- `docs/VERSIONING.md`: 사용자가 버전 정책을 변경한 경우
 
 단순 대화 요약을 남기는 것이 목적이 아닙니다. **다음 개발자가 저장소만 읽고 정확히 이어갈 수 있는 상태**를 만드는 것이 목적입니다.
 
@@ -165,5 +174,6 @@ Map/MiniMap은 사용자가 검증한 특정 Tarkov-Helper revision을 **명시�
 - 미구현 기능을 완성된 제품 surface처럼 노출하지 않는지
 - PR/review에서 제기된 release-blocking 지적이 모두 해결되었는지
 - 최종 배포 ZIP의 root layout, 실행 파일, PDB/DLL/nested ZIP/Logs 오염 여부와 SHA-256
+- project version / ProductVersion / FIRST_RUN / release tag / ZIP name이 동일한 버전을 가리키는지
 
-현재 구체적인 release gate는 `docs/STATE.md`를 따릅니다.
+현재 구체적인 release gate는 `docs/STATE.md`, 정식 버전 결정은 `docs/VERSIONING.md`를 따릅니다.

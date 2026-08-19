@@ -8,7 +8,6 @@ namespace JunhyunHelper.Core.Items;
 public enum CleanupProtectionKind
 {
     AlternativeQuestRequirement,
-    UnenteredHideoutLevel,
 }
 
 public sealed record CleanupProtection(
@@ -37,7 +36,6 @@ public sealed record FutureNeededItemsPlan(
     IReadOnlyList<InventorySurplusItem> CleanupItems,
     IReadOnlyList<QuestItemRequirement> AlternativeQuestRequirements,
     IReadOnlyList<CleanupProtection> CleanupProtections,
-    IReadOnlyList<string> UnenteredHideoutStationIds,
     IReadOnlyDictionary<string, QuestFutureReachabilityResult> QuestReachability);
 
 /// <summary>
@@ -48,7 +46,6 @@ public sealed record FutureNeededItemsBasis(
     IReadOnlyList<ItemRequirement> FixedRequirements,
     IReadOnlyList<QuestItemRequirement> AlternativeQuestRequirements,
     IReadOnlyList<CleanupProtection> CleanupProtections,
-    IReadOnlyList<string> UnenteredHideoutStationIds,
     IReadOnlyDictionary<string, QuestFutureReachabilityResult> QuestReachability);
 
 public static class FutureNeededItemsPlanner
@@ -123,7 +120,6 @@ public static class FutureNeededItemsPlanner
                 .ThenBy(static protection => protection.Kind)
                 .ThenBy(static protection => protection.SourceId, StringComparer.Ordinal)
                 .ToArray(),
-            Array.Empty<string>(),
             reachability);
     }
 
@@ -148,7 +144,6 @@ public static class FutureNeededItemsPlanner
             cleanupItems,
             basis.AlternativeQuestRequirements,
             basis.CleanupProtections,
-            basis.UnenteredHideoutStationIds,
             basis.QuestReachability);
     }
 }

@@ -13,8 +13,29 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
+
+      - name: Checkout pinned public Map donor
+        shell: pwsh
+        run: |
+          # actions/checkout stores the current repository token as a github.com
+          # extraheader. That token is intentionally scoped to JunhyunHelper and can
+          # make an otherwise-public cross-repository submodule return 404. Remove the
+          # header before fetching the pinned public donor so this dependency remains
+          # reproducible without a broad PAT or secret.
+          git config --local --unset-all http.https://github.com/.extraheader
+          if ($LASTEXITCODE -notin @(0, 5)) {
+            throw "Could not clear repository-scoped GitHub auth header (exit $LASTEXITCODE)."
+          }
+
+          git submodule sync --recursive
+          if ($LASTEXITCODE -ne 0) {
+            throw "Could not synchronize submodule metadata."
+          }
+
+          git submodule update --init --force --depth=1 --recursive
+          if ($LASTEXITCODE -ne 0) {
+            throw "Could not checkout the pinned public Map donor."
+          }
 
       - name: Setup .NET 10
         uses: actions/setup-dotnet@v4
@@ -56,6 +77,25 @@ jobs:
             }
           }
 
+          [xml]$project = Get-Content 'src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj'
+          $expectedVersion = [string]($project.Project.PropertyGroup.Version | Select-Object -First 1)
+          if ([string]::IsNullOrWhiteSpace($expectedVersion)) {
+            throw 'Desktop project version is missing.'
+          }
+
+          $exePath = (Resolve-Path 'artifacts/publish/준현 헬퍼.exe').Path
+          $productVersion = (Get-Item $exePath).VersionInfo.ProductVersion
+          $escapedVersion = [Regex]::Escape($expectedVersion)
+          if ([string]::IsNullOrWhiteSpace($productVersion) -or $productVersion -notmatch "^$escapedVersion(?:$|[+-])") {
+            throw "Published ProductVersion '$productVersion' does not match project version '$expectedVersion'."
+          }
+
+          $firstRunFirstLine = Get-Content 'artifacts/publish/FIRST_RUN_KO.txt' -TotalCount 1
+          $expectedFirstRunLine = "준현 헬퍼 v$expectedVersion — Windows x64"
+          if (-not [string]::Equals($firstRunFirstLine, $expectedFirstRunLine, [System.StringComparison]::Ordinal)) {
+            throw "FIRST_RUN_KO.txt first line '$firstRunFirstLine' does not exactly match '$expectedFirstRunLine'."
+          }
+
           $rootFiles = @(Get-ChildItem artifacts/publish -File)
           $unexpectedRootFiles = @($rootFiles | Where-Object {
             $_.Name -notin @('준현 헬퍼.exe', 'FIRST_RUN_KO.txt')
@@ -84,6 +124,14 @@ jobs:
             throw "Release publish contains debug symbols."
           }
 
+          $nestedArchives = @(Get-ChildItem artifacts/publish -Recurse -File | Where-Object {
+            $_.Extension -in @('.zip', '.7z', '.rar')
+          })
+          if ($nestedArchives.Count -gt 0) {
+            $nestedArchives | ForEach-Object { Write-Host "Unexpected nested archive: $($_.FullName)" }
+            throw "Release publish contains a nested archive."
+          }
+
           $forbidden = @(
             'AutoUpdater.NET.dll',
             'Microsoft.Web.WebView2.Core.dll',
@@ -100,11 +148,12 @@ jobs:
             }
           }
 
+          Write-Host "Release identity: v$expectedVersion / ProductVersion $productVersion"
           Write-Host "Release root:"
           Get-ChildItem artifacts/publish | Sort-Object Name | Select-Object Name,Length,PSIsContainer | Format-Table -AutoSize
           Write-Host "Total files: $(@(Get-ChildItem artifacts/publish -Recurse -File).Count)"
 
-      - name: Startup + Map + graceful shutdown smoke
+      - name: Startup + Product UI + Map + graceful shutdown smoke
         shell: pwsh
         env:
           JUNHYUNHELPER_MAP_SMOKE: "1"
@@ -117,18 +166,18 @@ jobs:
 
           $process = Start-Process -FilePath $exe -WorkingDirectory artifacts/publish -PassThru
           try {
-            # The Map smoke now contains real asynchronous Factory/MainMap assertions.
-            # Process liveness is not a success condition: wait for the application to
-            # explicitly publish its success marker, or surface its diagnostic/exit.
+            # The in-process smoke performs rendered product UI assertions plus real
+            # asynchronous Factory/MainMap/MiniMap assertions. Process liveness alone
+            # is never considered success.
             $deadline = (Get-Date).AddSeconds(75)
             $smokeCompleted = $false
             while ((Get-Date) -lt $deadline) {
               $process.Refresh()
 
               if (Test-Path $diagnostic) {
-                Write-Host 'Map smoke diagnostic:'
+                Write-Host 'Product smoke diagnostic:'
                 Get-Content $diagnostic | ForEach-Object { Write-Host $_ }
-                throw 'Published 준현 헬퍼 reported a Map smoke failure.'
+                throw 'Published 준현 헬퍼 reported a product smoke failure.'
               }
 
               if (Test-Path $success) {
@@ -137,7 +186,7 @@ jobs:
               }
 
               if ($process.HasExited) {
-                throw "Published 준현 헬퍼 exited before Map smoke completion with code $($process.ExitCode)."
+                throw "Published 준현 헬퍼 exited before product smoke completion with code $($process.ExitCode)."
               }
 
               Start-Sleep -Milliseconds 250
@@ -145,13 +194,13 @@ jobs:
 
             if (-not $smokeCompleted) {
               if (Test-Path $diagnostic) {
-                Write-Host 'Map smoke diagnostic:'
+                Write-Host 'Product smoke diagnostic:'
                 Get-Content $diagnostic | ForEach-Object { Write-Host $_ }
               }
-              throw 'Map smoke did not publish an explicit success signal within 75 seconds.'
+              throw 'Product smoke did not publish an explicit success signal within 75 seconds.'
             }
 
-            Write-Host "Startup + full Map/Factory/MiniMap smoke passed. Requesting normal Main Window close..."
+            Write-Host "Startup + rendered Product UI + full Map/Factory/MiniMap smoke passed. Requesting normal Main Window close..."
 
             $closeRequested = $false
             for ($attempt = 1; $attempt -le 10; $attempt++) {

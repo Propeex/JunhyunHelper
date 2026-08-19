@@ -34,7 +34,6 @@ public sealed class InventoryCleanupChangeDetectorTests
             cleanup,
             Array.Empty<QuestItemRequirement>(),
             Array.Empty<CleanupProtection>(),
-            Array.Empty<string>(),
             new Dictionary<string, QuestFutureReachabilityResult>(StringComparer.Ordinal));
 
     private static InventorySurplusItem Cleanup(string itemId, int fir, int nonFir) =>
