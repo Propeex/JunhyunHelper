@@ -2,7 +2,7 @@
 
 > 새 대화/새 개발자는 이 문서를 먼저 읽습니다. 대화 기억이 아니라 저장소의 공식 문서와 코드가 프로젝트의 기준입니다.
 
-기준일: 2026-08-18
+기준일: 2026-08-19
 
 ## 1. 제품 목적
 
@@ -22,47 +22,62 @@
 ```
 
 - runtime GPT/AI 의존성 없음
-- Game Content update와 프로그램 update는 별도 subsystem
+- Game Content update와 Program update는 별도 subsystem
 - 기존 `Propeex/Tarkov-Helper`는 공식 요구사항이 아니며 Map/MiniMap의 검증된 donor source로만 제한 사용
 
-## 2. 현재 공개 상태
+구현 위치와 세부 참조 관계는 `docs/DEVELOPER_REFERENCE.md`를 사용합니다.
 
-**v0.1.14 PUBLIC RELEASE / VERIFIED — Windows x64**
+## 2. 현재 릴리즈 상태
+
+**v1.0.0 RELEASE CANDIDATE — Windows x64**
+
+현재 public stable은 **v0.1.14**이며, v1.0.0은 전체 CI + draft/public asset verification이 끝난 뒤에만 public/latest로 전환합니다.
+
+v1.0.0 목적:
+
+- v0.1.14의 사용자-visible 기능 보존
+- 새 기능 추가 없음
+- 내부 dead surface/redundant I/O/version drift 제거
+- 배포 gate 강화
+- 개발자 reference 공식화
+- Scanner는 visible `준비 중` placeholder 유지
+
+v1.0.0 코드/패키지 목표:
+
+```text
+Desktop Version: 1.0.0
+Content schema: v7
+Readable Content schemas: v3, v4, v5, v6, v7
+user.db SQLite schema: v1
+v0.1.14 → v1.0.0 mandatory Game Content update: none
+v0.1.14 → v1.0.0 user data migration: none
+```
+
+현재 release candidate에서 적용된 first-party hardening:
+
+- obsolete `UnenteredHideoutLevel` / `UnenteredHideoutStationIds` compatibility surface 제거
+- `UserProfileStore` schema initialization을 instance당 한 번으로 제한
+- shared online-data HTTP User-Agent를 assembly version에서 파생
+- CI에서 csproj Version ↔ published ProductVersion ↔ FIRST_RUN version identity 검증
+- CI에서 nested archive release pollution 차단
+- `DEVELOPER_REFERENCE.md`, `VERSIONING.md`, `FINAL_AUDIT_1.0.0.md`, `RELEASE_1.0.0.md` 추가
+
+상세: `docs/FINAL_AUDIT_1.0.0.md`, `docs/RELEASE_1.0.0.md`
+
+### 직전 public stable v0.1.14
 
 ```text
 release tag: v0.1.14
 release baseline: bb0611e9263c24018825a87a58aba2c5474b6cc4
-public tag SHA: bb0611e9263c24018825a87a58aba2c5474b6cc4
-Desktop ProductVersion: 0.1.14+bb0611e9263c24018825a87a58aba2c5474b6cc4
-Content schema: v7
-Readable Content schemas: v3, v4, v5, v6, v7
-user.db SQLite schema: v1
-feature PR: #100
-feature CI: 32115435656 — SUCCESS
-release PR: #101
-release PR CI: 32115953069 — SUCCESS
-public verification PR: #102
-public verification workflow: 32116726491 — SUCCESS
 automated tests: 232 passed / 0 failed / 0 skipped
 public asset: Junhyun-Helper-v0.1.14-win-x64.zip
 public asset size: 74,086,942 bytes
 public SHA-256: 9b3aaff8ba2182b146ea6b1ec463efd8dc8b1c5532a8d4db6cf716938536ae02
-public release: https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.14
-v0.1.13 → v0.1.14 mandatory data update: none
 ```
 
-Public Release는:
+v1.0.0 public verification이 끝나면 사용자의 확정 요구에 따라 기존 `v0.*` GitHub Release를 모두 제거하고 이 문서를 public v1.0.0 상태로 갱신합니다.
 
-- `draft=false`
-- `prerelease=false`
-- release target = exact release baseline
-- public tag SHA = exact release baseline
-- public ZIP / `SHA256SUMS.txt` 재다운로드 검증 성공
-- public EXE rendered Product UI / Main Map / Factory / MiniMap / graceful shutdown smoke 성공
-
-상세: `docs/RELEASE_0.1.14.md`
-
-## 3. v0.1.14 프로그램 업데이트 계약
+## 3. Program update 계약
 
 사용자가 확정한 제품 동작:
 
@@ -124,13 +139,11 @@ logs/
 
 상시 `Updater.exe`는 배포하지 않습니다. 현재 single-file EXE의 임시 복사본을 updater mode로 실행합니다.
 
-**Bootstrap:** v0.1.13에는 updater 코드가 없으므로 v0.1.13 → v0.1.14는 한 번 수동 ZIP 교체가 필요합니다. v0.1.14 이후부터 후속 정식 릴리즈의 프로그램 내 업데이트가 가능합니다.
-
 상세: `docs/PROGRAM_UPDATE.md`
 
 ## 4. 공개 릴리즈 계약
 
-v0.1.14부터 program updater가 latest public Release를 신뢰하므로 미검증 release를 latest로 노출하지 않습니다.
+Program updater가 latest public Release를 신뢰하므로 미검증 release를 latest로 노출하지 않습니다.
 
 ```text
 exact release baseline 고정
@@ -142,6 +155,13 @@ exact release baseline 고정
 → Public assets 재다운로드 / hash / ProductVersion / package 검증
 → 독립 public executable smoke
 ```
+
+v1.0.0에서는 추가로:
+
+- project `<Version>` = published ProductVersion = FIRST_RUN version = tag/package version 확인
+- nested archive 없음 확인
+- public v1 검증 뒤 기존 `v0.*` releases 제거
+- cleanup 뒤 latest stable가 여전히 v1.0.0인지 다시 확인
 
 상시 저장소에는 원칙적으로 `.github/workflows/ci.yml`만 남기고 release/verification workflow는 릴리즈 완료 후 제거합니다.
 
@@ -177,6 +197,8 @@ exact release baseline 고정
 
 `user.db` SQLite schema는 **v1**이며 optional JSON field 확장을 사용합니다.
 
+v1.0.0에서 schema 자체는 바뀌지 않았습니다. schema creation statement를 같은 store instance에서 반복 실행하지 않도록 initialization gate만 최적화했습니다.
+
 ## 6. Quest availability 정확도
 
 기본 원칙:
@@ -210,13 +232,17 @@ PvE Skier LL2의 audited task-pool drift는 구조 불일치로 해당 pool만 f
 ## 7. Needed Items / Inventory 안전성
 
 - 미래에 진행 가능한 Quest와 미래 Hideout level 재료 포함
+- Hideout station progress가 없으면 Lv.0으로 취급
 - unresolved future Quest는 `IndeterminatePotential`로 Item 보호
 - flexible hand-in 후보는 group으로 보존하고 실제 소비 후보를 임의 선택하지 않음
 - fixed completion material은 ledger를 사용해 명시적 진행 조작 시 자동 소비
 - rollback 시 exact consumed ledger 복구 가능
 - cleanup은 future requirement를 증명할 수 있을 때만 허용
+- flexible candidate는 cleanup protection
 - profile/Quest/Hideout 구조 변경 시 full recalculation
 - 단순 Inventory 수량 변경은 planning basis를 재사용
+
+v1.0.0에서는 현재 규칙과 모순되던 과거 “unentered hideout station” 별도 protection API를 제거했습니다. 실제 계산 결과는 변경하지 않습니다.
 
 ## 8. Ammo / preference persistence
 
@@ -237,8 +263,6 @@ Preference:
 %LocalAppData%/JunhyunHelper/map-product-settings.json.bak
 ```
 
-v0.1.13부터:
-
 - same-directory temp write
 - flush-to-disk
 - atomic replacement
@@ -258,7 +282,7 @@ d933792b6042a51cea38dc44b686a096fe30de67
 경계:
 
 - Map subsystem은 독립
-- JunhyunHelper Core와 Quest만 연결
+- JunhyunHelper Core와 Quest만 제품 bridge로 연결
 - Hideout / Item / Ammo runtime과 결합하지 않음
 
 제품 계약:
@@ -276,6 +300,8 @@ d933792b6042a51cea38dc44b686a096fe30de67
 - product hotkey / NumPad floor async failure와 keyboard hook failure를 전역 fatal로 확대하지 않음
 
 안정적인 donor Map path는 concrete regression/performance 근거 없이 wholesale cleanup/refactor하지 않습니다.
+
+v1.0.0 hardening에서 Map donor source는 변경하지 않았습니다.
 
 ## 10. Scanner
 
@@ -303,7 +329,7 @@ d933792b6042a51cea38dc44b686a096fe30de67
 - Main Map / Factory / MiniMap runtime smoke
 - graceful Main Window close / process exit
 
-v0.1.14 public executable도 동일 gate를 통과했습니다.
+v1.0.0 CI에서는 여기에 project/ProductVersion/FIRST_RUN identity와 nested archive check를 추가합니다.
 
 ## 12. 현재 제품 기능 상태
 
@@ -316,7 +342,7 @@ v0.1.14 public executable도 동일 gate를 통과했습니다.
 | Ammo | 구현 완료 |
 | Map + MiniMap | 구현 완료 / rendered gate |
 | Game Content Update | 구현 완료 / candidate validation / last-known-good |
-| Program Update | 구현 완료 / v0.1.14 public verified |
+| Program Update | 구현 완료 / v0.1.14 public verified / v1.0.0 release candidate |
 | Scanner | `준비 중` placeholder |
 
 ## 13. 현재 알려진 비차단 범위
@@ -327,7 +353,25 @@ v0.1.14 public executable도 동일 gate를 통과했습니다.
 - code signing / installer는 현재 필수 범위 아님
 - multi-DPI 확대 검증, user.db backup/restore UX 등은 별도 제품 요구가 있을 때 다룸
 
-## 14. 새 작업을 시작할 때
+## 14. v1.0.0 릴리즈 완료 조건
+
+다음이 전부 끝나기 전까지 `PUBLIC VERIFIED`로 바꾸지 않습니다.
+
+1. release-candidate PR CI 성공
+2. final diff/review 확인
+3. main 병합
+4. exact release baseline SHA 고정
+5. release build + tests + actual published EXE smoke 재통과
+6. Draft v1.0.0 assets 생성
+7. Draft ZIP checksum/ProductVersion/package 검증
+8. public/latest 전환
+9. public ZIP 재다운로드 checksum/ProductVersion/package 검증
+10. 기존 `v0.*` GitHub Release 전체 제거
+11. cleanup 후 latest stable = v1.0.0 확인
+12. release-only workflow 제거
+13. README/STATE/DECISIONS/FINAL_AUDIT/RELEASE 문서에 최종 SHA/hash/run 기록
+
+## 15. 새 작업을 시작할 때
 
 `AGENTS.md` 순서를 따릅니다.
 
@@ -335,9 +379,11 @@ v0.1.14 public executable도 동일 gate를 통과했습니다.
 2. `docs/STATE.md`
 3. `docs/PRODUCT.md`
 4. `docs/DECISIONS.md`
-5. `docs/ARCHITECTURE.md`
-6. `docs/DEVELOPMENT.md`
-7. `docs/REFERENCE_POLICY.md`
-8. 관련 코드 / tests / issues / PR
+5. `docs/DEVELOPER_REFERENCE.md`
+6. `docs/ARCHITECTURE.md`
+7. `docs/VERSIONING.md`
+8. `docs/DEVELOPMENT.md`
+9. `docs/REFERENCE_POLICY.md`
+10. 관련 전문 문서 / 코드 / tests / issues / PR
 
 현재 코드가 존재한다는 이유만으로 그 동작을 공식 제품 요구사항으로 추정하지 않습니다. 사용자 확정 요구사항과 공식 문서가 우선합니다.
