@@ -204,6 +204,18 @@
   - MAJOR 증가 조건은 필요할 때 사용자와 별도 확정하며 개발자가 임의 정의하지 않음
 - 상세: `docs/VERSIONING.md`
 
+## DEC-049 — Map donor는 source pin과 fetch origin을 분리한다
+
+- 상태: `CONFIRMED / IMPLEMENTED`
+- 날짜: 2026-08-19
+- 결정:
+  - Map/MiniMap 제품 source identity는 `.gitmodules` URL이 아니라 gitlink commit SHA로 고정한다.
+  - v1.0.0 기준 제품 pin은 계속 `d933792b6042a51cea38dc44b686a096fe30de67`이다.
+  - 과거 작업 fork `Propeex/Tarkov-Helper`가 clean CI checkout에서 재현 불가능해졌지만 같은 exact Git object가 공개 upstream `SIGDrone/Tarkov-Helper`에 존재함을 확인했으므로 fetch origin만 upstream으로 변경한다.
+  - fetch origin 변경 시에도 gitlink SHA가 동일하면 Map source 변경으로 취급하지 않는다.
+  - donor revision SHA 자체를 바꾸는 작업은 별도의 Map source update이며 actual published EXE 회귀 검증을 요구한다.
+- 상세: `docs/REFERENCE_POLICY.md`, `docs/DEVELOPER_REFERENCE.md`
+
 ---
 
 # 3. 현재 결정 확인 방법
