@@ -171,13 +171,49 @@
   - DEC-035의 “application auto-updater는 v0.1.0 blocker가 아니다”라는 초기 범위 문장
 - 상세: `docs/PROGRAM_UPDATE.md`, `docs/RELEASE_0.1.14.md`
 
+## DEC-047 — v1.0.0은 기능 확장이 아닌 정식 안정판 승격이다
+
+- 상태: `CONFIRMED / RELEASE CANDIDATE`
+- 날짜: 2026-08-19
+- 사용자 확정 요구:
+  - v0.1.14의 현재 기능을 첫 정식 버전 `v1.0.0`으로 승격한다.
+  - 각 기능의 사용자 동작은 축소·변형하지 않는다.
+  - 내부 불필요 코드, 반복 작업, 신뢰성/성능 위험을 제거하고 더 이상 정리할 실익이 없는 수준까지 하드닝한다.
+  - 프로그램의 작은 구성요소까지 역할/참조/입출력/변경 영향을 개발자 문서로 남긴다.
+  - Scanner는 visible `준비 중` placeholder를 그대로 유지한다.
+  - public v1.0.0 검증이 끝난 뒤 기존 0.x GitHub Release는 모두 제거한다.
+- 결정:
+  - v1.0.0에서는 새 사용자 기능을 추가하지 않는다.
+  - 제품 의미가 바뀌지 않는 first-party dead surface와 redundant I/O만 제거/최적화한다.
+  - pinned Map donor는 concrete defect/performance evidence 없이 broad refactor하지 않는다.
+  - `docs/DEVELOPER_REFERENCE.md`를 구현 복구용 공식 개발자 지도에 추가한다.
+  - release 완료 조건은 CI뿐 아니라 draft/public asset 재검증과 0.x release cleanup까지 포함한다.
+- 상세: `docs/FINAL_AUDIT_1.0.0.md`, `docs/RELEASE_1.0.0.md`
+
+## DEC-048 — v1 이후 버전은 새 기능=MINOR, 기존 기능 보완=PATCH 규칙을 사용한다
+
+- 상태: `CONFIRMED`
+- 날짜: 2026-08-19
+- 결정:
+  - 새 사용자 기능 추가 → `MINOR + 1`, `PATCH = 0`
+  - 기존 기능 수정/보완/변경, 버그 수정, 성능/안정성 개선 → `PATCH + 1`
+  - 같은 릴리즈에 새 기능과 보완이 함께 있으면 새 기능 규칙이 우선
+  - 예: `1.0.0`에서 Scanner 기능 추가 → `1.1.0`
+  - 예: `1.0.0`에서 Quest 수정 → `1.0.1`
+  - 예: `1.0.1`에서 Scanner 기능 추가 → `1.1.0`
+  - MAJOR 증가 조건은 필요할 때 사용자와 별도 확정하며 개발자가 임의 정의하지 않음
+- 상세: `docs/VERSIONING.md`
+
 ---
 
 # 3. 현재 결정 확인 방법
 
 - 제품 요구사항: `docs/PRODUCT.md`
 - 기술 경계: `docs/ARCHITECTURE.md`
+- 개발자 구현/참조 지도: `docs/DEVELOPER_REFERENCE.md`
 - 현재 구현/릴리즈 상태: `docs/STATE.md`
+- 버전 정책: `docs/VERSIONING.md`
+- v1.0.0 최종 감사: `docs/FINAL_AUDIT_1.0.0.md`
 - Program Update: `docs/PROGRAM_UPDATE.md`
 - 배포: `docs/DEPLOYMENT.md`
 - Quest 선행조건/특수 상인 접근: `docs/QUEST_PREREQUISITE_SEMANTICS.md`
