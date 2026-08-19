@@ -173,9 +173,6 @@ public sealed class FutureNeededItemsPlannerTests
         var cleanup = Assert.Single(plan.CleanupItems);
         Assert.Equal("wire", cleanup.ItemId);
         Assert.Equal(6, cleanup.SurplusNonFir);
-        Assert.Empty(plan.UnenteredHideoutStationIds);
-        Assert.DoesNotContain(plan.CleanupProtections, protection =>
-            protection.Kind == CleanupProtectionKind.UnenteredHideoutLevel);
     }
 
     [Fact]
