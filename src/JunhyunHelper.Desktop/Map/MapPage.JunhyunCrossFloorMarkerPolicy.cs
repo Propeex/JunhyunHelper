@@ -21,19 +21,14 @@ public partial class MapPage
 
         _junhyunCrossFloorPresentationRefresh = reapplyPresentation;
         if (_junhyunCrossFloorMarkerPolicyAttached)
+        {
+            JunhyunEnsureCrossFloorMarkerFilterHook();
             return;
+        }
 
         _junhyunCrossFloorMarkerPolicyAttached = true;
-
-        // The donor lazily creates this same bounded timer. Initializing it here does
-        // not start polling; it merely guarantees that our post-filter callback remains
-        // attached whenever the donor later schedules one of its 12 settle ticks.
-        _sharedMarkerFilterTimer ??= new DispatcherTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(200),
-        };
-        _sharedMarkerFilterTimer.Tick -= JunhyunAfterLegacySharedMarkerFilterTick;
-        _sharedMarkerFilterTimer.Tick += JunhyunAfterLegacySharedMarkerFilterTick;
+        Loaded += JunhyunCrossFloorMarkerPolicy_PageLoaded;
+        JunhyunEnsureCrossFloorMarkerFilterHook();
 
         // If the compatibility layer attaches after an early donor tick, normalize the
         // current tree once. This is an asynchronous one-shot, not a persistent poll.
@@ -51,6 +46,7 @@ public partial class MapPage
         }
 
         _junhyunCrossFloorMarkerPolicyAttached = false;
+        Loaded -= JunhyunCrossFloorMarkerPolicy_PageLoaded;
         if (_sharedMarkerFilterTimer is not null)
             _sharedMarkerFilterTimer.Tick -= JunhyunAfterLegacySharedMarkerFilterTick;
 
@@ -58,6 +54,38 @@ public partial class MapPage
         // disposed while the page is still alive.
         JunhyunRestoreLegacyFloorSuppression();
         _junhyunCrossFloorPresentationRefresh = null;
+    }
+
+    private void JunhyunCrossFloorMarkerPolicy_PageLoaded(object sender, RoutedEventArgs e)
+    {
+        // The donor nulls its shared marker timer on Unloaded. Reattach after a later
+        // Loaded so page lifetime transitions cannot silently re-enable floor hiding.
+        Dispatcher.BeginInvoke(
+            new Action(() =>
+            {
+                if (!_junhyunCrossFloorMarkerPolicyAttached)
+                    return;
+
+                JunhyunEnsureCrossFloorMarkerFilterHook();
+                JunhyunRestoreLegacyFloorSuppressionAndRefresh();
+            }),
+            DispatcherPriority.Send);
+    }
+
+    private void JunhyunEnsureCrossFloorMarkerFilterHook()
+    {
+        if (!_junhyunCrossFloorMarkerPolicyAttached)
+            return;
+
+        // The donor lazily creates this same bounded timer. Initializing it here does
+        // not start polling; it only guarantees that our post-filter callback remains
+        // attached whenever the donor schedules one of its 12 settle ticks.
+        _sharedMarkerFilterTimer ??= new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(200),
+        };
+        _sharedMarkerFilterTimer.Tick -= JunhyunAfterLegacySharedMarkerFilterTick;
+        _sharedMarkerFilterTimer.Tick += JunhyunAfterLegacySharedMarkerFilterTick;
     }
 
     private void JunhyunAfterLegacySharedMarkerFilterTick(object? sender, EventArgs e)
