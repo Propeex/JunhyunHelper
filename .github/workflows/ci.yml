@@ -56,6 +56,23 @@ jobs:
             }
           }
 
+          [xml]$project = Get-Content 'src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj'
+          $expectedVersion = [string]($project.Project.PropertyGroup.Version | Select-Object -First 1)
+          if ([string]::IsNullOrWhiteSpace($expectedVersion)) {
+            throw 'Desktop project version is missing.'
+          }
+
+          $exePath = (Resolve-Path 'artifacts/publish/준현 헬퍼.exe').Path
+          $productVersion = (Get-Item $exePath).VersionInfo.ProductVersion
+          if ([string]::IsNullOrWhiteSpace($productVersion) -or -not $productVersion.StartsWith($expectedVersion, [System.StringComparison]::Ordinal)) {
+            throw "Published ProductVersion '$productVersion' does not match project version '$expectedVersion'."
+          }
+
+          $firstRun = Get-Content 'artifacts/publish/FIRST_RUN_KO.txt' -Raw
+          if (-not $firstRun.StartsWith("준현 헬퍼 v$expectedVersion", [System.StringComparison]::Ordinal)) {
+            throw "FIRST_RUN_KO.txt does not identify project version '$expectedVersion'."
+          }
+
           $rootFiles = @(Get-ChildItem artifacts/publish -File)
           $unexpectedRootFiles = @($rootFiles | Where-Object {
             $_.Name -notin @('준현 헬퍼.exe', 'FIRST_RUN_KO.txt')
@@ -84,6 +101,14 @@ jobs:
             throw "Release publish contains debug symbols."
           }
 
+          $nestedArchives = @(Get-ChildItem artifacts/publish -Recurse -File | Where-Object {
+            $_.Extension -in @('.zip', '.7z', '.rar')
+          })
+          if ($nestedArchives.Count -gt 0) {
+            $nestedArchives | ForEach-Object { Write-Host "Unexpected nested archive: $($_.FullName)" }
+            throw "Release publish contains a nested archive."
+          }
+
           $forbidden = @(
             'AutoUpdater.NET.dll',
             'Microsoft.Web.WebView2.Core.dll',
@@ -100,11 +125,12 @@ jobs:
             }
           }
 
+          Write-Host "Release identity: v$expectedVersion / ProductVersion $productVersion"
           Write-Host "Release root:"
           Get-ChildItem artifacts/publish | Sort-Object Name | Select-Object Name,Length,PSIsContainer | Format-Table -AutoSize
           Write-Host "Total files: $(@(Get-ChildItem artifacts/publish -Recurse -File).Count)"
 
-      - name: Startup + Map + graceful shutdown smoke
+      - name: Startup + Product UI + Map + graceful shutdown smoke
         shell: pwsh
         env:
           JUNHYUNHELPER_MAP_SMOKE: "1"
@@ -117,18 +143,18 @@ jobs:
 
           $process = Start-Process -FilePath $exe -WorkingDirectory artifacts/publish -PassThru
           try {
-            # The Map smoke now contains real asynchronous Factory/MainMap assertions.
-            # Process liveness is not a success condition: wait for the application to
-            # explicitly publish its success marker, or surface its diagnostic/exit.
+            # The in-process smoke performs rendered product UI assertions plus real
+            # asynchronous Factory/MainMap/MiniMap assertions. Process liveness alone
+            # is never considered success.
             $deadline = (Get-Date).AddSeconds(75)
             $smokeCompleted = $false
             while ((Get-Date) -lt $deadline) {
               $process.Refresh()
 
               if (Test-Path $diagnostic) {
-                Write-Host 'Map smoke diagnostic:'
+                Write-Host 'Product smoke diagnostic:'
                 Get-Content $diagnostic | ForEach-Object { Write-Host $_ }
-                throw 'Published 준현 헬퍼 reported a Map smoke failure.'
+                throw 'Published 준현 헬퍼 reported a product smoke failure.'
               }
 
               if (Test-Path $success) {
@@ -137,7 +163,7 @@ jobs:
               }
 
               if ($process.HasExited) {
-                throw "Published 준현 헬퍼 exited before Map smoke completion with code $($process.ExitCode)."
+                throw "Published 준현 헬퍼 exited before product smoke completion with code $($process.ExitCode)."
               }
 
               Start-Sleep -Milliseconds 250
@@ -145,13 +171,13 @@ jobs:
 
             if (-not $smokeCompleted) {
               if (Test-Path $diagnostic) {
-                Write-Host 'Map smoke diagnostic:'
+                Write-Host 'Product smoke diagnostic:'
                 Get-Content $diagnostic | ForEach-Object { Write-Host $_ }
               }
-              throw 'Map smoke did not publish an explicit success signal within 75 seconds.'
+              throw 'Product smoke did not publish an explicit success signal within 75 seconds.'
             }
 
-            Write-Host "Startup + full Map/Factory/MiniMap smoke passed. Requesting normal Main Window close..."
+            Write-Host "Startup + rendered Product UI + full Map/Factory/MiniMap smoke passed. Requesting normal Main Window close..."
 
             $closeRequested = $false
             for ($attempt = 1; $attempt -le 10; $attempt++) {
