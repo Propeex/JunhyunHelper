@@ -17,6 +17,8 @@
 9. `docs/REFERENCE_POLICY.md`
 10. 현재 작업과 관련된 전문 문서/코드/테스트/이슈/PR
 
+Map/MiniMap 작업이면 `docs/MAP_PRODUCT_REQUIREMENTS.md`와 `docs/MAP_RUNTIME_COMPATIBILITY.md`를 반드시 함께 읽습니다.
+
 문서와 코드가 충돌하면 임의로 추측하지 말고 **사용자 의도와 확정 기록을 우선하여 원인을 조사**합니다.
 
 ## 2. 진실의 우선순위
@@ -104,7 +106,7 @@
 
 무엇을 구현했는지는 물론 **왜 존재하는 기능인지**까지 저장소만 보고 설명할 수 있어야 합니다.
 
-구현 위치, 입력/출력, 참조 관계와 변경 영향은 `docs/DEVELOPER_REFERENCE.md`에 지속적으로 반영합니다. 새 subsystem이나 중요한 data flow를 추가했는데 reference 문서가 이전 구조를 가리키도록 방치하면 작업이 끝난 것이 아닙니다.
+구현 위치, 입력/출력, 참조 관계와 변경 영향은 `docs/DEVELOPER_REFERENCE.md`에 지속적으로 반영합니다. subsystem 전용 compatibility 문서가 존재하면 해당 문서도 함께 최신 상태로 유지합니다. 새 subsystem이나 중요한 data flow를 추가했는데 reference 문서가 이전 구조를 가리키도록 방치하면 작업이 끝난 것이 아닙니다.
 
 ## 7. 대화 종료/작업 종료 시 인수인계
 
@@ -115,6 +117,7 @@
 - `docs/DECISIONS.md`: 장기적으로 의미 있는 확정 결정
 - `docs/ARCHITECTURE.md`: 기술 구조가 실제로 바뀐 경우
 - `docs/DEVELOPER_REFERENCE.md`: subsystem 책임/입출력/참조/변경 영향이 바뀐 경우
+- subsystem 전문 문서: 해당 subsystem의 runtime compatibility/운영 계약이 바뀐 경우
 - `docs/VERSIONING.md`: 사용자가 버전 정책을 변경한 경우
 
 단순 대화 요약을 남기는 것이 목적이 아닙니다. **다음 개발자가 저장소만 읽고 정확히 이어갈 수 있는 상태**를 만드는 것이 목적입니다.
@@ -137,7 +140,7 @@
 
 Map/MiniMap은 사용자가 검증한 특정 Tarkov-Helper revision을 **명시적으로 제품 기준선으로 채택한 예외적 subsystem**입니다. 이 경우에도 JunhyunHelper 제품 요구사항이 우선하며, old Tarkov-Helper의 비-Map 기능이나 updater가 자동으로 제품 사양이 되는 것은 아닙니다.
 
-세부 규칙은 `docs/REFERENCE_POLICY.md`와 `docs/MAP_PRODUCT_REQUIREMENTS.md`를 따릅니다.
+Map donor source pin/fetch origin 규칙은 `docs/REFERENCE_POLICY.md`, 제품 요구사항은 `docs/MAP_PRODUCT_REQUIREMENTS.md`, donor legacy behavior를 현재 제품 계약에 맞추는 runtime compatibility는 `docs/MAP_RUNTIME_COMPATIBILITY.md`를 따릅니다.
 
 ## 9. 사용자와 개발자의 역할
 
@@ -175,5 +178,7 @@ Map/MiniMap은 사용자가 검증한 특정 Tarkov-Helper revision을 **명시�
 - PR/review에서 제기된 release-blocking 지적이 모두 해결되었는지
 - 최종 배포 ZIP의 root layout, 실행 파일, PDB/DLL/nested ZIP/Logs 오염 여부와 SHA-256
 - project version / ProductVersion / FIRST_RUN / release tag / ZIP name이 동일한 버전을 가리키는지
+- Draft/public asset을 실제로 다시 내려받아 검증하는지
+- Map/MiniMap처럼 timer/dispatcher 기반 late-state가 있는 기능은 초기 render뿐 아니라 충분한 settle 뒤의 final runtime state도 검증하는지
 
 현재 구체적인 release gate는 `docs/STATE.md`, 정식 버전 결정은 `docs/VERSIONING.md`를 따릅니다.
