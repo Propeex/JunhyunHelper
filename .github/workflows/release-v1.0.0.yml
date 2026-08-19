@@ -17,7 +17,7 @@ jobs:
     env:
       RELEASE_VERSION: '1.0.0'
       RELEASE_TAG: 'v1.0.0'
-      RELEASE_SHA: 'dcc50a0e9fa8a2845ae9db286927b61e2dac7d17'
+      RELEASE_SHA: '3147ad1b48c3d30df529d95b148c5c444a77d649'
       ZIP_NAME: 'Junhyun-Helper-v1.0.0-win-x64.zip'
 
     steps:
@@ -223,6 +223,7 @@ jobs:
 
           - Profile / Quest / Hideout / Items / Ammo / Map / MiniMap 동작 유지
           - Scanner 탭은 기존대로 `준비 중` placeholder 유지
+          - release smoke에서 검출한 Map 타층 marker late-suppression race 수정
           - 기존 사용자 데이터 migration 없음
           - Content schema v7, user.db schema v1 유지
           - Windows x64 portable/self-contained single-file
