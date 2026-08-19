@@ -85,13 +85,15 @@ jobs:
 
           $exePath = (Resolve-Path 'artifacts/publish/준현 헬퍼.exe').Path
           $productVersion = (Get-Item $exePath).VersionInfo.ProductVersion
-          if ([string]::IsNullOrWhiteSpace($productVersion) -or -not $productVersion.StartsWith($expectedVersion, [System.StringComparison]::Ordinal)) {
+          $escapedVersion = [Regex]::Escape($expectedVersion)
+          if ([string]::IsNullOrWhiteSpace($productVersion) -or $productVersion -notmatch "^$escapedVersion(?:$|[+-])") {
             throw "Published ProductVersion '$productVersion' does not match project version '$expectedVersion'."
           }
 
-          $firstRun = Get-Content 'artifacts/publish/FIRST_RUN_KO.txt' -Raw
-          if (-not $firstRun.StartsWith("준현 헬퍼 v$expectedVersion", [System.StringComparison]::Ordinal)) {
-            throw "FIRST_RUN_KO.txt does not identify project version '$expectedVersion'."
+          $firstRunFirstLine = Get-Content 'artifacts/publish/FIRST_RUN_KO.txt' -TotalCount 1
+          $expectedFirstRunLine = "준현 헬퍼 v$expectedVersion — Windows x64"
+          if (-not [string]::Equals($firstRunFirstLine, $expectedFirstRunLine, [System.StringComparison]::Ordinal)) {
+            throw "FIRST_RUN_KO.txt first line '$firstRunFirstLine' does not exactly match '$expectedFirstRunLine'."
           }
 
           $rootFiles = @(Get-ChildItem artifacts/publish -File)
