@@ -2,25 +2,38 @@
 
 Escape from Tarkov 플레이를 지원하는 Windows 데스크톱 헬퍼 **준현 헬퍼**의 공식 저장소입니다.
 
-## 현재 릴리즈 상태
+## 현재 릴리즈
 
-**v1.0.0 RELEASE CANDIDATE — Windows x64**
+**v1.0.0 PUBLIC VERIFIED — Windows x64**
 
-v1.0.0은 v0.1.14까지 검증된 사용자 기능을 그대로 유지하면서 first-party 내부 코드, persistence, 배포 검증과 개발 문서를 최종 하드닝한 첫 정식 안정판 후보입니다.
+v0.1.14까지 검증된 사용자 기능을 그대로 유지하면서 first-party 내부 코드, persistence, Map runtime compatibility, 배포 검증과 개발 문서를 최종 하드닝한 첫 정식 안정판입니다.
 
-릴리즈 후보가 public 검증을 끝내기 전까지 현재 공개 stable은 v0.1.14입니다. v1.0.0은 Draft asset과 public asset을 각각 재다운로드해 검증한 뒤에만 latest stable로 전환합니다.
+```text
+Release: v1.0.0
+Exact release source: 3147ad1b48c3d30df529d95b148c5c444a77d649
+Asset: Junhyun-Helper-v1.0.0-win-x64.zip
+Size: 74,088,334 bytes
+SHA-256: 0e92787409add9dd9e1138277c3588586a04266b05ca56d7cf7fb6f79c88094c
+Automated tests: 232 passed
+```
 
-### v1.0.0에서 바뀌는 것
+정식 배포에서는 exact release source를 다시 빌드·테스트·publish한 뒤 실제 Windows executable의 Product UI, Main Map, Factory, MiniMap, 정상 종료를 검증했습니다. Draft asset을 재다운로드해 checksum/package identity를 검증한 뒤 public/latest로 전환했고, public asset을 다시 다운로드해 동일 검증과 실제 executable smoke를 재실행했습니다.
 
-사용자 기능을 새로 추가하거나 축소하지 않습니다.
+기존 `v0.*` GitHub Releases 15개는 v1.0.0 public 검증 후 모두 제거했습니다.
+
+### v1.0.0 하드닝
+
+새 사용자 기능을 추가하거나 기존 기능을 축소하지 않았습니다.
 
 - 현재 제품 규칙에서 사용되지 않는 과거 Hideout cleanup compatibility surface 제거
 - `user.db` schema initialization의 반복 SQLite I/O 제거
 - 온라인 데이터 요청 User-Agent를 product assembly version에서 파생
-- project version / published ProductVersion / FIRST_RUN version identity를 CI에서 검증
-- release tree nested archive 및 기존 debug/legacy dependency 오염 차단
-- 전체 시스템의 입력/출력/참조/변경 영향을 `docs/DEVELOPER_REFERENCE.md`에 공식화
-- v1 이후 버전 정책을 `docs/VERSIONING.md`에 공식화
+- project version / ProductVersion / FIRST_RUN / release identity 검증 강화
+- release tree의 PDB / nested archive / legacy dependency 오염 차단
+- 사라진 과거 Map fork 대신 동일 exact git object가 존재하는 공개 upstream을 fetch origin으로 사용; Map source pin은 유지
+- exact release smoke가 발견한 donor current-floor-only late suppression race를 first-party compatibility layer에서 제거
+- 전체 시스템의 책임·입력·출력·참조·data flow·변경 영향을 개발자 문서로 공식화
+- v1 이후 버전 정책 공식화
 - Scanner는 기존대로 상단 `스캐너` 탭의 **`준비 중` placeholder** 유지
 
 상세 감사: [`docs/FINAL_AUDIT_1.0.0.md`](docs/FINAL_AUDIT_1.0.0.md)
@@ -50,7 +63,7 @@ v1.0.0은 v0.1.14까지 검증된 사용자 기능을 그대로 유지하면서 
 
 ## 프로그램 업데이트
 
-v0.1.14부터 일반 실행 시 latest public stable GitHub Release를 확인합니다.
+일반 실행 시 latest public stable GitHub Release를 확인합니다.
 
 ```text
 프로그램 실행
@@ -93,11 +106,16 @@ GitHub stable Release → 사용자 동의 → ZIP/checksum 검증 → program-o
 
 Runtime GPT/AI 의존성은 없습니다.
 
-## 실행 / 배포 형태
+## 배포 형태
 
-v1.0.0 public 완료 후 배포 asset은 `Junhyun-Helper-v1.0.0-win-x64.zip`입니다.
+정식 asset:
 
-배포 루트:
+```text
+Junhyun-Helper-v1.0.0-win-x64.zip
+SHA256SUMS.txt
+```
+
+ZIP root:
 
 ```text
 준현 헬퍼.exe
@@ -119,6 +137,7 @@ Windows x64 portable / self-contained single-file 빌드이며 별도 .NET 설�
 - flexible hand-in의 실제 소비 후보를 임의 추측하지 않습니다.
 - 설정/즐겨찾기 JSON은 atomic replacement + `.bak` recovery를 사용합니다.
 - 공개 릴리즈 ZIP은 `SHA256SUMS.txt`와 대조하여 검증합니다.
+- Map floor는 visibility filter가 아니라 presentation relation입니다. pinned donor의 legacy floor-only suppression은 first-party compatibility layer가 donor가 직접 floor 때문에 숨긴 marker에 한해서만 복구합니다.
 
 ## v1 이후 버전 정책
 
@@ -143,7 +162,8 @@ Windows x64 portable / self-contained single-file 빌드이며 별도 .NET 설�
 - [`docs/VERSIONING.md`](docs/VERSIONING.md) — 공식 버전 정책
 - [`docs/PROGRAM_UPDATE.md`](docs/PROGRAM_UPDATE.md) — 프로그램 업데이트 제품/실패 계약
 - [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — 배포 및 공개 검증 계약
-- [`docs/RELEASE_1.0.0.md`](docs/RELEASE_1.0.0.md) — v1.0.0 릴리즈 계약
+- [`docs/RELEASE_1.0.0.md`](docs/RELEASE_1.0.0.md) — v1.0.0 정식 릴리즈 기록
 - [`docs/FINAL_AUDIT_1.0.0.md`](docs/FINAL_AUDIT_1.0.0.md) — v1.0.0 전체 하드닝 감사
+- [`docs/MAP_RUNTIME_COMPATIBILITY.md`](docs/MAP_RUNTIME_COMPATIBILITY.md) — pinned donor와 JunhyunHelper Map 제품 정책의 runtime compatibility
 - [`docs/MAP_PRODUCT_REQUIREMENTS.md`](docs/MAP_PRODUCT_REQUIREMENTS.md) — Map/MiniMap 제품 기준
 - [`docs/QUEST_PREREQUISITE_SEMANTICS.md`](docs/QUEST_PREREQUISITE_SEMANTICS.md) — Quest 선행조건 의미
