@@ -69,14 +69,13 @@
 - 상태: `CONFIRMED / UPDATED by DEC-046`
 - 날짜: 2026-08-10
 - 유지되는 결정: old Tarkov-Helper의 `UpdateService`, hidden commands/easter eggs, legacy hidden shortcuts/logging은 JunhyunHelper 제품 동작이 아니다. release/update와 product hotkey ownership은 JunhyunHelper에 있다.
-- superseded 부분: 당시의 “program auto-update는 v0.1.0 범위가 아니다”라는 **초기 릴리즈 범위 한정 문장**은 DEC-046이 대체한다.
+- superseded 부분: 당시의 “program auto-update는 v0.1.0 범위가 아니다”라는 초기 릴리즈 범위 한정 문장은 DEC-046이 대체한다.
 
 ## DEC-035 — Windows x64 self-contained portable release를 유지한다
 
 - 상태: `CONFIRMED / UPDATED by DEC-046`
 - 날짜: 2026-08-10
 - 유지되는 결정: installer 없는 Windows x64 self-contained portable ZIP, 별도 .NET 및 관리자 권한 불필요.
-- superseded 부분: 당시 “application auto-updater는 v0.1.0 blocker가 아니다”는 초기 범위 설명일 뿐 현재 금지 결정이 아니다. v0.1.14 program updater는 portable 배포 계약을 유지한 채 DEC-046으로 추가한다.
 
 ## DEC-036 — Release artifact는 debug/legacy dependency를 제거하고 공급망 감사를 gate로 둔다
 
@@ -104,7 +103,7 @@
 
 ## DEC-040 — Map floor 관계는 visibility가 아니라 presentation이다
 
-- 상태: `CONFIRMED / PARTIALLY SUPERSEDED by DEC-041`
+- 상태: `CONFIRMED / PARTIALLY SUPERSEDED by DEC-041 / ENFORCED by DEC-050`
 - 날짜: 2026-08-15
 - 결정: 다른 floor라는 이유만으로 marker/extract를 숨기지 않고 current/above/below relation을 표시한다.
 
@@ -142,7 +141,7 @@
 
 ## DEC-046 — 일반 실행 시 사용자 동의형 프로그램 업데이트를 제공한다
 
-- 상태: **`CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED v0.1.14`**
+- 상태: **`CONFIRMED / IMPLEMENTED / v1.0.0 PUBLIC VERIFIED`**
 - 날짜: 2026-08-18
 - 사용자 확정 요구:
   1. 프로그램 실행 시 최신 버전을 조회한다.
@@ -153,41 +152,32 @@
   - current보다 strictly newer stable `vMAJOR.MINOR.PATCH`만 대상
   - 사용자 No는 현재 실행 계속 + 다음 실행 때 다시 확인
   - check/network failure는 앱 시작을 막지 않음
-  - Yes 후 exact win-x64 ZIP + `SHA256SUMS.txt`를 내려받고 SHA-256/package security contract를 검증
-  - 검증 전 현재 app files를 변경하지 않음
-  - 실행 중 EXE 교체는 current single-file EXE의 TEMP self-copy updater mode가 수행
-  - `준현 헬퍼.exe`, `FIRST_RUN_KO.txt`, `Assets/`만 transaction 교체
-  - 교체 실패 시 previous files rollback 및 old EXE restart 시도
-  - `%LocalAppData%/JunhyunHelper` 사용자 데이터는 교체하지 않음
-  - 상시 `Updater.exe`를 공개 package에 포함하지 않음
-- 릴리즈 영향:
-  - updater가 latest public Release를 신뢰하므로 정식 release는 **Draft asset 검증을 끝낸 뒤에만 public/latest로 전환**
-  - public 전환 후에도 실제 public ZIP을 다시 다운로드해 checksum/ProductVersion/package를 재검증
-- bootstrap:
-  - v0.1.13에는 updater가 없으므로 v0.1.13 → v0.1.14는 한 번 수동 교체
-  - v0.1.14 이후부터 후속 stable release를 프로그램 내에서 업데이트 가능
-- supersedes:
-  - DEC-034의 “program auto-update는 v0.1.0 범위가 아니다”라는 초기 범위 문장
-  - DEC-035의 “application auto-updater는 v0.1.0 blocker가 아니다”라는 초기 범위 문장
-- 상세: `docs/PROGRAM_UPDATE.md`, `docs/RELEASE_0.1.14.md`
+  - Yes 후 exact win-x64 ZIP + `SHA256SUMS.txt` 검증
+  - 검증 전 current program files 변경 금지
+  - TEMP self-copy updater mode가 program-owned files transaction 교체
+  - `%LocalAppData%/JunhyunHelper` user data는 교체하지 않음
+  - 상시 `Updater.exe` 미배포
+- 릴리즈 영향: Draft asset 검증 후 public/latest 전환, public asset 재검증과 actual EXE smoke를 릴리즈 gate로 사용.
+- 상세: `docs/PROGRAM_UPDATE.md`, `docs/RELEASE_1.0.0.md`
 
 ## DEC-047 — v1.0.0은 기능 확장이 아닌 정식 안정판 승격이다
 
-- 상태: `CONFIRMED / RELEASE CANDIDATE`
+- 상태: **`CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED`**
 - 날짜: 2026-08-19
 - 사용자 확정 요구:
-  - v0.1.14의 현재 기능을 첫 정식 버전 `v1.0.0`으로 승격한다.
-  - 각 기능의 사용자 동작은 축소·변형하지 않는다.
-  - 내부 불필요 코드, 반복 작업, 신뢰성/성능 위험을 제거하고 더 이상 정리할 실익이 없는 수준까지 하드닝한다.
-  - 프로그램의 작은 구성요소까지 역할/참조/입출력/변경 영향을 개발자 문서로 남긴다.
-  - Scanner는 visible `준비 중` placeholder를 그대로 유지한다.
-  - public v1.0.0 검증이 끝난 뒤 기존 0.x GitHub Release는 모두 제거한다.
-- 결정:
-  - v1.0.0에서는 새 사용자 기능을 추가하지 않는다.
-  - 제품 의미가 바뀌지 않는 first-party dead surface와 redundant I/O만 제거/최적화한다.
-  - pinned Map donor는 concrete defect/performance evidence 없이 broad refactor하지 않는다.
-  - `docs/DEVELOPER_REFERENCE.md`를 구현 복구용 공식 개발자 지도에 추가한다.
-  - release 완료 조건은 CI뿐 아니라 draft/public asset 재검증과 0.x release cleanup까지 포함한다.
+  - v0.1.14의 현재 기능을 첫 정식 버전 `v1.0.0`으로 승격
+  - 사용자-visible 기능 축소·변형 금지
+  - 불필요 코드, 반복 작업, 신뢰성/성능 위험을 제거
+  - 작은 구성요소까지 역할/참조/입출력/변경 영향을 개발자 문서로 기록
+  - Scanner는 visible `준비 중` placeholder 유지
+  - public v1.0.0 검증 뒤 기존 0.x GitHub Releases 전부 제거
+- 결과:
+  - exact release source `3147ad1b48c3d30df529d95b148c5c444a77d649`
+  - 232 automated tests PASS
+  - Draft/public asset 재다운로드 검증 PASS
+  - public-downloaded Product UI + Main Map + Factory + MiniMap + graceful shutdown smoke PASS
+  - public ZIP SHA-256 `0e92787409add9dd9e1138277c3588586a04266b05ca56d7cf7fb6f79c88094c`
+  - 기존 v0.x Releases 15개 전부 제거, 잔여 0개
 - 상세: `docs/FINAL_AUDIT_1.0.0.md`, `docs/RELEASE_1.0.0.md`
 
 ## DEC-048 — v1 이후 버전은 새 기능=MINOR, 기존 기능 보완=PATCH 규칙을 사용한다
@@ -197,11 +187,11 @@
 - 결정:
   - 새 사용자 기능 추가 → `MINOR + 1`, `PATCH = 0`
   - 기존 기능 수정/보완/변경, 버그 수정, 성능/안정성 개선 → `PATCH + 1`
-  - 같은 릴리즈에 새 기능과 보완이 함께 있으면 새 기능 규칙이 우선
-  - 예: `1.0.0`에서 Scanner 기능 추가 → `1.1.0`
-  - 예: `1.0.0`에서 Quest 수정 → `1.0.1`
-  - 예: `1.0.1`에서 Scanner 기능 추가 → `1.1.0`
-  - MAJOR 증가 조건은 필요할 때 사용자와 별도 확정하며 개발자가 임의 정의하지 않음
+  - 같은 릴리즈에 새 기능과 보완이 함께 있으면 새 기능 규칙 우선
+  - `1.0.0` + Scanner 실제 기능 → `1.1.0`
+  - `1.0.0` + Quest 수정 → `1.0.1`
+  - `1.0.1` + Scanner 실제 기능 → `1.1.0`
+  - MAJOR 증가 조건은 필요할 때 사용자와 별도 확정
 - 상세: `docs/VERSIONING.md`
 
 ## DEC-049 — Map donor는 source pin과 fetch origin을 분리한다
@@ -209,12 +199,31 @@
 - 상태: `CONFIRMED / IMPLEMENTED`
 - 날짜: 2026-08-19
 - 결정:
-  - Map/MiniMap 제품 source identity는 `.gitmodules` URL이 아니라 gitlink commit SHA로 고정한다.
-  - v1.0.0 기준 제품 pin은 계속 `d933792b6042a51cea38dc44b686a096fe30de67`이다.
-  - 과거 작업 fork `Propeex/Tarkov-Helper`가 clean CI checkout에서 재현 불가능해졌지만 같은 exact Git object가 공개 upstream `SIGDrone/Tarkov-Helper`에 존재함을 확인했으므로 fetch origin만 upstream으로 변경한다.
-  - fetch origin 변경 시에도 gitlink SHA가 동일하면 Map source 변경으로 취급하지 않는다.
-  - donor revision SHA 자체를 바꾸는 작업은 별도의 Map source update이며 actual published EXE 회귀 검증을 요구한다.
-- 상세: `docs/REFERENCE_POLICY.md`, `docs/DEVELOPER_REFERENCE.md`
+  - Map/MiniMap product source identity는 `.gitmodules` URL이 아니라 gitlink SHA로 고정
+  - v1.0.0 pin은 `d933792b6042a51cea38dc44b686a096fe30de67`
+  - 과거 작업 fork가 clean CI에서 재현 불가능해졌으나 동일 exact Git object가 public upstream `SIGDrone/Tarkov-Helper`에 존재함을 확인
+  - fetch origin만 upstream으로 변경하고 gitlink SHA는 유지
+  - donor revision SHA 자체 변경은 별도 Map source update로 취급
+- 상세: `docs/REFERENCE_POLICY.md`
+
+## DEC-050 — donor의 current-floor-only suppression은 first-party runtime compatibility layer에서 제한적으로 무력화한다
+
+- 상태: `CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED`
+- 날짜: 2026-08-19
+- 배경: v1.0.0 첫 exact-release smoke가 pinned donor의 legacy shared-floor filter가 JunhyunHelper의 “floor는 presentation-only” 정책을 최대 약 2.4초 뒤에 다시 덮어쓰는 race를 검출함.
+- 결정:
+  - smoke 기준을 낮추지 않는다.
+  - donor revision/pin을 변경하지 않는다.
+  - donor가 `_sharedFloorHiddenMarkers`에 기록한, **floor 때문에 donor 자신이 Visible → Collapsed로 바꾼 요소만** 각 donor filter tick 직후 복구한다.
+  - category/faction/user visibility는 donor가 계속 소유하며 first-party가 별도로 재추론하지 않는다.
+  - visibility 복구 뒤 기존 JunhyunHelper floor presentation을 재적용한다.
+  - donor timer가 page unload/reload로 재생성되면 product callback을 다시 부착한다.
+  - 새 permanent full-tree polling을 추가하지 않는다.
+  - late-state 계약은 actual published/public-downloaded EXE smoke에서 donor filter window보다 긴 settle 뒤 검증한다.
+- 구현:
+  - `Map/MapPage.JunhyunCrossFloorMarkerPolicy.cs`
+  - `Map/LegacyStandardMarkerFloorPresentationBridge.cs`
+- 상세: `docs/MAP_RUNTIME_COMPATIBILITY.md`, `docs/FINAL_AUDIT_1.0.0.md`
 
 ---
 
@@ -226,9 +235,11 @@
 - 현재 구현/릴리즈 상태: `docs/STATE.md`
 - 버전 정책: `docs/VERSIONING.md`
 - v1.0.0 최종 감사: `docs/FINAL_AUDIT_1.0.0.md`
+- v1.0.0 릴리즈 기록: `docs/RELEASE_1.0.0.md`
 - Program Update: `docs/PROGRAM_UPDATE.md`
 - 배포: `docs/DEPLOYMENT.md`
 - Quest 선행조건/특수 상인 접근: `docs/QUEST_PREREQUISITE_SEMANTICS.md`
-- Map 세부 계약: `docs/MAP_PRODUCT_REQUIREMENTS.md`
+- Map 제품 계약: `docs/MAP_PRODUCT_REQUIREMENTS.md`
+- Map donor runtime compatibility: `docs/MAP_RUNTIME_COMPATIBILITY.md`
 - 기존 구현 예외/참고 정책: `docs/REFERENCE_POLICY.md`
 - 과거 DEC-001~029 원문: `docs/DECISIONS_HISTORY_THROUGH_2026-08-09.md`
