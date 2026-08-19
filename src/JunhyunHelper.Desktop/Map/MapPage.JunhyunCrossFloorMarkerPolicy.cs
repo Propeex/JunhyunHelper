@@ -45,7 +45,7 @@ public partial class MapPage
     internal void JunhyunDetachCrossFloorMarkerPolicy(Action reapplyPresentation)
     {
         if (!_junhyunCrossFloorMarkerPolicyAttached ||
-            !ReferenceEquals(_junhyunCrossFloorPresentationRefresh, reapplyPresentation))
+            !Equals(_junhyunCrossFloorPresentationRefresh, reapplyPresentation))
         {
             return;
         }
