@@ -1,0 +1,20 @@
+{
+  "observedAtUtc": "2026-08-19T05:34:53.9554122+00:00",
+  "releaseWorkflowRunId": 32219746319,
+  "releaseWorkflowUrl": "https://github.com/Propeex/JunhyunHelper/actions/runs/32219746319",
+  "releaseWorkflowHeadSha": "312ef59a0f50bf3df43c9ebbc79e8a965d35d688",
+  "releaseWorkflowConclusion": "success",
+  "exactReleaseSourceSha": "3147ad1b48c3d30df529d95b148c5c444a77d649",
+  "releaseTagExists": false,
+  "releaseTag": null,
+  "releaseIsDraft": null,
+  "releaseIsPrerelease": null,
+  "releaseIsLatest": null,
+  "releaseTargetCommitish": null,
+  "releaseUrl": null,
+  "zipAssetName": null,
+  "zipAssetSize": null,
+  "zipAssetDigest": null,
+  "checksumAssetName": null,
+  "v0ReleaseTagsRemaining": []
+}
