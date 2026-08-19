@@ -23,76 +23,157 @@
 
 - runtime GPT/AI 의존성 없음
 - Game Content update와 Program update는 별도 subsystem
-- 기존 `Propeex/Tarkov-Helper`는 공식 요구사항이 아니며 Map/MiniMap의 검증된 donor source로만 제한 사용
+- old Tarkov-Helper는 일반 제품 사양이 아님
+- Map/MiniMap만 명시적으로 pinned donor source를 사용
 
-구현 위치와 세부 참조 관계는 `docs/DEVELOPER_REFERENCE.md`를 사용합니다.
+구현 위치·입력·출력·참조 관계·변경 영향은 `docs/DEVELOPER_REFERENCE.md`를 사용합니다. Map donor runtime compatibility는 `docs/MAP_RUNTIME_COMPATIBILITY.md`를 함께 읽습니다.
 
-## 2. 현재 릴리즈 상태
+---
 
-**v1.0.0 RELEASE CANDIDATE — Windows x64**
+## 2. 현재 정식 릴리즈
 
-현재 public stable은 **v0.1.14**이며, v1.0.0은 전체 CI + draft/public asset verification이 끝난 뒤에만 public/latest로 전환합니다.
+**v1.0.0 PUBLIC VERIFIED — Windows x64**
 
-v1.0.0 목적:
+v1.0.0은 v0.1.14의 사용자-visible 기능을 유지하면서 내부 하드닝과 개발 문서화를 완료한 첫 정식 안정판입니다.
 
-- v0.1.14의 사용자-visible 기능 보존
-- 새 기능 추가 없음
-- 내부 dead surface/redundant I/O/version drift 제거
-- 배포 gate 강화
-- 개발자 reference 공식화
-- Scanner는 visible `준비 중` placeholder 유지
-
-v1.0.0 코드/패키지 목표:
+최종 값:
 
 ```text
-Desktop Version: 1.0.0
-Content schema: v7
-Readable Content schemas: v3, v4, v5, v6, v7
-user.db SQLite schema: v1
-v0.1.14 → v1.0.0 mandatory Game Content update: none
-v0.1.14 → v1.0.0 user data migration: none
+Release tag: v1.0.0
+Release name: 준현 헬퍼 v1.0.0
+Exact release source: 3147ad1b48c3d30df529d95b148c5c444a77d649
+Release workflow run: 32219746319
+Release workflow head: 312ef59a0f50bf3df43c9ebbc79e8a965d35d688
+Automated tests: 232 passed / 0 failed / 0 skipped
+Asset: Junhyun-Helper-v1.0.0-win-x64.zip
+Asset size: 74,088,334 bytes
+SHA-256: 0e92787409add9dd9e1138277c3588586a04266b05ca56d7cf7fb6f79c88094c
+Checksum asset: SHA256SUMS.txt
+Draft: false
+Prerelease: false
+Latest stable: true
+Public-downloaded executable smoke: passed
+Removed v0.x GitHub Releases: 15
+Remaining v0.x GitHub Releases: 0
 ```
 
-현재 release candidate에서 적용된 first-party hardening:
-
-- obsolete `UnenteredHideoutLevel` / `UnenteredHideoutStationIds` compatibility surface 제거
-- `UserProfileStore` schema initialization을 instance당 한 번으로 제한
-- shared online-data HTTP User-Agent를 assembly version에서 파생
-- CI에서 csproj Version ↔ published ProductVersion ↔ FIRST_RUN version identity 검증
-- CI에서 nested archive release pollution 차단
-- `DEVELOPER_REFERENCE.md`, `VERSIONING.md`, `FINAL_AUDIT_1.0.0.md`, `RELEASE_1.0.0.md` 추가
-
-상세: `docs/FINAL_AUDIT_1.0.0.md`, `docs/RELEASE_1.0.0.md`
-
-### 직전 public stable v0.1.14
+### v1.0.0 공개 검증 순서
 
 ```text
-release tag: v0.1.14
-release baseline: bb0611e9263c24018825a87a58aba2c5474b6cc4
-automated tests: 232 passed / 0 failed / 0 skipped
-public asset: Junhyun-Helper-v0.1.14-win-x64.zip
-public asset size: 74,086,942 bytes
-public SHA-256: 9b3aaff8ba2182b146ea6b1ec463efd8dc8b1c5532a8d4db6cf716938536ae02
+exact source SHA 고정
+→ donor exact pin 확인
+→ Release build
+→ 전체 자동 테스트
+→ win-x64 self-contained single-file publish
+→ package identity/root/dependency audit
+→ actual published EXE Product UI + Main Map + Factory + MiniMap + graceful shutdown smoke
+→ ZIP + SHA256SUMS 생성
+→ Draft GitHub Release
+→ Draft assets 재다운로드 + hash/package identity 검증
+→ public/latest 전환
+→ Public assets 재다운로드 + hash/ProductVersion/package 검증
+→ public-downloaded EXE Product UI + Main Map + Factory + MiniMap + graceful shutdown smoke
+→ 기존 v0.x Releases 15개 전부 삭제
+→ latest stable가 v1.0.0인지 재확인
 ```
 
-v1.0.0 public verification이 끝나면 사용자의 확정 요구에 따라 기존 `v0.*` GitHub Release를 모두 제거하고 이 문서를 public v1.0.0 상태로 갱신합니다.
+정식 release용 임시 workflow/monitor 파일은 검증 완료 후 저장소에서 제거했습니다. 상시 workflow는 `.github/workflows/ci.yml`만 유지하는 것이 원칙입니다.
 
-## 3. Program update 계약
+---
 
-사용자가 확정한 제품 동작:
+## 3. v1.0.0에서 적용한 내부 하드닝
 
-1. 프로그램 일반 실행 시 최신 정식 버전을 조회한다.
-2. 현재 버전보다 최신 버전이 있으면 사용자에게 업데이트 동의 여부를 묻는다.
-3. 사용자가 동의하면 업데이트하고 새 버전으로 자동 재시작한다.
+새 사용자 기능을 추가하지 않았고 기존 기능을 축소하지 않았습니다.
 
-현재 구현:
+### Core / Items
+
+- 현재 제품 규칙과 모순되는 과거 `UnenteredHideoutLevel` cleanup compatibility surface 제거
+- Hideout progress 미입력 = Lv.0 규칙 유지
+- 실제 Needed Items / Cleanup 계산 의미 변경 없음
+
+### Persistence
+
+- `UserProfileStore` schema initialization을 store instance당 한 번으로 제한
+- concurrent first access는 `SemaphoreSlim` gate로 직렬화
+- SQLite schema v1과 persisted payload 의미 변경 없음
+
+### Network identity
+
+- shared online-data HTTP User-Agent의 과거 `0.1` hardcode 제거
+- Desktop assembly version에서 major/minor 파생
+
+### Release identity / package hygiene
+
+- csproj Version ↔ published ProductVersion boundary 검증
+- FIRST_RUN 첫 줄 exact version 검증
+- PDB / nested archive / root DLL / forbidden legacy dependency 차단
+- 실제 published EXE smoke 유지
+
+### Map donor reproducibility
+
+- 과거 작업 fork 원격이 clean CI checkout에서 더 이상 재현 가능하지 않은 상태 확인
+- 같은 exact Git object가 공개 upstream `SIGDrone/Tarkov-Helper`에 존재함을 확인
+- `.gitmodules` fetch origin만 공개 upstream으로 변경
+- Map source pin `d933792b6042a51cea38dc44b686a096fe30de67` 자체는 변경하지 않음
+
+### Map late-suppression race
+
+첫 exact-release smoke는 public Release 생성 전에 Factory의 타층 standard marker late-state 회귀를 검출했습니다.
+
+원인:
+
+- pinned donor의 legacy current-floor-only filter가 200ms × 최대 12회 동작
+- JunhyunHelper product presentation 적용 이후에도 타층 marker를 뒤늦게 `Collapsed`로 덮어쓸 수 있음
+- 기존 first-party settle window보다 donor filter window가 길어 race가 남아 있었음
+
+수정:
+
+- donor source/pin 변경 없음
+- donor가 `_sharedFloorHiddenMarkers`에 직접 기록한 **floor 때문에 Visible → Collapsed한 element만** post-filter에서 복구
+- category/faction visibility는 donor가 계속 소유
+- 복구 직후 JunhyunHelper floor presentation을 재적용
+- page unload/reload 후 donor timer가 재생성되어도 product callback 재부착
+- 새 permanent polling 없음
+- smoke threshold를 낮추지 않음
+
+수정 후 PR CI와 최종 exact-release/public-downloaded smoke 모두 통과했습니다.
+
+상세: `docs/MAP_RUNTIME_COMPATIBILITY.md`, `docs/FINAL_AUDIT_1.0.0.md`
+
+---
+
+## 4. 버전 정책
+
+권위 문서: `docs/VERSIONING.md`
+
+v1 이후:
+
+- 새 사용자 기능 추가 → `MINOR + 1`, `PATCH = 0`
+- 기존 기능 수정/보완/변경, 버그 수정, 성능/안정성 개선 → `PATCH + 1`
+- 새 기능과 수정이 한 릴리즈에 함께 있으면 MINOR 규칙 우선
+
+예:
+
+```text
+1.0.0 + Scanner 실제 기능 → 1.1.0
+1.0.0 + Quest 수정 → 1.0.1
+1.0.1 + Scanner 실제 기능 → 1.1.0
+```
+
+MAJOR 증가 조건은 필요할 때 사용자와 별도 확정하며 개발자가 임의로 정의하지 않습니다.
+
+---
+
+## 5. Program update 계약
+
+일반 실행 시 latest public stable GitHub Release를 확인합니다.
 
 ```text
 MainWindow 표시
 → latest stable GitHub Release 비동기 조회
 → latest <= current: 아무 UI 없음
 → latest > current: Yes/No 동의창
-→ Yes: ZIP + SHA256SUMS 다운로드
+→ Yes: exact ZIP + SHA256SUMS 다운로드
 → SHA-256 + package contract 검증
 → 임시 self-copy updater 실행
 → 원래 프로세스 종료
@@ -123,63 +204,48 @@ logs/
 
 - latest 조회 실패 → 앱 정상 사용
 - 사용자 No → 앱 정상 사용, 다음 실행 때 다시 확인
-- download/checksum/package 검증 실패 → 현재 프로그램 파일 미변경
-- updater runner 시작 실패 → 현재 프로그램 파일 미변경
-- 교체 중 실패 → previous owned files rollback 시도, 기존 EXE 재실행 시도
-- 오류 기록 → `%LocalAppData%/JunhyunHelper/logs/startup.log`
+- download/checksum/package 검증 실패 → 현재 program files 미변경
+- updater runner 시작 실패 → 현재 program files 미변경
+- 교체 중 실패 → previous owned files rollback + 기존 EXE 재실행 시도
+- diagnostic → `%LocalAppData%/JunhyunHelper/logs/startup.log`
 
 보안/무결성:
 
-- stable `vMAJOR.MINOR.PATCH`만 자동 업데이트 대상
-- exact Windows ZIP과 `SHA256SUMS.txt` 요구
-- GitHub Release asset URL scope 확인
+- stable strict `vMAJOR.MINOR.PATCH`만 대상
+- exact Windows ZIP + `SHA256SUMS.txt` 요구
+- GitHub Release asset URL scope 검증
 - SHA-256 검증
-- path traversal / symlink / duplicate entry / unexpected root / PDB 거부
-- 검증 완료 전 기존 프로그램 파일 변경 금지
+- ZIP path traversal / symlink / duplicate entry / unexpected root / PDB 거부
+- 검증 완료 전 기존 program files 변경 금지
 
-상시 `Updater.exe`는 배포하지 않습니다. 현재 single-file EXE의 임시 복사본을 updater mode로 실행합니다.
+상시 `Updater.exe`는 배포하지 않습니다.
 
 상세: `docs/PROGRAM_UPDATE.md`
 
-## 4. 공개 릴리즈 계약
+---
 
-Program updater가 latest public Release를 신뢰하므로 미검증 release를 latest로 노출하지 않습니다.
-
-```text
-exact release baseline 고정
-→ Release build / 전체 tests / publish / actual EXE smoke
-→ ZIP + SHA256SUMS 생성
-→ Draft GitHub Release 생성
-→ Draft assets 재다운로드 / hash / package 검증
-→ 성공한 경우에만 public/latest 전환
-→ Public assets 재다운로드 / hash / ProductVersion / package 검증
-→ 독립 public executable smoke
-```
-
-v1.0.0에서는 추가로:
-
-- project `<Version>` = published ProductVersion = FIRST_RUN version = tag/package version 확인
-- nested archive 없음 확인
-- public v1 검증 뒤 기존 `v0.*` releases 제거
-- cleanup 뒤 latest stable가 여전히 v1.0.0인지 다시 확인
-
-상시 저장소에는 원칙적으로 `.github/workflows/ci.yml`만 남기고 release/verification workflow는 릴리즈 완료 후 제거합니다.
-
-## 5. Content / User Progress
+## 6. Content / User Progress
 
 ### Content
 
-현재 schema: **v7**
+```text
+Current schema: v7
+Readable schemas: v3, v4, v5, v6, v7
+v0.1.14 → v1.0.0 mandatory Game Content refresh: none
+```
 
-읽기 지원: **v3~v7**
-
-- v3: Wiki Ballistics membership과 effectiveness 분리
+- v3: Wiki Ballistics membership/effectiveness 분리
 - v4: Quest geometry
 - v5: availability metadata / opaque conditions
 - v6: recoverable special-trader access와 ordinary prerequisite 분리
-- v7: structured `globalVariable` requirement (`variableId`, operator, value)
+- v7: structured `globalVariable` requirement
 
 ### User Progress
+
+```text
+user.db SQLite schema: v1
+v0.1.14 → v1.0.0 user data migration: none
+```
 
 한 GameMode당 독립 profile 하나를 사용합니다.
 
@@ -187,151 +253,144 @@ v1.0.0에서는 추가로:
 
 - level / faction / edition / prestige
 - trader LL / 필요한 standing
-- `CompletedQuestIds`
-- required explicit `FailedQuestIds`
-- optional exact `ProfileVariables`
-- sparse recoverable special-trader access fact
+- completed Quest IDs
+- 필요한 explicit failed Quest IDs
+- optional exact profile variables
+- sparse recoverable special-trader access facts
 - Hideout levels
 - FIR / non-FIR Inventory
 - Quest / Hideout consumption ledgers
 
-`user.db` SQLite schema는 **v1**이며 optional JSON field 확장을 사용합니다.
+---
 
-v1.0.0에서 schema 자체는 바뀌지 않았습니다. schema creation statement를 같은 store instance에서 반복 실행하지 않도록 initialization gate만 최적화했습니다.
-
-## 6. Quest availability 정확도
+## 7. Quest availability 정확도
 
 기본 원칙:
 
 - 서로 다른 `taskRequirements`는 AND
 - 한 requirement 내부 `status[]`는 OR
-- source의 `complete` / `active` / `failed` 의미 보존
-- 별도 `수주 가능` 상태를 만들지 않음
-- 받을 수 있는 Quest는 Helper에서 이미 수락한 것으로 간주
-- 증명할 수 없는 availability는 `확인 필요(Indeterminate)`
+- source의 complete / active / failed 의미 보존
+- 별도 “수주 가능” 상태 없음
+- 받을 수 있는 Quest는 Helper에서 이미 accepted/current로 간주
+- 증명할 수 없는 availability → `Indeterminate / 확인 필요`
+- `Indeterminate`를 optimistic Current로 승격하지 않음
 
 특수 규칙:
 
-- BTR Driver: 누락 gate는 `A Helping Hand = Active`, Complete로 강화하지 않음
-- Ref: source gate 보존 + GameMode별 검증된 unlock Complete만 누락 보강
-- Lightkeeper: ordinary prerequisite와 recoverable access를 분리, access loss는 recoverable `Locked`
-- audited `dialogue` 12건만 exact-ID compatibility
-- 새/변경 dialogue는 추측하지 않음
-- 실제 completion timestamp가 필요한 availability delay는 timestamp가 없으면 `확인 필요`
+- BTR Driver: 검증된 Active gate 보강
+- Ref: source gate + GameMode별 검증된 unlock Complete
+- Lightkeeper: ordinary prerequisite와 recoverable access 분리
+- audited dialogue exact-ID compatibility만 사용
+- availability delay에 필요한 실제 completion timestamp가 없으면 확인 필요
+- exact profile-variable current value가 있으면 권위값
+- exact 값이 없으면 audited current compatibility 외 추측 금지
 
-### profile-variable / trader task-pool
+Future Needed Items에서는 불확실한 미래 Quest도 잠재 필요 Item을 계속 보호합니다.
 
-판정 우선순위:
+---
 
-1. exact current profile-variable 값이 있으면 권위값
-2. exact 값이 없고 current audited structure가 완전히 일치하면 제한된 current-version compatibility
-3. 증명할 수 없으면 `확인 필요`
+## 8. Needed Items / Inventory
 
-PvE Skier LL2의 audited task-pool drift는 구조 불일치로 해당 pool만 fail-closed합니다. 임의 보정하지 않습니다.
-
-## 7. Needed Items / Inventory 안전성
-
-- 미래에 진행 가능한 Quest와 미래 Hideout level 재료 포함
-- Hideout station progress가 없으면 Lv.0으로 취급
-- unresolved future Quest는 `IndeterminatePotential`로 Item 보호
-- flexible hand-in 후보는 group으로 보존하고 실제 소비 후보를 임의 선택하지 않음
-- fixed completion material은 ledger를 사용해 명시적 진행 조작 시 자동 소비
+- 미래 진행 가능 Quest + 미래 Hideout level 재료 포함
+- Hideout station progress 없음 = Lv.0
+- unresolved future Quest = `IndeterminatePotential`, Item 보호
+- flexible hand-in은 후보 group으로 보존
+- 실제 flexible 소비 Item 자동 추측 금지
+- fixed completion material은 명시적 진행 조작 때 consumption ledger로 자동 소비
 - rollback 시 exact consumed ledger 복구 가능
-- cleanup은 future requirement를 증명할 수 있을 때만 허용
-- flexible candidate는 cleanup protection
-- profile/Quest/Hideout 구조 변경 시 full recalculation
-- 단순 Inventory 수량 변경은 planning basis를 재사용
+- cleanup은 future fixed requirement와 보호 규칙을 반영
+- inventory-only mutation은 existing planning basis 재사용
 
-v1.0.0에서는 현재 규칙과 모순되던 과거 “unentered hideout station” 별도 protection API를 제거했습니다. 실제 계산 결과는 변경하지 않습니다.
+---
 
-## 8. Ammo / preference persistence
+## 9. Ammo / preference persistence
 
 Ammo:
 
 - read-only 비교
 - name / caliber 검색
-- exact caliber / exact Ammo navigation
-- Wiki membership과 Armor effectiveness 별도 fact
-- caliber favorites는 shortcut menu
+- exact caliber / Ammo navigation
+- membership과 Armor effectiveness 별도 fact
+- caliber favorites shortcut
 
-Preference:
+Preference JSON:
 
 ```text
-%LocalAppData%/JunhyunHelper/ammo-favorites.json
-%LocalAppData%/JunhyunHelper/ammo-favorites.json.bak
-%LocalAppData%/JunhyunHelper/map-product-settings.json
-%LocalAppData%/JunhyunHelper/map-product-settings.json.bak
+%LocalAppData%/JunhyunHelper/ammo-favorites.json(.bak)
+%LocalAppData%/JunhyunHelper/map-product-settings.json(.bak)
 ```
 
-- same-directory temp write
-- flush-to-disk
+- same-directory temp
+- durable write
 - atomic replacement
-- last-known-good `.bak`
+- last-known-good backup
 - corrupt primary → good backup fallback
-- corrupt primary가 good backup을 오염시키지 않음
-- presentation preference save failure nonfatal
+- preference save failure는 nonfatal
 
-## 9. Map / MiniMap
+---
 
-Pinned donor-derived product revision:
+## 10. Map / MiniMap
+
+Pinned source:
 
 ```text
-d933792b6042a51cea38dc44b686a096fe30de67
+Gitlink: d933792b6042a51cea38dc44b686a096fe30de67
+Fetch origin: https://github.com/SIGDrone/Tarkov-Helper.git
 ```
-
-경계:
-
-- Map subsystem은 독립
-- JunhyunHelper Core와 Quest만 제품 bridge로 연결
-- Hideout / Item / Ammo runtime과 결합하지 않음
 
 제품 계약:
 
-- floor는 marker visibility filter가 아니라 presentation relation
+- floor는 visibility filter가 아니라 presentation relation
 - enabled 타층 marker 유지
 - current / above / below relation 표시
-- semantic duplicate만 정규화
+- cross-floor near-overlap 자체는 duplicate 아님
 - Main Map floor 변경 시 live zoom + map-space viewport center 보존
 - MiniMap floor 변경 시 exact live Scale + Translate X/Y 보존
-- Main Map selector와 shared map key 동기화
-- current Quest sidebar lane: `30px checkbox | 34px A/B/C/D | * Quest text`
-- 실제 title X-axis와 expanded handle 위치를 rendered release smoke에서 검증
-- Map slider save는 약 250ms coalesce 후 dispose 시 pending flush
-- product hotkey / NumPad floor async failure와 keyboard hook failure를 전역 fatal로 확대하지 않음
+- Main Map selector / shared map key 동기화
+- Quest sidebar lane alignment 유지
+- Map preference writes coalesce
+- product hotkey / keyboard hook failure를 global fatal로 확대하지 않음
 
-안정적인 donor Map path는 concrete regression/performance 근거 없이 wholesale cleanup/refactor하지 않습니다.
+pinned donor를 concrete regression/performance 근거 없이 wholesale refactor하지 않습니다.
 
-v1.0.0 hardening에서 Map donor source는 변경하지 않았습니다.
+v1.0.0의 donor legacy floor-only filter compatibility는 `docs/MAP_RUNTIME_COMPATIBILITY.md`가 권위 문서입니다.
 
-## 10. Scanner
+---
 
-**현재 제품 계약: 상단 `스캐너` 탭은 visible, 내용은 `준비 중` placeholder.**
+## 11. Scanner
+
+**상단 `스캐너` 탭은 visible, 내용은 `준비 중` placeholder입니다.**
 
 - 실제 scanning / recognition / import 기능 없음
-- 기능을 구현된 것처럼 가장하지 않음
-- 별도 사용자 요구사항 확정 전 임의 구현 금지
-- maintenance/refactor에서 임의 숨김/삭제 금지
+- 구현된 기능처럼 가장하지 않음
+- 별도 사용자 요구 확정 전 임의 구현 금지
+- maintenance에서 임의 숨김/삭제 금지
 
-`DEC-045`가 과거 Scanner 숨김 결정을 대체합니다.
+---
 
-## 11. Rendered UI / release gate
+## 12. Release / rendered UI gate
 
-소스 inspection이나 build 성공만으로 주요 UI 변경을 완료 처리하지 않습니다.
+소스 inspection이나 build 성공만으로 주요 UI/Map 변경을 완료 처리하지 않습니다.
 
-실제 publish된 WPF 앱에서 최소 다음을 검사합니다.
+상시 CI는 최소 다음을 검사합니다.
 
-- Flexible hand-in candidate가 실제 row width로 stretch
-- icon/name 좌측 lane / FIR-general 우측 lane
-- Ammo favorite 실제 Content가 단일 `☆`/`★`
-- Ammo detail expanded=`▼`, collapsed=`▲`
-- 서로 다른 Map Quest title 시작 X 편차 `<= 0.75px`
-- expanded Map sidebar handle right gap `<= 6px`
+- Release build
+- 전체 자동 테스트
+- self-contained single-file publish
+- Version/ProductVersion/FIRST_RUN identity
+- root layout
+- PDB/nested archive/legacy dependency pollution
+- actual published executable Product UI smoke
 - Main Map / Factory / MiniMap runtime smoke
-- graceful Main Window close / process exit
+- late floor marker final-state contract
+- 정상 MainWindow close/process exit
+- portable root runtime pollution 없음
 
-v1.0.0 CI에서는 여기에 project/ProductVersion/FIRST_RUN identity와 nested archive check를 추가합니다.
+정식 릴리즈는 여기에 Draft asset 재다운로드 검증, public asset 재다운로드 검증, public-downloaded EXE smoke를 추가합니다.
 
-## 12. 현재 제품 기능 상태
+---
+
+## 13. 현재 제품 기능 상태
 
 | 영역 | 상태 |
 |---|---|
@@ -340,40 +399,28 @@ v1.0.0 CI에서는 여기에 project/ProductVersion/FIRST_RUN identity와 nested
 | Hideout | 구현 완료 |
 | Needed Items / Inventory | 구현 완료 / future protection / ledger |
 | Ammo | 구현 완료 |
-| Map + MiniMap | 구현 완료 / rendered gate |
+| Map + MiniMap | 구현 완료 / donor compatibility + rendered runtime gate |
 | Game Content Update | 구현 완료 / candidate validation / last-known-good |
-| Program Update | 구현 완료 / v0.1.14 public verified / v1.0.0 release candidate |
-| Scanner | `준비 중` placeholder |
+| Program Update | 구현 완료 / v1.0.0 public verified |
+| Scanner | visible `준비 중` placeholder |
 
-## 13. 현재 알려진 비차단 범위
+---
 
-- EFT 1.0 Story Chapters는 ordinary `json.tarkov.dev/tasks` progression source 밖이며 현재 제품 범위에 포함되지 않음
-- PvE Skier LL2 task-pool drift는 exact fact가 없으면 해당 pool fail-closed
-- Map donor/bridge maintenance debt는 안정성이 유지되는 동안 임의 refactor하지 않음
-- code signing / installer는 현재 필수 범위 아님
-- multi-DPI 확대 검증, user.db backup/restore UX 등은 별도 제품 요구가 있을 때 다룸
+## 14. 현재 알려진 비차단 범위
 
-## 14. v1.0.0 릴리즈 완료 조건
+- EFT Story Chapters는 ordinary current task source 범위 밖이며 임의 추측하지 않음
+- audited task-pool/profile-variable 구조가 drift하면 해당 부분 fail-closed
+- Map donor 내부 legacy 구조는 제품 계약 위반 근거 없이 broad refactor하지 않음
+- installer/code signing은 현재 필수 범위 아님
+- 별도 사용자 요구가 없는 기능 확장은 하지 않음
 
-다음이 전부 끝나기 전까지 `PUBLIC VERIFIED`로 바꾸지 않습니다.
-
-1. release-candidate PR CI 성공
-2. final diff/review 확인
-3. main 병합
-4. exact release baseline SHA 고정
-5. release build + tests + actual published EXE smoke 재통과
-6. Draft v1.0.0 assets 생성
-7. Draft ZIP checksum/ProductVersion/package 검증
-8. public/latest 전환
-9. public ZIP 재다운로드 checksum/ProductVersion/package 검증
-10. 기존 `v0.*` GitHub Release 전체 제거
-11. cleanup 후 latest stable = v1.0.0 확인
-12. release-only workflow 제거
-13. README/STATE/DECISIONS/FINAL_AUDIT/RELEASE 문서에 최종 SHA/hash/run 기록
+---
 
 ## 15. 새 작업을 시작할 때
 
-`AGENTS.md` 순서를 따릅니다.
+`AGENTS.md`의 복구 순서를 따릅니다.
+
+핵심 문서:
 
 1. `README.md`
 2. `docs/STATE.md`
@@ -384,6 +431,7 @@ v1.0.0 CI에서는 여기에 project/ProductVersion/FIRST_RUN identity와 nested
 7. `docs/VERSIONING.md`
 8. `docs/DEVELOPMENT.md`
 9. `docs/REFERENCE_POLICY.md`
-10. 관련 전문 문서 / 코드 / tests / issues / PR
+10. Map 작업이면 `docs/MAP_PRODUCT_REQUIREMENTS.md` + `docs/MAP_RUNTIME_COMPATIBILITY.md`
+11. 관련 code/tests/issues/PR
 
-현재 코드가 존재한다는 이유만으로 그 동작을 공식 제품 요구사항으로 추정하지 않습니다. 사용자 확정 요구사항과 공식 문서가 우선합니다.
+현재 코드가 존재한다는 이유만으로 그 동작을 제품 요구사항으로 추정하지 않습니다. 사용자 확정 요구사항과 공식 결정이 우선합니다.
