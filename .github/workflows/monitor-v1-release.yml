@@ -1,0 +1,109 @@
+name: Monitor v1.0.0 release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/monitor-v1-release.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout current main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Wait for v1.0.0 release workflow and record result
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $repo = $env:GITHUB_REPOSITORY
+          $releaseRun = $null
+
+          for ($attempt = 1; $attempt -le 180; $attempt++) {
+            $runs = gh run list --repo $repo --workflow release-v1.0.0.yml --limit 5 --json databaseId,status,conclusion,headSha,createdAt,url | ConvertFrom-Json
+            if ($runs.Count -gt 0) {
+              $releaseRun = $runs | Sort-Object createdAt -Descending | Select-Object -First 1
+              break
+            }
+            Start-Sleep -Seconds 5
+          }
+
+          if ($null -eq $releaseRun) {
+            throw 'Could not find the v1.0.0 release workflow run.'
+          }
+
+          $runId = [int64]$releaseRun.databaseId
+          Write-Host "Monitoring release run $runId ($($releaseRun.url))"
+
+          $conclusion = $null
+          for ($attempt = 1; $attempt -le 180; $attempt++) {
+            $view = gh run view $runId --repo $repo --json databaseId,status,conclusion,headSha,createdAt,updatedAt,url | ConvertFrom-Json
+            if ($view.status -eq 'completed') {
+              $conclusion = [string]$view.conclusion
+              $releaseRun = $view
+              break
+            }
+            Start-Sleep -Seconds 5
+          }
+
+          if ([string]::IsNullOrWhiteSpace($conclusion)) {
+            $conclusion = 'monitor-timeout'
+          }
+
+          $releaseInfo = $null
+          gh release view v1.0.0 --repo $repo --json tagName,isDraft,isPrerelease,isLatest,targetCommitish,url,assets 1> release-view.json 2> $null
+          if ($LASTEXITCODE -eq 0) {
+            $releaseInfo = Get-Content release-view.json -Raw | ConvertFrom-Json
+          }
+
+          $releaseList = gh release list --repo $repo --limit 100 --json tagName,isDraft,isPrerelease | ConvertFrom-Json
+          $v0Remaining = @($releaseList | Where-Object { $_.tagName -match '^v0\.' } | Select-Object -ExpandProperty tagName)
+
+          $zipAsset = $null
+          $checksumAsset = $null
+          if ($null -ne $releaseInfo) {
+            $zipAsset = $releaseInfo.assets | Where-Object { $_.name -eq 'Junhyun-Helper-v1.0.0-win-x64.zip' } | Select-Object -First 1
+            $checksumAsset = $releaseInfo.assets | Where-Object { $_.name -eq 'SHA256SUMS.txt' } | Select-Object -First 1
+          }
+
+          $record = [ordered]@{
+            observedAtUtc = [DateTimeOffset]::UtcNow.ToString('O')
+            releaseWorkflowRunId = $runId
+            releaseWorkflowUrl = [string]$releaseRun.url
+            releaseWorkflowHeadSha = [string]$releaseRun.headSha
+            releaseWorkflowConclusion = $conclusion
+            releaseTagExists = ($null -ne $releaseInfo)
+            releaseTag = if ($null -ne $releaseInfo) { [string]$releaseInfo.tagName } else { $null }
+            releaseIsDraft = if ($null -ne $releaseInfo) { [bool]$releaseInfo.isDraft } else { $null }
+            releaseIsPrerelease = if ($null -ne $releaseInfo) { [bool]$releaseInfo.isPrerelease } else { $null }
+            releaseIsLatest = if ($null -ne $releaseInfo) { [bool]$releaseInfo.isLatest } else { $null }
+            releaseTargetCommitish = if ($null -ne $releaseInfo) { [string]$releaseInfo.targetCommitish } else { $null }
+            releaseUrl = if ($null -ne $releaseInfo) { [string]$releaseInfo.url } else { $null }
+            zipAssetName = if ($null -ne $zipAsset) { [string]$zipAsset.name } else { $null }
+            zipAssetSize = if ($null -ne $zipAsset) { [int64]$zipAsset.size } else { $null }
+            zipAssetDigest = if ($null -ne $zipAsset) { [string]$zipAsset.digest } else { $null }
+            checksumAssetName = if ($null -ne $checksumAsset) { [string]$checksumAsset.name } else { $null }
+            v0ReleaseTagsRemaining = $v0Remaining
+          }
+
+          $record | ConvertTo-Json -Depth 8 | Set-Content '.release-v1-monitor.json' -Encoding utf8
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .release-v1-monitor.json
+          git commit -m 'Record v1.0.0 release workflow result'
+          git push origin HEAD:main
+
+          if ($conclusion -ne 'success') {
+            exit 1
+          }
