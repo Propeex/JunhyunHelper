@@ -1,4 +1,4 @@
-준현 헬퍼 v1.1.1 — Windows x64
+준현 헬퍼 v1.1.2 — Windows x64
 
 실행 방법
 1. 받은 ZIP 파일을 원하는 폴더에 압축 해제합니다.
@@ -6,17 +6,23 @@
 3. 처음 실행하면 프로필을 만들고 필요한 최신 게임 데이터를 온라인에서 내려받습니다.
 4. 프로그램 실행 시 GitHub의 최신 정식 준현 헬퍼 릴리즈를 확인합니다. 더 최신 버전이 있으면 업데이트 여부를 묻습니다.
 
-v1.1.1 주요 변경 — Scanner 사용성 정리
-- Scanner 탭을 설명문 중심 화면에서 실제 운용 중심 화면으로 정리했습니다.
-- 상단 바 왼쪽에 '스캐너'와 '테스트' 버튼을 나란히 배치했습니다.
-- 상단 바 오른쪽의 전체 아이템 카탈로그 수동 갱신 버튼 이름을 '아이템 목록 최신화'로 변경했습니다.
-- Scanner/Mini Scanner/버튼 기능에 대한 상시 설명문과 별도 위치 편집/초기화 UI를 제거했습니다.
-- Foundation 검증 도구는 일반 Scanner 탭에서 숨겼습니다. 개발 진단용 내부 경로는 유지합니다.
-- 표시 정보 체크박스 아래에 '최근 인식 기록'을 추가했습니다.
-- 최근 인식 기록에는 OCR로 읽은 문자열, 가장 가까운 공식 아이템 후보, 유사도, 후보 간 차이, 최종 식별 성공/보류 판단을 사용자가 읽을 수 있는 문장으로 표시합니다.
-- 기존 개발자용 Scanner 로그는 별도로 계속 기록합니다.
-- Mini Scanner는 별도 편집 모드 없이 보이는 동안 직접 드래그해 언제든 위치를 옮길 수 있고, 드래그를 마치면 위치를 저장합니다.
-- 항상 직접 이동할 수 있어야 하므로 Mini Scanner 자체 영역은 마우스 입력을 받습니다. Topmost/no-activate는 유지하며 게임 창의 키보드 포커스를 가져가지 않습니다.
+v1.1.2 주요 변경 — Scanner 제목 인식 회귀 수정
+- v1.1.1 통합 Scanner가 현재 Tarkov 상세창 전체 대신 내부의 작은 사각 영역을 상세창으로 잘못 선택할 수 있던 문제를 수정했습니다.
+- 현재 한국어 클라이언트에서 관측한 상세창 외곽 구조를 기준으로 detector geometry를 바로잡았습니다.
+- 상세창 후보는 외곽 상/하/좌/우 테두리와 우상단 닫기 영역을 함께 만족해야 합니다.
+- 구조 점수가 비슷한 경우 내부의 작은 사각형보다 실제 외곽 상세창을 우선합니다.
+- 제목 OCR 영역을 상세창 최상단 제목 한 줄로 좁혀, 바로 아래 '교환용 물품 > 의료용품' 같은 분류 행이 OCR 입력에 섞이지 않도록 수정했습니다.
+- 더 엄격한 외곽 검증에서도 위치를 놓치지 않도록 픽셀 단위 탐색 정밀도를 높였고, 닫기 영역/테두리 조건을 순차적으로 검사해 불필요한 연산을 줄였습니다.
+- OCR matcher의 confidence/margin 기준은 완화하지 않았습니다. 확신이 부족하면 계속 식별을 보류합니다.
+- Scanner 탭 UI와 Mini Scanner 표시 방식은 v1.1.1과 동일합니다.
+
+Scanner UI
+- 상단 바 왼쪽에 '스캐너'와 '테스트' 버튼이 있습니다.
+- 상단 바 오른쪽의 전체 아이템 카탈로그 수동 갱신 버튼은 '아이템 목록 최신화'입니다.
+- 표시 정보 체크박스 아래의 '최근 인식 기록'에서 OCR 문자열, 가장 가까운 공식 아이템 후보, 유사도, 후보 간 차이, 최종 식별 성공/보류 판단을 확인할 수 있습니다.
+- Foundation 검증 도구는 일반 Scanner 탭에서 보이지 않으며 개발 진단용 내부 경로만 유지합니다.
+- Mini Scanner는 별도 편집 모드 없이 보이는 동안 직접 드래그해 위치를 옮길 수 있고, 드래그를 마치면 위치를 저장합니다.
+- Mini Scanner는 Topmost/no-activate를 유지하며 게임 창의 키보드 포커스를 가져가지 않습니다.
 
 Scanner 동작
 - '스캐너 ON/OFF'는 EscapeFromTarkov 게임 창을 찾아 Borderless client-area를 대상으로 실시간 감지합니다.
@@ -29,7 +35,9 @@ Scanner 동작
 - 게임 메모리 읽기, DLL injection, 패킷 가로채기, 아이콘 기반 식별은 사용하지 않습니다.
 
 Scanner 검증 상태
-- 텍스트 OCR, 상세보기 이미지 감지, 전체 Tarkov 스크린샷 감지는 사전 검증했습니다.
+- 과거 Scanner Lab에서 텍스트 OCR, 상세보기 이미지 감지, 전체 Tarkov 스크린샷 감지를 검증했습니다.
+- v1.1.2에서는 사용자가 제공한 현재 클라이언트 `Ophthalmoscope 검안경` 상세창을 기준으로 v1.1.1의 잘못된 내부 영역 선택과 분류 행 OCR 문제를 재현한 뒤 detector/제목 ROI를 수정했습니다.
+- 첨부 화면에 새 제목 ROI를 적용하면 `Ophthalmoscope 검안경` 한 줄만 포함되고 아래 분류 행은 제외됩니다.
 - Windows Release build, 자동 회귀 테스트, self-contained publish, 실제 EXE 기본 UI/Map/MiniMap smoke를 통과한 코드만 정식 배포합니다.
 - 최신 Tarkov Borderless에서의 실제 인게임 E2E는 공개 릴리즈 후 사용자 환경에서 Scanner 로그와 함께 계속 검증·보정합니다.
 
@@ -79,16 +87,17 @@ Scanner 데이터/설정
 - Content schema: v7
 - Readable Content schemas: v3, v4, v5, v6, v7
 - user.db SQLite schema: v1
-- v1.1.0 → v1.1.1 필수 Game Content 업데이트: 없음
-- v1.1.0 → v1.1.1 user.db migration: 없음
+- v1.1.1 → v1.1.2 필수 Game Content 업데이트: 없음
+- v1.1.1 → v1.1.2 user.db migration: 없음
 
 정확도 / 안전성
-- Quest/Hideout/Needed Items의 기존 제품 의미는 v1.1.0과 동일합니다.
+- Quest/Hideout/Needed Items의 기존 제품 의미는 v1.1.1과 동일합니다.
 - Scanner는 오탐보다 미탐을 우선합니다. 불확실한 OCR/Item ID는 강제로 선택하지 않습니다.
+- Scanner matcher threshold와 top1/top2 margin 정책은 v1.1.1에서 완화하지 않았습니다.
 - Game Content update와 Program update는 서로 다른 subsystem입니다.
 - Runtime GPT/AI 의존성은 없습니다.
 
 버전 정책
 - 새 기능 추가: MINOR +1, PATCH는 0으로 초기화합니다.
 - 기존 기능 수정·보완·버그 수정·성능/안정성 개선: PATCH +1입니다.
-- v1.1.1은 v1.1.0 Scanner의 UI/사용성 보완이므로 PATCH 릴리즈입니다.
+- v1.1.2는 v1.1.1 Scanner의 상세창/제목 ROI 회귀 버그 수정이므로 PATCH 릴리즈입니다.
