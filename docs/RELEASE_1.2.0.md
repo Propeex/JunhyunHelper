@@ -1,8 +1,22 @@
 # v1.2.0 — Scanner title recognition overhaul
 
-Status: **RELEASE CANDIDATE / VALIDATION IN PROGRESS**
+Status: **PUBLIC / VERIFIED**
 
-Target release: 2026-08-22 KST
+Released: 2026-08-22 KST
+
+```text
+version: v1.2.0
+release source: a7601f8498e8d75e832962fb9dd60f4112d28dc6
+exact-source release run: 32514322439 — SUCCESS
+automated tests: 255 passed / 0 failed / 0 skipped
+asset: Junhyun-Helper-v1.2.0-win-x64.zip
+bytes: 80,298,514
+SHA-256: ab5e9ef35b300268d16a1c5eece86cd8c6e57c91c83364caf4b7d02cde1d27d1
+Draft-downloaded EXE smoke: SUCCESS
+public/latest: VERIFIED
+exact public tag source: VERIFIED
+public-downloaded EXE smoke: SUCCESS
+```
 
 ## Product scope
 
@@ -17,7 +31,7 @@ Tarkov display pixels
 → magnifier-free title ROI
 → Windows ko-KR OCR + current-catalog character validation
 → semantic official-name matching
-   OR OCR-independent full-catalog Bender/Noto glyph-shape recovery
+   OR OCR-independent full-catalog Tarkov-font visual recovery
 → confidence + top1/top2 margin gates
 → Item ID
 → local presentation / Mini Scanner
@@ -26,20 +40,48 @@ Tarkov display pixels
 ## Recognition contracts
 
 - Existing successful OCR remains the primary path.
-- Han ideographs are invalid OCR evidence for the Korean item-title catalog; unexpected characters are validated against the current official catalog rather than a hand-maintained punctuation blacklist.
-- Corrupted or empty OCR may fall back to full-catalog visual comparison using locally extracted Tarkov Bender + Noto Sans CJK KR fonts.
-- Visual recovery requires conservative score and margin thresholds and fails closed when ambiguous.
-- Magnifier pixels are excluded from the OCR ROI when the anchor is detected.
-- Anchor failure falls back to the existing Scanner Lab geometry ROI rather than inventing an unverified region.
-- Scan-time network remains prohibited. No game memory, DLL injection, or packet interception is used.
+- Detail-title geometry is refined using the red close button, magnifier-side evidence and title-field structure.
+- When the magnifier anchor is detected, title OCR starts to the right of it so magnifier pixels cannot become OCR characters.
+- Anchor failure falls back to the validated Scanner Lab geometry ROI instead of inventing an unverified region.
+- The current official Korean item-name catalog defines valid title characters. Han ideographs are invalid OCR evidence for this Korean-client contract.
+- Corrupted or empty OCR may fall back to full-catalog visual comparison using locally available Tarkov title-font/glyph rendering support.
+- Visual recovery requires conservative score and top1/top2 margin gates and fails closed when ambiguous.
+- Geometry, icon or visual similarity alone never bypasses the official Item ID/name catalog contract.
+- Scan-time network remains prohibited. No game memory, DLL injection or packet interception is used.
 
 ## User-facing additions
 
-- `인식 이미지`: keeps one latest diagnostic capture in process memory only and shows the selected detail window, actual title ROI, magnifier/close anchors and recognition evidence. No screenshot is persisted to disk.
-- `1회 고정밀 스캔`: performs one precision pass even when continuous Scanner is disabled.
-- Configurable global one-shot hotkey; default `Ctrl+Shift+F10`, optional disable.
+### 인식 이미지
 
-If continuous Scanner/Test mode is active, one-shot scanning cancels the existing runtime loop and awaits its actual completion before sharing capture/OCR/presentation state. The previous continuous mode is restored afterward, subject to the latest user setting.
+`인식 이미지` keeps exactly one latest diagnostic capture in process memory and can show:
+
+- captured screen region;
+- selected detail-window bounds;
+- actual title ROI;
+- magnifier and close-button anchors;
+- recognition pass;
+- OCR text;
+- candidate official name;
+- confidence and second-candidate score.
+
+The diagnostic screenshot is not persisted to disk.
+
+### 1회 고정밀 스캔
+
+- Performs one precision recognition pass even when continuous Scanner is OFF.
+- Default global hotkey: `Ctrl+Shift+F10`.
+- Hotkey can be changed or disabled in Scanner UI.
+- Scanner display settings schema is v3.
+- One-shot scanning reuses the local Scanner catalog; it never starts a scan-time network refresh.
+
+If continuous Scanner/Test mode is active, one-shot scanning stops the existing runtime loop and awaits its actual completion before sharing detector/OCR/presentation state. The previous mode is restored afterward only if the current user setting still requests it.
+
+## Runtime hardening
+
+- Title OCR and inventory-context OCR still share the serialized WinRT OCR boundary.
+- One-shot capture/state mutation is additionally serialized against the continuous runtime loop.
+- In-memory recognition diagnostics are updated from the finally selected recognition result so displayed score metadata cannot describe a discarded candidate.
+- Mini Scanner remains matched-item-only, topmost/no-activate, scan-time offline and independent of MiniMap.
 
 ## Compatibility
 
@@ -54,10 +96,42 @@ v1.1.6 -> v1.2.0 mandatory Game Content update: none
 v1.1.6 -> v1.2.0 user.db migration: none
 ```
 
-## Validation status
+Existing Profile / Quest / Hideout / Inventory / Items / Ammo / Map / MiniMap / Scanner catalog data remain compatible.
 
-Before the final version bump, the integrated recognition branch passed Windows build, 255 automated tests with 0 failure / 0 skip, win-x64 self-contained single-file publish, and the published EXE Product UI / Scanner / Main Map / Factory / MiniMap / graceful-shutdown smoke.
+## Verification
 
-The final v1.2.0 candidate additionally adds published-EXE smoke assertions for Scanner settings schema v3/default hotkey and a synthetic Tarkov inspect-header contract proving that a detected magnifier is excluded from the OCR title ROI.
+Exact-source release run `32514322439` used release source `a7601f8498e8d75e832962fb9dd60f4112d28dc6` and completed:
 
-Final v1.2.0 exact-source release verification, Draft re-download verification, public/latest verification, exact tag verification, and public-downloaded EXE smoke are required before this document can be marked **PUBLIC / VERIFIED**.
+- exact source identity verification;
+- pinned Map donor verification;
+- Windows Release build;
+- exactly 255 automated tests, 0 failed, 0 skipped;
+- win-x64 self-contained single-file publish;
+- exact ProductVersion provenance check (`1.2.0+a7601f8498e8d75e832962fb9dd60f4112d28dc6`);
+- package root / PDB / nested archive / forbidden dependency audit;
+- published EXE Product UI / Scanner / Mini Scanner / Main Map / Factory / MiniMap smoke;
+- Scanner settings schema v3/default hotkey smoke;
+- synthetic Tarkov inspect-header smoke proving a detected magnifier is outside the title OCR ROI;
+- graceful shutdown and clean portable-root verification;
+- Draft release creation;
+- Draft asset re-download, SHA-256, root layout, ProductVersion and FIRST_RUN verification;
+- Draft-downloaded EXE smoke;
+- public/latest transition;
+- exact public tag → release-source SHA verification;
+- public asset re-download and checksum verification;
+- public-downloaded EXE smoke.
+
+The first attempt of the same release run stopped before ZIP/Draft creation because the existing Main Map asynchronous presentation smoke hit a timing-sensitive off-floor marker assertion. The same exact source had already passed that product smoke in the PR gate. A single clean rerun of the release job passed the same Main Map gate and every subsequent Draft/Public gate. No product source, package source or release SHA was changed between attempts.
+
+## Public package
+
+```text
+asset: Junhyun-Helper-v1.2.0-win-x64.zip
+bytes: 80,298,514
+SHA-256: ab5e9ef35b300268d16a1c5eece86cd8c6e57c91c83364caf4b7d02cde1d27d1
+ProductVersion: 1.2.0+a7601f8498e8d75e832962fb9dd60f4112d28dc6
+```
+
+## Post-release validation
+
+Latest live Tarkov end-to-end validation remains an ongoing product-quality activity rather than a reason to weaken fail-closed recognition. Real-game misses or false positives should be investigated from capture → candidate → title ROI → OCR/visual matcher → catalog → presentation → overlay using `scanner.log` and the in-memory `인식 이미지` view.
