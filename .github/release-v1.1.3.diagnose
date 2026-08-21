@@ -1,2 +1,2 @@
 Inspect the current v1.1.3 release workflow state only. Do not dispatch a release.
-Refresh diagnostic event.
+Refresh diagnostic event after minimal workflow registration.
