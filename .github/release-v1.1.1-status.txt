@@ -1,3 +1,2 @@
-result=failure
-run_id=32456775144
-trigger_sha=5a3876166c8a2b753cf9962512fbc82b1cca2694
+result=recovery-started
+trigger_sha=bbb7c0eeaecb2f7366a5e88b233f063378843e00
