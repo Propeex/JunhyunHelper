@@ -9,22 +9,27 @@ public interface IScannerInspectDetector
     string StatusMessage { get; }
     ScannerCaptureMode CaptureMode { get; }
     void SetCaptureMode(ScannerCaptureMode mode);
-    Task<IReadOnlyList<ScannerInspectCandidate>> ObserveAsync(CancellationToken cancellationToken);
+    Task<ScannerInspectCandidate?> ObserveAsync(CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Extended detector boundary used by the restored Scanner Lab 3.8 pipeline. Geometry
+/// returns a ranked set; OCR + catalog resolution decides which candidate is real.
+/// </summary>
+public interface IScannerCandidateInspectDetector : IScannerInspectDetector
+{
+    Task<IReadOnlyList<ScannerInspectCandidate>> ObserveCandidatesAsync(CancellationToken cancellationToken);
 }
 
 public interface IScannerOcrEngine
 {
     bool IsAvailable { get; }
     string AvailabilityMessage { get; }
-
-    /// <summary>
-    /// Scanner Lab 3.8 first pass: adaptive 4x/6x/8x title enlargement and one OCR pass.
-    /// </summary>
     Task<string> ReadTextAsync(BitmapSource titleImage, CancellationToken cancellationToken);
+}
 
-    /// <summary>
-    /// Scanner Lab 3.8 deep pass: enlarged original + contrast + binary + inverse variants.
-    /// </summary>
+public interface IScannerDeepOcrEngine : IScannerOcrEngine
+{
     Task<string> ReadDeepTextAsync(BitmapSource titleImage, CancellationToken cancellationToken);
 }
 
@@ -32,7 +37,7 @@ public interface IScannerOcrEngine
 /// Safe fallback used when a platform-specific vision implementation cannot be created.
 /// It never starts game/process memory access and leaves the rest of the app usable.
 /// </summary>
-public sealed class UnavailableScannerInspectDetector : IScannerInspectDetector
+public sealed class UnavailableScannerInspectDetector : IScannerCandidateInspectDetector
 {
     public bool IsAvailable => false;
     public string AvailabilityMessage => "Windows 화면 캡처/상세창 탐지 기능을 사용할 수 없습니다.";
@@ -41,11 +46,14 @@ public sealed class UnavailableScannerInspectDetector : IScannerInspectDetector
 
     public void SetCaptureMode(ScannerCaptureMode mode) => CaptureMode = mode;
 
-    public Task<IReadOnlyList<ScannerInspectCandidate>> ObserveAsync(CancellationToken cancellationToken) =>
+    public Task<ScannerInspectCandidate?> ObserveAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<ScannerInspectCandidate?>(null);
+
+    public Task<IReadOnlyList<ScannerInspectCandidate>> ObserveCandidatesAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<ScannerInspectCandidate>>([]);
 }
 
-public sealed class UnavailableScannerOcrEngine : IScannerOcrEngine
+public sealed class UnavailableScannerOcrEngine : IScannerDeepOcrEngine
 {
     public bool IsAvailable => false;
     public string AvailabilityMessage => "한국어 OCR 런타임을 사용할 수 없습니다.";
