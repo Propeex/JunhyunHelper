@@ -190,6 +190,8 @@ jobs:
           if ($LASTEXITCODE -eq 0) { throw "Release $env:RELEASE_TAG already exists." }
           git ls-remote --exit-code --tags origin "refs/tags/$env:RELEASE_TAG" *> $null
           if ($LASTEXITCODE -eq 0) { throw "Tag $env:RELEASE_TAG already exists." }
+          Write-Host 'Release/tag namespace is clean.'
+          exit 0
 
       - name: Create draft release
         shell: pwsh
