@@ -4,120 +4,153 @@
              Background="{StaticResource BackgroundDarkBrush}"
              Loaded="ScannerPage_Loaded"
              IsVisibleChanged="ScannerPage_IsVisibleChanged">
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Margin="20" MaxWidth="840" HorizontalAlignment="Left">
-            <TextBlock Text="스캐너" FontSize="26" FontWeight="SemiBold" />
-            <TextBlock Text="Tarkov 아이템 상세창을 자동으로 식별해 필요한 정보만 Mini Scanner로 표시합니다."
-                       Foreground="{StaticResource TextSecondaryBrush}"
-                       TextWrapping="Wrap"
-                       Margin="0,6,0,18" />
-
-            <Border Background="{StaticResource BackgroundMediumBrush}"
+    <UserControl.Resources>
+        <DataTemplate x:Key="ScannerActivityTemplate">
+            <Border Padding="12,10"
                     BorderBrush="{StaticResource BorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="9"
-                    Padding="16"
-                    Margin="0,0,0,14">
+                    BorderThickness="0,0,0,1">
                 <StackPanel>
-                    <TextBlock Text="자동 감지" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,10" />
-                    <StackPanel Orientation="Horizontal">
-                        <Button x:Name="ScannerToggleButton"
-                                Content="스캐너 OFF"
-                                MinWidth="112"
-                                Margin="0,0,8,0"
-                                Click="ScannerToggleButton_Click" />
-                        <Button x:Name="TestToggleButton"
-                                Content="테스트 OFF"
-                                MinWidth="112"
-                                Click="TestToggleButton_Click" />
-                    </StackPanel>
-                    <TextBlock Text="스캐너 ON: Borderless Tarkov의 게임 창 client-area를 찾아 그 화면만 자동 감지합니다."
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               TextWrapping="Wrap"
-                               Margin="0,10,0,0" />
-                    <TextBlock Text="테스트 ON: 모든 디스플레이를 대상으로 같은 상세창 탐지 → 한국어 OCR → Item ID 파이프라인을 실시간 실행합니다. 바탕화면이나 이미지 뷰어에 Tarkov 전체 스크린샷을 띄워 확인할 수 있습니다. 두 모드는 동시에 켜지지 않습니다."
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               TextWrapping="Wrap"
-                               Margin="0,5,0,0" />
-                    <TextBlock x:Name="RuntimeStatusText"
-                               Foreground="{StaticResource AccentBrush}"
-                               TextWrapping="Wrap"
-                               Margin="0,12,0,4" />
-                    <TextBlock x:Name="CatalogStatusText"
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               TextWrapping="Wrap" />
-                    <TextBlock Text="테스트 모드는 게임 없는 회귀 확인용입니다. 최신 Tarkov Borderless 실전 검증(Gate A~F)을 대체하지 않습니다."
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               TextWrapping="Wrap"
-                               Margin="0,7,0,0" />
-                    <Button x:Name="SyncCatalogButton"
-                            Content="전체 아이템 카탈로그 동기화"
-                            HorizontalAlignment="Left"
-                            Margin="0,12,0,0"
-                            Click="SyncCatalogButton_Click" />
-                </StackPanel>
-            </Border>
-
-            <Border Background="{StaticResource BackgroundMediumBrush}"
-                    BorderBrush="{StaticResource BorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="9"
-                    Padding="16"
-                    Margin="0,0,0,14">
-                <StackPanel>
-                    <TextBlock Text="표시 정보" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,10" />
-                    <WrapPanel>
-                        <CheckBox x:Name="ShowItemNameCheckBox" Content="아이템 이름" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
-                        <CheckBox x:Name="ShowItemIconCheckBox" Content="아이템 아이콘" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
-                        <CheckBox x:Name="ShowTraderSellPriceCheckBox" Content="상인 판매 가격" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
-                        <CheckBox x:Name="ShowFleaAveragePriceCheckBox" Content="플리마켓 평균 가격" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
-                        <CheckBox x:Name="ShowTraderPricePerSlotCheckBox" Content="상인 가격 / 슬롯" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
-                        <CheckBox x:Name="ShowFleaPricePerSlotCheckBox" Content="플리 가격 / 슬롯" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
-                        <CheckBox x:Name="ShowCurrentNeededCheckBox" Content="현재 필요한 수량" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
-                    </WrapPanel>
-                </StackPanel>
-            </Border>
-
-            <Border Background="{StaticResource BackgroundMediumBrush}"
-                    BorderBrush="{StaticResource BorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="9"
-                    Padding="16"
-                    Margin="0,0,0,14">
-                <StackPanel>
-                    <TextBlock Text="Mini Scanner 위치" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,10" />
-                    <StackPanel Orientation="Horizontal">
-                        <Button x:Name="PositionEditButton" Content="위치 편집" Margin="0,0,8,0" Click="PositionEditButton_Click" />
-                        <Button Content="위치 초기화" Click="PositionResetButton_Click" />
-                    </StackPanel>
-                    <TextBlock Text="편집 모드에서만 오버레이를 드래그할 수 있습니다. 플레이 상태에서는 click-through/no-activate로 게임 입력을 방해하지 않습니다."
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               TextWrapping="Wrap"
-                               Margin="0,9,0,0" />
-                </StackPanel>
-            </Border>
-
-            <Expander Header="Foundation 검증 도구" IsExpanded="False">
-                <Border Background="{StaticResource BackgroundMediumBrush}"
-                        BorderBrush="{StaticResource BorderBrush}"
-                        BorderThickness="1"
-                        CornerRadius="9"
-                        Padding="16"
-                        Margin="0,8,0,0">
-                    <StackPanel>
-                        <TextBlock Text="Item ID → 가격/필요수량/로컬 아이콘 → Mini Scanner 표시 경로를 직접 확인합니다."
+                    <Grid Margin="0,0,0,5">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding TimeText}"
                                    Foreground="{StaticResource TextSecondaryBrush}"
-                                   TextWrapping="Wrap"
-                                   Margin="0,0,0,10" />
-                        <TextBox x:Name="PreviewItemIdTextBox" Width="420" HorizontalAlignment="Left" />
-                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                            <Button Content="Item ID 미리보기" Margin="0,0,8,0" Click="PreviewItemButton_Click" />
-                            <Button Content="자동 미리보기" Margin="0,0,8,0" Click="PreviewDefaultButton_Click" />
-                            <Button Content="미리보기 숨기기" Click="PreviewHideButton_Click" />
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
-            </Expander>
-        </StackPanel>
-    </ScrollViewer>
+                                   FontSize="11"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding ModeLabel}"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   FontSize="11"
+                                   Margin="8,0,0,0"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="3"
+                                   Text="{Binding ResultLabel}"
+                                   Foreground="{StaticResource AccentBrush}"
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center" />
+                    </Grid>
+                    <TextBlock Text="{Binding Summary}"
+                               TextWrapping="Wrap"
+                               FontSize="13" />
+                    <TextBlock Text="{Binding DetailText}"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="11"
+                               TextWrapping="Wrap"
+                               Margin="0,4,0,0" />
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0"
+                Background="{StaticResource BackgroundMediumBrush}"
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="10"
+                Margin="0,0,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Button x:Name="ScannerToggleButton"
+                        Grid.Column="0"
+                        Content="스캐너 OFF"
+                        MinWidth="112"
+                        Margin="0,0,8,0"
+                        Click="ScannerToggleButton_Click" />
+                <Button x:Name="TestToggleButton"
+                        Grid.Column="1"
+                        Content="테스트 OFF"
+                        MinWidth="112"
+                        Click="TestToggleButton_Click" />
+                <Button x:Name="SyncCatalogButton"
+                        Grid.Column="3"
+                        Content="아이템 목록 최신화"
+                        MinWidth="132"
+                        Click="SyncCatalogButton_Click" />
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="1"
+                Background="{StaticResource BackgroundMediumBrush}"
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="12"
+                Margin="0,0,0,10">
+            <StackPanel>
+                <TextBlock Text="표시 정보"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,9" />
+                <WrapPanel>
+                    <CheckBox x:Name="ShowItemNameCheckBox" Content="아이템 이름" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
+                    <CheckBox x:Name="ShowItemIconCheckBox" Content="아이템 아이콘" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
+                    <CheckBox x:Name="ShowTraderSellPriceCheckBox" Content="상인 판매 가격" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
+                    <CheckBox x:Name="ShowFleaAveragePriceCheckBox" Content="플리마켓 평균 가격" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
+                    <CheckBox x:Name="ShowTraderPricePerSlotCheckBox" Content="상인 가격 / 슬롯" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
+                    <CheckBox x:Name="ShowFleaPricePerSlotCheckBox" Content="플리 가격 / 슬롯" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
+                    <CheckBox x:Name="ShowCurrentNeededCheckBox" Content="현재 필요한 수량" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
+                </WrapPanel>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="2"
+                Background="{StaticResource BackgroundMediumBrush}"
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                ClipToBounds="True">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0" Margin="12,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="최근 인식 기록"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center" />
+                    <TextBlock x:Name="RuntimeStatusText"
+                               Grid.Column="1"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               TextAlignment="Right"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"
+                               Margin="16,0,0,0" />
+                </Grid>
+
+                <Grid Grid.Row="1" Background="{StaticResource BackgroundDarkBrush}">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <ItemsControl x:Name="ActivityItems"
+                                      ItemTemplate="{StaticResource ScannerActivityTemplate}" />
+                    </ScrollViewer>
+                    <TextBlock x:Name="EmptyActivityText"
+                               Text="아직 인식 기록이 없습니다."
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center" />
+                </Grid>
+            </Grid>
+        </Border>
+    </Grid>
 </UserControl>
