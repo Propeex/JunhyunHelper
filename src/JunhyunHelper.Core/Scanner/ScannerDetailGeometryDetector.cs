@@ -1,20 +1,27 @@
 namespace JunhyunHelper.Core.Scanner;
 
 /// <summary>
-/// Pure pixel-level detector for the centered Tarkov item-inspection window.
-/// The detector is intentionally conservative: geometry only creates an OCR candidate;
-/// the item is never accepted until the independent OCR matcher also passes its high
-/// confidence and margin gates.
+/// Pure pixel-level detector for the Tarkov item-inspection window.
+/// Geometry only creates an OCR candidate; an item is never accepted until the
+/// independent OCR matcher also passes its confidence and margin gates.
 /// </summary>
 public static class ScannerDetailGeometryDetector
 {
-    private const double CanonicalPanelWidthRatio = 674.0 / 1920.0;
-    private const double CanonicalPanelHeightRatio = 672.0 / 1080.0;
+    // Current Korean-client inspection windows observed during Scanner validation are
+    // approximately 676x522 at 1920x1080 UI scale. The previous integrated detector
+    // accidentally used a 672px canonical height, which made high-contrast rectangles
+    // inside the inspection window score as if they were the outer window.
+    private const double CanonicalPanelWidthRatio = 676.0 / 1920.0;
+    private const double CanonicalPanelHeightRatio = 522.0 / 1080.0;
     private const double CanonicalCenterYRatio = 500.0 / 1080.0;
-    private const double MinimumScore = 14.0;
+    private const double MinimumScore = 18.0;
+    private const double ScoreTieWindow = 2.0;
+    private const int SearchStepXPixels = 8;
+    private const int SearchStepYPixels = 6;
+    private const int BorderProbeRadiusPixels = 5;
 
-    private static readonly double[] GameWindowScales = [0.90, 0.95, 1.00, 1.05, 1.10];
-    private static readonly double[] DisplayTestScales = [0.55, 0.65, 0.75, 0.85, 0.95, 1.00, 1.05, 1.15];
+    private static readonly double[] GameWindowScales = [0.85, 0.90, 0.95, 1.00, 1.05, 1.10, 1.15];
+    private static readonly double[] DisplayTestScales = [0.50, 0.55, 0.65, 0.75, 0.85, 0.95, 1.00, 1.05, 1.15, 1.25];
 
     public static ScannerDetectedRegion? Detect(
         ReadOnlySpan<byte> bgraPixels,
@@ -30,33 +37,40 @@ public static class ScannerDetailGeometryDetector
 
         var scales = extendedScaleSearch ? DisplayTestScales : GameWindowScales;
         ScannerDetectedRegion? best = null;
+        var xRadiusRatio = extendedScaleSearch ? 0.20 : 0.12;
+        var yRadiusRatio = extendedScaleSearch ? 0.20 : 0.12;
+        var centerXStart = (int)Math.Round(width * (0.50 - xRadiusRatio));
+        var centerXEnd = (int)Math.Round(width * (0.50 + xRadiusRatio));
+        var centerYStart = (int)Math.Round(height * (CanonicalCenterYRatio - yRadiusRatio));
+        var centerYEnd = (int)Math.Round(height * (CanonicalCenterYRatio + yRadiusRatio));
 
         foreach (var scale in scales)
         {
             var panelWidth = (int)Math.Round(width * CanonicalPanelWidthRatio * scale);
             var panelHeight = (int)Math.Round(height * CanonicalPanelHeightRatio * scale);
-            if (panelWidth < 260 || panelHeight < 250 || panelWidth >= width * 0.78 || panelHeight >= height * 0.86)
+            if (panelWidth < 260 || panelHeight < 200 || panelWidth >= width * 0.78 || panelHeight >= height * 0.86)
                 continue;
 
-            var xRadius = extendedScaleSearch ? 0.12 : 0.07;
-            var yRadius = extendedScaleSearch ? 0.12 : 0.07;
-            var xStep = extendedScaleSearch ? 0.020 : 0.014;
-            var yStep = extendedScaleSearch ? 0.018 : 0.014;
-
-            for (var centerXRatio = 0.50 - xRadius; centerXRatio <= 0.50 + xRadius + 0.0001; centerXRatio += xStep)
+            // Border validation is intentionally strict (all four outer sides + close
+            // control), so candidate centers must be sampled in pixels rather than the
+            // old 20-30px ratio grid. Keeping the final border within a few pixels is
+            // also important because the title row is only about 25px high.
+            for (var centerX = centerXStart; centerX <= centerXEnd; centerX += SearchStepXPixels)
             {
-                for (var centerYRatio = CanonicalCenterYRatio - yRadius; centerYRatio <= CanonicalCenterYRatio + yRadius + 0.0001; centerYRatio += yStep)
+                for (var centerY = centerYStart; centerY <= centerYEnd; centerY += SearchStepYPixels)
                 {
-                    var x = (int)Math.Round(width * centerXRatio - panelWidth / 2.0);
-                    var y = (int)Math.Round(height * centerYRatio - panelHeight / 2.0);
+                    var x = centerX - panelWidth / 2;
+                    var y = centerY - panelHeight / 2;
                     if (x < 5 || y < 5 || x + panelWidth + 5 >= width || y + panelHeight + 5 >= height)
                         continue;
 
                     var score = ScoreCandidate(bgraPixels, width, height, stride, x, y, panelWidth, panelHeight);
                     if (score < MinimumScore)
                         continue;
-                    if (best is null || score > best.Value.Score)
-                        best = new ScannerDetectedRegion(x, y, panelWidth, panelHeight, score);
+
+                    var candidate = new ScannerDetectedRegion(x, y, panelWidth, panelHeight, score);
+                    if (IsBetterCandidate(candidate, best))
+                        best = candidate;
                 }
             }
         }
@@ -64,13 +78,48 @@ public static class ScannerDetailGeometryDetector
         return best;
     }
 
+    /// <summary>
+    /// Returns only the inspection-window title row. It deliberately ends before the
+    /// category/breadcrumb row directly below the title (for example
+    /// "교환용 물품 &gt; 의료용품").
+    /// </summary>
     public static ScannerDetectedRegion GetTitleRegion(ScannerDetectedRegion panel)
     {
-        var x = panel.X + (int)Math.Round(panel.Width * 0.025);
-        var y = panel.Y + (int)Math.Round(panel.Height * 0.010);
-        var width = (int)Math.Round(panel.Width * 0.82);
-        var height = (int)Math.Round(panel.Height * 0.075);
-        return new ScannerDetectedRegion(x, y, Math.Max(80, width), Math.Max(28, height), panel.Score);
+        var x = panel.X + (int)Math.Round(panel.Width * 0.035);
+        var y = panel.Y + (int)Math.Round(panel.Height * 0.002);
+        var width = (int)Math.Round(panel.Width * 0.89);
+        var height = Math.Max(12, (int)Math.Round(panel.Height * 0.048));
+
+        width = Math.Min(width, panel.X + panel.Width - x - 4);
+        height = Math.Min(height, panel.Y + panel.Height - y - 2);
+
+        return new ScannerDetectedRegion(
+            x,
+            y,
+            Math.Max(80, width),
+            Math.Max(10, height),
+            panel.Score);
+    }
+
+    private static bool IsBetterCandidate(ScannerDetectedRegion candidate, ScannerDetectedRegion? best)
+    {
+        if (best is null)
+            return true;
+
+        if (candidate.Score > best.Value.Score + ScoreTieWindow)
+            return true;
+        if (best.Value.Score > candidate.Score + ScoreTieWindow)
+            return false;
+
+        // Inner inventory/content rectangles often have slightly sharper edges than the
+        // actual inspect window. When both candidates are structurally credible, prefer
+        // the larger outer frame instead of rewarding the smaller high-contrast box.
+        var candidateArea = (long)candidate.Width * candidate.Height;
+        var bestArea = (long)best.Value.Width * best.Value.Height;
+        if (candidateArea != bestArea)
+            return candidateArea > bestArea;
+
+        return candidate.Score > best.Value.Score;
     }
 
     private static double ScoreCandidate(
@@ -83,29 +132,43 @@ public static class ScannerDetailGeometryDetector
         int panelWidth,
         int panelHeight)
     {
+        // The close-control sample is much cheaper than walking all four borders and is
+        // also the most discriminating signal against ordinary inventory/content boxes.
+        // Reject early so the finer pixel search does not turn into unnecessary CPU work.
+        var closeGlyph = CloseGlyphContrast(pixels, width, height, stride, x, y, panelWidth, panelHeight);
+        if (closeGlyph < 16)
+            return 0;
+
         var sampleStepX = Math.Max(5, panelWidth / 95);
         var sampleStepY = Math.Max(5, panelHeight / 95);
 
         var top = HorizontalEdge(pixels, width, height, stride, x + 8, x + panelWidth - 8, y, sampleStepX);
-        var bottom = HorizontalEdge(pixels, width, height, stride, x + 8, x + panelWidth - 8, y + panelHeight - 1, sampleStepX);
-        var left = VerticalEdge(pixels, width, height, stride, x, y + 8, y + panelHeight - 8, sampleStepY);
-        var right = VerticalEdge(pixels, width, height, stride, x + panelWidth - 1, y + 8, y + panelHeight - 8, sampleStepY);
-
-        // A real inspect panel has a coherent outer frame. Requiring three useful
-        // sides rejects most inventory-grid rectangles before OCR is considered.
-        var usefulEdges = 0;
-        if (top >= 8) usefulEdges++;
-        if (bottom >= 7) usefulEdges++;
-        if (left >= 7) usefulEdges++;
-        if (right >= 7) usefulEdges++;
-        if (usefulEdges < 3 || top < 8)
+        if (top < 8)
             return 0;
 
-        var edgeMean = (top + bottom + left + right) / 4.0;
-        var toneContrast = PanelToneContrast(pixels, width, height, stride, x, y, panelWidth, panelHeight);
-        var closeGlyph = CloseGlyphContrast(pixels, width, height, stride, x, y, panelWidth, panelHeight);
+        var bottom = HorizontalEdge(pixels, width, height, stride, x + 8, x + panelWidth - 8, y + panelHeight - 1, sampleStepX);
+        if (bottom < 7)
+            return 0;
 
-        return edgeMean * 0.72 + toneContrast * 0.18 + closeGlyph * 0.10;
+        var left = VerticalEdge(pixels, width, height, stride, x, y + 8, y + panelHeight - 8, sampleStepY);
+        if (left < 7)
+            return 0;
+
+        var right = VerticalEdge(pixels, width, height, stride, x + panelWidth - 1, y + 8, y + panelHeight - 8, sampleStepY);
+        if (right < 7)
+            return 0;
+
+        // The real inspection window has a coherent outer frame and a close control in
+        // its top-right title bar. Requiring all four sides prevents a strong internal
+        // separator/button rectangle from becoming the OCR anchor.
+        var edgeMean = (top + bottom + left + right) / 4.0;
+        var minimumEdge = Math.Min(Math.Min(top, bottom), Math.Min(left, right));
+        var toneContrast = PanelToneContrast(pixels, width, height, stride, x, y, panelWidth, panelHeight);
+
+        return edgeMean * 0.35 +
+               minimumEdge * 0.30 +
+               closeGlyph * 0.30 +
+               toneContrast * 0.05;
     }
 
     private static double HorizontalEdge(
@@ -122,9 +185,9 @@ public static class ScannerDetailGeometryDetector
         var count = 0;
         for (var px = startX; px <= endX; px += step)
         {
-            var a = Luma(pixels, width, height, stride, px, y - 3);
+            var a = Luma(pixels, width, height, stride, px, y - BorderProbeRadiusPixels);
             var b = Luma(pixels, width, height, stride, px, y);
-            var c = Luma(pixels, width, height, stride, px, y + 3);
+            var c = Luma(pixels, width, height, stride, px, y + BorderProbeRadiusPixels);
             total += Math.Max(Math.Abs(a - c), Math.Abs(b - (a + c) * 0.5));
             count++;
         }
@@ -145,9 +208,9 @@ public static class ScannerDetailGeometryDetector
         var count = 0;
         for (var py = startY; py <= endY; py += step)
         {
-            var a = Luma(pixels, width, height, stride, x - 3, py);
+            var a = Luma(pixels, width, height, stride, x - BorderProbeRadiusPixels, py);
             var b = Luma(pixels, width, height, stride, x, py);
-            var c = Luma(pixels, width, height, stride, x + 3, py);
+            var c = Luma(pixels, width, height, stride, x + BorderProbeRadiusPixels, py);
             total += Math.Max(Math.Abs(a - c), Math.Abs(b - (a + c) * 0.5));
             count++;
         }
