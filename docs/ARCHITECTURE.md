@@ -4,7 +4,7 @@
 
 기준일: 2026-08-21
 
-현재 개발 기준선: **`v1.1.4 RELEASE CANDIDATE`**. 현재 public stable은 v1.1.3이며 최종 public 검증 후 상태 문서를 갱신합니다.
+현재 기준선: **`v1.1.4 PUBLIC RELEASE / VERIFIED`**. release source는 `833ac66c522632a695d106bd7ca9b1d6bfc030dc`이며 공개 ZIP 재다운로드와 실제 EXE smoke까지 검증했습니다.
 
 ## 1. 기술 스택
 
@@ -306,7 +306,7 @@ runtime log를 portable release root에 만들지 않습니다.
 
 Core/Application/Infrastructure 의미는 xUnit으로 검증합니다. WPF/Map/Scanner UI는 실제 published EXE smoke도 사용합니다.
 
-v1.1.4 gate:
+v1.1.4 public gate — 완료:
 
 1. Windows Release build
 2. 247 automated tests
@@ -315,12 +315,14 @@ v1.1.4 gate:
 5. win-x64 self-contained single-file publish
 6. ProductVersion/FIRST_RUN/package audit
 7. actual EXE rendered Product UI/Scanner assertions
-8. Scanner activity/log 생성 후 `로그 삭제` end-to-end smoke
+8. Scanner activity/current/rotated log 생성 후 `로그 삭제` end-to-end smoke
 9. Main Map/Factory/MiniMap smoke
 10. normal close/process exit/portable-root cleanliness
 11. Draft/public asset checksum/package/ProductVersion verification
-12. exact public tag verification
+12. exact public tag source verification
 13. public-downloaded EXE smoke
+
+Public release source: `833ac66c522632a695d106bd7ca9b1d6bfc030dc`. Public verification run: `32476952938`.
 
 실제 최신 Tarkov Borderless E2E는 release blocker가 아니며 사용자 환경에서 후속 검증합니다.
 

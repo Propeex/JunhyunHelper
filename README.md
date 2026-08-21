@@ -4,19 +4,34 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 릴리즈 상태
 
-현재 public stable은 v1.1.3이며 **v1.1.4 Scanner hardening PATCH release candidate**를 검증 중입니다.
+현재 public stable은 **v1.1.4**이며 Scanner hardening PATCH의 공개 패키지 검증까지 완료했습니다.
 
 ```text
-Desktop target: 1.1.4
+version: v1.1.4 PUBLIC RELEASE / VERIFIED
+release source: 833ac66c522632a695d106bd7ca9b1d6bfc030dc
+PR final CI: 32475893012 — SUCCESS
+exact-source Draft-first release run: 32476391800
+public verification run: 32476952938 — SUCCESS
+automated tests: 247 passed / 0 failed / 0 skipped
+asset: Junhyun-Helper-v1.1.4-win-x64.zip
+bytes: 80,253,044
+SHA-256: 6d7a4646032c91a66d66ceac0d78b197dd112e78fa9c7a6e99d7092febc2cb54
+ProductVersion: 1.1.4+833ac66c522632a695d106bd7ca9b1d6bfc030dc
+Draft-downloaded EXE smoke: SUCCESS
+public/latest: VERIFIED
+exact public tag source: VERIFIED
+public-downloaded EXE smoke: SUCCESS
+```
+
+```text
 Content schema: v7
 Readable schemas: v3~v7
 user.db schema: v1
-automated tests: 247
-mandatory content update from 1.1.3: none
-user.db migration from 1.1.3: none
+v1.1.3 → v1.1.4 mandatory Game Content update: none
+v1.1.3 → v1.1.4 user.db migration: none
 ```
 
-최종 public source/run/ZIP hash는 `docs/RELEASE_1.1.4.md`에 기록합니다.
+상세 릴리즈 기록은 `docs/RELEASE_1.1.4.md`에 있습니다.
 
 ## Scanner — v1.1.4
 
@@ -41,9 +56,11 @@ v1.1.4 보강:
 - Scanner local icon decode memory cache
 - 최고 상점가 = fleaMarket 제외 `sellFor.priceRUB` 최댓값
 - 플리 평균가 = `avg24hPrice`
+- 4,000개 전체 카탈로그 fixture에서 아이템별 market/dimension 투영 회귀 검증
 - invalid market/dimension은 필드 단위 fail-closed
 - 최근 인식 기록 우측 상단 `로그 삭제`
 - 로그 삭제는 UI activity + `scanner.log` + `scanner.log.1`을 함께 clear
+- 실제 게시 EXE smoke에서 로그/activity 생성 후 버튼 클릭과 삭제 결과까지 검증
 
 핵심 안전 원칙:
 
@@ -140,7 +157,7 @@ v1.1.4는 기존 Scanner의 안정성·데이터 신뢰성·진단 UX 보강이�
 - `docs/SCANNER.md` — Scanner 계약
 - `docs/SCANNER_TEST_PLAN.md` — Scanner 검증
 - `docs/SCANNER_LAB_3_8_REFERENCE.md` — Scanner Lab v3.8 reference
-- `docs/RELEASE_1.1.4.md` — v1.1.4 release record
+- `docs/RELEASE_1.1.4.md` — v1.1.4 public release record
 - `docs/ARCHITECTURE.md`
 - `docs/DEVELOPER_REFERENCE.md`
 - `docs/VERSIONING.md`

@@ -2,7 +2,32 @@
 
 기준일: 2026-08-21
 
-상태: **`RELEASE CANDIDATE — FINAL WINDOWS GATE IN PROGRESS`**
+상태: **`PUBLIC RELEASE / VERIFIED`**
+
+## 최종 공개 릴리즈
+
+```text
+version: v1.1.4
+release source: 833ac66c522632a695d106bd7ca9b1d6bfc030dc
+PR final CI: 32475893012 — SUCCESS
+exact-source Draft-first release run: 32476391800
+public verification run: 32476952938 — SUCCESS
+automated tests: 247 passed / 0 failed / 0 skipped
+asset: Junhyun-Helper-v1.1.4-win-x64.zip
+bytes: 80,253,044
+SHA-256: 6d7a4646032c91a66d66ceac0d78b197dd112e78fa9c7a6e99d7092febc2cb54
+ProductVersion: 1.1.4+833ac66c522632a695d106bd7ca9b1d6bfc030dc
+Draft-downloaded EXE smoke: SUCCESS
+public/latest: VERIFIED
+exact tag source: VERIFIED
+public-downloaded EXE smoke: SUCCESS
+```
+
+Tag `v1.1.4`와 release source `833ac66c522632a695d106bd7ca9b1d6bfc030dc`는 commit comparison에서 identical로 검증되었습니다.
+
+첫 exact-source release workflow `32476391800`은 public 전환 자체까지 성공한 뒤 태그 재조회용 PowerShell refspec 문자열 버그 때문에 마지막 자동 단계가 failure로 기록되었습니다. 제품/패키지 실패는 아닙니다. 그 전에 exact-source build, 247 tests, package audit, exact-source EXE smoke, Draft 생성, Draft 재다운로드 checksum/ProductVersion 검증, Draft-downloaded EXE smoke가 모두 성공했습니다.
+
+이후 독립 public verification run `32476952938`에서 latest public release가 v1.1.4인지, tag source가 정확한지, public ZIP의 SHA-256/root/ProductVersion/FIRST_RUN identity가 맞는지, 공개 자산에서 다시 받은 EXE가 Product UI/Scanner/Map/Factory/MiniMap smoke와 정상 종료를 통과하는지 전부 다시 검증해 최종 승인했습니다.
 
 ## 목적
 
@@ -40,7 +65,9 @@ Scanner catalog의 market contract를 회귀 테스트로 고정했습니다.
 - 가격/슬롯: 위 값과 유효 슬롯이 모두 있을 때만 계산
 - 0/invalid market/dimension 값은 해당 필드만 비움
 
-복수 상인이 존재하고 flea row가 더 높은 가짜 데이터에서도 최고 상점가가 flea를 선택하지 않는 것을 검증합니다.
+복수 상인이 존재하고 flea row가 더 높은 데이터에서도 최고 상점가가 flea를 선택하지 않는 것을 검증합니다.
+
+최종 fixture는 4,000개 아이템 전체를 순회하며 각 Item의 공식 한국어 이름, 최고 상점가, 플리 평균가, 슬롯, 상점가/슬롯, 플리 평균가/슬롯을 확인합니다. 의도적으로 잘못된 market/dimension record도 포함해 해당 Item field만 fail-closed 되는지 검사합니다.
 
 ### 5. 필요한 개수 검증
 
@@ -68,7 +95,7 @@ Scanner 탭의 `최근 인식 기록` 헤더 우측 상단에 `로그 삭제` �
 
 로그 파일 삭제 실패는 Scanner 인식/runtime fatal로 확대하지 않습니다. 실행 중 새 진단 이벤트가 발생하면 새 `scanner.log`가 다시 생성될 수 있습니다.
 
-실제 published EXE smoke에서 activity/log를 만든 뒤 버튼을 클릭해 UI history와 두 log path가 모두 비워지는지 검사합니다.
+실제 published EXE smoke에서 activity와 `scanner.log`를 만들고 `.1` 회전 로그도 실제 파일로 만든 뒤 rendered `로그 삭제` 버튼을 클릭해 UI history와 두 log path가 모두 비워지는지 검사합니다.
 
 ## 유지한 Scanner Lab v3.8 계약
 
@@ -87,20 +114,42 @@ Scanner 탭의 `최근 인식 기록` 헤더 우측 상단에 `로그 삭제` �
 - scan-time network 금지
 - game memory / DLL injection / packet interception / icon identity 금지
 
-## 자동 검증
+## 최종 검증 게이트
 
-v1.1.4에서 자동 테스트는 **247개**입니다.
+완료:
 
-추가 market regression:
+1. PR final Windows Release build
+2. 247/247 automated tests
+3. Scanner Lab v3.8 structural/title ROI regression
+4. full-catalog market/dimension regression
+5. exact merged release source checkout
+6. exact-source Windows Release build + 247 tests 재실행
+7. win-x64 self-contained single-file publish
+8. exact ProductVersion / FIRST_RUN identity
+9. release-root / PDB / nested archive / legacy dependency audit
+10. exact-source published EXE Product UI / Scanner / Map / Factory / MiniMap smoke
+11. Scanner `로그 삭제` activity/current/rotated-log end-to-end smoke
+12. graceful process shutdown / clean portable root
+13. release ZIP + SHA256SUMS 생성
+14. Draft Release 생성
+15. Draft asset 재다운로드 checksum/root/ProductVersion 검증
+16. Draft-downloaded EXE smoke
+17. public/latest 전환
+18. exact public tag source 검증
+19. public asset 재다운로드 checksum/root/ProductVersion/FIRST_RUN 검증
+20. public-downloaded EXE smoke + 정상 종료
 
-- 복수 trader 중 RUB 최고가
-- fleaMarket row 최고 상점가에서 제외
-- `avg24hPrice` 독립 사용
-- invalid/zero market/dimension fail-closed
+## 호환성
 
-기존 Scanner Lab v3.8 geometry/title ROI regressions도 그대로 유지합니다.
+```text
+Content schema: v7
+Readable Content schemas: v3~v7
+user.db schema: v1
+v1.1.3 → v1.1.4 mandatory Game Content update: none
+v1.1.3 → v1.1.4 user.db migration: none
+```
 
-최종 release source/run/ZIP bytes/SHA-256/ProductVersion은 public release 검증 완료 후 이 문서에 기록합니다.
+기존 Profile / Quest / Inventory / Hideout / Map 설정 / Ammo favorites / Scanner settings/catalog은 유지됩니다.
 
 ## 실제 Tarkov 후속 검증
 

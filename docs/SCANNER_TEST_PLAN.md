@@ -2,11 +2,11 @@
 
 기준일: 2026-08-21
 
-상태: **`RELEASE CANDIDATE / FINAL WINDOWS + PUBLIC RELEASE GATE`**
+상태: **`PUBLIC RELEASE GATE PASSED / v1.1.4 PUBLIC VERIFIED / LIVE TARKOV E2E POST-RELEASE`**
 
 이 문서는 v1.1.4의 자동/Windows/public release gate와 공개 후 실제 Tarkov 검증을 분리합니다.
 
-## 1. Release blocking gate
+## 1. Release blocking gate — 완료
 
 1. Windows Release Desktop build
 2. 전체 automated tests 0 failure
@@ -14,7 +14,7 @@
 4. current catalog/matcher regression
 5. market-field regression
 6. win-x64 self-contained single-file publish
-7. ProductVersion = 1.1.4
+7. ProductVersion = 1.1.4 + exact release source
 8. FIRST_RUN first line = v1.1.4
 9. package root/dependency/PDB/nested-archive audit
 10. actual published EXE startup
@@ -26,9 +26,9 @@
 16. Draft-downloaded EXE smoke
 17. public/latest 전환
 18. exact public tag → release source SHA verification
-19. public ZIP/checksum/package/ProductVersion 재검증
+19. public ZIP/checksum/package/ProductVersion/FIRST_RUN 재검증
 20. public-downloaded EXE smoke
-21. temporary release workflow cleanup
+21. public-downloaded EXE graceful shutdown
 
 실제 최신 Tarkov 실행 E2E는 DEC-051에 따라 public release blocker가 아니며 사용자 환경에서 후속 검증합니다.
 
@@ -58,7 +58,7 @@
 
 ## 3. Candidate 안정화 — v1.1.4
 
-검증할 계약:
+검증 계약:
 
 - candidate가 없으면 stable hit = 0
 - 서로 다른 geometry signature만 이어지면 2-hit stable로 승격하지 않음
@@ -80,6 +80,8 @@ Full catalog:
 
 Market regression:
 
+- 4,000개 fixture 전체 Item 순회
+- 각 Item official Korean name 확인
 - 복수 trader가 있으면 non-flea `priceRUB` 최댓값 선택
 - `source == fleaMarket`는 최고 상점가 계산에서 제외
 - flea row가 모든 trader보다 높아도 trader price에 사용하지 않음
@@ -135,10 +137,11 @@ ItemsWorkspace.Plan.NeededItems[itemId].RequiredTotal
 2. `ocr-result`와 `match-result` diagnostic 생성
 3. recent activity가 생성됐는지 확인
 4. `scanner.log`가 실제 생성됐는지 확인
-5. rendered `로그 삭제` Button Click event 실행
-6. recent activity = 0 확인
-7. `scanner.log` 없음 확인
-8. `scanner.log.1` 없음 확인
+5. `scanner.log.1` 회전 로그도 실제 파일로 생성
+6. rendered `로그 삭제` Button Click event 실행
+7. recent activity = 0 확인
+8. `scanner.log` 없음 확인
+9. `scanner.log.1` 없음 확인
 
 삭제 I/O 실패를 Scanner runtime fatal로 확대하지 않는 코드 경계도 유지합니다.
 
@@ -173,9 +176,15 @@ dotnet test tests/JunhyunHelper.Tests/JunhyunHelper.Tests.csproj -c Release
 - MiniMap과 독립 lifecycle
 - ON standby / OFF hidden
 
-## 11. Public release verification
+## 11. Public release verification — 완료
 
-release source가 고정되면 다음을 release workflow에서 다시 수행합니다.
+최종 release source:
+
+```text
+833ac66c522632a695d106bd7ca9b1d6bfc030dc
+```
+
+최종 검증 흐름:
 
 ```text
 exact source checkout
@@ -190,11 +199,25 @@ exact source checkout
 → Draft-downloaded EXE smoke
 → public/latest
 → exact tag verification
-→ public asset re-download/hash/ProductVersion
+→ public asset re-download/hash/root/ProductVersion/FIRST_RUN
 → public-downloaded EXE smoke
 ```
 
-최종 run/source/hash/bytes는 `docs/RELEASE_1.1.4.md`와 `docs/STATE.md`에 기록합니다.
+최종 공개 패키지:
+
+```text
+asset: Junhyun-Helper-v1.1.4-win-x64.zip
+bytes: 80,253,044
+SHA-256: 6d7a4646032c91a66d66ceac0d78b197dd112e78fa9c7a6e99d7092febc2cb54
+ProductVersion: 1.1.4+833ac66c522632a695d106bd7ca9b1d6bfc030dc
+PR final CI: 32475893012 — SUCCESS
+public verification run: 32476952938 — SUCCESS
+public-downloaded EXE smoke: SUCCESS
+```
+
+첫 exact-source Draft-first workflow `32476391800`은 public 전환 뒤 태그 재조회 refspec 문자열 버그로 마지막 자동 단계가 failure 처리되었습니다. 그 전의 제품/package/Draft gate는 모두 통과했으며, 독립 public verification run에서 exact tag 및 공개 자산 검증을 다시 수행했습니다.
+
+최종 run/source/hash/bytes는 `docs/RELEASE_1.1.4.md`와 `docs/STATE.md`에 고정되어 있습니다.
 
 ## 12. 공개 후 실제 Tarkov 검증
 

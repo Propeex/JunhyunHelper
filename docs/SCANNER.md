@@ -2,7 +2,7 @@
 
 기준일: 2026-08-21
 
-상태: **`v1.1.4 RELEASE CANDIDATE / SCANNER LAB v3.8 CONTRACT PRESERVED / LIVE TARKOV E2E ONGOING`**
+상태: **`v1.1.4 PUBLIC RELEASE / VERIFIED / SCANNER LAB v3.8 CONTRACT PRESERVED / LIVE TARKOV E2E ONGOING`**
 
 ## 1. 목적과 안전 원칙
 
@@ -231,22 +231,33 @@ same-directory temp + flush + atomic replacement + last-known-good `.bak` recove
 
 ## 12. 검증 계약
 
-v1.1.4 release gate:
+v1.1.4 public release gate — 완료:
 
 - Windows Release build
-- 247 automated tests / 0 failure
+- 247 automated tests / 0 failure / 0 skipped
 - Scanner Lab v3.8 geometry/title ROI regressions
-- Scanner market field regressions
+- 4,000-item Scanner market/dimension field regression
 - win-x64 self-contained single-file publish
 - ProductVersion/FIRST_RUN exact version check
 - actual published EXE rendered Product UI / Scanner / Map / Factory / MiniMap smoke
-- `로그 삭제` 실제 activity/log 생성-삭제 smoke
+- `로그 삭제` 실제 activity/current/rotated log 생성-삭제 smoke
 - graceful shutdown / clean portable root
-- Draft package download/hash/ProductVersion validation
+- Draft package re-download/hash/ProductVersion validation
 - Draft-downloaded EXE smoke
-- public/latest exact tag verification
-- public package re-download validation
+- public/latest verification
+- public tag `v1.1.4` = release source `833ac66c522632a695d106bd7ca9b1d6bfc030dc`
+- public package re-download/hash/root/ProductVersion/FIRST_RUN validation
 - public-downloaded EXE smoke
+
+최종 public asset:
+
+```text
+Junhyun-Helper-v1.1.4-win-x64.zip
+80,253,044 bytes
+SHA-256 6d7a4646032c91a66d66ceac0d78b197dd112e78fa9c7a6e99d7092febc2cb54
+ProductVersion 1.1.4+833ac66c522632a695d106bd7ca9b1d6bfc030dc
+public verification run 32476952938 — SUCCESS
+```
 
 실제 최신 Tarkov Borderless E2E는 release blocker가 아니며 사용자 환경에서 계속 검증합니다.
 
