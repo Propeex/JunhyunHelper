@@ -27,16 +27,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $ids = @(gh api --paginate "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" --jq ".[] | select(.tag_name == \"$env:RELEASE_TAG\" and .draft == true) | .id")
+          $json = gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100"
           if ($LASTEXITCODE -ne 0) { throw 'Could not enumerate releases.' }
-          if ($ids.Count -ne 1) { throw "Expected exactly one draft $env:RELEASE_TAG, found $($ids.Count)." }
+          $releases = @($json | ConvertFrom-Json)
+          $drafts = @($releases | Where-Object { $_.tag_name -eq $env:RELEASE_TAG -and $_.draft -eq $true })
+          if ($drafts.Count -ne 1) { throw "Expected exactly one draft $env:RELEASE_TAG, found $($drafts.Count)." }
 
-          $releaseId = $ids[0].Trim()
-          $target = (gh api "repos/$env:GITHUB_REPOSITORY/releases/$releaseId" --jq '.target_commitish').Trim()
-          $draft = (gh api "repos/$env:GITHUB_REPOSITORY/releases/$releaseId" --jq '.draft').Trim()
-          $tag = (gh api "repos/$env:GITHUB_REPOSITORY/releases/$releaseId" --jq '.tag_name').Trim()
+          $release = $drafts[0]
+          $releaseId = [string]$release.id
+          $target = [string]$release.target_commitish
+          $tag = [string]$release.tag_name
           if ($tag -ne $env:RELEASE_TAG) { throw "Draft tag mismatch: $tag" }
-          if ($draft -ne 'true') { throw "Release is not draft: $draft" }
           if ($target -ne $env:RELEASE_SHA) { throw "Draft target mismatch: $target" }
 
           "RELEASE_ID=$releaseId" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
@@ -123,13 +124,16 @@ jobs:
           gh release edit $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --draft=false --latest
           if ($LASTEXITCODE -ne 0) { throw 'Could not publish verified v1.1.2 release.' }
 
-          $latest = (gh api "repos/$env:GITHUB_REPOSITORY/releases/latest" --jq '.tag_name').Trim()
+          $latestJson = gh api "repos/$env:GITHUB_REPOSITORY/releases/latest"
+          if ($LASTEXITCODE -ne 0) { throw 'Could not read latest release.' }
+          $latest = [string](($latestJson | ConvertFrom-Json).tag_name)
           if ($latest -ne $env:RELEASE_TAG) { throw "Latest release mismatch: $latest" }
 
           git init artifacts/tag-check | Out-Null
           Push-Location artifacts/tag-check
           git remote add origin "https://github.com/$env:GITHUB_REPOSITORY.git"
-          git fetch --depth=1 origin "refs/tags/$env:RELEASE_TAG:refs/tags/$env:RELEASE_TAG"
+          $refspec = '+refs/tags/' + $env:RELEASE_TAG + ':refs/tags/' + $env:RELEASE_TAG
+          git fetch --depth=1 origin $refspec
           if ($LASTEXITCODE -ne 0) { throw 'Could not fetch public release tag.' }
           $tagSha = (git rev-list -n 1 $env:RELEASE_TAG).Trim()
           Pop-Location
