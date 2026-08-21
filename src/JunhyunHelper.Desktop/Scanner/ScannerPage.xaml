@@ -7,7 +7,7 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="20" MaxWidth="840" HorizontalAlignment="Left">
             <TextBlock Text="스캐너" FontSize="26" FontWeight="SemiBold" />
-            <TextBlock Text="Tarkov 아이템 상세창을 안전하게 식별해 필요한 정보만 Mini Scanner로 표시합니다."
+            <TextBlock Text="Tarkov 아이템 상세창을 자동으로 식별해 필요한 정보만 Mini Scanner로 표시합니다."
                        Foreground="{StaticResource TextSecondaryBrush}"
                        TextWrapping="Wrap"
                        Margin="0,6,0,18" />
@@ -19,20 +19,34 @@
                     Padding="16"
                     Margin="0,0,0,14">
                 <StackPanel>
-                    <CheckBox x:Name="EnabledCheckBox"
-                              Content="Mini Scanner 사용"
-                              FontSize="16"
-                              FontWeight="SemiBold"
-                              Checked="EnabledCheckBox_Changed"
-                              Unchecked="EnabledCheckBox_Changed" />
+                    <TextBlock Text="자동 감지" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,10" />
+                    <StackPanel Orientation="Horizontal">
+                        <Button x:Name="ScannerToggleButton"
+                                Content="스캐너 OFF"
+                                MinWidth="112"
+                                Margin="0,0,8,0"
+                                Click="ScannerToggleButton_Click" />
+                        <Button x:Name="TestToggleButton"
+                                Content="테스트 OFF"
+                                MinWidth="112"
+                                Click="TestToggleButton_Click" />
+                    </StackPanel>
+                    <TextBlock Text="스캐너 ON: Borderless Tarkov의 게임 창 client-area를 찾아 그 화면만 자동 감지합니다."
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               TextWrapping="Wrap"
+                               Margin="0,10,0,0" />
+                    <TextBlock Text="테스트 ON: 모든 디스플레이를 대상으로 같은 상세창 탐지 → 한국어 OCR → Item ID 파이프라인을 실시간 실행합니다. 바탕화면이나 이미지 뷰어에 Tarkov 전체 스크린샷을 띄워 확인할 수 있습니다. 두 모드는 동시에 켜지지 않습니다."
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               TextWrapping="Wrap"
+                               Margin="0,5,0,0" />
                     <TextBlock x:Name="RuntimeStatusText"
                                Foreground="{StaticResource AccentBrush}"
                                TextWrapping="Wrap"
-                               Margin="0,10,0,4" />
+                               Margin="0,12,0,4" />
                     <TextBlock x:Name="CatalogStatusText"
                                Foreground="{StaticResource TextSecondaryBrush}"
                                TextWrapping="Wrap" />
-                    <TextBlock Text="현재 Foundation에서는 실제 Tarkov 창 캡처/최신 상세창 탐지/OCR 입력부를 의도적으로 비활성화했습니다. 실제 게임 검증 전에는 자동 인식을 실행하지 않습니다."
+                    <TextBlock Text="테스트 모드는 게임 없는 회귀 확인용입니다. 최신 Tarkov Borderless 실전 검증(Gate A~F)을 대체하지 않습니다."
                                Foreground="{StaticResource TextSecondaryBrush}"
                                TextWrapping="Wrap"
                                Margin="0,7,0,0" />
@@ -91,7 +105,7 @@
                         Padding="16"
                         Margin="0,8,0,0">
                     <StackPanel>
-                        <TextBlock Text="실제 게임 없이 Item ID → 가격/필요수량/로컬 아이콘 → Mini Scanner 표시 경로를 확인합니다."
+                        <TextBlock Text="Item ID → 가격/필요수량/로컬 아이콘 → Mini Scanner 표시 경로를 직접 확인합니다."
                                    Foreground="{StaticResource TextSecondaryBrush}"
                                    TextWrapping="Wrap"
                                    Margin="0,0,0,10" />
