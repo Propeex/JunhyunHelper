@@ -11,28 +11,38 @@ permissions:
   contents: write
 
 jobs:
-  dispatch-and-verify:
+  fix-dispatch-verify:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout trigger baseline
+      - name: Checkout current main
         uses: actions/checkout@v4
+        with:
+          ref: main
 
-      - name: Record trigger start
+      - name: Fix expected missing-tag exit code
         shell: bash
         run: |
           set -euo pipefail
-          cat > .github/release-v1.1.1-status.txt <<EOF
-          result=trigger-started
-          trigger_sha=$GITHUB_SHA
-          EOF
-          sed -i 's/^          //' .github/release-v1.1.1-status.txt
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/release-v1.1.1.yml')
+          text = path.read_text(encoding='utf-8')
+          old = '''          git ls-remote --exit-code --tags origin "refs/tags/$env:RELEASE_TAG" *> $null\n          if ($LASTEXITCODE -eq 0) { throw "Tag $env:RELEASE_TAG already exists." }\n'''
+          fixed = old + '''          Write-Host 'Release/tag namespace is clean.'\n          exit 0\n'''
+          if fixed not in text:
+              if old not in text:
+                  raise SystemExit('Expected clean-tag block was not found.')
+              path.write_text(text.replace(old, fixed, 1), encoding='utf-8')
+          PY
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- .github/release-v1.1.1-status.txt
-          git commit -m 'Record v1.1.1 release trigger start'
-          git push origin HEAD:main
+          git add -- .github/workflows/release-v1.1.1.yml
+          if ! git diff --cached --quiet; then
+            git commit -m 'Fix v1.1.1 clean tag release gate'
+            git push origin HEAD:main
+          fi
 
-      - name: Dispatch or join v1.1.1 release
+      - name: Dispatch and watch fixed release
         id: release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -40,41 +50,33 @@ jobs:
         run: |
           set -euo pipefail
           repo="$GITHUB_REPOSITORY"
-          workflow="release-v1.1.1.yml"
-
+          workflow='release-v1.1.1.yml'
           if gh release view v1.1.1 --repo "$repo" >/dev/null 2>&1; then
-            echo "run_id=" >> "$GITHUB_OUTPUT"
-            echo "result=release-already-exists" >> "$GITHUB_OUTPUT"
+            echo 'result=release-already-exists' >> "$GITHUB_OUTPUT"
+            echo 'run_id=' >> "$GITHUB_OUTPUT"
             exit 0
           fi
-
-          run_id="$(gh run list --repo "$repo" --workflow "$workflow" --branch main --limit 20 --json databaseId,status,event,createdAt --jq '[.[] | select(.event == "workflow_dispatch" and (.status == "queued" or .status == "in_progress" or .status == "waiting"))][0].databaseId // empty')"
-
+          gh workflow run "$workflow" --repo "$repo" --ref main
+          run_id=''
+          for attempt in $(seq 1 30); do
+            run_id="$(gh run list --repo "$repo" --workflow "$workflow" --branch main --limit 20 --json databaseId,status,event --jq '[.[] | select(.event == "workflow_dispatch" and (.status == "queued" or .status == "in_progress" or .status == "waiting"))][0].databaseId // empty')"
+            [ -n "$run_id" ] && break
+            sleep 2
+          done
           if [ -z "$run_id" ]; then
-            gh workflow run "$workflow" --repo "$repo" --ref main
-            for attempt in $(seq 1 30); do
-              run_id="$(gh run list --repo "$repo" --workflow "$workflow" --branch main --limit 20 --json databaseId,status,event,headSha,createdAt --jq '[.[] | select(.event == "workflow_dispatch" and (.status == "queued" or .status == "in_progress" or .status == "waiting"))][0].databaseId // empty')"
-              [ -n "$run_id" ] && break
-              sleep 2
-            done
-          fi
-
-          if [ -z "$run_id" ]; then
-            echo "result=dispatch-not-found" >> "$GITHUB_OUTPUT"
+            echo 'result=dispatch-not-found' >> "$GITHUB_OUTPUT"
             exit 1
           fi
-
           echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
-          echo "Watching release run $run_id"
           if gh run watch "$run_id" --repo "$repo" --exit-status; then
-            echo "result=success" >> "$GITHUB_OUTPUT"
+            echo 'result=success' >> "$GITHUB_OUTPUT"
           else
-            echo "result=failure" >> "$GITHUB_OUTPUT"
+            echo 'result=failure' >> "$GITHUB_OUTPUT"
             exit 1
           fi
 
-      - name: Record success status
-        if: success()
+      - name: Record final status
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ steps.release.outputs.run_id }}
@@ -82,13 +84,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          repo="$GITHUB_REPOSITORY"
-          target="$(gh release view v1.1.1 --repo "$repo" --json targetCommitish --jq '.targetCommitish' 2>/dev/null || true)"
-          draft="$(gh release view v1.1.1 --repo "$repo" --json isDraft --jq '.isDraft' 2>/dev/null || true)"
-          latest="$(gh release view --repo "$repo" --json tagName --jq '.tagName' 2>/dev/null || true)"
+          git pull --rebase origin main
+          target="$(gh release view v1.1.1 --repo "$GITHUB_REPOSITORY" --json targetCommitish --jq '.targetCommitish' 2>/dev/null || true)"
+          draft="$(gh release view v1.1.1 --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft' 2>/dev/null || true)"
+          latest="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq '.tagName' 2>/dev/null || true)"
           cat > .github/release-v1.1.1-status.txt <<EOF
-          result=$RESULT
-          run_id=$RUN_ID
+          result=${RESULT:-failure}
+          run_id=${RUN_ID:-unknown}
           release_target=$target
           is_draft=$draft
           latest_tag=$latest
@@ -99,25 +101,4 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -- .github/release-v1.1.1-status.txt
           git commit -m 'Record v1.1.1 release verification status'
-          git push origin HEAD:main
-
-      - name: Record failure status
-        if: failure()
-        env:
-          RUN_ID: ${{ steps.release.outputs.run_id }}
-          RESULT: ${{ steps.release.outputs.result }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          git pull --rebase origin main
-          cat > .github/release-v1.1.1-status.txt <<EOF
-          result=${RESULT:-failure}
-          run_id=${RUN_ID:-unknown}
-          trigger_sha=$GITHUB_SHA
-          EOF
-          sed -i 's/^          //' .github/release-v1.1.1-status.txt
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- .github/release-v1.1.1-status.txt
-          git commit -m 'Record failed v1.1.1 release verification status'
           git push origin HEAD:main
