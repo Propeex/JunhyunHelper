@@ -20,7 +20,7 @@ public sealed class MiniScannerOverlayService : IDisposable
     public MiniScannerOverlayService(ScannerSettingsService settings)
     {
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
-        _dispatcher = Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
+        _dispatcher = System.Windows.Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
         _settings.SettingsChanged += OnSettingsChanged;
     }
 
@@ -82,6 +82,8 @@ public sealed class MiniScannerOverlayService : IDisposable
             _window.SetEditMode(false);
             _settings.Update(settings =>
             {
+                // WPF screen coordinates are device-independent pixels and may be
+                // negative on monitors located left/above the primary monitor.
                 settings.PositionX = position.X;
                 settings.PositionY = position.Y;
             });
@@ -103,6 +105,8 @@ public sealed class MiniScannerOverlayService : IDisposable
             if (_window is null || !_window.IsVisible)
                 return;
 
+            // Recreate only the lightweight Scanner overlay so default placement is
+            // applied with a fresh SizeToContent measurement. MiniMap remains untouched.
             var snapshot = _snapshot;
             var editMode = _editMode;
             _window.Close();
