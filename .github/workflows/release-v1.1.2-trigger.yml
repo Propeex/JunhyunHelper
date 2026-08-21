@@ -1,7 +1,8 @@
-# one-shot trigger: 2026-08-21
 name: Trigger Release v1.1.2
 
 on:
+  pull_request:
+    types: [opened, synchronize, reopened]
   push:
     branches:
       - main
@@ -11,18 +12,60 @@ on:
 permissions:
   actions: write
   contents: read
+  pull-requests: write
 
 jobs:
   dispatch:
-    if: contains(github.event.head_commit.message, 'Trigger v1.1.2 dispatcher')
+    if: >-
+      (github.event_name == 'pull_request' && github.head_ref == 'release/v1.1.2-trigger') ||
+      (github.event_name == 'push' && contains(github.event.head_commit.message, 'Trigger v1.1.2 dispatcher'))
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     steps:
-      - name: Dispatch exact v1.1.2 release source
+      - name: Dispatch and observe exact v1.1.2 release source
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_SOURCE: f19d0f6993693aba4eaa26a4bde203c5731f0aad
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
+          set -euo pipefail
           gh workflow run release-v1.1.2.yml \
             --repo "$GITHUB_REPOSITORY" \
             --ref "$RELEASE_SOURCE"
-          echo "Dispatched v1.1.2 from $RELEASE_SOURCE"
+
+          RUN_ID=''
+          for i in $(seq 1 20); do
+            RUN_ID=$(gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --workflow release-v1.1.2.yml \
+              --event workflow_dispatch \
+              --commit "$RELEASE_SOURCE" \
+              --limit 1 \
+              --json databaseId \
+              --jq '.[0].databaseId // empty')
+            if [ -n "$RUN_ID" ]; then break; fi
+            sleep 3
+          done
+
+          if [ -z "$RUN_ID" ]; then
+            echo 'Could not resolve dispatched v1.1.2 release run.' >&2
+            exit 1
+          fi
+
+          echo "RELEASE_RUN_ID=$RUN_ID"
+          if [ -n "${PR_NUMBER:-}" ]; then
+            gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "v1.1.2 release run started: $RUN_ID · source: $RELEASE_SOURCE"
+          fi
+
+          set +e
+          gh run watch "$RUN_ID" --repo "$GITHUB_REPOSITORY" --exit-status
+          WATCH_EXIT=$?
+          set -e
+
+          RUN_STATE=$(gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --json status,conclusion,headSha --jq '"status=" + .status + " conclusion=" + (.conclusion // "") + " head=" + .headSha')
+          echo "$RUN_STATE"
+          if [ -n "${PR_NUMBER:-}" ]; then
+            gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "v1.1.2 release run finished: $RUN_ID · $RUN_STATE"
+          fi
+
+          exit "$WATCH_EXIT"
