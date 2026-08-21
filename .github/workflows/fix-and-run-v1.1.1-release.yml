@@ -1,5 +1,6 @@
 name: Recover Release v1.1.1
 
+# One-shot recovery for the v1.1.1 release gate.
 on:
   push:
     branches: [main]
