@@ -37,7 +37,7 @@ public sealed class ScannerCoordinator : IDisposable
         ArgumentNullException.ThrowIfNull(httpClient);
         ArgumentException.ThrowIfNullOrWhiteSpace(rootDirectory);
 
-        _dispatcher = Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
+        _dispatcher = System.Windows.Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
         _settings = new ScannerSettingsService(rootDirectory);
         _catalog = new ScannerCatalogService(httpClient, rootDirectory);
         _icons = new ScannerLocalIconService(rootDirectory);
@@ -131,6 +131,11 @@ public sealed class ScannerCoordinator : IDisposable
         return true;
     }
 
+    /// <summary>
+    /// Refreshes Scanner state after the active profile/content context changes. When
+    /// Scanner is enabled, synchronization is a pre-scan operation and may use network;
+    /// when disabled, an explicit Scanner-page visit only reads a local cache.
+    /// </summary>
     public async Task RefreshContextAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
