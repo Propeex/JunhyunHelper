@@ -6,7 +6,7 @@ namespace JunhyunHelper.Desktop.Scanner;
 /// <summary>
 /// Independent lifecycle for the Scanner overlay. It does not share a Window or state
 /// with the existing MiniMap overlay. All Window access is marshalled to the WPF UI
-/// dispatcher because future detector/OCR implementations run outside that thread.
+/// dispatcher because detector/OCR work runs outside that thread.
 /// </summary>
 public sealed class MiniScannerOverlayService : IDisposable
 {
@@ -14,6 +14,7 @@ public sealed class MiniScannerOverlayService : IDisposable
     private readonly Dispatcher _dispatcher;
     private MiniScannerWindow? _window;
     private ScannerItemSnapshot? _snapshot;
+    private string? _standbyMessage;
     private bool _editMode;
     private bool _disposed;
 
@@ -34,9 +35,23 @@ public sealed class MiniScannerOverlayService : IDisposable
 
         Invoke(() =>
         {
+            _standbyMessage = null;
             _snapshot = snapshot;
             var window = EnsureWindow();
             window.Render(snapshot, _settings.Current, _editMode);
+        });
+    }
+
+    public void ShowStandby(string message)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentException.ThrowIfNullOrWhiteSpace(message);
+
+        Invoke(() =>
+        {
+            _snapshot = null;
+            _standbyMessage = message.Trim();
+            EnsureWindow().RenderStatus(_standbyMessage, _settings.Current, _editMode);
         });
     }
 
@@ -48,6 +63,7 @@ public sealed class MiniScannerOverlayService : IDisposable
         Invoke(() =>
         {
             _snapshot = null;
+            _standbyMessage = null;
             if (_editMode)
                 return;
             _window?.Hide();
@@ -60,8 +76,20 @@ public sealed class MiniScannerOverlayService : IDisposable
         Invoke(() =>
         {
             _editMode = true;
-            var preview = _snapshot ?? CreatePositionPreview();
-            _snapshot ??= preview;
+            if (_snapshot is not null)
+            {
+                EnsureWindow().Render(_snapshot, _settings.Current, editMode: true);
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(_standbyMessage))
+            {
+                EnsureWindow().RenderStatus(_standbyMessage, _settings.Current, editMode: true);
+                return;
+            }
+
+            var preview = CreatePositionPreview();
+            _snapshot = preview;
             EnsureWindow().Render(preview, _settings.Current, editMode: true);
         });
     }
@@ -91,6 +119,7 @@ public sealed class MiniScannerOverlayService : IDisposable
             if (!keepVisible)
             {
                 _snapshot = null;
+                _standbyMessage = null;
                 _window.Hide();
             }
         });
@@ -108,11 +137,14 @@ public sealed class MiniScannerOverlayService : IDisposable
             // Recreate only the lightweight Scanner overlay so default placement is
             // applied with a fresh SizeToContent measurement. MiniMap remains untouched.
             var snapshot = _snapshot;
+            var standby = _standbyMessage;
             var editMode = _editMode;
             _window.Close();
             _window = null;
             if (snapshot is not null)
                 EnsureWindow().Render(snapshot, _settings.Current, editMode);
+            else if (!string.IsNullOrWhiteSpace(standby))
+                EnsureWindow().RenderStatus(standby, _settings.Current, editMode);
         });
     }
 
@@ -136,6 +168,8 @@ public sealed class MiniScannerOverlayService : IDisposable
             _window.ApplySettings(settings);
             if (_snapshot is not null && _window.IsVisible)
                 _window.Render(_snapshot, settings, _editMode);
+            else if (!string.IsNullOrWhiteSpace(_standbyMessage) && _window.IsVisible)
+                _window.RenderStatus(_standbyMessage, settings, _editMode);
         });
     }
 
@@ -183,6 +217,7 @@ public sealed class MiniScannerOverlayService : IDisposable
             _window.Close();
             _window = null;
             _snapshot = null;
+            _standbyMessage = null;
         });
         GC.SuppressFinalize(this);
     }
