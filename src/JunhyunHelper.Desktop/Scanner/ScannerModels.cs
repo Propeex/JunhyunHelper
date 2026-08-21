@@ -59,3 +59,82 @@ public sealed record ScannerRuntimeStatus(
 {
     public DateTimeOffset Timestamp { get; } = UpdatedAt ?? DateTimeOffset.Now;
 }
+
+/// <summary>
+/// User-facing recognition history. This is deliberately separate from scanner.log:
+/// the UI receives only the OCR text, nearest official candidate, similarity and the
+/// final decision, while the developer log keeps lower-level capture/runtime metadata.
+/// </summary>
+public sealed record ScannerActivityEntry(
+    DateTimeOffset Timestamp,
+    ScannerCaptureMode CaptureMode,
+    string OcrText,
+    string? CandidateName,
+    double Confidence,
+    double SecondScore,
+    bool Success,
+    string Reason)
+{
+    public string TimeText => Timestamp.ToLocalTime().ToString("HH:mm:ss");
+
+    public string ModeLabel => CaptureMode == ScannerCaptureMode.DisplayTest
+        ? "테스트"
+        : "스캐너";
+
+    public string ResultLabel => Success ? "식별 성공" : "식별 보류";
+
+    public string Summary
+    {
+        get
+        {
+            var observed = NormalizeForDisplay(OcrText);
+            if (string.IsNullOrWhiteSpace(observed))
+                return "아이템 이름을 읽지 못해 식별을 보류했습니다.";
+
+            if (string.IsNullOrWhiteSpace(CandidateName))
+                return $"화면에서 ‘{observed}’를 읽었지만 비교할 수 있는 아이템 후보를 찾지 못했습니다.";
+
+            var confidence = Confidence.ToString("P1");
+            return Success
+                ? $"화면에서 ‘{observed}’를 읽었고 ‘{CandidateName}’와 {confidence} 일치해 해당 아이템으로 판단했습니다."
+                : $"화면에서 ‘{observed}’를 읽었고 가장 가까운 후보 ‘{CandidateName}’와 {confidence} 유사했지만 기준을 충족하지 않아 식별을 보류했습니다.";
+        }
+    }
+
+    public string DetailText
+    {
+        get
+        {
+            var reason = Reason switch
+            {
+                "EXACT" => "완전 일치",
+                "FUZZY" => "유사도 기준 통과",
+                "LOW_CONFIDENCE" => "유사도 또는 후보 간 차이 부족",
+                "AMBIGUOUS_OFFICIAL_NAME" => "동일 이름 후보 중복",
+                "EMPTY_OCR" => "텍스트 인식 실패",
+                "NO_CANDIDATE" => "비교 후보 없음",
+                "NO_CATALOG" => "아이템 목록 없음",
+                _ => "판단 보류",
+            };
+
+            if (string.IsNullOrWhiteSpace(CandidateName))
+                return $"{ModeLabel} · {reason}";
+
+            var margin = Math.Max(0, Confidence - SecondScore);
+            return $"{ModeLabel} · {reason} · 유사도 {Confidence:P1} · 1·2순위 차이 {margin:P1}";
+        }
+    }
+
+    private static string NormalizeForDisplay(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+
+        var compact = string.Join(
+            " / ",
+            value.Split(['\r', '\n', '|'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        if (compact.Length <= 140)
+            return compact;
+        return compact[..137] + "...";
+    }
+}
