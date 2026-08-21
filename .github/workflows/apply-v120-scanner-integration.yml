@@ -1,0 +1,103 @@
+name: Apply v1.2.0 Scanner integration
+
+on:
+  push:
+    branches:
+      - scanner-v1.2.0-recognition-overhaul
+    paths:
+      - .github/workflows/apply-v120-scanner-integration.yml
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: scanner-v1.2.0-recognition-overhaul
+          fetch-depth: 0
+
+      - name: Patch integration points
+        shell: bash
+        run: |
+          cat > /tmp/patch.py <<'PY'
+          from pathlib import Path
+
+          root = Path.cwd()
+
+          def replace_once(path, old, new):
+              p = root / path
+              text = p.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected exactly one match, found {count}: {old[:100]!r}')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          # Scanner catalog: current official names define plausible OCR characters.
+          path = 'src/JunhyunHelper.Infrastructure/Scanner/ScannerCatalogService.cs'
+          replace_once(path,
+              '    private readonly ScannerItemMatcher _matcher = new();\n',
+              '    private readonly ScannerItemMatcher _matcher = new();\n    private readonly ScannerOcrCharacterPolicy _ocrPolicy = new();\n')
+          replace_once(path,
+              '''    public ScannerRecognition ResolveOcrText(string text)\n    {\n        lock (_dataGate)\n            return _matcher.Resolve(text);\n    }\n''',
+              '''    public ScannerOcrTextAssessment AssessOcrText(string? text) => _ocrPolicy.Assess(text);\n\n    public ScannerRecognition ResolveOcrText(string text)\n    {\n        if (string.IsNullOrWhiteSpace(text))\n            return ScannerRecognition.Failed("EMPTY_OCR");\n\n        var assessment = _ocrPolicy.Assess(text);\n        if (!assessment.HasPlausibleVariant)\n            return ScannerRecognition.Failed("OCR_INVALID_CHARACTERS");\n\n        lock (_dataGate)\n            return _matcher.Resolve(assessment.FilteredText);\n    }\n''')
+          replace_once(path,
+              '''            _itemsById = byId;\n            _matcher.ReplaceCatalog(byId.Values);\n''',
+              '''            _itemsById = byId;\n            _matcher.ReplaceCatalog(byId.Values);\n            _ocrPolicy.ReplaceCatalog(byId.Values);\n''')
+          replace_once(path,
+              '''            _itemsById = new Dictionary<string, ScannerCatalogItem>(StringComparer.Ordinal);\n            _matcher.ReplaceCatalog([]);\n''',
+              '''            _itemsById = new Dictionary<string, ScannerCatalogItem>(StringComparer.Ordinal);\n            _matcher.ReplaceCatalog([]);\n            _ocrPolicy.ReplaceCatalog([]);\n''')
+
+          # Runtime becomes partial, serializes capture, updates the in-memory debug frame.
+          path = 'src/JunhyunHelper.Desktop/Scanner/ScannerRuntimeService.cs'
+          replace_once(path,
+              'public sealed class ScannerRuntimeService : IDisposable\n',
+              'public sealed partial class ScannerRuntimeService : IDisposable\n')
+          replace_once(path,
+              '''    private async Task<IReadOnlyList<ScannerInspectCandidate>> ObserveCandidatesAsync(CancellationToken cancellationToken)\n    {\n        if (_detector is IScannerCandidateInspectDetector candidateDetector)\n            return await candidateDetector.ObserveCandidatesAsync(cancellationToken);\n\n        var candidate = await _detector.ObserveAsync(cancellationToken);\n        return candidate is null ? [] : [candidate];\n    }\n''',
+              '''    private async Task<IReadOnlyList<ScannerInspectCandidate>> ObserveCandidatesAsync(CancellationToken cancellationToken)\n    {\n        await _captureGate.WaitAsync(cancellationToken);\n        try\n        {\n            return await ObserveCandidatesCoreAsync(cancellationToken);\n        }\n        finally\n        {\n            _captureGate.Release();\n        }\n    }\n''')
+          replace_once(path,
+              '''    private static void PublishSearchActivity(CandidateSearchResult search, ScannerCaptureMode mode)\n    {\n        ScannerDiagnosticLog.Write(\n''',
+              '''    private static void PublishSearchActivity(CandidateSearchResult search, ScannerCaptureMode mode)\n    {\n        ScannerRecognitionDebugStore.UpdateAnalysis(\n            search.Candidate,\n            search.Pass,\n            search.OcrText,\n            search.Recognition);\n        ScannerDiagnosticLog.Write(\n''')
+          replace_once(path,
+              '''        _disposed = true;\n        StopLoop();\n''',
+              '''        _disposed = true;\n        CancelOneShotDisplayTimer();\n        StopLoop();\n''')
+
+          # Coordinator owns the global hotkey lifecycle.
+          path = 'src/JunhyunHelper.Desktop/Scanner/ScannerCoordinator.cs'
+          replace_once(path,
+              'public sealed class ScannerCoordinator : IDisposable\n',
+              'public sealed partial class ScannerCoordinator : IDisposable\n')
+          replace_once(path,
+              '''        _testEnabled = false;\n        StopContextMonitor();\n\n        if (_runtime is not null)\n''',
+              '''        _testEnabled = false;\n        StopContextMonitor();\n\n        if (_hotkeyService is not null)\n        {\n            if (_hotkeySubscribed)\n                _hotkeyService.RegistrationChanged -= OnHotkeyRegistrationChanged;\n            _hotkeyService.Dispose();\n            _hotkeyService = null;\n        }\n\n        if (_runtime is not null)\n''')
+
+          # Detector: refine title from close/magnifier/title-strip anchors and publish
+          # the latest in-memory diagnostic capture.
+          path = 'src/JunhyunHelper.Desktop/Scanner/ScannerLab38WindowsVision.cs'
+          old = '''    private static IReadOnlyList<ScannerInspectCandidate> DetectCandidates(\n        Bitmap bitmap,\n        int screenLeft,\n        int screenTop,\n        string sourceKey)\n    {\n        var data = ReadBgra(bitmap);\n        var structural = ScannerDetailGeometryDetector.FindCandidates(\n            data.Pixels,\n            bitmap.Width,\n            bitmap.Height,\n            data.Stride,\n            CandidateLimit);\n        if (structural.Count == 0)\n            return [];\n\n        var result = new List<ScannerInspectCandidate>(structural.Count);\n        foreach (var candidate in structural)\n        {\n            var title = candidate.Title;\n            var titlePixels = CropBgra(data.Pixels, data.Stride, title, bitmap.Width, bitmap.Height, out var titleStride);\n            if (titlePixels.Length == 0)\n                continue;\n\n            var titleImage = BitmapSource.Create(\n                title.Width,\n                title.Height,\n                96,\n                96,\n                PixelFormats.Bgra32,\n                null,\n                titlePixels,\n                titleStride);\n            titleImage.Freeze();\n\n            var geometrySignature = $"{sourceKey}:{Quantize(candidate.Window.X)}:{Quantize(candidate.Window.Y)}:{Quantize(candidate.Window.Width)}:{Quantize(candidate.Window.Height)}";\n            var titleSignature = $"{HashPixels(titlePixels):X16}";\n            result.Add(new ScannerInspectCandidate(\n                new Rect(\n                    screenLeft + candidate.Window.X,\n                    screenTop + candidate.Window.Y,\n                    candidate.Window.Width,\n                    candidate.Window.Height),\n                geometrySignature,\n                titleSignature,\n                titleImage,\n                candidate.Score,\n                candidate.Reason));\n        }\n\n        return result;\n    }\n'''
+          new = '''    private static IReadOnlyList<ScannerInspectCandidate> DetectCandidates(\n        Bitmap bitmap,\n        int screenLeft,\n        int screenTop,\n        string sourceKey)\n    {\n        var data = ReadBgra(bitmap);\n        var structural = ScannerDetailGeometryDetector.FindCandidates(\n            data.Pixels,\n            bitmap.Width,\n            bitmap.Height,\n            data.Stride,\n            CandidateLimit);\n        if (structural.Count == 0)\n        {\n            PublishDebugCaptureIfNeeded(\n                data.Pixels, data.Stride, bitmap.Width, bitmap.Height,\n                screenLeft, screenTop, sourceKey, null);\n            return [];\n        }\n\n        var result = new List<ScannerInspectCandidate>(structural.Count);\n        foreach (var candidate in structural)\n        {\n            var anchors = ScannerTitleAnchorRefiner.Refine(\n                data.Pixels, bitmap.Width, bitmap.Height, data.Stride, candidate);\n            var title = anchors.Title;\n            var titlePixels = CropBgra(data.Pixels, data.Stride, title, bitmap.Width, bitmap.Height, out var titleStride);\n            if (titlePixels.Length == 0)\n                continue;\n\n            var titleImage = BitmapSource.Create(\n                title.Width,\n                title.Height,\n                96,\n                96,\n                PixelFormats.Bgra32,\n                null,\n                titlePixels,\n                titleStride);\n            titleImage.Freeze();\n\n            var geometrySignature = $"{sourceKey}:{Quantize(candidate.Window.X)}:{Quantize(candidate.Window.Y)}:{Quantize(candidate.Window.Width)}:{Quantize(candidate.Window.Height)}";\n            var titleSignature = $"{HashPixels(titlePixels):X16}";\n            var windowBounds = ToScreenRect(candidate.Window, screenLeft, screenTop);\n            var titleBounds = ToScreenRect(title, screenLeft, screenTop);\n            var magnifierBounds = anchors.Magnifier.Width > 0\n                ? ToScreenRect(anchors.Magnifier, screenLeft, screenTop)\n                : null;\n            var closeBounds = anchors.CloseButton.Width > 0\n                ? ToScreenRect(anchors.CloseButton, screenLeft, screenTop)\n                : null;\n\n            result.Add(new ScannerInspectCandidate(\n                windowBounds,\n                geometrySignature,\n                titleSignature,\n                titleImage,\n                candidate.Score,\n                candidate.Reason,\n                titleBounds,\n                magnifierBounds,\n                closeBounds,\n                anchors.Score,\n                anchors.Reason));\n        }\n\n        var ordered = result\n            .OrderByDescending(candidate => candidate.StructuralScore)\n            .Take(CandidateLimit)\n            .ToArray();\n        PublishDebugCaptureIfNeeded(\n            data.Pixels, data.Stride, bitmap.Width, bitmap.Height,\n            screenLeft, screenTop, sourceKey, ordered.FirstOrDefault());\n        return ordered;\n    }\n\n    private static void PublishDebugCaptureIfNeeded(\n        byte[] pixels,\n        int stride,\n        int width,\n        int height,\n        int screenLeft,\n        int screenTop,\n        string sourceKey,\n        ScannerInspectCandidate? candidate)\n    {\n        var signature = candidate?.TitleSignature;\n        if (!ScannerRecognitionDebugStore.ShouldCapture(signature, candidate is not null))\n            return;\n\n        var image = BitmapSource.Create(\n            width,\n            height,\n            96,\n            96,\n            PixelFormats.Bgra32,\n            null,\n            pixels,\n            stride);\n        image.Freeze();\n\n        Rect? Local(Rect? value) => value is not { } rect\n            ? null\n            : new Rect(rect.X - screenLeft, rect.Y - screenTop, rect.Width, rect.Height);\n\n        ScannerRecognitionDebugStore.PublishCapture(new ScannerRecognitionDebugFrame(\n            image,\n            screenLeft,\n            screenTop,\n            sourceKey,\n            Local(candidate?.Bounds),\n            Local(candidate?.TitleBounds),\n            Local(candidate?.MagnifierBounds),\n            Local(candidate?.CloseBounds),\n            candidate?.StructuralScore ?? 0,\n            candidate?.StructuralReason ?? "NO_DETAIL_CANDIDATE",\n            candidate?.TitleAnchorScore ?? 0,\n            candidate?.TitleAnchorReason ?? "NOT_RUN",\n            candidate?.TitleSignature));\n    }\n\n    private static Rect ToScreenRect(ScannerDetectedRegion region, int screenLeft, int screenTop) =>\n        new(screenLeft + region.X, screenTop + region.Y, region.Width, region.Height);\n'''
+          replace_once(path, old, new)
+
+          # Debug window needs Canvas static helpers.
+          # (The direct file edit normally already supplies this, assertion is tolerant.)
+
+          PY
+          python /tmp/patch.py
+          git diff --check
+
+      - name: Commit integration
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            src/JunhyunHelper.Infrastructure/Scanner/ScannerCatalogService.cs \
+            src/JunhyunHelper.Desktop/Scanner/ScannerRuntimeService.cs \
+            src/JunhyunHelper.Desktop/Scanner/ScannerCoordinator.cs \
+            src/JunhyunHelper.Desktop/Scanner/ScannerLab38WindowsVision.cs
+          git commit -m "Integrate Scanner recognition overhaul runtime"
+          git push origin HEAD:scanner-v1.2.0-recognition-overhaul
