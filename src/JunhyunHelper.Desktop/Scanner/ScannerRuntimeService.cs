@@ -8,6 +8,7 @@ public sealed class ScannerRuntimeService : IDisposable
 {
     private static readonly TimeSpan TickInterval = TimeSpan.FromMilliseconds(350);
     private static readonly TimeSpan SemanticRetryInterval = TimeSpan.FromMilliseconds(1200);
+    private static readonly TimeSpan PresentationRefreshInterval = TimeSpan.FromSeconds(1);
     private const int StableCandidateHitsRequired = 2;
     private const int MissesToHide = 2;
     private const int CandidateLimit = 8;
@@ -23,6 +24,7 @@ public sealed class ScannerRuntimeService : IDisposable
     private readonly IScannerOcrEngine _ocr;
     private readonly Func<ScannerDataContext?> _contextProvider;
     private readonly object _loopGate = new();
+    private readonly HashSet<string> _previousCandidateGeometrySignatures = new(StringComparer.Ordinal);
 
     private CancellationTokenSource? _loopCts;
     private Task? _loopTask;
@@ -32,6 +34,7 @@ public sealed class ScannerRuntimeService : IDisposable
     private int _candidatePresenceHits;
     private int _consecutiveMisses;
     private DateTimeOffset _nextSemanticAttemptAtUtc = DateTimeOffset.MinValue;
+    private DateTimeOffset _nextPresentationRefreshAtUtc = DateTimeOffset.MinValue;
     private Rect? _verifiedBounds;
     private string _verifiedTitleSignature = string.Empty;
     private ScannerItemSnapshot? _currentSnapshot;
@@ -267,12 +270,13 @@ public sealed class ScannerRuntimeService : IDisposable
                 }
 
                 _consecutiveMisses = 0;
-                _candidatePresenceHits++;
+                UpdateCandidateStability(candidates);
 
                 ScannerDiagnosticLog.Write(
                     "geometry-candidates",
                     mode,
                     ("count", candidates.Count),
+                    ("stableHits", _candidatePresenceHits),
                     ("topScore", candidates[0].StructuralScore),
                     ("topReason", candidates[0].StructuralReason),
                     ("topBounds", FormatBounds(candidates[0].Bounds)));
@@ -287,11 +291,27 @@ public sealed class ScannerRuntimeService : IDisposable
                     if (closest.Distance <= VerifiedGeometryDistanceLimit &&
                         string.Equals(closest.Candidate.TitleSignature, _verifiedTitleSignature, StringComparison.Ordinal))
                     {
+                        if (DateTimeOffset.UtcNow >= _nextPresentationRefreshAtUtc)
+                        {
+                            _nextPresentationRefreshAtUtc = DateTimeOffset.UtcNow + PresentationRefreshInterval;
+                            var refreshed = _presentation.CreateSnapshot(_currentSnapshot.ItemId);
+                            if (refreshed is null)
+                            {
+                                ClearVerifiedItem();
+                                const string refreshMessage = "현재 아이템 표시 데이터를 갱신할 수 없어 다시 확인합니다.";
+                                _overlay.ShowStandby(refreshMessage);
+                                Publish(ScannerRuntimeState.Uncertain, refreshMessage, captureMode: mode);
+                                continue;
+                            }
+                            _currentSnapshot = refreshed;
+                        }
+
                         _overlay.Show(_currentSnapshot);
                         continue;
                     }
 
                     ClearVerifiedItem();
+                    _candidatePresenceHits = 1;
                     const string changedMessage = "아이템 제목 변화를 확인하는 중입니다.";
                     _overlay.ShowStandby(changedMessage);
                     Publish(ScannerRuntimeState.Stabilizing, changedMessage, captureMode: mode);
@@ -344,6 +364,7 @@ public sealed class ScannerRuntimeService : IDisposable
                 _verifiedBounds = search.Candidate.Bounds;
                 _verifiedTitleSignature = search.Candidate.TitleSignature;
                 _currentSnapshot = snapshot;
+                _nextPresentationRefreshAtUtc = DateTimeOffset.UtcNow + PresentationRefreshInterval;
                 ScannerDiagnosticLog.Write(
                     "semantic-selected",
                     mode,
@@ -503,6 +524,28 @@ public sealed class ScannerRuntimeService : IDisposable
             ("secondScore", recognition.SecondScore));
     }
 
+    private void UpdateCandidateStability(IReadOnlyList<ScannerInspectCandidate> candidates)
+    {
+        var current = candidates
+            .Take(CandidateLimit)
+            .Select(CandidateStabilityKey)
+            .Where(key => !string.IsNullOrWhiteSpace(key))
+            .ToHashSet(StringComparer.Ordinal);
+
+        var overlapsPrevious = current.Count > 0 && _previousCandidateGeometrySignatures.Overlaps(current);
+        _candidatePresenceHits = overlapsPrevious
+            ? Math.Min(_candidatePresenceHits + 1, StableCandidateHitsRequired)
+            : 1;
+
+        _previousCandidateGeometrySignatures.Clear();
+        _previousCandidateGeometrySignatures.UnionWith(current);
+    }
+
+    private static string CandidateStabilityKey(ScannerInspectCandidate candidate) =>
+        string.IsNullOrWhiteSpace(candidate.GeometrySignature)
+            ? FormatBounds(candidate.Bounds)
+            : candidate.GeometrySignature.Trim();
+
     private static double GeometryDistance(Rect left, Rect right) =>
         Math.Abs(left.X - right.X) +
         Math.Abs(left.Y - right.Y) +
@@ -535,6 +578,7 @@ public sealed class ScannerRuntimeService : IDisposable
     {
         _consecutiveMisses++;
         _candidatePresenceHits = 0;
+        _previousCandidateGeometrySignatures.Clear();
         if (_consecutiveMisses < MissesToHide)
             return;
 
@@ -551,12 +595,14 @@ public sealed class ScannerRuntimeService : IDisposable
         _verifiedBounds = null;
         _verifiedTitleSignature = string.Empty;
         _currentSnapshot = null;
+        _nextPresentationRefreshAtUtc = DateTimeOffset.MinValue;
     }
 
     private void ResetObservationState(bool hideOverlay)
     {
         _candidatePresenceHits = 0;
         _consecutiveMisses = 0;
+        _previousCandidateGeometrySignatures.Clear();
         _nextSemanticAttemptAtUtc = DateTimeOffset.MinValue;
         ClearVerifiedItem();
         _lastDiagnosticStatusKey = string.Empty;

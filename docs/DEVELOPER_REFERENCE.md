@@ -1,20 +1,18 @@
 # DEVELOPER_REFERENCE — 준현 헬퍼 개발자용 시스템 설명서
 
-상태: `ACTIVE / v1.0.0 BASELINE`
+상태: **`ACTIVE / v1.1.4 RELEASE CANDIDATE`**
 
-기준일: 2026-08-19
+기준일: 2026-08-21
 
-이 문서는 준현 헬퍼를 다음 세션의 개발자가 저장소만 보고 이어서 개발할 수 있도록 만든 **구현 지도와 변경 영향 설명서**입니다. 제품 의미의 최종 권위는 `PRODUCT.md`와 `DECISIONS.md`, 현재 배포 상태의 최종 권위는 `STATE.md`입니다. 이 문서는 그 요구사항이 실제 코드에서 **어디에 있고, 무엇을 참조하며, 어떤 입력을 받아 어떤 출력을 만들고, 변경하면 어디에 영향이 가는지**를 설명합니다.
+이 문서는 다음 개발 세션이 대화 기억 없이 저장소만 보고 이어서 작업할 수 있도록 만든 구현 지도입니다. 제품 의미의 최종 권위는 `PRODUCT.md`와 `DECISIONS.md`, 현재 배포 상태의 최종 권위는 `STATE.md`입니다.
 
 ---
 
-# 1. 먼저 기억할 절대 경계
+# 1. 절대 경계
 
-## 1.1 제품의 현재 형태
+준현 헬퍼는 Windows x64 .NET 10 WPF desktop application입니다.
 
-준현 헬퍼는 Windows x64용 .NET 10 WPF desktop application입니다.
-
-현재 사용자가 실제로 사용하는 상위 영역은 다음과 같습니다.
+현재 사용자 기능:
 
 - Profile
 - Quest
@@ -24,970 +22,744 @@
 - Map / MiniMap
 - Game Content update
 - Program update
-- Scanner tab의 `준비 중` placeholder
+- Scanner / Mini Scanner
 
-Scanner는 **실제 기능이 아닙니다**. 탭은 제품 UI에 남겨 두되 별도 요구가 확정되기 전까지 scanner logic, capture, OCR, automation을 추가하지 않습니다.
+Runtime GPT/LLM API는 없습니다.
 
-## 1.2 runtime AI 없음
-
-준현 헬퍼 runtime에는 GPT/LLM/AI API가 없습니다. 데이터 판정은 deterministic code와 canonical data로 수행합니다.
-
-## 1.3 old Tarkov-Helper는 제품 사양이 아님
-
-`vendor/Tarkov-Helper`는 일반적으로 참고 자료일 뿐입니다. 단, Map/MiniMap은 사용자 검증을 거친 특정 donor revision을 명시적으로 기준선으로 채택한 예외입니다.
-
-따라서:
-
-- Quest, Hideout, Items, Ammo, updater, profile logic을 old Tarkov-Helper에서 되살리지 않습니다.
-- Map donor code도 “깔끔하게 만들기 위해서” 임의 재작성하지 않습니다.
-- Map에서 실제 결함, 성능 문제, 제품 계약 위반이 확인됐을 때만 필요한 범위를 수정합니다.
+`vendor/Tarkov-Helper`는 일반적인 제품 사양이 아닙니다. Map/MiniMap만 pinned donor revision을 명시적으로 채택한 제한적 예외입니다. Quest/Hideout/Items/Ammo/Scanner/updater의 제품 의미는 JunhyunHelper first-party 코드와 공식 문서가 소유합니다.
 
 ---
 
 # 2. 저장소를 읽는 순서
 
-새 작업을 시작하면 다음 순서가 가장 빠릅니다.
+1. `AGENTS.md`
+2. `docs/STATE.md`
+3. `docs/PRODUCT.md`
+4. `docs/DECISIONS.md`
+5. `docs/DEVELOPER_REFERENCE.md`
+6. `docs/ARCHITECTURE.md`
+7. `docs/VERSIONING.md`
+8. 작업 영역 전문 문서
+9. 관련 코드/tests/현재 PR
 
-1. `AGENTS.md` — 작업 규약
-2. `docs/STATE.md` — 현재 구현/배포 상태
-3. `docs/PRODUCT.md` — 사용자 기능 계약
-4. `docs/DECISIONS.md` — 장기 결정과 supersession
-5. `docs/DEVELOPER_REFERENCE.md` — 코드/데이터 흐름 지도
-6. `docs/ARCHITECTURE.md` — 기술 경계
-7. `docs/VERSIONING.md` — 릴리즈 버전 규칙
-8. 작업 영역의 전문 문서
-9. 관련 코드와 테스트
+Scanner 작업이면 반드시 추가로:
 
-Map 작업이면 추가로 `MAP_PRODUCT_REQUIREMENTS.md`, `REFERENCE_POLICY.md`를 먼저 읽습니다. Quest availability 작업이면 `QUEST_PREREQUISITE_SEMANTICS.md`, 최근 source audit 문서를 같이 읽습니다.
+- `docs/SCANNER.md`
+- `docs/SCANNER_TEST_PLAN.md`
+- `docs/SCANNER_LAB_3_8_REFERENCE.md`
+- 최신 Scanner release record
+
+를 먼저 읽습니다.
 
 ---
 
-# 3. 프로젝트 의존성 구조
+# 3. 프로젝트 의존성
 
 ```text
 JunhyunHelper.Desktop
   ├─ JunhyunHelper.Application
   ├─ JunhyunHelper.Infrastructure
   ├─ JunhyunHelper.Core
-  └─ pinned vendor/Tarkov-Helper Map/MiniMap source (limited exception)
+  └─ pinned vendor Map/MiniMap source
 
 JunhyunHelper.Application
-  ├─ JunhyunHelper.Core
-  └─ JunhyunHelper.Infrastructure.Storage
+  ├─ Core
+  └─ Infrastructure storage boundary
 
 JunhyunHelper.Infrastructure
-  └─ JunhyunHelper.Core
+  └─ Core
 
 JunhyunHelper.Core
-  └─ product external dependency 없음
+  └─ WPF/HTTP/SQLite 의존 없음
 ```
 
-### Core
+- **Core**: canonical domain과 deterministic 계산.
+- **Application**: authoritative user mutation/use case와 workspace orchestration.
+- **Infrastructure**: source/HTTP/SQLite/files/content activation/program update/Scanner catalog.
+- **Desktop**: WPF UI, presentation, Scanner capture/OCR/runtime, Map bridge, startup/update UX.
 
-제품의 canonical domain과 deterministic 계산을 소유합니다. WPF, HTTP, SQLite를 알면 안 됩니다.
-
-### Application
-
-사용자 조작을 유스케이스 단위로 묶습니다. authoritative profile을 읽고 Core 계산을 호출하고 변경된 profile을 저장합니다.
-
-### Infrastructure
-
-외부 데이터, HTTP, SQLite/file persistence, content build/activation, program update 같은 I/O 경계를 소유합니다.
-
-### Desktop
-
-WPF UI, 화면 전환, 사용자 interaction, presentation cache, Map product bridge와 startup/update UX를 소유합니다. Core의 제품 의미를 UI에서 다시 계산하지 않습니다.
+UI에서 Core/Application 의미를 재계산하지 않습니다.
 
 ---
 
-# 4. 데이터의 권위 분류
+# 4. 데이터 권위와 저장 위치
 
-준현 헬퍼에서 가장 중요한 설계 원칙은 **데이터 종류별 권위가 다르다**는 점입니다.
+| 데이터 | 권위 | 저장 위치 |
+|---|---|---|
+| Game Content | validated canonical import | `%LocalAppData%/JunhyunHelper/content/<mode>/content.db` |
+| User Progress | user-confirmed profile facts | `%LocalAppData%/JunhyunHelper/user.db` |
+| Inventory | user quantity + explicit fixed consumption ledger | `user.db` |
+| Presentation preferences | user settings | atomic JSON + `.bak` |
+| Image cache | validated/normalized presentation image | `image-cache/` |
+| Scanner Item identity/market catalog | current full-item source + Korean translation | `scanner/catalog/` + memory |
+| Scanner diagnostics | runtime observation metadata | `logs/scanner.log(.1)` |
+| Map general data/artwork | pinned release Assets | portable `Assets/` |
+| Program files | exact GitHub stable release | portable folder |
 
-| 종류 | 권위/출처 | 저장 위치 | 대표 소비자 |
-|---|---|---|---|
-| Game Content | json.tarkov.dev + 검증된 보조 source → canonical import | `%LocalAppData%/JunhyunHelper/content/<mode>/content.db` | Quest, Hideout, Items, Ammo |
-| User Progress | 사용자가 입력/확정한 profile facts | `%LocalAppData%/JunhyunHelper/user.db` | Quest availability, Hideout, Needed Items |
-| Inventory | 사용자가 입력한 보유량 + 명시적 고정 소모 자동 차감 | `user.db` | Items/cleanup, Quest/Hideout consumption |
-| Presentation preferences | 사용 편의 설정 | atomic JSON + `.bak` | Ammo favorites, Map product settings |
-| Image cache | 원본 URL의 presentation cache | `image-cache/` | Item/Hideout UI |
-| Map artwork/config/general markers | pinned Map bundle | release `Assets/` | Main Map, MiniMap |
-| Program files | GitHub stable Release | portable folder | updater |
-
-**Game Content update와 Program update는 완전히 별개입니다.** Game Content가 바뀌어도 EXE를 교체하지 않고, EXE를 업데이트해도 `user.db`를 덮어쓰지 않습니다.
+Game Content update와 Program update는 별개입니다. 둘 다 `user.db`를 덮지 않습니다.
 
 ---
 
-# 5. 프로그램 시작 흐름
+# 5. Startup / shell
 
 ```text
 App.OnStartup
-  ├─ fatal exception hooks 설치
-  ├─ program update apply-mode라면 updater 경로 실행 후 종료
-  ├─ stale temp updater cleanup 예약
-  ├─ MainWindow 생성/표시
-  └─ smoke가 아니면 ProgramUpdateCoordinator.CheckAtStartupAsync 예약
+  ├─ fatal exception hooks
+  ├─ updater apply-mode 처리
+  ├─ MainWindow 표시
+  └─ smoke가 아니면 startup program update check
 
 MainWindow.Window_Loaded
   └─ LoadProfilesAsync
-      ├─ ProfileApplicationService.LoadAllAsync
-      ├─ UserProfileStore.LoadAllAsync
-      ├─ profile selector 구성
-      └─ 선택 profile이 있으면 LoadSelectedProfileAsync
-           ├─ ReadOrCreateContentAsync
-           │   ├─ active content.db 없음 → Game Content update
-           │   ├─ active read/validation
-           │   └─ 실패 + previous 있으면 recovery / 아니면 update 재시도
-           ├─ Quest workspace 생성
-           ├─ Hideout workspace 생성
-           ├─ Items workspace 생성
-           ├─ Ammo page 데이터 설정
-           └─ active section 표시
+      ├─ UserProfileStore
+      ├─ selected GameMode content read/recovery/update
+      ├─ Quest workspace
+      ├─ Hideout workspace
+      ├─ Items workspace
+      ├─ Ammo context
+      ├─ Map bridge
+      └─ Scanner context
 ```
 
-중요한 순서:
-
-- MainWindow를 먼저 표시한 뒤 program update check를 비동기로 합니다. 네트워크 실패 때문에 앱 시작을 막지 않습니다.
-- profile이 없으면 content 기능을 억지로 초기화하지 않고 profile 생성 UX를 보여 줍니다.
-- content DB는 사용할 때 read/validation을 통과해야 합니다.
+MainWindow는 orchestration layer입니다. 새 domain truth를 MainWindow event handler에 넣지 않습니다.
 
 ---
 
-# 6. Profile 시스템
+# 6. Profile / Quest / Hideout / Items 핵심 흐름
 
-## 책임
+## Profile
 
-게임 모드별 사용자의 장기 진행 상태를 저장합니다. 동일 GameMode profile은 하나만 허용합니다.
+`GameProfileSnapshot`은 GameMode별 authoritative user-progress aggregate입니다.
 
-## 핵심 파일
+주요 fact:
 
-- `Core/Profiles/GameProfileSnapshot.cs`
-- `Core/Profiles/GameMode.cs`
-- `Core/Profiles/PmcFaction.cs`
-- `Core/Profiles/TraderProgress.cs`
-- `Application/Profiles/ProfileApplicationService.cs`
-- `Infrastructure/Storage/UserProfileStore.cs`
-- `Desktop/Profiles/ProfileModeWindow.*`
-- `Desktop/Profiles/ProfileEditorWindow.*`
+- GameMode / Level / Faction / Edition / Prestige
+- Trader LL/standing
+- CompletedQuestIds / FailedQuestIds
+- SpecialTraderAccessOverrides
+- ProfileVariables
+- HideoutLevels
+- Inventory
+- QuestConsumptions / HideoutUpgradeConsumptions
 
-## GameProfileSnapshot 주요 필드
+`UserProfileStore`가 SQLite `user.db`의 serialization과 in-process snapshot cache를 소유합니다.
 
-- `ProfileId` — 현재 GameMode data key와 동일한 안정 ID
-- `GameMode`
-- `Level`
-- `Faction`
-- `EditionId`
-- `PrestigeLevel`
-- `Traders` — loyalty/standing의 부분 사실 허용
-- `CompletedQuestIds`
-- `FailedQuestIds`
-- `SpecialTraderAccessOverrides`
-- `ProfileVariables`
-- `HideoutLevels`
-- `Inventory`
-- `QuestConsumptions`
-- `HideoutUpgradeConsumptions`
+## Quest
 
-## 저장
+`QuestAvailabilityEvaluator`:
 
-`UserProfileStore`가 SQLite `profiles` table의 JSON payload를 소유합니다.
+- Current
+- Locked
+- Completed
+- Unavailable
+- Indeterminate
 
-- DB schema: v1
-- JSON property 추가는 optional/default 방식으로 유지해 destructive migration을 피합니다.
-- 읽은 snapshot은 in-process cache에 보관합니다.
-- write가 성공한 뒤 canonicalized snapshot만 cache에 넣습니다.
-- schema 생성은 store instance에서 한 번만 수행하며 동시 초기화는 gate로 직렬화합니다.
+서로 다른 task requirement는 AND, 한 requirement 안 accepted status set은 OR입니다. unknown/unsupported fact를 optimistic `Current`로 만들지 않습니다.
 
-## 변경 영향
+`QuestFutureReachabilityEvaluator`는 현재 가능 여부와 미래 Item 필요 가능성을 분리합니다. future planning에서 unknown은 `IndeterminatePotential`로 보호합니다.
 
-`GameProfileSnapshot`에 새 필드를 추가하면 최소한 다음을 같이 확인합니다.
+## Hideout
 
-1. `UserProfileStore.ProfileDocument.From`
-2. `ProfileDocument.ToSnapshot`
-3. validation/default/legacy compatibility
-4. `ItemsApplicationService.PlanningStateEquals` — Needed Items basis에 영향을 주는 필드인지
-5. profile editor 입력 필요 여부
-6. Quest/Hideout/Items tests
+미입력 station은 Lv.0입니다. 미래 upgrade level의 fixed material은 Needed Items에 포함합니다.
 
----
-
-# 7. Quest 시스템
-
-## canonical 입력
-
-- `QuestDefinition`
-- `QuestObjective`
-- `QuestItemRequirement`
-- edition/trader/map references
-- user profile
-
-## QuestDefinition의 핵심 availability 정보
-
-- minimum player level
-- faction
-- prestige
-- task prerequisite + accepted status set
-- trader standing
-- trader loyalty
-- special trader access
-- exact profile variable requirements
-- unsupported availability types
-- completion failure conditions
-- unsupported failure conditions
-- restartable
-- availability delay
-
-## availability 상태
-
-`QuestAvailabilityEvaluator`의 결과는 의미가 엄격합니다.
-
-- `Current` — Helper가 현재 진행 가능함을 증명
-- `Locked` — 아직 조건을 만족하지 않음
-- `Completed` — 완료 fact 존재
-- `Unavailable` — 이 profile에서 영구적으로 닫힘/실패 등
-- `Indeterminate` — source 또는 profile fact가 부족해 증명 불가
-
-`Indeterminate`를 UI/Application에서 임의로 `Current`로 승격하지 않습니다.
-
-## prerequisite 의미
-
-- 서로 다른 task requirement는 AND
-- 하나의 requirement 안 accepted status들은 OR
-- Helper에서 받을 수 있는 quest는 별도 “Available” 단계 없이 즉시 accepted/current로 간주
-- missing referenced quest / dependency cycle / unsupported condition은 optimistic unlock하지 않음
-
-## 특수 상인
-
-BTR/Ref/Lightkeeper는 generic prerequisite만으로 정확히 표현되지 않는 verified rule이 있어 canonical special access requirement를 사용합니다. Lightkeeper처럼 unlock 뒤 access가 다시 사라질 수 있는 경우에만 sparse manual override를 허용합니다.
-
-## profile variable
-
-exact `ProfileVariables`가 있으면 그것이 우선입니다. 값이 없을 때 0이라고 가정하면 안 됩니다. 현재 audited task-pool 구조에 한해서만 `QuestTaskPoolVariableCompatibility`가 제한적으로 inference하고, upstream 구조가 달라지면 fail-closed합니다.
-
-## Quest 사용자 조작
-
-`QuestApplicationService`가 authoritative mutation boundary입니다.
-
-### Complete
-
-1. 현재 상태가 `Current` 또는 `Indeterminate`인지 확인
-2. fixed single-item requirements만 `FixedInventoryConsumptionPolicy`로 차감
-3. flexible hand-in은 무엇을 제출했는지 모르므로 자동 차감하지 않음
-4. consumption ledger 기록
-5. completed set에 추가, explicit failed set에서 제거
-6. profile save
-7. workspace 재계산
-
-### Fail
-
-수동 영구 실패 입력이 필요한 quest만 허용합니다. 일반 quest에 임의 failure fact를 쓰지 않습니다.
-
-### Undo completion
-
-- 기본은 inventory를 자동 복구하지 않음
-- 사용자가 restore를 명시한 경로에서만 ledger를 역적용
-- 복구하지 않았다면 ledger를 남겨 재완료 때 중복 차감하지 않음
-
-### Undo failure
-
-explicit failed set에서만 제거합니다.
-
-## 화면
-
-`Desktop/Quests/QuestPage.*`는 search/filter/detail/navigation/presentation을 담당합니다. Map navigation bridge는 Quest geometry를 Map subsystem에 전달하지만 Quest availability 의미 자체는 Map에서 다시 계산하지 않습니다.
-
----
-
-# 8. 미래 Quest reachability와 Needed Items
-
-Quest의 “지금 가능 여부”와 “미래에 아이템이 필요할 가능성”은 다릅니다.
-
-`QuestFutureReachabilityEvaluator`는 다음을 구분합니다.
-
-- `Potential`
-- `Completed`
-- `Unavailable`
-- `IndeterminatePotential`
-
-레벨/loyalty/prestige처럼 나중에 충족 가능한 gate는 미래 필요에서 제외하지 않습니다. faction/edition/disabled/permanent failure처럼 영구 배제되는 조건만 제거합니다. 모르는 조건은 `IndeterminatePotential`로 두어 사용자가 필요한 item을 버리게 만들지 않습니다.
-
----
-
-# 9. Hideout 시스템
-
-## 핵심 파일
-
-- `Core/Hideout/HideoutStation.cs`
-- `Application/Hideout/HideoutApplicationService.cs`
-- `Desktop/Hideout/HideoutPage.*`
-
-## 현재 level 규칙
-
-profile `HideoutLevels`에 station key가 없으면 **Lv.0**입니다. “미입력이라 알 수 없음”이라는 별도 상태는 v1.0.0 제품 규칙에 존재하지 않습니다.
-
-## level 변경
-
-`HideoutApplicationService.SetLevelAsync`:
-
-- content에 station이 있는지 확인
-- 0..max 범위 검증
-- level 상승 시 각 target level의 fixed item requirement를 순서대로 inventory에서 차감
-- consumption ledger key는 `stationId:targetLevel`
-- 이미 ledger가 있으면 같은 upgrade를 재차감하지 않음
-- level 하락 시 기본은 item 자동 복구 없음
-- explicit restore 경로에서는 ledger를 역적용하고 제거
-- 최종 profile save 후 workspace 재계산
-
-Needed Items는 **현재 level보다 높은 모든 미래 level**의 재료를 포함합니다.
-
----
-
-# 10. Items / Inventory / Cleanup 시스템
-
-## 핵심 파일
-
-- `Core/Items/InventoryQuantity.cs`
-- `Core/Items/ItemRequirement.cs`
-- `Core/Items/NeededItemRequirementBuilder.cs`
-- `Core/Items/NeededItemCalculator.cs`
-- `Core/Items/FlexibleQuestItemRequirementCalculator.cs`
-- `Core/Items/FutureNeededItemsPlanner.cs`
-- `Core/Items/InventoryCleanupChangeDetector.cs`
-- `Application/Items/FixedInventoryConsumptionPolicy.cs`
-- `Application/Items/ItemsApplicationService.cs`
-- `Desktop/Items/ItemsPage.*`
-
-## 계산 파이프라인
+## Inventory / Needed Items
 
 ```text
-Game Content + Profile planning facts
-  └─ QuestFutureReachabilityEvaluator
-      └─ future quest ids
-
-future quest item requirements
-+ hideout levels > current level
-  └─ NeededItemRequirementBuilder
-      ├─ fixed requirements
-      └─ flexible/alternative quest requirements
-
-fixed requirements + Inventory
-  ├─ NeededItemCalculator → NeededItems
-  └─ InventorySurplusCalculator → CleanupItems
-
-flexible requirements
-  ├─ FlexibleQuestItemRequirementCalculator → 진행 표시
-  └─ candidate item cleanup protection
+future Quest reachability
++ future Hideout requirements
+→ NeededItemRequirementBuilder
+→ fixed/flexible split
+→ NeededItemCalculator
+→ NeededItems / Cleanup protection
 ```
 
-## fixed vs flexible
+Flexible hand-in의 실제 제출 Item을 자동 추측하지 않습니다.
 
-accepted item ID가 하나인 requirement는 fixed입니다. 여러 candidate 중 하나를 제출할 수 있는 requirement는 flexible입니다.
-
-Flexible requirement는:
-
-- 어느 item이 실제로 제출될지 자동 추측하지 않음
-- candidate item을 arbitrary cleanup 대상으로 만들지 않음
-- 별도 progress group으로 표시
-
-## cleanup 의미
-
-Cleanup은 **현재 알려진 미래 fixed requirements에 비해 초과인 보유량**입니다.
-
-FIR requirement가 있으면 FIR 필요량을 먼저 보호하고, unrestricted requirement에는 non-FIR를 우선 활용한 뒤 부족분만 FIR로 채우는 계산을 사용합니다.
-
-## inventory mutation 최적화
-
-`ItemsApplicationService`는 content reference + immutable profile snapshot에 대해 workspace cache를 둡니다. Inventory만 바뀐 경우 profile의 planning facts가 동일하면 기존 `FutureNeededItemsBasis`를 재사용해 Quest reachability와 requirement graph 전체를 다시 만들지 않습니다.
-
-새 profile field가 Needed Items 의미에 영향을 주면 반드시 `PlanningStateEquals` 비교에도 추가해야 합니다.
+Inventory-only mutation에서는 planning facts가 같으면 기존 future basis를 재사용합니다. 새 profile field가 planning 의미에 영향을 주면 `ItemsApplicationService.PlanningStateEquals`도 갱신해야 합니다.
 
 ---
 
-# 11. Ammo 시스템
+# 7. Game Content update
 
-## 데이터
-
-Ammo canonical data는 Tarkov source에서 가져오고, effectiveness는 별도 검증된 Wiki ballistics source를 통해 보완합니다. “ammo membership”과 “effectiveness”는 서로 다른 fact로 취급합니다.
-
-## 화면
-
-- `Desktop/Ammo/AmmoPage.xaml/.cs`
-- `AmmoPage.ProductGridFixes.cs`
-- `AmmoPage.ProductSearchAndDetails.cs`
-
-UI는 caliber grouping, 검색, 상세 ballistic 표시, favorites를 담당합니다.
-
-## favorites
-
-`AmmoFavoriteStore` → `AtomicJsonFileStore`를 사용합니다.
-
-- primary JSON
-- 직전 정상 `.bak`
-- same-directory temp + replace
-- preference 저장 실패는 app fatal로 확대하지 않고 diagnostic만 남김
-
----
-
-# 12. Game Content update
-
-## source → canonical
-
-대표 경로:
+대표 흐름:
 
 ```text
 TarkovJsonClient
-  → TarkovEndpointSourceLoader
-  → TarkovContentBuildService
-      → item importer
-      → quest importer/objective importer
-      → hideout importer
-      → ammo importer
-      → reference importers
-      → edition catalog
-      → ballistics effectiveness
-  → GameContentValidator
-  → candidate content.db
-  → candidate read-back + validation
-  → ContentActivationService
-  → active content.db
+→ TarkovEndpointSourceLoader
+→ TarkovContentBuildService
+→ importers
+→ GameContentValidator
+→ candidate content.db
+→ SQLite integrity/read-back
+→ ContentActivationService
+→ active content.db
 ```
 
-## 주요 파일
+핵심 안전 계약:
 
-Infrastructure:
+- candidate 완성 전 active를 덮지 않음
+- canonical + relational validation
+- previous known-good 유지
+- 새 active read 실패 시 previous recovery
+- update 실패가 user progress에 영향 없음
 
-- `TarkovJson/TarkovJsonClient.cs` — HTTP/JSON 경계
-- `TarkovJson/TarkovEndpointSourceLoader.cs` — endpoint document 모음
-- `Content/TarkovContentBuildService.cs` — 전체 canonical build orchestration
-- `TarkovJson/*Importer.cs` — source shape → domain conversion
-- `Validation/GameContentValidator.cs` — 관계/값 gate
-- `Storage/ContentSnapshotStore.cs` — SQLite snapshot serialization/read/integrity
-- `Storage/ContentActivationService.cs` — candidate/active/previous lifecycle
-- `Content/TarkovContentUpdateService.cs` — build→write→activate orchestration
-
-## 안전 계약
-
-- 새 데이터는 active file에 바로 쓰지 않음
-- candidate를 먼저 완성
-- canonical validation 통과
-- candidate DB write
-- DB integrity/read-back validation
-- 그 뒤에만 active와 교체
-- 이전 active는 `content.previous.db`로 보존
-- 새 active 검증 실패 시 previous 복구
-- update 실패가 `user.db`를 건드리지 않음
-
-## schema
-
-- current Content schema: v7
-- readable: v3-v7
-- 오래된 readable snapshot은 runtime compatibility transform을 거칠 수 있음
-- storage shape migration과 interpretation fix를 구분함
+Current Content schema v7, readable v3~v7.
 
 ---
 
-# 13. Image cache
+# 8. Map / MiniMap
 
-`Desktop/Services/ImageCacheService.cs`가 item/hideout presentation image를 담당합니다.
+Pinned donor revision:
 
-안전/성능 규칙:
+```text
+d933792b6042a51cea38dc44b686a096fe30de67
+```
 
-- 최대 다운로드 8 MiB
-- 최대 dimension 4096
-- response Content-Length가 없어도 streaming byte count로 상한 확인
-- decode 후 PNG로 normalize
-- temp file → destination move
-- concurrent download 6개 제한
-- content update 후 필요한 image를 prefetch
-- 개별 image 실패는 Game Content 전체 실패로 확대하지 않음
-- corrupt local image는 삭제하고 재다운로드 가능 상태로 만듦
+JunhyunHelper가 소유하는 주요 bridge:
 
----
+- `MainWindow.LegacyMapHost.cs`
+- `MainWindow.ProductLifecycle.cs`
+- `MainWindow.MapSmokeV014.cs`
+- `MainWindow.ProductUiLayoutSmoke.cs`
+- `Map/GlobalKeyboardHookService.JunhyunProduct.cs`
+- `Map/JunhyunExtractMarkerIcon.cs`
+- `Quests/QuestPage.MapBridge.cs`
+- `Quests/QuestPage.MapNavigation.cs`
+- `Legacy/TarkovHelper/LegacyMapHostCompatibility.cs`
 
-# 14. Map / MiniMap subsystem
-
-## 경계
-
-Map은 일반 JunhyunHelper layer와 다르게 pinned donor source를 포함합니다.
-
-Desktop project가 `vendor/Tarkov-Helper/TarkovHelper`의 제한된 Models/Services/Map page/MiniMap/dialog source를 compile-link합니다. old updater, old content DB services, hidden global hook, old logger 등은 명시적으로 제외됩니다.
-
-## JunhyunHelper가 소유하는 Map 연결
-
-- `MainWindow.LegacyMapHost.cs` — donor Map host와 제품 shell의 연결
-- `MainWindow.ProductLifecycle.cs` — product lifecycle 정리
-- `MainWindow.MapSmokeV014.cs` — 실제 Map/Factory/MiniMap smoke harness; 파일명의 `V014`는 역사적 도입 시점 이름일 뿐 현재 product version source가 아님
-- `MainWindow.ProductUiLayoutSmoke.cs` — rendered product UI assertions
-- `Map/GlobalKeyboardHookService.JunhyunProduct.cs` — old hidden global command를 배제한 제품 소유 hotkey compatibility
-- `Map/JunhyunExtractMarkerIcon.cs` — 제품 marker presentation
-- `Quests/QuestPage.MapBridge.cs`, `QuestPage.MapNavigation.cs` — Quest → Map navigation
-- `Legacy/TarkovHelper/LegacyMapHostCompatibility.cs` — donor source가 기대하는 최소 compatibility surface
-
-## 데이터 분리
-
-Map artwork/config/general marker bundle은 release `Assets/`에 있습니다. Quest current state/geometry는 current JunhyunHelper content/profile에서 bridge합니다.
-
-즉:
-
-- 일반 marker/artwork/config → Map bundle
-- Quest availability/progress → JunhyunHelper canonical/content/profile
-
-둘을 하나의 업데이트 경로로 섞지 않습니다.
-
-## floor 계약
-
-- 다른 floor의 marker를 단지 X/Z가 겹친다는 이유로 숨기지 않음
-- floor relation은 presentation으로 표시
-- floor switch 시 Main Map zoom + map-space center 유지
-- MiniMap Scale + Translate X/Y exact transform 유지
-
-## 수정 시 주의
-
-Map donor source를 broad refactor하지 않습니다. 변경 전후 실제 publish EXE smoke에서 Main Map, Factory, MiniMap, floor switching, close lifecycle을 확인합니다.
+Map artwork/config/general marker는 donor bundle, current Quest state/geometry는 JunhyunHelper bridge를 사용합니다. 구체적 defect/performance 근거 없이 donor broad refactor를 하지 않습니다.
 
 ---
 
-# 15. Program update
+# 9. Scanner — 전체 구현 지도
 
-## 확인
+Scanner는 **실제 제품 기능**입니다. v1.1.3에서 Scanner Lab v3.8 recognition 구조를 production에 복원했고 v1.1.4에서 stability/data/diagnostics를 보강했습니다.
 
-`GitHubProgramUpdateClient`가 `Propeex/JunhyunHelper`의 latest public stable GitHub Release를 확인합니다.
+## 9.1 제품 경계
 
-대상 조건:
+```text
+screen pixels
+→ capture/detector
+→ structural candidate set
+→ title ROI
+→ ko-KR OCR
+→ current official Korean full-item semantic resolver
+→ Item ID
+→ existing JunhyunHelper data
+→ Mini Scanner
+```
 
-- draft 아님
-- prerelease 아님
+오탐보다 미탐을 선호합니다. geometry 하나를 Item identity로 사용하지 않습니다.
+
+금지:
+
+- game memory read
+- DLL injection
+- packet interception
+- process-internal game data
+- scan-time HTTP
+- icon/image identity
+
+## 9.2 핵심 파일과 책임
+
+### Core
+
+- `Core/Scanner/ScannerCatalogItem.cs`
+  - Scanner full-item catalog의 Item ID/name/icon/market/dimension snapshot.
+- `Core/Scanner/ScannerRecognition.cs`
+  - matcher 결과, reason/confidence/second score.
+
+### Infrastructure
+
+- `Infrastructure/Scanner/ScannerCatalogService.cs`
+  - GameMode별 full-item catalog download/cache/load.
+  - current Korean official names + English fallback.
+  - OCR resolver.
+  - trader/flea/dimension parse.
+  - wrong-mode cache identity fail-closed.
+
+### Desktop orchestration/presentation
+
+- `Desktop/Scanner/ScannerCoordinator.cs`
+  - Scanner settings, catalog preparation, real/test mode mutual exclusion, runtime lifecycle, display settings.
+  - current `ScannerDataContext` provider 연결.
+- `Desktop/Scanner/ScannerRuntimeService.cs`
+  - capture tick, candidate stability, semantic OCR selection, verified state, presentation refresh, Mini Scanner state.
+- `Desktop/Scanner/ScannerItemPresentationService.cs`
+  - Item ID를 catalog/GameContent/ItemsWorkspace와 연결해 `ScannerItemSnapshot` 생성.
+- `Desktop/Scanner/ScannerLocalIconService.cs`
+  - 기존 local image-cache를 read-only로 읽음.
+  - v1.1.4 process-local decoded ImageSource cache.
+- `Desktop/Scanner/ScannerDiagnosticLog.cs`
+  - bounded diagnostic log와 recent user activity projection.
+  - v1.1.4 activity/log clear.
+- `Desktop/Scanner/ScannerPage.xaml(.cs)`
+  - Scanner product tab.
+- `Desktop/Scanner/MiniScannerWindow.xaml(.cs)`
+  - no-activate Topmost overlay.
+- `Desktop/Scanner/MiniScannerOverlayService.cs`
+  - Mini Scanner show/standby/hide boundary.
+
+### Capture/OCR
+
+- `Desktop/Scanner/ScannerLab38WindowsVision.cs`
+  - Tarkov/display capture와 Scanner Lab v3.8 structural candidate generation.
+- `Desktop/Scanner/ScannerWindowsOcrEngine.cs`
+  - Windows `ko-KR` OCR와 deep preprocessing.
+- `Desktop/Scanner/ScannerContracts.cs` / `ScannerModels.cs`
+  - runtime/candidate/capture/presentation contracts.
+
+## 9.3 Capture
+
+Real:
+
+```text
+EscapeFromTarkov window
+→ Borderless client-area
+→ PrintWindow
+→ invalid frame이면 exact client screen CopyFromScreen fallback
+```
+
+Test:
+
+```text
+all connected displays
+→ same detector/OCR/catalog/presentation pipeline
+```
+
+real/test는 동시에 실행하지 않으며 test mode는 session-only입니다. 둘 다 OFF면 capture/OCR loop가 없습니다.
+
+## 9.4 Scanner Lab v3.8 structural detector
+
+```text
+RED-X connected components
++
+rectangle/edge projection fallback
+→ candidates
+→ IoU dedup
+→ 최대 8
+```
+
+RED-X는 anchor이고 outer inspect window를 복원합니다. rectangle/edge path는 RED-X가 없거나 약한 경우 fallback입니다.
+
+Structural score는 final identity가 아닙니다. candidate limit=8, structural floor=0.34 계약을 유지합니다.
+
+Title ROI 기준은 `docs/SCANNER_LAB_3_8_REFERENCE.md`가 권위입니다.
+
+## 9.5 OCR / matcher
+
+Windows `ko-KR` OCR adaptive scale:
+
+- title height <=14 → 8x
+- <=20 → 6x
+- else → 4x
+
+first-pass 성공 후보가 없으면 상위 3개 candidate에 deep OCR:
+
+- enlarged original
+- high-contrast grayscale
+- binary
+- inverse binary
+
+Resolver는 OCR full text/individual line/adjacent two-line combination을 current official Korean full-item catalog와 비교합니다.
+
+Exact-first이며 fuzzy confidence/top1-top2 margin을 인식률 때문에 완화하지 않습니다. historical alias를 production에 누적하지 않습니다.
+
+## 9.6 Runtime candidate stability — v1.1.4
+
+`ScannerRuntimeService`는 semantic OCR 전에 stable candidate 2 hits를 요구합니다.
+
+v1.1.4 핵심:
+
+```text
+current candidate GeometrySignature set
+intersects
+previous candidate GeometrySignature set
+→ stable hit +1
+```
+
+이전에는 서로 다른 candidate가 각 frame에 하나씩만 있어도 presence hit가 누적될 수 있었습니다. 최종 semantic gate가 오탐을 막았지만 불필요한 OCR/state churn을 만들 수 있어 수정했습니다.
+
+miss/mode/reset에서 previous signature set을 clear합니다.
+
+## 9.7 Verified state / OCR 억제 / live presentation refresh
+
+Item이 semantic validation을 통과하면:
+
+- verified bounds
+- verified title signature
+- Item ID/snapshot
+
+을 유지합니다.
+
+다음 tick에서 가장 가까운 candidate가 geometry distance limit 안이고 title signature가 같으면 OCR을 다시 하지 않습니다.
+
+v1.1.4에서는 이 verified path에서도 **1초마다 presentation snapshot만 재생성**합니다. 따라서 same detail을 열어 둔 동안 Quest/Hideout 변경으로 Needed Items가 변하면 현재 필요한 수량이 갱신됩니다.
+
+presentation snapshot을 만들 수 없게 되면 기존 verified item을 clear하고 fail-closed 상태로 돌아갑니다.
+
+## 9.8 Scanner market data
+
+`ScannerCatalogService` parsing 계약:
+
+```text
+BestTraderSellPrice
+= sellFor 중 source != fleaMarket이고 priceRUB > 0인 값의 Max
+
+FleaAveragePrice
+= avg24hPrice > 0 ? avg24hPrice : null
+
+Slots
+= width > 0 && height > 0 ? width * height : 0
+```
+
+price/slot은 price와 slots가 모두 유효할 때만 계산합니다.
+
+v1.1.4 tests는 Therapist/Mechanic/fleaMarket이 동시에 있고 flea가 가장 높은 fixture를 사용해 flea가 BestTrader에 섞이지 않는지 검증합니다.
+
+## 9.9 필요한 개수
+
+Scanner는 Needed Items 계산을 복제하지 않습니다.
+
+```text
+ScannerDataContext.ItemsWorkspace
+→ Plan.NeededItems
+→ ItemId lookup
+→ RequiredTotal
+```
+
+현재 필요한 수량은 `RequiredTotal`입니다. Inventory를 뺀 remaining/shortage가 아닙니다. Item이 NeededItems에 없으면 0입니다.
+
+이 의미를 바꾸려면 Scanner만 수정하면 안 됩니다. Needed Items product contract부터 검토해야 합니다.
+
+## 9.10 Icon
+
+`ScannerLocalIconService`는 `ImageCacheService`의 기존 파일명/hash contract와 동일한 path를 계산하지만 HTTP를 호출하지 않습니다.
+
+v1.1.4에서 stableId+sourceUrl별 frozen `ImageSource`를 memory cache해 verified presentation refresh마다 같은 PNG를 다시 decode하지 않습니다.
+
+## 9.11 Scanner diagnostics / recent activity
+
+파일:
+
+```text
+%LocalAppData%/JunhyunHelper/logs/scanner.log
+%LocalAppData%/JunhyunHelper/logs/scanner.log.1
+```
+
+약 2MB에서 1회 회전합니다.
+
+기록 예:
+
+- runtime-start/stop/error
+- status
+- geometry-candidates
+- candidate-semantic
+- OCR text/pass
+- matcher result/confidence/second score
+- semantic-selected
+
+screenshot/raw pixel buffer를 저장하지 않습니다.
+
+`ocr-result` + `match-result`를 user-facing `ScannerActivityEntry`로 projection하고 기존 bounded log에서 최근 기록을 복원합니다.
+
+### 로그 삭제
+
+`ScannerDiagnosticLog.Clear()`:
+
+1. history hydration을 완료 상태로 고정
+2. pending OCR map clear
+3. recent activity clear
+4. `scanner.log` delete
+5. `scanner.log.1` delete
+6. `ActivitiesCleared` event
+
+I/O 실패는 bool로 보고하고 Scanner runtime fatal로 확대하지 않습니다. 새 runtime diagnostic이 발생하면 새 log는 다시 생성될 수 있습니다.
+
+`ScannerPage`의 `로그 삭제` 버튼은 recent activity header 우측 상단에 있고 이 API를 호출합니다.
+
+## 9.12 Mini Scanner
+
+- MiniMap과 독립
+- Topmost
+- ShowActivated=false
+- `WS_EX_NOACTIVATE`
+- `WS_EX_TOOLWINDOW`
+- ON standby/result, OFF hidden
+- visible 상태 direct left-drag
+- drag 종료 위치 저장
+- negative monitor coordinates 허용
+
+---
+
+# 10. Scanner 변경 영향 체크리스트
+
+## Detector/geometry 변경
+
+```text
+ScannerLab38WindowsVision
+→ ScannerInspectCandidate GeometrySignature/TitleSignature/Bounds
+→ ScannerRuntimeService stability
+→ OCR rate / semantic selection
+→ diagnostic geometry-candidates
+→ v3.8 geometry regression
+→ actual EXE smoke
+```
+
+## OCR/matcher 변경
+
+```text
+ScannerWindowsOcrEngine
+→ ScannerCatalogService.ResolveOcrText
+→ confidence/margin
+→ candidate search selection
+→ activity/log reason
+→ matcher regression
+```
+
+Confidence threshold/margin을 단순히 인식률 때문에 낮추지 않습니다.
+
+## 가격 변경
+
+```text
+source items fields
+→ ScannerCatalogService parser
+→ ScannerCatalogItem
+→ ScannerItemPresentationService
+→ Mini Scanner
+→ market regression
+```
+
+## 현재 필요한 수량 변경
+
+```text
+Quest/Hideout/Profile
+→ FutureNeededItemsPlanner
+→ ItemsWorkspace.Plan.NeededItems
+→ RequiredTotal
+→ ScannerItemPresentationService
+```
+
+Scanner에 별도 shortage 계산을 넣지 않습니다.
+
+## Scanner UI 변경
+
+`ScannerPage.xaml(.cs)` 변경 뒤 `MainWindow.ProductUiLayoutSmoke.cs`에 실제 rendered contract assertion이 필요한지 검토합니다.
+
+---
+
+# 11. Ammo / image / preference persistence
+
+Ammo는 read-only comparison/favorites를 담당합니다. Ammo raw stats와 Wiki Ballistics effectiveness를 분리하고 자체 effectiveness heuristic을 만들지 않습니다.
+
+`ImageCacheService`는 최대 byte/dimension을 검증하고 decode 후 PNG normalize합니다. 개별 image 실패는 Game Content update 전체 실패가 아닙니다.
+
+Presentation JSON은 `AtomicJsonFileStore` 계열 same-directory temp + flush + atomic replace + `.bak` recovery를 사용합니다. Scanner settings/catalog도 동일한 last-known-good 원칙을 따릅니다.
+
+---
+
+# 12. Program update
+
+`GitHubProgramUpdateClient`는 `Propeex/JunhyunHelper` latest public stable을 확인합니다.
+
+대상:
+
+- non-draft / non-prerelease
 - strict `vMAJOR.MINOR.PATCH`
-- 현재 assembly version보다 큼
-- exact package name `Junhyun-Helper-vX.Y.Z-win-x64.zip`
-- `SHA256SUMS.txt` 존재
+- current assembly보다 newer
+- exact Windows ZIP + `SHA256SUMS.txt`
 
-## 다운로드/검증
+검증 전 current product file을 건드리지 않습니다.
 
-- asset URL은 JunhyunHelper GitHub Release download host/path만 허용
-- checksum entry 형식 검증
-- SHA-256 검증
-- ZIP absolute/path traversal/colon/`.`/`..` 차단
-- symlink 차단
-- duplicate archive entry 차단
-- PDB 차단
-- 허용 root는 `준현 헬퍼.exe`, `FIRST_RUN_KO.txt`, `Assets`
-- staging directory에 필수 파일이 실제로 존재하고 비어 있지 않은지 확인
-
-## 교체
-
-현재 EXE 자체를 바로 덮어쓰지 않습니다.
-
-1. TEMP에 현재 EXE self-copy runner 생성
-2. runner가 parent process 종료 대기
-3. staging file을 target directory의 temporary next file로 durable copy
-4. 기존 product file을 previous path로 move
-5. 새 file commit
-6. 성공하면 previous 삭제
-7. 실패하면 가능한 범위에서 rollback
-8. product restart
-
-User data는 `%LocalAppData%/JunhyunHelper`에 있어 portable product file transaction과 분리됩니다.
+Updater는 TEMP self-copy runner에서 parent 종료 후 program-owned files만 transaction 교체하고 실패 시 rollback/restart를 시도합니다.
 
 ---
 
-# 16. DesktopServices — composition root
+# 13. 오류 격리
 
-`Desktop/Services/DesktopServices.cs`는 non-Map product service composition root입니다.
+- program update check network failure → app 계속
+- image failure → 해당 image만 누락
+- preference save failure → diagnostic, app 계속
+- invalid Game Content candidate → active known-good 유지
+- unsupported Quest availability → Indeterminate/fail-closed
+- Scanner missing/ambiguous OCR → no Item ID
+- Scanner missing icon/price → 해당 표시만 누락
+- Scanner diagnostic/log-clear failure → Scanner 계속
+- updater validation failure → current program untouched
+- fatal WPF exception → LocalAppData diagnostic + 종료
 
-생성하는 것:
-
-- `UserProfileStore`
-- `ContentActivationService`
-- shared `HttpClient`
-- `ImageCacheService`
-- `AmmoFavoriteStore`
-- Tarkov source loader/build service
-- `TarkovContentUpdateService`
-- `ProfileApplicationService`
-- `QuestApplicationService`
-- `HideoutApplicationService`
-- `ItemsApplicationService`
-
-shared `HttpClient`의 User-Agent major/minor는 Desktop assembly version에서 파생합니다. 버전 문자열을 별도로 하드코딩하지 않습니다.
+Catch-all은 best-effort presentation/recovery cleanup 경계에만 사용하고 domain correctness 오류를 정상값처럼 숨기지 않습니다.
 
 ---
 
-# 17. MainWindow 책임
+# 14. 성능 구조
 
-`MainWindow` partial 파일은 product shell orchestration을 나눠 가집니다.
+현재 의도된 재사용:
 
-- `MainWindow.xaml.cs` — profile/content/workspace 기본 lifecycle, section, data update
-- `MainWindow.FastMutations.cs` — Quest/Hideout/Inventory 같은 빠른 mutation 후 필요한 workspace만 갱신
-- `MainWindow.Images.cs` — image 관련 integration
-- `MainWindow.ProfileDeletion.cs` — profile delete UX/lifecycle
-- `MainWindow.ProfileUsability.cs` — selected profile usability/availability 보조
-- `MainWindow.SpecialTraderAccess.cs` — special trader access interaction
-- `MainWindow.LegacyMapHost.cs` — Map host integration
-- `MainWindow.ProductLifecycle.cs` — shutdown/lifecycle cleanup
-- `MainWindow.ProductUiLayoutSmoke.cs` — rendered shell/product UI contract assertion
-- `MainWindow.MapSmokeV014.cs` — Map/MiniMap asynchronous smoke assertion
-
-MainWindow에 새 domain rule을 넣지 않습니다. MainWindow는 Application service를 호출하고 결과 workspace를 화면에 배포하는 orchestration layer입니다.
-
----
-
-# 18. 페이지별 UI 책임
-
-## QuestPage
-
-- quest list/search/filter/status presentation
-- detail 표시
-- explicit complete/fail/undo action 요청 event
-- special trader access UI
-- Quest → Map navigation
-- scroll/navigation state 보존
-
-## HideoutPage
-
-- station/current/next level presentation
-- level change 요청
-- 재료와 연결 정보 presentation
-
-## ItemsPage
-
-- needed/cleanup/satisfied/deferred view
-- category/usage/search filter
-- inventory FIR/non-FIR edit
-- flexible requirement group
-- source click → Quest/Hideout navigation
-- icon lazy load/cache
-- cleanup increase notice
-
-## AmmoPage
-
-- caliber 기반 group/list
-- search/details
-- effectiveness presentation
-- favorites
-
-## Scanner placeholder
-
-실제 service나 domain model이 없어야 정상입니다. placeholder를 유지하는 것 자체가 제품 계약입니다.
-
----
-
-# 19. 저장 파일과 복구 정책
-
-기본 root:
-
-`%LocalAppData%/JunhyunHelper`
-
-대표 경로:
-
-- `user.db` — 사용자 progress/inventory
-- `content/<mode>/content.db` — active game content
-- `content/<mode>/content.candidate.db` — update candidate
-- `content/<mode>/content.previous.db` — previous known-good
-- `image-cache/` — presentation image
-- `ammo-favorites.json` + `.bak`
-- `map-product-settings.json` + `.bak`
-- `updates/pending/` — program update temporary payload
-- `logs/startup.log` — app/update diagnostics
-
-portable release root는 별도이며 원칙적으로 다음만 둡니다.
-
-- `준현 헬퍼.exe`
-- `FIRST_RUN_KO.txt`
-- `Assets/`
-
-runtime log를 portable root에 만들지 않습니다.
-
----
-
-# 20. 오류 격리 원칙
-
-오류가 어느 경계까지 영향을 줄지 의도적으로 제한합니다.
-
-- program update check network failure → app 정상 실행 계속
-- image load failure → 해당 image만 비어 있음
-- favorite/map preference save failure → diagnostic, app 계속
-- invalid candidate Game Content → active known-good 유지
-- unsupported Quest availability → `Indeterminate`, optimistic unlock 금지
-- updater validation failure → current program files untouched
-- updater replacement failure → rollback/restart 시도
-- fatal WPF/unhandled exception → LocalAppData diagnostic + 사용자 오류 표시 + 종료
-
-catch-all을 써도 되는 곳은 **best-effort presentation/recovery cleanup 경계**뿐입니다. domain correctness 오류를 catch해서 정상값처럼 숨기지 않습니다.
-
----
-
-# 21. 성능 구조
-
-현재 의도된 주요 최적화 지점:
-
-- `UserProfileStore` in-memory snapshot cache
+- UserProfileStore in-memory snapshot cache
 - schema initialization once per store instance
 - Application workspace reference cache
-- Items inventory-only mutation 시 `FutureNeededItemsBasis` 재사용
-- Items icon 기존 object 재사용 + async lazy load
+- Inventory-only mutation 시 future planning basis 재사용
+- Items image object/lazy-load 재사용
 - image download concurrency 6
-- content는 canonical snapshot 단위로 읽고 UI에서 원본 JSON을 반복 파싱하지 않음
-- Map donor는 성능 문제 증거 없이 broad rewrite하지 않음
+- Scanner verified detail OCR 반복 억제
+- Scanner process-local decoded icon cache
+- Scanner verified presentation은 1초 주기 Item ID 이후 bridge만 refresh
 
-새 최적화를 할 때 계산 결과를 바꾸는 캐시를 넣지 말고, **동일 입력에 대한 deterministic 결과 재사용**임을 테스트로 증명합니다.
+동일 입력의 deterministic 결과를 재사용해야 하며 캐시가 제품 의미를 바꾸면 안 됩니다.
 
 ---
 
-# 22. first-party 파일 책임 카탈로그
+# 15. 주요 first-party 파일 색인
 
-아래는 v1.0.0 기준 first-party source를 기능별로 빠르게 찾기 위한 색인입니다.
+## Core
 
-## Core / Ammo
-
-- `AmmoCaliberDisplay.cs` — caliber 표시 문자열 정규화
-- `AmmoDefinition.cs` — canonical ammunition fact model
-
-## Core / Content
-
-- `GameContentCatalog.cs` — runtime canonical content aggregate
-
-## Core / Editions
-
-- `EditionDefinition.cs` — edition availability/reference model
-
-## Core / Hideout
-
-- `HideoutStation.cs` — station/level/item requirement model
-
-## Core / Items
-
-- `GameItem.cs` — canonical item model
-- `InventoryQuantity.cs` — FIR/non-FIR quantity 및 normalize
-- `InventoryConsumption.cs` — 자동 소모 ledger value
-- `ItemRequirement.cs` — fixed future requirement + source
-- `NeededItem.cs` — Needed Items 계산 결과
-- `NeededItemRequirementBuilder.cs` — Quest/Hideout raw requirement를 fixed/flexible로 분리
-- `NeededItemCalculator.cs` — required/owned/remaining 계산
-- `FlexibleQuestItemRequirementCalculator.cs` — alternative candidate group progress
-- `FlexibleQuestItemGroupStateEvaluator.cs` — flexible group 상태 보조
-- `FutureNeededItemsPlanner.cs` — 미래 reachability + hideout + cleanup 통합
-- `NeededItemsQuery.cs` — Needed item query helper
-- `InventoryCleanupChangeDetector.cs` — mutation 전후 새 cleanup 증가 감지
-
-## Core / Profiles
-
-- `GameMode.cs` — Regular/PvE 등의 mode와 data key
-- `GameProfileSnapshot.cs` — authoritative user progress aggregate
-- `PmcFaction.cs` — faction
-- `TraderProgress.cs` — loyalty/standing partial facts
-
-## Core / Quests
-
-- `QuestDefinition.cs` — canonical quest gate/failure/special-access model
-- `QuestObjective.cs` — objective data
-- `QuestAvailability.cs` — availability result/reason types
-- `QuestAvailabilityEvaluator.cs` — current availability engine
-- `QuestCatalogQuery.cs` — content/profile → UI-consumable quest entries
-- `QuestFailureEvaluator.cs` — explicit/automatic failure set 계산
-- `QuestFutureReachability.cs` — future item planning reachability
-- `QuestTaskPoolVariableCompatibility.cs` — audited task-pool variable runtime compatibility
-
-## Core / Reference
-
-- `TraderDefinition.cs` — trader reference
-- `MapReference.cs` — map reference
+- `Content/GameContentCatalog.cs`
+- `Profiles/GameProfileSnapshot.cs`
+- `Quests/QuestDefinition.cs`
+- `Quests/QuestAvailabilityEvaluator.cs`
+- `Quests/QuestFutureReachability.cs`
+- `Hideout/HideoutStation.cs`
+- `Items/GameItem.cs`
+- `Items/NeededItemRequirementBuilder.cs`
+- `Items/NeededItemCalculator.cs`
+- `Items/FutureNeededItemsPlanner.cs`
+- `Items/InventoryCleanupChangeDetector.cs`
+- `Scanner/ScannerCatalogItem.cs`
+- `Scanner/ScannerRecognition.cs`
 
 ## Application
 
-- `Profiles/ProfileApplicationService.cs` — profile CRUD/settings mutation
-- `Quests/QuestApplicationService.cs` — quest mutation/workspace
-- `Hideout/HideoutApplicationService.cs` — hideout mutation/workspace
-- `Items/ItemsApplicationService.cs` — item workspace/inventory mutation/cache
-- `Items/FixedInventoryConsumptionPolicy.cs` — fixed item consume/restore rule
+- `Profiles/ProfileApplicationService.cs`
+- `Quests/QuestApplicationService.cs`
+- `Hideout/HideoutApplicationService.cs`
+- `Items/ItemsApplicationService.cs`
+- `Items/FixedInventoryConsumptionPolicy.cs`
 
-## Infrastructure / Storage
+## Infrastructure
 
-- `UserProfileStore.cs` — user.db
-- `ContentSnapshotStore.cs` — canonical content.db read/write/schema/integrity
-- `ContentActivationService.cs` — candidate/active/previous transaction
-- `AtomicJsonFileStore.cs` — preference JSON atomic save + backup recovery
+- `Storage/UserProfileStore.cs`
+- `Storage/ContentSnapshotStore.cs`
+- `Storage/ContentActivationService.cs`
+- `Storage/AtomicJsonFileStore.cs`
+- `Content/TarkovContentBuildService.cs`
+- `Content/TarkovContentUpdateService.cs`
+- `TarkovJson/*Importer.cs`
+- `Validation/GameContentValidator.cs`
+- `Updates/GitHubProgramUpdateClient.cs`
+- `Updates/ProgramUpdateApplier.cs`
+- `Scanner/ScannerCatalogService.cs`
 
-## Infrastructure / Content and source
+## Desktop
 
-- `ContentUpdateProgress.cs` — progress stage model
-- `TarkovContentBuildService.cs` — entire online build orchestration
-- `TarkovContentUpdateService.cs` — build/write/activate operation
-- `WikiBallisticsEffectivenessClient.cs` — effectiveness source adapter
-- `TarkovEditionCatalogClient.cs` — edition source adapter
-- `TarkovJsonClient.cs` — HTTP JSON fetch
-- `TarkovJsonDocument.cs` / `TarkovJsonReader.cs` — source JSON access helpers
-- `TarkovEndpoint.cs` / `TarkovEndpointSource.cs` / `TarkovEndpointSourceLoader.cs` — endpoint definitions/source loading
-- `TarkovTranslationCatalog.cs` — translation fact lookup
-- `TarkovGameContentImporter.cs` — aggregate canonical import/legacy compatibility
-- `Items/TarkovItemImporter.cs` — item import
-- `Quests/TarkovQuestImporter.cs` — quest/gate import
-- `Quests/TarkovQuestObjectiveImporter.cs` — objective/item requirement import
-- `Quests/TarkovDialogueAvailabilityCompatibility.cs` — verified dialogue interpretation compatibility
-- `Hideout/TarkovHideoutImporter.cs` — hideout import
-- `Ammo/TarkovAmmoImporter.cs` — ammo import
-- `Reference/TarkovReferenceImporters.cs` — trader/map reference import
-- `GameContentValidator.cs` — candidate canonical gate
+- `Services/DesktopServices.cs`
+- `Services/ImageCacheService.cs`
+- `App.xaml.cs`
+- `MainWindow*.cs`
+- `Profiles/*`
+- `Quests/*`
+- `Hideout/*`
+- `Items/*`
+- `Ammo/*`
+- `Map/*`
+- `Legacy/TarkovHelper/*`
+- `Scanner/*`
 
-## Infrastructure / Program update
-
-- `GitHubProgramUpdateClient.cs` — latest release fetch/download/checksum/package validation
-- `ProgramUpdateApplier.cs` — product file transaction/rollback
-
-## Desktop / services
-
-- `DesktopServices.cs` — composition root
-- `ImageCacheService.cs` — image fetch/cache/normalize
-- `AmmoFavoriteStore.cs` — favorites persistence adapter
-- `UiReferenceOrder.cs` — product UI reference ordering
-
-## Desktop / shell and pages
-
-- `App.xaml/.cs` — process startup, fatal diagnostics, updater apply mode
-- `MainWindow*` — shell orchestration/Map integration/smoke
-- `Profiles/*` — profile mode/editor windows
-- `Quests/*` — quest page + navigation/special access/Map bridge
-- `Hideout/*` — hideout page
-- `Items/*` — items/inventory/flexible/source navigation
-- `Ammo/*` — ammo page
-- `Controls/ProductSearchClearButtonBehavior.cs` — reusable search clear interaction
-- `Updates/ProgramUpdateCoordinator.cs` — startup consent UX + temp runner launch
-- `Map/*` 및 `Legacy/TarkovHelper/*` — JunhyunHelper-owned Map compatibility/product bridge
-- `Build/GenerateApplicationIcon.ps1` — AppIcon.png → build ICO generation
-
-## vendor Map
-
-`vendor/Tarkov-Helper/TarkovHelper` 아래 compile-linked Map source는 **외부 pinned module**로 취급합니다. 해당 donor 파일을 이 문서에서 first-party처럼 개별 재정의하지 않습니다. 실제 포함/제외 목록의 권위는 `JunhyunHelper.Desktop.csproj`입니다.
+Scanner first-party detail은 이 문서 9절과 `docs/SCANNER.md`가 권위입니다.
 
 ---
 
-# 23. 테스트 구조
+# 16. 테스트 구조
 
-`tests/JunhyunHelper.Tests`는 제품 의미가 있는 deterministic logic과 storage/update boundary를 검사합니다.
+`tests/JunhyunHelper.Tests`는 deterministic domain/storage/update/Scanner catalog/detector regression을 검사합니다.
 
-대표 영역:
+v1.1.4 automated total: **247**.
 
-- `Application/*` — Profile/Quest/Hideout mutation, inventory consumption
-- `Items/*` 및 root item tests — needed/cleanup/flexible/reachability
-- `Quests/*` — availability, edition, special trader, task pool variable, partial facts
-- `Infrastructure/*` — source/update/program updater/ballistics compatibility
-- `Storage/*` — user/content/atomic preference storage/recovery
-- `Resilience/*` — major upstream/update drift fail-closed behavior
+Desktop WPF/Map/Scanner interaction은 xUnit만으로 충분하지 않으므로 CI에서 실제 publish된 EXE를 실행합니다.
 
-Desktop WPF/Map는 xUnit만으로 충분하지 않아 CI에서 **실제 publish된 EXE**를 실행합니다.
-
-CI release candidate gate:
+Release candidate smoke:
 
 1. Release build
 2. full tests
 3. Windows x64 self-contained single-file publish
-4. ProductVersion / FIRST_RUN version identity 확인
-5. root layout 확인
-6. DLL/PDB/nested archive/legacy dependency 오염 확인
-7. actual EXE startup
-8. rendered Product UI assertions
+4. ProductVersion / FIRST_RUN exact identity
+5. root layout / PDB / legacy dependency audit
+6. actual EXE startup
+7. rendered Product UI assertions
+8. Scanner activity/log 생성 후 `로그 삭제` button 실제 click/clear
 9. Main Map / Factory / MiniMap smoke
 10. normal MainWindow close
-11. process 종료 확인
-12. portable root runtime pollution 확인
+11. process exit
+12. portable root pollution 확인
+
+정식 public release에서는 Draft/public asset re-download + SHA-256 + ProductVersion + actual downloaded EXE smoke를 추가합니다.
 
 ---
 
-# 24. 기능을 수정할 때의 영향 추적 방법
+# 17. 하지 말아야 할 것
 
-## Quest gate를 바꿀 때
-
-확인 순서:
-
-`source field → importer → QuestDefinition → QuestAvailabilityEvaluator → QuestFutureReachabilityEvaluator → QuestCatalogQuery → QuestApplicationService/UI → Needed Items → tests/docs`
-
-## profile fact를 추가할 때
-
-`GameProfileSnapshot → UserProfileStore document/from/to/validation → profile editor/import path → evaluator → Items PlanningStateEquals 여부 → tests`
-
-## Game Content field를 추가할 때
-
-`source adapter → canonical model → importer → validator → ContentSnapshot schema compatibility → consumers → resilience test`
-
-storage shape가 변하면 Content schema 증가를 검토합니다. 단순 runtime interpretation fix라면 불필요하게 schema를 올리지 않습니다.
-
-## Items 계산을 바꿀 때
-
-`raw Quest/Hideout requirements → builder → fixed/flexible → calculator → cleanup protection → UI filters/source navigation → mutation cleanup change detection`
-
-## Program update를 바꿀 때
-
-`release parsing → URL trust → checksum → ZIP validation → staging → applier transaction/rollback → restart → release workflow/public verification`
-
-## Map을 바꿀 때
-
-`PRODUCT/Map requirement → donor/product bridge 위치 판별 → 최소 코드 변경 → actual published EXE Main Map/Factory/MiniMap/floor/lifecycle smoke`
-
----
-
-# 25. 하지 말아야 할 것
-
-- 현재 코드가 있으므로 그것을 자동으로 제품 요구사항이라고 간주
+- 현재 구현을 자동으로 제품 요구사항이라고 간주
 - unknown Quest condition을 true/Current로 추측
 - missing profile variable을 0으로 간주
-- flexible item 실제 소비를 자동 추측
-- content update 중 active DB를 먼저 덮어쓰기
-- program update에서 checksum/package validation 전에 product file 수정
+- flexible Item 소비 후보 자동 추측
+- content update 중 active DB 먼저 덮기
+- program update 검증 전 product file 변경
 - user.db를 content/program update와 함께 초기화
-- Map donor를 style cleanup 목적으로 대규모 재작성
-- Scanner placeholder를 “미완성이라 보기 싫다”는 이유로 숨기거나 실제 기능처럼 꾸미기
-- UI event handler에 domain truth 계산 복제
-- 버전 문자열을 여러 곳에 서로 다른 값으로 수동 하드코딩
+- Map donor를 style cleanup 목적으로 broad rewrite
+- Scanner structural score만으로 Item 확정
+- OCR 성공률을 위해 matcher confidence/margin 임의 완화
+- Scanner historical alias를 production에 무제한 누적
+- Scanner scan-time HTTP/icon identity 추가
+- Scanner에서 Needed Items/shortage 의미 별도 재계산
+- UI event handler에 domain truth 복제
 
 ---
 
-# 26. 의도적으로 남아 있는 비기능/한계
+# 18. 의도적으로 남은 범위
 
-## Scanner
-
-visible `준비 중` placeholder. 실제 Scanner 기능 미구현이 정상 상태입니다.
-
-## EFT Story Chapters
-
-현재 ordinary task source 범위 밖입니다. source가 없는 진행 의미를 추측하지 않습니다.
-
-## 일부 profile-variable/task-pool 구조
-
-audited current compatibility만 사용하며 upstream 구조 drift는 fail-closed합니다.
-
-## Map donor debt
-
-일부 legacy 구조/경고가 존재하지만 pinned subsystem의 검증된 동작을 깨지 않는 것이 우선입니다. 구체적 문제 없이 clean architecture 목적만으로 리팩터링하지 않습니다.
+- 최신 Tarkov Borderless Scanner live E2E: public release blocker가 아니며 실제 사용자 환경에서 후속 검증/튜닝
+- EFT 1.0 Story Chapters: ordinary task source 밖
+- 일부 profile-variable/task-pool drift: exact evidence 없으면 fail-closed
+- code signing / installer 없음
+- pinned Map donor의 legacy warning/debt: 구체적 문제 없이 cleanup 리팩터링하지 않음
 
 ---
 
-# 27. 버전과 릴리즈
+# 19. 버전 / 릴리즈
 
-버전 정책의 권위는 `VERSIONING.md`입니다.
+권위: `docs/VERSIONING.md`.
 
 - 새 기능 → MINOR +1, PATCH=0
-- 기존 기능 수정/보완/안정성/성능 개선 → PATCH +1
-- 새 기능과 수정이 함께 있으면 MINOR 규칙
+- 기존 기능 수정/보완/bug/performance/stability → PATCH +1
 
-릴리즈 시 project `<Version>`, published ProductVersion, `FIRST_RUN_KO.txt`, GitHub tag, ZIP filename, release notes가 일치해야 합니다.
+v1.1.4는 v1.1.3 Scanner의 hardening이므로 PATCH입니다.
 
-v1.0.0부터 public stable release가 self-updater의 source of truth이므로 **draft asset 검증을 끝내기 전에 public/latest로 만들면 안 됩니다**.
+릴리즈 시 다음 identity가 일치해야 합니다.
+
+- project `<Version>`
+- published ProductVersion
+- `FIRST_RUN_KO.txt`
+- GitHub tag
+- ZIP filename
+- release notes
+
+정식 release는 Draft asset을 실제 다운로드/검증/smoke한 뒤 public/latest로 전환합니다.
 
 ---
 
-# 28. 빠른 진단 질문
+# 20. 빠른 영향 분석 질문
 
-새 문제를 받을 때 아래 질문을 코드에 던지면 범위를 빨리 찾을 수 있습니다.
+1. 이것은 Game Content, User Progress, Scanner identity catalog, presentation preference 중 무엇인가?
+2. authoritative write/read boundary는 어디인가?
+3. 저장 truth인가 계산 결과인가?
+4. unknown을 false/zero로 바꾸면 안 되는가?
+5. Quest current뿐 아니라 future reachability/Needed Items에도 영향이 있는가?
+6. consumption ledger/undo에 영향이 있는가?
+7. schema compatibility가 필요한가?
+8. Map donor인가 first-party인가?
+9. Scanner라면 detector/OCR/matcher/presentation 중 어느 계층인가?
+10. failure가 기존 known-good data/program/Item identity를 보존하는가?
+11. actual published EXE smoke에 assertion을 추가해야 하는가?
+12. 실제 Tarkov에서 남는 불확실성은 diagnostic으로 분리 가능한가?
 
-1. 이것은 Game Content 사실인가, User Progress 사실인가, presentation preference인가?
-2. authoritative write boundary는 어디인가?
-3. 계산 결과인가 저장 truth인가?
-4. unknown을 어떻게 표현해야 하는가? false/zero로 바꾸면 안 되는가?
-5. 이 변경은 Quest current availability뿐 아니라 future reachability/Needed Items에도 영향을 주는가?
-6. inventory consumption ledger와 undo/re-completion에 영향이 있는가?
-7. content schema/user schema compatibility가 필요한가?
-8. Map donor 영역인가 first-party 영역인가?
-9. 실패 시 기존 정상 데이터/프로그램을 보존하는가?
-10. 기존 실제 publish smoke가 이 변경을 잡을 수 있는가, 추가 assertion이 필요한가?
-
-이 열 가지에 답할 수 있으면 대부분의 변경 범위를 정확히 잡을 수 있습니다.
+이 질문에 답할 수 있으면 변경 범위를 대체로 정확히 잡을 수 있습니다.

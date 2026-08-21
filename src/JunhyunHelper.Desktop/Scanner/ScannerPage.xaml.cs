@@ -148,6 +148,27 @@ public partial class ScannerPage : UserControl
         }
     }
 
+    private void ClearLogButton_Click(object sender, RoutedEventArgs e)
+    {
+        ClearLogButton.IsEnabled = false;
+        try
+        {
+            var success = ScannerDiagnosticLog.Clear();
+            RuntimeStatusText.Text = success
+                ? "Scanner 로그를 삭제했습니다."
+                : "일부 Scanner 로그 파일을 삭제하지 못했습니다.";
+        }
+        catch (Exception exception)
+        {
+            App.WriteDiagnostic("Scanner log clear failed", exception);
+            RuntimeStatusText.Text = "Scanner 로그 삭제 중 오류가 발생했습니다.";
+        }
+        finally
+        {
+            ClearLogButton.IsEnabled = true;
+        }
+    }
+
     private void Coordinator_StatusChanged(ScannerRuntimeStatus status)
     {
         if (!Dispatcher.CheckAccess())
@@ -172,6 +193,7 @@ public partial class ScannerPage : UserControl
         foreach (var activity in ScannerDiagnosticLog.GetRecentActivities().Take(MaximumVisibleActivities))
             _activities.Add(activity);
         ScannerDiagnosticLog.ActivityAdded += ScannerDiagnosticLog_ActivityAdded;
+        ScannerDiagnosticLog.ActivitiesCleared += ScannerDiagnosticLog_ActivitiesCleared;
         UpdateEmptyActivityState();
     }
 
@@ -185,11 +207,27 @@ public partial class ScannerPage : UserControl
         AddActivity(activity);
     }
 
+    private void ScannerDiagnosticLog_ActivitiesCleared()
+    {
+        if (!Dispatcher.CheckAccess())
+        {
+            _ = Dispatcher.BeginInvoke(() => ClearActivities());
+            return;
+        }
+        ClearActivities();
+    }
+
     private void AddActivity(ScannerActivityEntry activity)
     {
         _activities.Insert(0, activity);
         while (_activities.Count > MaximumVisibleActivities)
             _activities.RemoveAt(_activities.Count - 1);
+        UpdateEmptyActivityState();
+    }
+
+    private void ClearActivities()
+    {
+        _activities.Clear();
         UpdateEmptyActivityState();
     }
 

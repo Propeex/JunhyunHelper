@@ -40,11 +40,7 @@ FIRST_RUN_KO.txt
 Assets/
 ```
 
-사용자 데이터:
-
-```text
-%LocalAppData%/JunhyunHelper
-```
+사용자 데이터: `%LocalAppData%/JunhyunHelper`.
 
 ## 3. Game Content Update
 
@@ -90,39 +86,26 @@ Readable: v3, v4, v5, v6, v7
 
 `CONFIRMED / IMPLEMENTED`
 
-GameMode별 독립 profile:
-
-- regular
-- pve
-- pvp-season
+GameMode별 독립 profile: regular / pve / pvp-season.
 
 저장 사실:
 
 - level / faction / edition / prestige
 - trader LL / standing
-- completed Quest
-- explicit permanent failed Quest
+- completed Quest / explicit permanent failed Quest
 - exact observed ProfileVariables
 - recoverable special-trader access
 - Hideout levels
 - FIR / non-FIR Inventory
 - Quest / Hideout consumption ledgers
 
-```text
-user.db SQLite schema: v1
-```
+`user.db` SQLite schema: v1.
 
 ## 6. Quest
 
 `CONFIRMED / IMPLEMENTED`
 
-제품 상태:
-
-- 진행 중
-- 확인 필요
-- 잠김
-- 사용 불가
-- 완료
+제품 상태: 진행 중 / 확인 필요 / 잠김 / 사용 불가 / 완료.
 
 원칙:
 
@@ -192,11 +175,7 @@ user.db SQLite schema: v1
 
 `CONFIRMED / IMPLEMENTED / WINDOWS USER VALIDATED`
 
-Pinned donor revision:
-
-```text
-d933792b6042a51cea38dc44b686a096fe30de67
-```
+Pinned donor revision: `d933792b6042a51cea38dc44b686a096fe30de67`.
 
 - Current Quest sidebar / marker identity
 - general marker / PMC·Scav·Transit extracts
@@ -212,7 +191,7 @@ Map은 독립 subsystem이며 Quest만 current JunhyunHelper content/profile과 
 
 ## 13. Scanner / Mini Scanner
 
-`CONFIRMED / IMPLEMENTED / v1.1.3 PUBLIC VERIFIED / LIVE TARKOV REVALIDATION ONGOING`
+`CONFIRMED / IMPLEMENTED / v1.1.4 RELEASE CANDIDATE / LIVE TARKOV VALIDATION ONGOING`
 
 Scanner는 Tarkov 화면을 Item ID로 변환해 기존 JunhyunHelper 데이터에 연결하는 입력 subsystem입니다.
 
@@ -237,7 +216,7 @@ Scanner는 Tarkov 화면을 Item ID로 변환해 기존 JunhyunHelper 데이터�
 
 real/test는 상호 배타적이며 test는 session-only입니다.
 
-### Recognition — Scanner Lab v3.8 구조
+### Recognition — Scanner Lab v3.8
 
 ```text
 screen pixels
@@ -245,8 +224,8 @@ screen pixels
 +
 → rectangle/edge structural fallback candidates
 → IoU candidate deduplication
-→ 최대 8개 structural candidates
-→ candidate별 title ROI
+→ 최대 8 structural candidates
+→ candidate title ROI
 → adaptive 4x / 6x / 8x Windows ko-KR OCR
 → current official Korean full-item catalog resolver
 → 필요 시 상위 3개 candidate deep OCR
@@ -257,17 +236,20 @@ screen pixels
 핵심 계약:
 
 - structural score는 후보 순위이며 최종 사실 판정이 아님
-- geometry rectangle 하나를 즉시 상세창으로 확정하지 않음
+- geometry 하나를 즉시 상세창으로 확정하지 않음
 - official current Korean full-item catalog를 semantic validator로 사용
-- OCR 개별 line과 인접 두 line 결합 후보 검사
 - exact-first conservative matcher 유지
 - fuzzy confidence threshold / top1-top2 margin 완화 금지
-- historical alias 무제한 누적 금지
+- historical alias 누적 금지
 - low-confidence/ambiguous → no Item ID
 - scan-time network 금지
 - icon identity 금지
 
-이 recognition architecture는 DEC-053에서 장기 설계로 고정합니다.
+v1.1.4 안정화:
+
+- 연속 candidate 집합에 동일 quantized `GeometrySignature`가 있을 때만 2-hit stability 누적
+- verified bounds/title signature 유지 시 OCR 반복 억제
+- title/geometry 변화 시 기존 Item clear 후 재검증
 
 ### 표시 데이터
 
@@ -275,16 +257,30 @@ Item ID 뒤에는 기존 JunhyunHelper data flow를 사용합니다.
 
 - official item name
 - local cached icon
-- trader sell price
-- flea average price
-- price/slot
+- 최고 상점가
+- 플리마켓 평균가
+- trader/flea price per slot
 - current needed
+
+가격 계약:
+
+```text
+best trader = sellFor 중 source != fleaMarket인 유효 priceRUB 최댓값
+flea average = avg24hPrice > 0
+slots = positive width * height
+```
 
 `current needed`:
 
 ```text
 ItemsWorkspace.Plan.NeededItems[itemId].RequiredTotal
 ```
+
+Inventory 차감 부족량을 Scanner 의미로 사용하지 않습니다. Needed Items에 없으면 0입니다.
+
+verified detail을 계속 보는 동안 OCR은 반복하지 않고 presentation snapshot을 1초 간격으로 재구성해 `RequiredTotal` 등 현재 표시 데이터를 다시 연결합니다.
+
+Scanner icon은 local image-cache만 읽으며 성공적으로 decode/freeze한 동일 icon은 process-local memory cache에서 재사용합니다.
 
 ### Scanner 탭
 
@@ -297,12 +293,11 @@ bar 아래:
 
 - 표시 정보 checkboxes
 - 최근 인식 기록
+- 기록 header 우측 `로그 삭제`
 
-상시 설명문은 제거합니다. Foundation preview 개발 도구와 Mini Scanner 별도 위치 편집/초기화 controls도 사용자 화면에 노출하지 않습니다.
+`로그 삭제`는 recent activity와 `%LocalAppData%/JunhyunHelper/logs/scanner.log(.1)`을 삭제합니다. 로그 I/O 실패는 Scanner fatal이 아닙니다.
 
-최근 인식 기록은 OCR 문자열, nearest official Item, 유사도/confidence, top1/top2 margin, 성공/보류, 판단 이유를 사용자 문장으로 보여줍니다. 기존 bounded `scanner.log(.1)`에서 최근 판정을 복원합니다.
-
-Foundation Item ID → presentation 내부 API는 개발 진단용으로 유지할 수 있습니다.
+Foundation preview 개발 도구와 Mini Scanner 별도 위치 편집/초기화 controls는 일반 UI에 노출하지 않습니다.
 
 ### Mini Scanner
 
@@ -312,11 +307,9 @@ Foundation Item ID → presentation 내부 API는 개발 진단용으로 유지�
 - ON 상태에서 standby 또는 Item 결과
 - OFF에서 숨김
 - 별도 position edit/reset mode 없음
-- visible 상태에서 언제든 직접 left-drag
+- visible 상태에서 언제든 direct left-drag
 - drag 완료 위치 atomic settings 저장
 - negative monitor 좌표 허용
-
-always-drag 요구 때문에 Mini Scanner 자기 영역은 mouse hit-test를 받지만 게임 keyboard focus를 가져가지 않습니다.
 
 ### Scanner 금지
 
@@ -331,22 +324,23 @@ always-drag 요구 때문에 Mini Scanner 자기 영역은 mouse hit-test를 받
 
 ## 14. Scanner 릴리즈 / 검증 정책
 
-v1.1.3 public release gate 완료:
+v1.1.4 release gate:
 
 - Windows Release build
-- **245/245 automated tests**
+- **247 automated tests / 0 failure**
 - Scanner Lab v3.8 detector/title ROI regressions
+- Scanner market-field regressions
 - self-contained publish
 - ProductVersion/FIRST_RUN identity
 - actual packaged EXE Product UI / Scanner / Main Map / Factory / MiniMap smoke
+- actual packaged EXE `로그 삭제` activity/file delete smoke
 - Draft/Public checksum/package verification
-- Draft-downloaded EXE smoke
+- Draft/public downloaded EXE smoke
 - exact public tag verification
-- public-downloaded EXE smoke
 
 **최신 Tarkov Borderless live E2E는 DEC-051에 따라 release blocker가 아닙니다.**
 
-공개 후 `%LocalAppData%/JunhyunHelper/logs/scanner.log`와 최근 인식 기록을 이용해 capture/candidates/OCR/semantic selection/input coexistence를 검증하고 필요한 보정을 PATCH로 배포합니다.
+공개 후 `scanner.log`와 최근 인식 기록을 이용해 capture/candidates/OCR/semantic selection/market display/input coexistence를 검증하고 필요한 보정을 PATCH로 배포합니다.
 
 ## 15. Images / Preference Persistence
 
@@ -358,16 +352,7 @@ canonical URL → bytes → SkiaSharp decode → validation → PNG cache → WP
 
 개별 image 실패는 nonfatal입니다.
 
-Presentation JSON preferences:
-
-- same-directory temp
-- flush-to-disk
-- atomic replacement
-- last-known-good `.bak`
-- corrupt primary → backup recovery
-- save failure nonfatal
-
-Scanner 설정도 같은 원칙을 사용합니다.
+Presentation JSON preferences는 same-directory temp + flush-to-disk + atomic replacement + last-known-good `.bak` recovery를 사용합니다. Scanner 설정도 같은 원칙입니다.
 
 ## 16. UI 검증
 
@@ -382,25 +367,23 @@ Scanner smoke에는:
 - `스캐너 OFF`
 - `테스트 OFF`
 - `아이템 목록 최신화`
-- 최근 인식 기록 empty state
-- 사용자용 OCR/candidate/confidence 문장
+- `로그 삭제`
+- recent recognition empty/activity state
 - removed developer/position controls 부재
+- activity/log 실제 생성 후 clear 결과
 
 를 포함합니다.
 
 ## 17. 현재 버전
 
-현재 public stable:
+개발 target:
 
 ```text
-v1.1.3 — Scanner Lab v3.8 recognition restoration
+v1.1.4 — Scanner stability / market & needed-data reliability / diagnostics hardening
+247 tests
 ```
 
-```text
-release source: 8803f899341859887281ad50135911f4625a64f3
-245 passed / 0 failed / 0 skipped
-public downloaded EXE smoke: SUCCESS
-```
+최종 public source/run/hash는 `docs/RELEASE_1.1.4.md`에 기록합니다.
 
 버전 규칙: `docs/VERSIONING.md`.
 

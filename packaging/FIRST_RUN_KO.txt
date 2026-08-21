@@ -1,4 +1,4 @@
-준현 헬퍼 v1.1.3 — Windows x64
+준현 헬퍼 v1.1.4 — Windows x64
 
 실행 방법
 1. 받은 ZIP 파일을 원하는 폴더에 압축 해제합니다.
@@ -6,21 +6,21 @@
 3. 처음 실행하면 프로필을 만들고 필요한 최신 게임 데이터를 온라인에서 내려받습니다.
 4. 프로그램 실행 시 GitHub의 최신 정식 준현 헬퍼 릴리즈를 확인합니다. 더 최신 버전이 있으면 업데이트 여부를 묻습니다.
 
-v1.1.3 주요 변경 — Scanner Lab v3.8 인식 파이프라인 복원
-- 준현 헬퍼 통합 과정에서 단순화되어 인식률이 크게 떨어졌던 Scanner 화면 인식부를, 실제로 잘 작동했던 Scanner Lab v3.8 소스를 기준으로 복원했습니다.
-- 하나의 사각형을 곧바로 상세창으로 확정하지 않습니다.
-- RED-X 기반 후보와 사각형 구조 기반 후보를 함께 생성하고 중복을 제거한 뒤, 최대 8개의 상세창 후보를 OCR/현재 공식 아이템 카탈로그와 대조합니다.
-- 구조적으로 그럴듯한 후보라도 공식 아이템명으로 안전하게 식별되지 않으면 실제 상세창으로 확정하지 않습니다.
-- 1차 OCR 실패 시 상위 후보에 확대/고대비/이진화/반전 전처리를 적용해 다시 읽습니다.
-- 제목 높이에 따라 4x/6x/8x 확대를 사용합니다.
-- OCR 줄이 하나의 아이템명을 둘로 나눌 수 있어 개별 줄과 인접 두 줄 결합 후보를 모두 검사합니다.
-- 사용자가 제공한 Scanner Lab v3.8 자료에서 `Ophthalmoscope 검안경` 상세창과 전체 `Water 0.6L 물병` 스크린샷의 상세창/제목 ROI가 당시와 동일한 구조로 다시 검출되는 것을 회귀 테스트 기준으로 고정했습니다.
-- 현재 공식 한국어 아이템 카탈로그와 보수적인 matcher 기준은 그대로 유지합니다. 인식률을 높이기 위해 confidence 기준을 낮추거나 과거 별칭을 production에 추가하지 않았습니다.
+v1.1.4 주요 변경 — Scanner 안정성·데이터 신뢰성 보강
+- Scanner Lab v3.8의 multi-candidate semantic validation과 보수적인 matcher 기준은 그대로 유지합니다.
+- 상세창 후보 안정화는 단순히 아무 후보가 두 프레임에 존재하는지만 세지 않고, 연속 관측된 동일 geometry signature가 있을 때만 누적합니다.
+- 이미 안전하게 식별한 상세창은 불필요한 OCR을 반복하지 않으면서 표시 데이터만 주기적으로 다시 연결합니다.
+- 이 때문에 같은 상세창을 계속 보고 있는 동안에도 Quest/Hideout 진행으로 `RequiredTotal`이 바뀌면 Mini Scanner의 '현재 필요한 수량'이 갱신됩니다.
+- 표시 데이터 갱신 시 같은 로컬 아이콘 PNG를 반복해서 열고 디코딩하지 않도록 Scanner 아이콘 메모리 캐시를 추가했습니다.
+- 가격 회귀 검증을 강화해 상점가는 fleaMarket을 제외한 `sellFor.priceRUB` 최고값, 플리마켓 평균가는 `avg24hPrice`를 서로 독립적으로 사용함을 고정했습니다.
+- 잘못되거나 없는 가격/슬롯 데이터는 해당 표시값만 비우는 fail-closed 동작을 유지합니다.
 
 Scanner UI
 - 상단 바 왼쪽에 '스캐너'와 '테스트' 버튼이 있습니다.
 - 상단 바 오른쪽의 수동 카탈로그 갱신 버튼은 '아이템 목록 최신화'입니다.
 - 표시 정보 아래의 '최근 인식 기록'에서 OCR 문자열, 가장 가까운 공식 아이템 후보, 유사도, 후보 간 차이, 식별 성공/보류 판단을 확인할 수 있습니다.
+- 최근 인식 기록 우측 상단의 '로그 삭제' 버튼은 화면의 인식 기록과 `%LocalAppData%\JunhyunHelper\logs\scanner.log(.1)`을 함께 삭제합니다.
+- 로그 파일 삭제 실패는 Scanner 인식 자체를 중단시키지 않습니다.
 - Foundation 검증 도구는 일반 Scanner 탭에서 보이지 않으며 개발 진단용 내부 경로만 유지합니다.
 - Mini Scanner는 별도 편집 모드 없이 보이는 동안 직접 드래그해 위치를 옮길 수 있고, 드래그 종료 시 위치를 저장합니다.
 - Mini Scanner는 Topmost/no-activate를 유지하며 게임 창의 키보드 포커스를 가져가지 않습니다.
@@ -43,6 +43,10 @@ Scanner 데이터/설정
 - 전체 아이템 카탈로그: %LocalAppData%\JunhyunHelper\scanner\catalog
 - Scanner 설정: %LocalAppData%\JunhyunHelper\scanner-settings.json(.bak)
 - Scanner 카탈로그는 켜기/명시적 최신화/필요한 프로필 전환 시 준비하며 실제 인식 중에는 로컬/메모리 데이터만 사용합니다.
+- 아이템별 표시 데이터는 확정된 Item ID를 기준으로 현재 준현 헬퍼 데이터에 연결합니다.
+- 상인 판매가는 fleaMarket을 제외한 판매처의 RUB 환산 최고가입니다.
+- 플리마켓 평균가는 24시간 평균가입니다.
+- 현재 필요한 수량은 보유량을 빼지 않은 현재 계획의 `RequiredTotal`입니다.
 
 프로그램 업데이트
 - 새 정식 버전이 있을 때만 업데이트 확인창을 표시합니다.
@@ -71,18 +75,19 @@ Scanner 데이터/설정
 - Content schema: v7
 - Readable Content schemas: v3, v4, v5, v6, v7
 - user.db SQLite schema: v1
-- v1.1.2 → v1.1.3 필수 Game Content 업데이트: 없음
-- v1.1.2 → v1.1.3 user.db migration: 없음
+- v1.1.3 → v1.1.4 필수 Game Content 업데이트: 없음
+- v1.1.3 → v1.1.4 user.db migration: 없음
 
-검증
-- Windows Release build 성공
-- 자동 테스트 245개 통과
-- Scanner Lab v3.8 geometry regression 통과
-- win-x64 self-contained single-file publish 통과
-- 실제 게시 후보 EXE Product UI / Scanner / Main Map / Factory / MiniMap smoke 및 정상 종료 통과
+검증 기준
+- Windows Release build
+- 자동 테스트 247개
+- Scanner Lab v3.8 geometry regression
+- Scanner market-field regression
+- win-x64 self-contained single-file publish
+- 실제 게시 후보 EXE Product UI / Scanner / Main Map / Factory / MiniMap smoke 및 정상 종료
 - 실제 최신 Tarkov Borderless E2E는 사용자 환경에서 계속 검증하며, 필요한 수정은 로그를 기준으로 PATCH 릴리즈합니다.
 
 버전 정책
 - 새 기능 추가: MINOR +1, PATCH는 0으로 초기화합니다.
 - 기존 기능 수정·보완·버그 수정·성능/안정성 개선: PATCH +1입니다.
-- v1.1.3은 v1.1.2 Scanner 인식 회귀를 실제 검증된 Scanner Lab v3.8 파이프라인으로 복원하는 PATCH 릴리즈입니다.
+- v1.1.4는 v1.1.3 Scanner의 인식 안정성, 가격/필요 수량 데이터 신뢰성, 진단 UX를 보강하는 PATCH 릴리즈입니다.

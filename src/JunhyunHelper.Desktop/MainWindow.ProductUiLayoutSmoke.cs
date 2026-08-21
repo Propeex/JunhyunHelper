@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -155,6 +156,12 @@ public partial class MainWindow
         if (ScannerPlaceholder.SyncCatalogButton.Content as string != "아이템 목록 최신화")
             throw new InvalidOperationException("Scanner catalog action did not render the user-facing '아이템 목록 최신화' label.");
 
+        if (ScannerPlaceholder.ClearLogButton.Content as string != "로그 삭제" ||
+            ScannerPlaceholder.ClearLogButton.MinWidth < 80)
+        {
+            throw new InvalidOperationException("Scanner recent-recognition log clear control did not render at its product contract.");
+        }
+
         if (ScannerPlaceholder.ScannerToggleButton.MinWidth < 100 ||
             ScannerPlaceholder.TestToggleButton.MinWidth < 100 ||
             ScannerPlaceholder.SyncCatalogButton.MinWidth < 120)
@@ -197,6 +204,33 @@ public partial class MainWindow
             !activityProbe.DetailText.Contains("유사도 기준 통과", StringComparison.Ordinal))
         {
             throw new InvalidOperationException("Scanner recognition activity does not produce the required user-readable decision summary.");
+        }
+
+        if (!ScannerDiagnosticLog.Clear())
+            throw new InvalidOperationException("Scanner smoke could not establish an empty diagnostic baseline.");
+        ScannerDiagnosticLog.Write("ocr-result", ScannerCaptureMode.DisplayTest, ("text", "로그 삭제 테스트"));
+        ScannerDiagnosticLog.Write(
+            "match-result",
+            ScannerCaptureMode.DisplayTest,
+            ("success", true),
+            ("reason", "EXACT"),
+            ("officialName", "로그 삭제 테스트"),
+            ("confidence", 1d),
+            ("secondScore", 0d));
+
+        if (ScannerDiagnosticLog.GetRecentActivities().Count == 0 || !File.Exists(ScannerDiagnosticLog.Path))
+            throw new InvalidOperationException("Scanner smoke could not create a diagnostic/activity record before clear.");
+
+        // Also materialize the rotated file so the user action proves it clears both
+        // bounded diagnostic generations, not only the current scanner.log.
+        File.WriteAllText(ScannerDiagnosticLog.Path + ".1", "scanner-log-clear-smoke");
+
+        ScannerPlaceholder.ClearLogButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        if (ScannerDiagnosticLog.GetRecentActivities().Count != 0 ||
+            File.Exists(ScannerDiagnosticLog.Path) ||
+            File.Exists(ScannerDiagnosticLog.Path + ".1"))
+        {
+            throw new InvalidOperationException("Scanner log clear button did not remove both activity history and log files.");
         }
     }
 
