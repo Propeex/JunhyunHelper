@@ -157,52 +157,86 @@ public partial class MainWindow
             () => markerContainer.Children.OfType<Canvas>().Any(canvas => canvas.Tag is MapMarker),
             TimeSpan.FromSeconds(6));
 
-        // The pinned shared-floor integration used to run a current-floor-only filter for
-        // twelve 200 ms ticks while the Junhyun product recovery window ended earlier.
-        // Waiting beyond both windows is essential: a 1-second smoke can pass while the
-        // marker is still flickering and then disappear shortly afterward.
-        await Task.Delay(3200);
+        // The pinned donor applies its current-floor-only filter on a bounded 200 ms
+        // timer. JunhyunHelper restores those markers and reapplies the product-owned
+        // 0.75 cross-floor presentation after each donor tick. A fixed wall-clock sleep
+        // can sample the tiny interval between the donor tick and our queued recovery,
+        // producing a false 0.50-opacity failure. Observe the real donor timer state and
+        // require the final product invariant to remain continuously stable instead.
+        var deadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(8);
+        var stableWindow = TimeSpan.FromMilliseconds(650);
+        DateTimeOffset? stableSince = null;
+        var lastDetail = "no off-floor marker state observed";
 
-        var mapKey = MapTrackerService.Instance.CurrentMapKey;
-        var config = string.IsNullOrWhiteSpace(mapKey)
-            ? null
-            : MapTrackerService.Instance.GetMapConfig(mapKey);
-        var selectedFloor = (floorSelector.SelectedItem as ComboBoxItem)?.Tag as string;
-
-        var knownOffFloor = markerContainer.Children
-            .OfType<Canvas>()
-            .Where(canvas => canvas.Tag is MapMarker)
-            .Select(canvas => new
-            {
-                Canvas = canvas,
-                Marker = (MapMarker)canvas.Tag,
-                Relation = JunhyunFloorPresentation.Resolve(
-                    config,
-                    ((MapMarker)canvas.Tag).FloorId,
-                    selectedFloor),
-            })
-            .Where(item => item.Relation.IsOtherFloor)
-            .ToArray();
-
-        if (knownOffFloor.Length == 0)
-            throw new InvalidOperationException("Main Map smoke found no enabled known off-floor standard marker to verify.");
-
-        var suppressed = knownOffFloor
-            .Where(item =>
-                item.Canvas.Visibility != Visibility.Visible ||
-                item.Canvas.Opacity < 0.70)
-            .ToArray();
-        if (suppressed.Length > 0)
+        while (DateTimeOffset.UtcNow < deadline)
         {
-            var detail = string.Join(
-                " | ",
-                suppressed.Take(8).Select(item =>
-                    $"type={item.Marker.Type},floor={item.Marker.FloorId}," +
-                    $"relation={item.Relation.Relation},visibility={item.Canvas.Visibility}," +
-                    $"opacity={item.Canvas.Opacity:F2}"));
-            throw new InvalidOperationException(
-                "Enabled off-floor standard markers were suppressed after all legacy/product settle windows: " + detail);
+            var mapKey = MapTrackerService.Instance.CurrentMapKey;
+            var config = string.IsNullOrWhiteSpace(mapKey)
+                ? null
+                : MapTrackerService.Instance.GetMapConfig(mapKey);
+            var selectedFloor = (floorSelector.SelectedItem as ComboBoxItem)?.Tag as string;
+
+            var knownOffFloor = markerContainer.Children
+                .OfType<Canvas>()
+                .Where(canvas => canvas.Tag is MapMarker)
+                .Select(canvas => new
+                {
+                    Canvas = canvas,
+                    Marker = (MapMarker)canvas.Tag,
+                    Relation = JunhyunFloorPresentation.Resolve(
+                        config,
+                        ((MapMarker)canvas.Tag).FloorId,
+                        selectedFloor),
+                })
+                .Where(item => item.Relation.IsOtherFloor)
+                .ToArray();
+
+            if (knownOffFloor.Length == 0)
+            {
+                stableSince = null;
+                lastDetail = $"map={mapKey ?? "<null>"},floor={selectedFloor ?? "<null>"},offFloor=0";
+                await Task.Delay(75);
+                continue;
+            }
+
+            var donorSettling = page.JunhyunIsLegacySharedMarkerFilterSettling;
+            var unsettled = knownOffFloor
+                .Where(item =>
+                    item.Canvas.Visibility != Visibility.Visible ||
+                    item.Canvas.Opacity < JunhyunFloorPresentation.OtherFloorOpacity - 0.01 ||
+                    !JunhyunFloorPresentation.HasFloorIndicator(item.Canvas, item.Relation.Relation))
+                .ToArray();
+
+            lastDetail =
+                $"map={mapKey ?? "<null>"},floor={selectedFloor ?? "<null>"}," +
+                $"donorSettling={donorSettling},offFloor={knownOffFloor.Length},unsettled={unsettled.Length}; " +
+                string.Join(
+                    " | ",
+                    knownOffFloor.Take(8).Select(item =>
+                        $"type={item.Marker.Type},floor={item.Marker.FloorId}," +
+                        $"relation={item.Relation.Relation},visibility={item.Canvas.Visibility}," +
+                        $"opacity={item.Canvas.Opacity:F2}," +
+                        $"indicator={JunhyunFloorPresentation.HasFloorIndicator(item.Canvas, item.Relation.Relation)}"));
+
+            if (!donorSettling && unsettled.Length == 0)
+            {
+                var now = DateTimeOffset.UtcNow;
+                stableSince ??= now;
+                if (now - stableSince >= stableWindow)
+                    return;
+            }
+            else
+            {
+                stableSince = null;
+            }
+
+            await Task.Delay(75);
         }
+
+        throw new InvalidOperationException(
+            "Enabled off-floor standard markers did not reach and hold the product-owned " +
+            $"steady presentation (opacity={JunhyunFloorPresentation.OtherFloorOpacity:F2} with floor indicator): " +
+            lastDetail);
     }
 
     private static int FindFloorIndex(ComboBox floorSelector, string floorId)
