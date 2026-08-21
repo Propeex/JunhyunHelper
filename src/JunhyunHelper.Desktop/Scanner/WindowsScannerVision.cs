@@ -111,11 +111,16 @@ public sealed class WindowsScannerInspectDetector : IScannerInspectDetector
         foreach (var monitor in monitors)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (monitor.Width < 640 || monitor.Height < 360)
+            if (monitor.Bounds.Width < 640 || monitor.Bounds.Height < 360)
                 continue;
 
-            using var bitmap = CaptureScreenRectangle(monitor);
-            var candidate = Detect(bitmap, monitor.Left, monitor.Top, extendedScaleSearch: true, $"display:{monitor.DeviceName}");
+            using var bitmap = CaptureScreenRectangle(monitor.Bounds);
+            var candidate = Detect(
+                bitmap,
+                monitor.Bounds.Left,
+                monitor.Bounds.Top,
+                extendedScaleSearch: true,
+                $"display:{monitor.DeviceName}");
             if (candidate is not null)
             {
                 SetStatus($"테스트 모드 · {monitor.DeviceName}에서 상세창 후보를 감지했습니다.");
@@ -159,9 +164,7 @@ public sealed class WindowsScannerInspectDetector : IScannerInspectDetector
             titleStride);
         titleImage.Freeze();
 
-        var geometrySignature = string.Create(
-            System.Globalization.CultureInfo.InvariantCulture,
-            $"{sourceKey}:{Quantize(region.Value.X)}:{Quantize(region.Value.Y)}:{Quantize(region.Value.Width)}:{Quantize(region.Value.Height)}");
+        var geometrySignature = $"{sourceKey}:{Quantize(region.Value.X)}:{Quantize(region.Value.Y)}:{Quantize(region.Value.Width)}:{Quantize(region.Value.Height)}";
         var titleSignature = $"{HashPixels(titlePixels):X16}";
 
         return new ScannerInspectCandidate(
@@ -220,9 +223,8 @@ public sealed class WindowsScannerInspectDetector : IScannerInspectDetector
         if (width < 1 || height < 1)
             return null;
 
-        // PrintWindow is attempted first because it asks Windows for the target window
-        // instead of copying the composed desktop; this prevents our own overlays from
-        // becoming scanner input when the game's rendering path supports it.
+        // Ask Windows for the target window first. When supported by Tarkov's current
+        // presentation path, this excludes JunhyunHelper overlays from the input image.
         var printWindowBitmap = new Bitmap(width, height, PixelFormat.Format32bppPArgb);
         try
         {
@@ -247,10 +249,9 @@ public sealed class WindowsScannerInspectDetector : IScannerInspectDetector
 
         printWindowBitmap.Dispose();
 
-        // Borderless Tarkov is normally visible at the client rectangle. If the DirectX
-        // presentation path does not support PrintWindow, use the exact client-area
-        // screen pixels as a fallback. Gate A live testing decides whether this fallback
-        // is required on the user's current Tarkov build.
+        // Borderless Tarkov is visible at the client rectangle. If DirectX does not
+        // provide PrintWindow pixels, fall back to exactly that client-area rectangle.
+        // Live Gate A testing determines which route the user's current build needs.
         try
         {
             return CaptureScreenRectangle(screenRect);
@@ -399,17 +400,17 @@ public sealed class WindowsScannerInspectDetector : IScannerInspectDetector
         return rect.Width >= 640 && rect.Height >= 360;
     }
 
-    private static List<NativeRect> EnumerateMonitors()
+    private static List<MonitorCaptureTarget> EnumerateMonitors()
     {
-        var monitors = new List<NativeRect>();
+        var monitors = new List<MonitorCaptureTarget>();
         EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, (monitor, _, _, _) =>
         {
             var info = new MonitorInfoEx { Size = Marshal.SizeOf<MonitorInfoEx>() };
             if (GetMonitorInfo(monitor, ref info))
             {
-                var rect = info.Monitor;
-                rect.DeviceName = string.IsNullOrWhiteSpace(info.DeviceName) ? "DISPLAY" : info.DeviceName;
-                monitors.Add(rect);
+                monitors.Add(new MonitorCaptureTarget(
+                    info.Monitor,
+                    string.IsNullOrWhiteSpace(info.DeviceName) ? "DISPLAY" : info.DeviceName));
             }
             return true;
         }, IntPtr.Zero);
@@ -466,6 +467,18 @@ public sealed class WindowsScannerInspectDetector : IScannerInspectDetector
         public int Y;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeRect
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+
+        public readonly int Width => Right - Left;
+        public readonly int Height => Bottom - Top;
+    }
+
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
     private struct MonitorInfoEx
     {
@@ -477,19 +490,7 @@ public sealed class WindowsScannerInspectDetector : IScannerInspectDetector
         public string DeviceName;
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    private struct NativeRect
-    {
-        public int Left;
-        public int Top;
-        public int Right;
-        public int Bottom;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
-        public string? DeviceName;
-
-        public readonly int Width => Right - Left;
-        public readonly int Height => Bottom - Top;
-    }
+    private readonly record struct MonitorCaptureTarget(NativeRect Bounds, string DeviceName);
 }
 
 /// <summary>
