@@ -64,6 +64,8 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
@@ -77,9 +79,22 @@
                         Grid.Column="1"
                         Content="테스트 OFF"
                         MinWidth="112"
+                        Margin="0,0,8,0"
                         Click="TestToggleButton_Click" />
-                <Button x:Name="SyncCatalogButton"
+                <Button x:Name="OneShotScanButton"
+                        Grid.Column="2"
+                        Content="1회 고정밀 스캔"
+                        MinWidth="132"
+                        Margin="0,0,8,0"
+                        Click="OneShotScanButton_Click" />
+                <Button x:Name="HotkeyButton"
                         Grid.Column="3"
+                        Content="단축키: Ctrl+Shift+F10"
+                        MinWidth="174"
+                        Padding="10,5"
+                        Click="HotkeyButton_Click" />
+                <Button x:Name="SyncCatalogButton"
+                        Grid.Column="5"
                         Content="아이템 목록 최신화"
                         MinWidth="132"
                         Click="SyncCatalogButton_Click" />
@@ -126,6 +141,7 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <TextBlock Text="최근 인식 기록"
                                FontWeight="SemiBold"
@@ -137,8 +153,15 @@
                                TextTrimming="CharacterEllipsis"
                                VerticalAlignment="Center"
                                Margin="16,0,12,0" />
-                    <Button x:Name="ClearLogButton"
+                    <Button x:Name="RecognitionImageButton"
                             Grid.Column="2"
+                            Content="인식 이미지"
+                            MinWidth="92"
+                            Padding="10,4"
+                            Margin="0,0,8,0"
+                            Click="RecognitionImageButton_Click" />
+                    <Button x:Name="ClearLogButton"
+                            Grid.Column="3"
                             Content="로그 삭제"
                             MinWidth="84"
                             Padding="10,4"
