@@ -4,15 +4,16 @@
 
 기준일: 2026-08-21
 
-현재 기준선: **`v1.1.4 PUBLIC RELEASE / VERIFIED`**. release source는 `833ac66c522632a695d106bd7ca9b1d6bfc030dc`이며 공개 ZIP 재다운로드와 실제 EXE smoke까지 검증했습니다.
+현재 기준선: **`v1.1.5 PUBLIC RELEASE / VERIFIED`**. release source는 `3541bab6536ff91a00f394c4f7b03d5cbf112746`이며 Draft/Public 재다운로드와 별도 independent public EXE smoke까지 검증했습니다.
 
 ## 1. 기술 스택
 
 - .NET 10 / C#
 - WPF Desktop (`net10.0-windows10.0.19041.0`)
 - SQLite (`Microsoft.Data.Sqlite`)
-- SkiaSharp — 외부 image decode / PNG normalize
+- SkiaSharp — external image decode / PNG normalize / Scanner title-font metadata/rendering
 - SharpVectors — SVG Map rendering
+- Windows Runtime OCR (`Windows.Media.Ocr`, `ko-KR`)
 - Windows x64 portable / self-contained single-file
 - 별도 backend 없음
 - runtime GPT/AI 없음
@@ -39,7 +40,7 @@ JunhyunHelper.Core
 
 ### Core
 
-Canonical domain과 deterministic 계산을 소유합니다. Quest availability, future reachability, Needed Items, Inventory cleanup 같은 제품 의미는 여기서 계산합니다.
+Canonical domain과 deterministic 계산을 소유합니다. Quest availability, future reachability, Needed Items, Inventory cleanup, Scanner structural geometry 및 conservative name matching 같은 순수 규칙은 여기서 계산합니다.
 
 ### Application
 
@@ -51,7 +52,7 @@ HTTP/source parsing, Game Content build/validation/activation, SQLite/file persi
 
 ### Desktop
 
-WPF shell/pages, presentation cache, Scanner capture/OCR/runtime, Map product bridge, startup/update UX를 소유합니다. domain truth를 UI event handler에서 복제하지 않습니다.
+WPF shell/pages, presentation cache, Scanner capture/OCR/font recovery/runtime, Map product bridge, startup/update UX를 소유합니다. domain truth를 UI event handler에서 복제하지 않습니다.
 
 ## 3. 데이터 권위
 
@@ -63,11 +64,14 @@ WPF shell/pages, presentation cache, Scanner capture/OCR/runtime, Map product br
 | Presentation preferences | user settings | atomic JSON + `.bak` |
 | Image cache | canonical URL에서 검증/normalize한 presentation bytes | `image-cache/` |
 | Scanner identity catalog | current full-item source + current Korean translation | `scanner/catalog/` + memory |
+| Scanner title-font cache | user's current Tarkov resource asset에서 read-only로 추출한 presentation/recovery font payload | `scanner/fonts/` |
 | Scanner diagnostics | runtime observation metadata only | `logs/scanner.log(.1)` |
 | Map artwork/config/general markers | pinned Map bundle | release `Assets/` |
 | Program files | exact GitHub stable Release | portable folder |
 
-Game Content update, Program update, User Progress, Scanner catalog은 서로 다른 lifecycle입니다.
+Scanner font cache는 **Item identity authority가 아닙니다**. Current official Korean full-item catalog가 identity authority이며 font shape는 OCR recovery evidence입니다.
+
+Game Content update, Program update, User Progress, Scanner catalog/font cache는 서로 다른 lifecycle입니다.
 
 ## 4. Startup / composition
 
@@ -96,11 +100,14 @@ online source
 → SQLite integrity/read-back validation
 → active replacement
 → previous known-good retention
+→ canonical image prefetch
 ```
 
 candidate 실패가 active를 덮지 않으며 `user.db`를 건드리지 않습니다.
 
 Current Content schema: v7. Readable: v3~v7.
+
+v1.1.5 image prefetch는 Quest/Hideout/Ammo subset에 제한하지 않고 `GameContentCatalog.Items` 전체 icon을 queue합니다. Scan-time network는 여전히 금지됩니다.
 
 ## 6. User Progress / 계산
 
@@ -141,9 +148,9 @@ d933792b6042a51cea38dc44b686a096fe30de67
 
 ## 8. Scanner subsystem
 
-Scanner는 v1.1.0부터 실제 기능이며 v1.1.3에서 Scanner Lab v3.8 multi-candidate semantic validation이 production 기준으로 복원되었습니다. v1.1.4는 이 recognition architecture를 유지하며 runtime/data/diagnostics를 보강합니다.
+Scanner는 v1.1.3에서 복원한 Scanner Lab v3.8 multi-candidate semantic validation을 production structural 기준으로 유지합니다. v1.1.5는 overlay/data reliability와 OCR recovery를 보강하지만 이 identity 구조를 대체하지 않습니다.
 
-### 8.1 구성
+### 8.1 Composition
 
 ```text
 ScannerPage / MiniScannerWindow
@@ -153,17 +160,21 @@ ScannerCoordinator
         │
         ├─ ScannerSettingsService
         ├─ ScannerCatalogService
-        ├─ ScannerRuntimeService
         ├─ ScannerItemPresentationService
-        └─ ScannerDiagnosticLog
-                    │
-ScannerRuntimeService│
-        ├─ ScannerLab38WindowsVision (capture + structural detector)
-        ├─ ScannerWindowsOcrEngine (ko-KR OCR)
-        ├─ ScannerCatalogService (semantic identity)
-        ├─ ScannerItemPresentationService
-        └─ MiniScannerOverlayService
+        ├─ MiniScannerOverlayService
+        ├─ ScannerLab38InspectDetector
+        └─ OCR composition
+             ScannerLab38OcrEngine
+             → SerializedScannerOcrEngine
+                ├─ Mini Scanner context detector
+                └─ FontAwareScannerOcrEngine
+                    └─ Scanner title runtime
+                         ├─ existing normal/deep OCR
+                         ├─ TarkovTitleFontProvider
+                         └─ ScannerTitleFontVerifier
 ```
+
+`ScannerRuntimeService`는 detector/OCR/catalog/presentation/overlay lifecycle을 조정합니다.
 
 ### 8.2 Recognition data flow
 
@@ -175,30 +186,77 @@ Tarkov client / display pixels
 → candidate title ROI
 → adaptive 4x/6x/8x Windows ko-KR OCR
 → current official Korean full-item catalog resolver
-→ 필요 시 top-3 deep OCR
+→ 필요 시 top-3 Deep OCR
+→ 기존 semantic gate 실패 시에만 optional font-aware recovery
 → semantic resolution 성공 candidate 선택
 → Item ID
 ```
 
 Structural score는 후보 순위이며 Item identity가 아닙니다. exact-first matcher, confidence threshold, top1-top2 margin을 유지합니다.
 
-### 8.3 Runtime stability — v1.1.4
+### 8.3 Candidate/runtime stability
 
-semantic OCR 전에 두 번의 안정 관측을 요구합니다.
-
-```text
-frame N candidate GeometrySignature set
-∩
-frame N+1 candidate GeometrySignature set
-!= empty
-→ stable hit 누적
-```
-
-서로 다른 candidate가 번갈아 나타나는 것만으로 stable 상태가 되지 않습니다. miss/mode/reset에서 signature history를 버립니다.
+semantic OCR 전에 같은 quantized `GeometrySignature`가 연속 frame candidate set에 존재해야 2-hit 안정화가 완료됩니다.
 
 verified bounds + title signature가 유지되면 OCR은 반복하지 않습니다. 대신 1초마다 presentation snapshot만 재생성해 현재 진행 데이터 변화를 반영합니다.
 
-### 8.4 Item data bridge
+`SerializedScannerOcrEngine`은 shared `SemaphoreSlim`으로 Item title OCR과 inventory-context OCR의 WinRT 호출을 직렬화합니다.
+
+### 8.4 Font-aware title recovery
+
+상세보기 상단 Item 이름은 현재 `ItemInfoWindowLabels._caption` TextMeshPro text이며 UI font stack은 Bender primary + `Noto Sans CJK KR` Hangul fallback입니다.
+
+Recovery는 failure-only decorator입니다.
+
+1. `FontAwareScannerOcrEngine.ReadTextAsync`는 inner OCR을 그대로 pass-through.
+2. `ReadDeepTextAsync`는 existing Deep OCR을 먼저 수행.
+3. existing catalog resolver가 success면 원문을 그대로 반환.
+4. semantic failure일 때만 `ScannerTitleFontVerifier` 실행.
+5. OCR에 가까운 current official-name shortlist를 구성.
+6. Bender Regular/Bold + Noto CJK KR fallback으로 이름을 rasterize.
+7. observed title ROI를 Otsu/binary mask로 만들고 normalized-scale + tolerant glyph F1 비교.
+8. semantic/visual/combined/top1-top2 margin을 모두 통과한 경우만 verified official name을 OCR variant로 추가.
+9. existing matcher가 그 exact official name을 Item ID로 해결.
+
+이 구조는 기존 success path의 behavior와 acceptance threshold를 유지합니다.
+
+### 8.5 TarkovTitleFontProvider boundary
+
+Font binary는 release artifact에 포함하지 않습니다.
+
+```text
+running EscapeFromTarkov process
+→ executable directory
+→ EscapeFromTarkov_Data/resources.assets (read-only)
+→ raw SFNT signature scan
+→ SFNT table bounds validation
+→ SKTypeface metadata validation
+→ Bender Regular/Bold + Noto Sans CJK KR extraction
+→ %LocalAppData%/JunhyunHelper/scanner/fonts/
+```
+
+- asset size/parse/metadata validation fail => font recovery unavailable
+- failure is nonfatal; OCR-only path remains
+- game directory write 없음
+- source asset mtime이 cache보다 최신이면 stale cache reuse 금지
+- public distribution of Bender binary 없음
+
+### 8.6 Inventory/stash overlay gate
+
+`ScannerInventoryContextDetector`는 Item이 이미 match되어 overlay를 표시하려 할 때만 foreground Tarkov UI를 확인합니다.
+
+```text
+foreground EscapeFromTarkov
+→ top client strip capture
+→ serialized ko-KR OCR
+→ current Korean navigation anchors
+→ >= 2 independent anchors
+→ allow overlay
+```
+
+uncertain/missing/other foreground app => hidden. Decision은 약 850ms cache합니다. raw screenshot은 persist하지 않습니다.
+
+### 8.7 Item data bridge
 
 ```text
 Item ID
@@ -211,30 +269,37 @@ Item ID
 
 가격 계약:
 
-- 최고 상점가 = fleaMarket을 제외한 유효 `sellFor.priceRUB` 최댓값
+- raw `traderPrices`에 유효 가격이 있으면 positive `priceRUB` 최댓값
+- 아니면 `sellFor`의 flea source 제외 positive `priceRUB` 최댓값
 - 플리 평균가 = positive `avg24hPrice`
 - 슬롯 = positive `width * height`
 - price/slot은 둘 다 유효할 때만 계산
 
+catalog health는 >=4,000 valid Item + >=500 valid trader-price coverage를 요구합니다.
+
 현재 필요한 수량 = `RequiredTotal`; Inventory를 차감한 부족량이 아닙니다.
 
-### 8.5 Icon/cache
+### 8.8 Mini Scanner window/input
 
-scan 중 icon HTTP를 하지 않습니다. 기존 local image-cache만 읽습니다. v1.1.4부터 성공적으로 decode/freeze한 icon은 process-local cache에서 재사용합니다.
+- matched-item-only presentation
+- WPF Topmost + native HWND_TOPMOST reassert
+- no-activate/tool-window extended styles
+- whole-card drag hit surface
+- forced Arrow cursor
+- persisted multi-monitor coordinates
+- Scanner settings schema v2 migration으로 icon/trader/trader-per-slot intended default 정상화
 
-### 8.6 Diagnostics
+### 8.9 Diagnostics
 
-`ScannerDiagnosticLog`는 capture/candidate/OCR/match/selected/runtime metadata를 bounded log로 남깁니다. screenshot/raw pixel buffer는 저장하지 않습니다.
+`ScannerDiagnosticLog`는 capture/candidate/OCR/match/selected/runtime/context/font metadata를 bounded log로 남깁니다. screenshot/raw pixel buffer는 저장하지 않습니다.
 
 ```text
 %LocalAppData%/JunhyunHelper/logs/scanner.log(.1)
 ```
 
-최근 인식 activity는 같은 diagnostic stream에서 projection합니다.
-
 `로그 삭제`는 memory activity + `scanner.log` + `.1`을 clear합니다. I/O 실패는 recognition fatal이 아닙니다.
 
-### 8.7 Scanner 금지 경계
+### 8.10 Scanner 금지 경계
 
 - game memory read
 - DLL injection
@@ -242,6 +307,7 @@ scan 중 icon HTTP를 하지 않습니다. 기존 local image-cache만 읽습니
 - process-internal data read
 - scan-time HTTP
 - icon identity
+- font shape만으로 Item ID 확정
 
 ## 9. Program update
 
@@ -258,122 +324,20 @@ latest stable check
 
 Program update는 `%LocalAppData%/JunhyunHelper` 사용자 데이터를 교체하지 않습니다.
 
-## 10. Persistence / atomicity
+## 10. Release architecture / evidence
 
-중요한 JSON preference는 same-directory temp + flush + atomic replacement + `.bak` recovery를 사용합니다.
+정식 release는 exact source에서 다시 build/test/publish한 뒤 Draft-first로 진행합니다.
 
-대표 경로:
-
-```text
-user.db
-content/<mode>/content.db
-image-cache/
-ammo-favorites.json(.bak)
-map-product-settings.json(.bak)
-scanner-settings.json(.bak)
-scanner/catalog/items-{mode}-ko.json(.bak)
-logs/scanner.log(.1)
-```
-
-runtime log를 portable release root에 만들지 않습니다.
-
-## 11. 성능 원칙
-
-- immutable/canonical 결과 재사용
-- UserProfileStore in-memory snapshot cache
-- Items inventory-only mutation에서 future planning basis 재사용
-- image download concurrency 제한
-- Scanner verified detail OCR 반복 억제
-- Scanner icon process-memory decode cache
-- Scanner presentation refresh는 Item ID 이후 데이터 bridge만 수행
-- Map donor는 증거 없이 broad rewrite하지 않음
-
-캐시는 제품 의미를 바꾸면 안 되며 동일 입력의 deterministic 결과 재사용이어야 합니다.
-
-## 12. 오류 격리
-
-- program update network failure → app 계속
-- image failure → 해당 image만 누락
-- preference save failure → diagnostic, app 계속
-- invalid content candidate → known-good active 유지
-- unsupported Quest gate → fail-closed/Indeterminate
-- Scanner low confidence/ambiguity → no Item ID
-- Scanner diagnostic/log deletion failure → Scanner 계속
-- Scanner missing market/icon → 해당 표시 field만 omit
-- updater validation/replacement failure → current program 보존/rollback 시도
-
-## 13. 검증 구조
-
-Core/Application/Infrastructure 의미는 xUnit으로 검증합니다. WPF/Map/Scanner UI는 실제 published EXE smoke도 사용합니다.
-
-v1.1.4 public gate — 완료:
-
-1. Windows Release build
-2. 247 automated tests
-3. Scanner Lab v3.8 geometry/title ROI regression
-4. Scanner market regression
-5. win-x64 self-contained single-file publish
-6. ProductVersion/FIRST_RUN/package audit
-7. actual EXE rendered Product UI/Scanner assertions
-8. Scanner activity/current/rotated log 생성 후 `로그 삭제` end-to-end smoke
-9. Main Map/Factory/MiniMap smoke
-10. normal close/process exit/portable-root cleanliness
-11. Draft/public asset checksum/package/ProductVersion verification
-12. exact public tag source verification
-13. public-downloaded EXE smoke
-
-Public release source: `833ac66c522632a695d106bd7ca9b1d6bfc030dc`. Public verification run: `32476952938`.
-
-실제 최신 Tarkov Borderless E2E는 release blocker가 아니며 사용자 환경에서 후속 검증합니다.
-
-## 14. 변경 영향 추적
-
-Scanner recognition 변경:
+v1.1.5 verified public identity:
 
 ```text
-capture/detector
-→ candidate geometry/title ROI
-→ OCR
-→ ScannerCatalogService matcher
-→ ScannerRuntimeService stability/selection
-→ Item ID
-→ presentation
-→ Mini Scanner
-→ diagnostics/tests/docs
+source/tag: 3541bab6536ff91a00f394c4f7b03d5cbf112746
+249 tests passed
+asset bytes: 80,269,429
+SHA-256: dc31177ae1bd4d152453a010dffe6cbb1e6c1d2a4a7e2eb82fb7444fa99c0748
+ProductVersion: 1.1.5+3541bab6536ff91a00f394c4f7b03d5cbf112746
+Draft/public verification: 32495042444
+independent public verification: 32495225958
 ```
 
-Scanner 가격 변경:
-
-```text
-json.tarkov.dev item fields
-→ ScannerCatalogService parse
-→ ScannerCatalogItem
-→ ScannerItemPresentationService
-→ Mini Scanner
-→ market regression tests
-```
-
-Needed Items 의미 변경:
-
-```text
-Quest/Hideout/Profile facts
-→ FutureNeededItemsPlanner
-→ ItemsWorkspace.Plan.NeededItems
-→ RequiredTotal
-→ ScannerItemPresentationService
-```
-
-Scanner가 이 계산을 독자적으로 복제하지 않습니다.
-
-## 15. 관련 문서
-
-- `docs/STATE.md`
-- `docs/PRODUCT.md`
-- `docs/DEVELOPER_REFERENCE.md`
-- `docs/DECISIONS.md`
-- `docs/SCANNER.md`
-- `docs/SCANNER_TEST_PLAN.md`
-- `docs/SCANNER_LAB_3_8_REFERENCE.md`
-- `docs/RELEASE_1.1.4.md`
-- `docs/PROGRAM_UPDATE.md`
-- `docs/DEPLOYMENT.md`
+상세 release evidence는 `docs/RELEASE_1.1.5.md`가 권위 기록입니다.
