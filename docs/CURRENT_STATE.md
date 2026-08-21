@@ -1,24 +1,21 @@
 # CURRENT STATE
 
-> 최신 개발 상태의 짧은 인덱스입니다. 상세 설계/이력은 `docs/STATE.md`와 전문 문서를 참조합니다.
+> 최신 개발 상태의 짧은 인덱스입니다. 상세 설계와 이력은 `docs/STATE.md` 및 전문 문서를 참조합니다.
 
-기준일: 2026-08-21
+기준일: 2026-08-22
 
-상태: **`v1.1.4 PUBLIC RELEASE / VERIFIED — Scanner hardening / data reliability / log clear`**
+상태: **`v1.1.6 PUBLIC RELEASE / VERIFIED — Scanner catalog synchronization regression fix`**
 
 ## 현재 공개 기준선
 
 ```text
-version: v1.1.4
-release source: 833ac66c522632a695d106bd7ca9b1d6bfc030dc
-PR final CI: 32475893012 — SUCCESS
-exact-source Draft-first release run: 32476391800
-public verification run: 32476952938 — SUCCESS
-automated tests: 247 passed / 0 failed / 0 skipped
-asset: Junhyun-Helper-v1.1.4-win-x64.zip
-bytes: 80,253,044
-SHA-256: 6d7a4646032c91a66d66ceac0d78b197dd112e78fa9c7a6e99d7092febc2cb54
-ProductVersion: 1.1.4+833ac66c522632a695d106bd7ca9b1d6bfc030dc
+version: v1.1.6
+release source: 8efee02e5966adb9b67b47847f95a12dfc357d0a
+exact-source release run: 32500707112 — SUCCESS
+automated tests: 250 passed / 0 failed / 0 skipped
+asset: Junhyun-Helper-v1.1.6-win-x64.zip
+bytes: 80,271,024
+SHA-256: 986d0d2855381060267f63d2902317eabedc5d5738448fbd6c2b09e764c3477e
 Draft-downloaded EXE smoke: SUCCESS
 public/latest: VERIFIED
 exact tag source: VERIFIED
@@ -26,71 +23,57 @@ public-downloaded EXE smoke: SUCCESS
 ```
 
 ```text
-Desktop Version: 1.1.4
+Desktop Version: 1.1.6
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
-v1.1.3 → v1.1.4 mandatory Game Content update: none
-v1.1.3 → v1.1.4 user.db migration: none
+Scanner cache schema: v1/v2 readable, v2 written
+v1.1.5 → v1.1.6 mandatory Game Content update: none
+v1.1.5 → v1.1.6 user.db migration: none
 ```
 
-## v1.1.4 Scanner 변경
-
-- Scanner Lab v3.8 multi-candidate semantic validation 유지
-- 연속 frame의 동일 quantized geometry signature가 있을 때만 2-hit 안정화 누적
-- verified detail은 OCR 반복 없이 1초 간격 presentation snapshot refresh
-- `현재 필요한 수량`은 최신 `ItemsWorkspace.Plan.NeededItems[].RequiredTotal` 재연결
-- Scanner local icon process-memory decode cache
-- 최고 상점가 = fleaMarket 제외 `sellFor.priceRUB` 최댓값 회귀 고정
-- 플리 평균가 = `avg24hPrice` 회귀 고정
-- 4,000개 전체 카탈로그 fixture의 market/dimension 투영 검사
-- invalid market/dimension은 field 단위 fail-closed
-- 최근 인식 기록 우측 상단 `로그 삭제`
-- 로그 삭제 = activity + `scanner.log` + `scanner.log.1`
-- published EXE smoke에서 로그/activity 생성, rendered button 클릭, 두 로그 삭제까지 실제 검증
-
-## Scanner 핵심 계약
+## Scanner 현재 계약
 
 ```text
-pixels
-→ RED-X + rectangle/edge candidates
-→ IoU dedup
-→ 최대 8 candidates
-→ adaptive ko-KR OCR
-→ current official Korean full-item catalog semantic validation
+Tarkov / Display pixels
+→ detail structural candidates
+→ title ROI
+→ Windows ko-KR OCR
+→ conservative current official Korean catalog matching
 → Item ID
-→ existing JunhyunHelper data
+→ local presentation data
 → Mini Scanner
 ```
 
+핵심 원칙:
+
 - false positive보다 miss 선호
-- matcher confidence/margin 완화 금지
+- matcher confidence/margin을 편의상 완화하지 않음
 - scan-time network 없음
-- game memory / DLL injection / packet interception / icon identity 없음
-- current needed = `RequiredTotal`
+- game memory / DLL injection / packet interception 없음
+- item identity를 icon 하나로 확정하지 않음
+- 현재 필요한 수량 = `NeededItems[].RequiredTotal`
 
-## 공개 릴리즈 검증
+## v1.1.5 이후 Mini Scanner / data baseline
 
-완료:
+- matched item 정보만 표시; runtime/status 문구는 overlay에 표시하지 않음
+- Topmost + no-activate
+- 전체 카드 drag hit surface + Arrow cursor
+- 실제 모드에서는 Tarkov foreground/inventory context를 보수적으로 확인
+- 전체 canonical item icon prefetch
+- raw `traderPrices`와 derived `sellFor` 모두 지원
+- title OCR과 inventory-context OCR은 직렬화된 OCR 경계를 공유
 
-- Windows Release build
-- 247/247 automated tests
-- Scanner Lab v3.8 geometry/title ROI regressions
-- Scanner market-field 전체 fixture regressions
-- self-contained single-file publish
-- actual EXE rendered Product UI / Scanner log clear / Map / Factory / MiniMap smoke
-- Draft ZIP 재다운로드 checksum/package/ProductVersion 검증
-- Draft-downloaded EXE smoke
-- public/latest 전환
-- tag `v1.1.4` = source `833ac66c522632a695d106bd7ca9b1d6bfc030dc` identical 검증
-- public ZIP 재다운로드 checksum/root/ProductVersion/FIRST_RUN 검증
-- public-downloaded EXE smoke + 정상 종료
+## v1.1.6 catalog fix
 
-첫 release workflow `32476391800`은 public 전환 직후 태그 재조회 refspec 문자열 버그로 마지막 자동 단계만 실패했습니다. 제품/패키지 gate는 그 전에 통과했고, 독립 public verification run `32476952938`에서 누락된 public 검증을 모두 다시 수행해 최종 승인했습니다.
+- Scanner identity catalog health = 4,000개 이상 유효 Item ID/공식 이름
+- trader/flea 가격 coverage는 identity health와 분리
+- 가격이 없으면 해당 표시 필드만 비움
+- 4,000개 identity + trader price 0개도 Scanner 식별 가능
+- 3,999개 identity는 계속 거부
+- 수동 `아이템 목록 최신화`는 `catalog-sync` 진단을 `scanner.log`에 기록
 
-## 실제 Tarkov 후속 검증
-
-최신 Tarkov Borderless E2E는 기존 정책대로 public release blocker가 아니며 사용자 환경에서 계속 수행합니다. 실제 게임에서 발견되는 문제는 `%LocalAppData%/JunhyunHelper/logs/scanner.log(.1)`와 최근 인식 기록을 기준으로 capture → candidate → OCR → matcher → presentation 단계를 분리해 후속 PATCH에서 보정합니다.
+상세: `docs/RELEASE_1.1.6.md`.
 
 ## 기능 상태
 
@@ -99,7 +82,9 @@ pixels
 | Profile / Quest / Hideout | 구현 완료 |
 | Needed Items / Inventory / Items | 구현 완료 |
 | Ammo | 구현 완료 |
-| Map + MiniMap | 구현 완료 / Windows user validated |
+| Map + MiniMap | 구현 완료 / 기존 검증 기준선 유지 |
 | Game Content Update | 구현 완료 |
-| Program Update | 구현 완료 / v1.1.4 public package verified |
-| Scanner + Mini Scanner | **v1.1.4 public verified / live Tarkov validation ongoing** |
+| Program Update | 구현 완료 / v1.1.6 public package verified |
+| Scanner + Mini Scanner | **v1.1.6 public baseline / live Tarkov validation and follow-up fixes ongoing** |
+
+실제 Tarkov에서 발견되는 문제는 기능별로 재현 조건과 로그를 분리해 후속 PATCH에서 수정합니다.
