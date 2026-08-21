@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using JunhyunHelper.Core.Scanner;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
@@ -18,7 +19,88 @@ public partial class ScannerPage
         }
 
         ScannerTitleFontSmoke.VerifyProductContract();
+        VerifyScannerRecognitionProductContract();
         VerifyMiniScannerProductContract();
+    }
+
+    private static void VerifyScannerRecognitionProductContract()
+    {
+        var settings = new ScannerDisplaySettings();
+        settings.Normalize();
+        if (settings.SchemaVersion != ScannerDisplaySettings.CurrentSchemaVersion ||
+            settings.SchemaVersion != 3 ||
+            !ScannerHotkeyGesture.TryParse(settings.OneShotHotkey, out var gesture) ||
+            gesture != ScannerHotkeyGesture.Default ||
+            ScannerHotkeyGesture.TryParse("F10", out _))
+        {
+            throw new InvalidOperationException(
+                "Scanner v1.2.0 one-shot hotkey/settings contract failed.");
+        }
+
+        const int width = 800;
+        const int height = 600;
+        const int stride = width * 4;
+        var pixels = new byte[stride * height];
+        for (var offset = 3; offset < pixels.Length; offset += 4)
+            pixels[offset] = 255;
+
+        static void Fill(
+            byte[] target,
+            int targetStride,
+            int x,
+            int y,
+            int regionWidth,
+            int regionHeight,
+            byte b,
+            byte g,
+            byte r)
+        {
+            for (var yy = y; yy < y + regionHeight; yy++)
+            {
+                for (var xx = x; xx < x + regionWidth; xx++)
+                {
+                    var offset = yy * targetStride + xx * 4;
+                    target[offset] = b;
+                    target[offset + 1] = g;
+                    target[offset + 2] = r;
+                    target[offset + 3] = 255;
+                }
+            }
+        }
+
+        var panel = new ScannerDetectedRegion(100, 100, 520, 400, 0.996);
+        var fallback = ScannerDetailGeometryDetector.GetTitleRegion(panel);
+        var close = new ScannerDetectedRegion(598, 100, 20, 20, 0.996);
+
+        // Bright neutral component at Tarkov's magnifier position. It deliberately
+        // reaches into the coarse title's left boundary if the old ROI is used.
+        Fill(pixels, stride, 104, 104, 12, 12, 160, 160, 160);
+        // Broad dark title field matching the real inspect-header luminance class.
+        Fill(pixels, stride, 118, 99, 383, 21, 30, 30, 30);
+        // Red close-control evidence at the right edge.
+        Fill(pixels, stride, 598, 100, 20, 20, 10, 10, 120);
+
+        var candidate = new ScannerDetectedCandidate(
+            panel,
+            fallback,
+            close,
+            "STRUCTURE_MATCH");
+        var refinement = ScannerTitleAnchorRefiner.Refine(
+            pixels,
+            width,
+            height,
+            stride,
+            candidate);
+
+        if (refinement.Magnifier.Width <= 0 ||
+            refinement.Title.X <= fallback.X ||
+            refinement.Title.X <= refinement.Magnifier.X + refinement.Magnifier.Width ||
+            refinement.Title.Width < 100 ||
+            refinement.Score < 0.70)
+        {
+            throw new InvalidOperationException(
+                "Scanner title-anchor smoke failed to exclude magnifier pixels from OCR ROI.");
+        }
     }
 
     private static void VerifyMiniScannerProductContract()
