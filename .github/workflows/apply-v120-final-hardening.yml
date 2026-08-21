@@ -1,0 +1,201 @@
+name: Apply v1.2.0 final Scanner hardening
+
+on:
+  push:
+    branches: [scanner-v1.2.0-recognition-overhaul]
+    paths: [.github/workflows/apply-v120-final-hardening.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: scanner-v1.2.0-recognition-overhaul
+
+      - name: Apply audited hardening and release-candidate metadata
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected exactly one replacement target, found {count}")
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          # 1) A one-shot scan must never mutate runtime state concurrently with the
+          # continuous Scanner loop. Cancel and await that loop, then resume it.
+          replace_once(
+              'src/JunhyunHelper.Desktop/Scanner/ScannerRuntimeService.cs',
+              '''    private void StopLoop()\n    {\n        Interlocked.Increment(ref _loopEpoch);\n\n        CancellationTokenSource? cancellation;\n        Task? task;\n        lock (_loopGate)\n        {\n            cancellation = _loopCts;\n            task = _loopTask;\n            _loopCts = null;\n            _loopTask = null;\n        }\n\n        if (cancellation is null)\n            return;\n\n        cancellation.Cancel();\n        if (task is { IsCompleted: false })\n        {\n            _ = task.ContinueWith(\n                _ => cancellation.Dispose(),\n                CancellationToken.None,\n                TaskContinuationOptions.ExecuteSynchronously,\n                TaskScheduler.Default);\n        }\n        else\n        {\n            cancellation.Dispose();\n        }\n    }\n''',
+              '''    public async Task PauseForOneShotAsync(CancellationToken cancellationToken = default)\n    {\n        ObjectDisposedException.ThrowIf(_disposed, this);\n        var task = StopLoopCore();\n        if (task is { IsCompleted: false })\n            await task.WaitAsync(cancellationToken);\n    }\n\n    private void StopLoop() => _ = StopLoopCore();\n\n    private Task? StopLoopCore()\n    {\n        Interlocked.Increment(ref _loopEpoch);\n\n        CancellationTokenSource? cancellation;\n        Task? task;\n        lock (_loopGate)\n        {\n            cancellation = _loopCts;\n            task = _loopTask;\n            _loopCts = null;\n            _loopTask = null;\n        }\n\n        if (cancellation is null)\n            return task;\n\n        cancellation.Cancel();\n        if (task is { IsCompleted: false })\n        {\n            _ = task.ContinueWith(\n                _ => cancellation.Dispose(),\n                CancellationToken.None,\n                TaskContinuationOptions.ExecuteSynchronously,\n                TaskScheduler.Default);\n        }\n        else\n        {\n            cancellation.Dispose();\n        }\n\n        return task;\n    }\n''')
+
+          replace_once(
+              'src/JunhyunHelper.Desktop/Scanner/ScannerCoordinator.OneShot.cs',
+              '''            var mode = ActiveCaptureMode ?? ScannerCaptureMode.TarkovWindow;\n            return await Runtime.ScanOnceAsync(mode, cancellationToken);\n''',
+              '''            var resumeMode = ActiveCaptureMode;\n            try\n            {\n                if (resumeMode is not null)\n                    await Runtime.PauseForOneShotAsync(cancellationToken);\n\n                var mode = resumeMode ?? ScannerCaptureMode.TarkovWindow;\n                return await Runtime.ScanOnceAsync(mode, cancellationToken);\n            }\n            finally\n            {\n                // Preserve the user's continuous Scanner/Test mode. Restarting uses\n                // the current settings gate, so a mode disabled while scanning stays off.\n                if (resumeMode is not null && !_disposed)\n                    await Runtime.StartAsync(resumeMode.Value, CancellationToken.None);\n            }\n''')
+
+          # 2) The debug image must report metadata for the actually selected candidate,
+          # not whichever structural candidate happened to be captured first.
+          replace_once(
+              'src/JunhyunHelper.Desktop/Scanner/ScannerRecognitionDebugStore.cs',
+              '''            _frame = _frame with\n            {\n                SelectedBounds = selected,\n                TitleBounds = title,\n                MagnifierBounds = magnifier,\n                CloseBounds = close,\n                Pass = pass,\n                OcrText = ocrText,\n                CandidateName = recognition.OfficialName,\n                RecognitionReason = recognition.Reason,\n                Confidence = recognition.Confidence,\n                SecondScore = recognition.SecondScore,\n                UpdatedAt = DateTimeOffset.Now,\n            };\n''',
+              '''            var now = DateTimeOffset.Now;\n            _frame = _frame with\n            {\n                SelectedBounds = selected,\n                TitleBounds = title,\n                MagnifierBounds = magnifier,\n                CloseBounds = close,\n                StructuralScore = candidate?.StructuralScore ?? _frame.StructuralScore,\n                StructuralReason = candidate?.StructuralReason ?? _frame.StructuralReason,\n                TitleAnchorScore = candidate?.TitleAnchorScore ?? _frame.TitleAnchorScore,\n                TitleAnchorReason = candidate?.TitleAnchorReason ?? _frame.TitleAnchorReason,\n                Pass = pass,\n                OcrText = ocrText,\n                CandidateName = recognition.OfficialName,\n                RecognitionReason = recognition.Reason,\n                Confidence = recognition.Confidence,\n                SecondScore = recognition.SecondScore,\n                UpdatedAt = now,\n                Timestamp = now,\n            };\n''')
+
+          # 3) Extend the actual published-EXE smoke with v1.2.0 Scanner contracts:
+          # schema/default hotkey and synthetic inspect-header anchor refinement.
+          p = Path('src/JunhyunHelper.Desktop/Scanner/ScannerPage.MiniScannerSmoke.cs')
+          text = p.read_text(encoding='utf-8')
+          if 'using JunhyunHelper.Core.Scanner;' not in text:
+              text = text.replace('using System.Windows.Media;\n', 'using System.Windows.Media;\nusing JunhyunHelper.Core.Scanner;\n', 1)
+          old_call = '''        ScannerTitleFontSmoke.VerifyProductContract();\n        VerifyMiniScannerProductContract();\n'''
+          new_call = '''        ScannerTitleFontSmoke.VerifyProductContract();\n        VerifyScannerRecognitionProductContract();\n        VerifyMiniScannerProductContract();\n'''
+          if text.count(old_call) != 1:
+              raise SystemExit('Scanner smoke call target mismatch')
+          text = text.replace(old_call, new_call, 1)
+          marker = '    private static void VerifyMiniScannerProductContract()\n'
+          if text.count(marker) != 1:
+              raise SystemExit('Scanner smoke insertion marker mismatch')
+          method = r'''    private static void VerifyScannerRecognitionProductContract()
+    {
+        var settings = new ScannerDisplaySettings();
+        settings.Normalize();
+        if (settings.SchemaVersion != ScannerDisplaySettings.CurrentSchemaVersion ||
+            settings.SchemaVersion != 3 ||
+            !ScannerHotkeyGesture.TryParse(settings.OneShotHotkey, out var gesture) ||
+            gesture != ScannerHotkeyGesture.Default ||
+            ScannerHotkeyGesture.TryParse("F10", out _))
+        {
+            throw new InvalidOperationException(
+                "Scanner v1.2.0 one-shot hotkey/settings contract failed.");
+        }
+
+        const int width = 800;
+        const int height = 600;
+        const int stride = width * 4;
+        var pixels = new byte[stride * height];
+        for (var offset = 3; offset < pixels.Length; offset += 4)
+            pixels[offset] = 255;
+
+        static void Fill(
+            byte[] target,
+            int targetStride,
+            int x,
+            int y,
+            int regionWidth,
+            int regionHeight,
+            byte b,
+            byte g,
+            byte r)
+        {
+            for (var yy = y; yy < y + regionHeight; yy++)
+            {
+                for (var xx = x; xx < x + regionWidth; xx++)
+                {
+                    var offset = yy * targetStride + xx * 4;
+                    target[offset] = b;
+                    target[offset + 1] = g;
+                    target[offset + 2] = r;
+                    target[offset + 3] = 255;
+                }
+            }
+        }
+
+        var panel = new ScannerDetectedRegion(100, 100, 520, 400, 0.996);
+        var fallback = ScannerDetailGeometryDetector.GetTitleRegion(panel);
+        var close = new ScannerDetectedRegion(598, 100, 20, 20, 0.996);
+
+        // Bright neutral component at Tarkov's magnifier position. It deliberately
+        // overlaps the coarse title's left boundary if the old ROI is used.
+        Fill(pixels, stride, 104, 104, 12, 12, 160, 160, 160);
+        // Broad dark title field matching the real inspect-header luminance class.
+        Fill(pixels, stride, 118, 99, 383, 21, 30, 30, 30);
+        // Red close-control evidence at the right edge.
+        Fill(pixels, stride, 598, 100, 20, 20, 10, 10, 120);
+
+        var candidate = new ScannerDetectedCandidate(
+            panel,
+            fallback,
+            close,
+            "STRUCTURE_MATCH");
+        var refinement = ScannerTitleAnchorRefiner.Refine(
+            pixels,
+            width,
+            height,
+            stride,
+            candidate);
+
+        if (refinement.Magnifier.Width <= 0 ||
+            refinement.Title.X <= fallback.X ||
+            refinement.Title.X <= refinement.Magnifier.X + refinement.Magnifier.Width ||
+            refinement.Title.Width < 100 ||
+            refinement.Score < 0.70)
+        {
+            throw new InvalidOperationException(
+                "Scanner title-anchor smoke failed to exclude magnifier pixels from OCR ROI.");
+        }
+    }
+
+'''
+          text = text.replace(marker, method + marker, 1)
+          p.write_text(text, encoding='utf-8')
+
+          # 4) Version identity and user-facing release guide.
+          replace_once(
+              'src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj',
+              '    <Version>1.1.6</Version>\n',
+              '    <Version>1.2.0</Version>\n')
+
+          p = Path('packaging/FIRST_RUN_KO.txt')
+          text = p.read_text(encoding='utf-8')
+          if not text.startswith('준현 헬퍼 v1.1.6 — Windows x64\n'):
+              raise SystemExit('FIRST_RUN version header mismatch')
+          text = text.replace('준현 헬퍼 v1.1.6 — Windows x64\n', '준현 헬퍼 v1.2.0 — Windows x64\n', 1)
+          marker = 'v1.1.6 주요 변경 — Scanner 아이템 목록 동기화 회귀 수정\n'
+          if text.count(marker) != 1:
+              raise SystemExit('FIRST_RUN v1.1.6 section marker mismatch')
+          v120 = '''v1.2.0 주요 변경 — Scanner 제목 인식 구조 전면 보강\n- 상세보기 창 상단의 빨간 X, 좌측 돋보기, 어두운 제목 필드를 독립적인 구조 anchor로 사용해 아이템 이름 영역을 더 정확하게 잡습니다. anchor가 불확실하면 기존 검증된 geometry 영역으로 되돌아가는 fail-closed fallback을 유지합니다.\n- 돋보기 anchor를 찾으면 해당 아이콘 오른쪽부터 OCR 영역을 시작하므로 돋보기 픽셀이 문자로 들어가지 않습니다.\n- 현재 공식 한국어 아이템명 전체에서 실제 사용되는 문자 집합을 자동 생성합니다. 한국어 아이템명에 존재하지 않는 한자 OCR은 손상된 인식의 강한 신호로 취급하며 임의 문자 치환은 하지 않습니다.\n- 기존 Windows ko-KR OCR이 성공하면 그 결과를 그대로 우선합니다. OCR이 비거나 한자/이상 문자로 망가진 경우에는 전체 공식 아이템 이름을 실제 Tarkov 제목 폰트(Bender + Noto Sans CJK KR)로 렌더링한 글자 형태와 화면 픽셀을 직접 비교하는 복구 경로를 사용합니다.\n- 전체 이름 시각 대조는 aspect/폭으로 후보를 먼저 줄이고 glyph mask를 정밀 비교하며, 높은 시각 점수와 충분한 1·2순위 차이가 동시에 있을 때만 Item ID를 확정합니다. 애매하면 표시하지 않습니다.\n- 스캐너 탭에 '인식 이미지'를 추가했습니다. 최신 캡처 한 장을 메모리에만 보관하며 상세창, 실제 OCR 제목 영역, 돋보기/X anchor, OCR 문자열과 최종 후보/신뢰도를 함께 확인할 수 있습니다. 로그 삭제 시 이 메모리 이미지도 삭제합니다.\n- '1회 고정밀 스캔'을 추가했습니다. 실시간 Scanner가 꺼져 있어도 한 번만 정밀 인식할 수 있고, 기본 전역 단축키는 Ctrl+Shift+F10입니다. 단축키는 Scanner 탭에서 변경하거나 끌 수 있습니다.\n- 실시간 Scanner가 켜진 상태에서 1회 스캔을 실행하면 기존 루프를 안전하게 중지·대기한 뒤 고정밀 스캔을 수행하고 원래 모드를 복원하여 캡처/OCR/표시 상태 경합을 방지합니다.\n- 실제 스캔 중 외부 API 호출 금지, 게임 메모리/DLL injection/패킷 가로채기 금지, false positive보다 miss를 선호하는 기존 Scanner 계약은 유지합니다.\n- Game Content schema와 user.db schema는 변경하지 않습니다. Scanner 표시 설정 내부 schema는 v3으로 올라가며 기존 설정은 자동 마이그레이션됩니다.\n\n'''
+          text = text.replace(marker, v120 + marker, 1)
+          text = text.replace('- 상단 바 왼쪽에 \'스캐너\'와 \'테스트\' 버튼이 있습니다.\n',
+                              '- 상단 바 왼쪽에 \'스캐너\', \'테스트\', \'1회 고정밀 스캔\' 버튼과 1회 스캔 단축키 설정이 있습니다.\n', 1)
+          text = text.replace('- 최근 인식 기록 우측 상단의 \'로그 삭제\' 버튼은 화면의 인식 기록과 `%LocalAppData%\\JunhyunHelper\\logs\\scanner.log(.1)`을 함께 삭제합니다.\n',
+                              '- 최근 인식 기록 우측 상단의 \'인식 이미지\'는 최신 메모리 캡처와 Scanner가 선택한 상세창/제목/anchor를 보여줍니다. \'로그 삭제\'는 인식 기록, `%LocalAppData%\\JunhyunHelper\\logs\\scanner.log(.1)`, 최신 메모리 인식 이미지를 함께 삭제합니다.\n', 1)
+          text = text.replace('- Scanner 표시 설정은 내부 schema v2를 유지합니다.\n',
+                              '- Scanner 표시 설정은 내부 schema v3이며 v2 이하 설정을 자동 마이그레이션합니다.\n', 1)
+          text = text.replace('- v1.1.5 → v1.1.6 필수 Game Content schema 업데이트: 없음\n- v1.1.5 → v1.1.6 user.db migration: 없음\n',
+                              '- v1.1.6 → v1.2.0 필수 Game Content schema 업데이트: 없음\n- v1.1.6 → v1.2.0 user.db migration: 없음\n', 1)
+          text = text.replace('- 자동 테스트 250개 이상, 실패/skip 0\n',
+                              '- 자동 테스트 255개 이상, 실패/skip 0\n', 1)
+          p.write_text(text, encoding='utf-8')
+
+          # 5) Release-candidate record. Final source/checksum/run are filled after
+          # exact-source release verification.
+          Path('docs/RELEASE_1.2.0.md').write_text('''# v1.2.0 — Scanner title recognition overhaul\n\nStatus: **RELEASE CANDIDATE / VALIDATION IN PROGRESS**\n\nTarget release: 2026-08-22 KST\n\n## Product scope\n\nThis MINOR release adds user-facing Scanner diagnostic-image and one-shot high-precision scan capabilities while structurally hardening item-name recognition.\n\nRecognition pipeline:\n\n```text\nTarkov display pixels\n→ detail-window structural candidates\n→ red close + magnifier + title-field anchor refinement\n→ magnifier-free title ROI\n→ Windows ko-KR OCR + current-catalog character validation\n→ semantic official-name matching\n   OR OCR-independent full-catalog Bender/Noto glyph-shape recovery\n→ confidence + top1/top2 margin gates\n→ Item ID\n→ local presentation / Mini Scanner\n```\n\n## Contracts\n\n- Existing successful OCR remains the primary path.\n- Han ideographs are invalid OCR evidence for the Korean item-title catalog; unexpected characters are validated against the current official catalog rather than a hand-maintained punctuation blacklist.\n- Corrupted/empty OCR may fall back to full-catalog visual comparison using locally extracted Tarkov Bender + Noto Sans CJK KR fonts.\n- Visual recovery requires conservative score and margin thresholds and fails closed when ambiguous.\n- Magnifier pixels are excluded from the OCR ROI when the anchor is detected.\n- Anchor failure falls back to the existing Scanner Lab geometry ROI rather than inventing an unverified region.\n- Scan-time network remains prohibited. No game memory, DLL injection, or packet interception is used.\n- `인식 이미지` stores one latest frame in memory only; no screenshot is persisted to disk.\n- One-shot scanning loads only the local healthy Scanner catalog. Continuous Scanner/Test mode is paused and awaited before one-shot state mutation, then restored.\n\n## User-facing additions\n\n- `인식 이미지` diagnostic viewer.\n- `1회 고정밀 스캔` button.\n- Configurable global one-shot hotkey; default `Ctrl+Shift+F10`, optional disable.\n\n## Compatibility\n\n```text\nDesktop version: 1.2.0\nContent schema: v7\nReadable Content schemas: v3-v7\nuser.db schema: v1\nScanner display settings schema: v3\nScanner catalog cache schema: v1/v2 readable, v2 written\nv1.1.6 -> v1.2.0 mandatory Game Content update: none\nv1.1.6 -> v1.2.0 user.db migration: none\n```\n\n## Validation status\n\nBefore the final version bump, the integrated recognition branch passed Windows build, 255 automated tests with 0 failure/0 skip, win-x64 self-contained single-file publish, and the published EXE Product UI / Scanner / Main Map / Factory / MiniMap / graceful-shutdown smoke.\n\nFinal v1.2.0 exact-source release verification, Draft re-download verification, public/latest verification, exact tag verification, and public-downloaded EXE smoke are still required before this document can be marked PUBLIC / VERIFIED.\n''', encoding='utf-8')
+          PY
+
+          git diff --check
+          git status --short
+
+      - name: Commit hardening
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            src/JunhyunHelper.Desktop/Scanner/ScannerRuntimeService.cs \
+            src/JunhyunHelper.Desktop/Scanner/ScannerCoordinator.OneShot.cs \
+            src/JunhyunHelper.Desktop/Scanner/ScannerRecognitionDebugStore.cs \
+            src/JunhyunHelper.Desktop/Scanner/ScannerPage.MiniScannerSmoke.cs \
+            src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj \
+            packaging/FIRST_RUN_KO.txt \
+            docs/RELEASE_1.2.0.md
+          git commit -m "Finalize Scanner recognition hardening for v1.2.0"
+          git push origin HEAD:scanner-v1.2.0-recognition-overhaul
