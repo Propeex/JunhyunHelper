@@ -2,7 +2,7 @@
 
 기준일: 2026-08-21
 
-상태: **`v1.1.3 RELEASE CANDIDATE / SCANNER LAB v3.8 RECOGNITION RESTORED / LIVE TARKOV REVALIDATION PENDING`**
+상태: **`v1.1.3 PUBLIC RELEASE / VERIFIED / SCANNER LAB v3.8 RECOGNITION RESTORED / LIVE TARKOV REVALIDATION ONGOING`**
 
 이 문서는 준현 헬퍼 Scanner의 공식 제품·기술 계약입니다.
 
@@ -330,14 +330,7 @@ v1.1.3에서 기록 가능한 주요 정보:
 
 ## 14. 검증 상태
 
-사전 Scanner Lab에서 검증된 항목:
-
-- Korean text OCR
-- detail-view image detector
-- full Tarkov screenshot detector
-- full screenshot → detail → title ROI → OCR
-
-v1.1.3 v3.8 복원 validation CI `#1222` / run `32466187224`:
+Scanner Lab v3.8 복원 제품 코드 validation CI `#1222` / run `32466187224`:
 
 - Windows Release build: SUCCESS
 - **245 automated tests / 0 failed / 0 skipped**
@@ -350,9 +343,25 @@ v1.1.3 v3.8 복원 validation CI `#1222` / run `32466187224`:
 - actual candidate EXE Product UI / Scanner / Main Map / Factory / MiniMap smoke: SUCCESS
 - graceful shutdown / clean portable root: SUCCESS
 
+최종 v1.1.3 public release verification:
+
+```text
+release source: 8803f899341859887281ad50135911f4625a64f3
+release run: 32470606548
+245 passed / 0 failed / 0 skipped
+ZIP bytes: 80,251,960
+ZIP SHA-256: 419f6288aa3202f10868f2fe6a4ccac40475753ce4ba8c8c2d9985396c4bf493
+ProductVersion: 1.1.3+8803f899341859887281ad50135911f4625a64f3
+Draft download/package verification: SUCCESS
+Draft-downloaded EXE smoke: SUCCESS
+public/latest exact tag verification: SUCCESS
+public download/package verification: SUCCESS
+public-downloaded EXE smoke: SUCCESS
+```
+
 ## 15. Live Tarkov 후속 검증
 
-최신 Borderless Tarkov 실제 E2E는 사용자 결정에 따라 release blocker가 아니며 후속 로그 기반 검증입니다.
+최신 Borderless Tarkov 실제 E2E는 DEC-051에 따라 release blocker가 아니며 후속 로그 기반 검증입니다.
 
 v1.1.3 우선 확인:
 
@@ -372,6 +381,7 @@ v1.1.3 우선 확인:
 - Scanner subsystem: DEC-050
 - production/live policy: DEC-051
 - 운용 UI / 최근 인식 기록 / always-draggable Mini Scanner: DEC-052
-- Scanner Lab v3.8 recognition reference: `docs/SCANNER_LAB_3_8_REFERENCE.md`
+- Scanner Lab v3.8 recognition architecture: DEC-053
+- Scanner Lab v3.8 reference: `docs/SCANNER_LAB_3_8_REFERENCE.md`
 - v1.1.3 release record: `docs/RELEASE_1.1.3.md`
 - version policy: DEC-048
