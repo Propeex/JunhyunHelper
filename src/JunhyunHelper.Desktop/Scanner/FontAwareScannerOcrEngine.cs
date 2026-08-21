@@ -4,10 +4,10 @@ using JunhyunHelper.Infrastructure.Scanner;
 namespace JunhyunHelper.Desktop.Scanner;
 
 /// <summary>
-/// Title-only OCR decorator. Regular OCR is passed through unchanged. During the
-/// existing deep-OCR fallback, a failed semantic result may be supplemented with an
-/// official item name only when Tarkov-font visual verification passes conservative
-/// thresholds. This preserves all existing OCR successes and fail-closed behavior.
+/// Title-only OCR decorator. Regular OCR remains the first-stage recognizer. During
+/// deep recovery, catalog-driven character validation and Tarkov-font visual matching
+/// can supplement failed OCR, including when OCR is empty or corrupted. An already
+/// accepted semantic OCR result is never rejected or replaced by this layer.
 /// </summary>
 public sealed class FontAwareScannerOcrEngine : IScannerDeepOcrEngine, IDisposable
 {
@@ -15,6 +15,7 @@ public sealed class FontAwareScannerOcrEngine : IScannerDeepOcrEngine, IDisposab
     private readonly ScannerCatalogService _catalog;
     private readonly TarkovTitleFontProvider _fontProvider;
     private readonly ScannerTitleFontVerifier _fontVerifier;
+    private readonly ScannerFullCatalogVisualMatcher _fullVisualMatcher;
     private bool _disposed;
 
     public FontAwareScannerOcrEngine(
@@ -28,6 +29,7 @@ public sealed class FontAwareScannerOcrEngine : IScannerDeepOcrEngine, IDisposab
 
         _fontProvider = new TarkovTitleFontProvider(rootDirectory);
         _fontVerifier = new ScannerTitleFontVerifier(_fontProvider);
+        _fullVisualMatcher = new ScannerFullCatalogVisualMatcher(_fontProvider);
     }
 
     public bool IsAvailable => _inner.IsAvailable;
@@ -54,18 +56,45 @@ public sealed class FontAwareScannerOcrEngine : IScannerDeepOcrEngine, IDisposab
             : await _inner.ReadTextAsync(titleImage, cancellationToken);
 
         // Do not touch any result that the existing semantic gate already accepts.
-        // The new font path is recovery-only, never a replacement for a success.
         var existing = _catalog.ResolveOcrText(text);
-        if (existing.Success || string.IsNullOrWhiteSpace(text))
+        if (existing.Success)
             return text;
 
-        FontVerificationResult? recovered;
+        var assessment = _catalog.AssessOcrText(text);
+        if (assessment.IsCorrupted)
+        {
+            ScannerDiagnosticLog.Write(
+                "ocr-character-quality",
+                null,
+                ("validRatio", assessment.ValidCharacterRatio),
+                ("invalidCharacters", assessment.InvalidCharacterCount),
+                ("hanCharacters", assessment.HanCharacterCount),
+                ("acceptedVariants", assessment.AcceptedVariantCount),
+                ("totalVariants", assessment.TotalVariantCount));
+        }
+
+        var catalog = _catalog.GetItemsSnapshot();
+        FontVerificationResult? recovered = null;
         try
         {
-            recovered = _fontVerifier.TryRecover(
+            // Fast recovery first: when at least one plausible OCR variant survived
+            // catalog character validation, use it to narrow the visual shortlist.
+            if (assessment.HasPlausibleVariant)
+            {
+                recovered = _fontVerifier.TryRecover(
+                    titleImage,
+                    assessment.FilteredText,
+                    catalog,
+                    cancellationToken);
+            }
+
+            // If OCR could not narrow a trustworthy candidate set, search the complete
+            // official catalog by rendered title shape. OCR contributes only weak
+            // supporting evidence in this fallback and may be completely empty.
+            recovered ??= _fullVisualMatcher.TryRecover(
                 titleImage,
-                text,
-                _catalog.GetItemsSnapshot(),
+                assessment.FilteredText,
+                catalog,
                 cancellationToken);
         }
         catch (OperationCanceledException)
@@ -91,10 +120,14 @@ public sealed class FontAwareScannerOcrEngine : IScannerDeepOcrEngine, IDisposab
             return text;
         }
 
-        // ScannerItemMatcher considers individual OCR lines as independent variants.
-        // Keeping the raw deep OCR as the first line preserves diagnostics while the
-        // verified official name supplies an exact second-line semantic variant.
-        return $"{text}\n{recovered.Recognition.OfficialName}";
+        var official = recovered.Recognition.OfficialName;
+        // ScannerItemMatcher considers individual lines/variants independently. Raw OCR
+        // remains available for diagnostics, while the exact visually-verified official
+        // name provides the semantic identity variant. If OCR was empty, return only the
+        // verified official name so recognition can succeed without OCR text.
+        return string.IsNullOrWhiteSpace(text)
+            ? official
+            : $"{text}\n{official}";
     }
 
     public void Dispose()
@@ -102,6 +135,7 @@ public sealed class FontAwareScannerOcrEngine : IScannerDeepOcrEngine, IDisposab
         if (_disposed)
             return;
         _disposed = true;
+        _fullVisualMatcher.Dispose();
         _fontVerifier.Dispose();
         _fontProvider.Dispose();
         GC.SuppressFinalize(this);
