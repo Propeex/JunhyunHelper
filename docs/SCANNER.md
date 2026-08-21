@@ -1,114 +1,119 @@
-# Scanner — 제품 계약과 Foundation 아키텍처
+# Scanner — 제품/기술 계약
 
 기준일: 2026-08-21
 
-> 이 문서는 준현 헬퍼 Scanner의 공식 제품/기술 계약입니다. 실제 Tarkov 창 캡처·최신 상세창 detector·한국어 OCR 입력부는 실게임 검증 전까지 의도적으로 unavailable 상태로 유지합니다.
+상태: **`v1.1.0 IMPLEMENTED / WINDOWS CI VERIFIED / LIVE TARKOV E2E PENDING`**
 
-## 1. 현재 상태
+이 문서는 준현 헬퍼 Scanner의 공식 제품·기술 계약입니다.
 
-Scanner는 더 이상 요구사항 미정 placeholder가 아닙니다.
+## 1. 제품 목적
 
-현재 단계는 **Foundation 구현 단계**입니다.
-
-완성 대상으로 취급하는 범위:
-
-- Scanner 설정과 안전한 persistence
-- Scanner 전용 전체 아이템 identity/market catalog
-- 보수적 OCR matcher
-- Item ID → 기존 JunhyunHelper 데이터 bridge
-- `현재 필요한 수량 = FutureNeededItemsPlan.NeededItems[].RequiredTotal`
-- scan-time local-only icon lookup
-- 독립 Mini Scanner overlay
-- Scanner runtime/state machine
-- detector/OCR abstraction
-- Scanner 설정/상태/미리보기 Page
-- 앱 종료 시 Scanner resource cleanup
-
-아직 정식 기능으로 취급하지 않는 범위:
-
-- 실제 Tarkov 프로세스/창 선택
-- Tarkov 창 전용 캡처
-- 최신 상세창 구조 detector
-- 최신 한국어 Tarkov title OCR
-- 실제 레이드 장시간 E2E 검증
-
-따라서 현재 기본 detector/OCR 구현은 `Unavailable*`이며, 검증되지 않은 자동 인식 루프를 실행하지 않습니다.
-
-## 2. 제품 목적
-
-Scanner는 게임 로직을 새로 계산하는 시스템이 아닙니다.
+Scanner는 Tarkov 게임 로직을 새로 계산하는 기능이 아니라 **게임 화면과 기존 JunhyunHelper 데이터 사이의 안전한 입력 bridge**입니다.
 
 ```text
 Tarkov 화면
-→ 아이템 상세창 감지
-→ 제목 OCR
-→ 현재 공식 한국어 아이템명 매칭
+→ 아이템 상세창 구조 감지
+→ 제목 ROI 추출
+→ 한국어 Windows OCR
+→ 현재 공식 아이템 이름 매칭
 → Item ID 확정
 → 기존 JunhyunHelper 데이터 조회
 → Mini Scanner 표시
 ```
 
-즉 Scanner의 책임은 **게임 화면과 기존 JunhyunHelper 데이터 사이의 안전한 입력 bridge**입니다.
+오탐(false positive)은 미탐(false negative)보다 나쁩니다. 확신이 부족하면 Item ID를 강제로 선택하지 않습니다.
 
-## 3. 우선순위와 실패 정책
+## 2. v1.1.0 입력 모드
 
-우선순위:
+### Scanner ON — 실사용 모드
 
-1. 작동성
-2. 신뢰성
-3. 안정성
-4. 성능
-5. 편의
-6. 시각 장식
+```text
+EscapeFromTarkov 프로세스
+→ MainWindowHandle
+→ GetClientRect
+→ ClientToScreen
+→ Tarkov client-area
+→ 실시간 상세창 감지
+```
 
-오탐(false positive)은 미탐(false negative)보다 나쁩니다.
+- 사용자 기준 기본 Tarkov 표시 설정: Borderless
+- 우선 `PrintWindow(PW_CLIENTONLY | PW_RENDERFULLCONTENT)`로 대상 게임 창 자체 픽셀을 요청
+- 현재 DirectX presentation path에서 유효한 픽셀이 반환되지 않으면 정확한 Borderless client rectangle의 화면 픽셀로 fallback
+- 최소화되었거나 유효한 client-area가 없으면 인식하지 않음
+- `EscapeFromTarkov` 프로세스가 없으면 Mini Scanner에 대기 상태 표시
 
-따라서 확신이 부족하면 아무것도 표시하지 않습니다.
+### 테스트 ON — 전체 디스플레이 모드
 
-금지:
+- 연결된 모든 디스플레이를 순회해 화면 픽셀을 캡처
+- 실사용 모드와 **동일한 detector → OCR → matcher → presentation** 파이프라인 사용
+- Tarkov 전체 스크린샷을 바탕화면/이미지 뷰어에 표시해 게임 없이 회귀 확인 가능
+- 다양한 화면 축소율을 고려해 실사용 모드보다 넓은 상세창 scale search 사용
+- session-only: 프로그램 재실행 시 자동 OFF
 
-- 낮은 confidence에서 1위 후보 강제 선택
-- 과거 이름 alias 누적
-- 짧은 이름의 substring만으로 강제 일치
-- 전체 필요한 아이템 subset만 identity catalog로 사용
-- icon 이미지 기반 식별
-- scan 시점 네트워크 요청
+### 모드 관계
 
-## 4. 지원 언어와 이름의 진실 원천
+- `스캐너 ON`과 `테스트 ON`은 상호 배타적
+- 한 모드를 켜면 다른 모드는 자동 OFF
+- 둘 다 OFF면 capture/detector/OCR background loop 없음
 
-Scanner는 **한국어 Tarkov 클라이언트 전용**입니다.
+## 3. 금지된 접근
 
-정답 문자열은 현재 한국어 클라이언트에 실제 표시되는 공식 아이템 이름입니다.
+Scanner는 다음을 사용하지 않습니다.
 
-- 한국어로 번역된 이름 → 해당 한국어 문자열
-- 번역되지 않아 영어가 표시되는 이름 → 해당 영어 문자열
-- 한국어+영어 혼합 → 그 혼합 문자열 자체
+- 게임 메모리 읽기
+- DLL injection
+- 패킷 가로채기
+- game process 내부 상태/구조 읽기
+- icon 이미지 기반 Item identity
+- scan 순간 외부 API 요청
 
-Scanner가 임의로 번역하지 않습니다.
+화면 픽셀과 로컬/메모리 캐시만 사용합니다.
 
-과거 인터넷 캡처의 이름은 detector/ROI/OCR 실험에는 사용할 수 있지만 정식 identity alias로 추가하지 않습니다.
+## 4. 상세창 구조 detector
 
-## 5. 전체 아이템 카탈로그
+`ScannerDetailGeometryDetector`는 BGRA 픽셀에서 상세창의 외곽 frame/edge/tone/close-glyph 특징을 보수적으로 평가합니다.
 
-### 책임
+- canonical 기준은 기존 전체 Tarkov 스크린샷 검증에서 얻은 상세창 비율
+- 실사용 모드: 좁은 scale/center search
+- 테스트 모드: 축소된 screenshot viewer까지 고려한 확장 scale/center search
+- geometry score 통과는 Item 확정이 아니라 OCR 후보 생성 조건일 뿐임
+- geometry 후보가 2회 연속 안정화되어야 제목 안정화 단계로 이동
 
-Scanner identity catalog는 모든 Tarkov 아이템을 화면 이름으로 식별하기 위한 별도 데이터입니다.
+단위 회귀 테스트:
 
-기존 `GameContentCatalog`나 Needed Items가 Scanner 전체 identity catalog라고 가정하지 않습니다.
+- 합성 centered detail panel 감지
+- uniform frame 거부
+- display-test 축소 상세창 감지
 
-연결 key는 Tarkov Item ID입니다.
+## 5. 제목 ROI / OCR
 
-### 소스
+상세창이 안정화되면 detector가 제목 영역만 잘라 `BitmapSource`로 전달합니다.
 
-현재 source:
+OCR:
+
+- Windows `Windows.Media.Ocr.OcrEngine`
+- `ko-KR`
+- 원본 ROI 인식
+- 허용 범위에서 최대 2배 확대 ROI를 추가 인식
+- 두 결과를 matcher input variant로 전달
+
+Windows 한국어 OCR 언어 팩/런타임 초기화가 실패하면 Scanner만 fail-closed하고 앱의 다른 기능은 계속 사용할 수 있습니다.
+
+같은 title signature가 유지되면 OCR을 반복하지 않습니다.
+
+## 6. 전체 아이템 identity catalog
+
+Scanner identity catalog는 Needed Items subset이 아니라 **전체 Tarkov 아이템**을 대상으로 합니다.
+
+source:
 
 ```text
 https://json.tarkov.dev/{gameMode}/items
 https://json.tarkov.dev/{gameMode}/items_ko
-https://json.tarkov.dev/{gameMode}/items_en   # per-key fallback
+https://json.tarkov.dev/{gameMode}/items_en
 ```
 
-지원 mode는 현재 앱 profile과 동일합니다.
+mode:
 
 ```text
 Regular    → regular
@@ -116,47 +121,37 @@ Pve        → pve
 PvpSeason  → pvp-season
 ```
 
-별도 Scanner game mode 설정을 만들지 않습니다.
-
-### cache
-
-경로:
+cache:
 
 ```text
 %LocalAppData%/JunhyunHelper/scanner/catalog/items-{mode}-ko.json
 %LocalAppData%/JunhyunHelper/scanner/catalog/items-{mode}-ko.json.bak
 ```
 
-`AtomicJsonFileStore`를 사용합니다.
-
-정상 catalog 최소 조건:
+정상 최소 조건:
 
 - schema/source/language/mode 일치
 - 생성 시각 존재
-- 최소 4,000개 item
+- 최소 4,000 item
 - 모든 item에 non-empty Item ID / official name
 
-현재 sync stale 기준은 12시간입니다. 사용자는 Scanner Page에서 명시적으로 다시 동기화할 수 있습니다.
+stale 기준은 현재 12시간입니다.
 
-다른 mode의 cache가 없거나 손상되면 이전 mode identity를 재사용하지 않고 requested mode를 빈 catalog 상태로 둡니다.
-
-## 6. scan-time 네트워크 금지
-
-정상 흐름:
+## 7. scan-time 네트워크 금지
 
 ```text
 Scanner enable / 명시적 sync / profile 전환
-→ local cache 확인
+→ cache 확인
 → 필요 시 pre-scan catalog sync
-→ gameplay
+→ 실제 scanning
 → detector/OCR/matcher/presentation은 local/in-memory only
 ```
 
-실제 상세창을 읽는 순간에는 외부 API를 호출하지 않습니다.
+아이콘 cache가 없더라도 scan 순간 다운로드하지 않습니다.
 
-## 7. matcher 계약
+## 8. matcher 계약
 
-`ScannerItemMatcher`는 공식 이름 exact match를 최우선으로 합니다.
+`ScannerItemMatcher`는 current official Korean-client name exact match를 최우선으로 합니다.
 
 정규화:
 
@@ -164,35 +159,22 @@ Scanner enable / 명시적 sync / profile 전환
 - invariant lowercase
 - 문자/숫자만 유지
 
-OCR text variant:
+exact 이후에만 fuzzy를 사용합니다.
 
-- 전체 OCR 문자열
-- CR/LF/`|` 단위 분리 문자열
-
-exact match 이후에만 fuzzy를 수행합니다.
-
-현재 fuzzy 기본 gate:
+fuzzy 기본 gate:
 
 - confidence >= 0.90
-- 1위-2위 margin >= 0.05
-- 짧은 공식 이름은 더 엄격한 threshold/margin
-- bigram overlap으로 후보를 먼저 제한
-- global Levenshtein similarity 사용
+- top1-top2 margin >= 0.05
+- 짧은 이름은 더 높은 threshold/margin
+- bigram overlap prefilter
+- global Levenshtein similarity
+- 동일 normalized official name이 여러 Item ID에 있으면 ambiguous fail
 
-동일 normalized official name이 여러 Item ID에 존재하면 ambiguous로 실패합니다.
+낮은 confidence에서 1위 후보를 강제 선택하지 않습니다.
 
-구버전 예시:
+## 9. Item ID → 기존 JunhyunHelper bridge
 
-```text
-OCR: Water 0.6L 물병
-현재 공식: 물병 Bottle of water (0.6L)
-```
-
-이런 경우 비슷하더라도 confidence가 부족하면 실패해야 합니다.
-
-## 8. Item ID → 기존 데이터 bridge
-
-Scanner가 Item ID를 확정한 뒤에는 Quest/Hideout 필요량 로직을 새로 계산하지 않습니다.
+Item ID가 확정된 뒤 Scanner는 Quest/Hideout 필요량 로직을 재구현하지 않습니다.
 
 현재 필요한 수량:
 
@@ -200,15 +182,9 @@ Scanner가 Item ID를 확정한 뒤에는 Quest/Hideout 필요량 로직을 새�
 ItemsWorkspace.Plan.NeededItems[itemId].RequiredTotal
 ```
 
-사용하지 않는 값:
+보유량을 뺀 `RemainingTotal`은 Scanner의 `현재 필요한 수량` 의미가 아닙니다.
 
-```text
-RemainingTotal   # 보유량을 뺀 부족량
-```
-
-보유량은 Scanner 결과에 표시하지 않습니다.
-
-표시 가능한 값:
+표시 가능 항목:
 
 - 공식 아이템 이름
 - local cached icon
@@ -218,78 +194,55 @@ RemainingTotal   # 보유량을 뺀 부족량
 - flea 평균가 / 슬롯
 - 현재 필요한 수량
 
-가격 또는 slot 정보가 없으면 값을 만들어내지 않고 해당 line을 생략합니다.
-
-## 9. icon 정책
-
-icon은 식별에 사용하지 않습니다.
-
-Scanner는 기존 JunhyunHelper image-cache 파일 naming contract를 읽기 전용으로 재사용합니다.
-
-scan 시점에 icon이 cache에 없으면:
-
-```text
-icon 생략
-Scanner 나머지 정보 정상 표시
-```
-
-icon 하나 때문에 HTTP 요청을 만들지 않습니다.
+값이 없으면 만들어내지 않고 해당 line을 생략합니다.
 
 ## 10. Mini Scanner overlay
 
-Mini Scanner는 MiniMap과 독립된 Window/service/lifecycle/settings를 가집니다.
+Mini Scanner는 MiniMap과 독립된 Window/service/lifecycle/settings를 사용합니다.
+
+ON 직후에도 창을 표시하고 현재 상태를 보여줍니다.
+
+예:
+
+- Tarkov 게임 창 찾는 중
+- 상세창 기다리는 중
+- 상세창 위치 확인 중
+- 아이템 제목 읽는 중
+- 식별 불확실
+- 확정된 아이템 정보
 
 play mode:
 
-- transparent
-- no title/chrome
-- no background panel
+- transparent / no chrome
 - Topmost
+- taskbar 미표시
 - `ShowActivated=false`
 - `WS_EX_TRANSPARENT`
 - `WS_EX_NOACTIVATE`
 - `WS_EX_TOOLWINDOW`
-- 게임 입력/포커스 방해 금지
 
-edit mode:
+edit mode에서만 click-through/no-activate를 일시 해제하고 드래그 위치를 저장합니다.
 
-- click-through/no-activate를 일시 해제
-- 드래그 가능
-- 종료 시 위치 저장
-
-위치는 nullable X/Y로 저장합니다. 좌측/상단 보조 모니터의 음수 좌표도 정상 값입니다. `-1` 같은 sentinel을 사용하지 않습니다.
-
-Window 조작은 detector/OCR background thread에서 호출되더라도 WPF UI Dispatcher로 marshal합니다.
-
-## 11. Scanner 설정
-
-경로:
+## 11. 설정
 
 ```text
 %LocalAppData%/JunhyunHelper/scanner-settings.json
 %LocalAppData%/JunhyunHelper/scanner-settings.json.bak
 ```
 
-`user.db` schema migration을 하지 않습니다.
-
 설정:
 
-- Scanner enabled
-- item name
-- icon
-- trader price
-- flea average price
-- trader price/slot
-- flea price/slot
+- Scanner real-mode enabled
+- item name/icon
+- trader/flea price
+- trader/flea price per slot
 - current needed
-- nullable overlay X/Y
-- presentation font size
+- overlay nullable X/Y
+- font size
 
-Scanner OFF일 때 detector/OCR background loop를 실행하지 않습니다.
+테스트 모드는 영구 설정에 저장하지 않습니다.
 
 ## 12. runtime state machine
-
-목표 흐름:
 
 ```text
 Disabled / NoProfile / CatalogUnavailable / WaitingForVision
@@ -308,146 +261,73 @@ conservative match
 ↓
 Item ID
 ↓
-current JunhyunHelper presentation snapshot
+presentation snapshot
 ↓
 ShowingItem
 ```
 
-같은 title signature가 유지되면 OCR을 반복하지 않습니다.
+failed title은 짧은 cooldown 동안 OCR 반복을 억제합니다.
 
-다른 title signature가 나타나면 이전 item overlay를 **즉시 숨긴 뒤** 새 title이 안정화될 때까지 기다립니다.
+## 13. Scanner 진단 로그
 
-상세창 miss가 연속 2회 발생하면 overlay를 숨깁니다.
-
-같은 실패 title은 짧은 cooldown 동안 OCR 반복을 억제합니다.
-
-기본 관찰 interval은 350ms입니다. 실제 live detector 성능 검증 후 조정할 수 있습니다.
-
-## 13. profile/context lifecycle
-
-Scanner는 현재 활성 JunhyunHelper profile의 GameMode와 current ItemsWorkspace를 사용합니다.
-
-별도 Scanner profile/mode 상태를 만들지 않습니다.
-
-Scanner enabled 상태에서는 경량 context monitor가 profile/mode 변화를 감지합니다.
-
-profile/mode 변경 시:
-
-1. 기존 overlay/result 즉시 무효화
-2. 새 mode catalog 준비
-3. 필요 시 pre-scan sync
-4. runtime 재개
-
-Scanner disabled 상태에서는 monitor를 실행하지 않습니다.
-
-## 14. 현재 vision boundary
-
-인터페이스:
+경로:
 
 ```text
-IScannerInspectDetector
-IScannerOcrEngine
+%LocalAppData%/JunhyunHelper/logs/scanner.log
+%LocalAppData%/JunhyunHelper/logs/scanner.log.1
 ```
 
-Foundation 기본 구현:
+목적은 v1.1.0 이후 실제 Tarkov 환경에서 capture/detector/OCR/matcher 문제를 사용자와 함께 분석하는 것입니다.
 
-```text
-UnavailableScannerInspectDetector
-UnavailableScannerOcrEngine
-```
+기록:
 
-이 상태에서는 자동 scan loop를 시작하지 않습니다.
+- runtime mode/start/stop
+- state transition
+- 상세창 candidate bounds/signature
+- 안정화된 title OCR 문자열
+- matcher success/reason/Item ID/name/confidence/second score
+- runtime error type/message
 
-향후 live 구현은 다음 제약을 지켜야 합니다.
+정책:
 
-- 게임 메모리 읽기 금지
-- DLL injection 금지
-- 패킷 가로채기 금지
-- game process 내부 데이터 접근 금지
-- 가능하면 Tarkov 게임 창 자체만 capture
-- own MiniMap/Mini Scanner가 capture에 섞이지 않도록 검증
+- 최대 약 2MB 후 이전 파일 `.1`로 회전
+- 전체 screenshot 저장 금지
+- raw pixel buffer 저장 금지
+- log 실패는 Scanner 동작에 영향 없음
 
-## 15. Scanner Page
+## 14. 검증 상태
 
-최소 user-facing 기능:
+v1.1.0 이전 실험에서 통과한 범위:
 
-- Mini Scanner ON/OFF
-- 표시 정보 checkboxes
-- runtime/catalog 상태
-- full catalog sync
-- 위치 편집
-- 위치 초기화
+- 한국어 텍스트 OCR
+- 상세보기 이미지 단독 감지
+- 전체 Tarkov screenshot에서 상세창 구조 감지
+- 전체 screenshot → 상세창 → 제목 ROI → OCR 경로
 
-Foundation 검증용 접힌 도구:
+현재 v1.1.0 코드 자동 검증:
 
-```text
-Item ID
-→ catalog identity/price
-→ current RequiredTotal
-→ local icon
-→ Mini Scanner render
-```
+- Windows .NET 10 Release build
+- Scanner geometry detector regression tests
+- 기존 catalog/matcher/persistence tests
+- win-x64 self-contained single-file publish
+- published EXE startup/rendered Product UI smoke
+- Scanner real/test toggle UI smoke
+- Main Map / Factory / MiniMap smoke
+- graceful shutdown
 
-이 도구는 live Scanner가 안정화된 최종 사용자 릴리스에서 숨기거나 제거할 수 있습니다.
+## 15. 의도적으로 후속으로 남기는 live Tarkov 검증
 
-## 16. 실게임 검증 Gate
+사용자 결정에 따라 **v1.1.0 공개 릴리즈의 차단 조건에서 실제 인게임 검증을 제외합니다.**
 
-### Gate A — Tarkov window capture
+따라서 공개 시점에도 다음은 `LIVE UNVERIFIED`로 남습니다.
 
-- actual Tarkov window 찾기
-- window-only capture
-- borderless/fullscreen
-- DPI/resolution
-- own overlay exclusion
+- 현재 Tarkov Borderless에서 PrintWindow가 실제 DirectX frame을 반환하는지 또는 screen-rectangle fallback이 사용되는지
+- 실제 최신 client UI에서 geometry threshold/scale가 충분한지
+- 실제 최신 한국어 아이템 제목 OCR 품질
+- 장시간 레이드 CPU/memory/handle/OCR rate
+- Alt+Tab/minimize/MiniMap coexistence
+- 실제 false-positive/false-negative calibration
 
-### Gate B — current inspect detector
+이 범위는 v1.1.0 공개 후 `scanner.log`와 사용자 인게임 검증을 통해 조정합니다.
 
-- stash/inventory/trader/raid
-- 여러 위치/크기/배경/해상도
-- no-inspect negative samples
-- false-positive audit
-
-### Gate C — Korean OCR
-
-- current Korean client official displayed name
-- OCR noise distribution
-- title ROI robustness
-
-### Gate D — Item ID
-
-- exact/fuzzy confidence
-- top1/top2 margin
-- ambiguous/short names
-- fail-closed audit
-
-### Gate E — End-to-End
-
-```text
-actual Tarkov
-→ inspect
-→ OCR
-→ Item ID
-→ prices / RequiredTotal / local icon
-→ Mini Scanner
-```
-
-### Gate F — long-run stability
-
-- CPU
-- memory
-- GDI/User/handle leak
-- OCR repeat rate
-- MiniMap coexistence
-- keyboard/mouse focus
-- Alt+Tab
-- minimize/restore
-- Scanner OFF
-- app shutdown cleanup
-
-## 17. 릴리스 상태
-
-현재 public stable baseline은 **v1.0.0**입니다.
-
-Scanner는 새 사용자 기능이므로 live validation 후 정식 릴리스할 경우 버전 정책상 목표는 **v1.1.0**입니다.
-
-Foundation 코드가 build/test를 통과하더라도 실제 Tarkov Gate A~F가 끝나기 전에는 Scanner를 정식 안정 기능으로 선언하거나 v1.1.0을 공개하지 않습니다.
+**`LIVE UNVERIFIED`는 Scanner 코드가 placeholder라는 뜻이 아닙니다. v1.1.0에는 실제 capture/detector/OCR/matcher/Mini Scanner 기능이 구현되어 있으며, 최신 게임 환경 E2E만 후속 검증 대상입니다.**
