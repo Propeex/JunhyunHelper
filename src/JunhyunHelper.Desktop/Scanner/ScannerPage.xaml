@@ -125,6 +125,7 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <TextBlock Text="최근 인식 기록"
                                FontWeight="SemiBold"
@@ -135,7 +136,13 @@
                                TextAlignment="Right"
                                TextTrimming="CharacterEllipsis"
                                VerticalAlignment="Center"
-                               Margin="16,0,0,0" />
+                               Margin="16,0,12,0" />
+                    <Button x:Name="ClearLogButton"
+                            Grid.Column="2"
+                            Content="로그 삭제"
+                            MinWidth="84"
+                            Padding="10,4"
+                            Click="ClearLogButton_Click" />
                 </Grid>
 
                 <Grid Grid.Row="1" Background="{StaticResource BackgroundDarkBrush}">
