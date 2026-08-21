@@ -30,21 +30,26 @@ Runtime GPT/AI 의존성은 없습니다.
 현재 공개 stable:
 
 ```text
-v1.0.0 PUBLIC VERIFIED
-release source: 3147ad1b48c3d30df529d95b148c5c444a77d649
-release workflow: 32219746319 — SUCCESS
-automated tests: 232 passed
-asset: Junhyun-Helper-v1.0.0-win-x64.zip
-bytes: 74,088,334
-SHA-256: 0e92787409add9dd9e1138277c3588586a04266b05ca56d7cf7fb6f79c88094c
-public downloaded EXE smoke: passed
+v1.1.0 PUBLIC RELEASE / VERIFIED
+release id: 374188781
+exact release source / target SHA: ac24f7717e81cf6fa32cb2e0ade63949ed87ade5
+automated tests: 243 passed / 0 failed / 0 skipped
+asset: Junhyun-Helper-v1.1.0-win-x64.zip
+bytes: 80,235,043
+SHA-256: 8e7f452701f866c84e753c1c34951af64f4415947e9f56c56634e2b584d9e1ce
+ProductVersion: 1.1.0+ac24f7717e81cf6fa32cb2e0ade63949ed87ade5
+public downloaded EXE smoke: SUCCESS
+public/latest verification run: 32452416929
 ```
 
-현재 개발/다음 릴리즈:
+`32452416929`에서 기존 Draft의 target/hash/package/ProductVersion/FIRST_RUN을 검증하고 실제 Draft-downloaded EXE smoke를 통과한 뒤 public/latest로 전환했습니다. 이후 public asset을 다시 다운로드해 hash/size/ProductVersion/FIRST_RUN을 재검증하고 실제 EXE smoke까지 성공했습니다.
+
+해당 Actions run의 최종 conclusion은 마지막 PR 코멘트 기록 단계의 integration 권한 403 때문에 `failure`로 표시되지만, 모든 제품/release gate는 그 이전에 성공했습니다. 상세는 `docs/RELEASE_1.1.0.md`를 기준으로 합니다.
+
+호환성:
 
 ```text
-v1.1.0 RELEASE CANDIDATE
-major change: actual Scanner feature
+Desktop Version: 1.1.0
 Content schema: v7
 Readable schemas: v3~v7
 user.db schema: v1
@@ -161,26 +166,28 @@ real/test mode는 상호 배타적이며 test mode는 session-only입니다.
 - full Tarkov screenshot detail detector
 - full screenshot → detail → title ROI → OCR
 
-v1.1.0 공개 차단 gate:
+v1.1.0에서 완료된 공개 gate:
 
 - Windows Release build
-- 전체 automated tests
+- 전체 automated tests — 243 passed / 0 failed / 0 skipped
 - Scanner detector/catalog/matcher/persistence tests
 - win-x64 self-contained single-file publish
 - ProductVersion/FIRST_RUN identity
 - package/dependency hygiene
-- actual published EXE launch
+- actual packaged EXE launch
 - rendered existing Product UI assertions
 - rendered Scanner OFF/OFF controls
 - Main Map / Factory / MiniMap smoke
 - graceful shutdown
-- Draft asset checksum/package validation
-- public asset re-download validation
+- Draft asset checksum/package/ProductVersion/FIRST_RUN validation
+- Draft-downloaded EXE smoke
+- public/latest 전환
+- public asset re-download hash/size/ProductVersion validation
 - public downloaded EXE smoke
 
 ### Live Tarkov E2E
 
-**사용자가 2026-08-21 명시적으로 v1.1.0 공개 차단 조건에서 제외했습니다.**
+**사용자가 2026-08-21 명시적으로 v1.1.0 공개 차단 조건에서 제외했습니다. 현재 PENDING입니다.**
 
 공개 후 실제 Borderless Tarkov에서 다음을 확인합니다.
 
@@ -316,6 +323,8 @@ exact release baseline
 → public downloaded EXE smoke
 ```
 
+v1.1.0은 이 계약에 따라 public/latest 및 public-downloaded EXE까지 검증했습니다.
+
 ## 10. 현재 제품 기능 상태
 
 | 영역 | 상태 |
@@ -329,14 +338,14 @@ exact release baseline
 | Map + MiniMap | 구현 완료 / user validated baseline |
 | Game Content Update | 구현 완료 |
 | Program Update | 구현 완료 / public verified |
-| Scanner | **v1.1.0 구현 완료 / Windows release gate 검증 대상 / live Tarkov 후속** |
+| Scanner | **v1.1.0 IMPLEMENTED / WINDOWS+PACKAGE VERIFIED / LIVE TARKOV E2E PENDING** |
 
 ## 11. 현재 알려진 비차단 범위
 
 - EFT 1.0 Story Chapters는 ordinary task source 밖이며 현재 미지원
 - PvE Skier LL2 task-pool drift는 exact fact가 없으면 해당 pool만 fail-closed
 - code signing / installer는 현재 필수 범위 아님
-- Scanner current live Tarkov E2E는 v1.1.0 공개 후 로그 기반 검증
+- Scanner current live Tarkov E2E는 공개 v1.1.0에서 로그 기반 후속 검증
 
 ## 12. 새 작업을 시작할 때
 
