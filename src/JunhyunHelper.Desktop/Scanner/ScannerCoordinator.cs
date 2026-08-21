@@ -188,6 +188,7 @@ public sealed class ScannerCoordinator : IDisposable
         SetObservedContext(context);
         Runtime.Suspend(ScannerRuntimeState.CatalogUnavailable, "전체 아이템 카탈로그를 동기화하는 중입니다.");
         var success = await _catalog.RefreshAsync(context.GameMode, cancellationToken);
+        WriteCatalogDiagnostics(context.GameMode, success);
         if (!success)
         {
             Runtime.PublishExternalState(
@@ -303,6 +304,21 @@ public sealed class ScannerCoordinator : IDisposable
         }
 
         await Runtime.StartAsync(mode, cancellationToken);
+    }
+
+    private void WriteCatalogDiagnostics(GameMode gameMode, bool success)
+    {
+        var diagnostics = _catalog.LastDiagnostics;
+        ScannerDiagnosticLog.Write(
+            "catalog-sync",
+            null,
+            ("gameMode", gameMode.ToDataKey()),
+            ("success", success),
+            ("outcome", diagnostics.Outcome),
+            ("items", diagnostics.ItemCount),
+            ("traderPrices", diagnostics.TraderPriceCount),
+            ("fleaPrices", diagnostics.FleaPriceCount),
+            ("usedExistingCatalog", diagnostics.UsedExistingCatalog));
     }
 
     private void StartContextMonitor()
