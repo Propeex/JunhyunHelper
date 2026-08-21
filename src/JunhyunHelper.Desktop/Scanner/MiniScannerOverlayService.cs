@@ -21,11 +21,12 @@ public sealed class MiniScannerOverlayService : IDisposable
     private bool _disposed;
     private int _visibilityEpoch;
 
-    public MiniScannerOverlayService(ScannerSettingsService settings)
+    public MiniScannerOverlayService(ScannerSettingsService settings, IScannerOcrEngine ocr)
     {
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+        ArgumentNullException.ThrowIfNull(ocr);
         _dispatcher = System.Windows.Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
-        _inventoryContext = new ScannerInventoryContextDetector(new ScannerLab38OcrEngine());
+        _inventoryContext = new ScannerInventoryContextDetector(ocr);
         _settings.SettingsChanged += OnSettingsChanged;
     }
 
