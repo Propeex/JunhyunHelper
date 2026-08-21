@@ -30,6 +30,7 @@ public sealed class ScannerRuntimeService : IDisposable
     private string _lastFailedTitleSignature = string.Empty;
     private DateTimeOffset _lastFailedAtUtc = DateTimeOffset.MinValue;
     private ScannerItemSnapshot? _currentSnapshot;
+    private string _lastDiagnosticStatusKey = string.Empty;
 
     public ScannerRuntimeService(
         ScannerSettingsService settings,
@@ -83,6 +84,13 @@ public sealed class ScannerRuntimeService : IDisposable
         lock (_loopGate)
             _activeMode = mode;
         _detector.SetCaptureMode(mode);
+
+        ScannerDiagnosticLog.Write(
+            "runtime-start",
+            mode,
+            ("detectorAvailable", _detector.IsAvailable),
+            ("ocrAvailable", _ocr.IsAvailable),
+            ("catalogCount", _catalog.Count));
 
         var initialMessage = ModeInitialMessage(mode);
         _overlay.ShowStandby(initialMessage);
@@ -145,10 +153,12 @@ public sealed class ScannerRuntimeService : IDisposable
 
     public void Stop()
     {
+        var stoppedMode = ActiveCaptureMode;
         StopLoop();
         lock (_loopGate)
             _activeMode = null;
         ResetObservationState(hideOverlay: true);
+        ScannerDiagnosticLog.Write("runtime-stop", stoppedMode);
         Publish(ScannerRuntimeState.Disabled, "Scanner가 꺼져 있습니다.");
     }
 
@@ -263,6 +273,14 @@ public sealed class ScannerRuntimeService : IDisposable
                     _lastGeometrySignature = candidate.GeometrySignature;
                     _stableGeometryHits = 1;
                     ResetTitleStability();
+                    ScannerDiagnosticLog.Write(
+                        "geometry-candidate",
+                        mode,
+                        ("x", candidate.Bounds.X),
+                        ("y", candidate.Bounds.Y),
+                        ("width", candidate.Bounds.Width),
+                        ("height", candidate.Bounds.Height),
+                        ("signature", candidate.GeometrySignature));
                     const string message = "상세창 위치를 확인하는 중입니다.";
                     _overlay.ShowStandby(message);
                     Publish(ScannerRuntimeState.Stabilizing, message, captureMode: mode);
@@ -316,7 +334,23 @@ public sealed class ScannerRuntimeService : IDisposable
                 if (epoch != Volatile.Read(ref _loopEpoch))
                     return;
 
+                ScannerDiagnosticLog.Write(
+                    "ocr-result",
+                    mode,
+                    ("titleSignature", titleSignature),
+                    ("text", ocrText));
+
                 var recognition = _catalog.ResolveOcrText(ocrText);
+                ScannerDiagnosticLog.Write(
+                    "match-result",
+                    mode,
+                    ("success", recognition.Success),
+                    ("reason", recognition.Reason),
+                    ("itemId", recognition.ItemId),
+                    ("officialName", recognition.OfficialName),
+                    ("confidence", recognition.Confidence),
+                    ("secondScore", recognition.SecondScore));
+
                 if (!recognition.Success || string.IsNullOrWhiteSpace(recognition.ItemId))
                 {
                     RecordFailedTitle(titleSignature);
@@ -351,6 +385,11 @@ public sealed class ScannerRuntimeService : IDisposable
         catch (Exception exception)
         {
             App.WriteDiagnostic("Scanner runtime loop failed", exception);
+            ScannerDiagnosticLog.Write(
+                "runtime-error",
+                mode,
+                ("type", exception.GetType().Name),
+                ("message", exception.Message));
             _currentSnapshot = null;
             const string message = "Scanner 런타임 오류가 발생했습니다.";
             _overlay.ShowStandby(message);
@@ -399,6 +438,7 @@ public sealed class ScannerRuntimeService : IDisposable
         _lastFailedTitleSignature = string.Empty;
         _lastFailedAtUtc = DateTimeOffset.MinValue;
         _currentSnapshot = null;
+        _lastDiagnosticStatusKey = string.Empty;
         if (hideOverlay)
             _overlay.Hide();
     }
@@ -453,6 +493,20 @@ public sealed class ScannerRuntimeService : IDisposable
             snapshot?.OfficialName,
             DateTimeOffset.Now,
             captureMode);
+
+        var diagnosticKey = $"{captureMode}:{state}:{message}:{snapshot?.ItemId}";
+        if (!string.Equals(_lastDiagnosticStatusKey, diagnosticKey, StringComparison.Ordinal))
+        {
+            _lastDiagnosticStatusKey = diagnosticKey;
+            ScannerDiagnosticLog.Write(
+                "status",
+                captureMode,
+                ("state", state),
+                ("message", message),
+                ("itemId", snapshot?.ItemId),
+                ("officialName", snapshot?.OfficialName));
+        }
+
         StatusChanged?.Invoke(Status);
     }
 
@@ -465,6 +519,7 @@ public sealed class ScannerRuntimeService : IDisposable
         lock (_loopGate)
             _activeMode = null;
         _overlay.Hide();
+        ScannerDiagnosticLog.Write("runtime-dispose");
         GC.SuppressFinalize(this);
     }
 }
