@@ -9,27 +9,100 @@ on:
 
 permissions:
   actions: write
-  contents: read
+  contents: write
 
 jobs:
   dispatch:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 40
     steps:
-      - name: Dispatch exact previous main SHA
+      - name: Dispatch and watch exact v1.1.3 release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           SOURCE_SHA: ${{ github.event.before }}
+          RESULT_PATH: .github/release-v1.1.3.result
         run: |
           set -euo pipefail
+
           if [[ ! "$SOURCE_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || [[ "$SOURCE_SHA" =~ ^0+$ ]]; then
             echo "Invalid previous main SHA: $SOURCE_SHA" >&2
             exit 1
           fi
+
+          before_ids="$(gh run list \
+            --repo "$GITHUB_REPOSITORY" \
+            --workflow release-v1.1.3.yml \
+            --limit 20 \
+            --json databaseId \
+            --jq '.[].databaseId' || true)"
 
           echo "Dispatching v1.1.3 release for exact main SHA: $SOURCE_SHA"
           gh workflow run release-v1.1.3.yml \
             --repo "$GITHUB_REPOSITORY" \
             --ref main \
             -f source_sha="$SOURCE_SHA"
+
+          run_id=""
+          for _ in $(seq 1 60); do
+            candidates="$(gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --workflow release-v1.1.3.yml \
+              --limit 20 \
+              --json databaseId,event \
+              --jq '.[] | select(.event == "workflow_dispatch") | .databaseId' || true)"
+
+            for candidate in $candidates; do
+              if ! grep -qx "$candidate" <<< "$before_ids"; then
+                run_id="$candidate"
+                break 2
+              fi
+            done
+            sleep 2
+          done
+
+          if [[ -z "$run_id" ]]; then
+            echo 'Could not discover the dispatched v1.1.3 release run.' >&2
+            exit 1
+          fi
+
+          echo "Watching release run: $run_id"
+          set +e
+          gh run watch "$run_id" --repo "$GITHUB_REPOSITORY" --exit-status
+          watch_rc=$?
+          set -e
+
+          conclusion="$(gh run view "$run_id" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json conclusion \
+            --jq '.conclusion')"
+
+          result="status=$conclusion
+release_run=$run_id
+source_sha=$SOURCE_SHA
+trigger_sha=$GITHUB_SHA"
+
+          echo 'Release result:'
+          printf '%s\n' "$result"
+
+          encoded="$(printf '%s\n' "$result" | base64 -w0)"
+          current_sha="$(gh api \
+            "repos/$GITHUB_REPOSITORY/contents/$RESULT_PATH?ref=main" \
+            --jq '.sha' 2>/dev/null || true)"
+
+          if [[ -n "$current_sha" ]]; then
+            gh api --method PUT \
+              "repos/$GITHUB_REPOSITORY/contents/$RESULT_PATH" \
+              -f message='Record v1.1.3 release result' \
+              -f content="$encoded" \
+              -f branch=main \
+              -f sha="$current_sha" > /dev/null
+          else
+            gh api --method PUT \
+              "repos/$GITHUB_REPOSITORY/contents/$RESULT_PATH" \
+              -f message='Record v1.1.3 release result' \
+              -f content="$encoded" \
+              -f branch=main > /dev/null
+          fi
+
+          exit "$watch_rc"
