@@ -1,0 +1,35 @@
+name: Finalize v1.1.4 developer reference status
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/finalize-v1.1.4-developer-status.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: finalize-v1.1.4-release
+          fetch-depth: 1
+      - shell: pwsh
+        run: |
+          $path = 'docs/DEVELOPER_REFERENCE.md'
+          $old = '상태: **`ACTIVE / v1.1.4 RELEASE CANDIDATE`**'
+          $new = '상태: **`ACTIVE / v1.1.4 PUBLIC RELEASE / VERIFIED`**'
+          $text = [IO.File]::ReadAllText($path)
+          if (-not $text.Contains($old)) { throw 'Expected developer-reference status was not found.' }
+          [IO.File]::WriteAllText($path, $text.Replace($old, $new), [Text.UTF8Encoding]::new($false))
+      - shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- docs/DEVELOPER_REFERENCE.md
+          git diff --cached --check
+          git commit -m 'Mark developer reference v1.1.4 public verified'
+          git push origin HEAD:finalize-v1.1.4-release
