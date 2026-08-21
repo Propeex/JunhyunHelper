@@ -1,0 +1,10 @@
+{
+  "version": "1.1.6",
+  "tag": "v1.1.6",
+  "sourceSha": "8efee02e5966adb9b67b47847f95a12dfc357d0a",
+  "workflowRunId": "32501127878",
+  "workflowStatus": "success",
+  "zipBytes": "80271024",
+  "zipSha256": "986d0d2855381060267f63d2902317eabedc5d5738448fbd6c2b09e764c3477e",
+  "updatedAtUtc": "2026-08-21T16:06:25.7719526+00:00"
+}
