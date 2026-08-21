@@ -31,24 +31,34 @@ public partial class MiniScannerWindow : Window
         ArgumentNullException.ThrowIfNull(settings);
 
         _editMode = editMode;
+        ScannerStatusText.Visibility = Visibility.Collapsed;
+        ScannerStatusText.Text = string.Empty;
+        ItemContentGrid.Visibility = Visibility.Visible;
         ApplyExtendedStyles();
         ApplySnapshot(snapshot, settings);
         ApplyEditPresentation();
+        ShowAndPosition(settings);
+    }
 
-        if (!IsVisible)
-            Show();
+    public void RenderStatus(string message, ScannerDisplaySettings settings, bool editMode)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(message);
+        ArgumentNullException.ThrowIfNull(settings);
 
-        UpdateLayout();
-        if (!_positionInitialized)
-        {
-            ApplyPosition(settings);
-            _positionInitialized = true;
-        }
+        _editMode = editMode;
+        ItemContentGrid.Visibility = Visibility.Collapsed;
+        ScannerStatusText.Visibility = Visibility.Visible;
+        ScannerStatusText.Text = message.Trim();
+        ScannerStatusText.FontSize = Math.Clamp(settings.FontSize * 0.78, 12, 22);
+        ApplyExtendedStyles();
+        ApplyEditPresentation();
+        ShowAndPosition(settings);
     }
 
     public void ApplySettings(ScannerDisplaySettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
+        ScannerStatusText.FontSize = Math.Clamp(settings.FontSize * 0.78, 12, 22);
         if (settings.PositionX.HasValue && settings.PositionY.HasValue)
         {
             Left = settings.PositionX.Value;
@@ -99,6 +109,19 @@ public partial class MiniScannerWindow : Window
             settings.ShowCurrentNeeded,
             $"필요  {snapshot.CurrentNeeded.ToString("N0", CultureInfo.InvariantCulture)}",
             settings.FontSize);
+    }
+
+    private void ShowAndPosition(ScannerDisplaySettings settings)
+    {
+        if (!IsVisible)
+            Show();
+
+        UpdateLayout();
+        if (!_positionInitialized)
+        {
+            ApplyPosition(settings);
+            _positionInitialized = true;
+        }
     }
 
     private void ApplyPosition(ScannerDisplaySettings settings)
