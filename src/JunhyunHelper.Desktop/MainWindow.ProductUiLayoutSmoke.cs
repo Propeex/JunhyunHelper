@@ -155,6 +155,12 @@ public partial class MainWindow
         if (ScannerPlaceholder.SyncCatalogButton.Content as string != "아이템 목록 최신화")
             throw new InvalidOperationException("Scanner catalog action did not render the user-facing '아이템 목록 최신화' label.");
 
+        if (ScannerPlaceholder.ClearLogButton.Content as string != "로그 삭제" ||
+            ScannerPlaceholder.ClearLogButton.MinWidth < 80)
+        {
+            throw new InvalidOperationException("Scanner recent-recognition log clear control did not render at its product contract.");
+        }
+
         if (ScannerPlaceholder.ScannerToggleButton.MinWidth < 100 ||
             ScannerPlaceholder.TestToggleButton.MinWidth < 100 ||
             ScannerPlaceholder.SyncCatalogButton.MinWidth < 120)
