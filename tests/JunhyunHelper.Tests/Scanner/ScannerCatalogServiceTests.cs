@@ -24,13 +24,31 @@ public sealed class ScannerCatalogServiceTests
             Assert.True(success);
             Assert.Equal(4000, service.Count);
             Assert.Equal(GameMode.Regular, service.LoadedMode);
-            Assert.True(service.TryGetItem("item-0", out var item));
-            Assert.Equal("공식 아이템 0", item.OfficialName);
-            Assert.Equal(2000, item.FleaAveragePrice);
-            Assert.Equal(1250, item.BestTraderSellPrice);
-            Assert.Equal(4, item.Slots);
-            Assert.Equal(312, item.TraderPricePerSlot);
-            Assert.Equal(500, item.FleaPricePerSlot);
+
+            // Audit every item in the large fixture rather than spot-checking one record.
+            // This protects the per-item market/dimension projection across the whole
+            // catalog ingestion loop. item-1 intentionally contains invalid flea/dimension
+            // values and therefore exercises the per-field fail-closed path inline.
+            for (var index = 0; index < 4000; index++)
+            {
+                Assert.True(service.TryGetItem($"item-{index}", out var item));
+                Assert.Equal($"공식 아이템 {index}", item.OfficialName);
+                Assert.Equal(1250 + index, item.BestTraderSellPrice);
+
+                if (index == 1)
+                {
+                    Assert.Null(item.FleaAveragePrice);
+                    Assert.Equal(0, item.Slots);
+                    Assert.Null(item.TraderPricePerSlot);
+                    Assert.Null(item.FleaPricePerSlot);
+                    continue;
+                }
+
+                Assert.Equal(2000 + index, item.FleaAveragePrice);
+                Assert.Equal(4, item.Slots);
+                Assert.Equal((1250 + index) / 4, item.TraderPricePerSlot);
+                Assert.Equal((2000 + index) / 4, item.FleaPricePerSlot);
+            }
         }
         finally
         {
