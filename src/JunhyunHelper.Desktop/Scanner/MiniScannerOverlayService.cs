@@ -12,15 +12,18 @@ public sealed class MiniScannerOverlayService : IDisposable
 {
     private readonly ScannerSettingsService _settings;
     private readonly Dispatcher _dispatcher;
+    private readonly ScannerInventoryContextDetector _inventoryContext;
     private MiniScannerWindow? _window;
     private ScannerItemSnapshot? _snapshot;
     private bool _editMode;
     private bool _disposed;
+    private int _visibilityEpoch;
 
     public MiniScannerOverlayService(ScannerSettingsService settings)
     {
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _dispatcher = System.Windows.Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
+        _inventoryContext = new ScannerInventoryContextDetector(new ScannerLab38OcrEngine());
         _settings.SettingsChanged += OnSettingsChanged;
     }
 
@@ -30,10 +33,59 @@ public sealed class MiniScannerOverlayService : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(snapshot);
-        _ = preview;
 
+        var epoch = Interlocked.Increment(ref _visibilityEpoch);
+
+        // Display-test and explicit preview remain deterministic development/test tools.
+        // A real Scanner has Enabled=true and is visually gated to the foreground Tarkov
+        // inventory/stash before the overlay is allowed to appear.
+        if (preview || !_settings.Current.Enabled)
+        {
+            ShowVerified(snapshot, epoch);
+            return;
+        }
+
+        _ = ShowIfInventoryAsync(snapshot, epoch);
+    }
+
+    private async Task ShowIfInventoryAsync(ScannerItemSnapshot snapshot, int epoch)
+    {
+        bool allowed;
+        try
+        {
+            allowed = await _inventoryContext.IsInventoryOrStashAsync(CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            App.WriteDiagnostic("Mini Scanner inventory context detection failed", exception);
+            allowed = false;
+        }
+
+        if (_disposed || epoch != Volatile.Read(ref _visibilityEpoch))
+            return;
+
+        if (!allowed)
+        {
+            Invoke(() =>
+            {
+                if (epoch != Volatile.Read(ref _visibilityEpoch))
+                    return;
+                _snapshot = null;
+                if (!_editMode)
+                    _window?.Hide();
+            });
+            return;
+        }
+
+        ShowVerified(snapshot, epoch);
+    }
+
+    private void ShowVerified(ScannerItemSnapshot snapshot, int epoch)
+    {
         Invoke(() =>
         {
+            if (_disposed || epoch != Volatile.Read(ref _visibilityEpoch))
+                return;
             _snapshot = snapshot;
             EnsureWindow().Render(snapshot, _settings.Current, _editMode);
         });
@@ -55,6 +107,7 @@ public sealed class MiniScannerOverlayService : IDisposable
         if (_disposed)
             return;
 
+        Interlocked.Increment(ref _visibilityEpoch);
         Invoke(() =>
         {
             _snapshot = null;
@@ -69,6 +122,7 @@ public sealed class MiniScannerOverlayService : IDisposable
     public void BeginPositionEdit()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        Interlocked.Increment(ref _visibilityEpoch);
         Invoke(() =>
         {
             _editMode = true;
@@ -87,6 +141,7 @@ public sealed class MiniScannerOverlayService : IDisposable
     public void EndPositionEdit(bool keepVisible)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        Interlocked.Increment(ref _visibilityEpoch);
         Invoke(() =>
         {
             if (_window is null)
@@ -198,6 +253,7 @@ public sealed class MiniScannerOverlayService : IDisposable
         if (_disposed)
             return;
         _disposed = true;
+        Interlocked.Increment(ref _visibilityEpoch);
         _settings.SettingsChanged -= OnSettingsChanged;
 
         Invoke(() =>
