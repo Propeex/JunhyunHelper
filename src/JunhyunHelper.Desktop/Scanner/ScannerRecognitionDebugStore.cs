@@ -65,20 +65,29 @@ public static class ScannerRecognitionDebugStore
             var close = candidate?.CloseBounds is { } closeBounds && closeBounds.Width > 0
                 ? ToLocal(closeBounds, _frame.CaptureOriginX, _frame.CaptureOriginY)
                 : _frame.CloseBounds;
+            var now = DateTimeOffset.Now;
 
+            // The initial frame is captured from the detector's current top candidate.
+            // Semantic/visual matching may ultimately select another candidate, so the
+            // diagnostics must move both rectangles and scores to the selected one.
             _frame = _frame with
             {
                 SelectedBounds = selected,
                 TitleBounds = title,
                 MagnifierBounds = magnifier,
                 CloseBounds = close,
+                StructuralScore = candidate?.StructuralScore ?? _frame.StructuralScore,
+                StructuralReason = candidate?.StructuralReason ?? _frame.StructuralReason,
+                TitleAnchorScore = candidate?.TitleAnchorScore ?? _frame.TitleAnchorScore,
+                TitleAnchorReason = candidate?.TitleAnchorReason ?? _frame.TitleAnchorReason,
                 Pass = pass,
                 OcrText = ocrText,
                 CandidateName = recognition.OfficialName,
                 RecognitionReason = recognition.Reason,
                 Confidence = recognition.Confidence,
                 SecondScore = recognition.SecondScore,
-                UpdatedAt = DateTimeOffset.Now,
+                UpdatedAt = now,
+                Timestamp = now,
             };
         }
         Changed?.Invoke();
