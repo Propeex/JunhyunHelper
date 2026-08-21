@@ -1,5 +1,6 @@
 name: Dispatch v1.1.0 release
 
+# Existing-on-main push kick for the one-shot v1.1.0 dispatcher.
 on:
   push:
     branches: [main]
