@@ -4,16 +4,16 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 릴리즈 상태
 
-현재 public stable은 **v1.1.6**입니다.
+현재 public stable은 **v1.2.0**입니다.
 
 ```text
-version: v1.1.6 PUBLIC RELEASE / VERIFIED
-release source: 8efee02e5966adb9b67b47847f95a12dfc357d0a
-exact-source release run: 32500707112 — SUCCESS
-automated tests: 250 passed / 0 failed / 0 skipped
-asset: Junhyun-Helper-v1.1.6-win-x64.zip
-bytes: 80,271,024
-SHA-256: 986d0d2855381060267f63d2902317eabedc5d5738448fbd6c2b09e764c3477e
+version: v1.2.0 PUBLIC RELEASE / VERIFIED
+release source: a7601f8498e8d75e832962fb9dd60f4112d28dc6
+exact-source release run: 32514322439 — SUCCESS
+automated tests: 255 passed / 0 failed / 0 skipped
+asset: Junhyun-Helper-v1.2.0-win-x64.zip
+bytes: 80,298,514
+SHA-256: ab5e9ef35b300268d16a1c5eece86cd8c6e57c91c83364caf4b7d02cde1d27d1
 Draft-downloaded EXE smoke: SUCCESS
 public/latest: VERIFIED
 exact public tag source: VERIFIED
@@ -24,12 +24,13 @@ public-downloaded EXE smoke: SUCCESS
 Content schema: v7
 Readable schemas: v3~v7
 user.db schema: v1
+Scanner display settings schema: v3
 Scanner cache schema: v1/v2 readable, v2 written
-v1.1.5 → v1.1.6 mandatory Game Content update: none
-v1.1.5 → v1.1.6 user.db migration: none
+v1.1.6 → v1.2.0 mandatory Game Content update: none
+v1.1.6 → v1.2.0 user.db migration: none
 ```
 
-상세 릴리즈 기록은 `docs/RELEASE_1.1.6.md`에 있습니다.
+상세 릴리즈 기록은 `docs/RELEASE_1.2.0.md`에 있습니다.
 
 ## 주요 기능
 
@@ -51,9 +52,11 @@ Runtime GPT/AI 의존성은 없습니다.
 ```text
 Tarkov / Display pixels
 → detail-window structural candidates
-→ title ROI
-→ Windows ko-KR OCR
-→ current official Korean full-item catalog matching
+→ red close + magnifier + title-field anchor refinement
+→ magnifier-free title ROI
+→ Windows ko-KR OCR + current-catalog character validation
+→ official Korean catalog semantic matching
+   OR conservative full-catalog Tarkov-font visual recovery
 → Item ID
 → local JunhyunHelper presentation data
 → Mini Scanner
@@ -67,8 +70,21 @@ Tarkov / Display pixels
 - scan-time network 없음
 - game memory / DLL injection / packet interception 없음
 - icon 하나만으로 Item identity 확정 금지
+- current official Korean item catalog가 identity 기준
 
-v1.1.5 이후 Mini Scanner/data 기준선:
+v1.2.0 Scanner 보강:
+
+- 빨간 X·돋보기·제목 필드 구조를 이용한 title ROI 보정
+- 돋보기 anchor 발견 시 돋보기 픽셀을 OCR ROI에서 제외
+- 현재 공식 한국어 이름에서 허용 문자 집합을 생성해 비정상 OCR을 검증
+- 한자 OCR을 Korean item-title contract 위반 증거로 취급
+- OCR이 비거나 손상된 경우 전체 공식 이름에 대한 보수적 Tarkov-font 시각 대조 fallback
+- `인식 이미지`: 최신 진단 캡처 1장을 메모리에서만 확인
+- `1회 고정밀 스캔`: 실시간 Scanner OFF에서도 한 번만 정밀 식별
+- 기본 전역 단축키 `Ctrl+Shift+F10`, 변경/비활성화 가능
+- 실시간 루프와 1회 스캔의 capture/OCR/presentation 상태 경합 방지
+
+Mini Scanner/data 기준선:
 
 - matched item 정보만 overlay에 표시
 - Topmost + no-activate
@@ -77,17 +93,9 @@ v1.1.5 이후 Mini Scanner/data 기준선:
 - canonical item 전체 icon prefetch
 - raw `traderPrices` / derived `sellFor` 지원
 - title OCR과 inventory-context OCR 직렬화
+- 가격 데이터 누락은 해당 표시 필드만 비우고 identity catalog는 유지
 
-v1.1.6 catalog 수정:
-
-- identity catalog health = 4,000개 이상 유효 Item ID/공식 이름
-- trader/flea coverage는 identity health와 분리
-- 가격 누락은 해당 표시 필드만 비움
-- 4,000개 identity + trader price 0개도 식별 가능
-- 3,999개 identity는 계속 거부
-- `아이템 목록 최신화` 결과를 `scanner.log`의 `catalog-sync` 진단으로 기록
-
-상세: `docs/SCANNER.md`, `docs/SCANNER_TEST_PLAN.md`, `docs/RELEASE_1.1.6.md`.
+상세: `docs/SCANNER.md`, `docs/SCANNER_TEST_PLAN.md`, `docs/RELEASE_1.2.0.md`.
 
 ## Scanner 진단
 
@@ -97,7 +105,7 @@ v1.1.6 catalog 수정:
 %LocalAppData%/JunhyunHelper/logs/scanner.log(.1)
 ```
 
-screenshot/raw pixel은 저장하지 않습니다.
+`인식 이미지` 캡처는 메모리에만 존재하며 screenshot/raw pixel은 파일로 저장하지 않습니다.
 
 ## Program Update
 
@@ -128,14 +136,14 @@ Assets/
 
 ## 실제 Tarkov Scanner 검증
 
-최신 Tarkov live E2E는 public release blocker가 아니며 실제 게임 환경에서 계속 검증합니다. 실제 사용 중 발견되는 문제는 `scanner.log`와 재현 조건을 기준으로 capture → candidate → OCR → matcher → presentation → overlay 단계를 분리해 후속 PATCH에서 수정합니다.
+최신 Tarkov live E2E는 public release blocker가 아니며 실제 게임 환경에서 계속 검증합니다. 실제 사용 중 발견되는 문제는 `scanner.log`와 `인식 이미지`의 관측 근거를 기준으로 capture → candidate → title ROI → OCR/visual matcher → catalog → presentation → overlay 단계를 분리해 후속 PATCH에서 수정합니다.
 
 ## 버전 정책
 
 - 새 사용자 기능 → MINOR +1, PATCH=0
 - 기존 기능 수정/보완/버그 수정/성능·안정성 개선 → PATCH +1
 
-v1.1.6은 기존 Scanner catalog synchronization 회귀를 수정한 PATCH입니다.
+v1.2.0은 Scanner 진단 이미지와 1회 고정밀 스캔이라는 사용자 기능을 추가하고 제목 인식 구조를 보강한 MINOR 릴리즈입니다.
 
 ## 개발 문서
 
@@ -146,7 +154,7 @@ v1.1.6은 기존 Scanner catalog synchronization 회귀를 수정한 PATCH입니
 - `docs/SCANNER.md` — Scanner 계약
 - `docs/SCANNER_TEST_PLAN.md` — Scanner 검증
 - `docs/SCANNER_LAB_3_8_REFERENCE.md` — Scanner Lab v3.8 reference
-- `docs/RELEASE_1.1.6.md` — v1.1.6 public release record
+- `docs/RELEASE_1.2.0.md` — v1.2.0 public release record
 - `docs/ARCHITECTURE.md`
 - `docs/DEVELOPER_REFERENCE.md`
 - `docs/VERSIONING.md`
