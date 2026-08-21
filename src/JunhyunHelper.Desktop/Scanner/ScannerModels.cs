@@ -28,8 +28,8 @@ public sealed record ScannerInspectCandidate(
     string GeometrySignature,
     string TitleSignature,
     BitmapSource? TitleImage,
-    double StructuralScore,
-    string StructuralReason);
+    double StructuralScore = 0,
+    string StructuralReason = "");
 
 public enum ScannerCaptureMode
 {
