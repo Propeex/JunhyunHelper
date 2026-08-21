@@ -1,6 +1,7 @@
 name: Dispatch v1.1.0 release
 
-# Existing-on-main push kick for the one-shot v1.1.0 dispatcher.
+# Observable one-shot dispatcher. It avoids duplicate dispatch if the release already exists
+# and records the dispatched release run on PR #111 for external verification.
 on:
   push:
     branches: [main]
@@ -11,17 +12,43 @@ on:
 permissions:
   actions: write
   contents: read
+  issues: write
 
 jobs:
   dispatch:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Dispatch release workflow
+      - name: Dispatch release workflow and record run
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
+
+          if gh release view v1.1.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            body="v1.1.0 dispatcher executed, but release v1.1.0 already exists. No duplicate workflow was dispatched."
+            gh api --method POST "repos/$GITHUB_REPOSITORY/issues/111/comments" -f body="$body" >/dev/null
+            exit 0
+          fi
+
           gh workflow run release-v1.1.0.yml \
             --repo "$GITHUB_REPOSITORY" \
             --ref main
+
+          sleep 8
+
+          record=$(gh run list \
+            --repo "$GITHUB_REPOSITORY" \
+            --workflow release-v1.1.0.yml \
+            --event workflow_dispatch \
+            --limit 1 \
+            --json databaseId,status,conclusion,event,headSha,url,createdAt \
+            --jq '.[0] | "run=\(.databaseId) status=\(.status) conclusion=\(.conclusion // \"null\") event=\(.event) head=\(.headSha) created=\(.createdAt) url=\(.url)"')
+
+          if [ -z "$record" ]; then
+            record="release workflow dispatch command succeeded, but no workflow_dispatch run was visible after 8 seconds"
+          fi
+
+          body="v1.1.0 dispatcher record: $record"
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/111/comments" -f body="$body" >/dev/null
