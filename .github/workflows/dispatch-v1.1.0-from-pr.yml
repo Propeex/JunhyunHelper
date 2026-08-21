@@ -1,4 +1,4 @@
-name: Dispatch v1.1.0 release from PR
+name: Verify and publish existing v1.1.0 draft
 
 on:
   pull_request:
@@ -6,47 +6,261 @@ on:
     branches: [main]
 
 permissions:
-  actions: write
-  contents: read
+  contents: write
   issues: write
 
 jobs:
-  dispatch:
+  verify-release:
     if: github.head_ref == 'release/v1.1.0-pr-dispatch'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      RELEASE_VERSION: '1.1.0'
+      RELEASE_TAG: 'v1.1.0'
+      ZIP_NAME: 'Junhyun-Helper-v1.1.0-win-x64.zip'
     steps:
-      - name: Dispatch and record v1.1.0 release run
-        shell: bash
+      - name: Checkout repository history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Inspect and download existing release assets
+        id: inspect
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $releases = gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" | ConvertFrom-Json
+          $release = $releases | Where-Object { $_.tag_name -eq $env:RELEASE_TAG } | Select-Object -First 1
+          if ($null -eq $release) { throw "Release $env:RELEASE_TAG does not exist." }
+          if ($release.prerelease) { throw 'v1.1.0 release is unexpectedly marked prerelease.' }
+
+          $target = [string]$release.target_commitish
+          if ($target -notmatch '^[0-9a-f]{40}$') { throw "Release target is not an exact commit SHA: $target" }
+
+          $assetNames = @($release.assets | ForEach-Object { [string]$_.name })
+          foreach ($required in @($env:ZIP_NAME, 'SHA256SUMS.txt')) {
+            if ($required -notin $assetNames) { throw "Existing release is missing asset: $required" }
+          }
+          $unexpectedAssets = @($assetNames | Where-Object { $_ -notin @($env:ZIP_NAME, 'SHA256SUMS.txt') })
+          if ($unexpectedAssets.Count -gt 0) { throw "Existing release contains unexpected assets: $($unexpectedAssets -join ', ')" }
+
+          git fetch origin $target --depth=1
+          if ($LASTEXITCODE -ne 0) { throw "Could not fetch release target $target." }
+
+          $projectXmlText = git show "${target}:src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj"
+          if ($LASTEXITCODE -ne 0) { throw 'Could not inspect Desktop project at release target.' }
+          [xml]$projectXml = $projectXmlText
+          $targetVersion = [string]($projectXml.Project.PropertyGroup.Version | Select-Object -First 1)
+          if ($targetVersion -ne $env:RELEASE_VERSION) { throw "Release target project version is '$targetVersion'." }
+
+          New-Item -ItemType Directory -Force artifacts/existing-download | Out-Null
+          gh release download $env:RELEASE_TAG `
+            --repo $env:GITHUB_REPOSITORY `
+            --dir artifacts/existing-download `
+            --pattern $env:ZIP_NAME `
+            --pattern 'SHA256SUMS.txt'
+          if ($LASTEXITCODE -ne 0) { throw 'Could not download existing v1.1.0 release assets.' }
+
+          "release_id=$($release.id)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "target=$target" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "was_draft=$([bool]$release.draft)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "EXISTING_RELEASE_ID=$($release.id)"
+          Write-Host "EXISTING_RELEASE_DRAFT=$($release.draft)"
+          Write-Host "EXISTING_RELEASE_TARGET=$target"
+
+      - name: Verify existing release package
+        id: verify
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $zip = Join-Path 'artifacts/existing-download' $env:ZIP_NAME
+          $checksumPath = 'artifacts/existing-download/SHA256SUMS.txt'
+          $checksum = Get-Content $checksumPath | Where-Object { $_ -match [Regex]::Escape($env:ZIP_NAME) } | Select-Object -First 1
+          if ([string]::IsNullOrWhiteSpace($checksum)) { throw 'Checksum entry for v1.1.0 ZIP is missing.' }
+          $expectedHash = (($checksum -split '\s+')[0]).ToLowerInvariant()
+          $actualHash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualHash -ne $expectedHash) { throw "ZIP checksum mismatch: $actualHash != $expectedHash" }
+          $size = (Get-Item $zip).Length
+
+          Expand-Archive -Path $zip -DestinationPath artifacts/existing-extracted
+          $rootFiles = @(Get-ChildItem artifacts/existing-extracted -File | Select-Object -ExpandProperty Name)
+          if (@($rootFiles | Where-Object { $_ -notin @('준현 헬퍼.exe', 'FIRST_RUN_KO.txt') }).Count -gt 0) {
+            throw 'Release ZIP root contains unexpected files.'
+          }
+          $rootDirs = @(Get-ChildItem artifacts/existing-extracted -Directory | Select-Object -ExpandProperty Name)
+          if ($rootDirs.Count -ne 1 -or $rootDirs[0] -ne 'Assets') { throw 'Release ZIP root directory contract is invalid.' }
+          if (-not (Test-Path 'artifacts/existing-extracted/Assets/tarkov_data.db')) { throw 'Release ZIP is missing Assets/tarkov_data.db.' }
+          if (@(Get-ChildItem artifacts/existing-extracted -Recurse -File -Filter *.pdb).Count -gt 0) { throw 'Release ZIP contains PDB files.' }
+          $nested = @(Get-ChildItem artifacts/existing-extracted -Recurse -File | Where-Object { $_.Extension -in @('.zip', '.7z', '.rar') })
+          if ($nested.Count -gt 0) { throw 'Release ZIP contains a nested archive.' }
+
+          $productVersion = (Get-Item 'artifacts/existing-extracted/준현 헬퍼.exe').VersionInfo.ProductVersion
+          if ($productVersion -notmatch '^1\.1\.0\+([0-9a-f]{40})$') { throw "Unexpected ProductVersion: $productVersion" }
+          $sourceSha = $Matches[1]
+          if ($sourceSha -ne '${{ steps.inspect.outputs.target }}') {
+            throw "ProductVersion source SHA '$sourceSha' does not match release target '${{ steps.inspect.outputs.target }}'."
+          }
+          $firstLine = Get-Content 'artifacts/existing-extracted/FIRST_RUN_KO.txt' -TotalCount 1
+          if ($firstLine -ne '준현 헬퍼 v1.1.0 — Windows x64') { throw "FIRST_RUN identity mismatch: $firstLine" }
+
+          "hash=$actualHash" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "bytes=$size" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "product_version=$productVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "VERIFIED_ZIP_SHA256=$actualHash"
+          Write-Host "VERIFIED_ZIP_BYTES=$size"
+          Write-Host "VERIFIED_PRODUCT_VERSION=$productVersion"
+
+      - name: Smoke existing downloaded package
+        shell: pwsh
+        env:
+          JUNHYUNHELPER_MAP_SMOKE: '1'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $workDir = (Resolve-Path 'artifacts/existing-extracted').Path
+          $exe = Join-Path $workDir '준현 헬퍼.exe'
+          $diagnostic = Join-Path $env:TEMP 'junhyun-map-smoke-error.txt'
+          $success = Join-Path $env:TEMP 'junhyun-map-smoke-success.txt'
+          Remove-Item $diagnostic -Force -ErrorAction SilentlyContinue
+          Remove-Item $success -Force -ErrorAction SilentlyContinue
+          $process = Start-Process -FilePath $exe -WorkingDirectory $workDir -PassThru
+          try {
+            $deadline = (Get-Date).AddSeconds(75)
+            $smokeCompleted = $false
+            while ((Get-Date) -lt $deadline) {
+              $process.Refresh()
+              if (Test-Path $diagnostic) {
+                Get-Content $diagnostic | ForEach-Object { Write-Host $_ }
+                throw 'Existing release package reported a product smoke failure.'
+              }
+              if (Test-Path $success) { $smokeCompleted = $true; break }
+              if ($process.HasExited) { throw "Existing release package exited early with code $($process.ExitCode)." }
+              Start-Sleep -Milliseconds 250
+            }
+            if (-not $smokeCompleted) { throw 'Existing release package did not complete product smoke.' }
+            $closeRequested = $false
+            for ($attempt = 1; $attempt -le 10; $attempt++) {
+              $process.Refresh()
+              if ($process.HasExited) { $closeRequested = $true; break }
+              if ($process.CloseMainWindow()) { $closeRequested = $true; break }
+              Start-Sleep -Milliseconds 500
+            }
+            if (-not $closeRequested) { throw 'Could not close existing release package normally.' }
+            $process.Refresh()
+            if (-not $process.HasExited -and -not $process.WaitForExit(7000)) { throw 'Existing release package remained alive after close.' }
+          }
+          finally {
+            $process.Refresh()
+            if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
+          }
+          Write-Host 'EXISTING_RELEASE_EXE_SMOKE=SUCCESS'
+
+      - name: Publish verified draft
+        if: steps.inspect.outputs.was_draft == 'True'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release edit $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --draft=false --latest
+          if ($LASTEXITCODE -ne 0) { throw 'Could not publish verified v1.1.0 draft.' }
+          Write-Host 'DRAFT_TO_PUBLIC=SUCCESS'
+
+      - name: Re-download and verify public assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Start-Sleep -Seconds 3
+          $public = gh api "repos/$env:GITHUB_REPOSITORY/releases/latest" | ConvertFrom-Json
+          if ($public.tag_name -ne $env:RELEASE_TAG) { throw "Latest stable release is '$($public.tag_name)'." }
+          if ($public.draft -or $public.prerelease) { throw 'v1.1.0 is not a normal public stable release.' }
+          if ([string]$public.target_commitish -ne '${{ steps.inspect.outputs.target }}') { throw 'Public release target changed after publication.' }
+
+          New-Item -ItemType Directory -Force artifacts/public-download | Out-Null
+          gh release download $env:RELEASE_TAG `
+            --repo $env:GITHUB_REPOSITORY `
+            --dir artifacts/public-download `
+            --pattern $env:ZIP_NAME `
+            --pattern 'SHA256SUMS.txt'
+          if ($LASTEXITCODE -ne 0) { throw 'Could not download public v1.1.0 assets.' }
+          $zip = Join-Path 'artifacts/public-download' $env:ZIP_NAME
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          $size = (Get-Item $zip).Length
+          if ($hash -ne '${{ steps.verify.outputs.hash }}') { throw 'Public ZIP hash differs from verified draft.' }
+          if ([string]$size -ne '${{ steps.verify.outputs.bytes }}') { throw 'Public ZIP size differs from verified draft.' }
+          Expand-Archive -Path $zip -DestinationPath artifacts/public-extracted
+          $productVersion = (Get-Item 'artifacts/public-extracted/준현 헬퍼.exe').VersionInfo.ProductVersion
+          if ($productVersion -ne '${{ steps.verify.outputs.product_version }}') { throw 'Public ProductVersion differs from verified draft.' }
+          $firstLine = Get-Content 'artifacts/public-extracted/FIRST_RUN_KO.txt' -TotalCount 1
+          if ($firstLine -ne '준현 헬퍼 v1.1.0 — Windows x64') { throw 'Public FIRST_RUN identity mismatch.' }
+          Write-Host "PUBLIC_RELEASE_ID=$($public.id)"
+          Write-Host "PUBLIC_RELEASE_TARGET=$($public.target_commitish)"
+          Write-Host "PUBLIC_ZIP_SHA256=$hash"
+          Write-Host "PUBLIC_ZIP_BYTES=$size"
+          Write-Host "PUBLIC_PRODUCT_VERSION=$productVersion"
+
+      - name: Smoke public downloaded package
+        shell: pwsh
+        env:
+          JUNHYUNHELPER_MAP_SMOKE: '1'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $workDir = (Resolve-Path 'artifacts/public-extracted').Path
+          $exe = Join-Path $workDir '준현 헬퍼.exe'
+          $diagnostic = Join-Path $env:TEMP 'junhyun-map-smoke-error.txt'
+          $success = Join-Path $env:TEMP 'junhyun-map-smoke-success.txt'
+          Remove-Item $diagnostic -Force -ErrorAction SilentlyContinue
+          Remove-Item $success -Force -ErrorAction SilentlyContinue
+          $process = Start-Process -FilePath $exe -WorkingDirectory $workDir -PassThru
+          try {
+            $deadline = (Get-Date).AddSeconds(75)
+            $smokeCompleted = $false
+            while ((Get-Date) -lt $deadline) {
+              $process.Refresh()
+              if (Test-Path $diagnostic) {
+                Get-Content $diagnostic | ForEach-Object { Write-Host $_ }
+                throw 'Public v1.1.0 package reported a product smoke failure.'
+              }
+              if (Test-Path $success) { $smokeCompleted = $true; break }
+              if ($process.HasExited) { throw "Public v1.1.0 package exited early with code $($process.ExitCode)." }
+              Start-Sleep -Milliseconds 250
+            }
+            if (-not $smokeCompleted) { throw 'Public v1.1.0 package did not complete product smoke.' }
+            $closeRequested = $false
+            for ($attempt = 1; $attempt -le 10; $attempt++) {
+              $process.Refresh()
+              if ($process.HasExited) { $closeRequested = $true; break }
+              if ($process.CloseMainWindow()) { $closeRequested = $true; break }
+              Start-Sleep -Milliseconds 500
+            }
+            if (-not $closeRequested) { throw 'Could not close public v1.1.0 package normally.' }
+            $process.Refresh()
+            if (-not $process.HasExited -and -not $process.WaitForExit(7000)) { throw 'Public v1.1.0 package remained alive after close.' }
+          }
+          finally {
+            $process.Refresh()
+            if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
+          }
+          Write-Host 'PUBLIC_DOWNLOADED_EXE_SMOKE=SUCCESS'
+
+      - name: Record verification on PR
+        if: success()
+        shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
           TRACKING_PR: ${{ github.event.pull_request.number }}
         run: |
-          set -euo pipefail
+          $body = @"
+          v1.1.0 existing-release verification succeeded.
 
-          if gh release view v1.1.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            body="v1.1.0 PR dispatcher executed, but release v1.1.0 already exists. No duplicate workflow was dispatched."
-            gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$TRACKING_PR/comments" -f body="$body" >/dev/null
-            exit 0
-          fi
-
-          gh workflow run release-v1.1.0.yml \
-            --repo "$GITHUB_REPOSITORY" \
-            --ref main
-
-          sleep 8
-
-          record=$(gh run list \
-            --repo "$GITHUB_REPOSITORY" \
-            --workflow release-v1.1.0.yml \
-            --event workflow_dispatch \
-            --limit 1 \
-            --json databaseId,status,conclusion,event,headSha,url,createdAt \
-            --jq '.[0] | "run=\(.databaseId) status=\(.status) conclusion=\(.conclusion // \"null\") event=\(.event) head=\(.headSha) created=\(.createdAt) url=\(.url)"')
-
-          if [ -z "$record" ]; then
-            record="release workflow dispatch command succeeded, but no workflow_dispatch run was visible after 8 seconds"
-          fi
-
-          body="v1.1.0 PR dispatcher record: $record"
-          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$TRACKING_PR/comments" -f body="$body" >/dev/null
+          - source/target: `${{ steps.inspect.outputs.target }}`
+          - original draft: `${{ steps.inspect.outputs.was_draft }}`
+          - ZIP bytes: `${{ steps.verify.outputs.bytes }}`
+          - SHA-256: `${{ steps.verify.outputs.hash }}`
+          - ProductVersion: `${{ steps.verify.outputs.product_version }}`
+          - downloaded EXE smoke: SUCCESS
+          - public/latest verification: SUCCESS
+          "@
+          gh api --method POST "repos/$env:GITHUB_REPOSITORY/issues/$env:TRACKING_PR/comments" -f body="$body" | Out-Null
