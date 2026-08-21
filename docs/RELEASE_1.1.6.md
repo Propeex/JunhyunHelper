@@ -1,8 +1,22 @@
 # v1.1.6 — Scanner catalog synchronization regression fix
 
-Status: **RELEASE CANDIDATE / VALIDATION IN PROGRESS**
+Status: **PUBLIC / VERIFIED**
 
-v1.1.6 is a PATCH release that fixes the public v1.1.5 Scanner `아이템 목록 최신화` regression.
+Released: 2026-08-22 KST
+
+```text
+version: v1.1.6
+release source: 8efee02e5966adb9b67b47847f95a12dfc357d0a
+exact-source release run: 32500707112 — SUCCESS
+automated tests: 250 passed / 0 failed / 0 skipped
+asset: Junhyun-Helper-v1.1.6-win-x64.zip
+bytes: 80,271,024
+SHA-256: 986d0d2855381060267f63d2902317eabedc5d5738448fbd6c2b09e764c3477e
+public/latest: VERIFIED
+exact tag source: VERIFIED
+Draft-downloaded EXE smoke: SUCCESS
+public-downloaded EXE smoke: SUCCESS
+```
 
 ## Reported symptom
 
@@ -17,20 +31,11 @@ The failure could occur even when the official item ID/name catalog itself was v
 
 ## Root cause
 
-v1.1.5 added a catalog-wide health requirement that at least 500 items must have a positive trader sell price. That coupled optional market coverage to the Scanner identity catalog.
-
-This contradicted the existing Scanner contract:
-
-- identity must fail closed when the official ID/name set is structurally incomplete;
-- market and dimensions are optional presentation fields and must fail closed per field.
-
-A temporary or source-specific trader-price coverage gap therefore incorrectly disabled all Scanner identity resolution.
+v1.1.5 incorrectly made broad trader-price coverage part of the all-or-nothing Scanner identity catalog health gate. A valid official ID/name catalog could therefore be rejected only because optional market fields were temporarily sparse.
 
 ## Fix
 
-`ScannerCatalogService` now separates the two concerns.
-
-Identity catalog health requires:
+Identity catalog health now requires:
 
 ```text
 item count >= 4000
@@ -38,42 +43,35 @@ AND every accepted item has a non-empty Item ID
 AND every accepted item has a non-empty official name
 ```
 
-Trader/flea availability no longer decides whether the identity catalog is usable.
-
-Market behavior remains:
+Market data is independent presentation data:
 
 - raw `traderPrices` is accepted when present;
 - derived `sellFor` is accepted when present;
 - flea rows are excluded from best-trader selection;
 - `avg24hPrice` remains the independent flea average;
-- missing/invalid price or dimensions leave only the affected display field empty.
+- missing/invalid market or dimensions leave only the affected display field empty;
+- sparse market data no longer disables item identification.
 
-Cache schema remains v2 and existing v1/v2 Scanner caches remain readable.
+A 4,000-item identity catalog with zero trader prices is accepted. A 3,999-item catalog is still rejected as structurally incomplete.
 
 ## Diagnostics
 
-Manual `아이템 목록 최신화` now writes a `catalog-sync` entry to `scanner.log` with:
+Manual `아이템 목록 최신화` writes a `catalog-sync` entry to `scanner.log` with game mode, outcome, item count, trader-price count, flea-price count and healthy-cache fallback state. Response bodies, screenshots and raw pixels are not persisted.
 
-- game mode;
-- success;
-- outcome code;
-- candidate/loaded item count;
-- items with trader price;
-- items with flea price;
-- whether an existing healthy catalog was used as fallback.
+## Verification
 
-No response body, screenshot, or raw pixels are persisted.
+Exact-source release workflow `32500707112` successfully completed:
 
-## Regression coverage
-
-The Scanner market-shape suite now requires:
-
-1. 4,000 items with raw `traderPrices` synchronize and project trader/per-slot values.
-2. 4,000 valid item identities with **zero trader-price coverage** still synchronize and remain usable for recognition; trader fields are null.
-3. 3,999 items are rejected as an incomplete identity catalog.
-4. Existing full-catalog `sellFor`, flea, dimension and per-slot regressions remain.
-
-Expected automated test count: **250**.
+- Windows Release build;
+- exactly 250 automated tests, 0 failed, 0 skipped;
+- win-x64 self-contained single-file publish;
+- published EXE Product UI / Scanner / Mini Scanner / Main Map / Factory / MiniMap smoke;
+- graceful shutdown and clean portable-root verification;
+- Draft release creation and re-download checksum/root/ProductVersion/FIRST_RUN verification;
+- Draft-downloaded EXE smoke;
+- Public/latest transition and exact-tag verification;
+- Public asset re-download verification;
+- Public-downloaded EXE smoke.
 
 ## Compatibility
 
@@ -86,19 +84,3 @@ Scanner cache schema: v1/v2 readable, v2 written
 v1.1.5 -> v1.1.6 mandatory Game Content update: none
 v1.1.5 -> v1.1.6 user.db migration: none
 ```
-
-## Release gate
-
-Before public release:
-
-1. Windows Release build.
-2. 250 automated tests, 0 failed, 0 skipped.
-3. win-x64 self-contained single-file publish.
-4. actual published EXE Product UI / Scanner / Mini Scanner / Main Map / Factory / MiniMap smoke.
-5. graceful shutdown and clean portable root.
-6. exact v1.1.6 ProductVersion and FIRST_RUN identity verification.
-7. Draft-first ZIP + SHA256SUMS.
-8. Draft asset re-download checksum/root/ProductVersion/FIRST_RUN verification and EXE smoke.
-9. public/latest transition on the exact release source.
-10. exact tag verification.
-11. public asset re-download verification and public-downloaded EXE smoke.
