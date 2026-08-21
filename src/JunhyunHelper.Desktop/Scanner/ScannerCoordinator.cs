@@ -1,5 +1,4 @@
 using System.Net.Http;
-using System.Windows;
 using System.Windows.Threading;
 using JunhyunHelper.Core.Profiles;
 using JunhyunHelper.Infrastructure.Scanner;
@@ -7,8 +6,8 @@ using JunhyunHelper.Infrastructure.Scanner;
 namespace JunhyunHelper.Desktop.Scanner;
 
 /// <summary>
-/// Desktop composition root for Scanner. Real game vision is intentionally injected
-/// behind unavailable implementations until live Tarkov validation replaces them.
+/// Desktop composition root for Scanner. Real Scanner and display-test mode use the
+/// same detector/OCR/matcher pipeline and differ only in capture source.
 /// </summary>
 public sealed class ScannerCoordinator : IDisposable
 {
@@ -29,6 +28,7 @@ public sealed class ScannerCoordinator : IDisposable
     private CancellationTokenSource? _contextMonitorCts;
     private Task? _contextMonitorTask;
     private string? _observedContextKey;
+    private volatile bool _testEnabled;
     private bool _initialized;
     private bool _disposed;
 
@@ -42,8 +42,26 @@ public sealed class ScannerCoordinator : IDisposable
         _catalog = new ScannerCatalogService(httpClient, rootDirectory);
         _icons = new ScannerLocalIconService(rootDirectory);
         _overlay = new MiniScannerOverlayService(_settings);
-        _detector = new UnavailableScannerInspectDetector();
-        _ocr = new UnavailableScannerOcrEngine();
+
+        try
+        {
+            _detector = new WindowsScannerInspectDetector();
+        }
+        catch (Exception exception)
+        {
+            App.WriteDiagnostic("Scanner Windows capture initialization failed", exception);
+            _detector = new UnavailableScannerInspectDetector();
+        }
+
+        try
+        {
+            _ocr = new WindowsScannerOcrEngine();
+        }
+        catch (Exception exception)
+        {
+            App.WriteDiagnostic("Scanner Windows OCR initialization failed", exception);
+            _ocr = new UnavailableScannerOcrEngine();
+        }
     }
 
     public event Action<ScannerRuntimeStatus>? StatusChanged;
@@ -51,6 +69,14 @@ public sealed class ScannerCoordinator : IDisposable
     public ScannerDisplaySettings Settings => _settings.Current;
 
     public ScannerRuntimeStatus Status => Runtime.Status;
+
+    public bool TestEnabled => _testEnabled;
+
+    public ScannerCaptureMode? ActiveCaptureMode => _testEnabled
+        ? ScannerCaptureMode.DisplayTest
+        : _settings.Current.Enabled
+            ? ScannerCaptureMode.TarkovWindow
+            : null;
 
     public int CatalogCount => _catalog.Count;
 
@@ -70,31 +96,72 @@ public sealed class ScannerCoordinator : IDisposable
         if (_initialized)
             return;
         _initialized = true;
+        _testEnabled = false; // Test mode is deliberately session-only.
 
-        if (!_settings.Current.Enabled)
+        var mode = ActiveCaptureMode;
+        if (mode is null)
         {
-            Runtime.PublishExternalState(ScannerRuntimeState.Disabled, "Mini Scanner가 꺼져 있습니다.");
+            Runtime.PublishExternalState(ScannerRuntimeState.Disabled, "Scanner가 꺼져 있습니다.");
             return;
         }
 
         StartContextMonitor();
-        await PrepareEnabledRuntimeAsync(refreshCatalog: true, cancellationToken);
+        await PrepareActiveRuntimeAsync(mode.Value, refreshCatalog: true, cancellationToken);
     }
 
     public async Task SetEnabledAsync(bool enabled, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        _settings.Update(settings => settings.Enabled = enabled);
-        if (!enabled)
+
+        if (enabled)
         {
-            StopContextMonitor();
-            SetObservedContext(null);
-            Runtime.Stop();
+            // Real and display-test capture are intentionally mutually exclusive.
+            _testEnabled = false;
+            _settings.Update(settings => settings.Enabled = true);
+            StartContextMonitor();
+            await PrepareActiveRuntimeAsync(ScannerCaptureMode.TarkovWindow, refreshCatalog: true, cancellationToken);
             return;
         }
 
-        StartContextMonitor();
-        await PrepareEnabledRuntimeAsync(refreshCatalog: true, cancellationToken);
+        _settings.Update(settings => settings.Enabled = false);
+        if (_testEnabled)
+        {
+            StartContextMonitor();
+            await PrepareActiveRuntimeAsync(ScannerCaptureMode.DisplayTest, refreshCatalog: false, cancellationToken);
+            return;
+        }
+
+        StopContextMonitor();
+        SetObservedContext(null);
+        Runtime.Stop();
+    }
+
+    public async Task SetTestEnabledAsync(bool enabled, CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        _testEnabled = enabled;
+
+        if (enabled)
+        {
+            // Test mode is a validation aid, never a persisted startup mode.
+            if (_settings.Current.Enabled)
+                _settings.Update(settings => settings.Enabled = false);
+            StartContextMonitor();
+            await PrepareActiveRuntimeAsync(ScannerCaptureMode.DisplayTest, refreshCatalog: true, cancellationToken);
+            return;
+        }
+
+        var realEnabled = _settings.Current.Enabled;
+        if (realEnabled)
+        {
+            StartContextMonitor();
+            await PrepareActiveRuntimeAsync(ScannerCaptureMode.TarkovWindow, refreshCatalog: false, cancellationToken);
+            return;
+        }
+
+        StopContextMonitor();
+        SetObservedContext(null);
+        Runtime.Stop();
     }
 
     public void UpdateDisplaySettings(Action<ScannerDisplaySettings> update)
@@ -124,17 +191,18 @@ public sealed class ScannerCoordinator : IDisposable
             return false;
         }
 
-        if (_settings.Current.Enabled)
-            await Runtime.StartAsync(cancellationToken);
+        var mode = ActiveCaptureMode;
+        if (mode is not null)
+            await Runtime.StartAsync(mode.Value, cancellationToken);
         else
-            Runtime.PublishExternalState(ScannerRuntimeState.Disabled, "카탈로그 준비 완료 · Mini Scanner는 꺼져 있습니다.");
+            Runtime.PublishExternalState(ScannerRuntimeState.Disabled, "카탈로그 준비 완료 · Scanner는 꺼져 있습니다.");
         return true;
     }
 
     /// <summary>
-    /// Refreshes Scanner state after the active profile/content context changes. When
-    /// Scanner is enabled, synchronization is a pre-scan operation and may use network;
-    /// when disabled, an explicit Scanner-page visit only reads a local cache.
+    /// Refreshes Scanner state after the active profile/content context changes. An
+    /// active Scanner mode may refresh stale identity data before scanning; an inactive
+    /// Scanner-page visit only reads the local cache.
     /// </summary>
     public async Task RefreshContextAsync(CancellationToken cancellationToken = default)
     {
@@ -147,16 +215,17 @@ public sealed class ScannerCoordinator : IDisposable
             return;
         }
 
-        if (_settings.Current.Enabled)
+        var mode = ActiveCaptureMode;
+        if (mode is not null)
         {
             StartContextMonitor();
             Runtime.Suspend(ScannerRuntimeState.Stabilizing, "현재 프로필의 Scanner 데이터를 준비하는 중입니다.");
-            await PrepareEnabledRuntimeAsync(refreshCatalog: true, cancellationToken);
+            await PrepareActiveRuntimeAsync(mode.Value, refreshCatalog: true, cancellationToken);
             return;
         }
 
         await _catalog.EnsureLoadedAsync(context.GameMode, cancellationToken);
-        Runtime.PublishExternalState(ScannerRuntimeState.Disabled, "Mini Scanner가 꺼져 있습니다.");
+        Runtime.PublishExternalState(ScannerRuntimeState.Disabled, "Scanner가 꺼져 있습니다.");
     }
 
     public async Task<ScannerItemSnapshot?> ShowPreviewAsync(
@@ -202,15 +271,17 @@ public sealed class ScannerCoordinator : IDisposable
 
     public async Task ResumeAfterPositionEditAsync(CancellationToken cancellationToken = default)
     {
-        if (_settings.Current.Enabled)
-            await Runtime.StartAsync(cancellationToken);
+        var mode = ActiveCaptureMode;
+        if (mode is not null)
+            await Runtime.StartAsync(mode.Value, cancellationToken);
         else
-            Runtime.PublishExternalState(ScannerRuntimeState.Disabled, "Mini Scanner가 꺼져 있습니다.");
+            Runtime.PublishExternalState(ScannerRuntimeState.Disabled, "Scanner가 꺼져 있습니다.");
     }
 
     public void ResetPosition() => _overlay.ResetPosition();
 
-    private async Task PrepareEnabledRuntimeAsync(
+    private async Task PrepareActiveRuntimeAsync(
+        ScannerCaptureMode mode,
         bool refreshCatalog,
         CancellationToken cancellationToken)
     {
@@ -233,12 +304,12 @@ public sealed class ScannerCoordinator : IDisposable
             return;
         }
 
-        await Runtime.StartAsync(cancellationToken);
+        await Runtime.StartAsync(mode, cancellationToken);
     }
 
     private void StartContextMonitor()
     {
-        if (_disposed || !_settings.Current.Enabled)
+        if (_disposed || ActiveCaptureMode is null)
             return;
 
         lock (_monitorGate)
@@ -260,7 +331,11 @@ public sealed class ScannerCoordinator : IDisposable
             using var timer = new PeriodicTimer(ContextMonitorInterval);
             while (await timer.WaitForNextTickAsync(cancellationToken))
             {
-                if (_disposed || !_settings.Current.Enabled)
+                if (_disposed)
+                    return;
+
+                var mode = ActiveCaptureMode;
+                if (mode is null)
                     return;
 
                 var context = GetContext();
@@ -281,7 +356,7 @@ public sealed class ScannerCoordinator : IDisposable
                 }
 
                 Runtime.Suspend(ScannerRuntimeState.Stabilizing, "프로필 변경을 반영하는 중입니다.");
-                await PrepareEnabledRuntimeAsync(refreshCatalog: true, cancellationToken);
+                await PrepareActiveRuntimeAsync(mode.Value, refreshCatalog: true, cancellationToken);
             }
         }
         catch (OperationCanceledException)
@@ -385,6 +460,7 @@ public sealed class ScannerCoordinator : IDisposable
         if (_disposed)
             return;
         _disposed = true;
+        _testEnabled = false;
         StopContextMonitor();
 
         if (_runtime is not null)
