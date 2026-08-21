@@ -43,11 +43,16 @@ jobs:
           }
 
           try {
-            $release = gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --json url,isDraft,isLatest,tagName,publishedAt | ConvertFrom-Json
+            $release = gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --json url,isDraft,tagName,publishedAt | ConvertFrom-Json
             if ($LASTEXITCODE -ne 0) { throw 'Could not read v1.1.4 release.' }
             if ($release.isDraft) { throw 'v1.1.4 is still a Draft release.' }
-            if (-not $release.isLatest) { throw 'v1.1.4 is public but not marked latest.' }
             if ($release.tagName -ne $env:RELEASE_TAG) { throw 'Release tag name mismatch.' }
+
+            $latestTag = (gh api "repos/$env:GITHUB_REPOSITORY/releases/latest" --jq '.tag_name').Trim()
+            if ($LASTEXITCODE -ne 0) { throw 'Could not read latest public release.' }
+            if ($latestTag -ne $env:RELEASE_TAG) {
+              throw "Latest public release is '$latestTag', expected '$env:RELEASE_TAG'."
+            }
 
             # Avoid the PowerShell env-var/refspec ambiguity that caused the first
             # release workflow to report failure after publication.
@@ -125,8 +130,9 @@ jobs:
 
             $result.conclusion = 'success'
             $result.public_release_url = $release.url
-            $result.public_is_latest = [bool]$release.isLatest
+            $result.public_is_latest = $true
             $result.published_at = $release.publishedAt
+            $result.tag_commit = $tagCommit
             $result.zip_name = $zipName
             $result.zip_bytes = (Get-Item $zip).Length
             $result.zip_sha256 = $actualHash
