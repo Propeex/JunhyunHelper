@@ -1,0 +1,44 @@
+name: Fix v1.2.0 Scanner compile errors
+
+on:
+  push:
+    branches: [scanner-v1.2.0-recognition-overhaul]
+    paths: [.github/workflows/fix-v120-compile.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: scanner-v1.2.0-recognition-overhaul
+      - shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('src/JunhyunHelper.Desktop/Scanner/ScannerRuntimeService.OneShot.cs')
+          s = p.read_text(encoding='utf-8')
+          old = 'namespace JunhyunHelper.Desktop.Scanner;\n'
+          assert s.count(old) == 1
+          p.write_text('using JunhyunHelper.Core.Scanner;\n\n' + s, encoding='utf-8')
+
+          p = Path('src/JunhyunHelper.Desktop/Scanner/ScannerLab38WindowsVision.cs')
+          s = p.read_text(encoding='utf-8')
+          old = '''            var magnifierBounds = anchors.Magnifier.Width > 0\n                ? ToScreenRect(anchors.Magnifier, screenLeft, screenTop)\n                : null;\n            var closeBounds = anchors.CloseButton.Width > 0\n                ? ToScreenRect(anchors.CloseButton, screenLeft, screenTop)\n                : null;\n'''
+          new = '''            Rect? magnifierBounds = anchors.Magnifier.Width > 0\n                ? ToScreenRect(anchors.Magnifier, screenLeft, screenTop)\n                : null;\n            Rect? closeBounds = anchors.CloseButton.Width > 0\n                ? ToScreenRect(anchors.CloseButton, screenLeft, screenTop)\n                : null;\n'''
+          assert s.count(old) == 1
+          p.write_text(s.replace(old, new, 1), encoding='utf-8')
+          PY
+          git diff --check
+      - shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- src/JunhyunHelper.Desktop/Scanner/ScannerRuntimeService.OneShot.cs src/JunhyunHelper.Desktop/Scanner/ScannerLab38WindowsVision.cs
+          git commit -m "Fix Scanner recognition integration compile errors"
+          git push origin HEAD:scanner-v1.2.0-recognition-overhaul
