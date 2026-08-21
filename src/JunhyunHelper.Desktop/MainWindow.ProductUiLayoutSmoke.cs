@@ -221,6 +221,10 @@ public partial class MainWindow
         if (ScannerDiagnosticLog.GetRecentActivities().Count == 0 || !File.Exists(ScannerDiagnosticLog.Path))
             throw new InvalidOperationException("Scanner smoke could not create a diagnostic/activity record before clear.");
 
+        // Also materialize the rotated file so the user action proves it clears both
+        // bounded diagnostic generations, not only the current scanner.log.
+        File.WriteAllText(ScannerDiagnosticLog.Path + ".1", "scanner-log-clear-smoke");
+
         ScannerPlaceholder.ClearLogButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         if (ScannerDiagnosticLog.GetRecentActivities().Count != 0 ||
             File.Exists(ScannerDiagnosticLog.Path) ||
