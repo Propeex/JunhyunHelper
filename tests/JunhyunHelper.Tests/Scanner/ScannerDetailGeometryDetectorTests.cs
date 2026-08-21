@@ -85,7 +85,7 @@ public sealed class ScannerDetailGeometryDetectorTests
         var candidates = ScannerDetailGeometryDetector.FindCandidates(pixels, width, height, width * 4, 8);
 
         Assert.NotEmpty(candidates);
-        Assert.Contains(candidates, candidate => candidate.StructuralReason == "RECTANGLE_CANDIDATE");
+        Assert.Contains(candidates, candidate => candidate.Reason == "RECTANGLE_CANDIDATE");
     }
 
     [Fact]
@@ -127,7 +127,6 @@ public sealed class ScannerDetailGeometryDetectorTests
         Fill(pixels, width, height, x, y, panelWidth, panelHeight, 44);
         DrawRect(pixels, width, height, x, y, panelWidth, panelHeight, 175, 2);
 
-        // Title text-like bright strokes.
         var titleY = y + Math.Max(5, (int)Math.Round(panelHeight * 0.025));
         DrawLine(
             pixels,
@@ -140,7 +139,6 @@ public sealed class ScannerDetailGeometryDetectorTests
             205,
             2);
 
-        // Breadcrumb/category row below title. It must not be required for title OCR.
         var categoryY = y + (int)Math.Round(panelHeight * 0.072);
         DrawLine(pixels, width, height, x + 8, categoryY, x + (int)Math.Round(panelWidth * 0.32), categoryY, 125, 2);
 
