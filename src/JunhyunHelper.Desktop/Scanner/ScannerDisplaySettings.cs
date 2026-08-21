@@ -2,7 +2,7 @@ namespace JunhyunHelper.Desktop.Scanner;
 
 public sealed class ScannerDisplaySettings
 {
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
 
     public int SchemaVersion { get; set; }
     public bool Enabled { get; set; }
@@ -16,6 +16,7 @@ public sealed class ScannerDisplaySettings
     public double? PositionX { get; set; }
     public double? PositionY { get; set; }
     public double FontSize { get; set; } = 18;
+    public string OneShotHotkey { get; set; } = ScannerHotkeyGesture.Default.ToString();
 
     public ScannerDisplaySettings Clone() => new()
     {
@@ -31,6 +32,7 @@ public sealed class ScannerDisplaySettings
         PositionX = PositionX,
         PositionY = PositionY,
         FontSize = FontSize,
+        OneShotHotkey = OneShotHotkey,
     };
 
     public void Normalize()
@@ -39,12 +41,23 @@ public sealed class ScannerDisplaySettings
         // v1.1.5 makes the complete matched-item presentation the product default. The
         // one-time migration deliberately turns these fields on so existing installs do
         // not keep the old accidental defaults forever.
-        if (SchemaVersion < CurrentSchemaVersion)
+        if (SchemaVersion < 2)
         {
             ShowItemIcon = true;
             ShowTraderSellPrice = true;
             ShowTraderPricePerSlot = true;
-            SchemaVersion = CurrentSchemaVersion;
+        }
+
+        // v1.2.0 adds an optional global one-shot high-precision scan hotkey. Existing
+        // settings files have no field, so migrate them to the safe modified-key default.
+        if (SchemaVersion < 3 && string.IsNullOrWhiteSpace(OneShotHotkey))
+            OneShotHotkey = ScannerHotkeyGesture.Default.ToString();
+        SchemaVersion = CurrentSchemaVersion;
+
+        if (!string.IsNullOrWhiteSpace(OneShotHotkey) &&
+            !ScannerHotkeyGesture.TryParse(OneShotHotkey, out _))
+        {
+            OneShotHotkey = ScannerHotkeyGesture.Default.ToString();
         }
 
         if (PositionX is { } x && !double.IsFinite(x))
