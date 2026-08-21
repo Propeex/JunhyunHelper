@@ -1,28 +1,47 @@
 namespace JunhyunHelper.Core.Scanner;
 
 /// <summary>
-/// Pure pixel-level detector for the Tarkov item-inspection window.
-/// Geometry only creates an OCR candidate; an item is never accepted until the
-/// independent OCR matcher also passes its confidence and margin gates.
+/// Scanner Lab 3.8-derived structural candidate generator for Tarkov item inspection windows.
+/// Structural confidence only ranks candidates. Production acceptance still requires OCR +
+/// current-catalog item resolution in the Desktop runtime.
 /// </summary>
 public static class ScannerDetailGeometryDetector
 {
-    // Current Korean-client inspection windows observed during Scanner validation are
-    // approximately 676x522 at 1920x1080 UI scale. The previous integrated detector
-    // accidentally used a 672px canonical height, which made high-contrast rectangles
-    // inside the inspection window score as if they were the outer window.
-    private const double CanonicalPanelWidthRatio = 676.0 / 1920.0;
-    private const double CanonicalPanelHeightRatio = 522.0 / 1080.0;
-    private const double CanonicalCenterYRatio = 500.0 / 1080.0;
-    private const double MinimumScore = 18.0;
-    private const double ScoreTieWindow = 2.0;
-    private const int SearchStepXPixels = 8;
-    private const int SearchStepYPixels = 6;
-    private const int BorderProbeRadiusPixels = 5;
+    private const double PrimarySemanticFloor = 0.34;
+    private const int DefaultCandidateLimit = 12;
 
-    private static readonly double[] GameWindowScales = [0.85, 0.90, 0.95, 1.00, 1.05, 1.10, 1.15];
-    private static readonly double[] DisplayTestScales = [0.50, 0.55, 0.65, 0.75, 0.85, 0.95, 1.00, 1.05, 1.15, 1.25];
+    public static IReadOnlyList<ScannerDetectedCandidate> FindCandidates(
+        ReadOnlySpan<byte> bgraPixels,
+        int width,
+        int height,
+        int stride,
+        int maximum = DefaultCandidateLimit)
+    {
+        if (width < 150 || height < 110 || stride < width * 4)
+            return [];
+        if (bgraPixels.Length < stride * height)
+            return [];
 
+        maximum = Math.Clamp(maximum, 1, 24);
+        var pixels = ReadPixels(bgraPixels, width, height, stride);
+        var redComponents = FindRedComponents(pixels);
+        var all = new List<ScannerDetectedCandidate>();
+
+        foreach (var component in redComponents)
+        {
+            var candidate = ScoreRedCloseCandidate(pixels, component);
+            if (candidate is { Score: >= PrimarySemanticFloor })
+                all.Add(candidate.Value with { Reason = "RED_X_CANDIDATE" });
+        }
+
+        all.AddRange(FindRectangleCandidates(pixels, redComponents));
+        return DeduplicateCandidates(all, maximum);
+    }
+
+    /// <summary>
+    /// Compatibility helper for geometry-only tests/diagnostics. Runtime recognition should use
+    /// <see cref="FindCandidates"/> and semantically verify candidates with OCR/catalog matching.
+    /// </summary>
     public static ScannerDetectedRegion? Detect(
         ReadOnlySpan<byte> bgraPixels,
         int width,
@@ -30,283 +49,484 @@ public static class ScannerDetailGeometryDetector
         int stride,
         bool extendedScaleSearch)
     {
-        if (width < 640 || height < 360 || stride < width * 4)
-            return null;
-        if (bgraPixels.Length < stride * height)
-            return null;
+        _ = extendedScaleSearch;
+        var candidate = FindCandidates(bgraPixels, width, height, stride, 1).FirstOrDefault();
+        return candidate.Window.Width <= 0
+            ? null
+            : candidate.Window;
+    }
 
-        var scales = extendedScaleSearch ? DisplayTestScales : GameWindowScales;
-        ScannerDetectedRegion? best = null;
-        var xRadiusRatio = extendedScaleSearch ? 0.20 : 0.12;
-        var yRadiusRatio = extendedScaleSearch ? 0.20 : 0.12;
-        var centerXStart = (int)Math.Round(width * (0.50 - xRadiusRatio));
-        var centerXEnd = (int)Math.Round(width * (0.50 + xRadiusRatio));
-        var centerYStart = (int)Math.Round(height * (CanonicalCenterYRatio - yRadiusRatio));
-        var centerYEnd = (int)Math.Round(height * (CanonicalCenterYRatio + yRadiusRatio));
+    public static ScannerDetectedRegion GetTitleRegion(ScannerDetectedRegion panel)
+    {
+        var titleX = panel.X + (int)Math.Round(panel.Width * 0.032);
+        var titleY = Math.Max(0, panel.Y - 1);
+        var titleWidth = Math.Max(1, (int)Math.Round(panel.Width * 0.64));
+        var titleHeight = Math.Max(12, (int)Math.Round(panel.Height * 0.052));
 
-        foreach (var scale in scales)
+        titleWidth = Math.Min(titleWidth, Math.Max(1, panel.X + panel.Width - titleX));
+        titleHeight = Math.Min(titleHeight, Math.Max(1, panel.Y + panel.Height - titleY));
+
+        return new ScannerDetectedRegion(titleX, titleY, titleWidth, titleHeight, panel.Score);
+    }
+
+    private static PixelBuffer ReadPixels(ReadOnlySpan<byte> source, int width, int height, int stride)
+    {
+        var gray = new byte[width * height];
+        var red = new byte[width * height];
+
+        for (var y = 0; y < height; y++)
         {
-            var panelWidth = (int)Math.Round(width * CanonicalPanelWidthRatio * scale);
-            var panelHeight = (int)Math.Round(height * CanonicalPanelHeightRatio * scale);
-            if (panelWidth < 260 || panelHeight < 200 || panelWidth >= width * 0.78 || panelHeight >= height * 0.86)
-                continue;
-
-            // Border validation is intentionally strict (all four outer sides + close
-            // control), so candidate centers must be sampled in pixels rather than the
-            // old 20-30px ratio grid. Keeping the final border within a few pixels is
-            // also important because the title row is only about 25px high.
-            for (var centerX = centerXStart; centerX <= centerXEnd; centerX += SearchStepXPixels)
+            var sourceRow = y * stride;
+            var targetRow = y * width;
+            for (var x = 0; x < width; x++)
             {
-                for (var centerY = centerYStart; centerY <= centerYEnd; centerY += SearchStepYPixels)
+                var offset = sourceRow + x * 4;
+                var b = source[offset];
+                var g = source[offset + 1];
+                var r = source[offset + 2];
+                gray[targetRow + x] = (byte)((77 * r + 150 * g + 29 * b) >> 8);
+
+                if (r >= 45 && r - g >= 20 && r - b >= 20)
+                    red[targetRow + x] = 1;
+            }
+        }
+
+        return new PixelBuffer(width, height, gray, red);
+    }
+
+    private static List<RedComponent> FindRedComponents(PixelBuffer pixels)
+    {
+        var components = new List<RedComponent>();
+        var visited = new byte[pixels.Red.Length];
+        var queue = new Queue<int>();
+
+        for (var y = 0; y < pixels.Height; y++)
+        {
+            var row = y * pixels.Width;
+            for (var x = 0; x < pixels.Width; x++)
+            {
+                var start = row + x;
+                if (pixels.Red[start] == 0 || visited[start] != 0)
+                    continue;
+
+                visited[start] = 1;
+                queue.Enqueue(start);
+                var minX = x;
+                var maxX = x;
+                var minY = y;
+                var maxY = y;
+                var area = 0;
+
+                while (queue.Count > 0)
                 {
-                    var x = centerX - panelWidth / 2;
-                    var y = centerY - panelHeight / 2;
-                    if (x < 5 || y < 5 || x + panelWidth + 5 >= width || y + panelHeight + 5 >= height)
-                        continue;
+                    var index = queue.Dequeue();
+                    var cy = index / pixels.Width;
+                    var cx = index - cy * pixels.Width;
+                    area++;
+                    minX = Math.Min(minX, cx);
+                    maxX = Math.Max(maxX, cx);
+                    minY = Math.Min(minY, cy);
+                    maxY = Math.Max(maxY, cy);
 
-                    var score = ScoreCandidate(bgraPixels, width, height, stride, x, y, panelWidth, panelHeight);
-                    if (score < MinimumScore)
-                        continue;
+                    for (var dy = -1; dy <= 1; dy++)
+                    {
+                        var ny = cy + dy;
+                        if (ny < 0 || ny >= pixels.Height)
+                            continue;
 
-                    var candidate = new ScannerDetectedRegion(x, y, panelWidth, panelHeight, score);
-                    if (IsBetterCandidate(candidate, best))
-                        best = candidate;
+                        for (var dx = -1; dx <= 1; dx++)
+                        {
+                            if (dx == 0 && dy == 0)
+                                continue;
+                            var nx = cx + dx;
+                            if (nx < 0 || nx >= pixels.Width)
+                                continue;
+
+                            var neighbor = ny * pixels.Width + nx;
+                            if (pixels.Red[neighbor] == 0 || visited[neighbor] != 0)
+                                continue;
+                            visited[neighbor] = 1;
+                            queue.Enqueue(neighbor);
+                        }
+                    }
+                }
+
+                var componentWidth = maxX - minX + 1;
+                var componentHeight = maxY - minY + 1;
+                var aspect = componentHeight <= 0 ? 0 : (double)componentWidth / componentHeight;
+                if (componentWidth is >= 8 and <= 70 &&
+                    componentHeight is >= 5 and <= 42 &&
+                    area >= 18 &&
+                    aspect is >= 0.7 and <= 4.5)
+                {
+                    components.Add(new RedComponent(minX, minY, componentWidth, componentHeight, area));
                 }
             }
         }
 
-        return best;
+        return components;
     }
 
-    /// <summary>
-    /// Returns only the inspection-window title row. It deliberately ends before the
-    /// category/breadcrumb row directly below the title (for example
-    /// "교환용 물품 &gt; 의료용품").
-    /// </summary>
-    public static ScannerDetectedRegion GetTitleRegion(ScannerDetectedRegion panel)
+    private static ScannerDetectedCandidate? ScoreRedCloseCandidate(PixelBuffer pixels, RedComponent close)
     {
-        var x = panel.X + (int)Math.Round(panel.Width * 0.035);
-        var y = panel.Y + (int)Math.Round(panel.Height * 0.002);
-        var width = (int)Math.Round(panel.Width * 0.89);
-        var height = Math.Max(12, (int)Math.Round(panel.Height * 0.048));
+        var edgeThreshold = Math.Max(9, Math.Min(18, (int)Math.Round(Math.Min(pixels.Width, pixels.Height) / 45.0)));
+        var y0 = Math.Max(0, close.Y - 2);
 
-        width = Math.Min(width, panel.X + panel.Width - x - 4);
-        height = Math.Min(height, panel.Y + panel.Height - y - 2);
-
-        return new ScannerDetectedRegion(
-            x,
-            y,
-            Math.Max(80, width),
-            Math.Max(10, height),
-            panel.Score);
-    }
-
-    private static bool IsBetterCandidate(ScannerDetectedRegion candidate, ScannerDetectedRegion? best)
-    {
-        if (best is null)
-            return true;
-
-        if (candidate.Score > best.Value.Score + ScoreTieWindow)
-            return true;
-        if (best.Value.Score > candidate.Score + ScoreTieWindow)
-            return false;
-
-        // Inner inventory/content rectangles often have slightly sharper edges than the
-        // actual inspect window. When both candidates are structurally credible, prefer
-        // the larger outer frame instead of rewarding the smaller high-contrast box.
-        var candidateArea = (long)candidate.Width * candidate.Height;
-        var bestArea = (long)best.Value.Width * best.Value.Height;
-        if (candidateArea != bestArea)
-            return candidateArea > bestArea;
-
-        return candidate.Score > best.Value.Score;
-    }
-
-    private static double ScoreCandidate(
-        ReadOnlySpan<byte> pixels,
-        int width,
-        int height,
-        int stride,
-        int x,
-        int y,
-        int panelWidth,
-        int panelHeight)
-    {
-        // The close-control sample is much cheaper than walking all four borders and is
-        // also the most discriminating signal against ordinary inventory/content boxes.
-        // Reject early so the finer pixel search does not turn into unnecessary CPU work.
-        var closeGlyph = CloseGlyphContrast(pixels, width, height, stride, x, y, panelWidth, panelHeight);
-        if (closeGlyph < 16)
-            return 0;
-
-        var sampleStepX = Math.Max(5, panelWidth / 95);
-        var sampleStepY = Math.Max(5, panelHeight / 95);
-
-        var top = HorizontalEdge(pixels, width, height, stride, x + 8, x + panelWidth - 8, y, sampleStepX);
-        if (top < 8)
-            return 0;
-
-        var bottom = HorizontalEdge(pixels, width, height, stride, x + 8, x + panelWidth - 8, y + panelHeight - 1, sampleStepX);
-        if (bottom < 7)
-            return 0;
-
-        var left = VerticalEdge(pixels, width, height, stride, x, y + 8, y + panelHeight - 8, sampleStepY);
-        if (left < 7)
-            return 0;
-
-        var right = VerticalEdge(pixels, width, height, stride, x + panelWidth - 1, y + 8, y + panelHeight - 8, sampleStepY);
-        if (right < 7)
-            return 0;
-
-        // The real inspection window has a coherent outer frame and a close control in
-        // its top-right title bar. Requiring all four sides prevents a strong internal
-        // separator/button rectangle from becoming the OCR anchor.
-        var edgeMean = (top + bottom + left + right) / 4.0;
-        var minimumEdge = Math.Min(Math.Min(top, bottom), Math.Min(left, right));
-        var toneContrast = PanelToneContrast(pixels, width, height, stride, x, y, panelWidth, panelHeight);
-
-        return edgeMean * 0.35 +
-               minimumEdge * 0.30 +
-               closeGlyph * 0.30 +
-               toneContrast * 0.05;
-    }
-
-    private static double HorizontalEdge(
-        ReadOnlySpan<byte> pixels,
-        int width,
-        int height,
-        int stride,
-        int startX,
-        int endX,
-        int y,
-        int step)
-    {
-        double total = 0;
-        var count = 0;
-        for (var px = startX; px <= endX; px += step)
+        var rightXStart = Math.Max(1, close.X + close.Width - 3);
+        var rightXEnd = Math.Min(pixels.Width - 2, close.X + close.Width + 8);
+        var rightX = -1;
+        var rightScore = -1;
+        for (var x = rightXStart; x <= rightXEnd; x++)
         {
-            var a = Luma(pixels, width, height, stride, px, y - BorderProbeRadiusPixels);
-            var b = Luma(pixels, width, height, stride, px, y);
-            var c = Luma(pixels, width, height, stride, px, y + BorderProbeRadiusPixels);
-            total += Math.Max(Math.Abs(a - c), Math.Abs(b - (a + c) * 0.5));
-            count++;
+            var score = CountVerticalEdges(pixels, x, y0, pixels.Height - 1, edgeThreshold);
+            if (score <= rightScore)
+                continue;
+            rightScore = score;
+            rightX = x;
         }
-        return count == 0 ? 0 : total / count;
-    }
+        if (rightX < 0)
+            return null;
 
-    private static double VerticalEdge(
-        ReadOnlySpan<byte> pixels,
-        int width,
-        int height,
-        int stride,
-        int x,
-        int startY,
-        int endY,
-        int step)
-    {
-        double total = 0;
-        var count = 0;
-        for (var py = startY; py <= endY; py += step)
+        var firstEdge = -1;
+        for (var offset = 0; offset <= 15 && y0 + offset < pixels.Height; offset++)
         {
-            var a = Luma(pixels, width, height, stride, x - BorderProbeRadiusPixels, py);
-            var b = Luma(pixels, width, height, stride, x, py);
-            var c = Luma(pixels, width, height, stride, x + BorderProbeRadiusPixels, py);
-            total += Math.Max(Math.Abs(a - c), Math.Abs(b - (a + c) * 0.5));
-            count++;
+            if (EdgeX(pixels, rightX, y0 + offset) <= edgeThreshold)
+                continue;
+            firstEdge = y0 + offset;
+            break;
         }
-        return count == 0 ? 0 : total / count;
-    }
+        if (firstEdge < 0)
+            return null;
 
-    private static double PanelToneContrast(
-        ReadOnlySpan<byte> pixels,
-        int width,
-        int height,
-        int stride,
-        int x,
-        int y,
-        int panelWidth,
-        int panelHeight)
-    {
-        double inside = 0;
-        double outside = 0;
-        var count = 0;
-        var stepX = Math.Max(18, panelWidth / 12);
-        var stepY = Math.Max(18, panelHeight / 12);
-
-        for (var dx = stepX; dx < panelWidth - stepX; dx += stepX)
+        var lastEdge = firstEdge;
+        var lastSeenEdge = firstEdge;
+        for (var y = firstEdge + 1; y < pixels.Height; y++)
         {
-            for (var dy = stepY; dy < panelHeight - stepY; dy += stepY)
+            if (EdgeX(pixels, rightX, y) > edgeThreshold)
             {
-                inside += Luma(pixels, width, height, stride, x + dx, y + dy);
-                var outsideX = dx < panelWidth / 2 ? x - 4 : x + panelWidth + 4;
-                outside += Luma(pixels, width, height, stride, outsideX, y + dy);
-                count++;
+                if (y - lastSeenEdge > 7)
+                    break;
+                lastSeenEdge = y;
+                lastEdge = y;
+            }
+            else if (y - lastSeenEdge > 7)
+            {
+                break;
             }
         }
 
-        if (count == 0)
-            return 0;
-        return Math.Min(64, Math.Abs(inside / count - outside / count));
+        var topGuess = Math.Max(0, close.Y - 4);
+        var bottomGuess = lastEdge;
+        var guessedHeight = bottomGuess - topGuess + 1;
+        if (guessedHeight < 110)
+            return null;
+
+        var minWidth = (int)Math.Round(guessedHeight * 1.05);
+        var maxWidth = (int)Math.Round(guessedHeight * 1.55);
+        var leftXStart = Math.Max(1, rightX - maxWidth);
+        var leftXEnd = Math.Max(1, rightX - minWidth);
+        if (leftXStart > leftXEnd)
+            return null;
+
+        var leftX = -1;
+        var leftScore = double.MinValue;
+        for (var x = leftXStart; x <= leftXEnd; x++)
+        {
+            var count = CountVerticalEdges(pixels, x, topGuess, bottomGuess, edgeThreshold);
+            var continuity = (double)count / Math.Max(1, guessedHeight);
+            var aspect = (double)(rightX - x + 1) / Math.Max(1, guessedHeight);
+            var closeness = Math.Exp(-Math.Pow((aspect - 1.30) / 0.18, 2.0));
+            var score = continuity * 0.75 + closeness * 0.25;
+            if (score <= leftScore)
+                continue;
+            leftScore = score;
+            leftX = x;
+        }
+        if (leftX < 0)
+            return null;
+
+        var provisionalWidth = rightX - leftX + 1;
+        var topY = topGuess;
+        var topScore = -1.0;
+        var topStart = Math.Max(1, close.Y - 7);
+        var topEnd = Math.Min(pixels.Height - 2, close.Y + 4);
+        for (var y = topStart; y <= topEnd; y++)
+        {
+            var continuity = (double)CountHorizontalEdges(pixels, y, leftX, rightX, edgeThreshold) /
+                             Math.Max(1, provisionalWidth);
+            if (continuity <= topScore)
+                continue;
+            topScore = continuity;
+            topY = y;
+        }
+
+        var bottomY = bottomGuess;
+        var bottomScore = -1.0;
+        var bottomStart = Math.Max(topY + 100, bottomGuess - 10);
+        var bottomEnd = Math.Min(pixels.Height - 2, bottomGuess + 10);
+        for (var y = bottomStart; y <= bottomEnd; y++)
+        {
+            var continuity = (double)CountHorizontalEdges(pixels, y, leftX, rightX, edgeThreshold) /
+                             Math.Max(1, provisionalWidth);
+            if (continuity <= bottomScore)
+                continue;
+            bottomScore = continuity;
+            bottomY = y;
+        }
+
+        var windowWidth = rightX - leftX + 1;
+        var windowHeight = bottomY - topY + 1;
+        if (windowWidth < 150 || windowHeight < 110)
+            return null;
+
+        var aspectRatio = (double)windowWidth / windowHeight;
+        var leftContinuity = (double)CountVerticalEdges(pixels, leftX, topY, bottomY, edgeThreshold) / windowHeight;
+        var rightContinuity = (double)CountVerticalEdges(pixels, rightX, topY, bottomY, edgeThreshold) / windowHeight;
+        var topContinuity = (double)CountHorizontalEdges(pixels, topY, leftX, rightX, edgeThreshold) / windowWidth;
+        var bottomContinuity = (double)CountHorizontalEdges(pixels, bottomY, leftX, rightX, edgeThreshold) / windowWidth;
+        var aspectScore = Math.Exp(-Math.Pow((aspectRatio - 1.30) / 0.18, 2.0));
+        var finalScore = (leftContinuity + rightContinuity + topContinuity + bottomContinuity) / 4.0 * aspectScore;
+
+        var window = new ScannerDetectedRegion(leftX, topY, windowWidth, windowHeight, finalScore);
+        return new ScannerDetectedCandidate(
+            window,
+            GetTitleRegion(window),
+            new ScannerDetectedRegion(close.X, close.Y, close.Width, close.Height, finalScore),
+            finalScore >= 0.70 ? "STRUCTURE_MATCH" : "LOW_STRUCTURE_CONFIDENCE");
     }
 
-    private static double CloseGlyphContrast(
-        ReadOnlySpan<byte> pixels,
-        int width,
-        int height,
-        int stride,
-        int x,
-        int y,
-        int panelWidth,
-        int panelHeight)
+    private static IReadOnlyList<ScannerDetectedCandidate> FindRectangleCandidates(
+        PixelBuffer pixels,
+        IReadOnlyList<RedComponent> redComponents)
     {
-        var box = Math.Max(18, (int)Math.Round(Math.Min(panelWidth, panelHeight) * 0.045));
-        var startX = x + panelWidth - box - Math.Max(5, box / 3);
-        var startY = y + Math.Max(5, box / 4);
-        double mean = 0;
-        double square = 0;
-        var bright = 0;
-        var count = 0;
+        var threshold = Math.Max(8, Math.Min(16, (int)Math.Round(Math.Min(pixels.Width, pixels.Height) / 55.0)));
+        var verticalProjection = new int[pixels.Width];
+        var horizontalProjection = new int[pixels.Height];
 
-        for (var py = startY; py < startY + box; py += 2)
+        for (var x = 1; x < pixels.Width - 1; x++)
         {
-            for (var px = startX; px < startX + box; px += 2)
+            var count = 0;
+            for (var y = 1; y < pixels.Height - 1; y++)
+                if (EdgeX(pixels, x, y) > threshold)
+                    count++;
+            verticalProjection[x] = count;
+        }
+
+        for (var y = 1; y < pixels.Height - 1; y++)
+        {
+            var count = 0;
+            for (var x = 1; x < pixels.Width - 1; x++)
+                if (EdgeY(pixels, x, y) > threshold)
+                    count++;
+            horizontalProjection[y] = count;
+        }
+
+        var verticalTake = Math.Min(38, Math.Max(12, pixels.Width / 35));
+        var horizontalTake = Math.Min(38, Math.Max(12, pixels.Height / 25));
+        var xs = Enumerable.Range(1, Math.Max(1, pixels.Width - 2))
+            .OrderByDescending(x => verticalProjection[x])
+            .Take(verticalTake)
+            .OrderBy(x => x)
+            .ToArray();
+        var ys = Enumerable.Range(1, Math.Max(1, pixels.Height - 2))
+            .OrderByDescending(y => horizontalProjection[y])
+            .Take(horizontalTake)
+            .OrderBy(y => y)
+            .ToArray();
+
+        var approximated = new List<StructureCandidate>();
+        var minWidth = Math.Max(120, (int)Math.Round(pixels.Width * 0.12));
+        var minHeight = Math.Max(90, (int)Math.Round(pixels.Height * 0.12));
+        var maxWidth = Math.Max(minWidth, (int)Math.Round(pixels.Width * 0.92));
+        var maxHeight = Math.Max(minHeight, (int)Math.Round(pixels.Height * 0.92));
+
+        for (var xi = 0; xi < xs.Length; xi++)
+        {
+            for (var xj = xi + 1; xj < xs.Length; xj++)
             {
-                var value = Luma(pixels, width, height, stride, px, py);
-                mean += value;
-                square += value * value;
-                if (value >= 165)
-                    bright++;
-                count++;
+                var left = xs[xi];
+                var right = xs[xj];
+                var rectWidth = right - left + 1;
+                if (rectWidth < minWidth || rectWidth > maxWidth)
+                    continue;
+
+                var leftProjection = (double)verticalProjection[left] / Math.Max(1, pixels.Height);
+                var rightProjection = (double)verticalProjection[right] / Math.Max(1, pixels.Height);
+
+                for (var yi = 0; yi < ys.Length; yi++)
+                {
+                    for (var yj = yi + 1; yj < ys.Length; yj++)
+                    {
+                        var top = ys[yi];
+                        var bottom = ys[yj];
+                        var rectHeight = bottom - top + 1;
+                        if (rectHeight < minHeight || rectHeight > maxHeight)
+                            continue;
+
+                        var aspect = (double)rectWidth / Math.Max(1, rectHeight);
+                        if (aspect is < 1.05 or > 1.58)
+                            continue;
+
+                        var topProjection = (double)horizontalProjection[top] / Math.Max(1, pixels.Width);
+                        var bottomProjection = (double)horizontalProjection[bottom] / Math.Max(1, pixels.Width);
+                        var aspectScore = Math.Exp(-Math.Pow((aspect - 1.30) / 0.22, 2.0));
+                        var projectionScore = (leftProjection + rightProjection + topProjection + bottomProjection) / 4.0;
+                        var approximate = projectionScore * 0.72 + aspectScore * 0.28;
+                        if (approximate < 0.15)
+                            continue;
+
+                        var window = new ScannerDetectedRegion(left, top, rectWidth, rectHeight, approximate);
+                        var darkness = SampleInteriorDarkness(pixels, window);
+                        approximate *= 0.65 + darkness * 0.35;
+                        approximated.Add(new StructureCandidate(window with { Score = approximate }, approximate));
+                    }
+                }
             }
         }
 
-        if (count == 0)
-            return 0;
-        mean /= count;
-        var variance = Math.Max(0, square / count - mean * mean);
-        var standardDeviation = Math.Sqrt(variance);
-        var brightRatio = (double)bright / count;
-        if (brightRatio < 0.005 || brightRatio > 0.55)
-            return standardDeviation * 0.35;
-        return Math.Min(64, standardDeviation);
+        if (approximated.Count == 0)
+            return [];
+
+        var results = new List<ScannerDetectedCandidate>();
+        foreach (var candidate in approximated.OrderByDescending(c => c.ApproximateScore).Take(80))
+        {
+            var region = candidate.Region;
+            var right = region.X + region.Width - 1;
+            var bottom = region.Y + region.Height - 1;
+            var leftContinuity = (double)CountVerticalEdges(pixels, region.X, region.Y, bottom, threshold) / Math.Max(1, region.Height);
+            var rightContinuity = (double)CountVerticalEdges(pixels, right, region.Y, bottom, threshold) / Math.Max(1, region.Height);
+            var topContinuity = (double)CountHorizontalEdges(pixels, region.Y, region.X, right, threshold) / Math.Max(1, region.Width);
+            var bottomContinuity = (double)CountHorizontalEdges(pixels, bottom, region.X, right, threshold) / Math.Max(1, region.Width);
+            var aspect = (double)region.Width / Math.Max(1, region.Height);
+            var aspectScore = Math.Exp(-Math.Pow((aspect - 1.30) / 0.20, 2.0));
+            var darkness = SampleInteriorDarkness(pixels, region);
+
+            var redBonus = 0.0;
+            foreach (var red in redComponents)
+            {
+                var centerX = red.X + red.Width / 2;
+                var centerY = red.Y + red.Height / 2;
+                var dx = Math.Abs(centerX - (region.X + region.Width));
+                var dy = Math.Abs(centerY - region.Y);
+                if (dx <= Math.Max(20, (int)(region.Width * 0.08)) &&
+                    dy <= Math.Max(20, (int)(region.Height * 0.08)))
+                {
+                    redBonus = 0.08;
+                    break;
+                }
+            }
+
+            var borderScore = (leftContinuity + rightContinuity + topContinuity + bottomContinuity) / 4.0;
+            var finalScore = borderScore * 0.68 + aspectScore * 0.17 + darkness * 0.15 + redBonus;
+            if (finalScore < PrimarySemanticFloor)
+                continue;
+
+            var window = region with { Score = finalScore };
+            results.Add(new ScannerDetectedCandidate(
+                window,
+                GetTitleRegion(window),
+                default,
+                "RECTANGLE_CANDIDATE"));
+        }
+
+        return DeduplicateCandidates(results, 12);
     }
 
-    private static double Luma(
-        ReadOnlySpan<byte> pixels,
-        int width,
-        int height,
-        int stride,
-        int x,
-        int y)
+    private static double SampleInteriorDarkness(PixelBuffer pixels, ScannerDetectedRegion region)
     {
-        x = Math.Clamp(x, 0, width - 1);
-        y = Math.Clamp(y, 0, height - 1);
-        var offset = y * stride + x * 4;
-        var b = pixels[offset];
-        var g = pixels[offset + 1];
-        var r = pixels[offset + 2];
-        return r * 0.2126 + g * 0.7152 + b * 0.0722;
+        if (region.Width <= 0 || region.Height <= 0)
+            return 0;
+
+        var dark = 0;
+        var total = 0;
+        for (var gy = 1; gy <= 5; gy++)
+        {
+            var y = Math.Clamp(region.Y + region.Height * gy / 6, 0, pixels.Height - 1);
+            for (var gx = 1; gx <= 7; gx++)
+            {
+                var x = Math.Clamp(region.X + region.Width * gx / 8, 0, pixels.Width - 1);
+                if (pixels.Gray[y * pixels.Width + x] <= 90)
+                    dark++;
+                total++;
+            }
+        }
+        return total <= 0 ? 0 : (double)dark / total;
     }
+
+    private static IReadOnlyList<ScannerDetectedCandidate> DeduplicateCandidates(
+        IEnumerable<ScannerDetectedCandidate> candidates,
+        int maximum)
+    {
+        var result = new List<ScannerDetectedCandidate>();
+        foreach (var candidate in candidates
+                     .Where(c => c.Window.Width > 0 && c.Window.Height > 0)
+                     .OrderByDescending(c => c.Score))
+        {
+            if (result.Any(existing => IntersectionOverUnion(existing.Window, candidate.Window) >= 0.72))
+                continue;
+            result.Add(candidate);
+            if (result.Count >= maximum)
+                break;
+        }
+        return result;
+    }
+
+    private static double IntersectionOverUnion(ScannerDetectedRegion a, ScannerDetectedRegion b)
+    {
+        var left = Math.Max(a.X, b.X);
+        var top = Math.Max(a.Y, b.Y);
+        var right = Math.Min(a.X + a.Width, b.X + b.Width);
+        var bottom = Math.Min(a.Y + a.Height, b.Y + b.Height);
+        var intersectionWidth = right - left;
+        var intersectionHeight = bottom - top;
+        if (intersectionWidth <= 0 || intersectionHeight <= 0)
+            return 0;
+
+        var intersection = (double)intersectionWidth * intersectionHeight;
+        var union = (double)a.Width * a.Height + (double)b.Width * b.Height - intersection;
+        return union <= 0 ? 0 : intersection / union;
+    }
+
+    private static int EdgeX(PixelBuffer pixels, int x, int y)
+    {
+        if (x <= 0 || x >= pixels.Width - 1 || y < 0 || y >= pixels.Height)
+            return 0;
+        var row = y * pixels.Width;
+        return Math.Abs(pixels.Gray[row + x + 1] - pixels.Gray[row + x - 1]);
+    }
+
+    private static int EdgeY(PixelBuffer pixels, int x, int y)
+    {
+        if (y <= 0 || y >= pixels.Height - 1 || x < 0 || x >= pixels.Width)
+            return 0;
+        return Math.Abs(pixels.Gray[(y + 1) * pixels.Width + x] - pixels.Gray[(y - 1) * pixels.Width + x]);
+    }
+
+    private static int CountVerticalEdges(PixelBuffer pixels, int x, int y0, int y1, int threshold)
+    {
+        y0 = Math.Max(0, y0);
+        y1 = Math.Min(pixels.Height - 1, y1);
+        var count = 0;
+        for (var y = y0; y <= y1; y++)
+            if (EdgeX(pixels, x, y) > threshold)
+                count++;
+        return count;
+    }
+
+    private static int CountHorizontalEdges(PixelBuffer pixels, int y, int x0, int x1, int threshold)
+    {
+        x0 = Math.Max(0, x0);
+        x1 = Math.Min(pixels.Width - 1, x1);
+        var count = 0;
+        for (var x = x0; x <= x1; x++)
+            if (EdgeY(pixels, x, y) > threshold)
+                count++;
+        return count;
+    }
+
+    private sealed record PixelBuffer(int Width, int Height, byte[] Gray, byte[] Red);
+    private readonly record struct RedComponent(int X, int Y, int Width, int Height, int Area);
+    private readonly record struct StructureCandidate(ScannerDetectedRegion Region, double ApproximateScore);
 }
 
 public readonly record struct ScannerDetectedRegion(
@@ -315,3 +535,12 @@ public readonly record struct ScannerDetectedRegion(
     int Width,
     int Height,
     double Score);
+
+public readonly record struct ScannerDetectedCandidate(
+    ScannerDetectedRegion Window,
+    ScannerDetectedRegion Title,
+    ScannerDetectedRegion CloseButton,
+    string Reason)
+{
+    public double Score => Window.Score;
+}
