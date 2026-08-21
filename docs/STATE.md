@@ -22,21 +22,35 @@ Runtime GPT/AI 의존성은 없습니다.
 
 ## 2. 현재 릴리즈 상태
 
-현재 public stable은 **v1.1.3**입니다. 현재 branch의 target은 **v1.1.4 PATCH**이며 최종 Windows/public release gate를 진행합니다.
+현재 public stable은 **v1.1.4**입니다.
 
 ```text
-Desktop target version: 1.1.4
+version: v1.1.4 PUBLIC RELEASE / VERIFIED
+release source: 833ac66c522632a695d106bd7ca9b1d6bfc030dc
+PR final CI: 32475893012 — SUCCESS
+exact-source Draft-first release run: 32476391800
+public verification run: 32476952938 — SUCCESS
+automated tests: 247 passed / 0 failed / 0 skipped
+asset: Junhyun-Helper-v1.1.4-win-x64.zip
+bytes: 80,253,044
+SHA-256: 6d7a4646032c91a66d66ceac0d78b197dd112e78fa9c7a6e99d7092febc2cb54
+ProductVersion: 1.1.4+833ac66c522632a695d106bd7ca9b1d6bfc030dc
+Draft-downloaded EXE smoke: SUCCESS
+public/latest: VERIFIED
+exact tag source: VERIFIED
+public-downloaded EXE smoke: SUCCESS
+```
+
+```text
+Desktop Version: 1.1.4
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
 v1.1.3 → v1.1.4 mandatory Game Content update: none
 v1.1.3 → v1.1.4 user.db migration: none
-automated tests: 247
 ```
 
-v1.1.4는 새 Scanner 기능을 추가하는 릴리즈가 아니라 v1.1.3의 인식 안정성, 표시 데이터 신뢰성, 진단 UX와 성능을 보강하는 PATCH입니다.
-
-상세: `docs/RELEASE_1.1.4.md`.
+v1.1.4는 새 Scanner 기능 추가가 아니라 v1.1.3의 인식 안정성, 표시 데이터 신뢰성, 진단 UX와 성능을 보강하는 PATCH입니다. 상세 검증 기록은 `docs/RELEASE_1.1.4.md`에 있습니다.
 
 ## 3. Scanner recognition 기준
 
@@ -74,9 +88,7 @@ v1.1.3은 어떤 후보든 연속 두 tick에 존재하면 안정화 hit가 누�
 
 ### Verified presentation refresh
 
-같은 verified bounds/title signature를 보는 동안 OCR 반복은 계속 억제합니다. 대신 1초 간격으로 같은 Item ID의 presentation snapshot만 다시 구성합니다.
-
-이를 통해 동일 상세창을 열어 둔 동안에도 Quest/Hideout 상태가 바뀌면 `RequiredTotal` 기반 현재 필요한 수량이 갱신됩니다.
+같은 verified bounds/title signature를 보는 동안 OCR 반복은 계속 억제합니다. 대신 1초 간격으로 같은 Item ID의 presentation snapshot만 다시 구성합니다. 동일 상세창을 열어 둔 동안에도 Quest/Hideout 상태가 바뀌면 `RequiredTotal` 기반 현재 필요한 수량이 갱신됩니다.
 
 ### Icon optimization
 
@@ -93,7 +105,7 @@ slots = positive width * height
 price/slot = valid price와 slots가 모두 있을 때만 계산
 ```
 
-복수 trader + 더 높은 flea row가 있는 회귀 데이터로 flea가 최고 상점가에 섞이지 않음을 고정했습니다.
+4,000개 전체 카탈로그 fixture를 순회하는 회귀 검증으로 각 아이템의 한국어 이름, 최고 상점가, 플리 평균가, 슬롯, 슬롯당 가격 투영을 검사합니다. 복수 trader + 더 높은 flea row에서도 flea가 최고 상점가에 섞이지 않음을 고정했습니다. invalid market/dimension은 해당 field만 fail-closed합니다.
 
 현재 필요한 수량:
 
@@ -126,7 +138,7 @@ Scanner 탭:
 
 삭제 실패는 Scanner runtime fatal이 아닙니다. screenshot/raw pixel은 diagnostic에 저장하지 않습니다.
 
-실제 packaged EXE smoke에서 diagnostic/activity를 생성하고 rendered 버튼을 눌러 memory history와 두 log path가 삭제되는지 검사합니다.
+실제 packaged EXE smoke에서 diagnostic/activity와 `scanner.log.1`까지 생성하고 rendered `로그 삭제` 버튼을 눌러 memory history와 두 log path가 모두 삭제되는지 검사합니다.
 
 ## 7. Mini Scanner
 
@@ -188,21 +200,24 @@ Assets/
 
 업데이트는 program-owned files만 교체하며 `%LocalAppData%/JunhyunHelper` 사용자 데이터는 건드리지 않습니다.
 
-## 11. v1.1.4 release gate
+## 11. v1.1.4 release gate — 완료
 
 - Windows Release build
-- **247 automated tests / 0 failure**
+- **247 automated tests / 0 failure / 0 skipped**
 - Scanner Lab v3.8 detector/title ROI regressions
-- Scanner market-field regressions
+- Scanner market-field 4,000-item fixture regression
 - win-x64 self-contained single-file publish
 - ProductVersion/FIRST_RUN exact version check
 - actual published EXE Product UI / Scanner log clear / Main Map / Factory / MiniMap smoke
 - graceful shutdown / clean portable root
-- Draft/public package checksum/ProductVersion verification
-- exact public tag verification
-- public-downloaded EXE smoke
+- Draft package re-download SHA-256/root/ProductVersion verification
+- Draft-downloaded EXE smoke
+- public/latest transition
+- tag `v1.1.4` and source `833ac66c522632a695d106bd7ca9b1d6bfc030dc` identical verification
+- public package re-download SHA-256/root/ProductVersion/FIRST_RUN verification
+- public-downloaded EXE smoke / normal shutdown
 
-최종 source SHA, release run, ZIP bytes/SHA-256, ProductVersion은 public release 완료 뒤 이 문서와 `docs/RELEASE_1.1.4.md`에 고정합니다.
+첫 exact-source release workflow `32476391800`은 public 전환 자체까지 성공한 뒤 태그 재조회 PowerShell refspec 문자열 버그로 마지막 자동 단계가 실패했습니다. 그 전에 exact-source build, tests, package audit, Draft 검증과 Draft-downloaded EXE smoke는 모두 성공했습니다. 독립 public verification run `32476952938`에서 누락된 exact-tag/public-package/public-downloaded-EXE 검증을 전부 다시 수행해 최종 승인했습니다.
 
 ## 12. 실제 Tarkov 후속 검증
 
@@ -232,8 +247,8 @@ Assets/
 | Ammo | 구현 완료 |
 | Map + MiniMap | 구현 완료 / user validated baseline |
 | Game Content Update | 구현 완료 |
-| Program Update | 구현 완료 |
-| Scanner | **v1.1.4 release candidate / Scanner Lab v3.8 contract preserved / live Tarkov validation ongoing** |
+| Program Update | 구현 완료 / v1.1.4 public package verified |
+| Scanner | **v1.1.4 public verified / Scanner Lab v3.8 contract preserved / live Tarkov validation ongoing** |
 
 ## 14. 새 작업 시작 순서
 
