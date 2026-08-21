@@ -1,5 +1,6 @@
 name: Trigger Release v1.1.1
 
+# Dispatch corrected v1.1.1 release after the clean-tag gate fix.
 on:
   push:
     branches: [main]
