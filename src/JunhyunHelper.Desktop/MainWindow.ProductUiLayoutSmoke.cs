@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -203,6 +204,29 @@ public partial class MainWindow
             !activityProbe.DetailText.Contains("유사도 기준 통과", StringComparison.Ordinal))
         {
             throw new InvalidOperationException("Scanner recognition activity does not produce the required user-readable decision summary.");
+        }
+
+        if (!ScannerDiagnosticLog.Clear())
+            throw new InvalidOperationException("Scanner smoke could not establish an empty diagnostic baseline.");
+        ScannerDiagnosticLog.Write("ocr-result", ScannerCaptureMode.DisplayTest, ("text", "로그 삭제 테스트"));
+        ScannerDiagnosticLog.Write(
+            "match-result",
+            ScannerCaptureMode.DisplayTest,
+            ("success", true),
+            ("reason", "EXACT"),
+            ("officialName", "로그 삭제 테스트"),
+            ("confidence", 1d),
+            ("secondScore", 0d));
+
+        if (ScannerDiagnosticLog.GetRecentActivities().Count == 0 || !File.Exists(ScannerDiagnosticLog.Path))
+            throw new InvalidOperationException("Scanner smoke could not create a diagnostic/activity record before clear.");
+
+        ScannerPlaceholder.ClearLogButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        if (ScannerDiagnosticLog.GetRecentActivities().Count != 0 ||
+            File.Exists(ScannerDiagnosticLog.Path) ||
+            File.Exists(ScannerDiagnosticLog.Path + ".1"))
+        {
+            throw new InvalidOperationException("Scanner log clear button did not remove both activity history and log files.");
         }
     }
 
