@@ -2,13 +2,13 @@
 
 기준일: 2026-08-21
 
-상태: **`RELEASE GATE DEFINED / SCANNER LAB v3.8 REGRESSION VERIFIED / LIVE TARKOV E2E DEFERRED`**
+상태: **`PUBLIC RELEASE GATE PASSED / SCANNER LAB v3.8 REGRESSION VERIFIED / LIVE TARKOV E2E POST-RELEASE`**
 
-이 문서는 v1.1.3 공개 전 자동/Windows gate와 공개 후 실제 Tarkov 검증 범위를 분리합니다.
+이 문서는 v1.1.3 자동/Windows/public release gate와 공개 후 실제 Tarkov 검증 범위를 분리합니다.
 
 ## 1. 공개 차단 gate
 
-다음은 전부 성공해야 합니다.
+완료된 gate:
 
 1. Windows Release Desktop build
 2. 전체 automated tests 0 failure
@@ -25,9 +25,10 @@
 13. Draft ZIP/checksum/package/ProductVersion verification
 14. Draft-downloaded EXE smoke
 15. public/latest 전환
-16. public ZIP/checksum/package/ProductVersion 재검증
-17. public-downloaded EXE smoke
-18. temporary release workflow cleanup
+16. exact public tag → release source SHA verification
+17. public ZIP/checksum/package/ProductVersion 재검증
+18. public-downloaded EXE smoke
+19. temporary release workflow cleanup
 
 실제 최신 Tarkov 실행 E2E는 DEC-051에 따라 공개 차단 gate가 아니며 사용자 환경에서 후속 검증합니다.
 
@@ -242,9 +243,9 @@ valid Item ID
 - missing price/icon은 해당 표시만 omit
 - presentation/icon load network 없음
 
-## 13. v1.1.3 자동 검증 기준선
+## 13. 자동 검증 / public release 기준선
 
-Scanner Lab 복원 코드 validation:
+Scanner Lab 복원 제품 코드 validation:
 
 ```text
 CI run: #1222
@@ -256,66 +257,35 @@ actual candidate EXE Product UI / Scanner / Main Map / Factory / MiniMap smoke: 
 graceful shutdown / clean portable root: SUCCESS
 ```
 
-이 검증은 제품 코드 `f412d5910c338e07937faff4b697c114fd8306be` 기준 복원부를 검사한 것입니다. 최종 v1.1.3 버전/문서가 포함된 release PR에서도 동일 gate를 다시 통과해야 합니다.
-
-## 14. 공개 후 실제 Tarkov gate
-
-### A. Borderless capture
-- process/window discovery
-- PrintWindow vs exact client-screen fallback
-- DPI/multi-monitor
-- minimize/Alt+Tab
-
-### B. Structural candidates
-- actual current inspect positive
-- negative contexts
-- RED-X / rectangle candidate distribution
-- candidate count/score
-
-### C. Korean OCR
-- Korean/mixed/English official names
-- short/long/numeric/parentheses
-- adaptive/deep pass distribution
-
-### D. Semantic identity
-- which candidate wins
-- exact/fuzzy distribution
-- confidence/margin
-- ambiguous reject
-
-### E. E2E
+최종 public release verification:
 
 ```text
-실제 상세창
-→ capture
-→ candidates
-→ OCR
-→ semantic catalog validation
-→ Item ID
-→ Mini Scanner
+release source: 8803f899341859887281ad50135911f4625a64f3
+release run: 32470606548
+release job: 96736389584
+automated tests: 245 passed / 0 failed / 0 skipped
+asset: Junhyun-Helper-v1.1.3-win-x64.zip
+bytes: 80,251,960
+SHA-256: 419f6288aa3202f10868f2fe6a4ccac40475753ce4ba8c8c2d9985396c4bf493
+ProductVersion: 1.1.3+8803f899341859887281ad50135911f4625a64f3
+exact package EXE smoke: SUCCESS
+Draft package verification: SUCCESS
+Draft-downloaded EXE smoke: SUCCESS
+public/latest exact tag verification: SUCCESS
+public package verification: SUCCESS
+public-downloaded EXE smoke: SUCCESS
 ```
 
-### F. Input coexistence
-- Mini Scanner direct drag
-- game focus 유지
-- MiniMap coexistence
+## 14. 공개 후 실제 Tarkov 검증
 
-### G. Long run
-- CPU
-- memory
-- handles
-- OCR rate
-- Alt+Tab/minimize
+v1.1.3에서 우선 확인합니다.
 
-## 15. 판정
+1. `Ophthalmoscope 검안경` actual detail이 Scanner Lab v3.8 수준으로 다시 감지되는지
+2. 실제 OCR 문자열
+3. candidate별 semantic resolution과 selected candidate
+4. 다양한 현재 아이템 상세창
+5. false positive / miss
+6. 장시간 CPU/memory/handles/OCR rate
+7. Mini Scanner / MiniMap / Alt+Tab 공존
 
-v1.1.3은 v1.1.2 Scanner recognition regression을 실제 Scanner Lab v3.8 구조로 복원하는 PATCH입니다.
-
-공개 전 표현:
-
-```text
-Scanner Lab v3.8 restoration: IMPLEMENTED + AUTOMATED/EXE VALIDATED
-latest live Tarkov Borderless revalidation: PENDING
-```
-
-인게임 문제가 발견되면 `scanner.log`와 최근 인식 기록을 기준으로 후속 PATCH로 보정합니다.
+이 단계의 문제는 `scanner.log`를 근거로 후속 PATCH에서 보정합니다.
