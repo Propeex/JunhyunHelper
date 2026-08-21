@@ -9,41 +9,40 @@
         ShowActivated="False"
         Topmost="True"
         SizeToContent="WidthAndHeight">
-    <Border Background="Transparent" Padding="6">
-        <StackPanel>
-            <TextBlock x:Name="ScannerStatusText"
-                       Visibility="Collapsed"
-                       Foreground="White"
-                       TextWrapping="Wrap"
-                       MaxWidth="420" />
+    <!-- Alpha 1 is visually transparent but remains a reliable hit-test surface on a
+         layered WPF window. The whole rendered card, not only text/icon pixels, drags. -->
+    <Border x:Name="DragSurface"
+            Background="#01000000"
+            Padding="6"
+            Cursor="Arrow"
+            ForceCursor="True"
+            PreviewMouseLeftButtonDown="DragSurface_PreviewMouseLeftButtonDown">
+        <Grid x:Name="ItemContentGrid">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
 
-            <Grid x:Name="ItemContentGrid">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
+            <Image x:Name="ItemIcon"
+                   Width="48"
+                   Height="48"
+                   Stretch="Uniform"
+                   Margin="0,0,9,0"
+                   VerticalAlignment="Top" />
 
-                <Image x:Name="ItemIcon"
-                       Width="48"
-                       Height="48"
-                       Stretch="Uniform"
-                       Margin="0,0,9,0"
-                       VerticalAlignment="Top" />
-
-                <StackPanel Grid.Column="1" MinWidth="110">
-                    <TextBlock x:Name="ItemNameText"
-                               Foreground="White"
-                               FontWeight="SemiBold"
-                               TextWrapping="Wrap"
-                               MaxWidth="420"
-                               Margin="0,0,0,2" />
-                    <TextBlock x:Name="TraderPriceText" Foreground="White" />
-                    <TextBlock x:Name="FleaPriceText" Foreground="White" />
-                    <TextBlock x:Name="TraderSlotPriceText" Foreground="White" />
-                    <TextBlock x:Name="FleaSlotPriceText" Foreground="White" />
-                    <TextBlock x:Name="CurrentNeededText" Foreground="White" />
-                </StackPanel>
-            </Grid>
-        </StackPanel>
+            <StackPanel Grid.Column="1" MinWidth="110">
+                <TextBlock x:Name="ItemNameText"
+                           Foreground="White"
+                           FontWeight="SemiBold"
+                           TextWrapping="Wrap"
+                           MaxWidth="420"
+                           Margin="0,0,0,2" />
+                <TextBlock x:Name="TraderPriceText" Foreground="White" />
+                <TextBlock x:Name="FleaPriceText" Foreground="White" />
+                <TextBlock x:Name="TraderSlotPriceText" Foreground="White" />
+                <TextBlock x:Name="FleaSlotPriceText" Foreground="White" />
+                <TextBlock x:Name="CurrentNeededText" Foreground="White" />
+            </StackPanel>
+        </Grid>
     </Border>
 </Window>

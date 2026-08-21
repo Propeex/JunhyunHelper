@@ -14,14 +14,22 @@ public partial class MiniScannerWindow : Window
     private const int WsExToolWindow = 0x00000080;
     private const int WsExNoActivate = 0x08000000;
 
+    private const uint SwpNoSize = 0x0001;
+    private const uint SwpNoMove = 0x0002;
+    private const uint SwpNoActivate = 0x0010;
+    private const uint SwpShowWindow = 0x0040;
+    private static readonly IntPtr HwndTopmost = new(-1);
+
     private bool _positionInitialized;
 
     public MiniScannerWindow()
     {
         InitializeComponent();
-        SourceInitialized += (_, _) => ApplyExtendedStyles();
-        MouseLeftButtonDown += OnMouseLeftButtonDown;
-        Cursor = Cursors.SizeAll;
+        SourceInitialized += (_, _) =>
+        {
+            ApplyExtendedStyles();
+            EnforceTopmost();
+        };
     }
 
     public event Action<double, double>? PositionCommitted;
@@ -32,32 +40,13 @@ public partial class MiniScannerWindow : Window
         ArgumentNullException.ThrowIfNull(settings);
         _ = editMode;
 
-        ScannerStatusText.Visibility = Visibility.Collapsed;
-        ScannerStatusText.Text = string.Empty;
-        ItemContentGrid.Visibility = Visibility.Visible;
-        ApplyExtendedStyles();
         ApplySnapshot(snapshot, settings);
-        ShowAndPosition(settings);
-    }
-
-    public void RenderStatus(string message, ScannerDisplaySettings settings, bool editMode)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(message);
-        ArgumentNullException.ThrowIfNull(settings);
-        _ = editMode;
-
-        ItemContentGrid.Visibility = Visibility.Collapsed;
-        ScannerStatusText.Visibility = Visibility.Visible;
-        ScannerStatusText.Text = message.Trim();
-        ScannerStatusText.FontSize = Math.Clamp(settings.FontSize * 0.78, 12, 22);
-        ApplyExtendedStyles();
         ShowAndPosition(settings);
     }
 
     public void ApplySettings(ScannerDisplaySettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
-        ScannerStatusText.FontSize = Math.Clamp(settings.FontSize * 0.78, 12, 22);
         if (settings.PositionX.HasValue && settings.PositionY.HasValue)
         {
             Left = settings.PositionX.Value;
@@ -72,6 +61,7 @@ public partial class MiniScannerWindow : Window
     {
         _ = editMode;
         ApplyExtendedStyles();
+        EnforceTopmost();
     }
 
     public (double X, double Y) GetPosition() => (Left, Top);
@@ -116,6 +106,8 @@ public partial class MiniScannerWindow : Window
         if (!IsVisible)
             Show();
 
+        ApplyExtendedStyles();
+        EnforceTopmost();
         UpdateLayout();
         if (!_positionInitialized)
         {
@@ -138,15 +130,17 @@ public partial class MiniScannerWindow : Window
         Top = workArea.Top + 110;
     }
 
-    private void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    private void DragSurface_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (e.ButtonState != MouseButtonState.Pressed)
+        if (e.LeftButton != MouseButtonState.Pressed)
             return;
 
         try
         {
             DragMove();
             PositionCommitted?.Invoke(Left, Top);
+            EnforceTopmost();
+            e.Handled = true;
         }
         catch (InvalidOperationException)
         {
@@ -164,6 +158,23 @@ public partial class MiniScannerWindow : Window
         styles |= WsExNoActivate;
         styles &= ~WsExTransparent;
         SetWindowLongPtr(handle, GwlExStyle, new IntPtr(styles));
+    }
+
+    private void EnforceTopmost()
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        if (handle == IntPtr.Zero)
+            return;
+
+        Topmost = true;
+        _ = SetWindowPos(
+            handle,
+            HwndTopmost,
+            0,
+            0,
+            0,
+            0,
+            SwpNoMove | SwpNoSize | SwpNoActivate | SwpShowWindow);
     }
 
     private static void ConfigureLine(
@@ -189,6 +200,17 @@ public partial class MiniScannerWindow : Window
         IntPtr.Size == 8
             ? SetWindowLongPtr64(handle, index, newLong)
             : new IntPtr(SetWindowLong32(handle, index, newLong.ToInt32()));
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetWindowPos(
+        IntPtr hWnd,
+        IntPtr hWndInsertAfter,
+        int x,
+        int y,
+        int cx,
+        int cy,
+        uint flags);
 
     [DllImport("user32.dll", EntryPoint = "GetWindowLong")]
     private static extern int GetWindowLong32(IntPtr handle, int index);

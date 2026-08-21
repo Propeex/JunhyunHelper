@@ -12,16 +12,21 @@ public sealed class MiniScannerOverlayService : IDisposable
 {
     private readonly ScannerSettingsService _settings;
     private readonly Dispatcher _dispatcher;
+    private readonly ScannerInventoryContextDetector _inventoryContext;
+    private readonly object _requestGate = new();
     private MiniScannerWindow? _window;
     private ScannerItemSnapshot? _snapshot;
-    private string? _standbyMessage;
+    private string? _requestedItemId;
     private bool _editMode;
     private bool _disposed;
+    private int _visibilityEpoch;
 
-    public MiniScannerOverlayService(ScannerSettingsService settings)
+    public MiniScannerOverlayService(ScannerSettingsService settings, IScannerOcrEngine ocr)
     {
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+        ArgumentNullException.ThrowIfNull(ocr);
         _dispatcher = System.Windows.Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
+        _inventoryContext = new ScannerInventoryContextDetector(ocr);
         _settings.SettingsChanged += OnSettingsChanged;
     }
 
@@ -31,28 +36,85 @@ public sealed class MiniScannerOverlayService : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(snapshot);
-        _ = preview;
 
+        int epoch;
+        lock (_requestGate)
+        {
+            if (!string.Equals(_requestedItemId, snapshot.ItemId, StringComparison.Ordinal))
+            {
+                _requestedItemId = snapshot.ItemId;
+                epoch = Interlocked.Increment(ref _visibilityEpoch);
+            }
+            else
+            {
+                epoch = Volatile.Read(ref _visibilityEpoch);
+            }
+        }
+
+        // Display-test and explicit preview remain deterministic development/test tools.
+        // A real Scanner has Enabled=true and is visually gated to the foreground Tarkov
+        // inventory/stash before the overlay is allowed to appear.
+        if (preview || !_settings.Current.Enabled)
+        {
+            ShowVerified(snapshot, epoch);
+            return;
+        }
+
+        _ = ShowIfInventoryAsync(snapshot, epoch);
+    }
+
+    private async Task ShowIfInventoryAsync(ScannerItemSnapshot snapshot, int epoch)
+    {
+        bool allowed;
+        try
+        {
+            allowed = await _inventoryContext.IsInventoryOrStashAsync(CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            App.WriteDiagnostic("Mini Scanner inventory context detection failed", exception);
+            allowed = false;
+        }
+
+        if (_disposed || epoch != Volatile.Read(ref _visibilityEpoch))
+            return;
+
+        if (!allowed)
+        {
+            Invoke(() =>
+            {
+                if (epoch != Volatile.Read(ref _visibilityEpoch))
+                    return;
+                _snapshot = null;
+                if (!_editMode)
+                    _window?.Hide();
+            });
+            return;
+        }
+
+        ShowVerified(snapshot, epoch);
+    }
+
+    private void ShowVerified(ScannerItemSnapshot snapshot, int epoch)
+    {
         Invoke(() =>
         {
-            _standbyMessage = null;
+            if (_disposed || epoch != Volatile.Read(ref _visibilityEpoch))
+                return;
             _snapshot = snapshot;
-            var window = EnsureWindow();
-            window.Render(snapshot, _settings.Current, _editMode);
+            EnsureWindow().Render(snapshot, _settings.Current, _editMode);
         });
     }
 
+    /// <summary>
+    /// Runtime status belongs to the Scanner page/activity log, never to the overlay.
+    /// Any non-item state clears the current match and hides Mini Scanner.
+    /// </summary>
     public void ShowStandby(string message)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
-
-        Invoke(() =>
-        {
-            _snapshot = null;
-            _standbyMessage = message.Trim();
-            EnsureWindow().RenderStatus(_standbyMessage, _settings.Current, _editMode);
-        });
+        Hide();
     }
 
     public void Hide()
@@ -60,10 +122,10 @@ public sealed class MiniScannerOverlayService : IDisposable
         if (_disposed)
             return;
 
+        ClearRequestedItem();
         Invoke(() =>
         {
             _snapshot = null;
-            _standbyMessage = null;
             if (_editMode)
                 return;
             _window?.Hide();
@@ -75,6 +137,7 @@ public sealed class MiniScannerOverlayService : IDisposable
     public void BeginPositionEdit()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        ClearRequestedItem();
         Invoke(() =>
         {
             _editMode = true;
@@ -84,14 +147,10 @@ public sealed class MiniScannerOverlayService : IDisposable
                 return;
             }
 
-            if (!string.IsNullOrWhiteSpace(_standbyMessage))
-            {
-                EnsureWindow().RenderStatus(_standbyMessage, _settings.Current, editMode: true);
-                return;
-            }
-
             var preview = CreatePositionPreview();
             _snapshot = preview;
+            lock (_requestGate)
+                _requestedItemId = preview.ItemId;
             EnsureWindow().Render(preview, _settings.Current, editMode: true);
         });
     }
@@ -99,6 +158,7 @@ public sealed class MiniScannerOverlayService : IDisposable
     public void EndPositionEdit(bool keepVisible)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        ClearRequestedItem();
         Invoke(() =>
         {
             if (_window is null)
@@ -114,7 +174,6 @@ public sealed class MiniScannerOverlayService : IDisposable
             if (!keepVisible)
             {
                 _snapshot = null;
-                _standbyMessage = null;
                 _window.Hide();
             }
         });
@@ -130,15 +189,21 @@ public sealed class MiniScannerOverlayService : IDisposable
                 return;
 
             var snapshot = _snapshot;
-            var standby = _standbyMessage;
             var editMode = _editMode;
             _window.Close();
             _window = null;
             if (snapshot is not null)
                 EnsureWindow().Render(snapshot, _settings.Current, editMode);
-            else if (!string.IsNullOrWhiteSpace(standby))
-                EnsureWindow().RenderStatus(standby, _settings.Current, editMode);
         });
+    }
+
+    private void ClearRequestedItem()
+    {
+        lock (_requestGate)
+        {
+            _requestedItemId = null;
+            Interlocked.Increment(ref _visibilityEpoch);
+        }
     }
 
     private MiniScannerWindow EnsureWindow()
@@ -176,8 +241,6 @@ public sealed class MiniScannerOverlayService : IDisposable
             _window.ApplySettings(settings);
             if (_snapshot is not null && _window.IsVisible)
                 _window.Render(_snapshot, settings, _editMode);
-            else if (!string.IsNullOrWhiteSpace(_standbyMessage) && _window.IsVisible)
-                _window.RenderStatus(_standbyMessage, settings, _editMode);
         });
     }
 
@@ -216,6 +279,7 @@ public sealed class MiniScannerOverlayService : IDisposable
         if (_disposed)
             return;
         _disposed = true;
+        ClearRequestedItem();
         _settings.SettingsChanged -= OnSettingsChanged;
 
         Invoke(() =>
@@ -226,7 +290,6 @@ public sealed class MiniScannerOverlayService : IDisposable
             _window.Close();
             _window = null;
             _snapshot = null;
-            _standbyMessage = null;
         });
         GC.SuppressFinalize(this);
     }
