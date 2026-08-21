@@ -16,8 +16,11 @@ public sealed class ScannerTitleFontVerifier : IDisposable
 {
     private const int ShortlistLimit = 12;
     private const int NormalizedHeight = 36;
+    private const int TemplateCacheLimit = 512;
     private readonly TarkovTitleFontProvider _fonts;
     private readonly ConcurrentDictionary<string, BinaryMask> _templateCache = new(StringComparer.Ordinal);
+    private readonly object _cacheGate = new();
+    private string _templateGeneration = string.Empty;
     private bool _disposed;
 
     public ScannerTitleFontVerifier(TarkovTitleFontProvider fonts)
@@ -40,6 +43,7 @@ public sealed class ScannerTitleFontVerifier : IDisposable
             return null;
         if (!_fonts.TryGetFonts(out var fonts))
             return null;
+        EnsureTemplateGeneration(fonts.GenerationKey);
 
         var observed = CreateObservedMask(observedTitle);
         if (observed is null)
@@ -139,7 +143,8 @@ public sealed class ScannerTitleFontVerifier : IDisposable
         foreach (var bender in variants)
         {
             var variantName = bender.IsBold ? "BENDER_BOLD+NOTO_KR" : "BENDER_REGULAR+NOTO_KR";
-            var key = $"{variantName}\n{officialName}";
+            EnsureTemplateCapacity();
+            var key = $"{fonts.GenerationKey}\n{variantName}\n{officialName}";
             BinaryMask template;
             try
             {
@@ -158,6 +163,28 @@ public sealed class ScannerTitleFontVerifier : IDisposable
         }
 
         return best;
+    }
+
+    private void EnsureTemplateGeneration(string generationKey)
+    {
+        lock (_cacheGate)
+        {
+            if (string.Equals(_templateGeneration, generationKey, StringComparison.Ordinal))
+                return;
+            _templateCache.Clear();
+            _templateGeneration = generationKey;
+        }
+    }
+
+    private void EnsureTemplateCapacity()
+    {
+        if (_templateCache.Count < TemplateCacheLimit)
+            return;
+        lock (_cacheGate)
+        {
+            if (_templateCache.Count >= TemplateCacheLimit)
+                _templateCache.Clear();
+        }
     }
 
     private static IReadOnlyList<SemanticCandidate> BuildShortlist(
@@ -573,7 +600,11 @@ public sealed class ScannerTitleFontVerifier : IDisposable
         if (_disposed)
             return;
         _disposed = true;
-        _templateCache.Clear();
+        lock (_cacheGate)
+        {
+            _templateCache.Clear();
+            _templateGeneration = string.Empty;
+        }
         GC.SuppressFinalize(this);
     }
 
