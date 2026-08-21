@@ -132,6 +132,32 @@ SHA-256: ab5e9ef35b300268d16a1c5eece86cd8c6e57c91c83364caf4b7d02cde1d27d1
 ProductVersion: 1.2.0+a7601f8498e8d75e832962fb9dd60f4112d28dc6
 ```
 
+## Post-release Main Map smoke hardening
+
+The first-attempt Map failure was investigated after v1.2.0 became public instead of being left as test debt.
+
+Root cause:
+
+- the product-owned cross-floor marker opacity is `0.75`;
+- the pinned donor runs a bounded 200 ms floor-filter settle timer;
+- JunhyunHelper restores donor floor suppression and reapplies the product presentation after each donor tick;
+- the old smoke used a fixed 3.2 second delay and then sampled once;
+- that single sample could land in the narrow interval after a donor tick had temporarily written opacity `0.50` but before JunhyunHelper's queued recovery callback restored `0.75`.
+
+Post-release PR #134 replaced the wall-clock guess with a deterministic product-state check:
+
+- expose only the donor settle timer's read-only `IsEnabled` state to the in-process smoke;
+- wait for the donor settle timer to be inactive;
+- require every known off-floor standard marker to be `Visible`;
+- require opacity to match the product-owned `OtherFloorOpacity = 0.75` within a 0.01 tolerance;
+- require the correct Above/Below floor indicator;
+- require the complete invariant to remain stable continuously for 650 ms;
+- retain a bounded timeout and richer marker-state diagnostics.
+
+CI run `32515954774` passed build, all automated tests, publish and the actual published EXE Product UI / Main Map / Factory / MiniMap smoke on its first run with this deterministic check. PR #134 was merged as `36c6f42e159583c5d799682e0a6015b9f6334220`.
+
+This is test-harness robustness work only. It does **not** change the public v1.2.0 binary, tag, release source or package hash. The public release source remains `a7601f8498e8d75e832962fb9dd60f4112d28dc6`.
+
 ## Post-release validation
 
 Latest live Tarkov end-to-end validation remains an ongoing product-quality activity rather than a reason to weaken fail-closed recognition. Real-game misses or false positives should be investigated from capture → candidate → title ROI → OCR/visual matcher → catalog → presentation → overlay using `scanner.log` and the in-memory `인식 이미지` view.
