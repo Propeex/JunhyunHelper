@@ -1,160 +1,161 @@
 # CURRENT STATE
 
-> 최신 개발 상태의 짧은 인덱스입니다. 상세 설계/이력은 `docs/STATE.md` 및 개별 문서를 참조합니다.
+> 최신 개발 상태의 짧은 인덱스입니다. 상세 설계/이력은 `docs/STATE.md` 및 전문 문서를 참조합니다.
 
-기준일: 2026-08-18
+기준일: 2026-08-21
 
-상태: **`v0.1.14 PUBLIC RELEASE / VERIFIED`**
+상태: **`v1.1.0 RELEASE CANDIDATE — Scanner implemented, live Tarkov E2E pending`**
 
-## 현재 공개 제품
+## 현재 공개 기준선
+
+현재 실제 공개 stable은 **v1.0.0**입니다.
+
+공개 v1.0.0 검증 기록:
 
 ```text
-release: v0.1.14
-release baseline / tag SHA: bb0611e9263c24018825a87a58aba2c5474b6cc4
-ProductVersion: 0.1.14+bb0611e9263c24018825a87a58aba2c5474b6cc4
-feature PR: #100
-feature CI: 32115435656 — SUCCESS
-release PR: #101
-release PR CI: 32115953069 — SUCCESS
-public verification PR: #102
-public verification workflow: 32116726491 — SUCCESS
-tests at release: 232 passed / 0 failed / 0 skipped
-asset: Junhyun-Helper-v0.1.14-win-x64.zip
-size: 74,086,942 bytes
-SHA-256: 9b3aaff8ba2182b146ea6b1ec463efd8dc8b1c5532a8d4db6cf716938536ae02
-public release: https://github.com/Propeex/JunhyunHelper/releases/tag/v0.1.14
+exact release source: 3147ad1b48c3d30df529d95b148c5c444a77d649
+release workflow: 32219746319 — SUCCESS
+automated tests: 232 passed
+asset: Junhyun-Helper-v1.0.0-win-x64.zip
+bytes: 74,088,334
+SHA-256: 0e92787409add9dd9e1138277c3588586a04266b05ca56d7cf7fb6f79c88094c
+public downloaded EXE smoke: passed
+```
+
+## v1.1.0 목표
+
+버전 정책상 v1.0.0에 실제 Scanner 사용자 기능을 추가하므로 **MINOR release v1.1.0**입니다.
+
+```text
+Desktop Version: 1.1.0
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
-mandatory data update from v0.1.13: none
+v1.0.0 → v1.1.0 mandatory Game Content update: none
+v1.0.0 → v1.1.0 user.db migration: none
 ```
 
-공개 Release는 `draft=false`, `prerelease=false`이고 public tag SHA와 release target은 exact release baseline과 일치합니다. 공개 ZIP과 `SHA256SUMS.txt`를 다시 다운로드해 checksum, package root, ProductVersion을 검증했고 실제 공개 EXE의 rendered UI / Main Map / Factory / MiniMap / 정상 종료 smoke까지 통과했습니다.
+## Scanner v1.1.0
 
-상세: `docs/RELEASE_0.1.14.md`
-
-## v0.1.14 — 사용자 동의형 프로그램 업데이트
-
-확정 제품 동작:
+구현된 실제 흐름:
 
 ```text
-일반 실행
-→ latest public stable GitHub Release 조회
-→ 현재 버전보다 최신이면 사용자에게 업데이트 여부 질문
-→ 동의 시 ZIP + SHA256SUMS 다운로드
-→ SHA-256 / package security contract 검증
-→ 현재 프로그램 종료
-→ 임시 self-copy updater가 program-owned files 교체
-→ 새 버전 자동 재실행
+Tarkov/Display pixels
+→ detail geometry detector
+→ title ROI
+→ Windows ko-KR OCR
+→ conservative full-catalog matcher
+→ Item ID
+→ existing JunhyunHelper data bridge
+→ Mini Scanner
 ```
 
-실패 정책:
+### 실사용 `스캐너 ON/OFF`
 
-- update check 실패 → 앱 정상 사용
-- 사용자 거절 → 앱 정상 사용
-- download/checksum/package validation 실패 → 현재 프로그램 파일 미변경
-- updater 시작 실패 → 현재 프로그램 파일 미변경
-- 교체 실패 → previous program files rollback 시도 + 기존 EXE 재실행 시도
-- 실패 진단 → `%LocalAppData%/JunhyunHelper/logs/startup.log`
+- `EscapeFromTarkov` 게임 창 탐색
+- Borderless client-area 좌표 계산
+- target-window `PrintWindow` 우선
+- 필요 시 정확한 client screen rectangle fallback
+- ON 즉시 Mini Scanner standby 표시
 
-업데이트 대상:
+### `테스트 ON/OFF`
+
+- 연결된 전체 디스플레이 실시간 캡처
+- 실사용과 동일 detector/OCR/matcher pipeline
+- Tarkov screenshot을 바탕화면/이미지 뷰어에 표시해 게임 없이 확인 가능
+- session-only, 재실행 시 OFF
+- real/test 상호 배타적
+
+### 정확도/안전성
+
+- 게임 메모리/DLL injection/패킷 접근 없음
+- icon 기반 식별 없음
+- scan 순간 network 없음
+- exact-first + conservative fuzzy
+- low-confidence/ambiguous는 Item ID 확정 안 함
+- `현재 필요한 수량` = `RequiredTotal`
+
+### 진단
 
 ```text
-준현 헬퍼.exe
-FIRST_RUN_KO.txt
-Assets/
+%LocalAppData%/JunhyunHelper/logs/scanner.log
+%LocalAppData%/JunhyunHelper/logs/scanner.log.1
 ```
 
-업데이트 비대상:
+- state/candidate/OCR/matcher 결과 기록
+- 전체 screenshot/raw pixels 미저장
+- 약 2MB rotation
 
-```text
-%LocalAppData%/JunhyunHelper/user.db
-content/
-image-cache/
-map-product-settings.json(.bak)
-ammo-favorites.json(.bak)
-logs/
-```
+상세: `docs/SCANNER.md`, `docs/SCANNER_TEST_PLAN.md`
 
-상시 `Updater.exe`는 배포하지 않습니다. 현재 EXE의 임시 복사본을 `%TEMP%/JunhyunHelper/updater/<guid>`에서 updater mode로 실행합니다.
+## 현재 자동 검증 기준
 
-**Bootstrap:** 공개 v0.1.13에는 updater 코드가 없으므로 v0.1.13 → v0.1.14는 한 번 수동 교체가 필요합니다. v0.1.14 이후 후속 정식 릴리즈는 프로그램 안에서 업데이트 가능합니다.
+v1.1.0 release candidate는 다음을 통과해야 합니다.
 
-상세: `docs/PROGRAM_UPDATE.md`
+1. Windows Release build
+2. 전체 automated tests
+3. Scanner geometry/catalog/matcher/persistence regression tests
+4. win-x64 self-contained single-file publish
+5. ProductVersion/FIRST_RUN 1.1.0 identity
+6. package/dependency hygiene
+7. actual published EXE startup
+8. rendered existing Product UI assertions
+9. rendered Scanner OFF/OFF safe-default controls
+10. Main Map / Factory / MiniMap smoke
+11. graceful shutdown
+12. Draft release asset 재다운로드/hash/package 검증
+13. public 전환 후 public asset 재검증 및 public EXE smoke
+
+## live Tarkov 검증 정책
+
+사용자가 2026-08-21 확정한 결정에 따라 **최신 Tarkov Borderless 인게임 E2E는 v1.1.0 공개 차단 조건이 아닙니다.**
+
+공개 후 다음을 사용자 환경에서 `scanner.log`와 함께 검증/보정합니다.
+
+- PrintWindow vs Borderless client-rectangle fallback
+- 실제 최신 상세창 geometry threshold
+- 실제 최신 한국어 title OCR
+- false-positive/false-negative calibration
+- 장시간 CPU/memory/handle/OCR rate
+- Alt+Tab/minimize/MiniMap coexistence
+
+문제가 발견되면 후속 PATCH에서 보정합니다.
 
 ## 제품 기능 상태
 
 | 영역 | 상태 |
 |---|---|
-| Profile | 구현 완료 / GameMode별 독립 진행 |
-| Quest | 구현 완료 / `확인 필요` 분리 / special trader + exact profile-variable + audited compatibility |
+| Profile | 구현 완료 |
+| Quest | 구현 완료 / fail-closed availability |
 | Hideout | 구현 완료 |
-| Needed Items / Inventory | 구현 완료 / unresolved future Quest Item 보호 / consumption ledger |
-| Ammo | 구현 완료 / caliber favorites / atomic preference recovery |
-| Map + MiniMap | 구현 완료 / exact floor-frame / persisted settings recovery / rendered sidebar gate |
-| Program Update | 구현 완료 / v0.1.14 public verified |
-| Scanner | **`준비 중` placeholder** / 별도 사용자 요구 전 실제 기능 구현 금지 |
+| Needed Items / Inventory | 구현 완료 / future protection / ledger |
+| Ammo | 구현 완료 |
+| Map + MiniMap | 구현 완료 / Windows user validated |
+| Game Content Update | 구현 완료 |
+| Program Update | 구현 완료 / stable release updater |
+| Scanner | **v1.1.0 실제 기능 구현 / Windows CI 검증 / live Tarkov E2E 후속** |
 
-## Content / User Progress
-
-```text
-Content schema: v7
-Readable: v3, v4, v5, v6, v7
-user.db SQLite schema: v1
-v0.1.13 → v0.1.14 mandatory data update: none
-```
-
-- exact profile-variable fact가 있으면 권위값으로 판정
-- 증명 불가능한 Quest availability는 `확인 필요`
-- unresolved future Quest Item은 `IndeterminatePotential`로 Needed Items 보호
-- Game Content update는 `user.db`를 삭제하거나 덮어쓰지 않음
-- program update와 Game Content update는 별도 subsystem
-
-## Map / MiniMap 기준
-
-Pinned donor-derived product revision:
-
-```text
-d933792b6042a51cea38dc44b686a096fe30de67
-```
-
-- floor는 visibility filter가 아니라 presentation relation
-- enabled 타층 marker 유지
-- Main Map floor 변경 시 zoom + map-space center 보존
-- MiniMap floor 변경 시 exact Scale + Translate X/Y 보존
-- current Quest sidebar: `30px checkbox | 34px A/B/C/D | * Quest text`
-- rendered title X-axis/handle 위치를 release smoke가 실제 WPF layout으로 검증
-- 안정적인 donor Map 경로는 구체적 regression/performance 이유 없이 wholesale refactor하지 않음
-
-## 유지되는 v0.1.13 hardening
-
-- Map/Ammo preference atomic replacement + `.bak` recovery
-- corrupt primary → good backup fallback
-- presentation preference save failure nonfatal
-- Map slider save coalescing + dispose flush
-- Map hotkey / NumPad direct floor async failure containment
-- keyboard hook failure diagnostics
-- canonical validator의 empty Quest item candidate / non-positive Quest·Hideout count 차단
-
-## 현재 알려진 비차단 범위
+## 유지되는 비차단 범위
 
 - EFT 1.0 Story Chapters는 ordinary `json.tarkov.dev/tasks` progression source 밖이며 현재 미지원
-- PvE Skier LL2 task-pool drift는 exact fact가 없으면 해당 pool만 fail-closed
-- Map donor/bridge maintenance debt는 안정성이 유지되는 동안 임의 정리하지 않음
-- code signing / installer는 현재 제품 필수 범위 아님
-- Scanner는 사용자 별도 요구 전 `준비 중` 유지
+- PvE Skier LL2 task-pool drift는 exact fact가 없으면 해당 pool fail-closed
+- Map donor/bridge maintenance debt는 안정성이 유지되는 동안 임의 refactor하지 않음
+- code signing / installer는 현재 필수 범위 아님
+- Scanner live Tarkov tuning은 v1.1.0 공개 후 로그 기반 후속 검증
 
-## 검증 기준
+## v1.1.0 공개 완료 조건
 
-상시 `.github/workflows/ci.yml`:
+1. PR #108 final CI 성공
+2. final diff/review 확인
+3. main 병합
+4. exact main release SHA에서 release workflow 실행
+5. build/tests/publish/product smoke 재통과
+6. Draft v1.1.0 ZIP/checksum 생성
+7. Draft assets 재다운로드 검증
+8. public/latest 전환
+9. public assets 재다운로드 검증
+10. public downloaded EXE smoke
+11. release-only workflow 제거
+12. 공식 상태 문서에 final SHA/hash/run 기록
 
-1. Release build
-2. 전체 자동 테스트
-3. win-x64 self-contained single-file publish
-4. package/dependency hygiene
-5. 실제 published EXE 실행
-6. rendered Product UI assertions
-7. Main Map / Factory / MiniMap smoke
-8. graceful shutdown
-
-v0.1.14 릴리즈부터 public Release는 **Draft asset 검증 → public 전환 → public asset 재다운로드 검증** 순서를 사용합니다.
+인게임 Tarkov E2E는 12개 공개 완료 조건에 포함하지 않습니다.

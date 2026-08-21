@@ -8,14 +8,15 @@ namespace JunhyunHelper.Desktop;
 public partial class MainWindow
 {
     /// <summary>
-    /// Rendered WPF layout assertions for the exact UI regressions reported from the
-    /// v0.1.11 screenshots. These assertions intentionally inspect arranged pixels/X
-    /// positions rather than treating build success or source strings as UI validation.
+    /// Rendered WPF layout assertions for product-critical UI contracts. These checks
+    /// intentionally inspect arranged controls rather than treating build success or
+    /// source strings as UI validation.
     /// </summary>
     private async Task VerifyProductUiLayoutAsync()
     {
         VerifyFlexibleCandidateRenderedLayout();
         VerifyAmmoRenderedControls();
+        VerifyScannerRenderedControls();
         await VerifyQuestSidebarRenderedLayoutAsync();
     }
 
@@ -47,9 +48,6 @@ public partial class MainWindow
         candidateButton.ApplyTemplate();
         host.UpdateLayout();
 
-        // The old global Button template hard-centered its ContentPresenter, leaving the
-        // ~426px row grid floating in the middle of a ~900px candidate button. The
-        // candidate's four lanes must now occupy the full row width.
         if (rowGrid.ActualWidth < 820)
         {
             throw new InvalidOperationException(
@@ -90,9 +88,6 @@ public partial class MainWindow
         var firRight = firX + firStack.ActualWidth;
         var generalRight = generalX + generalStack.ActualWidth;
 
-        // Name begins 8 px inside the second lane (52 + 8 = 60). FIR/general are
-        // intentionally right-aligned *inside* their fixed columns, so their right edges,
-        // not their content-width-dependent left edges, are the stable product axes.
         if (Math.Abs(iconX) > 0.5 ||
             Math.Abs(nameX - 60) > 0.5 ||
             Math.Abs(firRight - (rowGrid.ActualWidth - 96)) > 0.75 ||
@@ -134,11 +129,33 @@ public partial class MainWindow
         if (toggle.Content as string != "▲" || AmmoPage.ProductDetailHost.Visibility != Visibility.Collapsed)
             throw new InvalidOperationException("Collapsed ammo detail state did not render ▲ with the detail host hidden.");
 
-        // Restore the normal expanded default for the remainder of the product smoke.
         toggle.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         AmmoPage.UpdateLayout();
         if (toggle.Content as string != "▼" || AmmoPage.ProductDetailHost.Visibility != Visibility.Visible)
             throw new InvalidOperationException("Expanded ammo detail state did not restore ▼ with the detail host visible.");
+    }
+
+    private void VerifyScannerRenderedControls()
+    {
+        ScannerPlaceholder.UpdateLayout();
+
+        if (ScannerPlaceholder.ScannerToggleButton.Content as string != "스캐너 OFF")
+        {
+            throw new InvalidOperationException(
+                "Scanner product page did not render the real-mode OFF toggle in its safe default state.");
+        }
+
+        if (ScannerPlaceholder.TestToggleButton.Content as string != "테스트 OFF")
+        {
+            throw new InvalidOperationException(
+                "Scanner product page did not render the display-test OFF toggle in its safe default state.");
+        }
+
+        if (ScannerPlaceholder.ScannerToggleButton.MinWidth < 100 ||
+            ScannerPlaceholder.TestToggleButton.MinWidth < 100)
+        {
+            throw new InvalidOperationException("Scanner mode controls rendered below the minimum usable button width.");
+        }
     }
 
     private async Task VerifyQuestSidebarRenderedLayoutAsync()

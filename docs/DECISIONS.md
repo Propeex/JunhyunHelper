@@ -2,11 +2,11 @@
 
 이 문서는 준현 헬퍼의 **현재 유효한 장기 결정과 supersession 관계**를 빠르게 복구하기 위한 active index입니다.
 
-2026-08-09까지의 DEC-001~DEC-029 원문은 역사 보존 파일에 그대로 있습니다.
+2026-08-09까지의 DEC-001~DEC-029 원문은 역사 보존 파일에 있습니다.
 
 - [`DECISIONS_HISTORY_THROUGH_2026-08-09.md`](DECISIONS_HISTORY_THROUGH_2026-08-09.md)
 
-현재 사용자 요구와 더 새로운 결정이 과거 충돌 결정보다 우선합니다. 상세 제품/기술 계약은 `PRODUCT.md`, `STATE.md`, `ARCHITECTURE.md` 및 연결된 전문 문서를 함께 읽습니다.
+현재 사용자 요구와 더 새로운 결정이 과거 충돌 결정보다 우선합니다. 상세 제품/기술 계약은 `PRODUCT.md`, `STATE.md`, `ARCHITECTURE.md` 및 전문 문서를 함께 읽습니다.
 
 ---
 
@@ -18,28 +18,26 @@
 - `DEC-004` — 사용자는 제품 판단에 집중하고 개발 절차는 개발자가 책임 — **CONFIRMED**
 - `DEC-005` — 초기 Phase 1에서는 구현보다 설계를 선행 — **PHASE-SPECIFIC / SUPERSEDED by DEC-030**
 - `DEC-006` — 공식 제품명은 준현 헬퍼 — **CONFIRMED**
-- `DEC-007` — 초기 상위 기능 영역 정의 — **CONFIRMED**, Scanner 실제 기능은 PRODUCT OPEN
+- `DEC-007` — 초기 상위 기능 영역 정의 — **CONFIRMED**, Scanner 제품 의미는 DEC-050/051
 - `DEC-008` — 구두 의도는 의미를 맞춘 뒤 공식 요구사항으로 확정 — **CONFIRMED**
 - `DEC-009` — Quest 원천은 json.tarkov.dev → 내부 canonical model — **CONFIRMED**
 - `DEC-010` — 받을 수 있는 Quest는 Helper에서 이미 수락한 것으로 간주 — **CONFIRMED**
 - `DEC-011` — Quest 해금에 필요한 사용자 상태는 진행 profile에서 관리 — **CONFIRMED**
 - `DEC-012` — GameMode별 진행은 독립 profile — **CONFIRMED**
 - `DEC-013`~`DEC-019` — Quest/Hideout/Needed Items의 미래 필요·보수적 cleanup 의미 — **CONFIRMED**
-- `DEC-020` — Inventory 자동 추정 금지의 초기 원칙 — **PARTIALLY SUPERSEDED by DEC-025/026**
+- `DEC-020` — Inventory 자동 추정 금지 초기 원칙 — **PARTIALLY SUPERSEDED by DEC-025/026**
 - `DEC-021`~`DEC-024` — UI/navigation/Ammo source 및 표시 경계 — **CONFIRMED**
-- `DEC-025` — Quest/Hideout 고정 소모 Item은 명시적 진행 조작과 함께 자동 차감 — **CONFIRMED**
+- `DEC-025` — 고정 소모 Item은 명시적 진행 조작과 함께 자동 차감 — **CONFIRMED**
 - `DEC-026` — flexible hand-in 실제 소비 Item은 자동 추정하지 않음 — **CONFIRMED**
 - `DEC-027` — Wiki Ballistics membership과 effectiveness는 별도 canonical fact — **CONFIRMED**
 - `DEC-028` — Prestige 기본값은 0 — **CONFIRMED**
 - `DEC-029` — 제품 이미지는 Game Content update 후 prefetch — **CONFIRMED**
 
-과거 이유/대안/영향은 역사 파일의 동일 ID를 확인합니다.
-
 ---
 
 # 2. 현재 단계 결정
 
-## DEC-030 — 확정 기능의 수정은 직접 진행하고 새 제품 의미는 설계를 먼저 맞춘다
+## DEC-030 — 확정 기능 수정은 직접 진행하고 새 제품 의미는 설계를 먼저 맞춘다
 
 - 상태: `CONFIRMED`
 - 날짜: 2026-08-10
@@ -51,7 +49,7 @@
 - 상태: `CONFIRMED`
 - 날짜: 2026-08-10
 - 제품 pin: `d933792b6042a51cea38dc44b686a096fe30de67`
-- 결정: Map/MiniMap에 한해서만 donor source를 검증된 기준선으로 사용한다. old Tarkov-Helper의 updater, 숨은 명령, 데이터 규칙 등 다른 동작은 승계하지 않는다.
+- 결정: Map/MiniMap에 한해서 donor source를 검증된 기준선으로 사용한다. old Tarkov-Helper의 updater, 숨은 명령, 데이터 규칙 등 다른 동작은 승계하지 않는다.
 
 ## DEC-032 — Map subsystem은 독립이며 Quest만 JunhyunHelper 진행 데이터와 연결한다
 
@@ -61,134 +59,97 @@
 
 ## DEC-033 — 미구현 Scanner를 public UI에서 숨긴다
 
-- 상태: **`SUPERSEDED by DEC-045`**
+- 상태: `SUPERSEDED by DEC-045`
 - 날짜: 2026-08-10
 
-## DEC-034 — release/update와 product hotkey는 JunhyunHelper가 소유하며 old application behavior를 승계하지 않는다
+## DEC-034 — release/update와 product hotkey는 JunhyunHelper가 소유한다
 
 - 상태: `CONFIRMED / UPDATED by DEC-046`
 - 날짜: 2026-08-10
-- 유지되는 결정: old Tarkov-Helper의 `UpdateService`, hidden commands/easter eggs, legacy hidden shortcuts/logging은 JunhyunHelper 제품 동작이 아니다. release/update와 product hotkey ownership은 JunhyunHelper에 있다.
-- superseded 부분: 당시의 “program auto-update는 v0.1.0 범위가 아니다”라는 **초기 릴리즈 범위 한정 문장**은 DEC-046이 대체한다.
+- 결정: old Tarkov-Helper의 updater, hidden commands/easter eggs, legacy hidden shortcuts/logging은 JunhyunHelper 제품 동작이 아니다.
 
 ## DEC-035 — Windows x64 self-contained portable release를 유지한다
 
 - 상태: `CONFIRMED / UPDATED by DEC-046`
 - 날짜: 2026-08-10
-- 유지되는 결정: installer 없는 Windows x64 self-contained portable ZIP, 별도 .NET 및 관리자 권한 불필요.
-- superseded 부분: 당시 “application auto-updater는 v0.1.0 blocker가 아니다”는 초기 범위 설명일 뿐 현재 금지 결정이 아니다. v0.1.14 program updater는 portable 배포 계약을 유지한 채 DEC-046으로 추가한다.
+- 결정: installer 없는 Windows x64 self-contained portable ZIP, 별도 .NET 및 관리자 권한 불필요.
 
-## DEC-036 — Release artifact는 debug/legacy dependency를 제거하고 공급망 감사를 gate로 둔다
+## DEC-036 — Release artifact 공급망/오염 검사를 gate로 둔다
 
 - 상태: `CONFIRMED`
 - 날짜: 2026-08-10
 - 결정: PDB, legacy AutoUpdater/WebView2/GraphX/QuikGraph를 배포물에서 제외하고 NuGet vulnerability warning을 release-blocking으로 취급한다.
 
-## DEC-037 — Map bundle update는 같은 upstream revision의 원자적 bundle 단위로만 한다
+## DEC-037 — Map bundle update는 같은 upstream revision의 원자적 bundle로 한다
 
 - 상태: `CONFIRMED`
 - 날짜: 2026-08-10
-- 결정: 향후 artwork/config/general-marker bundle을 갱신할 때 서로 다른 revision을 섞지 않는다.
 
 ## DEC-038 — 불완전한 Quest availability source는 추측하지 않는다
 
-- 상태: `CONFIRMED / PARTIALLY SUPERSEDED by DEC-039, DEC-043, DEC-044`
+- 상태: `CONFIRMED / PARTIALLY SUPERSEDED by DEC-039/043/044`
 - 날짜: 2026-08-15
-- 유지되는 원칙: 프로그램이 증명할 수 없는 Quest availability fact는 임의 추정하지 않는다.
 
 ## DEC-039 — 입증할 수 없는 Quest availability는 `확인 필요`로 분리한다
 
 - 상태: `CONFIRMED`
 - 날짜: 2026-08-15
-- 결정: Core `Indeterminate`를 Application에서 optimistic Current로 바꾸지 않는다. UI에는 `확인 필요`, Map Current Quest/sidebar와 진행 중 수치에서는 제외한다. Future Needed Items는 계속 잠재 필요 Item을 보호한다.
+- 결정: Core `Indeterminate`를 optimistic Current로 바꾸지 않는다. Future Needed Items는 계속 잠재 필요 Item을 보호한다.
 
 ## DEC-040 — Map floor 관계는 visibility가 아니라 presentation이다
 
 - 상태: `CONFIRMED / PARTIALLY SUPERSEDED by DEC-041`
 - 날짜: 2026-08-15
-- 결정: 다른 floor라는 이유만으로 marker/extract를 숨기지 않고 current/above/below relation을 표시한다.
 
 ## DEC-041 — 서로 다른 floor의 일반 marker는 X/Z가 겹쳐도 숨기지 않는다
 
 - 상태: `CONFIRMED`
 - 날짜: 2026-08-15
-- 결정: cross-floor near-overlap 자체는 duplicate 증거가 아니므로 visual을 유지한다. 실제 동일 물리 source duplicate라고 확인되는 경우만 정규화한다.
 
 ## DEC-042 — 층 변경은 Main Map과 MiniMap의 현재 viewport를 보존한다
 
 - 상태: `CONFIRMED`
 - 날짜: 2026-08-15
-- 결정: Main Map은 live zoom + map-space center, MiniMap은 exact live Scale + Translate X/Y를 floor render 전후로 보존한다.
 
 ## DEC-043 — 특수 상인 접근은 upstream 조건을 보존하고 recoverable access를 별도 모델링한다
 
 - 상태: `CONFIRMED`
 - 날짜: 2026-08-15
-- 결정: BTR 누락 gate는 `A Helping Hand = Active`, Ref는 source gate + 검증된 GameMode unlock Complete, Lightkeeper는 ordinary prerequisite와 recoverable access를 분리한다. 접근 상실은 permanent unavailable이 아니라 recoverable Locked이다.
 
 ## DEC-044 — EFT profile-variable Quest gate는 exact read-side fact를 지원하고 미관측 값은 추측하지 않는다
 
 - 상태: `CONFIRMED`
 - 날짜: 2026-08-17
-- 결정: `globalVariable`을 `variableId`, operator, required value로 canonical v7에 보존한다. exact current `ProfileVariables` 값이 있으면 권위값으로 사용하고, 없으면 제한된 audited compatibility 외에는 `Indeterminate`로 둔다.
-- supersedes: DEC-038의 globalVariable 전체 unsupported 취급 부분
+- 결정: exact current `ProfileVariables` 값이 있으면 권위값으로 사용하고, 없으면 제한된 audited compatibility 외에는 `Indeterminate`로 둔다.
 
-## DEC-045 — Scanner placeholder 탭은 제품 UI에 유지하되 실제 기능을 가장하지 않는다
+## DEC-045 — Scanner placeholder 탭은 UI에 유지하되 실제 기능을 가장하지 않는다
 
-- 상태: `CONFIRMED`
+- 상태: `SUPERSEDED by DEC-050/051`
 - 날짜: 2026-08-18
-- 결정: 상단 `스캐너` 탭을 visible 상태로 유지하고 내용은 `준비 중` placeholder로 둔다. 실제 scanner 기능은 별도 사용자 요구 전 구현하지 않는다. maintenance/refactor에서 임의 숨김/삭제하지 않는다.
 - supersedes: DEC-033
 
 ## DEC-046 — 일반 실행 시 사용자 동의형 프로그램 업데이트를 제공한다
 
-- 상태: **`CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED v0.1.14`**
+- 상태: `CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED`
 - 날짜: 2026-08-18
-- 사용자 확정 요구:
-  1. 프로그램 실행 시 최신 버전을 조회한다.
-  2. 최신 버전이 있으면 사용자에게 업데이트 동의 여부를 묻는다.
-  3. 동의하면 업데이트 후 자동 재시작한다.
 - 결정:
   - source of truth는 `Propeex/JunhyunHelper` latest public stable GitHub Release
   - current보다 strictly newer stable `vMAJOR.MINOR.PATCH`만 대상
-  - 사용자 No는 현재 실행 계속 + 다음 실행 때 다시 확인
-  - check/network failure는 앱 시작을 막지 않음
-  - Yes 후 exact win-x64 ZIP + `SHA256SUMS.txt`를 내려받고 SHA-256/package security contract를 검증
-  - 검증 전 현재 app files를 변경하지 않음
-  - 실행 중 EXE 교체는 current single-file EXE의 TEMP self-copy updater mode가 수행
-  - `준현 헬퍼.exe`, `FIRST_RUN_KO.txt`, `Assets/`만 transaction 교체
-  - 교체 실패 시 previous files rollback 및 old EXE restart 시도
-  - `%LocalAppData%/JunhyunHelper` 사용자 데이터는 교체하지 않음
-  - 상시 `Updater.exe`를 공개 package에 포함하지 않음
-- 릴리즈 영향:
-  - updater가 latest public Release를 신뢰하므로 정식 release는 **Draft asset 검증을 끝낸 뒤에만 public/latest로 전환**
-  - public 전환 후에도 실제 public ZIP을 다시 다운로드해 checksum/ProductVersion/package를 재검증
-- bootstrap:
-  - v0.1.13에는 updater가 없으므로 v0.1.13 → v0.1.14는 한 번 수동 교체
-  - v0.1.14 이후부터 후속 stable release를 프로그램 내에서 업데이트 가능
-- supersedes:
-  - DEC-034의 “program auto-update는 v0.1.0 범위가 아니다”라는 초기 범위 문장
-  - DEC-035의 “application auto-updater는 v0.1.0 blocker가 아니다”라는 초기 범위 문장
-- 상세: `docs/PROGRAM_UPDATE.md`, `docs/RELEASE_0.1.14.md`
+  - 사용자 동의 후 exact Windows ZIP + `SHA256SUMS.txt` 검증
+  - 검증 전 현재 app files 변경 금지
+  - 임시 self-copy updater가 program-owned files를 transaction 교체
+  - 사용자 데이터는 교체하지 않음
+  - 정식 release는 Draft asset 검증 후에만 public/latest 전환
+- 상세: `docs/PROGRAM_UPDATE.md`, `docs/DEPLOYMENT.md`
 
 ## DEC-047 — v1.0.0은 기능 확장이 아닌 정식 안정판 승격이다
 
-- 상태: `CONFIRMED / RELEASE CANDIDATE`
+- 상태: `CONFIRMED / PUBLIC VERIFIED`
 - 날짜: 2026-08-19
-- 사용자 확정 요구:
-  - v0.1.14의 현재 기능을 첫 정식 버전 `v1.0.0`으로 승격한다.
-  - 각 기능의 사용자 동작은 축소·변형하지 않는다.
-  - 내부 불필요 코드, 반복 작업, 신뢰성/성능 위험을 제거하고 더 이상 정리할 실익이 없는 수준까지 하드닝한다.
-  - 프로그램의 작은 구성요소까지 역할/참조/입출력/변경 영향을 개발자 문서로 남긴다.
-  - Scanner는 visible `준비 중` placeholder를 그대로 유지한다.
-  - public v1.0.0 검증이 끝난 뒤 기존 0.x GitHub Release는 모두 제거한다.
-- 결정:
-  - v1.0.0에서는 새 사용자 기능을 추가하지 않는다.
-  - 제품 의미가 바뀌지 않는 first-party dead surface와 redundant I/O만 제거/최적화한다.
-  - pinned Map donor는 concrete defect/performance evidence 없이 broad refactor하지 않는다.
-  - `docs/DEVELOPER_REFERENCE.md`를 구현 복구용 공식 개발자 지도에 추가한다.
-  - release 완료 조건은 CI뿐 아니라 draft/public asset 재검증과 0.x release cleanup까지 포함한다.
-- 상세: `docs/FINAL_AUDIT_1.0.0.md`, `docs/RELEASE_1.0.0.md`
+- 결정: v0.1.14의 제품 기능을 축소하지 않고 first-party hardening, 검증 강화, 개발 문서화를 거쳐 v1.0.0 정식 안정판으로 승격한다.
+- public release source: `3147ad1b48c3d30df529d95b148c5c444a77d649`
+- public release workflow: `32219746319 — SUCCESS`
+- public ZIP SHA-256: `0e92787409add9dd9e1138277c3588586a04266b05ca56d7cf7fb6f79c88094c`
 
 ## DEC-048 — v1 이후 버전은 새 기능=MINOR, 기존 기능 보완=PATCH 규칙을 사용한다
 
@@ -196,36 +157,83 @@
 - 날짜: 2026-08-19
 - 결정:
   - 새 사용자 기능 추가 → `MINOR + 1`, `PATCH = 0`
-  - 기존 기능 수정/보완/변경, 버그 수정, 성능/안정성 개선 → `PATCH + 1`
-  - 같은 릴리즈에 새 기능과 보완이 함께 있으면 새 기능 규칙이 우선
-  - 예: `1.0.0`에서 Scanner 기능 추가 → `1.1.0`
-  - 예: `1.0.0`에서 Quest 수정 → `1.0.1`
-  - 예: `1.0.1`에서 Scanner 기능 추가 → `1.1.0`
-  - MAJOR 증가 조건은 필요할 때 사용자와 별도 확정하며 개발자가 임의 정의하지 않음
+  - 기존 기능 수정/보완/버그 수정/성능·안정성 개선 → `PATCH + 1`
+  - 혼합 변경은 MINOR 규칙 우선
+  - `1.0.0`에서 Scanner 실제 기능 추가 → `1.1.0`
 - 상세: `docs/VERSIONING.md`
 
 ## DEC-049 — Map donor는 source pin과 fetch origin을 분리한다
 
 - 상태: `CONFIRMED / IMPLEMENTED`
 - 날짜: 2026-08-19
-- 결정:
-  - Map/MiniMap 제품 source identity는 `.gitmodules` URL이 아니라 gitlink commit SHA로 고정한다.
-  - v1.0.0 기준 제품 pin은 계속 `d933792b6042a51cea38dc44b686a096fe30de67`이다.
-  - 과거 작업 fork `Propeex/Tarkov-Helper`가 clean CI checkout에서 재현 불가능해졌지만 같은 exact Git object가 공개 upstream `SIGDrone/Tarkov-Helper`에 존재함을 확인했으므로 fetch origin만 upstream으로 변경한다.
-  - fetch origin 변경 시에도 gitlink SHA가 동일하면 Map source 변경으로 취급하지 않는다.
-  - donor revision SHA 자체를 바꾸는 작업은 별도의 Map source update이며 actual published EXE 회귀 검증을 요구한다.
-- 상세: `docs/REFERENCE_POLICY.md`, `docs/DEVELOPER_REFERENCE.md`
+- 결정: Map/MiniMap 제품 source identity는 gitlink commit SHA로 고정한다. 공개 upstream fetch origin이 바뀌어도 gitlink SHA가 동일하면 Map source 변경으로 취급하지 않는다.
+
+## DEC-050 — Scanner는 한국어 Tarkov 화면을 Item ID로 변환하는 독립 입력 subsystem으로 개발한다
+
+- 상태: `CONFIRMED / FOUNDATION IMPLEMENTED / PARTIALLY SUPERSEDED by DEC-051`
+- 날짜: 2026-08-21
+- 사용자 확정 요구:
+  - 실제 Tarkov 아이템 상세창을 자동 감지한다.
+  - 현재 한국어 클라이언트의 공식 아이템 이름을 읽어 Item ID를 확정한다.
+  - 게임 데이터 계산을 대체하지 않고 기존 JunhyunHelper 데이터로 연결한다.
+  - 오탐은 미탐보다 나쁘므로 confidence 부족 시 아무것도 확정하지 않는다.
+  - Mini Scanner는 MiniMap과 독립 유지한다.
+- 유지되는 결정:
+  - 게임 메모리, DLL injection, packet interception, icon identity 금지
+  - 전체 Tarkov item identity catalog 사용
+  - scan-time network 금지
+  - current official Korean-client name이 identity truth
+  - exact-first + 보수적 fuzzy + confidence/margin
+  - Item ID 이후 기존 JunhyunHelper data flow 사용
+  - `현재 필요한 수량` = `RequiredTotal`
+  - Scanner 설정은 별도 atomic JSON
+- superseded by DEC-051:
+  - 실게임 검증 전 platform implementation을 `Unavailable`로 유지한다는 제한
+  - Live Gate A~F 완료 전에는 v1.1.0 정식 릴리즈를 할 수 없다는 제한
+- 상세: `docs/SCANNER.md`, `docs/SCANNER_TEST_PLAN.md`
+
+## DEC-051 — Scanner v1.1.0은 실제 구현을 공개하고 live Tarkov 검증은 로그 기반 후속으로 진행한다
+
+- 상태: **`CONFIRMED / IMPLEMENTED / RELEASE AUTHORIZED`**
+- 날짜: 2026-08-21
+- 사용자 확정 요구:
+  - Scanner를 기능적으로 준현 헬퍼에 먼저 완성해 넣는다.
+  - 현재 Tarkov에서의 실제 인게임 동작은 공개 전 차단하지 않는다.
+  - 릴리즈 후 실제 게임에서 함께 로그를 확인하면서 필요한 capture/detector/OCR 보정을 진행한다.
+  - 최종적으로 **인게임 검증 없이 v1.1.0을 릴리즈한다.**
+- 구현 결정:
+  - `스캐너 ON/OFF`는 `EscapeFromTarkov` window/client-area를 대상으로 실시간 감지한다.
+  - Borderless 환경에서 `GetClientRect` + `ClientToScreen`으로 정확한 client rectangle을 구한다.
+  - 대상 창 `PrintWindow`를 우선 사용하고 유효한 frame을 얻지 못하면 Borderless client screen rectangle 캡처로 fallback한다.
+  - `테스트 ON/OFF`는 모든 연결 디스플레이를 대상으로 같은 detector/OCR/matcher pipeline을 실행한다.
+  - real/test는 상호 배타적이며 test는 session-only다.
+  - Windows `ko-KR` OCR을 production runtime에 연결한다.
+  - geometry detector는 OCR/identity와 분리된 conservative pre-gate로 유지한다.
+  - ON 상태 Mini Scanner는 standby를 표시하고 Item 확정 시 결과로 전환한다.
+  - Scanner live validation을 위해 `%LocalAppData%/JunhyunHelper/logs/scanner.log`에 상태/candidate/OCR/matcher metadata를 기록한다.
+  - screenshot/raw pixel은 진단 로그에 저장하지 않는다.
+- 릴리즈 결정:
+  - v1.0.0에 새 사용자 기능을 추가하므로 버전은 DEC-048에 따라 **v1.1.0**이다.
+  - Windows Release build, automated tests, publish, rendered UI, 기존 Map/MiniMap smoke, Draft/Public package verification은 release blocker다.
+  - 최신 Tarkov Borderless live E2E는 release blocker가 아니다.
+  - 공개 시 Scanner 상태는 `IMPLEMENTED / WINDOWS VERIFIED / LIVE TARKOV E2E PENDING`으로 명시한다.
+  - 공개 후 live 문제는 `scanner.log`를 근거로 보정하고 새 기능 추가가 없다면 PATCH 릴리즈로 처리한다.
+- supersedes:
+  - DEC-050의 platform implementation `Unavailable` 유지 제한
+  - DEC-050의 “Live Gate A~F 전 v1.1.0 정식 릴리즈 금지” 제한
+- 상세: `docs/SCANNER.md`, `docs/SCANNER_TEST_PLAN.md`, `docs/CURRENT_STATE.md`
 
 ---
 
 # 3. 현재 결정 확인 방법
 
 - 제품 요구사항: `docs/PRODUCT.md`
+- 현재 구현/릴리즈 상태: `docs/STATE.md`, `docs/CURRENT_STATE.md`
 - 기술 경계: `docs/ARCHITECTURE.md`
 - 개발자 구현/참조 지도: `docs/DEVELOPER_REFERENCE.md`
-- 현재 구현/릴리즈 상태: `docs/STATE.md`
+- Scanner 제품/기술 계약: `docs/SCANNER.md`
+- Scanner 검증 gate: `docs/SCANNER_TEST_PLAN.md`
 - 버전 정책: `docs/VERSIONING.md`
-- v1.0.0 최종 감사: `docs/FINAL_AUDIT_1.0.0.md`
 - Program Update: `docs/PROGRAM_UPDATE.md`
 - 배포: `docs/DEPLOYMENT.md`
 - Quest 선행조건/특수 상인 접근: `docs/QUEST_PREREQUISITE_SEMANTICS.md`

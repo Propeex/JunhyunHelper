@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -22,8 +22,8 @@
     <AssemblyName>준현 헬퍼</AssemblyName>
     <Product>준현 헬퍼</Product>
     <Title>준현 헬퍼</Title>
-    <Description>Escape from Tarkov 진행도·아이템·탄약·지도 도우미</Description>
-    <Version>1.0.0</Version>
+    <Description>Escape from Tarkov 진행도·아이템·탄약·지도·스캐너 도우미</Description>
+    <Version>1.1.0</Version>
     <ApplicationIcon>$(MSBuildProjectDirectory)\obj\JunhyunHelper.AppIcon.ico</ApplicationIcon>
     <!-- The product UI is Korean-only. Let the .NET SDK filter framework/package
          satellite assemblies at publish time instead of deleting files afterward. -->
