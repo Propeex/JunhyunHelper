@@ -63,24 +63,16 @@ public sealed class ImageCacheService
     {
         ArgumentNullException.ThrowIfNull(content);
 
-        var itemsById = content.Items.ToDictionary(item => item.Id, StringComparer.Ordinal);
-        var itemIds = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var requirement in content.QuestItemRequirements)
-            itemIds.UnionWith(requirement.AcceptedItemIds);
-        foreach (var station in content.HideoutStations)
-        foreach (var level in station.Levels)
-        foreach (var requirement in level.ItemRequirements)
-            itemIds.Add(requirement.ItemId);
-        foreach (var ammo in content.Ammunition)
-            itemIds.Add(ammo.ItemId);
-
+        // Scanner can match any item in the official catalog, not only items currently
+        // referenced by quests/hideout/ammo. Cache every canonical item icon during the
+        // explicit Game Content update so scan-time presentation remains network-free.
         var entries = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var itemId in itemIds)
+        foreach (var item in content.Items)
         {
-            if (!itemsById.TryGetValue(itemId, out var item) || string.IsNullOrWhiteSpace(item.IconUrl))
-                continue;
-            entries[$"item-{itemId}"] = item.IconUrl;
+            if (!string.IsNullOrWhiteSpace(item.Id) && !string.IsNullOrWhiteSpace(item.IconUrl))
+                entries[$"item-{item.Id}"] = item.IconUrl;
         }
+
         foreach (var station in content.HideoutStations)
         {
             if (!string.IsNullOrWhiteSpace(station.ImageUrl))
