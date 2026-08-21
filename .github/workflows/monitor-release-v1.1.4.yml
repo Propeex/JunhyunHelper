@@ -1,0 +1,83 @@
+name: Monitor v1.1.4 release
+
+on:
+  workflow_run:
+    workflows: ['Release v1.1.4']
+    types: [completed]
+
+permissions:
+  contents: write
+
+jobs:
+  record:
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RELEASE_TAG: v1.1.4
+      RELEASE_VERSION: 1.1.4
+      SOURCE_SHA: 833ac66c522632a695d106bd7ca9b1d6bfc030dc
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Capture workflow and public release evidence
+        shell: pwsh
+        run: |
+          $result = [ordered]@{
+            release = $env:RELEASE_TAG
+            source_sha = $env:SOURCE_SHA
+            workflow_run_id = '${{ github.event.workflow_run.id }}'
+            workflow_url = '${{ github.event.workflow_run.html_url }}'
+            workflow_head_sha = '${{ github.event.workflow_run.head_sha }}'
+            conclusion = '${{ github.event.workflow_run.conclusion }}'
+            recorded_at_utc = [DateTimeOffset]::UtcNow.ToString('O')
+          }
+
+          if ($result.conclusion -eq 'success') {
+            New-Item -ItemType Directory -Path artifacts/public -Force | Out-Null
+            gh release download $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --dir artifacts/public --clobber
+            if ($LASTEXITCODE -ne 0) { throw 'Could not download public release assets.' }
+
+            $zipName = "Junhyun-Helper-v$env:RELEASE_VERSION-win-x64.zip"
+            $zip = Join-Path artifacts/public $zipName
+            $sum = Join-Path artifacts/public 'SHA256SUMS.txt'
+            if (-not (Test-Path $zip) -or -not (Test-Path $sum)) { throw 'Public release assets are incomplete.' }
+
+            $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+            $expectedLine = Get-Content $sum | Where-Object { $_ -match [Regex]::Escape($zipName) } | Select-Object -First 1
+            if ($expectedLine -notmatch '^([0-9a-fA-F]{64})\s{2,}(.+)$') { throw 'Public checksum entry is invalid.' }
+            $declaredHash = $Matches[1].ToLowerInvariant()
+            if ($hash -ne $declaredHash) { throw 'Public release ZIP checksum does not match SHA256SUMS.' }
+
+            Expand-Archive $zip artifacts/public-extracted -Force
+            $exe = (Resolve-Path 'artifacts/public-extracted/준현 헬퍼.exe').Path
+            $productVersion = (Get-Item $exe).VersionInfo.ProductVersion
+            $expectedProductVersion = "$env:RELEASE_VERSION+$env:SOURCE_SHA"
+            if ($productVersion -ne $expectedProductVersion) { throw "Public ProductVersion mismatch: $productVersion" }
+
+            $releaseJson = gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --json url,isDraft,isLatest,tagName | ConvertFrom-Json
+            if ($releaseJson.isDraft) { throw 'Release workflow concluded success but release is still draft.' }
+
+            $result.public_release_url = $releaseJson.url
+            $result.public_is_latest = [bool]$releaseJson.isLatest
+            $result.zip_name = $zipName
+            $result.zip_bytes = (Get-Item $zip).Length
+            $result.zip_sha256 = $hash
+            $result.product_version = $productVersion
+          }
+
+          $result | ConvertTo-Json -Depth 4 | Set-Content 'docs/RELEASE_1.1.4_STATUS.json' -Encoding utf8NoBOM
+
+      - name: Commit result to main
+        shell: pwsh
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- docs/RELEASE_1.1.4_STATUS.json
+          git commit -m 'Record v1.1.4 release workflow result'
+          if ($LASTEXITCODE -ne 0) { throw 'Could not commit release workflow result.' }
+          git push origin HEAD:main
+          if ($LASTEXITCODE -ne 0) { throw 'Could not publish release workflow result to main.' }
