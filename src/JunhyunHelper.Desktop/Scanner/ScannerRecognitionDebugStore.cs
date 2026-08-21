@@ -1,0 +1,131 @@
+using System.Windows;
+using System.Windows.Media.Imaging;
+using JunhyunHelper.Core.Scanner;
+
+namespace JunhyunHelper.Desktop.Scanner;
+
+/// <summary>
+/// Keeps exactly one latest Scanner diagnostic frame in memory. No screenshot is
+/// written to disk. The store is intentionally static so capture and runtime layers can
+/// update one shared frame without adding a persistence dependency to either layer.
+/// </summary>
+public static class ScannerRecognitionDebugStore
+{
+    private static readonly object Gate = new();
+    private static ScannerRecognitionDebugFrame? _frame;
+    private static DateTimeOffset _lastCaptureUtc = DateTimeOffset.MinValue;
+    private static string _lastSignature = string.Empty;
+
+    public static event Action? Changed;
+
+    public static bool ShouldCapture(string? signature, bool hasCandidate)
+    {
+        lock (Gate)
+        {
+            var now = DateTimeOffset.UtcNow;
+            var interval = hasCandidate ? TimeSpan.FromMilliseconds(900) : TimeSpan.FromMilliseconds(1500);
+            if (!string.IsNullOrWhiteSpace(signature) && !string.Equals(signature, _lastSignature, StringComparison.Ordinal))
+                return true;
+            return now - _lastCaptureUtc >= interval;
+        }
+    }
+
+    public static void PublishCapture(ScannerRecognitionDebugFrame frame)
+    {
+        ArgumentNullException.ThrowIfNull(frame);
+        lock (Gate)
+        {
+            _frame = frame;
+            _lastCaptureUtc = DateTimeOffset.UtcNow;
+            _lastSignature = frame.TitleSignature ?? string.Empty;
+        }
+        Changed?.Invoke();
+    }
+
+    public static void UpdateAnalysis(
+        ScannerInspectCandidate? candidate,
+        string pass,
+        string ocrText,
+        ScannerRecognition recognition)
+    {
+        lock (Gate)
+        {
+            if (_frame is null)
+                return;
+
+            var selected = candidate is null
+                ? _frame.SelectedBounds
+                : ToLocal(candidate.Bounds, _frame.CaptureOriginX, _frame.CaptureOriginY);
+            var title = candidate is null || candidate.TitleBounds.Width <= 0
+                ? _frame.TitleBounds
+                : ToLocal(candidate.TitleBounds, _frame.CaptureOriginX, _frame.CaptureOriginY);
+            var magnifier = candidate?.MagnifierBounds is { } magnifierBounds && magnifierBounds.Width > 0
+                ? ToLocal(magnifierBounds, _frame.CaptureOriginX, _frame.CaptureOriginY)
+                : _frame.MagnifierBounds;
+            var close = candidate?.CloseBounds is { } closeBounds && closeBounds.Width > 0
+                ? ToLocal(closeBounds, _frame.CaptureOriginX, _frame.CaptureOriginY)
+                : _frame.CloseBounds;
+
+            _frame = _frame with
+            {
+                SelectedBounds = selected,
+                TitleBounds = title,
+                MagnifierBounds = magnifier,
+                CloseBounds = close,
+                Pass = pass,
+                OcrText = ocrText,
+                CandidateName = recognition.OfficialName,
+                RecognitionReason = recognition.Reason,
+                Confidence = recognition.Confidence,
+                SecondScore = recognition.SecondScore,
+                UpdatedAt = DateTimeOffset.Now,
+            };
+        }
+        Changed?.Invoke();
+    }
+
+    public static ScannerRecognitionDebugFrame? GetSnapshot()
+    {
+        lock (Gate)
+            return _frame;
+    }
+
+    public static void Clear()
+    {
+        lock (Gate)
+        {
+            _frame = null;
+            _lastSignature = string.Empty;
+            _lastCaptureUtc = DateTimeOffset.MinValue;
+        }
+        Changed?.Invoke();
+    }
+
+    private static Rect ToLocal(Rect absolute, int originX, int originY) =>
+        new(absolute.X - originX, absolute.Y - originY, absolute.Width, absolute.Height);
+}
+
+public sealed record ScannerRecognitionDebugFrame(
+    BitmapSource Image,
+    int CaptureOriginX,
+    int CaptureOriginY,
+    string Source,
+    Rect? SelectedBounds,
+    Rect? TitleBounds,
+    Rect? MagnifierBounds,
+    Rect? CloseBounds,
+    double StructuralScore,
+    string StructuralReason,
+    double TitleAnchorScore,
+    string TitleAnchorReason,
+    string? TitleSignature = null,
+    string Pass = "NONE",
+    string OcrText = "",
+    string? CandidateName = null,
+    string RecognitionReason = "NOT_RUN",
+    double Confidence = 0,
+    double SecondScore = 0,
+    DateTimeOffset? UpdatedAt = null)
+{
+    public DateTimeOffset Timestamp { get; init; } = UpdatedAt ?? DateTimeOffset.Now;
+}
