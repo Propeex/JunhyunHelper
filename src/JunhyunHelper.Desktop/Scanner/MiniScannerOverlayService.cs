@@ -13,8 +13,10 @@ public sealed class MiniScannerOverlayService : IDisposable
     private readonly ScannerSettingsService _settings;
     private readonly Dispatcher _dispatcher;
     private readonly ScannerInventoryContextDetector _inventoryContext;
+    private readonly object _requestGate = new();
     private MiniScannerWindow? _window;
     private ScannerItemSnapshot? _snapshot;
+    private string? _requestedItemId;
     private bool _editMode;
     private bool _disposed;
     private int _visibilityEpoch;
@@ -34,7 +36,19 @@ public sealed class MiniScannerOverlayService : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(snapshot);
 
-        var epoch = Interlocked.Increment(ref _visibilityEpoch);
+        int epoch;
+        lock (_requestGate)
+        {
+            if (!string.Equals(_requestedItemId, snapshot.ItemId, StringComparison.Ordinal))
+            {
+                _requestedItemId = snapshot.ItemId;
+                epoch = Interlocked.Increment(ref _visibilityEpoch);
+            }
+            else
+            {
+                epoch = Volatile.Read(ref _visibilityEpoch);
+            }
+        }
 
         // Display-test and explicit preview remain deterministic development/test tools.
         // A real Scanner has Enabled=true and is visually gated to the foreground Tarkov
@@ -107,7 +121,7 @@ public sealed class MiniScannerOverlayService : IDisposable
         if (_disposed)
             return;
 
-        Interlocked.Increment(ref _visibilityEpoch);
+        ClearRequestedItem();
         Invoke(() =>
         {
             _snapshot = null;
@@ -122,7 +136,7 @@ public sealed class MiniScannerOverlayService : IDisposable
     public void BeginPositionEdit()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        Interlocked.Increment(ref _visibilityEpoch);
+        ClearRequestedItem();
         Invoke(() =>
         {
             _editMode = true;
@@ -134,6 +148,8 @@ public sealed class MiniScannerOverlayService : IDisposable
 
             var preview = CreatePositionPreview();
             _snapshot = preview;
+            lock (_requestGate)
+                _requestedItemId = preview.ItemId;
             EnsureWindow().Render(preview, _settings.Current, editMode: true);
         });
     }
@@ -141,7 +157,7 @@ public sealed class MiniScannerOverlayService : IDisposable
     public void EndPositionEdit(bool keepVisible)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        Interlocked.Increment(ref _visibilityEpoch);
+        ClearRequestedItem();
         Invoke(() =>
         {
             if (_window is null)
@@ -178,6 +194,15 @@ public sealed class MiniScannerOverlayService : IDisposable
             if (snapshot is not null)
                 EnsureWindow().Render(snapshot, _settings.Current, editMode);
         });
+    }
+
+    private void ClearRequestedItem()
+    {
+        lock (_requestGate)
+        {
+            _requestedItemId = null;
+            Interlocked.Increment(ref _visibilityEpoch);
+        }
     }
 
     private MiniScannerWindow EnsureWindow()
@@ -253,7 +278,7 @@ public sealed class MiniScannerOverlayService : IDisposable
         if (_disposed)
             return;
         _disposed = true;
-        Interlocked.Increment(ref _visibilityEpoch);
+        ClearRequestedItem();
         _settings.SettingsChanged -= OnSettingsChanged;
 
         Invoke(() =>
