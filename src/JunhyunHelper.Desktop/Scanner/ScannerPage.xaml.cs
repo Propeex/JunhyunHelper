@@ -28,6 +28,7 @@ public partial class ScannerPage : UserControl
         _coordinator.AttachContextProvider(mainWindow.GetScannerDataContext);
         _coordinator.StatusChanged += Coordinator_StatusChanged;
         ApplySettings(_coordinator.Settings);
+        UpdateToggleButtons();
 
         try
         {
@@ -53,18 +54,20 @@ public partial class ScannerPage : UserControl
         {
             App.WriteDiagnostic("Scanner context refresh failed", exception);
         }
+        ApplySettings(_coordinator.Settings);
+        UpdateToggleButtons();
         UpdateStatus(_coordinator.Status);
     }
 
-    private async void EnabledCheckBox_Changed(object sender, RoutedEventArgs e)
+    private async void ScannerToggleButton_Click(object sender, RoutedEventArgs e)
     {
         if (_updatingUi || _coordinator is null)
             return;
 
         try
         {
-            EnabledCheckBox.IsEnabled = false;
-            await _coordinator.SetEnabledAsync(EnabledCheckBox.IsChecked == true);
+            SetToggleButtonsEnabled(false);
+            await _coordinator.SetEnabledAsync(!_coordinator.Settings.Enabled);
         }
         catch (Exception exception)
         {
@@ -72,9 +75,33 @@ public partial class ScannerPage : UserControl
         }
         finally
         {
-            EnabledCheckBox.IsEnabled = true;
             ApplySettings(_coordinator.Settings);
+            UpdateToggleButtons();
             UpdateStatus(_coordinator.Status);
+            SetToggleButtonsEnabled(true);
+        }
+    }
+
+    private async void TestToggleButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_updatingUi || _coordinator is null)
+            return;
+
+        try
+        {
+            SetToggleButtonsEnabled(false);
+            await _coordinator.SetTestEnabledAsync(!_coordinator.TestEnabled);
+        }
+        catch (Exception exception)
+        {
+            App.WriteDiagnostic("Scanner display test state update failed", exception);
+        }
+        finally
+        {
+            ApplySettings(_coordinator.Settings);
+            UpdateToggleButtons();
+            UpdateStatus(_coordinator.Status);
+            SetToggleButtonsEnabled(true);
         }
     }
 
@@ -198,9 +225,14 @@ public partial class ScannerPage : UserControl
     {
         if (!Dispatcher.CheckAccess())
         {
-            Dispatcher.Invoke(() => UpdateStatus(status));
+            Dispatcher.Invoke(() =>
+            {
+                UpdateToggleButtons();
+                UpdateStatus(status);
+            });
             return;
         }
+        UpdateToggleButtons();
         UpdateStatus(status);
     }
 
@@ -225,7 +257,6 @@ public partial class ScannerPage : UserControl
         _updatingUi = true;
         try
         {
-            EnabledCheckBox.IsChecked = settings.Enabled;
             ShowItemNameCheckBox.IsChecked = settings.ShowItemName;
             ShowItemIconCheckBox.IsChecked = settings.ShowItemIcon;
             ShowTraderSellPriceCheckBox.IsChecked = settings.ShowTraderSellPrice;
@@ -238,5 +269,20 @@ public partial class ScannerPage : UserControl
         {
             _updatingUi = false;
         }
+    }
+
+    private void UpdateToggleButtons()
+    {
+        if (_coordinator is null)
+            return;
+
+        ScannerToggleButton.Content = _coordinator.Settings.Enabled ? "스캐너 ON" : "스캐너 OFF";
+        TestToggleButton.Content = _coordinator.TestEnabled ? "테스트 ON" : "테스트 OFF";
+    }
+
+    private void SetToggleButtonsEnabled(bool enabled)
+    {
+        ScannerToggleButton.IsEnabled = enabled;
+        TestToggleButton.IsEnabled = enabled;
     }
 }
