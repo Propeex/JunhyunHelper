@@ -4,39 +4,88 @@
 
 기준일: 2026-08-21
 
-상태: **`v1.1.1 RELEASE CANDIDATE — Scanner 운용 UI/최근 인식 기록/Mini Scanner 직접 이동`**
+상태: **`v1.1.3 RELEASE CANDIDATE — Scanner Lab v3.8 recognition restoration`**
 
 ## 현재 공개 기준선
 
-```text
-release: v1.1.0
-release id: 374188781
-exact release source / target SHA: ac24f7717e81cf6fa32cb2e0ade63949ed87ade5
-asset: Junhyun-Helper-v1.1.0-win-x64.zip
-bytes: 80,235,043
-SHA-256: 8e7f452701f866c84e753c1c34951af64f4415947e9f56c56634e2b584d9e1ce
-ProductVersion: 1.1.0+ac24f7717e81cf6fa32cb2e0ade63949ed87ade5
-automated tests: 243 passed / 0 failed / 0 skipped
-public downloaded EXE smoke: SUCCESS
-public/latest verification run: 32452416929
-```
+현재 사용자가 내려받을 수 있는 검증된 정식 기준선은 `v1.1.2`입니다.
 
-v1.1.0은 Scanner 실제 기능을 처음 공개한 verified stable입니다. 최신 Tarkov Borderless live E2E는 사용자 결정대로 후속 검증입니다.
+v1.1.2는 제목 ROI/상세창 geometry 회귀를 수정했지만 실제 사용자 테스트에서 Scanner Lab v3.8보다 인식률이 크게 낮은 것이 확인됐습니다.
 
-## 다음 릴리즈 — v1.1.1
+## 다음 릴리즈 — v1.1.3
 
-DEC-048에 따라 새 Scanner 기능 추가가 아니라 기존 기능의 UI/사용성 개선이므로 PATCH입니다.
+DEC-048에 따라 새 기능 추가가 아니라 Scanner 인식 회귀 복구이므로 PATCH입니다.
 
 ```text
-Desktop Version: 1.1.1
+Desktop Version: 1.1.3
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
-v1.1.0 → v1.1.1 mandatory Game Content update: none
-v1.1.0 → v1.1.1 user.db migration: none
+v1.1.2 → v1.1.3 mandatory Game Content update: none
+v1.1.2 → v1.1.3 user.db migration: none
 ```
 
-### Scanner 탭
+## Scanner recognition — Scanner Lab v3.8 복원
+
+사용자가 보존하고 있던 `TarkovHelper-ScannerLab-v3.8` 원본을 다시 확보해, 실제로 성공했던 recognition 구조를 현재 JunhyunHelper Scanner 경계에 이식했습니다.
+
+```text
+capture
+→ RED-X connected-component candidates
++
+→ rectangle-structure fallback candidates
+→ IoU deduplication
+→ 최대 8개 structural candidates
+→ title ROI
+→ adaptive 4x / 6x / 8x Windows ko-KR OCR
+→ current official full-item catalog resolver
+→ 필요 시 상위 3개 candidate deep OCR
+   - original
+   - high-contrast grayscale
+   - binary
+   - inverse binary
+→ official item name으로 안전하게 resolve된 candidate만 inspect window로 확정
+→ Item ID
+→ existing JunhyunHelper data bridge
+→ Mini Scanner
+```
+
+핵심 원칙:
+
+- structural score는 후보 순위일 뿐 최종 사실 판정이 아님
+- 하나의 geometry rectangle을 즉시 상세창으로 확정하지 않음
+- 현재 official Korean full-item catalog를 semantic validator로 사용
+- OCR line 개별 후보 + 인접 두 line 결합 후보 검사
+- matcher confidence/top1-top2 margin은 완화하지 않음
+- historical Scanner Lab alias는 production에 추가하지 않음
+- low confidence / ambiguity는 계속 fail-closed
+- scan-time network 없음
+- game memory / DLL injection / packet interception / icon identity 없음
+
+상세 reference: `docs/SCANNER_LAB_3_8_REFERENCE.md`
+
+## 검증
+
+exact product code 기준 validation CI `#1222`:
+
+- Windows Release build: SUCCESS
+- automated tests: **245 passed / 0 failed / 0 skipped**
+- Scanner Lab v3.8 geometry regression: SUCCESS
+- win-x64 self-contained single-file publish: SUCCESS
+- actual candidate EXE Product UI / Scanner / Main Map / Factory / MiniMap smoke: SUCCESS
+- graceful shutdown / clean portable root: SUCCESS
+
+회귀 기준에는 다음이 포함됩니다.
+
+- cropped `Ophthalmoscope 검안경` 구조에서 v3.8 outer inspect + title ROI 재현
+- full `Water 0.6L 물병` screenshot 구조에서 중앙 inspect + title ROI 재현
+- 강한 내부 rectangle이 있어도 RED-X 외곽 candidate가 사라지지 않음
+- RED-X가 없어도 rectangle fallback 유지
+- uniform frame fail-closed
+
+## Scanner UI / Mini Scanner
+
+v1.1.1에서 확정한 운용 UI는 유지합니다.
 
 ```text
 상단 bar
@@ -48,109 +97,30 @@ v1.1.0 → v1.1.1 user.db migration: none
 최근 인식 기록
 ```
 
-제거된 사용자 UI:
+- Foundation 검증 controls는 일반 Scanner 탭에서 비노출
+- Mini Scanner는 보이는 동안 직접 drag
+- drag 종료 시 위치 저장
+- Topmost / no-activate 유지
+- 최근 인식 기록은 OCR text / candidate / confidence / 최종 판단을 사용자 문장으로 표시
+- 개발자 로그: `%LocalAppData%/JunhyunHelper/logs/scanner.log(.1)`
+- screenshot/raw pixels는 로그에 저장하지 않음
 
-- 상단 Scanner 제목/설명
-- Scanner/Test/catalog/Mini Scanner 설명문
-- Mini Scanner 위치 편집/초기화 controls
-- Foundation verification/preview controls
+v1.1.3 로그는 구조 후보와 후보별 semantic OCR pass를 추가로 기록하므로 실제 Tarkov 테스트에서 detector/OCR/matcher 병목을 더 정확히 분리할 수 있습니다.
 
-Foundation Item ID → presentation 내부 경로는 개발자 진단용으로 유지합니다.
+## 실제 Tarkov 후속 검증
 
-### 최근 인식 기록
+최신 Tarkov Borderless E2E는 사용자 환경에서 계속 수행합니다.
 
-각 OCR/matcher 시도를 사용자 문장으로 표시합니다.
+우선 확인:
 
-- 시각
-- Scanner/Test mode
-- OCR text
-- nearest official Item
-- similarity
-- top1/top2 margin
-- 성공/보류
-- 판단 이유
+1. `Ophthalmoscope 검안경` 상세창이 다시 안정적으로 감지되는지
+2. 제목 OCR이 실제 제목을 읽는지
+3. 공식 카탈로그와 semantic candidate validation이 성공하는지
+4. `Water 0.6L 물병` 등 다른 상세창에서도 3.8 수준으로 복구됐는지
+5. 오탐/미탐과 장시간 CPU 영향
+6. Mini Scanner / MiniMap / Alt+Tab 공존
 
-기존 bounded `scanner.log.1` → `scanner.log`에서 최근 판정을 복원하므로 앱 재실행 뒤에도 최근 기록을 확인할 수 있습니다.
-
-개발자 상세 로그는 계속:
-
-```text
-%LocalAppData%/JunhyunHelper/logs/scanner.log
-%LocalAppData%/JunhyunHelper/logs/scanner.log.1
-```
-
-이며 screenshot/raw pixels는 저장하지 않습니다.
-
-### Mini Scanner
-
-v1.1.1부터 별도 edit mode가 없습니다.
-
-- 보이는 동안 직접 left-drag
-- drag 완료 즉시 saved X/Y 갱신
-- negative multi-monitor 좌표 유지
-- Topmost / ShowActivated=false / `WS_EX_NOACTIVATE` 유지
-- always-drag를 위해 Mini Scanner 자기 영역의 `WS_EX_TRANSPARENT` click-through는 제거
-
-따라서 Mini Scanner 작은 표시 영역은 mouse hit-test를 받지만 게임 키보드 focus는 가져가지 않습니다.
-
-## Scanner 핵심 파이프라인 — 변경 없음
-
-```text
-Tarkov/Display pixels
-→ detail geometry detector
-→ title ROI
-→ Windows ko-KR OCR
-→ conservative full-catalog matcher
-→ Item ID
-→ existing JunhyunHelper data bridge
-→ Mini Scanner
-```
-
-- real: `EscapeFromTarkov` Borderless client-area
-- test: all connected displays
-- real/test mutually exclusive
-- no memory/DLL injection/packet interception
-- no icon identity
-- no scan-time network
-- current needed = `RequiredTotal`
-- low confidence/ambiguity = no Item ID
-
-## v1.1.1 release gate
-
-- Windows Release build
-- full automated tests
-- ProductVersion/FIRST_RUN = 1.1.1
-- existing Scanner detector/catalog/matcher regression
-- rendered Scanner top bar + `아이템 목록 최신화`
-- recent-recognition empty/readable decision UI smoke
-- removed Foundation/position controls absent from product UI
-- win-x64 self-contained publish
-- package/dependency hygiene
-- actual packaged EXE startup
-- existing Product UI / Main Map / Factory / MiniMap smoke
-- graceful shutdown
-- Draft asset checksum/package/ProductVersion validation
-- Draft-downloaded EXE smoke
-- public/latest transition
-- public asset re-download validation
-- public-downloaded EXE smoke
-
-상세: `docs/SCANNER.md`, `docs/SCANNER_TEST_PLAN.md`, `docs/RELEASE_1.1.1.md`, `docs/SCANNER_UI_DECISION_2026-08-21.md`.
-
-## live Tarkov 검증
-
-실제 최신 Borderless Tarkov E2E는 계속 후속 검증입니다. v1.1.1 공개 후 사용자 환경에서 다음을 확인합니다.
-
-- capture route
-- current detail geometry
-- Korean OCR
-- Item match confidence
-- Mini Scanner direct drag와 실제 게임 입력 coexistence
-- false positives / misses
-- long-run resource behavior
-- Alt+Tab/minimize/MiniMap coexistence
-
-문제가 있으면 `scanner.log`와 최근 인식 기록을 함께 보고 후속 PATCH로 보정합니다.
+문제가 있으면 `scanner.log`의 candidate/ocr/match/selected 기록을 기준으로 후속 PATCH를 진행합니다.
 
 ## 제품 기능 상태
 
@@ -164,12 +134,17 @@ Tarkov/Display pixels
 | Ammo | 구현 완료 |
 | Map + MiniMap | 구현 완료 / Windows user validated |
 | Game Content Update | 구현 완료 |
-| Program Update | 구현 완료 / public stable updater |
-| Scanner | **v1.1.1 usability candidate / core pipeline unchanged / live Tarkov E2E pending** |
+| Program Update | 구현 완료 |
+| Scanner | **v1.1.3 candidate / Lab v3.8 recognition restored / live Tarkov revalidation pending** |
 
-## 현재 비차단 범위
+## 릴리즈 전 남은 gate
 
-- EFT 1.0 Story Chapters ordinary task source 밖
-- PvE Skier LL2 task-pool drift는 exact fact 없으면 fail-closed
-- code signing / installer는 현재 필수 범위 아님
-- Scanner latest live Tarkov E2E는 로그 기반 후속 검증
+- v1.1.3 version/FIRST_RUN final CI
+- exact main release SHA 확정
+- Draft ZIP/checksum/ProductVersion 검증
+- Draft-downloaded EXE smoke
+- public/latest 전환
+- public asset 재다운로드 검증
+- public-downloaded EXE smoke
+- temporary release workflow 정리
+- `STATE.md` / release record 최종 public-verified 동기화

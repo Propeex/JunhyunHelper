@@ -1,178 +1,190 @@
-# Scanner v1.1.1 Test Plan
+# Scanner v1.1.3 Test Plan
 
 기준일: 2026-08-21
 
-상태: **`RELEASE GATE DEFINED / LIVE TARKOV E2E DEFERRED`**
+상태: **`RELEASE GATE DEFINED / SCANNER LAB v3.8 REGRESSION VERIFIED / LIVE TARKOV E2E DEFERRED`**
 
-이 문서는 v1.1.1 공개 전에 자동/Windows 환경에서 반드시 통과할 범위와 공개 후 실제 Tarkov에서 로그와 함께 검증할 범위를 분리합니다.
+이 문서는 v1.1.3 공개 전 자동/Windows gate와 공개 후 실제 Tarkov 검증 범위를 분리합니다.
 
-## 1. v1.1.1 공개 차단 gate
+## 1. 공개 차단 gate
 
 다음은 전부 성공해야 합니다.
 
 1. Windows Release Desktop build
 2. 전체 automated tests 0 failure
-3. Scanner detail geometry detector/catalog/matcher regression
-4. win-x64 self-contained single-file publish
-5. published ProductVersion = 1.1.1
-6. FIRST_RUN first line = v1.1.1
-7. package root/dependency/PDB/nested-archive audit
-8. actual published EXE startup
-9. rendered existing Product UI assertions
-10. Scanner `스캐너 OFF` / `테스트 OFF` safe-default controls
-11. `아이템 목록 최신화` rendered label
-12. recent-recognition empty state + readable OCR/candidate/confidence/decision sentence
-13. removed position edit/reset/Foundation preview controls가 product UI에 없음
-14. Main Map / Factory / MiniMap runtime smoke
-15. graceful Main Window close/process exit
-16. Draft release ZIP/checksum 재다운로드 및 검증
-17. Draft package root/ProductVersion/FIRST_RUN 검증
-18. Draft-downloaded EXE smoke
-19. public/latest 전환 후 public ZIP/checksum 재다운로드 검증
-20. public downloaded EXE product smoke
+3. Scanner Lab v3.8 structural candidate regression
+4. current catalog/matcher regression
+5. win-x64 self-contained single-file publish
+6. ProductVersion = 1.1.3
+7. FIRST_RUN first line = v1.1.3
+8. package root/dependency/PDB/nested-archive audit
+9. actual published EXE startup
+10. rendered Product UI + Scanner UI assertions
+11. Main Map / Factory / MiniMap runtime smoke
+12. graceful Main Window close/process exit
+13. Draft ZIP/checksum/package/ProductVersion verification
+14. Draft-downloaded EXE smoke
+15. public/latest 전환
+16. public ZIP/checksum/package/ProductVersion 재검증
+17. public-downloaded EXE smoke
+18. temporary release workflow cleanup
 
-실제 Tarkov 게임 실행은 기존 DEC-051 정책에 따라 공개 차단 gate에 포함하지 않습니다.
+실제 최신 Tarkov 실행 E2E는 DEC-051에 따라 공개 차단 gate가 아니며 사용자 환경에서 후속 검증합니다.
 
-## 2. 기존 인식 알고리즘 회귀
+## 2. Scanner Lab v3.8 recognition regression
 
-v1.1.1은 capture/OCR/matcher 알고리즘을 의도적으로 변경하지 않습니다. 다음 v1.1.0 gate가 그대로 유지되어야 합니다.
+### Structural candidate generation
 
-### matcher
+반드시 유지:
+
+- RED-X connected-component path
+- RED-X anchored outer-window reconstruction
+- rectangle/edge projection fallback
+- IoU candidate deduplication
+- candidate limit 8
+- structural floor 0.34
+- structure score alone으로 final inspect 확정 금지
+
+### 고정 회귀 샘플 구조
+
+1. cropped `Ophthalmoscope 검안경` shape
+   - outer inspect 약 `3,3,672,514`
+   - title ROI가 최상단 item title에 위치
+2. full `Water 0.6L 물병` screenshot shape
+   - inspect 약 `622,282,674,514`
+   - 중앙 상세창과 title ROI 복원
+3. strong inner rectangle coexistence
+   - 내부 고대비 rectangle 때문에 RED-X outer candidate가 사라지면 실패
+4. no RED-X
+   - rectangle fallback candidate가 있어야 함
+5. uniform frame
+   - candidate가 없어야 함
+
+### Title ROI
+
+v3.8 공식:
+
+```text
+titleX = window.Left + window.Width * 0.032
+titleY = window.Top - 1
+titleWidth = window.Width * 0.64
+titleHeight = max(12, window.Height * 0.052)
+```
+
+## 3. Semantic candidate validation
+
+최종 상세창 판정은 geometry 하나가 아니라 OCR + current official catalog가 포함된 semantic validation입니다.
+
+확인:
+
+- 최대 8개 candidate first-pass OCR
+- structural floor 미만 skip
+- official item으로 resolve되는 후보 우선
+- 구조적으로 높은 후보라도 matcher 실패 시 final inspect 아님
+- 성공 후보의 semantic confidence + structural score 결합 순위
+- 상위 3개 deep OCR fallback
+- verified bounds/title signature 동일 시 OCR 반복 억제
+- title/inspect 변화 시 기존 Item clear 후 재검증
+- no successful candidate → fail-closed
+
+## 4. OCR
+
+Windows `ko-KR` OCR boundary를 사용합니다.
+
+Adaptive scale:
+
+- title height <=14 → 8x
+- <=20 → 6x
+- else → 4x
+
+Deep OCR:
+
+1. enlarged original
+2. high-contrast grayscale
+3. binary white-on-black
+4. inverse black-on-white
+
+Text candidate:
+
+- full OCR text
+- individual line
+- adjacent two-line combination
+
+OCR/matcher 성공률을 위해 historical alias를 추가하거나 confidence gate를 낮추지 않습니다.
+
+## 5. Matcher
 
 - current official name exact match
 - 작은 OCR typo + 충분한 margin
-- 낮은 confidence reject
+- low confidence reject
 - top1/top2 margin 부족 reject
 - duplicate normalized official name reject
 - 짧은 이름 substring 강제 선택 금지
-- 과거 이름과 현재 이름이 다르면 낮은 confidence에서 강제 매칭 금지
+- 과거 이름과 현재 이름이 다르면 강제 매칭 금지
 
-### full catalog
+## 6. Full catalog
 
 - 4,000개 이상 Korean catalog load
 - Item ID/name/market/dimension parse
 - regular / pve / pvp-season
 - Korean translation + English per-key fallback
 - corrupt/missing cache reject
-- requested mode cache missing 시 previous mode identity 사용 금지
+- requested mode missing 시 wrong-mode identity 사용 금지
 - zero/missing flea price → null
-- invalid/missing dimension → price/slot null
+- invalid dimension → price/slot null
 - AtomicJson backup recovery
 
-### detail geometry
+## 7. Windows capture/runtime
 
-- canonical detail frame positive
-- uniform/featureless frame negative
-- display-test reduced-scale detail frame positive
-- title ROI가 panel bounds 내부
-
-Geometry는 OCR candidate 생성 gate일 뿐 Item identity를 직접 확정하지 않습니다.
-
-## 3. Windows build/runtime compatibility
-
-Windows runner에서 확인:
+Windows runner에서:
 
 ```text
 dotnet build src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj -c Release
 dotnet test tests/JunhyunHelper.Tests/JunhyunHelper.Tests.csproj -c Release
 ```
 
-Windows-specific 대상:
+검증 대상:
 
-- Win32 process/window/client rect capture
-- `PrintWindow`
-- `Graphics.CopyFromScreen`
+- EscapeFromTarkov process/window discovery
+- GetClientRect + ClientToScreen
+- PrintWindow
+- Graphics.CopyFromScreen fallback
 - multi-monitor enumeration
-- Windows `ko-KR` OCR
-- WPF `BitmapSource` handoff
-- Scanner tab XAML
-- Mini Scanner overlay styles/direct drag
+- Windows ko-KR OCR
+- WPF BitmapSource handoff
+- Scanner tab
+- Mini Scanner direct drag/no-activate
 
-## 4. Scanner OFF / mode 전환
-
-fresh preference:
+## 8. Scanner OFF / mode 전환
 
 - real Scanner default OFF
-- display test default/session startup OFF
-- 둘 다 OFF면 capture/detector/OCR loop 없음
-- context monitor 없음
-- Mini Scanner 미생성
-- 앱 종료 정상
+- display test session startup OFF
+- 둘 다 OFF → capture/detector/OCR loop 없음
+- real ON → TarkovWindow
+- test ON → DisplayTest
+- mutually exclusive
+- test persistence 금지
+- mode change 시 previous candidate/item state clear
 
-mode:
+## 9. Scanner tab UI
 
-- real ON → `TarkovWindow`
-- test ON → `DisplayTest`
-- test ON 시 persisted real enabled OFF
-- real ON 시 test session flag OFF
-- 동시에 두 loop 금지
-- test mode 재실행 persistence 금지
-- mode change 시 previous geometry/title/item state clear
+유지:
 
-## 5. Scanner tab v1.1.1 UI
-
-Rendered WPF smoke에서 확인:
-
-### 상단 bar
-
-- 좌측 `스캐너 OFF`
-- 그 오른쪽 `테스트 OFF`
+- 좌측 `스캐너 OFF`, `테스트 OFF`
 - 우측 `아이템 목록 최신화`
-- 버튼 사용 가능 최소 폭 유지
+- 7개 display checkboxes
+- recent recognition activity
 
-### 제거된 사용자 UI
+제품 UI에서 없어야 함:
 
-다음은 Scanner product page에서 렌더링되지 않아야 합니다.
+- Scanner 상단 설명문
+- toggle/catalog/Mini Scanner 설명문
+- 위치 편집/초기화
+- Foundation verification/preview controls
 
-- 상단 Scanner 제목/설명문
-- Scanner/Test 설명문
-- catalog 설명문
-- Mini Scanner 설명문
-- `위치 편집`
-- `위치 초기화`
-- `Foundation 검증 도구`
-- `Item ID 미리보기`
-- `자동 미리보기`
-- `미리보기 숨기기`
+## 10. 최근 인식 기록 / diagnostics
 
-Foundation 내부 preview API 자체는 유지 가능하며 이 검사는 **사용자 UI 노출 여부**만 다룹니다.
-
-### 표시 정보
-
-기존 7개 checkbox가 유지되어야 합니다.
-
-- item name
-- item icon
-- trader price
-- flea price
-- trader/slot
-- flea/slot
-- current needed
-
-## 6. 최근 인식 기록
-
-### empty state
-
-Scanner 판정 이력이 없을 때:
-
-```text
-아직 인식 기록이 없습니다.
-```
-
-을 표시합니다.
-
-### 실제 판정 projection
-
-Runtime의 연속 이벤트:
-
-```text
-ocr-result
-→ match-result
-```
-
-를 하나의 사용자 record로 묶습니다.
-
-각 record:
+사용자 activity는 OCR/matcher 결과를 사람이 읽을 수 있게 표시합니다.
 
 - timestamp
 - mode
@@ -183,80 +195,37 @@ ocr-result
 - success/hold
 - reason
 
-예시 smoke:
+개발자 로그:
 
 ```text
-OCR: 들격소총
-candidate: 돌격소총
-confidence: 94.4%
-result: 식별 성공
-reason: 유사도 기준 통과
+%LocalAppData%/JunhyunHelper/logs/scanner.log(.1)
 ```
 
-사용자 문장에 OCR 문자열, 후보 이름, percentage가 모두 포함되어야 합니다.
+v1.1.3 추가 관찰점:
 
-### 기존 로그 복원
+- geometry-candidates
+- candidate-semantic
+- OCR pass (`ORIGINAL` / deep preprocessing)
+- candidate structure reason/score/bounds
+- match reason/confidence
+- semantic-selected
 
-앱 시작 후 `scanner.log.1` → `scanner.log` 순으로 bounded history를 읽고 최근 `ocr-result` + `match-result` pair를 복원합니다.
+screenshot/raw pixels는 저장하지 않습니다. 로그 I/O 실패는 nonfatal이어야 합니다.
 
-확인:
+## 11. Mini Scanner
 
-- malformed line skip
-- unknown event skip
-- mode parse 실패 skip
-- missing OCR에서도 matcher record 생성 가능
-- 최대 recent history 수 제한
-- log read 실패 nonfatal
-- 새로운 판정은 즉시 UI event로 전달
-- 개발자 log file I/O 실패 시에도 현재 session activity projection은 nonfatal
-
-## 7. Mini Scanner v1.1.1 direct drag
-
-사용자용 별도 edit/reset UI는 없습니다.
-
-Windows manual/smoke 계약:
-
-- transparent visual background
 - Topmost
-- taskbar 미표시
 - ShowActivated=false
-- `WS_EX_NOACTIVATE`
-- `WS_EX_TOOLWINDOW`
-- `WS_EX_TRANSPARENT` 제거
-- visible 상태에서 left mouse drag 가능
+- WS_EX_NOACTIVATE
+- WS_EX_TOOLWINDOW
+- 별도 edit/reset UI 없음
+- visible 상태 direct left-drag
 - drag 종료 위치 저장
-- 재표시/재실행 시 saved position 사용
-- negative multi-monitor 좌표 정상
-- Scanner Window와 MiniMap Window 독립
-- ON 직후 standby, OFF에서 숨김
-- background callback WPF cross-thread exception 없음
+- negative multi-monitor coordinates
+- MiniMap과 독립 lifecycle
+- ON standby / OFF hidden
 
-항상 drag 가능 요구 때문에 Mini Scanner 자기 영역은 mouse hit-test를 받습니다. 게임 키보드 focus는 가져가지 않아야 합니다.
-
-## 8. Settings / catalog synchronization
-
-Settings:
-
-- real Scanner Enabled
-- 7 display toggles
-- nullable X/Y
-- NaN/Infinity reject
-- negative X/Y preserve
-- primary corrupt + backup good recovery
-- save failure nonfatal
-- test mode session-only
-
-Catalog:
-
-- `아이템 목록 최신화` 명시적 sync 성공
-- enabled + stale cache pre-scan sync
-- healthy fresh cache 불필요 sync 없음
-- network failure + healthy same-mode cache → LKG 유지
-- wrong-mode identity 금지
-- malformed/too-small response fail closed
-- close 중 cancellation이 shutdown을 막지 않음
-
-## 9. Presentation
+## 12. Presentation
 
 ```text
 valid Item ID
@@ -267,79 +236,68 @@ valid Item ID
 → Mini Scanner
 ```
 
-- invalid Item ID → fake snapshot 없음
-- NeededItems에 없음 → current needed = 0
-- current needed = `RequiredTotal`
-- missing price line hidden
-- invalid dimensions → per-slot hidden
-- missing icon → icon만 omit
+- invalid ID → fake snapshot 금지
+- NeededItems 없음 → current needed 0
+- current needed = RequiredTotal
+- missing price/icon은 해당 표시만 omit
 - presentation/icon load network 없음
 
-## 10. Runtime state machine
+## 13. v1.1.3 자동 검증 기준선
 
-- geometry first hit → OCR 없음
-- geometry stable >=2 이후 title stability
-- title first hit → OCR 없음
-- title stable >=2 → OCR 1회
-- same successful title → 반복 OCR 없음
-- different title → old Item clear 후 재안정화
-- consecutive miss → waiting
-- low-confidence → Item 확정 금지
-- failed-title cooldown
-- catalog unavailable → recognition 금지
-
-## 11. 개발자 진단 로그
+Scanner Lab 복원 코드 validation:
 
 ```text
-%LocalAppData%/JunhyunHelper/logs/scanner.log
-%LocalAppData%/JunhyunHelper/logs/scanner.log.1
+CI run: #1222
+run id: 32466187224
+Windows Release build: SUCCESS
+automated tests: 245 passed / 0 failed / 0 skipped
+win-x64 self-contained single-file publish: SUCCESS
+actual candidate EXE Product UI / Scanner / Main Map / Factory / MiniMap smoke: SUCCESS
+graceful shutdown / clean portable root: SUCCESS
 ```
 
-- runtime state
-- candidate bounds/signature
-- OCR title
-- matcher result/confidence
-- screenshot/raw pixels 미저장
-- ~2MB rotation
-- log I/O failure nonfatal
+이 검증은 제품 코드 `f412d5910c338e07937faff4b697c114fd8306be` 기준 복원부를 검사한 것입니다. 최종 v1.1.3 버전/문서가 포함된 release PR에서도 동일 gate를 다시 통과해야 합니다.
 
-사용자 최근 기록과 개발자 log는 역할이 다릅니다. 사용자 UI는 low-level capture metadata를 직접 노출하지 않습니다.
+## 14. 공개 후 실제 Tarkov gate
 
-## 12. 공개 후 실제 Tarkov gate
-
-### A. Borderless window capture
-- window discovery
-- client rect
-- PrintWindow vs screen fallback
+### A. Borderless capture
+- process/window discovery
+- PrintWindow vs exact client-screen fallback
 - DPI/multi-monitor
 - minimize/Alt+Tab
 
-### B. Current inspect detector
-- inventory/stash/raid positive
+### B. Structural candidates
+- actual current inspect positive
 - negative contexts
-- 해상도/UI scale
-- false-positive audit
+- RED-X / rectangle candidate distribution
+- candidate count/score
 
-### C. Current Korean OCR
+### C. Korean OCR
 - Korean/mixed/English official names
-- short/long names
-- number/parentheses
+- short/long/numeric/parentheses
+- adaptive/deep pass distribution
 
-### D. Identity
+### D. Semantic identity
+- which candidate wins
 - exact/fuzzy distribution
-- confidence/margin calibration
+- confidence/margin
 - ambiguous reject
 
 ### E. E2E
 
 ```text
-실제 상세창 → capture → detector → OCR → Item ID → Mini Scanner
+실제 상세창
+→ capture
+→ candidates
+→ OCR
+→ semantic catalog validation
+→ Item ID
+→ Mini Scanner
 ```
 
-### F. Mini Scanner/input coexistence
-- direct drag
+### F. Input coexistence
+- Mini Scanner direct drag
 - game focus 유지
-- inventory interaction과 overlay hit-test 영향
 - MiniMap coexistence
 
 ### G. Long run
@@ -349,17 +307,15 @@ valid Item ID
 - OCR rate
 - Alt+Tab/minimize
 
-## 13. 릴리즈 판정
+## 15. 판정
 
-v1.1.1은 Scanner의 기존 기능을 줄이지 않고 운용 UI/진단 가독성/위치 조작을 보완하는 PATCH입니다.
+v1.1.3은 v1.1.2 Scanner recognition regression을 실제 Scanner Lab v3.8 구조로 복원하는 PATCH입니다.
 
-공개 상태 표현:
+공개 전 표현:
 
 ```text
-Scanner implementation: IMPLEMENTED
-v1.1.1 Windows build/package/UI: VERIFIED after gates
-offline screenshot/OCR experiments: VERIFIED
-latest live Tarkov Borderless E2E: PENDING
+Scanner Lab v3.8 restoration: IMPLEMENTED + AUTOMATED/EXE VALIDATED
+latest live Tarkov Borderless revalidation: PENDING
 ```
 
 인게임 문제가 발견되면 `scanner.log`와 최근 인식 기록을 기준으로 후속 PATCH로 보정합니다.
