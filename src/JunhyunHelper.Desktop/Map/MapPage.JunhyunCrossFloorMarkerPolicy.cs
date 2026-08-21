@@ -15,6 +15,14 @@ public partial class MapPage
     private Action? _junhyunCrossFloorPresentationRefresh;
     private bool _junhyunCrossFloorMarkerPolicyAttached;
 
+    /// <summary>
+    /// Exposes only whether the pinned donor's bounded shared-marker settle timer is still
+    /// active. Product smoke uses the real timer state instead of guessing completion from
+    /// a fixed wall-clock delay. This does not start, stop, or otherwise alter that timer.
+    /// </summary>
+    internal bool JunhyunIsLegacySharedMarkerFilterSettling =>
+        _sharedMarkerFilterTimer?.IsEnabled == true;
+
     internal void JunhyunAttachCrossFloorMarkerPolicy(Action reapplyPresentation)
     {
         ArgumentNullException.ThrowIfNull(reapplyPresentation);
