@@ -7,13 +7,24 @@ using JunhyunHelper.Infrastructure.Storage;
 namespace JunhyunHelper.Infrastructure.Scanner;
 
 /// <summary>
+/// Compact non-sensitive diagnostics for the most recent Scanner catalog load/refresh.
+/// Market coverage is reported for troubleshooting, but never participates in identity
+/// catalog health: missing prices fail closed per field instead of disabling recognition.
+/// </summary>
+public sealed record ScannerCatalogDiagnostics(
+    string Outcome,
+    int ItemCount,
+    int TraderPriceCount,
+    int FleaPriceCount,
+    bool UsedExistingCatalog);
+
+/// <summary>
 /// Owns the Scanner full-item identity/market cache. Network synchronization is an
 /// explicit pre-scan operation; recognition and item lookup are memory/local-cache only.
 /// </summary>
 public sealed class ScannerCatalogService : IDisposable
 {
     public const int MinimumHealthyItemCount = 4000;
-    public const int MinimumHealthyTraderPriceCount = 500;
     private static readonly TimeSpan DefaultRefreshAge = TimeSpan.FromHours(12);
 
     private readonly HttpClient _httpClient;
@@ -26,6 +37,7 @@ public sealed class ScannerCatalogService : IDisposable
     private Dictionary<string, ScannerCatalogItem> _itemsById = new(StringComparer.Ordinal);
     private GameMode? _loadedMode;
     private DateTimeOffset? _generatedAtUtc;
+    private ScannerCatalogDiagnostics _lastDiagnostics = new("not-run", 0, 0, 0, false);
     private bool _disposed;
 
     public ScannerCatalogService(HttpClient httpClient, string rootDirectory)
@@ -64,6 +76,15 @@ public sealed class ScannerCatalogService : IDisposable
         }
     }
 
+    public ScannerCatalogDiagnostics LastDiagnostics
+    {
+        get
+        {
+            lock (_dataGate)
+                return _lastDiagnostics;
+        }
+    }
+
     public bool HasHealthyCatalog => Count >= MinimumHealthyItemCount;
 
     public bool IsStale(TimeSpan? maximumAge = null)
@@ -92,6 +113,7 @@ public sealed class ScannerCatalogService : IDisposable
         if (!File.Exists(path) && !File.Exists(path + ".bak"))
         {
             ClearForMode(mode);
+            SetDiagnostics("cache-missing", []);
             return Task.FromResult(false);
         }
 
@@ -103,6 +125,7 @@ public sealed class ScannerCatalogService : IDisposable
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             ClearForMode(mode);
+            SetDiagnostics("cache-read-failure", []);
             return Task.FromResult(false);
         }
 
@@ -110,10 +133,12 @@ public sealed class ScannerCatalogService : IDisposable
         if (!IsHealthyCache(cache, mode))
         {
             ClearForMode(mode);
+            SetDiagnostics("cache-invalid", cache.Items);
             return Task.FromResult(false);
         }
 
         ReplaceData(mode, cache.Items, cache.GeneratedAtUtc);
+        SetDiagnostics("cache-loaded", cache.Items, usedExistingCatalog: true);
         return Task.FromResult(true);
     }
 
@@ -146,7 +171,10 @@ public sealed class ScannerCatalogService : IDisposable
             gateEntered = true;
 
             if (LoadedMode == mode && HasHealthyCatalog && !IsStale())
+            {
+                SetDiagnostics("fresh-cache", GetItemsSnapshot(), usedExistingCatalog: true);
                 return true;
+            }
 
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(operation.Token);
             timeout.CancelAfter(TimeSpan.FromSeconds(20));
@@ -173,7 +201,7 @@ public sealed class ScannerCatalogService : IDisposable
                 : ReadTranslationDictionary(englishDocument.RootElement);
             var items = ParseItems(baseDocument.RootElement, korean, english);
             if (!IsHealthyItemSet(items))
-                return LoadedMode == mode && HasHealthyCatalog;
+                return CompleteFailedRefresh(mode, "identity-invalid", items);
 
             var generatedAt = DateTimeOffset.UtcNow;
             var cache = new ScannerCatalogCache
@@ -193,35 +221,36 @@ public sealed class ScannerCatalogService : IDisposable
             // a write that cannot be recovered as the same validated document.
             var verified = new AtomicJsonFileStore(path).LoadOrDefault(() => new ScannerCatalogCache());
             if (!IsHealthyCache(verified, mode))
-                return LoadedMode == mode && HasHealthyCatalog;
+                return CompleteFailedRefresh(mode, "cache-readback-invalid", verified.Items);
 
             ReplaceData(mode, verified.Items, verified.GeneratedAtUtc);
+            SetDiagnostics("success", verified.Items);
             DataChanged?.Invoke();
             return true;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return LoadedMode == mode && HasHealthyCatalog;
+            return CompleteFailedRefresh(mode, "timeout-or-shutdown");
         }
         catch (HttpRequestException)
         {
-            return LoadedMode == mode && HasHealthyCatalog;
+            return CompleteFailedRefresh(mode, "http-failure");
         }
         catch (IOException)
         {
-            return LoadedMode == mode && HasHealthyCatalog;
+            return CompleteFailedRefresh(mode, "io-failure");
         }
         catch (UnauthorizedAccessException)
         {
-            return LoadedMode == mode && HasHealthyCatalog;
+            return CompleteFailedRefresh(mode, "access-failure");
         }
         catch (JsonException)
         {
-            return LoadedMode == mode && HasHealthyCatalog;
+            return CompleteFailedRefresh(mode, "json-invalid");
         }
         catch (InvalidDataException)
         {
-            return LoadedMode == mode && HasHealthyCatalog;
+            return CompleteFailedRefresh(mode, "payload-invalid");
         }
         finally
         {
@@ -280,6 +309,33 @@ public sealed class ScannerCatalogService : IDisposable
         }
     }
 
+    private bool CompleteFailedRefresh(
+        GameMode mode,
+        string outcome,
+        IReadOnlyCollection<ScannerCatalogItem>? candidateItems = null)
+    {
+        var useExisting = LoadedMode == mode && HasHealthyCatalog;
+        SetDiagnostics(outcome, candidateItems, useExisting);
+        return useExisting;
+    }
+
+    private void SetDiagnostics(
+        string outcome,
+        IReadOnlyCollection<ScannerCatalogItem>? items = null,
+        bool usedExistingCatalog = false)
+    {
+        var measuredItems = items ?? GetItemsSnapshot();
+        var diagnostics = new ScannerCatalogDiagnostics(
+            outcome,
+            measuredItems.Count,
+            measuredItems.Count(item => item.BestTraderSellPrice is > 0),
+            measuredItems.Count(item => item.FleaAveragePrice is > 0),
+            usedExistingCatalog);
+
+        lock (_dataGate)
+            _lastDiagnostics = diagnostics;
+    }
+
     private void ReplaceData(
         GameMode mode,
         IReadOnlyList<ScannerCatalogItem> items,
@@ -324,20 +380,9 @@ public sealed class ScannerCatalogService : IDisposable
         cache.GeneratedAtUtc != default &&
         IsHealthyItemSet(cache.Items);
 
-    private static bool IsHealthyItemSet(IReadOnlyCollection<ScannerCatalogItem> items)
-    {
-        if (items.Count < MinimumHealthyItemCount ||
-            items.Any(item => string.IsNullOrWhiteSpace(item.Id) || string.IsNullOrWhiteSpace(item.OfficialName)))
-        {
-            return false;
-        }
-
-        // A catalog with thousands of valid names but no market data is structurally
-        // incomplete for Scanner. Reject it instead of silently replacing a known-good
-        // cache and displaying blank trader/slot values.
-        var traderPriceCount = items.Count(item => item.BestTraderSellPrice is > 0);
-        return traderPriceCount >= MinimumHealthyTraderPriceCount;
-    }
+    private static bool IsHealthyItemSet(IReadOnlyCollection<ScannerCatalogItem> items) =>
+        items.Count >= MinimumHealthyItemCount &&
+        !items.Any(item => string.IsNullOrWhiteSpace(item.Id) || string.IsNullOrWhiteSpace(item.OfficialName));
 
     private static Dictionary<string, string> ReadTranslationDictionary(JsonElement envelope)
     {

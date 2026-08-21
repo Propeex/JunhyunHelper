@@ -24,6 +24,10 @@ public sealed class ScannerCatalogMarketShapeTests
             Assert.Equal(1517, item.BestTraderSellPrice);
             Assert.Equal(379, item.TraderPricePerSlot);
             Assert.Equal(3017, item.FleaAveragePrice);
+            Assert.Equal("success", service.LastDiagnostics.Outcome);
+            Assert.Equal(4000, service.LastDiagnostics.ItemCount);
+            Assert.Equal(4000, service.LastDiagnostics.TraderPriceCount);
+            Assert.Equal(4000, service.LastDiagnostics.FleaPriceCount);
         }
         finally
         {
@@ -32,7 +36,7 @@ public sealed class ScannerCatalogMarketShapeTests
     }
 
     [Fact]
-    public async Task RefreshAsync_MarketlessLargeCatalogIsRejectedInsteadOfReplacingHealthyContract()
+    public async Task RefreshAsync_TraderlessLargeCatalogRemainsUsableForIdentityAndFailsClosedPerTraderField()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         var root = CreateTemporaryDirectory();
@@ -41,9 +45,44 @@ public sealed class ScannerCatalogMarketShapeTests
             using var httpClient = new HttpClient(new RawCatalogHandler(includeTraderPrices: false));
             using var service = new ScannerCatalogService(httpClient, root);
 
+            Assert.True(await service.RefreshAsync(GameMode.Regular, cancellationToken));
+            Assert.Equal(4000, service.Count);
+            Assert.True(service.HasHealthyCatalog);
+            Assert.True(service.TryGetItem("raw-item-17", out var item));
+            Assert.Equal("원본 아이템 17", item.OfficialName);
+            Assert.Null(item.BestTraderSellPrice);
+            Assert.Null(item.TraderPricePerSlot);
+            Assert.Equal(3017, item.FleaAveragePrice);
+            Assert.Equal(754, item.FleaPricePerSlot);
+
+            Assert.Equal("success", service.LastDiagnostics.Outcome);
+            Assert.Equal(4000, service.LastDiagnostics.ItemCount);
+            Assert.Equal(0, service.LastDiagnostics.TraderPriceCount);
+            Assert.Equal(4000, service.LastDiagnostics.FleaPriceCount);
+            Assert.False(service.LastDiagnostics.UsedExistingCatalog);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task RefreshAsync_TooSmallCatalogStillFailsClosedForIdentity()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var root = CreateTemporaryDirectory();
+        try
+        {
+            using var httpClient = new HttpClient(new RawCatalogHandler(includeTraderPrices: true, itemCount: 3999));
+            using var service = new ScannerCatalogService(httpClient, root);
+
             Assert.False(await service.RefreshAsync(GameMode.Regular, cancellationToken));
             Assert.Equal(0, service.Count);
             Assert.False(service.HasHealthyCatalog);
+            Assert.Equal("identity-invalid", service.LastDiagnostics.Outcome);
+            Assert.Equal(3999, service.LastDiagnostics.ItemCount);
+            Assert.Equal(3999, service.LastDiagnostics.TraderPriceCount);
         }
         finally
         {
@@ -64,9 +103,9 @@ public sealed class ScannerCatalogMarketShapeTests
         private readonly string _korean;
         private readonly string _english;
 
-        public RawCatalogHandler(bool includeTraderPrices)
+        public RawCatalogHandler(bool includeTraderPrices, int itemCount = 4000)
         {
-            object[] records = Enumerable.Range(0, 4000)
+            object[] records = Enumerable.Range(0, itemCount)
                 .Select(index => includeTraderPrices
                     ? (object)new
                     {
@@ -99,7 +138,7 @@ public sealed class ScannerCatalogMarketShapeTests
 
             var korean = new Dictionary<string, string>(StringComparer.Ordinal);
             var english = new Dictionary<string, string>(StringComparer.Ordinal);
-            for (var index = 0; index < 4000; index++)
+            for (var index = 0; index < itemCount; index++)
             {
                 korean[$"raw-name-{index}"] = $"원본 아이템 {index}";
                 korean[$"raw-short-{index}"] = $"원본 {index}";
