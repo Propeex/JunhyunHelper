@@ -9,12 +9,7 @@
         ShowActivated="False"
         Topmost="True"
         SizeToContent="WidthAndHeight">
-    <Border x:Name="EditFrame"
-            Background="Transparent"
-            BorderBrush="Transparent"
-            BorderThickness="1"
-            CornerRadius="4"
-            Padding="6">
+    <Border Background="Transparent" Padding="6">
         <StackPanel>
             <TextBlock x:Name="ScannerStatusText"
                        Visibility="Collapsed"
@@ -49,14 +44,6 @@
                     <TextBlock x:Name="CurrentNeededText" Foreground="White" />
                 </StackPanel>
             </Grid>
-
-            <TextBlock x:Name="EditHintText"
-                       Visibility="Collapsed"
-                       Text="드래그하여 위치 이동"
-                       Foreground="#FFD0D0D0"
-                       FontSize="11"
-                       Margin="0,5,0,0"
-                       HorizontalAlignment="Center" />
         </StackPanel>
     </Border>
 </Window>
