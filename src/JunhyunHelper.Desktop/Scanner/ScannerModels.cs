@@ -29,6 +29,12 @@ public sealed record ScannerInspectCandidate(
     string TitleSignature,
     BitmapSource? TitleImage);
 
+public enum ScannerCaptureMode
+{
+    TarkovWindow,
+    DisplayTest,
+}
+
 public enum ScannerRuntimeState
 {
     Disabled,
@@ -48,7 +54,8 @@ public sealed record ScannerRuntimeStatus(
     string Message,
     string? ItemId = null,
     string? OfficialName = null,
-    DateTimeOffset? UpdatedAt = null)
+    DateTimeOffset? UpdatedAt = null,
+    ScannerCaptureMode? CaptureMode = null)
 {
     public DateTimeOffset Timestamp { get; } = UpdatedAt ?? DateTimeOffset.Now;
 }
