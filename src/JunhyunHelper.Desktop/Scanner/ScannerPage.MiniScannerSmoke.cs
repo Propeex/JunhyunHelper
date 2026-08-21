@@ -17,6 +17,7 @@ public partial class ScannerPage
             return;
         }
 
+        ScannerTitleFontSmoke.VerifyProductContract();
         VerifyMiniScannerProductContract();
     }
 
