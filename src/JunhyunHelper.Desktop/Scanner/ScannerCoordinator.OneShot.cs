@@ -69,8 +69,28 @@ public sealed partial class ScannerCoordinator
                 return false;
             }
 
-            var mode = ActiveCaptureMode ?? ScannerCaptureMode.TarkovWindow;
-            return await Runtime.ScanOnceAsync(mode, cancellationToken);
+            var resumeMode = ActiveCaptureMode;
+            try
+            {
+                if (resumeMode is not null)
+                {
+                    Runtime.PublishExternalState(
+                        ScannerRuntimeState.Stabilizing,
+                        "1회 고정밀 스캔을 위해 실시간 스캔을 잠시 멈추는 중입니다.");
+                    await Runtime.PauseForOneShotAsync(cancellationToken);
+                }
+
+                var mode = resumeMode ?? ScannerCaptureMode.TarkovWindow;
+                return await Runtime.ScanOnceAsync(mode, cancellationToken);
+            }
+            finally
+            {
+                // Preserve the user's continuous Scanner/Test mode. StartAsync still
+                // honors the latest current settings, so a mode disabled meanwhile
+                // remains disabled rather than being forcibly resurrected.
+                if (resumeMode is not null && !_disposed)
+                    await Runtime.StartAsync(resumeMode.Value, CancellationToken.None);
+            }
         }
         catch (OperationCanceledException)
         {
