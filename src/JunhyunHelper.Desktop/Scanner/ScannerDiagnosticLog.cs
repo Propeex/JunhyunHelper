@@ -8,9 +8,11 @@ namespace JunhyunHelper.Desktop.Scanner;
 /// and capture/OCR metadata only; screenshots and raw pixel buffers are never persisted.
 /// Failures in diagnostics are always non-fatal.
 ///
-/// Recognition attempts are also projected into a bounded in-memory user activity feed.
-/// The feed is independent of file I/O success and intentionally contains only readable
-/// OCR/match decision data, not low-level capture metadata.
+/// Recognition attempts are also projected into a bounded user activity feed. The feed
+/// is independent of file I/O success and intentionally contains only readable OCR/match
+/// decision data, not low-level capture metadata. On startup it restores recent decisions
+/// from the existing bounded scanner.log(.1) files so the Scanner tab is useful across
+/// app restarts without adding a second persistence format.
 /// </summary>
 internal static class ScannerDiagnosticLog
 {
@@ -19,6 +21,7 @@ internal static class ScannerDiagnosticLog
     private static readonly object Gate = new();
     private static readonly Dictionary<ScannerCaptureMode, string> LastOcrByMode = [];
     private static readonly List<ScannerActivityEntry> RecentActivities = [];
+    private static bool _historyHydrated;
 
     public static event Action<ScannerActivityEntry>? ActivityAdded;
 
@@ -31,7 +34,10 @@ internal static class ScannerDiagnosticLog
     public static IReadOnlyList<ScannerActivityEntry> GetRecentActivities()
     {
         lock (Gate)
+        {
+            EnsureRecentActivitiesLoaded();
             return RecentActivities.ToArray();
+        }
     }
 
     public static void Write(string eventName, ScannerCaptureMode? mode = null, params (string Key, object? Value)[] fields)
@@ -41,7 +47,8 @@ internal static class ScannerDiagnosticLog
         {
             lock (Gate)
             {
-                activity = UpdateUserActivity(eventName, mode, fields);
+                EnsureRecentActivitiesLoaded();
+                activity = UpdateUserActivity(eventName, mode, fields, DateTimeOffset.Now);
 
                 try
                 {
@@ -93,10 +100,107 @@ internal static class ScannerDiagnosticLog
         }
     }
 
+    private static void EnsureRecentActivitiesLoaded()
+    {
+        if (_historyHydrated)
+            return;
+        _historyHydrated = true;
+
+        var pendingOcr = new Dictionary<ScannerCaptureMode, string>();
+        foreach (var path in new[] { Path + ".1", Path })
+        {
+            try
+            {
+                if (!File.Exists(path))
+                    continue;
+
+                foreach (var line in File.ReadLines(path, Encoding.UTF8))
+                    ReplayDiagnosticLine(line, pendingOcr);
+            }
+            catch
+            {
+                // Existing diagnostics are best-effort history only.
+            }
+        }
+
+        if (RecentActivities.Count > MaximumRecentActivities)
+            RecentActivities.RemoveRange(MaximumRecentActivities, RecentActivities.Count - MaximumRecentActivities);
+    }
+
+    private static void ReplayDiagnosticLine(
+        string line,
+        Dictionary<ScannerCaptureMode, string> pendingOcr)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+            return;
+
+        var segments = line.Split(" | ", StringSplitOptions.None);
+        if (segments.Length < 3 ||
+            !DateTimeOffset.TryParse(
+                segments[0],
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.RoundtripKind,
+                out var timestamp))
+        {
+            return;
+        }
+
+        var eventName = segments[1].Trim();
+        var fields = ParseFields(segments.AsSpan(2));
+        if (!fields.TryGetValue("mode", out var modeText) ||
+            !Enum.TryParse<ScannerCaptureMode>(modeText, ignoreCase: true, out var mode))
+        {
+            return;
+        }
+
+        if (string.Equals(eventName, "ocr-result", StringComparison.Ordinal))
+        {
+            pendingOcr[mode] = fields.GetValueOrDefault("text", string.Empty);
+            return;
+        }
+
+        if (!string.Equals(eventName, "match-result", StringComparison.Ordinal))
+            return;
+
+        pendingOcr.TryGetValue(mode, out var ocrText);
+        pendingOcr.Remove(mode);
+
+        var activity = new ScannerActivityEntry(
+            timestamp,
+            mode,
+            ocrText ?? string.Empty,
+            EmptyToNull(fields.GetValueOrDefault("officialName", string.Empty)),
+            ParseDouble(fields.GetValueOrDefault("confidence", string.Empty)),
+            ParseDouble(fields.GetValueOrDefault("secondScore", string.Empty)),
+            ParseBoolean(fields.GetValueOrDefault("success", string.Empty)),
+            fields.GetValueOrDefault("reason", string.Empty));
+
+        RecentActivities.Insert(0, activity);
+        if (RecentActivities.Count > MaximumRecentActivities)
+            RecentActivities.RemoveAt(RecentActivities.Count - 1);
+    }
+
+    private static Dictionary<string, string> ParseFields(ReadOnlySpan<string> segments)
+    {
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var segment in segments)
+        {
+            var equals = segment.IndexOf('=');
+            if (equals <= 0)
+                continue;
+            var key = segment[..equals].Trim();
+            if (key.Length == 0)
+                continue;
+            result[key] = segment[(equals + 1)..].Trim();
+        }
+        return result;
+    }
+
     private static ScannerActivityEntry? UpdateUserActivity(
         string eventName,
         ScannerCaptureMode? mode,
-        IReadOnlyList<(string Key, object? Value)> fields)
+        IReadOnlyList<(string Key, object? Value)> fields,
+        DateTimeOffset timestamp)
     {
         if (mode is null)
             return null;
@@ -114,7 +218,7 @@ internal static class ScannerDiagnosticLog
         LastOcrByMode.Remove(mode.Value);
 
         var activity = new ScannerActivityEntry(
-            DateTimeOffset.Now,
+            timestamp,
             mode.Value,
             ocrText ?? string.Empty,
             EmptyToNull(FieldText(fields, "officialName")),
@@ -174,6 +278,14 @@ internal static class ScannerDiagnosticLog
         }
         return false;
     }
+
+    private static double ParseDouble(string value) =>
+        double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
+            ? parsed
+            : 0;
+
+    private static bool ParseBoolean(string value) =>
+        bool.TryParse(value, out var parsed) && parsed;
 
     private static string? EmptyToNull(string value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
