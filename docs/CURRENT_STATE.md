@@ -4,27 +4,28 @@
 
 기준일: 2026-08-21
 
-상태: **`v1.1.0 RELEASE CANDIDATE — Scanner implemented, live Tarkov E2E pending`**
+상태: **`v1.1.0 PUBLIC RELEASE / VERIFIED — Scanner live Tarkov E2E pending`**
 
 ## 현재 공개 기준선
 
-현재 실제 공개 stable은 **v1.0.0**입니다.
-
-공개 v1.0.0 검증 기록:
-
 ```text
-exact release source: 3147ad1b48c3d30df529d95b148c5c444a77d649
-release workflow: 32219746319 — SUCCESS
-automated tests: 232 passed
-asset: Junhyun-Helper-v1.0.0-win-x64.zip
-bytes: 74,088,334
-SHA-256: 0e92787409add9dd9e1138277c3588586a04266b05ca56d7cf7fb6f79c88094c
-public downloaded EXE smoke: passed
+release: v1.1.0
+release id: 374188781
+exact release source / target SHA: ac24f7717e81cf6fa32cb2e0ade63949ed87ade5
+asset: Junhyun-Helper-v1.1.0-win-x64.zip
+bytes: 80,235,043
+SHA-256: 8e7f452701f866c84e753c1c34951af64f4415947e9f56c56634e2b584d9e1ce
+ProductVersion: 1.1.0+ac24f7717e81cf6fa32cb2e0ade63949ed87ade5
+automated tests: 243 passed / 0 failed / 0 skipped
+public downloaded EXE smoke: SUCCESS
+public/latest verification run: 32452416929
 ```
 
-## v1.1.0 목표
+`32452416929`의 제품/release verification 단계는 public-downloaded EXE smoke까지 모두 성공했습니다. Actions 최종 conclusion이 `failure`인 이유는 모든 release gate가 끝난 뒤 PR 코멘트를 기록하려던 비제품 bookkeeping 단계가 integration 권한 403으로 실패했기 때문입니다.
 
-버전 정책상 v1.0.0에 실제 Scanner 사용자 기능을 추가하므로 **MINOR release v1.1.0**입니다.
+상세: `docs/RELEASE_1.1.0.md`
+
+## 호환성
 
 ```text
 Desktop Version: 1.1.0
@@ -34,6 +35,8 @@ user.db schema: v1
 v1.0.0 → v1.1.0 mandatory Game Content update: none
 v1.0.0 → v1.1.0 user.db migration: none
 ```
+
+기존 Profile / Quest / Inventory / Hideout / Map preferences / Ammo favorites는 유지됩니다.
 
 ## Scanner v1.1.0
 
@@ -55,12 +58,12 @@ Tarkov/Display pixels
 - `EscapeFromTarkov` 게임 창 탐색
 - Borderless client-area 좌표 계산
 - target-window `PrintWindow` 우선
-- 필요 시 정확한 client screen rectangle fallback
+- 유효 frame이 없으면 정확한 client screen rectangle fallback
 - ON 즉시 Mini Scanner standby 표시
 
 ### `테스트 ON/OFF`
 
-- 연결된 전체 디스플레이 실시간 캡처
+- 연결된 전체 디스플레이 실시간 capture
 - 실사용과 동일 detector/OCR/matcher pipeline
 - Tarkov screenshot을 바탕화면/이미지 뷰어에 표시해 게임 없이 확인 가능
 - session-only, 재실행 시 OFF
@@ -69,6 +72,7 @@ Tarkov/Display pixels
 ### 정확도/안전성
 
 - 게임 메모리/DLL injection/패킷 접근 없음
+- process-internal data read 없음
 - icon 기반 식별 없음
 - scan 순간 network 없음
 - exact-first + conservative fuzzy
@@ -82,35 +86,36 @@ Tarkov/Display pixels
 %LocalAppData%/JunhyunHelper/logs/scanner.log.1
 ```
 
-- state/candidate/OCR/matcher 결과 기록
-- 전체 screenshot/raw pixels 미저장
+- runtime state / candidate / OCR / matcher 결과 기록
+- screenshot/raw pixels 미저장
 - 약 2MB rotation
+- logging failure nonfatal
 
 상세: `docs/SCANNER.md`, `docs/SCANNER_TEST_PLAN.md`
 
-## 현재 자동 검증 기준
+## v1.1.0 검증 완료 범위
 
-v1.1.0 release candidate는 다음을 통과해야 합니다.
-
-1. Windows Release build
-2. 전체 automated tests
-3. Scanner geometry/catalog/matcher/persistence regression tests
-4. win-x64 self-contained single-file publish
-5. ProductVersion/FIRST_RUN 1.1.0 identity
-6. package/dependency hygiene
-7. actual published EXE startup
-8. rendered existing Product UI assertions
-9. rendered Scanner OFF/OFF safe-default controls
-10. Main Map / Factory / MiniMap smoke
-11. graceful shutdown
-12. Draft release asset 재다운로드/hash/package 검증
-13. public 전환 후 public asset 재검증 및 public EXE smoke
+- Windows Release build
+- 243 automated tests
+- Scanner geometry/catalog/matcher/persistence regression
+- win-x64 self-contained single-file publish
+- ProductVersion/FIRST_RUN identity
+- package/dependency hygiene
+- actual packaged EXE rendered Product UI assertions
+- Scanner `스캐너 OFF` / `테스트 OFF` safe-default controls
+- Main Map / Factory / MiniMap smoke
+- graceful shutdown
+- Draft release asset checksum/package verification
+- Draft-downloaded EXE smoke
+- public/latest 전환
+- public asset re-download hash/size/ProductVersion verification
+- public-downloaded EXE smoke
 
 ## live Tarkov 검증 정책
 
-사용자가 2026-08-21 확정한 결정에 따라 **최신 Tarkov Borderless 인게임 E2E는 v1.1.0 공개 차단 조건이 아닙니다.**
+사용자가 2026-08-21 확정한 결정에 따라 **최신 Tarkov Borderless 인게임 E2E는 v1.1.0 공개 차단 조건이 아니며 현재 PENDING입니다.**
 
-공개 후 다음을 사용자 환경에서 `scanner.log`와 함께 검증/보정합니다.
+공개 후 사용자 환경에서 `scanner.log`와 함께 확인/보정할 항목:
 
 - PrintWindow vs Borderless client-rectangle fallback
 - 실제 최신 상세창 geometry threshold
@@ -119,7 +124,7 @@ v1.1.0 release candidate는 다음을 통과해야 합니다.
 - 장시간 CPU/memory/handle/OCR rate
 - Alt+Tab/minimize/MiniMap coexistence
 
-문제가 발견되면 후속 PATCH에서 보정합니다.
+새 사용자 기능을 추가하지 않는 보정은 버전 규칙상 PATCH release로 처리합니다.
 
 ## 제품 기능 상태
 
@@ -129,11 +134,12 @@ v1.1.0 release candidate는 다음을 통과해야 합니다.
 | Quest | 구현 완료 / fail-closed availability |
 | Hideout | 구현 완료 |
 | Needed Items / Inventory | 구현 완료 / future protection / ledger |
+| Items | 구현 완료 |
 | Ammo | 구현 완료 |
 | Map + MiniMap | 구현 완료 / Windows user validated |
 | Game Content Update | 구현 완료 |
-| Program Update | 구현 완료 / stable release updater |
-| Scanner | **v1.1.0 실제 기능 구현 / Windows CI 검증 / live Tarkov E2E 후속** |
+| Program Update | 구현 완료 / public stable updater |
+| Scanner | **IMPLEMENTED / v1.1.0 WINDOWS+PACKAGE VERIFIED / LIVE TARKOV E2E PENDING** |
 
 ## 유지되는 비차단 범위
 
@@ -141,21 +147,10 @@ v1.1.0 release candidate는 다음을 통과해야 합니다.
 - PvE Skier LL2 task-pool drift는 exact fact가 없으면 해당 pool fail-closed
 - Map donor/bridge maintenance debt는 안정성이 유지되는 동안 임의 refactor하지 않음
 - code signing / installer는 현재 필수 범위 아님
-- Scanner live Tarkov tuning은 v1.1.0 공개 후 로그 기반 후속 검증
+- Scanner live Tarkov tuning은 공개 v1.1.0에서 로그 기반 후속 검증
 
-## v1.1.0 공개 완료 조건
+## 다음 작업
 
-1. PR #108 final CI 성공
-2. final diff/review 확인
-3. main 병합
-4. exact main release SHA에서 release workflow 실행
-5. build/tests/publish/product smoke 재통과
-6. Draft v1.1.0 ZIP/checksum 생성
-7. Draft assets 재다운로드 검증
-8. public/latest 전환
-9. public assets 재다운로드 검증
-10. public downloaded EXE smoke
-11. release-only workflow 제거
-12. 공식 상태 문서에 final SHA/hash/run 기록
+현재 제품 릴리즈 작업은 완료 상태입니다.
 
-인게임 Tarkov E2E는 12개 공개 완료 조건에 포함하지 않습니다.
+다음 Scanner 작업은 별도 기능 개발이 아니라 실제 Tarkov 실행 후 `scanner.log` 기반의 live validation입니다. 문제가 발견될 경우 capture/detector/OCR/matcher calibration을 원인별로 수정하고 회귀 검증 후 PATCH release합니다.
