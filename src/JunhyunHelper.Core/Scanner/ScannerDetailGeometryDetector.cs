@@ -16,6 +16,9 @@ public static class ScannerDetailGeometryDetector
     private const double CanonicalCenterYRatio = 500.0 / 1080.0;
     private const double MinimumScore = 18.0;
     private const double ScoreTieWindow = 2.0;
+    private const int SearchStepXPixels = 8;
+    private const int SearchStepYPixels = 6;
+    private const int BorderProbeRadiusPixels = 5;
 
     private static readonly double[] GameWindowScales = [0.85, 0.90, 0.95, 1.00, 1.05, 1.10, 1.15];
     private static readonly double[] DisplayTestScales = [0.50, 0.55, 0.65, 0.75, 0.85, 0.95, 1.00, 1.05, 1.15, 1.25];
@@ -34,6 +37,12 @@ public static class ScannerDetailGeometryDetector
 
         var scales = extendedScaleSearch ? DisplayTestScales : GameWindowScales;
         ScannerDetectedRegion? best = null;
+        var xRadiusRatio = extendedScaleSearch ? 0.20 : 0.12;
+        var yRadiusRatio = extendedScaleSearch ? 0.20 : 0.12;
+        var centerXStart = (int)Math.Round(width * (0.50 - xRadiusRatio));
+        var centerXEnd = (int)Math.Round(width * (0.50 + xRadiusRatio));
+        var centerYStart = (int)Math.Round(height * (CanonicalCenterYRatio - yRadiusRatio));
+        var centerYEnd = (int)Math.Round(height * (CanonicalCenterYRatio + yRadiusRatio));
 
         foreach (var scale in scales)
         {
@@ -42,17 +51,16 @@ public static class ScannerDetailGeometryDetector
             if (panelWidth < 260 || panelHeight < 200 || panelWidth >= width * 0.78 || panelHeight >= height * 0.86)
                 continue;
 
-            var xRadius = extendedScaleSearch ? 0.20 : 0.12;
-            var yRadius = extendedScaleSearch ? 0.20 : 0.12;
-            var xStep = extendedScaleSearch ? 0.016 : 0.012;
-            var yStep = extendedScaleSearch ? 0.014 : 0.012;
-
-            for (var centerXRatio = 0.50 - xRadius; centerXRatio <= 0.50 + xRadius + 0.0001; centerXRatio += xStep)
+            // Border validation is intentionally strict (all four outer sides + close
+            // control), so candidate centers must be sampled in pixels rather than the
+            // old 20-30px ratio grid. Keeping the final border within a few pixels is
+            // also important because the title row is only about 25px high.
+            for (var centerX = centerXStart; centerX <= centerXEnd; centerX += SearchStepXPixels)
             {
-                for (var centerYRatio = CanonicalCenterYRatio - yRadius; centerYRatio <= CanonicalCenterYRatio + yRadius + 0.0001; centerYRatio += yStep)
+                for (var centerY = centerYStart; centerY <= centerYEnd; centerY += SearchStepYPixels)
                 {
-                    var x = (int)Math.Round(width * centerXRatio - panelWidth / 2.0);
-                    var y = (int)Math.Round(height * centerYRatio - panelHeight / 2.0);
+                    var x = centerX - panelWidth / 2;
+                    var y = centerY - panelHeight / 2;
                     if (x < 5 || y < 5 || x + panelWidth + 5 >= width || y + panelHeight + 5 >= height)
                         continue;
 
@@ -163,9 +171,9 @@ public static class ScannerDetailGeometryDetector
         var count = 0;
         for (var px = startX; px <= endX; px += step)
         {
-            var a = Luma(pixels, width, height, stride, px, y - 3);
+            var a = Luma(pixels, width, height, stride, px, y - BorderProbeRadiusPixels);
             var b = Luma(pixels, width, height, stride, px, y);
-            var c = Luma(pixels, width, height, stride, px, y + 3);
+            var c = Luma(pixels, width, height, stride, px, y + BorderProbeRadiusPixels);
             total += Math.Max(Math.Abs(a - c), Math.Abs(b - (a + c) * 0.5));
             count++;
         }
@@ -186,9 +194,9 @@ public static class ScannerDetailGeometryDetector
         var count = 0;
         for (var py = startY; py <= endY; py += step)
         {
-            var a = Luma(pixels, width, height, stride, x - 3, py);
+            var a = Luma(pixels, width, height, stride, x - BorderProbeRadiusPixels, py);
             var b = Luma(pixels, width, height, stride, x, py);
-            var c = Luma(pixels, width, height, stride, x + 3, py);
+            var c = Luma(pixels, width, height, stride, x + BorderProbeRadiusPixels, py);
             total += Math.Max(Math.Abs(a - c), Math.Abs(b - (a + c) * 0.5));
             count++;
         }
