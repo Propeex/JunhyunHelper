@@ -212,59 +212,62 @@ Map은 독립 subsystem이며 Quest만 current JunhyunHelper content/profile과 
 
 ## 13. Scanner / Mini Scanner
 
-`CONFIRMED / IMPLEMENTED / v1.1.1 USABILITY UPDATE / LIVE TARKOV E2E PENDING`
+`CONFIRMED / IMPLEMENTED / v1.1.3 PUBLIC VERIFIED / LIVE TARKOV REVALIDATION ONGOING`
 
 Scanner는 Tarkov 화면을 Item ID로 변환해 기존 JunhyunHelper 데이터에 연결하는 입력 subsystem입니다.
 
-### 실사용 Scanner
+### Capture
+
+실사용:
 
 ```text
 스캐너 ON
-→ EscapeFromTarkov Borderless client-area
-→ detail detector
-→ title ROI
-→ Windows ko-KR OCR
-→ current full-item conservative matcher
-→ Item ID
-→ existing JunhyunHelper data
-→ Mini Scanner
+→ EscapeFromTarkov window
+→ Borderless client-area
+→ target PrintWindow 우선
+→ 유효 frame이 없으면 exact client screen rectangle fallback
 ```
 
-capture:
-
-- `EscapeFromTarkov` window handle
-- `GetClientRect` + `ClientToScreen`
-- target `PrintWindow` 우선
-- 유효 frame이 없으면 exact Borderless client screen rectangle fallback
-
-### 테스트 Scanner
+테스트:
 
 ```text
 테스트 ON
 → 모든 연결 디스플레이 실시간 capture
-→ 동일 detector/OCR/matcher/presentation
 ```
-
-Tarkov 전체 screenshot을 바탕화면/이미지 뷰어에 띄워 게임 없이 확인할 수 있습니다.
 
 real/test는 상호 배타적이며 test는 session-only입니다.
 
-### 식별
+### Recognition — Scanner Lab v3.8 구조
 
 ```text
 screen pixels
-→ detail geometry detector
-→ stable title ROI
-→ Windows ko-KR OCR
-→ full current item catalog
-→ exact-first conservative match
+→ RED-X connected-component candidates
++
+→ rectangle/edge structural fallback candidates
+→ IoU candidate deduplication
+→ 최대 8개 structural candidates
+→ candidate별 title ROI
+→ adaptive 4x / 6x / 8x Windows ko-KR OCR
+→ current official Korean full-item catalog resolver
+→ 필요 시 상위 3개 candidate deep OCR
+→ semantic resolution을 통과한 candidate만 inspect window로 확정
 → Item ID
 ```
 
+핵심 계약:
+
+- structural score는 후보 순위이며 최종 사실 판정이 아님
+- geometry rectangle 하나를 즉시 상세창으로 확정하지 않음
+- official current Korean full-item catalog를 semantic validator로 사용
+- OCR 개별 line과 인접 두 line 결합 후보 검사
+- exact-first conservative matcher 유지
+- fuzzy confidence threshold / top1-top2 margin 완화 금지
+- historical alias 무제한 누적 금지
 - low-confidence/ambiguous → no Item ID
-- icon identity 금지
-- 과거 이름 alias 무제한 누적 금지
 - scan-time network 금지
+- icon identity 금지
+
+이 recognition architecture는 DEC-053에서 장기 설계로 고정합니다.
 
 ### 표시 데이터
 
@@ -283,7 +286,7 @@ Item ID 뒤에는 기존 JunhyunHelper data flow를 사용합니다.
 ItemsWorkspace.Plan.NeededItems[itemId].RequiredTotal
 ```
 
-### Scanner 탭 — v1.1.1
+### Scanner 탭
 
 상단 bar:
 
@@ -295,13 +298,13 @@ bar 아래:
 - 표시 정보 checkboxes
 - 최근 인식 기록
 
-상시 설명문을 제거합니다. Foundation preview 개발 도구와 Mini Scanner 별도 위치 편집/초기화 controls도 사용자 화면에 노출하지 않습니다.
+상시 설명문은 제거합니다. Foundation preview 개발 도구와 Mini Scanner 별도 위치 편집/초기화 controls도 사용자 화면에 노출하지 않습니다.
 
-최근 인식 기록은 각 실제 OCR/matcher 시도에 대해 OCR 문자열, nearest official Item, 유사도, top1/top2 margin, 성공/보류, 판단 이유를 사용자 문장으로 보여줍니다. 기존 bounded `scanner.log(.1)`에서 최근 판정을 복원해 앱 재실행 뒤에도 볼 수 있습니다.
+최근 인식 기록은 OCR 문자열, nearest official Item, 유사도/confidence, top1/top2 margin, 성공/보류, 판단 이유를 사용자 문장으로 보여줍니다. 기존 bounded `scanner.log(.1)`에서 최근 판정을 복원합니다.
 
 Foundation Item ID → presentation 내부 API는 개발 진단용으로 유지할 수 있습니다.
 
-### Mini Scanner — v1.1.1
+### Mini Scanner
 
 - MiniMap과 독립
 - Topmost
@@ -313,7 +316,7 @@ Foundation Item ID → presentation 내부 API는 개발 진단용으로 유지�
 - drag 완료 위치 atomic settings 저장
 - negative monitor 좌표 허용
 
-always-drag 요구 때문에 Mini Scanner 자기 영역의 `WS_EX_TRANSPARENT` click-through는 제거합니다. Mini Scanner 영역은 mouse hit-test를 받지만 게임 keyboard focus를 가져가지 않습니다.
+always-drag 요구 때문에 Mini Scanner 자기 영역은 mouse hit-test를 받지만 게임 keyboard focus를 가져가지 않습니다.
 
 ### Scanner 금지
 
@@ -322,29 +325,28 @@ always-drag 요구 때문에 Mini Scanner 자기 영역의 `WS_EX_TRANSPARENT` c
 - packet interception
 - process-internal game data read
 - scan-time HTTP
+- icon/image identity
 
-상세: `docs/SCANNER.md`.
+상세: `docs/SCANNER.md`, `docs/SCANNER_LAB_3_8_REFERENCE.md`.
 
 ## 14. Scanner 릴리즈 / 검증 정책
 
-v1.1.1 release blocker:
+v1.1.3 public release gate 완료:
 
 - Windows Release build
-- full automated tests
-- detector/catalog/matcher regression
+- **245/245 automated tests**
+- Scanner Lab v3.8 detector/title ROI regressions
 - self-contained publish
 - ProductVersion/FIRST_RUN identity
-- rendered Scanner top bar + `아이템 목록 최신화`
-- recent-recognition empty/readable-decision smoke
-- removed Foundation/position controls absent
-- actual packaged EXE Product UI smoke
-- existing Main Map / Factory / MiniMap smoke
+- actual packaged EXE Product UI / Scanner / Main Map / Factory / MiniMap smoke
 - Draft/Public checksum/package verification
+- Draft-downloaded EXE smoke
+- exact public tag verification
 - public-downloaded EXE smoke
 
-**최신 Tarkov Borderless live E2E는 사용자 결정에 따라 release blocker가 아닙니다.**
+**최신 Tarkov Borderless live E2E는 DEC-051에 따라 release blocker가 아닙니다.**
 
-공개 후 `%LocalAppData%/JunhyunHelper/logs/scanner.log`와 최근 인식 기록을 이용해 capture/detector/OCR/input coexistence를 검증하고 필요한 보정을 PATCH로 배포합니다.
+공개 후 `%LocalAppData%/JunhyunHelper/logs/scanner.log`와 최근 인식 기록을 이용해 capture/candidates/OCR/semantic selection/input coexistence를 검증하고 필요한 보정을 PATCH로 배포합니다.
 
 ## 15. Images / Preference Persistence
 
@@ -375,7 +377,7 @@ Scanner 설정도 같은 원칙을 사용합니다.
 
 주요 UI 변경은 build 성공만으로 완료 처리하지 않습니다. 실제 published WPF app smoke에서 rendered contract를 검증합니다.
 
-v1.1.1 Scanner smoke에는:
+Scanner smoke에는:
 
 - `스캐너 OFF`
 - `테스트 OFF`
@@ -391,13 +393,13 @@ v1.1.1 Scanner smoke에는:
 현재 public stable:
 
 ```text
-v1.1.0 — Scanner first public release
+v1.1.3 — Scanner Lab v3.8 recognition restoration
 ```
 
-현재 release candidate:
-
 ```text
-v1.1.1 — Scanner UI/usability refinement
+release source: 8803f899341859887281ad50135911f4625a64f3
+245 passed / 0 failed / 0 skipped
+public downloaded EXE smoke: SUCCESS
 ```
 
 버전 규칙: `docs/VERSIONING.md`.
