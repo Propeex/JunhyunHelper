@@ -12,13 +12,14 @@ public sealed class ScannerCatalogServiceTests
     [Fact]
     public async Task RefreshAsync_LoadsFullKoreanCatalogAndMarketFields()
     {
+        var cancellationToken = TestContext.Current.CancellationToken;
         var root = CreateTemporaryDirectory();
         try
         {
             using var httpClient = new HttpClient(new CatalogHandler());
             using var service = new ScannerCatalogService(httpClient, root);
 
-            var success = await service.RefreshAsync(GameMode.Regular);
+            var success = await service.RefreshAsync(GameMode.Regular, cancellationToken);
 
             Assert.True(success);
             Assert.Equal(4000, service.Count);
@@ -40,15 +41,16 @@ public sealed class ScannerCatalogServiceTests
     [Fact]
     public async Task LoadCacheAsync_MissingDifferentMode_ClearsPreviousModeInsteadOfLeakingIdentity()
     {
+        var cancellationToken = TestContext.Current.CancellationToken;
         var root = CreateTemporaryDirectory();
         try
         {
             using var httpClient = new HttpClient(new CatalogHandler());
             using var service = new ScannerCatalogService(httpClient, root);
-            Assert.True(await service.RefreshAsync(GameMode.Regular));
+            Assert.True(await service.RefreshAsync(GameMode.Regular, cancellationToken));
             Assert.True(service.TryGetItem("item-0", out _));
 
-            var loaded = await service.LoadCacheAsync(GameMode.Pve);
+            var loaded = await service.LoadCacheAsync(GameMode.Pve, cancellationToken);
 
             Assert.False(loaded);
             Assert.Equal(GameMode.Pve, service.LoadedMode);
@@ -64,6 +66,7 @@ public sealed class ScannerCatalogServiceTests
     [Fact]
     public async Task RefreshAsync_UsesCurrentProfileGameModePathIncludingSeason()
     {
+        var cancellationToken = TestContext.Current.CancellationToken;
         var root = CreateTemporaryDirectory();
         try
         {
@@ -71,7 +74,7 @@ public sealed class ScannerCatalogServiceTests
             using var httpClient = new HttpClient(handler);
             using var service = new ScannerCatalogService(httpClient, root);
 
-            Assert.True(await service.RefreshAsync(GameMode.PvpSeason));
+            Assert.True(await service.RefreshAsync(GameMode.PvpSeason, cancellationToken));
 
             Assert.Contains(handler.RequestedPaths, path => path.StartsWith("/pvp-season/", StringComparison.Ordinal));
             Assert.Equal(GameMode.PvpSeason, service.LoadedMode);
