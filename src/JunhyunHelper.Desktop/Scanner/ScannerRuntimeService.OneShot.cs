@@ -7,6 +7,24 @@ public sealed partial class ScannerRuntimeService
     private readonly SemaphoreSlim _captureGate = new(1, 1);
     private CancellationTokenSource? _oneShotDisplayCts;
 
+    /// <summary>
+    /// Cancels the continuous Scanner loop and waits until it has actually exited.
+    /// One-shot recognition mutates the same verified-item/overlay state, so merely
+    /// issuing cancellation is not sufficient: the old loop must be quiescent first.
+    /// </summary>
+    public async Task PauseForOneShotAsync(CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        Task? loopTask;
+        lock (_loopGate)
+            loopTask = _loopTask;
+
+        StopLoop();
+        if (loopTask is { IsCompleted: false })
+            await loopTask.WaitAsync(cancellationToken);
+    }
+
     public async Task<bool> ScanOnceAsync(
         ScannerCaptureMode mode,
         CancellationToken cancellationToken = default)
