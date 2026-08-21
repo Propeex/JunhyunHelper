@@ -132,21 +132,35 @@ public static class ScannerDetailGeometryDetector
         int panelWidth,
         int panelHeight)
     {
+        // The close-control sample is much cheaper than walking all four borders and is
+        // also the most discriminating signal against ordinary inventory/content boxes.
+        // Reject early so the finer pixel search does not turn into unnecessary CPU work.
+        var closeGlyph = CloseGlyphContrast(pixels, width, height, stride, x, y, panelWidth, panelHeight);
+        if (closeGlyph < 16)
+            return 0;
+
         var sampleStepX = Math.Max(5, panelWidth / 95);
         var sampleStepY = Math.Max(5, panelHeight / 95);
 
         var top = HorizontalEdge(pixels, width, height, stride, x + 8, x + panelWidth - 8, y, sampleStepX);
+        if (top < 8)
+            return 0;
+
         var bottom = HorizontalEdge(pixels, width, height, stride, x + 8, x + panelWidth - 8, y + panelHeight - 1, sampleStepX);
+        if (bottom < 7)
+            return 0;
+
         var left = VerticalEdge(pixels, width, height, stride, x, y + 8, y + panelHeight - 8, sampleStepY);
+        if (left < 7)
+            return 0;
+
         var right = VerticalEdge(pixels, width, height, stride, x + panelWidth - 1, y + 8, y + panelHeight - 8, sampleStepY);
-        var closeGlyph = CloseGlyphContrast(pixels, width, height, stride, x, y, panelWidth, panelHeight);
+        if (right < 7)
+            return 0;
 
         // The real inspection window has a coherent outer frame and a close control in
         // its top-right title bar. Requiring all four sides prevents a strong internal
         // separator/button rectangle from becoming the OCR anchor.
-        if (top < 8 || bottom < 7 || left < 7 || right < 7 || closeGlyph < 16)
-            return 0;
-
         var edgeMean = (top + bottom + left + right) / 4.0;
         var minimumEdge = Math.Min(Math.Min(top, bottom), Math.Min(left, right));
         var toneContrast = PanelToneContrast(pixels, width, height, stride, x, y, panelWidth, panelHeight);
