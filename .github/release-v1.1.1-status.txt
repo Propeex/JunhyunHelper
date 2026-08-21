@@ -1,6 +1,5 @@
-result=failure
-run_id=32457763448
+result=success
+run_id=32458154113
 release_target=1316c25d4e90509bb9286064724b778510fa9301
-is_draft=true
-latest_tag=v1.1.0
-trigger_sha=197dfcbacbf1f1023e3cb9252b05231725422d20
+is_draft=false
+latest_tag=v1.1.1
