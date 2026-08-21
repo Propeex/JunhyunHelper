@@ -27,10 +27,60 @@ public sealed class ScannerCatalogServiceTests
             Assert.True(service.TryGetItem("item-0", out var item));
             Assert.Equal("공식 아이템 0", item.OfficialName);
             Assert.Equal(2000, item.FleaAveragePrice);
-            Assert.Equal(1000, item.BestTraderSellPrice);
+            Assert.Equal(1250, item.BestTraderSellPrice);
             Assert.Equal(4, item.Slots);
-            Assert.Equal(250, item.TraderPricePerSlot);
+            Assert.Equal(312, item.TraderPricePerSlot);
             Assert.Equal(500, item.FleaPricePerSlot);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task RefreshAsync_ExcludesFleaOfferFromBestTraderAndKeepsFleaAverageIndependent()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var root = CreateTemporaryDirectory();
+        try
+        {
+            using var httpClient = new HttpClient(new CatalogHandler());
+            using var service = new ScannerCatalogService(httpClient, root);
+
+            Assert.True(await service.RefreshAsync(GameMode.Regular, cancellationToken));
+            Assert.True(service.TryGetItem("item-0", out var item));
+
+            // item-0 contains a 9,999 RUB flea sellFor row and two trader rows.
+            // The Scanner trader value must be the highest non-flea trader (1,250),
+            // while flea average comes exclusively from avg24hPrice (2,000).
+            Assert.Equal(1250, item.BestTraderSellPrice);
+            Assert.Equal(2000, item.FleaAveragePrice);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task RefreshAsync_InvalidMarketOrDimensionsFailClosedPerField()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var root = CreateTemporaryDirectory();
+        try
+        {
+            using var httpClient = new HttpClient(new CatalogHandler());
+            using var service = new ScannerCatalogService(httpClient, root);
+
+            Assert.True(await service.RefreshAsync(GameMode.Regular, cancellationToken));
+            Assert.True(service.TryGetItem("item-1", out var item));
+
+            Assert.Null(item.FleaAveragePrice);
+            Assert.Equal(1251, item.BestTraderSellPrice);
+            Assert.Equal(0, item.Slots);
+            Assert.Null(item.TraderPricePerSlot);
+            Assert.Null(item.FleaPricePerSlot);
         }
         finally
         {
@@ -109,12 +159,14 @@ public sealed class ScannerCatalogServiceTests
                     name = $"name-{index}",
                     shortName = $"short-{index}",
                     iconLink = $"https://example.test/icons/{index}.png",
-                    avg24hPrice = 2000 + index,
-                    width = 2,
+                    avg24hPrice = index == 1 ? 0 : 2000 + index,
+                    width = index == 1 ? 0 : 2,
                     height = 2,
                     sellFor = new[]
                     {
                         new { priceRUB = 1000 + index, source = "Therapist" },
+                        new { priceRUB = 9999 + index, source = "fleaMarket" },
+                        new { priceRUB = 1250 + index, source = "Mechanic" },
                     },
                 })
                 .ToArray();
