@@ -18,7 +18,7 @@
 - `DEC-004` — 사용자는 제품 판단에 집중하고 개발 절차는 개발자가 책임 — **CONFIRMED**
 - `DEC-005` — 초기 Phase 1에서는 구현보다 설계를 선행 — **PHASE-SPECIFIC / SUPERSEDED by DEC-030**
 - `DEC-006` — 공식 제품명은 준현 헬퍼 — **CONFIRMED**
-- `DEC-007` — 초기 상위 기능 영역 정의 — **CONFIRMED**, Scanner 실제 기능은 PRODUCT OPEN
+- `DEC-007` — 초기 상위 기능 영역 정의 — **CONFIRMED**, Scanner 제품 의미는 DEC-050으로 확정
 - `DEC-008` — 구두 의도는 의미를 맞춘 뒤 공식 요구사항으로 확정 — **CONFIRMED**
 - `DEC-009` — Quest 원천은 json.tarkov.dev → 내부 canonical model — **CONFIRMED**
 - `DEC-010` — 받을 수 있는 Quest는 Helper에서 이미 수락한 것으로 간주 — **CONFIRMED**
@@ -135,7 +135,7 @@
 
 ## DEC-045 — Scanner placeholder 탭은 제품 UI에 유지하되 실제 기능을 가장하지 않는다
 
-- 상태: `CONFIRMED`
+- 상태: **`SUPERSEDED by DEC-050`**
 - 날짜: 2026-08-18
 - 결정: 상단 `스캐너` 탭을 visible 상태로 유지하고 내용은 `준비 중` placeholder로 둔다. 실제 scanner 기능은 별도 사용자 요구 전 구현하지 않는다. maintenance/refactor에서 임의 숨김/삭제하지 않는다.
 - supersedes: DEC-033
@@ -157,7 +157,7 @@
   - 검증 전 현재 app files를 변경하지 않음
   - 실행 중 EXE 교체는 current single-file EXE의 TEMP self-copy updater mode가 수행
   - `준현 헬퍼.exe`, `FIRST_RUN_KO.txt`, `Assets/`만 transaction 교체
-  - 교체 실패 시 previous files rollback 및 old EXE restart 시도
+  - 교체 실패 시 previous owned files rollback 및 old EXE restart 시도
   - `%LocalAppData%/JunhyunHelper` 사용자 데이터는 교체하지 않음
   - 상시 `Updater.exe`를 공개 package에 포함하지 않음
 - 릴리즈 영향:
@@ -216,6 +216,30 @@
   - donor revision SHA 자체를 바꾸는 작업은 별도의 Map source update이며 actual published EXE 회귀 검증을 요구한다.
 - 상세: `docs/REFERENCE_POLICY.md`, `docs/DEVELOPER_REFERENCE.md`
 
+## DEC-050 — Scanner는 한국어 Tarkov 화면을 안전하게 Item ID로 변환하는 독립 입력 subsystem으로 개발한다
+
+- 상태: **`CONFIRMED / FOUNDATION IMPLEMENTED / LIVE INPUT UNVERIFIED`**
+- 날짜: 2026-08-21
+- 사용자 확정 요구:
+  - Scanner는 실제 Tarkov 아이템 상세창을 자동 감지하고 현재 한국어 클라이언트의 공식 아이템 이름을 읽어 Item ID를 확정한다.
+  - Scanner는 게임 데이터 계산을 대체하지 않고 게임 화면과 기존 JunhyunHelper 데이터 사이의 입력 bridge 역할을 한다.
+  - 오탐은 미탐보다 나쁘므로 confidence가 부족하면 아무것도 표시하지 않는다.
+  - Mini Scanner는 MiniMap과 별도 Window/service/settings/lifecycle로 유지한다.
+- 결정:
+  - 게임 메모리 읽기, DLL injection, 패킷 가로채기, game process 내부 데이터 접근, icon 기반 식별을 사용하지 않는다.
+  - Scanner identity는 전체 Tarkov item catalog를 사용하고 기존 Needed Items subset과 분리한다.
+  - 전체 catalog는 사전 동기화/cache하며 실제 scan 순간 외부 API를 호출하지 않는다.
+  - 이름 정답은 현재 한국어 Tarkov 클라이언트의 공식 표시 문자열이며 과거 이름 alias를 production matcher에 누적하지 않는다.
+  - matcher는 exact-first + 보수적 fuzzy + confidence/top1-top2 margin을 사용하고 ambiguous/low-confidence 결과는 거부한다.
+  - Item ID 확정 뒤 가격/아이콘/필요량은 기존 JunhyunHelper data flow를 사용한다.
+  - Scanner의 `현재 필요한 수량`은 보유량을 뺀 부족량이 아니라 `ItemsWorkspace.Plan.NeededItems[].RequiredTotal`이다.
+  - icon은 기존 local image cache를 읽기 전용으로 사용하며 scan 중 누락 icon을 다운로드하지 않는다.
+  - Scanner 설정은 별도 atomic JSON preference로 저장하고 `user.db` schema를 변경하지 않는다.
+  - 실제 Tarkov window capture, 최신 inspect detector, 한국어 OCR은 `IScannerInspectDetector` / `IScannerOcrEngine` 경계 뒤에 두고 실게임 검증 전에는 `Unavailable` 구현을 유지한다.
+  - Foundation CI 성공은 실전 Scanner 완성을 의미하지 않는다. Live Gate A~F를 통과하기 전에는 production-complete나 v1.1.0 정식 릴리스로 선언하지 않는다.
+- supersedes: DEC-045의 “별도 요구 전 실제 Scanner 구현 금지/placeholder만 유지” 상태
+- 상세: `docs/SCANNER.md`, `docs/SCANNER_TEST_PLAN.md`
+
 ---
 
 # 3. 현재 결정 확인 방법
@@ -224,6 +248,8 @@
 - 기술 경계: `docs/ARCHITECTURE.md`
 - 개발자 구현/참조 지도: `docs/DEVELOPER_REFERENCE.md`
 - 현재 구현/릴리즈 상태: `docs/STATE.md`
+- Scanner 제품/기술 계약: `docs/SCANNER.md`
+- Scanner 검증 gate: `docs/SCANNER_TEST_PLAN.md`
 - 버전 정책: `docs/VERSIONING.md`
 - v1.0.0 최종 감사: `docs/FINAL_AUDIT_1.0.0.md`
 - Program Update: `docs/PROGRAM_UPDATE.md`
