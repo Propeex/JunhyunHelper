@@ -1,0 +1,9 @@
+{
+  "release": "v1.1.4",
+  "source_sha": "833ac66c522632a695d106bd7ca9b1d6bfc030dc",
+  "workflow_run_id": "32476391800",
+  "workflow_url": "https://github.com/Propeex/JunhyunHelper/actions/runs/32476391800",
+  "workflow_head_sha": "aeac0c0a5fb9ffe208b07b35e1b4f31fdf606d1a",
+  "conclusion": "failure",
+  "recorded_at_utc": "2026-08-21T11:19:44.4052500+00:00"
+}
