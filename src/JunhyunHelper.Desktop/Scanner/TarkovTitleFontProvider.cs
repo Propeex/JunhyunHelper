@@ -106,7 +106,10 @@ public sealed class TarkovTitleFontProvider : IDisposable
         if (_loadedSourceStamp is { } loaded)
             return loaded.Equals(currentSource.Value);
 
-        return CacheMatchesSource(currentSource.Value);
+        if (!CacheMatchesSource(currentSource.Value))
+            return false;
+        _loadedSourceStamp = currentSource;
+        return true;
     }
 
     private bool TryLoadCache(
@@ -129,8 +132,8 @@ public sealed class TarkovTitleFontProvider : IDisposable
                 // Legacy v1.2.0 caches have no manifest. Keep them readable when their
                 // files are at least as new as the current source, but force extraction
                 // whenever Tarkov's resources.assets is newer.
-                var manifest = TryReadManifest();
-                if (manifest is not null || SourceIsNewerThanCache(liveSource, regularPath, boldPath, koreanPath))
+                var legacyManifest = TryReadManifest();
+                if (legacyManifest is not null || SourceIsNewerThanCache(liveSource, regularPath, boldPath, koreanPath))
                     return false;
             }
             else if (resourcesPath is not null && sourceStamp is null && File.Exists(resourcesPath))
@@ -378,7 +381,11 @@ public sealed class TarkovTitleFontProvider : IDisposable
             var directory = new byte[directoryLength];
             stream.Position = start;
             stream.ReadExactly(directory);
-            if (!TryGetSfntLength(directory, start: 0, fileLength - start, out var length) ||
+            if (!TryGetSfntLength(
+                    directory,
+                    start: 0,
+                    availableLength: fileLength - start,
+                    out var length) ||
                 length > MaxFontPayloadBytes)
             {
                 return false;
@@ -443,15 +450,24 @@ public sealed class TarkovTitleFontProvider : IDisposable
 
     private bool CacheMatchesSource(SourceStamp source)
     {
-        var manifest = TryReadManifest();
-        return manifest is not null &&
-               manifest.SchemaVersion == FontCacheSchemaVersion &&
-               string.Equals(
-                   Path.GetFullPath(manifest.SourcePath),
-                   source.Path,
-                   StringComparison.OrdinalIgnoreCase) &&
-               manifest.SourceLength == source.Length &&
-               manifest.SourceLastWriteUtcTicks == source.LastWriteUtcTicks;
+        try
+        {
+            var manifest = TryReadManifest();
+            return manifest is not null &&
+                   manifest.SchemaVersion == FontCacheSchemaVersion &&
+                   !string.IsNullOrWhiteSpace(manifest.SourcePath) &&
+                   string.Equals(
+                       Path.GetFullPath(manifest.SourcePath),
+                       source.Path,
+                       StringComparison.OrdinalIgnoreCase) &&
+                   manifest.SourceLength == source.Length &&
+                   manifest.SourceLastWriteUtcTicks == source.LastWriteUtcTicks;
+        }
+        catch (Exception exception) when (
+            exception is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return false;
+        }
     }
 
     private FontCacheManifest? TryReadManifest()
