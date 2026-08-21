@@ -1,9 +1,17 @@
 {
   "release": "v1.1.4",
   "source_sha": "833ac66c522632a695d106bd7ca9b1d6bfc030dc",
-  "verification_run_id": "32476768822",
-  "verification_run_url": "https://github.com/Propeex/JunhyunHelper/actions/runs/32476768822",
-  "conclusion": "failure",
-  "recorded_at_utc": "2026-08-21T11:20:48.4198510+00:00",
-  "error": "Could not read v1.1.4 release."
+  "verification_run_id": "32476952938",
+  "verification_run_url": "https://github.com/Propeex/JunhyunHelper/actions/runs/32476952938",
+  "conclusion": "success",
+  "recorded_at_utc": "2026-08-21T11:23:14.3253348+00:00",
+  "public_release_url": "https://github.com/Propeex/JunhyunHelper/releases/tag/v1.1.4",
+  "public_is_latest": true,
+  "published_at": "2026-08-21T11:19:22Z",
+  "tag_commit": "833ac66c522632a695d106bd7ca9b1d6bfc030dc",
+  "zip_name": "Junhyun-Helper-v1.1.4-win-x64.zip",
+  "zip_bytes": 80253044,
+  "zip_sha256": "6d7a4646032c91a66d66ceac0d78b197dd112e78fa9c7a6e99d7092febc2cb54",
+  "product_version": "1.1.4+833ac66c522632a695d106bd7ca9b1d6bfc030dc",
+  "public_downloaded_exe_smoke": "SUCCESS"
 }
