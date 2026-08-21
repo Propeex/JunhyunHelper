@@ -18,7 +18,7 @@
 - `DEC-004` — 사용자는 제품 판단에 집중하고 개발 절차는 개발자가 책임 — **CONFIRMED**
 - `DEC-005` — 초기 Phase 1에서는 구현보다 설계를 선행 — **PHASE-SPECIFIC / SUPERSEDED by DEC-030**
 - `DEC-006` — 공식 제품명은 준현 헬퍼 — **CONFIRMED**
-- `DEC-007` — 초기 상위 기능 영역 정의 — **CONFIRMED**, Scanner 의미는 DEC-050~052
+- `DEC-007` — 초기 상위 기능 영역 정의 — **CONFIRMED**, Scanner 의미는 DEC-050~053
 - `DEC-008` — 구두 의도는 의미를 맞춘 뒤 공식 요구사항으로 확정 — **CONFIRMED**
 - `DEC-009` — Quest 원천은 json.tarkov.dev → 내부 canonical model — **CONFIRMED**
 - `DEC-010` — 받을 수 있는 Quest는 Helper에서 이미 수락한 것으로 간주 — **CONFIRMED**
@@ -164,6 +164,8 @@
 - 혼합 변경은 MINOR 우선
 - 1.0.0에서 Scanner 실제 기능 추가 → 1.1.0
 - 1.1.0 Scanner UI/사용성 보완 → 1.1.1
+- Scanner geometry/title ROI 회귀 보정 → 1.1.2
+- Scanner Lab v3.8 recognition architecture 복원 → 1.1.3
 - 상세: `docs/VERSIONING.md`
 
 ## DEC-049 — Map donor는 source pin과 fetch origin을 분리한다
@@ -175,7 +177,7 @@
 
 ## DEC-050 — Scanner는 한국어 Tarkov 화면을 Item ID로 변환하는 독립 입력 subsystem이다
 
-- 상태: `CONFIRMED / IMPLEMENTED / PARTIALLY SUPERSEDED by DEC-051/052`
+- 상태: `CONFIRMED / IMPLEMENTED / PARTIALLY SUPERSEDED by DEC-051/052/053`
 - 날짜: 2026-08-21
 - 자동 detail/title 인식 → current Korean official item name → Item ID
 - Item ID 이후 기존 JunhyunHelper 데이터 사용
@@ -188,11 +190,12 @@
 - Scanner 설정은 별도 atomic JSON
 - 실게임 구현/릴리즈 제한 부분은 DEC-051이 supersede
 - Mini Scanner click-through 부분은 DEC-052가 supersede
+- recognition candidate 확정 구조는 DEC-053이 구체화
 - 상세: `docs/SCANNER.md`
 
 ## DEC-051 — Scanner v1.1.0은 실제 구현을 공개하고 live Tarkov 검증은 로그 기반 후속으로 진행한다
 
-- 상태: `CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED v1.1.0 / LIVE E2E PENDING`
+- 상태: `CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED / LIVE E2E POST-RELEASE`
 - 날짜: 2026-08-21
 - `스캐너`: `EscapeFromTarkov` Borderless client-area 실시간 감지
 - `PrintWindow` 우선, 필요 시 exact client rectangle screen capture fallback
@@ -205,19 +208,17 @@
 - Windows build/tests/publish/rendered UI/Map smoke/Draft+Public package 검증은 release blocker
 - 최신 Tarkov Borderless live E2E는 release blocker가 아님
 - 공개 후 문제는 scanner.log 기반 PATCH 보정
-- v1.1.0 exact release source: `ac24f7717e81cf6fa32cb2e0ade63949ed87ade5`
-- public ZIP SHA-256: `8e7f452701f866c84e753c1c34951af64f4415947e9f56c56634e2b584d9e1ce`
-- 상세: `docs/SCANNER.md`, `docs/RELEASE_1.1.0.md`
+- 상세: `docs/SCANNER.md`
 
 ## DEC-052 — Scanner 탭은 운용 UI와 사용자용 인식 기록을 사용하고 Mini Scanner는 항상 직접 이동 가능하다
 
-- 상태: **`CONFIRMED / IMPLEMENTING FOR v1.1.1`**
+- 상태: `CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED`
 - 날짜: 2026-08-21
 - Scanner 탭의 상단 제목/상시 기능 설명문을 제거한다.
 - 상단 bar 왼쪽에 `스캐너`, `테스트`; 오른쪽에 `아이템 목록 최신화`를 둔다.
 - bar 아래에 7개 표시 정보 checkbox를 둔다.
 - 하단에 최근 인식 기록을 둔다.
-- 최근 기록은 OCR text, nearest official Item, similarity, top1/top2 margin, 성공/보류, reason을 사용자 문장으로 표시한다.
+- 최근 기록은 OCR text, nearest official Item, similarity/confidence, top1/top2 margin, 성공/보류, reason을 사용자 문장으로 표시한다.
 - 기존 bounded `scanner.log(.1)`에서 최근 판정을 복원해 재실행 뒤에도 확인 가능하게 한다.
 - Foundation Item ID → presentation 내부 preview 경로는 유지하되 product Scanner 탭에서 숨긴다.
 - 별도 위치 편집/초기화 controls는 제거한다.
@@ -229,6 +230,28 @@
 - partially supersedes: DEC-050/051의 Mini Scanner play-mode click-through 계약
 - 상세: `docs/SCANNER_UI_DECISION_2026-08-21.md`, `docs/SCANNER.md`, `docs/SCANNER_TEST_PLAN.md`
 
+## DEC-053 — Scanner 상세창 확정은 Scanner Lab v3.8식 multi-candidate semantic validation을 사용한다
+
+- 상태: `CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED v1.1.3`
+- 날짜: 2026-08-21
+- 배경: v1.1.2 실사용에서 통합 과정의 단일/favored geometry candidate 확정 방식이 Scanner Lab v3.8보다 인식률을 크게 떨어뜨리는 회귀를 만들었다.
+- 사용자가 보존한 `TarkovHelper-ScannerLab-v3.8` 원본을 다시 확보해 실제 성공 구조를 기준으로 복원한다.
+- geometry/structural detection은 **후보 생성과 순위** 역할만 한다.
+- RED-X connected-component candidate와 rectangle/edge fallback candidate를 함께 사용한다.
+- IoU 중복 제거 후 최대 8개 candidate를 유지할 수 있다.
+- candidate별 title ROI를 Windows `ko-KR` OCR하고 current official Korean full-item catalog resolver에 전달한다.
+- title 높이에 따라 4x/6x/8x 확대를 사용한다.
+- 1차 semantic resolution 실패 시 상위 3개 candidate에 enlarged/high-contrast/binary/inverse deep OCR을 수행한다.
+- OCR 개별 line과 인접 두 line 결합 후보를 검사한다.
+- **current official item으로 안전하게 resolve된 candidate만 실제 inspect window로 확정한다.**
+- matcher threshold/top1-top2 margin을 인식률 때문에 낮추지 않는다.
+- historical Scanner Lab alias를 production catalog에 추가하지 않는다.
+- structural score가 가장 높다는 이유만으로 하나의 rectangle을 즉시 inspect window로 확정하는 구현으로 되돌아가지 않는다.
+- 회귀 기준: cropped `Ophthalmoscope 검안경`, full Water screenshot geometry/title ROI, strong inner rectangle coexistence, no-RED-X fallback, uniform fail-closed.
+- v1.1.3 public release source: `8803f899341859887281ad50135911f4625a64f3`
+- release verification: `32470606548 — SUCCESS`, 245/245 tests, Draft/Public re-download + actual EXE smoke SUCCESS
+- 상세: `docs/SCANNER.md`, `docs/SCANNER_LAB_3_8_REFERENCE.md`, `docs/RELEASE_1.1.3.md`
+
 ---
 
 # 3. 현재 결정 확인 방법
@@ -238,7 +261,8 @@
 - 기술 경계: `docs/ARCHITECTURE.md`
 - 개발자 구현/참조 지도: `docs/DEVELOPER_REFERENCE.md`
 - Scanner 제품/기술 계약: `docs/SCANNER.md`
-- Scanner v1.1.1 UI 결정: `docs/SCANNER_UI_DECISION_2026-08-21.md`
+- Scanner Lab v3.8 reference: `docs/SCANNER_LAB_3_8_REFERENCE.md`
+- Scanner UI 결정: `docs/SCANNER_UI_DECISION_2026-08-21.md`
 - Scanner 검증 gate: `docs/SCANNER_TEST_PLAN.md`
 - 버전 정책: `docs/VERSIONING.md`
 - Program Update: `docs/PROGRAM_UPDATE.md`
