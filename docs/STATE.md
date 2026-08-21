@@ -232,7 +232,19 @@ d933792b6042a51cea38dc44b686a096fe30de67
 
 Map/MiniMap은 독립 subsystem이며 Quest projection만 JunhyunHelper와 bridge합니다. 안정적인 donor path는 구체적 defect/performance 근거 없이 broad refactor하지 않습니다.
 
-v1.2.0 exact-source release의 첫 실행은 기존 Main Map asynchronous smoke의 off-floor marker settle timing assertion에서 중단됐습니다. ZIP/Draft 생성 전이었고 제품 source는 변경하지 않았습니다. 동일 exact source job을 한 번 clean rerun하여 같은 Map smoke와 이후 모든 Draft/Public gate를 통과했습니다. 이 이력은 `docs/RELEASE_1.2.0.md`에 기록합니다.
+v1.2.0 exact-source release의 첫 실행은 기존 Main Map asynchronous smoke의 off-floor marker settle timing assertion에서 ZIP/Draft 생성 전에 중단됐습니다. 동일 exact source job을 한 번 clean rerun하여 같은 Map smoke와 이후 모든 Draft/Public gate를 통과했으며 제품 release source는 변경하지 않았습니다.
+
+이 timing 문제는 공개 후 test debt로 남기지 않고 PR #134에서 분석·보강했습니다.
+
+- product-owned off-floor standard marker opacity는 `JunhyunFloorPresentation.OtherFloorOpacity = 0.75`
+- donor는 bounded 200 ms shared marker filter timer를 사용
+- JunhyunHelper는 donor tick 뒤 floor suppression을 복구하고 0.75 presentation을 다시 적용
+- 기존 smoke의 고정 3.2초 단일 샘플은 donor tick과 queued recovery 사이의 짧은 0.50 transient를 우연히 관측할 수 있었음
+- smoke가 donor timer `IsEnabled` 상태를 read-only로 관측하도록 변경
+- timer가 inactive인 상태에서 `Visible + opacity 0.75(±0.01) + 올바른 Above/Below indicator`가 **연속 650 ms** 유지되어야 통과하도록 변경
+- bounded timeout과 marker-state diagnostics 유지
+
+후속 CI run `32515954774`는 새 방식으로 build/tests/publish 및 실제 Product UI/Main Map/Factory/MiniMap smoke를 **첫 실행에서 성공**했습니다. PR #134 merge commit은 `36c6f42e159583c5d799682e0a6015b9f6334220`입니다. 이는 test-harness 안정화이며 public v1.2.0 바이너리/태그/해시를 변경하지 않습니다.
 
 ## 12. Program Update / 배포
 
@@ -323,7 +335,7 @@ ProductVersion 1.2.0+a7601f8498e8d75e832962fb9dd60f4112d28dc6
 | Needed Items / Inventory | 구현 완료 |
 | Items | 구현 완료 |
 | Ammo | 구현 완료 |
-| Map + MiniMap | 구현 완료 / 기존 검증 기준선 유지 |
+| Map + MiniMap | 구현 완료 / 기존 검증 기준선 유지 / steady-state smoke 안정화 완료 |
 | Game Content Update | 구현 완료 |
 | Program Update | 구현 완료 / v1.2.0 public package verified |
 | Scanner + Mini Scanner | **v1.2.0 public baseline / live Tarkov validation 및 후속 수정 진행 대상** |
