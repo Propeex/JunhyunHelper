@@ -137,8 +137,8 @@ public sealed class ScannerItemMatcher
             if (!variants.Contains(official, StringComparer.Ordinal))
                 continue;
 
-            var second = FindSecondBestScore(itemIndex, variants);
-            return new MatchResult(itemIndex, 1.0, second, true);
+            var exactSecondScore = FindSecondBestScore(itemIndex, variants);
+            return new MatchResult(itemIndex, 1.0, exactSecondScore, true);
         }
 
         var variantBigrams = variants
