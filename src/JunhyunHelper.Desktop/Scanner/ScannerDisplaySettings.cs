@@ -2,12 +2,15 @@ namespace JunhyunHelper.Desktop.Scanner;
 
 public sealed class ScannerDisplaySettings
 {
+    public const int CurrentSchemaVersion = 2;
+
+    public int SchemaVersion { get; set; }
     public bool Enabled { get; set; }
     public bool ShowItemName { get; set; } = true;
-    public bool ShowItemIcon { get; set; }
+    public bool ShowItemIcon { get; set; } = true;
     public bool ShowTraderSellPrice { get; set; } = true;
     public bool ShowFleaAveragePrice { get; set; } = true;
-    public bool ShowTraderPricePerSlot { get; set; }
+    public bool ShowTraderPricePerSlot { get; set; } = true;
     public bool ShowFleaPricePerSlot { get; set; }
     public bool ShowCurrentNeeded { get; set; } = true;
     public double? PositionX { get; set; }
@@ -16,6 +19,7 @@ public sealed class ScannerDisplaySettings
 
     public ScannerDisplaySettings Clone() => new()
     {
+        SchemaVersion = SchemaVersion,
         Enabled = Enabled,
         ShowItemName = ShowItemName,
         ShowItemIcon = ShowItemIcon,
@@ -31,6 +35,18 @@ public sealed class ScannerDisplaySettings
 
     public void Normalize()
     {
+        // v1.1.4 persisted the icon and trader-per-slot switches as false by default.
+        // v1.1.5 makes the complete matched-item presentation the product default. The
+        // one-time migration deliberately turns these fields on so existing installs do
+        // not keep the old accidental defaults forever.
+        if (SchemaVersion < CurrentSchemaVersion)
+        {
+            ShowItemIcon = true;
+            ShowTraderSellPrice = true;
+            ShowTraderPricePerSlot = true;
+            SchemaVersion = CurrentSchemaVersion;
+        }
+
         if (PositionX is { } x && !double.IsFinite(x))
             PositionX = null;
         if (PositionY is { } y && !double.IsFinite(y))
