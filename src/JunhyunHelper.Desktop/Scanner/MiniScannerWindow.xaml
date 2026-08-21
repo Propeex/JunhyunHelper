@@ -15,6 +15,7 @@
             Background="#01000000"
             Padding="6"
             Cursor="Arrow"
+            ForceCursor="True"
             PreviewMouseLeftButtonDown="DragSurface_PreviewMouseLeftButtonDown">
         <Grid x:Name="ItemContentGrid">
             <Grid.ColumnDefinitions>
