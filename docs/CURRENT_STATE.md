@@ -4,39 +4,47 @@
 
 기준일: 2026-08-21
 
-상태: **`v1.1.1 RELEASE CANDIDATE — Scanner 운용 UI/최근 인식 기록/Mini Scanner 직접 이동`**
+상태: **`v1.1.2 PUBLIC RELEASE / VERIFIED — Scanner 상세창·제목 ROI 회귀 수정`**
 
 ## 현재 공개 기준선
 
 ```text
-release: v1.1.0
-release id: 374188781
-exact release source / target SHA: ac24f7717e81cf6fa32cb2e0ade63949ed87ade5
-asset: Junhyun-Helper-v1.1.0-win-x64.zip
-bytes: 80,235,043
-SHA-256: 8e7f452701f866c84e753c1c34951af64f4415947e9f56c56634e2b584d9e1ce
-ProductVersion: 1.1.0+ac24f7717e81cf6fa32cb2e0ade63949ed87ade5
-automated tests: 243 passed / 0 failed / 0 skipped
+release: v1.1.2
+release id: 374253005
+exact release source / public tag target SHA: f19d0f6993693aba4eaa26a4bde203c5731f0aad
+asset: Junhyun-Helper-v1.1.2-win-x64.zip
+bytes: 80,238,099
+SHA-256: 8a9613b0b2b06a731a7c6d607f0ed8c9b2991dd73a4789a1058242bb181d87f9
+ProductVersion: 1.1.2+f19d0f6993693aba4eaa26a4bde203c5731f0aad
+automated tests: 244 passed / 0 failed / 0 skipped
+final Draft/Public verification run: 32462693267
 public downloaded EXE smoke: SUCCESS
-public/latest verification run: 32452416929
 ```
 
-v1.1.0은 Scanner 실제 기능을 처음 공개한 verified stable입니다. 최신 Tarkov Borderless live E2E는 사용자 결정대로 후속 검증입니다.
+v1.1.2는 v1.1.1 사용자 검증에서 발견된 Scanner detail geometry/title-ROI 통합 회귀를 수정한 PATCH입니다.
 
-## 다음 릴리즈 — v1.1.1
+## Scanner 현재 상태
 
-DEC-048에 따라 새 Scanner 기능 추가가 아니라 기존 기능의 UI/사용성 개선이므로 PATCH입니다.
+사용자 제공 현재 Tarkov 상세창에서 v1.1.1이 제목 대신 내부 영역 또는 `교환용 물품 > 의료용품` 분류 행을 OCR하는 문제를 재현했습니다.
 
-```text
-Desktop Version: 1.1.1
-Content schema: v7
-Readable Content schemas: v3~v7
-user.db schema: v1
-v1.1.0 → v1.1.1 mandatory Game Content update: none
-v1.1.0 → v1.1.1 user.db migration: none
-```
+원인은 catalog/matcher가 아니라 OCR 앞단의 detail-window geometry/title ROI였습니다.
 
-### Scanner 탭
+v1.1.2에서:
+
+- 현재 관측 상세창 구조를 약 `676x522 @ 1920x1080 UI scale` 기준으로 보정
+- 상/하/좌/우 outer frame + 우상단 close-control을 구조 gate로 사용
+- 신뢰도가 비슷한 작은 내부 사각형보다 큰 outer frame 우선
+- strict frame gate를 유지한 채 위치 탐색 정밀도 개선
+- 제목 OCR ROI를 상세창 최상단 한 줄로 축소
+- 사용자 제공 `Ophthalmoscope 검안경` 화면 기준 category/breadcrumb 행을 ROI에서 제외
+- candidate 검사 early reject로 추가 탐색 비용 완화
+- matcher confidence/top1-top2 margin/fail-closed 정책은 변경하지 않음
+
+상세: `docs/RELEASE_1.1.2.md`, `docs/SCANNER_TITLE_ROI_DECISION_2026-08-21.md`.
+
+## Scanner 운용 UI
+
+v1.1.1에서 확정한 운용 UI를 유지합니다.
 
 ```text
 상단 bar
@@ -48,57 +56,19 @@ v1.1.0 → v1.1.1 user.db migration: none
 최근 인식 기록
 ```
 
-제거된 사용자 UI:
-
-- 상단 Scanner 제목/설명
-- Scanner/Test/catalog/Mini Scanner 설명문
-- Mini Scanner 위치 편집/초기화 controls
-- Foundation verification/preview controls
-
-Foundation Item ID → presentation 내부 경로는 개발자 진단용으로 유지합니다.
-
-### 최근 인식 기록
-
-각 OCR/matcher 시도를 사용자 문장으로 표시합니다.
-
-- 시각
-- Scanner/Test mode
-- OCR text
-- nearest official Item
-- similarity
-- top1/top2 margin
-- 성공/보류
-- 판단 이유
-
-기존 bounded `scanner.log.1` → `scanner.log`에서 최근 판정을 복원하므로 앱 재실행 뒤에도 최근 기록을 확인할 수 있습니다.
-
-개발자 상세 로그는 계속:
-
-```text
-%LocalAppData%/JunhyunHelper/logs/scanner.log
-%LocalAppData%/JunhyunHelper/logs/scanner.log.1
-```
-
-이며 screenshot/raw pixels는 저장하지 않습니다.
-
-### Mini Scanner
-
-v1.1.1부터 별도 edit mode가 없습니다.
-
-- 보이는 동안 직접 left-drag
-- drag 완료 즉시 saved X/Y 갱신
-- negative multi-monitor 좌표 유지
+- Foundation 검증 UI는 일반 Scanner 탭에서 숨김
+- Mini Scanner 별도 위치 편집/초기화 control 없음
+- Mini Scanner는 보이는 동안 직접 left-drag하고 위치 저장
 - Topmost / ShowActivated=false / `WS_EX_NOACTIVATE` 유지
-- always-drag를 위해 Mini Scanner 자기 영역의 `WS_EX_TRANSPARENT` click-through는 제거
+- 직접 drag 때문에 Mini Scanner 자기 영역은 mouse hit-test를 받음
+- 기존 bounded `scanner.log(.1)` → `scanner.log`에서 최근 OCR/matcher 판정을 복원
 
-따라서 Mini Scanner 작은 표시 영역은 mouse hit-test를 받지만 게임 키보드 focus는 가져가지 않습니다.
-
-## Scanner 핵심 파이프라인 — 변경 없음
+## Scanner 핵심 파이프라인
 
 ```text
 Tarkov/Display pixels
 → detail geometry detector
-→ title ROI
+→ top title-row ROI
 → Windows ko-KR OCR
 → conservative full-catalog matcher
 → Item ID
@@ -109,48 +79,40 @@ Tarkov/Display pixels
 - real: `EscapeFromTarkov` Borderless client-area
 - test: all connected displays
 - real/test mutually exclusive
-- no memory/DLL injection/packet interception
+- no game memory / DLL injection / packet interception
 - no icon identity
 - no scan-time network
 - current needed = `RequiredTotal`
 - low confidence/ambiguity = no Item ID
 
-## v1.1.1 release gate
+## v1.1.2 검증
 
-- Windows Release build
-- full automated tests
-- ProductVersion/FIRST_RUN = 1.1.1
-- existing Scanner detector/catalog/matcher regression
-- rendered Scanner top bar + `아이템 목록 최신화`
-- recent-recognition empty/readable decision UI smoke
-- removed Foundation/position controls absent from product UI
-- win-x64 self-contained publish
-- package/dependency hygiene
-- actual packaged EXE startup
-- existing Product UI / Main Map / Factory / MiniMap smoke
-- graceful shutdown
-- Draft asset checksum/package/ProductVersion validation
-- Draft-downloaded EXE smoke
-- public/latest transition
-- public asset re-download validation
-- public-downloaded EXE smoke
+- PR #116 final CI `#1187` / run `32461315093`: SUCCESS
+- exact release source build/tests/publish/smoke run `32462093818`
+- 244 automated tests: SUCCESS
+- strong-inner-rectangle detector regression: SUCCESS
+- title ROI category-row exclusion regression: SUCCESS
+- win-x64 self-contained package audit: SUCCESS
+- exact published EXE Product UI / Scanner / Main Map / Factory / MiniMap smoke: SUCCESS
+- Draft metadata/hash/size/ProductVersion/FIRST_RUN: SUCCESS
+- Draft-downloaded EXE smoke: SUCCESS
+- public/latest transition and public tag target: SUCCESS
+- public re-download hash/size/ProductVersion/FIRST_RUN: SUCCESS
+- public-downloaded EXE smoke: SUCCESS
 
-상세: `docs/SCANNER.md`, `docs/SCANNER_TEST_PLAN.md`, `docs/RELEASE_1.1.1.md`, `docs/SCANNER_UI_DECISION_2026-08-21.md`.
+## 실제 Tarkov 후속 검증
 
-## live Tarkov 검증
+최신 Borderless Tarkov 실제 E2E는 계속 사용자 환경에서 검증합니다. 우선 v1.1.1에서 실패했던 같은 `Ophthalmoscope 검안경` 상세창을 v1.1.2로 재검사합니다.
 
-실제 최신 Borderless Tarkov E2E는 계속 후속 검증입니다. v1.1.1 공개 후 사용자 환경에서 다음을 확인합니다.
+문제가 남으면 다음 순서로 로그를 분리합니다.
 
-- capture route
-- current detail geometry
-- Korean OCR
-- Item match confidence
-- Mini Scanner direct drag와 실제 게임 입력 coexistence
-- false positives / misses
-- long-run resource behavior
-- Alt+Tab/minimize/MiniMap coexistence
+```text
+geometry-candidate
+→ ocr-result
+→ match-result
+```
 
-문제가 있으면 `scanner.log`와 최근 인식 기록을 함께 보고 후속 PATCH로 보정합니다.
+제목 ROI가 올바른데 OCR 문자열 자체가 약한 경우에만 Windows OCR 전처리/확대/대비를 별도 계층으로 개선합니다. matcher를 느슨하게 해서 OCR/ROI 결함을 숨기지 않습니다.
 
 ## 제품 기능 상태
 
@@ -165,11 +127,22 @@ Tarkov/Display pixels
 | Map + MiniMap | 구현 완료 / Windows user validated |
 | Game Content Update | 구현 완료 |
 | Program Update | 구현 완료 / public stable updater |
-| Scanner | **v1.1.1 usability candidate / core pipeline unchanged / live Tarkov E2E pending** |
+| Scanner | **v1.1.2 public verified / live Tarkov revalidation ongoing** |
+
+## 데이터/호환성
+
+```text
+Desktop Version: 1.1.2
+Content schema: v7
+Readable Content schemas: v3~v7
+user.db schema: v1
+v1.1.1 → v1.1.2 mandatory Game Content update: none
+v1.1.1 → v1.1.2 user.db migration: none
+```
 
 ## 현재 비차단 범위
 
 - EFT 1.0 Story Chapters ordinary task source 밖
 - PvE Skier LL2 task-pool drift는 exact fact 없으면 fail-closed
 - code signing / installer는 현재 필수 범위 아님
-- Scanner latest live Tarkov E2E는 로그 기반 후속 검증
+- Scanner 최신 live Tarkov E2E는 로그 기반 후속 검증
