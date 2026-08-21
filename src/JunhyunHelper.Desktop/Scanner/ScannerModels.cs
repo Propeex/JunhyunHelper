@@ -29,7 +29,12 @@ public sealed record ScannerInspectCandidate(
     string TitleSignature,
     BitmapSource? TitleImage,
     double StructuralScore = 0,
-    string StructuralReason = "");
+    string StructuralReason = "",
+    Rect TitleBounds = default,
+    Rect? MagnifierBounds = null,
+    Rect? CloseBounds = null,
+    double TitleAnchorScore = 0,
+    string TitleAnchorReason = "");
 
 public enum ScannerCaptureMode
 {
@@ -91,7 +96,11 @@ public sealed record ScannerActivityEntry(
         {
             var observed = NormalizeForDisplay(OcrText);
             if (string.IsNullOrWhiteSpace(observed))
+            {
+                if (Success && !string.IsNullOrWhiteSpace(CandidateName))
+                    return $"텍스트 OCR 없이 화면 글자 형태를 비교해 ‘{CandidateName}’로 판단했습니다.";
                 return "아이템 이름을 읽지 못해 식별을 보류했습니다.";
+            }
 
             if (string.IsNullOrWhiteSpace(CandidateName))
                 return $"화면에서 ‘{observed}’를 읽었지만 비교할 수 있는 아이템 후보를 찾지 못했습니다.";
@@ -111,6 +120,9 @@ public sealed record ScannerActivityEntry(
             {
                 "EXACT" => "완전 일치",
                 "FUZZY" => "유사도 기준 통과",
+                "FONT_VERIFIED" => "Tarkov 제목 폰트 시각 검증 통과",
+                "FONT_VISUAL_VERIFIED" => "전체 공식 이름 시각 대조 통과",
+                "OCR_INVALID_CHARACTERS" => "현재 공식 이름에 없는 문자 또는 한자 OCR 감지",
                 "LOW_CONFIDENCE" => "유사도 또는 후보 간 차이 부족",
                 "AMBIGUOUS_OFFICIAL_NAME" => "동일 이름 후보 중복",
                 "EMPTY_OCR" => "텍스트 인식 실패",
