@@ -1,36 +1,38 @@
-# Scanner v1.1.4 Test Plan
+# Scanner v1.1.5 Test Plan
 
 기준일: 2026-08-21
 
-상태: **`PUBLIC RELEASE GATE PASSED / v1.1.4 PUBLIC VERIFIED / LIVE TARKOV E2E POST-RELEASE`**
+상태: **`PUBLIC RELEASE GATE PASSED / v1.1.5 PUBLIC VERIFIED / INDEPENDENT PUBLIC VERIFICATION PASSED / LIVE TARKOV E2E POST-RELEASE`**
 
-이 문서는 v1.1.4의 자동/Windows/public release gate와 공개 후 실제 Tarkov 검증을 분리합니다.
+이 문서는 v1.1.5의 자동/Windows/public release gate와 공개 후 실제 Tarkov 환경 검증을 분리합니다.
 
 ## 1. Release blocking gate — 완료
 
 1. Windows Release Desktop build
-2. 전체 automated tests 0 failure
+2. 전체 automated tests 0 failure / 0 skipped
 3. Scanner Lab v3.8 structural/title ROI regression
-4. current catalog/matcher regression
-5. market-field regression
-6. win-x64 self-contained single-file publish
-7. ProductVersion = 1.1.4 + exact release source
-8. FIRST_RUN first line = v1.1.4
-9. package root/dependency/PDB/nested-archive audit
-10. actual published EXE startup
-11. rendered Product UI + Scanner UI assertions
-12. Scanner `로그 삭제` end-to-end smoke
-13. Main Map / Factory / MiniMap runtime smoke
-14. graceful Main Window close/process exit
-15. Draft ZIP/checksum/package/ProductVersion verification
-16. Draft-downloaded EXE smoke
-17. public/latest 전환
-18. exact public tag → release source SHA verification
-19. public ZIP/checksum/package/ProductVersion/FIRST_RUN 재검증
-20. public-downloaded EXE smoke
-21. public-downloaded EXE graceful shutdown
+4. current official Korean catalog/matcher regression
+5. raw `traderPrices` / derived `sellFor` market regression
+6. market-health rejection regression
+7. Tarkov title-font SFNT parser / Hangul fallback smoke
+8. win-x64 self-contained single-file publish
+9. ProductVersion = `1.1.5+<exact release source>`
+10. FIRST_RUN first line = v1.1.5
+11. package root/dependency/PDB/nested-archive audit
+12. actual published EXE startup
+13. rendered Product UI + Scanner/Mini Scanner assertions
+14. Main Map / Factory / MiniMap runtime smoke
+15. graceful Main Window close/process exit
+16. Draft ZIP/checksum/package/ProductVersion/FIRST_RUN verification
+17. Draft-downloaded EXE smoke
+18. public/latest 전환
+19. exact public tag → release source SHA verification
+20. public ZIP/checksum/package/ProductVersion/FIRST_RUN 재검증
+21. public-downloaded EXE smoke + graceful shutdown
+22. separate runner에서 public metadata/tag/package를 독립 재검증
+23. independently downloaded public EXE smoke + graceful shutdown
 
-실제 최신 Tarkov 실행 E2E는 DEC-051에 따라 public release blocker가 아니며 사용자 환경에서 후속 검증합니다.
+실제 최신 Tarkov 실행 E2E와 current `resources.assets` extraction은 environment-dependent empirical validation이므로 public release blocker가 아닙니다. 다만 실패 시 반드시 fail-closed 또는 기존 OCR-only fallback이어야 합니다.
 
 ## 2. Scanner Lab v3.8 recognition regression
 
@@ -40,13 +42,15 @@
 - RED-X anchored outer-window reconstruction
 - rectangle/edge fallback
 - IoU candidate deduplication
-- candidate limit 8
+- runtime candidate limit 8
 - structural floor 0.34
 - geometry alone으로 final inspect 확정 금지
 - adaptive 4x/6x/8x Windows ko-KR OCR
-- 상위 3개 deep OCR fallback
-- current official Korean catalog semantic validation
+- 상위 3개 Deep OCR fallback
+- current official Korean full-item catalog semantic validation
+- exact-first matcher
 - confidence/top1-top2 margin 유지
+- low-confidence/ambiguous → no Item ID
 
 고정 구조 회귀:
 
@@ -56,7 +60,7 @@
 - no RED-X rectangle fallback
 - uniform frame fail-closed
 
-## 3. Candidate 안정화 — v1.1.4
+## 3. Candidate/runtime 안정화
 
 검증 계약:
 
@@ -66,31 +70,106 @@
 - mode/change/miss/reset에서 previous signature history clear
 - verified bounds + title signature가 유지되면 OCR 반복 억제
 - title/geometry 변화 시 기존 Item clear 후 재검증
+- same verified detail은 OCR 없이 1초 presentation refresh만 수행
+- `RequiredTotal` 등 presentation data 변화가 같은 상세창에서도 반영됨
 
-## 4. Catalog / market data
+## 4. OCR concurrency — v1.1.5
+
+`ScannerLab38OcrEngine` 위에 하나의 `SerializedScannerOcrEngine`을 둡니다.
+
+검증 계약:
+
+- Item title OCR과 inventory-context OCR이 concurrent WinRT OCR call을 만들지 않음
+- shared serialized boundary가 availability/error 의미를 변경하지 않음
+- Item-title runtime만 `FontAwareScannerOcrEngine`을 사용
+- inventory-context detector는 serialized OCR을 직접 사용하고 Item-font recovery를 호출하지 않음
+- OCR serialization 때문에 Scanner mode switching/shutdown에서 deadlock이 발생하지 않음
+
+## 5. Tarkov title-font recovery — v1.1.5
+
+### 5.1 기본 동작
+
+확인된 UI contract:
+
+- inspect top Item name = `ItemInfoWindowLabels._caption`
+- primary font = Bender family
+- Korean fallback = `Noto Sans CJK KR`
+
+검증 계약:
+
+1. normal OCR은 기존 inner engine 결과를 그대로 반환한다.
+2. Deep OCR은 기존 Deep OCR을 먼저 수행한다.
+3. 기존 `_catalog.ResolveOcrText(text)`가 success이면 font verifier를 실행하지 않고 원 결과를 유지한다.
+4. 기존 Deep OCR semantic failure일 때만 font-aware recovery를 시도한다.
+5. shortlist는 current official Korean full-item catalog에서만 만든다.
+6. Bender Regular/Bold와 Noto KR fallback으로 official name을 렌더링한다.
+7. observed title ROI와 rendered glyph mask를 scale/tolerance를 두고 비교한다.
+8. semantic + visual + combined + top1/top2 margin을 모두 통과해야 accept한다.
+9. short official name은 더 엄격한 threshold를 사용한다.
+10. ambiguous/weak result는 recovery하지 않는다.
+11. recovered name도 기존 catalog resolver를 통해 Item ID로 연결한다.
+12. font shape만으로 standalone Item identity를 만들지 않는다.
+
+### 5.2 Font provider / cache
+
+`TarkovTitleFontProvider` 검증:
+
+- running `EscapeFromTarkov` executable path에서 `EscapeFromTarkov_Data/resources.assets` 탐색
+- game asset read-only
+- embedded SFNT `OTTO` / TrueType signature 탐색
+- SFNT table directory/offset/length bounds validation
+- SkiaSharp actual typeface metadata로 Bender/Noto family 확인
+- Bender Regular/Bold, Noto Sans CJK KR Regular만 app-local cache
+- public package에 Bender binary 없음
+- source asset mtime이 cache보다 최신이면 stale cache를 정상으로 사용하지 않음
+- asset missing/unreadable/oversize/invalid metadata → font recovery unavailable
+- font recovery unavailable이어도 기존 OCR-only pipeline은 정상 동작
+- game directory write 없음
+
+Published-EXE smoke에 포함된 deterministic contract:
+
+- synthetic valid SFNT parser acceptance
+- invalid zero-table SFNT rejection
+- Hangul fallback segmentation: `가` = Korean fallback, `A` = Bender path
+
+실제 Tarkov `resources.assets` binary 자체는 CI에 없으므로 live extraction은 §13에서 별도로 검증합니다.
+
+## 6. Catalog / market data — v1.1.5
 
 Full catalog:
 
-- 4,000개 이상 Korean item load
+- 4,000개 이상 current Korean Item load
 - regular / pve / pvp-season
 - Korean translation + English per-key fallback
 - corrupt/missing cache reject
 - requested mode missing 시 wrong-mode identity 사용 금지
 - AtomicJson backup recovery
 
-Market regression:
+Market health:
 
-- 4,000개 fixture 전체 Item 순회
-- 각 Item official Korean name 확인
-- 복수 trader가 있으면 non-flea `priceRUB` 최댓값 선택
-- `source == fleaMarket`는 최고 상점가 계산에서 제외
-- flea row가 모든 trader보다 높아도 trader price에 사용하지 않음
-- 플리 평균가는 `avg24hPrice`만 사용
+- valid Item count >= 4,000
+- positive best-trader coverage >= 500
+- name만 정상이고 market coverage가 비정상적으로 비어 있는 candidate는 reject
+- unhealthy candidate가 known-good in-memory/cache data를 덮지 못함
+
+Market projection:
+
+- raw JSON `traderPrices` positive `priceRUB`가 있으면 최댓값 사용
+- raw trader data가 없으면 derived `sellFor` fallback
+- `sellFor`에서는 flea source를 best trader 계산에서 제외
+- flea row가 trader보다 높아도 trader price에 사용하지 않음
+- 플리 평균가는 `avg24hPrice > 0`만 사용
 - zero/missing `avg24hPrice` → null
 - invalid/non-positive dimension → slots 0, price/slot null
 - valid price + slots → integer price/slot
 
-## 5. 현재 필요한 수량
+자동 회귀:
+
+- raw 4,000-Item `traderPrices` fixture가 trader price와 trader price/slot을 채움
+- 4,000-Item market-empty catalog가 reject됨
+- 기존 market/dimension projection regression 유지
+
+## 7. 현재 필요한 수량
 
 ```text
 ItemsWorkspace.Plan.NeededItems[itemId].RequiredTotal
@@ -100,19 +179,22 @@ ItemsWorkspace.Plan.NeededItems[itemId].RequiredTotal
 
 - Inventory 차감 부족량을 Scanner 의미로 사용하지 않음
 - NeededItems에 없으면 0
-- Item ID가 동일해도 presentation snapshot을 주기적으로 다시 구성
+- presentation snapshot을 주기적으로 다시 구성
 - Quest/Hideout 진행으로 `RequiredTotal`이 바뀌면 같은 상세창을 열어 둔 상태에서 최신 값 반영
 - presentation refresh 자체는 OCR을 재실행하지 않음
 
-## 6. Icon / performance
+## 8. Icon / performance — v1.1.5
 
 - scan-time icon HTTP 없음
 - local image-cache만 사용
 - invalid/missing local icon은 해당 icon 표시만 omit
 - 성공적으로 decode/freeze한 동일 stableId+URL icon은 process memory cache 재사용
 - presentation refresh가 같은 PNG file decode를 반복하지 않음
+- explicit Game Content update 시 Quest/Hideout/Ammo subset이 아니라 **전체 canonical Item catalog**의 icon URL을 prefetch queue에 포함
+- existing valid cached PNG는 재다운로드하지 않음
+- 개별 image failure는 전체 content update fatal 아님
 
-## 7. Scanner UI
+## 9. Scanner UI
 
 유지:
 
@@ -129,108 +211,209 @@ ItemsWorkspace.Plan.NeededItems[itemId].RequiredTotal
 - Foundation verification/preview controls
 - 상시 설명문
 
-## 8. 로그 삭제 end-to-end smoke
+## 10. Mini Scanner — v1.1.5
+
+### 표시 contract
+
+- matched Item information만 표시
+- waiting/runtime/OCR/error/diagnostic text element 없음
+- Scanner OFF → hidden
+- unresolved/uncertain Item → hidden
+- MiniMap과 독립 lifecycle
+
+### Window/input contract
+
+- WPF `Topmost=True`
+- render/show/drag 이후 native `HWND_TOPMOST` 재assert
+- `ShowActivated=false`
+- `WS_EX_NOACTIVATE`
+- `WS_EX_TOOLWINDOW`
+- root card 전체가 hit-testable drag surface
+- text/icon child 위에서 mouse-down해도 drag 가능
+- nonzero-alpha near-transparent background로 WPF layered hit test 보장
+- `ForceCursor=True`, Arrow cursor
+- drag 종료 위치 저장
+- negative multi-monitor coordinate 허용
+
+### Display settings migration
+
+schema v2 one-time migration에서 intended defaults:
+
+- Item icon ON
+- trader price ON
+- trader price/slot ON
+
+migration 이후 사용자의 checkbox 변경은 persist해야 합니다.
+
+### Published WPF smoke
 
 실제 published EXE에서:
 
-1. 기존 Scanner diagnostic/activity baseline clear
-2. `ocr-result`와 `match-result` diagnostic 생성
-3. recent activity가 생성됐는지 확인
-4. `scanner.log`가 실제 생성됐는지 확인
-5. `scanner.log.1` 회전 로그도 실제 파일로 생성
-6. rendered `로그 삭제` Button Click event 실행
-7. recent activity = 0 확인
-8. `scanner.log` 없음 확인
-9. `scanner.log.1` 없음 확인
+- `ScannerStatusText`가 존재하지 않음
+- root `DragSurface`가 hit-testable
+- `ForceCursor=True`
+- cursor = Arrow
+- background alpha > 0
+- topmost/noactivate/taskbar contract
+- sample Item의 trader 42,000 표시
+- trader/slot 21,000 표시
+- render 이후 window visible/topmost 유지
 
-삭제 I/O 실패를 Scanner runtime fatal로 확대하지 않는 코드 경계도 유지합니다.
+## 11. Inventory/stash auto visibility — v1.1.5
 
-## 9. Windows capture/runtime
-
-Windows runner에서:
+실사용 gate:
 
 ```text
-dotnet build src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj -c Release
-dotnet test tests/JunhyunHelper.Tests/JunhyunHelper.Tests.csproj -c Release
+matched Item wants overlay
+→ foreground window == EscapeFromTarkov
+→ valid visible/non-minimized client area
+→ top client strip capture
+→ regular ko-KR OCR
+→ 필요 시 Deep OCR
+→ semantic anchors >= 2
+→ overlay allow
 ```
 
-확인:
+현재 anchors:
 
-- EscapeFromTarkov process/window discovery
-- GetClientRect + ClientToScreen
-- PrintWindow + CopyFromScreen fallback
-- multi-monitor enumeration
-- Windows ko-KR OCR boundary
-- WPF BitmapSource handoff
-- real/test mutual exclusion
-- both OFF → no capture/OCR loop
+- `장비`
+- `건강상태` / `건강 상태`
+- `스킬`
+- `지도`
+- `종합정보` / `종합 정보`
 
-## 10. Mini Scanner
+검증 계약:
 
-- Topmost
-- ShowActivated=false
-- WS_EX_NOACTIVATE / WS_EX_TOOLWINDOW
-- direct left-drag
-- drag 종료 위치 저장
-- negative monitor coordinate
-- MiniMap과 독립 lifecycle
-- ON standby / OFF hidden
+- 다른 app foreground → hidden
+- minimized/invalid client → hidden
+- OCR uncertain / anchor < 2 → hidden
+- decision short cache 약 850ms
+- raw pixels/screenshots persist 금지
+- only matched Item presentation 시점에 context probe
+- Display-test/explicit preview는 deterministic smoke를 위해 bypass
+- Borderless/windowed target; exclusive fullscreen support는 claim하지 않음
 
-## 11. Public release verification — 완료
+## 12. Diagnostics / log clear
 
-최종 release source:
+Developer log:
 
 ```text
-833ac66c522632a695d106bd7ca9b1d6bfc030dc
+%LocalAppData%/JunhyunHelper/logs/scanner.log
+%LocalAppData%/JunhyunHelper/logs/scanner.log.1
 ```
 
-최종 검증 흐름:
+유지할 metadata events:
+
+- candidate structural/OCR/match/semantic-selected/runtime
+- `inventory-context`
+- `title-font-cache-load-failed`
+- `title-font-extract-ready`
+- `title-font-extract-missing`
+- `title-font-extract-failed`
+- `title-font-verify-accepted`
+- `title-font-verify-rejected`
+- `title-font-recovery-error`
+
+저장 금지:
+
+- screenshot
+- raw pixel buffer
+
+`로그 삭제` end-to-end smoke:
+
+1. diagnostic/activity baseline clear
+2. diagnostic/activity 생성
+3. current/rotated scanner log file 생성
+4. rendered `로그 삭제` Button Click
+5. activity = 0
+6. `scanner.log` 없음
+7. `scanner.log.1` 없음
+
+삭제 I/O 실패는 recognition fatal로 확대하지 않습니다.
+
+## 13. Public release verification — 완료
+
+Exact release source/tag:
 
 ```text
-exact source checkout
-→ build
-→ 247 tests
-→ publish
-→ package audit
-→ actual EXE smoke including Scanner log clear
-→ ZIP + SHA256SUMS
-→ Draft release
-→ Draft asset re-download/hash/ProductVersion
-→ Draft-downloaded EXE smoke
-→ public/latest
-→ exact tag verification
-→ public asset re-download/hash/root/ProductVersion/FIRST_RUN
-→ public-downloaded EXE smoke
+3541bab6536ff91a00f394c4f7b03d5cbf112746
+```
+
+Final candidate CI:
+
+```text
+run: 32493986403 — SUCCESS
+249 passed / 0 failed / 0 skipped
+published EXE product smoke: SUCCESS
+```
+
+Exact-source first release run:
+
+```text
+run: 32494487841
+build/test/publish/package/exact EXE smoke/ZIP/Draft creation: SUCCESS
+final Draft tag-ref check: workflow-ordering FAILURE
+```
+
+이 failure는 Draft 상태에서는 public Git tag ref가 아직 생성되지 않는 GitHub lifecycle을 즉시 조회한 자동화 순서 문제였습니다. 제품/패키지 gate와 Draft 생성은 이미 통과했으며 public transition 전 failure였습니다.
+
+Draft resume/public verification:
+
+```text
+run: 32495042444 — SUCCESS
+Draft identity/asset re-download: VERIFIED
+Draft-downloaded EXE smoke: SUCCESS
+public/latest: VERIFIED
+public tag exact source: VERIFIED
+public asset re-download: VERIFIED
+public-downloaded EXE smoke: SUCCESS
+```
+
+Independent public verification:
+
+```text
+run: 32495225958 — SUCCESS
+public metadata/latest/tag: VERIFIED
+public asset independent re-download: VERIFIED
+public-downloaded EXE smoke: SUCCESS
+normal shutdown / clean portable root: SUCCESS
 ```
 
 최종 공개 패키지:
 
 ```text
-asset: Junhyun-Helper-v1.1.4-win-x64.zip
-bytes: 80,253,044
-SHA-256: 6d7a4646032c91a66d66ceac0d78b197dd112e78fa9c7a6e99d7092febc2cb54
-ProductVersion: 1.1.4+833ac66c522632a695d106bd7ca9b1d6bfc030dc
-PR final CI: 32475893012 — SUCCESS
-public verification run: 32476952938 — SUCCESS
-public-downloaded EXE smoke: SUCCESS
+asset: Junhyun-Helper-v1.1.5-win-x64.zip
+bytes: 80,269,429
+SHA-256: dc31177ae1bd4d152453a010dffe6cbb1e6c1d2a4a7e2eb82fb7444fa99c0748
+ProductVersion: 1.1.5+3541bab6536ff91a00f394c4f7b03d5cbf112746
+release: https://github.com/Propeex/JunhyunHelper/releases/tag/v1.1.5
 ```
 
-첫 exact-source Draft-first workflow `32476391800`은 public 전환 뒤 태그 재조회 refspec 문자열 버그로 마지막 자동 단계가 failure 처리되었습니다. 그 전의 제품/package/Draft gate는 모두 통과했으며, 독립 public verification run에서 exact tag 및 공개 자산 검증을 다시 수행했습니다.
+최종 run/source/hash/bytes는 `docs/RELEASE_1.1.5.md`, `docs/STATE.md`, `docs/CURRENT_STATE.md`에 고정합니다.
 
-최종 run/source/hash/bytes는 `docs/RELEASE_1.1.4.md`와 `docs/STATE.md`에 고정되어 있습니다.
+## 14. 공개 후 실제 Tarkov 검증
 
-## 12. 공개 후 실제 Tarkov 검증
-
-우선순위:
+CI runner에는 실제 current Tarkov 설치가 없으므로 다음은 사용자 환경에서 우선 검증합니다.
 
 1. 실제 Borderless detail candidate 안정성
-2. current Korean title OCR
-3. candidate semantic selection
-4. 다양한 Item의 최고 상점가
-5. 플리 평균가
-6. 현재 필요한 수량
-7. false positive / miss
-8. 장시간 CPU/memory/handles/OCR rate
-9. Mini Scanner / MiniMap / Alt+Tab 공존
+2. foreground inventory/stash Korean anchor gate
+3. current `resources.assets`에서 Bender Regular/Bold + Noto Sans CJK KR 추출
+4. normal/Deep OCR 성공률
+5. font-aware recovery의 accept/reject 품질
+6. mixed Korean/Latin Item names의 glyph fallback
+7. false positive / miss 비율
+8. 다양한 Item의 최고 상점가 / 플리 평균가 / price per slot
+9. 현재 필요한 수량 live refresh
+10. Mini Scanner topmost/noactivate/full-card drag/Arrow cursor
+11. Mini Scanner / MiniMap / Alt+Tab 공존
+12. 장시간 CPU/memory/handles/OCR rate
 
-문제가 있으면 `scanner.log`와 최근 인식 기록을 근거로 후속 PATCH에서 보정합니다.
+Font/context 문제는 `scanner.log`의 `inventory-context`, `title-font-*`, candidate/OCR/match metadata로 진단합니다.
+
+실사용 보정 원칙:
+
+- context anchor가 불확실하면 overlay hidden 유지
+- font extraction이 실패하면 OCR-only fallback 유지
+- visual evidence가 약하면 no Item ID 유지
+- matcher confidence/top1-top2 margin을 낮춰 false positive를 늘리지 않음
+- 구조/anchor/font parser 문제는 후속 PATCH에서 국소적으로 수정
