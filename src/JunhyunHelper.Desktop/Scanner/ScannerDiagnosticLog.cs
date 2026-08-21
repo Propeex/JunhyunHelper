@@ -24,6 +24,7 @@ internal static class ScannerDiagnosticLog
     private static bool _historyHydrated;
 
     public static event Action<ScannerActivityEntry>? ActivityAdded;
+    public static event Action? ActivitiesCleared;
 
     public static string Path => System.IO.Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -38,6 +39,38 @@ internal static class ScannerDiagnosticLog
             EnsureRecentActivitiesLoaded();
             return RecentActivities.ToArray();
         }
+    }
+
+    /// <summary>
+    /// Clears both the user-facing recognition history and the bounded scanner.log files.
+    /// New runtime activity may create a fresh scanner.log immediately after this call.
+    /// File-system failures are reported through the return value and never affect Scanner.
+    /// </summary>
+    public static bool Clear()
+    {
+        var success = true;
+        lock (Gate)
+        {
+            // Do not hydrate history just before deleting it. Mark the current process as
+            // hydrated so a partially undeletable old file is not replayed into the UI.
+            _historyHydrated = true;
+            LastOcrByMode.Clear();
+            RecentActivities.Clear();
+
+            success &= TryDelete(Path);
+            success &= TryDelete(Path + ".1");
+        }
+
+        try
+        {
+            ActivitiesCleared?.Invoke();
+        }
+        catch
+        {
+            // A presentation subscriber must never affect diagnostics or Scanner.
+        }
+
+        return success;
     }
 
     public static void Write(string eventName, ScannerCaptureMode? mode = null, params (string Key, object? Value)[] fields)
@@ -289,6 +322,21 @@ internal static class ScannerDiagnosticLog
 
     private static string? EmptyToNull(string value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static bool TryDelete(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+            return true;
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            return false;
+        }
+    }
 
     private static void RotateIfNeeded(string path)
     {
