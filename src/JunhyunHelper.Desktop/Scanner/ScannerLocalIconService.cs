@@ -8,10 +8,14 @@ namespace JunhyunHelper.Desktop.Scanner;
 /// <summary>
 /// Read-only adapter for the existing JunhyunHelper image-cache file contract. Scanner
 /// never calls the HTTP-backed ImageCacheService while an item is being recognized.
+/// Successfully decoded frozen images are kept in a small process-local cache so live
+/// presentation refreshes do not repeatedly reopen and decode the same PNG.
 /// </summary>
 public sealed class ScannerLocalIconService
 {
     private readonly string _cacheDirectory;
+    private readonly object _memoryGate = new();
+    private readonly Dictionary<string, ImageSource> _memoryCache = new(StringComparer.Ordinal);
 
     public ScannerLocalIconService(string rootDirectory)
     {
@@ -26,6 +30,13 @@ public sealed class ScannerLocalIconService
         if (!Uri.TryCreate(sourceUrl, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
             return null;
 
+        var cacheKey = stableId.Trim() + "\n" + sourceUrl.Trim();
+        lock (_memoryGate)
+        {
+            if (_memoryCache.TryGetValue(cacheKey, out var cached))
+                return cached;
+        }
+
         var path = CachePath(stableId, sourceUrl);
         if (!File.Exists(path))
             return null;
@@ -38,6 +49,9 @@ public sealed class ScannerLocalIconService
             image.UriSource = new Uri(path, UriKind.Absolute);
             image.EndInit();
             image.Freeze();
+
+            lock (_memoryGate)
+                _memoryCache[cacheKey] = image;
             return image;
         }
         catch
