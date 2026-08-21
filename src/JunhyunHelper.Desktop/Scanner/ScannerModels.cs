@@ -27,7 +27,9 @@ public sealed record ScannerInspectCandidate(
     Rect Bounds,
     string GeometrySignature,
     string TitleSignature,
-    BitmapSource? TitleImage);
+    BitmapSource? TitleImage,
+    double StructuralScore,
+    string StructuralReason);
 
 public enum ScannerCaptureMode
 {
