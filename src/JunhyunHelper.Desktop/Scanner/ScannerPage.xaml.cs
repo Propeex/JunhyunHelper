@@ -1,19 +1,23 @@
+using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
-using JunhyunHelper.Core.Profiles;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
 public partial class ScannerPage : UserControl
 {
+    private const int MaximumVisibleActivities = 40;
+
+    private readonly ObservableCollection<ScannerActivityEntry> _activities = [];
     private ScannerCoordinator? _coordinator;
     private bool _initialized;
     private bool _updatingUi;
-    private bool _positionEditing;
+    private bool _activitySubscribed;
 
     public ScannerPage()
     {
         InitializeComponent();
+        ActivityItems.ItemsSource = _activities;
     }
 
     private async void ScannerPage_Loaded(object sender, RoutedEventArgs e)
@@ -27,6 +31,7 @@ public partial class ScannerPage : UserControl
         _coordinator = mainWindow.ScannerCoordinator;
         _coordinator.AttachContextProvider(mainWindow.GetScannerDataContext);
         _coordinator.StatusChanged += Coordinator_StatusChanged;
+        SubscribeActivityFeed();
         ApplySettings(_coordinator.Settings);
         UpdateToggleButtons();
 
@@ -134,91 +139,13 @@ public partial class ScannerPage : UserControl
         }
         catch (Exception exception)
         {
-            App.WriteDiagnostic("Scanner catalog synchronization failed", exception);
+            App.WriteDiagnostic("Scanner item list refresh failed", exception);
         }
         finally
         {
             SyncCatalogButton.IsEnabled = true;
             UpdateStatus(_coordinator.Status);
         }
-    }
-
-    private void PositionEditButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (_coordinator is null)
-            return;
-
-        _positionEditing = !_positionEditing;
-        if (_positionEditing)
-        {
-            _coordinator.PauseForPositionEdit();
-            _coordinator.BeginPositionEdit();
-            PositionEditButton.Content = "편집 종료";
-        }
-        else
-        {
-            _coordinator.EndPositionEdit();
-            _ = ResumeAfterPositionEditAsync();
-            PositionEditButton.Content = "위치 편집";
-        }
-    }
-
-    private void PositionResetButton_Click(object sender, RoutedEventArgs e)
-    {
-        _coordinator?.ResetPosition();
-    }
-
-    private async void PreviewItemButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (_coordinator is null)
-            return;
-        await ShowPreviewAsync(PreviewItemIdTextBox.Text);
-    }
-
-    private async void PreviewDefaultButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (_coordinator is null)
-            return;
-        await ShowPreviewAsync(null);
-    }
-
-    private async void PreviewHideButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (_coordinator is null)
-            return;
-        await _coordinator.HidePreviewAsync();
-        UpdateStatus(_coordinator.Status);
-    }
-
-    private async Task ShowPreviewAsync(string? itemId)
-    {
-        if (_coordinator is null)
-            return;
-
-        try
-        {
-            await _coordinator.ShowPreviewAsync(itemId);
-        }
-        catch (Exception exception)
-        {
-            App.WriteDiagnostic("Scanner preview failed", exception);
-        }
-        UpdateStatus(_coordinator.Status);
-    }
-
-    private async Task ResumeAfterPositionEditAsync()
-    {
-        if (_coordinator is null)
-            return;
-        try
-        {
-            await _coordinator.ResumeAfterPositionEditAsync();
-        }
-        catch (Exception exception)
-        {
-            App.WriteDiagnostic("Scanner position edit resume failed", exception);
-        }
-        UpdateStatus(_coordinator.Status);
     }
 
     private void Coordinator_StatusChanged(ScannerRuntimeStatus status)
@@ -236,20 +163,46 @@ public partial class ScannerPage : UserControl
         UpdateStatus(status);
     }
 
+    private void SubscribeActivityFeed()
+    {
+        if (_activitySubscribed)
+            return;
+
+        _activitySubscribed = true;
+        foreach (var activity in ScannerDiagnosticLog.GetRecentActivities().Take(MaximumVisibleActivities))
+            _activities.Add(activity);
+        ScannerDiagnosticLog.ActivityAdded += ScannerDiagnosticLog_ActivityAdded;
+        UpdateEmptyActivityState();
+    }
+
+    private void ScannerDiagnosticLog_ActivityAdded(ScannerActivityEntry activity)
+    {
+        if (!Dispatcher.CheckAccess())
+        {
+            _ = Dispatcher.BeginInvoke(() => AddActivity(activity));
+            return;
+        }
+        AddActivity(activity);
+    }
+
+    private void AddActivity(ScannerActivityEntry activity)
+    {
+        _activities.Insert(0, activity);
+        while (_activities.Count > MaximumVisibleActivities)
+            _activities.RemoveAt(_activities.Count - 1);
+        UpdateEmptyActivityState();
+    }
+
+    private void UpdateEmptyActivityState()
+    {
+        EmptyActivityText.Visibility = _activities.Count == 0
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+    }
+
     private void UpdateStatus(ScannerRuntimeStatus status)
     {
         RuntimeStatusText.Text = status.Message;
-        if (_coordinator is null)
-        {
-            CatalogStatusText.Text = "카탈로그 상태를 확인할 수 없습니다.";
-            return;
-        }
-
-        var mode = _coordinator.CatalogMode?.ToDataKey() ?? "미로드";
-        var generated = _coordinator.CatalogGeneratedAtUtc is { } time
-            ? time.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
-            : "없음";
-        CatalogStatusText.Text = $"카탈로그: {mode} · {_coordinator.CatalogCount:N0}개 · 생성 {generated}";
     }
 
     private void ApplySettings(ScannerDisplaySettings settings)

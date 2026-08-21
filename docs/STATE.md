@@ -19,15 +19,15 @@
 - Map + MiniMap
 - Game Content 안전 업데이트
 - 사용자 동의형 Program Update
-- **Scanner + Mini Scanner**
+- Scanner + Mini Scanner
 
 Runtime GPT/AI 의존성은 없습니다.
 
 기존 `Propeex/Tarkov-Helper`는 공식 요구사항이 아니며 Map/MiniMap의 검증된 donor source로만 제한 사용합니다.
 
-## 2. 릴리즈 상태
+## 2. 공개 릴리즈
 
-현재 공개 stable:
+현재 public stable:
 
 ```text
 v1.1.0 PUBLIC RELEASE / VERIFIED
@@ -42,39 +42,36 @@ public downloaded EXE smoke: SUCCESS
 public/latest verification run: 32452416929
 ```
 
-`32452416929`에서 기존 Draft의 target/hash/package/ProductVersion/FIRST_RUN을 검증하고 실제 Draft-downloaded EXE smoke를 통과한 뒤 public/latest로 전환했습니다. 이후 public asset을 다시 다운로드해 hash/size/ProductVersion/FIRST_RUN을 재검증하고 실제 EXE smoke까지 성공했습니다.
+v1.1.0의 Draft/public asset 및 public-downloaded EXE smoke까지 검증되었습니다. release verification run의 최종 failure 표시는 제품 gate 이후 PR 코멘트 권한 403인 bookkeeping-only 실패였습니다.
 
-해당 Actions run의 최종 conclusion은 마지막 PR 코멘트 기록 단계의 integration 권한 403 때문에 `failure`로 표시되지만, 모든 제품/release gate는 그 이전에 성공했습니다. 상세는 `docs/RELEASE_1.1.0.md`를 기준으로 합니다.
+## 3. 현재 개발 릴리즈 — v1.1.1
 
-호환성:
+상태:
 
 ```text
-Desktop Version: 1.1.0
+v1.1.1 RELEASE CANDIDATE
+scope: Scanner UI / recent recognition activity / Mini Scanner direct drag
+Desktop Version: 1.1.1
 Content schema: v7
 Readable schemas: v3~v7
 user.db schema: v1
-mandatory Game Content update from v1.0.0: none
-user.db migration from v1.0.0: none
+mandatory Game Content update from v1.1.0: none
+user.db migration from v1.1.0: none
 ```
 
-버전은 `docs/VERSIONING.md`에 따라 Scanner 새 사용자 기능 추가 = MINOR 증가로 **1.1.0**입니다.
+DEC-048에 따라 기존 Scanner의 UI/사용성 개선이므로 PATCH입니다.
 
-## 3. Scanner v1.1.0
-
-공식 상세 계약:
+상세:
 
 - `docs/SCANNER.md`
 - `docs/SCANNER_TEST_PLAN.md`
-- `DEC-050`, `DEC-051`
+- `docs/RELEASE_1.1.1.md`
+- `docs/SCANNER_UI_DECISION_2026-08-21.md` — DEC-052
 
-### 실제 모드
+## 4. Scanner 핵심 파이프라인
 
 ```text
-스캐너 ON
-→ EscapeFromTarkov 프로세스/window 탐색
-→ Borderless client-area 계산
-→ target-window capture 우선
-→ 필요 시 exact client screen rectangle fallback
+Tarkov/Display pixels
 → detail geometry detector
 → title ROI
 → Windows ko-KR OCR
@@ -84,130 +81,184 @@ user.db migration from v1.0.0: none
 → Mini Scanner
 ```
 
-### 테스트 모드
+### 실사용
+
+```text
+스캐너 ON
+→ EscapeFromTarkov process/window
+→ Borderless client-area
+→ target PrintWindow 우선
+→ 필요 시 exact client screen rectangle fallback
+→ detail/title/OCR/matcher
+```
+
+### 테스트
 
 ```text
 테스트 ON
-→ 모든 연결 디스플레이 실시간 캡처
-→ 동일 detail detector / OCR / matcher / presentation
+→ 모든 연결 디스플레이 실시간 capture
+→ 동일 detector/OCR/matcher/presentation
 ```
 
-Tarkov 전체 screenshot을 바탕화면 또는 이미지 뷰어에 표시해 게임 없이 pipeline을 확인할 수 있습니다.
+Tarkov screenshot을 바탕화면/이미지 뷰어에 표시해 게임 없이 pipeline을 확인할 수 있습니다.
 
-real/test mode는 상호 배타적이며 test mode는 session-only입니다.
+real/test는 상호 배타적이고 test는 session-only입니다.
 
-### Scanner 안전 계약
+### 안전 계약
 
 금지:
 
-- 게임 메모리 읽기
+- game memory read
 - DLL injection
 - packet interception
-- game process 내부 데이터 접근
-- icon 기반 identity
+- process-internal game data read
+- icon identity
 - scan-time HTTP
 
-오탐보다 미탐을 선호합니다. low-confidence/ambiguous match는 실패합니다.
+오탐보다 미탐을 선호합니다. low-confidence/ambiguous match는 Item ID를 확정하지 않습니다.
 
-### Mini Scanner
+`current needed`는:
+
+```text
+ItemsWorkspace.Plan.NeededItems[].RequiredTotal
+```
+
+입니다.
+
+## 5. Scanner v1.1.1 UI
+
+Scanner 탭은 설명서가 아니라 운용 화면입니다.
+
+```text
+상단 bar
+  왼쪽: 스캐너 / 테스트
+  오른쪽: 아이템 목록 최신화
+↓
+표시 정보 checkboxes
+↓
+최근 인식 기록
+```
+
+사용자 화면에서 제거:
+
+- 상단 Scanner 제목/설명문
+- Scanner/Test/catalog/Mini Scanner 상시 설명문
+- Mini Scanner 위치 편집/초기화 controls
+- Foundation preview controls
+
+Foundation의 Item ID → presentation 내부 개발 경로는 유지합니다.
+
+### 최근 인식 기록
+
+각 OCR/matcher 판정을 사용자 문장으로 보여줍니다.
+
+- 시간
+- mode
+- OCR text
+- nearest official item
+- similarity
+- top1/top2 margin
+- 성공/보류
+- 판단 이유
+
+기존 `scanner.log.1`과 `scanner.log`에서 bounded recent history를 복원하므로 프로그램 재실행 뒤에도 최근 판정을 확인할 수 있습니다.
+
+개발자 로그에는 screenshot/raw pixel을 저장하지 않습니다.
+
+## 6. Mini Scanner v1.1.1
 
 - MiniMap과 독립 Window/service/settings/lifecycle
-- Scanner ON 즉시 standby 표시
-- Item ID 확정 시 정보 표시로 전환
-- play mode click-through / no-activate / Topmost
-- edit mode에서만 drag 가능
+- ON 즉시 standby
+- Item 확정 시 정보 표시
+- Topmost
+- ShowActivated=false
+- `WS_EX_NOACTIVATE`
+- `WS_EX_TOOLWINDOW`
+- 별도 edit/reset mode 없음
+- visible 상태에서 언제든 left-drag 가능
+- drag 종료 위치 즉시 atomic settings 저장
+- negative multi-monitor 좌표 허용
 
-표시 가능:
+v1.1.0의 `WS_EX_TRANSPARENT` click-through는 always-drag 요구와 양립하지 않으므로 Mini Scanner 영역에 한해 v1.1.1에서 제거합니다. Mini Scanner 영역은 mouse hit-test를 받지만 게임 keyboard focus는 가져가지 않습니다.
 
-- official name
-- local cached icon
-- trader/flea price
-- trader/flea price per slot
-- current needed
-
-`current needed`는 `ItemsWorkspace.Plan.NeededItems[].RequiredTotal`입니다.
-
-### Scanner persistence / cache
+## 7. Scanner persistence / diagnostics
 
 ```text
-%LocalAppData%/JunhyunHelper/scanner-settings.json
-%LocalAppData%/JunhyunHelper/scanner-settings.json.bak
+%LocalAppData%/JunhyunHelper/scanner-settings.json(.bak)
 %LocalAppData%/JunhyunHelper/scanner/catalog/items-{mode}-ko.json(.bak)
+%LocalAppData%/JunhyunHelper/logs/scanner.log(.1)
 ```
 
-### Scanner diagnostics
+Scanner settings/catalog은 user/program update와 분리됩니다.
 
-```text
-%LocalAppData%/JunhyunHelper/logs/scanner.log
-%LocalAppData%/JunhyunHelper/logs/scanner.log.1
-```
-
-기록:
+`scanner.log` 기록:
 
 - mode/runtime state
-- detector candidate bounds/signature
-- title OCR text
+- detector candidate metadata
+- OCR text
 - matcher success/reason/confidence
 - runtime error metadata
 
-저장하지 않음:
+저장 금지:
 
 - screenshot
 - raw pixel buffer
 
-로그는 약 2MB에서 회전하며 실패해도 Scanner/App 동작에 영향이 없습니다.
+로그는 약 2MB에서 회전하고 실패가 Scanner/App fatal로 확대되지 않습니다.
 
-## 4. Scanner 검증 및 릴리즈 정책
+## 8. Scanner 검증 정책
 
-사전 실험에서 검증된 범위:
+사전 검증:
 
-- 한국어 text OCR
-- detail-view image detector
-- full Tarkov screenshot detail detector
+- Korean text OCR
+- detail-view detector
+- full Tarkov screenshot detector
 - full screenshot → detail → title ROI → OCR
 
-v1.1.0에서 완료된 공개 gate:
+v1.1.1 release blocker:
 
 - Windows Release build
-- 전체 automated tests — 243 passed / 0 failed / 0 skipped
-- Scanner detector/catalog/matcher/persistence tests
-- win-x64 self-contained single-file publish
-- ProductVersion/FIRST_RUN identity
+- full automated tests
+- existing detector/catalog/matcher regression
+- ProductVersion/FIRST_RUN 1.1.1
+- rendered `스캐너 OFF` / `테스트 OFF` / `아이템 목록 최신화`
+- recent-recognition empty/readable-decision UI smoke
+- removed Foundation/position controls absent from product UI
+- self-contained win-x64 publish
 - package/dependency hygiene
-- actual packaged EXE launch
-- rendered existing Product UI assertions
-- rendered Scanner OFF/OFF controls
-- Main Map / Factory / MiniMap smoke
+- actual packaged EXE startup
+- existing Product UI / Main Map / Factory / MiniMap smoke
 - graceful shutdown
-- Draft asset checksum/package/ProductVersion/FIRST_RUN validation
+- Draft asset re-download/hash/package/ProductVersion validation
 - Draft-downloaded EXE smoke
-- public/latest 전환
-- public asset re-download hash/size/ProductVersion validation
-- public downloaded EXE smoke
+- public/latest transition
+- public re-download validation
+- public-downloaded EXE smoke
 
-### Live Tarkov E2E
+### Live Tarkov
 
-**사용자가 2026-08-21 명시적으로 v1.1.0 공개 차단 조건에서 제외했습니다. 현재 PENDING입니다.**
+최신 Tarkov Borderless E2E는 사용자 결정에 따라 release blocker가 아니며 PENDING입니다.
 
-공개 후 실제 Borderless Tarkov에서 다음을 확인합니다.
+공개 후 확인:
 
 - PrintWindow vs client-rectangle fallback
-- current UI detector calibration
-- current Korean title OCR
-- false positive / false negative
-- long-run CPU/memory/handle/OCR rate
+- current geometry
+- current Korean OCR
+- false positives/misses
+- direct Mini Scanner drag와 game input coexistence
+- CPU/memory/handle/OCR rate
 - Alt+Tab/minimize/MiniMap coexistence
 
-문제가 있으면 `scanner.log`를 함께 보고 후속 PATCH로 보정합니다.
+문제가 있으면 `scanner.log`와 최근 인식 기록을 같이 보고 후속 PATCH로 보정합니다.
 
-## 5. Program Update
+## 9. Program Update
 
 일반 실행:
 
 ```text
-latest public stable GitHub Release 조회
-→ current보다 newer이면 사용자 Yes/No
-→ Yes: exact Windows ZIP + SHA256SUMS download
+latest public stable GitHub Release
+→ strictly newer이면 사용자 Yes/No
+→ Yes: exact Windows ZIP + SHA256SUMS
 → checksum/package validation
 → temporary self-copy updater
 → program-owned files transaction replace
@@ -237,42 +288,38 @@ logs/
 
 실패는 일반 앱 실행 실패로 확대하지 않습니다.
 
-## 6. Game Content / User Progress
+## 10. Game Content / User Progress
 
-### Game Content
+Game Content:
 
 ```text
 schema: v7
 readable: v3, v4, v5, v6, v7
 ```
 
-온라인 source → validation → canonical model → candidate DB → relation/read-back validation → active replacement 순서입니다.
+online source → validation → canonical model → candidate DB → relation/read-back validation → active replacement 순서입니다. 실패 candidate는 last-known-good active content를 덮어쓰지 않습니다.
 
-실패 candidate는 last-known-good active content를 덮어쓰지 않습니다.
-
-### User Progress
+User Progress:
 
 ```text
 user.db SQLite schema: v1
 ```
 
-GameMode별 독립 profile에 level/faction/edition/prestige, trader facts, completed/failed Quest, exact observed profile variables, special trader access, Hideout levels, Inventory, consumption ledgers를 저장합니다.
+GameMode별 profile에 level/faction/edition/prestige, trader facts, completed/failed Quest, exact observed profile variables, special trader access, Hideout levels, Inventory, consumption ledgers를 저장합니다.
 
-Program Update와 Game Content Update는 `user.db`를 파괴적으로 재생성하지 않습니다.
-
-## 7. Quest / Needed Items 핵심 안전 규칙
+## 11. Quest / Needed Items 안전 규칙
 
 - 서로 다른 `taskRequirements` = AND
 - 한 requirement의 `status[]` = OR
 - 받을 수 있는 Quest는 Helper에서 이미 수락한 것으로 간주
-- 증명할 수 없는 availability = `확인 필요`
+- 증명 불가능 availability = `확인 필요`
 - exact profile-variable 값이 있으면 권위값
-- audited compatibility 구조가 drift하면 fail-closed
-- unresolved future Quest Item은 Needed Items에서 계속 보호
-- flexible hand-in 실제 소비 후보는 자동 추정하지 않음
-- fixed consumption은 ledger로 rollback 가능
+- compatibility 구조 drift → fail-closed
+- unresolved future Quest Item 계속 보호
+- flexible hand-in 실제 소비 후보 자동 추정 금지
+- fixed consumption ledger rollback 가능
 
-## 8. Map / MiniMap
+## 12. Map / MiniMap
 
 제품 pin:
 
@@ -281,17 +328,16 @@ d933792b6042a51cea38dc44b686a096fe30de67
 ```
 
 - independent subsystem
-- Quest geometry/current state만 JunhyunHelper bridge
-- floor = presentation relation, visibility filter 아님
-- enabled cross-floor marker 유지
-- Main Map floor change → zoom + map-space center 유지
-- MiniMap floor change → exact Scale + Translate frame 유지
-- current Quest sidebar lane = `30px checkbox | 34px marker ID | * Quest text`
+- Quest current state/geometry만 JunhyunHelper bridge
+- floor relation은 presentation이며 visibility filter가 아님
+- cross-floor enabled marker 유지
+- Main Map floor change viewport 보존
+- MiniMap floor change exact Scale/Translate 보존
 - product settings atomic `.bak` recovery
 
 안정적인 donor path는 concrete defect/performance 근거 없이 broad refactor하지 않습니다.
 
-## 9. 배포 계약
+## 13. 배포 계약
 
 - Windows x64
 - .NET 10 WPF
@@ -300,7 +346,7 @@ d933792b6042a51cea38dc44b686a096fe30de67
 - single-file EXE
 - installer 없음
 - 관리자 권한 불필요
-- 현재 code signing 없음
+- code signing 없음
 
 ZIP root:
 
@@ -310,7 +356,7 @@ FIRST_RUN_KO.txt
 Assets/
 ```
 
-정식 release는 updater가 latest stable을 신뢰하므로 **Draft first**입니다.
+정식 release는 Draft-first입니다.
 
 ```text
 exact release baseline
@@ -323,9 +369,7 @@ exact release baseline
 → public downloaded EXE smoke
 ```
 
-v1.1.0은 이 계약에 따라 public/latest 및 public-downloaded EXE까지 검증했습니다.
-
-## 10. 현재 제품 기능 상태
+## 14. 현재 기능 상태
 
 | 영역 | 상태 |
 |---|---|
@@ -337,17 +381,17 @@ v1.1.0은 이 계약에 따라 public/latest 및 public-downloaded EXE까지 검
 | Ammo | 구현 완료 |
 | Map + MiniMap | 구현 완료 / user validated baseline |
 | Game Content Update | 구현 완료 |
-| Program Update | 구현 완료 / public verified |
-| Scanner | **v1.1.0 IMPLEMENTED / WINDOWS+PACKAGE VERIFIED / LIVE TARKOV E2E PENDING** |
+| Program Update | 구현 완료 / v1.1.0 public verified |
+| Scanner | **v1.1.1 release candidate / live Tarkov E2E pending** |
 
-## 11. 현재 알려진 비차단 범위
+## 15. 현재 비차단 범위
 
-- EFT 1.0 Story Chapters는 ordinary task source 밖이며 현재 미지원
-- PvE Skier LL2 task-pool drift는 exact fact가 없으면 해당 pool만 fail-closed
+- EFT 1.0 Story Chapters는 ordinary task source 밖
+- PvE Skier LL2 task-pool drift는 exact fact 없으면 해당 pool fail-closed
 - code signing / installer는 현재 필수 범위 아님
-- Scanner current live Tarkov E2E는 공개 v1.1.0에서 로그 기반 후속 검증
+- Scanner latest live Tarkov E2E는 로그 기반 후속 검증
 
-## 12. 새 작업을 시작할 때
+## 16. 새 작업 시작 순서
 
 1. `README.md`
 2. `docs/STATE.md`
@@ -357,4 +401,4 @@ v1.1.0은 이 계약에 따라 public/latest 및 public-downloaded EXE까지 검
 6. `docs/ARCHITECTURE.md`
 7. 관련 전문 문서와 코드/tests/PR
 
-현재 코드가 존재한다는 이유만으로 공식 제품 요구사항으로 추정하지 않습니다. 사용자 확정 요구사항과 공식 문서가 우선합니다.
+현재 코드가 존재한다는 이유만으로 제품 요구사항으로 추정하지 않습니다. 사용자 확정 요구사항과 공식 문서가 우선합니다.

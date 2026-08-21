@@ -4,7 +4,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
-using System.Windows.Media;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
@@ -15,7 +14,6 @@ public partial class MiniScannerWindow : Window
     private const int WsExToolWindow = 0x00000080;
     private const int WsExNoActivate = 0x08000000;
 
-    private bool _editMode;
     private bool _positionInitialized;
 
     public MiniScannerWindow()
@@ -23,20 +21,22 @@ public partial class MiniScannerWindow : Window
         InitializeComponent();
         SourceInitialized += (_, _) => ApplyExtendedStyles();
         MouseLeftButtonDown += OnMouseLeftButtonDown;
+        Cursor = Cursors.SizeAll;
     }
+
+    public event Action<double, double>? PositionCommitted;
 
     public void Render(ScannerItemSnapshot snapshot, ScannerDisplaySettings settings, bool editMode)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(settings);
+        _ = editMode;
 
-        _editMode = editMode;
         ScannerStatusText.Visibility = Visibility.Collapsed;
         ScannerStatusText.Text = string.Empty;
         ItemContentGrid.Visibility = Visibility.Visible;
         ApplyExtendedStyles();
         ApplySnapshot(snapshot, settings);
-        ApplyEditPresentation();
         ShowAndPosition(settings);
     }
 
@@ -44,14 +44,13 @@ public partial class MiniScannerWindow : Window
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
         ArgumentNullException.ThrowIfNull(settings);
+        _ = editMode;
 
-        _editMode = editMode;
         ItemContentGrid.Visibility = Visibility.Collapsed;
         ScannerStatusText.Visibility = Visibility.Visible;
         ScannerStatusText.Text = message.Trim();
         ScannerStatusText.FontSize = Math.Clamp(settings.FontSize * 0.78, 12, 22);
         ApplyExtendedStyles();
-        ApplyEditPresentation();
         ShowAndPosition(settings);
     }
 
@@ -67,11 +66,12 @@ public partial class MiniScannerWindow : Window
         }
     }
 
+    // Kept for the hidden Foundation preview API. User-facing position edit mode no
+    // longer exists; the Mini Scanner is always draggable while visible.
     public void SetEditMode(bool editMode)
     {
-        _editMode = editMode;
+        _ = editMode;
         ApplyExtendedStyles();
-        ApplyEditPresentation();
     }
 
     public (double X, double Y) GetPosition() => (Left, Top);
@@ -138,21 +138,15 @@ public partial class MiniScannerWindow : Window
         Top = workArea.Top + 110;
     }
 
-    private void ApplyEditPresentation()
-    {
-        EditFrame.BorderBrush = _editMode ? Brushes.White : Brushes.Transparent;
-        EditHintText.Visibility = _editMode ? Visibility.Visible : Visibility.Collapsed;
-        Cursor = _editMode ? Cursors.SizeAll : Cursors.Arrow;
-    }
-
     private void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (!_editMode || e.ButtonState != MouseButtonState.Pressed)
+        if (e.ButtonState != MouseButtonState.Pressed)
             return;
 
         try
         {
             DragMove();
+            PositionCommitted?.Invoke(Left, Top);
         }
         catch (InvalidOperationException)
         {
@@ -167,16 +161,8 @@ public partial class MiniScannerWindow : Window
 
         var styles = GetWindowLongPtr(handle, GwlExStyle).ToInt64();
         styles |= WsExToolWindow;
-        if (_editMode)
-        {
-            styles &= ~WsExTransparent;
-            styles &= ~WsExNoActivate;
-        }
-        else
-        {
-            styles |= WsExTransparent;
-            styles |= WsExNoActivate;
-        }
+        styles |= WsExNoActivate;
+        styles &= ~WsExTransparent;
         SetWindowLongPtr(handle, GwlExStyle, new IntPtr(styles));
     }
 

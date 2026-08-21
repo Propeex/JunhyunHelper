@@ -4,7 +4,7 @@
 
 기준일: 2026-08-21
 
-상태: **`v1.1.0 PUBLIC RELEASE / VERIFIED — Scanner live Tarkov E2E pending`**
+상태: **`v1.1.1 RELEASE CANDIDATE — Scanner 운용 UI/최근 인식 기록/Mini Scanner 직접 이동`**
 
 ## 현재 공개 기준선
 
@@ -21,26 +21,79 @@ public downloaded EXE smoke: SUCCESS
 public/latest verification run: 32452416929
 ```
 
-`32452416929`의 제품/release verification 단계는 public-downloaded EXE smoke까지 모두 성공했습니다. Actions 최종 conclusion이 `failure`인 이유는 모든 release gate가 끝난 뒤 PR 코멘트를 기록하려던 비제품 bookkeeping 단계가 integration 권한 403으로 실패했기 때문입니다.
+v1.1.0은 Scanner 실제 기능을 처음 공개한 verified stable입니다. 최신 Tarkov Borderless live E2E는 사용자 결정대로 후속 검증입니다.
 
-상세: `docs/RELEASE_1.1.0.md`
+## 다음 릴리즈 — v1.1.1
 
-## 호환성
+DEC-048에 따라 새 Scanner 기능 추가가 아니라 기존 기능의 UI/사용성 개선이므로 PATCH입니다.
 
 ```text
-Desktop Version: 1.1.0
+Desktop Version: 1.1.1
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
-v1.0.0 → v1.1.0 mandatory Game Content update: none
-v1.0.0 → v1.1.0 user.db migration: none
+v1.1.0 → v1.1.1 mandatory Game Content update: none
+v1.1.0 → v1.1.1 user.db migration: none
 ```
 
-기존 Profile / Quest / Inventory / Hideout / Map preferences / Ammo favorites는 유지됩니다.
+### Scanner 탭
 
-## Scanner v1.1.0
+```text
+상단 bar
+  왼쪽: 스캐너 / 테스트
+  오른쪽: 아이템 목록 최신화
+↓
+표시 정보 checkboxes
+↓
+최근 인식 기록
+```
 
-구현된 실제 흐름:
+제거된 사용자 UI:
+
+- 상단 Scanner 제목/설명
+- Scanner/Test/catalog/Mini Scanner 설명문
+- Mini Scanner 위치 편집/초기화 controls
+- Foundation verification/preview controls
+
+Foundation Item ID → presentation 내부 경로는 개발자 진단용으로 유지합니다.
+
+### 최근 인식 기록
+
+각 OCR/matcher 시도를 사용자 문장으로 표시합니다.
+
+- 시각
+- Scanner/Test mode
+- OCR text
+- nearest official Item
+- similarity
+- top1/top2 margin
+- 성공/보류
+- 판단 이유
+
+기존 bounded `scanner.log.1` → `scanner.log`에서 최근 판정을 복원하므로 앱 재실행 뒤에도 최근 기록을 확인할 수 있습니다.
+
+개발자 상세 로그는 계속:
+
+```text
+%LocalAppData%/JunhyunHelper/logs/scanner.log
+%LocalAppData%/JunhyunHelper/logs/scanner.log.1
+```
+
+이며 screenshot/raw pixels는 저장하지 않습니다.
+
+### Mini Scanner
+
+v1.1.1부터 별도 edit mode가 없습니다.
+
+- 보이는 동안 직접 left-drag
+- drag 완료 즉시 saved X/Y 갱신
+- negative multi-monitor 좌표 유지
+- Topmost / ShowActivated=false / `WS_EX_NOACTIVATE` 유지
+- always-drag를 위해 Mini Scanner 자기 영역의 `WS_EX_TRANSPARENT` click-through는 제거
+
+따라서 Mini Scanner 작은 표시 영역은 mouse hit-test를 받지만 게임 키보드 focus는 가져가지 않습니다.
+
+## Scanner 핵심 파이프라인 — 변경 없음
 
 ```text
 Tarkov/Display pixels
@@ -53,78 +106,51 @@ Tarkov/Display pixels
 → Mini Scanner
 ```
 
-### 실사용 `스캐너 ON/OFF`
+- real: `EscapeFromTarkov` Borderless client-area
+- test: all connected displays
+- real/test mutually exclusive
+- no memory/DLL injection/packet interception
+- no icon identity
+- no scan-time network
+- current needed = `RequiredTotal`
+- low confidence/ambiguity = no Item ID
 
-- `EscapeFromTarkov` 게임 창 탐색
-- Borderless client-area 좌표 계산
-- target-window `PrintWindow` 우선
-- 유효 frame이 없으면 정확한 client screen rectangle fallback
-- ON 즉시 Mini Scanner standby 표시
-
-### `테스트 ON/OFF`
-
-- 연결된 전체 디스플레이 실시간 capture
-- 실사용과 동일 detector/OCR/matcher pipeline
-- Tarkov screenshot을 바탕화면/이미지 뷰어에 표시해 게임 없이 확인 가능
-- session-only, 재실행 시 OFF
-- real/test 상호 배타적
-
-### 정확도/안전성
-
-- 게임 메모리/DLL injection/패킷 접근 없음
-- process-internal data read 없음
-- icon 기반 식별 없음
-- scan 순간 network 없음
-- exact-first + conservative fuzzy
-- low-confidence/ambiguous는 Item ID 확정 안 함
-- `현재 필요한 수량` = `RequiredTotal`
-
-### 진단
-
-```text
-%LocalAppData%/JunhyunHelper/logs/scanner.log
-%LocalAppData%/JunhyunHelper/logs/scanner.log.1
-```
-
-- runtime state / candidate / OCR / matcher 결과 기록
-- screenshot/raw pixels 미저장
-- 약 2MB rotation
-- logging failure nonfatal
-
-상세: `docs/SCANNER.md`, `docs/SCANNER_TEST_PLAN.md`
-
-## v1.1.0 검증 완료 범위
+## v1.1.1 release gate
 
 - Windows Release build
-- 243 automated tests
-- Scanner geometry/catalog/matcher/persistence regression
-- win-x64 self-contained single-file publish
-- ProductVersion/FIRST_RUN identity
+- full automated tests
+- ProductVersion/FIRST_RUN = 1.1.1
+- existing Scanner detector/catalog/matcher regression
+- rendered Scanner top bar + `아이템 목록 최신화`
+- recent-recognition empty/readable decision UI smoke
+- removed Foundation/position controls absent from product UI
+- win-x64 self-contained publish
 - package/dependency hygiene
-- actual packaged EXE rendered Product UI assertions
-- Scanner `스캐너 OFF` / `테스트 OFF` safe-default controls
-- Main Map / Factory / MiniMap smoke
+- actual packaged EXE startup
+- existing Product UI / Main Map / Factory / MiniMap smoke
 - graceful shutdown
-- Draft release asset checksum/package verification
+- Draft asset checksum/package/ProductVersion validation
 - Draft-downloaded EXE smoke
-- public/latest 전환
-- public asset re-download hash/size/ProductVersion verification
+- public/latest transition
+- public asset re-download validation
 - public-downloaded EXE smoke
 
-## live Tarkov 검증 정책
+상세: `docs/SCANNER.md`, `docs/SCANNER_TEST_PLAN.md`, `docs/RELEASE_1.1.1.md`, `docs/SCANNER_UI_DECISION_2026-08-21.md`.
 
-사용자가 2026-08-21 확정한 결정에 따라 **최신 Tarkov Borderless 인게임 E2E는 v1.1.0 공개 차단 조건이 아니며 현재 PENDING입니다.**
+## live Tarkov 검증
 
-공개 후 사용자 환경에서 `scanner.log`와 함께 확인/보정할 항목:
+실제 최신 Borderless Tarkov E2E는 계속 후속 검증입니다. v1.1.1 공개 후 사용자 환경에서 다음을 확인합니다.
 
-- PrintWindow vs Borderless client-rectangle fallback
-- 실제 최신 상세창 geometry threshold
-- 실제 최신 한국어 title OCR
-- false-positive/false-negative calibration
-- 장시간 CPU/memory/handle/OCR rate
+- capture route
+- current detail geometry
+- Korean OCR
+- Item match confidence
+- Mini Scanner direct drag와 실제 게임 입력 coexistence
+- false positives / misses
+- long-run resource behavior
 - Alt+Tab/minimize/MiniMap coexistence
 
-새 사용자 기능을 추가하지 않는 보정은 버전 규칙상 PATCH release로 처리합니다.
+문제가 있으면 `scanner.log`와 최근 인식 기록을 함께 보고 후속 PATCH로 보정합니다.
 
 ## 제품 기능 상태
 
@@ -139,18 +165,11 @@ Tarkov/Display pixels
 | Map + MiniMap | 구현 완료 / Windows user validated |
 | Game Content Update | 구현 완료 |
 | Program Update | 구현 완료 / public stable updater |
-| Scanner | **IMPLEMENTED / v1.1.0 WINDOWS+PACKAGE VERIFIED / LIVE TARKOV E2E PENDING** |
+| Scanner | **v1.1.1 usability candidate / core pipeline unchanged / live Tarkov E2E pending** |
 
-## 유지되는 비차단 범위
+## 현재 비차단 범위
 
-- EFT 1.0 Story Chapters는 ordinary `json.tarkov.dev/tasks` progression source 밖이며 현재 미지원
-- PvE Skier LL2 task-pool drift는 exact fact가 없으면 해당 pool fail-closed
-- Map donor/bridge maintenance debt는 안정성이 유지되는 동안 임의 refactor하지 않음
+- EFT 1.0 Story Chapters ordinary task source 밖
+- PvE Skier LL2 task-pool drift는 exact fact 없으면 fail-closed
 - code signing / installer는 현재 필수 범위 아님
-- Scanner live Tarkov tuning은 공개 v1.1.0에서 로그 기반 후속 검증
-
-## 다음 작업
-
-현재 제품 릴리즈 작업은 완료 상태입니다.
-
-다음 Scanner 작업은 별도 기능 개발이 아니라 실제 Tarkov 실행 후 `scanner.log` 기반의 live validation입니다. 문제가 발견될 경우 capture/detector/OCR/matcher calibration을 원인별로 수정하고 회귀 검증 후 PATCH release합니다.
+- Scanner latest live Tarkov E2E는 로그 기반 후속 검증

@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using JunhyunHelper.Desktop.Map;
+using JunhyunHelper.Desktop.Scanner;
 
 namespace JunhyunHelper.Desktop;
 
@@ -151,10 +152,51 @@ public partial class MainWindow
                 "Scanner product page did not render the display-test OFF toggle in its safe default state.");
         }
 
+        if (ScannerPlaceholder.SyncCatalogButton.Content as string != "아이템 목록 최신화")
+            throw new InvalidOperationException("Scanner catalog action did not render the user-facing '아이템 목록 최신화' label.");
+
         if (ScannerPlaceholder.ScannerToggleButton.MinWidth < 100 ||
-            ScannerPlaceholder.TestToggleButton.MinWidth < 100)
+            ScannerPlaceholder.TestToggleButton.MinWidth < 100 ||
+            ScannerPlaceholder.SyncCatalogButton.MinWidth < 120)
         {
-            throw new InvalidOperationException("Scanner mode controls rendered below the minimum usable button width.");
+            throw new InvalidOperationException("Scanner top-bar controls rendered below the minimum usable button width.");
+        }
+
+        if (ScannerPlaceholder.EmptyActivityText.Text != "아직 인식 기록이 없습니다." ||
+            ScannerPlaceholder.ActivityItems.ItemsSource is null)
+        {
+            throw new InvalidOperationException("Scanner recent-recognition activity area did not render its safe empty state.");
+        }
+
+        var forbiddenButtonLabels = FindVisualDescendants<Button>(ScannerPlaceholder)
+            .Select(button => button.Content as string)
+            .Where(label => !string.IsNullOrWhiteSpace(label))
+            .ToHashSet(StringComparer.Ordinal);
+        if (forbiddenButtonLabels.Contains("위치 편집") ||
+            forbiddenButtonLabels.Contains("위치 초기화") ||
+            forbiddenButtonLabels.Contains("Item ID 미리보기") ||
+            forbiddenButtonLabels.Contains("자동 미리보기") ||
+            forbiddenButtonLabels.Contains("미리보기 숨기기"))
+        {
+            throw new InvalidOperationException("Scanner product page still exposes removed position/Foundation developer controls.");
+        }
+
+        var activityProbe = new ScannerActivityEntry(
+            DateTimeOffset.Now,
+            ScannerCaptureMode.DisplayTest,
+            "들격소총",
+            "돌격소총",
+            0.944,
+            0.721,
+            true,
+            "FUZZY");
+        if (!activityProbe.Summary.Contains("들격소총", StringComparison.Ordinal) ||
+            !activityProbe.Summary.Contains("돌격소총", StringComparison.Ordinal) ||
+            !activityProbe.Summary.Contains("94.4%", StringComparison.Ordinal) ||
+            activityProbe.ResultLabel != "식별 성공" ||
+            !activityProbe.DetailText.Contains("유사도 기준 통과", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Scanner recognition activity does not produce the required user-readable decision summary.");
         }
     }
 
