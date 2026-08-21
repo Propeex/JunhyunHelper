@@ -191,7 +191,7 @@ Map은 독립 subsystem이며 Quest만 current JunhyunHelper content/profile과 
 
 ## 13. Scanner / Mini Scanner
 
-`CONFIRMED / IMPLEMENTED / v1.1.4 RELEASE CANDIDATE / LIVE TARKOV VALIDATION ONGOING`
+`CONFIRMED / IMPLEMENTED / v1.1.4 PUBLIC VERIFIED / LIVE TARKOV VALIDATION ONGOING`
 
 Scanner는 Tarkov 화면을 Item ID로 변환해 기존 JunhyunHelper 데이터에 연결하는 입력 subsystem입니다.
 
@@ -324,19 +324,24 @@ Foundation preview 개발 도구와 Mini Scanner 별도 위치 편집/초기화 
 
 ## 14. Scanner 릴리즈 / 검증 정책
 
-v1.1.4 release gate:
+v1.1.4 public release gate 완료:
 
 - Windows Release build
-- **247 automated tests / 0 failure**
+- **247 automated tests / 0 failure / 0 skipped**
 - Scanner Lab v3.8 detector/title ROI regressions
 - Scanner market-field regressions
 - self-contained publish
 - ProductVersion/FIRST_RUN identity
 - actual packaged EXE Product UI / Scanner / Main Map / Factory / MiniMap smoke
-- actual packaged EXE `로그 삭제` activity/file delete smoke
-- Draft/Public checksum/package verification
-- Draft/public downloaded EXE smoke
-- exact public tag verification
+- actual packaged EXE `로그 삭제` activity/current/rotated log delete smoke
+- Draft package 재다운로드 checksum/package/ProductVersion verification
+- Draft-downloaded EXE smoke
+- public/latest verification
+- exact public tag source verification
+- public package 재다운로드 checksum/root/ProductVersion/FIRST_RUN verification
+- public-downloaded EXE smoke
+
+최종 release source는 `833ac66c522632a695d106bd7ca9b1d6bfc030dc`, public verification run은 `32476952938`입니다. 상세 asset hash와 단계별 증거는 `docs/RELEASE_1.1.4.md`에 고정합니다.
 
 **최신 Tarkov Borderless live E2E는 DEC-051에 따라 release blocker가 아닙니다.**
 
@@ -370,20 +375,22 @@ Scanner smoke에는:
 - `로그 삭제`
 - recent recognition empty/activity state
 - removed developer/position controls 부재
-- activity/log 실제 생성 후 clear 결과
+- activity/current/rotated log 실제 생성 후 clear 결과
 
 를 포함합니다.
 
 ## 17. 현재 버전
 
-개발 target:
+현재 public stable:
 
 ```text
 v1.1.4 — Scanner stability / market & needed-data reliability / diagnostics hardening
-247 tests
+release source: 833ac66c522632a695d106bd7ca9b1d6bfc030dc
+247 passed / 0 failed / 0 skipped
+public-downloaded EXE smoke: SUCCESS
 ```
 
-최종 public source/run/hash는 `docs/RELEASE_1.1.4.md`에 기록합니다.
+최종 public source/run/hash는 `docs/RELEASE_1.1.4.md`에 고정되어 있습니다.
 
 버전 규칙: `docs/VERSIONING.md`.
 
