@@ -1,0 +1,105 @@
+name: Recover Release v1.1.1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-and-run-v1.1.1-release.yml'
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Fix clean-tag success exit
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('.github/workflows/release-v1.1.1.yml')
+          text = path.read_text(encoding='utf-8')
+          old = '''          git ls-remote --exit-code --tags origin "refs/tags/$env:RELEASE_TAG" *> $null\n          if ($LASTEXITCODE -eq 0) { throw "Tag $env:RELEASE_TAG already exists." }\n'''
+          new = old + '''          Write-Host 'Release/tag namespace is clean.'\n          exit 0\n'''
+          if new in text:
+              raise SystemExit(0)
+          if old not in text:
+              raise SystemExit('Expected clean-tag block was not found.')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+      - name: Commit workflow fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- .github/workflows/release-v1.1.1.yml
+          if git diff --cached --quiet; then
+            echo 'Release workflow was already fixed.'
+          else
+            git commit -m 'Fix v1.1.1 clean tag release gate'
+            git push origin HEAD:main
+          fi
+
+      - name: Dispatch fixed release
+        id: dispatch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          workflow='release-v1.1.1.yml'
+          gh workflow run "$workflow" --repo "$repo" --ref main
+          run_id=''
+          for attempt in $(seq 1 30); do
+            run_id="$(gh run list --repo "$repo" --workflow "$workflow" --branch main --limit 20 --json databaseId,status,event --jq '[.[] | select(.event == "workflow_dispatch" and (.status == "queued" or .status == "in_progress" or .status == "waiting"))][0].databaseId // empty')"
+            [ -n "$run_id" ] && break
+            sleep 2
+          done
+          if [ -z "$run_id" ]; then
+            echo 'result=dispatch-not-found' >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "Watching fixed release run $run_id"
+          if gh run watch "$run_id" --repo "$repo" --exit-status; then
+            echo 'result=success' >> "$GITHUB_OUTPUT"
+          else
+            echo 'result=failure' >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+      - name: Record recovery result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.dispatch.outputs.run_id }}
+          RESULT: ${{ steps.dispatch.outputs.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git pull --rebase origin main
+          target="$(gh release view v1.1.1 --repo "$GITHUB_REPOSITORY" --json targetCommitish --jq '.targetCommitish' 2>/dev/null || true)"
+          draft="$(gh release view v1.1.1 --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft' 2>/dev/null || true)"
+          latest="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq '.tagName' 2>/dev/null || true)"
+          cat > .github/release-v1.1.1-status.txt <<EOF
+          result=${RESULT:-failure}
+          run_id=${RUN_ID:-unknown}
+          release_target=$target
+          is_draft=$draft
+          latest_tag=$latest
+          recovery_trigger_sha=$GITHUB_SHA
+          EOF
+          sed -i 's/^          //' .github/release-v1.1.1-status.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- .github/release-v1.1.1-status.txt
+          git commit -m 'Record recovered v1.1.1 release verification status'
+          git push origin HEAD:main
