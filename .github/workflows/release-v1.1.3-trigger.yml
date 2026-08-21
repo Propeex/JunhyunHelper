@@ -1,0 +1,35 @@
+name: Trigger Release v1.1.3
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/release-v1.1.3.trigger'
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Dispatch exact previous main SHA
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$SOURCE_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || [[ "$SOURCE_SHA" =~ ^0+$ ]]; then
+            echo "Invalid previous main SHA: $SOURCE_SHA" >&2
+            exit 1
+          fi
+
+          echo "Dispatching v1.1.3 release for exact main SHA: $SOURCE_SHA"
+          gh workflow run release-v1.1.3.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref main \
+            -f source_sha="$SOURCE_SHA"
