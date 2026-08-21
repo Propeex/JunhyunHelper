@@ -41,7 +41,6 @@ public sealed class ScannerCoordinator : IDisposable
         _settings = new ScannerSettingsService(rootDirectory);
         _catalog = new ScannerCatalogService(httpClient, rootDirectory);
         _icons = new ScannerLocalIconService(rootDirectory);
-        _overlay = new MiniScannerOverlayService(_settings);
 
         try
         {
@@ -62,6 +61,10 @@ public sealed class ScannerCoordinator : IDisposable
             App.WriteDiagnostic("Scanner Lab 3.8 OCR initialization failed", exception);
             _ocr = new UnavailableScannerOcrEngine();
         }
+
+        // Mini Scanner inventory/stash context gating shares the same OCR engine as
+        // item-title recognition instead of creating a second Windows OCR runtime.
+        _overlay = new MiniScannerOverlayService(_settings, _ocr);
     }
 
     public event Action<ScannerRuntimeStatus>? StatusChanged;
