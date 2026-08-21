@@ -139,7 +139,7 @@ internal static class ScannerDiagnosticLog
             !DateTimeOffset.TryParse(
                 segments[0],
                 CultureInfo.InvariantCulture,
-                DateTimeStyles.RoundtripKind,
+                DateTimeStyles.None,
                 out var timestamp))
         {
             return;
