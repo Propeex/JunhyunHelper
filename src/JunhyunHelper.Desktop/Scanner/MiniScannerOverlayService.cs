@@ -70,6 +70,8 @@ public sealed class MiniScannerOverlayService : IDisposable
         });
     }
 
+    // Legacy Foundation hooks are retained for developer use, but the product UI no
+    // longer exposes an edit mode. The window itself is always directly draggable.
     public void BeginPositionEdit()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -105,16 +107,9 @@ public sealed class MiniScannerOverlayService : IDisposable
                 return;
             }
 
-            var position = _window.GetPosition();
+            SavePosition(_window.Left, _window.Top);
             _editMode = false;
             _window.SetEditMode(false);
-            _settings.Update(settings =>
-            {
-                // WPF screen coordinates are device-independent pixels and may be
-                // negative on monitors located left/above the primary monitor.
-                settings.PositionX = position.X;
-                settings.PositionY = position.Y;
-            });
 
             if (!keepVisible)
             {
@@ -134,8 +129,6 @@ public sealed class MiniScannerOverlayService : IDisposable
             if (_window is null || !_window.IsVisible)
                 return;
 
-            // Recreate only the lightweight Scanner overlay so default placement is
-            // applied with a fresh SizeToContent measurement. MiniMap remains untouched.
             var snapshot = _snapshot;
             var standby = _standbyMessage;
             var editMode = _editMode;
@@ -150,9 +143,24 @@ public sealed class MiniScannerOverlayService : IDisposable
 
     private MiniScannerWindow EnsureWindow()
     {
-        if (_window is null)
-            _window = new MiniScannerWindow();
+        if (_window is not null)
+            return _window;
+
+        _window = new MiniScannerWindow();
+        _window.PositionCommitted += OnPositionCommitted;
         return _window;
+    }
+
+    private void OnPositionCommitted(double x, double y) => SavePosition(x, y);
+
+    private void SavePosition(double x, double y)
+    {
+        _settings.Update(settings =>
+        {
+            // Negative WPF coordinates are valid for monitors left/above primary.
+            settings.PositionX = x;
+            settings.PositionY = y;
+        });
     }
 
     private void OnSettingsChanged(ScannerDisplaySettings settings)
@@ -214,6 +222,7 @@ public sealed class MiniScannerOverlayService : IDisposable
         {
             if (_window is null)
                 return;
+            _window.PositionCommitted -= OnPositionCommitted;
             _window.Close();
             _window = null;
             _snapshot = null;
