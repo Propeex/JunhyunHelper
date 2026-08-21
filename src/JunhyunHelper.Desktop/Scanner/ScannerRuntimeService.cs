@@ -1,3 +1,5 @@
+using System.Windows;
+using JunhyunHelper.Core.Scanner;
 using JunhyunHelper.Infrastructure.Scanner;
 
 namespace JunhyunHelper.Desktop.Scanner;
@@ -5,7 +7,13 @@ namespace JunhyunHelper.Desktop.Scanner;
 public sealed class ScannerRuntimeService : IDisposable
 {
     private static readonly TimeSpan TickInterval = TimeSpan.FromMilliseconds(350);
-    private static readonly TimeSpan FailedTitleCooldown = TimeSpan.FromSeconds(2.5);
+    private static readonly TimeSpan SemanticRetryInterval = TimeSpan.FromMilliseconds(1200);
+    private const int StableCandidateHitsRequired = 2;
+    private const int MissesToHide = 2;
+    private const int CandidateLimit = 8;
+    private const int DeepOcrCandidateLimit = 3;
+    private const double CandidateStructuralFloor = 0.34;
+    private const double VerifiedGeometryDistanceLimit = 100;
 
     private readonly ScannerSettingsService _settings;
     private readonly ScannerCatalogService _catalog;
@@ -21,14 +29,11 @@ public sealed class ScannerRuntimeService : IDisposable
     private int _loopEpoch;
     private bool _disposed;
     private ScannerCaptureMode? _activeMode;
-    private string _lastGeometrySignature = string.Empty;
-    private int _stableGeometryHits;
-    private string _lastTitleSignature = string.Empty;
-    private int _stableTitleHits;
+    private int _candidatePresenceHits;
     private int _consecutiveMisses;
-    private string _lastSuccessfulTitleSignature = string.Empty;
-    private string _lastFailedTitleSignature = string.Empty;
-    private DateTimeOffset _lastFailedAtUtc = DateTimeOffset.MinValue;
+    private DateTimeOffset _nextSemanticAttemptAtUtc = DateTimeOffset.MinValue;
+    private Rect? _verifiedBounds;
+    private string _verifiedTitleSignature = string.Empty;
     private ScannerItemSnapshot? _currentSnapshot;
     private string _lastDiagnosticStatusKey = string.Empty;
 
@@ -48,9 +53,7 @@ public sealed class ScannerRuntimeService : IDisposable
         _detector = detector ?? throw new ArgumentNullException(nameof(detector));
         _ocr = ocr ?? throw new ArgumentNullException(nameof(ocr));
         _contextProvider = contextProvider ?? throw new ArgumentNullException(nameof(contextProvider));
-        Status = new ScannerRuntimeStatus(
-            ScannerRuntimeState.Disabled,
-            "Scanner가 꺼져 있습니다.");
+        Status = new ScannerRuntimeStatus(ScannerRuntimeState.Disabled, "Scanner가 꺼져 있습니다.");
     }
 
     public event Action<ScannerRuntimeStatus>? StatusChanged;
@@ -88,6 +91,7 @@ public sealed class ScannerRuntimeService : IDisposable
         ScannerDiagnosticLog.Write(
             "runtime-start",
             mode,
+            ("pipeline", "scanner-lab-3.8-semantic"),
             ("detectorAvailable", _detector.IsAvailable),
             ("ocrAvailable", _ocr.IsAvailable),
             ("catalogCount", _catalog.Count));
@@ -120,9 +124,7 @@ public sealed class ScannerRuntimeService : IDisposable
         {
             StopLoop();
             ResetObservationState(hideOverlay: false);
-            var message = !_detector.IsAvailable
-                ? _detector.AvailabilityMessage
-                : _ocr.AvailabilityMessage;
+            var message = !_detector.IsAvailable ? _detector.AvailabilityMessage : _ocr.AvailabilityMessage;
             _overlay.ShowStandby(message);
             Publish(ScannerRuntimeState.WaitingForVision, message, captureMode: mode);
             return Task.CompletedTask;
@@ -146,9 +148,7 @@ public sealed class ScannerRuntimeService : IDisposable
     public Task ResumeActiveAsync(CancellationToken cancellationToken = default)
     {
         var mode = ActiveCaptureMode;
-        return mode is null
-            ? Task.CompletedTask
-            : StartAsync(mode.Value, cancellationToken);
+        return mode is null ? Task.CompletedTask : StartAsync(mode.Value, cancellationToken);
     }
 
     public void Stop()
@@ -177,10 +177,7 @@ public sealed class ScannerRuntimeService : IDisposable
     public void PauseForPositionEdit()
     {
         StopLoop();
-        Publish(
-            ScannerRuntimeState.Stabilizing,
-            "Mini Scanner 위치를 편집하는 중입니다.",
-            captureMode: ActiveCaptureMode);
+        Publish(ScannerRuntimeState.Stabilizing, "Mini Scanner 위치를 편집하는 중입니다.", captureMode: ActiveCaptureMode);
     }
 
     public void ShowPreview(ScannerItemSnapshot snapshot)
@@ -190,11 +187,7 @@ public sealed class ScannerRuntimeService : IDisposable
         ResetObservationState(hideOverlay: false);
         _currentSnapshot = snapshot;
         _overlay.Show(snapshot, preview: true);
-        Publish(
-            ScannerRuntimeState.ShowingItem,
-            $"미리보기: {snapshot.OfficialName}",
-            snapshot,
-            ActiveCaptureMode);
+        Publish(ScannerRuntimeState.ShowingItem, $"미리보기: {snapshot.OfficialName}", snapshot, ActiveCaptureMode);
     }
 
     public async Task HidePreviewAsync(CancellationToken cancellationToken = default)
@@ -250,121 +243,92 @@ public sealed class ScannerRuntimeService : IDisposable
 
                 if (!_detector.IsAvailable || !_ocr.IsAvailable)
                 {
-                    var message = !_detector.IsAvailable
-                        ? _detector.AvailabilityMessage
-                        : _ocr.AvailabilityMessage;
+                    var message = !_detector.IsAvailable ? _detector.AvailabilityMessage : _ocr.AvailabilityMessage;
                     _overlay.ShowStandby(message);
                     Publish(ScannerRuntimeState.WaitingForVision, message, captureMode: mode);
                     continue;
                 }
 
-                var candidate = await _detector.ObserveAsync(cancellationToken);
+                var candidates = await ObserveCandidatesAsync(cancellationToken);
                 if (epoch != Volatile.Read(ref _loopEpoch))
                     return;
-                if (candidate is null)
+
+                if (candidates.Count == 0)
                 {
                     HandleMiss(mode, _detector.StatusMessage);
                     continue;
                 }
 
                 _consecutiveMisses = 0;
-                if (!string.Equals(candidate.GeometrySignature, _lastGeometrySignature, StringComparison.Ordinal))
+                _candidatePresenceHits++;
+
+                ScannerDiagnosticLog.Write(
+                    "geometry-candidates",
+                    mode,
+                    ("count", candidates.Count),
+                    ("topScore", candidates[0].StructuralScore),
+                    ("topReason", candidates[0].StructuralReason),
+                    ("topBounds", FormatBounds(candidates[0].Bounds)));
+
+                if (_currentSnapshot is not null && _verifiedBounds is { } verifiedBounds)
                 {
-                    _lastGeometrySignature = candidate.GeometrySignature;
-                    _stableGeometryHits = 1;
-                    ResetTitleStability();
-                    ScannerDiagnosticLog.Write(
-                        "geometry-candidate",
-                        mode,
-                        ("x", candidate.Bounds.X),
-                        ("y", candidate.Bounds.Y),
-                        ("width", candidate.Bounds.Width),
-                        ("height", candidate.Bounds.Height),
-                        ("signature", candidate.GeometrySignature));
-                    const string message = "상세창 위치를 확인하는 중입니다.";
-                    _overlay.ShowStandby(message);
-                    Publish(ScannerRuntimeState.Stabilizing, message, captureMode: mode);
-                    continue;
-                }
+                    var closest = candidates
+                        .Select(candidate => (Candidate: candidate, Distance: GeometryDistance(candidate.Bounds, verifiedBounds)))
+                        .OrderBy(item => item.Distance)
+                        .First();
 
-                _stableGeometryHits++;
-                if (_stableGeometryHits < 2)
-                    continue;
-
-                var titleSignature = candidate.TitleSignature;
-                if (string.IsNullOrWhiteSpace(titleSignature) || candidate.TitleImage is null)
-                {
-                    ResetTitleStability();
-                    continue;
-                }
-
-                if (!string.Equals(titleSignature, _lastTitleSignature, StringComparison.Ordinal))
-                {
-                    _lastTitleSignature = titleSignature;
-                    _stableTitleHits = 1;
-                    _currentSnapshot = null;
-                    _lastSuccessfulTitleSignature = string.Empty;
-                    const string message = "아이템 제목을 확인하는 중입니다.";
-                    _overlay.ShowStandby(message);
-                    Publish(ScannerRuntimeState.Stabilizing, message, captureMode: mode);
-                    continue;
-                }
-
-                _stableTitleHits++;
-                if (_stableTitleHits < 2)
-                    continue;
-
-                if (string.Equals(titleSignature, _lastSuccessfulTitleSignature, StringComparison.Ordinal))
-                {
-                    if (_currentSnapshot is not null)
+                    if (closest.Distance <= VerifiedGeometryDistanceLimit &&
+                        string.Equals(closest.Candidate.TitleSignature, _verifiedTitleSignature, StringComparison.Ordinal))
+                    {
                         _overlay.Show(_currentSnapshot);
-                    continue;
+                        continue;
+                    }
+
+                    ClearVerifiedItem();
+                    const string changedMessage = "아이템 제목 변화를 확인하는 중입니다.";
+                    _overlay.ShowStandby(changedMessage);
+                    Publish(ScannerRuntimeState.Stabilizing, changedMessage, captureMode: mode);
                 }
 
-                if (string.Equals(titleSignature, _lastFailedTitleSignature, StringComparison.Ordinal) &&
-                    DateTimeOffset.UtcNow - _lastFailedAtUtc < FailedTitleCooldown)
+                if (_candidatePresenceHits < StableCandidateHitsRequired)
                 {
+                    const string message = "상세창 후보를 확인하는 중입니다.";
+                    _overlay.ShowStandby(message);
+                    Publish(ScannerRuntimeState.Stabilizing, message, captureMode: mode);
                     continue;
                 }
 
+                if (DateTimeOffset.UtcNow < _nextSemanticAttemptAtUtc)
+                    continue;
+
+                _nextSemanticAttemptAtUtc = DateTimeOffset.UtcNow + SemanticRetryInterval;
                 const string readingMessage = "아이템 이름을 읽는 중입니다.";
                 _overlay.ShowStandby(readingMessage);
                 Publish(ScannerRuntimeState.ReadingTitle, readingMessage, captureMode: mode);
-                var ocrText = await _ocr.ReadTextAsync(candidate.TitleImage, cancellationToken);
+
+                var search = await SearchCandidatesAsync(candidates, mode, cancellationToken);
                 if (epoch != Volatile.Read(ref _loopEpoch))
                     return;
 
-                ScannerDiagnosticLog.Write(
-                    "ocr-result",
-                    mode,
-                    ("titleSignature", titleSignature),
-                    ("text", ocrText));
+                PublishSearchActivity(search, mode);
 
-                var recognition = _catalog.ResolveOcrText(ocrText);
-                ScannerDiagnosticLog.Write(
-                    "match-result",
-                    mode,
-                    ("success", recognition.Success),
-                    ("reason", recognition.Reason),
-                    ("itemId", recognition.ItemId),
-                    ("officialName", recognition.OfficialName),
-                    ("confidence", recognition.Confidence),
-                    ("secondScore", recognition.SecondScore));
-
-                if (!recognition.Success || string.IsNullOrWhiteSpace(recognition.ItemId))
+                if (!search.Success || search.Candidate is null ||
+                    string.IsNullOrWhiteSpace(search.Recognition.ItemId))
                 {
-                    RecordFailedTitle(titleSignature);
                     _currentSnapshot = null;
-                    var message = $"확실하게 식별하지 못했습니다. ({recognition.Reason}, {recognition.Confidence:P0})";
+                    _verifiedBounds = null;
+                    _verifiedTitleSignature = string.Empty;
+                    var message = string.IsNullOrWhiteSpace(search.OcrText)
+                        ? "아이템 이름을 읽지 못해 식별을 보류했습니다."
+                        : $"아이템을 확실하게 식별하지 못했습니다. ({search.Recognition.Reason}, {search.Recognition.Confidence:P0})";
                     _overlay.ShowStandby(message);
                     Publish(ScannerRuntimeState.Uncertain, message, captureMode: mode);
                     continue;
                 }
 
-                var snapshot = _presentation.CreateSnapshot(recognition.ItemId);
+                var snapshot = _presentation.CreateSnapshot(search.Recognition.ItemId);
                 if (snapshot is null)
                 {
-                    RecordFailedTitle(titleSignature);
                     _currentSnapshot = null;
                     const string message = "Item ID는 확정했지만 현재 표시 데이터를 만들 수 없습니다.";
                     _overlay.ShowStandby(message);
@@ -372,9 +336,19 @@ public sealed class ScannerRuntimeService : IDisposable
                     continue;
                 }
 
-                _lastSuccessfulTitleSignature = titleSignature;
-                _lastFailedTitleSignature = string.Empty;
+                _verifiedBounds = search.Candidate.Bounds;
+                _verifiedTitleSignature = search.Candidate.TitleSignature;
                 _currentSnapshot = snapshot;
+                ScannerDiagnosticLog.Write(
+                    "semantic-selected",
+                    mode,
+                    ("candidateIndex", search.CandidateIndex),
+                    ("pass", search.Pass),
+                    ("structure", search.Candidate.StructuralScore),
+                    ("structureReason", search.Candidate.StructuralReason),
+                    ("officialName", search.Recognition.OfficialName),
+                    ("confidence", search.Recognition.Confidence),
+                    ("bounds", FormatBounds(search.Candidate.Bounds)));
                 _overlay.Show(snapshot);
                 Publish(ScannerRuntimeState.ShowingItem, snapshot.OfficialName, snapshot, mode);
             }
@@ -397,47 +371,185 @@ public sealed class ScannerRuntimeService : IDisposable
         }
     }
 
+    private async Task<IReadOnlyList<ScannerInspectCandidate>> ObserveCandidatesAsync(CancellationToken cancellationToken)
+    {
+        if (_detector is IScannerCandidateInspectDetector candidateDetector)
+            return await candidateDetector.ObserveCandidatesAsync(cancellationToken);
+
+        var candidate = await _detector.ObserveAsync(cancellationToken);
+        return candidate is null ? [] : [candidate];
+    }
+
+    private async Task<CandidateSearchResult> SearchCandidatesAsync(
+        IReadOnlyList<ScannerInspectCandidate> candidates,
+        ScannerCaptureMode mode,
+        CancellationToken cancellationToken)
+    {
+        var limit = Math.Min(CandidateLimit, candidates.Count);
+        CandidateSearchResult? bestSuccess = null;
+        CandidateSearchResult? bestFailure = null;
+
+        for (var index = 0; index < limit; index++)
+        {
+            var candidate = candidates[index];
+            if (candidate.StructuralScore < CandidateStructuralFloor || candidate.TitleImage is null)
+                continue;
+
+            var text = await _ocr.ReadTextAsync(candidate.TitleImage, cancellationToken);
+            var recognition = _catalog.ResolveOcrText(text);
+            LogCandidateAttempt(mode, index, "ORIGINAL", candidate, text, recognition);
+            var result = new CandidateSearchResult(
+                recognition.Success,
+                candidate,
+                recognition,
+                text,
+                "ORIGINAL",
+                index,
+                recognition.Confidence * 0.82 + candidate.StructuralScore * 0.18);
+
+            bestFailure = BetterFailure(bestFailure, result);
+            if (recognition.Success && (bestSuccess is null || result.CombinedScore > bestSuccess.CombinedScore))
+                bestSuccess = result;
+        }
+
+        if (bestSuccess is not null)
+            return bestSuccess;
+
+        if (_ocr is IScannerDeepOcrEngine deepOcr)
+        {
+            var deepLimit = Math.Min(DeepOcrCandidateLimit, limit);
+            for (var index = 0; index < deepLimit; index++)
+            {
+                var candidate = candidates[index];
+                if (candidate.StructuralScore < CandidateStructuralFloor || candidate.TitleImage is null)
+                    continue;
+
+                var text = await deepOcr.ReadDeepTextAsync(candidate.TitleImage, cancellationToken);
+                var recognition = _catalog.ResolveOcrText(text);
+                LogCandidateAttempt(mode, index, "DEEP", candidate, text, recognition);
+                var result = new CandidateSearchResult(
+                    recognition.Success,
+                    candidate,
+                    recognition,
+                    text,
+                    "DEEP",
+                    index,
+                    recognition.Confidence * 0.86 + candidate.StructuralScore * 0.14);
+
+                bestFailure = BetterFailure(bestFailure, result);
+                if (recognition.Success && (bestSuccess is null || result.CombinedScore > bestSuccess.CombinedScore))
+                    bestSuccess = result;
+            }
+        }
+
+        if (bestSuccess is not null)
+            return bestSuccess;
+
+        return bestFailure ?? new CandidateSearchResult(
+            false,
+            null,
+            ScannerRecognition.Failed("EMPTY_OCR"),
+            string.Empty,
+            "NONE",
+            -1,
+            0);
+    }
+
+    private static CandidateSearchResult BetterFailure(CandidateSearchResult? current, CandidateSearchResult candidate)
+    {
+        if (current is null)
+            return candidate;
+        if (!string.IsNullOrWhiteSpace(candidate.OcrText) && string.IsNullOrWhiteSpace(current.OcrText))
+            return candidate;
+        if (candidate.Recognition.Confidence > current.Recognition.Confidence)
+            return candidate;
+        if (Math.Abs(candidate.Recognition.Confidence - current.Recognition.Confidence) < 0.0001 &&
+            candidate.CombinedScore > current.CombinedScore)
+            return candidate;
+        return current;
+    }
+
+    private static void LogCandidateAttempt(
+        ScannerCaptureMode mode,
+        int index,
+        string pass,
+        ScannerInspectCandidate candidate,
+        string text,
+        ScannerRecognition recognition)
+    {
+        ScannerDiagnosticLog.Write(
+            "candidate-semantic",
+            mode,
+            ("index", index),
+            ("pass", pass),
+            ("structure", candidate.StructuralScore),
+            ("structureReason", candidate.StructuralReason),
+            ("bounds", FormatBounds(candidate.Bounds)),
+            ("ocr", text),
+            ("match", recognition.Reason),
+            ("success", recognition.Success),
+            ("officialName", recognition.OfficialName),
+            ("confidence", recognition.Confidence),
+            ("secondScore", recognition.SecondScore));
+    }
+
+    private static CandidateSearchResult? BetterFailure(CandidateSearchResult? current, CandidateSearchResult? candidate) =>
+        candidate is null ? current : BetterFailure(current, candidate);
+
+    private static double GeometryDistance(Rect left, Rect right) =>
+        Math.Abs(left.X - right.X) +
+        Math.Abs(left.Y - right.Y) +
+        Math.Abs(left.Width - right.Width) +
+        Math.Abs(left.Height - right.Height);
+
+    private static string FormatBounds(Rect bounds) =>
+        $"{bounds.X:F0},{bounds.Y:F0},{bounds.Width:F0},{bounds.Height:F0}";
+
+    private static void PublishSearchActivity(CandidateSearchResult search, ScannerCaptureMode mode)
+    {
+        ScannerDiagnosticLog.Write(
+            "ocr-result",
+            mode,
+            ("candidateIndex", search.CandidateIndex),
+            ("pass", search.Pass),
+            ("text", search.OcrText));
+        ScannerDiagnosticLog.Write(
+            "match-result",
+            mode,
+            ("success", search.Recognition.Success),
+            ("reason", search.Recognition.Reason),
+            ("itemId", search.Recognition.ItemId),
+            ("officialName", search.Recognition.OfficialName),
+            ("confidence", search.Recognition.Confidence),
+            ("secondScore", search.Recognition.SecondScore));
+    }
+
     private void HandleMiss(ScannerCaptureMode mode, string detectorMessage)
     {
         _consecutiveMisses++;
-        _stableGeometryHits = 0;
-        _lastGeometrySignature = string.Empty;
-        ResetTitleStability();
-
-        if (_consecutiveMisses < 2)
+        _candidatePresenceHits = 0;
+        if (_consecutiveMisses < MissesToHide)
             return;
 
-        _currentSnapshot = null;
-        _lastSuccessfulTitleSignature = string.Empty;
-        var message = string.IsNullOrWhiteSpace(detectorMessage)
-            ? ModeInitialMessage(mode)
-            : detectorMessage;
+        ClearVerifiedItem();
+        var message = string.IsNullOrWhiteSpace(detectorMessage) ? ModeInitialMessage(mode) : detectorMessage;
         _overlay.ShowStandby(message);
         Publish(ScannerRuntimeState.WaitingForInspectWindow, message, captureMode: mode);
     }
 
-    private void RecordFailedTitle(string titleSignature)
+    private void ClearVerifiedItem()
     {
-        _lastFailedTitleSignature = titleSignature;
-        _lastFailedAtUtc = DateTimeOffset.UtcNow;
-    }
-
-    private void ResetTitleStability()
-    {
-        _lastTitleSignature = string.Empty;
-        _stableTitleHits = 0;
+        _verifiedBounds = null;
+        _verifiedTitleSignature = string.Empty;
+        _currentSnapshot = null;
     }
 
     private void ResetObservationState(bool hideOverlay)
     {
-        _lastGeometrySignature = string.Empty;
-        _stableGeometryHits = 0;
+        _candidatePresenceHits = 0;
         _consecutiveMisses = 0;
-        ResetTitleStability();
-        _lastSuccessfulTitleSignature = string.Empty;
-        _lastFailedTitleSignature = string.Empty;
-        _lastFailedAtUtc = DateTimeOffset.MinValue;
-        _currentSnapshot = null;
+        _nextSemanticAttemptAtUtc = DateTimeOffset.MinValue;
+        ClearVerifiedItem();
         _lastDiagnosticStatusKey = string.Empty;
         if (hideOverlay)
             _overlay.Hide();
@@ -522,4 +634,13 @@ public sealed class ScannerRuntimeService : IDisposable
         ScannerDiagnosticLog.Write("runtime-dispose");
         GC.SuppressFinalize(this);
     }
+
+    private sealed record CandidateSearchResult(
+        bool Success,
+        ScannerInspectCandidate? Candidate,
+        ScannerRecognition Recognition,
+        string OcrText,
+        string Pass,
+        int CandidateIndex,
+        double CombinedScore);
 }
