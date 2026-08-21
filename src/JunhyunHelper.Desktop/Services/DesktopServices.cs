@@ -4,6 +4,7 @@ using JunhyunHelper.Application.Hideout;
 using JunhyunHelper.Application.Items;
 using JunhyunHelper.Application.Profiles;
 using JunhyunHelper.Application.Quests;
+using JunhyunHelper.Desktop.Scanner;
 using JunhyunHelper.Infrastructure.Content;
 using JunhyunHelper.Infrastructure.EditionData;
 using JunhyunHelper.Infrastructure.Storage;
@@ -36,6 +37,7 @@ public sealed class DesktopServices : IDisposable
 
         Images = new ImageCacheService(_httpClient, RootDirectory);
         AmmoFavorites = new AmmoFavoriteStore(RootDirectory);
+        Scanner = new ScannerCoordinator(_httpClient, RootDirectory);
 
         var sourceLoader = new TarkovEndpointSourceLoader(new TarkovJsonClient(_httpClient));
         var buildService = new TarkovContentBuildService(
@@ -62,6 +64,8 @@ public sealed class DesktopServices : IDisposable
 
     public AmmoFavoriteStore AmmoFavorites { get; }
 
+    public ScannerCoordinator Scanner { get; }
+
     public ProfileApplicationService ProfileManagement { get; }
 
     public QuestApplicationService Quests { get; }
@@ -70,7 +74,11 @@ public sealed class DesktopServices : IDisposable
 
     public ItemsApplicationService Items { get; }
 
-    public void Dispose() => _httpClient.Dispose();
+    public void Dispose()
+    {
+        Scanner.Dispose();
+        _httpClient.Dispose();
+    }
 
     private static string ProductUserAgentVersion()
     {
