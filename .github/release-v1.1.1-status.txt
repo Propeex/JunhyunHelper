@@ -1,5 +1,0 @@
-result=success
-run_id=32458154113
-release_target=1316c25d4e90509bb9286064724b778510fa9301
-is_draft=false
-latest_tag=v1.1.1
