@@ -63,11 +63,12 @@ public sealed class ScannerCoordinator : IDisposable
             rawOcr = new UnavailableScannerOcrEngine();
         }
 
-        // Item-title recognition and the Mini Scanner inventory/stash gate share one
-        // serialized OCR boundary. This avoids both concurrent WinRT OCR calls and a
-        // second OCR runtime that exists only for overlay visibility decisions.
-        _ocr = new SerializedScannerOcrEngine(rawOcr);
-        _overlay = new MiniScannerOverlayService(_settings, _ocr);
+        // Title OCR and inventory/stash OCR still share one serialized WinRT boundary.
+        // Only the item-title runtime receives the conservative Tarkov-font recovery
+        // decorator; inventory-context deep OCR remains the proven OCR-only path.
+        var serializedOcr = new SerializedScannerOcrEngine(rawOcr);
+        _ocr = new FontAwareScannerOcrEngine(serializedOcr, _catalog, rootDirectory);
+        _overlay = new MiniScannerOverlayService(_settings, serializedOcr);
     }
 
     public event Action<ScannerRuntimeStatus>? StatusChanged;
@@ -465,6 +466,8 @@ public sealed class ScannerCoordinator : IDisposable
             _runtime.StatusChanged -= OnRuntimeStatusChanged;
             _runtime.Dispose();
         }
+        if (_ocr is IDisposable disposableOcr)
+            disposableOcr.Dispose();
         _overlay.Dispose();
         _catalog.Dispose();
         GC.SuppressFinalize(this);
