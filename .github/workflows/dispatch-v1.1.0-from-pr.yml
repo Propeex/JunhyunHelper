@@ -1,0 +1,52 @@
+name: Dispatch v1.1.0 release from PR
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+permissions:
+  actions: write
+  contents: read
+  issues: write
+
+jobs:
+  dispatch:
+    if: github.head_ref == 'release/v1.1.0-pr-dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Dispatch and record v1.1.0 release run
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TRACKING_PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          if gh release view v1.1.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            body="v1.1.0 PR dispatcher executed, but release v1.1.0 already exists. No duplicate workflow was dispatched."
+            gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$TRACKING_PR/comments" -f body="$body" >/dev/null
+            exit 0
+          fi
+
+          gh workflow run release-v1.1.0.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref main
+
+          sleep 8
+
+          record=$(gh run list \
+            --repo "$GITHUB_REPOSITORY" \
+            --workflow release-v1.1.0.yml \
+            --event workflow_dispatch \
+            --limit 1 \
+            --json databaseId,status,conclusion,event,headSha,url,createdAt \
+            --jq '.[0] | "run=\(.databaseId) status=\(.status) conclusion=\(.conclusion // \"null\") event=\(.event) head=\(.headSha) created=\(.createdAt) url=\(.url)"')
+
+          if [ -z "$record" ]; then
+            record="release workflow dispatch command succeeded, but no workflow_dispatch run was visible after 8 seconds"
+          fi
+
+          body="v1.1.0 PR dispatcher record: $record"
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$TRACKING_PR/comments" -f body="$body" >/dev/null
