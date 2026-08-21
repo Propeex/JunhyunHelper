@@ -9,7 +9,7 @@ namespace JunhyunHelper.Desktop.Scanner;
 /// Desktop composition root for Scanner. Real Scanner and display-test mode use the
 /// same detector/OCR/matcher pipeline and differ only in capture source.
 /// </summary>
-public sealed class ScannerCoordinator : IDisposable
+public sealed partial class ScannerCoordinator : IDisposable
 {
     private static readonly TimeSpan ContextMonitorInterval = TimeSpan.FromMilliseconds(750);
 
@@ -476,6 +476,14 @@ public sealed class ScannerCoordinator : IDisposable
         _disposed = true;
         _testEnabled = false;
         StopContextMonitor();
+
+        if (_hotkeyService is not null)
+        {
+            if (_hotkeySubscribed)
+                _hotkeyService.RegistrationChanged -= OnHotkeyRegistrationChanged;
+            _hotkeyService.Dispose();
+            _hotkeyService = null;
+        }
 
         if (_runtime is not null)
         {

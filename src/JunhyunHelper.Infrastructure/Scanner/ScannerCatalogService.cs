@@ -33,6 +33,7 @@ public sealed class ScannerCatalogService : IDisposable
     private readonly CancellationTokenSource _lifetimeCts = new();
     private readonly object _dataGate = new();
     private readonly ScannerItemMatcher _matcher = new();
+    private readonly ScannerOcrCharacterPolicy _ocrPolicy = new();
 
     private Dictionary<string, ScannerCatalogItem> _itemsById = new(StringComparer.Ordinal);
     private GameMode? _loadedMode;
@@ -277,10 +278,19 @@ public sealed class ScannerCatalogService : IDisposable
             return _itemsById.Values.ToArray();
     }
 
+    public ScannerOcrTextAssessment AssessOcrText(string? text) => _ocrPolicy.Assess(text);
+
     public ScannerRecognition ResolveOcrText(string text)
     {
+        if (string.IsNullOrWhiteSpace(text))
+            return ScannerRecognition.Failed("EMPTY_OCR");
+
+        var assessment = _ocrPolicy.Assess(text);
+        if (!assessment.HasPlausibleVariant)
+            return ScannerRecognition.Failed("OCR_INVALID_CHARACTERS");
+
         lock (_dataGate)
-            return _matcher.Resolve(text);
+            return _matcher.Resolve(assessment.FilteredText);
     }
 
     private async Task<string> DownloadStringAsync(string url, CancellationToken cancellationToken)
@@ -352,6 +362,7 @@ public sealed class ScannerCatalogService : IDisposable
             _generatedAtUtc = generatedAtUtc;
             _itemsById = byId;
             _matcher.ReplaceCatalog(byId.Values);
+            _ocrPolicy.ReplaceCatalog(byId.Values);
         }
     }
 
@@ -363,6 +374,7 @@ public sealed class ScannerCatalogService : IDisposable
             _generatedAtUtc = null;
             _itemsById = new Dictionary<string, ScannerCatalogItem>(StringComparer.Ordinal);
             _matcher.ReplaceCatalog([]);
+            _ocrPolicy.ReplaceCatalog([]);
         }
     }
 

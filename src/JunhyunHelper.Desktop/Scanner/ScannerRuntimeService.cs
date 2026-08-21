@@ -4,7 +4,7 @@ using JunhyunHelper.Infrastructure.Scanner;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
-public sealed class ScannerRuntimeService : IDisposable
+public sealed partial class ScannerRuntimeService : IDisposable
 {
     private static readonly TimeSpan TickInterval = TimeSpan.FromMilliseconds(350);
     private static readonly TimeSpan SemanticRetryInterval = TimeSpan.FromMilliseconds(1200);
@@ -399,11 +399,15 @@ public sealed class ScannerRuntimeService : IDisposable
 
     private async Task<IReadOnlyList<ScannerInspectCandidate>> ObserveCandidatesAsync(CancellationToken cancellationToken)
     {
-        if (_detector is IScannerCandidateInspectDetector candidateDetector)
-            return await candidateDetector.ObserveCandidatesAsync(cancellationToken);
-
-        var candidate = await _detector.ObserveAsync(cancellationToken);
-        return candidate is null ? [] : [candidate];
+        await _captureGate.WaitAsync(cancellationToken);
+        try
+        {
+            return await ObserveCandidatesCoreAsync(cancellationToken);
+        }
+        finally
+        {
+            _captureGate.Release();
+        }
     }
 
     private async Task<CandidateSearchResult> SearchCandidatesAsync(
@@ -557,6 +561,11 @@ public sealed class ScannerRuntimeService : IDisposable
 
     private static void PublishSearchActivity(CandidateSearchResult search, ScannerCaptureMode mode)
     {
+        ScannerRecognitionDebugStore.UpdateAnalysis(
+            search.Candidate,
+            search.Pass,
+            search.OcrText,
+            search.Recognition);
         ScannerDiagnosticLog.Write(
             "ocr-result",
             mode,
@@ -682,6 +691,7 @@ public sealed class ScannerRuntimeService : IDisposable
         if (_disposed)
             return;
         _disposed = true;
+        CancelOneShotDisplayTimer();
         StopLoop();
         lock (_loopGate)
             _activeMode = null;

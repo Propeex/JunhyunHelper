@@ -154,12 +154,19 @@ public sealed class ScannerLab38InspectDetector : IScannerCandidateInspectDetect
             data.Stride,
             CandidateLimit);
         if (structural.Count == 0)
+        {
+            PublishDebugCaptureIfNeeded(
+                data.Pixels, data.Stride, bitmap.Width, bitmap.Height,
+                screenLeft, screenTop, sourceKey, null);
             return [];
+        }
 
         var result = new List<ScannerInspectCandidate>(structural.Count);
         foreach (var candidate in structural)
         {
-            var title = candidate.Title;
+            var anchors = ScannerTitleAnchorRefiner.Refine(
+                data.Pixels, bitmap.Width, bitmap.Height, data.Stride, candidate);
+            var title = anchors.Title;
             var titlePixels = CropBgra(data.Pixels, data.Stride, title, bitmap.Width, bitmap.Height, out var titleStride);
             if (titlePixels.Length == 0)
                 continue;
@@ -177,21 +184,86 @@ public sealed class ScannerLab38InspectDetector : IScannerCandidateInspectDetect
 
             var geometrySignature = $"{sourceKey}:{Quantize(candidate.Window.X)}:{Quantize(candidate.Window.Y)}:{Quantize(candidate.Window.Width)}:{Quantize(candidate.Window.Height)}";
             var titleSignature = $"{HashPixels(titlePixels):X16}";
+            var windowBounds = ToScreenRect(candidate.Window, screenLeft, screenTop);
+            var titleBounds = ToScreenRect(title, screenLeft, screenTop);
+            var magnifierBounds = anchors.Magnifier.Width > 0
+                ? ToScreenRect(anchors.Magnifier, screenLeft, screenTop)
+                : null;
+            var closeBounds = anchors.CloseButton.Width > 0
+                ? ToScreenRect(anchors.CloseButton, screenLeft, screenTop)
+                : null;
+
             result.Add(new ScannerInspectCandidate(
-                new Rect(
-                    screenLeft + candidate.Window.X,
-                    screenTop + candidate.Window.Y,
-                    candidate.Window.Width,
-                    candidate.Window.Height),
+                windowBounds,
                 geometrySignature,
                 titleSignature,
                 titleImage,
                 candidate.Score,
-                candidate.Reason));
+                candidate.Reason,
+                titleBounds,
+                magnifierBounds,
+                closeBounds,
+                anchors.Score,
+                anchors.Reason));
         }
 
-        return result;
+        var ordered = result
+            .OrderByDescending(candidate => candidate.StructuralScore)
+            .Take(CandidateLimit)
+            .ToArray();
+        PublishDebugCaptureIfNeeded(
+            data.Pixels, data.Stride, bitmap.Width, bitmap.Height,
+            screenLeft, screenTop, sourceKey, ordered.FirstOrDefault());
+        return ordered;
     }
+
+    private static void PublishDebugCaptureIfNeeded(
+        byte[] pixels,
+        int stride,
+        int width,
+        int height,
+        int screenLeft,
+        int screenTop,
+        string sourceKey,
+        ScannerInspectCandidate? candidate)
+    {
+        var signature = candidate?.TitleSignature;
+        if (!ScannerRecognitionDebugStore.ShouldCapture(signature, candidate is not null))
+            return;
+
+        var image = BitmapSource.Create(
+            width,
+            height,
+            96,
+            96,
+            PixelFormats.Bgra32,
+            null,
+            pixels,
+            stride);
+        image.Freeze();
+
+        Rect? Local(Rect? value) => value is not { } rect
+            ? null
+            : new Rect(rect.X - screenLeft, rect.Y - screenTop, rect.Width, rect.Height);
+
+        ScannerRecognitionDebugStore.PublishCapture(new ScannerRecognitionDebugFrame(
+            image,
+            screenLeft,
+            screenTop,
+            sourceKey,
+            Local(candidate?.Bounds),
+            Local(candidate?.TitleBounds),
+            Local(candidate?.MagnifierBounds),
+            Local(candidate?.CloseBounds),
+            candidate?.StructuralScore ?? 0,
+            candidate?.StructuralReason ?? "NO_DETAIL_CANDIDATE",
+            candidate?.TitleAnchorScore ?? 0,
+            candidate?.TitleAnchorReason ?? "NOT_RUN",
+            candidate?.TitleSignature));
+    }
+
+    private static Rect ToScreenRect(ScannerDetectedRegion region, int screenLeft, int screenTop) =>
+        new(screenLeft + region.X, screenTop + region.Y, region.Width, region.Height);
 
     private IntPtr GetTarkovWindow()
     {
