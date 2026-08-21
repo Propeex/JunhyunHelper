@@ -20,6 +20,7 @@ public sealed class ScannerRuntimeService : IDisposable
     private Task? _loopTask;
     private int _loopEpoch;
     private bool _disposed;
+    private ScannerCaptureMode? _activeMode;
     private string _lastGeometrySignature = string.Empty;
     private int _stableGeometryHits;
     private string _lastTitleSignature = string.Empty;
@@ -48,47 +49,74 @@ public sealed class ScannerRuntimeService : IDisposable
         _contextProvider = contextProvider ?? throw new ArgumentNullException(nameof(contextProvider));
         Status = new ScannerRuntimeStatus(
             ScannerRuntimeState.Disabled,
-            "Mini Scanner가 꺼져 있습니다.");
+            "Scanner가 꺼져 있습니다.");
     }
 
     public event Action<ScannerRuntimeStatus>? StatusChanged;
 
     public ScannerRuntimeStatus Status { get; private set; }
 
-    public Task StartAsync(CancellationToken cancellationToken = default)
+    public ScannerCaptureMode? ActiveCaptureMode
+    {
+        get
+        {
+            lock (_loopGate)
+                return _activeMode;
+        }
+    }
+
+    public Task StartAsync(ScannerCaptureMode mode, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (!_settings.Current.Enabled)
+        if (mode == ScannerCaptureMode.TarkovWindow && !_settings.Current.Enabled)
         {
             Stop();
             return Task.CompletedTask;
         }
 
+        if (ActiveCaptureMode != mode)
+        {
+            StopLoop();
+            ResetObservationState(hideOverlay: false);
+        }
+
+        lock (_loopGate)
+            _activeMode = mode;
+        _detector.SetCaptureMode(mode);
+
+        var initialMessage = ModeInitialMessage(mode);
+        _overlay.ShowStandby(initialMessage);
+
         var context = _contextProvider();
         if (context is null)
         {
             StopLoop();
-            ResetObservationState(hideOverlay: true);
-            Publish(ScannerRuntimeState.NoProfile, "Scanner를 사용할 활성 프로필이 없습니다.");
+            ResetObservationState(hideOverlay: false);
+            const string message = "Scanner를 사용할 활성 프로필이 없습니다.";
+            _overlay.ShowStandby(message);
+            Publish(ScannerRuntimeState.NoProfile, message, captureMode: mode);
             return Task.CompletedTask;
         }
 
         if (_catalog.LoadedMode != context.GameMode || !_catalog.HasHealthyCatalog)
         {
             StopLoop();
-            ResetObservationState(hideOverlay: true);
-            Publish(ScannerRuntimeState.CatalogUnavailable, "현재 게임 모드의 전체 아이템 카탈로그가 준비되지 않았습니다.");
+            ResetObservationState(hideOverlay: false);
+            const string message = "현재 게임 모드의 전체 아이템 카탈로그가 준비되지 않았습니다.";
+            _overlay.ShowStandby(message);
+            Publish(ScannerRuntimeState.CatalogUnavailable, message, captureMode: mode);
             return Task.CompletedTask;
         }
 
         if (!_detector.IsAvailable || !_ocr.IsAvailable)
         {
             StopLoop();
-            ResetObservationState(hideOverlay: true);
+            ResetObservationState(hideOverlay: false);
             var message = !_detector.IsAvailable
                 ? _detector.AvailabilityMessage
                 : _ocr.AvailabilityMessage;
-            Publish(ScannerRuntimeState.WaitingForVision, message);
+            _overlay.ShowStandby(message);
+            Publish(ScannerRuntimeState.WaitingForVision, message, captureMode: mode);
             return Task.CompletedTask;
         }
 
@@ -101,30 +129,48 @@ public sealed class ScannerRuntimeService : IDisposable
             _loopCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             var token = _loopCts.Token;
             var epoch = Interlocked.Increment(ref _loopEpoch);
-            _loopTask = Task.Run(() => RunLoopAsync(token, epoch), CancellationToken.None);
+            _loopTask = Task.Run(() => RunLoopAsync(mode, token, epoch), CancellationToken.None);
         }
 
         return Task.CompletedTask;
     }
 
+    public Task ResumeActiveAsync(CancellationToken cancellationToken = default)
+    {
+        var mode = ActiveCaptureMode;
+        return mode is null
+            ? Task.CompletedTask
+            : StartAsync(mode.Value, cancellationToken);
+    }
+
     public void Stop()
     {
         StopLoop();
+        lock (_loopGate)
+            _activeMode = null;
         ResetObservationState(hideOverlay: true);
-        Publish(ScannerRuntimeState.Disabled, "Mini Scanner가 꺼져 있습니다.");
+        Publish(ScannerRuntimeState.Disabled, "Scanner가 꺼져 있습니다.");
     }
 
     public void Suspend(ScannerRuntimeState state, string message)
     {
         StopLoop();
-        ResetObservationState(hideOverlay: true);
-        Publish(state, message);
+        ResetObservationState(hideOverlay: false);
+        var mode = ActiveCaptureMode;
+        if (mode is not null)
+            _overlay.ShowStandby(message);
+        else
+            _overlay.Hide();
+        Publish(state, message, captureMode: mode);
     }
 
     public void PauseForPositionEdit()
     {
         StopLoop();
-        Publish(ScannerRuntimeState.Stabilizing, "Mini Scanner 위치를 편집하는 중입니다.");
+        Publish(
+            ScannerRuntimeState.Stabilizing,
+            "Mini Scanner 위치를 편집하는 중입니다.",
+            captureMode: ActiveCaptureMode);
     }
 
     public void ShowPreview(ScannerItemSnapshot snapshot)
@@ -137,25 +183,29 @@ public sealed class ScannerRuntimeService : IDisposable
         Publish(
             ScannerRuntimeState.ShowingItem,
             $"미리보기: {snapshot.OfficialName}",
-            snapshot);
+            snapshot,
+            ActiveCaptureMode);
     }
 
     public async Task HidePreviewAsync(CancellationToken cancellationToken = default)
     {
         _overlay.Hide();
         _currentSnapshot = null;
-        if (_settings.Current.Enabled)
-            await StartAsync(cancellationToken);
+        var mode = ActiveCaptureMode;
+        if (mode is not null)
+            await StartAsync(mode.Value, cancellationToken);
         else
-            Publish(ScannerRuntimeState.Disabled, "Mini Scanner가 꺼져 있습니다.");
+            Publish(ScannerRuntimeState.Disabled, "Scanner가 꺼져 있습니다.");
     }
 
     public void PublishExternalState(ScannerRuntimeState state, string message) =>
-        Publish(state, message);
+        Publish(state, message, captureMode: ActiveCaptureMode);
 
-    private async Task RunLoopAsync(CancellationToken cancellationToken, int epoch)
+    private async Task RunLoopAsync(ScannerCaptureMode mode, CancellationToken cancellationToken, int epoch)
     {
-        Publish(ScannerRuntimeState.WaitingForInspectWindow, "Tarkov 아이템 상세창을 기다리는 중입니다.");
+        var waitingMessage = ModeInitialMessage(mode);
+        _overlay.ShowStandby(waitingMessage);
+        Publish(ScannerRuntimeState.WaitingForInspectWindow, waitingMessage, captureMode: mode);
 
         try
         {
@@ -168,20 +218,34 @@ public sealed class ScannerRuntimeService : IDisposable
                 var context = _contextProvider();
                 if (context is null)
                 {
-                    ResetObservationState(hideOverlay: true);
-                    Publish(ScannerRuntimeState.NoProfile, "Scanner를 사용할 활성 프로필이 없습니다.");
+                    ResetObservationState(hideOverlay: false);
+                    const string message = "Scanner를 사용할 활성 프로필이 없습니다.";
+                    _overlay.ShowStandby(message);
+                    Publish(ScannerRuntimeState.NoProfile, message, captureMode: mode);
                     continue;
                 }
 
                 if (_catalog.LoadedMode != context.GameMode)
                 {
-                    ResetObservationState(hideOverlay: true);
+                    ResetObservationState(hideOverlay: false);
                     await _catalog.LoadCacheAsync(context.GameMode, cancellationToken);
                     if (!_catalog.HasHealthyCatalog)
                     {
-                        Publish(ScannerRuntimeState.CatalogUnavailable, "현재 게임 모드의 전체 아이템 카탈로그가 준비되지 않았습니다.");
+                        const string message = "현재 게임 모드의 전체 아이템 카탈로그가 준비되지 않았습니다.";
+                        _overlay.ShowStandby(message);
+                        Publish(ScannerRuntimeState.CatalogUnavailable, message, captureMode: mode);
                         continue;
                     }
+                }
+
+                if (!_detector.IsAvailable || !_ocr.IsAvailable)
+                {
+                    var message = !_detector.IsAvailable
+                        ? _detector.AvailabilityMessage
+                        : _ocr.AvailabilityMessage;
+                    _overlay.ShowStandby(message);
+                    Publish(ScannerRuntimeState.WaitingForVision, message, captureMode: mode);
+                    continue;
                 }
 
                 var candidate = await _detector.ObserveAsync(cancellationToken);
@@ -189,7 +253,7 @@ public sealed class ScannerRuntimeService : IDisposable
                     return;
                 if (candidate is null)
                 {
-                    HandleMiss();
+                    HandleMiss(mode, _detector.StatusMessage);
                     continue;
                 }
 
@@ -199,7 +263,9 @@ public sealed class ScannerRuntimeService : IDisposable
                     _lastGeometrySignature = candidate.GeometrySignature;
                     _stableGeometryHits = 1;
                     ResetTitleStability();
-                    Publish(ScannerRuntimeState.Stabilizing, "상세창 위치를 확인하는 중입니다.");
+                    const string message = "상세창 위치를 확인하는 중입니다.";
+                    _overlay.ShowStandby(message);
+                    Publish(ScannerRuntimeState.Stabilizing, message, captureMode: mode);
                     continue;
                 }
 
@@ -218,14 +284,11 @@ public sealed class ScannerRuntimeService : IDisposable
                 {
                     _lastTitleSignature = titleSignature;
                     _stableTitleHits = 1;
-
-                    if (!string.IsNullOrEmpty(_lastSuccessfulTitleSignature))
-                    {
-                        _overlay.Hide();
-                        _currentSnapshot = null;
-                        _lastSuccessfulTitleSignature = string.Empty;
-                    }
-                    Publish(ScannerRuntimeState.Stabilizing, "아이템 제목을 확인하는 중입니다.");
+                    _currentSnapshot = null;
+                    _lastSuccessfulTitleSignature = string.Empty;
+                    const string message = "아이템 제목을 확인하는 중입니다.";
+                    _overlay.ShowStandby(message);
+                    Publish(ScannerRuntimeState.Stabilizing, message, captureMode: mode);
                     continue;
                 }
 
@@ -246,7 +309,9 @@ public sealed class ScannerRuntimeService : IDisposable
                     continue;
                 }
 
-                Publish(ScannerRuntimeState.ReadingTitle, "아이템 이름을 읽는 중입니다.");
+                const string readingMessage = "아이템 이름을 읽는 중입니다.";
+                _overlay.ShowStandby(readingMessage);
+                Publish(ScannerRuntimeState.ReadingTitle, readingMessage, captureMode: mode);
                 var ocrText = await _ocr.ReadTextAsync(candidate.TitleImage, cancellationToken);
                 if (epoch != Volatile.Read(ref _loopEpoch))
                     return;
@@ -255,11 +320,10 @@ public sealed class ScannerRuntimeService : IDisposable
                 if (!recognition.Success || string.IsNullOrWhiteSpace(recognition.ItemId))
                 {
                     RecordFailedTitle(titleSignature);
-                    _overlay.Hide();
                     _currentSnapshot = null;
-                    Publish(
-                        ScannerRuntimeState.Uncertain,
-                        $"확실하게 식별하지 못했습니다. ({recognition.Reason}, {recognition.Confidence:P0})");
+                    var message = $"확실하게 식별하지 못했습니다. ({recognition.Reason}, {recognition.Confidence:P0})";
+                    _overlay.ShowStandby(message);
+                    Publish(ScannerRuntimeState.Uncertain, message, captureMode: mode);
                     continue;
                 }
 
@@ -267,9 +331,10 @@ public sealed class ScannerRuntimeService : IDisposable
                 if (snapshot is null)
                 {
                     RecordFailedTitle(titleSignature);
-                    _overlay.Hide();
                     _currentSnapshot = null;
-                    Publish(ScannerRuntimeState.Uncertain, "Item ID는 확정했지만 현재 표시 데이터를 만들 수 없습니다.");
+                    const string message = "Item ID는 확정했지만 현재 표시 데이터를 만들 수 없습니다.";
+                    _overlay.ShowStandby(message);
+                    Publish(ScannerRuntimeState.Uncertain, message, captureMode: mode);
                     continue;
                 }
 
@@ -277,7 +342,7 @@ public sealed class ScannerRuntimeService : IDisposable
                 _lastFailedTitleSignature = string.Empty;
                 _currentSnapshot = snapshot;
                 _overlay.Show(snapshot);
-                Publish(ScannerRuntimeState.ShowingItem, snapshot.OfficialName, snapshot);
+                Publish(ScannerRuntimeState.ShowingItem, snapshot.OfficialName, snapshot, mode);
             }
         }
         catch (OperationCanceledException)
@@ -286,13 +351,14 @@ public sealed class ScannerRuntimeService : IDisposable
         catch (Exception exception)
         {
             App.WriteDiagnostic("Scanner runtime loop failed", exception);
-            _overlay.Hide();
             _currentSnapshot = null;
-            Publish(ScannerRuntimeState.Error, "Scanner 런타임 오류가 발생했습니다.");
+            const string message = "Scanner 런타임 오류가 발생했습니다.";
+            _overlay.ShowStandby(message);
+            Publish(ScannerRuntimeState.Error, message, captureMode: mode);
         }
     }
 
-    private void HandleMiss()
+    private void HandleMiss(ScannerCaptureMode mode, string detectorMessage)
     {
         _consecutiveMisses++;
         _stableGeometryHits = 0;
@@ -302,10 +368,13 @@ public sealed class ScannerRuntimeService : IDisposable
         if (_consecutiveMisses < 2)
             return;
 
-        _overlay.Hide();
         _currentSnapshot = null;
         _lastSuccessfulTitleSignature = string.Empty;
-        Publish(ScannerRuntimeState.WaitingForInspectWindow, "Tarkov 아이템 상세창을 기다리는 중입니다.");
+        var message = string.IsNullOrWhiteSpace(detectorMessage)
+            ? ModeInitialMessage(mode)
+            : detectorMessage;
+        _overlay.ShowStandby(message);
+        Publish(ScannerRuntimeState.WaitingForInspectWindow, message, captureMode: mode);
     }
 
     private void RecordFailedTitle(string titleSignature)
@@ -366,17 +435,24 @@ public sealed class ScannerRuntimeService : IDisposable
         }
     }
 
+    private static string ModeInitialMessage(ScannerCaptureMode mode) =>
+        mode == ScannerCaptureMode.DisplayTest
+            ? "테스트 모드 · 전체 디스플레이에서 상세창을 찾는 중입니다."
+            : "Tarkov 게임 창을 찾는 중입니다. (Borderless 지원)";
+
     private void Publish(
         ScannerRuntimeState state,
         string message,
-        ScannerItemSnapshot? snapshot = null)
+        ScannerItemSnapshot? snapshot = null,
+        ScannerCaptureMode? captureMode = null)
     {
         Status = new ScannerRuntimeStatus(
             state,
             message,
             snapshot?.ItemId,
             snapshot?.OfficialName,
-            DateTimeOffset.Now);
+            DateTimeOffset.Now,
+            captureMode);
         StatusChanged?.Invoke(Status);
     }
 
@@ -386,6 +462,8 @@ public sealed class ScannerRuntimeService : IDisposable
             return;
         _disposed = true;
         StopLoop();
+        lock (_loopGate)
+            _activeMode = null;
         _overlay.Hide();
         GC.SuppressFinalize(this);
     }
