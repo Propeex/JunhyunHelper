@@ -4,50 +4,76 @@
 
 기준일: 2026-08-21
 
-상태: **`v1.1.4 PUBLIC RELEASE / VERIFIED — Scanner hardening / data reliability / log clear`**
+상태: **`v1.1.5 PUBLIC RELEASE / VERIFIED — Scanner + Mini Scanner reliability / Tarkov title-font recovery`**
 
 ## 현재 공개 기준선
 
 ```text
-version: v1.1.4
-release source: 833ac66c522632a695d106bd7ca9b1d6bfc030dc
-PR final CI: 32475893012 — SUCCESS
-exact-source Draft-first release run: 32476391800
-public verification run: 32476952938 — SUCCESS
-automated tests: 247 passed / 0 failed / 0 skipped
-asset: Junhyun-Helper-v1.1.4-win-x64.zip
-bytes: 80,253,044
-SHA-256: 6d7a4646032c91a66d66ceac0d78b197dd112e78fa9c7a6e99d7092febc2cb54
-ProductVersion: 1.1.4+833ac66c522632a695d106bd7ca9b1d6bfc030dc
+version: v1.1.5
+release source / public tag: 3541bab6536ff91a00f394c4f7b03d5cbf112746
+PR final candidate CI: 32493986403 — SUCCESS
+initial exact-source release run: 32494487841 — build/test/package/Draft creation passed; Draft tag-order automation defect after creation
+Draft resume/public verification run: 32495042444 — SUCCESS
+independent public verification run: 32495225958 — SUCCESS
+automated tests: 249 passed / 0 failed / 0 skipped
+asset: Junhyun-Helper-v1.1.5-win-x64.zip
+bytes: 80,269,429
+SHA-256: dc31177ae1bd4d152453a010dffe6cbb1e6c1d2a4a7e2eb82fb7444fa99c0748
+ProductVersion: 1.1.5+3541bab6536ff91a00f394c4f7b03d5cbf112746
 Draft-downloaded EXE smoke: SUCCESS
 public/latest: VERIFIED
 exact tag source: VERIFIED
 public-downloaded EXE smoke: SUCCESS
+independent public-downloaded EXE smoke: SUCCESS
+release: https://github.com/Propeex/JunhyunHelper/releases/tag/v1.1.5
 ```
 
 ```text
-Desktop Version: 1.1.4
+Desktop Version: 1.1.5
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
-v1.1.3 → v1.1.4 mandatory Game Content update: none
-v1.1.3 → v1.1.4 user.db migration: none
+v1.1.4 → v1.1.5 mandatory Game Content update: none for schema/user data
+v1.1.4 → v1.1.5 user.db migration: none
+Scanner display settings: schema v2 one-time presentation-default normalization
 ```
 
-## v1.1.4 Scanner 변경
+## v1.1.5 Scanner / Mini Scanner 변경
 
-- Scanner Lab v3.8 multi-candidate semantic validation 유지
-- 연속 frame의 동일 quantized geometry signature가 있을 때만 2-hit 안정화 누적
-- verified detail은 OCR 반복 없이 1초 간격 presentation snapshot refresh
-- `현재 필요한 수량`은 최신 `ItemsWorkspace.Plan.NeededItems[].RequiredTotal` 재연결
-- Scanner local icon process-memory decode cache
-- 최고 상점가 = fleaMarket 제외 `sellFor.priceRUB` 최댓값 회귀 고정
-- 플리 평균가 = `avg24hPrice` 회귀 고정
-- 4,000개 전체 카탈로그 fixture의 market/dimension 투영 검사
-- invalid market/dimension은 field 단위 fail-closed
-- 최근 인식 기록 우측 상단 `로그 삭제`
-- 로그 삭제 = activity + `scanner.log` + `scanner.log.1`
-- published EXE smoke에서 로그/activity 생성, rendered button 클릭, 두 로그 삭제까지 실제 검증
+- Mini Scanner는 **식별된 Item 정보만** 표시; 대기/OCR/오류/진단 상태 문구는 overlay에 표시하지 않음
+- WPF `Topmost` + native `HWND_TOPMOST`, `WS_EX_NOACTIVATE`, `WS_EX_TOOLWINDOW`
+- 전체 카드가 drag hitbox이고 cursor는 강제 Arrow
+- 실사용 overlay는 foreground Tarkov의 한국어 inventory/stash UI anchor를 2개 이상 확인할 때만 표시; 불확실하면 숨김
+- title/context WinRT OCR은 하나의 serialized boundary 사용
+- raw `traderPrices` + derived `sellFor` 모두 지원; flea 제외 best trader price
+- market coverage가 비정상적으로 비어 있는 catalog는 정상 cache를 덮지 못함
+- 기존 설치에서 icon/trader/trader-per-slot 표시 기본값을 schema v2로 1회 정상화
+- Game Content update 시 전체 canonical Item icon prefetch
+- 기존 Scanner Lab v3.8 구조와 current official Korean catalog identity contract 유지
+
+## 상세창 제목 폰트 기반 복구
+
+```text
+normal ko-KR OCR
+→ current official Korean catalog semantic gate
+→ 필요 시 existing Deep OCR
+→ 여전히 실패한 경우에만:
+   official-name shortlist
+   → Tarkov Bender primary + Noto Sans CJK KR Hangul fallback 렌더링
+   → 실제 title ROI glyph shape 비교
+   → semantic + visual + top1/top2 margin 모두 통과 시 복구
+→ Item ID
+```
+
+중요:
+
+- 기존 OCR 성공 결과는 font verifier가 변경/거부하지 않음
+- current official Korean catalog가 계속 Item identity 권위
+- font shape는 보조 증거일 뿐 독립 identity source가 아님
+- Bender 바이너리는 공개 ZIP에 포함하지 않음
+- 실행 중 사용자의 `EscapeFromTarkov_Data/resources.assets`를 read-only로 확인해 필요한 Bender/Noto SFNT만 `%LocalAppData%/JunhyunHelper/scanner/fonts`에 cache
+- game asset 탐색/추출/검증 실패 시 기존 OCR-only 경로로 자동 fallback
+- game directory는 수정하지 않음
 
 ## Scanner 핵심 계약
 
@@ -58,6 +84,7 @@ pixels
 → 최대 8 candidates
 → adaptive ko-KR OCR
 → current official Korean full-item catalog semantic validation
+→ optional conservative font-aware recovery after failed deep OCR
 → Item ID
 → existing JunhyunHelper data
 → Mini Scanner
@@ -74,23 +101,25 @@ pixels
 완료:
 
 - Windows Release build
-- 247/247 automated tests
+- **249/249 automated tests**
 - Scanner Lab v3.8 geometry/title ROI regressions
-- Scanner market-field 전체 fixture regressions
+- raw `traderPrices` / market-health regressions
 - self-contained single-file publish
-- actual EXE rendered Product UI / Scanner log clear / Map / Factory / MiniMap smoke
-- Draft ZIP 재다운로드 checksum/package/ProductVersion 검증
+- actual EXE Product UI / Mini Scanner / title-font parser / Scanner / Map / Factory / MiniMap smoke
+- graceful shutdown / clean portable root
+- Draft ZIP 재다운로드 checksum/root/ProductVersion/FIRST_RUN 검증
 - Draft-downloaded EXE smoke
 - public/latest 전환
-- tag `v1.1.4` = source `833ac66c522632a695d106bd7ca9b1d6bfc030dc` identical 검증
+- tag `v1.1.5` = exact source `3541bab...`
 - public ZIP 재다운로드 checksum/root/ProductVersion/FIRST_RUN 검증
-- public-downloaded EXE smoke + 정상 종료
-
-첫 release workflow `32476391800`은 public 전환 직후 태그 재조회 refspec 문자열 버그로 마지막 자동 단계만 실패했습니다. 제품/패키지 gate는 그 전에 통과했고, 독립 public verification run `32476952938`에서 누락된 public 검증을 모두 다시 수행해 최종 승인했습니다.
+- public-downloaded EXE smoke
+- **독립 public verification run `32495225958` 전체 성공**
 
 ## 실제 Tarkov 후속 검증
 
-최신 Tarkov Borderless E2E는 기존 정책대로 public release blocker가 아니며 사용자 환경에서 계속 수행합니다. 실제 게임에서 발견되는 문제는 `%LocalAppData%/JunhyunHelper/logs/scanner.log(.1)`와 최근 인식 기록을 기준으로 capture → candidate → OCR → matcher → presentation 단계를 분리해 후속 PATCH에서 보정합니다.
+최신 Tarkov Borderless의 inventory/stash anchor OCR과 실제 설치의 `resources.assets` 폰트 추출은 환경 의존 empirical validation입니다. 자동 릴리즈 gate는 parser/fallback/product behavior를 검증했지만 CI runner에는 Tarkov 설치 자체가 없습니다.
+
+문제 발생 시 `%LocalAppData%/JunhyunHelper/logs/scanner.log(.1)`의 `inventory-context`, `title-font-*`, candidate/OCR/match 기록으로 단계별 진단하며, 인식 확신 기준을 약화하지 않고 PATCH로 보정합니다.
 
 ## 기능 상태
 
@@ -101,5 +130,5 @@ pixels
 | Ammo | 구현 완료 |
 | Map + MiniMap | 구현 완료 / Windows user validated |
 | Game Content Update | 구현 완료 |
-| Program Update | 구현 완료 / v1.1.4 public package verified |
-| Scanner + Mini Scanner | **v1.1.4 public verified / live Tarkov validation ongoing** |
+| Program Update | 구현 완료 / v1.1.5 public package independently verified |
+| Scanner + Mini Scanner | **v1.1.5 public verified / live Tarkov environment validation ongoing** |
