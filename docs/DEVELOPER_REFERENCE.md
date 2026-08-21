@@ -1,6 +1,6 @@
 # DEVELOPER_REFERENCE — 준현 헬퍼 개발자용 시스템 설명서
 
-상태: **`ACTIVE / v1.1.4 RELEASE CANDIDATE`**
+상태: **`ACTIVE / v1.1.4 PUBLIC RELEASE / VERIFIED`**
 
 기준일: 2026-08-21
 
