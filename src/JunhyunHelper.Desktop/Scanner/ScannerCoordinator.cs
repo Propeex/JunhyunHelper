@@ -52,18 +52,21 @@ public sealed class ScannerCoordinator : IDisposable
             _detector = new UnavailableScannerInspectDetector();
         }
 
+        IScannerOcrEngine rawOcr;
         try
         {
-            _ocr = new ScannerLab38OcrEngine();
+            rawOcr = new ScannerLab38OcrEngine();
         }
         catch (Exception exception)
         {
             App.WriteDiagnostic("Scanner Lab 3.8 OCR initialization failed", exception);
-            _ocr = new UnavailableScannerOcrEngine();
+            rawOcr = new UnavailableScannerOcrEngine();
         }
 
-        // Mini Scanner inventory/stash context gating shares the same OCR engine as
-        // item-title recognition instead of creating a second Windows OCR runtime.
+        // Item-title recognition and the Mini Scanner inventory/stash gate share one
+        // serialized OCR boundary. This avoids both concurrent WinRT OCR calls and a
+        // second OCR runtime that exists only for overlay visibility decisions.
+        _ocr = new SerializedScannerOcrEngine(rawOcr);
         _overlay = new MiniScannerOverlayService(_settings, _ocr);
     }
 
