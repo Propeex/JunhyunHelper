@@ -1,0 +1,240 @@
+name: Resume v1.1.5 Draft release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/resume-release-v1.1.5.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      SOURCE_SHA: 3541bab6536ff91a00f394c4f7b03d5cbf112746
+      RELEASE_VERSION: 1.1.5
+      RELEASE_TAG: v1.1.5
+      EXPECTED_ZIP_BYTES: '80269429'
+      EXPECTED_ZIP_SHA256: dc31177ae1bd4d152453a010dffe6cbb1e6c1d2a4a7e2eb82fb7444fa99c0748
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      JUNHYUNHELPER_MAP_SMOKE: '1'
+
+    steps:
+      - name: Checkout exact release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 1
+
+      - name: Verify exact source and Draft identity
+        shell: pwsh
+        run: |
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:SOURCE_SHA) { throw "Source drift: $actual" }
+
+          $releases = @(gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" | ConvertFrom-Json)
+          $release = $releases | Where-Object { $_.tag_name -eq $env:RELEASE_TAG } | Select-Object -First 1
+          if ($null -eq $release) { throw "Draft release $env:RELEASE_TAG was not found." }
+          if (-not [bool]$release.draft) { throw "Expected $env:RELEASE_TAG to still be Draft before resume." }
+          if ([bool]$release.prerelease) { throw 'Draft release is unexpectedly marked prerelease.' }
+          if ([string]$release.target_commitish -ne $env:SOURCE_SHA) {
+            throw "Draft target '$($release.target_commitish)' does not match $env:SOURCE_SHA."
+          }
+          Write-Host "DRAFT_RELEASE_ID=$($release.id)"
+          Write-Host "DRAFT_CREATED_AT=$($release.created_at)"
+
+      - name: Re-download and verify existing Draft assets
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path artifacts/draft-download -Force | Out-Null
+          gh release download $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --dir artifacts/draft-download --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Draft release download failed.' }
+
+          $zipName = "Junhyun-Helper-v$env:RELEASE_VERSION-win-x64.zip"
+          $zip = Join-Path artifacts/draft-download $zipName
+          $sum = Join-Path artifacts/draft-download 'SHA256SUMS.txt'
+          if (-not (Test-Path $zip) -or -not (Test-Path $sum)) { throw 'Draft assets are incomplete.' }
+
+          $actualBytes = [string](Get-Item $zip).Length
+          $actualHash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualBytes -ne $env:EXPECTED_ZIP_BYTES) { throw "Draft ZIP size drift: $actualBytes" }
+          if ($actualHash -ne $env:EXPECTED_ZIP_SHA256) { throw "Draft ZIP hash drift: $actualHash" }
+
+          $expectedLine = Get-Content $sum | Where-Object { $_ -match [Regex]::Escape($zipName) } | Select-Object -First 1
+          if ($expectedLine -notmatch '^([0-9a-fA-F]{64})\s{2,}(.+)$') { throw 'Draft checksum format is invalid.' }
+          if ($Matches[1].ToLowerInvariant() -ne $env:EXPECTED_ZIP_SHA256) { throw 'Draft SHA256SUMS content mismatch.' }
+
+          Expand-Archive $zip artifacts/draft-extracted -Force
+          $exe = (Resolve-Path 'artifacts/draft-extracted/준현 헬퍼.exe').Path
+          $productVersion = (Get-Item $exe).VersionInfo.ProductVersion
+          $expectedProductVersion = "$env:RELEASE_VERSION+$env:SOURCE_SHA"
+          if ($productVersion -ne $expectedProductVersion) { throw "Draft ProductVersion mismatch: $productVersion" }
+
+          $firstLine = Get-Content 'artifacts/draft-extracted/FIRST_RUN_KO.txt' -TotalCount 1
+          $expectedFirstLine = "준현 헬퍼 v$env:RELEASE_VERSION — Windows x64"
+          if (-not [string]::Equals($firstLine, $expectedFirstLine, [System.StringComparison]::Ordinal)) { throw 'Draft FIRST_RUN mismatch.' }
+
+          $rootNames = @(Get-ChildItem artifacts/draft-extracted | Select-Object -ExpandProperty Name | Sort-Object)
+          $expectedNames = @('Assets','FIRST_RUN_KO.txt','준현 헬퍼.exe') | Sort-Object
+          if (Compare-Object $rootNames $expectedNames) { throw 'Draft ZIP root layout mismatch.' }
+
+          Write-Host "DRAFT_ZIP_BYTES=$actualBytes"
+          Write-Host "DRAFT_ZIP_SHA256=$actualHash"
+          Write-Host "DRAFT_PRODUCT_VERSION=$productVersion"
+
+      - name: Smoke Draft-downloaded EXE
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path 'artifacts/draft-extracted/준현 헬퍼.exe').Path
+          $diagnostic = Join-Path $env:TEMP 'junhyun-map-smoke-error.txt'
+          $success = Join-Path $env:TEMP 'junhyun-map-smoke-success.txt'
+          Remove-Item $diagnostic,$success -Force -ErrorAction SilentlyContinue
+          $process = Start-Process -FilePath $exe -WorkingDirectory artifacts/draft-extracted -PassThru
+          try {
+            $deadline = (Get-Date).AddSeconds(75)
+            while ((Get-Date) -lt $deadline) {
+              $process.Refresh()
+              if (Test-Path $diagnostic) { Get-Content $diagnostic | ForEach-Object { Write-Host $_ }; throw 'Draft-downloaded EXE smoke failed.' }
+              if (Test-Path $success) { break }
+              if ($process.HasExited) { throw "Draft EXE exited early: $($process.ExitCode)" }
+              Start-Sleep -Milliseconds 250
+            }
+            if (-not (Test-Path $success)) { throw 'Draft EXE smoke did not complete.' }
+            $closed = $false
+            for ($attempt = 1; $attempt -le 10; $attempt++) {
+              $process.Refresh(); if ($process.HasExited -or $process.CloseMainWindow()) { $closed = $true; break }; Start-Sleep -Milliseconds 500
+            }
+            if (-not $closed) { throw 'Draft EXE normal close could not be requested.' }
+            $process.Refresh(); if (-not $process.HasExited -and -not $process.WaitForExit(7000)) { throw 'Draft EXE did not exit normally.' }
+            if (Test-Path 'artifacts/draft-extracted/Logs') { throw 'Draft package root was polluted by logs.' }
+          }
+          finally { $process.Refresh(); if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force } }
+
+      - name: Publish release and verify public latest plus exact tag
+        shell: pwsh
+        run: |
+          gh release edit $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --draft=false --latest
+          if ($LASTEXITCODE -ne 0) { throw 'Could not publish release.' }
+
+          $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:RELEASE_TAG" | ConvertFrom-Json
+          if ([bool]$release.draft -or [bool]$release.prerelease) { throw 'Release is still draft or prerelease.' }
+          if ([string]$release.target_commitish -ne $env:SOURCE_SHA) { throw 'Public target_commitish drifted.' }
+
+          $latestTag = (gh api "repos/$env:GITHUB_REPOSITORY/releases/latest" --jq '.tag_name').Trim()
+          if ($latestTag -ne $env:RELEASE_TAG) { throw "Latest release is $latestTag instead of $env:RELEASE_TAG." }
+
+          $ref = gh api "repos/$env:GITHUB_REPOSITORY/git/ref/tags/$env:RELEASE_TAG" | ConvertFrom-Json
+          $tagSha = [string]$ref.object.sha
+          if ([string]$ref.object.type -eq 'tag') {
+            $tagObject = gh api "repos/$env:GITHUB_REPOSITORY/git/tags/$tagSha" | ConvertFrom-Json
+            $tagSha = [string]$tagObject.object.sha
+          }
+          if ($tagSha -ne $env:SOURCE_SHA) { throw "Public tag points to $tagSha instead of $env:SOURCE_SHA." }
+
+          Write-Host "PUBLIC_RELEASE_ID=$($release.id)"
+          Write-Host "PUBLIC_PUBLISHED_AT=$($release.published_at)"
+          Write-Host "PUBLIC_TAG_SHA=$tagSha"
+
+      - name: Re-download and verify Public assets
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path artifacts/public-download -Force | Out-Null
+          gh release download $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --dir artifacts/public-download --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Public release download failed.' }
+
+          $zipName = "Junhyun-Helper-v$env:RELEASE_VERSION-win-x64.zip"
+          $zip = Join-Path artifacts/public-download $zipName
+          $sum = Join-Path artifacts/public-download 'SHA256SUMS.txt'
+          $actualBytes = [string](Get-Item $zip).Length
+          $actualHash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualBytes -ne $env:EXPECTED_ZIP_BYTES) { throw "Public ZIP size drift: $actualBytes" }
+          if ($actualHash -ne $env:EXPECTED_ZIP_SHA256) { throw "Public ZIP hash drift: $actualHash" }
+
+          $expectedLine = Get-Content $sum | Where-Object { $_ -match [Regex]::Escape($zipName) } | Select-Object -First 1
+          if ($expectedLine -notmatch '^([0-9a-fA-F]{64})\s{2,}(.+)$') { throw 'Public checksum format is invalid.' }
+          if ($Matches[1].ToLowerInvariant() -ne $env:EXPECTED_ZIP_SHA256) { throw 'Public SHA256SUMS mismatch.' }
+
+          Expand-Archive $zip artifacts/public-extracted -Force
+          $exe = (Resolve-Path 'artifacts/public-extracted/준현 헬퍼.exe').Path
+          $productVersion = (Get-Item $exe).VersionInfo.ProductVersion
+          $expectedProductVersion = "$env:RELEASE_VERSION+$env:SOURCE_SHA"
+          if ($productVersion -ne $expectedProductVersion) { throw "Public ProductVersion mismatch: $productVersion" }
+
+          $firstLine = Get-Content 'artifacts/public-extracted/FIRST_RUN_KO.txt' -TotalCount 1
+          $expectedFirstLine = "준현 헬퍼 v$env:RELEASE_VERSION — Windows x64"
+          if (-not [string]::Equals($firstLine, $expectedFirstLine, [System.StringComparison]::Ordinal)) { throw 'Public FIRST_RUN mismatch.' }
+
+          $rootNames = @(Get-ChildItem artifacts/public-extracted | Select-Object -ExpandProperty Name | Sort-Object)
+          $expectedNames = @('Assets','FIRST_RUN_KO.txt','준현 헬퍼.exe') | Sort-Object
+          if (Compare-Object $rootNames $expectedNames) { throw 'Public ZIP root layout mismatch.' }
+
+          New-Item -ItemType Directory -Path artifacts/evidence -Force | Out-Null
+          "PUBLIC_ZIP_BYTES=$actualBytes" | Set-Content artifacts/evidence/PUBLIC_EVIDENCE.txt -Encoding utf8NoBOM
+          "PUBLIC_ZIP_SHA256=$actualHash" | Add-Content artifacts/evidence/PUBLIC_EVIDENCE.txt -Encoding utf8NoBOM
+          "PUBLIC_PRODUCT_VERSION=$productVersion" | Add-Content artifacts/evidence/PUBLIC_EVIDENCE.txt -Encoding utf8NoBOM
+          "PUBLIC_SOURCE_SHA=$env:SOURCE_SHA" | Add-Content artifacts/evidence/PUBLIC_EVIDENCE.txt -Encoding utf8NoBOM
+          Get-Content artifacts/evidence/PUBLIC_EVIDENCE.txt | ForEach-Object { Write-Host $_ }
+
+      - name: Smoke Public-downloaded EXE
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path 'artifacts/public-extracted/준현 헬퍼.exe').Path
+          $diagnostic = Join-Path $env:TEMP 'junhyun-map-smoke-error.txt'
+          $success = Join-Path $env:TEMP 'junhyun-map-smoke-success.txt'
+          Remove-Item $diagnostic,$success -Force -ErrorAction SilentlyContinue
+          $process = Start-Process -FilePath $exe -WorkingDirectory artifacts/public-extracted -PassThru
+          try {
+            $deadline = (Get-Date).AddSeconds(75)
+            while ((Get-Date) -lt $deadline) {
+              $process.Refresh()
+              if (Test-Path $diagnostic) { Get-Content $diagnostic | ForEach-Object { Write-Host $_ }; throw 'Public-downloaded EXE smoke failed.' }
+              if (Test-Path $success) { break }
+              if ($process.HasExited) { throw "Public EXE exited early: $($process.ExitCode)" }
+              Start-Sleep -Milliseconds 250
+            }
+            if (-not (Test-Path $success)) { throw 'Public EXE smoke did not complete.' }
+            $closed = $false
+            for ($attempt = 1; $attempt -le 10; $attempt++) {
+              $process.Refresh(); if ($process.HasExited -or $process.CloseMainWindow()) { $closed = $true; break }; Start-Sleep -Milliseconds 500
+            }
+            if (-not $closed) { throw 'Public EXE normal close could not be requested.' }
+            $process.Refresh(); if (-not $process.HasExited -and -not $process.WaitForExit(7000)) { throw 'Public EXE did not exit normally.' }
+            if (Test-Path 'artifacts/public-extracted/Logs') { throw 'Public package root was polluted by logs.' }
+          }
+          finally { $process.Refresh(); if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force } }
+
+      - name: Upload resume verification evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1.1.5-public-verification
+          path: artifacts/evidence/PUBLIC_EVIDENCE.txt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish resume workflow status to main
+        if: always()
+        shell: pwsh
+        env:
+          RELEASE_JOB_STATUS: ${{ job.status }}
+        run: |
+          $status = [ordered]@{
+            version = $env:RELEASE_VERSION
+            tag = $env:RELEASE_TAG
+            sourceSha = $env:SOURCE_SHA
+            workflowRunId = [string]$env:GITHUB_RUN_ID
+            workflowStatus = $env:RELEASE_JOB_STATUS
+            expectedZipBytes = $env:EXPECTED_ZIP_BYTES
+            expectedZipSha256 = $env:EXPECTED_ZIP_SHA256
+            updatedAtUtc = [DateTimeOffset]::UtcNow.ToString('O')
+          } | ConvertTo-Json
+          $bytes = [Text.Encoding]::UTF8.GetBytes($status)
+          $encoded = [Convert]::ToBase64String($bytes)
+          $path = 'docs/.release-v1.1.5-status.json'
+          $apiPath = "repos/$env:GITHUB_REPOSITORY/contents/$path"
+          $existingSha = (gh api $apiPath --jq '.sha').Trim()
+          $args = @('-X','PUT',$apiPath,'-f',"message=Record v1.1.5 release workflow result",'-f',"content=$encoded",'-f','branch=main','-f',"sha=$existingSha")
+          & gh api @args
+          if ($LASTEXITCODE -ne 0) { Write-Warning 'Could not publish resume status file.' }
