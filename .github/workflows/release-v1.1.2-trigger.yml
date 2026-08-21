@@ -1,0 +1,27 @@
+name: Trigger Release v1.1.2
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/release-v1.1.2-trigger.yml'
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    if: contains(github.event.head_commit.message, 'Trigger v1.1.2 dispatcher')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch exact v1.1.2 release source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SOURCE: f19d0f6993693aba4eaa26a4bde203c5731f0aad
+        run: |
+          gh workflow run release-v1.1.2.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref "$RELEASE_SOURCE"
+          echo "Dispatched v1.1.2 from $RELEASE_SOURCE"
