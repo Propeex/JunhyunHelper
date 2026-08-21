@@ -30,26 +30,28 @@ Runtime GPT/AI 의존성은 없습니다.
 현재 public stable:
 
 ```text
-v1.1.0 PUBLIC RELEASE / VERIFIED
-release id: 374188781
-exact release source / target SHA: ac24f7717e81cf6fa32cb2e0ade63949ed87ade5
+v1.1.1 PUBLIC RELEASE / VERIFIED
+exact release source / target SHA: 1316c25d4e90509bb9286064724b778510fa9301
 automated tests: 243 passed / 0 failed / 0 skipped
-asset: Junhyun-Helper-v1.1.0-win-x64.zip
-bytes: 80,235,043
-SHA-256: 8e7f452701f866c84e753c1c34951af64f4415947e9f56c56634e2b584d9e1ce
-ProductVersion: 1.1.0+ac24f7717e81cf6fa32cb2e0ade63949ed87ade5
+asset: Junhyun-Helper-v1.1.1-win-x64.zip
+bytes: 80,237,511
+SHA-256: db99ec44dc7ba55c6c4b238b62db41fa91fbc766e0428bbd491153a1e7d3a0e6
+ProductVersion: 1.1.1+1316c25d4e90509bb9286064724b778510fa9301
+Draft downloaded EXE smoke: SUCCESS
 public downloaded EXE smoke: SUCCESS
-public/latest verification run: 32452416929
+public/latest verification run: 32458154113
 ```
 
-v1.1.0의 Draft/public asset 및 public-downloaded EXE smoke까지 검증되었습니다. release verification run의 최종 failure 표시는 제품 gate 이후 PR 코멘트 권한 403인 bookkeeping-only 실패였습니다.
+v1.1.1은 exact source에서 Windows Release build, 243 automated tests, self-contained single-file publish, Product UI / Scanner activity / Main Map / Factory / MiniMap smoke, Draft asset 재다운로드 검증, Draft-downloaded EXE smoke, public/latest 전환, public asset 재다운로드 검증, public-downloaded EXE smoke까지 완료했습니다.
 
-## 3. 현재 개발 릴리즈 — v1.1.1
+릴리즈 중 발견된 두 문제는 제품 코드가 아니라 일회성 release automation의 clean-tag exit-code 처리와 Draft metadata 조회 방식이었고, public 전환 전에 수정·재검증했습니다. 임시 v1.1.1 release/recovery/trigger workflow와 상태 marker는 공개 검증 후 제거했습니다.
+
+## 3. 현재 개발 상태 — v1.1.1 공개 후 실사용 검증
 
 상태:
 
 ```text
-v1.1.1 RELEASE CANDIDATE
+v1.1.1 PUBLIC / LATEST / VERIFIED
 scope: Scanner UI / recent recognition activity / Mini Scanner direct drag
 Desktop Version: 1.1.1
 Content schema: v7
@@ -57,6 +59,7 @@ Readable schemas: v3~v7
 user.db schema: v1
 mandatory Game Content update from v1.1.0: none
 user.db migration from v1.1.0: none
+latest live Tarkov Borderless E2E: USER VALIDATION PENDING
 ```
 
 DEC-048에 따라 기존 Scanner의 UI/사용성 개선이므로 PATCH입니다.
@@ -215,10 +218,10 @@ Scanner settings/catalog은 user/program update와 분리됩니다.
 - full Tarkov screenshot detector
 - full screenshot → detail → title ROI → OCR
 
-v1.1.1 release blocker:
+v1.1.1 공개 release gate 완료:
 
 - Windows Release build
-- full automated tests
+- full automated tests — 243 passed
 - existing detector/catalog/matcher regression
 - ProductVersion/FIRST_RUN 1.1.1
 - rendered `스캐너 OFF` / `테스트 OFF` / `아이템 목록 최신화`
@@ -237,7 +240,7 @@ v1.1.1 release blocker:
 
 ### Live Tarkov
 
-최신 Tarkov Borderless E2E는 사용자 결정에 따라 release blocker가 아니며 PENDING입니다.
+최신 Tarkov Borderless E2E는 사용자 결정에 따라 release blocker가 아니며 **사용자 실사용 검증 PENDING**입니다.
 
 공개 후 확인:
 
@@ -381,8 +384,8 @@ exact release baseline
 | Ammo | 구현 완료 |
 | Map + MiniMap | 구현 완료 / user validated baseline |
 | Game Content Update | 구현 완료 |
-| Program Update | 구현 완료 / v1.1.0 public verified |
-| Scanner | **v1.1.1 release candidate / live Tarkov E2E pending** |
+| Program Update | 구현 완료 / v1.1.1 public verified |
+| Scanner | **v1.1.1 public verified / latest live Tarkov E2E user validation pending** |
 
 ## 15. 현재 비차단 범위
 
