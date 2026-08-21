@@ -177,7 +177,10 @@ public sealed class ScannerRuntimeService : IDisposable
     public void PauseForPositionEdit()
     {
         StopLoop();
-        Publish(ScannerRuntimeState.Stabilizing, "Mini Scanner 위치를 편집하는 중입니다.", captureMode: ActiveCaptureMode);
+        Publish(
+            ScannerRuntimeState.Stabilizing,
+            "Mini Scanner 위치를 편집하는 중입니다.",
+            captureMode: ActiveCaptureMode);
     }
 
     public void ShowPreview(ScannerItemSnapshot snapshot)
@@ -187,7 +190,11 @@ public sealed class ScannerRuntimeService : IDisposable
         ResetObservationState(hideOverlay: false);
         _currentSnapshot = snapshot;
         _overlay.Show(snapshot, preview: true);
-        Publish(ScannerRuntimeState.ShowingItem, $"미리보기: {snapshot.OfficialName}", snapshot, ActiveCaptureMode);
+        Publish(
+            ScannerRuntimeState.ShowingItem,
+            $"미리보기: {snapshot.OfficialName}",
+            snapshot,
+            ActiveCaptureMode);
     }
 
     public async Task HidePreviewAsync(CancellationToken cancellationToken = default)
@@ -315,9 +322,7 @@ public sealed class ScannerRuntimeService : IDisposable
                 if (!search.Success || search.Candidate is null ||
                     string.IsNullOrWhiteSpace(search.Recognition.ItemId))
                 {
-                    _currentSnapshot = null;
-                    _verifiedBounds = null;
-                    _verifiedTitleSignature = string.Empty;
+                    ClearVerifiedItem();
                     var message = string.IsNullOrWhiteSpace(search.OcrText)
                         ? "아이템 이름을 읽지 못해 식별을 보류했습니다."
                         : $"아이템을 확실하게 식별하지 못했습니다. ({search.Recognition.Reason}, {search.Recognition.Confidence:P0})";
@@ -329,7 +334,7 @@ public sealed class ScannerRuntimeService : IDisposable
                 var snapshot = _presentation.CreateSnapshot(search.Recognition.ItemId);
                 if (snapshot is null)
                 {
-                    _currentSnapshot = null;
+                    ClearVerifiedItem();
                     const string message = "Item ID는 확정했지만 현재 표시 데이터를 만들 수 없습니다.";
                     _overlay.ShowStandby(message);
                     Publish(ScannerRuntimeState.Uncertain, message, captureMode: mode);
@@ -364,7 +369,7 @@ public sealed class ScannerRuntimeService : IDisposable
                 mode,
                 ("type", exception.GetType().Name),
                 ("message", exception.Message));
-            _currentSnapshot = null;
+            ClearVerifiedItem();
             const string message = "Scanner 런타임 오류가 발생했습니다.";
             _overlay.ShowStandby(message);
             Publish(ScannerRuntimeState.Error, message, captureMode: mode);
@@ -398,16 +403,8 @@ public sealed class ScannerRuntimeService : IDisposable
             var text = await _ocr.ReadTextAsync(candidate.TitleImage, cancellationToken);
             var recognition = _catalog.ResolveOcrText(text);
             LogCandidateAttempt(mode, index, "ORIGINAL", candidate, text, recognition);
-            var result = new CandidateSearchResult(
-                recognition.Success,
-                candidate,
-                recognition,
-                text,
-                "ORIGINAL",
-                index,
-                recognition.Confidence * 0.82 + candidate.StructuralScore * 0.18);
-
-            bestFailure = BetterFailure(bestFailure, result);
+            var result = CreateSearchResult(candidate, recognition, text, "ORIGINAL", index, 0.82, 0.18);
+            bestFailure = PickBetterFailure(bestFailure, result);
             if (recognition.Success && (bestSuccess is null || result.CombinedScore > bestSuccess.CombinedScore))
                 bestSuccess = result;
         }
@@ -427,16 +424,8 @@ public sealed class ScannerRuntimeService : IDisposable
                 var text = await deepOcr.ReadDeepTextAsync(candidate.TitleImage, cancellationToken);
                 var recognition = _catalog.ResolveOcrText(text);
                 LogCandidateAttempt(mode, index, "DEEP", candidate, text, recognition);
-                var result = new CandidateSearchResult(
-                    recognition.Success,
-                    candidate,
-                    recognition,
-                    text,
-                    "DEEP",
-                    index,
-                    recognition.Confidence * 0.86 + candidate.StructuralScore * 0.14);
-
-                bestFailure = BetterFailure(bestFailure, result);
+                var result = CreateSearchResult(candidate, recognition, text, "DEEP", index, 0.86, 0.14);
+                bestFailure = PickBetterFailure(bestFailure, result);
                 if (recognition.Success && (bestSuccess is null || result.CombinedScore > bestSuccess.CombinedScore))
                     bestSuccess = result;
             }
@@ -455,7 +444,26 @@ public sealed class ScannerRuntimeService : IDisposable
             0);
     }
 
-    private static CandidateSearchResult BetterFailure(CandidateSearchResult? current, CandidateSearchResult candidate)
+    private static CandidateSearchResult CreateSearchResult(
+        ScannerInspectCandidate candidate,
+        ScannerRecognition recognition,
+        string text,
+        string pass,
+        int candidateIndex,
+        double semanticWeight,
+        double structuralWeight) =>
+        new(
+            recognition.Success,
+            candidate,
+            recognition,
+            text,
+            pass,
+            candidateIndex,
+            recognition.Confidence * semanticWeight + candidate.StructuralScore * structuralWeight);
+
+    private static CandidateSearchResult PickBetterFailure(
+        CandidateSearchResult? current,
+        CandidateSearchResult candidate)
     {
         if (current is null)
             return candidate;
@@ -465,7 +473,9 @@ public sealed class ScannerRuntimeService : IDisposable
             return candidate;
         if (Math.Abs(candidate.Recognition.Confidence - current.Recognition.Confidence) < 0.0001 &&
             candidate.CombinedScore > current.CombinedScore)
+        {
             return candidate;
+        }
         return current;
     }
 
@@ -492,9 +502,6 @@ public sealed class ScannerRuntimeService : IDisposable
             ("confidence", recognition.Confidence),
             ("secondScore", recognition.SecondScore));
     }
-
-    private static CandidateSearchResult? BetterFailure(CandidateSearchResult? current, CandidateSearchResult? candidate) =>
-        candidate is null ? current : BetterFailure(current, candidate);
 
     private static double GeometryDistance(Rect left, Rect right) =>
         Math.Abs(left.X - right.X) +
@@ -532,7 +539,9 @@ public sealed class ScannerRuntimeService : IDisposable
             return;
 
         ClearVerifiedItem();
-        var message = string.IsNullOrWhiteSpace(detectorMessage) ? ModeInitialMessage(mode) : detectorMessage;
+        var message = string.IsNullOrWhiteSpace(detectorMessage)
+            ? ModeInitialMessage(mode)
+            : detectorMessage;
         _overlay.ShowStandby(message);
         Publish(ScannerRuntimeState.WaitingForInspectWindow, message, captureMode: mode);
     }
