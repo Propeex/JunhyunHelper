@@ -1,0 +1,26 @@
+name: Dispatch v1.1.0 release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/release-v1.1.0-dispatch.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Dispatch release workflow
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run release-v1.1.0.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref main
