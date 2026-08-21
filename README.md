@@ -7,24 +7,51 @@ Escape from Tarkov 플레이를 지원하는 Windows 데스크톱 헬퍼 **준�
 현재 public stable:
 
 ```text
-v1.1.0 PUBLIC RELEASE / VERIFIED
-release source: ac24f7717e81cf6fa32cb2e0ade63949ed87ade5
-asset: Junhyun-Helper-v1.1.0-win-x64.zip
-SHA-256: 8e7f452701f866c84e753c1c34951af64f4415947e9f56c56634e2b584d9e1ce
-ProductVersion: 1.1.0+ac24f7717e81cf6fa32cb2e0ade63949ed87ade5
-automated tests: 243 passed / 0 failed / 0 skipped
+v1.1.3 PUBLIC RELEASE / VERIFIED
+release source: 8803f899341859887281ad50135911f4625a64f3
+release verification run: 32470606548
+asset: Junhyun-Helper-v1.1.3-win-x64.zip
+bytes: 80,251,960
+SHA-256: 419f6288aa3202f10868f2fe6a4ccac40475753ce4ba8c8c2d9985396c4bf493
+ProductVersion: 1.1.3+8803f899341859887281ad50135911f4625a64f3
+automated tests: 245 passed / 0 failed / 0 skipped
+Draft downloaded EXE smoke: SUCCESS
 public-downloaded EXE smoke: SUCCESS
 ```
 
-현재 release candidate:
+v1.1.3은 실제로 잘 작동했던 **Scanner Lab v3.8의 인식 구조를 JunhyunHelper Scanner에 복원한 PATCH 릴리즈**입니다.
+
+## Scanner recognition — v1.1.3
 
 ```text
-v1.1.1 — Scanner UI / 최근 인식 기록 / Mini Scanner 직접 이동
+Tarkov / Display pixels
+→ RED-X candidates
++
+→ rectangle/edge fallback candidates
+→ candidate deduplication
+→ 최대 8개 title ROI
+→ adaptive 4x / 6x / 8x Windows ko-KR OCR
+→ current official Korean full-item catalog semantic validation
+→ 필요 시 상위 3개 candidate deep OCR
+→ 안전하게 Item으로 resolve된 candidate만 inspect window로 확정
+→ Item ID
+→ existing JunhyunHelper data
+→ Mini Scanner
 ```
 
-v1.1.1은 새 기능 확장이 아니라 v1.1.0 Scanner의 사용성 보완이므로 PATCH 릴리즈입니다.
+핵심 원칙:
 
-## v1.1.1 Scanner 탭
+- geometry 점수만으로 상세창을 즉시 확정하지 않음
+- current official Korean full-item catalog를 semantic validator로 사용
+- matcher threshold/top1-top2 margin을 인식률 때문에 완화하지 않음
+- historical alias 누적 금지
+- false positive보다 miss 선호
+- scan-time network 없음
+- game memory / DLL injection / packet interception / icon identity 없음
+
+상세: [`docs/SCANNER.md`](docs/SCANNER.md), [`docs/SCANNER_LAB_3_8_REFERENCE.md`](docs/SCANNER_LAB_3_8_REFERENCE.md)
+
+## Scanner 탭
 
 ```text
 상단 bar
@@ -36,77 +63,34 @@ v1.1.1은 새 기능 확장이 아니라 v1.1.0 Scanner의 사용성 보완이�
 최근 인식 기록
 ```
 
-사용자 화면에서 제거:
+- 상시 설명문 제거
+- Foundation 검증 controls는 일반 UI에서 비노출
+- Mini Scanner는 별도 edit/reset mode 없이 보이는 동안 직접 drag
+- 최근 인식 기록에 OCR/candidate/confidence/성공·보류 판단 표시
+- 개발자 로그: `%LocalAppData%/JunhyunHelper/logs/scanner.log(.1)`
+- screenshot/raw pixels는 로그에 저장하지 않음
 
-- 상단 Scanner 제목과 상시 설명문
-- Scanner/Test/catalog/Mini Scanner 설명문
-- 별도 Mini Scanner 위치 편집/초기화 controls
-- Foundation verification/preview controls
-
-Foundation의 Item ID → presentation 내부 진단 경로는 유지합니다.
-
-### 최근 인식 기록
-
-각 실제 OCR/matcher 시도에서 다음을 사용자 문장으로 보여줍니다.
-
-- 시각
-- 스캐너/테스트 mode
-- OCR로 읽은 문자열
-- 가장 가까운 공식 Item
-- 유사도
-- top1/top2 차이
-- 식별 성공/보류
-- 판단 이유
-
-기존 `%LocalAppData%/JunhyunHelper/logs/scanner.log(.1)`에서 최근 판정을 복원하므로 프로그램을 다시 실행한 뒤에도 최근 기록을 확인할 수 있습니다. screenshot/raw pixels는 저장하지 않습니다.
-
-### Mini Scanner
-
-v1.1.1부터 별도 edit mode 없이 보이는 동안 언제든 직접 left-drag할 수 있고, drag 완료 위치를 저장합니다.
-
-- Topmost 유지
-- ShowActivated=false / `WS_EX_NOACTIVATE` 유지
-- always-drag를 위해 Mini Scanner 자기 영역의 click-through는 제거
-- Mini Scanner 영역은 mouse hit-test를 받지만 게임 keyboard focus는 가져가지 않음
-
-## Scanner 핵심 파이프라인
-
-v1.1.1에서도 v1.1.0의 인식 의미를 유지합니다.
-
-실사용:
+### 실사용 Scanner
 
 ```text
 스캐너 ON
 → EscapeFromTarkov Borderless client-area
-→ detail geometry detector
-→ title ROI
-→ Windows ko-KR OCR
-→ conservative full-item catalog match
+→ Scanner Lab v3.8 candidate/OCR/semantic validation
 → Item ID
-→ existing JunhyunHelper data
 → Mini Scanner
 ```
 
-테스트:
+### 테스트 Scanner
 
 ```text
 테스트 ON
 → 모든 연결 디스플레이
-→ 동일 detector/OCR/matcher/presentation
+→ 동일 recognition/presentation pipeline
 ```
 
-- real/test는 상호 배타적
-- test는 session-only
-- game memory read 없음
-- DLL injection 없음
-- packet interception 없음
-- process-internal data read 없음
-- icon identity 없음
-- scan-time network 없음
-- low-confidence/ambiguous result는 Item ID를 확정하지 않음
-- current needed = `RequiredTotal`
+Tarkov 전체 screenshot을 이미지 뷰어에 띄워 게임 없이 테스트할 수 있습니다. real/test는 상호 배타적이고 test는 session-only입니다.
 
-최신 Tarkov Borderless 실제 E2E는 사용자 결정에 따라 release blocker가 아니며 공개 후 로그 기반으로 계속 검증합니다.
+최신 Tarkov Borderless 실제 E2E는 사용자 결정에 따라 release blocker가 아니며, 공개 후 `scanner.log`를 기준으로 계속 검증합니다.
 
 ## 주요 기능
 
@@ -141,8 +125,8 @@ latest public stable 확인
 Content schema: v7
 Readable Content schemas: v3, v4, v5, v6, v7
 user.db SQLite schema: v1
-v1.1.0 → v1.1.1 mandatory Game Content update: none
-v1.1.0 → v1.1.1 user.db migration: none
+v1.1.2 → v1.1.3 mandatory Game Content update: none
+v1.1.2 → v1.1.3 user.db migration: none
 ```
 
 기존 Profile / Quest / Inventory / Hideout / Scanner settings/catalog / Map 설정 / Ammo favorites는 유지됩니다.
@@ -163,21 +147,12 @@ Assets/
 
 별도 .NET 설치나 관리자 권한은 필요하지 않으며 현재 code signing은 하지 않습니다.
 
-## 정확도 / 안전성
-
-- 증명 불가능 Quest availability = `확인 필요`
-- unresolved future Quest Item은 계속 보호
-- flexible hand-in 실제 소비 후보 임의 추정 금지
-- presentation JSON은 atomic replacement + `.bak` recovery
-- Scanner는 false positive보다 miss 선호
-- 공개 ZIP은 `SHA256SUMS.txt`로 검증
-
 ## 버전 정책
 
 - 새 사용자 기능 → MINOR +1, PATCH=0
 - 기존 기능 수정/보완/버그 수정/성능·안정성 개선 → PATCH +1
 
-따라서 Scanner 첫 공개는 v1.1.0, 이번 Scanner UI/사용성 보완은 v1.1.1입니다.
+Scanner 첫 공개는 v1.1.0, UI/사용성 보완은 v1.1.1, 인식 회귀 보정은 v1.1.2, Scanner Lab v3.8 recognition restoration은 v1.1.3입니다.
 
 ## 개발 문서
 
@@ -187,12 +162,10 @@ Assets/
 - [`docs/DECISIONS.md`](docs/DECISIONS.md) — 현재 결정
 - [`docs/SCANNER.md`](docs/SCANNER.md) — Scanner 계약
 - [`docs/SCANNER_TEST_PLAN.md`](docs/SCANNER_TEST_PLAN.md) — Scanner 검증
-- [`docs/SCANNER_UI_DECISION_2026-08-21.md`](docs/SCANNER_UI_DECISION_2026-08-21.md) — DEC-052
-- [`docs/RELEASE_1.1.0.md`](docs/RELEASE_1.1.0.md) — v1.1.0 검증 기록
-- [`docs/RELEASE_1.1.1.md`](docs/RELEASE_1.1.1.md) — v1.1.1 release record
+- [`docs/SCANNER_LAB_3_8_REFERENCE.md`](docs/SCANNER_LAB_3_8_REFERENCE.md) — 검증된 Scanner Lab v3.8 reference
+- [`docs/RELEASE_1.1.3.md`](docs/RELEASE_1.1.3.md) — v1.1.3 public release 검증 기록
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/DEVELOPER_REFERENCE.md`](docs/DEVELOPER_REFERENCE.md)
 - [`docs/VERSIONING.md`](docs/VERSIONING.md)
 - [`docs/PROGRAM_UPDATE.md`](docs/PROGRAM_UPDATE.md)
 - [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
-- [`docs/MAP_PRODUCT_REQUIREMENTS.md`](docs/MAP_PRODUCT_REQUIREMENTS.md)
