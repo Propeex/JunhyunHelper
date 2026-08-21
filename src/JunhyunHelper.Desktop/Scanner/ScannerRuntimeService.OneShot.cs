@@ -1,3 +1,5 @@
+using JunhyunHelper.Core.Scanner;
+
 namespace JunhyunHelper.Desktop.Scanner;
 
 public sealed partial class ScannerRuntimeService

@@ -186,10 +186,10 @@ public sealed class ScannerLab38InspectDetector : IScannerCandidateInspectDetect
             var titleSignature = $"{HashPixels(titlePixels):X16}";
             var windowBounds = ToScreenRect(candidate.Window, screenLeft, screenTop);
             var titleBounds = ToScreenRect(title, screenLeft, screenTop);
-            var magnifierBounds = anchors.Magnifier.Width > 0
+            Rect? magnifierBounds = anchors.Magnifier.Width > 0
                 ? ToScreenRect(anchors.Magnifier, screenLeft, screenTop)
                 : null;
-            var closeBounds = anchors.CloseButton.Width > 0
+            Rect? closeBounds = anchors.CloseButton.Width > 0
                 ? ToScreenRect(anchors.CloseButton, screenLeft, screenTop)
                 : null;
 
