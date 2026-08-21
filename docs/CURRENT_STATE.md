@@ -4,17 +4,22 @@
 
 기준일: 2026-08-21
 
-상태: **`v1.1.3 RELEASE CANDIDATE — Scanner Lab v3.8 recognition restoration`**
+상태: **`v1.1.3 PUBLIC RELEASE / VERIFIED — Scanner Lab v3.8 recognition restored`**
 
 ## 현재 공개 기준선
 
-현재 사용자가 내려받을 수 있는 검증된 정식 기준선은 `v1.1.2`입니다.
-
-v1.1.2는 제목 ROI/상세창 geometry 회귀를 수정했지만 실제 사용자 테스트에서 Scanner Lab v3.8보다 인식률이 크게 낮은 것이 확인됐습니다.
-
-## 다음 릴리즈 — v1.1.3
-
-DEC-048에 따라 새 기능 추가가 아니라 Scanner 인식 회귀 복구이므로 PATCH입니다.
+```text
+version: v1.1.3
+release source: 8803f899341859887281ad50135911f4625a64f3
+release verification run: 32470606548
+automated tests: 245 passed / 0 failed / 0 skipped
+asset: Junhyun-Helper-v1.1.3-win-x64.zip
+bytes: 80,251,960
+SHA-256: 419f6288aa3202f10868f2fe6a4ccac40475753ce4ba8c8c2d9985396c4bf493
+ProductVersion: 1.1.3+8803f899341859887281ad50135911f4625a64f3
+Draft downloaded EXE smoke: SUCCESS
+public downloaded EXE smoke: SUCCESS
+```
 
 ```text
 Desktop Version: 1.1.3
@@ -27,7 +32,7 @@ v1.1.2 → v1.1.3 user.db migration: none
 
 ## Scanner recognition — Scanner Lab v3.8 복원
 
-사용자가 보존하고 있던 `TarkovHelper-ScannerLab-v3.8` 원본을 다시 확보해, 실제로 성공했던 recognition 구조를 현재 JunhyunHelper Scanner 경계에 이식했습니다.
+사용자가 보존하고 있던 `TarkovHelper-ScannerLab-v3.8` 원본을 다시 확보해 실제로 성공했던 recognition 구조를 현재 JunhyunHelper Scanner 경계에 복원했습니다.
 
 ```text
 capture
@@ -54,7 +59,7 @@ capture
 
 - structural score는 후보 순위일 뿐 최종 사실 판정이 아님
 - 하나의 geometry rectangle을 즉시 상세창으로 확정하지 않음
-- 현재 official Korean full-item catalog를 semantic validator로 사용
+- current official Korean full-item catalog를 semantic validator로 사용
 - OCR line 개별 후보 + 인접 두 line 결합 후보 검사
 - matcher confidence/top1-top2 margin은 완화하지 않음
 - historical Scanner Lab alias는 production에 추가하지 않음
@@ -66,13 +71,16 @@ capture
 
 ## 검증
 
-exact product code 기준 validation CI `#1222`:
-
 - Windows Release build: SUCCESS
 - automated tests: **245 passed / 0 failed / 0 skipped**
 - Scanner Lab v3.8 geometry regression: SUCCESS
 - win-x64 self-contained single-file publish: SUCCESS
-- actual candidate EXE Product UI / Scanner / Main Map / Factory / MiniMap smoke: SUCCESS
+- exact package EXE Product UI / Scanner / Main Map / Factory / MiniMap smoke: SUCCESS
+- Draft asset re-download/checksum/ProductVersion validation: SUCCESS
+- Draft-downloaded EXE smoke: SUCCESS
+- public/latest exact tag verification: SUCCESS
+- public asset re-download/checksum/ProductVersion validation: SUCCESS
+- public-downloaded EXE smoke: SUCCESS
 - graceful shutdown / clean portable root: SUCCESS
 
 회귀 기준에는 다음이 포함됩니다.
@@ -84,8 +92,6 @@ exact product code 기준 validation CI `#1222`:
 - uniform frame fail-closed
 
 ## Scanner UI / Mini Scanner
-
-v1.1.1에서 확정한 운용 UI는 유지합니다.
 
 ```text
 상단 bar
@@ -105,18 +111,18 @@ v1.1.1에서 확정한 운용 UI는 유지합니다.
 - 개발자 로그: `%LocalAppData%/JunhyunHelper/logs/scanner.log(.1)`
 - screenshot/raw pixels는 로그에 저장하지 않음
 
-v1.1.3 로그는 구조 후보와 후보별 semantic OCR pass를 추가로 기록하므로 실제 Tarkov 테스트에서 detector/OCR/matcher 병목을 더 정확히 분리할 수 있습니다.
+v1.1.3 로그는 구조 후보와 후보별 semantic OCR pass를 기록해 실제 Tarkov 테스트에서 detector/OCR/matcher 병목을 분리할 수 있습니다.
 
 ## 실제 Tarkov 후속 검증
 
-최신 Tarkov Borderless E2E는 사용자 환경에서 계속 수행합니다.
+최신 Tarkov Borderless E2E는 DEC-051에 따라 공개 후 사용자 환경에서 계속 수행합니다.
 
 우선 확인:
 
-1. `Ophthalmoscope 검안경` 상세창이 다시 안정적으로 감지되는지
+1. `Ophthalmoscope 검안경` 상세창이 Scanner Lab v3.8 수준으로 다시 감지되는지
 2. 제목 OCR이 실제 제목을 읽는지
 3. 공식 카탈로그와 semantic candidate validation이 성공하는지
-4. `Water 0.6L 물병` 등 다른 상세창에서도 3.8 수준으로 복구됐는지
+4. 다른 상세창에서도 인식률이 복구됐는지
 5. 오탐/미탐과 장시간 CPU 영향
 6. Mini Scanner / MiniMap / Alt+Tab 공존
 
@@ -135,16 +141,8 @@ v1.1.3 로그는 구조 후보와 후보별 semantic OCR pass를 추가로 기�
 | Map + MiniMap | 구현 완료 / Windows user validated |
 | Game Content Update | 구현 완료 |
 | Program Update | 구현 완료 |
-| Scanner | **v1.1.3 candidate / Lab v3.8 recognition restored / live Tarkov revalidation pending** |
+| Scanner | **v1.1.3 public verified / Scanner Lab v3.8 recognition restored / live Tarkov revalidation ongoing** |
 
-## 릴리즈 전 남은 gate
+## 다음 작업
 
-- v1.1.3 version/FIRST_RUN final CI
-- exact main release SHA 확정
-- Draft ZIP/checksum/ProductVersion 검증
-- Draft-downloaded EXE smoke
-- public/latest 전환
-- public asset 재다운로드 검증
-- public-downloaded EXE smoke
-- temporary release workflow 정리
-- `STATE.md` / release record 최종 public-verified 동기화
+현재 공개 v1.1.3을 실제 Tarkov Borderless 환경에서 검증합니다. 인식 문제가 남으면 Scanner Lab v3.8 구조를 유지한 채 `scanner.log`로 capture → candidate → OCR → semantic resolver 계층을 분리해 수정합니다.
