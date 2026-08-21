@@ -2,11 +2,11 @@
 
 기준일: 2026-08-21
 
-상태: **`RELEASE CANDIDATE`**
+상태: **`PUBLIC RELEASE / VERIFIED`**
 
 ## 목적
 
-v1.1.1은 v1.1.0 Scanner의 제품 의미와 인식 파이프라인을 유지하면서 Scanner 탭과 Mini Scanner 조작을 실제 사용 중심으로 정리하는 PATCH release입니다.
+v1.1.1은 v1.1.0 Scanner의 제품 의미와 인식 파이프라인을 유지하면서 Scanner 탭과 Mini Scanner 조작을 실제 사용 중심으로 정리한 PATCH release입니다.
 
 버전 근거: DEC-048 — 기존 기능 수정/보완/사용성 개선은 PATCH +1.
 
@@ -71,41 +71,44 @@ v1.1.0 → v1.1.1 user.db migration: none
 
 ## release gate
 
-- [ ] final PR Windows Release build
-- [ ] full automated tests
-- [ ] v1.1.1 ProductVersion/FIRST_RUN identity
-- [ ] rendered Scanner top bar: OFF/OFF + `아이템 목록 최신화`
-- [ ] recent-recognition empty state + readable decision sentence smoke
-- [ ] removed Foundation/position controls absent from rendered product UI
-- [ ] win-x64 self-contained single-file publish
-- [ ] package/dependency hygiene
-- [ ] actual published EXE startup
-- [ ] existing Product UI / Main Map / Factory / MiniMap smoke
-- [ ] graceful shutdown
-- [ ] exact main release SHA fixed
-- [ ] Draft ZIP + SHA256SUMS verification
-- [ ] Draft-downloaded EXE smoke
-- [ ] public/latest transition
-- [ ] public re-download hash/package/ProductVersion validation
-- [ ] public-downloaded EXE smoke
-- [ ] temporary release workflow cleanup
-- [ ] final SHA/hash/run record
+- [x] final PR Windows Release build
+- [x] full automated tests — 243 passed / 0 failed / 0 skipped
+- [x] v1.1.1 ProductVersion/FIRST_RUN identity
+- [x] rendered Scanner top bar: OFF/OFF + `아이템 목록 최신화`
+- [x] recent-recognition empty state + readable decision sentence smoke
+- [x] removed Foundation/position controls absent from rendered product UI
+- [x] win-x64 self-contained single-file publish
+- [x] package/dependency hygiene
+- [x] actual published EXE startup
+- [x] existing Product UI / Main Map / Factory / MiniMap smoke
+- [x] graceful shutdown
+- [x] exact release source SHA fixed
+- [x] Draft ZIP + SHA256SUMS verification
+- [x] Draft-downloaded EXE smoke
+- [x] public/latest transition
+- [x] public re-download hash/package/ProductVersion validation
+- [x] public-downloaded EXE smoke
+- [x] temporary release workflow cleanup
+- [x] final SHA/hash/run record
 
 ## Live Tarkov
 
-최신 Borderless Tarkov in-game E2E는 기존 DEC-051 정책대로 release blocker가 아닙니다. 사용자 검증에서 문제가 발견되면 `%LocalAppData%/JunhyunHelper/logs/scanner.log`와 Scanner 탭 최근 인식 기록을 함께 사용해 후속 PATCH로 보정합니다.
+최신 Borderless Tarkov in-game E2E는 기존 DEC-051 정책대로 release blocker가 아닙니다. 사용자 실사용 검증에서 문제가 발견되면 `%LocalAppData%/JunhyunHelper/logs/scanner.log`와 Scanner 탭 최근 인식 기록을 함께 사용해 후속 PATCH로 보정합니다.
 
 ## 최종 공개 기록
 
-릴리즈 완료 후 기록합니다.
-
 ```text
-release source SHA: PENDING
-release workflow: PENDING
-automated tests: PENDING
+release: v1.1.1 PUBLIC / LATEST
+release source SHA: 1316c25d4e90509bb9286064724b778510fa9301
+release verification run: 32458154113
+automated tests: 243 passed / 0 failed / 0 skipped
 asset: Junhyun-Helper-v1.1.1-win-x64.zip
-bytes: PENDING
-SHA-256: PENDING
-ProductVersion: PENDING
-public downloaded EXE smoke: PENDING
+bytes: 80,237,511
+SHA-256: db99ec44dc7ba55c6c4b238b62db41fa91fbc766e0428bbd491153a1e7d3a0e6
+ProductVersion: 1.1.1+1316c25d4e90509bb9286064724b778510fa9301
+Draft downloaded EXE smoke: SUCCESS
+public downloaded EXE smoke: SUCCESS
+latest stable verification: SUCCESS
 ```
+
+공개 ZIP은 Draft 검증에 사용한 것과 동일한 SHA-256을 가졌고, public 전환 후 다시 다운로드한 패키지의 checksum/package/ProductVersion/FIRST_RUN 및 실제 실행 smoke를 모두 재검증했습니다.
