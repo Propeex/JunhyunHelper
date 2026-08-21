@@ -13,6 +13,7 @@ namespace JunhyunHelper.Infrastructure.Scanner;
 public sealed class ScannerCatalogService : IDisposable
 {
     public const int MinimumHealthyItemCount = 4000;
+    public const int MinimumHealthyTraderPriceCount = 500;
     private static readonly TimeSpan DefaultRefreshAge = TimeSpan.FromHours(12);
 
     private readonly HttpClient _httpClient;
@@ -171,13 +172,13 @@ public sealed class ScannerCatalogService : IDisposable
                 ? new Dictionary<string, string>(StringComparer.Ordinal)
                 : ReadTranslationDictionary(englishDocument.RootElement);
             var items = ParseItems(baseDocument.RootElement, korean, english);
-            if (items.Count < MinimumHealthyItemCount)
+            if (!IsHealthyItemSet(items))
                 return LoadedMode == mode && HasHealthyCatalog;
 
             var generatedAt = DateTimeOffset.UtcNow;
             var cache = new ScannerCatalogCache
             {
-                SchemaVersion = 1,
+                SchemaVersion = 2,
                 Source = "https://json.tarkov.dev",
                 Language = "ko",
                 GameMode = modeKey,
@@ -316,15 +317,27 @@ public sealed class ScannerCatalogService : IDisposable
     }
 
     private static bool IsHealthyCache(ScannerCatalogCache cache, GameMode mode) =>
-        cache.SchemaVersion == 1 &&
+        cache.SchemaVersion is 1 or 2 &&
         string.Equals(cache.Source, "https://json.tarkov.dev", StringComparison.Ordinal) &&
         string.Equals(cache.Language, "ko", StringComparison.OrdinalIgnoreCase) &&
         string.Equals(cache.GameMode, mode.ToDataKey(), StringComparison.Ordinal) &&
         cache.GeneratedAtUtc != default &&
-        cache.Items.Count >= MinimumHealthyItemCount &&
-        cache.Items.All(item =>
-            !string.IsNullOrWhiteSpace(item.Id) &&
-            !string.IsNullOrWhiteSpace(item.OfficialName));
+        IsHealthyItemSet(cache.Items);
+
+    private static bool IsHealthyItemSet(IReadOnlyCollection<ScannerCatalogItem> items)
+    {
+        if (items.Count < MinimumHealthyItemCount ||
+            items.Any(item => string.IsNullOrWhiteSpace(item.Id) || string.IsNullOrWhiteSpace(item.OfficialName)))
+        {
+            return false;
+        }
+
+        // A catalog with thousands of valid names but no market data is structurally
+        // incomplete for Scanner. Reject it instead of silently replacing a known-good
+        // cache and displaying blank trader/slot values.
+        var traderPriceCount = items.Count(item => item.BestTraderSellPrice is > 0);
+        return traderPriceCount >= MinimumHealthyTraderPriceCount;
+    }
 
     private static Dictionary<string, string> ReadTranslationDictionary(JsonElement envelope)
     {
@@ -393,17 +406,33 @@ public sealed class ScannerCatalogService : IDisposable
 
     private static int? ReadBestTraderSellPrice(JsonElement item)
     {
-        if (!item.TryGetProperty("sellFor", out var sellFor) || sellFor.ValueKind != JsonValueKind.Array)
-            return null;
+        // json.tarkov.dev exposes raw traderPrices in its item data. The GraphQL layer
+        // currently derives sellFor from traderPrices and appends a flea row. Accept both
+        // representations so the Scanner is insulated from which layer produced a dump.
+        if (item.TryGetProperty("traderPrices", out var traderPrices) &&
+            traderPrices.ValueKind == JsonValueKind.Array)
+        {
+            var rawTraderBest = ReadBestOfferPrice(traderPrices, excludeFlea: false);
+            if (rawTraderBest.HasValue)
+                return rawTraderBest;
+        }
 
+        if (item.TryGetProperty("sellFor", out var sellFor) && sellFor.ValueKind == JsonValueKind.Array)
+            return ReadBestOfferPrice(sellFor, excludeFlea: true);
+
+        return null;
+    }
+
+    private static int? ReadBestOfferPrice(JsonElement offers, bool excludeFlea)
+    {
         int? best = null;
-        foreach (var offer in sellFor.EnumerateArray())
+        foreach (var offer in offers.EnumerateArray())
         {
             if (offer.ValueKind != JsonValueKind.Object)
                 continue;
 
             var source = ReadSourceName(offer);
-            if (source.Contains("flea", StringComparison.OrdinalIgnoreCase))
+            if (excludeFlea && source.Contains("flea", StringComparison.OrdinalIgnoreCase))
                 continue;
 
             var roubles = GetInt(offer, "priceRUB");
@@ -447,7 +476,10 @@ public sealed class ScannerCatalogService : IDisposable
             var name = GetString(vendor, "name");
             if (!string.IsNullOrWhiteSpace(name))
                 return name;
-            return GetString(vendor, "id");
+            var id = GetString(vendor, "id");
+            if (!string.IsNullOrWhiteSpace(id))
+                return id;
+            return GetString(vendor, "trader");
         }
 
         return string.Empty;
