@@ -1,4 +1,4 @@
-준현 헬퍼 v1.1.4 — Windows x64
+준현 헬퍼 v1.1.5 — Windows x64
 
 실행 방법
 1. 받은 ZIP 파일을 원하는 폴더에 압축 해제합니다.
@@ -6,47 +6,52 @@
 3. 처음 실행하면 프로필을 만들고 필요한 최신 게임 데이터를 온라인에서 내려받습니다.
 4. 프로그램 실행 시 GitHub의 최신 정식 준현 헬퍼 릴리즈를 확인합니다. 더 최신 버전이 있으면 업데이트 여부를 묻습니다.
 
-v1.1.4 주요 변경 — Scanner 안정성·데이터 신뢰성 보강
-- Scanner Lab v3.8의 multi-candidate semantic validation과 보수적인 matcher 기준은 그대로 유지합니다.
-- 상세창 후보 안정화는 단순히 아무 후보가 두 프레임에 존재하는지만 세지 않고, 연속 관측된 동일 geometry signature가 있을 때만 누적합니다.
-- 이미 안전하게 식별한 상세창은 불필요한 OCR을 반복하지 않으면서 표시 데이터만 주기적으로 다시 연결합니다.
-- 이 때문에 같은 상세창을 계속 보고 있는 동안에도 Quest/Hideout 진행으로 `RequiredTotal`이 바뀌면 Mini Scanner의 '현재 필요한 수량'이 갱신됩니다.
-- 표시 데이터 갱신 시 같은 로컬 아이콘 PNG를 반복해서 열고 디코딩하지 않도록 Scanner 아이콘 메모리 캐시를 추가했습니다.
-- 가격 회귀 검증을 강화해 상점가는 fleaMarket을 제외한 `sellFor.priceRUB` 최고값, 플리마켓 평균가는 `avg24hPrice`를 서로 독립적으로 사용함을 고정했습니다.
-- 잘못되거나 없는 가격/슬롯 데이터는 해당 표시값만 비우는 fail-closed 동작을 유지합니다.
+v1.1.5 주요 변경 — Mini Scanner/시장 데이터/아이콘 안정화
+- Mini Scanner는 아이템 식별이 성공했을 때 해당 아이템 정보만 표시합니다. 대기·OCR·오류·진단 상태 문구는 Mini Scanner에 표시하지 않습니다.
+- 실제 Scanner에서는 Tarkov가 포그라운드이고 한국어 인벤토리/창고 UI가 확인될 때만 Mini Scanner를 표시합니다. 확신이 없으면 표시하지 않는 fail-closed 방식입니다.
+- Mini Scanner는 WPF Topmost와 Windows HWND_TOPMOST를 함께 적용하고 키보드 포커스를 가져가지 않습니다.
+- Mini Scanner 내부 사각형 전체가 드래그 영역이며 글자나 아이콘을 정확히 집을 필요가 없습니다.
+- 드래그 중에도 마우스 포인터는 일반 화살표를 유지합니다.
+- 기존 사용자 설정을 1회 보정해 아이콘, 상인 가격, 상인 가격/슬롯 표시를 기본 활성화합니다. 이후 사용자가 직접 끈 항목은 새 설정으로 보존됩니다.
+- Scanner 가격 데이터는 현재 JSON 원본의 traderPrices와 파생 sellFor 형태를 모두 읽습니다.
+- 이름은 정상인데 상인 가격이 대량으로 비어 있는 비정상 카탈로그는 정상 캐시를 덮어쓰지 않습니다.
+- 플리 평균가는 기존과 동일하게 avg24hPrice를 독립적으로 사용합니다.
+- Game Content 업데이트 시 퀘스트/은신처/탄약에 한정하지 않고 공식 전체 아이템 아이콘을 로컬 캐시에 준비합니다. 실제 스캔 순간에는 다운로드하지 않습니다.
+- 아이템 제목 OCR과 인벤토리 화면 판별 OCR은 하나의 직렬화된 OCR 경계를 공유해 동시 OCR 경쟁을 방지합니다.
 
 Scanner UI
 - 상단 바 왼쪽에 '스캐너'와 '테스트' 버튼이 있습니다.
 - 상단 바 오른쪽의 수동 카탈로그 갱신 버튼은 '아이템 목록 최신화'입니다.
 - 표시 정보 아래의 '최근 인식 기록'에서 OCR 문자열, 가장 가까운 공식 아이템 후보, 유사도, 후보 간 차이, 식별 성공/보류 판단을 확인할 수 있습니다.
 - 최근 인식 기록 우측 상단의 '로그 삭제' 버튼은 화면의 인식 기록과 `%LocalAppData%\JunhyunHelper\logs\scanner.log(.1)`을 함께 삭제합니다.
-- 로그 파일 삭제 실패는 Scanner 인식 자체를 중단시키지 않습니다.
-- Foundation 검증 도구는 일반 Scanner 탭에서 보이지 않으며 개발 진단용 내부 경로만 유지합니다.
-- Mini Scanner는 별도 편집 모드 없이 보이는 동안 직접 드래그해 위치를 옮길 수 있고, 드래그 종료 시 위치를 저장합니다.
-- Mini Scanner는 Topmost/no-activate를 유지하며 게임 창의 키보드 포커스를 가져가지 않습니다.
+- Mini Scanner에는 이 진단/상태 내용이 나오지 않습니다.
 
 Scanner 동작
 - '스캐너 ON/OFF'는 EscapeFromTarkov 게임 창을 찾아 Borderless client-area를 대상으로 실시간 감지합니다.
-- '테스트 ON/OFF'는 연결된 전체 디스플레이를 대상으로 같은 인식 파이프라인을 실행합니다. Tarkov 스크린샷을 바탕화면/이미지 뷰어에 띄운 상태에서도 기능을 확인할 수 있습니다.
+- 실제 Mini Scanner 표시 조건은 '아이템 식별 성공 + Tarkov 포그라운드 + 인벤토리/창고 UI 확인'입니다.
+- 인벤토리/창고 판별은 화면 픽셀과 Windows 한국어 OCR만 사용합니다. 게임 메모리, DLL injection, 패킷 가로채기를 사용하지 않습니다.
+- '테스트 ON/OFF'는 연결된 전체 디스플레이를 대상으로 같은 아이템 인식 파이프라인을 실행하며 개발/표시 검증을 위해 인벤토리 화면 제한을 적용하지 않습니다.
 - 두 모드는 동시에 실행되지 않습니다. 테스트 모드는 프로그램을 다시 실행하면 자동으로 OFF입니다.
 - 실제 scan 순간에는 외부 API를 호출하지 않습니다. 아이콘도 scan 중 새로 다운로드하지 않습니다.
-- 게임 메모리 읽기, DLL injection, 패킷 가로채기, 아이콘 기반 식별은 사용하지 않습니다.
+
+Scanner 가격/수량
+- 상인 판매가 = fleaMarket을 제외한 판매처의 RUB 환산 최고가입니다.
+- 상인 가격/슬롯 = 상인 판매가를 유효한 아이템 슬롯 수로 나눈 값입니다.
+- 플리마켓 평균가 = 24시간 평균가(avg24hPrice)입니다.
+- 현재 필요한 수량 = 보유량 차감 부족량이 아니라 현재 계획의 NeededItems[].RequiredTotal입니다.
+- 잘못되거나 없는 가격/크기 데이터는 해당 표시값만 비우는 fail-closed 동작을 유지합니다.
+
+아이콘 캐시
+- Game Content 업데이트 시 공식 전체 아이템 아이콘을 `%LocalAppData%\JunhyunHelper\image-cache`에 준비합니다.
+- 이미 정상적으로 캐시된 아이콘은 다시 다운로드하지 않습니다.
+- 개별 이미지 실패는 전체 Game Content 업데이트를 망가뜨리지 않으며 다음 업데이트에서 다시 채울 수 있습니다.
+- v1.1.4에서 일부 Scanner 아이템 아이콘이 없었다면 v1.1.5에서 Game Content 업데이트를 한 번 실행하면 전체 아이템 기준으로 캐시가 채워집니다.
 
 Scanner 진단
 - 개발자 로그: %LocalAppData%\JunhyunHelper\logs\scanner.log
 - 약 2MB에서 scanner.log.1로 회전합니다.
-- 구조 후보, 후보별 OCR pass, 공식 아이템 매칭 결과/confidence, 최종 선택 후보를 기록합니다.
+- 구조 후보, 후보별 OCR pass, 공식 아이템 매칭 결과/confidence, 최종 선택 후보와 인벤토리 화면 판별 결과를 기록합니다.
 - 전체 스크린샷이나 원본 화면 픽셀은 저장하지 않습니다.
-- 실제 Tarkov 환경에서 문제가 남으면 이 로그와 Scanner 탭의 최근 인식 기록을 기준으로 detector/OCR/matcher 단계를 분리해 보정합니다.
-
-Scanner 데이터/설정
-- 전체 아이템 카탈로그: %LocalAppData%\JunhyunHelper\scanner\catalog
-- Scanner 설정: %LocalAppData%\JunhyunHelper\scanner-settings.json(.bak)
-- Scanner 카탈로그는 켜기/명시적 최신화/필요한 프로필 전환 시 준비하며 실제 인식 중에는 로컬/메모리 데이터만 사용합니다.
-- 아이템별 표시 데이터는 확정된 Item ID를 기준으로 현재 준현 헬퍼 데이터에 연결합니다.
-- 상인 판매가는 fleaMarket을 제외한 판매처의 RUB 환산 최고가입니다.
-- 플리마켓 평균가는 24시간 평균가입니다.
-- 현재 필요한 수량은 보유량을 빼지 않은 현재 계획의 `RequiredTotal`입니다.
 
 프로그램 업데이트
 - 새 정식 버전이 있을 때만 업데이트 확인창을 표시합니다.
@@ -75,19 +80,21 @@ Scanner 데이터/설정
 - Content schema: v7
 - Readable Content schemas: v3, v4, v5, v6, v7
 - user.db SQLite schema: v1
-- v1.1.3 → v1.1.4 필수 Game Content 업데이트: 없음
-- v1.1.3 → v1.1.4 user.db migration: 없음
+- v1.1.4 → v1.1.5 필수 Game Content schema 업데이트: 없음
+- v1.1.4 → v1.1.5 user.db migration: 없음
+- Scanner 표시 설정은 내부 schema v2로 자동 정규화됩니다.
 
 검증 기준
 - Windows Release build
-- 자동 테스트 247개
-- Scanner Lab v3.8 geometry regression
-- Scanner market-field regression
+- 자동 테스트 249개 이상, 실패/skip 0
+- Scanner Lab v3.8 geometry/OCR/matcher 회귀
+- 4,000개 market-field 회귀 + raw traderPrices 회귀 + 비정상 market-empty 카탈로그 거부
+- Mini Scanner 실제 WPF 창 렌더 smoke: matched-item-only, 상인 가격, 상인/칸, 전체 카드 hitbox, Arrow cursor, Topmost/no-activate
 - win-x64 self-contained single-file publish
 - 실제 게시 후보 EXE Product UI / Scanner / Main Map / Factory / MiniMap smoke 및 정상 종료
-- 실제 최신 Tarkov Borderless E2E는 사용자 환경에서 계속 검증하며, 필요한 수정은 로그를 기준으로 PATCH 릴리즈합니다.
+- 실제 최신 Tarkov Borderless의 인벤토리/창고 화면 판별은 사용자 환경에서 계속 검증하며, 필요한 수정은 로그를 기준으로 PATCH 릴리즈합니다.
 
 버전 정책
 - 새 기능 추가: MINOR +1, PATCH는 0으로 초기화합니다.
 - 기존 기능 수정·보완·버그 수정·성능/안정성 개선: PATCH +1입니다.
-- v1.1.4는 v1.1.3 Scanner의 인식 안정성, 가격/필요 수량 데이터 신뢰성, 진단 UX를 보강하는 PATCH 릴리즈입니다.
+- v1.1.5는 기존 Scanner/Mini Scanner의 표시 조건, 가격 데이터, 아이콘 캐시와 안정성을 보강하는 PATCH 릴리즈입니다.
