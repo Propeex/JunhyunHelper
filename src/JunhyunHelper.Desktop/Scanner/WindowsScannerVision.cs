@@ -3,11 +3,9 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using System.Windows;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using JunhyunHelper.Core.Scanner;
 using Windows.Globalization;
-using Windows.Graphics.Imaging;
 using Windows.Media.Ocr;
 using Windows.Storage.Streams;
 
@@ -158,7 +156,7 @@ public sealed class WindowsScannerInspectDetector : IScannerInspectDetector
             title.Height,
             96,
             96,
-            PixelFormats.Bgra32,
+            System.Windows.Media.PixelFormats.Bgra32,
             null,
             titlePixels,
             titleStride);
@@ -225,7 +223,7 @@ public sealed class WindowsScannerInspectDetector : IScannerInspectDetector
 
         // Ask Windows for the target window first. When supported by Tarkov's current
         // presentation path, this excludes JunhyunHelper overlays from the input image.
-        var printWindowBitmap = new Bitmap(width, height, PixelFormat.Format32bppPArgb);
+        var printWindowBitmap = new Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
         try
         {
             using var graphics = Graphics.FromImage(printWindowBitmap);
@@ -256,7 +254,7 @@ public sealed class WindowsScannerInspectDetector : IScannerInspectDetector
         {
             return CaptureScreenRectangle(screenRect);
         }
-        catch (ExternalException)
+        catch (Exception exception) when (exception is ExternalException or System.ComponentModel.Win32Exception)
         {
             return null;
         }
@@ -264,7 +262,7 @@ public sealed class WindowsScannerInspectDetector : IScannerInspectDetector
 
     private static Bitmap CaptureScreenRectangle(NativeRect rect)
     {
-        var bitmap = new Bitmap(rect.Width, rect.Height, PixelFormat.Format32bppPArgb);
+        var bitmap = new Bitmap(rect.Width, rect.Height, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
         try
         {
             using var graphics = Graphics.FromImage(bitmap);
@@ -315,7 +313,7 @@ public sealed class WindowsScannerInspectDetector : IScannerInspectDetector
     private static (byte[] Pixels, int Stride) ReadBgra(Bitmap bitmap)
     {
         var rectangle = new Rectangle(0, 0, bitmap.Width, bitmap.Height);
-        var locked = bitmap.LockBits(rectangle, ImageLockMode.ReadOnly, PixelFormat.Format32bppPArgb);
+        var locked = bitmap.LockBits(rectangle, ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
         try
         {
             var sourceStride = Math.Abs(locked.Stride);
@@ -329,7 +327,7 @@ public sealed class WindowsScannerInspectDetector : IScannerInspectDetector
             for (var row = 0; row < bitmap.Height; row++)
             {
                 var sourceRow = locked.Stride > 0 ? row : bitmap.Height - 1 - row;
-                Buffer.BlockCopy(source, sourceRow * sourceStride, target, row * targetStride, targetStride);
+                System.Buffer.BlockCopy(source, sourceRow * sourceStride, target, row * targetStride, targetStride);
             }
             return (target, targetStride);
         }
@@ -355,7 +353,7 @@ public sealed class WindowsScannerInspectDetector : IScannerInspectDetector
         var result = new byte[targetStride * height];
         for (var row = 0; row < height; row++)
         {
-            Buffer.BlockCopy(
+            System.Buffer.BlockCopy(
                 source,
                 (top + row) * sourceStride + left * 4,
                 result,
@@ -544,7 +542,9 @@ public sealed class WindowsScannerOcrEngine : IScannerOcrEngine
         var maxScale = Math.Min(2.0, OcrEngine.MaxImageDimension / (double)Math.Max(titleImage.PixelWidth, titleImage.PixelHeight));
         if (maxScale >= 1.35)
         {
-            var scaled = new TransformedBitmap(titleImage, new ScaleTransform(maxScale, maxScale));
+            var scaled = new TransformedBitmap(
+                titleImage,
+                new System.Windows.Media.ScaleTransform(maxScale, maxScale));
             scaled.Freeze();
             var enlarged = await RecognizeAsync(scaled, cancellationToken);
             if (!string.IsNullOrWhiteSpace(enlarged) && !variants.Contains(enlarged, StringComparer.Ordinal))
@@ -559,7 +559,7 @@ public sealed class WindowsScannerOcrEngine : IScannerOcrEngine
         cancellationToken.ThrowIfCancellationRequested();
 
         var encoder = new PngBitmapEncoder();
-        encoder.Frames.Add(BitmapFrame.Create(image));
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(image));
         byte[] png;
         using (var memory = new MemoryStream())
         {
@@ -577,10 +577,10 @@ public sealed class WindowsScannerOcrEngine : IScannerOcrEngine
         }
 
         stream.Seek(0);
-        var decoder = await BitmapDecoder.CreateAsync(stream);
+        var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(stream);
         using var softwareBitmap = await decoder.GetSoftwareBitmapAsync(
-            BitmapPixelFormat.Bgra8,
-            BitmapAlphaMode.Premultiplied);
+            Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8,
+            Windows.Graphics.Imaging.BitmapAlphaMode.Premultiplied);
 
         cancellationToken.ThrowIfCancellationRequested();
         var result = await _engine!.RecognizeAsync(softwareBitmap);
