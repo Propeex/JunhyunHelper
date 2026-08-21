@@ -194,7 +194,7 @@
 
 ## DEC-051 — Scanner v1.1.0은 실제 구현을 공개하고 live Tarkov 검증은 로그 기반 후속으로 진행한다
 
-- 상태: **`CONFIRMED / IMPLEMENTED / RELEASE AUTHORIZED`**
+- 상태: **`CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED v1.1.0 / LIVE E2E PENDING`**
 - 날짜: 2026-08-21
 - 사용자 확정 요구:
   - Scanner를 기능적으로 준현 헬퍼에 먼저 완성해 넣는다.
@@ -216,12 +216,19 @@
   - v1.0.0에 새 사용자 기능을 추가하므로 버전은 DEC-048에 따라 **v1.1.0**이다.
   - Windows Release build, automated tests, publish, rendered UI, 기존 Map/MiniMap smoke, Draft/Public package verification은 release blocker다.
   - 최신 Tarkov Borderless live E2E는 release blocker가 아니다.
-  - 공개 시 Scanner 상태는 `IMPLEMENTED / WINDOWS VERIFIED / LIVE TARKOV E2E PENDING`으로 명시한다.
   - 공개 후 live 문제는 `scanner.log`를 근거로 보정하고 새 기능 추가가 없다면 PATCH 릴리즈로 처리한다.
+- public verification:
+  - exact release source / target: `ac24f7717e81cf6fa32cb2e0ade63949ed87ade5`
+  - asset: `Junhyun-Helper-v1.1.0-win-x64.zip`
+  - bytes: `80,235,043`
+  - SHA-256: `8e7f452701f866c84e753c1c34951af64f4415947e9f56c56634e2b584d9e1ce`
+  - ProductVersion: `1.1.0+ac24f7717e81cf6fa32cb2e0ade63949ed87ade5`
+  - public-downloaded EXE smoke: `SUCCESS`
+  - latest live Tarkov Borderless E2E: `PENDING`
 - supersedes:
   - DEC-050의 platform implementation `Unavailable` 유지 제한
   - DEC-050의 “Live Gate A~F 전 v1.1.0 정식 릴리즈 금지” 제한
-- 상세: `docs/SCANNER.md`, `docs/SCANNER_TEST_PLAN.md`, `docs/CURRENT_STATE.md`
+- 상세: `docs/SCANNER.md`, `docs/SCANNER_TEST_PLAN.md`, `docs/CURRENT_STATE.md`, `docs/RELEASE_1.1.0.md`
 
 ---
 

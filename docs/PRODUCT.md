@@ -219,7 +219,7 @@ Map은 독립 subsystem이며 Quest만 current JunhyunHelper content/profile과 
 
 ## 13. Scanner / Mini Scanner
 
-`CONFIRMED / IMPLEMENTED FOR v1.1.0 / LIVE TARKOV E2E PENDING`
+`CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED v1.1.0 / LIVE TARKOV E2E PENDING`
 
 Scanner는 Tarkov 화면을 Item ID로 변환해 기존 JunhyunHelper 데이터에 연결하는 입력 subsystem입니다.
 
@@ -316,23 +316,25 @@ ItemsWorkspace.Plan.NeededItems[itemId].RequiredTotal
 
 ## 14. Scanner 릴리즈/검증 정책
 
-v1.1.0 공개 차단 조건:
+v1.1.0에서 완료된 공개 차단 조건:
 
 - Windows Release build
-- automated tests
+- 243 automated tests
 - detector/catalog/matcher/persistence regression
 - self-contained publish
-- actual published EXE/rendered UI smoke
+- actual packaged EXE/rendered UI smoke
 - Scanner real/test safe-default controls
 - existing Main Map / Factory / MiniMap smoke
-- Draft/Public asset checksum/package verification
+- Draft asset checksum/package/ProductVersion/FIRST_RUN verification
+- Draft-downloaded EXE smoke
+- public asset re-download hash/size/ProductVersion verification
 - public downloaded EXE smoke
 
-**최신 Tarkov Borderless live E2E는 사용자 결정에 따라 v1.1.0 공개 차단 조건이 아닙니다.**
+**최신 Tarkov Borderless live E2E는 사용자 결정에 따라 v1.1.0 공개 차단 조건이 아니며 현재 PENDING입니다.**
 
 공개 후 `%LocalAppData%/JunhyunHelper/logs/scanner.log`를 이용해 실제 capture/detector/OCR을 함께 검증하고 필요한 보정을 PATCH로 배포합니다.
 
-공개 시 정확한 상태 표기는:
+현재 정확한 상태 표기:
 
 ```text
 IMPLEMENTED
@@ -370,27 +372,28 @@ Scanner 설정도 동일한 안전 원칙을 사용합니다.
 
 주요 UI 변경은 source/build 성공만으로 완료 처리하지 않습니다. 실제 published WPF app smoke에서 rendered contract를 검증합니다.
 
-v1.1.0 smoke에는 기존 Items/Ammo/Map gate에 더해 Scanner의 `스캐너 OFF` / `테스트 OFF` safe-default controls가 포함됩니다.
+v1.1.0 smoke에는 기존 Items/Ammo/Map gate에 더해 Scanner의 `스캐너 OFF` / `테스트 OFF` safe-default controls가 포함되며 public-downloaded EXE에서도 재검증했습니다.
 
 ## 17. 현재 버전
 
 현재 공개 stable:
 
 ```text
-v1.0.0
+v1.1.0 PUBLIC RELEASE / VERIFIED
+release id: 374188781
+exact release source / target SHA: ac24f7717e81cf6fa32cb2e0ade63949ed87ade5
+asset: Junhyun-Helper-v1.1.0-win-x64.zip
+bytes: 80,235,043
+SHA-256: 8e7f452701f866c84e753c1c34951af64f4415947e9f56c56634e2b584d9e1ce
+ProductVersion: 1.1.0+ac24f7717e81cf6fa32cb2e0ade63949ed87ade5
+public downloaded EXE smoke: SUCCESS
 ```
 
-다음 정식 release:
-
-```text
-v1.1.0 — Scanner
-```
-
-버전 규칙 상세: `docs/VERSIONING.md`
+버전 규칙 상세: `docs/VERSIONING.md`, 공개 검증 상세: `docs/RELEASE_1.1.0.md`.
 
 ## 18. 현재 비범위 / fail-closed 범위
 
 - EFT 1.0 Story Chapters: ordinary task source 밖
 - PvE Skier LL2 task-pool drift: exact fact 없으면 해당 pool fail-closed
 - code signing / installer
-- Scanner live Tarkov E2E는 v1.1.0 공개 후 검증/튜닝 범위
+- Scanner live Tarkov E2E는 공개 v1.1.0에서 로그 기반 검증/튜닝 범위

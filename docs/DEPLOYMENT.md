@@ -9,19 +9,17 @@
 현재 public stable:
 
 ```text
-v1.0.0 PUBLIC VERIFIED
-release source: 3147ad1b48c3d30df529d95b148c5c444a77d649
-release workflow: 32219746319 — SUCCESS
-asset: Junhyun-Helper-v1.0.0-win-x64.zip
-bytes: 74,088,334
-SHA-256: 0e92787409add9dd9e1138277c3588586a04266b05ca56d7cf7fb6f79c88094c
+v1.1.0 PUBLIC RELEASE / VERIFIED
+release id: 374188781
+exact release source / target SHA: ac24f7717e81cf6fa32cb2e0ade63949ed87ade5
+asset: Junhyun-Helper-v1.1.0-win-x64.zip
+bytes: 80,235,043
+SHA-256: 8e7f452701f866c84e753c1c34951af64f4415947e9f56c56634e2b584d9e1ce
+ProductVersion: 1.1.0+ac24f7717e81cf6fa32cb2e0ade63949ed87ade5
+public downloaded EXE smoke: SUCCESS
 ```
 
-다음 release candidate:
-
-```text
-v1.1.0 — Scanner
-```
+상세: `docs/RELEASE_1.1.0.md`
 
 ## 2. 배포 특성
 
@@ -127,6 +125,8 @@ Assets/
 
 PR artifact는 정식 공개 배포물이 아닙니다.
 
+정식 release가 끝나면 release-only / dispatcher workflow를 저장소에서 제거하고 상시 workflow는 원칙적으로 `ci.yml`만 유지합니다.
+
 ## 7. Public Release — Draft first
 
 Program updater가 latest public stable을 신뢰하므로 검증되지 않은 release를 latest로 잠시도 노출하지 않습니다.
@@ -142,9 +142,10 @@ release candidate PR final CI
 → Draft GitHub Release
 → Draft assets GitHub에서 재다운로드
 → checksum/package root/ProductVersion/FIRST_RUN 검증
+→ 필요 시 Draft-downloaded EXE smoke
 → public/latest 전환
 → Public assets 재다운로드
-→ checksum/ProductVersion/FIRST_RUN/latest 검증
+→ checksum/hash/size/ProductVersion/FIRST_RUN/latest 검증
 → public downloaded EXE smoke
 → release record finalization
 → one-shot workflow 제거
@@ -152,30 +153,35 @@ release candidate PR final CI
 
 릴리즈 workflow는 exact release commit을 checkout하고 Map donor gitlink도 exact pin인지 검증합니다.
 
-## 8. v1.1.0 Scanner 릴리즈 계약
+## 8. v1.1.0 Scanner 릴리즈 결과
 
 v1.1.0은 v1.0.0에 새 사용자 Scanner 기능을 추가하는 MINOR release입니다.
 
-공개 차단 조건:
+완료된 공개 차단 조건:
 
 - 상시 CI 전체 성공
-- release workflow의 독립 build/tests/publish 성공
-- published EXE Scanner controls + 기존 Product UI/Map smoke 성공
-- Draft ZIP/checksum/package 검증 성공
-- public ZIP/checksum/package 검증 성공
+- 243 automated tests
+- self-contained package 및 dependency audit
+- packaged EXE Scanner controls + 기존 Product UI/Map smoke 성공
+- Draft ZIP/checksum/package/ProductVersion/FIRST_RUN 검증 성공
+- Draft-downloaded EXE smoke 성공
+- public/latest 전환 성공
+- public ZIP hash/size/ProductVersion 재검증 성공
 - public downloaded EXE smoke 성공
+
+Public verification run `32452416929`은 위 release gate를 모두 성공한 뒤 마지막 PR 코멘트 기록만 integration 권한 403으로 실패했습니다. 제품/배포 검증과 무관한 bookkeeping 실패이므로 public v1.1.0 검증 상태에는 영향이 없습니다.
 
 ### 의도적으로 release blocker가 아닌 것
 
 사용자가 2026-08-21 확정한 정책에 따라 **최신 Tarkov Borderless 실제 인게임 E2E는 v1.1.0 release blocker가 아닙니다.**
 
-공개 release notes와 공식 상태에는 다음을 명확하게 유지합니다.
+공개 상태:
 
 ```text
-Scanner implementation: implemented
-Windows build/package: verified
-offline screenshot/OCR path: previously verified
-latest live Tarkov Borderless E2E: pending
+Scanner implementation: IMPLEMENTED
+Windows build/package: VERIFIED
+offline screenshot/OCR path: VERIFIED
+latest live Tarkov Borderless E2E: PENDING
 ```
 
 공개 후 실제 게임 검증은 다음 로그를 사용합니다.
@@ -218,11 +224,3 @@ v1.0.0 → v1.1.0 user.db migration: none
 ```
 
 기존 Profile / Quest / Inventory / Hideout / Map preferences / Ammo favorites는 유지합니다.
-
-Scanner는 새로 별도 settings/catalog cache를 생성합니다.
-
-## 11. Code signing / installer
-
-현재 공개 빌드는 code signing하지 않습니다. Windows SmartScreen 경고가 표시될 수 있습니다.
-
-Code signing / installer는 현재 release 필수 조건이 아닙니다.

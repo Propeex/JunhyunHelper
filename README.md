@@ -4,11 +4,22 @@ Escape from Tarkov 플레이를 지원하는 Windows 데스크톱 헬퍼 **준�
 
 ## 현재 릴리즈 상태
 
-**v1.1.0 RELEASE CANDIDATE — Windows x64**
+**v1.1.0 PUBLIC RELEASE / VERIFIED — Windows x64**
 
-v1.1.0은 v1.0.0의 기존 Profile / Quest / Hideout / Items / Ammo / Map / MiniMap 동작을 유지하면서 실제 **Scanner** 기능을 추가하는 MINOR 릴리즈입니다.
+v1.1.0은 v1.0.0의 기존 Profile / Quest / Hideout / Items / Ammo / Map / MiniMap 동작을 유지하면서 실제 **Scanner + Mini Scanner** 기능을 추가한 MINOR 릴리즈입니다.
 
-현재 공개 stable은 v1.0.0이며, v1.1.0은 Windows CI와 Draft/Public package verification을 통과한 뒤 public/latest로 전환합니다.
+```text
+release: v1.1.0
+exact release source / target SHA: ac24f7717e81cf6fa32cb2e0ade63949ed87ade5
+asset: Junhyun-Helper-v1.1.0-win-x64.zip
+bytes: 80,235,043
+SHA-256: 8e7f452701f866c84e753c1c34951af64f4415947e9f56c56634e2b584d9e1ce
+ProductVersion: 1.1.0+ac24f7717e81cf6fa32cb2e0ade63949ed87ade5
+automated tests: 243 passed / 0 failed / 0 skipped
+public downloaded EXE smoke: SUCCESS
+```
+
+상세 공개 검증 기록: [`docs/RELEASE_1.1.0.md`](docs/RELEASE_1.1.0.md)
 
 ### v1.1.0 Scanner
 
@@ -22,6 +33,7 @@ v1.1.0은 v1.0.0의 기존 Profile / Quest / Hideout / Items / Ammo / Map / Mini
 → Windows 한국어 OCR
 → 보수적 전체 아이템 catalog 매칭
 → Item ID
+→ 기존 준현 헬퍼 데이터
 → Mini Scanner 표시
 ```
 
@@ -29,15 +41,15 @@ v1.1.0은 v1.0.0의 기존 Profile / Quest / Hideout / Items / Ammo / Map / Mini
 
 ```text
 테스트 ON
-→ 연결된 전체 디스플레이 실시간 캡처
+→ 연결된 전체 디스플레이 실시간 capture
 → 동일 detector/OCR/matcher pipeline
 ```
 
-따라서 Tarkov 전체 스크린샷을 바탕화면이나 이미지 뷰어에 띄운 상태에서도 게임 없이 감지 경로를 확인할 수 있습니다.
+따라서 Tarkov 전체 스크린샷을 바탕화면이나 이미지 뷰어에 띄운 상태에서도 게임 없이 recognition 경로를 확인할 수 있습니다.
 
 두 모드는 동시에 켜지지 않으며 테스트 모드는 재실행 시 자동 OFF입니다.
 
-Scanner는 게임 메모리 읽기, DLL injection, 패킷 가로채기, 아이콘 기반 식별을 사용하지 않습니다. 실제 scan 순간에는 외부 API 요청도 하지 않습니다.
+Scanner는 게임 메모리 읽기, DLL injection, 패킷 가로채기, process-internal 데이터 접근, 아이콘 기반 식별을 사용하지 않습니다. 실제 scan 순간에는 외부 API 요청도 하지 않습니다.
 
 정확도가 부족하거나 Item identity가 ambiguous하면 강제로 1위 후보를 표시하지 않습니다.
 
@@ -46,10 +58,12 @@ Scanner는 게임 메모리 읽기, DLL injection, 패킷 가로채기, 아이�
 - 한국어 텍스트 OCR 실험: 검증
 - 상세보기 이미지 detector 실험: 검증
 - 전체 Tarkov screenshot detector/OCR 경로: 검증
-- Windows Release build / automated tests / publish / 기존 Product UI + Map smoke: release gate
-- **최신 Tarkov Borderless 인게임 E2E: v1.1.0 공개 후 후속 검증**
+- Windows Release build / 243 tests / publish / rendered Product UI / Scanner controls / Map smoke: 검증
+- Draft/public package hash/ProductVersion 검증: 검증
+- public-downloaded EXE smoke: 검증
+- **최신 Tarkov Borderless 인게임 E2E: 공개 후 후속 검증 / PENDING**
 
-사용자 결정에 따라 live Tarkov E2E는 v1.1.0 공개 차단 조건에서 제외합니다. 실제 게임 환경 문제는 다음 로그를 기준으로 후속 PATCH에서 보정합니다.
+사용자 결정에 따라 live Tarkov E2E는 v1.1.0 공개 차단 조건에서 제외했습니다. 실제 게임 환경 문제는 다음 로그를 기준으로 후속 PATCH에서 보정합니다.
 
 ```text
 %LocalAppData%/JunhyunHelper/logs/scanner.log
@@ -66,7 +80,7 @@ Scanner는 게임 메모리 읽기, DLL injection, 패킷 가로채기, 아이�
 - 미래 Quest + Hideout 기준 Needed Items
 - FIR / 일반 Inventory와 안전한 cleanup 계산
 - flexible hand-in 후보 그룹과 보수적 Item 보호
-- Item 종류/용도/필요 상태 필터, cross-navigation, Item Wiki
+- Item 종류/용도/필요 상태 filter, cross-navigation, Item Wiki
 - Ammo 성능/수급처/Armor Class 1~6 비교와 caliber favorites
 - 온라인 Game Content 안전 업데이트와 image cache
 - Map + MiniMap
@@ -81,7 +95,7 @@ Scanner는 게임 메모리 읽기, DLL injection, 패킷 가로채기, 아이�
 
 ## 프로그램 업데이트
 
-v0.1.14부터 일반 실행 시 latest public stable GitHub Release를 확인합니다.
+일반 실행 시 latest public stable GitHub Release를 확인합니다.
 
 ```text
 프로그램 실행
@@ -113,7 +127,7 @@ Runtime GPT/AI 의존성은 없습니다.
 
 ## 실행 / 배포 형태
 
-v1.1.0 공개 asset:
+현재 공개 asset:
 
 ```text
 Junhyun-Helper-v1.1.0-win-x64.zip
@@ -127,7 +141,7 @@ FIRST_RUN_KO.txt
 Assets/
 ```
 
-Windows x64 portable / self-contained single-file 빌드이며 별도 .NET 설치나 관리자 권한은 필요하지 않습니다. 현재 코드 서명은 하지 않습니다.
+Windows x64 portable / self-contained single-file 빌드이며 별도 .NET 설치나 관리자 권한은 필요하지 않습니다. 현재 code signing은 하지 않습니다.
 
 ## 정확도 / 안전성 원칙
 
@@ -144,7 +158,7 @@ Windows x64 portable / self-contained single-file 빌드이며 별도 .NET 설�
 - 새 기능 추가 → **MINOR +1**, PATCH = 0
 - 기존 기능 수정/보완/버그 수정/성능·안정성 개선 → **PATCH +1**
 
-따라서 v1.0.0의 Scanner 실제 기능 추가는 v1.1.0입니다.
+따라서 v1.0.0의 Scanner 실제 기능 추가는 v1.1.0입니다. 향후 Scanner live 검증에서 발견되는 기능 보정은 새 사용자 기능이 아니라면 PATCH로 배포합니다.
 
 ## 개발 문서
 
@@ -157,6 +171,7 @@ Windows x64 portable / self-contained single-file 빌드이며 별도 .NET 설�
 - [`docs/VERSIONING.md`](docs/VERSIONING.md) — 버전 정책
 - [`docs/SCANNER.md`](docs/SCANNER.md) — Scanner 제품/기술 계약
 - [`docs/SCANNER_TEST_PLAN.md`](docs/SCANNER_TEST_PLAN.md) — Scanner 검증 계약
+- [`docs/RELEASE_1.1.0.md`](docs/RELEASE_1.1.0.md) — v1.1.0 공개 검증 기록
 - [`docs/PROGRAM_UPDATE.md`](docs/PROGRAM_UPDATE.md) — 프로그램 업데이트 계약
 - [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — 배포 계약
 - [`docs/MAP_PRODUCT_REQUIREMENTS.md`](docs/MAP_PRODUCT_REQUIREMENTS.md) — Map/MiniMap 제품 기준
