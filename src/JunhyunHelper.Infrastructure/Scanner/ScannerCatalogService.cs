@@ -157,7 +157,7 @@ public sealed class ScannerCatalogService : IDisposable
             var koreanTask = DownloadStringAsync(root + "items_ko", token);
             var englishTask = TryDownloadStringAsync(root + "items_en", token);
 
-            await Task.WhenAll(baseTask, koreanTask, englishTask);
+            await Task.WhenAll(new Task[] { baseTask, koreanTask, englishTask });
 
             using var baseDocument = JsonDocument.Parse(await baseTask);
             using var koreanDocument = JsonDocument.Parse(await koreanTask);
@@ -188,6 +188,8 @@ public sealed class ScannerCatalogService : IDisposable
             var path = GetCachePath(mode);
             new AtomicJsonFileStore(path).Save(cache);
 
+            // Read-back is deliberate: never replace an in-memory healthy catalog with
+            // a write that cannot be recovered as the same validated document.
             var verified = new AtomicJsonFileStore(path).LoadOrDefault(() => new ScannerCatalogCache());
             if (!IsHealthyCache(verified, mode))
                 return LoadedMode == mode && HasHealthyCatalog;
@@ -502,6 +504,8 @@ public sealed class ScannerCatalogService : IDisposable
         _disposed = true;
         _lifetimeCts.Cancel();
         _lifetimeCts.Dispose();
+        // Do not dispose _refreshGate here: an in-flight canceled refresh may still
+        // execute its finally block and release the gate during application shutdown.
         GC.SuppressFinalize(this);
     }
 
