@@ -45,21 +45,21 @@ public sealed class ScannerCoordinator : IDisposable
 
         try
         {
-            _detector = new WindowsScannerInspectDetector();
+            _detector = new ScannerLab38InspectDetector();
         }
         catch (Exception exception)
         {
-            App.WriteDiagnostic("Scanner Windows capture initialization failed", exception);
+            App.WriteDiagnostic("Scanner Lab 3.8 capture initialization failed", exception);
             _detector = new UnavailableScannerInspectDetector();
         }
 
         try
         {
-            _ocr = new WindowsScannerOcrEngine();
+            _ocr = new ScannerLab38OcrEngine();
         }
         catch (Exception exception)
         {
-            App.WriteDiagnostic("Scanner Windows OCR initialization failed", exception);
+            App.WriteDiagnostic("Scanner Lab 3.8 OCR initialization failed", exception);
             _ocr = new UnavailableScannerOcrEngine();
         }
     }
@@ -96,7 +96,7 @@ public sealed class ScannerCoordinator : IDisposable
         if (_initialized)
             return;
         _initialized = true;
-        _testEnabled = false; // Test mode is deliberately session-only.
+        _testEnabled = false;
 
         var mode = ActiveCaptureMode;
         if (mode is null)
@@ -115,7 +115,6 @@ public sealed class ScannerCoordinator : IDisposable
 
         if (enabled)
         {
-            // Real and display-test capture are intentionally mutually exclusive.
             _testEnabled = false;
             _settings.Update(settings => settings.Enabled = true);
             StartContextMonitor();
@@ -143,7 +142,6 @@ public sealed class ScannerCoordinator : IDisposable
 
         if (enabled)
         {
-            // Test mode is a validation aid, never a persisted startup mode.
             if (_settings.Current.Enabled)
                 _settings.Update(settings => settings.Enabled = false);
             StartContextMonitor();
@@ -199,11 +197,6 @@ public sealed class ScannerCoordinator : IDisposable
         return true;
     }
 
-    /// <summary>
-    /// Refreshes Scanner state after the active profile/content context changes. An
-    /// active Scanner mode may refresh stale identity data before scanning; an inactive
-    /// Scanner-page visit only reads the local cache.
-    /// </summary>
     public async Task RefreshContextAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -264,9 +257,7 @@ public sealed class ScannerCoordinator : IDisposable
         Runtime.HidePreviewAsync(cancellationToken);
 
     public void PauseForPositionEdit() => Runtime.PauseForPositionEdit();
-
     public void BeginPositionEdit() => _overlay.BeginPositionEdit();
-
     public void EndPositionEdit() => _overlay.EndPositionEdit(keepVisible: false);
 
     public async Task ResumeAfterPositionEditAsync(CancellationToken cancellationToken = default)
