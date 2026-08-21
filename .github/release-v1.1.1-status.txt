@@ -1,0 +1,2 @@
+result=trigger-started
+trigger_sha=5a3876166c8a2b753cf9962512fbc82b1cca2694
