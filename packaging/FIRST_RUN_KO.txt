@@ -1,4 +1,4 @@
-준현 헬퍼 v1.1.0 — Windows x64
+준현 헬퍼 v1.1.1 — Windows x64
 
 실행 방법
 1. 받은 ZIP 파일을 원하는 폴더에 압축 해제합니다.
@@ -6,8 +6,19 @@
 3. 처음 실행하면 프로필을 만들고 필요한 최신 게임 데이터를 온라인에서 내려받습니다.
 4. 프로그램 실행 시 GitHub의 최신 정식 준현 헬퍼 릴리즈를 확인합니다. 더 최신 버전이 있으면 업데이트 여부를 묻습니다.
 
-v1.1.0 주요 변경 — Scanner
-- 상단 '스캐너' 탭에 실제 Scanner 기능을 추가했습니다.
+v1.1.1 주요 변경 — Scanner 사용성 정리
+- Scanner 탭을 설명문 중심 화면에서 실제 운용 중심 화면으로 정리했습니다.
+- 상단 바 왼쪽에 '스캐너'와 '테스트' 버튼을 나란히 배치했습니다.
+- 상단 바 오른쪽의 전체 아이템 카탈로그 수동 갱신 버튼 이름을 '아이템 목록 최신화'로 변경했습니다.
+- Scanner/Mini Scanner/버튼 기능에 대한 상시 설명문과 별도 위치 편집/초기화 UI를 제거했습니다.
+- Foundation 검증 도구는 일반 Scanner 탭에서 숨겼습니다. 개발 진단용 내부 경로는 유지합니다.
+- 표시 정보 체크박스 아래에 '최근 인식 기록'을 추가했습니다.
+- 최근 인식 기록에는 OCR로 읽은 문자열, 가장 가까운 공식 아이템 후보, 유사도, 후보 간 차이, 최종 식별 성공/보류 판단을 사용자가 읽을 수 있는 문장으로 표시합니다.
+- 기존 개발자용 Scanner 로그는 별도로 계속 기록합니다.
+- Mini Scanner는 별도 편집 모드 없이 보이는 동안 직접 드래그해 언제든 위치를 옮길 수 있고, 드래그를 마치면 위치를 저장합니다.
+- 항상 직접 이동할 수 있어야 하므로 Mini Scanner 자체 영역은 마우스 입력을 받습니다. Topmost/no-activate는 유지하며 게임 창의 키보드 포커스를 가져가지 않습니다.
+
+Scanner 동작
 - '스캐너 ON/OFF'는 EscapeFromTarkov 게임 창을 찾아 Borderless client-area를 대상으로 실시간 감지합니다.
 - '테스트 ON/OFF'는 연결된 전체 디스플레이를 대상으로 같은 감지 파이프라인을 실행합니다. Tarkov 전체 스크린샷을 바탕화면/이미지 뷰어에 띄운 상태에서 기능을 확인할 수 있습니다.
 - 두 모드는 동시에 실행되지 않습니다. 테스트 모드는 프로그램을 다시 실행하면 자동으로 OFF입니다.
@@ -15,26 +26,25 @@ v1.1.0 주요 변경 — Scanner
 - OCR 결과는 전체 Tarkov 아이템 카탈로그와 보수적으로 대조하며 확신이 부족하면 아이템을 표시하지 않습니다.
 - Item ID가 확정되면 기존 준현 헬퍼 데이터에서 아이템 이름, 로컬 아이콘, 상인/플리 가격, 슬롯당 가격, 현재 필요한 수량을 가져와 Mini Scanner에 표시합니다.
 - 실제 scan 순간에는 외부 API를 호출하지 않습니다. 아이콘도 scan 중 새로 다운로드하지 않습니다.
-- Mini Scanner는 MiniMap과 별도 창/설정/생명주기를 사용하며 일반 사용 중 click-through/no-activate로 동작합니다.
 - 게임 메모리 읽기, DLL injection, 패킷 가로채기, 아이콘 기반 식별은 사용하지 않습니다.
 
 Scanner 검증 상태
 - 텍스트 OCR, 상세보기 이미지 감지, 전체 Tarkov 스크린샷 감지는 사전 검증했습니다.
-- Windows Release build, 자동 회귀 테스트, self-contained publish, 실제 EXE 기본 UI/Map/MiniMap smoke를 통과한 코드로 배포합니다.
-- v1.1.0 공개 시점에는 최신 Tarkov Borderless 게임 창에서의 장시간 인게임 E2E 검증은 아직 수행하지 않았습니다.
-- 인게임에서 감지 문제가 발생하면 Scanner 탭의 상태와 아래 Scanner 로그를 기준으로 후속 보정합니다.
+- Windows Release build, 자동 회귀 테스트, self-contained publish, 실제 EXE 기본 UI/Map/MiniMap smoke를 통과한 코드만 정식 배포합니다.
+- 최신 Tarkov Borderless에서의 실제 인게임 E2E는 공개 릴리즈 후 사용자 환경에서 Scanner 로그와 함께 계속 검증·보정합니다.
 
 Scanner 진단 로그
 - %LocalAppData%\JunhyunHelper\logs\scanner.log
 - 최대 약 2MB에서 이전 로그를 scanner.log.1로 회전합니다.
 - 캡처 상태, 감지 후보, OCR 제목 문자열, 매칭 결과/confidence를 기록합니다.
 - 전체 스크린샷이나 원본 화면 픽셀은 로그에 저장하지 않습니다.
+- Scanner 탭의 최근 인식 기록은 이 개발자 로그를 그대로 노출하지 않고 OCR/후보/유사도/판단만 사용자용으로 정리해 보여줍니다.
 
 Scanner 데이터/설정
 - 전체 아이템 카탈로그: %LocalAppData%\JunhyunHelper\scanner\catalog
 - Scanner 설정: %LocalAppData%\JunhyunHelper\scanner-settings.json
 - Scanner 설정 복구본: %LocalAppData%\JunhyunHelper\scanner-settings.json.bak
-- Scanner 카탈로그는 켜기/명시적 동기화/필요한 프로필 전환 시 준비하며 실제 인식 중에는 로컬/메모리 데이터만 사용합니다.
+- Scanner 카탈로그는 켜기/명시적 최신화/필요한 프로필 전환 시 준비하며 실제 인식 중에는 로컬/메모리 데이터만 사용합니다.
 
 프로그램 업데이트
 - 새 정식 버전이 있을 때만 업데이트 확인창을 표시합니다.
@@ -59,6 +69,7 @@ Scanner 데이터/설정
 - 이미지 캐시: %LocalAppData%\JunhyunHelper\image-cache
 - 지도 제품 설정: %LocalAppData%\JunhyunHelper\map-product-settings.json(.bak)
 - 탄약 즐겨찾기: %LocalAppData%\JunhyunHelper\ammo-favorites.json(.bak)
+- Scanner 설정/카탈로그: %LocalAppData%\JunhyunHelper\scanner-settings.json(.bak), scanner\catalog\
 - 프로그램 업데이트 임시 파일: %LocalAppData%\JunhyunHelper\updates\pending
 - 프로그램 일반 오류 로그: %LocalAppData%\JunhyunHelper\logs\startup.log
 - Scanner 진단 로그: %LocalAppData%\JunhyunHelper\logs\scanner.log(.1)
@@ -68,11 +79,11 @@ Scanner 데이터/설정
 - Content schema: v7
 - Readable Content schemas: v3, v4, v5, v6, v7
 - user.db SQLite schema: v1
-- v1.0.0 → v1.1.0 필수 Game Content 업데이트: 없음
-- v1.0.0 → v1.1.0 user.db migration: 없음
+- v1.1.0 → v1.1.1 필수 Game Content 업데이트: 없음
+- v1.1.0 → v1.1.1 user.db migration: 없음
 
 정확도 / 안전성
-- Quest/Hideout/Needed Items의 기존 제품 의미는 v1.0.0과 동일합니다.
+- Quest/Hideout/Needed Items의 기존 제품 의미는 v1.1.0과 동일합니다.
 - Scanner는 오탐보다 미탐을 우선합니다. 불확실한 OCR/Item ID는 강제로 선택하지 않습니다.
 - Game Content update와 Program update는 서로 다른 subsystem입니다.
 - Runtime GPT/AI 의존성은 없습니다.
@@ -80,4 +91,4 @@ Scanner 데이터/설정
 버전 정책
 - 새 기능 추가: MINOR +1, PATCH는 0으로 초기화합니다.
 - 기존 기능 수정·보완·버그 수정·성능/안정성 개선: PATCH +1입니다.
-- v1.1.0은 v1.0.0에 Scanner라는 새 사용자 기능을 추가하므로 MINOR 릴리즈입니다.
+- v1.1.1은 v1.1.0 Scanner의 UI/사용성 보완이므로 PATCH 릴리즈입니다.
