@@ -5,6 +5,7 @@
         xmlns:hideout="clr-namespace:JunhyunHelper.Desktop.Hideout"
         xmlns:items="clr-namespace:JunhyunHelper.Desktop.Items"
         xmlns:ammo="clr-namespace:JunhyunHelper.Desktop.Ammo"
+        xmlns:scanner="clr-namespace:JunhyunHelper.Desktop.Scanner"
         Title="준현 헬퍼"
         Icon="Assets/AppIcon.png"
         Width="1320"
@@ -95,24 +96,7 @@
                 </StackPanel>
             </Grid>
 
-            <Grid x:Name="ScannerPlaceholder" Visibility="Collapsed">
-                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="560">
-                    <TextBlock Text="스캐너" FontSize="26" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,12" />
-                    <Border Background="{StaticResource BackgroundMediumBrush}"
-                            BorderBrush="{StaticResource BorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="10"
-                            Padding="18,10"
-                            HorizontalAlignment="Center"
-                            Margin="0,0,0,14">
-                        <TextBlock Text="준비 중" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" />
-                    </Border>
-                    <TextBlock Text="스캐너 기능은 후속 구현 범위입니다. 검증되지 않은 인식 기능은 아직 실행하지 않습니다."
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               TextAlignment="Center"
-                               TextWrapping="Wrap" />
-                </StackPanel>
-            </Grid>
+            <scanner:ScannerPage x:Name="ScannerPlaceholder" Visibility="Collapsed" />
 
             <Grid x:Name="EmptyState">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="520">
