@@ -1,4 +1,5 @@
 name: Release v1.2.1
+# One-shot exact-source release controller. Remove after public verification.
 
 on:
   push:
