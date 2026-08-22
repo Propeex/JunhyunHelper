@@ -2,7 +2,7 @@
 
 이 문서는 **무엇을 만들고 왜 만드는지**를 정의하는 공식 제품 요구사항입니다. 사용자 확정 의도가 과거 구현보다 우선합니다.
 
-기준일: 2026-08-21
+기준일: 2026-08-22
 
 ## 1. 제품 정의
 
@@ -191,7 +191,7 @@ Map은 독립 subsystem이며 Quest만 current JunhyunHelper content/profile과 
 
 ## 13. Scanner / Mini Scanner
 
-`CONFIRMED / IMPLEMENTED / v1.1.4 PUBLIC VERIFIED / LIVE TARKOV VALIDATION ONGOING`
+`CONFIRMED / IMPLEMENTED / v1.2.1 PUBLIC VERIFIED / LIVE TARKOV VALIDATION ONGOING`
 
 Scanner는 Tarkov 화면을 Item ID로 변환해 기존 JunhyunHelper 데이터에 연결하는 입력 subsystem입니다.
 
@@ -216,40 +216,43 @@ Scanner는 Tarkov 화면을 Item ID로 변환해 기존 JunhyunHelper 데이터�
 
 real/test는 상호 배타적이며 test는 session-only입니다.
 
-### Recognition — Scanner Lab v3.8
+### Recognition
 
 ```text
 screen pixels
-→ RED-X connected-component candidates
-+
-→ rectangle/edge structural fallback candidates
-→ IoU candidate deduplication
-→ 최대 8 structural candidates
-→ candidate title ROI
-→ adaptive 4x / 6x / 8x Windows ko-KR OCR
-→ current official Korean full-item catalog resolver
-→ 필요 시 상위 3개 candidate deep OCR
-→ semantic resolution을 통과한 candidate만 inspect window로 확정
+→ detail-window structural candidates
+→ red close + magnifier + title-field anchor refinement
+→ magnifier-free title ROI
+→ Windows ko-KR OCR + current-catalog character validation
+→ current official Korean catalog semantic matching
+   OR conservative current-catalog Tarkov-font visual recovery
+→ confidence + top1/top2 margin gates
 → Item ID
 ```
 
 핵심 계약:
 
-- structural score는 후보 순위이며 최종 사실 판정이 아님
-- geometry 하나를 즉시 상세창으로 확정하지 않음
-- official current Korean full-item catalog를 semantic validator로 사용
+- structural/geometry/anchor score는 후보 evidence이며 Item identity가 아님
+- current official Korean full-item catalog를 semantic authority로 사용
 - exact-first conservative matcher 유지
-- fuzzy confidence threshold / top1-top2 margin 완화 금지
-- historical alias 누적 금지
+- fuzzy confidence threshold / top1-top2 margin을 임의로 완화하지 않음
+- historical alias를 production identity source로 무제한 누적하지 않음
 - low-confidence/ambiguous → no Item ID
 - scan-time network 금지
 - icon identity 금지
+- OCR 성공이 있으면 visual recovery가 덮어쓰지 않음
+- title anchor가 불확실하면 검증된 Scanner Lab geometry ROI로 fallback
 
-v1.1.4 안정화:
+v1.2.1 hardening:
 
-- 연속 candidate 집합에 동일 quantized `GeometrySignature`가 있을 때만 2-hit stability 누적
-- verified bounds/title signature 유지 시 OCR 반복 억제
-- title/geometry 변화 시 기존 Item clear 후 재검증
+- Tarkov title-font cache를 source path/length/last-write 및 실제 font SHA-256 generation에 결속
+- font generation이 바뀌면 loaded font/rendered visual template 재사용 금지
+- OCR-guided/full-catalog visual cache를 bounded cache로 제한
+- Mini Scanner inventory-context OCR probe는 동시 1개로 제한하고 최신 요청으로 coalesce
+- one-shot/profile mode 전환은 최신 사용자 상태를 재확인해 stale mode 부활 방지
+- font-aware OCR shutdown은 active-operation lease로 use-after-dispose 방지
+- `PrintWindow` 사전 유효성 검사에서 불필요한 full-frame managed copy 제거
+- title-anchor diagnostics는 실제 detector score를 보존
 
 ### 표시 데이터
 
@@ -265,10 +268,12 @@ Item ID 뒤에는 기존 JunhyunHelper data flow를 사용합니다.
 가격 계약:
 
 ```text
-best trader = sellFor 중 source != fleaMarket인 유효 priceRUB 최댓값
-flea average = avg24hPrice > 0
+best trader = 유효한 non-flea RUB 환산 판매가 최댓값
+flea average = positive avg24hPrice
 slots = positive width * height
 ```
+
+시장 원천은 raw `traderPrices`와 derived `sellFor`를 지원합니다. 시장/크기 정보가 누락되거나 잘못된 경우 Item identity 전체를 버리지 않고 해당 표시 필드만 fail closed합니다.
 
 `current needed`:
 
@@ -278,11 +283,11 @@ ItemsWorkspace.Plan.NeededItems[itemId].RequiredTotal
 
 Inventory 차감 부족량을 Scanner 의미로 사용하지 않습니다. Needed Items에 없으면 0입니다.
 
-verified detail을 계속 보는 동안 OCR은 반복하지 않고 presentation snapshot을 1초 간격으로 재구성해 `RequiredTotal` 등 현재 표시 데이터를 다시 연결합니다.
+verified detail을 계속 보는 동안 OCR은 반복하지 않고 presentation snapshot을 주기적으로 재구성해 `RequiredTotal` 등 현재 표시 데이터를 다시 연결합니다.
 
 Scanner icon은 local image-cache만 읽으며 성공적으로 decode/freeze한 동일 icon은 process-local memory cache에서 재사용합니다.
 
-### Scanner 탭
+### Scanner 탭 / diagnostics
 
 상단 bar:
 
@@ -294,8 +299,14 @@ bar 아래:
 - 표시 정보 checkboxes
 - 최근 인식 기록
 - 기록 header 우측 `로그 삭제`
+- `인식 이미지`
+- `1회 고정밀 스캔`
 
-`로그 삭제`는 recent activity와 `%LocalAppData%/JunhyunHelper/logs/scanner.log(.1)`을 삭제합니다. 로그 I/O 실패는 Scanner fatal이 아닙니다.
+`로그 삭제`는 recent activity, `%LocalAppData%/JunhyunHelper/logs/scanner.log(.1)`, 최신 in-memory recognition image를 함께 clear합니다. 로그/진단 I/O 실패는 Scanner fatal이 아닙니다.
+
+`인식 이미지`는 최신 diagnostic frame 1개만 process memory에 유지하며 capture source/origin, detail/title ROI, close/magnifier anchor, OCR/visual pass, candidate/confidence/reason을 확인할 수 있습니다. screenshot/raw pixel은 디스크에 저장하지 않습니다.
+
+`1회 고정밀 스캔`은 continuous Scanner가 OFF여도 실행할 수 있고 기본 global hotkey는 `Ctrl+Shift+F10`입니다. local healthy Scanner catalog만 사용하며 scan-time network refresh를 시작하지 않습니다.
 
 Foundation preview 개발 도구와 Mini Scanner 별도 위치 편집/초기화 controls는 일반 UI에 노출하지 않습니다.
 
@@ -310,6 +321,8 @@ Foundation preview 개발 도구와 Mini Scanner 별도 위치 편집/초기화 
 - visible 상태에서 언제든 direct left-drag
 - drag 완료 위치 atomic settings 저장
 - negative monitor 좌표 허용
+- 실제 Scanner mode에서는 Tarkov foreground + inventory/stash context를 보수적으로 확인
+- inventory context가 불확실하면 숨김
 
 ### Scanner 금지
 
@@ -324,16 +337,16 @@ Foundation preview 개발 도구와 Mini Scanner 별도 위치 편집/초기화 
 
 ## 14. Scanner 릴리즈 / 검증 정책
 
-v1.1.4 public release gate 완료:
+v1.2.1 public release gate 완료:
 
+- exact release source verification
 - Windows Release build
-- **247 automated tests / 0 failure / 0 skipped**
-- Scanner Lab v3.8 detector/title ROI regressions
-- Scanner market-field regressions
-- self-contained publish
-- ProductVersion/FIRST_RUN identity
-- actual packaged EXE Product UI / Scanner / Main Map / Factory / MiniMap smoke
-- actual packaged EXE `로그 삭제` activity/current/rotated log delete smoke
+- **255 automated tests / 0 failure / 0 skipped**
+- self-contained single-file publish
+- ProductVersion/FIRST_RUN/package-root audit
+- actual packaged EXE Product UI / Scanner / Mini Scanner / Main Map / Factory / MiniMap smoke
+- one-shot mode restoration / title-anchor-magnifier product smoke
+- graceful shutdown / clean portable root
 - Draft package 재다운로드 checksum/package/ProductVersion verification
 - Draft-downloaded EXE smoke
 - public/latest verification
@@ -341,11 +354,11 @@ v1.1.4 public release gate 완료:
 - public package 재다운로드 checksum/root/ProductVersion/FIRST_RUN verification
 - public-downloaded EXE smoke
 
-최종 release source는 `833ac66c522632a695d106bd7ca9b1d6bfc030dc`, public verification run은 `32476952938`입니다. 상세 asset hash와 단계별 증거는 `docs/RELEASE_1.1.4.md`에 고정합니다.
+최종 release source는 `8c0de649f18d7caa4f5669a06511c15e784dfd29`, exact-source release run은 `32542259521`입니다. 상세 asset hash와 단계별 증거는 `docs/RELEASE_1.2.1.md`에 고정합니다.
 
-**최신 Tarkov Borderless live E2E는 DEC-051에 따라 release blocker가 아닙니다.**
+**최신 Tarkov live E2E는 release blocker가 아닙니다.**
 
-공개 후 `scanner.log`와 최근 인식 기록을 이용해 capture/candidates/OCR/semantic selection/market display/input coexistence를 검증하고 필요한 보정을 PATCH로 배포합니다.
+공개 후 `scanner.log`와 `인식 이미지`를 이용해 capture/candidates/OCR/semantic or visual selection/market display/input coexistence를 검증하고, 실제 관측 근거가 있을 때만 detector/OCR/visual threshold를 조정합니다.
 
 ## 15. Images / Preference Persistence
 
@@ -373,9 +386,13 @@ Scanner smoke에는:
 - `테스트 OFF`
 - `아이템 목록 최신화`
 - `로그 삭제`
+- `인식 이미지`
+- `1회 고정밀 스캔`
 - recent recognition empty/activity state
 - removed developer/position controls 부재
 - activity/current/rotated log 실제 생성 후 clear 결과
+- one-shot mode restoration
+- title-anchor/magnifier ROI contract
 
 를 포함합니다.
 
@@ -384,13 +401,16 @@ Scanner smoke에는:
 현재 public stable:
 
 ```text
-v1.1.4 — Scanner stability / market & needed-data reliability / diagnostics hardening
-release source: 833ac66c522632a695d106bd7ca9b1d6bfc030dc
-247 passed / 0 failed / 0 skipped
+v1.2.1 — Scanner stability and accuracy hardening
+release source: 8c0de649f18d7caa4f5669a06511c15e784dfd29
+255 passed / 0 failed / 0 skipped
+Draft-downloaded EXE smoke: SUCCESS
+public/latest: VERIFIED
+exact public tag source: VERIFIED
 public-downloaded EXE smoke: SUCCESS
 ```
 
-최종 public source/run/hash는 `docs/RELEASE_1.1.4.md`에 고정되어 있습니다.
+최종 public source/run/hash는 `docs/RELEASE_1.2.1.md`에 고정되어 있습니다.
 
 버전 규칙: `docs/VERSIONING.md`.
 
@@ -399,4 +419,4 @@ public-downloaded EXE smoke: SUCCESS
 - EFT 1.0 Story Chapters: ordinary task source 밖
 - PvE Skier LL2 task-pool drift: exact fact 없으면 해당 pool fail-closed
 - code signing / installer
-- Scanner latest live Tarkov E2E는 공개 후 검증/튜닝 범위
+- Scanner 최신 live Tarkov E2E는 공개 후 관측 기반 검증/튜닝 범위
