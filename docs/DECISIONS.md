@@ -18,7 +18,7 @@
 - `DEC-004` — 사용자는 제품 판단에 집중하고 개발 절차는 개발자가 책임 — **CONFIRMED**
 - `DEC-005` — 초기 Phase 1에서는 구현보다 설계를 선행 — **PHASE-SPECIFIC / SUPERSEDED by DEC-030**
 - `DEC-006` — 공식 제품명은 준현 헬퍼 — **CONFIRMED**
-- `DEC-007` — 초기 상위 기능 영역 정의 — **CONFIRMED**, Scanner 의미는 DEC-050~053
+- `DEC-007` — 초기 상위 기능 영역 정의 — **CONFIRMED**, Scanner 의미는 DEC-050~056
 - `DEC-008` — 구두 의도는 의미를 맞춘 뒤 공식 요구사항으로 확정 — **CONFIRMED**
 - `DEC-009` — Quest 원천은 json.tarkov.dev → 내부 canonical model — **CONFIRMED**
 - `DEC-010` — 받을 수 있는 Quest는 Helper에서 이미 수락한 것으로 간주 — **CONFIRMED**
@@ -166,6 +166,9 @@
 - 1.1.0 Scanner UI/사용성 보완 → 1.1.1
 - Scanner geometry/title ROI 회귀 보정 → 1.1.2
 - Scanner Lab v3.8 recognition architecture 복원 → 1.1.3
+- Scanner market/needed-data 신뢰성 및 diagnostics 보완 → 1.1.4
+- Scanner diagnostic image/one-shot high-precision scan 추가 → 1.2.0
+- Scanner deterministic 안정성/정확성 hardening → 1.2.1
 - 상세: `docs/VERSIONING.md`
 
 ## DEC-049 — Map donor는 source pin과 fetch origin을 분리한다
@@ -177,7 +180,7 @@
 
 ## DEC-050 — Scanner는 한국어 Tarkov 화면을 Item ID로 변환하는 독립 입력 subsystem이다
 
-- 상태: `CONFIRMED / IMPLEMENTED / PARTIALLY SUPERSEDED by DEC-051/052/053`
+- 상태: `CONFIRMED / IMPLEMENTED / PARTIALLY SUPERSEDED by DEC-051/052/053/054/055/056`
 - 날짜: 2026-08-21
 - 자동 detail/title 인식 → current Korean official item name → Item ID
 - Item ID 이후 기존 JunhyunHelper 데이터 사용
@@ -191,6 +194,9 @@
 - 실게임 구현/릴리즈 제한 부분은 DEC-051이 supersede
 - Mini Scanner click-through 부분은 DEC-052가 supersede
 - recognition candidate 확정 구조는 DEC-053이 구체화
+- market/needed-data 표시 계약은 DEC-054가 구체화
+- title-recognition/diagnostics/one-shot 구조는 DEC-055가 확장
+- deterministic hardening 경계는 DEC-056이 구체화
 - 상세: `docs/SCANNER.md`
 
 ## DEC-051 — Scanner v1.1.0은 실제 구현을 공개하고 live Tarkov 검증은 로그 기반 후속으로 진행한다
@@ -216,7 +222,7 @@
 - 날짜: 2026-08-21
 - Scanner 탭의 상단 제목/상시 기능 설명문을 제거한다.
 - 상단 bar 왼쪽에 `스캐너`, `테스트`; 오른쪽에 `아이템 목록 최신화`를 둔다.
-- bar 아래에 7개 표시 정보 checkbox를 둔다.
+- bar 아래에 표시 정보 checkbox를 둔다.
 - 하단에 최근 인식 기록을 둔다.
 - 최근 기록은 OCR text, nearest official Item, similarity/confidence, top1/top2 margin, 성공/보류, reason을 사용자 문장으로 표시한다.
 - 기존 bounded `scanner.log(.1)`에서 최근 판정을 복원해 재실행 뒤에도 확인 가능하게 한다.
@@ -251,6 +257,55 @@
 - v1.1.3 public release source: `8803f899341859887281ad50135911f4625a64f3`
 - release verification: `32470606548 — SUCCESS`, 245/245 tests, Draft/Public re-download + actual EXE smoke SUCCESS
 - 상세: `docs/SCANNER.md`, `docs/SCANNER_LAB_3_8_REFERENCE.md`, `docs/RELEASE_1.1.3.md`
+
+## DEC-054 — Scanner 시장/필요 수량 표시는 기존 권위 데이터의 명시적 계약으로 고정한다
+
+- 상태: `CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED v1.1.4`
+- 날짜: 2026-08-21
+- `최고 상점가`는 유효한 non-flea RUB 환산 판매가 중 최댓값이다.
+- `플리마켓 평균가`는 positive `avg24hPrice`이며 최저가와 혼동하지 않는다.
+- `필요 개수`/`current needed`는 `ItemsWorkspace.Plan.NeededItems[itemId].RequiredTotal`이다.
+- Inventory 차감 부족량을 Scanner의 필요 수량 의미로 사용하지 않는다.
+- market/dimension 정보가 누락되거나 잘못된 경우 Item identity 전체를 버리지 않고 해당 표시 필드만 fail closed한다.
+- Scanner 로그 삭제는 recent activity와 current/rotated scanner log를 사용자 조작으로 정리할 수 있어야 한다.
+- 상세: `docs/SCANNER.md`, `docs/RELEASE_1.1.4.md`
+
+## DEC-055 — Scanner v1.2.0은 title recognition을 current-catalog anchor/visual recovery로 확장하고 사용자 진단/one-shot 기능을 제공한다
+
+- 상태: `CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED`
+- 날짜: 2026-08-22
+- red close + magnifier + title-field 구조로 detail title ROI를 refine한다.
+- magnifier가 검출되면 OCR ROI에서 magnifier pixel을 제외한다.
+- anchor가 불확실하면 검증된 Scanner Lab geometry ROI로 fail-safe fallback한다.
+- Windows `ko-KR` OCR이 primary path이며 current official Korean item-name catalog가 허용 문자와 identity의 권위다.
+- OCR이 비거나 손상된 경우에만 locally available Tarkov-font rendering을 이용한 conservative full-catalog visual recovery를 허용한다.
+- visual recovery도 current catalog 밖의 Item을 생성하지 않으며 score/margin ambiguity는 fail closed한다.
+- `인식 이미지`는 최신 diagnostic frame 1개만 process memory에 유지하고 raw screenshot을 디스크에 저장하지 않는다.
+- `1회 고정밀 스캔`은 continuous Scanner OFF에서도 실행 가능하고 local healthy catalog만 사용하며 scan-time network를 시작하지 않는다.
+- 기본 global hotkey는 `Ctrl+Shift+F10`이며 변경/비활성화 가능하다.
+- 새 사용자 기능이 포함되므로 DEC-048에 따라 **v1.2.0 MINOR**다.
+- public release source: `a7601f8498e8d75e832962fb9dd60f4112d28dc6`
+- exact-source release run: `32514322439 — SUCCESS`, 255/255 tests
+- 상세: `docs/SCANNER.md`, `docs/RELEASE_1.2.0.md`
+
+## DEC-056 — Scanner v1.2.1은 관측되지 않은 live threshold를 추측하지 않고 deterministic reliability를 hardening한다
+
+- 상태: `CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED`
+- 날짜: 2026-08-22
+- v1.2.0의 사용자 기능/recognition threshold를 유지하는 PATCH hardening이다.
+- Tarkov title-font cache는 source generation과 실제 font SHA-256 generation에 결속하고 generation 변경 시 loaded/rendered cache를 무효화한다.
+- OCR-guided/full-catalog visual cache는 bounded이며 exact font generation을 key에 포함한다.
+- Mini Scanner inventory-context OCR probe는 최대 1개만 실행하고 반복 요청은 latest snapshot으로 coalesce한다.
+- one-shot/profile lifecycle은 최신 사용자 상태를 다시 읽어 stale mode/profile 부활을 막는다.
+- font-aware OCR resource disposal은 active-operation lease를 사용해 use-after-dispose race를 막는다.
+- `PrintWindow` visual validation은 sparse pixel 직접 검사로 불필요한 1440p/4K full-frame managed copy를 제거한다.
+- title-anchor diagnostics는 실제 detector score를 보존한다.
+- 실제 Tarkov live E2E에서 얻은 증거 없이 detector/OCR/visual acceptance threshold를 완화하거나 추측 조정하지 않는다.
+- 신규 기능 확장이 아닌 기존 Scanner의 안정성/정확성/효율 보완이므로 DEC-048에 따라 **v1.2.1 PATCH**다.
+- public release source: `8c0de649f18d7caa4f5669a06511c15e784dfd29`
+- final PR CI: `32540688111 — SUCCESS`
+- exact-source release run: `32542259521 — SUCCESS`, 255/255 tests
+- 상세: `docs/SCANNER.md`, `docs/RELEASE_1.2.1.md`
 
 ---
 
