@@ -1,8 +1,26 @@
 # v1.2.1 — Scanner stability and accuracy hardening
 
-Status: **RELEASE CANDIDATE — public release not yet published**
+Status: **PUBLIC / VERIFIED**
 
-Prepared: 2026-08-22 KST
+Released: 2026-08-22 KST
+
+```text
+version: v1.2.1 PUBLIC RELEASE / VERIFIED
+release source: 8c0de649f18d7caa4f5669a06511c15e784dfd29
+final PR CI: 32540688111 — SUCCESS
+exact-source release run: 32542259521 — SUCCESS
+automated tests: 255 passed / 0 failed / 0 skipped
+asset: Junhyun-Helper-v1.2.1-win-x64.zip
+bytes: 80,306,749
+SHA-256: 48a8b54fcdc3346a092ef3da2744f2d4ca7e27d99da5b52e3ebee7b55fa0affa
+ProductVersion: 1.2.1+8c0de649f18d7caa4f5669a06511c15e784dfd29
+Draft-downloaded EXE smoke: SUCCESS
+public/latest: VERIFIED
+exact public tag source: VERIFIED
+public-downloaded EXE smoke: SUCCESS
+```
+
+Public release: https://github.com/Propeex/JunhyunHelper/releases/tag/v1.2.1
 
 ## Product scope
 
@@ -92,23 +110,37 @@ v1.2.0 -> v1.2.1 user.db migration: none
 
 Existing Profile / Quest / Hideout / Inventory / Items / Ammo / Map / MiniMap / Scanner catalog and display settings remain compatible.
 
-## Pre-release verification
+## Verification history
 
-The final static-hardening candidate before the version/documentation commit was validated in CI run `32539676032`:
+The static hardening candidate was first validated in CI run `32539676032` with a Windows Release build, 255/255 automated tests, win-x64 publish, actual published EXE Product UI / Scanner / Mini Scanner / Main Map / Factory / MiniMap smoke, normal Main Window close and clean portable root.
 
-- Windows Release build: PASS;
-- automated tests: **255 passed / 0 failed / 0 skipped**;
-- win-x64 self-contained single-file publish: PASS;
-- package-root/dependency audit: PASS;
-- actual published EXE Product UI / Scanner / Mini Scanner / Main Map / Factory / MiniMap smoke: PASS;
-- normal Main Window close / process exit / clean portable root: PASS.
+The final versioned PR head then passed CI run `32540688111` with the same release gate before PR #135 was merged. The exact merged release source is `8c0de649f18d7caa4f5669a06511c15e784dfd29`.
 
-The version/documentation commit must pass the same gate before merge.
+Exact-source release run `32542259521` checked out that SHA directly and completed:
+
+- pinned public Map donor verification;
+- Windows Release build;
+- exactly 255 automated tests, 0 failed, 0 skipped;
+- win-x64 self-contained single-file publish;
+- exact ProductVersion and FIRST_RUN verification;
+- package root / dependency / PDB / nested archive audit;
+- exact published EXE Product UI / Scanner / Mini Scanner / Main Map / Factory / MiniMap smoke;
+- one-shot mode-restoration and title-anchor/magnifier product smoke;
+- graceful shutdown and clean portable-root verification;
+- Draft release creation;
+- Draft ZIP/checksum/root/ProductVersion/FIRST_RUN re-download verification;
+- Draft-downloaded EXE smoke;
+- public/latest transition;
+- exact public tag → release-source SHA verification;
+- public ZIP/checksum/root/ProductVersion/FIRST_RUN re-download verification;
+- public-downloaded EXE smoke.
+
+### Duplicate controller run
+
+A second controller run `32542441274` started while the successful release run was already in progress. It independently rebuilt the same exact source, passed 255/255 tests and the exact published EXE smoke, then created another Draft package. During its Draft re-download step, `v1.2.1` resolved to the already-published canonical release asset from run `32542259521`; therefore its locally-created ZIP hash did not match that canonical public ZIP and the duplicate run stopped.
+
+This duplicate controller run did **not** replace the public release, tag, release source, public assets or canonical checksum. The canonical public package remains the asset and SHA-256 recorded at the top of this document.
 
 ## Deferred empirical work
 
 Latest live Tarkov end-to-end calibration remains a separate user-assisted validation activity. Misses or false positives found in actual play should be investigated from observed evidence (`scanner.log` + `인식 이미지`) before any detector/OCR/visual threshold is changed. v1.2.1 deliberately does not guess those live thresholds in advance.
-
-## Public verification
-
-This section is completed only after the exact merged release source is built, a Draft asset is re-downloaded and verified, the release becomes public/latest, and the public asset is independently re-downloaded and smoke-tested.
