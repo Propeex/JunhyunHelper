@@ -2,7 +2,7 @@
 
 기준일: 2026-08-22
 
-상태: **`v1.2.0 PUBLIC RELEASE / VERIFIED / SCANNER LAB v3.8 CONTRACT PRESERVED / LIVE TARKOV E2E ONGOING`**
+상태: **`v1.2.0 PUBLIC BASELINE / v1.2.1 RELEASE CANDIDATE / SCANNER LAB v3.8 CONTRACT PRESERVED / LIVE TARKOV E2E ONGOING`**
 
 ## 1. 목적과 안전 원칙
 
@@ -32,6 +32,31 @@ Scanner는 Tarkov 화면을 기존 JunhyunHelper Item ID와 진행 데이터에 
 - icon/image 단독 identity 확정
 - scan 순간 HTTP/API
 
+### v1.2.1 deterministic hardening
+
+v1.2.1은 live Tarkov 캡처가 필요한 recognition threshold를 추측해서 조정하지 않는 PATCH입니다. v1.2.0의 인식 의미를 유지하면서 코드/자동 검증만으로 확정할 수 있는 실행 수명, cache generation, 메모리 사용, stale-state 문제를 보강합니다.
+
+- `resources.assets` font discovery: whole-file allocation → bounded streaming scan
+- font cache: source manifest + actual Bender/Noto binary generation hash
+- visual template caches: generation-aware + bounded
+- Mini Scanner inventory/stash OCR: single active probe + latest-request coalescing + stale epoch rejection
+- one-shot/profile monitor: shared state 직렬화 + current-mode/current-context 재확인
+- shutdown: active font-recovery operation 종료 뒤 Skia/font resource disposal
+- `PrintWindow` pre-validation: duplicate whole-frame managed copy 제거
+- title-anchor diagnostics: actual component score 보존
+
+변경하지 않는 것:
+
+- Scanner Lab v3.8 structural floor `0.34`
+- OCR semantic matcher confidence threshold
+- visual recovery acceptance threshold
+- top1/top2 margin
+- current official catalog identity contract
+- two-anchor inventory/stash fail-closed gate
+- scan-time network / game-memory / injection / packet 금지 경계
+
+실제 플레이에서 얻는 miss/false-positive evidence는 `scanner.log`와 `인식 이미지`를 근거로 별도 후속 calibration에 사용합니다.
+
 ## 2. Capture mode
 
 ### 실사용
@@ -45,6 +70,8 @@ EscapeFromTarkov process/window
 ```
 
 최소화/유효하지 않은 client-area에서는 인식하지 않습니다.
+
+`PrintWindow` 결과의 visual-content 사전 검사는 locked bitmap의 sparse pixels를 직접 읽습니다. 이 확인만을 위해 1440p/4K 전체 프레임을 별도 managed `byte[]`로 복사하지 않으며 실제 detector에 필요한 normalized BGRA copy는 그대로 유지합니다.
 
 ### 테스트
 
@@ -77,7 +104,7 @@ AND every accepted item has non-empty official name
 
 ## 4. Scanner Lab v3.8 structural architecture
 
-v1.1.3에서 복원한 Scanner Lab v3.8 recognition architecture가 production geometry 기준입니다. v1.2.0은 이를 대체하지 않고 title-anchor refinement와 semantic/visual recovery를 위에 추가합니다.
+v1.1.3에서 복원한 Scanner Lab v3.8 recognition architecture가 production geometry 기준입니다. v1.2.0은 이를 대체하지 않고 title-anchor refinement와 semantic/visual recovery를 위에 추가했고, v1.2.1은 그 의미를 바꾸지 않고 lifecycle/cache를 보강합니다.
 
 ### Structural candidates
 
@@ -121,6 +148,8 @@ v1.2.0에서는 상세창 헤더의 다음 evidence를 추가로 분석합니다
 
 `ScannerTitleAnchorRefiner`는 structural candidate 안에서 anchor evidence를 평가하고 실제 title bounds를 보정합니다.
 
+v1.2.1부터 diagnostic anchor score는 anchor가 존재한다는 이유만으로 100%로 승격하지 않고 실제 detected component score를 보존합니다. 이는 진단 정확성 개선이며 Item ID confidence threshold를 낮추지 않습니다.
+
 ### Magnifier exclusion
 
 magnifier anchor가 충분히 신뢰되면 OCR title ROI의 왼쪽 경계는 magnifier 오른쪽 padding 이후로 이동합니다.
@@ -158,7 +187,7 @@ Primary OCR은 Windows `ko-KR` OCR입니다.
 
 ## 7. Tarkov-font visual recovery
 
-OCR이 비거나 corrupted character policy를 통과하지 못하거나 semantic confidence가 부족한 경우, v1.2.0은 OCR-independent visual recovery를 사용할 수 있습니다.
+OCR이 비거나 corrupted character policy를 통과하지 못하거나 semantic confidence가 부족한 경우, OCR-independent visual recovery를 사용할 수 있습니다.
 
 ```text
 actual title pixels
@@ -180,6 +209,33 @@ actual title pixels
 - successful existing OCR path를 우회하거나 약화하지 않음
 
 이 경로의 목적은 일반 OCR 엔진을 대체하는 것이 아니라 Tarkov UI glyph와 공식 이름 집합을 이용한 constrained recovery입니다.
+
+### Font source / generation contract — v1.2.1
+
+게임 폰트 바이너리는 JunhyunHelper public package에 넣지 않습니다.
+
+```text
+running EscapeFromTarkov
+→ EscapeFromTarkov_Data/resources.assets (read-only)
+→ bounded streaming SFNT discovery
+→ local Scanner font cache
+   ├─ Bender Regular
+   ├─ Bender Bold (존재 시)
+   └─ Noto Sans CJK KR
+→ font-cache.json source manifest
+→ actual cached font SHA-256 generation key
+→ generation-aware visual templates
+```
+
+- `resources.assets` 전체를 한 managed byte array로 읽지 않음
+- source path/length/last-write가 달라지면 loaded generation 재검증
+- Bender/Noto 실제 cache bytes 조합이 generation key
+- manifest를 마지막에 commit해 부분 extraction을 정상 generation으로 인정하지 않음
+- legacy cache freshness는 존재하는 모든 Bender variant + Noto를 고려
+- source/font generation이 바뀌면 기존 rendered template 폐기
+- corrupt/unavailable font cache는 visual recovery만 fail-soft로 건너뛰며 primary OCR을 fatal로 만들지 않음
+
+OCR-guided template cache와 full-catalog mask/aspect cache는 bounded이며 font generation이 바뀌면 clear합니다.
 
 ## 8. Runtime recognition flow
 
@@ -228,18 +284,20 @@ remember active mode
 → await previous loop Task completion
 → one-shot capture/OCR/presentation
 → latest user setting 확인
-→ 필요 시 previous mode restart
+→ 같은 mode가 여전히 요청된 경우에만 restart
 ```
 
-`ScannerCoordinator`의 one-shot gate는 중복 단축키/버튼 호출도 직렬화합니다.
+`ScannerCoordinator`의 one-shot gate는 중복 단축키/버튼 호출을 직렬화합니다. v1.2.1부터 profile/GameMode monitor도 같은 gate 뒤에서 최신 context를 다시 읽으므로 one-shot 중 발생한 오래된 context tick이 이전 runtime을 되살리지 않습니다.
 
-## 10. OCR serialization
+## 10. OCR serialization / resource lifetime
 
 Item-title OCR과 inventory-context OCR은 `SerializedScannerOcrEngine`을 통해 동일 WinRT OCR boundary를 공유합니다.
 
 동시에 여러 OCR call이 WinRT 엔진을 경쟁하지 않도록 `SemaphoreSlim`으로 직렬화합니다.
 
 One-shot은 이 OCR serialization뿐 아니라 continuous runtime loop 자체의 종료를 await하여 detector/presentation state race도 차단합니다.
+
+v1.2.1에서 `FontAwareScannerOcrEngine`은 active-operation lease를 사용합니다. Dispose 요청 후 새 operation은 거부하고, 이미 진행 중인 title OCR/visual recovery가 끝난 뒤 `ScannerFullCatalogVisualMatcher`, `ScannerTitleFontVerifier`, `TarkovTitleFontProvider`의 Skia/font 자원을 해제합니다. UI thread에서 Scanner task 종료를 동기 대기하지 않습니다.
 
 ## 11. 인식 이미지
 
@@ -396,11 +454,14 @@ Foundation preview/verification controls와 Mini Scanner 별도 위치 편집/�
 - drag 종료 위치 저장
 - negative multi-monitor coordinate 허용
 
+v1.2.1에서 실제 모드의 inventory/stash context probe는 동시에 최대 1개만 실행합니다. 350ms runtime refresh가 반복돼도 OCR 요청을 queue로 누적하지 않고 최신 snapshot으로 합칩니다. Item/visibility epoch가 바뀌면 이전 probe를 취소하며 늦게 완료된 이전 결과는 표시하지 않습니다. 기존 Korean inventory anchor 2개 이상 요구는 유지합니다.
+
 ## 18. Persistence
 
 ```text
 %LocalAppData%/JunhyunHelper/scanner-settings.json(.bak)
 %LocalAppData%/JunhyunHelper/scanner/catalog/items-{mode}-ko.json(.bak)
+%LocalAppData%/JunhyunHelper/scanner/fonts/
 ```
 
 Scanner display settings schema:
@@ -416,22 +477,32 @@ v1/v2 readable
 v2 written
 ```
 
-same-directory temp + flush + atomic replacement + last-known-good `.bak` recovery를 사용합니다.
+same-directory temp + flush + atomic replacement + last-known-good `.bak` recovery를 사용합니다. Scanner font cache는 source manifest와 generation hash를 별도로 사용합니다.
 
-## 19. v1.2.0 검증 계약
+## 19. 검증 계약
 
-Public release source:
-
-```text
-a7601f8498e8d75e832962fb9dd60f4112d28dc6
-```
-
-Exact-source release run:
+v1.2.0 public baseline:
 
 ```text
-32514322439 — SUCCESS
+release source: a7601f8498e8d75e832962fb9dd60f4112d28dc6
+exact-source release run: 32514322439 — SUCCESS
 255 passed / 0 failed / 0 skipped
+asset: Junhyun-Helper-v1.2.0-win-x64.zip
+SHA-256: ab5e9ef35b300268d16a1c5eece86cd8c6e57c91c83364caf4b7d02cde1d27d1
 ```
+
+v1.2.1 pre-release final static candidate:
+
+```text
+CI run: 32539676032 — SUCCESS
+255 passed / 0 failed / 0 skipped
+Windows Release build: PASS
+win-x64 self-contained publish: PASS
+published EXE Product UI / Scanner / Mini Scanner / Main Map / Factory / MiniMap smoke: PASS
+graceful shutdown / clean portable root: PASS
+```
+
+최종 v1.2.1 version/FIRST_RUN/docs가 포함된 head는 같은 CI gate를 다시 통과해야 하며, merge 후 exact release source에서 Draft/Public 재다운로드 검증을 별도로 수행합니다.
 
 Release gate:
 
@@ -454,15 +525,6 @@ Release gate:
 - public asset re-download verification
 - public-downloaded EXE smoke
 
-Public asset:
-
-```text
-Junhyun-Helper-v1.2.0-win-x64.zip
-80,298,514 bytes
-SHA-256 ab5e9ef35b300268d16a1c5eece86cd8c6e57c91c83364caf4b7d02cde1d27d1
-ProductVersion 1.2.0+a7601f8498e8d75e832962fb9dd60f4112d28dc6
-```
-
 실제 최신 Tarkov Borderless E2E는 release blocker가 아니며 사용자 환경에서 계속 검증합니다. 문제 발생 시 `scanner.log`와 `인식 이미지`로 capture → geometry → anchors → ROI → OCR/visual matcher → catalog → presentation → overlay를 분리해 진단합니다.
 
-상세: `docs/SCANNER_TEST_PLAN.md`, `docs/SCANNER_LAB_3_8_REFERENCE.md`, `docs/RELEASE_1.2.0.md`.
+상세: `docs/SCANNER_TEST_PLAN.md`, `docs/SCANNER_LAB_3_8_REFERENCE.md`, `docs/RELEASE_1.2.0.md`, `docs/RELEASE_1.2.1.md`.

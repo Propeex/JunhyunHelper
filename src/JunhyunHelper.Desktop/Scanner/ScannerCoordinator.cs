@@ -363,14 +363,35 @@ public sealed partial class ScannerCoordinator : IDisposable
                     _observedContextKey = key;
                 }
 
-                if (context is null)
+                // A profile/game-mode transition and one-shot recognition both mutate
+                // the same runtime/catalog/presentation state. Wait for an active
+                // one-shot to finish, then re-read the latest context before applying
+                // the transition so a stale monitor tick cannot restart the old state.
+                await _oneShotCoordinatorGate.WaitAsync(cancellationToken);
+                try
                 {
-                    Runtime.Suspend(ScannerRuntimeState.NoProfile, "Scanner를 사용할 활성 프로필이 없습니다.");
-                    continue;
-                }
+                    if (_disposed)
+                        return;
 
-                Runtime.Suspend(ScannerRuntimeState.Stabilizing, "프로필 변경을 반영하는 중입니다.");
-                await PrepareActiveRuntimeAsync(mode.Value, refreshCatalog: true, cancellationToken);
+                    var currentMode = ActiveCaptureMode;
+                    if (currentMode is null)
+                        return;
+
+                    var latestContext = GetContext();
+                    SetObservedContext(latestContext);
+                    if (latestContext is null)
+                    {
+                        Runtime.Suspend(ScannerRuntimeState.NoProfile, "Scanner를 사용할 활성 프로필이 없습니다.");
+                        continue;
+                    }
+
+                    Runtime.Suspend(ScannerRuntimeState.Stabilizing, "프로필 변경을 반영하는 중입니다.");
+                    await PrepareActiveRuntimeAsync(currentMode.Value, refreshCatalog: true, cancellationToken);
+                }
+                finally
+                {
+                    _oneShotCoordinatorGate.Release();
+                }
             }
         }
         catch (OperationCanceledException)

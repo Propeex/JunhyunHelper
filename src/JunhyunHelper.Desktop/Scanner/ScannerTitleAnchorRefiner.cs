@@ -73,8 +73,10 @@ internal static class ScannerTitleAnchorRefiner
         }
 
         refined = Clamp(refined, width, height);
-        var closeScore = close.Width > 0 ? 1.0 : 0.0;
-        var magnifierScore = magnifier.Width > 0 ? 1.0 : 0.0;
+        // Preserve the detector's actual evidence quality in diagnostics instead
+        // of upgrading every merely-present anchor to perfect confidence.
+        var closeScore = close.Width > 0 ? Math.Clamp(close.Score, 0, 1) : 0.0;
+        var magnifierScore = magnifier.Width > 0 ? Math.Clamp(magnifier.Score, 0, 1) : 0.0;
         var anchorScore = closeScore * 0.38 + magnifierScore * 0.37 + fieldScore * 0.25;
         var reason = anchorScore >= 0.72
             ? "TITLE_ANCHORS_STRONG"

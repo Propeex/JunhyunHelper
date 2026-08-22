@@ -20,10 +20,14 @@ public sealed class ScannerFullCatalogVisualMatcher : IDisposable
     private const int CoarseShortlistPerVariant = 96;
     private const int DetailedShortlist = 72;
     private const int NormalizedHeight = 38;
+    private const int MaskCacheLimit = 768;
+    private const int AspectCacheLimit = 16_384;
 
     private readonly TarkovTitleFontProvider _fontProvider;
     private readonly ConcurrentDictionary<string, BinaryMask> _maskCache = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, double> _aspectCache = new(StringComparer.Ordinal);
+    private readonly object _cacheGate = new();
+    private string _cacheGeneration = string.Empty;
     private bool _disposed;
 
     public ScannerFullCatalogVisualMatcher(TarkovTitleFontProvider fontProvider)
@@ -42,6 +46,7 @@ public sealed class ScannerFullCatalogVisualMatcher : IDisposable
         ArgumentNullException.ThrowIfNull(catalog);
         if (catalog.Count == 0 || !_fontProvider.TryGetFonts(out var fonts))
             return null;
+        EnsureCacheGeneration(fonts.GenerationKey);
 
         var observed = CreateObservedMask(observedTitle);
         if (observed is null)
@@ -60,7 +65,12 @@ public sealed class ScannerFullCatalogVisualMatcher : IDisposable
                          .Where(item => !string.IsNullOrWhiteSpace(item.Id) && !string.IsNullOrWhiteSpace(item.OfficialName))
                          .Select(item =>
                          {
-                             var aspect = GetRenderedAspect(item.OfficialName, bender, fonts.NotoKorean, variantName);
+                             var aspect = GetRenderedAspect(
+                                 item.OfficialName,
+                                 bender,
+                                 fonts.NotoKorean,
+                                 variantName,
+                                 fonts.GenerationKey);
                              var ratio = aspect <= 0 || observedAspect <= 0
                                  ? 0
                                  : Math.Min(aspect, observedAspect) / Math.Max(aspect, observedAspect);
@@ -97,7 +107,8 @@ public sealed class ScannerFullCatalogVisualMatcher : IDisposable
             if (typeface is null)
                 continue;
 
-            var cacheKey = $"{candidate.FontVariant}\n{candidate.Item.OfficialName}";
+            EnsureMaskCapacity();
+            var cacheKey = $"{fonts.GenerationKey}\n{candidate.FontVariant}\n{candidate.Item.OfficialName}";
             BinaryMask template;
             try
             {
@@ -185,9 +196,11 @@ public sealed class ScannerFullCatalogVisualMatcher : IDisposable
         string text,
         SKTypeface bender,
         SKTypeface korean,
-        string variantName)
+        string variantName,
+        string generationKey)
     {
-        var key = $"{variantName}\n{text}";
+        EnsureAspectCapacity();
+        var key = $"{generationKey}\n{variantName}\n{text}";
         return _aspectCache.GetOrAdd(key, _ =>
         {
             using var benderFont = new SKFont(bender, 52f);
@@ -204,6 +217,40 @@ public sealed class ScannerFullCatalogVisualMatcher : IDisposable
             // exact acceptance always uses rasterized mask comparison below.
             return width / 43.0;
         });
+    }
+
+    private void EnsureCacheGeneration(string generationKey)
+    {
+        lock (_cacheGate)
+        {
+            if (string.Equals(_cacheGeneration, generationKey, StringComparison.Ordinal))
+                return;
+            _maskCache.Clear();
+            _aspectCache.Clear();
+            _cacheGeneration = generationKey;
+        }
+    }
+
+    private void EnsureMaskCapacity()
+    {
+        if (_maskCache.Count < MaskCacheLimit)
+            return;
+        lock (_cacheGate)
+        {
+            if (_maskCache.Count >= MaskCacheLimit)
+                _maskCache.Clear();
+        }
+    }
+
+    private void EnsureAspectCapacity()
+    {
+        if (_aspectCache.Count < AspectCacheLimit)
+            return;
+        lock (_cacheGate)
+        {
+            if (_aspectCache.Count >= AspectCacheLimit)
+                _aspectCache.Clear();
+        }
     }
 
     private static double BestSemanticScore(string officialName, IReadOnlyList<string> variants)
@@ -537,8 +584,12 @@ public sealed class ScannerFullCatalogVisualMatcher : IDisposable
         if (_disposed)
             return;
         _disposed = true;
-        _maskCache.Clear();
-        _aspectCache.Clear();
+        lock (_cacheGate)
+        {
+            _maskCache.Clear();
+            _aspectCache.Clear();
+            _cacheGeneration = string.Empty;
+        }
         GC.SuppressFinalize(this);
     }
 

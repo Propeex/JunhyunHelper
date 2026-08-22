@@ -1,5 +1,8 @@
 using System.Buffers.Binary;
 using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using SkiaSharp;
 
 namespace JunhyunHelper.Desktop.Scanner;
@@ -12,11 +15,18 @@ namespace JunhyunHelper.Desktop.Scanner;
 /// </summary>
 public sealed class TarkovTitleFontProvider : IDisposable
 {
+    private const long MaxResourcesAssetBytes = 1_073_741_824;
+    private const int MaxFontPayloadBytes = 67_108_864;
+    private const int ScanBufferBytes = 1024 * 1024;
+    private const int FontCacheSchemaVersion = 1;
     private static readonly TimeSpan RetryInterval = TimeSpan.FromSeconds(5);
+
     private readonly object _gate = new();
     private readonly string _cacheDirectory;
+    private readonly string _manifestPath;
 
     private TarkovTitleFonts? _fonts;
+    private SourceStamp? _loadedSourceStamp;
     private DateTimeOffset _nextAttemptUtc = DateTimeOffset.MinValue;
     private bool _disposed;
 
@@ -24,6 +34,7 @@ public sealed class TarkovTitleFontProvider : IDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rootDirectory);
         _cacheDirectory = Path.Combine(Path.GetFullPath(rootDirectory), "scanner", "fonts");
+        _manifestPath = Path.Combine(_cacheDirectory, "font-cache.json");
     }
 
     public bool TryGetFonts(out TarkovTitleFonts fonts)
@@ -32,10 +43,20 @@ public sealed class TarkovTitleFontProvider : IDisposable
 
         lock (_gate)
         {
-            if (_fonts is not null)
+            var resourcesPath = FindResourcesAssets();
+            var sourceStamp = TryGetSourceStamp(resourcesPath);
+            if (_fonts is not null && IsLoadedGenerationCurrent(sourceStamp))
             {
                 fonts = _fonts;
                 return true;
+            }
+
+            if (_fonts is not null)
+            {
+                _fonts.Dispose();
+                _fonts = null;
+                _loadedSourceStamp = null;
+                ScannerDiagnosticLog.Write("title-font-source-changed");
             }
 
             if (DateTimeOffset.UtcNow < _nextAttemptUtc)
@@ -45,33 +66,56 @@ public sealed class TarkovTitleFontProvider : IDisposable
             }
             _nextAttemptUtc = DateTimeOffset.UtcNow + RetryInterval;
 
-            var resourcesPath = FindResourcesAssets();
-            if (TryLoadCache(resourcesPath, out var cached))
+            if (TryLoadCache(resourcesPath, sourceStamp, out var cached))
             {
                 _fonts = cached;
+                _loadedSourceStamp = sourceStamp;
                 fonts = cached;
                 return true;
             }
 
-            if (resourcesPath is null || !TryExtractRequiredFonts(resourcesPath))
+            if (resourcesPath is null || sourceStamp is null || !TryExtractRequiredFonts(resourcesPath, sourceStamp.Value))
             {
                 fonts = null!;
                 return false;
             }
 
-            if (!TryLoadCache(resourcesPath, out cached))
+            if (!TryLoadCache(resourcesPath, sourceStamp, out cached))
             {
                 fonts = null!;
                 return false;
             }
 
             _fonts = cached;
+            _loadedSourceStamp = sourceStamp;
             fonts = cached;
             return true;
         }
     }
 
-    private bool TryLoadCache(string? resourcesPath, out TarkovTitleFonts fonts)
+    private bool IsLoadedGenerationCurrent(SourceStamp? currentSource)
+    {
+        if (_fonts is null)
+            return false;
+
+        // A cached generation remains useful when Tarkov is not currently running.
+        // Once a live resources.assets path is visible, however, its identity must match
+        // the generation that was loaded into this process before we keep using it.
+        if (currentSource is null)
+            return true;
+        if (_loadedSourceStamp is { } loaded)
+            return loaded.Equals(currentSource.Value);
+
+        if (!CacheMatchesSource(currentSource.Value))
+            return false;
+        _loadedSourceStamp = currentSource;
+        return true;
+    }
+
+    private bool TryLoadCache(
+        string? resourcesPath,
+        SourceStamp? sourceStamp,
+        out TarkovTitleFonts fonts)
     {
         fonts = null!;
         try
@@ -83,18 +127,18 @@ public sealed class TarkovTitleFontProvider : IDisposable
             if (!File.Exists(koreanPath) || (!File.Exists(regularPath) && !File.Exists(boldPath)))
                 return false;
 
-            if (resourcesPath is not null && File.Exists(resourcesPath))
+            if (sourceStamp is { } liveSource && !CacheMatchesSource(liveSource))
             {
-                var sourceStamp = File.GetLastWriteTimeUtc(resourcesPath);
-                var cacheStamp = new[]
-                    {
-                        koreanPath,
-                        File.Exists(regularPath) ? regularPath : boldPath,
-                    }
-                    .Select(File.GetLastWriteTimeUtc)
-                    .Min();
-                if (sourceStamp > cacheStamp)
+                // Legacy v1.2.0 caches have no manifest. Keep them readable when their
+                // files are at least as new as the current source, but force extraction
+                // whenever Tarkov's resources.assets is newer.
+                var legacyManifest = TryReadManifest();
+                if (legacyManifest is not null || SourceIsNewerThanCache(liveSource, regularPath, boldPath, koreanPath))
                     return false;
+            }
+            else if (resourcesPath is not null && sourceStamp is null && File.Exists(resourcesPath))
+            {
+                return false;
             }
 
             var regular = File.Exists(regularPath) ? SKTypeface.FromFile(regularPath) : null;
@@ -124,7 +168,27 @@ public sealed class TarkovTitleFontProvider : IDisposable
                 return false;
             }
 
-            fonts = new TarkovTitleFonts(regular, bold, korean);
+            var generationKey = ComputeCacheGenerationKey(regularPath, boldPath, koreanPath);
+            if (string.IsNullOrWhiteSpace(generationKey))
+            {
+                regular?.Dispose();
+                bold?.Dispose();
+                korean.Dispose();
+                return false;
+            }
+
+            var manifest = TryReadManifest();
+            if (manifest is not null &&
+                (!string.Equals(manifest.GenerationKey, generationKey, StringComparison.Ordinal) ||
+                 manifest.SchemaVersion != FontCacheSchemaVersion))
+            {
+                regular?.Dispose();
+                bold?.Dispose();
+                korean.Dispose();
+                return false;
+            }
+
+            fonts = new TarkovTitleFonts(regular, bold, korean, generationKey);
             return true;
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -138,20 +202,18 @@ public sealed class TarkovTitleFontProvider : IDisposable
         }
     }
 
-    private bool TryExtractRequiredFonts(string resourcesPath)
+    private bool TryExtractRequiredFonts(string resourcesPath, SourceStamp sourceStamp)
     {
         try
         {
-            var info = new FileInfo(resourcesPath);
-            if (info.Length is <= 0 or > 134_217_728)
+            if (sourceStamp.Length is <= 0 or > MaxResourcesAssetBytes)
                 return false;
 
-            var bytes = File.ReadAllBytes(resourcesPath);
             byte[]? regular = null;
             byte[]? bold = null;
             byte[]? korean = null;
 
-            foreach (var payload in EnumerateSfntPayloads(bytes))
+            foreach (var payload in EnumerateSfntPayloads(resourcesPath, sourceStamp.Length))
             {
                 using var data = SKData.CreateCopy(payload);
                 using var typeface = SKTypeface.FromData(data);
@@ -187,11 +249,33 @@ public sealed class TarkovTitleFontProvider : IDisposable
             }
 
             Directory.CreateDirectory(_cacheDirectory);
+            var regularPath = Path.Combine(_cacheDirectory, "Bender-Regular.otf");
+            var boldPath = Path.Combine(_cacheDirectory, "Bender-Bold.otf");
+            var koreanPath = Path.Combine(_cacheDirectory, "NotoSans-CJK-KR-Regular.otf");
+
+            // Do not leave an old variant from an earlier Tarkov generation next to a
+            // newly extracted set. The manifest is committed last, so an interrupted
+            // update is rejected on the next load rather than silently mixing fonts.
             if (regular is not null)
-                WriteAtomically(Path.Combine(_cacheDirectory, "Bender-Regular.otf"), regular);
+                WriteAtomically(regularPath, regular);
+            else
+                TryDelete(regularPath);
             if (bold is not null)
-                WriteAtomically(Path.Combine(_cacheDirectory, "Bender-Bold.otf"), bold);
-            WriteAtomically(Path.Combine(_cacheDirectory, "NotoSans-CJK-KR-Regular.otf"), korean);
+                WriteAtomically(boldPath, bold);
+            else
+                TryDelete(boldPath);
+            WriteAtomically(koreanPath, korean);
+
+            var generationKey = ComputeCacheGenerationKey(regularPath, boldPath, koreanPath);
+            if (string.IsNullOrWhiteSpace(generationKey))
+                return false;
+
+            WriteManifestAtomically(new FontCacheManifest(
+                FontCacheSchemaVersion,
+                sourceStamp.Path,
+                sourceStamp.Length,
+                sourceStamp.LastWriteUtcTicks,
+                generationKey));
 
             ScannerDiagnosticLog.Write(
                 "title-font-extract-ready",
@@ -199,7 +283,8 @@ public sealed class TarkovTitleFontProvider : IDisposable
                 ("resources", resourcesPath),
                 ("benderRegular", regular is not null),
                 ("benderBold", bold is not null),
-                ("notoKorean", true));
+                ("notoKorean", true),
+                ("generation", generationKey[..Math.Min(12, generationKey.Length)]));
             return true;
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -213,23 +298,120 @@ public sealed class TarkovTitleFontProvider : IDisposable
         }
     }
 
-    private static IEnumerable<byte[]> EnumerateSfntPayloads(byte[] source)
+    /// <summary>
+    /// Scans resources.assets in a bounded streaming buffer. v1.2.0 loaded the whole
+    /// file into one managed byte array; streaming keeps the visual-recovery fallback
+    /// from creating a large transient allocation when Tarkov's asset file grows.
+    /// </summary>
+    private static IEnumerable<byte[]> EnumerateSfntPayloads(string path, long fileLength)
     {
-        for (var offset = 0; offset <= source.Length - 12; offset++)
-        {
-            if (!LooksLikeSfnt(source, offset))
-                continue;
-            if (!TryGetSfntLength(source, offset, out var length))
-                continue;
+        var buffer = new byte[ScanBufferBytes + 11];
+        using var scan = new FileStream(
+            path,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete,
+            ScanBufferBytes,
+            FileOptions.SequentialScan);
+        using var random = new FileStream(
+            path,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete,
+            64 * 1024,
+            FileOptions.RandomAccess);
 
-            var payload = new byte[length];
-            Buffer.BlockCopy(source, offset, payload, 0, length);
-            yield return payload;
-            offset += Math.Max(0, length - 1);
+        var carry = 0;
+        long nextReadOffset = 0;
+        while (nextReadOffset < fileLength)
+        {
+            var requested = (int)Math.Min(ScanBufferBytes, fileLength - nextReadOffset);
+            var read = scan.Read(buffer, carry, requested);
+            if (read <= 0)
+                yield break;
+
+            var total = carry + read;
+            var bufferStart = nextReadOffset - carry;
+            for (var index = 0; index <= total - 12; index++)
+            {
+                if (!LooksLikeSfnt(buffer, index))
+                    continue;
+                var numTables = BinaryPrimitives.ReadUInt16BigEndian(buffer.AsSpan(index + 4, 2));
+                if (numTables is < 1 or > 128)
+                    continue;
+
+                var absoluteOffset = bufferStart + index;
+                if (absoluteOffset < 0 || !TryReadSfntPayload(random, absoluteOffset, fileLength, out var payload))
+                    continue;
+                yield return payload;
+            }
+
+            nextReadOffset += read;
+            carry = Math.Min(11, total);
+            if (carry > 0)
+                Buffer.BlockCopy(buffer, total - carry, buffer, 0, carry);
         }
     }
 
-    internal static bool TryGetSfntLength(ReadOnlySpan<byte> source, int start, out int length)
+    private static bool TryReadSfntPayload(
+        FileStream stream,
+        long start,
+        long fileLength,
+        out byte[] payload)
+    {
+        payload = [];
+        try
+        {
+            if (start < 0 || start > fileLength - 12)
+                return false;
+
+            Span<byte> header = stackalloc byte[12];
+            stream.Position = start;
+            stream.ReadExactly(header);
+            if (!LooksLikeSfnt(header, 0))
+                return false;
+
+            var numTables = BinaryPrimitives.ReadUInt16BigEndian(header.Slice(4, 2));
+            if (numTables is < 1 or > 128)
+                return false;
+            var directoryLength = 12 + numTables * 16;
+            if (start > fileLength - directoryLength)
+                return false;
+
+            var directory = new byte[directoryLength];
+            stream.Position = start;
+            stream.ReadExactly(directory);
+            if (!TryGetSfntLength(
+                    directory,
+                    start: 0,
+                    availableLength: fileLength - start,
+                    out var length) ||
+                length > MaxFontPayloadBytes)
+            {
+                return false;
+            }
+
+            payload = new byte[length];
+            stream.Position = start;
+            stream.ReadExactly(payload);
+            return true;
+        }
+        catch (Exception exception) when (
+            exception is IOException or EndOfStreamException or ArgumentOutOfRangeException)
+        {
+            payload = [];
+            return false;
+        }
+    }
+
+    internal static bool TryGetSfntLength(ReadOnlySpan<byte> source, int start, out int length) =>
+        TryGetSfntLength(source, start, source.Length - start, out length);
+
+    private static bool TryGetSfntLength(
+        ReadOnlySpan<byte> source,
+        int start,
+        long availableLength,
+        out int length)
     {
         length = 0;
         if (start < 0 || start > source.Length - 12 || !LooksLikeSfnt(source, start))
@@ -250,20 +432,114 @@ public sealed class TarkovTitleFontProvider : IDisposable
             var tableOffset = BinaryPrimitives.ReadUInt32BigEndian(source.Slice(record + 8, 4));
             var tableLength = BinaryPrimitives.ReadUInt32BigEndian(source.Slice(record + 12, 4));
             var tableEnd = (long)tableOffset + tableLength;
-            if (tableOffset < directoryLength || tableLength == 0 || tableEnd > source.Length - start)
+            if (tableOffset < directoryLength || tableLength == 0 || tableEnd > availableLength)
                 return false;
             maximumEnd = Math.Max(maximumEnd, tableEnd);
         }
 
-        if (maximumEnd is <= 12 or > int.MaxValue)
+        if (maximumEnd is <= 12 or > int.MaxValue || maximumEnd > MaxFontPayloadBytes)
             return false;
 
         var alignedEnd = (maximumEnd + 3) & ~3L;
-        if (alignedEnd > source.Length - start)
+        if (alignedEnd > availableLength)
             alignedEnd = maximumEnd;
 
         length = (int)alignedEnd;
         return true;
+    }
+
+    private bool CacheMatchesSource(SourceStamp source)
+    {
+        try
+        {
+            var manifest = TryReadManifest();
+            return manifest is not null &&
+                   manifest.SchemaVersion == FontCacheSchemaVersion &&
+                   !string.IsNullOrWhiteSpace(manifest.SourcePath) &&
+                   string.Equals(
+                       Path.GetFullPath(manifest.SourcePath),
+                       source.Path,
+                       StringComparison.OrdinalIgnoreCase) &&
+                   manifest.SourceLength == source.Length &&
+                   manifest.SourceLastWriteUtcTicks == source.LastWriteUtcTicks;
+        }
+        catch (Exception exception) when (
+            exception is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return false;
+        }
+    }
+
+    private FontCacheManifest? TryReadManifest()
+    {
+        try
+        {
+            if (!File.Exists(_manifestPath))
+                return null;
+            using var stream = File.OpenRead(_manifestPath);
+            return JsonSerializer.Deserialize<FontCacheManifest>(stream);
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or JsonException or NotSupportedException)
+        {
+            return null;
+        }
+    }
+
+    private static bool SourceIsNewerThanCache(
+        SourceStamp source,
+        string regularPath,
+        string boldPath,
+        string koreanPath)
+    {
+        var cachedFonts = new List<string>(3);
+        if (File.Exists(regularPath))
+            cachedFonts.Add(regularPath);
+        if (File.Exists(boldPath))
+            cachedFonts.Add(boldPath);
+        if (!File.Exists(koreanPath) || cachedFonts.Count == 0)
+            return true;
+
+        cachedFonts.Add(koreanPath);
+        var oldestCacheStamp = cachedFonts
+            .Select(File.GetLastWriteTimeUtc)
+            .Min();
+        return source.LastWriteUtcTicks > oldestCacheStamp.Ticks;
+    }
+
+    private static string ComputeCacheGenerationKey(
+        string regularPath,
+        string boldPath,
+        string koreanPath)
+    {
+        var rows = new List<string>(3);
+        if (File.Exists(regularPath))
+            rows.Add("regular:" + HashFile(regularPath));
+        if (File.Exists(boldPath))
+            rows.Add("bold:" + HashFile(boldPath));
+        if (!File.Exists(koreanPath))
+            return string.Empty;
+        rows.Add("korean:" + HashFile(koreanPath));
+        var joined = Encoding.UTF8.GetBytes(string.Join('|', rows));
+        return Convert.ToHexString(SHA256.HashData(joined));
+    }
+
+    private static string HashFile(string path)
+    {
+        using var stream = new FileStream(
+            path,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            128 * 1024,
+            FileOptions.SequentialScan);
+        return Convert.ToHexString(SHA256.HashData(stream));
+    }
+
+    private void WriteManifestAtomically(FontCacheManifest manifest)
+    {
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(manifest);
+        WriteAtomically(_manifestPath, bytes);
     }
 
     private static bool LooksLikeSfnt(ReadOnlySpan<byte> source, int offset)
@@ -318,7 +594,7 @@ public sealed class TarkovTitleFontProvider : IDisposable
 
                     var resources = Path.Combine(directory, "EscapeFromTarkov_Data", "resources.assets");
                     if (File.Exists(resources))
-                        return resources;
+                        return Path.GetFullPath(resources);
                 }
             }
         }
@@ -332,11 +608,64 @@ public sealed class TarkovTitleFontProvider : IDisposable
         return null;
     }
 
+    private static SourceStamp? TryGetSourceStamp(string? resourcesPath)
+    {
+        if (string.IsNullOrWhiteSpace(resourcesPath))
+            return null;
+        try
+        {
+            var info = new FileInfo(resourcesPath);
+            if (!info.Exists)
+                return null;
+            return new SourceStamp(
+                Path.GetFullPath(resourcesPath),
+                info.Length,
+                info.LastWriteTimeUtc.Ticks);
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            return null;
+        }
+    }
+
     private static void WriteAtomically(string path, byte[] bytes)
     {
-        var temp = path + ".tmp";
-        File.WriteAllBytes(temp, bytes);
-        File.Move(temp, path, overwrite: true);
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrWhiteSpace(directory))
+            Directory.CreateDirectory(directory);
+        var temp = $"{path}.{Guid.NewGuid():N}.tmp";
+        try
+        {
+            using (var stream = new FileStream(
+                       temp,
+                       FileMode.CreateNew,
+                       FileAccess.Write,
+                       FileShare.None,
+                       64 * 1024,
+                       FileOptions.WriteThrough))
+            {
+                stream.Write(bytes);
+                stream.Flush(flushToDisk: true);
+            }
+            File.Move(temp, path, overwrite: true);
+        }
+        finally
+        {
+            TryDelete(temp);
+        }
+    }
+
+    private static void TryDelete(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+        catch
+        {
+        }
     }
 
     public void Dispose()
@@ -348,25 +677,43 @@ public sealed class TarkovTitleFontProvider : IDisposable
         {
             _fonts?.Dispose();
             _fonts = null;
+            _loadedSourceStamp = null;
         }
         GC.SuppressFinalize(this);
     }
+
+    private readonly record struct SourceStamp(string Path, long Length, long LastWriteUtcTicks);
+
+    private sealed record FontCacheManifest(
+        int SchemaVersion,
+        string SourcePath,
+        long SourceLength,
+        long SourceLastWriteUtcTicks,
+        string GenerationKey);
 }
 
 public sealed class TarkovTitleFonts : IDisposable
 {
     private bool _disposed;
 
-    public TarkovTitleFonts(SKTypeface? benderRegular, SKTypeface? benderBold, SKTypeface notoKorean)
+    public TarkovTitleFonts(
+        SKTypeface? benderRegular,
+        SKTypeface? benderBold,
+        SKTypeface notoKorean,
+        string generationKey)
     {
         BenderRegular = benderRegular;
         BenderBold = benderBold;
         NotoKorean = notoKorean ?? throw new ArgumentNullException(nameof(notoKorean));
+        GenerationKey = string.IsNullOrWhiteSpace(generationKey)
+            ? throw new ArgumentException("Font generation key is required.", nameof(generationKey))
+            : generationKey;
     }
 
     public SKTypeface? BenderRegular { get; }
     public SKTypeface? BenderBold { get; }
     public SKTypeface NotoKorean { get; }
+    public string GenerationKey { get; }
 
     public IEnumerable<SKTypeface> BenderVariants
     {

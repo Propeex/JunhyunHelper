@@ -1,10 +1,23 @@
-준현 헬퍼 v1.2.0 — Windows x64
+준현 헬퍼 v1.2.1 — Windows x64
 
 실행 방법
 1. 받은 ZIP 파일을 원하는 폴더에 압축 해제합니다.
 2. '준현 헬퍼.exe'를 실행합니다.
 3. 처음 실행하면 프로필을 만들고 필요한 최신 게임 데이터를 온라인에서 내려받습니다.
 4. 프로그램 실행 시 GitHub의 최신 정식 준현 헬퍼 릴리즈를 확인합니다. 더 최신 버전이 있으면 업데이트 여부를 묻습니다.
+
+v1.2.1 주요 변경 — Scanner 안정성·정확성 하드닝
+- 실사용 데이터가 필요한 인식 임계값 튜닝은 하지 않고 코드와 자동 검증으로 확정할 수 있는 안정성·정확성 문제를 보완했습니다.
+- Tarkov resources.assets 제목 폰트 탐색을 bounded streaming scan으로 바꿔 전체 asset 파일의 대형 임시 메모리 적재를 제거했습니다.
+- Bender/Noto 로컬 폰트 캐시를 Tarkov 원본 세대와 묶고 실제 폰트 바이너리 해시를 시각 템플릿 세대에 연결합니다.
+- OCR/전체 카탈로그 시각 대조 템플릿 캐시에 상한을 두고 폰트 세대가 바뀌면 과거 템플릿을 폐기합니다.
+- Mini Scanner 인벤토리/창고 판별 OCR은 동시에 하나만 수행하며 반복 표시 요청은 최신 요청으로 합치고 이전 아이템의 늦은 결과를 거부합니다.
+- 1회 고정밀 스캔과 프로필/GameMode 감시를 직렬화해 사용자가 끈 이전 mode/context가 뒤늦게 되살아나지 않게 했습니다.
+- 종료 시 진행 중이던 font-aware recognition이 끝난 뒤 Skia/font 자원을 해제해 use-after-dispose 경합을 막습니다.
+- PrintWindow 유효성 검사에서 1440p/4K 전체 프레임의 불필요한 두 번째 managed 복사를 제거했습니다.
+- 제목 anchor 진단 점수는 anchor 존재 여부를 100%로 승격하지 않고 실제 검출 점수를 보존합니다.
+- 기존 OCR 우선, 보수적 confidence/top1-top2 margin, 애매하면 미표시, scan-time network 금지, 게임 메모리/DLL injection/패킷 가로채기 금지 계약은 그대로 유지합니다.
+- Content schema, user.db schema, Scanner 표시 설정 schema는 변경하지 않습니다.
 
 v1.2.0 주요 변경 — Scanner 제목 인식 구조 전면 보강
 - 상세보기 창 상단의 빨간 X, 좌측 돋보기, 어두운 제목 필드를 독립적인 구조 anchor로 사용해 아이템 이름 영역을 더 정확하게 잡습니다. anchor가 불확실하면 기존 검증된 geometry 영역으로 되돌아가는 fail-closed fallback을 유지합니다.
@@ -111,8 +124,8 @@ Scanner 진단
 - Content schema: v7
 - Readable Content schemas: v3, v4, v5, v6, v7
 - user.db SQLite schema: v1
-- v1.1.6 → v1.2.0 필수 Game Content schema 업데이트: 없음
-- v1.1.6 → v1.2.0 user.db migration: 없음
+- v1.2.0 → v1.2.1 필수 Game Content schema 업데이트: 없음
+- v1.2.0 → v1.2.1 user.db migration: 없음
 - Scanner 표시 설정은 내부 schema v3이며 v2 이하 설정을 자동 마이그레이션합니다.
 - 기존 Scanner 카탈로그 cache schema v1/v2를 그대로 읽습니다.
 
@@ -135,3 +148,4 @@ Scanner 진단
 - 새 기능 추가: MINOR +1, PATCH는 0으로 초기화합니다.
 - 기존 기능 수정·보완·버그 수정·성능/안정성 개선: PATCH +1입니다.
 - v1.2.0은 Scanner의 인식 이미지/1회 고정밀 스캔 기능 추가와 제목 인식 구조 보강을 포함하는 MINOR 릴리즈입니다.
+- v1.2.1은 새 기능 없이 Scanner의 안정성·정확성·장시간 실행 품질을 보강하는 PATCH 릴리즈입니다.

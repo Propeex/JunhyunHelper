@@ -367,27 +367,49 @@ public sealed class ScannerLab38InspectDetector : IScannerCandidateInspectDetect
 
     private static bool HasVisualContent(Bitmap bitmap)
     {
-        var data = ReadBgra(bitmap);
-        var stepX = Math.Max(1, bitmap.Width / 16);
-        var stepY = Math.Max(1, bitmap.Height / 10);
-        var min = 255;
-        var max = 0;
-        var nonBlack = 0;
-        var count = 0;
-        for (var y = 0; y < bitmap.Height; y += stepY)
+        // PrintWindow validation needs only a sparse sample. Read those pixels
+        // directly from the locked bitmap instead of allocating/copying an entire
+        // 1440p/4K framebuffer before DetectCandidates copies it once for real use.
+        var rectangle = new Rectangle(0, 0, bitmap.Width, bitmap.Height);
+        var locked = bitmap.LockBits(
+            rectangle,
+            ImageLockMode.ReadOnly,
+            System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
+        try
         {
-            for (var x = 0; x < bitmap.Width; x += stepX)
+            var sourceStride = Math.Abs(locked.Stride);
+            var stepX = Math.Max(1, bitmap.Width / 16);
+            var stepY = Math.Max(1, bitmap.Height / 10);
+            var min = 255;
+            var max = 0;
+            var nonBlack = 0;
+            var count = 0;
+
+            for (var y = 0; y < bitmap.Height; y += stepY)
             {
-                var offset = y * data.Stride + x * 4;
-                var value = (data.Pixels[offset] + data.Pixels[offset + 1] + data.Pixels[offset + 2]) / 3;
-                min = Math.Min(min, value);
-                max = Math.Max(max, value);
-                if (value > 5)
-                    nonBlack++;
-                count++;
+                var sourceRow = locked.Stride > 0 ? y : bitmap.Height - 1 - y;
+                var row = IntPtr.Add(locked.Scan0, sourceRow * sourceStride);
+                for (var x = 0; x < bitmap.Width; x += stepX)
+                {
+                    var pixel = IntPtr.Add(row, x * 4);
+                    var b = Marshal.ReadByte(pixel);
+                    var g = Marshal.ReadByte(pixel, 1);
+                    var r = Marshal.ReadByte(pixel, 2);
+                    var value = (b + g + r) / 3;
+                    min = Math.Min(min, value);
+                    max = Math.Max(max, value);
+                    if (value > 5)
+                        nonBlack++;
+                    count++;
+                }
             }
+
+            return count > 0 && nonBlack >= count / 12 && max - min >= 10;
         }
-        return count > 0 && nonBlack >= count / 12 && max - min >= 10;
+        finally
+        {
+            bitmap.UnlockBits(locked);
+        }
     }
 
     private static (byte[] Pixels, int Stride) ReadBgra(Bitmap bitmap)

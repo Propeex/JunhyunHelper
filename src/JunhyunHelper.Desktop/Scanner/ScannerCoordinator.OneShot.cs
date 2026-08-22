@@ -85,11 +85,16 @@ public sealed partial class ScannerCoordinator
             }
             finally
             {
-                // Preserve the user's continuous Scanner/Test mode. StartAsync still
-                // honors the latest current settings, so a mode disabled meanwhile
-                // remains disabled rather than being forcibly resurrected.
-                if (resumeMode is not null && !_disposed)
+                // Restore only when the latest product state still requests exactly the
+                // mode that was paused. In particular, ScannerRuntimeService cannot know
+                // that Display Test was switched off while a one-shot was running, so
+                // blindly restarting resumeMode could resurrect a mode the user disabled.
+                if (resumeMode is not null &&
+                    !_disposed &&
+                    ActiveCaptureMode == resumeMode)
+                {
                     await Runtime.StartAsync(resumeMode.Value, CancellationToken.None);
+                }
             }
         }
         catch (OperationCanceledException)
@@ -116,4 +121,9 @@ public sealed partial class ScannerCoordinator
             : ScannerHotkeyGesture.TryParse(value, out var gesture)
                 ? gesture
                 : ScannerHotkeyGesture.Default;
+
+    internal static bool ShouldRestoreOneShotMode(
+        ScannerCaptureMode? pausedMode,
+        ScannerCaptureMode? currentMode) =>
+        pausedMode is not null && currentMode == pausedMode;
 }
