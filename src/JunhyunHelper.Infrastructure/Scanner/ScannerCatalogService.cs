@@ -103,44 +103,66 @@ public sealed class ScannerCatalogService : IDisposable
         return LoadCacheAsync(mode, cancellationToken);
     }
 
-    public Task<bool> LoadCacheAsync(
+    public async Task<bool> LoadCacheAsync(
         GameMode mode,
         CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
-        cancellationToken.ThrowIfCancellationRequested();
 
-        var path = GetCachePath(mode);
-        if (!File.Exists(path) && !File.Exists(path + ".bak"))
-        {
-            ClearForMode(mode);
-            SetDiagnostics("cache-missing", []);
-            return Task.FromResult(false);
-        }
-
-        ScannerCatalogCache cache;
+        using var operation = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken,
+            _lifetimeCts.Token);
+        var gateEntered = false;
         try
         {
-            cache = new AtomicJsonFileStore(path).LoadOrDefault(() => new ScannerCatalogCache());
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            ClearForMode(mode);
-            SetDiagnostics("cache-read-failure", []);
-            return Task.FromResult(false);
-        }
+            // Cache loads and network refreshes both replace the same in-memory identity
+            // state. Serialize them so a profile transition cannot be overwritten by an
+            // older refresh that was already in flight for another game mode.
+            await _refreshGate.WaitAsync(operation.Token);
+            gateEntered = true;
+            operation.Token.ThrowIfCancellationRequested();
 
-        cancellationToken.ThrowIfCancellationRequested();
-        if (!IsHealthyCache(cache, mode))
-        {
-            ClearForMode(mode);
-            SetDiagnostics("cache-invalid", cache.Items);
-            return Task.FromResult(false);
-        }
+            var path = GetCachePath(mode);
+            if (!File.Exists(path) && !File.Exists(path + ".bak"))
+            {
+                ClearForMode(mode);
+                SetDiagnostics("cache-missing", []);
+                return false;
+            }
 
-        ReplaceData(mode, cache.Items, cache.GeneratedAtUtc);
-        SetDiagnostics("cache-loaded", cache.Items, usedExistingCatalog: true);
-        return Task.FromResult(true);
+            ScannerCatalogCache cache;
+            try
+            {
+                cache = new AtomicJsonFileStore(path).LoadOrDefault(() => new ScannerCatalogCache());
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                ClearForMode(mode);
+                SetDiagnostics("cache-read-failure", []);
+                return false;
+            }
+
+            operation.Token.ThrowIfCancellationRequested();
+            if (!IsHealthyCache(cache, mode))
+            {
+                ClearForMode(mode);
+                SetDiagnostics("cache-invalid", cache.Items);
+                return false;
+            }
+
+            ReplaceData(mode, cache.Items, cache.GeneratedAtUtc);
+            SetDiagnostics("cache-loaded", cache.Items, usedExistingCatalog: true);
+            return true;
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return false;
+        }
+        finally
+        {
+            if (gateEntered)
+                _refreshGate.Release();
+        }
     }
 
     public async Task<bool> RefreshIfStaleAsync(
@@ -159,8 +181,6 @@ public sealed class ScannerCatalogService : IDisposable
         CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
-        if (LoadedMode != mode)
-            ClearForMode(mode);
 
         using var operation = CancellationTokenSource.CreateLinkedTokenSource(
             cancellationToken,
@@ -170,6 +190,11 @@ public sealed class ScannerCatalogService : IDisposable
         {
             await _refreshGate.WaitAsync(operation.Token);
             gateEntered = true;
+
+            // Do not mutate the loaded mode before entering the operation gate. A newer
+            // cache load may be waiting behind this refresh and must be the final writer.
+            if (LoadedMode != mode)
+                ClearForMode(mode);
 
             if (LoadedMode == mode && HasHealthyCatalog && !IsStale())
             {
@@ -593,8 +618,8 @@ public sealed class ScannerCatalogService : IDisposable
         _disposed = true;
         _lifetimeCts.Cancel();
         _lifetimeCts.Dispose();
-        // Do not dispose _refreshGate here: an in-flight canceled refresh may still
-        // execute its finally block and release the gate during application shutdown.
+        // Do not dispose _refreshGate here: an in-flight canceled refresh or cache load
+        // may still execute its finally block and release the gate during app shutdown.
         GC.SuppressFinalize(this);
     }
 
