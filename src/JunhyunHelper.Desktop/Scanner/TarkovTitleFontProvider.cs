@@ -492,13 +492,19 @@ public sealed class TarkovTitleFontProvider : IDisposable
         string boldPath,
         string koreanPath)
     {
-        var benderPath = File.Exists(regularPath) ? regularPath : boldPath;
-        if (!File.Exists(benderPath) || !File.Exists(koreanPath))
+        var cachedFonts = new List<string>(3);
+        if (File.Exists(regularPath))
+            cachedFonts.Add(regularPath);
+        if (File.Exists(boldPath))
+            cachedFonts.Add(boldPath);
+        if (!File.Exists(koreanPath) || cachedFonts.Count == 0)
             return true;
-        var cacheStamp = new[] { benderPath, koreanPath }
+
+        cachedFonts.Add(koreanPath);
+        var oldestCacheStamp = cachedFonts
             .Select(File.GetLastWriteTimeUtc)
             .Min();
-        return source.LastWriteUtcTicks > cacheStamp.Ticks;
+        return source.LastWriteUtcTicks > oldestCacheStamp.Ticks;
     }
 
     private static string ComputeCacheGenerationKey(
