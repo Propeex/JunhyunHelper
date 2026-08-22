@@ -34,7 +34,27 @@ public partial class ScannerPage
             ScannerHotkeyGesture.TryParse("F10", out _))
         {
             throw new InvalidOperationException(
-                "Scanner v1.2.0 one-shot hotkey/settings contract failed.");
+                "Scanner v1.2 one-shot hotkey/settings contract failed.");
+        }
+
+        // v1.2.1 lifecycle contract: a one-shot may only restore the exact mode that
+        // is still requested after the scan. Turning Scanner/Test off or switching the
+        // active mode while the one-shot runs must not resurrect the previous mode.
+        if (!ScannerCoordinator.ShouldRestoreOneShotMode(
+                ScannerCaptureMode.TarkovWindow,
+                ScannerCaptureMode.TarkovWindow) ||
+            ScannerCoordinator.ShouldRestoreOneShotMode(
+                ScannerCaptureMode.TarkovWindow,
+                ScannerCaptureMode.DisplayTest) ||
+            ScannerCoordinator.ShouldRestoreOneShotMode(
+                ScannerCaptureMode.TarkovWindow,
+                null) ||
+            ScannerCoordinator.ShouldRestoreOneShotMode(
+                null,
+                ScannerCaptureMode.TarkovWindow))
+        {
+            throw new InvalidOperationException(
+                "Scanner v1.2.1 one-shot mode restoration contract failed.");
         }
 
         const int width = 800;
