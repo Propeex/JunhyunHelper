@@ -1,4 +1,5 @@
 name: Finalize v1.2.1 release records
+# One-shot post-release finalizer. Deletes itself after successful completion.
 
 on:
   push:
@@ -41,16 +42,11 @@ jobs:
                   raise SystemExit(f'{label}: required marker not found')
               return text.replace(old, new, 1)
 
-          # RELEASE_1.2.1.md
           p = 'docs/RELEASE_1.2.1.md'
           t = read(p)
-          t = replace_required(t,
-              'Status: **RELEASE CANDIDATE — public release not yet published**',
-              'Status: **PUBLIC / VERIFIED**', p)
+          t = replace_required(t, 'Status: **RELEASE CANDIDATE — public release not yet published**', 'Status: **PUBLIC / VERIFIED**', p)
           t = replace_required(t, 'Prepared: 2026-08-22 KST', 'Released: 2026-08-22 KST', p)
-          t = t.replace(
-              'The version/documentation commit must pass the same gate before merge.',
-              f'The final PR candidate CI run `{PR_RUN}` passed the same Windows Release build, 255/255 tests, win-x64 publish, actual published EXE product smoke, graceful shutdown and clean portable-root gate before merge.')
+          t = t.replace('The version/documentation commit must pass the same gate before merge.', f'The final PR candidate CI run `{PR_RUN}` passed the same Windows Release build, 255/255 tests, win-x64 publish, actual published EXE product smoke, graceful shutdown and clean portable-root gate before merge.')
           public_marker = '## Public verification\n\nThis section is completed only after the exact merged release source is built, a Draft asset is re-downloaded and verified, the release becomes public/latest, and the public asset is independently re-downloaded and smoke-tested.'
           public_final = f'''## Public verification\n\n```text\nversion: v1.2.1 PUBLIC RELEASE / VERIFIED\nrelease source: {SOURCE}\nfinal PR CI: {PR_RUN} — SUCCESS\nexact-source release run: {RUN} — SUCCESS\nautomated tests: 255 passed / 0 failed / 0 skipped\nasset: {ZIP}\nbytes: {BYTES}\nSHA-256: {HASH}\nProductVersion: {PRODUCT}\nDraft-downloaded EXE smoke: SUCCESS\npublic/latest: VERIFIED\nexact public tag source: VERIFIED\npublic-downloaded EXE smoke: SUCCESS\n```\n\nExact-source release run `{RUN}` checked out `{SOURCE}` directly, rebuilt and retested it, audited the Windows x64 portable package, smoke-tested the exact published EXE, created a Draft release, re-downloaded and verified the Draft ZIP/checksum/root/ProductVersion/FIRST_RUN, smoke-tested the Draft-downloaded EXE, published v1.2.1 as latest, verified the public tag resolves to the exact release source, re-downloaded the public assets, and smoke-tested the public-downloaded EXE.\n\nPublic release: `https://github.com/Propeex/JunhyunHelper/releases/tag/v1.2.1`.'''
           t = replace_required(t, public_marker, public_final, p)
@@ -61,7 +57,6 @@ jobs:
           compat_120_state = '''```text\nDesktop Version: 1.2.0\nContent schema: v7\nReadable Content schemas: v3~v7\nuser.db schema: v1\nScanner display settings schema: v3\nScanner catalog cache schema: v1/v2 readable, v2 written\nv1.1.6 → v1.2.0 mandatory Game Content update: none\nv1.1.6 → v1.2.0 user.db migration: none\n```'''
           compat_121_state = '''```text\nDesktop Version: 1.2.1\nContent schema: v7\nReadable Content schemas: v3~v7\nuser.db schema: v1\nScanner display settings schema: v3\nScanner catalog cache schema: v1/v2 readable, v2 written\nv1.2.0 → v1.2.1 mandatory Game Content update: none\nv1.2.0 → v1.2.1 user.db migration: none\n```'''
 
-          # STATE.md
           p = 'docs/STATE.md'; t = read(p)
           t = replace_required(t, release_block_120, release_block_121, p)
           t = replace_required(t, compat_120_state, compat_121_state, p)
@@ -81,16 +76,13 @@ jobs:
           t = t.replace('| Scanner + Mini Scanner | **v1.2.0 public baseline / live Tarkov validation 및 후속 수정 진행 대상** |', '| Scanner + Mini Scanner | **v1.2.1 public verified / live Tarkov calibration 및 후속 evidence-based 수정 진행 대상** |')
           write(p, t)
 
-          # CURRENT_STATE.md — replace compact state wholesale between markers.
           p = 'docs/CURRENT_STATE.md'; t = read(p)
           t = t.replace('상태: **`v1.2.0 PUBLIC RELEASE / VERIFIED — Scanner title recognition overhaul`**', '상태: **`v1.2.1 PUBLIC RELEASE / VERIFIED — Scanner stability and accuracy hardening`**', 1)
-          s = t.find('## 현재 공개 기준선')
-          e = t.find('## Scanner 현재 계약')
+          s = t.find('## 현재 공개 기준선'); e = t.find('## Scanner 현재 계약')
           if s < 0 or e < 0: raise SystemExit(f'{p}: baseline markers missing')
           baseline = f'''## 현재 공개 기준선\n\n```text\nversion: v1.2.1\nrelease source: {SOURCE}\nfinal PR CI: {PR_RUN} — SUCCESS\nexact-source release run: {RUN} — SUCCESS\nautomated tests: 255 passed / 0 failed / 0 skipped\nasset: {ZIP}\nbytes: {BYTES}\nSHA-256: {HASH}\nDraft-downloaded EXE smoke: SUCCESS\npublic/latest: VERIFIED\nexact tag source: VERIFIED\npublic-downloaded EXE smoke: SUCCESS\n```\n\n```text\nDesktop Version: 1.2.1\nContent schema: v7\nReadable Content schemas: v3~v7\nuser.db schema: v1\nScanner display settings schema: v3\nScanner cache schema: v1/v2 readable, v2 written\nv1.2.0 → v1.2.1 mandatory Game Content update: none\nv1.2.0 → v1.2.1 user.db migration: none\n```\n\n'''
           t = t[:s] + baseline + t[e:]
-          s = t.find('## v1.2.0 핵심 변경')
-          e = t.find('## Mini Scanner / data baseline')
+          s = t.find('## v1.2.0 핵심 변경'); e = t.find('## Mini Scanner / data baseline')
           if s < 0 or e < 0: raise SystemExit(f'{p}: change-section markers missing')
           changes = '''## v1.2.1 핵심 변경\n\n- `resources.assets` title-font discovery bounded streaming scan\n- Tarkov source manifest + actual font-binary generation hash\n- generation-aware bounded visual template caches\n- Mini Scanner inventory/stash OCR single-probe coalescing + stale-result rejection\n- one-shot/profile/GameMode lifecycle serialization and latest-mode restore rule\n- shutdown-safe font-aware OCR active-operation lifetime\n- PrintWindow sparse validation의 redundant full-frame managed copy 제거\n- title-anchor diagnostic score에 실제 detector evidence 보존\n- recognition confidence/top1-top2 margin 완화 없음\n- v1.2.0의 `인식 이미지`, `1회 고정밀 스캔`, title-anchor/Tarkov-font recovery 기능 유지\n\n상세: `docs/RELEASE_1.2.1.md`, `docs/SCANNER.md`, `docs/SCANNER_TEST_PLAN.md`.\n\n'''
           t = t[:s] + changes + t[e:]
@@ -98,7 +90,6 @@ jobs:
           t = t.replace('| Scanner + Mini Scanner | **v1.2.0 public baseline / live Tarkov validation and follow-up fixes ongoing** |', '| Scanner + Mini Scanner | **v1.2.1 public verified / live Tarkov calibration and evidence-based follow-up ongoing** |')
           write(p, t)
 
-          # README.md
           p = 'README.md'; t = read(p)
           t = replace_required(t, release_block_120, release_block_121, p)
           old_compat = '''```text\nContent schema: v7\nReadable schemas: v3~v7\nuser.db schema: v1\nScanner display settings schema: v3\nScanner cache schema: v1/v2 readable, v2 written\nv1.1.6 → v1.2.0 mandatory Game Content update: none\nv1.1.6 → v1.2.0 user.db migration: none\n```'''
@@ -115,14 +106,12 @@ jobs:
           t = t.replace('- `docs/RELEASE_1.2.0.md` — v1.2.0 public release record', '- `docs/RELEASE_1.2.1.md` — current public release record\n- `docs/RELEASE_1.2.0.md` — v1.2.0 release history', 1)
           write(p, t)
 
-          # SCANNER.md
           p = 'docs/SCANNER.md'; t = read(p)
           t = t.replace('상태: **`v1.2.0 PUBLIC BASELINE / v1.2.1 RELEASE CANDIDATE / SCANNER LAB v3.8 CONTRACT PRESERVED / LIVE TARKOV E2E ONGOING`**', '상태: **`v1.2.1 PUBLIC RELEASE / VERIFIED / SCANNER LAB v3.8 CONTRACT PRESERVED / LIVE TARKOV E2E ONGOING`**', 1)
           if '## v1.2.1 Public verification' not in t:
               t += f'''\n\n## v1.2.1 Public verification\n\n```text\nrelease source: {SOURCE}\nfinal PR CI: {PR_RUN} — SUCCESS\nexact-source release run: {RUN} — SUCCESS\nautomated tests: 255 passed / 0 failed / 0 skipped\nasset: {ZIP}\nbytes: {BYTES}\nSHA-256: {HASH}\nProductVersion: {PRODUCT}\nDraft-downloaded EXE smoke: SUCCESS\npublic/latest + exact tag: VERIFIED\npublic-downloaded EXE smoke: SUCCESS\n```\n\n실제 최신 Tarkov Borderless E2E calibration은 별도 evidence 기반 후속 검증으로 계속 진행합니다. live 근거 없이 recognition threshold를 낮추지 않습니다.\n'''
           write(p, t)
 
-          # SCANNER_TEST_PLAN.md
           p = 'docs/SCANNER_TEST_PLAN.md'; t = read(p)
           t = t.replace('상태: **`v1.2.0 PUBLIC VERIFIED / v1.2.1 RELEASE CANDIDATE / LIVE TARKOV CALIBRATION DEFERRED`**', '상태: **`v1.2.1 PUBLIC RELEASE GATE PASSED / PUBLIC VERIFIED / LIVE TARKOV CALIBRATION DEFERRED`**', 1)
           t = t.replace('## 1. v1.2.1 Release blocking gate', '## 1. v1.2.1 Release blocking gate — 완료', 1)
@@ -130,7 +119,6 @@ jobs:
               t += f'''\n\n## v1.2.1 Public release verification — 완료\n\n```text\nrelease source: {SOURCE}\nfinal PR CI: {PR_RUN} — SUCCESS\nexact-source release run: {RUN} — SUCCESS\n255 passed / 0 failed / 0 skipped\nasset: {ZIP}\nbytes: {BYTES}\nSHA-256: {HASH}\nProductVersion: {PRODUCT}\nDraft asset verification + EXE smoke: SUCCESS\npublic/latest + exact tag verification: SUCCESS\nPublic asset verification + EXE smoke: SUCCESS\n```\n'''
           write(p, t)
 
-          # ARCHITECTURE.md
           p = 'docs/ARCHITECTURE.md'; t = read(p)
           old = '현재 공개 기준선은 **`v1.2.0 PUBLIC RELEASE / VERIFIED`**이며, **v1.2.1은 Scanner deterministic 안정성·정확성 하드닝 release candidate**입니다. v1.2.1은 live Tarkov 데이터가 필요한 recognition threshold를 추측해서 변경하지 않습니다.'
           new = f'현재 공개 기준선은 **`v1.2.1 PUBLIC RELEASE / VERIFIED`**입니다. release source는 `{SOURCE}`이며 exact-source release run `{RUN}`에서 Draft/Public 재다운로드와 실제 EXE smoke까지 검증했습니다. v1.2.1은 live Tarkov 데이터가 필요한 recognition threshold를 추측해서 변경하지 않은 deterministic Scanner 하드닝 PATCH입니다.'
@@ -139,7 +127,6 @@ jobs:
           PY
 
           git rm -f .github/workflows/release-v1.2.1.yml docs/.release-v1.2.1-status.json .github/workflows/finalize-v1.2.1.yml
-
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add README.md docs/RELEASE_1.2.1.md docs/STATE.md docs/CURRENT_STATE.md docs/SCANNER.md docs/SCANNER_TEST_PLAN.md docs/ARCHITECTURE.md
