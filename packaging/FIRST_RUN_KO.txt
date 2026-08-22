@@ -1,4 +1,4 @@
-준현 헬퍼 v1.2.1 — Windows x64
+준현 헬퍼 v1.2.2 — Windows x64
 
 실행 방법
 1. 받은 ZIP 파일을 원하는 폴더에 압축 해제합니다.
@@ -6,146 +6,47 @@
 3. 처음 실행하면 프로필을 만들고 필요한 최신 게임 데이터를 온라인에서 내려받습니다.
 4. 프로그램 실행 시 GitHub의 최신 정식 준현 헬퍼 릴리즈를 확인합니다. 더 최신 버전이 있으면 업데이트 여부를 묻습니다.
 
-v1.2.1 주요 변경 — Scanner 안정성·정확성 하드닝
-- 실사용 데이터가 필요한 인식 임계값 튜닝은 하지 않고 코드와 자동 검증으로 확정할 수 있는 안정성·정확성 문제를 보완했습니다.
-- Tarkov resources.assets 제목 폰트 탐색을 bounded streaming scan으로 바꿔 전체 asset 파일의 대형 임시 메모리 적재를 제거했습니다.
-- Bender/Noto 로컬 폰트 캐시를 Tarkov 원본 세대와 묶고 실제 폰트 바이너리 해시를 시각 템플릿 세대에 연결합니다.
-- OCR/전체 카탈로그 시각 대조 템플릿 캐시에 상한을 두고 폰트 세대가 바뀌면 과거 템플릿을 폐기합니다.
-- Mini Scanner 인벤토리/창고 판별 OCR은 동시에 하나만 수행하며 반복 표시 요청은 최신 요청으로 합치고 이전 아이템의 늦은 결과를 거부합니다.
-- 1회 고정밀 스캔과 프로필/GameMode 감시를 직렬화해 사용자가 끈 이전 mode/context가 뒤늦게 되살아나지 않게 했습니다.
-- 종료 시 진행 중이던 font-aware recognition이 끝난 뒤 Skia/font 자원을 해제해 use-after-dispose 경합을 막습니다.
-- PrintWindow 유효성 검사에서 1440p/4K 전체 프레임의 불필요한 두 번째 managed 복사를 제거했습니다.
-- 제목 anchor 진단 점수는 anchor 존재 여부를 100%로 승격하지 않고 실제 검출 점수를 보존합니다.
-- 기존 OCR 우선, 보수적 confidence/top1-top2 margin, 애매하면 미표시, scan-time network 금지, 게임 메모리/DLL injection/패킷 가로채기 금지 계약은 그대로 유지합니다.
-- Content schema, user.db schema, Scanner 표시 설정 schema는 변경하지 않습니다.
+v1.2.2 주요 변경 — Scanner 카탈로그 모드 전환 안정화
+- Scanner 카탈로그의 디스크 캐시 로드와 온라인 갱신이 동일한 직렬화 경계를 사용하도록 보강했습니다.
+- 프로필/GameMode 전환과 이전 모드의 진행 중 갱신이 겹쳐도 오래된 갱신 결과가 새 모드의 카탈로그 상태를 뒤늦게 덮어쓰지 않도록 했습니다.
+- 다른 GameMode로 갱신할 때 in-memory 카탈로그를 비우는 시점을 operation gate 내부로 이동했습니다.
+- 실제 경합 순서를 재현하는 자동 회귀 테스트를 추가했습니다.
+- OCR, 상세창 검출, Tarkov 폰트 시각 대조의 confidence/top1-top2 margin은 변경하지 않았습니다.
+- 최고 상점가, 플리마켓 평균가, 필요한 개수(RequiredTotal) 계산 의미는 변경하지 않았습니다.
+- Game Content schema, user.db schema, Scanner 표시 설정 schema는 변경하지 않았습니다.
 
-v1.2.0 주요 변경 — Scanner 제목 인식 구조 전면 보강
-- 상세보기 창 상단의 빨간 X, 좌측 돋보기, 어두운 제목 필드를 독립적인 구조 anchor로 사용해 아이템 이름 영역을 더 정확하게 잡습니다. anchor가 불확실하면 기존 검증된 geometry 영역으로 되돌아가는 fail-closed fallback을 유지합니다.
-- 돋보기 anchor를 찾으면 해당 아이콘 오른쪽부터 OCR 영역을 시작하므로 돋보기 픽셀이 문자로 들어가지 않습니다.
-- 현재 공식 한국어 아이템명 전체에서 실제 사용되는 문자 집합을 자동 생성합니다. 한국어 아이템명에 존재하지 않는 한자 OCR은 손상된 인식의 강한 신호로 취급하며 임의 문자 치환은 하지 않습니다.
-- 기존 Windows ko-KR OCR이 성공하면 그 결과를 그대로 우선합니다. OCR이 비거나 한자/이상 문자로 망가진 경우에는 전체 공식 아이템 이름을 실제 Tarkov 제목 폰트(Bender + Noto Sans CJK KR)로 렌더링한 글자 형태와 화면 픽셀을 직접 비교하는 복구 경로를 사용합니다.
-- 전체 이름 시각 대조는 aspect/폭으로 후보를 먼저 줄이고 glyph mask를 정밀 비교하며, 높은 시각 점수와 충분한 1·2순위 차이가 동시에 있을 때만 Item ID를 확정합니다. 애매하면 표시하지 않습니다.
-- 스캐너 탭에 '인식 이미지'를 추가했습니다. 최신 캡처 한 장을 메모리에만 보관하며 상세창, 실제 OCR 제목 영역, 돋보기/X anchor, OCR 문자열과 최종 후보/신뢰도를 함께 확인할 수 있습니다. 로그 삭제 시 이 메모리 이미지도 삭제합니다.
-- '1회 고정밀 스캔'을 추가했습니다. 실시간 Scanner가 꺼져 있어도 한 번만 정밀 인식할 수 있고, 기본 전역 단축키는 Ctrl+Shift+F10입니다. 단축키는 Scanner 탭에서 변경하거나 끌 수 있습니다.
-- 실시간 Scanner 또는 테스트 모드가 켜진 상태에서 1회 스캔을 실행하면 기존 루프를 취소하고 실제 종료까지 기다린 뒤 고정밀 스캔을 수행하며, 완료 후 원래 모드를 복원합니다. 캡처/OCR/표시 상태가 서로 경합하지 않도록 합니다.
-- 실제 스캔 중 외부 API 호출 금지, 게임 메모리/DLL injection/패킷 가로채기 금지, false positive보다 miss를 선호하는 기존 Scanner 계약은 유지합니다.
-- Game Content schema와 user.db schema는 변경하지 않습니다. Scanner 표시 설정 내부 schema는 v3으로 올라가며 기존 설정은 자동 마이그레이션됩니다.
+Scanner 사용
+- '스캐너'는 EscapeFromTarkov 게임 창의 Borderless client-area를 실시간 감지합니다.
+- '테스트'는 연결된 전체 디스플레이에 같은 인식 파이프라인을 적용합니다. 실사용 Scanner와 동시에 켤 수 없습니다.
+- '1회 고정밀 스캔'은 연속 Scanner가 꺼져 있어도 현재 Tarkov 화면을 한 번 정밀 분석합니다. 기본 전역 단축키는 Ctrl+Shift+F10이며 Scanner 탭에서 변경하거나 끌 수 있습니다.
+- '아이템 목록 최신화'는 현재 GameMode의 공식 한국어 전체 아이템 카탈로그를 갱신합니다.
+- '인식 이미지'는 최신 캡처 한 장과 상세창/제목 ROI, anchor, OCR 및 최종 판단을 확인하는 진단 기능입니다. 이미지는 메모리에만 유지됩니다.
+- '로그 삭제'는 최근 인식 기록, %LocalAppData%\JunhyunHelper\logs\scanner.log(.1), 최신 메모리 인식 이미지를 함께 정리합니다.
 
-v1.1.6 주요 변경 — Scanner 아이템 목록 동기화 회귀 수정
-- v1.1.5에서 상인 가격 데이터의 전체 커버리지를 아이템 식별 카탈로그의 정상 조건으로 잘못 묶어, 이름/ID가 정상이어도 '아이템 목록 최신화'가 실패할 수 있던 문제를 수정했습니다.
-- Scanner 카탈로그의 필수 건강성은 공식 Item ID와 공식 이름의 완전성으로 판정합니다. 4,000개 미만이거나 ID/이름이 손상된 카탈로그는 계속 거부합니다.
-- 상인 가격이나 플리 가격이 없거나 일부 누락된 경우에는 카탈로그 전체를 막지 않고 해당 가격 표시만 비우는 field-level fail-closed 동작을 사용합니다.
-- raw traderPrices와 sellFor 가격 형태 지원은 그대로 유지합니다.
-- 수동 '아이템 목록 최신화' 결과는 scanner.log에 outcome, 전체 아이템 수, 상인 가격 보유 아이템 수, 플리 가격 보유 아이템 수를 기록해 다음 장애를 원인별로 확인할 수 있습니다.
-- Game Content schema와 user.db schema는 변경하지 않습니다.
+Scanner 표시 데이터
+- 최고 상점가: fleaMarket을 제외한 유효 판매처의 RUB 환산 가격 중 최댓값
+- 플리마켓 평균가: positive avg24hPrice
+- 상인/플리 가격·슬롯: 유효한 width × height 슬롯 수 기준
+- 필요한 개수: 현재 Needed Items 계획의 RequiredTotal. 보유 Inventory를 뺀 부족량이 아닙니다.
+- 가격이나 크기 정보가 누락되면 해당 표시 필드만 비우고 Item ID 식별 자체를 버리지 않습니다.
 
-v1.1.5 주요 변경 — Mini Scanner/시장 데이터/아이콘 안정화
-- Mini Scanner는 아이템 식별이 성공했을 때 해당 아이템 정보만 표시합니다. 대기·OCR·오류·진단 상태 문구는 Mini Scanner에 표시하지 않습니다.
-- 실제 Scanner에서는 Tarkov가 포그라운드이고 한국어 인벤토리/창고 UI가 확인될 때만 Mini Scanner를 표시합니다. 확신이 없으면 표시하지 않는 fail-closed 방식입니다.
-- Mini Scanner는 WPF Topmost와 Windows HWND_TOPMOST를 함께 적용하고 키보드 포커스를 가져가지 않습니다.
-- Mini Scanner 내부 사각형 전체가 드래그 영역이며 글자나 아이콘을 정확히 집을 필요가 없습니다.
-- 드래그 중에도 마우스 포인터는 일반 화살표를 유지합니다.
-- 기존 사용자 설정을 1회 보정해 아이콘, 상인 가격, 상인 가격/슬롯 표시를 기본 활성화합니다. 이후 사용자가 직접 끈 항목은 새 설정으로 보존됩니다.
-- Scanner 가격 데이터는 현재 JSON 원본의 traderPrices와 파생 sellFor 형태를 모두 읽습니다.
-- 플리 평균가는 avg24hPrice를 독립적으로 사용합니다.
-- Game Content 업데이트 시 퀘스트/은신처/탄약에 한정하지 않고 공식 전체 아이템 아이콘을 로컬 캐시에 준비합니다. 실제 스캔 순간에는 다운로드하지 않습니다.
-- 아이템 제목 OCR과 인벤토리 화면 판별 OCR은 하나의 직렬화된 OCR 경계를 공유해 동시 OCR 경쟁을 방지합니다.
-
-Scanner UI
-- 상단 바 왼쪽에 '스캐너', '테스트', '1회 고정밀 스캔' 버튼과 1회 스캔 단축키 설정이 있습니다.
-- 상단 바 오른쪽의 수동 카탈로그 갱신 버튼은 '아이템 목록 최신화'입니다.
-- 표시 정보 아래의 '최근 인식 기록'에서 OCR 문자열, 가장 가까운 공식 아이템 후보, 유사도, 후보 간 차이, 식별 성공/보류 판단을 확인할 수 있습니다.
-- 최근 인식 기록 우측 상단의 '인식 이미지'는 최신 메모리 캡처와 Scanner가 선택한 상세창/제목/anchor를 보여줍니다. '로그 삭제'는 인식 기록, `%LocalAppData%\JunhyunHelper\logs\scanner.log(.1)`, 최신 메모리 인식 이미지를 함께 삭제합니다.
-- Mini Scanner에는 이 진단/상태 내용이 나오지 않습니다.
-
-Scanner 동작
-- '스캐너 ON/OFF'는 EscapeFromTarkov 게임 창을 찾아 Borderless client-area를 대상으로 실시간 감지합니다.
-- 실제 Mini Scanner 표시 조건은 '아이템 식별 성공 + Tarkov 포그라운드 + 인벤토리/창고 UI 확인'입니다.
-- 인벤토리/창고 판별은 화면 픽셀과 Windows 한국어 OCR만 사용합니다. 게임 메모리, DLL injection, 패킷 가로채기를 사용하지 않습니다.
-- '테스트 ON/OFF'는 연결된 전체 디스플레이를 대상으로 같은 아이템 인식 파이프라인을 실행하며 개발/표시 검증을 위해 인벤토리 화면 제한을 적용하지 않습니다.
-- '1회 고정밀 스캔'은 실시간 Scanner가 꺼져 있어도 현재 Tarkov 화면을 한 번만 분석합니다. 연속 루프보다 더 많은 후보에 deep OCR과 전체 이름 시각 대조를 적용할 수 있습니다.
-- 기본 전역 단축키는 Ctrl+Shift+F10이며 Scanner 탭에서 다른 Ctrl/Alt/Shift 조합으로 변경하거나 사용하지 않도록 설정할 수 있습니다.
-- 실시간 Scanner/테스트와 1회 스캔은 동일한 런타임 상태를 동시에 변경하지 않습니다. 1회 스캔 전 연속 루프를 종료하고 완료 후 원래 모드를 복원합니다.
-- 실제 scan 순간에는 외부 API를 호출하지 않습니다. 아이콘도 scan 중 새로 다운로드하지 않습니다.
-
-Scanner 제목 인식
-- 기존 Scanner Lab 3.8의 상세창 구조 후보 생성은 유지합니다. 구조 점수만으로 아이템을 확정하지 않습니다.
-- 상세창 후보마다 빨간 닫기 버튼, 좌측 돋보기, 제목 필드의 밝기/색 범위를 이용해 제목 ROI를 보정합니다.
-- 돋보기를 확인하면 돋보기 오른쪽 안전 여백부터 제목 ROI를 시작합니다. anchor가 불확실하면 기존 geometry ROI를 사용합니다.
-- Windows ko-KR OCR 결과는 현재 공식 아이템명 카탈로그에서 실제 사용되는 문자 집합으로 검증합니다. 한자는 정상 아이템명 증거로 인정하지 않습니다.
-- OCR이 충분히 정상이라면 현재 공식 이름 semantic matcher를 사용하고, 필요할 때 Tarkov 제목 폰트 시각 검증을 추가합니다.
-- OCR이 비거나 손상된 경우에는 전체 공식 아이템 이름을 로컬 Tarkov 폰트로 렌더링한 형태와 화면 제목 픽셀을 직접 비교할 수 있습니다.
-- OCR/시각 대조 어느 경로든 confidence와 1·2순위 margin이 부족하면 Item ID를 확정하지 않습니다.
-
-Scanner 가격/수량
-- 상인 판매가 = fleaMarket을 제외한 판매처의 RUB 환산 최고가입니다.
-- 상인 가격/슬롯 = 상인 판매가를 유효한 아이템 슬롯 수로 나눈 값입니다.
-- 플리마켓 평균가 = 24시간 평균가(avg24hPrice)입니다.
-- 현재 필요한 수량 = 보유량 차감 부족량이 아니라 현재 계획의 NeededItems[].RequiredTotal입니다.
-- 잘못되거나 없는 가격/크기 데이터는 해당 표시값만 비우는 fail-closed 동작을 유지합니다.
-
-아이콘 캐시
-- Game Content 업데이트 시 공식 전체 아이템 아이콘을 `%LocalAppData%\JunhyunHelper\image-cache`에 준비합니다.
-- 이미 정상적으로 캐시된 아이콘은 다시 다운로드하지 않습니다.
-- 개별 이미지 실패는 전체 Game Content 업데이트를 망가뜨리지 않으며 다음 업데이트에서 다시 채울 수 있습니다.
-
-Scanner 진단
-- 개발자 로그: %LocalAppData%\JunhyunHelper\logs\scanner.log
-- 약 2MB에서 scanner.log.1로 회전합니다.
-- 구조 후보, 제목 anchor, 후보별 OCR pass, 문자 검증, 폰트/전체 이름 시각 대조, 공식 아이템 매칭 결과/confidence, 최종 선택 후보와 인벤토리 화면 판별 결과를 기록합니다.
-- '인식 이미지'의 화면 픽셀은 디스크에 저장하지 않고 최신 한 장만 프로세스 메모리에 유지합니다.
-- 수동 카탈로그 동기화는 `catalog-sync` 이벤트로 success/outcome/items/traderPrices/fleaPrices/기존 캐시 사용 여부를 기록합니다.
-
-프로그램 업데이트
-- 새 정식 버전이 있을 때만 업데이트 확인창을 표시합니다.
-- 사용자가 동의하면 새 Windows x64 ZIP과 SHA256SUMS.txt를 내려받고 검증한 뒤에만 파일을 교체합니다.
-- 업데이트 확인/다운로드/검증 실패는 기존 프로그램 실행과 사용자 데이터를 손상시키지 않습니다.
-
-배포 형태
-- 설치 프로그램이 필요 없는 portable/self-contained Windows x64 빌드입니다.
-- .NET/WPF/SQLite/Skia 런타임은 '준현 헬퍼.exe'에 포함됩니다.
-- 지도 시스템이 경로로 직접 읽는 검증된 파일만 Assets 폴더에 둡니다.
-- 실행 폴더 루트에는 '준현 헬퍼.exe', 이 안내문, Assets 폴더만 두는 것을 기준으로 합니다.
-- 별도 .NET 설치나 관리자 권한은 필요하지 않습니다.
-- 코드 서명이 되어 있지 않아 Windows SmartScreen 경고가 표시될 수 있습니다.
+Scanner 인식 원칙
+- 현재 공식 한국어 전체 아이템 카탈로그가 Item identity의 권위입니다.
+- Windows ko-KR OCR 성공 경로를 우선합니다.
+- OCR이 비거나 손상된 경우에만 로컬 Tarkov 제목 폰트 기반의 보수적 시각 복구를 사용합니다.
+- confidence와 1·2순위 차이가 부족하면 Item ID를 확정하지 않습니다.
+- 실제 스캔 순간에는 외부 API를 호출하지 않고, 아이콘도 새로 다운로드하지 않습니다.
+- 게임 메모리 읽기, DLL injection, 패킷 가로채기를 사용하지 않습니다.
 
 사용자 데이터
-- 사용자 진행 데이터: %LocalAppData%\JunhyunHelper\user.db
-- 게임 데이터: %LocalAppData%\JunhyunHelper\content
-- 이미지 캐시: %LocalAppData%\JunhyunHelper\image-cache
-- 지도 설정: %LocalAppData%\JunhyunHelper\map-product-settings.json(.bak)
-- 탄약 즐겨찾기: %LocalAppData%\JunhyunHelper\ammo-favorites.json(.bak)
-- Scanner 설정/카탈로그: %LocalAppData%\JunhyunHelper\scanner-settings.json(.bak), scanner\catalog\
-- Scanner 로컬 폰트 캐시: %LocalAppData%\JunhyunHelper\scanner\fonts\
-- Scanner 진단 로그: %LocalAppData%\JunhyunHelper\logs\scanner.log(.1)
-- 프로그램 파일 교체와 사용자 데이터는 분리되어 있으므로 기존 Profile / Quest / Inventory / Hideout / Map 설정 / Ammo 즐겨찾기는 유지됩니다.
+- 사용자 데이터는 프로그램 폴더가 아니라 %LocalAppData%\JunhyunHelper 에 저장됩니다.
+- 프로그램 업데이트는 user.db, Game Content cache, 이미지 cache, Map/Ammo/Scanner 사용자 설정과 Scanner 로그를 교체하지 않습니다.
 
-데이터 호환성
-- Content schema: v7
-- Readable Content schemas: v3, v4, v5, v6, v7
-- user.db SQLite schema: v1
-- v1.2.0 → v1.2.1 필수 Game Content schema 업데이트: 없음
-- v1.2.0 → v1.2.1 user.db migration: 없음
-- Scanner 표시 설정은 내부 schema v3이며 v2 이하 설정을 자동 마이그레이션합니다.
-- 기존 Scanner 카탈로그 cache schema v1/v2를 그대로 읽습니다.
+배포 형태
+- Windows x64
+- .NET 10 self-contained single-file
+- 별도 .NET Runtime 설치 불필요
+- 관리자 권한 불필요
+- installer 없음
 
-검증 기준
-- Windows Release build
-- 자동 테스트 255개 이상, 실패/skip 0
-- Scanner Lab v3.8 geometry/OCR/matcher 회귀
-- OCR 허용 문자/한자 거부 회귀
-- 게시 EXE smoke에서 기본 1회 스캔 단축키/schema v3 계약 확인
-- 게시 EXE smoke에서 합성 상세창 헤더의 돋보기 anchor가 실제 OCR 제목 ROI에서 제외되는지 확인
-- 4,000개 전체 market-field 회귀 + raw traderPrices 회귀
-- 상인 가격 0개인 4,000개 identity catalog 동기화 성공 회귀
-- 3,999개 불완전 identity catalog 거부 회귀
-- Mini Scanner 실제 WPF 창 렌더 smoke: matched-item-only, 상인 가격, 상인/칸, 전체 카드 hitbox, Arrow cursor, Topmost/no-activate
-- win-x64 self-contained single-file publish
-- 실제 게시 후보 EXE Product UI / Scanner / Main Map / Factory / MiniMap smoke 및 정상 종료
-- Draft/Public 다운로드본 SHA-256, root layout, ProductVersion, FIRST_RUN, 실행 smoke 재검증
-
-버전 정책
-- 새 기능 추가: MINOR +1, PATCH는 0으로 초기화합니다.
-- 기존 기능 수정·보완·버그 수정·성능/안정성 개선: PATCH +1입니다.
-- v1.2.0은 Scanner의 인식 이미지/1회 고정밀 스캔 기능 추가와 제목 인식 구조 보강을 포함하는 MINOR 릴리즈입니다.
-- v1.2.1은 새 기능 없이 Scanner의 안정성·정확성·장시간 실행 품질을 보강하는 PATCH 릴리즈입니다.
+문제가 발생하면 Scanner 탭의 최근 인식 기록과 '인식 이미지'를 먼저 확인해 원인을 구분할 수 있습니다.
