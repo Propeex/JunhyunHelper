@@ -86,6 +86,11 @@ public partial class ScannerPage
                 "Scanner v1.2.1 one-shot mode restoration contract failed.");
         }
 
+        VerifyInspectHeaderAnchorRegression();
+    }
+
+    private static void VerifyInspectHeaderAnchorRegression()
+    {
         const int width = 800;
         const int height = 600;
         const int stride = width * 4;
@@ -105,34 +110,71 @@ public partial class ScannerPage
             byte r)
         {
             for (var yy = y; yy < y + regionHeight; yy++)
+            for (var xx = x; xx < x + regionWidth; xx++)
             {
-                for (var xx = x; xx < x + regionWidth; xx++)
-                {
-                    var offset = yy * targetStride + xx * 4;
-                    target[offset] = b;
-                    target[offset + 1] = g;
-                    target[offset + 2] = r;
-                    target[offset + 3] = 255;
-                }
+                var offset = yy * targetStride + xx * 4;
+                target[offset] = b;
+                target[offset + 1] = g;
+                target[offset + 2] = r;
+                target[offset + 3] = 255;
             }
         }
 
-        var panel = new ScannerDetectedRegion(100, 100, 520, 400, 0.996);
-        var fallback = ScannerDetailGeometryDetector.GetTitleRegion(panel);
-        var close = new ScannerDetectedRegion(598, 100, 20, 20, 0.996);
+        static void DrawMagnifier(byte[] target, int targetStride, int x, int y)
+        {
+            const byte bright = 178;
+            // 19x19 hollow ring.
+            Fill(target, targetStride, x, y, 19, 3, bright, bright, bright);
+            Fill(target, targetStride, x, y + 16, 19, 3, bright, bright, bright);
+            Fill(target, targetStride, x, y, 3, 19, bright, bright, bright);
+            Fill(target, targetStride, x + 16, y, 3, 19, bright, bright, bright);
+            // Connected lower-right handle extends the icon to roughly 27x26 pixels,
+            // matching the live evidence while remaining clearly larger than glyphs.
+            for (var step = 0; step < 9; step++)
+                Fill(target, targetStride, x + 17 + step, y + 17 + step, 3, 3, bright, bright, bright);
+        }
 
-        // Bright neutral component at Tarkov's magnifier position. It deliberately
-        // reaches into the coarse title's left boundary if the old ROI is used.
-        Fill(pixels, stride, 104, 104, 12, 12, 160, 160, 160);
-        // Broad dark title field matching the real inspect-header luminance class.
-        Fill(pixels, stride, 118, 99, 383, 21, 30, 30, 30);
-        // Red close-control evidence at the right edge.
-        Fill(pixels, stride, 598, 100, 20, 20, 10, 10, 120);
+        static void DrawGlyph(byte[] target, int targetStride, int x, int y)
+        {
+            const byte bright = 172;
+            // Hollow/square-ish glyph intentionally resembles the old generic bright
+            // component heuristic. It must never outrank the preceding magnifier.
+            Fill(target, targetStride, x, y, 17, 3, bright, bright, bright);
+            Fill(target, targetStride, x, y + 16, 17, 3, bright, bright, bright);
+            Fill(target, targetStride, x, y, 3, 19, bright, bright, bright);
+            Fill(target, targetStride, x + 7, y + 3, 3, 13, bright, bright, bright);
+            Fill(target, targetStride, x + 14, y, 3, 19, bright, bright, bright);
+        }
+
+        // Deliberately drift the structural panel left edge to the right of the real
+        // magnifier start. This recreates the live failure where the first Korean title
+        // glyph became closer to the old panel-relative magnifier expectation.
+        var panel = new ScannerDetectedRegion(120, 100, 520, 400, 0.996);
+        var fallback = ScannerDetailGeometryDetector.GetTitleRegion(panel);
+        const int fieldX = 106;
+        const int fieldY = 98;
+        const int fieldWidth = 450;
+        const int fieldHeight = 27;
+        const int magnifierX = 108;
+        const int magnifierY = 99;
+        const int firstGlyphX = 141;
+        const int glyphY = 103;
+
+        Fill(pixels, stride, fieldX, fieldY, fieldWidth, fieldHeight, 30, 30, 30);
+        DrawMagnifier(pixels, stride, magnifierX, magnifierY);
+        DrawGlyph(pixels, stride, firstGlyphX, glyphY);
+        DrawGlyph(pixels, stride, firstGlyphX + 22, glyphY);
+        DrawGlyph(pixels, stride, firstGlyphX + 44, glyphY);
+        DrawGlyph(pixels, stride, firstGlyphX + 66, glyphY);
+
+        // Actual close control is detected from pixels rather than handed to the
+        // refiner, so the regression also covers the right-side red anchor.
+        Fill(pixels, stride, 620, 100, 20, 20, 10, 10, 126);
 
         var candidate = new ScannerDetectedCandidate(
             panel,
             fallback,
-            close,
+            default,
             "STRUCTURE_MATCH");
         var refinement = ScannerTitleAnchorRefiner.Refine(
             pixels,
@@ -141,14 +183,22 @@ public partial class ScannerPage
             stride,
             candidate);
 
-        if (refinement.Magnifier.Width <= 0 ||
-            refinement.Title.X <= fallback.X ||
-            refinement.Title.X <= refinement.Magnifier.X + refinement.Magnifier.Width ||
-            refinement.Title.Width < 100 ||
-            refinement.Score < 0.70)
+        var titleRight = refinement.Title.X + refinement.Title.Width;
+        var magnifierRight = refinement.Magnifier.X + refinement.Magnifier.Width;
+        if (refinement.Magnifier.Width < 20 ||
+            refinement.Magnifier.X > magnifierX + 4 ||
+            refinement.CloseButton.Width <= 0 ||
+            refinement.Title.X <= magnifierRight ||
+            refinement.Title.X > firstGlyphX ||
+            titleRight < firstGlyphX + 17 ||
+            refinement.Title.Width < 120 ||
+            refinement.Score < 0.68 ||
+            refinement.Reason != "TITLE_HEADER_TEXT_REFINED")
         {
             throw new InvalidOperationException(
-                "Scanner title-anchor smoke failed to exclude magnifier pixels from OCR ROI.");
+                $"Scanner inspect-header regression failed: magnifier={refinement.Magnifier}, " +
+                $"title={refinement.Title}, close={refinement.CloseButton}, " +
+                $"score={refinement.Score:F3}, reason={refinement.Reason}.");
         }
     }
 
@@ -212,8 +262,8 @@ public partial class ScannerPage
             }
 
             if (window.FindName("TraderSlotPriceText") is not TextBlock traderPerSlot ||
-                traderPerSlot.Visibility != Visibility.Visible ||
-                !traderPerSlot.Text.Contains("21,000", StringComparison.Ordinal))
+                traderSlotPrice.Visibility != Visibility.Visible ||
+                !traderSlotPrice.Text.Contains("21,000", StringComparison.Ordinal))
             {
                 throw new InvalidOperationException(
                     "Mini Scanner did not render the matched item's trader price per slot.");
