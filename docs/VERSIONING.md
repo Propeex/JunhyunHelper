@@ -2,7 +2,7 @@
 
 상태: `CONFIRMED`
 
-기준일: 2026-08-23
+기준일: 2026-08-24
 
 이 문서는 v1.0.0 정식 릴리즈 이후 준현 헬퍼의 버전 번호를 결정하는 공식 규칙입니다.
 
@@ -72,3 +72,4 @@ v1.0.0 승격 작업 자체에서는 새 제품 기능을 추가하지 않습니
 - v1.3.4 — 실제 live recognition/diagnostics 안정성 보완 → **PATCH**
 - v1.3.5 — 상세창 tracking/diagnostics 회귀 수정 → **PATCH**
 - v1.4.0 — 사용자 Scanner 교정, Ground Truth dataset 관리, ZIP export, full-pipeline 회귀 테스트 추가 → **MINOR**
+- v1.4.1 — 실제 Tarkov Ground Truth 기반 상세보기 header lock 실패 수정 및 1회 스캔 후보 탐색 보완 → **PATCH**
