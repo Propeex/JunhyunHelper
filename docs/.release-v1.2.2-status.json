@@ -1,0 +1,17 @@
+{
+  "version": "1.2.2",
+  "tag": "v1.2.2",
+  "sourceSha": "e3925cbc55215c7de0502c9b6b1ff1428d2f272b",
+  "releaseWorkflowRunId": "32590701086",
+  "finalizerWorkflowRunId": "32607942093",
+  "workflowStatus": "success",
+  "publishedAt": "08/22/2026 18:28:36",
+  "publicLatestVerified": true,
+  "exactPublicTagVerified": true,
+  "publicTagSha": "e3925cbc55215c7de0502c9b6b1ff1428d2f272b",
+  "zipBytes": "80302910",
+  "zipSha256": "125d4a5b0e6db64f6772cc63c112f13cbcdac2fb7bc9ce501313ca2fc3645d7c",
+  "productVersion": "1.2.2+e3925cbc55215c7de0502c9b6b1ff1428d2f272b",
+  "publicDownloadedExeSmoke": "SUCCESS",
+  "verifiedAtUtc": "2026-08-23T00:28:48.0468475+00:00"
+}
