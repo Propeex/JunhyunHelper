@@ -123,6 +123,7 @@ public static class ScannerRecognitionDebugStore
                 RecognitionReason = recognition.Reason,
                 Confidence = recognition.Confidence,
                 SecondScore = recognition.SecondScore,
+                TopCandidates = recognition.TopCandidates,
                 UpdatedAt = now,
                 Timestamp = now,
             };
@@ -190,6 +191,7 @@ public sealed record ScannerRecognitionDebugFrame(
     string RecognitionReason = "NOT_RUN",
     double Confidence = 0,
     double SecondScore = 0,
+    IReadOnlyList<ScannerMatchCandidate>? TopCandidates = null,
     DateTimeOffset? UpdatedAt = null,
     ScannerCaptureMode? CaptureMode = null,
     string CaseId = "")
