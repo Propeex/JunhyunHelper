@@ -94,6 +94,7 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <TextBlock x:Name="SelectionText"
                        Foreground="{StaticResource TextSecondaryBrush}"
@@ -107,7 +108,13 @@
                     Margin="0,0,8,0"
                     IsEnabled="False"
                     Click="DeleteSelectedButton_Click" />
-            <Button Grid.Column="2"
+            <Button x:Name="DeleteAllButton"
+                    Grid.Column="2"
+                    Content="전체 데이터 삭제"
+                    MinWidth="118"
+                    Margin="0,0,8,0"
+                    Click="DeleteAllButton_Click" />
+            <Button Grid.Column="3"
                     Content="닫기"
                     MinWidth="84"
                     Click="CloseButton_Click" />
