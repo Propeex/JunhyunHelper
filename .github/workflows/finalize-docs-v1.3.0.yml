@@ -1,0 +1,450 @@
+name: Finalize v1.3.0 docs
+# One-shot documentation finalizer for the verified public release.
+
+on:
+  push:
+    branches: [docs/finalize-v1.3.0-record]
+    paths:
+      - '.github/workflows/finalize-docs-v1.3.0.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  finalize-docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout finalization branch
+        uses: actions/checkout@v4
+        with:
+          ref: docs/finalize-v1.3.0-record
+          fetch-depth: 1
+
+      - name: Finalize canonical v1.3.0 documentation
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $utf8 = [System.Text.UTF8Encoding]::new($false)
+          function Read-Text([string]$Path) {
+            return [System.IO.File]::ReadAllText((Resolve-Path $Path), [System.Text.Encoding]::UTF8)
+          }
+          function Write-Text([string]$Path, [string]$Text) {
+            [System.IO.File]::WriteAllText((Join-Path $PWD $Path), $Text, $utf8)
+          }
+          function Replace-Required([string]$Path, [string]$Pattern, [string]$Replacement) {
+            $text = Read-Text $Path
+            $regex = [regex]::new($Pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
+            if (-not $regex.IsMatch($text)) { throw "Required documentation pattern missing in $Path: $Pattern" }
+            $updated = $regex.Replace($text, $Replacement, 1)
+            Write-Text $Path $updated
+          }
+          function Append-Once([string]$Path, [string]$Marker, [string]$Section) {
+            $text = Read-Text $Path
+            if ($text.Contains($Marker)) { return }
+            Write-Text $Path ($text.TrimEnd() + "`n`n" + $Section.Trim() + "`n")
+          }
+
+          $releaseBlock = @'
+          ## 릴리즈 상태
+
+          현재 public stable은 **v1.3.0**입니다.
+
+          ```text
+          version: v1.3.0 PUBLIC RELEASE / VERIFIED
+          release source: f03441672d39165678fa53f57af46f103070d50e
+          final PR CI: 32611343850 — SUCCESS
+          public verification status commit: 4cefa27012eafa62d40ef99f4efd630f3c53127a — SUCCESS
+          automated tests: 256 passed / 0 failed / 0 skipped
+          asset: Junhyun-Helper-v1.3.0-win-x64.zip
+          bytes: 80,306,655
+          SHA-256: 5880c71098d737b7ffd3447eb77a55195d09d76ea12be7ff79df4eb055ac8344
+          ProductVersion: 1.3.0+f03441672d39165678fa53f57af46f103070d50e
+          public/latest: VERIFIED
+          exact public tag source: VERIFIED
+          public-downloaded EXE smoke: SUCCESS
+          ```
+
+          ```text
+          Content schema: v7
+          Readable schemas: v3~v7
+          user.db schema: v1
+          Scanner display settings schema: v4
+          Scanner cache schema: v1/v2 readable, v2 written
+          v1.2.2 → v1.3.0 mandatory Game Content update: none
+          v1.2.2 → v1.3.0 user.db migration: none
+          ```
+
+          상세 릴리즈 기록은 `docs/RELEASE_1.3.0.md`에 있습니다.
+
+          ## 주요 기능
+          '@
+          Replace-Required 'README.md' '(?s)## 릴리즈 상태.*?## 주요 기능' $releaseBlock.Trim()
+          $readme = Read-Text 'README.md'
+          $readme = $readme.Replace(
+            '`인식 이미지` 캡처는 메모리에만 존재하며 screenshot/raw pixel은 파일로 저장하지 않습니다.',
+            '`인식 이미지`는 기본적으로 메모리에만 유지합니다. v1.3.0부터 사용자가 `이미지 저장`을 선택한 경우에만 실제 인식 원본 프레임을 PNG로 export하며 자동 raw screenshot 저장은 하지 않습니다.')
+          if (-not $readme.Contains('### v1.3.0 Scanner 분석 워크플로')) {
+            $insert = @'
+
+          ### v1.3.0 Scanner 분석 워크플로
+
+          - 최신 인식 원본 프레임을 사용자 지정 PNG로 저장 가능
+          - 모든 연결 디스플레이를 한 번만 검사하는 1회 테스트 스캔
+          - 1회 인게임/테스트 스캔 버튼 제거, hotkey-only 실행
+          - 전역 단축키 기본값: `Ctrl+Shift+F10` / `Ctrl+Shift+F11` / `Ctrl+Shift+F12`
+          - Scanner 탭의 `단축키 설정`에서 각 명령 변경/비활성화 및 중복 방지
+          - Scanner 탭 밖에서도 MainWindow lifetime 동안 global hotkey 유지
+          - v3의 기존 one-shot 단축키를 v4 인게임 one-shot으로 보존하고 신규 키 충돌만 자동 회피
+          - recognition threshold, market/RequiredTotal 의미 변경 없음
+          '@
+            $readme = $readme.Replace('### v1.2.2 Scanner 카탈로그 안정화', $insert.Trim() + "`n`n### v1.2.2 Scanner 카탈로그 안정화")
+          }
+          Write-Text 'README.md' $readme
+
+          $stateRelease = @'
+          ## 2. 현재 공개 릴리즈
+
+          현재 public stable은 **v1.3.0**입니다.
+
+          ```text
+          version: v1.3.0 PUBLIC RELEASE / VERIFIED
+          release source: f03441672d39165678fa53f57af46f103070d50e
+          final PR CI: 32611343850 — SUCCESS
+          public verification status commit: 4cefa27012eafa62d40ef99f4efd630f3c53127a — SUCCESS
+          automated tests: 256 passed / 0 failed / 0 skipped
+          asset: Junhyun-Helper-v1.3.0-win-x64.zip
+          bytes: 80,306,655
+          SHA-256: 5880c71098d737b7ffd3447eb77a55195d09d76ea12be7ff79df4eb055ac8344
+          ProductVersion: 1.3.0+f03441672d39165678fa53f57af46f103070d50e
+          public/latest: VERIFIED
+          exact public tag source: VERIFIED
+          public-downloaded EXE smoke: SUCCESS
+          ```
+
+          ```text
+          Desktop Version: 1.3.0
+          Content schema: v7
+          Readable Content schemas: v3~v7
+          user.db schema: v1
+          Scanner display settings schema: v4
+          Scanner catalog cache schema: v1/v2 readable, v2 written
+          v1.2.2 → v1.3.0 mandatory Game Content update: none
+          v1.2.2 → v1.3.0 user.db migration: none
+          ```
+
+          상세 검증 기록은 `docs/RELEASE_1.3.0.md`에 있습니다.
+
+          ## 3. 제품 아키텍처 기준
+          '@
+          Replace-Required 'docs/STATE.md' '(?s)## 2\. 현재 공개 릴리즈.*?## 3\. 제품 아키텍처 기준' $stateRelease.Trim()
+
+          $stateScanner = @'
+          ## 7. one-shot / 단축키
+
+          v1.3.0의 current contract:
+
+          - 1회 인게임 스캔 = `ScannerCaptureMode.TarkovWindow`
+          - 1회 테스트 스캔 = `ScannerCaptureMode.DisplayTest`, 모든 연결 디스플레이를 한 번만 동일 pipeline으로 검사
+          - 두 one-shot은 Scanner 탭 버튼 없이 global hotkey로 실행
+          - 기본값: 인게임 `Ctrl+Shift+F10`, 테스트 `Ctrl+Shift+F11`, Scanner ON/OFF `Ctrl+Shift+F12`
+          - 세 명령은 Scanner 탭의 하나의 설정 창에서 각각 변경/비활성화
+          - 동일 gesture 중복 지정 금지
+          - global registration은 MainWindow lifetime에 귀속되어 Scanner 탭 밖에서도 동작
+          - Scanner display settings schema v4
+          - v3의 기존 `OneShotHotkey`는 인게임 one-shot으로 보존하고 새 기본키 충돌은 신규 명령 쪽만 회피
+          - one-shot은 local healthy catalog만 사용하고 scan-time network refresh를 시작하지 않음
+          - duplicate invocation과 continuous/profile transitions는 기존 coordinator/runtime serialization 경계를 유지
+
+          ## 8. 인식 이미지 / diagnostics
+
+          `인식 이미지`는 process memory에 최신 diagnostic frame 1개를 유지합니다.
+
+          - 사용자가 `이미지 저장`을 선택했을 때만 실제 recognition source frame을 PNG로 export
+          - export PNG에는 diagnostic rectangle/text overlay를 합성하지 않음
+          - 자동 screenshot/raw pixel disk persistence는 계속 금지
+          - 사용자가 명시적으로 저장한 PNG는 `로그 삭제` 대상이 아님
+          - 로그 삭제는 recent activity, current/rotated scanner log, 최신 in-memory recognition image를 clear
+          - 진단 I/O 실패는 Scanner fatal이 아님
+
+          개발자 로그:
+
+          ```text
+          %LocalAppData%/JunhyunHelper/logs/scanner.log
+          %LocalAppData%/JunhyunHelper/logs/scanner.log.1
+          ```
+
+          ## 9. Mini Scanner
+          '@
+          Replace-Required 'docs/STATE.md' '(?s)## 7\. 1회 고정밀 스캔 / 단축키.*?## 9\. Mini Scanner' $stateScanner.Trim()
+
+          $currentState = @'
+          # CURRENT STATE
+
+          > 최신 개발 상태의 짧은 인덱스입니다. 상세 설계와 이력은 `docs/STATE.md` 및 전문 문서를 참조합니다.
+
+          기준일: 2026-08-23
+
+          상태: **`v1.3.0 PUBLIC RELEASE / VERIFIED — Scanner 분석 이미지 export / one-shot test / 3종 global hotkey`**
+
+          ## 현재 공개 기준선
+
+          ```text
+          version: v1.3.0
+          release source: f03441672d39165678fa53f57af46f103070d50e
+          final PR CI: 32611343850 — SUCCESS
+          public verification status commit: 4cefa27012eafa62d40ef99f4efd630f3c53127a — SUCCESS
+          automated tests: 256 passed / 0 failed / 0 skipped
+          asset: Junhyun-Helper-v1.3.0-win-x64.zip
+          bytes: 80,306,655
+          SHA-256: 5880c71098d737b7ffd3447eb77a55195d09d76ea12be7ff79df4eb055ac8344
+          ProductVersion: 1.3.0+f03441672d39165678fa53f57af46f103070d50e
+          public/latest: VERIFIED
+          exact public tag source: VERIFIED
+          public-downloaded EXE smoke: SUCCESS
+          ```
+
+          ```text
+          Content schema: v7
+          Readable Content schemas: v3~v7
+          user.db schema: v1
+          Scanner display settings schema: v4
+          Scanner cache schema: v1/v2 readable, v2 written
+          mandatory Game Content update from v1.2.2: none
+          user.db migration from v1.2.2: none
+          ```
+
+          ## v1.3.0 Scanner current contract
+
+          - explicit user-selected PNG export of the latest raw recognition source frame
+          - no automatic screenshot persistence
+          - one-shot TarkovWindow scan + one-shot all-display DisplayTest scan
+          - one-shot scan buttons removed; both are hotkey-only
+          - default global hotkeys: `Ctrl+Shift+F10`, `Ctrl+Shift+F11`, `Ctrl+Shift+F12`
+          - all three configurable/disableable from one Scanner hotkey settings window
+          - global hotkeys remain active outside the Scanner tab for the MainWindow lifetime
+          - settings schema v4 preserves the old v3 one-shot user gesture and resolves only new-command collisions
+          - detector/OCR/visual confidence and top1/top2 margin unchanged
+          - best trader / flea avg24h / Needed Items `RequiredTotal` semantics unchanged
+          - game memory / DLL injection / packet interception / scan-time HTTP remain prohibited
+
+          상세: `docs/SCANNER_V1.3.0_WORKFLOW.md`, `docs/SCANNER.md`, `docs/RELEASE_1.3.0.md`.
+          '@
+          Write-Text 'docs/CURRENT_STATE.md' $currentState.TrimStart()
+
+          $decision = @'
+          ## DEC-058 — Scanner v1.3.0은 explicit 분석 이미지 export, one-shot DisplayTest, 3종 global hotkey를 제공한다
+
+          - 상태: `CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED`
+          - 날짜: 2026-08-23
+          - 최신 recognition source frame은 메모리에 유지하며 사용자가 명시적으로 `이미지 저장`을 선택했을 때만 raw frame을 PNG로 export한다.
+          - automatic raw screenshot disk persistence는 계속 금지한다. 사용자가 export한 PNG는 `로그 삭제`가 삭제하지 않는다.
+          - one-shot in-game은 `TarkovWindow`, one-shot test는 `DisplayTest` capture source를 사용하며 같은 Scanner Lab v3.8 recognition pipeline을 사용한다.
+          - one-shot in-game/test 버튼은 Scanner 탭에서 제거하고 global hotkey로 실행한다.
+          - 기본 global hotkey는 각각 `Ctrl+Shift+F10`, `Ctrl+Shift+F11`, `Ctrl+Shift+F12`이다.
+          - 세 명령은 Scanner 탭의 하나의 설정 창에서 변경/비활성화하며 동일 gesture 중복을 허용하지 않는다.
+          - global hotkey ownership은 ScannerPage lifetime이 아니라 MainWindow lifetime이다.
+          - Scanner display settings schema는 v4이며 v3의 기존 one-shot 사용자 gesture를 인게임 one-shot으로 우선 보존한다. 새 명령 default와 충돌하면 기존 사용자 값을 바꾸지 않고 신규 명령만 비충돌 fallback을 사용한다.
+          - detector/OCR/visual confidence, top1/top2 margin, market 계산, `RequiredTotal` 의미는 변경하지 않는다.
+          - 새 사용자 기능이므로 DEC-048에 따라 **v1.3.0 MINOR**다.
+          - public release source: `f03441672d39165678fa53f57af46f103070d50e`
+          - final PR CI: `32611343850 — SUCCESS`, 256/256 tests
+          - public asset SHA-256: `5880c71098d737b7ffd3447eb77a55195d09d76ea12be7ff79df4eb055ac8344`
+          - partially supersedes: DEC-051/055의 "raw pixel disk 미저장"을 **자동 저장 금지 + explicit user export 허용**으로 구체화하고, DEC-055의 단일 one-shot hotkey surface를 3종 global command로 확장한다.
+          - 상세: `docs/SCANNER_V1.3.0_WORKFLOW.md`, `docs/RELEASE_1.3.0.md`
+          '@
+          $decisions = Read-Text 'docs/DECISIONS.md'
+          if (-not $decisions.Contains('## DEC-058')) {
+            $anchor = '# 3. 현재 결정 확인 방법'
+            $index = $decisions.IndexOf($anchor, [System.StringComparison]::Ordinal)
+            if ($index -lt 0) { throw 'DECISIONS current-index anchor not found.' }
+            $decisions = $decisions.Insert($index, $decision.Trim() + "`n`n---`n`n")
+            Write-Text 'docs/DECISIONS.md' $decisions
+          }
+
+          $productDelta = @'
+          ## 19. v1.3.0 Scanner workflow 확장
+
+          `CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED`
+
+          - 최신 recognition source frame은 사용자의 명시적 조작으로 PNG export할 수 있다. 자동 raw screenshot 저장은 하지 않는다.
+          - one-shot은 인게임 `TarkovWindow`와 모든 디스플레이 `DisplayTest` 두 경로를 제공하며 continuous mode를 영구 변경하지 않는다.
+          - one-shot 버튼은 Scanner 탭에서 제거하고 global hotkey-only로 제공한다.
+          - 기본 hotkey: 인게임 F10 / 테스트 F11 / Scanner ON/OFF F12, 모두 `Ctrl+Shift` 조합.
+          - 하나의 Scanner 설정 창에서 세 명령을 변경/비활성화하고 중복 gesture를 거부한다.
+          - global hotkey는 MainWindow lifetime에 속한다.
+          - Scanner settings schema v4는 v3 사용자 one-shot gesture를 보존한다.
+          - recognition acceptance, market, Needed Items 의미는 v1.2.2 기준선을 유지한다.
+
+          상세: `docs/SCANNER_V1.3.0_WORKFLOW.md`.
+          '@
+          Append-Once 'docs/PRODUCT.md' '## 19. v1.3.0 Scanner workflow 확장' $productDelta
+
+          $architectureDelta = @'
+          ## 16. v1.3.0 Scanner workflow architecture delta
+
+          - `ScannerCoordinator.AttachHotkeyHost(MainWindow)`가 세 global command registration의 제품 lifetime boundary다.
+          - `ScannerPage`는 hotkey 설정/상태 UI를 소유하지만 global registration lifetime을 소유하지 않는다.
+          - one-shot Tarkov/Test는 동일 coordinator serialization과 `ScannerRuntimeService.ScanOnceAsync(mode)` 경로를 공유하고 capture source만 다르다.
+          - recognition debug store의 raw frame은 memory-only가 기본이며 `ScannerRecognitionDebugWindow`의 explicit PNG export만 disk write를 허용한다.
+          - `ScannerDisplaySettings` schema v4가 세 hotkey와 v3 migration/collision policy를 소유한다.
+          - recognition detector/OCR/visual acceptance pipeline 및 Item ID 이후 presentation/market/RequiredTotal bridge는 변경하지 않는다.
+          '@
+          Append-Once 'docs/ARCHITECTURE.md' '## 16. v1.3.0 Scanner workflow architecture delta' $architectureDelta
+
+          $developerDelta = @'
+          ## v1.3.0 Scanner workflow implementation map
+
+          - `ScannerRecognitionDebugWindow.xaml(.cs)` — 최신 raw recognition frame 표시 및 explicit PNG export
+          - `ScannerCoordinator.OneShot.cs` — TarkovWindow/DisplayTest one-shot orchestration, existing mode restore gate
+          - `ScannerRuntimeService.OneShot.cs` — capture-mode parameterized one-shot recognition
+          - `ScannerGlobalHotkeyService.cs` — Win32 global registration, command callback, registration status
+          - `ScannerHotkeySettingsWindow.xaml(.cs)` — 세 gesture 입력/비활성화/중복 validation
+          - `ScannerDisplaySettings.cs` — schema v4, v3 legacy gesture migration, collision-safe defaults
+          - `MainWindow.ProductLifecycle.cs` — global hotkey MainWindow lifetime attachment
+          - `ScannerPage.xaml(.cs)` — one-shot buttons 제거, `단축키 설정` surface 및 status binding
+          - `ScannerPage.MiniScannerSmoke.cs` — schema v4/default/migration contract smoke
+          - `MainWindow.ProductUiLayoutSmoke.cs` — hotkey settings control 존재와 one-shot buttons 부재 rendered contract
+          - `.github/workflows/ci.yml` — startup/dispatcher diagnostics를 smoke failure context에 포함
+
+          변경 영향: hotkey/settings/export 변경은 recognition acceptance threshold, Scanner catalog market parsing, `RequiredTotal`, Mini Scanner inventory gate를 변경하지 않는다.
+          '@
+          Append-Once 'docs/DEVELOPER_REFERENCE.md' '## v1.3.0 Scanner workflow implementation map' $developerDelta
+
+          $scannerDelta = @'
+          ## v1.3.0 current workflow contract
+
+          이 절은 v1.2.x의 단일 one-shot/메모리-only 진단 surface와 충돌하는 문장을 현재 제품 기준으로 확장·구체화한다.
+
+          - latest diagnostic source frame은 기본적으로 process memory에만 존재한다.
+          - 사용자가 `인식 이미지` 창의 `이미지 저장`을 선택하면 **overlay가 합성되지 않은 실제 recognition source frame**을 PNG로 export한다.
+          - automatic raw screenshot persistence는 하지 않는다.
+          - one-shot in-game = `TarkovWindow`; one-shot test = `DisplayTest` all-display capture.
+          - 두 one-shot은 Scanner 탭 버튼 없이 global hotkey-only다.
+          - default: `Ctrl+Shift+F10`, `Ctrl+Shift+F11`, `Ctrl+Shift+F12`.
+          - 설정 창에서 세 command를 개별 변경/disable하며 duplicate gesture를 저장하지 않는다.
+          - global hotkey는 MainWindow lifetime 동안 활성화된다.
+          - settings schema v4는 v3 legacy one-shot gesture를 인게임 command로 보존하고 신규 command collision만 조정한다.
+          - 기존 Scanner Lab v3.8 structural/semantic pipeline, ko-KR OCR, current-catalog visual recovery, confidence/margin, market/RequiredTotal contract는 그대로다.
+
+          상세 설계/마이그레이션: `docs/SCANNER_V1.3.0_WORKFLOW.md`.
+          '@
+          Append-Once 'docs/SCANNER.md' '## v1.3.0 current workflow contract' $scannerDelta
+
+          $testDelta = @'
+          ## v1.3.0 release gate
+
+          - final PR CI `32611343850 — SUCCESS`
+          - 256/256 automated tests
+          - win-x64 self-contained single-file publish/package audit
+          - rendered Scanner UI에서 `단축키 설정` 존재 및 one-shot scan buttons 부재
+          - Scanner schema v4 defaults + v3 collision-safe migration self-check
+          - actual published EXE Product UI / Scanner / Mini Scanner / Main Map / Factory / MiniMap smoke
+          - exact public tag → `f03441672d39165678fa53f57af46f103070d50e`
+          - public ZIP SHA-256 `5880c71098d737b7ffd3447eb77a55195d09d76ea12be7ff79df4eb055ac8344`
+          - public-downloaded EXE independent smoke SUCCESS
+          '@
+          Append-Once 'docs/SCANNER_TEST_PLAN.md' '## v1.3.0 release gate' $testDelta
+
+          $versionDelta = @'
+          ## v1.3.0 — 2026-08-23
+
+          Scanner 분석용 explicit PNG export, one-shot DisplayTest, 3종 configurable global hotkey라는 새 사용자 기능을 추가한 MINOR 릴리즈다. Scanner settings schema는 v4로 확장되며 v3 one-shot 사용자 gesture를 보존한다. Recognition threshold와 market/RequiredTotal 의미는 변경하지 않는다.
+          '@
+          Append-Once 'docs/VERSIONING.md' '## v1.3.0 — 2026-08-23' $versionDelta
+
+          $releaseRecord = @'
+          # RELEASE 1.3.0 — Scanner 분석 워크플로 / one-shot test / global hotkeys
+
+          상태: **PUBLIC RELEASE / VERIFIED**
+          날짜: 2026-08-23
+
+          ## Release identity
+
+          ```text
+          version: v1.3.0
+          release source: f03441672d39165678fa53f57af46f103070d50e
+          final PR: #142
+          final PR CI: 32611343850 — SUCCESS
+          public verification status commit: 4cefa27012eafa62d40ef99f4efd630f3c53127a
+          GitHub release id: 375089921
+          asset: Junhyun-Helper-v1.3.0-win-x64.zip
+          bytes: 80,306,655
+          SHA-256: 5880c71098d737b7ffd3447eb77a55195d09d76ea12be7ff79df4eb055ac8344
+          ProductVersion: 1.3.0+f03441672d39165678fa53f57af46f103070d50e
+          public/latest: VERIFIED
+          exact public tag source: VERIFIED
+          public-downloaded EXE smoke: SUCCESS
+          verifiedAtUtc: 2026-08-23T01:58:02.2393394+00:00
+          ```
+
+          ## 사용자 기능
+
+          - 최신 Scanner recognition source frame을 사용자가 직접 PNG로 저장 가능
+          - 자동 screenshot 저장은 하지 않음
+          - 모든 연결 디스플레이를 한 번만 동일 인식 pipeline으로 검사하는 one-shot DisplayTest
+          - one-shot 인게임/테스트 버튼 제거
+          - configurable global hotkeys:
+            - `Ctrl+Shift+F10` — one-shot in-game
+            - `Ctrl+Shift+F11` — one-shot test
+            - `Ctrl+Shift+F12` — Scanner ON/OFF
+          - Scanner tab의 단일 설정 창에서 각 명령 변경/비활성화, duplicate gesture 거부
+          - global registration은 MainWindow lifetime에 귀속
+          - v3 old one-shot gesture를 v4 in-game one-shot으로 보존하고 신규 command collision만 조정
+
+          ## 유지되는 Scanner contract
+
+          - Scanner Lab v3.8 structural multi-candidate pipeline 유지
+          - Windows ko-KR OCR primary
+          - current official Korean item catalog identity authority 유지
+          - Tarkov-font conservative visual recovery 유지
+          - detector/OCR/visual confidence 및 top1/top2 margin 변경 없음
+          - 최고 상점가 = 유효한 non-flea RUB 판매가 최댓값
+          - flea average = positive `avg24hPrice`
+          - 필요한 개수 = `ItemsWorkspace.Plan.NeededItems[itemId].RequiredTotal`
+          - scan-time network / game memory / DLL injection / packet interception 없음
+
+          ## 호환성
+
+          ```text
+          Game Content schema: v7 유지
+          readable Content schemas: v3~v7 유지
+          user.db schema: v1 유지
+          Scanner display settings: v3 → v4, automatic migration
+          Scanner catalog cache: v1/v2 readable, v2 written
+          mandatory Game Content update: none
+          user.db migration: none
+          ```
+
+          ## 검증
+
+          - Windows Release build
+          - 256 passed / 0 failed / 0 skipped
+          - win-x64 self-contained single-file publish
+          - ProductVersion / FIRST_RUN / package root audit
+          - rendered Scanner v1.3 UI contract
+          - schema v4 + legacy v3 hotkey migration smoke
+          - Product UI / Scanner / Mini Scanner / Main Map / Factory / MiniMap actual EXE smoke
+          - graceful shutdown / clean portable root
+          - Draft release asset re-download validation + EXE smoke
+          - public/latest + exact tag verification
+          - public asset re-download checksum/root/ProductVersion/FIRST_RUN verification
+          - independent public-downloaded EXE smoke
+
+          Public verification evidence는 `docs/.release-v1.3.0-status.json`에 보존한다.
+          '@
+          Write-Text 'docs/RELEASE_1.3.0.md' $releaseRecord.TrimStart()
+
+          # Release-only workflows are not part of steady-state project operation.
+          git rm -f .github/workflows/release-v1.3.0.yml .github/workflows/finalize-v1.3.0.yml .github/workflows/finalize-docs-v1.3.0.yml
+
+      - name: Commit finalized docs and workflow cleanup
+        shell: pwsh
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add README.md docs .github/workflows
+          git diff --cached --stat
+          if (git diff --cached --quiet) { throw 'v1.3.0 documentation finalizer produced no changes.' }
+          git commit -m 'docs: finalize v1.3.0 public release record'
+          git push origin HEAD:docs/finalize-v1.3.0-record
