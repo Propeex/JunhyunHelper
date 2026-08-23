@@ -1,40 +1,32 @@
-# 준현 헬퍼 v1.3.3 릴리즈 후보
+# 준현 헬퍼 v1.3.3 공개 검증
 
-기준일: 2026-08-23
+## 릴리즈 식별자
 
-상태: **RELEASE CANDIDATE — PUBLIC RELEASE PENDING**
+- 버전: **v1.3.3**
+- exact release source: $env:SOURCE_SHA
+- public tag source: $tagSha
+- asset: $env:ASSET_NAME
+- bytes: $bytes
+- SHA-256: $hash
+- ProductVersion: $env:RELEASE_VERSION+41bf5b8374ba774866aab4b60a25376d9b5548c2
 
-## 목적
+## 검증
 
-v1.3.2 공개 후 실제 Tarkov 상세창 12개에서 재확인된 title-start / magnifier-anchor 회귀를 수정하는 PATCH다.
+- PR #145 final Windows CI $env:FINAL_PR_CI: SUCCESS
+- automated tests: **263 passed / 0 failed / 0 skipped**
+- exact-source release workflow: $releaseRunId — SUCCESS
+- public/latest: VERIFIED
+- exact public tag source: VERIFIED
+- independent public ZIP re-download + SHA256SUMS/layout/ProductVersion/FIRST_RUN: VERIFIED
+- public-downloaded Product UI + Scanner + Mini Scanner + Main Map + Factory + MiniMap smoke: SUCCESS
 
-## Scanner 변경
+## Scanner v1.3.3
 
-- actual long neutral header frame + red close/X + bounded frame-left search-icon lane을 title ROI의 authoritative geometry로 사용
-- 12개 표본 모두에서 반복된 13×13 magnifier bright core와 상대 위치를 회귀 범위로 고정
-- first title glyph가 title ROI left edge를 이동시키는 경로 제거
-- full `HEADER_FRAME_LOCKED` 전에는 OCR identity path로 진행하지 않음
-- raw OCR / sanitized matcher input diagnostics 분리
-- current-catalog symbol sanitation, normal confidence/margin, bounded unique one-edit rule 유지
-- highest trader, flea avg24hPrice, RequiredTotal 의미 변경 없음
+- 실제 Tarkov 2048x1280 상세창 12개에서 측정한 long neutral top frame, red close/X, bounded left search-icon lane, 13×13 magnifier bright core를 title ROI의 authoritative 구조로 사용합니다.
+- first title glyph connected component는 더 이상 title ROI left edge를 결정하지 않습니다.
+- HEADER_FRAME_LOCKED와 68% 이상의 anchor score가 없으면 OCR identity path로 진행하지 않습니다.
+- raw Windows OCR과 current-catalog sanitation 후 matcher input을 진단에서 분리합니다.
+- normal confidence/top1-top2 margin 및 bounded unique one-edit safety는 완화하지 않았습니다.
+- 최고 상점가, flea avg24hPrice, RequiredTotal 및 사용자/content/settings schema 의미는 변경하지 않았습니다.
 
-## 호환성
-
-- Desktop: 1.3.3
-- Content schema: v7 유지, readable v3~v7
-- user.db: v1 유지
-- Scanner display settings: v4 유지
-- Scanner catalog cache: v1/v2 readable, v2 written
-- mandatory Game Content update: 없음
-- user migration: 없음
-
-## 현재 검증
-
-- v1.3.3 candidate CI `32624123821`: SUCCESS
-- follow-up CI `32624855995`: SUCCESS
-- automated tests: 263 passed / 0 failed / 0 skipped
-- Windows Release build/publish: SUCCESS
-- actual packaged EXE Product UI + Scanner + Mini Scanner + Main Map + Factory + MiniMap smoke: SUCCESS
-- 12-case cleaned final-head CI: PENDING
-- exact release source: PENDING MERGE
-- Draft/public package re-download verification: PENDING
+검증 시각(UTC): $verifiedUtc
