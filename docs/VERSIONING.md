@@ -2,7 +2,7 @@
 
 상태: `CONFIRMED`
 
-기준일: 2026-08-19
+기준일: 2026-08-23
 
 이 문서는 v1.0.0 정식 릴리즈 이후 준현 헬퍼의 버전 번호를 결정하는 공식 규칙입니다.
 
@@ -63,10 +63,12 @@ v1.0.0 승격 작업 자체에서는 새 제품 기능을 추가하지 않습니
 3. Desktop project version, 배포 안내문, release tag, ZIP 이름, release notes가 같은 버전을 가리키는지 검증합니다.
 4. 자동 업데이트가 사용하는 GitHub stable release도 같은 버전인지 검증합니다.
 
-
 ## 8. 최근 적용 사례
 
 - v1.3.0 — recognition image export / one-shot test / 3종 global hotkey 추가 → **MINOR**
 - v1.3.1 — 기존 Scanner title recognition 보완 → **PATCH**
 - v1.3.2 — 추가 live OCR evidence 기반 안정성·정확성 보완 → **PATCH**
 - v1.3.3 — 12개 실제 상세창에서 재확인된 header/title-start 회귀 수정 → **PATCH**
+- v1.3.4 — 실제 live recognition/diagnostics 안정성 보완 → **PATCH**
+- v1.3.5 — 상세창 tracking/diagnostics 회귀 수정 → **PATCH**
+- v1.4.0 — 사용자 Scanner 교정, Ground Truth dataset 관리, ZIP export, full-pipeline 회귀 테스트 추가 → **MINOR**
