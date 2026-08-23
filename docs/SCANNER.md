@@ -2,7 +2,7 @@
 
 기준일: 2026-08-23
 
-상태: **`v1.3.3 PUBLIC VERIFIED / LIVE TARKOV CALIBRATION ONGOING`**
+상태: **`v1.3.4 PUBLIC VERIFIED / LIVE TARKOV CALIBRATION ONGOING`**
 
 ## 1. 목적
 
@@ -11,11 +11,19 @@ Scanner는 Tarkov 화면을 기존 JunhyunHelper Item ID와 진행/가격 데이
 ```text
 화면 픽셀
 → structural detail candidates
-→ actual inspect-header frame lock
+→ red close/X + normalized X template
+→ actual long neutral inspect-header frame
+→ fixed frame-left search-icon lane
+→ normalized magnifier ring/hollow/handle template
+→ dark title field + text evidence
+→ full HEADER_FRAME_LOCKED only
+→ locked-header-based detail bounds refinement
 → magnifier-free title ROI
 → Windows ko-KR OCR
 → current-catalog character/symbol sanitation
+→ optional one-unknown-glyph current-catalog recovery
 → current official Korean catalog semantic match
+→ bounded unique one-edit recovery when safe
 → optional Tarkov-font visual corroboration/recovery
 → conservative confidence + top1/top2 margin
 → Item ID or fail closed
@@ -34,27 +42,29 @@ Scanner는 Tarkov 화면을 기존 JunhyunHelper Item ID와 진행/가격 데이
 - icon/image 단독 identity 확정
 - scan 순간 HTTP/API
 - current official catalog 밖 임의 Item/text 생성
+- current-catalog 밖 glyph를 특정 문자로 임의 치환
 - live evidence 없이 acceptance threshold 완화
 
 ## 2. 현재 공개 기준선
 
 ```text
-version: v1.3.3
-release source/tag: 41bf5b8374ba774866aab4b60a25376d9b5548c2
-final PR CI: 32625223009 — SUCCESS
-263 passed / 0 failed / 0 skipped
-release run: 32625403609 — SUCCESS
-asset: Junhyun-Helper-v1.3.3-win-x64.zip
-bytes: 80,314,373
-SHA-256: 0771d3c7dee5a8f19904d52eeedc7b9abbd6027a7b000255ebd33c296bc2186f
-ProductVersion: 1.3.3+41bf5b8374ba774866aab4b60a25376d9b5548c2
+version: v1.3.4
+release source/tag: a78ddbc649747f1320236556f17e6b908304674a
+final PR CI: 32636665202 — SUCCESS
+267 passed / 0 failed / 0 skipped
+release run: 32636927134 — SUCCESS
+independent public verifier: 32637159066 — SUCCESS
+asset: Junhyun-Helper-v1.3.4-win-x64.zip
+bytes: 80,319,654
+SHA-256: 8c442fec81a0b993a9a6b080e59b656668a7a73d8fadd8434595545b08c82e8e
+ProductVersion: 1.3.4+a78ddbc649747f1320236556f17e6b908304674a
 public/latest: VERIFIED
 exact public tag source: VERIFIED
-public re-download: VERIFIED
+Draft/public re-download: VERIFIED
 public-downloaded EXE smoke: SUCCESS
 ```
 
-상세: `docs/RELEASE_1.3.3.md`, `docs/.release-v1.3.3-status.json`.
+상세: `docs/RELEASE_1.3.4.md`, `docs/.release-v1.3.4-status.json`.
 
 ## 3. Capture modes
 
@@ -102,7 +112,7 @@ AND every accepted item has non-empty official name
 
 ## 5. Structural detail-window detector
 
-Scanner Lab v3.8의 RED-X/rectangle architecture를 candidate geometry 기준으로 유지합니다.
+Scanner Lab v3.8의 RED-X/rectangle architecture를 candidate discovery 기준으로 유지합니다.
 
 ```text
 capture
@@ -119,22 +129,39 @@ capture
 - continuous path에서 동일 quantized geometry가 안정화된 뒤 semantic recognition
 - verified bounds/title signature가 유지되면 불필요한 OCR 반복 억제
 
-## 6. v1.3.3 inspect-header frame lock
+v1.3.4부터 initial structural rectangle은 discovery seed입니다. Full header lock 이후 authoritative magnifier/X 위치에서 detail-window top/left/right를 다시 정렬합니다. Item/stat pane 높이는 달라질 수 있으므로 bottom은 기존 structural bottom을 유지합니다.
 
-v1.3.2 이후 실제 2048×1280 Tarkov 상세창 12개에서 title start가 첫 글자 segmentation에 끌려가거나 magnifier association이 흔들리는 회귀가 재확인되었습니다.
+## 6. Inspect-header lock
 
-v1.3.3은 `ScannerInspectHeaderLock`을 authoritative title-geometry layer로 사용합니다.
+### v1.3.3 — structural ownership
 
-### Required structure
+실제 2048×1280 Tarkov 상세창 12개에서 title start가 first glyph segmentation에 끌려가거나 magnifier association이 흔들리는 회귀를 근거로 `ScannerInspectHeaderLock`을 authoritative title-geometry layer로 사용합니다.
 
-1. **red close/X** — detail header 우측 control
+first Korean/title glyph connected component는 title ROI의 left edge를 결정하지 않습니다.
+
+### v1.3.4 — fixed icon lane + shape template
+
+v1.3.3 공개 후 title glyph가 magnifier처럼 보이며 후보로 승격되는 실전 failure를 차단했습니다.
+
+Required structure:
+
+1. **red close/X** — red body/edge + expected header geometry + diagonal X contrast
 2. **long neutral top frame** — 실제 inspect header의 수평 frame
-3. **bounded frame-left icon lane** — search icon을 찾을 수 있는 제한된 영역
-4. **magnifier bright core + morphology** — 약 13px-class core, ring/hollow/handle evidence
+3. **fixed frame-left search-icon lane** — title lane과 분리된 magnifier 전용 후보 공간
+4. **normalized magnifier template** — ring + hollow center + lower-right handle + outside background
 5. **dark title field**
 6. **title text presence**
 
-위 구조가 결합되어 `HEADER_FRAME_LOCKED`가 된 candidate만 OCR identity path로 진행할 수 있습니다.
+magnifier location/size는 close height에 대해 scale-normalized 합니다.
+
+```text
+scale ≈ close.Height / 17
+expected x ≈ frame.Left + 12 * scale
+expected y ≈ frame.Top + 7 * scale
+expected size ≈ 13 * scale
+```
+
+title glyph는 fixed search-icon lane 밖이면 morphology가 유사해도 magnifier candidate pool에 들어갈 수 없습니다.
 
 Runtime gate:
 
@@ -147,11 +174,7 @@ AND TitleAnchorReason == HEADER_FRAME_LOCKED
 AND TitleAnchorScore >= 0.68
 ```
 
-partial/failed lock은 refiner에서 score를 `<= 0.47`로 제한하고 runtime에서도 다시 거부합니다.
-
-### First-glyph ownership
-
-first Korean/title glyph connected component는 더 이상 title ROI의 left edge를 결정하지 않습니다. 따라서 glyph fragmentation이나 anti-aliasing 때문에 title start가 오른쪽으로 밀려 첫 글자가 잘리는 경로를 허용하지 않습니다.
+partial/failed lock candidate는 OCR 후보 목록에서 제거합니다.
 
 ### Live evidence
 
@@ -159,9 +182,13 @@ first Korean/title glyph connected component는 더 이상 title ROI의 left edg
 
 - `docs/.scanner-v1.3.3-header-evidence.json`
 - `docs/SCANNER_V1.3.3_HEADER_LOCK.md`
-- `docs/DECISION_SCANNER_HEADER_LOCK_2026-08-23.md`
 
-packaged-EXE smoke는 12개 measured geometry를 synthetic frame으로 모두 재생합니다.
+v1.3.4의 실제 failure와 최종 설계:
+
+- `docs/SCANNER_V1.3.4_LIVE_HARDENING.md`
+- `docs/DECISION_SCANNER_V1.3.4_LIVE_HARDENING_2026-08-23.md`
+
+packaged-EXE smoke는 기존 12개 measured geometry와 title-lane decoy ring regression을 계속 실행합니다.
 
 ## 7. OCR / current-catalog sanitation / semantic matching
 
@@ -178,12 +205,39 @@ Primary text recognizer는 Windows `ko-KR` OCR입니다.
 `ScannerOcrCharacterPolicy`는 current official Korean item-name catalog에서 허용 문자/기호 집합을 파생합니다.
 
 - raw OCR은 진단 정보로 그대로 유지
-- matcher에는 sanitation 후 text를 전달
-- current catalog에 존재하지 않는 punctuation/symbol은 matcher evidence에서 제거
+- matcher에는 sanitation 후 ordinary text를 전달
+- current catalog에 존재하지 않는 punctuation/symbol은 ordinary matcher evidence에서 제거
 - Korean item-title contract에서 Han ideograph는 invalid evidence
 - 특정 OCR 문자를 임의 치환해 confidence를 올리지 않음
 
-v1.3.2의 bounded one-edit recovery는 유지합니다.
+### v1.3.4 one-unknown-glyph evidence
+
+실제 `Esma「ch`처럼 current-catalog 밖 symbol이 영숫자 사이에 정확히 한 번 나타나는 경우 ordinary text와 별도로 `?` pattern을 보존할 수 있습니다.
+
+```text
+raw:      Esma「ch 에스마르호 지혈대
+ordinary: Esmach 에스마르호 지혈대
+pattern:  Esma?ch 에스마르호 지혈대
+```
+
+`?`는 특정 문자에 대한 치환이 아니라 한 glyph 위치가 미상이라는 evidence입니다.
+
+복구 조건:
+
+```text
+normalized pattern length >= 7
+AND exactly one ?
+AND same-length exact-slot candidate is unique over complete current catalog
+AND duplicate official name이 아님
+AND best - global wildcard runner-up >= 10 percentage points
+```
+
+- short title에는 적용하지 않음
+- ambiguous candidate는 fail closed
+- global margin 부족은 fail closed
+- current official catalog 밖 후보 생성 금지
+
+### bounded one-edit recovery — v1.3.2부터 유지
 
 ```text
 normalized official length >= 7
@@ -250,11 +304,16 @@ Scanner display settings schema: **v4**.
 - official candidate
 - confidence / second score / reason
 
-`이미지 저장`을 사용하면 실제 분석 원본 frame을 사용자 지정 PNG로 export합니다.
+자동 screenshot 저장은 없습니다.
 
-- 자동 screenshot 저장 없음
-- export PNG에 diagnostic rectangle/text overlay를 합성하지 않음
-- 다음 scan 전에 문제 frame을 저장하는 것이 권장 실사용 절차
+`이미지 저장`을 명시적으로 사용하면 실제 capture 위에 detector rectangle을 합성한 사용자 지정 PNG를 export합니다.
+
+- **Lime/초록 3px**: selected detail
+- **DeepSkyBlue/파랑 2px**: OCR title ROI
+- **Gold/노랑 2px**: magnifier
+- **OrangeRed/빨강 2px**: close/X
+- capture와 동일한 1:1 pixel coordinate
+- 문제 피드백 시 저장 PNG 하나로 detector/ROI drift를 확인 가능
 
 로그:
 
@@ -324,14 +383,14 @@ Scanner 설정/cache/log는 program package와 분리됩니다.
 
 ## 15. 실제 Tarkov calibration
 
-v1.3.3 공개 검증은 완료됐지만 실제 Tarkov recognition calibration은 계속 진행합니다.
+v1.3.4 공개 검증은 완료됐지만 실제 Tarkov recognition calibration은 계속 진행합니다.
 
 문제 evidence:
 
 ```text
 실제 아이템 이름
 + success / miss / wrong identity
-+ 문제 직후 저장한 인식 원본 PNG
++ 문제 직후 저장한 v1.3.4 진단 PNG
 + 필요 시 scanner.log
 ```
 
@@ -340,9 +399,11 @@ v1.3.3 공개 검증은 완료됐지만 실제 Tarkov recognition calibration은
 ```text
 capture
 → structural candidate
-→ inspect-header frame lock / title ROI
-→ OCR
-→ current-catalog sanitation / semantic matcher
+→ close shape / header frame
+→ fixed magnifier lane + template
+→ locked detail bounds / title ROI
+→ raw OCR
+→ current-catalog sanitation / unknown-glyph / semantic matcher
 → Tarkov-font visual corroboration/recovery
 → Item ID
 → presentation data
@@ -353,20 +414,33 @@ live evidence 없이 confidence/margin을 임의로 완화하지 않습니다.
 
 ## 16. 공개 검증
 
-v1.3.3에서 검증된 항목:
+v1.3.4에서 검증된 항목:
 
-- exact release source/tag
+- exact release source/tag `a78ddbc649747f1320236556f17e6b908304674a`
 - Windows Release build
-- 263/263 tests
+- **267/267 tests**
 - 12-case live-header geometry regression
+- title-lane decoy magnifier regression
+- unknown-glyph unique/ambiguous/short-title fail-closed regression
+- diagnostic PNG four-color overlay renderer smoke
 - win-x64 self-contained single-file publish
 - package root/ProductVersion/FIRST_RUN audit
 - Product UI / Scanner / Mini Scanner / Main Map / Factory / MiniMap smoke
-- Draft asset re-download verification
+- Draft asset re-download + actual EXE smoke
 - public/latest
 - public SHA256SUMS / exact tag source
 - independent public re-download verification
 - public-downloaded actual EXE smoke
 - graceful shutdown / clean portable root
+- one-shot release/public-verifier workflow cleanup
 
-상세 증거: `docs/RELEASE_1.3.3.md`, `docs/.release-v1.3.3-status.json`.
+공개 asset:
+
+```text
+Junhyun-Helper-v1.3.4-win-x64.zip
+80,319,654 bytes
+SHA-256 8c442fec81a0b993a9a6b080e59b656668a7a73d8fadd8434595545b08c82e8e
+ProductVersion 1.3.4+a78ddbc649747f1320236556f17e6b908304674a
+```
+
+상세 증거: `docs/RELEASE_1.3.4.md`, `docs/.release-v1.3.4-status.json`.

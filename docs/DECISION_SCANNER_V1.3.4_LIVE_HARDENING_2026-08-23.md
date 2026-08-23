@@ -2,7 +2,7 @@
 
 날짜: 2026-08-23
 
-상태: **CONFIRMED / IMPLEMENTED / RELEASE CANDIDATE**
+상태: **CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED v1.3.4**
 
 ## 배경
 
@@ -24,8 +24,8 @@ v1.3.3 공개 후 실제 Tarkov 사용 피드백에서 다음 네 문제가 재�
 예:
 
 ```text
-raw OCR:        Esma「ch 에스마르호 지혈대
-ordinary text:  Esmach 에스마르호 지혈대
+raw OCR:         Esma「ch 에스마르호 지혈대
+ordinary text:   Esmach 에스마르호 지혈대
 unknown pattern: Esma?ch 에스마르호 지혈대
 ```
 
@@ -115,19 +115,23 @@ full header lock 이후에는 magnifier/X의 실측 위치에서 inspect header�
 - 최고 상점가 / flea `avg24hPrice` / `RequiredTotal` 의미 변경 없음
 - Content schema v7 / user.db v1 / Scanner display settings v4 / Scanner catalog cache schema 변경 없음
 
-## 검증
-
-첫 통합 Windows gate:
+## 최종 검증
 
 ```text
 PR: #146
-CI run: 32635992721 — SUCCESS
-Release build: SUCCESS
+final PR CI: 32636665202 — SUCCESS
+release source/tag: a78ddbc649747f1320236556f17e6b908304674a
+release run: 32636927134 — SUCCESS
+independent public verifier: 32637159066 — SUCCESS
 automated tests: 267 passed / 0 failed / 0 skipped
-win-x64 publish: SUCCESS
-packaged EXE Product UI + Scanner + Mini Scanner + Main Map + Factory + MiniMap smoke: SUCCESS
-diagnostic PNG overlay renderer smoke: SUCCESS
-graceful shutdown: SUCCESS
+asset: Junhyun-Helper-v1.3.4-win-x64.zip
+bytes: 80,319,654
+SHA-256: 8c442fec81a0b993a9a6b080e59b656668a7a73d8fadd8434595545b08c82e8e
+ProductVersion: 1.3.4+a78ddbc649747f1320236556f17e6b908304674a
+Draft re-download + EXE smoke: VERIFIED / SUCCESS
+public/latest: VERIFIED
+exact public tag source: VERIFIED
+public re-download + EXE smoke: VERIFIED / SUCCESS
 ```
 
-최종 v1.3.4 exact release source / public asset 검증 값은 `docs/RELEASE_1.3.4.md`에 기록합니다.
+상세 릴리즈 증거는 `docs/RELEASE_1.3.4.md`와 `docs/.release-v1.3.4-status.json`에 기록합니다.

@@ -25,40 +25,42 @@ Runtime GPT/AI 의존성은 없습니다.
 
 ## 2. 현재 공개 릴리즈
 
-현재 public stable은 **v1.3.3**입니다.
+현재 public stable은 **v1.3.4**입니다.
 
 ```text
-version: v1.3.3 PUBLIC RELEASE / VERIFIED
-release source: 41bf5b8374ba774866aab4b60a25376d9b5548c2
-public tag source: 41bf5b8374ba774866aab4b60a25376d9b5548c2
-final PR CI: 32625223009 — SUCCESS
-automated tests: 263 passed / 0 failed / 0 skipped
-release run: 32625403609 — SUCCESS
-asset: Junhyun-Helper-v1.3.3-win-x64.zip
-bytes: 80,314,373
-SHA-256: 0771d3c7dee5a8f19904d52eeedc7b9abbd6027a7b000255ebd33c296bc2186f
-ProductVersion: 1.3.3+41bf5b8374ba774866aab4b60a25376d9b5548c2
+version: v1.3.4 PUBLIC RELEASE / VERIFIED
+release source: a78ddbc649747f1320236556f17e6b908304674a
+public tag source: a78ddbc649747f1320236556f17e6b908304674a
+final PR CI: 32636665202 — SUCCESS
+automated tests: 267 passed / 0 failed / 0 skipped
+release run: 32636927134 — SUCCESS
+independent public verifier: 32637159066 — SUCCESS
+asset: Junhyun-Helper-v1.3.4-win-x64.zip
+bytes: 80,319,654
+SHA-256: 8c442fec81a0b993a9a6b080e59b656668a7a73d8fadd8434595545b08c82e8e
+ProductVersion: 1.3.4+a78ddbc649747f1320236556f17e6b908304674a
 public/latest: VERIFIED
 exact public tag source: VERIFIED
+Draft re-download: VERIFIED
 public re-download: VERIFIED
 public-downloaded EXE smoke: SUCCESS
 ```
 
 ```text
-Desktop Version: 1.3.3
+Desktop Version: 1.3.4
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
 Scanner display settings schema: v4
 Scanner catalog cache schema: v1/v2 readable, v2 written
-v1.3.2 → v1.3.3 mandatory Game Content update: none
-v1.3.2 → v1.3.3 user.db migration: none
+v1.3.3 → v1.3.4 mandatory Game Content update: none
+v1.3.3 → v1.3.4 user.db migration: none
 ```
 
 공식 검증 기록:
 
-- `docs/RELEASE_1.3.3.md`
-- `docs/.release-v1.3.3-status.json`
+- `docs/RELEASE_1.3.4.md`
+- `docs/.release-v1.3.4-status.json`
 
 ## 3. 아키텍처 기준
 
@@ -92,15 +94,17 @@ Scanner는 게임 프로세스 내부 데이터를 읽지 않는 독립적인 �
 Tarkov / Display pixels
 → detail-window structural candidates
 → actual inspect-header lock
-   - right red close/X
+   - right red close/X + normalized X-shape template
    - long neutral top frame
-   - bounded frame-left search-icon lane
-   - magnifier morphology/core
+   - fixed frame-left search-icon lane
+   - normalized magnifier ring/hollow/handle template
    - dark title field + text evidence
-→ HEADER_FRAME_LOCKED
+→ full HEADER_FRAME_LOCKED only
+→ locked-header-based detail bounds refinement
 → magnifier-free title ROI
 → Windows ko-KR OCR
 → current-catalog-derived character/symbol sanitation
+→ optional one-unknown-glyph current-catalog recovery
 → current official Korean catalog semantic matching
 → bounded one-edit recovery when uniquely safe
 → optional local Tarkov-font visual corroboration/recovery
@@ -118,6 +122,7 @@ Tarkov / Display pixels
 - historical alias를 production identity source로 무제한 누적하지 않음
 - live evidence 없이 global confidence/margin을 완화하지 않음
 - ambiguity / low confidence / incomplete header lock은 fail closed
+- current-catalog 밖 glyph를 특정 문자로 임의 치환하지 않음
 - scan-time network 금지
 - game memory read / DLL injection / packet interception 금지
 
@@ -160,50 +165,56 @@ Scanner Lab v3.8 계열 구조를 production candidate geometry 기준으로 유
 - continuous mode에서는 동일 quantized geometry가 안정화된 뒤 semantic recognition
 - verified detail/title signature가 유지되면 불필요한 OCR 반복 억제
 
-## 7. v1.3.3 inspect-header / title ROI 기준
+v1.3.4에서는 initial structural rectangle을 최종 authoritative bounds로 간주하지 않습니다. Full header lock 후 magnifier/X 실측값에서 detail-window top/left/right를 다시 정렬하고, 아이템별 stat pane 높이 차이를 보존하기 위해 bottom만 structural detector 값을 유지합니다.
 
-v1.3.2 공개 후 실제 Tarkov 2048×1280 상세창 12개에서 title-start / magnifier-anchor 회귀가 재확인되었습니다.
+## 7. Inspect-header / title ROI 기준
 
-v1.3.3의 핵심 결정은 **title glyph가 title ROI의 수평 ownership을 가지지 않는 것**입니다.
+### v1.3.3 기반 결정
 
-### Authoritative header lock
+실제 Tarkov 2048×1280 상세창 12개에서 title-start / magnifier-anchor 회귀를 재측정해 **title glyph가 title ROI의 수평 ownership을 가지지 않도록** 고정했습니다.
 
 다음 구조를 결합합니다.
 
 1. 우측 red close/X
 2. 길게 이어지는 neutral top frame
-3. frame-left의 bounded search-icon lane
-4. 13px-class magnifier bright core + ring/hollow/handle morphology
+3. frame-left의 search-icon lane
+4. magnifier core
 5. dark title field
 6. title text presence
 
-모두 결합되어 `HEADER_FRAME_LOCKED`가 된 candidate만 OCR identity path로 진행할 수 있습니다.
-
-Runtime은 추가로 다음을 요구합니다.
+Runtime은 다음을 요구합니다.
 
 ```text
 TitleAnchorReason == HEADER_FRAME_LOCKED
 AND TitleAnchorScore >= 0.68
 ```
 
-partial/failed lock은 refiner 단계에서 0.47 이하로 제한되며 runtime에서도 다시 거부됩니다.
+first Korean/title glyph connected component는 OCR title ROI의 left edge를 결정하거나 오른쪽으로 이동시킬 수 없습니다.
 
-### First-glyph rule
+### v1.3.4 강화
 
-first Korean/title glyph connected component는 더 이상 OCR title ROI의 left edge를 결정하거나 오른쪽으로 이동시킬 수 없습니다. 실제 magnifier 오른쪽의 구조적 gap을 기준으로 title start를 정합니다.
+v1.3.4는 title glyph가 magnifier 후보로 승격되는 실제 failure를 차단하기 위해 search-icon candidate space 자체를 제한했습니다.
 
-### 12-case evidence
+```text
+scale ≈ close.Height / 17
+magnifier expected x ≈ frame.Left + 12 * scale
+magnifier expected y ≈ frame.Top + 7 * scale
+magnifier expected size ≈ 13 * scale
+```
 
-원본 사용자 screenshot 자체는 저장소에 넣지 않습니다. 비식별 header-relative 측정값만 다음 파일에 보존합니다.
+- magnifier 후보는 fixed frame-left lane 안에서만 생성
+- ring bright band + hollow center + lower-right handle + outside background template 사용
+- title lane glyph는 shape가 유사해도 candidate pool에 들어갈 수 없음
+- close/X는 red body/edge + expected geometry + diagonal X contrast template 결합
+- full `HEADER_FRAME_LOCKED` + score 0.68 + valid magnifier/X를 모두 통과한 structural candidate만 OCR 후보 목록에 남음
 
-- `docs/.scanner-v1.3.3-header-evidence.json`
-
-12개 실측 geometry는 packaged-EXE smoke의 synthetic regression에서 모두 재생됩니다.
+12개 실측 geometry의 비식별 측정값은 `docs/.scanner-v1.3.3-header-evidence.json`에 보존되며 packaged-EXE synthetic regression으로 계속 재생됩니다.
 
 상세:
 
+- `docs/SCANNER_V1.3.4_LIVE_HARDENING.md`
+- `docs/DECISION_SCANNER_V1.3.4_LIVE_HARDENING_2026-08-23.md`
 - `docs/SCANNER_V1.3.3_HEADER_LOCK.md`
-- `docs/DECISION_SCANNER_HEADER_LOCK_2026-08-23.md`
 
 ## 8. OCR / current-catalog sanitation / semantic matcher
 
@@ -213,13 +224,37 @@ Primary text recognizer는 Windows `ko-KR` OCR입니다.
 - first pass 실패 시 deep OCR/high-contrast/binary/inverse variants
 - current catalog 기반 character/symbol policy
 - raw OCR은 진단용으로 보존하고 실제 matcher input은 sanitation 후 별도로 기록
-- current catalog에 없는 punctuation/symbol은 matcher evidence에서 제거
+- current catalog에 없는 punctuation/symbol은 ordinary matcher evidence에서 제거
 - Korean-title contract에서 CJK Han ideograph는 hard reject
 - arbitrary character replacement로 confidence를 인위적으로 올리지 않음
 - official catalog exact-first + conservative fuzzy + margin
 - ambiguous/low-confidence는 Item ID 미확정
 
-v1.3.2의 bounded one-edit recovery는 그대로 유지합니다.
+### one-unknown-glyph recovery — v1.3.4
+
+실제 `Esma「ch` 계열 failure처럼 current-catalog 밖 symbol이 **영숫자 사이에 정확히 한 번** 나타나면 ordinary sanitized text와 별도로 `?` pattern을 보존할 수 있습니다.
+
+```text
+raw:      Esma「ch 에스마르호 지혈대
+ordinary: Esmach 에스마르호 지혈대
+pattern:  Esma?ch 에스마르호 지혈대
+```
+
+`?`는 `r`이나 다른 특정 글자를 뜻하지 않습니다. 해당 위치 한 glyph의 정체가 미상이라는 evidence만 표현합니다.
+
+복구 조건:
+
+```text
+normalized pattern length >= 7
+AND exactly one unknown glyph
+AND same-length exact-slot candidate is unique over complete current catalog
+AND duplicate official name이 아님
+AND best - global wildcard runner-up >= 10 percentage points
+```
+
+Short title, ambiguous candidate, close runner-up은 fail closed합니다.
+
+### bounded one-edit recovery — v1.3.2부터 유지
 
 ```text
 normalized official length >= 7
@@ -287,10 +322,15 @@ Scanner display settings schema는 **v4**입니다.
 - candidate official name
 - confidence / second score / reason
 
-사용자가 명시적으로 `이미지 저장`을 선택하면 **실제 분석 원본 frame**을 PNG로 export할 수 있습니다.
+자동 screenshot persistence는 없습니다.
 
-- 자동 screenshot 저장 없음
-- export PNG에 diagnostic rectangle/text overlay 합성 없음
+사용자가 명시적으로 `이미지 저장`을 선택하면 **실제 분석 frame + detector rectangle**을 PNG로 export합니다.
+
+- 초록: selected detail window
+- 파랑: OCR title ROI
+- 노랑: magnifier
+- 빨강: close/X
+- rectangle은 실제 capture와 동일한 pixel coordinate로 합성
 - `로그 삭제`는 사용자 export PNG를 삭제하지 않음
 
 개발자 로그:
@@ -350,7 +390,7 @@ Title OCR과 inventory-context OCR은 하나의 WinRT OCR serialization boundary
 %LocalAppData%/JunhyunHelper/logs/scanner.log(.1)
 ```
 
-Program package와 사용자 데이터는 분리됩니다. v1.3.2 → v1.3.3은 user.db migration이나 mandatory Game Content update가 없습니다.
+Program package와 사용자 데이터는 분리됩니다. v1.3.3 → v1.3.4는 user.db migration이나 mandatory Game Content update가 없습니다.
 
 ## 15. Map / MiniMap
 
@@ -377,7 +417,7 @@ exact release source
 → exact tag source verification
 → public asset re-download verification
 → public-downloaded EXE smoke
-→ independent public finalizer
+→ independent public verifier
 → durable release record
 → one-shot workflow cleanup
 ```
@@ -392,25 +432,28 @@ Assets/
 
 Program Update는 program-owned files만 교체하며 `%LocalAppData%/JunhyunHelper` 사용자 데이터를 건드리지 않습니다.
 
-## 17. v1.3.3 공개 검증 결과
+## 17. v1.3.4 공개 검증 결과
 
 완료:
 
-- PR #145 final CI `32625223009`: SUCCESS
-- automated tests: **263 passed / 0 failed / 0 skipped**
-- exact-source release run `32625403609`: SUCCESS
-- exact release source/tag: `41bf5b8374ba774866aab4b60a25376d9b5548c2`
+- PR #146 final CI `32636665202`: SUCCESS
+- automated tests: **267 passed / 0 failed / 0 skipped**
+- exact-source release run `32636927134`: SUCCESS
+- independent public verifier `32637159066`: SUCCESS
+- exact release source/tag: `a78ddbc649747f1320236556f17e6b908304674a`
 - public/latest: VERIFIED
-- public ZIP re-download/hash/size/SHA256SUMS/layout: VERIFIED
+- Draft/public ZIP re-download/hash/size/SHA256SUMS/layout: VERIFIED
 - ProductVersion/FIRST_RUN: VERIFIED
-- public-downloaded Product UI + Scanner + Mini Scanner + Main Map + Factory + MiniMap smoke: SUCCESS
+- Draft/public-downloaded Product UI + Scanner + Mini Scanner + Main Map + Factory + MiniMap smoke: SUCCESS
+- one-shot release/public-verifier workflows: removed after successful durable evidence write
 
 공개 asset:
 
 ```text
-Junhyun-Helper-v1.3.3-win-x64.zip
-80,314,373 bytes
-SHA-256 0771d3c7dee5a8f19904d52eeedc7b9abbd6027a7b000255ebd33c296bc2186f
+Junhyun-Helper-v1.3.4-win-x64.zip
+80,319,654 bytes
+SHA-256 8c442fec81a0b993a9a6b080e59b656668a7a73d8fadd8434595545b08c82e8e
+ProductVersion 1.3.4+a78ddbc649747f1320236556f17e6b908304674a
 ```
 
 ## 18. 현재 알려진 열린 영역
@@ -424,9 +467,10 @@ Scanner는 **실제 Tarkov live calibration을 계속하는 단계**입니다. �
 ```text
 capture
 → detail structural detection
-→ inspect-header frame lock / title ROI
-→ OCR
-→ catalog sanitation/matcher
+→ close template / header frame / fixed magnifier lane-template
+→ locked detail bounds / title ROI
+→ raw OCR
+→ catalog sanitation / unknown-glyph / semantic matcher
 → Tarkov-font visual corroboration
 → Item ID
 → trader/flea/RequiredTotal presentation
@@ -438,10 +482,11 @@ capture
 ## 19. 다음 작업
 
 1. 실제 Tarkov Borderless 환경에서 다양한 아이템/위치/해상도/DPI로 사용
-2. 성공 / 미인식 / 오인식 / detector / header lock / ROI / OCR / matcher / visual 실패 분류
-3. 정확히 인식된 Item ID에서 highest trader / flea `avg24hPrice` / `RequiredTotal` end-to-end 검증
-4. 빠른 연속 scan의 stale isolation 검증
-5. 장시간 CPU / memory / UI responsiveness 검증
-6. 실제 실패를 regression으로 먼저 고정한 뒤 해당 단계만 수정
+2. 성공 / 미인식 / 오인식 / detector / close/frame/magnifier / bounds / ROI / OCR / matcher / visual 실패 분류
+3. 문제 발생 직후 v1.3.4 진단 PNG와 scanner.log를 함께 보존
+4. 정확히 인식된 Item ID에서 highest trader / flea `avg24hPrice` / `RequiredTotal` end-to-end 검증
+5. 빠른 연속 scan의 stale isolation 검증
+6. 장시간 CPU / memory / UI responsiveness 검증
+7. 실제 실패를 regression으로 먼저 고정한 뒤 해당 단계만 수정
 
 상세 작업 목록: `docs/NEXT.md`.
