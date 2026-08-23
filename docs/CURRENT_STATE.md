@@ -4,88 +4,111 @@
 
 기준일: 2026-08-23
 
-상태: **`v1.3.0 RELEASE CANDIDATE — Scanner 분석 이미지 export / one-shot test / 3종 전역 단축키`**
+상태: **`v1.3.1 RELEASE CANDIDATE — inspect-header 구조 인식 + OCR 시각 corroboration + 상단 버전 표시`**
 
 ## 현재 공개 기준선
 
-현재 public stable은 아직 **v1.2.2**입니다. v1.3.0은 PR/Windows release gate를 통과한 뒤 public stable로 전환합니다.
+현재 public stable은 **v1.3.0**입니다.
 
 ```text
-public stable: v1.2.2
-release source: e3925cbc55215c7de0502c9b6b1ff1428d2f272b
-asset: Junhyun-Helper-v1.2.2-win-x64.zip
-SHA-256: 125d4a5b0e6db64f6772cc63c112f13cbcdac2fb7bc9ce501313ca2fc3645d7c
+public stable: v1.3.0
+release source: f03441672d39165678fa53f57af46f103070d50e
+asset: Junhyun-Helper-v1.3.0-win-x64.zip
+bytes: 80,306,655
+SHA-256: 5880c71098d737b7ffd3447eb77a55195d09d76ea12be7ff79df4eb055ac8344
+ProductVersion: 1.3.0+f03441672d39165678fa53f57af46f103070d50e
+public/latest: VERIFIED
+public-downloaded EXE smoke: SUCCESS
 ```
 
-v1.3.0 release candidate identity:
+v1.3.1 release candidate identity:
 
 ```text
-Desktop Version: 1.3.0
+Desktop Version: 1.3.1
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
 Scanner display settings schema: v4
 Scanner cache schema: v1/v2 readable, v2 written
-v1.2.2 → v1.3.0 mandatory Game Content update: none
-v1.2.2 → v1.3.0 user.db migration: none
+v1.3.0 → v1.3.1 mandatory Game Content update: none
+v1.3.0 → v1.3.1 user.db migration: none
 ```
 
-## v1.3.0 Scanner 워크플로
+## v1.3.1 Scanner recognition hardening
 
-- 최신 recognition 원본 frame을 `인식 이미지` 창에서 사용자 지정 PNG로 export 가능
-- PNG는 실제 인식 원본이며 diagnostic overlay를 합성하지 않음
-- 자동 screenshot 저장은 하지 않음
-- `로그 삭제`는 사용자 export PNG를 삭제하지 않음
-- one-shot TarkovWindow scan 유지
-- one-shot DisplayTest scan 추가: 모든 연결 디스플레이를 한 번만 동일 인식 pipeline으로 검사
-- Scanner 탭의 one-shot 버튼 제거
-- `단축키 설정`에서 다음 세 global hotkey를 각각 변경/비활성화
-  - 1회 인게임 스캔: `Ctrl+Shift+F10`
-  - 1회 테스트 스캔: `Ctrl+Shift+F11`
-  - Scanner ON/OFF: `Ctrl+Shift+F12`
-- 세 단축키는 MainWindow lifetime에 등록되어 Scanner 탭 밖에서도 동작
-- 동일 gesture 중복 지정 금지
-- schema v3의 기존 one-shot 사용자 지정값을 인게임 one-shot으로 우선 보존
-- 기존 사용자 키와 새 기본키가 충돌하면 신규 명령 쪽만 비충돌 fallback으로 이동
-
-상세 계약: `docs/SCANNER_V1.3.0_WORKFLOW.md`.
-
-## Scanner recognition 계약 — 변경 없음
+실제 인게임 실패 사례에서 상세창 좌측 돋보기 대신 아이템 이름 첫 글자가 anchor로 선택되는 패턴이 확인되어 title extraction을 강화했습니다.
 
 ```text
 Tarkov / Display pixels
 → detail structural candidates
-→ red close + magnifier + title-field anchors
-→ magnifier-free title ROI
-→ Windows ko-KR OCR + current-catalog character validation
-→ conservative official-name matching
-   OR conservative current-catalog Tarkov-font visual recovery
-→ confidence + top1/top2 margin
+→ dark title-field strip
+→ right red X / close evidence
+→ left magnifier shape evidence
+   - size/aspect
+   - hollow center
+   - ring perimeter
+   - lower-right handle
+   - following title-glyph evidence
+→ first title-glyph start
+→ title ROI between magnifier and close control
+→ Windows ko-KR OCR
+→ official catalog semantic match
+→ optional local Tarkov-font visual corroboration/recovery
+→ conservative confidence + margin gate
 → Item ID
 → local presentation data
 → Mini Scanner
 ```
 
-- false positive보다 miss 선호
-- detector/OCR/visual confidence 및 top1/top2 margin 변경 없음
-- current official Korean item catalog가 identity 권위
+핵심 계약:
+
+- 상세창 panel left가 소폭 안쪽으로 drift해도 magnifier 검색 범위를 왼쪽으로 확장해 실제 아이콘을 다시 찾음
+- 첫 한글 글자를 magnifier로 잘못 선택해 제목 첫 글자를 잘라내는 회귀를 packaged-EXE smoke에서 재현/차단
+- title field의 어두운 배경색, 좌측 magnifier, 우측 red X, 실제 첫 글자군을 독립 evidence로 사용
+- OCR semantic success도 필요한 경우 현재 Tarkov 로컬 제목 폰트와 current official catalog 렌더링으로 보수적으로 corroborate
+- strict visual evidence가 다른 current official Item ID를 명확히 지목할 때만 OCR identity 교정
+- font evidence unavailable/inconclusive이면 기존 healthy OCR result를 임의로 버리지 않음
+- false positive보다 miss 선호 및 current official Korean catalog identity authority 유지
 - scan-time network 없음
 - game memory / DLL injection / packet interception 없음
-- icon 하나만으로 Item identity 확정 금지
+
+상세 계약: `docs/SCANNER_V1.3.1_RECOGNITION.md`.
+
+## 상단 버전 표시
+
+- MainWindow 상단 상태 텍스트의 왼쪽에 현재 실행 EXE 버전을 표시
+- UI 문자열에 버전을 하드코딩하지 않고 `AssemblyInformationalVersion`을 사용
+- 예: `v1.3.1   정리 필요`
+
+## 유지되는 v1.3.0 Scanner 워크플로
+
+- recognition 원본 PNG 사용자 export
+- one-shot TarkovWindow scan
+- one-shot DisplayTest scan
+- Scanner 탭 one-shot 버튼 제거
+- MainWindow lifetime의 3종 global hotkey
+  - 인게임 1회: `Ctrl+Shift+F10`
+  - 테스트 1회: `Ctrl+Shift+F11`
+  - Scanner ON/OFF: `Ctrl+Shift+F12`
+- hotkey 설정/비활성화/중복 차단
+- schema v3 사용자 one-shot gesture 보존 → schema v4 자동 승계
+- `로그 삭제`는 사용자 export PNG를 삭제하지 않음
+
+## Scanner 표시 데이터 계약 — 변경 없음
+
 - 최고 상점가 = 유효한 non-flea RUB 판매가 최댓값
 - 플리마켓 평균가 = positive `avg24hPrice`
+- 가격/슬롯 = 유효한 `width × height` 슬롯 수 기준
 - 현재 필요한 수량 = `NeededItems[itemId].RequiredTotal`
+- identity가 확정된 뒤 일부 가격/크기 데이터가 없어도 Item ID 자체를 버리지 않음
 
-## 유지되는 v1.2.x hardening
+## 현재 검증 상태
 
-- Scanner catalog disk cache load/network refresh 직렬화
-- `resources.assets` title-font bounded streaming scan
-- source/font generation-aware bounded visual caches
-- Mini Scanner inventory/stash OCR single-active/coalesced/stale-result reject
-- one-shot/profile/GameMode lifecycle serialization + latest-mode restore rule
-- shutdown-safe font-aware OCR active-operation lifetime
-- PrintWindow sparse validation duplicate full-frame allocation 제거
-- title-anchor diagnostic evidence score 보존
+- Windows Release build: SUCCESS
+- automated tests: 256/256 SUCCESS
+- v1.3.1 inspect-header synthetic regression: SUCCESS
+- prior intermediate win-x64 publish + Product UI / Scanner / Mini Scanner / Map smoke: SUCCESS
+- final v1.3.1 package gate: 진행 중
 
 ## 기능 상태
 
@@ -96,7 +119,7 @@ Tarkov / Display pixels
 | Ammo | 구현 완료 |
 | Map + MiniMap | 구현 완료 / steady-state smoke 유지 |
 | Game Content Update | 구현 완료 |
-| Program Update | 구현 완료 / v1.2.2 public package verified |
-| Scanner + Mini Scanner | **v1.3.0 release candidate / Windows gate 진행 중** |
+| Program Update | 구현 완료 / v1.3.0 public package verified |
+| Scanner + Mini Scanner | **v1.3.1 release candidate / live-evidence calibration 진행** |
 
-실제 Tarkov에서 발견되는 recognition 문제는 `scanner.log`와 `인식 이미지`/사용자 export PNG를 근거로 capture → candidate → anchors/ROI → OCR/visual matcher → catalog → presentation → inventory gate → overlay → performance 단계로 분리합니다. Live evidence 없이 confidence/margin을 임의로 낮추지 않습니다.
+실제 Tarkov에서 발견되는 recognition 문제는 `scanner.log`와 `인식 이미지`/사용자 export PNG를 근거로 capture → candidate → title-field/anchors/ROI → OCR/visual matcher → catalog → presentation → overlay 단계로 분리합니다. Live evidence 없이 confidence/margin을 임의로 낮추지 않습니다.
