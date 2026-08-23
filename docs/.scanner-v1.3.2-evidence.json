@@ -1,0 +1,19 @@
+{
+  "date": "2026-08-23",
+  "source": "user-provided DisplayTest captures",
+  "cases": [
+    {
+      "official": "Thermite 테르밋",
+      "observed_ocr": "` The「mite 테르밋",
+      "reported_top1_similarity": 0.909,
+      "old_required_similarity": 0.94
+    },
+    {
+      "official": "Gunpowder \"Eagle\" 화약",
+      "observed_ocr": "` Gunpowde「 'EagIen 화약",
+      "reported_top1_similarity": 0.812,
+      "old_required_similarity": 0.90
+    }
+  ],
+  "privacy": "raw user/browser screenshots are not committed"
+}
