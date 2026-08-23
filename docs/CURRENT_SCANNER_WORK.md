@@ -18,6 +18,7 @@ asset: Junhyun-Helper-v1.4.0-win-x64.zip
 SHA-256: ef3676bbc7fb07fd45f4e9291e6fd4ef8a4a686a0f584cb1ddfdb6569376645f
 public/latest: VERIFIED
 public-downloaded EXE smoke: SUCCESS
+one-shot release/verifier workflows: removed after durable evidence write
 ```
 
 공식 릴리즈 기록:
@@ -139,6 +140,8 @@ full.png
 - public/latest: VERIFIED
 - public ZIP SHA256SUMS/layout: VERIFIED
 - public-downloaded EXE rendered UI/Map smoke + graceful shutdown: SUCCESS
+- durable status: `docs/.release-v1.4.0-status.json`
+- completed v1.3.5/v1.4.0 release and v1.4.0 verifier one-shot workflows removed; normal `ci.yml`만 유지
 
 따라서 v1.4.0 release blocker는 없습니다.
 
