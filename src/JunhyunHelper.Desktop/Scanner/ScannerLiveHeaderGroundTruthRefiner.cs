@@ -325,7 +325,9 @@ internal static class ScannerLiveHeaderGroundTruthRefiner
                     leftScore * 0.14 +
                     yScore * 0.10;
 
-                if (score < HeaderFrameFloor || best is { Score: >= var existing } && existing >= score)
+                if (score < HeaderFrameFloor)
+                    continue;
+                if (best is { } existing && existing.Score >= score)
                     continue;
 
                 best = new LiveHeaderFrame(run.Left, y, runRight, score);
@@ -452,7 +454,9 @@ internal static class ScannerLiveHeaderGroundTruthRefiner
                 var sizeScore = Math.Max(0, 1.0 - Math.Abs(size - expectedSize) / Math.Max(2.0, 2.5 * scale));
                 var location = xScore * 0.48 + yScore * 0.34 + sizeScore * 0.18;
                 var score = template * 0.72 + location * 0.28;
-                if (score < MagnifierEvidenceFloor || best is { Score: >= var existing } && existing >= score)
+                if (score < MagnifierEvidenceFloor)
+                    continue;
+                if (best is { } existing && existing.Score >= score)
                     continue;
 
                 best = new LiveMagnifier(
