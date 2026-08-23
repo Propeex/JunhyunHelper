@@ -2,7 +2,7 @@
 
 기준일: 2026-08-23
 
-상태: **RELEASE CANDIDATE**
+상태: **PUBLIC RELEASE / VERIFIED**
 
 ## 1. 목적
 
@@ -31,7 +31,7 @@ capture
 
 ## 2. Magnifier detection
 
-v1.3.3까지 magnifier는 frame-left bounded region 안의 bright connected component를 morphology/location score로 평가했습니다. 실제 피드백에서 title glyph가 더 magnifier처럼 보이는 상황을 완전히 차단하기 위해 v1.3.4는 후보 공간 자체를 축소합니다.
+v1.3.3까지 magnifier는 frame-left bounded region 안의 bright connected component를 morphology/location score로 평가했습니다. 실제 피드백에서 title glyph가 더 magnifier처럼 보이는 상황을 차단하기 위해 v1.3.4는 후보 공간 자체를 축소합니다.
 
 `close.Height / 17`을 기준 scale로 사용하고 실제 live evidence의 약 13×13 bright core를 정규화합니다.
 
@@ -80,9 +80,9 @@ CloseButton.Width > 0
 초기 structural detector의 rectangle은 discovery seed입니다. Full header lock 후에는 authoritative header controls에서 top/left/right를 다시 계산합니다.
 
 ```text
-left  = magnifier.X - 12 * scale
-top   = close.Y     -  5 * scale
-right = close.X + close.Width + 4 * scale
+left   = magnifier.X - 12 * scale
+top    = close.Y     -  5 * scale
+right  = close.X + close.Width + 4 * scale
 bottom = existing structural bottom
 ```
 
@@ -119,7 +119,7 @@ packaged-EXE smoke는 synthetic frame에 네 rectangle을 렌더링한 뒤 실�
 
 ## 8. Regression tests
 
-v1.3.4 RC에서 자동 테스트는 267개입니다.
+v1.3.4 공개 소스에서 자동 테스트는 **267개 / 0 failed / 0 skipped**입니다.
 
 추가/유지되는 핵심 regression:
 
@@ -143,7 +143,20 @@ v1.3.4 RC에서 자동 테스트는 267개입니다.
 - highest trader/flea/RequiredTotal presentation contract: unchanged
 - schemas: unchanged
 
-## 10. 후속 live calibration
+## 10. 공개 검증
+
+```text
+source/tag: a78ddbc649747f1320236556f17e6b908304674a
+final PR CI: 32636665202 — SUCCESS
+release run: 32636927134 — SUCCESS
+independent public verifier: 32637159066 — SUCCESS
+asset bytes: 80,319,654
+SHA-256: 8c442fec81a0b993a9a6b080e59b656668a7a73d8fadd8434595545b08c82e8e
+ProductVersion: 1.3.4+a78ddbc649747f1320236556f17e6b908304674a
+Draft/public re-download + EXE smoke: SUCCESS
+```
+
+## 11. 후속 live calibration
 
 v1.3.4 공개 후에도 새로운 실제 Tarkov failure는 저장된 overlay diagnostic PNG와 scanner.log를 함께 사용해 다음 단계로 분리합니다.
 
