@@ -17,6 +17,7 @@ public sealed class ScannerOcrCharacterPolicyTests
         Assert.True(result.HasPlausibleVariant);
         Assert.False(result.IsCorrupted);
         Assert.Equal("Water 0.6L 물병", result.FilteredText);
+        Assert.Equal(string.Empty, result.UnknownGlyphPatternText);
         Assert.Equal(0, result.HanCharacterCount);
     }
 
@@ -53,6 +54,7 @@ public sealed class ScannerOcrCharacterPolicyTests
         var result = policy.Assess("C※U");
 
         Assert.False(result.HasPlausibleVariant);
+        Assert.False(result.HasSingleUnknownGlyphPattern);
         Assert.True(result.IsCorrupted);
     }
 
@@ -69,16 +71,33 @@ public sealed class ScannerOcrCharacterPolicyTests
     }
 
     [Fact]
-    public void Assess_ImpossibleJapaneseBracket_IsRemovedBeforeMatching()
+    public void Assess_ImpossibleJapaneseBracket_IsRemovedButPreservedAsUnknownEmbeddedGlyph()
     {
-        var policy = CreatePolicy("Thermite 테르밋", "Gunpowder \"Eagle\" 화약");
+        var policy = CreatePolicy("Thermite 테르밋", "Esmarch 에스마르호 지혈대");
+
+        var result = policy.Assess("Esma「ch 에스마르호 지혈대");
+
+        Assert.True(result.HasPlausibleVariant);
+        Assert.True(result.HasSingleUnknownGlyphPattern);
+        Assert.Equal("Esmach 에스마르호 지혈대", result.FilteredText);
+        Assert.Equal("Esma?ch 에스마르호 지혈대", result.UnknownGlyphPatternText);
+        Assert.Equal(1, result.InvalidCharacterCount);
+        Assert.Equal(1, result.UnknownGlyphCount);
+        Assert.Equal(0, result.HanCharacterCount);
+    }
+
+    [Fact]
+    public void Assess_LeadingGarbageNeverBecomesUnknownGlyph()
+    {
+        var policy = CreatePolicy("Thermite 테르밋");
 
         var result = policy.Assess("` The「mite 테르밋");
 
         Assert.True(result.HasPlausibleVariant);
         Assert.Equal("Themite 테르밋", result.FilteredText);
+        Assert.Equal("The?mite 테르밋", result.UnknownGlyphPatternText);
         Assert.Equal(2, result.InvalidCharacterCount);
-        Assert.Equal(0, result.HanCharacterCount);
+        Assert.Equal(1, result.UnknownGlyphCount);
     }
 
     [Fact]
@@ -93,6 +112,9 @@ public sealed class ScannerOcrCharacterPolicyTests
         Assert.DoesNotContain('「', result.FilteredText);
         Assert.DoesNotContain('`', result.FilteredText);
         Assert.Contains('"', result.FilteredText);
+        // The bracket is followed by whitespace, so it is not evidence for one missing
+        // embedded Latin glyph and cannot enter the wildcard recovery path.
+        Assert.False(result.HasSingleUnknownGlyphPattern);
     }
 
     [Fact]
