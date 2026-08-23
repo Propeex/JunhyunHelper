@@ -21,6 +21,7 @@ public sealed partial class ScannerCoordinator : IDisposable
     private readonly IScannerOcrEngine _ocr;
     private readonly Dispatcher _dispatcher;
     private readonly object _monitorGate = new();
+    private readonly ScannerRuntimeTransitionGate _runtimeTransitionGate = new();
 
     private Func<ScannerDataContext?> _contextProvider = static () => null;
     private ScannerItemPresentationService? _presentation;
@@ -100,6 +101,7 @@ public sealed partial class ScannerCoordinator : IDisposable
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        using var transition = await _runtimeTransitionGate.EnterAsync(cancellationToken);
         if (_initialized)
             return;
         _initialized = true;
@@ -119,6 +121,7 @@ public sealed partial class ScannerCoordinator : IDisposable
     public async Task SetEnabledAsync(bool enabled, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        using var transition = await _runtimeTransitionGate.EnterAsync(cancellationToken);
 
         if (enabled)
         {
@@ -145,6 +148,7 @@ public sealed partial class ScannerCoordinator : IDisposable
     public async Task SetTestEnabledAsync(bool enabled, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        using var transition = await _runtimeTransitionGate.EnterAsync(cancellationToken);
         _testEnabled = enabled;
 
         if (enabled)
@@ -178,6 +182,7 @@ public sealed partial class ScannerCoordinator : IDisposable
     public async Task<bool> SyncCatalogAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        using var transition = await _runtimeTransitionGate.EnterAsync(cancellationToken);
         var context = GetContext();
         if (context is null)
         {
@@ -208,6 +213,7 @@ public sealed partial class ScannerCoordinator : IDisposable
     public async Task RefreshContextAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        using var transition = await _runtimeTransitionGate.EnterAsync(cancellationToken);
         var context = GetContext();
         SetObservedContext(context);
         if (context is null)
@@ -234,6 +240,7 @@ public sealed partial class ScannerCoordinator : IDisposable
         CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        using var transition = await _runtimeTransitionGate.EnterAsync(cancellationToken);
         var context = GetContext();
         if (context is null)
         {
@@ -261,8 +268,11 @@ public sealed partial class ScannerCoordinator : IDisposable
         return snapshot;
     }
 
-    public Task HidePreviewAsync(CancellationToken cancellationToken = default) =>
-        Runtime.HidePreviewAsync(cancellationToken);
+    public async Task HidePreviewAsync(CancellationToken cancellationToken = default)
+    {
+        using var transition = await _runtimeTransitionGate.EnterAsync(cancellationToken);
+        await Runtime.HidePreviewAsync(cancellationToken);
+    }
 
     public void PauseForPositionEdit() => Runtime.PauseForPositionEdit();
     public void BeginPositionEdit() => _overlay.BeginPositionEdit();
@@ -270,6 +280,7 @@ public sealed partial class ScannerCoordinator : IDisposable
 
     public async Task ResumeAfterPositionEditAsync(CancellationToken cancellationToken = default)
     {
+        using var transition = await _runtimeTransitionGate.EnterAsync(cancellationToken);
         var mode = ActiveCaptureMode;
         if (mode is not null)
             await Runtime.StartAsync(mode.Value, cancellationToken);
@@ -363,35 +374,28 @@ public sealed partial class ScannerCoordinator : IDisposable
                     _observedContextKey = key;
                 }
 
-                // A profile/game-mode transition and one-shot recognition both mutate
-                // the same runtime/catalog/presentation state. Wait for an active
-                // one-shot to finish, then re-read the latest context before applying
-                // the transition so a stale monitor tick cannot restart the old state.
-                await _oneShotCoordinatorGate.WaitAsync(cancellationToken);
-                try
+                // A profile/game-mode transition, one-shot recognition, manual mode
+                // toggle and catalog/context refresh all mutate the same runtime/catalog/
+                // presentation state. Re-enter the latest context only after the current
+                // top-level transition is fully quiescent.
+                using var transition = await _runtimeTransitionGate.EnterAsync(cancellationToken);
+                if (_disposed)
+                    return;
+
+                var currentMode = ActiveCaptureMode;
+                if (currentMode is null)
+                    return;
+
+                var latestContext = GetContext();
+                SetObservedContext(latestContext);
+                if (latestContext is null)
                 {
-                    if (_disposed)
-                        return;
-
-                    var currentMode = ActiveCaptureMode;
-                    if (currentMode is null)
-                        return;
-
-                    var latestContext = GetContext();
-                    SetObservedContext(latestContext);
-                    if (latestContext is null)
-                    {
-                        Runtime.Suspend(ScannerRuntimeState.NoProfile, "Scanner를 사용할 활성 프로필이 없습니다.");
-                        continue;
-                    }
-
-                    Runtime.Suspend(ScannerRuntimeState.Stabilizing, "프로필 변경을 반영하는 중입니다.");
-                    await PrepareActiveRuntimeAsync(currentMode.Value, refreshCatalog: true, cancellationToken);
+                    Runtime.Suspend(ScannerRuntimeState.NoProfile, "Scanner를 사용할 활성 프로필이 없습니다.");
+                    continue;
                 }
-                finally
-                {
-                    _oneShotCoordinatorGate.Release();
-                }
+
+                Runtime.Suspend(ScannerRuntimeState.Stabilizing, "프로필 변경을 반영하는 중입니다.");
+                await PrepareActiveRuntimeAsync(currentMode.Value, refreshCatalog: true, cancellationToken);
             }
         }
         catch (OperationCanceledException)
