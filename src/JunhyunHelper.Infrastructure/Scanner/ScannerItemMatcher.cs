@@ -36,6 +36,13 @@ internal sealed class ScannerItemMatcher
 
     public ScannerRecognition ResolveSingleUnknownGlyph(
         string patternText,
-        double minimumMargin = 0.10) =>
-        _ordinary.ResolveSingleUnknownGlyph(patternText, minimumMargin);
+        double minimumMargin = 0.10)
+    {
+        var ordinary = _ordinary.ResolveSingleUnknownGlyph(patternText, minimumMargin);
+        return ScannerUnknownGlyphCatalogRecovery.TryRecover(
+            patternText,
+            _catalog,
+            ordinary,
+            minimumMargin);
+    }
 }
