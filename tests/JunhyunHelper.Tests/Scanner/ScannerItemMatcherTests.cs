@@ -49,6 +49,46 @@ public sealed class ScannerItemMatcherTests
     }
 
     [Fact]
+    public void ResolveSingleUnknownGlyph_EsmarchRBracketEvidence_RecoversUniqueOfficialName()
+    {
+        var matcher = CreateMatcher(
+            Item("esmarch", "Esmarch 에스마르호 지혈대"),
+            Item("esbit", "Esbit 연료"),
+            Item("salewa", "Salewa 응급 치료 키트"));
+
+        var result = matcher.ResolveSingleUnknownGlyph("Esma?ch 에스마르호 지혈대");
+
+        Assert.True(result.Success);
+        Assert.Equal("esmarch", result.ItemId);
+        Assert.Equal("UNKNOWN_GLYPH_1", result.Reason);
+        Assert.True(result.Confidence > 0.90);
+    }
+
+    [Fact]
+    public void ResolveSingleUnknownGlyph_AmbiguousCurrentCatalog_FailsClosed()
+    {
+        var matcher = CreateMatcher(
+            Item("one", "Esmarch 에스마르호 지혈대"),
+            Item("two", "Esmaxch 에스마르호 지혈대"));
+
+        var result = matcher.ResolveSingleUnknownGlyph("Esma?ch 에스마르호 지혈대");
+
+        Assert.False(result.Success);
+        Assert.Equal("UNKNOWN_GLYPH_AMBIGUOUS", result.Reason);
+    }
+
+    [Fact]
+    public void ResolveSingleUnknownGlyph_ShortName_IsNeverRecovered()
+    {
+        var matcher = CreateMatcher(Item("cpu", "CPU"), Item("gpu", "GPU"));
+
+        var result = matcher.ResolveSingleUnknownGlyph("C?U");
+
+        Assert.False(result.Success);
+        Assert.Equal("NO_UNKNOWN_GLYPH_PATTERN", result.Reason);
+    }
+
+    [Fact]
     public void Resolve_ShortOneEditTitle_RemainsStrict()
     {
         var matcher = CreateMatcher(
