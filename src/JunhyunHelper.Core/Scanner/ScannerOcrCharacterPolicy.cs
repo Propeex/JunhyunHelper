@@ -4,16 +4,16 @@ namespace JunhyunHelper.Core.Scanner;
 
 /// <summary>
 /// Sanitizes OCR evidence against the character inventory of the current official
-/// item-name catalog. The Scanner reads a closed-domain item title, not arbitrary text,
-/// so even Unicode letters/digits are ordinary evidence only when that normalized
-/// character actually occurs somewhere in the current catalog.
+/// item-name catalog. The Scanner reads a closed-domain item title, not arbitrary text.
+/// Ordinary ASCII letters/digits remain available for fuzzy correction (I/l/r/0 class
+/// confusions), while non-ASCII letters/digits and punctuation/symbols are trusted only
+/// when that normalized character actually occurs somewhere in the current catalog.
 ///
-/// Punctuation/symbols follow the same rule. A catalog-impossible glyph embedded between
-/// two catalog-valid identity characters can be preserved as '?' unknown-glyph evidence.
-/// This never guesses that the glyph was specifically r, 0, or any other character; the
-/// catalog matcher may recover it only when the complete current catalog proves a unique,
-/// safely separated pattern. CJK Han ideographs remain a hard rejection for the Korean
-/// Tarkov item-title contract.
+/// A catalog-impossible glyph embedded between two valid identity characters can be
+/// preserved as '?' unknown-glyph evidence. This never guesses that the glyph was
+/// specifically r, 0, or any other character; the catalog matcher may recover it only
+/// when the complete current catalog proves a unique, safely separated pattern. CJK Han
+/// ideographs remain a hard rejection for the Korean Tarkov item-title contract.
 /// </summary>
 public sealed class ScannerOcrCharacterPolicy
 {
@@ -82,9 +82,9 @@ public sealed class ScannerOcrCharacterPolicy
                      ['\r', '\n', '|'],
                      StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
-            // Compatibility normalization makes OCR full-width forms comparable to the
-            // same normalization used to build the current catalog character inventory.
-            // Preserve casing in FilteredText; matching itself remains case-insensitive.
+            // Compatibility normalization maps full-width OCR forms to the same forms
+            // used by the catalog. Preserve casing in FilteredText; matching remains
+            // case-insensitive.
             var variant = raw.Trim().Normalize(NormalizationForm.FormKC);
             if (variant.Length < 2)
                 continue;
@@ -170,8 +170,8 @@ public sealed class ScannerOcrCharacterPolicy
                 var wildcardCount = normalizedPattern.Count(c => c == UnknownGlyph);
 
                 // One impossible glyph can be safely useful even for a medium-short name
-                // because the downstream recovery requires an exact unique catalog
-                // pattern. Two unknown glyphs require substantially more known context.
+                // because downstream recovery requires an exact unique catalog pattern.
+                // Two unknown glyphs require substantially more known context.
                 var minimumPatternLength = wildcardCount == 1 ? 5 : 9;
                 if (wildcardCount == variantUnknownGlyphs &&
                     wildcardIdentityLength >= minimumPatternLength)
@@ -200,9 +200,20 @@ public sealed class ScannerOcrCharacterPolicy
 
     private static bool IsCatalogIdentityCharacter(
         char character,
-        IReadOnlySet<char> allowedIdentityCharacters) =>
-        char.IsLetterOrDigit(character) &&
-        allowedIdentityCharacters.Contains(char.ToLowerInvariant(character));
+        IReadOnlySet<char> allowedIdentityCharacters)
+    {
+        if (!char.IsLetterOrDigit(character))
+            return false;
+
+        // Keep ordinary ASCII alphanumerics as noisy OCR evidence. Rejecting an ASCII
+        // I/l/r/0 merely because a tiny test catalog lacks that code point would destroy
+        // exactly the fuzzy-correction evidence we need. The closed-catalog alphabet is
+        // most valuable for impossible Unicode lookalikes such as Ø and exotic symbols.
+        if (character <= 0x7F)
+            return true;
+
+        return allowedIdentityCharacters.Contains(char.ToLowerInvariant(character));
+    }
 
     private static bool IsEmbeddedBetweenCatalogIdentityCharacters(
         string variant,
