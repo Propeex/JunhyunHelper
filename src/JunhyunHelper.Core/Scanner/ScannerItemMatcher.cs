@@ -89,8 +89,9 @@ public sealed class ScannerItemMatcher
         var margin = official.Length <= 8
             ? Math.Max(0.08, minimumMargin)
             : minimumMargin;
+        var scoreMargin = match.BestScore - match.SecondScore;
 
-        if (match.BestScore >= threshold && match.BestScore - match.SecondScore >= margin)
+        if (match.BestScore >= threshold && scoreMargin >= margin)
         {
             return new ScannerRecognition(
                 true,
@@ -99,6 +100,30 @@ public sealed class ScannerItemMatcher
                 item.OfficialName,
                 match.BestScore,
                 match.SecondScore);
+        }
+
+        // A medium-length title can fall below the percentage floor from exactly one
+        // missing/substituted OCR glyph (for example 10/11 == 90.9%). Recover only when
+        // the one-edit candidate is unique across the complete current catalog AND is
+        // still clearly separated from the best global alternative. This exceptional
+        // path deliberately requires a wider margin than ordinary fuzzy matching so a
+        // nearby official name cannot be promoted merely because both are one edit away.
+        if (official.Length >= 7 &&
+            TryFindUniqueSingleEditCandidate(variants, out var singleEditIndex) &&
+            singleEditIndex == match.BestIndex)
+        {
+            var globalSecondScore = FindSecondBestScore(match.BestIndex, variants);
+            var boundedEditMargin = Math.Max(0.10, minimumMargin);
+            if (match.BestScore - globalSecondScore >= boundedEditMargin)
+            {
+                return new ScannerRecognition(
+                    true,
+                    "BOUNDED_EDIT_1",
+                    item.Id,
+                    item.OfficialName,
+                    match.BestScore,
+                    globalSecondScore);
+            }
         }
 
         return new ScannerRecognition(
@@ -195,6 +220,42 @@ public sealed class ScannerItemMatcher
         return new MatchResult(bestIndex, best, second, false);
     }
 
+    private bool TryFindUniqueSingleEditCandidate(
+        IReadOnlyList<string> variants,
+        out int candidateIndex)
+    {
+        candidateIndex = -1;
+
+        for (var index = 0; index < _normalizedNames.Length; index++)
+        {
+            var official = _normalizedNames[index];
+            if (official.Length < 7)
+                continue;
+
+            var oneEdit = false;
+            foreach (var variant in variants)
+            {
+                if (Math.Abs(official.Length - variant.Length) > 1)
+                    continue;
+                if (EditDistance(official, variant) == 1)
+                {
+                    oneEdit = true;
+                    break;
+                }
+            }
+
+            if (!oneEdit)
+                continue;
+
+            if (candidateIndex >= 0)
+                return false;
+
+            candidateIndex = index;
+        }
+
+        return candidateIndex >= 0;
+    }
+
     private double FindSecondBestScore(int exactIndex, IReadOnlyList<string> variants)
     {
         var second = 0.0;
@@ -255,6 +316,15 @@ public sealed class ScannerItemMatcher
         if (string.Equals(left, right, StringComparison.Ordinal))
             return 1;
 
+        var distance = EditDistance(left, right);
+        return Math.Clamp(
+            1.0 - (double)distance / Math.Max(left.Length, right.Length),
+            0,
+            1);
+    }
+
+    private static int EditDistance(string left, string right)
+    {
         var previous = new int[right.Length + 1];
         var current = new int[right.Length + 1];
         for (var index = 0; index <= right.Length; index++)
@@ -273,11 +343,7 @@ public sealed class ScannerItemMatcher
             (previous, current) = (current, previous);
         }
 
-        var distance = previous[right.Length];
-        return Math.Clamp(
-            1.0 - (double)distance / Math.Max(left.Length, right.Length),
-            0,
-            1);
+        return previous[right.Length];
     }
 
     private sealed record MatchResult(

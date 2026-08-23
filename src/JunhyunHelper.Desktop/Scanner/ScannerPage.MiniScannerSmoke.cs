@@ -116,13 +116,18 @@ public partial class ScannerPage
 
         static void DrawMagnifier(byte[] target, int targetStride, int x, int y)
         {
+            // Match the live Tarkov inspect-header icon scale: the complete bright
+            // component, including its short lower-right handle, is about 21x19-21 px.
+            // Keeping the synthetic regression at the observed scale prevents the test
+            // itself from forcing the detector to accept unrealistically large icons.
             const byte bright = 178;
-            Fill(target, targetStride, x, y, 19, 3, bright, bright, bright);
-            Fill(target, targetStride, x, y + 16, 19, 3, bright, bright, bright);
-            Fill(target, targetStride, x, y, 3, 19, bright, bright, bright);
-            Fill(target, targetStride, x + 16, y, 3, 19, bright, bright, bright);
-            for (var step = 0; step < 9; step++)
-                Fill(target, targetStride, x + 17 + step, y + 17 + step, 3, 3, bright, bright, bright);
+            const int ringSize = 17;
+            Fill(target, targetStride, x, y, ringSize, 3, bright, bright, bright);
+            Fill(target, targetStride, x, y + ringSize - 3, ringSize, 3, bright, bright, bright);
+            Fill(target, targetStride, x, y, 3, ringSize, bright, bright, bright);
+            Fill(target, targetStride, x + ringSize - 3, y, 3, ringSize, bright, bright, bright);
+            for (var step = 0; step < 4; step++)
+                Fill(target, targetStride, x + 15 + step, y + 15 + step, 3, 3, bright, bright, bright);
         }
 
         static void DrawGlyph(byte[] target, int targetStride, int x, int y)
@@ -182,6 +187,30 @@ public partial class ScannerPage
                 $"Scanner inspect-header regression failed: magnifier={refinement.Magnifier}, " +
                 $"title={refinement.Title}, close={refinement.CloseButton}, " +
                 $"score={refinement.Score:F3}, reason={refinement.Reason}.");
+        }
+
+        // Live v1.3.1 evidence: a real anti-aliased magnifier may be isolated
+        // cleanly while nearby title glyph components are too fragmented/sparse to
+        // satisfy the old mandatory follower relation. Morphology + left-header
+        // position must still identify the icon and exclude it from title OCR.
+        var sparsePixels = (byte[])pixels.Clone();
+        Fill(sparsePixels, stride, firstGlyphX, glyphY - 3, 88, 28, 30, 30, 30);
+        DrawGlyph(sparsePixels, stride, firstGlyphX + 64, glyphY);
+        var sparseRefinement = ScannerTitleAnchorRefiner.Refine(
+            sparsePixels,
+            width,
+            height,
+            stride,
+            candidate);
+        var sparseMagnifierRight = sparseRefinement.Magnifier.X + sparseRefinement.Magnifier.Width;
+        if (sparseRefinement.Magnifier.Width < 20 ||
+            sparseRefinement.Magnifier.X > magnifierX + 4 ||
+            sparseRefinement.Title.X <= sparseMagnifierRight)
+        {
+            throw new InvalidOperationException(
+                $"Scanner sparse-glyph magnifier regression failed: magnifier={sparseRefinement.Magnifier}, " +
+                $"title={sparseRefinement.Title}, score={sparseRefinement.Score:F3}, " +
+                $"reason={sparseRefinement.Reason}.");
         }
     }
 
