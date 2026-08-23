@@ -1,4 +1,4 @@
-준현 헬퍼 v1.4.2 — Windows x64
+준현 헬퍼 v1.4.3 — Windows x64
 
 실행 방법
 1. 받은 ZIP 파일을 원하는 폴더에 압축 해제합니다.
@@ -6,7 +6,22 @@
 3. 처음 실행하면 프로필을 만들고 필요한 최신 게임 데이터를 온라인에서 내려받습니다.
 4. 프로그램 실행 시 GitHub의 최신 정식 준현 헬퍼 릴리즈를 확인합니다. 더 최신 버전이 있으면 업데이트 여부를 묻습니다.
 
-v1.4.2 주요 변경 — 실제 Tarkov Ground Truth 기반 상세창·아이템명 인식 보완
+v1.4.3 주요 변경 — 상세창 후보 검증 구조 및 OCR 문자 정책 개선
+- 상세보기 창 geometry는 더 이상 사각형 점수만으로 상세창을 확정하지 않고, 가능한 rectangle proposal을 만드는 역할만 담당합니다.
+- 상세창의 높이·비율이 아이템에 따라 크게 달라질 수 있으므로 기존 1.3 근처 aspect 선호를 강한 조건에서 약한 ranking hint로 낮췄습니다.
+- 서로 크게 겹치는 후보라도 상·하·좌·우 경계가 실질적으로 다르면 X/돋보기/header 검증 전에 제거하지 않습니다. 거의 같은 edge-jitter duplicate만 정리합니다.
+- 각 후보의 최종 OCR 진입은 기존과 동일하게 실제 빨간 닫기 X, 돋보기, neutral header, dark title field, text evidence를 모두 확인하고 HEADER_FRAME_LOCKED >= 0.68을 충족해야 합니다.
+- 따라서 stash/inventory의 큰 사각형이 geometry 점수에서 앞서더라도 X/돋보기 semantic evidence가 없는 후보는 상세보기 창으로 확정되지 않습니다.
+- OCR 문자 정책은 current official item-name catalog에서 실제 사용하는 문자·기호를 기준으로 강화했습니다.
+- slash-zero가 Ø처럼 카탈로그에 없는 Unicode 문자로 읽히거나 r 같은 좁은 글자가 특수기호로 읽히면 해당 문자를 정상 identity 문자로 신뢰하지 않습니다.
+- 이런 embedded glyph는 특정 r/0으로 강제 치환하지 않고 '?' unknown-glyph evidence로 보존하며, 현재 전체 카탈로그에서 정답 패턴이 유일하고 충분히 분리된 경우에만 1~2글자를 제한적으로 복구합니다.
+- 일반 ASCII I/l/r/0 등은 fuzzy matcher가 비교할 수 있도록 정상 noisy evidence로 유지합니다.
+- 실제 공식 아이템명에서 사용되는 따옴표·하이픈·괄호 등의 기호는 제거하지 않습니다.
+- 일반 OCR confidence, matcher fuzzy threshold, structural floor 0.34, trusted header floor 0.68은 낮추지 않았습니다.
+- tall/large detail rectangle, high-IoU different-edge proposal 보존, catalog-impossible Unicode glyph, ambiguous wildcard fail-closed를 자동 회귀 테스트로 고정했습니다.
+- Scanner 속도 최적화는 정확도 안정화 이후 작업으로 유지합니다.
+
+v1.4.2 기반 변경 — 실제 Tarkov Ground Truth 기반 상세창·아이템명 인식 보완
 - 실제 v1.4.1 인게임 교정 데이터 61 Case / 사용자 검증 16 Case를 분석해 반복되는 실패 단계만 보완했습니다.
 - 보관함/인벤토리의 큰 프레임을 상세창 후보로 잡고 그 내부의 실제 상세창 헤더를 놓치던 사례를 위해 contained-subpanel fallback을 추가했습니다.
 - contained-subpanel 복구는 기존 primary 및 v1.4.1 live header lock이 모두 실패했을 때만 실행되며, 실제 후보도 닫기 X·돋보기·title field·text evidence와 HEADER_FRAME_LOCKED >= 0.68을 다시 통과해야 합니다.
