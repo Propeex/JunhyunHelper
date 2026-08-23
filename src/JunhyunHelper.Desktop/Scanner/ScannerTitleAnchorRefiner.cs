@@ -19,6 +19,7 @@ internal static class ScannerTitleAnchorRefiner
                 StringComparison.Ordinal))
         {
             ScannerLiveHeaderGroundTruthSmoke.Verify();
+            ScannerContainedSubpanelGroundTruthSmoke.Verify();
         }
     }
 
@@ -49,6 +50,19 @@ internal static class ScannerTitleAnchorRefiner
             candidate);
         if (recovered is { } liveGroundTruthLock)
             return liveGroundTruthLock;
+
+        // Reviewed v1.4.1 cases show that a large stash/inventory rectangle can contain
+        // the real inspect panel hundreds of pixels below the coarse top. Only oversized
+        // candidates enter this third-stage proposal scan, and every proposal must still
+        // pass the existing live close/magnifier/title/header semantic lock.
+        var contained = ScannerContainedSubpanelGroundTruthRecovery.TryRefine(
+            bgra,
+            width,
+            height,
+            stride,
+            candidate);
+        if (contained is { } containedGroundTruthLock)
+            return containedGroundTruthLock;
 
         // Every partial/failed lock stays below the runtime's trusted-anchor floor so OCR
         // cannot run merely because some subset of close/icon/field evidence scored well.
