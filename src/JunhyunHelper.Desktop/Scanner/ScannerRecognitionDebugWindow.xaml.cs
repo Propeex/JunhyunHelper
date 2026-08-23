@@ -3,7 +3,6 @@ using Microsoft.Win32;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using JunhyunHelper.Core.Scanner;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
@@ -34,66 +33,51 @@ public partial class ScannerRecognitionDebugWindow : Window
         AddOverlay(_frame.MagnifierBounds, Brushes.Gold, 2);
         AddOverlay(_frame.CloseBounds, Brushes.OrangeRed, 2);
 
-        var selected = FormatRegion(_frame.SelectedBounds);
-        var title = FormatRegion(_frame.TitleBounds);
-        var magnifier = FormatRegion(_frame.MagnifierBounds);
-        var close = FormatRegion(_frame.CloseBounds);
-        var anchor = _frame.TitleAnchorScore > 0 || !string.IsNullOrWhiteSpace(_frame.TitleAnchorReason)
-            ? $" | anchor={_frame.TitleAnchorScore:P1}/{_frame.TitleAnchorReason ?? "-"}"
-            : string.Empty;
         SummaryText.Text =
-            $"{_frame.CapturedAtUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss} | {_frame.SourceLabel} | " +
-            $"선택={selected} | 제목={title} | 돋보기={magnifier} | X={close}{anchor}";
+            $"{_frame.Timestamp.ToLocalTime():yyyy-MM-dd HH:mm:ss} | {_frame.Source} | " +
+            $"선택={FormatRegion(_frame.SelectedBounds)} | 제목={FormatRegion(_frame.TitleBounds)} | " +
+            $"돋보기={FormatRegion(_frame.MagnifierBounds)} | X={FormatRegion(_frame.CloseBounds)} | " +
+            $"anchor={_frame.TitleAnchorScore:P1}/{_frame.TitleAnchorReason}";
         OcrText.Text = BuildOcrSummary(_frame);
     }
 
-    private void AddOverlay(ScannerDetectedRegion region, Brush brush, double thickness)
+    private void AddOverlay(Rect? region, Brush brush, double thickness)
     {
-        if (region.Width <= 0 || region.Height <= 0)
+        if (region is not { } rect || rect.Width <= 0 || rect.Height <= 0)
             return;
 
         var rectangle = new System.Windows.Shapes.Rectangle
         {
-            Width = region.Width,
-            Height = region.Height,
+            Width = rect.Width,
+            Height = rect.Height,
             Stroke = brush,
             StrokeThickness = thickness,
             IsHitTestVisible = false,
         };
-        Canvas.SetLeft(rectangle, region.X);
-        Canvas.SetTop(rectangle, region.Y);
+        Canvas.SetLeft(rectangle, rect.X);
+        Canvas.SetTop(rectangle, rect.Y);
         OverlayCanvas.Children.Add(rectangle);
     }
 
     private static string BuildOcrSummary(ScannerRecognitionDebugFrame frame)
     {
-        if (frame.OcrVariant is null)
-        {
-            if (!string.IsNullOrWhiteSpace(frame.Note))
-                return frame.Note;
-            return "아직 OCR 판정 결과가 없습니다.";
-        }
-
-        var recognition = frame.OcrVariant.Recognition;
-        var candidate = string.IsNullOrWhiteSpace(recognition.OfficialName)
+        var candidate = string.IsNullOrWhiteSpace(frame.CandidateName) ? "-" : frame.CandidateName;
+        var rawOcr = string.IsNullOrWhiteSpace(frame.OcrText)
             ? "-"
-            : recognition.OfficialName;
-        var rawOcr = string.IsNullOrWhiteSpace(frame.OcrVariant.RawText)
+            : frame.OcrText.ReplaceLineEndings(" / ");
+        var matcherText = string.IsNullOrWhiteSpace(frame.MatcherText)
             ? "-"
-            : frame.OcrVariant.RawText.ReplaceLineEndings(" / ");
-        var matcherText = string.IsNullOrWhiteSpace(frame.OcrVariant.MatcherText)
-            ? "-"
-            : frame.OcrVariant.MatcherText.ReplaceLineEndings(" / ");
+            : frame.MatcherText.ReplaceLineEndings(" / ");
         return
-            $"pass={frame.OcrVariant.PassLabel} | rawOcr={rawOcr} | matcherText={matcherText} | " +
-            $"candidate={candidate} | confidence={recognition.Confidence:P1} | " +
-            $"second={recognition.SecondScore:P1} | reason={recognition.Reason}";
+            $"pass={frame.Pass} | rawOcr={rawOcr} | matcherText={matcherText} | " +
+            $"candidate={candidate} | confidence={frame.Confidence:P1} | " +
+            $"second={frame.SecondScore:P1} | reason={frame.RecognitionReason}";
     }
 
-    private static string FormatRegion(ScannerDetectedRegion region) =>
-        region.Width <= 0 || region.Height <= 0
+    private static string FormatRegion(Rect? region) =>
+        region is not { } rect || rect.Width <= 0 || rect.Height <= 0
             ? "-"
-            : $"({region.X},{region.Y}) {region.Width}x{region.Height}";
+            : $"({rect.X:0},{rect.Y:0}) {rect.Width:0}x{rect.Height:0}";
 
     private async void SaveButton_Click(object sender, RoutedEventArgs e)
     {
@@ -103,7 +87,7 @@ public partial class ScannerRecognitionDebugWindow : Window
             Filter = "PNG 이미지 (*.png)|*.png",
             DefaultExt = ".png",
             AddExtension = true,
-            FileName = $"JunhyunHelper-Scanner-Diagnostic-{_frame.CapturedAtUtc.ToLocalTime():yyyyMMdd-HHmmss}.png",
+            FileName = $"JunhyunHelper-Scanner-Diagnostic-{_frame.Timestamp.ToLocalTime():yyyyMMdd-HHmmss}.png",
         };
 
         if (dialog.ShowDialog(this) != true)
@@ -125,7 +109,7 @@ public partial class ScannerRecognitionDebugWindow : Window
             await stream.FlushAsync();
             ScannerDiagnosticLog.Write(
                 $"Recognition diagnostic image exported path='{dialog.FileName}' " +
-                $"source='{_frame.SourceLabel}' size={_frame.Image.PixelWidth}x{_frame.Image.PixelHeight} " +
+                $"source='{_frame.Source}' size={_frame.Image.PixelWidth}x{_frame.Image.PixelHeight} " +
                 "overlay=detail,title,magnifier,close");
             MessageBox.Show(
                 this,
@@ -170,26 +154,20 @@ public partial class ScannerRecognitionDebugWindow : Window
         return bitmap;
     }
 
-    private static void DrawRegion(
-        DrawingContext context,
-        ScannerDetectedRegion region,
-        Brush brush,
-        double thickness)
+    private static void DrawRegion(DrawingContext context, Rect? region, Brush brush, double thickness)
     {
-        if (region.Width <= 0 || region.Height <= 0)
+        if (region is not { } rect || rect.Width <= 0 || rect.Height <= 0)
             return;
 
         var pen = new Pen(brush, thickness);
         pen.Freeze();
-        // Keep the stroke inside the image boundary so a box touching x/y=0 is still
-        // visible in the exported PNG.
         var inset = thickness / 2.0;
-        var rect = new Rect(
-            region.X + inset,
-            region.Y + inset,
-            Math.Max(1, region.Width - thickness),
-            Math.Max(1, region.Height - thickness));
-        context.DrawRectangle(null, pen, rect);
+        var drawRect = new Rect(
+            rect.X + inset,
+            rect.Y + inset,
+            Math.Max(1, rect.Width - thickness),
+            Math.Max(1, rect.Height - thickness));
+        context.DrawRectangle(null, pen, drawRect);
     }
 
     private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
