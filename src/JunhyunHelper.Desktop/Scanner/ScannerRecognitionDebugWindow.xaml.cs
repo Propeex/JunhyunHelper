@@ -1,6 +1,7 @@
 using System.IO;
 using Microsoft.Win32;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
@@ -33,12 +34,12 @@ public partial class ScannerRecognitionDebugWindow : Window
         AddOverlay(_frame.MagnifierBounds, Brushes.Gold, 2);
         AddOverlay(_frame.CloseBounds, Brushes.OrangeRed, 2);
 
-        SummaryText.Text =
+        var geometry =
             $"{_frame.Timestamp.ToLocalTime():yyyy-MM-dd HH:mm:ss} | {_frame.Source} | " +
             $"선택={FormatRegion(_frame.SelectedBounds)} | 제목={FormatRegion(_frame.TitleBounds)} | " +
             $"돋보기={FormatRegion(_frame.MagnifierBounds)} | X={FormatRegion(_frame.CloseBounds)} | " +
             $"anchor={_frame.TitleAnchorScore:P1}/{_frame.TitleAnchorReason}";
-        OcrText.Text = BuildOcrSummary(_frame);
+        DetailText.Text = geometry + Environment.NewLine + BuildOcrSummary(_frame);
     }
 
     private void AddOverlay(Rect? region, Brush brush, double thickness)
