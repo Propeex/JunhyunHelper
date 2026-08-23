@@ -2,7 +2,7 @@
 
 이 문서는 **무엇을 만들고 왜 만드는지**를 정의하는 공식 제품 요구사항입니다. 사용자 확정 의도가 과거 구현보다 우선합니다.
 
-기준일: 2026-08-22
+기준일: 2026-08-23
 
 ## 1. 제품 정의
 
@@ -191,7 +191,7 @@ Map은 독립 subsystem이며 Quest만 current JunhyunHelper content/profile과 
 
 ## 13. Scanner / Mini Scanner
 
-`CONFIRMED / IMPLEMENTED / v1.2.1 PUBLIC VERIFIED / LIVE TARKOV VALIDATION ONGOING`
+`CONFIRMED / IMPLEMENTED / v1.2.2 PUBLIC VERIFIED / LIVE TARKOV VALIDATION ONGOING`
 
 Scanner는 Tarkov 화면을 Item ID로 변환해 기존 JunhyunHelper 데이터에 연결하는 입력 subsystem입니다.
 
@@ -253,6 +253,15 @@ v1.2.1 hardening:
 - font-aware OCR shutdown은 active-operation lease로 use-after-dispose 방지
 - `PrintWindow` 사전 유효성 검사에서 불필요한 full-frame managed copy 제거
 - title-anchor diagnostics는 실제 detector score를 보존
+
+v1.2.2 hardening:
+
+- Scanner catalog의 local `LoadCacheAsync`와 network `RefreshAsync`를 같은 operation gate로 직렬화
+- cross-GameMode `ClearForMode`를 refresh gate 획득 뒤 수행
+- 이전 GameMode의 오래된 in-flight refresh가 최신 profile/GameMode cache 결과를 뒤늦게 덮어쓰는 상태 역전 차단
+- cache load가 Scanner catalog lifetime cancellation과 연결되어 shutdown 중 gate 대기를 안전하게 종료
+- deterministic concurrency regression test 유지
+- OCR/detector/visual confidence/top1-top2 margin 및 시장/RequiredTotal 의미 변경 없음
 
 ### 표시 데이터
 
@@ -337,15 +346,15 @@ Foundation preview 개발 도구와 Mini Scanner 별도 위치 편집/초기화 
 
 ## 14. Scanner 릴리즈 / 검증 정책
 
-v1.2.1 public release gate 완료:
+v1.2.2 public release gate 완료:
 
 - exact release source verification
 - Windows Release build
-- **255 automated tests / 0 failure / 0 skipped**
+- **256 automated tests / 0 failure / 0 skipped**
+- Scanner catalog concurrency regression
 - self-contained single-file publish
 - ProductVersion/FIRST_RUN/package-root audit
 - actual packaged EXE Product UI / Scanner / Mini Scanner / Main Map / Factory / MiniMap smoke
-- one-shot mode restoration / title-anchor-magnifier product smoke
 - graceful shutdown / clean portable root
 - Draft package 재다운로드 checksum/package/ProductVersion verification
 - Draft-downloaded EXE smoke
@@ -353,8 +362,9 @@ v1.2.1 public release gate 완료:
 - exact public tag source verification
 - public package 재다운로드 checksum/root/ProductVersion/FIRST_RUN verification
 - public-downloaded EXE smoke
+- independent public finalizer로 release-controller success/latest/tag/assets/package/EXE 재검증
 
-최종 release source는 `8c0de649f18d7caa4f5669a06511c15e784dfd29`, exact-source release run은 `32542259521`입니다. 상세 asset hash와 단계별 증거는 `docs/RELEASE_1.2.1.md`에 고정합니다.
+최종 release source는 `e3925cbc55215c7de0502c9b6b1ff1428d2f272b`, exact-source release run은 `32590701086`, independent finalizer는 `32607942093`입니다. 상세 asset hash와 단계별 증거는 `docs/RELEASE_1.2.2.md`와 `docs/.release-v1.2.2-status.json`에 고정합니다.
 
 **최신 Tarkov live E2E는 release blocker가 아닙니다.**
 
@@ -401,16 +411,15 @@ Scanner smoke에는:
 현재 public stable:
 
 ```text
-v1.2.1 — Scanner stability and accuracy hardening
-release source: 8c0de649f18d7caa4f5669a06511c15e784dfd29
-255 passed / 0 failed / 0 skipped
-Draft-downloaded EXE smoke: SUCCESS
+v1.2.2 — Scanner catalog mode-transition hardening
+release source: e3925cbc55215c7de0502c9b6b1ff1428d2f272b
+256 passed / 0 failed / 0 skipped
 public/latest: VERIFIED
 exact public tag source: VERIFIED
 public-downloaded EXE smoke: SUCCESS
 ```
 
-최종 public source/run/hash는 `docs/RELEASE_1.2.1.md`에 고정되어 있습니다.
+최종 public source/run/hash는 `docs/RELEASE_1.2.2.md`에 고정되어 있습니다.
 
 버전 규칙: `docs/VERSIONING.md`.
 

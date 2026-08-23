@@ -1,6 +1,6 @@
 # DEPLOYMENT — 준현 헬퍼 배포 원칙
 
-기준일: 2026-08-21
+기준일: 2026-08-23
 
 ## 1. 공개 형태
 
@@ -9,18 +9,21 @@
 현재 public stable:
 
 ```text
-v1.1.3 PUBLIC RELEASE / VERIFIED
-exact release source SHA: 8803f899341859887281ad50135911f4625a64f3
-release verification run: 32470606548
-asset: Junhyun-Helper-v1.1.3-win-x64.zip
-bytes: 80,251,960
-SHA-256: 419f6288aa3202f10868f2fe6a4ccac40475753ce4ba8c8c2d9985396c4bf493
-ProductVersion: 1.1.3+8803f899341859887281ad50135911f4625a64f3
-Draft downloaded EXE smoke: SUCCESS
+v1.2.2 PUBLIC RELEASE / VERIFIED
+release source SHA: e3925cbc55215c7de0502c9b6b1ff1428d2f272b
+final PR CI: 32590303579 — SUCCESS
+exact-source release run: 32590701086 — SUCCESS
+independent public finalizer: 32607942093 — SUCCESS
+asset: Junhyun-Helper-v1.2.2-win-x64.zip
+bytes: 80,302,910
+SHA-256: 125d4a5b0e6db64f6772cc63c112f13cbcdac2fb7bc9ce501313ca2fc3645d7c
+ProductVersion: 1.2.2+e3925cbc55215c7de0502c9b6b1ff1428d2f272b
+public/latest: VERIFIED
+exact public tag source: VERIFIED
 public downloaded EXE smoke: SUCCESS
 ```
 
-상세: `docs/RELEASE_1.1.3.md`
+상세: `docs/RELEASE_1.2.2.md`.
 
 ## 2. 배포 특성
 
@@ -74,6 +77,7 @@ map-product-settings.json(.bak)
 ammo-favorites.json(.bak)
 scanner-settings.json(.bak)
 scanner/catalog/
+scanner/fonts/
 updates/pending/
 logs/startup.log
 logs/scanner.log(.1)
@@ -126,7 +130,7 @@ Assets/
 
 PR artifact는 정식 공개 배포물이 아닙니다.
 
-정식 release가 끝나면 release-only / dispatcher / diagnostic workflow를 저장소에서 제거하고 상시 workflow는 원칙적으로 `ci.yml`만 유지합니다.
+정식 release가 끝나면 release-only / finalizer / diagnostic workflow를 저장소에서 제거하고 상시 workflow는 원칙적으로 `ci.yml`만 유지합니다. 검증 결과를 담은 release record와 status JSON은 이력 증거로 보존할 수 있습니다.
 
 ## 7. Public Release — Draft first
 
@@ -155,54 +159,55 @@ release candidate PR final CI
 
 릴리즈 workflow는 exact release commit을 checkout하고 Map donor gitlink도 exact pin인지 검증합니다.
 
-Public tag 확인은 shell refspec 문자열 조합보다 GitHub API의 tag ref/object를 우선합니다. v1.1.3 릴리즈에서 PowerShell refspec 보간 문제가 실제로 발생했기 때문에 이 경계를 명시합니다.
+Public tag 확인은 shell refspec 문자열 조합보다 GitHub API의 tag ref/object를 우선합니다. 과거 PowerShell refspec 보간 문제가 실제로 발생했기 때문에 이 경계를 유지합니다.
 
-## 8. v1.1.3 Scanner Lab v3.8 복원 릴리즈 결과
+## 8. v1.2.2 release verification
 
-v1.1.3은 새 기능이 아니라 Scanner 인식 회귀를 복구한 PATCH입니다.
+v1.2.2은 새 사용자 기능을 추가하지 않고 Scanner catalog GameMode/profile transition의 deterministic race를 수정한 PATCH입니다.
 
 완료된 공개 차단 조건:
 
 - Windows Release build
-- **245 automated tests / 0 failed / 0 skipped**
-- Scanner Lab v3.8 geometry/title ROI regression
+- **256 automated tests / 0 failed / 0 skipped**
+- Scanner catalog concurrency regression
 - self-contained package 및 dependency audit
-- exact packaged EXE Product UI + Scanner + Main Map + Factory + MiniMap smoke
+- exact packaged EXE Product UI + Scanner + Mini Scanner + Main Map + Factory + MiniMap smoke
 - Draft ZIP/checksum/package/ProductVersion/FIRST_RUN 검증
 - Draft-downloaded EXE smoke
 - public/latest 전환
-- GitHub API를 통한 exact public tag → source SHA 검증
+- exact public tag → source SHA 검증
 - public ZIP hash/size/ProductVersion 재검증
-- public downloaded EXE smoke
-- audit artifact upload
+- public-downloaded EXE smoke
+- independent finalizer로 public/latest/tag/assets/package/EXE 재검증
 
 Final release verification:
 
 ```text
-run: 32470606548
-job: 96736389584
-source: 8803f899341859887281ad50135911f4625a64f3
-asset: Junhyun-Helper-v1.1.3-win-x64.zip
-bytes: 80,251,960
-SHA-256: 419f6288aa3202f10868f2fe6a4ccac40475753ce4ba8c8c2d9985396c4bf493
-EXE bytes: 83,826,070
-ProductVersion: 1.1.3+8803f899341859887281ad50135911f4625a64f3
+final PR CI: 32590303579
+release run: 32590701086
+independent finalizer: 32607942093
+source: e3925cbc55215c7de0502c9b6b1ff1428d2f272b
+asset: Junhyun-Helper-v1.2.2-win-x64.zip
+bytes: 80,302,910
+SHA-256: 125d4a5b0e6db64f6772cc63c112f13cbcdac2fb7bc9ce501313ca2fc3645d7c
+ProductVersion: 1.2.2+e3925cbc55215c7de0502c9b6b1ff1428d2f272b
 public downloaded EXE smoke: SUCCESS
 ```
 
-릴리즈 자동화 중 v1/v2에서 발견된 오류는 제품이 아니라 one-shot workflow의 null 처리 / PowerShell git refspec 보간 문제였습니다. 실패 시 cleanup으로 불완전한 release/tag를 회수했고, v3에서 GitHub API tag 검증으로 전체 gate를 성공했습니다.
+상세 검증 증거는 `docs/RELEASE_1.2.2.md`와 `docs/.release-v1.2.2-status.json`에 있습니다.
 
 ### 의도적으로 release blocker가 아닌 것
 
-DEC-051에 따라 **최신 Tarkov Borderless 실제 인게임 E2E는 release blocker가 아닙니다.**
+**최신 Tarkov Borderless 실제 인게임 E2E calibration은 release blocker가 아닙니다.**
 
-공개 후 실제 게임 검증은 다음 로그를 사용합니다.
+공개 후 실제 게임 검증은 다음 로그와 진단 이미지를 사용합니다.
 
 ```text
 %LocalAppData%/JunhyunHelper/logs/scanner.log
+Scanner 탭 → 인식 이미지
 ```
 
-v1.1.3은 Scanner Lab v3.8의 multi-candidate semantic validation 구조를 복원했으며, 실제 capture/candidate/OCR/semantic selection 문제가 남으면 후속 PATCH로 보정합니다.
+실제 capture/candidate/OCR/semantic-or-visual-selection 문제가 관측되면 후속 PATCH로 보정합니다. live evidence 없이 recognition confidence/margin을 완화하지 않습니다.
 
 ## 9. Scanner diagnostics privacy/packaging
 
@@ -212,9 +217,10 @@ Scanner log는 LocalAppData에만 생성합니다.
 
 - capture/runtime state
 - structural candidate bounds/score/reason
+- title-anchor/ROI evidence
 - candidate별 OCR pass
-- matcher/resolver confidence/result
-- semantic-selected candidate
+- semantic/visual resolver confidence/result
+- selected candidate
 - error metadata
 
 저장 금지:
@@ -222,18 +228,20 @@ Scanner log는 LocalAppData에만 생성합니다.
 - screenshot
 - raw pixel buffer
 
-로그 파일은 공개 ZIP에 포함하지 않습니다.
+`인식 이미지`는 process memory의 최신 diagnostic frame만 사용합니다. 로그/진단 이미지는 공개 ZIP에 포함하지 않습니다.
 
 ## 10. 호환성
 
-v1.1.3:
+v1.2.2:
 
 ```text
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
-v1.1.2 → v1.1.3 mandatory Game Content update: none
-v1.1.2 → v1.1.3 user.db migration: none
+Scanner display settings schema: v3
+Scanner catalog cache: v1/v2 readable, v2 written
+v1.2.1 → v1.2.2 mandatory Game Content update: none
+v1.2.1 → v1.2.2 user.db migration: none
 ```
 
 기존 Profile / Quest / Inventory / Hideout / Scanner settings/catalog / Map preferences / Ammo favorites는 유지합니다.

@@ -2,7 +2,7 @@
 
 > 새 대화/새 개발자는 이 문서를 먼저 읽습니다. 대화 기억이 아니라 저장소의 공식 문서와 코드가 프로젝트의 기준입니다.
 
-기준일: 2026-08-22
+기준일: 2026-08-23
 
 ## 1. 제품
 
@@ -22,36 +22,36 @@ Runtime GPT/AI 의존성은 없습니다.
 
 ## 2. 현재 공개 릴리즈
 
-현재 public stable은 **v1.2.1**입니다.
+현재 public stable은 **v1.2.2**입니다.
 
 ```text
-version: v1.2.1 PUBLIC RELEASE / VERIFIED
-release source: 8c0de649f18d7caa4f5669a06511c15e784dfd29
-final PR CI: 32540688111 — SUCCESS
-exact-source release run: 32542259521 — SUCCESS
-automated tests: 255 passed / 0 failed / 0 skipped
-asset: Junhyun-Helper-v1.2.1-win-x64.zip
-bytes: 80,306,749
-SHA-256: 48a8b54fcdc3346a092ef3da2744f2d4ca7e27d99da5b52e3ebee7b55fa0affa
-ProductVersion: 1.2.1+8c0de649f18d7caa4f5669a06511c15e784dfd29
-Draft-downloaded EXE smoke: SUCCESS
+version: v1.2.2 PUBLIC RELEASE / VERIFIED
+release source: e3925cbc55215c7de0502c9b6b1ff1428d2f272b
+final PR CI: 32590303579 — SUCCESS
+exact-source release run: 32590701086 — SUCCESS
+independent public finalizer: 32607942093 — SUCCESS
+automated tests: 256 passed / 0 failed / 0 skipped
+asset: Junhyun-Helper-v1.2.2-win-x64.zip
+bytes: 80,302,910
+SHA-256: 125d4a5b0e6db64f6772cc63c112f13cbcdac2fb7bc9ce501313ca2fc3645d7c
+ProductVersion: 1.2.2+e3925cbc55215c7de0502c9b6b1ff1428d2f272b
 public/latest: VERIFIED
 exact public tag source: VERIFIED
 public-downloaded EXE smoke: SUCCESS
 ```
 
 ```text
-Desktop Version: 1.2.1
+Desktop Version: 1.2.2
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
 Scanner display settings schema: v3
 Scanner catalog cache schema: v1/v2 readable, v2 written
-v1.2.0 → v1.2.1 mandatory Game Content update: none
-v1.2.0 → v1.2.1 user.db migration: none
+v1.2.1 → v1.2.2 mandatory Game Content update: none
+v1.2.1 → v1.2.2 user.db migration: none
 ```
 
-상세 검증 기록은 `docs/RELEASE_1.2.1.md`에 있습니다.
+상세 검증 기록은 `docs/RELEASE_1.2.2.md`에 있습니다.
 
 ## 3. 제품 아키텍처 기준
 
@@ -144,9 +144,11 @@ OCR이 비거나 손상된 경우 current official item-name universe 안에서�
 - arbitrary text/Item 생성 금지
 - visual result도 current catalog identity를 통과해야 함
 
-## 6. v1.2.1 deterministic Scanner hardening
+## 6. Deterministic Scanner hardening
 
-### Font source/cache generation
+### v1.2.1 — font/cache/lifecycle/capture
+
+#### Font source/cache generation
 
 - Tarkov `resources.assets`를 전체 managed byte array로 읽지 않고 bounded streaming scan
 - source path/length/last-write를 `scanner/fonts/font-cache.json` manifest에 기록
@@ -156,7 +158,7 @@ OCR이 비거나 손상된 경우 current official item-name universe 안에서�
 - corrupt/unusable font cache는 font recovery만 fail-soft로 비활성화하고 primary OCR path 유지
 - 게임 font 바이너리는 배포 파일에 포함하지 않음
 
-### Visual cache bounds
+#### Visual cache bounds
 
 - OCR-guided title template cache bounded
 - full-catalog glyph-mask cache bounded
@@ -165,7 +167,7 @@ OCR이 비거나 손상된 경우 current official item-name universe 안에서�
 
 장시간 Scanner 실행에서 rendered template cache가 무제한 증가하지 않으며 Tarkov 업데이트 후 stale glyph template을 재사용하지 않습니다.
 
-### Mini Scanner inventory probe
+#### Mini Scanner inventory probe
 
 - inventory/stash OCR probe 동시 실행 최대 1개
 - 반복 `Show` 요청은 latest snapshot으로 coalesce
@@ -173,20 +175,32 @@ OCR이 비거나 손상된 경우 current official item-name universe 안에서�
 - epoch가 바뀐 old result는 화면 적용 금지
 - inventory context가 불확실하면 Mini Scanner hidden
 
-### One-shot/profile lifecycle
+#### One-shot/profile lifecycle
 
 - one-shot은 기존 continuous loop 실제 종료를 await한 뒤 shared detector/OCR/presentation state 사용
 - one-shot 종료 후 최신 사용자 state가 같은 mode를 여전히 요청할 때만 이전 mode 복구
 - profile/GameMode monitor는 one-shot gate 뒤 최신 context를 다시 읽음
 - stale monitor tick이 이전 profile/mode를 부활시키지 않음
 
-### Shutdown/resource lifetime
+#### Shutdown/resource lifetime
 
 Font-aware OCR은 active-operation lease를 사용합니다. Dispose 요청 이후 신규 operation은 거부하고, 이미 실행 중인 recognition이 종료된 뒤 Skia/font resources를 해제합니다.
 
-### Capture allocation
+#### Capture allocation
 
 `PrintWindow` visual-content validation은 locked bitmap의 sparse pixel을 직접 읽습니다. 이 사전 검사 때문에 1440p/4K 전체 frame을 별도의 managed array로 한 번 더 복사하지 않습니다. 실제 detector용 BGRA copy는 유지합니다.
+
+### v1.2.2 — catalog mode-transition serialization
+
+Scanner catalog의 `RefreshAsync`와 `LoadCacheAsync`는 모두 Item identity/market in-memory state를 교체할 수 있으므로 동일 `_refreshGate` operation boundary를 사용합니다.
+
+- local disk cache load와 network refresh를 직렬화
+- cross-GameMode in-memory clear를 gate 진입 뒤에 수행
+- older in-flight refresh가 newer profile/GameMode cache load를 뒤늦게 덮어쓰는 경합 차단
+- cache load도 catalog lifetime cancellation을 사용해 shutdown 대기 경계 보강
+- deterministic concurrency regression test 추가
+- OCR/detector/visual confidence 및 top1/top2 margin 변경 없음
+- market/RequiredTotal 의미 변경 없음
 
 ## 7. 1회 고정밀 스캔 / 단축키
 
@@ -291,7 +305,7 @@ Inventory 차감 부족량을 Scanner 의미로 사용하지 않습니다.
 %LocalAppData%/JunhyunHelper/logs/scanner.log(.1)
 ```
 
-Program package와 사용자 데이터는 분리되어 있습니다. v1.2.0 → v1.2.1은 user.db migration이나 mandatory Game Content update가 없습니다.
+Program package와 사용자 데이터는 분리되어 있습니다. v1.2.1 → v1.2.2는 user.db migration이나 mandatory Game Content update가 없습니다.
 
 ## 13. Map / MiniMap
 
@@ -302,7 +316,7 @@ Map/MiniMap은 pinned donor source를 제한적으로 compile-link한 독립 sub
 - donor updater/content DB/global hidden command/legacy logger는 product ownership에서 제외
 - 구체적 defect/performance 근거 없이 broad refactor하지 않음
 
-Main Map cross-floor smoke는 donor의 bounded settle timer와 product-owned opacity `0.75`가 steady-state로 650 ms 유지되는 것을 검증합니다. post-v1.2.0 smoke hardening은 test harness 안정화이며 public v1.2.0 binary를 변경하지 않았습니다.
+Main Map cross-floor smoke는 donor의 bounded settle timer와 product-owned opacity `0.75`가 steady-state로 650 ms 유지되는 것을 검증합니다. post-v1.2.0 smoke hardening은 test harness 안정화이며 public binary의 기능 의미를 변경하지 않았습니다.
 
 ## 14. Program Update / 배포
 
@@ -331,37 +345,36 @@ Assets/
 
 업데이트는 program-owned files만 교체하며 `%LocalAppData%/JunhyunHelper` 사용자 데이터를 건드리지 않습니다.
 
-릴리즈 완료 후 일회성 release/verify workflow와 status marker는 제거합니다. 상시 workflow는 `.github/workflows/ci.yml`만 유지하는 것이 기본입니다.
+릴리즈 완료 후 일회성 release/verify workflow를 제거합니다. release status marker는 검증 증거로 보존할 수 있으며 상시 workflow는 `.github/workflows/ci.yml`만 유지하는 것이 기본입니다.
 
-## 15. v1.2.1 검증 결과
+## 15. v1.2.2 검증 결과
 
-Final PR CI `32540688111`과 exact-source release run `32542259521`에서 다음을 통과했습니다.
+Final PR CI `32590303579`, exact-source release run `32590701086`, independent public finalizer `32607942093`에서 다음을 통과했습니다.
 
-- exact release source `8c0de649f18d7caa4f5669a06511c15e784dfd29`
+- exact release source `e3925cbc55215c7de0502c9b6b1ff1428d2f272b`
 - Windows Release build
-- **255 automated tests / 0 failure / 0 skipped**
+- **256 automated tests / 0 failure / 0 skipped**
 - win-x64 self-contained single-file publish
 - ProductVersion / FIRST_RUN / package root audit
 - Product UI / Scanner / Mini Scanner / Main Map / Factory / MiniMap actual EXE smoke
-- one-shot mode restoration / title-anchor-magnifier product smoke
 - graceful shutdown / clean portable root
 - Draft package re-download verification
 - Draft-downloaded EXE smoke
 - public/latest transition
 - exact public tag source verification
-- public package re-download verification
-- public-downloaded EXE smoke
+- public package re-download checksum/root/ProductVersion/FIRST_RUN verification
+- independent public-downloaded EXE smoke
 
 Public asset:
 
 ```text
-Junhyun-Helper-v1.2.1-win-x64.zip
-80,306,749 bytes
-SHA-256 48a8b54fcdc3346a092ef3da2744f2d4ca7e27d99da5b52e3ebee7b55fa0affa
-ProductVersion 1.2.1+8c0de649f18d7caa4f5669a06511c15e784dfd29
+Junhyun-Helper-v1.2.2-win-x64.zip
+80,302,910 bytes
+SHA-256 125d4a5b0e6db64f6772cc63c112f13cbcdac2fb7bc9ce501313ca2fc3645d7c
+ProductVersion 1.2.2+e3925cbc55215c7de0502c9b6b1ff1428d2f272b
 ```
 
-중복 release-controller run `32542441274`는 canonical public v1.2.1이 이미 생성된 뒤 Draft re-download 단계에서 canonical public ZIP과 자신의 별도 ZIP hash가 달라 중단됐습니다. public release/tag/source/assets는 변경하지 않았습니다. 상세는 `docs/RELEASE_1.2.1.md`에 기록합니다.
+독립 finalizer 결과는 `docs/.release-v1.2.2-status.json`, 상세 릴리즈 이력은 `docs/RELEASE_1.2.2.md`에 기록합니다.
 
 ## 16. 실제 Tarkov 후속 검증
 
@@ -395,12 +408,12 @@ ProductVersion 1.2.1+8c0de649f18d7caa4f5669a06511c15e784dfd29
 | Ammo | 구현 완료 |
 | Map + MiniMap | 구현 완료 / steady-state product smoke 유지 |
 | Game Content Update | 구현 완료 |
-| Program Update | 구현 완료 / v1.2.1 public package verified |
-| Scanner + Mini Scanner | **v1.2.1 public verified / live Tarkov calibration 및 evidence-based follow-up 진행 대상** |
+| Program Update | 구현 완료 / v1.2.2 public package verified |
+| Scanner + Mini Scanner | **v1.2.2 public verified / live Tarkov calibration 및 evidence-based follow-up 진행 대상** |
 
 ## 18. 다음 작업 원칙
 
-현재 공개 제품은 v1.2.1입니다. 다음 Scanner 수정은 실제 사용에서 관측된 miss/false positive/performance evidence를 우선합니다.
+현재 공개 제품은 v1.2.2입니다. 다음 Scanner 수정은 실제 사용에서 관측된 miss/false positive/performance evidence 또는 코드/자동 검증으로 확정 가능한 deterministic defect를 우선합니다.
 
 - threshold를 추측해서 낮추지 않음
 - existing public behavior를 코드가 존재한다는 이유만으로 설계 요구사항으로 승격하지 않음

@@ -1,8 +1,8 @@
 # Scanner — 제품/기술 계약
 
-기준일: 2026-08-22
+기준일: 2026-08-23
 
-상태: **`v1.2.0 PUBLIC BASELINE / v1.2.1 RELEASE CANDIDATE / SCANNER LAB v3.8 CONTRACT PRESERVED / LIVE TARKOV E2E ONGOING`**
+상태: **`v1.2.2 PUBLIC VERIFIED / SCANNER LAB v3.8 CONTRACT PRESERVED / LIVE TARKOV E2E ONGOING`**
 
 ## 1. 목적과 안전 원칙
 
@@ -45,7 +45,18 @@ v1.2.1은 live Tarkov 캡처가 필요한 recognition threshold를 추측해서 
 - `PrintWindow` pre-validation: duplicate whole-frame managed copy 제거
 - title-anchor diagnostics: actual component score 보존
 
-변경하지 않는 것:
+### v1.2.2 catalog mode-transition hardening
+
+v1.2.2는 Scanner catalog가 GameMode/profile transition 중 오래된 operation에 의해 되돌아갈 수 있는 deterministic race를 수정한 PATCH입니다.
+
+- `ScannerCatalogService.RefreshAsync`와 `LoadCacheAsync`가 동일 `_refreshGate` 사용
+- local cache load와 network refresh가 같은 in-memory identity/market state writer이므로 operation ordering을 직렬화
+- cross-GameMode `ClearForMode`를 refresh가 gate를 획득한 뒤 수행
+- older in-flight refresh가 newer profile/GameMode cache load를 뒤늦게 덮어쓰는 상태 역전 차단
+- cache load가 Scanner catalog lifetime cancellation과 연결되어 shutdown 중 gate wait 종료 가능
+- 실제 race ordering을 강제하는 regression test 유지
+
+v1.2.1/v1.2.2에서 변경하지 않는 것:
 
 - Scanner Lab v3.8 structural floor `0.34`
 - OCR semantic matcher confidence threshold
@@ -53,6 +64,7 @@ v1.2.1은 live Tarkov 캡처가 필요한 recognition threshold를 추측해서 
 - top1/top2 margin
 - current official catalog identity contract
 - two-anchor inventory/stash fail-closed gate
+- 최고 상점가/플리 평균가/`RequiredTotal` 의미
 - scan-time network / game-memory / injection / packet 금지 경계
 
 실제 플레이에서 얻는 miss/false-positive evidence는 `scanner.log`와 `인식 이미지`를 근거로 별도 후속 calibration에 사용합니다.
@@ -102,9 +114,23 @@ AND every accepted item has non-empty official name
 
 시장 가격 coverage는 identity health와 분리합니다.
 
+### v1.2.2 catalog operation ordering
+
+Catalog state replacement는 단일 operation boundary를 사용합니다.
+
+```text
+LoadCacheAsync(mode)
+        \
+         → _refreshGate → ReplaceData/ClearForMode → matcher/OCR policy catalog
+        /
+RefreshAsync(mode)
+```
+
+`LoadCacheAsync`가 gate 밖에서 새 mode를 먼저 적용하고 오래된 `RefreshAsync`가 나중에 이전 mode를 덮어쓰는 순서를 허용하지 않습니다. `RefreshAsync`의 cross-mode clear도 gate 밖에서 수행하지 않습니다.
+
 ## 4. Scanner Lab v3.8 structural architecture
 
-v1.1.3에서 복원한 Scanner Lab v3.8 recognition architecture가 production geometry 기준입니다. v1.2.0은 이를 대체하지 않고 title-anchor refinement와 semantic/visual recovery를 위에 추가했고, v1.2.1은 그 의미를 바꾸지 않고 lifecycle/cache를 보강합니다.
+v1.1.3에서 복원한 Scanner Lab v3.8 recognition architecture가 production geometry 기준입니다. v1.2.0은 이를 대체하지 않고 title-anchor refinement와 semantic/visual recovery를 위에 추가했고, v1.2.1/v1.2.2는 그 recognition 의미를 바꾸지 않고 deterministic runtime/catalog reliability를 보강합니다.
 
 ### Structural candidates
 
@@ -435,7 +461,7 @@ Foundation preview/verification controls와 Mini Scanner 별도 위치 편집/�
 
 약 2MB에서 회전하며 logging 실패는 Scanner fatal이 아닙니다.
 
-`로그 삭제`는 process memory recent activity와 `scanner.log`, `scanner.log.1`을 함께 clear합니다.
+`로그 삭제`는 process memory recent activity와 `scanner.log`, `scanner.log.1`, 최신 in-memory recognition image를 함께 clear합니다.
 
 ## 17. Mini Scanner
 
@@ -479,30 +505,29 @@ v2 written
 
 same-directory temp + flush + atomic replacement + last-known-good `.bak` recovery를 사용합니다. Scanner font cache는 source manifest와 generation hash를 별도로 사용합니다.
 
+v1.2.2에서 cache file schema는 변경하지 않았고 cache/network operation의 shared in-memory 적용 순서만 직렬화했습니다.
+
 ## 19. 검증 계약
 
-v1.2.0 public baseline:
+현재 public baseline:
 
 ```text
-release source: a7601f8498e8d75e832962fb9dd60f4112d28dc6
-exact-source release run: 32514322439 — SUCCESS
-255 passed / 0 failed / 0 skipped
-asset: Junhyun-Helper-v1.2.0-win-x64.zip
-SHA-256: ab5e9ef35b300268d16a1c5eece86cd8c6e57c91c83364caf4b7d02cde1d27d1
+version: v1.2.2 PUBLIC RELEASE / VERIFIED
+release source: e3925cbc55215c7de0502c9b6b1ff1428d2f272b
+final PR CI: 32590303579 — SUCCESS
+exact-source release run: 32590701086 — SUCCESS
+independent public finalizer: 32607942093 — SUCCESS
+256 passed / 0 failed / 0 skipped
+asset: Junhyun-Helper-v1.2.2-win-x64.zip
+bytes: 80,302,910
+SHA-256: 125d4a5b0e6db64f6772cc63c112f13cbcdac2fb7bc9ce501313ca2fc3645d7c
+ProductVersion: 1.2.2+e3925cbc55215c7de0502c9b6b1ff1428d2f272b
+public/latest: VERIFIED
+exact public tag source: VERIFIED
+public-downloaded EXE smoke: SUCCESS
 ```
 
-v1.2.1 pre-release final static candidate:
-
-```text
-CI run: 32539676032 — SUCCESS
-255 passed / 0 failed / 0 skipped
-Windows Release build: PASS
-win-x64 self-contained publish: PASS
-published EXE Product UI / Scanner / Mini Scanner / Main Map / Factory / MiniMap smoke: PASS
-graceful shutdown / clean portable root: PASS
-```
-
-최종 v1.2.1 version/FIRST_RUN/docs가 포함된 head는 같은 CI gate를 다시 통과해야 하며, merge 후 exact release source에서 Draft/Public 재다운로드 검증을 별도로 수행합니다.
+v1.2.2 regression gate는 기존 v1.2.1 gate에 Scanner catalog operation-ordering regression을 추가합니다.
 
 Release gate:
 
@@ -511,6 +536,7 @@ Release gate:
 - current official catalog matcher regressions
 - OCR character-policy tests
 - 4,000-item identity/market regressions
+- catalog cache load/network refresh concurrency regression
 - raw traderPrices / sellFor / avg24hPrice regressions
 - published EXE Scanner UI smoke
 - settings schema v3/default hotkey smoke
@@ -527,4 +553,4 @@ Release gate:
 
 실제 최신 Tarkov Borderless E2E는 release blocker가 아니며 사용자 환경에서 계속 검증합니다. 문제 발생 시 `scanner.log`와 `인식 이미지`로 capture → geometry → anchors → ROI → OCR/visual matcher → catalog → presentation → overlay를 분리해 진단합니다.
 
-상세: `docs/SCANNER_TEST_PLAN.md`, `docs/SCANNER_LAB_3_8_REFERENCE.md`, `docs/RELEASE_1.2.0.md`, `docs/RELEASE_1.2.1.md`.
+상세: `docs/SCANNER_TEST_PLAN.md`, `docs/SCANNER_LAB_3_8_REFERENCE.md`, `docs/RELEASE_1.2.0.md`, `docs/RELEASE_1.2.1.md`, `docs/RELEASE_1.2.2.md`.
