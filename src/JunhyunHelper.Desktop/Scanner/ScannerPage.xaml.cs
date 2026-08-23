@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Microsoft.Win32;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -34,6 +35,7 @@ public partial class ScannerPage : UserControl
         SubscribeActivityFeed();
         ApplySettings(_coordinator.Settings);
         UpdateToggleButtons();
+        UpdateDiagnosticStorageText();
 
         try
         {
@@ -62,6 +64,7 @@ public partial class ScannerPage : UserControl
         ApplySettings(_coordinator.Settings);
         UpdateToggleButtons();
         UpdateStatus(_coordinator.Status);
+        UpdateDiagnosticStorageText();
     }
 
     private async void ScannerToggleButton_Click(object sender, RoutedEventArgs e)
@@ -190,6 +193,100 @@ public partial class ScannerPage : UserControl
         window.ShowDialog();
     }
 
+    private void CorrectionButton_Click(object sender, RoutedEventArgs e)
+    {
+        var frame = ScannerRecognitionDebugStore.GetSnapshot();
+        if (frame is null)
+        {
+            MessageBox.Show(
+                Window.GetWindow(this),
+                "교정할 최신 Scanner 인식 이미지가 없습니다. 상세창을 연 뒤 스캔을 먼저 실행해 주세요.",
+                "Scanner 교정",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var window = new ScannerCorrectionWindow(frame, _coordinator)
+        {
+            Owner = Window.GetWindow(this),
+        };
+        window.ShowDialog();
+        UpdateDiagnosticStorageText();
+    }
+
+    private async void ExportDiagnosticsButton_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new SaveFileDialog
+        {
+            Title = "Scanner 교정/진단 데이터 내보내기",
+            Filter = "ZIP 압축 파일 (*.zip)|*.zip",
+            DefaultExt = ".zip",
+            AddExtension = true,
+            FileName = $"ScannerDiagnostics_{DateTime.Now:yyyy-MM-dd}.zip",
+        };
+        if (dialog.ShowDialog(Window.GetWindow(this)) != true)
+            return;
+
+        ExportDiagnosticsButton.IsEnabled = false;
+        try
+        {
+            await ScannerDiagnosticDataset.ExportAsync(dialog.FileName);
+            UpdateDiagnosticStorageText();
+            MessageBox.Show(
+                Window.GetWindow(this),
+                "교정/진단 데이터 패키지를 생성했습니다. 이 ZIP 하나만 개발 분석에 전달하면 됩니다.",
+                "Scanner",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        catch (Exception exception)
+        {
+            App.WriteDiagnostic("Scanner diagnostic dataset export failed", exception);
+            MessageBox.Show(
+                Window.GetWindow(this),
+                $"교정/진단 데이터 패키지를 생성하지 못했습니다.\n{exception.Message}",
+                "Scanner",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+        finally
+        {
+            ExportDiagnosticsButton.IsEnabled = true;
+        }
+    }
+
+    private void ClearDiagnosticsButton_Click(object sender, RoutedEventArgs e)
+    {
+        var storage = ScannerDiagnosticDataset.GetStorageInfo();
+        if (storage.CaseCount == 0)
+        {
+            MessageBox.Show(
+                Window.GetWindow(this),
+                "저장된 Scanner 교정/진단 데이터가 없습니다.",
+                "Scanner",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var answer = MessageBox.Show(
+            Window.GetWindow(this),
+            $"저장된 교정/진단 데이터 {storage.CaseCount}건 ({storage.SizeText})을 모두 삭제하시겠습니까?\n일반 Scanner 로그와 직접 내보낸 ZIP은 삭제되지 않습니다.",
+            "Scanner 교정 데이터 삭제",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning,
+            MessageBoxResult.No);
+        if (answer != MessageBoxResult.Yes)
+            return;
+
+        var success = ScannerDiagnosticDataset.ClearAll();
+        UpdateDiagnosticStorageText();
+        RuntimeStatusText.Text = success
+            ? "Scanner 교정/진단 데이터를 삭제했습니다."
+            : "일부 Scanner 교정/진단 데이터를 삭제하지 못했습니다.";
+    }
+
     private void ClearLogButton_Click(object sender, RoutedEventArgs e)
     {
         ClearLogButton.IsEnabled = false;
@@ -198,8 +295,8 @@ public partial class ScannerPage : UserControl
             var success = ScannerDiagnosticLog.Clear();
             ScannerRecognitionDebugStore.Clear();
             RuntimeStatusText.Text = success
-                ? "Scanner 로그와 최신 인식 이미지를 삭제했습니다."
-                : "일부 Scanner 로그 파일을 삭제하지 못했습니다. 최신 인식 이미지는 지웠습니다.";
+                ? "Scanner 로그와 최신 인식 이미지를 삭제했습니다. 교정/진단 데이터는 유지됩니다."
+                : "일부 Scanner 로그 파일을 삭제하지 못했습니다. 최신 인식 이미지는 지웠고 교정/진단 데이터는 유지됩니다.";
         }
         catch (Exception exception)
         {
@@ -220,11 +317,13 @@ public partial class ScannerPage : UserControl
             {
                 UpdateToggleButtons();
                 UpdateStatus(status);
+                UpdateDiagnosticStorageText();
             });
             return;
         }
         UpdateToggleButtons();
         UpdateStatus(status);
+        UpdateDiagnosticStorageText();
     }
 
     private void Coordinator_HotkeyStatusChanged(string status)
@@ -264,7 +363,7 @@ public partial class ScannerPage : UserControl
     {
         if (!Dispatcher.CheckAccess())
         {
-            _ = Dispatcher.BeginInvoke(() => ClearActivities());
+            _ = Dispatcher.BeginInvoke(ClearActivities);
             return;
         }
         ClearActivities();
@@ -294,6 +393,16 @@ public partial class ScannerPage : UserControl
     private void UpdateStatus(ScannerRuntimeStatus status)
     {
         RuntimeStatusText.Text = status.Message;
+    }
+
+    private void UpdateDiagnosticStorageText()
+    {
+        var storage = ScannerDiagnosticDataset.GetStorageInfo();
+        DiagnosticsStorageText.Text = storage.CaseCount == 0
+            ? "교정 데이터 없음"
+            : $"교정 {storage.CaseCount}건 · {storage.SizeText}";
+        ExportDiagnosticsButton.IsEnabled = true;
+        ClearDiagnosticsButton.IsEnabled = storage.CaseCount > 0;
     }
 
     private void ApplySettings(ScannerDisplaySettings settings)
