@@ -460,8 +460,13 @@ public static class ScannerDetailGeometryDetector
                 continue;
 
             var window = region with { Score = finalScore };
-            var closeHint = roughClose is { } red
-                ? new ScannerDetectedRegion(red.X, red.Y, red.Width, red.Height, bestRedProximity)
+            var closeHint = roughClose is { } closeComponent
+                ? new ScannerDetectedRegion(
+                    closeComponent.X,
+                    closeComponent.Y,
+                    closeComponent.Width,
+                    closeComponent.Height,
+                    bestRedProximity)
                 : default;
             results.Add(new ScannerDetectedCandidate(
                 window,
