@@ -1,0 +1,49 @@
+name: Scanner symbol audit v1.3.2
+
+on:
+  push:
+    branches: [scanner/live-evidence-v1.3.2]
+    paths:
+      - '.github/workflows/scanner-symbol-audit-v132.yml'
+
+jobs:
+  audit:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - name: Enumerate current official Korean item-name symbols
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $all = @{}
+          foreach ($mode in @('regular','pve','pvp-season')) {
+            $base = Invoke-RestMethod "https://json.tarkov.dev/$mode/items"
+            $ko = Invoke-RestMethod "https://json.tarkov.dev/$mode/items_ko"
+            $records = if ($base.data.items -is [System.Array]) { @($base.data.items) } else { @($base.data.items.PSObject.Properties | ForEach-Object { $_.Value }) }
+            $nameCount = 0
+            foreach ($item in $records) {
+              $key = [string]$item.name
+              if ([string]::IsNullOrWhiteSpace($key)) { continue }
+              $property = $ko.data.PSObject.Properties[$key]
+              $name = if ($null -ne $property -and -not [string]::IsNullOrWhiteSpace([string]$property.Value)) { [string]$property.Value } else { $key }
+              $nameCount++
+              foreach ($ch in $name.ToCharArray()) {
+                if ([char]::IsLetterOrDigit($ch) -or [char]::IsWhiteSpace($ch)) { continue }
+                $code = 'U+{0:X4}' -f [int][char]$ch
+                $id = "$code`t$ch"
+                if (-not $all.ContainsKey($id)) { $all[$id] = 0 }
+                $all[$id]++
+              }
+            }
+            Write-Host "MODE=$mode NAMES=$nameCount"
+          }
+          Write-Host 'BEGIN_SYMBOLS'
+          foreach ($entry in $all.GetEnumerator() | Sort-Object Name) {
+            Write-Host ("{0}`tCOUNT={1}" -f $entry.Key, $entry.Value)
+          }
+          Write-Host 'END_SYMBOLS'
+          foreach ($probe in @([char]0x300C,[char]0x0060)) {
+            $code = 'U+{0:X4}' -f [int][char]$probe
+            $present = @($all.Keys | Where-Object { $_ -like "$code`t*" }).Count -gt 0
+            Write-Host "PROBE=$code CHAR=$probe PRESENT=$present"
+          }
