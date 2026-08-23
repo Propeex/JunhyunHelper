@@ -2,7 +2,7 @@
 
 > 새 대화/새 개발자는 이 문서를 먼저 읽습니다. 대화 기억이 아니라 저장소의 공식 문서와 코드가 프로젝트의 기준입니다.
 
-기준일: 2026-08-23
+기준일: 2026-08-24
 
 ## 1. 제품
 
@@ -26,21 +26,21 @@ Runtime GPT/AI 의존성은 없습니다.
 
 ## 2. 현재 공개 릴리즈
 
-현재 public stable / latest는 **v1.4.0**입니다.
+현재 public stable / latest는 **v1.4.1**입니다.
 
 ```text
-version: v1.4.0 PUBLIC RELEASE / VERIFIED
-release source: 1b7f565adec9dfa2546fb959c813310707aabd32
-public tag source: 1b7f565adec9dfa2546fb959c813310707aabd32
-feature PR #149 final CI: 32643727571 — SUCCESS
-release-prep PR #150 final CI: 32644579509 — SUCCESS
+version: v1.4.1 PUBLIC RELEASE / VERIFIED
+release source: 8ff790cbcaa3172d068200d5b34de1ea4c142ac0
+public tag source: 8ff790cbcaa3172d068200d5b34de1ea4c142ac0
+fix PR #155 final CI: 32648713289 — SUCCESS
+release-prep PR #156 final CI: 32649049071 — SUCCESS
 automated tests: 268 passed / 0 failed / 0 skipped
-release run: 32644951640 — SUCCESS
-independent public verifier: 32645536757 — SUCCESS
-asset: Junhyun-Helper-v1.4.0-win-x64.zip
-bytes: 80,374,018
-SHA-256: ef3676bbc7fb07fd45f4e9291e6fd4ef8a4a686a0f584cb1ddfdb6569376645f
-ProductVersion: 1.4.0+1b7f565adec9dfa2546fb959c813310707aabd32
+release run: 32652350079 — SUCCESS
+independent public verifier: 32652827208 — SUCCESS
+asset: Junhyun-Helper-v1.4.1-win-x64.zip
+bytes: 80,379,956
+SHA-256: 7f666e3348b3d87aae27e22de078c1b3f36458f107a662cae1c58df8cdfa3e6f
+ProductVersion: 1.4.1+8ff790cbcaa3172d068200d5b34de1ea4c142ac0
 public/latest: VERIFIED
 exact public tag source: VERIFIED
 public re-download: VERIFIED
@@ -50,21 +50,21 @@ public-downloaded EXE smoke: SUCCESS
 ```
 
 ```text
-Desktop Version: 1.4.0
+Desktop Version: 1.4.1
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
 Scanner display settings schema: v4
 Scanner catalog cache schema: v1/v2 readable, v2 written
 Scanner Ground Truth dataset: local diagnostics persistence
-v1.3.5 → v1.4.0 mandatory Game Content update: none
-v1.3.5 → v1.4.0 user.db migration: none
+v1.4.0 → v1.4.1 mandatory Game Content update: none
+v1.4.0 → v1.4.1 user.db migration: none
 ```
 
 공식 검증 기록:
 
-- `docs/RELEASE_1.4.0.md`
-- `docs/.release-v1.4.0-status.json`
+- `docs/RELEASE_1.4.1.md`
+- `docs/.release-v1.4.1-status.json`
 - `docs/SCANNER_GROUND_TRUTH.md`
 - `docs/CURRENT_SCANNER_WORK.md`
 
@@ -164,7 +164,8 @@ EscapeFromTarkov process/window
 - red-X connected-component 후보
 - rectangle/edge fallback 후보
 - IoU deduplication
-- 최대 8 candidates
+- continuous mode 최대 8 candidates
+- one-shot 정밀 스캔 최대 12 candidates
 - structural floor `0.34`
 - structural score는 Item identity 점수가 아님
 - continuous mode에서는 동일 quantized geometry가 안정화된 뒤 semantic recognition
@@ -186,6 +187,8 @@ AND TitleAnchorScore >= 0.68
 - ring bright band + hollow center + lower-right handle + outside background template 사용
 - close/X는 red body/edge + expected geometry + diagonal X contrast template 결합
 - diagnostic-only structural candidate는 관찰/저장할 수 있으나 OCR identity path에 들어가지 않음
+
+v1.4.1에서는 위 primary `ScannerInspectHeaderLock`을 그대로 우선 사용합니다. primary가 fail-closed 한 경우에만 `ScannerLiveHeaderGroundTruthRefiner`가 reviewed live Ground Truth에서 확인된 어두운 red close X, gray 38~39 neutral top border, upper-right lens + lower-left handle magnifier, dark title field/text evidence를 함께 검증합니다. recovered header는 coarse candidate의 left/width ownership과 일치해야 하며, 최종 semantic gate `HEADER_FRAME_LOCKED >= 0.68`은 변경하지 않았습니다.
 
 상세 근거:
 
@@ -226,7 +229,10 @@ Tarkov resources.assets (read-only)
 - visual unavailable/error/ambiguous이면 OCR을 임의 폐기하지 않음
 - current catalog 밖 Item 생성 금지
 
-## 7. v1.4.0 Ground Truth / correction / regression
+## 7. Ground Truth / correction / regression
+
+v1.4.0에서 교정/dataset/regression 기반을 제품화했고, v1.4.1에서는 첫 4개 reviewed live failure Ground Truth를 실제 header-lock 수정 근거로 사용했습니다.
+
 
 공식 계약은 `docs/SCANNER_GROUND_TRUTH.md`입니다.
 
@@ -414,31 +420,31 @@ Assets/
 
 Program Update는 program-owned files만 교체하며 `%LocalAppData%/JunhyunHelper` 사용자 데이터를 건드리지 않습니다.
 
-## 14. v1.4.0 공개 검증 결과
+## 14. v1.4.1 공개 검증 결과
 
 완료:
 
-- PR #149 Ground Truth/correction/regression final CI `32643727571`: SUCCESS
-- PR #150 v1.4.0 release-prep final CI `32644579509`: SUCCESS
+- PR #155 live Ground Truth header fix final CI `32648713289`: SUCCESS
+- PR #156 v1.4.1 release-prep final CI `32649049071`: SUCCESS
 - automated tests: **268 passed / 0 failed / 0 skipped**
-- exact-source release run `32644951640`: SUCCESS
-- independent public verifier `32645536757`: SUCCESS
-- exact release source/tag: `1b7f565adec9dfa2546fb959c813310707aabd32`
+- exact-source release run `32652350079`: SUCCESS
+- independent public verifier `32652827208`: SUCCESS
+- exact release source/tag: `8ff790cbcaa3172d068200d5b34de1ea4c142ac0`
 - public/latest: VERIFIED
 - public ZIP re-download/hash/SHA256SUMS/layout: VERIFIED
 - ProductVersion/FIRST_RUN: VERIFIED
-- public-downloaded Product UI + Map/Factory/MiniMap smoke: SUCCESS
+- public-downloaded Product UI + Map/Factory/MiniMap + Scanner Ground Truth smoke: SUCCESS
 
 공개 asset:
 
 ```text
-Junhyun-Helper-v1.4.0-win-x64.zip
-80,374,018 bytes
-SHA-256 ef3676bbc7fb07fd45f4e9291e6fd4ef8a4a686a0f584cb1ddfdb6569376645f
-ProductVersion 1.4.0+1b7f565adec9dfa2546fb959c813310707aabd32
+Junhyun-Helper-v1.4.1-win-x64.zip
+80,379,956 bytes
+SHA-256 7f666e3348b3d87aae27e22de078c1b3f36458f107a662cae1c58df8cdfa3e6f
+ProductVersion 1.4.1+8ff790cbcaa3172d068200d5b34de1ea4c142ac0
 ```
 
-기계 판독 증거: `docs/.release-v1.4.0-status.json`.
+기계 판독 증거: `docs/.release-v1.4.1-status.json`.
 
 ## 15. 현재 알려진 열린 영역
 
@@ -469,7 +475,7 @@ capture
 
 ## 16. 다음 작업
 
-1. v1.4.0을 실제 Tarkov Borderless 환경에서 다양한 아이템/위치/해상도/DPI로 사용
+1. v1.4.1을 실제 Tarkov Borderless 환경에서 다양한 아이템/위치/해상도/DPI로 사용
 2. 정상 결과는 필요한 표본을 `맞음`으로 검증
 3. 미인식/오인식은 문제 직후 `교정`에서 실제 상세창/아이템명 ROI와 정답 텍스트를 기록
 4. 충분한 reviewed Ground Truth 축적 후 `summary`와 OCR confusion/ROI delta 분석

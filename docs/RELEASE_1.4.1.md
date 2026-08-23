@@ -1,6 +1,6 @@
 # RELEASE 1.4.1 — Scanner live Ground Truth header fix
 
-상태: `RELEASE CANDIDATE`
+상태: `PUBLIC RELEASE / VERIFIED`
 
 기준일: 2026-08-24
 
@@ -67,7 +67,7 @@ PR #155 merge commit: `8659df2834b30bd31314eae0a1855c682b4bea81`
 
 ## 릴리즈 게이트
 
-아래가 모두 충족되어야 PUBLIC RELEASE / VERIFIED로 전환한다.
+아래 릴리즈 게이트는 모두 충족되었습니다.
 
 1. release-prep PR CI success
 2. exact release source SHA 고정
@@ -78,3 +78,27 @@ PR #155 merge commit: `8659df2834b30bd31314eae0a1855c682b4bea81`
 7. 공개 `SHA256SUMS.txt`와 실제 ZIP hash 일치
 8. package layout 및 ProductVersion `1.4.1+<source_sha>` 검증
 9. 공개 ZIP의 실제 EXE product smoke / graceful shutdown 성공
+
+## 공개 검증 결과
+
+```text
+release source/tag: 8ff790cbcaa3172d068200d5b34de1ea4c142ac0
+fix PR #155 CI: 32648713289 — SUCCESS
+release-prep PR #156 CI: 32649049071 — SUCCESS
+automated tests: 268 passed / 0 failed / 0 skipped
+exact-source release run: 32652350079 — SUCCESS
+independent public verifier: 32652827208 — SUCCESS
+asset: Junhyun-Helper-v1.4.1-win-x64.zip
+bytes: 80,379,956
+SHA-256: 7f666e3348b3d87aae27e22de078c1b3f36458f107a662cae1c58df8cdfa3e6f
+ProductVersion: 1.4.1+8ff790cbcaa3172d068200d5b34de1ea4c142ac0
+public/latest: VERIFIED
+exact public tag source: VERIFIED
+public re-download: VERIFIED
+public SHA256SUMS: VERIFIED
+public package layout: VERIFIED
+public-downloaded EXE smoke: SUCCESS
+one-shot release/verifier/finalizer workflows: CLEANED UP
+```
+
+기계 판독 가능한 영구 증거는 `docs/.release-v1.4.1-status.json`입니다. 공개 바이너리는 release source `8ff790cbcaa3172d068200d5b34de1ea4c142ac0`에서 생성되었고, 후속 문서/housekeeping 변경은 공개 바이너리를 변경하지 않습니다.

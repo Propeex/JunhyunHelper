@@ -1,34 +1,37 @@
 # Current Scanner work
 
-기준일: 2026-08-23
+기준일: 2026-08-24
 
-현재 작업: **v1.4.0 공개 완료 후 실제 Tarkov Ground Truth 수집 및 evidence 기반 정확도 개선**
+현재 작업: **v1.4.1 공개 완료 후 실제 Tarkov Ground Truth 추가 수집 및 evidence 기반 정확도 개선**
 
 ## 공개 기준선
 
-현재 public stable은 **v1.4.0**입니다.
+현재 public stable / latest는 **v1.4.1**입니다.
 
 ```text
-release source/tag: 1b7f565adec9dfa2546fb959c813310707aabd32
-release-prep CI: 32644579509 — SUCCESS
+release source/tag: 8ff790cbcaa3172d068200d5b34de1ea4c142ac0
+fix PR #155 CI: 32648713289 — SUCCESS
+release-prep PR #156 CI: 32649049071 — SUCCESS
 268 tests / 0 failed / 0 skipped
-release run: 32644951640 — SUCCESS
-independent public verifier: 32645536757 — SUCCESS
-asset: Junhyun-Helper-v1.4.0-win-x64.zip
-SHA-256: ef3676bbc7fb07fd45f4e9291e6fd4ef8a4a686a0f584cb1ddfdb6569376645f
+release run: 32652350079 — SUCCESS
+independent public verifier: 32652827208 — SUCCESS
+asset: Junhyun-Helper-v1.4.1-win-x64.zip
+bytes: 80,379,956
+SHA-256: 7f666e3348b3d87aae27e22de078c1b3f36458f107a662cae1c58df8cdfa3e6f
+ProductVersion: 1.4.1+8ff790cbcaa3172d068200d5b34de1ea4c142ac0
 public/latest: VERIFIED
 public-downloaded EXE smoke: SUCCESS
-one-shot release/verifier workflows: removed after durable evidence write
+one-shot release/verifier/finalizer workflows: removed after durable evidence write
 ```
 
 공식 릴리즈 기록:
 
-- `docs/RELEASE_1.4.0.md`
-- `docs/.release-v1.4.0-status.json`
+- `docs/RELEASE_1.4.1.md`
+- `docs/.release-v1.4.1-status.json`
 
 ## 현재 production recognition 기준선
 
-v1.3.x에서 검증한 recognition 구조를 v1.4.0에서도 유지합니다.
+v1.4.1은 v1.4.0 recognition 구조를 유지하면서, primary header lock이 실패한 경우에만 실제 Tarkov Ground Truth 기반 fallback을 추가합니다.
 
 - Scanner Lab 3.8 계열 structural detail candidate
 - red close / neutral frame / magnifier / dark title field 기반 inspect-header lock
@@ -37,9 +40,11 @@ v1.3.x에서 검증한 recognition 구조를 v1.4.0에서도 유지합니다.
 - Tarkov-font visual corroboration/recovery
 - current official item catalog exact/fuzzy/bounded recovery
 - false positive보다 miss를 선호하는 fail-closed 정책
+- v1.4.1 live fallback: 어두운 red close X + gray 38~39 neutral top border + upper-right lens/lower-left handle magnifier + dark title field/text evidence를 함께 요구
+- 1회 고정밀 스캔은 최대 12 candidates, continuous Scanner는 기존 최대 8 candidates 유지
 - Item ID 확정 뒤 highest trader / flea `avg24hPrice` / slots / `RequiredTotal` mapped presentation
 
-현재 Ground Truth가 없는 상태에서 detector/header/matcher threshold를 임의로 낮추지 않습니다.
+첫 4개 reviewed live failure Ground Truth로 header-lock 실패 원인을 수정했으며, 이후에도 추가 Ground Truth 없이 detector/header/OCR/matcher threshold를 임의로 낮추지 않습니다.
 
 ## v1.4.0에서 제품화된 Ground Truth 기반
 
@@ -132,23 +137,25 @@ full.png
 ## 현재 검증 상태
 
 - PR #149 Ground Truth/correction/regression 구현 최종 CI `32643727571`: SUCCESS
-- v1.4.0 release-prep CI `32644579509`: SUCCESS
+- PR #155 실제 Tarkov Ground Truth header fix 최종 CI `32648713289`: SUCCESS
+- v1.4.1 release-prep PR #156 CI `32649049071`: SUCCESS
 - automated tests: **268 passed / 0 failed / 0 skipped**
-- exact-source public release run `32644951640`: SUCCESS
-- independent public verifier `32645536757`: SUCCESS
-- exact release source/tag: `1b7f565adec9dfa2546fb959c813310707aabd32`
+- exact-source public release run `32652350079`: SUCCESS
+- independent public verifier `32652827208`: SUCCESS
+- exact release source/tag: `8ff790cbcaa3172d068200d5b34de1ea4c142ac0`
 - public/latest: VERIFIED
-- public ZIP SHA256SUMS/layout: VERIFIED
-- public-downloaded EXE rendered UI/Map smoke + graceful shutdown: SUCCESS
-- durable status: `docs/.release-v1.4.0-status.json`
-- completed v1.3.5/v1.4.0 release and v1.4.0 verifier one-shot workflows removed; normal `ci.yml`만 유지
+- public ZIP re-download/hash/SHA256SUMS/layout: VERIFIED
+- ProductVersion/FIRST_RUN: VERIFIED
+- public-downloaded EXE rendered UI/Map/Scanner Ground Truth smoke + graceful shutdown: SUCCESS
+- durable status: `docs/.release-v1.4.1-status.json`
+- completed v1.4.1 release/verifier/finalizer one-shot workflows removed; normal `ci.yml`만 유지
 
-따라서 v1.4.0 release blocker는 없습니다.
+따라서 v1.4.1 release blocker는 없습니다.
 
 ## 다음 실제 작업
 
 ```text
-v1.4.0 실제 Tarkov 사용
+v1.4.1 실제 Tarkov 사용
 → 정상 결과는 필요할 때 `맞음`으로 표본 검증
 → 미인식/오인식은 문제 직후 `교정`에서 영역/텍스트 정답 입력
 → 충분한 reviewed Ground Truth 축적
