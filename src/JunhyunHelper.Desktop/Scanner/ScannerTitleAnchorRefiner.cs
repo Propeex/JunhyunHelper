@@ -16,13 +16,22 @@ internal static class ScannerTitleAnchorRefiner
         int width,
         int height,
         int stride,
-        ScannerDetectedCandidate candidate) =>
-        ScannerInspectHeaderLock.Refine(
+        ScannerDetectedCandidate candidate)
+    {
+        var result = ScannerInspectHeaderLock.Refine(
             bgra,
             width,
             height,
             stride,
             candidate);
+
+        // The runtime's existing trusted-anchor floor is 0.48. Every partial/failed
+        // frame lock is deliberately kept below it so OCR cannot run merely because
+        // some subset of close/icon/field evidence happened to score well.
+        return string.Equals(result.Reason, "HEADER_FRAME_LOCKED", StringComparison.Ordinal)
+            ? result
+            : result with { Score = Math.Min(result.Score, 0.47) };
+    }
 }
 
 internal readonly record struct ScannerTitleAnchorRefinement(
