@@ -32,6 +32,7 @@ internal sealed class ScannerGlobalHotkeyService : IDisposable
     }
 
     public event Action<string>? RegistrationChanged;
+    public event Action? Disposed;
 
     public string StatusText { get; private set; }
 
@@ -182,6 +183,9 @@ internal sealed class ScannerGlobalHotkeyService : IDisposable
         _disposed = true;
         DetachWindow();
         _handler = null;
+        var disposed = Disposed;
+        Disposed = null;
+        disposed?.Invoke();
         GC.SuppressFinalize(this);
     }
 

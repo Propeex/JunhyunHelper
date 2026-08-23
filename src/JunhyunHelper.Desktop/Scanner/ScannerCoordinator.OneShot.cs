@@ -10,7 +10,8 @@ public sealed partial class ScannerCoordinator
 
     private readonly SemaphoreSlim _oneShotCoordinatorGate = new(1, 1);
     // Keep the original field name for the in-game hotkey because ScannerCoordinator.Dispose
-    // already owns its explicit disposal path.
+    // already owns its explicit disposal path. Its Disposed callback closes the two new
+    // registrations as part of the same lifetime boundary.
     private ScannerGlobalHotkeyService? _hotkeyService;
     private ScannerGlobalHotkeyService? _testHotkeyService;
     private ScannerGlobalHotkeyService? _scannerToggleHotkeyService;
@@ -24,14 +25,22 @@ public sealed partial class ScannerCoordinator
     public string OneShotTestHotkeyText => _settings.Current.OneShotTestHotkey;
     public string ScannerToggleHotkeyText => _settings.Current.ScannerToggleHotkey;
 
-    public string HotkeyStatusText => string.Join(
-        " · ",
-        new[]
+    public string HotkeyStatusText
+    {
+        get
         {
-            _hotkeyService?.StatusText,
-            _testHotkeyService?.StatusText,
-            _scannerToggleHotkeyService?.StatusText,
-        }.Where(value => !string.IsNullOrWhiteSpace(value))!);
+            var statuses = new List<string>(3);
+            if (_hotkeyService is not null)
+                statuses.Add(_hotkeyService.StatusText);
+            if (_testHotkeyService is not null)
+                statuses.Add(_testHotkeyService.StatusText);
+            if (_scannerToggleHotkeyService is not null)
+                statuses.Add(_scannerToggleHotkeyService.StatusText);
+            return statuses.Count == 0
+                ? "Scanner 단축키가 아직 초기화되지 않았습니다."
+                : string.Join(" · ", statuses);
+        }
+    }
 
     public void AttachHotkeyHost(Window window)
     {
@@ -45,6 +54,7 @@ public sealed partial class ScannerCoordinator
         if (!_hotkeySubscribed)
         {
             _hotkeyService.RegistrationChanged += OnHotkeyRegistrationChanged;
+            _hotkeyService.Disposed += OnPrimaryHotkeyDisposed;
             _hotkeySubscribed = true;
         }
         if (!_extraHotkeysSubscribed)
@@ -198,6 +208,25 @@ public sealed partial class ScannerCoordinator
     }
 
     private void OnHotkeyRegistrationChanged(string status) => HotkeyStatusChanged?.Invoke(status);
+
+    private void OnPrimaryHotkeyDisposed()
+    {
+        if (_testHotkeyService is not null)
+        {
+            if (_extraHotkeysSubscribed)
+                _testHotkeyService.RegistrationChanged -= OnHotkeyRegistrationChanged;
+            _testHotkeyService.Dispose();
+            _testHotkeyService = null;
+        }
+        if (_scannerToggleHotkeyService is not null)
+        {
+            if (_extraHotkeysSubscribed)
+                _scannerToggleHotkeyService.RegistrationChanged -= OnHotkeyRegistrationChanged;
+            _scannerToggleHotkeyService.Dispose();
+            _scannerToggleHotkeyService = null;
+        }
+        _extraHotkeysSubscribed = false;
+    }
 
     private static ScannerHotkeyGesture? ParseHotkey(string? value) =>
         string.IsNullOrWhiteSpace(value)
