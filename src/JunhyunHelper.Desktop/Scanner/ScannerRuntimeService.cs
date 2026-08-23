@@ -279,7 +279,12 @@ public sealed partial class ScannerRuntimeService : IDisposable
                     ("stableHits", _candidatePresenceHits),
                     ("topScore", candidates[0].StructuralScore),
                     ("topReason", candidates[0].StructuralReason),
-                    ("topBounds", FormatBounds(candidates[0].Bounds)));
+                    ("topBounds", FormatBounds(candidates[0].Bounds)),
+                    ("topAnchorScore", candidates[0].TitleAnchorScore),
+                    ("topAnchorReason", candidates[0].TitleAnchorReason),
+                    ("topHasTitleImage", candidates[0].TitleImage is not null),
+                    ("topHasMagnifier", candidates[0].MagnifierBounds is not null),
+                    ("topHasClose", candidates[0].CloseBounds is not null));
 
                 if (_currentSnapshot is not null && _verifiedBounds is { } verifiedBounds)
                 {
@@ -422,17 +427,18 @@ public sealed partial class ScannerRuntimeService : IDisposable
         for (var index = 0; index < limit; index++)
         {
             var candidate = candidates[index];
-            if (candidate.StructuralScore < CandidateStructuralFloor || candidate.TitleImage is null)
+            if (candidate.StructuralScore < CandidateStructuralFloor)
                 continue;
 
             if (!HasTrustedTitleAnchors(candidate))
             {
+                LogAnchorRejection(mode, index, "ORIGINAL", candidate);
                 var rejected = CreateAnchorFailure(candidate, index, "ORIGINAL");
                 bestFailure = PickBetterFailure(bestFailure, rejected);
                 continue;
             }
 
-            var text = await _ocr.ReadTextAsync(candidate.TitleImage, cancellationToken);
+            var text = await _ocr.ReadTextAsync(candidate.TitleImage!, cancellationToken);
             var recognition = _catalog.ResolveOcrText(text, out var assessment);
             LogCandidateAttempt(mode, index, "ORIGINAL", candidate, text, assessment.FilteredText, recognition);
             var result = CreateSearchResult(candidate, recognition, text, assessment.FilteredText, "ORIGINAL", index, 0.82, 0.18);
@@ -450,13 +456,10 @@ public sealed partial class ScannerRuntimeService : IDisposable
             for (var index = 0; index < deepLimit; index++)
             {
                 var candidate = candidates[index];
-                if (candidate.StructuralScore < CandidateStructuralFloor || candidate.TitleImage is null)
+                if (candidate.StructuralScore < CandidateStructuralFloor || !HasTrustedTitleAnchors(candidate))
                     continue;
 
-                if (!HasTrustedTitleAnchors(candidate))
-                    continue;
-
-                var text = await deepOcr.ReadDeepTextAsync(candidate.TitleImage, cancellationToken);
+                var text = await deepOcr.ReadDeepTextAsync(candidate.TitleImage!, cancellationToken);
                 var recognition = _catalog.ResolveOcrText(text, out var assessment);
                 LogCandidateAttempt(mode, index, "DEEP", candidate, text, assessment.FilteredText, recognition);
                 var result = CreateSearchResult(candidate, recognition, text, assessment.FilteredText, "DEEP", index, 0.86, 0.14);
@@ -500,6 +503,26 @@ public sealed partial class ScannerRuntimeService : IDisposable
             recognition.Confidence * semanticWeight +
             (candidate.StructuralScore * 0.55 + candidate.TitleAnchorScore * 0.45) * structuralWeight);
 
+    private static void LogAnchorRejection(
+        ScannerCaptureMode mode,
+        int candidateIndex,
+        string pass,
+        ScannerInspectCandidate candidate) =>
+        ScannerDiagnosticLog.Write(
+            "anchor-rejected",
+            mode,
+            ("candidateIndex", candidateIndex),
+            ("pass", pass),
+            ("structure", candidate.StructuralScore),
+            ("structureReason", candidate.StructuralReason),
+            ("anchorScore", candidate.TitleAnchorScore),
+            ("anchorReason", candidate.TitleAnchorReason),
+            ("bounds", FormatBounds(candidate.Bounds)),
+            ("titleBounds", FormatBounds(candidate.TitleBounds)),
+            ("hasTitleImage", candidate.TitleImage is not null),
+            ("hasMagnifier", candidate.MagnifierBounds is not null),
+            ("hasClose", candidate.CloseBounds is not null));
+
     private static CandidateSearchResult CreateAnchorFailure(
         ScannerInspectCandidate candidate,
         int candidateIndex,
@@ -520,8 +543,8 @@ public sealed partial class ScannerRuntimeService : IDisposable
         candidate.TitleBounds.Height > 0 &&
         candidate.MagnifierBounds is { Width: > 0, Height: > 0 } &&
         candidate.CloseBounds is { Width: > 0, Height: > 0 } &&
-        candidate.TitleAnchorScore >= 0.48 &&
-        !string.Equals(candidate.TitleAnchorReason, "GEOMETRY_FALLBACK", StringComparison.Ordinal);
+        candidate.TitleAnchorScore >= 0.68 &&
+        string.Equals(candidate.TitleAnchorReason, "HEADER_FRAME_LOCKED", StringComparison.Ordinal);
 
     private static CandidateSearchResult PickBetterFailure(
         CandidateSearchResult? current,
