@@ -4,19 +4,19 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 릴리즈 상태
 
-현재 public stable은 **v1.2.1**입니다.
+현재 public stable은 **v1.2.2**입니다.
 
 ```text
-version: v1.2.1 PUBLIC RELEASE / VERIFIED
-release source: 8c0de649f18d7caa4f5669a06511c15e784dfd29
-final PR CI: 32540688111 — SUCCESS
-exact-source release run: 32542259521 — SUCCESS
-automated tests: 255 passed / 0 failed / 0 skipped
-asset: Junhyun-Helper-v1.2.1-win-x64.zip
-bytes: 80,306,749
-SHA-256: 48a8b54fcdc3346a092ef3da2744f2d4ca7e27d99da5b52e3ebee7b55fa0affa
-ProductVersion: 1.2.1+8c0de649f18d7caa4f5669a06511c15e784dfd29
-Draft-downloaded EXE smoke: SUCCESS
+version: v1.2.2 PUBLIC RELEASE / VERIFIED
+release source: e3925cbc55215c7de0502c9b6b1ff1428d2f272b
+final PR CI: 32590303579 — SUCCESS
+exact-source release run: 32590701086 — SUCCESS
+independent public finalizer: 32607942093 — SUCCESS
+automated tests: 256 passed / 0 failed / 0 skipped
+asset: Junhyun-Helper-v1.2.2-win-x64.zip
+bytes: 80,302,910
+SHA-256: 125d4a5b0e6db64f6772cc63c112f13cbcdac2fb7bc9ce501313ca2fc3645d7c
+ProductVersion: 1.2.2+e3925cbc55215c7de0502c9b6b1ff1428d2f272b
 public/latest: VERIFIED
 exact public tag source: VERIFIED
 public-downloaded EXE smoke: SUCCESS
@@ -28,11 +28,11 @@ Readable schemas: v3~v7
 user.db schema: v1
 Scanner display settings schema: v3
 Scanner cache schema: v1/v2 readable, v2 written
-v1.2.0 → v1.2.1 mandatory Game Content update: none
-v1.2.0 → v1.2.1 user.db migration: none
+v1.2.1 → v1.2.2 mandatory Game Content update: none
+v1.2.1 → v1.2.2 user.db migration: none
 ```
 
-상세 릴리즈 기록은 `docs/RELEASE_1.2.1.md`에 있습니다.
+상세 릴리즈 기록은 `docs/RELEASE_1.2.2.md`에 있습니다.
 
 ## 주요 기능
 
@@ -75,7 +75,17 @@ Tarkov / Display pixels
 - icon 하나만으로 Item identity 확정 금지
 - current official Korean item catalog가 identity 기준
 
-### v1.2.1 Scanner 하드닝
+### v1.2.2 Scanner 카탈로그 안정화
+
+- disk cache load와 network catalog refresh가 동일한 operation gate 사용
+- cross-GameMode in-memory clear도 gate 내부에서 수행
+- 이전 모드의 오래된 in-flight refresh가 새 profile/GameMode cache 결과를 뒤늦게 덮어쓰는 경합 제거
+- cache load가 Scanner lifetime cancellation을 사용하도록 보강
+- 실제 race 순서를 재현하는 deterministic concurrency regression test 추가
+- OCR/detector/visual confidence와 top1/top2 margin 변경 없음
+- 최고 상점가/플리 평균가/RequiredTotal 의미 변경 없음
+
+### v1.2.1 Scanner 하드닝 기준선
 
 - Tarkov `resources.assets` title-font discovery를 bounded streaming scan으로 변경
 - source manifest + 실제 font-binary generation hash로 stale font/template 재사용 방지
@@ -85,7 +95,6 @@ Tarkov / Display pixels
 - shutdown 중 진행 중인 font-aware recognition과 Skia/font resource disposal 경합 방지
 - PrintWindow sparse validation에서 1440p/4K 전체 frame의 불필요한 두 번째 managed copy 제거
 - title-anchor diagnostics에 실제 detector evidence score 보존
-- 인식 confidence/margin 및 fail-closed 정책은 완화하지 않음
 
 ### v1.2.0 Scanner 기능 기준선
 
@@ -105,13 +114,13 @@ Tarkov / Display pixels
 - Topmost + no-activate
 - 전체 카드 drag hit surface + Arrow cursor
 - 실제 mode에서 Tarkov foreground/inventory context를 보수적으로 확인
-- inventory/stash OCR probe는 v1.2.1부터 single-active/coalesced
+- inventory/stash OCR probe는 single-active/coalesced
 - canonical item 전체 icon prefetch
 - raw `traderPrices` / derived `sellFor` 지원
 - title OCR과 inventory-context OCR serialization
 - 가격 데이터 누락은 해당 표시 필드만 비우고 identity catalog health는 유지
 
-상세: `docs/SCANNER.md`, `docs/SCANNER_TEST_PLAN.md`, `docs/RELEASE_1.2.1.md`.
+상세: `docs/SCANNER.md`, `docs/SCANNER_TEST_PLAN.md`, `docs/RELEASE_1.2.2.md`.
 
 ## Scanner 진단
 
@@ -154,14 +163,14 @@ Assets/
 
 최신 Tarkov live E2E calibration은 public release blocker가 아니며 실제 게임 환경에서 계속 검증합니다. 실제 사용 중 발견되는 문제는 `scanner.log`와 `인식 이미지`를 근거로 capture → candidate → title ROI → OCR/visual matcher → catalog → presentation → inventory gate → overlay → resource usage를 분리해 후속 PATCH에서 수정합니다.
 
-v1.2.1은 live evidence 없이 recognition threshold를 추측해서 변경하지 않았습니다.
+v1.2.2도 live evidence 없이 recognition threshold를 추측해서 변경하지 않았습니다. 코드/자동 검증으로 확정 가능한 deterministic defect는 별도로 보완합니다.
 
 ## 버전 정책
 
 - 새 사용자 기능 → MINOR +1, PATCH=0
 - 기존 기능 수정/보완/버그 수정/성능·안정성 개선 → PATCH +1
 
-v1.2.0은 Scanner 진단 이미지와 1회 고정밀 스캔이라는 사용자 기능을 추가한 MINOR 릴리즈이며, v1.2.1은 그 기능의 lifecycle/cache/capture/resource 안정성을 보강한 PATCH 릴리즈입니다.
+v1.2.0은 Scanner 진단 이미지와 1회 고정밀 스캔이라는 사용자 기능을 추가한 MINOR 릴리즈입니다. v1.2.1은 lifecycle/cache/capture/resource 안정성을 보강했고, v1.2.2는 Scanner catalog mode-transition race를 제거한 PATCH 릴리즈입니다.
 
 ## 개발 문서
 
@@ -172,8 +181,8 @@ v1.2.0은 Scanner 진단 이미지와 1회 고정밀 스캔이라는 사용자 �
 - `docs/SCANNER.md` — Scanner 계약
 - `docs/SCANNER_TEST_PLAN.md` — Scanner 검증
 - `docs/SCANNER_LAB_3_8_REFERENCE.md` — Scanner Lab v3.8 reference
-- `docs/RELEASE_1.2.1.md` — current public release record
-- `docs/RELEASE_1.2.0.md` — previous release history
+- `docs/RELEASE_1.2.2.md` — current public release record
+- `docs/RELEASE_1.2.1.md` — previous release history
 - `docs/ARCHITECTURE.md`
 - `docs/DEVELOPER_REFERENCE.md`
 - `docs/VERSIONING.md`
