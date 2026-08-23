@@ -1,0 +1,109 @@
+<Window x:Class="JunhyunHelper.Desktop.Scanner.ScannerCorrectionWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Scanner 교정"
+        Width="1220"
+        Height="820"
+        MinWidth="820"
+        MinHeight="600"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource BackgroundDarkBrush}">
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0"
+                Background="Black"
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                ClipToBounds="True">
+            <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                          VerticalScrollBarVisibility="Auto">
+                <Viewbox Stretch="Uniform" StretchDirection="DownOnly">
+                    <Grid x:Name="ImageCanvasHost">
+                        <Image x:Name="CaptureImage" Stretch="None" />
+                        <Canvas x:Name="OverlayCanvas"
+                                Background="Transparent"
+                                MouseLeftButtonDown="OverlayCanvas_MouseLeftButtonDown"
+                                MouseMove="OverlayCanvas_MouseMove"
+                                MouseLeftButtonUp="OverlayCanvas_MouseLeftButtonUp" />
+                    </Grid>
+                </Viewbox>
+            </ScrollViewer>
+        </Border>
+
+        <Border Grid.Row="1"
+                Background="{StaticResource BackgroundMediumBrush}"
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="12"
+                Margin="0,12,0,0">
+            <StackPanel>
+                <TextBlock x:Name="CaseSummaryText"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           TextWrapping="Wrap"
+                           Margin="0,0,0,8" />
+                <TextBlock x:Name="InstructionText"
+                           Text="영역이 맞으면 건드리지 않아도 됩니다. 틀린 영역만 버튼을 누른 뒤 이미지에서 드래그하세요. 텍스트가 틀리면 정답 아이템명을 입력합니다."
+                           TextWrapping="Wrap"
+                           Margin="0,0,0,10" />
+                <WrapPanel Margin="0,0,0,8">
+                    <Button x:Name="ConfirmButton"
+                            Content="맞음"
+                            MinWidth="84"
+                            Margin="0,0,8,8"
+                            Click="ConfirmButton_Click" />
+                    <Button x:Name="DetailCorrectionButton"
+                            Content="상세보기 영역 수정"
+                            MinWidth="138"
+                            Margin="0,0,8,8"
+                            Click="DetailCorrectionButton_Click" />
+                    <Button x:Name="TitleCorrectionButton"
+                            Content="아이템명 영역 수정"
+                            MinWidth="138"
+                            Margin="0,0,8,8"
+                            Click="TitleCorrectionButton_Click" />
+                    <Button x:Name="ResetCorrectionButton"
+                            Content="영역 수정 취소"
+                            MinWidth="112"
+                            Margin="0,0,8,8"
+                            Click="ResetCorrectionButton_Click" />
+                </WrapPanel>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="정답 아이템명"
+                               VerticalAlignment="Center"
+                               Margin="0,0,8,0" />
+                    <TextBox x:Name="GroundTruthTextBox"
+                             Grid.Column="1"
+                             MinWidth="260"
+                             VerticalContentAlignment="Center"
+                             Margin="0,0,10,0" />
+                    <Button x:Name="SaveCorrectionButton"
+                            Grid.Column="2"
+                            Content="텍스트/영역 교정 저장"
+                            MinWidth="154"
+                            Margin="0,0,8,0"
+                            Click="SaveCorrectionButton_Click" />
+                    <Button Grid.Column="3"
+                            Content="닫기"
+                            MinWidth="84"
+                            Click="CloseButton_Click" />
+                </Grid>
+                <TextBlock x:Name="SaveStatusText"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           TextWrapping="Wrap"
+                           Margin="0,9,0,0" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

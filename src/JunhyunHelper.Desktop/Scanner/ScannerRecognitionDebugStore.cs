@@ -5,9 +5,9 @@ using JunhyunHelper.Core.Scanner;
 namespace JunhyunHelper.Desktop.Scanner;
 
 /// <summary>
-/// Keeps exactly one latest Scanner diagnostic frame in memory. No screenshot is
-/// written to disk. The store is intentionally static so capture and runtime layers can
-/// update one shared frame without adding a persistence dependency to either layer.
+/// Keeps exactly one latest Scanner diagnostic frame in memory. The frame carries a
+/// stable Case ID so runtime logs, user correction and persisted diagnostic data can be
+/// joined without guessing. Persistence remains owned by ScannerDiagnosticDataset.
 /// </summary>
 public static class ScannerRecognitionDebugStore
 {
@@ -15,6 +15,7 @@ public static class ScannerRecognitionDebugStore
     private static ScannerRecognitionDebugFrame? _frame;
     private static DateTimeOffset _lastCaptureUtc = DateTimeOffset.MinValue;
     private static string _lastSignature = string.Empty;
+    private static long _caseSequence;
 
     public static event Action? Changed;
 
@@ -33,17 +34,49 @@ public static class ScannerRecognitionDebugStore
     public static void PublishCapture(ScannerRecognitionDebugFrame frame)
     {
         ArgumentNullException.ThrowIfNull(frame);
+        ScannerRecognitionDebugFrame published;
         lock (Gate)
         {
-            _frame = frame;
+            published = string.IsNullOrWhiteSpace(frame.CaseId)
+                ? frame with { CaseId = CreateCaseId() }
+                : frame;
+            _frame = published;
             _lastCaptureUtc = DateTimeOffset.UtcNow;
-            _lastSignature = frame.TitleSignature ?? string.Empty;
+            _lastSignature = published.TitleSignature ?? string.Empty;
         }
         Changed?.Invoke();
+
+        // Structural/detail and header-lock failures happen before OCR. Give those
+        // observations an explicit diagnostic reason only for persistence; identity still
+        // remains NOT_RUN in the live frame. The dataset fingerprint gate prevents the
+        // same stationary failure from being written every capture tick.
+        var retentionFrame = BuildPreOcrRetentionFrame(published);
+        if (retentionFrame is not null)
+            ScannerDiagnosticDataset.QueueAutomaticObservation(retentionFrame);
     }
 
     public static void UpdateAnalysis(
         ScannerInspectCandidate? candidate,
+        string pass,
+        string ocrText,
+        string matcherText,
+        ScannerRecognition recognition)
+    {
+        ScannerCaptureMode mode;
+        lock (Gate)
+        {
+            mode = _frame?.CaptureMode ??
+                (_frame?.Source.StartsWith("display:", StringComparison.OrdinalIgnoreCase) == true
+                    ? ScannerCaptureMode.DisplayTest
+                    : ScannerCaptureMode.TarkovWindow);
+        }
+        UpdateAnalysis(candidate, mode, pass, ocrText, matcherText, recognition);
+        ScannerDiagnosticDataset.QueueAutomaticObservation(GetSnapshot());
+    }
+
+    public static void UpdateAnalysis(
+        ScannerInspectCandidate? candidate,
+        ScannerCaptureMode mode,
         string pass,
         string ocrText,
         string matcherText,
@@ -71,6 +104,9 @@ public static class ScannerRecognitionDebugStore
             // The initial frame is captured from the detector's current top candidate.
             // Semantic/visual matching may ultimately select another candidate, so the
             // diagnostics must move both rectangles and scores to the selected one.
+            // Matcher failures can still carry their nearest catalog candidate for
+            // diagnostics. Only a successful recognition may publish ItemId as the final
+            // identity; failed candidate IDs remain available through TopCandidates.
             _frame = _frame with
             {
                 SelectedBounds = selected,
@@ -81,13 +117,16 @@ public static class ScannerRecognitionDebugStore
                 StructuralReason = candidate?.StructuralReason ?? _frame.StructuralReason,
                 TitleAnchorScore = candidate?.TitleAnchorScore ?? _frame.TitleAnchorScore,
                 TitleAnchorReason = candidate?.TitleAnchorReason ?? _frame.TitleAnchorReason,
+                CaptureMode = mode,
                 Pass = pass,
                 OcrText = ocrText,
                 MatcherText = matcherText,
+                ItemId = recognition.Success ? recognition.ItemId : null,
                 CandidateName = recognition.OfficialName,
                 RecognitionReason = recognition.Reason,
                 Confidence = recognition.Confidence,
                 SecondScore = recognition.SecondScore,
+                TopCandidates = recognition.TopCandidates,
                 UpdatedAt = now,
                 Timestamp = now,
             };
@@ -112,8 +151,25 @@ public static class ScannerRecognitionDebugStore
         Changed?.Invoke();
     }
 
+    private static ScannerRecognitionDebugFrame? BuildPreOcrRetentionFrame(ScannerRecognitionDebugFrame frame)
+    {
+        if (!string.Equals(frame.RecognitionReason, "NOT_RUN", StringComparison.Ordinal))
+            return null;
+        if (string.Equals(frame.StructuralReason, "NO_DETAIL_CANDIDATE", StringComparison.Ordinal))
+            return frame with { RecognitionReason = "DETAIL_WINDOW_NOT_DETECTED" };
+        if (!string.Equals(frame.TitleAnchorReason, "HEADER_FRAME_LOCKED", StringComparison.Ordinal))
+            return frame with { RecognitionReason = "TITLE_ANCHOR_NOT_LOCKED" };
+        return null;
+    }
+
     private static Rect ToLocal(Rect absolute, int originX, int originY) =>
         new(absolute.X - originX, absolute.Y - originY, absolute.Width, absolute.Height);
+
+    private static string CreateCaseId()
+    {
+        var sequence = Interlocked.Increment(ref _caseSequence) % 1000000;
+        return $"case_{DateTimeOffset.UtcNow:yyyyMMddHHmmssfff}_{sequence:D6}";
+    }
 }
 
 public sealed record ScannerRecognitionDebugFrame(
@@ -133,11 +189,15 @@ public sealed record ScannerRecognitionDebugFrame(
     string Pass = "NONE",
     string OcrText = "",
     string MatcherText = "",
+    string? ItemId = null,
     string? CandidateName = null,
     string RecognitionReason = "NOT_RUN",
     double Confidence = 0,
     double SecondScore = 0,
-    DateTimeOffset? UpdatedAt = null)
+    IReadOnlyList<ScannerMatchCandidate>? TopCandidates = null,
+    DateTimeOffset? UpdatedAt = null,
+    ScannerCaptureMode? CaptureMode = null,
+    string CaseId = "")
 {
     public DateTimeOffset Timestamp { get; init; } = UpdatedAt ?? DateTimeOffset.Now;
 }

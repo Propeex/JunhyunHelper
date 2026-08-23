@@ -1,0 +1,123 @@
+<Window x:Class="JunhyunHelper.Desktop.Scanner.ScannerDiagnosticCasesWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Scanner 교정 데이터 관리"
+        Width="980"
+        Height="660"
+        MinWidth="760"
+        MinHeight="480"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource BackgroundDarkBrush}">
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0"
+                Background="{StaticResource BackgroundMediumBrush}"
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="12"
+                Margin="0,0,0,10">
+            <StackPanel>
+                <TextBlock Text="저장된 Scanner Case"
+                           FontWeight="SemiBold"
+                           FontSize="16" />
+                <TextBlock x:Name="SummaryText"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           TextWrapping="Wrap"
+                           Margin="0,5,0,0" />
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="1"
+                Background="{StaticResource BackgroundMediumBrush}"
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                ClipToBounds="True">
+            <ListBox x:Name="CaseList"
+                     Background="{StaticResource BackgroundDarkBrush}"
+                     BorderThickness="0"
+                     SelectionChanged="CaseList_SelectionChanged">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Border Padding="12,10"
+                                BorderBrush="{StaticResource BorderBrush}"
+                                BorderThickness="0,0,0,1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="180" />
+                                    <ColumnDefinition Width="90" />
+                                    <ColumnDefinition Width="150" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="{Binding TimestampText}" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding CaseId}"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               FontSize="10"
+                                               TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{Binding ReviewText}" />
+                                    <TextBlock Text="{Binding Retention}"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               FontSize="10" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="{Binding PipelineStage}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding ErrorText}"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               FontSize="10"
+                                               TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="3">
+                                    <TextBlock Text="{Binding ResultText}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding GroundTruthText}"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               FontSize="11"
+                                               TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Border>
+
+        <Grid Grid.Row="2" Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Name="SelectionText"
+                       Foreground="{StaticResource TextSecondaryBrush}"
+                       VerticalAlignment="Center"
+                       TextWrapping="Wrap"
+                       Margin="0,0,12,0" />
+            <Button x:Name="DeleteSelectedButton"
+                    Grid.Column="1"
+                    Content="선택 Case 삭제"
+                    MinWidth="118"
+                    Margin="0,0,8,0"
+                    IsEnabled="False"
+                    Click="DeleteSelectedButton_Click" />
+            <Button x:Name="DeleteAllButton"
+                    Grid.Column="2"
+                    Content="전체 데이터 삭제"
+                    MinWidth="118"
+                    Margin="0,0,8,0"
+                    Click="DeleteAllButton_Click" />
+            <Button Grid.Column="3"
+                    Content="닫기"
+                    MinWidth="84"
+                    Click="CloseButton_Click" />
+        </Grid>
+    </Grid>
+</Window>
