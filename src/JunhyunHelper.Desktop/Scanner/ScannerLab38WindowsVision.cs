@@ -166,6 +166,16 @@ public sealed class ScannerLab38InspectDetector : IScannerCandidateInspectDetect
         {
             var anchors = ScannerTitleAnchorRefiner.Refine(
                 data.Pixels, bitmap.Width, bitmap.Height, data.Stride, candidate);
+            if (anchors.Reason != "HEADER_FRAME_LOCKED" ||
+                anchors.Score < 0.68 ||
+                anchors.Magnifier.Width <= 0 ||
+                anchors.CloseButton.Width <= 0)
+            {
+                continue;
+            }
+
+            var lockedWindow = RefineLockedWindow(
+                candidate.Window, anchors, bitmap.Width, bitmap.Height);
             var title = anchors.Title;
             var titlePixels = CropBgra(data.Pixels, data.Stride, title, bitmap.Width, bitmap.Height, out var titleStride);
             if (titlePixels.Length == 0)
@@ -182,9 +192,9 @@ public sealed class ScannerLab38InspectDetector : IScannerCandidateInspectDetect
                 titleStride);
             titleImage.Freeze();
 
-            var geometrySignature = $"{sourceKey}:{Quantize(candidate.Window.X)}:{Quantize(candidate.Window.Y)}:{Quantize(candidate.Window.Width)}:{Quantize(candidate.Window.Height)}";
+            var geometrySignature = $"{sourceKey}:{Quantize(lockedWindow.X)}:{Quantize(lockedWindow.Y)}:{Quantize(lockedWindow.Width)}:{Quantize(lockedWindow.Height)}";
             var titleSignature = $"{HashPixels(titlePixels):X16}";
-            var windowBounds = ToScreenRect(candidate.Window, screenLeft, screenTop);
+            var windowBounds = ToScreenRect(lockedWindow, screenLeft, screenTop);
             var titleBounds = ToScreenRect(title, screenLeft, screenTop);
             Rect? magnifierBounds = anchors.Magnifier.Width > 0
                 ? ToScreenRect(anchors.Magnifier, screenLeft, screenTop)
@@ -215,6 +225,32 @@ public sealed class ScannerLab38InspectDetector : IScannerCandidateInspectDetect
             data.Pixels, data.Stride, bitmap.Width, bitmap.Height,
             screenLeft, screenTop, sourceKey, ordered.FirstOrDefault());
         return ordered;
+    }
+
+    private static ScannerDetectedRegion RefineLockedWindow(
+        ScannerDetectedRegion structural,
+        ScannerTitleAnchorRefinement anchors,
+        int width,
+        int height)
+    {
+        var scale = Math.Clamp(anchors.CloseButton.Height / 17.0, 0.55, 1.85);
+        var left = anchors.Magnifier.X - (int)Math.Round(12.0 * scale);
+        var top = anchors.CloseButton.Y - (int)Math.Round(5.0 * scale);
+        var right = anchors.CloseButton.X + anchors.CloseButton.Width + (int)Math.Round(4.0 * scale);
+
+        left = Math.Clamp(left, 0, width - 2);
+        top = Math.Clamp(top, 0, height - 2);
+        right = Math.Clamp(right, left + 2, width);
+
+        // Header lock gives authoritative top/left/right. Preserve the structural bottom
+        // only because inspect-window height legitimately varies with item/stat panels.
+        var structuralBottom = Math.Clamp(structural.Y + structural.Height, top + 80, height);
+        return new ScannerDetectedRegion(
+            left,
+            top,
+            right - left,
+            structuralBottom - top,
+            structural.Score);
     }
 
     private static void PublishDebugCaptureIfNeeded(

@@ -319,7 +319,14 @@ public sealed class ScannerCatalogService : IDisposable
             return ScannerRecognition.Failed("OCR_INVALID_CHARACTERS");
 
         lock (_dataGate)
-            return _matcher.Resolve(assessment.FilteredText);
+        {
+            var ordinary = _matcher.Resolve(assessment.FilteredText);
+            if (ordinary.Success || !assessment.HasSingleUnknownGlyphPattern)
+                return ordinary;
+
+            var unknownGlyph = _matcher.ResolveSingleUnknownGlyph(assessment.UnknownGlyphPatternText);
+            return unknownGlyph.Success ? unknownGlyph : ordinary;
+        }
     }
 
     private async Task<string> DownloadStringAsync(string url, CancellationToken cancellationToken)
