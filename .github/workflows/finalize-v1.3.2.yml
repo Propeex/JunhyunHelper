@@ -1,6 +1,10 @@
 name: Finalize v1.3.2 public verification
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/finalize-v1.3.2.yml'
   workflow_run:
     workflows: ['Release v1.3.2']
     types: [completed]
@@ -20,7 +24,7 @@ env:
 
 jobs:
   verify-public:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
@@ -124,7 +128,7 @@ jobs:
       - name: Write official public verification evidence
         shell: pwsh
         run: |
-          $releaseRun = '${{ github.event.workflow_run.id }}'
+          $releaseRun = if ('${{ github.event_name }}' -eq 'workflow_run') { '${{ github.event.workflow_run.id }}' } else { '0' }
           $verifiedAt = (Get-Date).ToUniversalTime().ToString('o')
           $status = [ordered]@{
             version = $env:RELEASE_TAG
@@ -161,7 +165,7 @@ jobs:
 
           - PR #144 final Windows CI ``$env:FINAL_PR_CI``: SUCCESS
           - automated tests: **$env:EXPECTED_TESTS passed / 0 failed / 0 skipped**
-          - exact-source release workflow ``$releaseRun``: SUCCESS
+          - exact-source release workflow id (workflow_run trigger일 때): ``$releaseRun``
           - public/latest: VERIFIED
           - exact public tag source: VERIFIED
           - public ZIP redownload + checksum/layout/ProductVersion/FIRST_RUN: VERIFIED
@@ -186,6 +190,8 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git pull --rebase origin main
           git add docs/.release-v1.3.2-status.json docs/RELEASE_1.3.2.md
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) { Write-Host 'Verification evidence is already current.'; exit 0 }
           git commit -m 'docs: record verified v1.3.2 public release'
           if ($LASTEXITCODE -ne 0) { throw 'Could not commit v1.3.2 release evidence.' }
           git push origin HEAD:main
