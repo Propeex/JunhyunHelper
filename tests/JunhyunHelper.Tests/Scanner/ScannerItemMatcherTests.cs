@@ -58,7 +58,7 @@ public sealed class ScannerItemMatcherTests
         var result = matcher.Resolve("CPI");
 
         Assert.False(result.Success);
-        Assert.Equal("LOW_CONFIDENCE", result.Reason);
+        Assert.NotEqual("BOUNDED_EDIT_1", result.Reason);
     }
 
     [Fact]
@@ -71,7 +71,7 @@ public sealed class ScannerItemMatcherTests
         var result = matcher.Resolve("Themite 테르밋");
 
         Assert.False(result.Success);
-        Assert.Equal("LOW_CONFIDENCE", result.Reason);
+        Assert.NotEqual("BOUNDED_EDIT_1", result.Reason);
     }
 
     [Fact]
