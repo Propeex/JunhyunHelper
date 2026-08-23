@@ -89,12 +89,34 @@ public sealed class ScannerItemMatcher
         var margin = official.Length <= 8
             ? Math.Max(0.08, minimumMargin)
             : minimumMargin;
+        var scoreMargin = match.BestScore - match.SecondScore;
 
-        if (match.BestScore >= threshold && match.BestScore - match.SecondScore >= margin)
+        if (match.BestScore >= threshold && scoreMargin >= margin)
         {
             return new ScannerRecognition(
                 true,
                 "FUZZY",
+                item.Id,
+                item.OfficialName,
+                match.BestScore,
+                match.SecondScore);
+        }
+
+        // Medium-length Tarkov titles are disproportionately penalized by a percentage
+        // threshold: one missing OCR glyph can turn an otherwise exact 11-character
+        // title into 90.9%, below the normal 94% floor. Treat exactly one edit as a
+        // distinct constrained case, but only when the catalog candidate is clearly
+        // separated from runner-up evidence. This does not make arbitrary 90% text
+        // acceptable and remains disabled for short names where one edit is dangerous.
+        var editDistance = official.Length >= 7
+            ? variants.Min(variant => EditDistance(official, variant))
+            : int.MaxValue;
+        var boundedEditMargin = Math.Max(0.08, minimumMargin);
+        if (editDistance == 1 && scoreMargin >= boundedEditMargin)
+        {
+            return new ScannerRecognition(
+                true,
+                "BOUNDED_EDIT_1",
                 item.Id,
                 item.OfficialName,
                 match.BestScore,
@@ -255,6 +277,15 @@ public sealed class ScannerItemMatcher
         if (string.Equals(left, right, StringComparison.Ordinal))
             return 1;
 
+        var distance = EditDistance(left, right);
+        return Math.Clamp(
+            1.0 - (double)distance / Math.Max(left.Length, right.Length),
+            0,
+            1);
+    }
+
+    private static int EditDistance(string left, string right)
+    {
         var previous = new int[right.Length + 1];
         var current = new int[right.Length + 1];
         for (var index = 0; index <= right.Length; index++)
@@ -273,11 +304,7 @@ public sealed class ScannerItemMatcher
             (previous, current) = (current, previous);
         }
 
-        var distance = previous[right.Length];
-        return Math.Clamp(
-            1.0 - (double)distance / Math.Max(left.Length, right.Length),
-            0,
-            1);
+        return previous[right.Length];
     }
 
     private sealed record MatchResult(
