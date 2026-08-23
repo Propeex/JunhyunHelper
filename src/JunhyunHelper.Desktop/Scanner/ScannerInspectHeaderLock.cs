@@ -165,6 +165,11 @@ internal static class ScannerInspectHeaderLock
             if (aspect is < 0.70 or > 2.25)
                 continue;
 
+            var template = ScannerHeaderIconTemplateMatcher.CloseScore(
+                bgra, stride, component.X, component.Y, component.Width, component.Height);
+            if (template < 0.46)
+                continue;
+
             var expectedRight = panel.X + panel.Width;
             var rightScore = Math.Max(
                 0,
@@ -180,7 +185,12 @@ internal static class ScannerInspectHeaderLock
                 component.Area / (double)Math.Max(1, component.Width * component.Height),
                 0,
                 1);
-            var score = rightScore * 0.46 + topScore * 0.24 + compact * 0.16 + fill * 0.14;
+            var score =
+                template * 0.44 +
+                rightScore * 0.31 +
+                topScore * 0.17 +
+                compact * 0.04 +
+                fill * 0.04;
             if (score <= bestScore)
                 continue;
 
@@ -193,7 +203,7 @@ internal static class ScannerInspectHeaderLock
                 Math.Clamp(score, 0, 1));
         }
 
-        return bestScore >= 0.46 ? best : default;
+        return bestScore >= 0.60 ? best : default;
     }
 
     private static HeaderFrame FindHeaderFrame(
@@ -342,91 +352,55 @@ internal static class ScannerInspectHeaderLock
         HeaderFrame frame,
         ScannerDetectedRegion close)
     {
-        var scale = Math.Max(10.0, close.Height);
-        var left = Math.Clamp(
-            frame.Left + Math.Max(4, (int)Math.Round(scale * 0.30)),
-            0,
-            width - 1);
-        var right = Math.Clamp(
-            frame.Left + Math.Max(24, (int)Math.Round(scale * 1.72)),
-            left,
-            width - 1);
-        var top = Math.Clamp(
-            frame.Top + Math.Max(2, (int)Math.Round(scale * 0.14)),
-            0,
-            height - 1);
-        var bottom = Math.Clamp(
-            frame.Top + Math.Max(21, (int)Math.Round(scale * 1.48)),
-            top,
-            height - 1);
+        var scale = Math.Clamp(close.Height / 17.0, 0.55, 1.85);
+        var expectedX = frame.Left + (int)Math.Round(12.0 * scale);
+        var expectedY = frame.Top + (int)Math.Round(7.0 * scale);
+        var expectedSize = Math.Clamp((int)Math.Round(13.0 * scale), 7, 24);
+        var offsetRadius = Math.Max(2, (int)Math.Ceiling(2.5 * scale));
+        var sizeRadius = Math.Max(1, (int)Math.Ceiling(1.5 * scale));
 
-        var components = FindBrightComponents(
-            bgra, width, height, stride,
-            left, top, right, bottom);
         var best = default(ScannerDetectedRegion);
         var bestScore = double.MinValue;
-        var expectedX = frame.Left + scale * 0.72;
-        var expectedY = frame.Top + scale * 0.42;
-        var expectedSize = scale * 0.76;
-
-        foreach (var component in components)
+        for (var size = Math.Max(7, expectedSize - sizeRadius);
+             size <= Math.Min(24, expectedSize + sizeRadius);
+             size++)
         {
-            var maxSize = Math.Max(component.Width, component.Height);
-            var minAllowed = Math.Max(6.0, scale * 0.50);
-            var maxAllowed = Math.Max(minAllowed + 1, scale * 1.10);
-            if (maxSize < minAllowed || maxSize > maxAllowed || component.Area < 18)
-                continue;
+            for (var dy = -offsetRadius; dy <= offsetRadius; dy++)
+            for (var dx = -offsetRadius; dx <= offsetRadius; dx++)
+            {
+                var x = expectedX + dx;
+                var y = expectedY + dy;
+                if (x < 0 || y < 0 || x + size > width || y + size > height)
+                    continue;
 
-            var aspect = component.Width / (double)Math.Max(1, component.Height);
-            if (aspect is < 0.66 or > 1.48)
-                continue;
+                // Hard lane bound: no title glyph to the right is allowed to enter the
+                // magnifier candidate pool even if it looks ring-like.
+                var laneRight = frame.Left + (int)Math.Ceiling(29.0 * scale);
+                if (x < frame.Left + Math.Max(3, (int)Math.Floor(5.0 * scale)) ||
+                    x + size > laneRight)
+                {
+                    continue;
+                }
 
-            var occupancy = component.Area /
-                            (double)Math.Max(1, component.Width * component.Height);
-            if (occupancy is < 0.18 or > 0.72)
-                continue;
+                var template = ScannerHeaderIconTemplateMatcher.MagnifierScore(
+                    bgra, stride, x, y, size);
+                if (template < 0.54)
+                    continue;
 
-            var xScore = Math.Max(
-                0,
-                1.0 - Math.Abs(component.X - expectedX) /
-                Math.Max(4.0, scale * 0.48));
-            var yScore = Math.Max(
-                0,
-                1.0 - Math.Abs(component.Y - expectedY) /
-                Math.Max(4.0, scale * 0.46));
-            var sizeScore = Math.Max(
-                0,
-                1.0 - Math.Abs(maxSize - expectedSize) /
-                Math.Max(4.0, expectedSize * 0.55));
-            var squareScore = 1.0 - Math.Min(1.0, Math.Abs(1.0 - aspect));
-            var occupancyScore = Math.Max(
-                0,
-                1.0 - Math.Abs(occupancy - 0.37) / 0.30);
-            var morphology = MagnifierMorphologyScore(bgra, stride, component);
+                var xScore = Math.Max(0, 1.0 - Math.Abs(x - expectedX) / Math.Max(3.0, 3.2 * scale));
+                var yScore = Math.Max(0, 1.0 - Math.Abs(y - expectedY) / Math.Max(3.0, 3.0 * scale));
+                var sizeScore = Math.Max(0, 1.0 - Math.Abs(size - expectedSize) / Math.Max(2.0, 2.5 * scale));
+                var location = xScore * 0.48 + yScore * 0.34 + sizeScore * 0.18;
+                var score = template * 0.72 + location * 0.28;
+                if (score <= bestScore)
+                    continue;
 
-            if (xScore < 0.35 || yScore < 0.35 || morphology < 0.44)
-                continue;
-
-            var score =
-                xScore * 0.30 +
-                yScore * 0.22 +
-                sizeScore * 0.14 +
-                squareScore * 0.08 +
-                occupancyScore * 0.08 +
-                morphology * 0.18;
-            if (score <= bestScore)
-                continue;
-
-            bestScore = score;
-            best = new ScannerDetectedRegion(
-                component.X,
-                component.Y,
-                component.Width,
-                component.Height,
-                Math.Clamp(score, 0, 1));
+                bestScore = score;
+                best = new ScannerDetectedRegion(x, y, size, size, Math.Clamp(score, 0, 1));
+            }
         }
 
-        return bestScore >= 0.68 ? best : default;
+        return bestScore >= 0.66 ? best : default;
     }
 
     private static double MeasureDarkTitleField(

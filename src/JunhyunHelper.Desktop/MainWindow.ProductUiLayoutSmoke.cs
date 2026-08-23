@@ -243,6 +243,52 @@ public partial class MainWindow
         {
             throw new InvalidOperationException("Scanner log clear button did not remove both activity history and log files.");
         }
+
+        VerifyScannerDiagnosticExportOverlay();
+    }
+
+    private static void VerifyScannerDiagnosticExportOverlay()
+    {
+        const int width = 180;
+        const int height = 120;
+        const int stride = width * 4;
+        var raw = new byte[stride * height];
+        for (var offset = 3; offset < raw.Length; offset += 4)
+            raw[offset] = 255;
+        var image = System.Windows.Media.Imaging.BitmapSource.Create(
+            width, height, 96, 96, PixelFormats.Bgra32, null, raw, stride);
+        image.Freeze();
+
+        var frame = new ScannerRecognitionDebugFrame(
+            image, 0, 0, "ui-smoke",
+            new Rect(10, 10, 150, 90),
+            new Rect(35, 28, 95, 22),
+            new Rect(18, 28, 13, 13),
+            new Rect(138, 24, 20, 16),
+            0.9, "STRUCTURE_MATCH", 0.9, "HEADER_FRAME_LOCKED");
+        var rendered = ScannerRecognitionDebugWindow.RenderDiagnosticBitmap(frame);
+        var pixels = new byte[stride * height];
+        rendered.CopyPixels(pixels, stride, 0);
+
+        (byte B, byte G, byte R) Pixel(int x, int y)
+        {
+            var offset = y * stride + x * 4;
+            return (pixels[offset], pixels[offset + 1], pixels[offset + 2]);
+        }
+
+        var green = Pixel(40, 10);
+        var blue = Pixel(70, 28);
+        var gold = Pixel(24, 28);
+        var red = Pixel(148, 24);
+        if (!(green.G > green.R + 80 && green.G > green.B + 80) ||
+            !(blue.B > blue.R + 80) ||
+            !(gold.R > gold.B + 100 && gold.G > gold.B + 100) ||
+            !(red.R > red.G + 80 && red.R > red.B + 80))
+        {
+            throw new InvalidOperationException(
+                $"Scanner diagnostic PNG overlay colors were not rendered: " +
+                $"green={green}, blue={blue}, gold={gold}, red={red}.");
+        }
     }
 
     private async Task VerifyQuestSidebarRenderedLayoutAsync()
