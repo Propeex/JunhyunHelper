@@ -2,172 +2,187 @@
 
 기준일: 2026-08-24
 
-현재 작업: **v1.4.2 공개 완료 후 실제 Tarkov Ground Truth 추가 수집 및 evidence 기반 정확도 개선**
+현재 작업: **v1.4.3 공개 완료 후 실제 Tarkov Ground Truth 추가 수집 및 안정성 검증**
 
 ## 공개 기준선
 
-현재 public stable / latest는 **v1.4.2**입니다.
+현재 public stable / latest는 **v1.4.3**입니다.
 
 ```text
-release source/tag: a2d939b5f28e0d6de2468312bdd11467e3b35622
-fix PR #160 CI: 32656154735 — SUCCESS
-release-prep PR #161 CI: 32656572239 — SUCCESS
-272 tests / 0 failed / 0 skipped
-release run: 32656993853 — SUCCESS
-independent public verifier: 32657225090 — SUCCESS
-asset: Junhyun-Helper-v1.4.2-win-x64.zip
-bytes: 80,385,620
-SHA-256: e6aa57ac9492ebc3438335a5e0f66e4daf18c2b87b2b61abcb141de0f0d810a8
-ProductVersion: 1.4.2+a2d939b5f28e0d6de2468312bdd11467e3b35622
+release source/tag: f7e3870c81a7d7be025f1fe56d5b7f607546b250
+feature PR #165 CI: 32660568132 — SUCCESS
+release-prep PR #166 CI: 32674399495 — SUCCESS
+279 tests / 0 failed / 0 skipped
+release run: 32674812862 — SUCCESS
+independent public verifier: 32675069359 — SUCCESS
+asset: Junhyun-Helper-v1.4.3-win-x64.zip
+bytes: 80,389,336
+SHA-256: fa5da9f2a6b9ea62f8a9a2ddfb1062bed81609fb96516a01089238b92067a8be
+ProductVersion: 1.4.3+f7e3870c81a7d7be025f1fe56d5b7f607546b250
 public/latest: VERIFIED
 exact public tag source: VERIFIED
 public re-download / SHA256SUMS / package layout: VERIFIED
 public-downloaded EXE smoke: SUCCESS
-one-shot release/verifier workflows: removed after durable evidence write
 ```
 
-공식 릴리즈 기록:
+공식 기록:
 
-- `docs/RELEASE_1.4.2.md`
-- `docs/.release-v1.4.2-status.json`
+- `docs/RELEASE_1.4.3.md`
+- `docs/.release-v1.4.3-status.json`
+- `docs/DECISION_SCANNER_SEMANTIC_CANDIDATE_AND_OCR_ALPHABET_2026-08-24.md`
+- `docs/SCANNER_GROUND_TRUTH.md`
 
-## v1.4.2 실제 Ground Truth 수정 결과
+완료된 one-shot release/verifier workflow는 검증 후 제거하고 정상 `.github/workflows/ci.yml`만 유지합니다.
 
-v1.4.2는 v1.4.1 실제 Tarkov 교정 데이터 **61 Case / 16 reviewed Case**를 근거로 반복되는 실패 단계만 보완했습니다.
+## v1.4.3 production recognition 기준선
 
-### 상세보기 창
+### Detail rectangle proposals
 
-실패는 단순히 상세창이 크다는 문제로 보지 않습니다. 일부 화면에서 stash/inventory의 큰 구조 프레임이 coarse detail 후보가 되고, 그 내부 수백 px 아래에 실제 상세창 header가 존재하는 패턴이 확인됐습니다.
-
-Production 순서:
+Scanner Lab 3.8 계열 geometry는 상세창을 최종 확정하지 않고 **검증할 rectangle proposal을 생성**합니다.
 
 ```text
-기존 ScannerInspectHeaderLock
-→ 실패 시 v1.4.1 live Ground Truth header refiner
-→ 둘 다 실패한 oversized candidate에서만 contained-subpanel proposal
-→ close X + magnifier + dark title field + text evidence 재검증
-→ HEADER_FRAME_LOCKED >= 0.68
-→ semantic OCR
+capture
+→ red-X / rectangle-edge proposals
+→ broad impossible-shape filtering
+→ near-duplicate edge-jitter removal
+→ semantic inspect-header validation
+→ title ROI
+→ OCR
 ```
 
-contained-subpanel fallback이 생겼어도 stash/inventory frame 자체를 상세창으로 인정하지 않으며, 기존 semantic header evidence를 다시 통과해야 합니다.
+현재 규칙:
 
-### OCR / matcher
-
-reviewed Case에서 다음 종류의 실제 오류가 확인됐습니다.
-
-- `Grizzly`처럼 영문 glyph가 2개 정도 깨지는 경우
-- `Emelya 에멜야 호밀 크루통`처럼 한글 일부가 동시에 잘못 읽히는 경우
-- `Iskra`, `Axel`처럼 `l/I/r/0` 계열 형태가 헷갈리는 경우
-
-정답 공식 아이템이 matcher top-1인데도 기존 confidence gate에서 fail-closed 된 사례가 있어 다음 bounded recovery를 추가했습니다.
-
-- 현재 공식 카탈로그 전체에서 유일한 **2-edit candidate**
-- 충분히 긴 suffix가 일치하고 카탈로그 전체에서 유일한 **2~3-edit candidate**
-
-다만 다음은 그대로 유지합니다.
-
-- 일반 confidence threshold 하향 없음
-- global `r`, `0`, 한글 glyph replacement table 없음
-- 근접 runner-up이 있는 후보는 fail closed
-- 기존 low-evidence multi-edit 사례는 fail closed
-
-### Scanner 단축키 창
-
-`스캐너 ON/OFF` 세 번째 행이 창 하단에서 잘리는 UI clipping을 수정했습니다. 단축키 기능 계약 자체는 바뀌지 않았습니다.
-
-## 현재 production recognition 기준선
-
-- Scanner Lab 3.8 계열 structural detail candidate
-- red close / neutral frame / magnifier / dark title field 기반 inspect-header lock
-- `HEADER_FRAME_LOCKED` + anchor score `0.68` 미만은 semantic OCR 진입 금지
 - structural floor `0.34`
-- Windows ko-KR OCR primary/deep path
+- historical `aspect ≈ 1.3`은 약한 ranking hint만 제공
+- tall/large detail window가 aspect prior만으로 제거되지 않음
+- 높은 IoU만으로 candidate를 제거하지 않음
+- top/bottom/left/right가 실질적으로 다르면 서로 겹쳐도 semantic stage까지 보존
+- 사실상 동일한 edge-jitter candidate만 near-duplicate로 제거
+- rough red-X proximity는 proposal ranking hint일 뿐 최종 close evidence가 아님
+- one-shot 최대 12 candidates
+- continuous Scanner 최대 8 candidates
+
+### Inspect-header semantic gate
+
+모든 production OCR은 다음 gate 뒤에만 실행합니다.
+
+```text
+TitleAnchorReason == HEADER_FRAME_LOCKED
+AND TitleAnchorScore >= 0.68
+AND magnifier evidence present
+AND close-X evidence present
+```
+
+사용 evidence:
+
+- red close body/edge + diagonal X contrast
+- neutral header/frame evidence
+- frame-left magnifier/search lane
+- magnifier ring/hollow center/handle/background evidence
+- dark title field
+- title text evidence
+
+Fallback 순서:
+
+```text
+ScannerInspectHeaderLock
+→ 실패 시 v1.4.1 live Ground Truth refiner
+→ 둘 다 실패한 oversized candidate에서 v1.4.2 contained-subpanel proposal
+→ 같은 semantic evidence 재검증
+→ HEADER_FRAME_LOCKED >= 0.68
+```
+
+v1.4.3에서도 이 trusted gate를 낮추지 않았습니다.
+
+## OCR / catalog matching
+
+Primary recognizer는 Windows `ko-KR` OCR입니다.
+
+- primary + deep/high-contrast/binary/inverse variants
 - Tarkov-font visual corroboration/recovery
-- current official Korean item catalog exact/fuzzy/bounded recovery
-- false positive보다 miss를 선호하는 fail-closed 정책
-- v1.4.1 live header fallback 유지
-- v1.4.2 contained-subpanel fallback은 앞선 header 경로가 모두 실패했을 때만 사용
-- v1.4.2 unique 2-edit / long-suffix bounded matcher recovery
-- 1회 고정밀 스캔은 최대 12 candidates, continuous Scanner는 최대 8 candidates
-- Item ID 확정 뒤 highest trader / flea `avg24hPrice` / slots / `RequiredTotal` mapped presentation
+- current official Korean full item catalog가 identity authority
+- exact-first + conservative fuzzy + margin
+- v1.4.2 reviewed GT 기반 unique 2-edit / long-suffix bounded recovery 유지
+- v1.4.3 current-catalog character inventory / unknown-glyph recovery 추가
 
-추가 Ground Truth 없이 detector/header/OCR/matcher threshold를 임의로 낮추지 않습니다.
+### Current-catalog character inventory
 
-## Ground Truth 기반
+OCR 결과의 문자가 Unicode letter/digit라는 이유만으로 자동 신뢰하지 않습니다.
+
+- current official item names에 실제 존재하는 문자·기호 집합을 생성
+- ASCII letter/digit는 정상 noisy evidence로 유지
+- current catalog에서 실제 사용하는 quote/hyphen/bracket 등은 유지
+- `Ø` 등 catalog-impossible Unicode glyph는 정상 identity 문자로 신뢰하지 않음
+- impossible embedded glyph는 특정 `r`, `0`, `I`, `l` 등으로 전역 치환하지 않고 `?` evidence로 보존
+- 1~2 unknown glyph pattern은 catalog 전체에서 유일하고 충분히 분리된 경우에만 복구
+- ambiguous pattern은 fail-closed
+
+따라서 v1.4.3은 `r`, `0`, complex Hangul OCR을 일반적으로 해결했다고 간주하지 않습니다. **불가능한 glyph를 걸러내고 closed-domain catalog evidence로 안전한 경우만 복구**하도록 개선한 것입니다.
+
+다음은 그대로 유지합니다.
+
+- generic OCR confidence 하향 없음
+- matcher minimum confidence/margin 일반 완화 없음
+- global glyph replacement table 없음
+- current catalog 밖 Item 생성 금지
+- ambiguity / low confidence fail-closed
+
+## Scanner 표시 데이터 의미
+
+Production Scanner가 OCR하는 필드는 **아이템명(`item_name`) 하나**입니다.
+
+Item ID 확정 이후 아래 값을 `mapped_data`로 계산/조회합니다.
+
+- 최고 상점가: flea 제외 유효 판매처 RUB 환산 가격 최댓값
+- 플리마켓 평균가: positive `avg24hPrice`
+- slots: positive `width × height`
+- price/slot: price와 slots가 모두 유효할 때만
+- 필요한 개수: 현재 Needed Items의 `RequiredTotal`
+
+가격·플리·슬롯·필요 개수 화면 OCR 필드를 새로 만들지 않습니다. 특정 market/dimension 정보가 누락되면 해당 표시 필드만 비우고 Item identity를 버리지 않습니다.
+
+## Ground Truth 기반 개발 계약
 
 공식 계약: `docs/SCANNER_GROUND_TRUTH.md`
 
-### 진단 / 교정
+사용자 교정:
 
-- 모든 최신 diagnostic capture에 Case ID 부여
-- Case ID를 `scanner.log`와 연결
-- 상세창 탐지 실패, header 실패, identity 실패, 저신뢰 결과의 대표 Case 자동 보존
-- 높은 confidence 정상 결과 일부 deterministic sampling
-- 상세보기 영역 사용자 드래그 교정
-- 아이템명 ROI 사용자 드래그 교정
+- `맞음`
+- 상세보기 영역 수정
+- 아이템명 영역 수정
 - 정답 아이템명 입력
-- `맞음` 사용자 검증
-- 사용자 검증 Case는 background 자동 저장보다 우선하며 덮어쓰이지 않음
+- 영역 + 텍스트 동시 교정
 
-### Dataset evidence
+사용자 rectangle과 정답 text가 Ground Truth입니다. 자동 diagnostic Case는 정답으로 취급하지 않습니다.
 
-Case별 대표 보존물:
+대표 보존물:
 
 - `full.png`
 - `detail_window.png`
+- `detected_roi.png`
+- `corrected_roi.png`
+- `processed_roi.png`
 - `annotated.png`
-- detected/corrected item-name ROI
-- OCR 전처리 재현 이미지
 - `case.json`
-- raw OCR / matcher text
-- Item ID / 공식명
-- confidence / second score / margin
+- raw OCR / normalized / matcher candidates / final decision
 - structural/header evidence
-- ROI delta
-- observed pipeline stage
 - user Ground Truth
 - mapped presentation
 
-자동/미검증 Case의 pipeline stage와 사용자 검증 Ground Truth 오류 라벨은 분리합니다.
+Export:
 
-### 자동 통계
+- `ScannerDiagnostics_YYYY-MM-DD.zip`
+- dataset.jsonl / summary / environment / cases / images / Scanner logs
 
-`summary.json` / `summary.md`:
-
-- 전체/검증/최종검증 Case 수
-- 최종 정확도
-- Ground Truth 오류 유형
-- observed pipeline stage
-- detail ROI offset 평균/표준편차
-- item-name ROI offset 평균/표준편차
-- OCR observed → Ground Truth 문자 치환/삽입/누락 통계
-- matcher top candidates
-
-### 데이터 관리 / Export
-
-Scanner UI에서:
-
-- 저장 Case 수/용량 확인
-- Case 목록 확인
-- 선택 Case 삭제
-- 전체 dataset 삭제
-- 일반 Scanner 로그 별도 삭제
-- `ScannerDiagnostics_YYYY-MM-DD.zip` export
-
-을 수행합니다.
-
-### Full-pipeline regression
-
-`회귀 테스트`는 reviewed Ground Truth Case의 원본 `full.png`를 현재 production 경로로 재실행합니다.
+Full-pipeline regression:
 
 ```text
 full.png
-→ detail geometry
-→ inspect-header lock / bounded contained-subpanel recovery
+→ current detail proposals
+→ inspect-header / contained-subpanel semantic lock
 → title ROI
-→ current OCR/deep OCR/font recovery
-→ current catalog matching
+→ OCR/deep OCR/font recovery
+→ current catalog character policy/matching
 → final Item ID
 ```
 
@@ -179,54 +194,78 @@ full.png
 - REGRESSION
 - ERROR
 
-기존 정상 Case가 새 알고리즘에서 실패하면 평균 정확도가 좋아졌더라도 회귀로 취급합니다.
+기존 정상 Case가 현재 실패하면 평균 정확도가 올라가도 regression으로 취급합니다.
 
-## Scanner 표시 데이터 의미
+## v1.4.3 검증 상태
 
-Production Scanner가 OCR하는 필드는 **아이템명(`item_name`) 하나**입니다.
+```text
+feature PR #165: 32660568132 — SUCCESS
+release-prep PR #166: 32674399495 — SUCCESS
+exact source/tag: f7e3870c81a7d7be025f1fe56d5b7f607546b250
+279 tests / 0 failed / 0 skipped
+release run: 32674812862 — SUCCESS
+independent public verifier: 32675069359 — SUCCESS
+public latest/tag: VERIFIED
+public ZIP SHA256SUMS/layout: VERIFIED
+public-downloaded EXE smoke/graceful shutdown: SUCCESS
+durable status: docs/.release-v1.4.3-status.json
+```
 
-아래 값은 Item ID 확정 이후 `mapped_data`로 계산/조회합니다.
-
-- 최고 상점가
-- 플리마켓 `avg24hPrice`
-- slots / price per slot
-- 현재 Needed Items의 `RequiredTotal`
-
-따라서 가격·플리·슬롯·필요 개수의 화면 숫자 OCR 필드를 새로 만들지 않습니다.
-
-## 현재 검증 상태
-
-- PR #149 Ground Truth/correction/regression 구현 CI `32643727571`: SUCCESS
-- PR #160 v1.4.1 실제 Tarkov Ground Truth 수정 CI `32656154735`: SUCCESS
-- v1.4.2 release-prep PR #161 CI `32656572239`: SUCCESS
-- automated tests: **272 passed / 0 failed / 0 skipped**
-- exact-source public release run `32656993853`: SUCCESS
-- independent public verifier `32657225090`: SUCCESS
-- exact release source/tag: `a2d939b5f28e0d6de2468312bdd11467e3b35622`
-- public/latest: VERIFIED
-- public ZIP re-download/hash/SHA256SUMS/layout: VERIFIED
-- ProductVersion/FIRST_RUN: VERIFIED
-- public-downloaded EXE rendered UI/Map/Scanner smoke + graceful shutdown: SUCCESS
-- durable status: `docs/.release-v1.4.2-status.json`
-- completed v1.4.2 release/verifier one-shot workflows removed; normal `ci.yml`만 유지
-
-따라서 **v1.4.2 release blocker는 없습니다.**
+**v1.4.3 release blocker는 없습니다.**
 
 ## 다음 실제 작업
 
+다음 단계는 새로운 추측성 threshold 조정이 아니라 **v1.4.3 실사용 Ground Truth 수집**입니다.
+
+특히 확인할 표본:
+
+- tall/large 상세창
+- stash/inventory frame과 크게 겹치는 실제 detail window
+- 이전에 correct rectangle이 높은 IoU 때문에 후보에서 사라지던 유형
+- `r`, `0`, slash-zero-like glyph 및 이상한 Unicode symbol 오인식
+- 복잡한 한글 glyph 오인식
+- 정상 punctuation이 포함된 공식 item name
+- near-name/ambiguous item에서 false positive가 생기지 않는지
+- Item ID가 맞을 때 trader/flea/slots/RequiredTotal mapped_data가 정확한지
+- 빠른 연속 사용에서 stale-result isolation
+- 장시간 CPU/memory/UI responsiveness
+
+권장 실사용 흐름:
+
 ```text
-v1.4.2 실제 Tarkov 사용
-→ 정상 결과는 대표 표본을 `맞음`으로 검증
-→ 미인식/오인식은 문제 직후 `교정`에서 영역/텍스트 정답 입력
-→ reviewed Ground Truth 추가 축적
-→ summary / OCR confusion / ROI delta / matcher candidates 분석
-→ `회귀 테스트`로 현재 기준선 확인
-→ detail/header/ROI/OCR/matcher 중 실제 실패 단계 특정
-→ 해당 단계만 수정
-→ 전체 dataset replay
+v1.4.3 실제 Tarkov 사용
+→ 정상 결과 대표 표본 `맞음`
+→ 미인식/오인식 직후 `교정`
+→ reviewed Ground Truth 축적
+→ diagnostics ZIP export
+→ summary / OCR confusion / ROI delta / candidate 분석
+→ 실제 실패 stage 특정
+→ 해당 stage만 수정
+→ 전체 reviewed dataset regression
 → 기존 정상 REGRESSION=0 확인
 ```
 
-현재 가장 중요한 다음 입력은 **v1.4.2의 실제 인게임 Ground Truth**입니다. 특히 v1.4.2가 추가한 contained-subpanel과 bounded OCR recovery가 실전에서 해결한 Case와 아직 남은 Case를 분리해서 평가합니다.
+## 의도적으로 보류한 작업
 
-Scanner 인식 속도 최적화는 현재 의도적으로 보류되어 있습니다. 실제 정확도/안정성이 충분히 고정된 뒤 CPU/OCR 반복, candidate budget, capture pipeline 비용을 별도 측정해 최적화합니다.
+**Scanner 속도 최적화는 아직 보류합니다.**
+
+정확도/안정성이 더 고정된 뒤 다음 비용을 실제 측정해 별도 최적화합니다.
+
+- capture 비용
+- rectangle candidate budget
+- semantic header validation 반복
+- OCR/deep OCR 반복
+- Tarkov-font visual path
+- catalog-wide recovery 비용
+
+정확도 문제와 성능 문제를 동시에 변경하지 않습니다.
+
+## 알려진 잔여 과제
+
+- 일부 historical case에서 header/title은 맞아도 structural bottom 보존 때문에 detail bottom이 실제보다 낮게 남을 수 있음
+- `TITLE_ANCHOR_INCOMPLETE` diagnostic stage classification이 일부 경우 잘못 분류될 수 있음
+- 추가 해상도/DPI/UI 배치 live validation 필요
+- `r`, `0`, complex Hangul OCR engine 자체는 일반적으로 해결되지 않음
+- exact OCR-consumed processed bitmap 진단 구조는 추가 개선 여지 있음
+- rendered sample dictionary는 reviewed Ground Truth가 쌓인 뒤 확장
+- 추가 Ground Truth 없이 generic matcher/header threshold를 완화하지 않음
