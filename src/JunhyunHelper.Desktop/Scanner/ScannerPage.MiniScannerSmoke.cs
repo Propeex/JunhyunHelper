@@ -42,9 +42,6 @@ public partial class ScannerPage
                 "Scanner v1.3 three-hotkey/settings contract failed.");
         }
 
-        // Schema v3 users may have customized the old one-shot gesture to one of the
-        // keys that v1.3 now uses as a new default. Preserve that user choice and move
-        // only the newly introduced commands to non-conflicting fallbacks.
         var migrated = new ScannerDisplaySettings
         {
             SchemaVersion = 3,
@@ -66,9 +63,6 @@ public partial class ScannerPage
                 "Scanner v1.3 schema-v3 hotkey migration did not preserve the old user gesture without collisions.");
         }
 
-        // v1.2.1 lifecycle contract remains: a one-shot may only restore the exact mode
-        // that is still requested after the scan. Turning Scanner/Test off or switching
-        // the active mode while the one-shot runs must not resurrect the previous mode.
         if (!ScannerCoordinator.ShouldRestoreOneShotMode(
                 ScannerCaptureMode.TarkovWindow,
                 ScannerCaptureMode.TarkovWindow) ||
@@ -123,13 +117,10 @@ public partial class ScannerPage
         static void DrawMagnifier(byte[] target, int targetStride, int x, int y)
         {
             const byte bright = 178;
-            // 19x19 hollow ring.
             Fill(target, targetStride, x, y, 19, 3, bright, bright, bright);
             Fill(target, targetStride, x, y + 16, 19, 3, bright, bright, bright);
             Fill(target, targetStride, x, y, 3, 19, bright, bright, bright);
             Fill(target, targetStride, x + 16, y, 3, 19, bright, bright, bright);
-            // Connected lower-right handle extends the icon to roughly 27x26 pixels,
-            // matching the live evidence while remaining clearly larger than glyphs.
             for (var step = 0; step < 9; step++)
                 Fill(target, targetStride, x + 17 + step, y + 17 + step, 3, 3, bright, bright, bright);
         }
@@ -137,8 +128,6 @@ public partial class ScannerPage
         static void DrawGlyph(byte[] target, int targetStride, int x, int y)
         {
             const byte bright = 172;
-            // Hollow/square-ish glyph intentionally resembles the old generic bright
-            // component heuristic. It must never outrank the preceding magnifier.
             Fill(target, targetStride, x, y, 17, 3, bright, bright, bright);
             Fill(target, targetStride, x, y + 16, 17, 3, bright, bright, bright);
             Fill(target, targetStride, x, y, 3, 19, bright, bright, bright);
@@ -146,9 +135,6 @@ public partial class ScannerPage
             Fill(target, targetStride, x + 14, y, 3, 19, bright, bright, bright);
         }
 
-        // Deliberately drift the structural panel left edge to the right of the real
-        // magnifier start. This recreates the live failure where the first Korean title
-        // glyph became closer to the old panel-relative magnifier expectation.
         var panel = new ScannerDetectedRegion(120, 100, 520, 400, 0.996);
         var fallback = ScannerDetailGeometryDetector.GetTitleRegion(panel);
         const int fieldX = 106;
@@ -166,9 +152,6 @@ public partial class ScannerPage
         DrawGlyph(pixels, stride, firstGlyphX + 22, glyphY);
         DrawGlyph(pixels, stride, firstGlyphX + 44, glyphY);
         DrawGlyph(pixels, stride, firstGlyphX + 66, glyphY);
-
-        // Actual close control is detected from pixels rather than handed to the
-        // refiner, so the regression also covers the right-side red anchor.
         Fill(pixels, stride, 620, 100, 20, 20, 10, 10, 126);
 
         var candidate = new ScannerDetectedCandidate(
@@ -262,8 +245,8 @@ public partial class ScannerPage
             }
 
             if (window.FindName("TraderSlotPriceText") is not TextBlock traderPerSlot ||
-                traderSlotPrice.Visibility != Visibility.Visible ||
-                !traderSlotPrice.Text.Contains("21,000", StringComparison.Ordinal))
+                traderPerSlot.Visibility != Visibility.Visible ||
+                !traderPerSlot.Text.Contains("21,000", StringComparison.Ordinal))
             {
                 throw new InvalidOperationException(
                     "Mini Scanner did not render the matched item's trader price per slot.");
