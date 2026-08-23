@@ -1,6 +1,6 @@
 # RELEASE 1.4.2 — Scanner live Ground Truth recognition fix
 
-상태: `RELEASE CANDIDATE`
+상태: `PUBLIC RELEASE / VERIFIED`
 
 기준일: 2026-08-24
 
@@ -15,13 +15,7 @@ v1.4.2는 새 사용자 기능을 추가하지 않는 PATCH 릴리즈다. v1.4.1
 - 일부 실제 화면에서 stash/inventory의 큰 구조 프레임이 coarse detail 후보로 선택되고, 실제 상세창 헤더가 그 내부 수백 px 아래에 존재해 기존 상단 주변 header 탐색으로는 도달하지 못하는 패턴을 확인했다.
 - 기존 detector primary 및 v1.4.1 live header Ground Truth fallback을 그대로 우선 사용한다.
 - 두 기존 경로가 모두 실패한 경우에만 oversized candidate 내부에서 contained-subpanel proposal을 제한적으로 탐색한다.
-- contained proposal은 단순 border/rectangle만으로 성공하지 않는다. 기존과 동일하게 다음 semantic header evidence를 다시 요구한다.
-  - close X
-  - magnifier
-  - dark title field
-  - title text evidence
-  - `HEADER_FRAME_LOCKED`
-  - title anchor score `>= 0.68`
+- contained proposal은 단순 border/rectangle만으로 성공하지 않는다. 기존과 동일하게 close X, magnifier, dark title field, title text evidence, `HEADER_FRAME_LOCKED`, title anchor score `>= 0.68`을 다시 요구한다.
 - 따라서 stash/inventory frame 자체를 실제 상세창으로 확정하는 방향으로 임계값을 완화하지 않는다.
 
 ### 아이템명 OCR / matcher
@@ -69,11 +63,15 @@ v1.4.2는 새 사용자 기능을 추가하지 않는 PATCH 릴리즈다. v1.4.1
 - oversized outer frame 내부의 실제 detail header 구조를 synthetic product smoke로 재현하여 contained-subpanel fallback이 기존 header-lock evidence를 다시 통과하는지 검증한다.
 - OCR matcher tests는 reviewed Ground Truth에서 확인된 bounded 2-edit / long-suffix 복구를 검증하는 동시에 기존 multi-edit/ambiguous 사례가 계속 fail-closed 하는지 함께 고정한다.
 
-## 수정 PR 검증
+## 구현 검증
 
-PR #160 final head: `a6b2a13c05f585be5c463291ed05a4fb6c29c39b`
+PR #160 final head:
 
-CI run: `32656154735`
+`a6b2a13c05f585be5c463291ed05a4fb6c29c39b`
+
+PR #160 CI:
+
+`32656154735 — SUCCESS`
 
 - Windows Desktop build: SUCCESS
 - Core tests: `272 passed / 0 failed / 0 skipped`
@@ -82,19 +80,69 @@ CI run: `32656154735`
 - packaged EXE rendered Product UI + Map/Factory/MiniMap + Scanner smoke: SUCCESS
 - graceful shutdown + clean portable root: SUCCESS
 
-PR #160 merge commit: `40852863e1f897493287597e99a77174098f8a05`
+PR #160 merge commit:
 
-## 릴리즈 게이트
+`40852863e1f897493287597e99a77174098f8a05`
 
-아래가 모두 충족되어야 PUBLIC RELEASE / VERIFIED로 전환한다.
+## 릴리즈 준비 검증
 
-1. release-prep PR CI success
-2. exact release source SHA 고정
-3. tag `v1.4.2`가 exact release source를 가리킴
-4. `Junhyun-Helper-v1.4.2-win-x64.zip` 공개
-5. public latest가 v1.4.2
-6. public ZIP 재다운로드 SHA-256 검증
-7. 공개 `SHA256SUMS.txt`와 실제 ZIP hash 일치
-8. package layout 및 ProductVersion `1.4.2+<source_sha>` 검증
-9. 공개 ZIP의 실제 EXE product smoke / graceful shutdown 성공
-10. 독립 public verifier 성공 및 영구 status 문서 기록
+Release-prep PR #161 final CI:
+
+`32656572239 — SUCCESS`
+
+Exact v1.4.2 release source:
+
+`a2d939b5f28e0d6de2468312bdd11467e3b35622`
+
+이 SHA는 Desktop 1.4.2, FIRST_RUN_KO 1.4.2, 제품 수정, 자동 테스트를 모두 포함한 공개 바이너리의 유일한 source다.
+
+## 공개 릴리즈 검증
+
+공개 release workflow:
+
+`32656993853 — SUCCESS`
+
+Independent public verifier:
+
+`32657225090 — SUCCESS`
+
+검증된 공개 상태:
+
+```text
+version: v1.4.2
+release source: a2d939b5f28e0d6de2468312bdd11467e3b35622
+public tag source: a2d939b5f28e0d6de2468312bdd11467e3b35622
+asset: Junhyun-Helper-v1.4.2-win-x64.zip
+bytes: 80,385,620
+SHA-256: e6aa57ac9492ebc3438335a5e0f66e4daf18c2b87b2b61abcb141de0f0d810a8
+ProductVersion: 1.4.2+a2d939b5f28e0d6de2468312bdd11467e3b35622
+automated tests: 272 passed / 0 failed / 0 skipped
+public/latest: VERIFIED
+exact public tag source: VERIFIED
+public ZIP re-download: VERIFIED
+public SHA256SUMS: VERIFIED
+public package layout: VERIFIED
+public-downloaded EXE smoke: SUCCESS
+```
+
+영구 검증 증거:
+
+- `docs/.release-v1.4.2-status.json`
+
+Verifier는 공개 ZIP을 별도로 재다운로드하여 SHA-256, `SHA256SUMS.txt`, package layout, ProductVersion, FIRST_RUN identity, 실제 EXE rendered Product UI + Map/Factory/MiniMap + Scanner smoke 및 graceful shutdown을 검증했다.
+
+## 릴리즈 게이트 결과
+
+1. release-prep PR CI success — **VERIFIED**
+2. exact release source SHA 고정 — **VERIFIED**
+3. tag `v1.4.2` exact source — **VERIFIED**
+4. `Junhyun-Helper-v1.4.2-win-x64.zip` 공개 — **VERIFIED**
+5. public latest v1.4.2 — **VERIFIED**
+6. public ZIP 재다운로드 SHA-256 — **VERIFIED**
+7. 공개 `SHA256SUMS.txt` 일치 — **VERIFIED**
+8. package layout / ProductVersion — **VERIFIED**
+9. 공개 ZIP 실제 EXE smoke / graceful shutdown — **VERIFIED**
+10. 독립 public verifier / durable status 기록 — **VERIFIED**
+11. 완료된 one-shot release/verifier workflow 제거 — **VERIFIED**
+
+v1.4.2 공개 릴리즈에는 남은 release blocker가 없다.

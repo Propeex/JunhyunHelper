@@ -26,21 +26,21 @@ Runtime GPT/AI 의존성은 없습니다.
 
 ## 2. 현재 공개 릴리즈
 
-현재 public stable / latest는 **v1.4.1**입니다.
+현재 public stable / latest는 **v1.4.2**입니다.
 
 ```text
-version: v1.4.1 PUBLIC RELEASE / VERIFIED
-release source: 8ff790cbcaa3172d068200d5b34de1ea4c142ac0
-public tag source: 8ff790cbcaa3172d068200d5b34de1ea4c142ac0
-fix PR #155 final CI: 32648713289 — SUCCESS
-release-prep PR #156 final CI: 32649049071 — SUCCESS
-automated tests: 268 passed / 0 failed / 0 skipped
-release run: 32652350079 — SUCCESS
-independent public verifier: 32652827208 — SUCCESS
-asset: Junhyun-Helper-v1.4.1-win-x64.zip
-bytes: 80,379,956
-SHA-256: 7f666e3348b3d87aae27e22de078c1b3f36458f107a662cae1c58df8cdfa3e6f
-ProductVersion: 1.4.1+8ff790cbcaa3172d068200d5b34de1ea4c142ac0
+version: v1.4.2 PUBLIC RELEASE / VERIFIED
+release source: a2d939b5f28e0d6de2468312bdd11467e3b35622
+public tag source: a2d939b5f28e0d6de2468312bdd11467e3b35622
+Scanner fix PR #160 CI: 32656154735 — SUCCESS
+release-prep PR #161 CI: 32656572239 — SUCCESS
+automated tests: 272 passed / 0 failed / 0 skipped
+release run: 32656993853 — SUCCESS
+independent public verifier: 32657225090 — SUCCESS
+asset: Junhyun-Helper-v1.4.2-win-x64.zip
+bytes: 80,385,620
+SHA-256: e6aa57ac9492ebc3438335a5e0f66e4daf18c2b87b2b61abcb141de0f0d810a8
+ProductVersion: 1.4.2+a2d939b5f28e0d6de2468312bdd11467e3b35622
 public/latest: VERIFIED
 exact public tag source: VERIFIED
 public re-download: VERIFIED
@@ -49,24 +49,28 @@ public package layout: VERIFIED
 public-downloaded EXE smoke: SUCCESS
 ```
 
+현재 schema / compatibility:
+
 ```text
-Desktop Version: 1.4.1
+Desktop Version: 1.4.2
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
 Scanner display settings schema: v4
 Scanner catalog cache schema: v1/v2 readable, v2 written
 Scanner Ground Truth dataset: local diagnostics persistence
-v1.4.0 → v1.4.1 mandatory Game Content update: none
-v1.4.0 → v1.4.1 user.db migration: none
+v1.4.1 → v1.4.2 mandatory Game Content update: none
+v1.4.1 → v1.4.2 user.db migration: none
 ```
 
 공식 검증 기록:
 
-- `docs/RELEASE_1.4.1.md`
-- `docs/.release-v1.4.1-status.json`
+- `docs/RELEASE_1.4.2.md`
+- `docs/.release-v1.4.2-status.json`
 - `docs/SCANNER_GROUND_TRUTH.md`
 - `docs/CURRENT_SCANNER_WORK.md`
+
+v1.4.2 공개 후 완료된 one-shot release/verifier workflow는 제거했으며 정상 CI는 `.github/workflows/ci.yml` 하나만 유지합니다.
 
 ## 3. 아키텍처 기준
 
@@ -92,41 +96,44 @@ JunhyunHelper.Desktop
 d933792b6042a51cea38dc44b686a096fe30de67
 ```
 
-## 4. Scanner 장기 제품 계약
+기존 `Propeex/Tarkov-Helper` 프로토타입은 요구사항의 권위가 아닙니다. 유지할 기능, 검증된 데이터/자산, 구현 아이디어, 시행착오 참고 용도로만 사용합니다.
+
+## 4. Scanner 제품 계약
 
 Scanner는 게임 프로세스 내부 데이터를 읽지 않는 독립적인 화면 기반 보조 기능입니다. 범용 OCR이 아니라 Tarkov UI 전용 폐쇄형 인식 시스템으로 취급합니다.
 
+목표 pipeline:
+
 ```text
-Tarkov / Display pixels
-→ detail-window structural candidates
-→ actual inspect-header lock
-   - right red close/X + normalized X-shape template
-   - long neutral top frame
-   - fixed frame-left search-icon lane
-   - normalized magnifier ring/hollow/handle template
-   - dark title field + text evidence
-→ full HEADER_FRAME_LOCKED only
-→ locked-header-based detail bounds refinement
-→ magnifier-free title ROI
-→ Windows ko-KR OCR
-→ current-catalog-derived character/symbol sanitation
-→ optional one-unknown-glyph current-catalog recovery
-→ current official Korean catalog semantic matching
-→ bounded one-edit recovery when uniquely safe
-→ optional local Tarkov-font visual corroboration/recovery
-→ conservative confidence + top1/top2 margin
-→ Item ID or fail closed
-→ local presentation data
-→ Mini Scanner
+capture
+→ detail-window detection
+→ inspect-header / field localization
+→ ROI extraction
+→ OCR / visual recognition
+→ current Tarkov catalog validation
+→ final Item ID decision
+→ mapped presentation
+→ user correction / Ground Truth
+→ dataset / export / regression
 ```
+
+인식 단계와 실패 원인은 서로 분리합니다.
+
+- Detail Window Detection
+- Field Localization / Header Lock
+- OCR Recognition
+- Candidate Matching
+- Parsing
+- Data Mapping
+- Unknown / Multiple
 
 불변 원칙:
 
-- false positive보다 miss 선호
+- false positive보다 miss를 선호
 - geometry / structural score / anchor score / icon 하나만으로 Item identity 확정 금지
 - current official Korean item catalog가 identity 권위
 - historical alias를 production identity source로 무제한 누적하지 않음
-- live Ground Truth 없이 global confidence/margin/header threshold를 완화하지 않음
+- 실제 Ground Truth 없이 global confidence/margin/header threshold를 완화하지 않음
 - ambiguity / low confidence / incomplete header lock은 fail closed
 - current-catalog 밖 glyph를 특정 문자로 임의 치환하지 않음
 - scan-time network 금지
@@ -153,7 +160,7 @@ EscapeFromTarkov process/window
 ### One-shot
 
 - 1회 인게임: TarkovWindow를 한 번 정밀 분석
-- 1회 테스트: 모든 연결 display를 한 번 정밀 분석
+- 1회 테스트: 연결 display를 한 번 정밀 분석
 - continuous mode를 영구 변경하지 않음
 - shared recognition state와 직렬화
 - scan-time catalog network refresh를 시작하지 않음
@@ -171,7 +178,7 @@ EscapeFromTarkov process/window
 - continuous mode에서는 동일 quantized geometry가 안정화된 뒤 semantic recognition
 - verified detail/title signature가 유지되면 불필요한 OCR 반복 억제
 
-Initial structural rectangle을 최종 authoritative bounds로 간주하지 않습니다. Full header lock 후 magnifier/X 실측값에서 detail-window top/left/right를 다시 정렬하고 bottom은 structural detector 값을 유지합니다.
+Initial structural rectangle을 최종 authoritative bounds로 간주하지 않습니다. Full header lock 후 magnifier/X 실측값에서 detail-window top/left/right를 다시 정렬하고 bottom은 구조 evidence를 사용합니다.
 
 ### Inspect header / title ROI
 
@@ -183,34 +190,65 @@ AND TitleAnchorScore >= 0.68
 ```
 
 - title glyph는 title ROI의 수평 ownership을 갖지 않음
-- magnifier 후보는 fixed frame-left lane에서만 생성
-- ring bright band + hollow center + lower-right handle + outside background template 사용
-- close/X는 red body/edge + expected geometry + diagonal X contrast template 결합
+- magnifier 후보는 frame-left search-icon lane에서 생성
+- ring bright band + hollow center + handle + outside background evidence 사용
+- close/X는 red body/edge + expected geometry + diagonal X contrast evidence 결합
 - diagnostic-only structural candidate는 관찰/저장할 수 있으나 OCR identity path에 들어가지 않음
 
-v1.4.1에서는 위 primary `ScannerInspectHeaderLock`을 그대로 우선 사용합니다. primary가 fail-closed 한 경우에만 `ScannerLiveHeaderGroundTruthRefiner`가 reviewed live Ground Truth에서 확인된 어두운 red close X, gray 38~39 neutral top border, upper-right lens + lower-left handle magnifier, dark title field/text evidence를 함께 검증합니다. recovered header는 coarse candidate의 left/width ownership과 일치해야 하며, 최종 semantic gate `HEADER_FRAME_LOCKED >= 0.68`은 변경하지 않았습니다.
+v1.4.1 fallback:
 
-상세 근거:
+- primary `ScannerInspectHeaderLock`을 우선 사용
+- primary가 fail-closed 한 경우 reviewed live Ground Truth 기반 header refiner 사용
+- 어두운 red close X, neutral gray top border, 실제 magnifier orientation, dark title field/text evidence를 함께 검증
+- recovered header도 최종 `HEADER_FRAME_LOCKED >= 0.68`을 통과해야 함
 
+v1.4.2 contained-subpanel fallback:
+
+- v1.4.1 실제 데이터에서 stash/inventory의 큰 구조 frame 내부 수백 px 아래에 실제 inspect header가 있는 실패를 확인
+- primary + v1.4.1 live header refiner가 모두 실패했을 때만 oversized candidate 내부 proposal scan 실행
+- proposal도 close X, magnifier, dark title field, title text evidence, frame ownership을 다시 검증
+- 최종 `HEADER_FRAME_LOCKED >= 0.68` gate는 그대로 유지
+- 단순히 큰 frame을 상세창으로 인정하거나 header threshold를 낮추는 수정이 아님
+
+관련 문서:
+
+- `docs/CURRENT_SCANNER_WORK.md`
+- `docs/SCANNER_GROUND_TRUTH.md`
 - `docs/SCANNER_V1.3.4_LIVE_HARDENING.md`
-- `docs/DECISION_SCANNER_V1.3.4_LIVE_HARDENING_2026-08-23.md`
 - `docs/SCANNER_V1.3.3_HEADER_LOCK.md`
-- `docs/.scanner-v1.3.3-header-evidence.json`
 
 ## 6. OCR / matcher / visual corroboration
 
 Primary recognizer는 Windows `ko-KR` OCR입니다.
 
-- title size에 따라 4x/6x/8x 확대
-- first pass 실패 시 deep OCR/high-contrast/binary/inverse variants
+- title size에 따라 확대 variant 사용
+- first pass 실패 시 deep OCR / high-contrast / binary / inverse variants
 - raw OCR과 matcher input 분리 보존
 - current catalog 기반 character/symbol policy
-- Korean-title contract에서 CJK Han ideograph hard reject
+- Korean-title contract에 맞지 않는 문자 evidence는 보수적으로 처리
 - arbitrary replacement로 confidence를 인위적으로 올리지 않음
 - official catalog exact-first + conservative fuzzy + margin
 - current-catalog unique one-unknown-glyph recovery
 - bounded unique one-edit recovery
 - ambiguous/low-confidence는 Item ID 미확정
+
+v1.4.2 bounded recovery:
+
+실제 reviewed Ground Truth에서 `Grizzly`, `Emelya`, `Iskra`, `Axel` 계열 glyph 혼동이 확인됐습니다. 일부는 정답 item이 matcher top-1인데 2~3 glyph 오류로 기존 gate에서 거부됐습니다.
+
+따라서 ordinary matcher가 실패한 경우에만:
+
+- catalog 전체에서 유일하고 충분히 분리된 2-edit candidate
+- 충분히 긴 suffix가 일치하고 catalog 전체에서 유일한 2~3-edit candidate
+
+를 제한적으로 복구합니다.
+
+변경하지 않은 것:
+
+- global confidence threshold
+- top1/top2 margin의 일반 완화
+- `r`, `0`, 복잡한 한글 등의 전역 glyph 치환표
+- ambiguous / low-evidence multi-edit fail-closed 정책
 
 Tarkov-font visual path:
 
@@ -231,10 +269,9 @@ Tarkov resources.assets (read-only)
 
 ## 7. Ground Truth / correction / regression
 
-v1.4.0에서 교정/dataset/regression 기반을 제품화했고, v1.4.1에서는 첫 4개 reviewed live failure Ground Truth를 실제 header-lock 수정 근거로 사용했습니다.
-
-
 공식 계약은 `docs/SCANNER_GROUND_TRUTH.md`입니다.
+
+v1.4.0에서 교정/dataset/regression 기반을 제품화했습니다. 이후 실제 Tarkov Ground Truth를 알고리즘 변경의 근거로 사용합니다.
 
 ### Case와 evidence
 
@@ -274,7 +311,7 @@ Scanner UI에서 사용자는 다음만 수행합니다.
 - 정답 아이템명 입력
 - 영역 + 텍스트 동시 교정
 
-JSON/좌표/파일명 관리는 요구하지 않습니다.
+JSON/좌표/파일명 관리는 요구하지 않습니다. 사용자 rectangle과 정답 텍스트가 Ground Truth입니다.
 
 ### Dataset 관리 / export
 
@@ -282,8 +319,10 @@ JSON/좌표/파일명 관리는 요구하지 않습니다.
 - Case 목록 확인
 - 선택 Case 삭제
 - 전체 dataset 삭제
-- 일반 Scanner 로그는 별도 삭제
+- 일반 Scanner 로그 별도 삭제
 - `ScannerDiagnostics_YYYY-MM-DD.zip` export
+
+Export에는 dataset/summary/environment/cases/images/logs를 포함하며 사용자 원본 화면 픽셀이 포함될 수 있음을 명시합니다.
 
 ### 자동 통계
 
@@ -293,6 +332,7 @@ JSON/좌표/파일명 관리는 요구하지 않습니다.
 - detail ROI delta 평균/표준편차
 - item-name ROI delta 평균/표준편차
 - OCR observed → Ground Truth 문자 치환/삽입/누락 통계
+- matcher top-candidate evidence
 
 ### Full-pipeline regression
 
@@ -301,7 +341,7 @@ Reviewed Ground Truth의 `full.png`를 현재 production 경로로 다시 실행
 ```text
 full.png
 → detail geometry
-→ inspect-header lock
+→ inspect-header / contained-subpanel lock
 → title ROI
 → current OCR/deep OCR/font recovery
 → current catalog matching
@@ -318,6 +358,13 @@ full.png
 
 과거 정상 Case가 현재 실패하면 평균 정확도가 상승했더라도 `REGRESSION`으로 취급합니다.
 
+현재 알려진 기술 부채:
+
+- regression path와 live path 일부 locked-window projection 로직 중복
+- exact OCR-consumed processed bitmap을 모든 path에서 동일 객체로 직접 보존하는 구조는 추가 개선 여지 있음
+- 실제 Tarkov rendered sample dictionary는 향후 Ground Truth 축적 후 검토
+- ROI-only reviewed case의 geometry-only replay는 final identity replay보다 제한적
+
 ## 8. Scanner 표시 데이터 의미
 
 현재 게임 화면 OCR 필드는 **`item_name` 하나**입니다.
@@ -332,7 +379,9 @@ full.png
 
 Inventory 차감 부족량은 Scanner의 `필요 개수` 의미가 아닙니다. market/dimension 누락은 해당 표시 필드만 fail closed하고 Item identity health와 분리합니다.
 
-## 9. Scanner 사용자 분석 / 단축키
+가격·플리·슬롯·필요 개수를 OCR 필드로 새로 만들지 않습니다.
+
+## 9. Scanner 사용자 UI / 단축키
 
 Scanner display settings schema는 **v4**입니다.
 
@@ -349,13 +398,26 @@ Scanner display settings schema는 **v4**입니다.
 - 동일 gesture 중복 금지
 - schema v3 one-shot 사용자 key를 schema v4로 보수적으로 승계
 
+v1.4.2에서 단축키 설정 창의 `스캐너 ON/OFF` 세 번째 행이 아래쪽에서 잘리던 layout clipping을 수정했습니다. 단축키 기능 자체는 바뀌지 않았습니다.
+
+Scanner 탭 주요 진단 버튼:
+
+- 인식 이미지
+- 교정
+- 회귀 테스트
+- 교정 데이터 내보내기
+- 교정 데이터 관리
+- 로그 삭제
+
+일반 Scanner 로그 삭제와 Ground Truth dataset 삭제는 별도 동작입니다.
+
 ## 10. Mini Scanner
 
 - match 성공 Item 정보만 표시
 - runtime/OCR/error/status text는 overlay에 표시하지 않음
 - WPF Topmost + native HWND_TOPMOST
 - ShowActivated=false / no-activate
-- 전체 카드 drag hit surface / Arrow cursor
+- 전체 카드 drag hit surface
 - 실제 Scanner mode에서는 Tarkov foreground + inventory/stash context를 보수적으로 확인
 - inventory/stash OCR probe 최대 1개
 - 반복 요청은 latest coalesce
@@ -365,124 +427,113 @@ Title OCR과 inventory-context OCR은 하나의 WinRT OCR serialization boundary
 
 ## 11. Persistence / 사용자 데이터
 
+대표 저장 위치:
+
 ```text
 %LocalAppData%/JunhyunHelper/user.db
 %LocalAppData%/JunhyunHelper/content/
 %LocalAppData%/JunhyunHelper/image-cache/
 %LocalAppData%/JunhyunHelper/map-product-settings.json(.bak)
-%LocalAppData%/JunhyunHelper/ammo-favorites.json(.bak)
-%LocalAppData%/JunhyunHelper/scanner-settings.json(.bak)
-%LocalAppData%/JunhyunHelper/scanner/catalog/
-%LocalAppData%/JunhyunHelper/scanner/fonts/
+%LocalAppData%/JunhyunHelper/ammo-settings.json(.bak)
+%LocalAppData%/JunhyunHelper/scanner/
 %LocalAppData%/JunhyunHelper/scanner/diagnostics/
-%LocalAppData%/JunhyunHelper/logs/scanner.log(.1)
+%LocalAppData%/JunhyunHelper/logs/
 ```
 
-Program package와 사용자 데이터는 분리됩니다. 프로그램 업데이트는 Ground Truth dataset과 기존 사용자 데이터를 교체하지 않습니다.
+원칙:
 
-## 12. Map / MiniMap
+- portable executable 옆에 mutable user data/log를 만들지 않음
+- Program Update가 user.db, content cache, image cache, Map/Ammo/Scanner 사용자 설정, Scanner logs/diagnostics를 교체하지 않음
+- atomic JSON / backup recovery를 사용하는 설정은 현재 계약 유지
+- v1.4.2에는 user.db migration 없음
+- v1.4.2에는 mandatory Game Content update 없음
 
-Map/MiniMap은 pinned donor source를 제한적으로 compile-link한 독립 subsystem입니다.
+## 12. Program Update / Release 계약
 
-- general marker/artwork/config → pinned Map bundle
-- current Quest state/geometry → JunhyunHelper bridge
-- donor updater/content DB/global hidden command/legacy logger는 product ownership에서 제외
-- 구체적 defect/performance evidence 없이 broad refactor하지 않음
+- GitHub의 public stable release를 사용자 동의형 Program Update 기준으로 사용
+- 정식 release tag / Desktop Version / FIRST_RUN / ZIP 이름 / ProductVersion 일치
+- Windows x64 .NET 10 self-contained single-file
+- 관리자 권한 불필요
+- installer 없음
+- release package root는 `준현 헬퍼.exe`, `FIRST_RUN_KO.txt`, `Assets/` 구조
+- public release 전에 exact-source build/test/publish/smoke
+- draft asset 재다운로드 검증 후 public/latest 게시
+- public asset을 다시 다운로드하여 SHA256SUMS, package layout, ProductVersion, EXE smoke 검증
+- 독립 verifier가 durable status를 `docs/.release-vX.Y.Z-status.json`에 기록
+- release가 검증된 뒤 one-shot controller/verifier workflow 제거
 
-## 13. Program Update / 배포 계약
-
-정식 release는 다음 순서를 지킵니다.
+v1.4.2 exact release source는 반드시 다음 SHA입니다.
 
 ```text
-exact release source
-→ build/tests/publish/package audit
-→ actual packaged EXE Product UI/Scanner/Map smoke
-→ ZIP + SHA256SUMS
-→ Draft release
-→ Draft asset re-download verification
-→ Draft-downloaded EXE smoke
-→ public/latest
-→ exact tag source verification
-→ public asset re-download verification
-→ public-downloaded EXE smoke
-→ independent public verifier
-→ durable release record
-→ one-shot workflow cleanup
+a2d939b5f28e0d6de2468312bdd11467e3b35622
 ```
 
-ZIP root:
+태그와 공개 ProductVersion은 controller/finalizer commit이 아니라 이 SHA를 가리킵니다.
+
+## 13. v1.4.2 검증 요약
+
+실제 사용자 Ground Truth:
 
 ```text
-준현 헬퍼.exe
-FIRST_RUN_KO.txt
-Assets/
+61 total cases
+16 user-reviewed cases
 ```
 
-Program Update는 program-owned files만 교체하며 `%LocalAppData%/JunhyunHelper` 사용자 데이터를 건드리지 않습니다.
-
-## 14. v1.4.1 공개 검증 결과
-
-완료:
-
-- PR #155 live Ground Truth header fix final CI `32648713289`: SUCCESS
-- PR #156 v1.4.1 release-prep final CI `32649049071`: SUCCESS
-- automated tests: **268 passed / 0 failed / 0 skipped**
-- exact-source release run `32652350079`: SUCCESS
-- independent public verifier `32652827208`: SUCCESS
-- exact release source/tag: `8ff790cbcaa3172d068200d5b34de1ea4c142ac0`
-- public/latest: VERIFIED
-- public ZIP re-download/hash/SHA256SUMS/layout: VERIFIED
-- ProductVersion/FIRST_RUN: VERIFIED
-- public-downloaded Product UI + Map/Factory/MiniMap + Scanner Ground Truth smoke: SUCCESS
-
-공개 asset:
+제품 수정 검증:
 
 ```text
-Junhyun-Helper-v1.4.1-win-x64.zip
-80,379,956 bytes
-SHA-256 7f666e3348b3d87aae27e22de078c1b3f36458f107a662cae1c58df8cdfa3e6f
-ProductVersion 1.4.1+8ff790cbcaa3172d068200d5b34de1ea4c142ac0
+PR #160 CI: 32656154735 — SUCCESS
+272 tests / 0 failed / 0 skipped
+Windows build/publish: SUCCESS
+Product UI + Map/Factory/MiniMap + Scanner smoke: SUCCESS
+graceful shutdown: SUCCESS
 ```
 
-기계 판독 증거: `docs/.release-v1.4.1-status.json`.
-
-## 15. 현재 알려진 열린 영역
-
-제품 기능 결함으로 확정된 release blocker는 없습니다.
-
-Scanner는 이제 **실제 Tarkov Ground Truth를 축적하면서 정확도를 개선하는 단계**입니다. 모든 해상도/DPI/UI 위치/아이템명 조합을 실게임에서 검증한 것은 아닙니다.
-
-현재 의도적으로 남긴 기술 부채/개선 후보:
-
-- OCR 전처리 evidence는 현재 production 규칙을 저장 계층에서 재현하며, OCR engine이 실제 소비한 bitmap을 직접 발행하는 구조는 아직 아님
-- 충분한 실사용 Ground Truth가 생기기 전에는 detector/header/OCR/matcher threshold를 임의 튜닝하지 않음
-- real Tarkov rendered sample dictionary는 수집된 Ground Truth를 기반으로 점진적으로 확장
-
-새 evidence가 발생하면 다음 순서로 실패 단계를 분리합니다.
+Release 검증:
 
 ```text
-capture
-→ detail structural detection
-→ close template / header frame / fixed magnifier lane-template
-→ locked detail bounds / title ROI
-→ OCR / preprocessing
-→ catalog sanitation / semantic matcher
-→ Tarkov-font visual corroboration
-→ Item ID
-→ mapped presentation
-→ Mini Scanner / stale-state handling
+release-prep CI: 32656572239 — SUCCESS
+exact release source/tag: a2d939b5f28e0d6de2468312bdd11467e3b35622
+release run: 32656993853 — SUCCESS
+public verifier: 32657225090 — SUCCESS
+asset: Junhyun-Helper-v1.4.2-win-x64.zip
+bytes: 80,385,620
+sha256: e6aa57ac9492ebc3438335a5e0f66e4daf18c2b87b2b61abcb141de0f0d810a8
+ProductVersion: 1.4.2+a2d939b5f28e0d6de2468312bdd11467e3b35622
+public/latest: VERIFIED
+public redownload: VERIFIED
+SHA256SUMS: VERIFIED
+package layout: VERIFIED
+public EXE smoke: SUCCESS
 ```
 
-## 16. 다음 작업
+Release blocker는 없습니다.
 
-1. v1.4.1을 실제 Tarkov Borderless 환경에서 다양한 아이템/위치/해상도/DPI로 사용
-2. 정상 결과는 필요한 표본을 `맞음`으로 검증
-3. 미인식/오인식은 문제 직후 `교정`에서 실제 상세창/아이템명 ROI와 정답 텍스트를 기록
-4. 충분한 reviewed Ground Truth 축적 후 `summary`와 OCR confusion/ROI delta 분석
-5. `회귀 테스트`로 현재 기준선 고정
-6. detail/header/ROI/OCR/matcher 중 실제 실패 단계만 수정
-7. 전체 dataset replay 후 기존 정상 `REGRESSION=0` 확인
-8. Item ID가 맞는 Case에서 trader/flea/slots/RequiredTotal mapped data도 함께 검증
-9. 장시간 CPU/memory/UI responsiveness와 빠른 연속 scan stale isolation을 실사용에서 확인
+## 14. 현재 열린 작업 / 다음 단계
 
-상세 작업 목록: `docs/NEXT.md`.
+현재 Scanner의 핵심 과제는 **v1.4.2를 실제 Tarkov에서 다시 사용해 Ground Truth를 추가 축적하는 것**입니다.
+
+```text
+v1.4.2 real usage
+→ 정상 결과 대표 표본 `맞음`
+→ 미인식/오인식 직후 `교정`
+→ reviewed Ground Truth 축적
+→ summary / OCR confusion / ROI delta / matcher candidate 분석
+→ 회귀 테스트
+→ 실제 실패 stage 특정
+→ 그 stage만 수정
+→ 전체 dataset replay
+→ 기존 정상 REGRESSION=0 확인
+```
+
+특히 확인할 것:
+
+- v1.4.2 contained-subpanel fallback이 oversized stash/inventory frame 실패를 실제로 해결하는지
+- `r`, `0`, 복잡한 한글 등 OCR 혼동에서 bounded matcher recovery가 정답률을 높이면서 false positive를 만들지 않는지
+- Item ID가 맞을 때 최고 상점가 / 플리 평균가 / slots / RequiredTotal mapped_data가 안정적으로 표시되는지
+- 빠른 연속 사용에서 stale result isolation이 유지되는지
+- 장시간 사용 시 CPU/memory/UI responsiveness
+
+**Scanner 속도 최적화는 현재 보류**합니다. 정확도와 안정성이 충분히 고정된 뒤 capture/OCR 반복, candidate budget, visual path 비용을 측정해 별도 최적화합니다.
+
+실제 Ground Truth 없이 threshold를 감으로 수정하지 않습니다.
