@@ -164,7 +164,9 @@ internal sealed class ScannerGroundTruthRegressionService
         var regressions = results.Count(result => result.Category == "REGRESSION");
         var errors = results.Count(result => result.Category == "ERROR");
         var currentCorrectCount = results.Count(result => result.Category is "STILL_CORRECT" or "SOLVED");
-        var currentAccuracy = executed > 0 ? currentCorrectCount / (double)executed : null;
+        double? currentAccuracy = executed > 0
+            ? currentCorrectCount / (double)executed
+            : null;
 
         var document = new RegressionDocument(
             DateTimeOffset.UtcNow,
