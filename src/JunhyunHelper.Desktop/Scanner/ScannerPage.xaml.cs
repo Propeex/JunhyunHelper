@@ -215,6 +215,59 @@ public partial class ScannerPage : UserControl
         UpdateDiagnosticStorageText();
     }
 
+    private async void RegressionButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_coordinator is null)
+            return;
+
+        var storage = ScannerDiagnosticDataset.GetStorageInfo();
+        if (storage.CaseCount == 0)
+        {
+            MessageBox.Show(
+                Window.GetWindow(this),
+                "회귀 테스트에 사용할 Scanner 교정/진단 데이터가 없습니다.",
+                "Scanner 회귀 테스트",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        RegressionButton.IsEnabled = false;
+        try
+        {
+            RuntimeStatusText.Text = "저장된 Ground Truth를 현재 Scanner 파이프라인으로 다시 검사하는 중입니다.";
+            var result = await _coordinator.RunGroundTruthRegressionAsync();
+            UpdateDiagnosticStorageText();
+
+            var accuracy = result.CurrentAccuracy is null
+                ? "n/a"
+                : result.CurrentAccuracy.Value.ToString("P2");
+            var message = result.ExecutedCases == 0
+                ? "최종 정답이 확인된 Case가 아직 없습니다. 영역/텍스트를 교정하거나 ‘맞음’으로 검증한 뒤 다시 실행해 주세요."
+                : $"회귀 테스트 완료\n\n검증 Case: {result.ExecutedCases}\n현재 정확도: {accuracy}\n해결: {result.Solved}\n기존 정상 유지: {result.StillCorrect}\n여전히 실패: {result.StillFailing}\n새 회귀: {result.Regressions}\n재생 오류: {result.Errors}\n\n결과는 regression.json / regression.md에 저장되며 교정 데이터 ZIP에도 포함됩니다.";
+            MessageBox.Show(
+                Window.GetWindow(this),
+                message,
+                "Scanner 회귀 테스트",
+                MessageBoxButton.OK,
+                result.Regressions > 0 ? MessageBoxImage.Warning : MessageBoxImage.Information);
+        }
+        catch (Exception exception)
+        {
+            App.WriteDiagnostic("Scanner Ground Truth regression failed", exception);
+            MessageBox.Show(
+                Window.GetWindow(this),
+                $"Scanner 회귀 테스트를 완료하지 못했습니다.\n{exception.Message}",
+                "Scanner 회귀 테스트",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+        finally
+        {
+            UpdateDiagnosticStorageText();
+        }
+    }
+
     private async void ExportDiagnosticsButton_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new SaveFileDialog
@@ -401,6 +454,7 @@ public partial class ScannerPage : UserControl
         DiagnosticsStorageText.Text = storage.CaseCount == 0
             ? "교정 데이터 없음"
             : $"교정 {storage.CaseCount}건 · {storage.SizeText}";
+        RegressionButton.IsEnabled = storage.CaseCount > 0;
         ExportDiagnosticsButton.IsEnabled = true;
         ClearDiagnosticsButton.IsEnabled = storage.CaseCount > 0;
     }
