@@ -21,15 +21,21 @@ public sealed record ScannerGroundTruthRegressionResult(
     string MarkdownPath);
 
 /// <summary>
-/// Replays reviewed Scanner Ground Truth cases from the original full.png through the
-/// current production geometry/header/OCR/catalog pipeline. This is intentionally not a
-/// metadata-only comparison: detector and OCR code consume the preserved original pixels.
+/// Replays reviewed Scanner Ground Truth cases from the preserved full.png through the
+/// current production geometry/header/OCR/catalog path. Detector and OCR consume original
+/// pixels; this is deliberately not a metadata-only regression comparison.
 /// </summary>
 internal sealed class ScannerGroundTruthRegressionService
 {
     private const int CandidateLimit = 8;
     private const int DeepOcrCandidateLimit = 3;
     private const double CandidateStructuralFloor = 0.34;
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+    };
 
     private readonly IScannerOcrEngine _ocr;
     private readonly ScannerCatalogService _catalog;
@@ -61,8 +67,7 @@ internal sealed class ScannerGroundTruthRegressionService
         var casesRoot = Path.Combine(root, "cases");
         Directory.CreateDirectory(casesRoot);
 
-        var catalog = _catalog.GetItemsSnapshot();
-        var catalogByNormalizedName = catalog
+        var catalogByNormalizedName = _catalog.GetItemsSnapshot()
             .Where(item => !string.IsNullOrWhiteSpace(item.Id) && !string.IsNullOrWhiteSpace(item.OfficialName))
             .GroupBy(item => ScannerItemMatcher.Normalize(item.OfficialName), StringComparer.Ordinal)
             .Where(group => group.Key.Length > 0)
@@ -86,7 +91,7 @@ internal sealed class ScannerGroundTruthRegressionService
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
             {
-                results.Add(CaseReplayResult.Error(
+                results.Add(CaseReplayResult.ReplayError(
                     Path.GetFileName(Path.GetDirectoryName(caseFile)) ?? "unknown",
                     exception.Message));
                 continue;
@@ -101,15 +106,13 @@ internal sealed class ScannerGroundTruthRegressionService
                 var fullPath = Path.Combine(Path.GetDirectoryName(caseFile)!, "full.png");
                 if (!File.Exists(fullPath))
                 {
-                    results.Add(CaseReplayResult.Error(expected.CaseId, "full.png is missing"));
+                    results.Add(CaseReplayResult.ReplayError(expected.CaseId, "full.png is missing"));
                     continue;
                 }
 
                 var image = LoadBgra(fullPath);
                 var search = await ReplayImageAsync(image, cancellationToken);
-                var currentCorrect = search.Recognition.Success &&
-                    MatchesGroundTruth(search.Recognition, expected);
-                var mappedDataMatches = CompareMappedData(expected, search.Recognition);
+                var currentCorrect = search.Recognition.Success && MatchesGroundTruth(search.Recognition, expected);
                 var detailIou = expected.CorrectedDetail is { } detail && search.DetailBounds is { } predictedDetail
                     ? IntersectionOverUnion(predictedDetail, detail)
                     : (double?)null;
@@ -138,7 +141,8 @@ internal sealed class ScannerGroundTruthRegressionService
                     ToRoi(search.TitleBounds),
                     detailIou,
                     titleIou,
-                    mappedDataMatches,
+                    ToCandidateEvidence(search.Recognition.TopCandidates),
+                    CompareMappedData(expected, search.Recognition),
                     null));
             }
             catch (OperationCanceledException)
@@ -147,7 +151,9 @@ internal sealed class ScannerGroundTruthRegressionService
             }
             catch (Exception exception) when (exception is not OutOfMemoryException)
             {
-                results.Add(CaseReplayResult.Error(expected.CaseId, $"{exception.GetType().Name}: {exception.Message}"));
+                results.Add(CaseReplayResult.ReplayError(
+                    expected.CaseId,
+                    $"{exception.GetType().Name}: {exception.Message}"));
             }
         }
 
@@ -203,10 +209,7 @@ internal sealed class ScannerGroundTruthRegressionService
             image.Stride,
             12);
         if (structural.Count == 0)
-        {
-            return ReplaySearchResult.Failed(
-                ScannerRecognition.Failed("DETAIL_WINDOW_NOT_DETECTED"));
-        }
+            return ReplaySearchResult.Failed(ScannerRecognition.Failed("DETAIL_WINDOW_NOT_DETECTED"));
 
         var candidates = new List<ReplayCandidate>(structural.Count);
         foreach (var candidate in structural)
@@ -230,11 +233,10 @@ internal sealed class ScannerGroundTruthRegressionService
                 continue;
             }
 
-            var titleImage = CropToBitmapSource(image, anchors.Title);
             candidates.Add(new ReplayCandidate(
                 candidate,
                 anchors,
-                titleImage,
+                CropToBitmapSource(image, anchors.Title),
                 ToRect(RefineLockedWindow(candidate.Window, anchors, image.Width, image.Height)),
                 ToRect(anchors.Title)));
         }
@@ -253,6 +255,7 @@ internal sealed class ScannerGroundTruthRegressionService
             var candidate = ordered[index];
             if (candidate.Structural.Score < CandidateStructuralFloor)
                 continue;
+
             if (!candidate.SemanticReady || candidate.TitleImage is null)
             {
                 var rejected = ReplaySearchResult.FromCandidate(
@@ -310,8 +313,7 @@ internal sealed class ScannerGroundTruthRegressionService
             }
         }
 
-        return bestSuccess ?? bestFailure ?? ReplaySearchResult.Failed(
-            ScannerRecognition.Failed("EMPTY_OCR"));
+        return bestSuccess ?? bestFailure ?? ReplaySearchResult.Failed(ScannerRecognition.Failed("EMPTY_OCR"));
     }
 
     private ScannerMappedDataComparison? CompareMappedData(
@@ -326,7 +328,7 @@ internal sealed class ScannerGroundTruthRegressionService
 
         var current = _snapshotProvider(recognition.ItemId);
         if (current is null)
-            return new ScannerMappedDataComparison(false, "Current snapshot unavailable");
+            return new ScannerMappedDataComparison(false, "CURRENT_SNAPSHOT_UNAVAILABLE");
 
         var previous = expected.MappedData;
         var matches = string.Equals(previous.ItemId, current.ItemId, StringComparison.Ordinal) &&
@@ -336,22 +338,13 @@ internal sealed class ScannerGroundTruthRegressionService
                       previous.FleaPricePerSlot == current.FleaPricePerSlot &&
                       previous.Slots == current.Slots &&
                       previous.RequiredTotal == current.CurrentNeeded;
-        return new ScannerMappedDataComparison(
-            matches,
-            matches ? "UNCHANGED" : "MAPPED_DATA_CHANGED");
+        return new ScannerMappedDataComparison(matches, matches ? "UNCHANGED" : "MAPPED_DATA_CHANGED");
     }
 
-    private static bool MatchesGroundTruth(
-        ScannerRecognition recognition,
-        CaseExpectation expected)
+    private static bool MatchesGroundTruth(ScannerRecognition recognition, CaseExpectation expected)
     {
         if (!string.IsNullOrWhiteSpace(expected.GroundTruthItemId))
-        {
-            return string.Equals(
-                recognition.ItemId,
-                expected.GroundTruthItemId,
-                StringComparison.Ordinal);
-        }
+            return string.Equals(recognition.ItemId, expected.GroundTruthItemId, StringComparison.Ordinal);
 
         return string.Equals(
             ScannerItemMatcher.Normalize(recognition.OfficialName ?? string.Empty),
@@ -375,7 +368,8 @@ internal sealed class ScannerGroundTruthRegressionService
 
         var groundTruth = GetString(itemName, "ground_truth");
         if (groundTruth.Length == 0 &&
-            root.TryGetProperty("user_confirmed", out var confirmed) && confirmed.ValueKind == JsonValueKind.True)
+            root.TryGetProperty("user_confirmed", out var confirmed) &&
+            confirmed.ValueKind == JsonValueKind.True)
         {
             groundTruth = GetString(itemName, "program_result");
         }
@@ -401,8 +395,6 @@ internal sealed class ScannerGroundTruthRegressionService
         Rect? correctedDetail = null;
         if (root.TryGetProperty("detail_window", out var detail))
             correctedDetail = ReadRoi(detail, "corrected_roi");
-        var correctedTitle = ReadRoi(itemName, "corrected_roi");
-        var mappedData = ReadMappedData(root);
 
         return new CaseExpectation(
             GetString(root, "case_id"),
@@ -410,8 +402,8 @@ internal sealed class ScannerGroundTruthRegressionService
             expectedItemId,
             previousCorrect,
             correctedDetail,
-            correctedTitle,
-            mappedData);
+            ReadRoi(itemName, "corrected_roi"),
+            ReadMappedData(root));
     }
 
     private static StoredMappedData? ReadMappedData(JsonElement root)
@@ -435,7 +427,8 @@ internal sealed class ScannerGroundTruthRegressionService
         if (!TryGetDouble(roi, "x", out var x) ||
             !TryGetDouble(roi, "y", out var y) ||
             !TryGetDouble(roi, "width", out var width) ||
-            !TryGetDouble(roi, "height", out var height) || width <= 0 || height <= 0)
+            !TryGetDouble(roi, "height", out var height) ||
+            width <= 0 || height <= 0)
         {
             return null;
         }
@@ -565,6 +558,18 @@ internal sealed class ScannerGroundTruthRegressionService
         ? null
         : new { x = value.X, y = value.Y, width = value.Width, height = value.Height };
 
+    private static object[] ToCandidateEvidence(IReadOnlyList<ScannerMatchCandidate>? candidates) =>
+        (candidates ?? [])
+            .Take(10)
+            .Select((candidate, index) => (object)new
+            {
+                rank = index + 1,
+                item_id = candidate.ItemId,
+                official_name = candidate.OfficialName,
+                score = candidate.Score,
+            })
+            .ToArray();
+
     private static Rect ToRect(ScannerDetectedRegion region) =>
         new(region.X, region.Y, region.Width, region.Height);
 
@@ -656,12 +661,6 @@ internal sealed class ScannerGroundTruthRegressionService
         return element.TryGetProperty(property, out var value) && value.TryGetDouble(out result);
     }
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-    };
-
     private sealed record BgraImage(int Width, int Height, int Stride, byte[] Pixels);
 
     private sealed record ReplayCandidate(
@@ -749,10 +748,11 @@ internal sealed class ScannerGroundTruthRegressionService
         object? PredictedTitleRoi,
         double? DetailIou,
         double? TitleIou,
+        object[] TopCandidates,
         ScannerMappedDataComparison? MappedData,
         string? Error)
     {
-        public static CaseReplayResult Error(string caseId, string error) => new(
+        public static CaseReplayResult ReplayError(string caseId, string error) => new(
             caseId,
             "ERROR",
             null,
@@ -772,6 +772,7 @@ internal sealed class ScannerGroundTruthRegressionService
             null,
             null,
             null,
+            [],
             null,
             error);
     }
