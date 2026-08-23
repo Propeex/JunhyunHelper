@@ -42,7 +42,7 @@ inspect header pixels
 - 13 이상: 기본 90%
 - top1-top2 margin gate 유지
 
-단, 길이 7 이상에서 **정확히 한 번의 edit**만 존재하고 runner-up과 최소 8%p 이상 분리되면 `BOUNDED_EDIT_1`로 허용한다. 이는 `Thermite 테르밋`처럼 한 글자 누락 때문에 90.9%가 되는 중간 길이 제목을 위한 제한적 복구이며, 81%대 다중 오류 텍스트를 OCR만으로 허용하는 규칙이 아니다.
+단, 길이 7 이상에서 **정확히 한 번의 edit**만 존재하고 current official catalog 전체에서 후보가 유일하며 runner-up과 최소 10%p 이상 분리되면 `BOUNDED_EDIT_1`로 허용한다. 이는 `Thermite 테르밋`처럼 한 글자 누락 때문에 90.9%가 되는 중간 길이 제목을 위한 제한적 복구이며, 81%대 다중 오류 텍스트를 OCR만으로 허용하는 규칙이 아니다.
 
 ## Compatibility
 
