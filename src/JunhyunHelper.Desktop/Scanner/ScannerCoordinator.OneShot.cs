@@ -4,7 +4,6 @@ namespace JunhyunHelper.Desktop.Scanner;
 
 public sealed partial class ScannerCoordinator
 {
-    private readonly SemaphoreSlim _oneShotCoordinatorGate = new(1, 1);
     private ScannerGlobalHotkeyService? _hotkeyService;
     private bool _hotkeySubscribed;
 
@@ -45,7 +44,8 @@ public sealed partial class ScannerCoordinator
     public async Task<bool> TriggerOneShotAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (!await _oneShotCoordinatorGate.WaitAsync(0, cancellationToken))
+        using var transition = await _runtimeTransitionGate.TryEnterAsync(cancellationToken);
+        if (transition is null)
             return false;
 
         try
@@ -85,10 +85,10 @@ public sealed partial class ScannerCoordinator
             }
             finally
             {
-                // Restore only when the latest product state still requests exactly the
-                // mode that was paused. In particular, ScannerRuntimeService cannot know
-                // that Display Test was switched off while a one-shot was running, so
-                // blindly restarting resumeMode could resurrect a mode the user disabled.
+                // The shared transition gate prevents another coordinator operation from
+                // starting a continuous runtime while ScanOnceAsync is still mutating the
+                // verified-item/overlay/status state. The latest product state is still
+                // rechecked before restoring the paused mode.
                 if (resumeMode is not null &&
                     !_disposed &&
                     ActiveCaptureMode == resumeMode)
@@ -106,10 +106,6 @@ public sealed partial class ScannerCoordinator
             App.WriteDiagnostic("Scanner one-shot scan failed", exception);
             Runtime.PublishExternalState(ScannerRuntimeState.Error, "1회 고정밀 스캔 중 오류가 발생했습니다.");
             return false;
-        }
-        finally
-        {
-            _oneShotCoordinatorGate.Release();
         }
     }
 
