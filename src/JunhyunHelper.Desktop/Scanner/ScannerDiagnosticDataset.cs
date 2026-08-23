@@ -45,8 +45,8 @@ public sealed record ScannerDatasetSaveResult(bool Success, string CaseId, strin
 /// <summary>
 /// Scanner correction/diagnostic persistence boundary. Runtime recognition remains
 /// independent from this best-effort subsystem: failures here are logged and never alter
-/// recognition decisions. Original pixels are retained only for bounded automatic samples
-/// or user-confirmed/corrected cases.
+/// recognition decisions. User-reviewed Ground Truth always has higher persistence
+/// priority than delayed automatic observations for the same Case ID.
 /// </summary>
 public static class ScannerDiagnosticDataset
 {
@@ -203,17 +203,25 @@ public static class ScannerDiagnosticDataset
         {
             try
             {
-                var casesRoot = Path.Combine(RootPath, "cases");
                 var safeId = SafeCaseId(caseId.Trim());
-                var casePath = Path.Combine(casesRoot, safeId);
+                if (!safeId.StartsWith("case_", StringComparison.Ordinal) || safeId is "." or "..")
+                    return false;
+
+                var casesRoot = Path.GetFullPath(Path.Combine(RootPath, "cases"));
+                var casePath = Path.GetFullPath(Path.Combine(casesRoot, safeId));
+                var rootPrefix = casesRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) +
+                                 Path.DirectorySeparatorChar;
+                if (!casePath.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase))
+                    return false;
                 if (!Directory.Exists(casePath))
                     return false;
+
                 Directory.Delete(casePath, recursive: true);
                 EnsureDatasetScaffold();
                 RebuildIndexesUnsafe();
                 return true;
             }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or NotSupportedException)
             {
                 App.WriteDiagnostic("Scanner diagnostic case delete failed", exception);
                 return false;
@@ -256,6 +264,19 @@ public static class ScannerDiagnosticDataset
             EnsureDatasetScaffold();
             var casesPath = Path.Combine(RootPath, "cases");
             var casePath = Path.Combine(casesPath, SafeCaseId(frame.CaseId));
+            var caseJsonPath = Path.Combine(casePath, "case.json");
+
+            // Automatic persistence is deliberately lower priority than human review.
+            // A delayed background task must never turn an already-reviewed Case back into
+            // an unreviewed observation or replace its Ground Truth metadata.
+            if (automatic && IsReviewedCaseFile(caseJsonPath))
+            {
+                return new ScannerDatasetSaveResult(
+                    true,
+                    frame.CaseId,
+                    "사용자 검증 Case가 이미 있어 자동 진단 저장을 건너뛰었습니다.");
+            }
+
             Directory.CreateDirectory(casePath);
             var itemNamePath = Path.Combine(casePath, "item_name");
             Directory.CreateDirectory(itemNamePath);
@@ -305,7 +326,7 @@ public static class ScannerDiagnosticDataset
                 pipelineStage);
 
             File.WriteAllText(
-                Path.Combine(casePath, "case.json"),
+                caseJsonPath,
                 JsonSerializer.Serialize(metadata, JsonOptions),
                 new UTF8Encoding(false));
 
@@ -323,6 +344,23 @@ public static class ScannerDiagnosticDataset
                 true,
                 frame.CaseId,
                 automatic ? "진단 사례를 보존했습니다." : "교정/검증 데이터를 저장했습니다.");
+        }
+    }
+
+    private static bool IsReviewedCaseFile(string caseJsonPath)
+    {
+        if (!File.Exists(caseJsonPath))
+            return false;
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(caseJsonPath, Encoding.UTF8));
+            return document.RootElement.TryGetProperty("review_status", out var review) &&
+                   string.Equals(review.GetString(), "reviewed", StringComparison.Ordinal);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
+        {
+            App.WriteDiagnostic("Scanner reviewed-case precedence check failed", exception);
+            return false;
         }
     }
 
@@ -980,8 +1018,11 @@ public static class ScannerDiagnosticDataset
         }
     }
 
-    private static void AddConfusion(IDictionary<string, int> target, string key) =>
-        target[key] = target.GetValueOrDefault(key) + 1;
+    private static void AddConfusion(IDictionary<string, int> target, string key)
+    {
+        target.TryGetValue(key, out var current);
+        target[key] = current + 1;
+    }
 
     private static string GetJsonString(JsonElement element, string property) =>
         element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String
