@@ -1,4 +1,4 @@
-name: Finalize Scanner v1.3.3 branch
+name: Finalize Scanner v1.3.3 release candidate
 
 on:
   push:
@@ -18,47 +18,17 @@ jobs:
           ref: fix/scanner-live-title-v1.3.3
           fetch-depth: 0
 
-      - name: Apply final runtime, regression, and documentation state
+      - name: Finalize source and evidence
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $utf8 = [Text.UTF8Encoding]::new($false)
+          function Read([string]$p) { [IO.File]::ReadAllText($p) }
+          function Write([string]$p,[string]$v) { $d=Split-Path -Parent $p; if($d){New-Item -ItemType Directory -Force $d|Out-Null}; [IO.File]::WriteAllText($p,$v,$utf8) }
+          function Replace([string]$p,[string]$old,[string]$new) { $t=Read $p; if(-not $t.Contains($old)){throw "Missing expected block in $p"}; Write $p ($t.Replace($old,$new)) }
 
-          function Read-Text([string]$Path) {
-            return [IO.File]::ReadAllText($Path)
-          }
-
-          function Write-Text([string]$Path, [string]$Text) {
-            $directory = Split-Path -Parent $Path
-            if ($directory) { New-Item -ItemType Directory -Force $directory | Out-Null }
-            [IO.File]::WriteAllText($Path, $Text, $utf8)
-          }
-
-          function Replace-Exact([string]$Path, [string]$Old, [string]$New) {
-            $text = Read-Text $Path
-            if (-not $text.Contains($Old)) { throw "Expected block not found: $Path`n--- old ---`n$Old" }
-            Write-Text $Path ($text.Replace($Old, $New))
-          }
-
-          function Replace-Between([string]$Path, [string]$StartMarker, [string]$EndMarker, [string]$Replacement) {
-            $text = Read-Text $Path
-            $start = $text.IndexOf($StartMarker, [StringComparison]::Ordinal)
-            if ($start -lt 0) { throw "Start marker not found: $Path :: $StartMarker" }
-            $end = $text.IndexOf($EndMarker, $start + $StartMarker.Length, [StringComparison]::Ordinal)
-            if ($end -le $start) { throw "End marker not found: $Path :: $EndMarker" }
-            Write-Text $Path ($text.Substring(0, $start) + $Replacement + $text.Substring($end))
-          }
-
-          function Insert-Before([string]$Path, [string]$Marker, [string]$Block) {
-            $text = Read-Text $Path
-            $index = $text.IndexOf($Marker, [StringComparison]::Ordinal)
-            if ($index -lt 0) { throw "Insert marker not found: $Path :: $Marker" }
-            Write-Text $Path ($text.Substring(0, $index) + $Block + $text.Substring($index))
-          }
-
-          # 1. Runtime must explicitly require the authoritative v1.3.3 header lock.
-          $runtime = 'src/JunhyunHelper.Desktop/Scanner/ScannerRuntimeService.cs'
-          Replace-Exact $runtime @'
+          # Runtime defense-in-depth: only the fully locked live header can reach OCR.
+          Replace 'src/JunhyunHelper.Desktop/Scanner/ScannerRuntimeService.cs' @'
               candidate.TitleAnchorScore >= 0.48 &&
               !string.Equals(candidate.TitleAnchorReason, "GEOMETRY_FALLBACK", StringComparison.Ordinal);
           '@ @'
@@ -66,548 +36,199 @@ jobs:
               string.Equals(candidate.TitleAnchorReason, "HEADER_FRAME_LOCKED", StringComparison.Ordinal);
           '@
 
-          $refiner = 'src/JunhyunHelper.Desktop/Scanner/ScannerTitleAnchorRefiner.cs'
-          Replace-Exact $refiner @'
-                  // The runtime's existing trusted-anchor floor is 0.48. Every partial/failed
-                  // frame lock is deliberately kept below it so OCR cannot run merely because
-                  // some subset of close/icon/field evidence happened to score well.
-          '@ @'
-                  // Runtime recognition explicitly requires HEADER_FRAME_LOCKED with score >= 0.68.
-                  // Keep every partial/failed result below the historical 0.48 trust floor as a
-                  // second defensive boundary for diagnostics or any future caller.
-          '@
-
-          # 2. Lock the packaged-EXE smoke to all 12 measured live header geometries.
-          $smoke = 'src/JunhyunHelper.Desktop/Scanner/ScannerInspectHeaderLockSmoke.cs'
-          Replace-Between $smoke '    public static void Verify()' '    private static void VerifyLockedHeader(' @'
-              private static readonly LiveHeaderCase[] LiveEvidenceCases =
-              [
-                  new("151846", 834, 25, 16, 12, 6, 12, true),
-                  new("151911", 862, 27, 17, 13, 6, 18, true),
-                  new("151932", 861, 27, 17, 12, 5, 3, false),
-                  new("151949", 862, 27, 17, 13, 6, 15, true),
-                  new("152007", 856, 27, 17, 13, 6, 14, true),
-                  new("152020", 855, 27, 17, 12, 6, 17, true),
-                  new("152036", 862, 27, 17, 13, 5, 17, true),
-                  new("152049", 854, 27, 17, 12, 6, 14, true),
-                  new("152105", 861, 27, 17, 12, 6, 8, true),
-                  new("152118", 861, 27, 17, 12, 6, 20, true),
-                  new("152148", 827, 26, 16, 11, 5, 9, true),
-                  new("152201", 822, 26, 16, 11, 6, 15, true),
-              ];
-
+          # Expand packaged-EXE regression from representative cases to all 12 measured headers.
+          $p='src/JunhyunHelper.Desktop/Scanner/ScannerInspectHeaderLockSmoke.cs'
+          $t=Read $p
+          $start=$t.IndexOf('    public static void Verify()', [StringComparison]::Ordinal)
+          $end=$t.IndexOf('    private static void VerifyLockedHeader(', $start, [StringComparison]::Ordinal)
+          if($start -lt 0 -or $end -le $start){throw 'Smoke markers not found.'}
+          $verify=@'
               public static void Verify()
               {
-                  foreach (var sample in LiveEvidenceCases)
+                  var cases = new (int Width, int CloseW, int CloseH, int MagX, int Gap, int Glyphs)[]
+                  {
+                      (834,25,16,12,6,12), (862,27,17,13,6,18), (861,27,17,12,5,3),
+                      (862,27,17,13,6,15), (856,27,17,13,6,14), (855,27,17,12,6,17),
+                      (862,27,17,13,5,17), (854,27,17,12,6,14), (861,27,17,12,6,8),
+                      (861,27,17,12,6,20), (827,26,16,11,5,9), (822,26,16,11,6,15),
+                  };
+
+                  foreach (var sample in cases)
                   {
                       VerifyLockedHeader(
                           headerLeft: 170,
                           headerTop: 150,
-                          headerWidth: sample.HeaderWidth,
-                          closeWidth: sample.CloseWidth,
-                          closeHeight: sample.CloseHeight,
-                          magnifierOffsetX: sample.MagnifierOffsetX,
-                          titleGap: sample.TitleGap,
-                          glyphCount: sample.GlyphCount,
-                          addDecoyRing: sample.AddDecoyRing);
+                          headerWidth: sample.Width,
+                          closeWidth: sample.CloseW,
+                          closeHeight: sample.CloseH,
+                          magnifierOffsetX: sample.MagX,
+                          titleGap: sample.Gap,
+                          glyphCount: sample.Glyphs,
+                          addDecoyRing: true);
                   }
 
-                  // Coordinate-independence regression: the MP-153-style inspect window can
-                  // move far to the right without changing the header-relative contract.
-                  VerifyLockedHeader(
-                      headerLeft: 360,
-                      headerTop: 122,
-                      headerWidth: 855,
-                      closeWidth: 27,
-                      closeHeight: 17,
-                      magnifierOffsetX: 12,
-                      titleGap: 6,
-                      glyphCount: 17,
-                      addDecoyRing: true);
-
+                  // Coordinate independence: inspect windows can move substantially on screen.
+                  VerifyLockedHeader(360, 122, 855, 27, 17, 12, 6, 17, true);
                   VerifyMissingMagnifierFailsClosed();
               }
 
           '@
-          $smokeText = Read-Text $smoke
-          $lastBrace = $smokeText.LastIndexOf('}', [StringComparison]::Ordinal)
-          if ($lastBrace -lt 0) { throw 'Could not locate ScannerInspectHeaderLockSmoke closing brace.' }
-          $record = @'
+          Write $p ($t.Substring(0,$start)+$verify+$t.Substring($end))
 
-              private readonly record struct LiveHeaderCase(
-                  string EvidenceId,
-                  int HeaderWidth,
-                  int CloseWidth,
-                  int CloseHeight,
-                  int MagnifierOffsetX,
-                  int TitleGap,
-                  int GlyphCount,
-                  bool AddDecoyRing);
-          '@
-          Write-Text $smoke ($smokeText.Substring(0, $lastBrace) + $record + "`n}" + "`n")
-
-          # 3. Preserve the user-provided live measurements without committing raw screenshots.
-          Write-Text 'docs/.scanner-v1.3.3-header-evidence.json' @'
+          Write 'docs/.scanner-v1.3.3-header-evidence.json' @'
           {
-            "date": "2026-08-23",
-            "source": "12 user-provided 2048x1280 Tarkov inspect captures; measurements taken from lossless header composite",
-            "coordinate_policy": "relative header measurements are canonical; raw screenshots are not committed",
-            "samples": [
-              {"id":"151846","header_width":834,"close":[25,16],"close_y_from_frame":5,"magnifier_core":[13,13],"magnifier_x_from_frame":12,"magnifier_y_from_frame":7,"title_gap_after_core":6},
-              {"id":"151911","header_width":862,"close":[27,17],"close_y_from_frame":5,"magnifier_core":[13,13],"magnifier_x_from_frame":13,"magnifier_y_from_frame":7,"title_gap_after_core":6},
-              {"id":"151932","header_width":861,"close":[27,17],"close_y_from_frame":6,"magnifier_core":[13,13],"magnifier_x_from_frame":12,"magnifier_y_from_frame":7,"title_gap_after_core":5},
-              {"id":"151949","header_width":862,"close":[27,17],"close_y_from_frame":5,"magnifier_core":[13,13],"magnifier_x_from_frame":13,"magnifier_y_from_frame":7,"title_gap_after_core":6},
-              {"id":"152007","header_width":856,"close":[27,17],"close_y_from_frame":5,"magnifier_core":[13,13],"magnifier_x_from_frame":13,"magnifier_y_from_frame":7,"title_gap_after_core":6},
-              {"id":"152020","header_width":855,"close":[27,17],"close_y_from_frame":5,"magnifier_core":[13,13],"magnifier_x_from_frame":12,"magnifier_y_from_frame":7,"title_gap_after_core":6},
-              {"id":"152036","header_width":862,"close":[27,17],"close_y_from_frame":5,"magnifier_core":[13,13],"magnifier_x_from_frame":13,"magnifier_y_from_frame":7,"title_gap_after_core":5},
-              {"id":"152049","header_width":854,"close":[27,17],"close_y_from_frame":6,"magnifier_core":[13,13],"magnifier_x_from_frame":12,"magnifier_y_from_frame":7,"title_gap_after_core":6},
-              {"id":"152105","header_width":861,"close":[27,17],"close_y_from_frame":6,"magnifier_core":[13,13],"magnifier_x_from_frame":12,"magnifier_y_from_frame":7,"title_gap_after_core":6},
-              {"id":"152118","header_width":861,"close":[27,17],"close_y_from_frame":6,"magnifier_core":[13,13],"magnifier_x_from_frame":12,"magnifier_y_from_frame":7,"title_gap_after_core":6},
-              {"id":"152148","header_width":827,"close":[26,16],"close_y_from_frame":6,"magnifier_core":[13,13],"magnifier_x_from_frame":11,"magnifier_y_from_frame":7,"title_gap_after_core":5},
-              {"id":"152201","header_width":822,"close":[26,16],"close_y_from_frame":6,"magnifier_core":[13,13],"magnifier_x_from_frame":11,"magnifier_y_from_frame":7,"title_gap_after_core":6}
+            "date":"2026-08-23",
+            "source":"12 user-provided 2048x1280 Tarkov inspect captures",
+            "privacy":"raw screenshots are not committed; only relative measurements are persisted",
+            "samples":[
+              {"id":"151846","header_width":834,"close":[25,16],"magnifier_core":[13,13],"magnifier_x":12,"magnifier_y":7,"title_gap":6},
+              {"id":"151911","header_width":862,"close":[27,17],"magnifier_core":[13,13],"magnifier_x":13,"magnifier_y":7,"title_gap":6},
+              {"id":"151932","header_width":861,"close":[27,17],"magnifier_core":[13,13],"magnifier_x":12,"magnifier_y":7,"title_gap":5},
+              {"id":"151949","header_width":862,"close":[27,17],"magnifier_core":[13,13],"magnifier_x":13,"magnifier_y":7,"title_gap":6},
+              {"id":"152007","header_width":856,"close":[27,17],"magnifier_core":[13,13],"magnifier_x":13,"magnifier_y":7,"title_gap":6},
+              {"id":"152020","header_width":855,"close":[27,17],"magnifier_core":[13,13],"magnifier_x":12,"magnifier_y":7,"title_gap":6},
+              {"id":"152036","header_width":862,"close":[27,17],"magnifier_core":[13,13],"magnifier_x":13,"magnifier_y":7,"title_gap":5},
+              {"id":"152049","header_width":854,"close":[27,17],"magnifier_core":[13,13],"magnifier_x":12,"magnifier_y":7,"title_gap":6},
+              {"id":"152105","header_width":861,"close":[27,17],"magnifier_core":[13,13],"magnifier_x":12,"magnifier_y":7,"title_gap":6},
+              {"id":"152118","header_width":861,"close":[27,17],"magnifier_core":[13,13],"magnifier_x":12,"magnifier_y":7,"title_gap":6},
+              {"id":"152148","header_width":827,"close":[26,16],"magnifier_core":[13,13],"magnifier_x":11,"magnifier_y":7,"title_gap":5},
+              {"id":"152201","header_width":822,"close":[26,16],"magnifier_core":[13,13],"magnifier_x":11,"magnifier_y":7,"title_gap":6}
             ],
-            "observed_ranges": {
-              "header_width": [822, 862],
-              "close_width": [25, 27],
-              "close_height": [16, 17],
-              "magnifier_core": [13, 13],
-              "magnifier_x_from_frame": [11, 13],
-              "magnifier_y_from_frame": [7, 7],
-              "title_gap_after_core": [5, 6]
-            }
+            "ranges":{"header_width":[822,862],"close_width":[25,27],"close_height":[16,17],"magnifier_core":[13,13],"magnifier_x":[11,13],"magnifier_y":[7,7],"title_gap":[5,6]}
           }
           '@
 
-          Write-Text 'docs/SCANNER_V1.3.3_HEADER_LOCK.md' @'
-          # Scanner v1.3.3 — 실제 inspect-header frame lock
+          Write 'docs/SCANNER_V1.3.3_HEADER_LOCK.md' @'
+          # Scanner v1.3.3 — live inspect-header frame lock
 
           기준일: 2026-08-23
-
           상태: **RELEASE CANDIDATE**
 
-          ## 문제
+          ## 근거
+          v1.3.2 이후 사용자가 제공한 실제 2048x1280 Tarkov 상세창 12개를 다시 측정했다. raw 이미지는 저장소에 넣지 않고 `docs/.scanner-v1.3.3-header-evidence.json`에 상대 측정치만 보존한다.
 
-          v1.3.2의 title-anchor 보강 뒤에도 실제 Tarkov에서 제목 앞부분이 잘리거나 돋보기/첫 글자 관계가 불안정한 사례가 확인됐다. 핵심 원인은 첫 title glyph connected component가 OCR ROI의 왼쪽 경계를 움직일 수 있었고, 밝은 component morphology 경쟁에서 title glyph가 search icon과 경쟁할 수 있었다는 점이다.
+          반복 범위는 header width 822~862px, red close 25~27×16~17px, magnifier bright core 12개 모두 13×13px, frame-left→magnifier 11~13px, frame-top→magnifier 7px, magnifier-right→첫 title evidence 5~6px였다. 짧은 Awl, 한글/영문 혼합명, 긴 무기명, 서로 다른 화면 위치에서도 구조가 유지됐다.
 
-          ## 실제 12개 표본 분석
+          ## 원인
+          이전 title refinement에서 fragmented Korean first-glyph component가 ROI left edge에 영향을 줄 수 있었고, title glyph가 magnifier morphology 경쟁에 참여할 수 있었다. 결과적으로 제목 앞부분이 잘리거나 잘못된 icon anchor가 선택될 수 있었다.
 
-          사용자가 제공한 2048x1280 캡처 12개에서 inspect header를 동일 해상도로 비교했다. raw screenshot은 저장소에 커밋하지 않고 상대 측정치만 `docs/.scanner-v1.3.3-header-evidence.json`에 보존한다.
-
-          반복 관측 범위:
-
-          - 긴 neutral top frame: 822~862 px
-          - red close control: 25~27 × 16~17 px
-          - magnifier bright core: 12개 모두 13 × 13 px
-          - frame left → magnifier core X: 11~13 px
-          - frame top → magnifier core Y: 12개 모두 7 px
-          - magnifier core right → first bright title glyph: 5~6 px
-
-          `Awl` 같은 짧은 제목, 한글/영문 혼합 제목, 긴 무기명, 창 위치가 다른 표본에서도 같은 상대 구조가 유지됐다.
-
-          ## v1.3.3 결정
-
-          제목 ROI의 수평 소유권은 title glyph가 아니라 실제 inspect-header 구조가 가진다.
-
+          ## v1.3.3 계약
           ```text
           structural detail candidate
           → red close/X
           → long neutral top frame
-          → bounded fixed left search-icon lane
-          → 13px-class magnifier bright core + ring/hollow/handle morphology
-          → dark title field
-          → text-presence corroboration
-          → HEADER_FRAME_LOCKED
+          → bounded frame-left search-icon lane
+          → 13px-class magnifier core + ring/hollow/handle morphology
+          → dark title field + text-presence corroboration
+          → HEADER_FRAME_LOCKED >= 0.68
           → magnifier-free title ROI
-          → ko-KR OCR
+          → Windows ko-KR OCR
+          → current-catalog sanitation
+          → semantic/visual resolver
+          → Item ID or fail closed
           ```
 
-          `HEADER_FRAME_LOCKED`가 아니거나 anchor score가 0.68 미만이면 OCR을 실행하지 않는다. partial result는 0.47 이하로 제한하여 미래/진단 caller에서도 우연히 trust floor를 넘지 못하게 한다.
+          first title glyph는 ROI left edge를 결정하지 않는다. runtime은 `HEADER_FRAME_LOCKED`이며 anchor score >=0.68인 candidate에서만 OCR을 실행한다. partial result는 refiner에서도 0.47 이하로 제한된다.
 
-          첫 Korean glyph component는 text가 존재한다는 corroboration으로만 사용할 수 있고 title ROI의 left edge를 오른쪽으로 이동시킬 수 없다.
+          raw OCR과 sanitation 이후 matcher input을 진단에서 분리한다. current official catalog에 없는 `「` 같은 punctuation이 raw OCR에 나타나더라도 matcher evidence에는 남지 않는다.
 
-          ## OCR / matcher diagnostics
+          기존 normal confidence/top1-top2 margin, whole-catalog unique bounded 1-edit + 10%p runner-up margin, current official Korean catalog authority를 유지한다. highest trader / flea avg24hPrice / RequiredTotal, Content v7, user.db v1, Scanner settings v4, catalog cache v1/v2 의미도 변경하지 않는다.
 
-          Windows OCR raw text와 current-catalog character policy를 적용한 matcher input을 별도로 기록/표시한다. 예를 들어 current official catalog에 없는 `「`가 raw OCR에 등장할 수는 있지만 matcher input에서는 제거된다. raw OCR 노이즈와 실제 identity evidence를 동일한 값처럼 표시하지 않는다.
-
-          ## 변경하지 않는 계약
-
-          - current official Korean full-item catalog가 identity 권위
-          - normal confidence/top1-top2 margin 유지
-          - bounded unique 1-edit recovery + 10 percentage-point global runner-up margin 유지
-          - scan-time network 금지
-          - game memory/DLL injection/packet interception 금지
-          - highest trader / flea avg24hPrice / RequiredTotal 의미 변경 없음
-          - Content v7 / user.db v1 / Scanner display settings v4 / Scanner catalog cache v1-v2 유지
-
-          ## 회귀 검증
-
-          packaged-EXE product smoke가 12개 live 측정 geometry를 모두 합성해 검사한다. 추가로 title lane 내부에 더 그럴듯한 decoy ring을 두어도 fixed icon lane의 실제 magnifier가 선택되어야 하며, magnifier가 없으면 반드시 fail closed해야 한다. 오른쪽으로 크게 이동한 상세창도 header-relative 좌표로 동일하게 통과해야 한다.
+          packaged-EXE product smoke는 12개 측정 geometry 전부와 title-lane decoy ring, missing-magnifier fail-closed, right-shifted window를 검증한다.
           '@
 
-          Write-Text 'docs/DECISION_SCANNER_HEADER_LOCK_2026-08-23.md' @'
+          Write 'docs/DECISION_SCANNER_HEADER_LOCK_2026-08-23.md' @'
           # DEC-058 — Scanner title ROI는 실제 inspect-header frame이 소유한다
 
           - 상태: `CONFIRMED / IMPLEMENTED / RELEASE CANDIDATE v1.3.3`
           - 날짜: 2026-08-23
-          - 근거: 사용자가 제공한 실제 2048x1280 Tarkov 상세창 12개
+          - 근거: 실제 2048x1280 Tarkov 상세창 12개
 
-          결정:
-
-          1. title glyph connected component는 제목 ROI의 left edge를 결정하지 않는다.
-          2. red close/X와 긴 neutral top frame을 먼저 잠근다.
-          3. magnifier는 frame-left의 bounded icon lane 안에서만 찾고 13px-class bright core 위치/크기와 ring/hollow/handle morphology를 함께 평가한다.
-          4. dark title field와 title text presence가 함께 확인되어 `HEADER_FRAME_LOCKED`가 되고 score가 0.68 이상일 때만 OCR을 허용한다.
-          5. partial/failed anchor는 OCR identity path로 진행하지 않는다.
+          1. first title glyph connected component는 ROI left edge를 결정하지 않는다.
+          2. red close/X와 long neutral top frame을 먼저 잠근다.
+          3. magnifier는 bounded frame-left icon lane에서만 찾고 실제 13px-class core의 위치·크기와 ring/hollow/handle morphology를 함께 평가한다.
+          4. dark title field와 text presence까지 확인되어 `HEADER_FRAME_LOCKED`가 되고 score가 0.68 이상일 때만 OCR을 허용한다.
+          5. partial/failed anchor는 identity path로 진행하지 않는다.
           6. raw OCR과 current-catalog sanitation 이후 matcher input을 진단에서 분리한다.
-          7. 기존 semantic confidence/margin과 bounded 1-edit 안전 조건은 완화하지 않는다.
-          8. 가격/필요 수량 의미와 user/content/settings schema는 변경하지 않는다.
-          9. 신규 사용자 기능이 아니라 실제 live regression 수정이므로 DEC-048에 따라 v1.3.3 PATCH다.
+          7. 기존 confidence/margin 및 bounded unique 1-edit 안전 조건은 완화하지 않는다.
+          8. 가격/RequiredTotal 및 content/user/settings schema는 변경하지 않는다.
+          9. 신규 사용자 기능이 아닌 live regression 수정이므로 DEC-048에 따라 v1.3.3 PATCH다.
 
-          상세 근거: `docs/SCANNER_V1.3.3_HEADER_LOCK.md`, `docs/.scanner-v1.3.3-header-evidence.json`.
+          상세: `docs/SCANNER_V1.3.3_HEADER_LOCK.md`, `docs/.scanner-v1.3.3-header-evidence.json`.
           '@
 
-          Write-Text 'docs/RELEASE_1.3.3.md' @'
+          Write 'docs/RELEASE_1.3.3.md' @'
           # 준현 헬퍼 v1.3.3 릴리즈 후보
 
           기준일: 2026-08-23
-
           상태: **RELEASE CANDIDATE — PUBLIC RELEASE PENDING**
 
-          ## 목적
-
-          v1.3.2 공개 후 실제 Tarkov 12개 상세창 캡처를 근거로 title ROI의 anchor ownership을 수정하는 PATCH다.
-
-          ## Scanner 변경
-
-          - long neutral header frame + red close/X + fixed left icon lane을 authoritative geometry로 사용
-          - 실제 표본에서 반복된 13×13 magnifier bright core와 상대 위치를 회귀 범위로 고정
-          - first title glyph가 title ROI left edge를 이동시키는 경로 제거
-          - `HEADER_FRAME_LOCKED` + score >= 0.68 전에는 OCR 금지
+          ## 변경
+          - 실제 12개 상세창의 long header frame / red X / 13×13 magnifier core 구조를 authoritative title-anchor로 사용
+          - first title glyph의 ROI-left ownership 제거
+          - `HEADER_FRAME_LOCKED` + score >=0.68 전 OCR 금지
           - raw OCR / sanitized matcher input 진단 분리
-          - current-catalog symbol sanitation, normal confidence/margin, bounded unique 1-edit rule 유지
-          - highest trader, flea avg24hPrice, RequiredTotal 의미 변경 없음
+          - 기존 current-catalog symbol policy, confidence/margin, bounded unique 1-edit 유지
+          - highest trader / flea avg24hPrice / RequiredTotal 및 schema 의미 변경 없음
 
           ## 호환성
+          Desktop 1.3.3 / Content v7(read v3~v7) / user.db v1 / Scanner settings v4 / Scanner catalog v1-v2. mandatory content update와 user migration 없음.
 
-          - Desktop: 1.3.3
-          - Content schema: v7 유지, readable v3~v7
-          - user.db: v1 유지
-          - Scanner display settings: v4 유지
-          - Scanner catalog cache: v1/v2 readable, v2 written
-          - mandatory content update: 없음
-          - user migration: 없음
-
-          ## 현재 검증
-
-          - pre-final candidate CI `32624123821`: SUCCESS
+          ## 검증
+          - pre-final v1.3.3 CI `32624123821`: SUCCESS
+          - follow-up CI `32624855995`: SUCCESS
           - automated tests: 263 passed / 0 failed / 0 skipped
-          - Windows Release build/publish: SUCCESS
-          - packaged EXE Product UI + Scanner + Mini Scanner + Main Map + Factory + MiniMap smoke: SUCCESS
-          - final cleaned-head CI: PENDING
-          - exact release source: PENDING MERGE
-          - Draft/public re-download verification: PENDING
+          - Windows build/publish + actual packaged EXE Product UI/Scanner/Mini Scanner/Main Map/Factory/MiniMap smoke: SUCCESS
+          - cleaned final-head CI: PENDING
+          - exact release source / Draft / Public verification: PENDING
           '@
 
-          # 4. Small current-work index documents are rewritten to the actual candidate state.
-          Write-Text 'docs/CURRENT_SCANNER_WORK.md' @'
+          Write 'docs/CURRENT_SCANNER_WORK.md' @'
           # Current Scanner work
 
           기준일: 2026-08-23
+          현재 작업: **v1.3.3 release candidate — live inspect-header frame lock**
 
-          현재 작업: **v1.3.3 release candidate — live inspect-header frame lock regression**
+          현재 public stable은 v1.3.2다. v1.3.3은 사용자가 제공한 12개 실제 상세창 evidence를 기준으로 first-glyph ROI ownership을 제거하고 full header lock 전 OCR을 금지한다.
 
-          ## 공개 기준선
-
-          현재 public stable은 v1.3.2다.
-
-          - `docs/RELEASE_1.3.2.md`
-          - `docs/.release-v1.3.2-status.json`
-
-          ## v1.3.3 근거 / 결정
-
-          - `docs/SCANNER_V1.3.3_HEADER_LOCK.md`
-          - `docs/.scanner-v1.3.3-header-evidence.json`
-          - `docs/DECISION_SCANNER_HEADER_LOCK_2026-08-23.md`
-          - `docs/SCANNER_TEST_PLAN.md`
-
-          ## 현재 원칙
-
-          - 12개 실제 캡처에서 반복된 header-relative 구조를 regression으로 사용한다.
-          - title glyph가 ROI left edge를 소유하지 않는다.
-          - full header lock 전 OCR 금지.
-          - false positive보다 miss 선호.
-          - raw OCR과 sanitized matcher input을 구분한다.
-          - live evidence 없이 global confidence/margin을 낮추지 않는다.
-          - 정확한 Item ID 이후 highest trader / flea avg24hPrice / RequiredTotal 연결은 기존 권위 경로를 유지한다.
-          '@
-
-          Write-Text 'docs/CURRENT_STATE.md' @'
-          # CURRENT STATE
-
-          > 최신 개발 상태의 짧은 인덱스입니다. 상세 설계와 이력은 `docs/STATE.md` 및 전문 문서를 참조합니다.
-
-          기준일: 2026-08-23
-
-          상태: **`v1.3.3 RELEASE CANDIDATE — v1.3.2 PUBLIC VERIFIED`**
-
-          ## 현재 공개 기준선
-
-          ```text
-          public stable: v1.3.2
-          release source: 922797a99ea221fdc4984dd6ed05df552149d6e4
-          asset: Junhyun-Helper-v1.3.2-win-x64.zip
-          bytes: 80,311,752
-          SHA-256: 6e3a7af2de50dfd14f1c49ccb39753177a0bce5b22993bb8bb94ffde93086767
-          ProductVersion: 1.3.2+922797a99ea221fdc4984dd6ed05df552149d6e4
-          final PR CI: 32619142034 — SUCCESS
-          automated tests: 263 passed / 0 failed / 0 skipped
-          release run: 32621021058 — SUCCESS
-          public/latest + exact tag source + public re-download + public EXE smoke: VERIFIED
-          ```
-
-          ## v1.3.3 candidate
-
-          실제 Tarkov 2048x1280 상세창 캡처 12개를 다시 측정하여 title ROI ownership을 수정했다.
-
-          ```text
-          detail candidate
-          → red close/X
-          → long neutral top frame
-          → fixed left search-icon lane
-          → 13px-class magnifier core
-          → dark title field + text presence
-          → HEADER_FRAME_LOCKED (>= 0.68)
-          → title ROI
-          → ko-KR OCR
-          → current-catalog sanitation
-          → semantic/visual identity or fail closed
-          ```
-
-          핵심:
-
-          - first Korean/title glyph는 ROI left edge를 움직일 수 없음
-          - partial header anchor에서는 OCR 자체를 실행하지 않음
-          - raw OCR과 matcher input을 별도 진단
-          - `「` 등 current catalog 밖 punctuation은 matcher input에서 제거
-          - confidence/margin/unique 1-edit safety는 완화하지 않음
-          - highest trader / flea avg24hPrice / RequiredTotal 및 schema 변경 없음
-
-          pre-final CI `32624123821`: Release build, 263/263 tests, publish, actual packaged EXE Product UI/Scanner/Mini Scanner/Map smoke 모두 SUCCESS. 정리된 최종 head CI와 공개 패키지 검증은 release blocker다.
-
-          상세:
-
+          공식 근거:
           - `docs/SCANNER_V1.3.3_HEADER_LOCK.md`
           - `docs/.scanner-v1.3.3-header-evidence.json`
           - `docs/DECISION_SCANNER_HEADER_LOCK_2026-08-23.md`
           - `docs/RELEASE_1.3.3.md`
+
+          false positive보다 miss를 선호하고, live evidence 없이 global confidence/margin을 낮추지 않는다. Item ID 이후 highest trader / flea avg24hPrice / RequiredTotal 연결은 기존 권위 경로를 유지한다.
           '@
 
-          # 5. Canonical Scanner contract: update stable baseline and candidate delta.
-          $scanner = 'docs/SCANNER.md'
-          Replace-Exact $scanner '상태: **`v1.3.1 PUBLIC VERIFIED / LIVE TARKOV CALIBRATION ONGOING`**' '상태: **`v1.3.3 RELEASE CANDIDATE / v1.3.2 PUBLIC VERIFIED / LIVE TARKOV CALIBRATION ONGOING`**'
-          Replace-Between $scanner '## 2. 현재 공개 기준선' '## 3. Capture modes' @'
-          ## 2. 현재 공개 기준선
+          Write 'docs/CURRENT_STATE.md' @'
+          # CURRENT STATE
 
+          기준일: 2026-08-23
+          상태: **`v1.3.3 RELEASE CANDIDATE — v1.3.2 PUBLIC VERIFIED`**
+
+          ## 공개 기준선
+          v1.3.2 / source `922797a99ea221fdc4984dd6ed05df552149d6e4` / 263 tests / release run `32621021058` / public package verified.
+
+          ## v1.3.3
+          실제 2048x1280 상세창 12개를 측정해 title ROI를 다음 순서로 고정한다.
           ```text
-          version: v1.3.2
-          release source: 922797a99ea221fdc4984dd6ed05df552149d6e4
-          final PR CI: 32619142034 — SUCCESS
-          263 passed / 0 failed / 0 skipped
-          asset: Junhyun-Helper-v1.3.2-win-x64.zip
-          bytes: 80,311,752
-          SHA-256: 6e3a7af2de50dfd14f1c49ccb39753177a0bce5b22993bb8bb94ffde93086767
-          ProductVersion: 1.3.2+922797a99ea221fdc4984dd6ed05df552149d6e4
-          public/latest: VERIFIED
-          exact public tag source: VERIFIED
-          public re-download: VERIFIED
-          public-downloaded EXE smoke: SUCCESS
+          detail candidate → red X → long neutral top frame → bounded left icon lane
+          → 13px-class magnifier → dark title field + text evidence
+          → HEADER_FRAME_LOCKED >=0.68 → OCR → catalog sanitation → identity or fail closed
           ```
+          first title glyph는 ROI left edge를 움직일 수 없다. partial header에서는 OCR을 실행하지 않는다. raw OCR과 matcher input은 별도 진단한다. confidence/margin/unique 1-edit와 price/RequiredTotal/schema 계약은 변경하지 않았다.
 
-          v1.3.3은 실제 12개 상세창 캡처를 근거로 한 title ROI/header-anchor PATCH candidate다. 상세: `docs/SCANNER_V1.3.3_HEADER_LOCK.md`.
-
-          '@
-          Insert-Before $scanner '## 7. OCR / character policy / semantic matching' @'
-          ## 6.1 v1.3.3 authoritative inspect-header lock
-
-          v1.3.3에서는 title glyph segmentation이 제목 ROI의 left edge를 소유하지 않는다.
-
-          ```text
-          red close/X
-          → long neutral top frame
-          → bounded frame-left search-icon lane
-          → 13px-class magnifier bright core
-          → dark title field + text presence
-          → HEADER_FRAME_LOCKED >= 0.68
-          → title ROI
-          ```
-
-          필수 lock이 완성되지 않으면 OCR을 실행하지 않는다. raw OCR과 current-catalog sanitation 이후 matcher input은 진단에서 별도 값으로 보존한다. 자세한 실제 12개 표본 측정치는 `docs/.scanner-v1.3.3-header-evidence.json`을 참조한다.
-
-          '@
-
-          # 6. State/architecture/developer/test documentation deltas.
-          $state = 'docs/STATE.md'
-          Insert-Before $state '## 3. 아키텍처 기준' @'
-          ## 2.1 v1.3.3 release candidate
-
-          v1.3.3은 v1.3.2 이후 실제 Tarkov 2048x1280 상세창 12개에서 재현된 title-start/anchor 회귀를 수정하는 PATCH다.
-
-          - long neutral top frame + red close/X + bounded frame-left icon lane을 authoritative header geometry로 사용
-          - 12개 표본 모두 magnifier bright core 13×13, frame-left offset 11~13px, frame-top offset 7px, title gap 5~6px
-          - first title glyph component가 ROI left edge를 이동시키는 경로 제거
-          - `HEADER_FRAME_LOCKED` + anchor >= 0.68 전 OCR 금지
-          - raw OCR / sanitized matcher input 진단 분리
-          - 기존 confidence/margin, unique 1-edit, market/RequiredTotal, schema 계약 유지
-          - pre-final candidate CI `32624123821`: 263/263 + publish + actual packaged EXE smoke SUCCESS
+          pre-final CI `32624123821` 및 follow-up CI `32624855995`: build/test/publish/actual packaged EXE smoke SUCCESS. clean final-head CI와 public package verification이 남은 release blocker다.
 
           상세: `docs/SCANNER_V1.3.3_HEADER_LOCK.md`, `docs/DECISION_SCANNER_HEADER_LOCK_2026-08-23.md`, `docs/RELEASE_1.3.3.md`.
-
-          '@
-          Replace-Exact $state @'
-          → inspect-header refinement
-             - dark title field
-             - right red close/X
-             - left magnifier morphology
-             - first title-glyph evidence
-          → magnifier-free title ROI
-          '@ @'
-          → authoritative inspect-header lock
-             - right red close/X
-             - long neutral top frame
-             - bounded frame-left magnifier lane
-             - dark title field + text-presence corroboration
-          → HEADER_FRAME_LOCKED or fail closed before OCR
-          → magnifier-free title ROI
           '@
 
-          $arch = 'docs/ARCHITECTURE.md'
-          Replace-Between $arch '### 8.3 Geometry / title anchors' '### 8.4 OCR / semantic identity' @'
-          ### 8.3 Geometry / title anchors
-
-          - structural floor `0.34` 유지
-          - RED-X connected component + rectangle/edge fallback candidate 생성
-          - 동일 quantized `GeometrySignature`의 연속 관측 후 continuous semantic recognition
-          - v1.3.3 `ScannerInspectHeaderLock`가 red close/X → long neutral top frame → bounded frame-left icon lane → magnifier → dark title field/text evidence 순서로 title ROI를 잠금
-          - 실제 12개 2048x1280 표본의 magnifier bright core는 모두 13×13, frame-left offset 11~13px, title gap 5~6px
-          - first title glyph component는 ROI left edge를 오른쪽으로 이동시킬 수 없음
-          - runtime은 `HEADER_FRAME_LOCKED`이며 anchor score >= 0.68인 candidate에서만 OCR 실행
-          - partial/failed lock은 <= 0.47로 제한하고 Item identity path에 들어가지 않음
-          - raw OCR과 sanitized matcher input을 diagnostics에서 분리
-
-          '@
-
-          $dev = 'docs/DEVELOPER_REFERENCE.md'
-          Replace-Exact $dev @'
-          - v1.2.2: Scanner catalog disk-load/network-refresh GameMode transition race 제거
-          '@ @'
-          - v1.2.2: Scanner catalog disk-load/network-refresh GameMode transition race 제거
-          - v1.3.0: explicit recognition-image export + three global Scanner hotkeys/one-shot commands
-          - v1.3.1~v1.3.2: live title-anchor/OCR symbol/unique one-edit correction hardening
-          - v1.3.3: 12 live captures 기반 authoritative inspect-header frame lock; first-glyph ROI ownership 제거
-          '@
-          Replace-Between $dev '## 9.5 Title anchors / OCR / matcher' '## 9.6' @'
-          ## 9.5 Title anchors / OCR / matcher
-
-          v1.3.3 title ownership:
-
-          ```text
-          coarse detail candidate
-          → ScannerInspectHeaderLock
-             → red close/X
-             → long neutral top frame
-             → bounded frame-left icon lane
-             → magnifier bright core/morphology
-             → dark title field + text presence
-          → HEADER_FRAME_LOCKED >= 0.68
-          → title ROI
-          → Windows ko-KR OCR
-          ```
-
-          first glyph component는 title 존재 corroboration일 뿐 ROI left edge를 결정하지 않는다. partial lock은 OCR을 실행하지 않는다.
-
-          OCR adaptive scale은 기존 4x/6x/8x를 유지한다. raw OCR은 `ScannerOcrCharacterPolicy`를 통해 current official Korean catalog 기반 symbol sanitation을 거친 뒤 matcher에 전달하며, 진단창/log에는 raw OCR과 matcher input을 별도로 남긴다.
-
-          Resolver는 exact-first + conservative fuzzy confidence/top1-top2 margin을 유지하고, normalized length >= 7의 bounded 1-edit 예외도 current catalog 전체 유일성 + global runner-up 10%p margin이 필요하다.
-
-          '@
-
-          $decisions = 'docs/DECISIONS.md'
-          Insert-Before $decisions "---`r`n`r`n# 3. 현재 결정 확인 방법" @'
-          ## DEC-058 — Scanner title ROI는 실제 inspect-header frame이 소유한다
-
-          - 상태: `CONFIRMED / IMPLEMENTED / RELEASE CANDIDATE v1.3.3`
-          - 날짜: 2026-08-23
-          - 실제 2048x1280 상세창 12개에서 반복된 red X / long neutral top frame / 13×13 magnifier bright core / 5~6px title gap을 회귀 근거로 사용한다.
-          - first title glyph connected component가 ROI left edge를 결정하거나 오른쪽으로 이동시키는 것을 금지한다.
-          - `HEADER_FRAME_LOCKED` + anchor score >= 0.68 전에는 OCR을 실행하지 않는다.
-          - raw OCR과 current-catalog sanitation 이후 matcher input을 진단에서 분리한다.
-          - normal confidence/margin과 bounded unique 1-edit safety를 완화하지 않는다.
-          - 신규 기능이 아니라 live regression 수정이므로 DEC-048에 따라 v1.3.3 PATCH다.
-          - 상세: `docs/DECISION_SCANNER_HEADER_LOCK_2026-08-23.md`, `docs/SCANNER_V1.3.3_HEADER_LOCK.md`
-
-          '@
-
-          $testPlan = 'docs/SCANNER_TEST_PLAN.md'
-          Replace-Exact $testPlan '# Scanner v1.3.1 Test Plan' '# Scanner v1.3.3 Test Plan'
-          Replace-Exact $testPlan '상태: **`v1.3.1 PUBLIC VERIFIED / LIVE TARKOV CALIBRATION ONGOING`**' '상태: **`v1.3.3 RELEASE CANDIDATE / v1.3.2 PUBLIC VERIFIED / LIVE TARKOV CALIBRATION ONGOING`**'
-          Replace-Between $testPlan '## 1. 현재 공개 기준선' '## 2. Release blocking gate' @'
-          ## 1. 현재 공개 기준선
-
-          ```text
-          public stable: v1.3.2
-          release source: 922797a99ea221fdc4984dd6ed05df552149d6e4
-          final PR CI: 32619142034 — SUCCESS
-          263 passed / 0 failed / 0 skipped
-          asset: Junhyun-Helper-v1.3.2-win-x64.zip
-          SHA-256: 6e3a7af2de50dfd14f1c49ccb39753177a0bce5b22993bb8bb94ffde93086767
-          public package verification: VERIFIED
-          ```
-
-          v1.3.3 candidate evidence: `docs/SCANNER_V1.3.3_HEADER_LOCK.md`, `docs/.scanner-v1.3.3-header-evidence.json`.
-
-          '@
-          Replace-Between $testPlan '## 4. v1.3.1 inspect-header / title ROI regression' '## 5. OCR / character policy regression' @'
-          ## 4. v1.3.3 inspect-header / title ROI regression
-
-          필수 구조 순서:
-
-          1. red close/X
-          2. long neutral top frame
-          3. bounded frame-left search-icon lane
-          4. 13px-class magnifier bright core + ring/hollow/handle morphology
-          5. dark title field
-          6. title text-presence corroboration
-          7. `HEADER_FRAME_LOCKED` score >= 0.68
-
-          packaged-EXE regression은 12개 실제 표본의 header width 822~862, close 25~27×16~17, magnifier X offset 11~13, Y offset 7, title gap 5~6을 모두 재생한다.
-
-          추가 필수 회귀:
-
-          - first Korean glyph를 fragmented components로 분리해도 title ROI left edge가 이동하지 않음
-          - title lane 안에 magnifier보다 더 ring-like한 decoy가 있어도 bounded icon lane 밖이므로 선택되지 않음
-          - `Awl` 같은 짧은 title에서도 text evidence가 충분하면 lock 가능
-          - detail window가 우측으로 크게 이동해도 screen-center heuristic 없이 동일 동작
-          - magnifier가 없으면 반드시 fail closed
-          - partial anchor result에서는 OCR 실행 금지
-          - raw OCR과 sanitized matcher input이 diagnostics에서 구분됨
-
-          '@
-          Replace-Exact $testPlan @'
-          ## 15. 현재 다음 단계
-
-          v1.3.1 자동/공개 검증은 완료됐습니다. 다음 Scanner 개선은 실제 Tarkov에서 수집되는 PNG/log evidence를 우선 사용합니다. 충분한 evidence가 없는 상태에서 threshold를 임의로 완화하거나 detector를 대규모 재작성하지 않습니다.
-          '@ @'
-          ## 15. 현재 다음 단계
-
-          v1.3.3은 사용자가 제공한 12개 실제 상세창 evidence를 packaged-EXE regression으로 고정한 뒤 공개 검증한다. 이후 추가 Scanner 개선도 실제 Tarkov PNG/log evidence를 우선하며, 근거 없이 threshold를 완화하거나 unrelated 기능을 확장하지 않는다.
-          '@
-
-          # 7. Remove all branch-only patch tooling, including this self-deleting workflow.
+          # Remove every branch-only patch mechanism, including this workflow itself.
           Remove-Item '.github/workflows/patch-scanner-v1.3.3.yml' -Force -ErrorAction SilentlyContinue
           Remove-Item 'scripts/patch-scanner-v1.3.3.ps1' -Force -ErrorAction SilentlyContinue
           Remove-Item '.github/workflows/apply-scanner-v1.3.3-final.yml' -Force -ErrorAction SilentlyContinue
 
-      - name: Commit clean release-candidate state
+      - name: Commit clean candidate
         shell: pwsh
         run: |
           git config user.name 'github-actions[bot]'
@@ -615,6 +236,6 @@ jobs:
           git add -A
           git diff --cached --check
           if ($LASTEXITCODE -ne 0) { throw 'Whitespace validation failed.' }
-          git diff --cached --quiet && throw 'Finalizer produced no changes.'
+          git diff --cached --quiet && throw 'No final changes were produced.'
           git commit -m 'fix(scanner): finalize live header lock regression'
           git push origin HEAD:fix/scanner-live-title-v1.3.3
