@@ -22,6 +22,13 @@ public partial class MainWindow
         AmmoPage.SetImageCache(_services.Images);
         AmmoPage.SetFavoriteStore(_services.AmmoFavorites);
 
+        // Scanner global commands belong to the product window lifetime, not the
+        // Scanner tab lifetime. WindowInteropHandle may not exist yet here; the hotkey
+        // service listens for SourceInitialized and registers as soon as the HWND is
+        // available. This makes the shortcuts usable from any product section.
+        ScannerCoordinator.AttachContextProvider(GetScannerDataContext);
+        ScannerCoordinator.AttachHotkeyHost(this);
+
         // Replace the original full-refresh mutation handlers with dependency-aware
         // product handlers. This keeps the existing UI events while avoiding duplicate
         // DB reads/workspace rebuilds after each Quest/Hideout change.
