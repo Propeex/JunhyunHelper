@@ -104,6 +104,9 @@ public static class ScannerRecognitionDebugStore
             // The initial frame is captured from the detector's current top candidate.
             // Semantic/visual matching may ultimately select another candidate, so the
             // diagnostics must move both rectangles and scores to the selected one.
+            // Matcher failures can still carry their nearest catalog candidate for
+            // diagnostics. Only a successful recognition may publish ItemId as the final
+            // identity; failed candidate IDs remain available through TopCandidates.
             _frame = _frame with
             {
                 SelectedBounds = selected,
@@ -118,7 +121,7 @@ public static class ScannerRecognitionDebugStore
                 Pass = pass,
                 OcrText = ocrText,
                 MatcherText = matcherText,
-                ItemId = recognition.ItemId,
+                ItemId = recognition.Success ? recognition.ItemId : null,
                 CandidateName = recognition.OfficialName,
                 RecognitionReason = recognition.Reason,
                 Confidence = recognition.Confidence,
