@@ -4,17 +4,18 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 릴리즈 상태
 
-현재 public stable은 **v1.3.1**입니다.
+현재 public stable은 **v1.3.2**입니다.
 
 ```text
-version: v1.3.1 PUBLIC RELEASE / VERIFIED
-release source: 028bfb600f4662962a0daac1dad04b570e018275
-final PR CI: 32615869812 — SUCCESS
-automated tests: 256 passed / 0 failed / 0 skipped
-asset: Junhyun-Helper-v1.3.1-win-x64.zip
-bytes: 80,310,221
-SHA-256: 5c4b79cc5d373b4a28cbeb10be18b8369086b2ee9f0edc172530028dd71b1c3f
-ProductVersion: 1.3.1+028bfb600f4662962a0daac1dad04b570e018275
+version: v1.3.2 PUBLIC RELEASE / VERIFIED
+release source: 922797a99ea221fdc4984dd6ed05df552149d6e4
+final PR CI: 32619142034 — SUCCESS
+automated tests: 263 passed / 0 failed / 0 skipped
+release run: 32621021058
+asset: Junhyun-Helper-v1.3.2-win-x64.zip
+bytes: 80,311,752
+SHA-256: 6e3a7af2de50dfd14f1c49ccb39753177a0bce5b22993bb8bb94ffde93086767
+ProductVersion: 1.3.2+922797a99ea221fdc4984dd6ed05df552149d6e4
 public/latest: VERIFIED
 exact public tag source: VERIFIED
 public-downloaded EXE smoke: SUCCESS
@@ -26,11 +27,11 @@ Readable schemas: v3~v7
 user.db schema: v1
 Scanner display settings schema: v4
 Scanner catalog cache schema: v1/v2 readable, v2 written
-v1.3.0 → v1.3.1 mandatory Game Content update: none
-v1.3.0 → v1.3.1 user.db migration: none
+v1.3.1 → v1.3.2 mandatory Game Content update: none
+v1.3.1 → v1.3.2 user.db migration: none
 ```
 
-상세 릴리즈 기록은 `docs/RELEASE_1.3.1.md`에 있습니다.
+상세 릴리즈 기록은 `docs/RELEASE_1.3.2.md`와 `docs/.release-v1.3.2-status.json`에 있습니다.
 
 ## 주요 기능
 
@@ -52,13 +53,15 @@ Runtime GPT/AI 의존성은 없습니다.
 ```text
 Tarkov / Display pixels
 → detail-window structural candidates
-→ dark title-field + right red X + left magnifier-shape + first-glyph evidence
+→ dark title-field + right red X + left magnifier morphology + first-glyph evidence
 → magnifier-free title ROI
-→ Windows ko-KR OCR + current-catalog character validation
+→ Windows ko-KR OCR
+→ current-catalog-derived character / punctuation sanitation
 → current official Korean catalog semantic matching
+→ bounded unique one-edit recovery when safe
 → optional local Tarkov-font visual corroboration/recovery
 → conservative confidence + top1/top2 margin
-→ Item ID
+→ Item ID or fail closed
 → local JunhyunHelper presentation data
 → Mini Scanner
 ```
@@ -69,53 +72,64 @@ Tarkov / Display pixels
 - geometry/아이콘/OCR 한 조각만으로 Item 확정 금지
 - current official Korean item catalog가 Item identity 기준
 - matcher/visual ambiguity는 fail closed
+- live evidence 없이 confidence/margin을 전역 완화하지 않음
 - scan-time network 없음
 - game memory / DLL injection / packet interception 없음
 
-### v1.3.1 — 실전 title recognition hardening
+### v1.3.2 — live-evidence OCR 보강
 
-실제 Tarkov에서 발견된 “아이템 이름 첫 글자를 돋보기로 오인” 사례를 기준으로 inspect-header 인식을 보강했습니다.
+v1.3.1 공개 후 실제 Tarkov/DisplayTest에서 확인된 두 title-recognition 실패를 근거로 보강했습니다.
 
-- 상세창 상단을 하나의 구조로 판단
-  - 어두운 title field
-  - 좌측 magnifier/search icon
-  - 실제 첫 글자군
-  - 우측 red close/X
-- structural panel-left가 일부 안쪽으로 drift해도 실제 magnifier를 제한된 왼쪽 확장 영역에서 재탐색
-- magnifier 후보에 위치/크기/비율뿐 아니라 hollow center, ring perimeter, lower-right handle, following-glyph evidence 적용
-- 첫 한글 글자가 magnifier로 선택되어 OCR ROI에서 잘리는 회귀를 packaged-EXE smoke로 고정
-- Windows OCR이 official item으로 성공한 경우에도 필요 시 local Tarkov title font + current catalog 렌더링으로 시각 corroboration
-- strict visual evidence가 다른 current official Item ID를 명확하게 지목할 때만 OCR identity 교정
-- font evidence가 없거나 애매하면 기존 healthy OCR result 유지
-- 상단 상태 텍스트 왼쪽에 현재 실행 EXE 버전 표시
+- magnifier의 좌측 헤더 위치, 밝은 ring, hollow center, lower-right handle을 핵심 evidence로 사용
+- 뒤따르는 title glyph component는 magnifier의 필수조건이 아니라 corroboration으로 사용
+- OCR punctuation/symbol 허용 집합을 current official Korean item catalog에서 매 catalog generation마다 자동 파생
+- current catalog에 없는 `「` 같은 punctuation/symbol은 matcher 입력 전에 제거
+- normalized 길이 7 이상에서 정확히 1 edit인 후보는 current catalog 전체에서 유일하고 global runner-up과 **10%p 이상** 차이가 있을 때만 제한적으로 복구
+- `Thermite 테르밋` → `Themite 테르밋` 같은 단일 누락은 위 안전 조건을 충족할 때 복구 가능
+- `Gunpowder "Eagle" 화약`처럼 여러 글자가 동시에 손상된 저신뢰 OCR은 percentage만으로 확정하지 않고 strict Tarkov-font visual corroboration 필요
+- 최고 상점가 / flea `avg24hPrice` / `RequiredTotal` 의미와 schema는 변경 없음
+
+상세: `docs/SCANNER_V1.3.2_LIVE_EVIDENCE.md`, `docs/DECISION_SCANNER_LIVE_EVIDENCE_2026-08-23.md`.
+
+### v1.3.1 — inspect-header / title ROI hardening
+
+- 상세창 상단을 dark title field + left magnifier + first glyphs + right red close/X 구조로 판단
+- structural panel-left drift가 있어도 실제 magnifier를 제한된 왼쪽 확장 영역에서 재탐색
+- 첫 한글 글자가 magnifier로 오인되어 OCR ROI에서 잘리는 회귀를 packaged-EXE smoke로 고정
+- OCR semantic success도 필요 시 local Tarkov title font + current catalog로 보수적으로 corroborate
+- strict visual evidence가 다른 current official Item ID를 명확히 지목할 때만 identity 교정
 
 상세: `docs/SCANNER_V1.3.1_RECOGNITION.md`.
 
-### v1.3.0 — 실사용 분석/단축키 워크플로
+### v1.3.0부터 유지되는 실사용/분석 워크플로
 
-- `인식 이미지`에서 최신 실제 인식 원본 frame을 PNG로 저장
-- 저장 PNG에는 진단 사각형/텍스트 overlay가 합성되지 않음
+- `인식 이미지`에서 최신 실제 recognition 원본 frame을 PNG로 사용자 지정 저장
 - 자동 screenshot 저장 없음
-- 1회 인게임 스캔: 기본 `Ctrl+Shift+F10`
-- 1회 테스트 스캔: 기본 `Ctrl+Shift+F11`
-- Scanner ON/OFF: 기본 `Ctrl+Shift+F12`
-- Scanner 탭 `단축키 설정`에서 세 global hotkey를 변경/비활성화
+- 1회 인게임 스캔 기본 `Ctrl+Shift+F10`
+- 1회 테스트 스캔 기본 `Ctrl+Shift+F11`
+- Scanner ON/OFF 기본 `Ctrl+Shift+F12`
+- Scanner 탭 `단축키 설정`에서 변경/비활성화 가능
 - 동일 gesture 중복 지정 차단
-- one-shot 인게임/테스트 버튼은 제거하고 단축키로 실행
-- 기존 v1.2.x one-shot 사용자 지정 key를 schema v4로 승계
-- `로그 삭제`는 사용자 export PNG를 삭제하지 않음
+- `로그 삭제`는 recent activity, scanner.log(.1), 최신 in-memory diagnostic image를 정리하되 사용자 export PNG는 삭제하지 않음
 
-### Mini Scanner / 표시 데이터
+## Scanner 표시 데이터
+
+- 최고 상점가 = 유효한 non-flea RUB 환산 판매가 최댓값
+- 플리마켓 평균가 = positive `avg24hPrice`
+- 슬롯 = positive `width × height`
+- 가격/슬롯 = valid price와 slots가 모두 존재할 때만
+- 필요한 개수 = `NeededItems[itemId].RequiredTotal`
+- Inventory를 차감한 부족량은 Scanner의 `필요 개수` 의미가 아님
+- 가격/크기 누락은 해당 표시 필드만 fail closed하고 Item identity를 폐기하지 않음
+
+## Mini Scanner
 
 - matched item 정보만 overlay에 표시
 - Topmost + no-activate
 - 전체 카드 drag hit surface + Arrow cursor
-- 실제 Scanner mode에서 Tarkov foreground/inventory context를 보수적으로 확인
-- canonical item icon은 update/cache 경로에서 준비하고 scan 순간 HTTP 없음
-- 최고 상점가 = 유효한 non-flea RUB 환산 최고 판매가
-- 플리마켓 평균가 = positive `avg24hPrice`
-- 필요한 개수 = `NeededItems[itemId].RequiredTotal`
-- 가격/크기 누락은 해당 표시 필드만 fail closed하고 Item identity를 폐기하지 않음
+- 실제 Scanner mode에서는 Tarkov foreground/inventory context를 보수적으로 확인
+- item/context epoch가 바뀐 stale result를 화면에 적용하지 않음
+- canonical icon은 update/cache 경로에서 준비하고 scan 순간 HTTP 없음
 
 ## Scanner font 정책
 
@@ -123,11 +137,11 @@ Tarkov / Display pixels
 
 ```text
 Tarkov resources.assets (read-only)
-→ 필요한 SFNT font payload 발견/추출
-→ %LocalAppData%/JunhyunHelper/scanner/fonts local cache
+→ bounded SFNT discovery/extraction
+→ %LocalAppData%/JunhyunHelper/scanner/fonts
 → source/font generation 검증
 → Bender regular/bold + Korean fallback
-→ official item-name visual templates/features
+→ current official item-name visual templates/features
 ```
 
 Tarkov/font generation이 바뀌면 stale rendered template generation을 그대로 신뢰하지 않습니다.
@@ -150,7 +164,7 @@ Tarkov/font generation이 바뀌면 stale rendered template generation을 그대
 + 필요 시 scanner.log
 ```
 
-문제는 capture → structural candidate → header anchors/title ROI → OCR/font visual → catalog → presentation 단계로 분리하여 수정합니다. 실제 evidence 없이 confidence/margin을 임의로 낮추지 않습니다.
+문제는 capture → structural candidate → header anchors/title ROI → OCR → catalog matcher/visual → presentation → overlay 단계로 분리합니다. 새 실패 사례가 확보되면 해당 사례를 최소 regression으로 고정한 뒤 필요한 단계만 수정합니다.
 
 ## Program Update
 
@@ -184,7 +198,7 @@ Assets/
 - 새 사용자 기능 → MINOR +1, PATCH=0
 - 기존 기능 수정/보완/버그 수정/성능·안정성·정확성 개선 → PATCH +1
 
-v1.3.0은 Scanner 분석 이미지 export, one-shot test scan, 3종 global hotkey를 추가한 MINOR 릴리즈입니다. v1.3.1은 실제 인게임 title recognition 실패 evidence와 버전 표시 UX를 반영한 PATCH 릴리즈입니다.
+v1.3.0은 Scanner 분석 이미지 export, one-shot test scan, 3종 global hotkey를 추가한 MINOR 릴리즈입니다. v1.3.1은 실제 title-recognition 실패와 버전 표시 UX를 반영한 PATCH이며, v1.3.2는 추가 live OCR evidence를 기반으로 magnifier association·catalog-derived symbol policy·bounded one-edit recovery를 보강한 PATCH입니다.
 
 ## 개발 문서
 
@@ -193,8 +207,10 @@ v1.3.0은 Scanner 분석 이미지 export, one-shot test scan, 3종 global hotke
 - `docs/PRODUCT.md` — 제품 요구사항
 - `docs/DECISIONS.md` — 장기 결정 인덱스
 - `docs/SCANNER.md` — Scanner 제품/기술 기준선
-- `docs/SCANNER_V1.3.1_RECOGNITION.md` — v1.3.1 recognition 계약
-- `docs/RELEASE_1.3.1.md` — v1.3.1 공개 검증
+- `docs/SCANNER_V1.3.2_LIVE_EVIDENCE.md` — v1.3.2 live recognition 계약
+- `docs/SCANNER_SYMBOL_POLICY.md` — current-catalog symbol 정책
+- `docs/SCANNER_V1.3.1_RECOGNITION.md` — v1.3.1 recognition 이력
+- `docs/RELEASE_1.3.2.md` — v1.3.2 공개 검증
 - `docs/SCANNER_TEST_PLAN.md` — Scanner 검증 gate
 - `docs/ARCHITECTURE.md` — 전체 아키텍처
 - `docs/DEVELOPER_REFERENCE.md` — 구현/참조 지도
