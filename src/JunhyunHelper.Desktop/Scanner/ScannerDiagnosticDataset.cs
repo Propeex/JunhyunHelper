@@ -256,16 +256,22 @@ public static class ScannerDiagnosticDataset
             if (submission.UserConfirmed && groundTruth.Length == 0)
                 groundTruth = NormalizeText(frame.CandidateName);
 
-            var errorType = ClassifyError(frame, detailDetected, detailCorrected, titleDetected, titleCorrected, groundTruth);
+            var reviewed = IsReviewed(submission, groundTruth, detailCorrected, titleCorrected);
+            var groundTruthErrorType = reviewed
+                ? ClassifyError(frame, detailDetected, detailCorrected, titleDetected, titleCorrected, groundTruth)
+                : (ScannerDiagnosticErrorType?)null;
+            var pipelineStage = DeterminePipelineStage(frame);
             var metadata = BuildCaseMetadata(
                 submission,
                 automatic,
+                reviewed,
                 detailDetected,
                 detailCorrected,
                 titleDetected,
                 titleCorrected,
                 groundTruth,
-                errorType);
+                groundTruthErrorType,
+                pipelineStage);
             File.WriteAllText(
                 Path.Combine(casePath, "case.json"),
                 JsonSerializer.Serialize(metadata, JsonOptions),
@@ -276,7 +282,8 @@ public static class ScannerDiagnosticDataset
                 automatic ? "diagnostic-case-auto" : "diagnostic-case-user",
                 frame.CaptureMode,
                 ("caseId", frame.CaseId),
-                ("errorType", errorType),
+                ("groundTruthErrorType", groundTruthErrorType is null ? "UNREVIEWED" : ErrorTypeText(groundTruthErrorType.Value)),
+                ("pipelineStage", pipelineStage),
                 ("groundTruth", groundTruth),
                 ("path", casePath));
 
@@ -290,12 +297,14 @@ public static class ScannerDiagnosticDataset
     private static object BuildCaseMetadata(
         ScannerCorrectionSubmission submission,
         bool automatic,
+        bool reviewed,
         Rect? detailDetected,
         Rect? detailCorrected,
         Rect? titleDetected,
         Rect? titleCorrected,
         string groundTruth,
-        ScannerDiagnosticErrorType errorType)
+        ScannerDiagnosticErrorType? groundTruthErrorType,
+        string pipelineStage)
     {
         var frame = submission.Frame;
         var programVersion = Assembly.GetEntryAssembly()?.GetName().Version?.ToString()
@@ -304,6 +313,7 @@ public static class ScannerDiagnosticDataset
         var detailDelta = BuildDelta(detailDetected, detailCorrected);
         var titleDelta = BuildDelta(titleDetected, titleCorrected);
         var presentation = submission.Presentation;
+        var hasFinalGroundTruth = groundTruth.Length > 0 || submission.UserConfirmed;
         var confirmedCorrect = submission.UserConfirmed ||
             (groundTruth.Length > 0 && string.Equals(
                 NormalizeComparison(frame.CandidateName),
@@ -320,11 +330,15 @@ public static class ScannerDiagnosticDataset
             capture_mode = frame.CaptureMode?.ToString() ?? "Unknown",
             source = frame.Source,
             retention = automatic ? "automatic_sample" : "user_reviewed",
-            review_status = submission.UserConfirmed || groundTruth.Length > 0 || detailCorrected is not null || titleCorrected is not null
-                ? "reviewed"
-                : "unreviewed",
+            review_status = reviewed ? "reviewed" : "unreviewed",
             user_confirmed = submission.UserConfirmed,
-            program_correct = groundTruth.Length > 0 || submission.UserConfirmed ? confirmedCorrect : (bool?)null,
+            program_correct = hasFinalGroundTruth ? confirmedCorrect : (bool?)null,
+            pipeline = new
+            {
+                stage = pipelineStage,
+                recognition_reason = frame.RecognitionReason,
+                pass = frame.Pass,
+            },
             screen = new
             {
                 width = frame.Image.PixelWidth,
@@ -362,7 +376,7 @@ public static class ScannerDiagnosticDataset
                     match_margin = Math.Max(0, frame.Confidence - frame.SecondScore),
                     recognition_reason = frame.RecognitionReason,
                     pass = frame.Pass,
-                    error_type = ErrorTypeText(errorType),
+                    ground_truth_error_type = groundTruthErrorType is null ? null : ErrorTypeText(groundTruthErrorType.Value),
                 },
             },
             mapped_data = presentation is null ? null : new
@@ -390,6 +404,13 @@ public static class ScannerDiagnosticDataset
 
     private static string? detailGroundTruthArtifact(Rect? detected, Rect? corrected) =>
         detected is null && corrected is null ? null : "detail_window.png";
+
+    private static bool IsReviewed(
+        ScannerCorrectionSubmission submission,
+        string groundTruth,
+        Rect? correctedDetail,
+        Rect? correctedTitle) =>
+        submission.UserConfirmed || groundTruth.Length > 0 || correctedDetail is not null || correctedTitle is not null;
 
     private static ScannerDiagnosticErrorType ClassifyError(
         ScannerRecognitionDebugFrame frame,
@@ -421,6 +442,21 @@ public static class ScannerDiagnosticDataset
             StringComparison.Ordinal)
             ? ScannerDiagnosticErrorType.CandidateMatching
             : ScannerDiagnosticErrorType.OcrRecognition;
+    }
+
+    private static string DeterminePipelineStage(ScannerRecognitionDebugFrame frame)
+    {
+        if (string.Equals(frame.RecognitionReason, "DETAIL_WINDOW_NOT_DETECTED", StringComparison.Ordinal))
+            return "DETAIL_WINDOW_DETECTION_FAILED";
+        if (string.Equals(frame.RecognitionReason, "TITLE_ANCHOR_NOT_LOCKED", StringComparison.Ordinal))
+            return "DETAIL_HEADER_LOCK_FAILED";
+        if (!string.IsNullOrWhiteSpace(frame.ItemId))
+            return "FINALIZED";
+        if (string.Equals(frame.RecognitionReason, "NOT_RUN", StringComparison.Ordinal))
+            return "NOT_RUN";
+        if (string.IsNullOrWhiteSpace(frame.OcrText))
+            return "OCR_OR_PREPROCESSING_FAILED";
+        return "IDENTITY_MATCH_FAILED";
     }
 
     private static bool ShouldRetainAutomatically(ScannerRecognitionDebugFrame frame)
@@ -680,9 +716,7 @@ public static class ScannerDiagnosticDataset
         Directory.CreateDirectory(Path.Combine(RootPath, "cases"));
         var readme = Path.Combine(RootPath, "README.md");
         if (!File.Exists(readme))
-        {
             File.WriteAllText(readme, BuildReadme(), new UTF8Encoding(false));
-        }
         File.WriteAllText(
             Path.Combine(RootPath, "environment.json"),
             JsonSerializer.Serialize(BuildEnvironment(), JsonOptions),
@@ -764,36 +798,56 @@ public static class ScannerDiagnosticDataset
 
     private static ScannerDatasetSummary BuildSummary(IReadOnlyList<JsonDocument> records)
     {
-        var errors = new Dictionary<string, int>(StringComparer.Ordinal);
+        var groundTruthErrors = new Dictionary<string, int>(StringComparer.Ordinal);
+        var pipelineStages = new Dictionary<string, int>(StringComparer.Ordinal);
         var reviewed = 0;
+        var finalReviewed = 0;
         var correct = 0;
         var corrections = 0;
-        var deltas = new List<(double X, double Y, double W, double H)>();
+        var detailDeltas = new List<(double X, double Y, double W, double H)>();
+        var itemNameDeltas = new List<(double X, double Y, double W, double H)>();
 
         foreach (var document in records)
         {
             var root = document.RootElement;
-            if (root.TryGetProperty("review_status", out var review) && review.GetString() == "reviewed")
+            var isReviewed = root.TryGetProperty("review_status", out var review) && review.GetString() == "reviewed";
+            if (isReviewed)
                 reviewed++;
-            if (root.TryGetProperty("program_correct", out var programCorrect) && programCorrect.ValueKind is JsonValueKind.True)
-                correct++;
+
+            if (root.TryGetProperty("program_correct", out var programCorrect) &&
+                programCorrect.ValueKind is JsonValueKind.True or JsonValueKind.False)
+            {
+                finalReviewed++;
+                if (programCorrect.ValueKind == JsonValueKind.True)
+                    correct++;
+            }
+
+            if (root.TryGetProperty("pipeline", out var pipeline) &&
+                pipeline.TryGetProperty("stage", out var stageElement))
+            {
+                var stage = stageElement.GetString() ?? "UNKNOWN";
+                pipelineStages[stage] = pipelineStages.GetValueOrDefault(stage) + 1;
+            }
 
             if (root.TryGetProperty("fields", out var fields) &&
                 fields.TryGetProperty("item_name", out var itemName))
             {
-                var error = itemName.TryGetProperty("error_type", out var errorElement)
-                    ? errorElement.GetString() ?? "UNKNOWN_MULTIPLE"
-                    : "UNKNOWN_MULTIPLE";
-                errors[error] = errors.GetValueOrDefault(error) + 1;
-                if (error != "NONE")
-                    corrections++;
+                if (isReviewed &&
+                    itemName.TryGetProperty("ground_truth_error_type", out var errorElement) &&
+                    errorElement.ValueKind == JsonValueKind.String)
+                {
+                    var error = errorElement.GetString() ?? "UNKNOWN_MULTIPLE";
+                    groundTruthErrors[error] = groundTruthErrors.GetValueOrDefault(error) + 1;
+                    if (error != "NONE")
+                        corrections++;
+                }
                 if (itemName.TryGetProperty("delta", out var delta) && delta.ValueKind == JsonValueKind.Object)
-                    AddDelta(delta, deltas);
+                    AddDelta(delta, itemNameDeltas);
             }
             if (root.TryGetProperty("detail_window", out var detail) &&
                 detail.TryGetProperty("delta", out var detailDelta) && detailDelta.ValueKind == JsonValueKind.Object)
             {
-                AddDelta(detailDelta, deltas);
+                AddDelta(detailDelta, detailDeltas);
             }
         }
 
@@ -801,11 +855,14 @@ public static class ScannerDiagnosticDataset
             DateTimeOffset.UtcNow,
             records.Count,
             reviewed,
+            finalReviewed,
             correct,
             corrections,
-            reviewed > 0 ? correct / (double)reviewed : null,
-            errors,
-            CalculateDeltaStatistics(deltas));
+            finalReviewed > 0 ? correct / (double)finalReviewed : null,
+            groundTruthErrors,
+            pipelineStages,
+            CalculateDeltaStatistics(detailDeltas),
+            CalculateDeltaStatistics(itemNameDeltas));
     }
 
     private static void AddDelta(JsonElement delta, ICollection<(double X, double Y, double W, double H)> target)
@@ -849,29 +906,50 @@ public static class ScannerDiagnosticDataset
             .AppendLine()
             .AppendLine($"- Generated: {summary.GeneratedAt:O}")
             .AppendLine($"- Total cases: {summary.TotalCases}")
-            .AppendLine($"- Reviewed cases: {summary.ReviewedCases}")
-            .AppendLine($"- Program-correct reviewed cases: {summary.ProgramCorrectCases}")
-            .AppendLine($"- Corrections: {summary.Corrections}")
+            .AppendLine($"- User-reviewed cases: {summary.ReviewedCases}")
+            .AppendLine($"- Final-result reviewed cases: {summary.FinalReviewedCases}")
+            .AppendLine($"- Program-correct final results: {summary.ProgramCorrectCases}")
+            .AppendLine($"- Ground Truth corrections: {summary.Corrections}")
             .AppendLine($"- Reviewed final accuracy: {(summary.ReviewedAccuracy is null ? "n/a" : summary.ReviewedAccuracy.Value.ToString("P2"))}")
             .AppendLine()
-            .AppendLine("## Error types");
-        foreach (var pair in summary.ErrorTypes.OrderByDescending(pair => pair.Value).ThenBy(pair => pair.Key, StringComparer.Ordinal))
-            builder.AppendLine($"- {pair.Key}: {pair.Value}");
-        if (summary.RoiDelta is { } delta)
-        {
-            builder.AppendLine()
-                .AppendLine("## ROI correction delta")
-                .AppendLine($"- Samples: {delta.Samples}")
-                .AppendLine($"- Mean ΔX: {delta.MeanX:+0.00;-0.00;0.00}px")
-                .AppendLine($"- Mean ΔY: {delta.MeanY:+0.00;-0.00;0.00}px")
-                .AppendLine($"- Mean ΔW: {delta.MeanWidth:+0.00;-0.00;0.00}px")
-                .AppendLine($"- Mean ΔH: {delta.MeanHeight:+0.00;-0.00;0.00}px")
-                .AppendLine($"- Std ΔX: {delta.StdX:0.00}px")
-                .AppendLine($"- Std ΔY: {delta.StdY:0.00}px")
-                .AppendLine($"- Std ΔW: {delta.StdWidth:0.00}px")
-                .AppendLine($"- Std ΔH: {delta.StdHeight:0.00}px");
-        }
+            .AppendLine("## Ground Truth error types");
+        if (summary.GroundTruthErrorTypes.Count == 0)
+            builder.AppendLine("- No reviewed Ground Truth error labels yet.");
+        else
+            foreach (var pair in summary.GroundTruthErrorTypes.OrderByDescending(pair => pair.Value).ThenBy(pair => pair.Key, StringComparer.Ordinal))
+                builder.AppendLine($"- {pair.Key}: {pair.Value}");
+
+        builder.AppendLine()
+            .AppendLine("## Observed pipeline stages");
+        if (summary.PipelineStages.Count == 0)
+            builder.AppendLine("- No pipeline observations yet.");
+        else
+            foreach (var pair in summary.PipelineStages.OrderByDescending(pair => pair.Value).ThenBy(pair => pair.Key, StringComparer.Ordinal))
+                builder.AppendLine($"- {pair.Key}: {pair.Value}");
+
+        AppendDeltaMarkdown(builder, "Detail window ROI correction delta", summary.DetailWindowRoiDelta);
+        AppendDeltaMarkdown(builder, "Item name ROI correction delta", summary.ItemNameRoiDelta);
         return builder.ToString();
+    }
+
+    private static void AppendDeltaMarkdown(
+        StringBuilder builder,
+        string heading,
+        ScannerRoiDeltaStatistics? delta)
+    {
+        if (delta is null)
+            return;
+        builder.AppendLine()
+            .AppendLine($"## {heading}")
+            .AppendLine($"- Samples: {delta.Samples}")
+            .AppendLine($"- Mean ΔX: {delta.MeanX:+0.00;-0.00;0.00}px")
+            .AppendLine($"- Mean ΔY: {delta.MeanY:+0.00;-0.00;0.00}px")
+            .AppendLine($"- Mean ΔW: {delta.MeanWidth:+0.00;-0.00;0.00}px")
+            .AppendLine($"- Mean ΔH: {delta.MeanHeight:+0.00;-0.00;0.00}px")
+            .AppendLine($"- Std ΔX: {delta.StdX:0.00}px")
+            .AppendLine($"- Std ΔY: {delta.StdY:0.00}px")
+            .AppendLine($"- Std ΔW: {delta.StdWidth:0.00}px")
+            .AppendLine($"- Std ΔH: {delta.StdHeight:0.00}px");
     }
 
     private static string BuildReadme() => """
@@ -889,6 +967,8 @@ public static class ScannerDiagnosticDataset
 6. 기존 정상 사례 regression 방지
 
 `corrected_roi`와 `ground_truth`는 사용자가 직접 지정한 경우 Ground Truth입니다. `review_status=unreviewed`인 자동 보존 사례는 실패 재현용 증거이며 정답으로 간주하면 안 됩니다.
+
+`ground_truth_error_type`은 사용자 검증이 존재할 때만 기록됩니다. 자동 보존 사례의 `pipeline.stage`는 프로그램이 실제로 어느 단계까지 진행했는지를 나타내는 관찰값이며 실패 원인의 Ground Truth 라벨이 아닙니다.
 
 현재 준현 헬퍼 Scanner는 가격과 필요 개수를 화면에서 OCR하지 않습니다. 아이템 이름으로 Item ID를 확정한 뒤 로컬 데이터에서 최고 상점가, 플리마켓 평균가, 슬롯, 필요한 개수를 조회합니다. 따라서 현재 OCR 필드는 `item_name`이며 가격/필요 개수는 `mapped_data` 검증 대상입니다.
 
@@ -933,11 +1013,14 @@ public static class ScannerDiagnosticDataset
         DateTimeOffset GeneratedAt,
         int TotalCases,
         int ReviewedCases,
+        int FinalReviewedCases,
         int ProgramCorrectCases,
         int Corrections,
         double? ReviewedAccuracy,
-        IReadOnlyDictionary<string, int> ErrorTypes,
-        ScannerRoiDeltaStatistics? RoiDelta);
+        IReadOnlyDictionary<string, int> GroundTruthErrorTypes,
+        IReadOnlyDictionary<string, int> PipelineStages,
+        ScannerRoiDeltaStatistics? DetailWindowRoiDelta,
+        ScannerRoiDeltaStatistics? ItemNameRoiDelta);
 
     private sealed record ScannerRoiDeltaStatistics(
         int Samples,
