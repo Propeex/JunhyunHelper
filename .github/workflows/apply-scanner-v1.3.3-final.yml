@@ -1,0 +1,90 @@
+name: Apply Scanner v1.3.3 final hardening
+
+on:
+  push:
+    branches: ['fix/scanner-live-title-v1.3.3']
+    paths:
+      - '.github/workflows/apply-scanner-v1.3.3-final.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/scanner-live-title-v1.3.3
+          fetch-depth: 0
+
+      - name: Apply final source patch
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          function Replace-Exact([string]$Path, [string]$Old, [string]$New) {
+            $text = [IO.File]::ReadAllText($Path)
+            if (-not $text.Contains($Old)) { throw "Expected block not found: $Path" }
+            $text = $text.Replace($Old, $New)
+            [IO.File]::WriteAllText($Path, $text, [Text.UTF8Encoding]::new($false))
+          }
+
+          $runtime = 'src/JunhyunHelper.Desktop/Scanner/ScannerRuntimeService.cs'
+          Replace-Exact $runtime @'
+              candidate.TitleAnchorScore >= 0.48 &&
+              !string.Equals(candidate.TitleAnchorReason, "GEOMETRY_FALLBACK", StringComparison.Ordinal);
+          '@ @'
+              candidate.TitleAnchorScore >= 0.68 &&
+              string.Equals(candidate.TitleAnchorReason, "HEADER_FRAME_LOCKED", StringComparison.Ordinal);
+          '@
+
+          $smoke = 'src/JunhyunHelper.Desktop/Scanner/ScannerPage.MiniScannerSmoke.cs'
+          $text = [IO.File]::ReadAllText($smoke)
+          $startMarker = '    private static void VerifyInspectHeaderAnchorRegression()'
+          $endMarker = '    private static void VerifyMiniScannerProductContract()'
+          $start = $text.IndexOf($startMarker, [StringComparison]::Ordinal)
+          $end = $text.IndexOf($endMarker, $start, [StringComparison]::Ordinal)
+          if ($start -lt 0 -or $end -le $start) { throw 'Scanner smoke method markers not found.' }
+          $replacement = @'
+              private static void VerifyInspectHeaderAnchorRegression()
+              {
+                  ScannerInspectHeaderLockSmoke.Verify();
+              }
+
+          '@
+          $text = $text.Substring(0, $start) + $replacement + $text.Substring($end)
+          [IO.File]::WriteAllText($smoke, $text, [Text.UTF8Encoding]::new($false))
+
+          $project = 'src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj'
+          Replace-Exact $project '<Version>1.3.2</Version>' '<Version>1.3.3</Version>'
+
+          $firstRun = 'packaging/FIRST_RUN_KO.txt'
+          $text = [IO.File]::ReadAllText($firstRun)
+          if (-not $text.StartsWith('준현 헬퍼 v1.3.2 — Windows x64')) { throw 'FIRST_RUN version precondition failed.' }
+          $text = $text.Replace('준현 헬퍼 v1.3.2 — Windows x64', '준현 헬퍼 v1.3.3 — Windows x64')
+          $marker = "v1.3.2 주요 변경 — Scanner 실전 OCR 실패 보강"
+          $insert = @'
+          v1.3.3 주요 변경 — 실제 상세창 헤더 기준 Scanner 회귀 수정
+          - v1.3.2에서 사용자가 명시적으로 신고했던 돋보기/제목 시작점 문제가 실제 게임에서 재발한 원인을 전체 인식 경로 기준으로 수정했습니다.
+          - 12장의 실제 2048x1280 인식 원본에서 반복 확인된 긴 회색 상단 프레임, 빨간 X, 프레임 좌측의 13x13 돋보기 밝은 코어를 authoritative anchor로 사용합니다.
+          - 아이템 이름의 첫 글자 컴포넌트는 더 이상 제목 ROI의 왼쪽 경계를 결정하지 않습니다. 한글 글자 분할 때문에 제목 앞부분이 잘리는 회귀를 차단합니다.
+          - 빨간 X + 상단 프레임 + 고정 아이콘 레인 + 돋보기 + 어두운 제목 필드가 함께 잠기기 전에는 OCR/아이템 확정을 실행하지 않습니다.
+          - `「` 같은 현재 공식 카탈로그 외 기호는 matcher 입력에서 제거되며, 인식 이미지 진단에서는 원본 OCR과 정리 후 matcher 입력을 서로 다른 값으로 표시합니다.
+          - 기존 confidence 기준을 낮추지 않았고, 1-edit 복구의 전체 카탈로그 유일성 및 10%p 2순위 margin도 유지합니다.
+          - 최고 상점가, 플리마켓 평균가, 필요한 개수(RequiredTotal)의 의미와 데이터 연결은 변경하지 않았습니다.
+
+          '@
+          if (-not $text.Contains($marker)) { throw 'FIRST_RUN v1.3.2 section marker not found.' }
+          $text = $text.Replace($marker, $insert + $marker)
+          [IO.File]::WriteAllText($firstRun, $text, [Text.UTF8Encoding]::new($false))
+
+      - name: Commit final source patch
+        shell: pwsh
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src packaging
+          git diff --cached --quiet && throw 'Final patch produced no changes.'
+          git commit -m 'fix(scanner): require authoritative live header lock'
+          git push origin HEAD:fix/scanner-live-title-v1.3.3
