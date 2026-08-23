@@ -1,4 +1,5 @@
 using System.Windows.Media.Imaging;
+using JunhyunHelper.Core.Scanner;
 using JunhyunHelper.Infrastructure.Scanner;
 
 namespace JunhyunHelper.Desktop.Scanner;
@@ -140,8 +141,6 @@ public sealed class FontAwareScannerOcrEngine : IScannerDeepOcrEngine, IDisposab
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            // Visual corroboration must never turn a healthy OCR path into a fatal
-            // Scanner failure when the local game font cache cannot be prepared.
             ScannerDiagnosticLog.Write(
                 "title-font-corroboration-error",
                 null,
@@ -186,9 +185,6 @@ public sealed class FontAwareScannerOcrEngine : IScannerDeepOcrEngine, IDisposab
             ("visualScore", corroborated.VisualScore),
             ("fontVariant", corroborated.FontVariant));
 
-        // Return only the visually verified official name on a strict disagreement.
-        // Keeping the exact-but-wrong OCR line alongside it could produce an exact/exact
-        // tie in the semantic matcher and defeat the correction.
         return verified.OfficialName ?? originalText;
     }
 
