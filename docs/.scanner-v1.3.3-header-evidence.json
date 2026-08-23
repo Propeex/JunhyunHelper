@@ -1,0 +1,28 @@
+{
+  "date": "2026-08-23",
+  "source": "12 user-provided 2048x1280 Tarkov inspect captures",
+  "privacy": "raw screenshots are not committed; only relative measurements are persisted",
+  "samples": [
+    {"id":"151846","header_width":834,"close":[25,16],"magnifier_core":[13,13],"magnifier_x":12,"magnifier_y":7,"title_gap":6},
+    {"id":"151911","header_width":862,"close":[27,17],"magnifier_core":[13,13],"magnifier_x":13,"magnifier_y":7,"title_gap":6},
+    {"id":"151932","header_width":861,"close":[27,17],"magnifier_core":[13,13],"magnifier_x":12,"magnifier_y":7,"title_gap":5},
+    {"id":"151949","header_width":862,"close":[27,17],"magnifier_core":[13,13],"magnifier_x":13,"magnifier_y":7,"title_gap":6},
+    {"id":"152007","header_width":856,"close":[27,17],"magnifier_core":[13,13],"magnifier_x":13,"magnifier_y":7,"title_gap":6},
+    {"id":"152020","header_width":855,"close":[27,17],"magnifier_core":[13,13],"magnifier_x":12,"magnifier_y":7,"title_gap":6},
+    {"id":"152036","header_width":862,"close":[27,17],"magnifier_core":[13,13],"magnifier_x":13,"magnifier_y":7,"title_gap":5},
+    {"id":"152049","header_width":854,"close":[27,17],"magnifier_core":[13,13],"magnifier_x":12,"magnifier_y":7,"title_gap":6},
+    {"id":"152105","header_width":861,"close":[27,17],"magnifier_core":[13,13],"magnifier_x":12,"magnifier_y":7,"title_gap":6},
+    {"id":"152118","header_width":861,"close":[27,17],"magnifier_core":[13,13],"magnifier_x":12,"magnifier_y":7,"title_gap":6},
+    {"id":"152148","header_width":827,"close":[26,16],"magnifier_core":[13,13],"magnifier_x":11,"magnifier_y":7,"title_gap":5},
+    {"id":"152201","header_width":822,"close":[26,16],"magnifier_core":[13,13],"magnifier_x":11,"magnifier_y":7,"title_gap":6}
+  ],
+  "ranges": {
+    "header_width": [822,862],
+    "close_width": [25,27],
+    "close_height": [16,17],
+    "magnifier_core": [13,13],
+    "magnifier_x": [11,13],
+    "magnifier_y": [7,7],
+    "title_gap": [5,6]
+  }
+}
