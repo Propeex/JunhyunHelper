@@ -1,8 +1,35 @@
 # 준현 헬퍼 v1.4.0 릴리즈
 
-상태: **RELEASE CANDIDATE**
+상태: **PUBLIC RELEASE / VERIFIED**
 
 기준일: 2026-08-23
+
+## 공개 검증 결과
+
+```text
+version: v1.4.0 PUBLIC RELEASE / VERIFIED
+release source: 1b7f565adec9dfa2546fb959c813310707aabd32
+public tag source: 1b7f565adec9dfa2546fb959c813310707aabd32
+feature PR #149 final CI: 32643727571 — SUCCESS
+release-prep PR #150 final CI: 32644579509 — SUCCESS
+automated tests: 268 passed / 0 failed / 0 skipped
+release run: 32644951640 — SUCCESS
+independent public verifier: 32645536757 — SUCCESS
+asset: Junhyun-Helper-v1.4.0-win-x64.zip
+bytes: 80,374,018
+SHA-256: ef3676bbc7fb07fd45f4e9291e6fd4ef8a4a686a0f584cb1ddfdb6569376645f
+ProductVersion: 1.4.0+1b7f565adec9dfa2546fb959c813310707aabd32
+public/latest: VERIFIED
+exact public tag source: VERIFIED
+public re-download: VERIFIED
+public SHA256SUMS: VERIFIED
+public package layout: VERIFIED
+public-downloaded EXE smoke: SUCCESS
+```
+
+기계 판독 가능한 최종 증거:
+
+- `docs/.release-v1.4.0-status.json`
 
 ## 릴리즈 목적
 
@@ -103,36 +130,38 @@ Ground Truth 없이 다음 acceptance 기준을 임의 완화하지 않았습니
 
 ```text
 Desktop Version: 1.4.0
-Content schema: 기존 호환 유지
-user.db: migration 없음
-Scanner display settings: 기존 호환 유지
-Scanner catalog cache: 기존 호환 유지
+Content schema: v7
+Readable Content schemas: v3~v7
+user.db schema: v1
+Scanner display settings schema: v4
+Scanner catalog cache schema: v1/v2 readable, v2 written
 Scanner Ground Truth dataset: 신규 local diagnostics persistence
 v1.3.5 → v1.4.0 mandatory Game Content update: none
+v1.3.5 → v1.4.0 user.db migration: none
 ```
 
 Scanner Ground Truth는 `%LocalAppData%/JunhyunHelper/scanner/diagnostics`에 별도 저장되며 일반 scanner.log와 삭제 경계를 분리합니다.
 
-## 릴리즈 gate
+## 검증된 릴리즈 gate
 
-최종 공개 전 다음을 모두 확인합니다.
+완료:
 
-1. release-source Windows Release build
-2. 268 tests / 0 failed / 0 skipped
-3. win-x64 self-contained single-file publish/package audit
-4. packaged EXE rendered Product UI + Map/Factory/MiniMap smoke
-5. exact source SHA ↔ ProductVersion 일치
-6. Draft release ZIP 재다운로드 + SHA-256/size/layout 검증
-7. Draft-downloaded EXE smoke + graceful shutdown
-8. public/latest 전환
-9. exact public tag source 검증
-10. public ZIP 재다운로드 + SHA256SUMS 검증
-11. public-downloaded EXE smoke + graceful shutdown
-
-최종 source SHA, release run, asset 크기와 SHA-256은 공개 검증 완료 후 이 문서와 기계 판독 status 문서에 기록합니다.
+1. release-source Windows Release build — SUCCESS
+2. 268 tests / 0 failed / 0 skipped — VERIFIED
+3. win-x64 self-contained single-file publish/package audit — VERIFIED
+4. packaged EXE rendered Product UI + Map/Factory/MiniMap smoke — SUCCESS
+5. exact source SHA ↔ ProductVersion — VERIFIED
+6. Draft release ZIP 재다운로드 + SHA-256/size/layout 검증 — release workflow SUCCESS
+7. Draft-downloaded EXE smoke + graceful shutdown — release workflow SUCCESS
+8. public/latest 전환 — VERIFIED
+9. exact public tag source — VERIFIED
+10. public ZIP 재다운로드 + SHA256SUMS 검증 — VERIFIED
+11. public-downloaded EXE smoke + graceful shutdown — SUCCESS
+12. 독립 public verifier — SUCCESS
 
 관련 공식 문서:
 
 - `docs/SCANNER_GROUND_TRUTH.md`
 - `docs/CURRENT_SCANNER_WORK.md`
 - `docs/VERSIONING.md`
+- `docs/.release-v1.4.0-status.json`
