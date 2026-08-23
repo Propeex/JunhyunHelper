@@ -363,7 +363,7 @@ public partial class ScannerPage : UserControl
     {
         if (!Dispatcher.CheckAccess())
         {
-            _ = Dispatcher.BeginInvoke(ClearActivities);
+            _ = Dispatcher.BeginInvoke(() => ClearActivities());
             return;
         }
         ClearActivities();
