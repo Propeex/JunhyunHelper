@@ -153,6 +153,13 @@ public partial class MainWindow
                 "Scanner product page did not render the display-test OFF toggle in its safe default state.");
         }
 
+        if (ScannerPlaceholder.HotkeySettingsButton.Content as string != "단축키 설정" ||
+            ScannerPlaceholder.HotkeySettingsButton.MinWidth < 100)
+        {
+            throw new InvalidOperationException(
+                "Scanner v1.3 hotkey settings control did not render at its product contract.");
+        }
+
         if (ScannerPlaceholder.SyncCatalogButton.Content as string != "아이템 목록 최신화")
             throw new InvalidOperationException("Scanner catalog action did not render the user-facing '아이템 목록 최신화' label.");
 
@@ -175,17 +182,21 @@ public partial class MainWindow
             throw new InvalidOperationException("Scanner recent-recognition activity area did not render its safe empty state.");
         }
 
-        var forbiddenButtonLabels = FindVisualDescendants<Button>(ScannerPlaceholder)
+        var buttonLabels = FindVisualDescendants<Button>(ScannerPlaceholder)
             .Select(button => button.Content as string)
             .Where(label => !string.IsNullOrWhiteSpace(label))
             .ToHashSet(StringComparer.Ordinal);
-        if (forbiddenButtonLabels.Contains("위치 편집") ||
-            forbiddenButtonLabels.Contains("위치 초기화") ||
-            forbiddenButtonLabels.Contains("Item ID 미리보기") ||
-            forbiddenButtonLabels.Contains("자동 미리보기") ||
-            forbiddenButtonLabels.Contains("미리보기 숨기기"))
+        if (buttonLabels.Contains("위치 편집") ||
+            buttonLabels.Contains("위치 초기화") ||
+            buttonLabels.Contains("Item ID 미리보기") ||
+            buttonLabels.Contains("자동 미리보기") ||
+            buttonLabels.Contains("미리보기 숨기기") ||
+            buttonLabels.Contains("1회 고정밀 스캔") ||
+            buttonLabels.Contains("1회 인게임 스캔") ||
+            buttonLabels.Contains("1회 테스트 스캔"))
         {
-            throw new InvalidOperationException("Scanner product page still exposes removed position/Foundation developer controls.");
+            throw new InvalidOperationException(
+                "Scanner product page still exposes a removed developer or one-shot scan button.");
         }
 
         var activityProbe = new ScannerActivityEntry(
