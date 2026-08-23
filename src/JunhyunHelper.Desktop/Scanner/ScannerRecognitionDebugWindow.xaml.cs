@@ -33,13 +33,19 @@ public partial class ScannerRecognitionDebugWindow : Window
         AddOverlay(_frame.CloseBounds, Brushes.OrangeRed, 2.0);
 
         var margin = Math.Max(0, _frame.Confidence - _frame.SecondScore);
-        var ocr = string.IsNullOrWhiteSpace(_frame.OcrText)
+        var rawOcr = string.IsNullOrWhiteSpace(_frame.OcrText)
             ? "(없음)"
             : _frame.OcrText.Replace("\r", " ").Replace("\n", " / ");
+        var matcherText = string.IsNullOrWhiteSpace(_frame.MatcherText)
+            ? "(없음)"
+            : _frame.MatcherText.Replace("\r", " ").Replace("\n", " / ");
+        var magnifierState = _frame.MagnifierBounds is { Width: > 0, Height: > 0 } ? "확인" : "실패";
+        var closeState = _frame.CloseBounds is { Width: > 0, Height: > 0 } ? "확인" : "실패";
         DetailText.Text =
             $"캡처: {_frame.Source} · 구조 {_frame.StructuralScore:P1} ({_frame.StructuralReason}) · " +
-            $"제목 anchor {_frame.TitleAnchorScore:P1} ({_frame.TitleAnchorReason})\n" +
-            $"pass: {_frame.Pass} · OCR: {ocr}\n" +
+            $"제목 anchor {_frame.TitleAnchorScore:P1} ({_frame.TitleAnchorReason}) · 돋보기 {magnifierState} · X {closeState}\n" +
+            $"pass: {_frame.Pass} · 매칭 입력: {matcherText}\n" +
+            $"OCR 원본(진단용): {rawOcr}\n" +
             $"후보: {_frame.CandidateName ?? "(없음)"} · 판단: {_frame.RecognitionReason} · " +
             $"신뢰도 {_frame.Confidence:P1} · 1·2순위 차이 {margin:P1}\n" +
             "초록=선택 상세창 · 파랑=OCR 제목 영역 · 노랑=돋보기 anchor · 빨강=닫기 anchor · " +

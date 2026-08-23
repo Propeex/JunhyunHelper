@@ -143,10 +143,17 @@ public sealed partial class ScannerRuntimeService
             if (candidate.StructuralScore < CandidateStructuralFloor || candidate.TitleImage is null)
                 continue;
 
+            if (!HasTrustedTitleAnchors(candidate))
+            {
+                var rejected = CreateAnchorFailure(candidate, index, "ONESHOT_ORIGINAL");
+                bestFailure = PickBetterFailure(bestFailure, rejected);
+                continue;
+            }
+
             var text = await _ocr.ReadTextAsync(candidate.TitleImage, cancellationToken);
-            var recognition = _catalog.ResolveOcrText(text);
-            LogCandidateAttempt(mode, index, "ONESHOT_ORIGINAL", candidate, text, recognition);
-            var result = CreateSearchResult(candidate, recognition, text, "ONESHOT_ORIGINAL", index, 0.82, 0.18);
+            var recognition = _catalog.ResolveOcrText(text, out var assessment);
+            LogCandidateAttempt(mode, index, "ONESHOT_ORIGINAL", candidate, text, assessment.FilteredText, recognition);
+            var result = CreateSearchResult(candidate, recognition, text, assessment.FilteredText, "ONESHOT_ORIGINAL", index, 0.82, 0.18);
             bestFailure = PickBetterFailure(bestFailure, result);
             if (recognition.Success && (bestSuccess is null || result.CombinedScore > bestSuccess.CombinedScore))
                 bestSuccess = result;
@@ -166,10 +173,13 @@ public sealed partial class ScannerRuntimeService
                 if (candidate.StructuralScore < CandidateStructuralFloor || candidate.TitleImage is null)
                     continue;
 
+                if (!HasTrustedTitleAnchors(candidate))
+                    continue;
+
                 var text = await deepOcr.ReadDeepTextAsync(candidate.TitleImage, cancellationToken);
-                var recognition = _catalog.ResolveOcrText(text);
-                LogCandidateAttempt(mode, index, "ONESHOT_DEEP", candidate, text, recognition);
-                var result = CreateSearchResult(candidate, recognition, text, "ONESHOT_DEEP", index, 0.88, 0.12);
+                var recognition = _catalog.ResolveOcrText(text, out var assessment);
+                LogCandidateAttempt(mode, index, "ONESHOT_DEEP", candidate, text, assessment.FilteredText, recognition);
+                var result = CreateSearchResult(candidate, recognition, text, assessment.FilteredText, "ONESHOT_DEEP", index, 0.88, 0.12);
                 bestFailure = PickBetterFailure(bestFailure, result);
                 if (recognition.Success && (bestSuccess is null || result.CombinedScore > bestSuccess.CombinedScore))
                     bestSuccess = result;
@@ -180,6 +190,7 @@ public sealed partial class ScannerRuntimeService
             false,
             null,
             ScannerRecognition.Failed("EMPTY_OCR"),
+            string.Empty,
             string.Empty,
             "ONESHOT_NONE",
             -1,
