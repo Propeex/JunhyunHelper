@@ -1,4 +1,4 @@
-준현 헬퍼 v1.3.5 — Windows x64
+준현 헬퍼 v1.4.0 — Windows x64
 
 실행 방법
 1. 받은 ZIP 파일을 원하는 폴더에 압축 해제합니다.
@@ -6,14 +6,20 @@
 3. 처음 실행하면 프로필을 만들고 필요한 최신 게임 데이터를 온라인에서 내려받습니다.
 4. 프로그램 실행 시 GitHub의 최신 정식 준현 헬퍼 릴리즈를 확인합니다. 더 최신 버전이 있으면 업데이트 여부를 묻습니다.
 
-v1.3.5 주요 변경 — Scanner 상세창 추적 회귀 수정
-- v1.3.4에서 strict HEADER_FRAME_LOCKED에 실패한 구조 후보를 detector 단계에서 완전히 제거하면서, 실제 상세창 구조를 찾고도 추적·로그·진단 이미지가 끊기는 회귀를 수정했습니다.
-- 상세창 구조 후보는 제목 헤더 잠금에 실패해도 diagnostic-only 후보로 남아 구조 점수, anchor 점수와 실패 이유, 확인 가능한 부분 좌표를 로그와 인식 이미지에서 볼 수 있습니다.
-- diagnostic-only 후보의 TitleImage는 null로 유지하므로 OCR이나 Item ID 확정에는 절대 사용되지 않습니다.
-- fully locked 후보가 diagnostic-only 후보보다 항상 우선하며, OCR identity gate는 detector와 runtime 모두 HEADER_FRAME_LOCKED + anchor score 0.68 이상으로 통일했습니다.
-- continuous Scanner는 header lock 실패 후보를 anchor-rejected 로그로 기록합니다.
-- 1회 스캔에서 구조 후보 자체가 0개인 경우에도 one-shot-no-structural-candidate 로그를 남깁니다.
-- 기존 OCR confidence, top1/top2 margin, 현재 공식 한국어 아이템 카탈로그 권위, 가격/필요 개수 의미와 모든 schema는 변경하지 않았습니다.
+v1.4.0 주요 변경 — Scanner 교정·Ground Truth·회귀 검증 체계
+- Scanner 인식 결과를 Case ID로 추적하고 실패·저신뢰·표본 정상 사례를 진단 데이터로 보존합니다.
+- '교정'에서 프로그램 판정이 맞는지 확인하거나 상세보기 영역, 아이템명 영역, 정답 아이템명을 직접 수정할 수 있습니다.
+- 교정된 좌표와 텍스트는 Ground Truth로 저장되며 자동 진단 사례와 구분됩니다.
+- 원본 full.png, 상세창/아이템명 ROI, 전처리 이미지, annotated 이미지와 case.json이 함께 보존됩니다.
+- '교정 데이터 관리'에서 저장 Case 목록을 확인하고 특정 Case만 삭제하거나 전체 데이터를 삭제할 수 있습니다.
+- 저장된 Case 수와 용량을 Scanner 탭에서 확인할 수 있습니다.
+- '교정 데이터 내보내기'는 dataset.jsonl, summary, 환경 정보, 이미지 Case와 Scanner 로그를 하나의 ZIP으로 묶습니다.
+- matcher 상위 후보의 Item ID·공식명·점수를 보존해 오답이 어떤 후보와 경쟁했는지 분석할 수 있습니다.
+- 사용자 Ground Truth와 OCR 결과의 반복 문자 치환·삽입·누락 패턴을 자동 통계로 집계합니다.
+- '회귀 테스트'는 사용자 검증 Case의 원본 full.png를 현재 상세창 탐지 → header lock → title ROI → OCR/deep OCR/font recovery → 공식 카탈로그 매칭 파이프라인으로 다시 실행합니다.
+- 회귀 결과는 STILL_CORRECT / SOLVED / STILL_FAILING / REGRESSION / ERROR로 분류되고 regression.json / regression.md에 저장됩니다.
+- 자동 보존 작업이 이미 사용자 검증된 Ground Truth를 덮어쓰지 못하도록 저장 우선순위를 보강했습니다.
+- Ground Truth가 충분히 쌓이기 전에는 detector/header/OCR/matcher 임계값을 임의로 완화하지 않습니다.
 
 Scanner 사용
 - '스캐너'는 EscapeFromTarkov 게임 창의 Borderless client-area를 실시간 감지합니다.
@@ -24,8 +30,11 @@ Scanner 사용
 - 세 전역 단축키는 Scanner 탭을 보고 있지 않아도 준현 헬퍼가 실행 중이면 사용할 수 있습니다.
 - '아이템 목록 최신화'는 현재 GameMode의 공식 한국어 전체 아이템 카탈로그를 갱신합니다.
 - '인식 이미지'는 최신 캡처와 상세창/제목 ROI, 돋보기, 닫기 X, OCR 및 최종 판단을 확인하는 진단 기능입니다.
-- '이미지 저장'을 선택하면 실제 캡처 픽셀 위에 초록=상세창, 파랑=제목 ROI, 노랑=돋보기, 빨강=닫기 X 진단 박스를 합성한 PNG를 저장합니다.
-- '로그 삭제'는 최근 인식 기록, %LocalAppData%\JunhyunHelper\logs\scanner.log(.1), 최신 메모리 인식 이미지를 정리합니다. 사용자가 별도로 저장한 PNG는 삭제하지 않습니다.
+- '교정'은 최신 인식 Case의 맞음/영역/텍스트 정답을 저장합니다.
+- '회귀 테스트'는 이미 검증된 Case를 현재 Scanner 알고리즘으로 다시 실행합니다.
+- '교정 데이터 내보내기'는 개발 분석용 ZIP을 생성합니다.
+- '교정 데이터 관리'는 Case별 삭제와 전체 삭제를 제공합니다.
+- '로그 삭제'는 최근 인식 기록, %LocalAppData%\JunhyunHelper\logs\scanner.log(.1), 최신 메모리 인식 이미지만 정리하며 Ground Truth dataset은 유지합니다.
 
 Scanner 표시 데이터
 - 최고 상점가: fleaMarket을 제외한 유효 판매처의 RUB 환산 가격 중 최댓값
@@ -33,6 +42,7 @@ Scanner 표시 데이터
 - 상인/플리 가격·슬롯: 유효한 width × height 슬롯 수 기준
 - 필요한 개수: 현재 Needed Items 계획의 RequiredTotal. 보유 Inventory를 뺀 부족량이 아닙니다.
 - 가격이나 크기 정보가 누락되면 해당 표시 필드만 비우고 Item ID 식별 자체를 버리지 않습니다.
+- 현재 화면 OCR 필드는 아이템명입니다. 가격·슬롯·필요 개수는 Item ID 확정 후 로컬 데이터에서 조회합니다.
 
 Scanner 인식 원칙
 - 현재 공식 한국어 전체 아이템 카탈로그가 Item identity의 권위입니다.
@@ -44,14 +54,16 @@ Scanner 인식 원칙
 - 실제 스캔 순간에는 외부 API를 호출하지 않고, 아이콘도 새로 다운로드하지 않습니다.
 - 게임 메모리 읽기, DLL injection, 패킷 가로채기를 사용하지 않습니다.
 
-문제 피드백
-- 인식이 실패하거나 잘못된 아이템으로 판단되면 다음 스캔 전에 '인식 이미지'에서 PNG를 저장하는 것이 가장 중요합니다.
-- scanner.log에는 구조 후보, header anchor 실패 이유, OCR/matcher 판단이 기록됩니다.
-- v1.3.5부터 구조는 찾았지만 header lock에 실패한 경우도 진단 evidence가 남습니다.
+교정/진단 데이터
+- 기본 저장 위치: %LocalAppData%\JunhyunHelper\scanner\diagnostics
+- 전체 게임 창/디스플레이 캡처 픽셀이 진단 Case에 포함될 수 있습니다.
+- 자동 보존 Case는 정답으로 간주하지 않으며 사용자가 확인/교정한 Case만 Ground Truth로 취급합니다.
+- 일반 Scanner 로그 삭제와 교정/진단 dataset 삭제는 서로 독립적입니다.
+- 내보낸 ZIP은 사용자가 지정한 위치에 생성되며 프로그램의 데이터 삭제 기능으로 자동 제거되지 않습니다.
 
 사용자 데이터
 - 사용자 데이터는 프로그램 폴더가 아니라 %LocalAppData%\JunhyunHelper 에 저장됩니다.
-- 프로그램 업데이트는 user.db, Game Content cache, 이미지 cache, Map/Ammo/Scanner 사용자 설정과 Scanner 로그를 교체하지 않습니다.
+- 프로그램 업데이트는 user.db, Game Content cache, 이미지 cache, Map/Ammo/Scanner 사용자 설정과 Scanner 로그/교정 데이터를 교체하지 않습니다.
 
 배포 형태
 - Windows x64
