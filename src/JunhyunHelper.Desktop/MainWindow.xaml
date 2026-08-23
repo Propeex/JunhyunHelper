@@ -57,9 +57,21 @@
                 <Button x:Name="MapTabButton" Grid.Column="5" Content="지도" Margin="0,0,6,0" Padding="14,7" Click="MapTabButton_Click" />
                 <Button x:Name="ScannerTabButton" Grid.Column="6" Content="스캐너" Padding="14,7" Click="ScannerTabButton_Click" />
 
-                <TextBlock x:Name="StatusText" Grid.Column="7"
-                           Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="18,0"
-                           TextTrimming="CharacterEllipsis" />
+                <Grid Grid.Column="7" Margin="18,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="VersionText" Grid.Column="0"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center"
+                               Margin="0,0,10,0" />
+                    <TextBlock x:Name="StatusText" Grid.Column="1"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" />
+                </Grid>
                 <ComboBox x:Name="ProfileComboBox" Grid.Column="8" Width="195" Margin="0,0,8,0"
                           DropDownOpened="ProfileComboBox_DropDownOpened"
                           SelectionChanged="ProfileComboBox_CompactSelectionChanged" />
