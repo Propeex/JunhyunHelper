@@ -1,421 +1,244 @@
-# Scanner v1.2.1 Test Plan
+# Scanner v1.2.2 Test Plan
 
-기준일: 2026-08-22
+기준일: 2026-08-23
 
-상태: **`v1.2.0 PUBLIC VERIFIED / v1.2.1 RELEASE CANDIDATE / LIVE TARKOV CALIBRATION DEFERRED`**
+상태: **`v1.2.2 PUBLIC VERIFIED / LIVE TARKOV CALIBRATION DEFERRED`**
 
-이 문서는 v1.2.1의 deterministic release gate와 실제 Tarkov에서만 얻을 수 있는 후속 calibration을 분리합니다. v1.2.1은 live evidence 없이 geometry/OCR/visual confidence threshold를 조정하지 않습니다.
+이 문서는 v1.2.2의 deterministic regression gate와 실제 Tarkov 환경에서만 얻을 수 있는 후속 calibration을 분리합니다. 실제 관측 근거 없이 geometry/OCR/visual confidence threshold를 조정하지 않습니다.
 
-## 1. v1.2.1 Release blocking gate
+## 1. 현재 공개 기준선
+
+```text
+release source: e3925cbc55215c7de0502c9b6b1ff1428d2f272b
+final PR CI: 32590303579 — SUCCESS
+exact-source release run: 32590701086 — SUCCESS
+independent public finalizer: 32607942093 — SUCCESS
+256 passed / 0 failed / 0 skipped
+asset: Junhyun-Helper-v1.2.2-win-x64.zip
+bytes: 80,302,910
+SHA-256: 125d4a5b0e6db64f6772cc63c112f13cbcdac2fb7bc9ce501313ca2fc3645d7c
+ProductVersion: 1.2.2+e3925cbc55215c7de0502c9b6b1ff1428d2f272b
+public/latest: VERIFIED
+exact public tag source: VERIFIED
+public-downloaded EXE smoke: SUCCESS
+```
+
+상세 증거: `docs/RELEASE_1.2.2.md`, `docs/.release-v1.2.2-status.json`.
+
+## 2. Release blocking gate
+
+정식 Scanner PATCH는 최소 다음을 모두 통과해야 합니다.
 
 1. exact merge source 고정
-2. Windows Release Desktop build
+2. Windows Release build
 3. 전체 automated tests 0 failure / 0 skip
 4. Scanner Lab v3.8 structural regression
 5. title anchor / magnifier exclusion regression
 6. OCR character-policy regression
-7. current catalog semantic matcher regression
-8. Tarkov-font recovery parser/fallback segmentation smoke
-9. font cache generation/source consistency static contract
-10. visual cache generation/boundedness code audit
+7. current official catalog matcher regression
+8. Tarkov-font recovery parser/fallback smoke
+9. font-cache generation/source consistency regression
+10. bounded visual-cache contract
 11. market-field regression
-12. one-shot/hotkey/settings schema regression
-13. one-shot previous-mode restoration regression
-14. win-x64 self-contained single-file publish
-15. ProductVersion = `1.2.1+<exact release SHA>`
-16. FIRST_RUN first line = `준현 헬퍼 v1.2.1 — Windows x64`
-17. package root/dependency/PDB/nested-archive audit
-18. actual published EXE startup
-19. rendered Product UI + Scanner UI assertions
-20. Mini Scanner actual WPF smoke
-21. Scanner schema v3/default hotkey smoke
-22. synthetic magnifier-exclusion inspect-header smoke
-23. Main Map / Factory / MiniMap runtime smoke
-24. graceful Main Window close/process exit
-25. Draft ZIP/checksum/package/ProductVersion/FIRST_RUN verification
-26. Draft-downloaded EXE smoke
-27. public/latest 전환
-28. exact public tag → release source SHA verification
-29. public ZIP/checksum/package/ProductVersion/FIRST_RUN 재검증
-30. public-downloaded EXE smoke
-31. public-downloaded EXE graceful shutdown
+12. catalog cache-load/network-refresh ordering regression
+13. one-shot/profile/GameMode lifecycle regression
+14. Mini Scanner inventory-probe coalescing regression
+15. Windows x64 self-contained single-file publish
+16. exact ProductVersion / FIRST_RUN identity
+17. package-root / debug-symbol / nested-archive / forbidden-dependency audit
+18. actual published EXE Product UI / Scanner / Mini Scanner smoke
+19. Main Map / Factory / MiniMap smoke
+20. graceful close / clean portable root
+21. Draft asset re-download verification
+22. Draft-downloaded EXE smoke
+23. public/latest verification
+24. exact public tag-source verification
+25. public asset re-download/checksum/package identity verification
+26. public-downloaded EXE smoke
 
-최신 live Tarkov 실행 E2E는 release blocker가 아니며 사용자 환경에서 후속 검증합니다.
+최신 실제 Tarkov 실행 E2E calibration은 release blocker가 아니며 공개 후 별도로 검증합니다.
 
-## 2. Scanner Lab v3.8 structural regression
+## 3. Structural detector regression
 
-반드시 유지:
+유지해야 하는 계약:
 
 - RED-X connected-component path
-- RED-X anchored outer-window reconstruction
+- RED-X 기반 outer-window reconstruction
 - rectangle/edge fallback
 - IoU candidate deduplication
 - candidate limit 8
 - structural floor 0.34
-- geometry alone으로 final Item 확정 금지
-- adaptive 4x/6x/8x Windows ko-KR OCR
+- geometry evidence만으로 Item ID 확정 금지
+- adaptive 4x/6x/8x Korean OCR
 - deep OCR fallback
 - current official Korean catalog semantic validation
-- confidence/top1-top2 margin 유지
+- confidence와 top1/top2 margin 유지
 
-고정 구조 회귀:
+고정 회귀에는 cropped inspect window, full-screen inspect window, strong inner rectangle coexistence, no-RED-X fallback, uniform-frame fail-closed가 포함됩니다.
 
-- cropped `Ophthalmoscope 검안경`: outer inspect/title ROI
-- full `Water 0.6L 물병` screenshot: central inspect/title ROI
-- strong inner rectangle coexistence
-- no RED-X rectangle fallback
-- uniform frame fail-closed
+## 4. Title anchor / OCR regression
 
-## 3. Title anchor regression
-
-확인:
-
-- red close/X evidence가 detail header 위치와 일치
-- magnifier candidate가 title field 좌측에서 검출 가능
-- title field refinement가 valid rectangle만 반환
-- magnifier가 검출되면 refined title ROI의 left가 magnifier right보다 오른쪽
-- title ROI와 magnifier bounds가 실질적으로 overlap하지 않음
-- close/magnifier evidence가 불충분하면 기존 Scanner Lab geometry title ROI fallback
-- anchor 실패를 이유로 arbitrary screen strip을 OCR하지 않음
-- diagnostic anchor score는 merely-present=100%가 아니라 actual component score를 보존
-
-Published EXE smoke는 synthetic Tarkov inspect-header를 생성하여 magnifier exclusion contract를 실제 WPF/Windows build에서 검사합니다.
-
-## 4. OCR character policy
-
-`ScannerOcrCharacterPolicy` 검증:
-
-- current official Korean catalog에서 allowed character set 생성
-- 공식 이름에 실제 존재하는 Hangul/Latin/숫자/기호 허용
-- catalog에 존재하지 않는 unexpected character reject
-- Han ideograph reject
-- character rejection이 arbitrary replacement/correction으로 바뀌지 않음
-- catalog 변경 시 allowed set 자동 재계산
-
-OCR character reject는 Item ID를 직접 선택하는 근거가 아니라 semantic path를 보류하고 필요 시 visual recovery로 넘기는 evidence입니다.
-
-## 5. OCR / semantic matcher
-
+- close/X, magnifier, title-field evidence의 위치 관계 검증
+- magnifier가 검출되면 실제 title ROI에서 magnifier pixels 제외
+- anchor evidence가 부족하면 Scanner Lab geometry ROI로 fallback
+- arbitrary screen strip OCR 금지
+- diagnostic anchor score가 actual detector evidence를 보존
+- current official Korean catalog에서 OCR allowed-character set 파생
+- unexpected character는 corrupted OCR evidence
 - exact official name 우선
-- normalized text candidate 비교
-- fuzzy confidence threshold 유지
-- top1/top2 margin 유지
-- duplicate/ambiguous official name fail closed
-- empty OCR fail closed unless visual recovery가 별도 기준 통과
-- historical alias를 무제한 production source로 사용하지 않음
-- corrupted OCR이 높은 구조점수만으로 Item 확정되지 않음
-- successful primary semantic match를 font visual recovery가 교체하지 않음
+- fuzzy confidence와 top1/top2 margin 유지
+- ambiguous candidate fail closed
+- successful primary semantic match를 visual recovery가 교체하지 않음
 
-## 6. Tarkov-font visual recovery
-
-확인 계약:
+## 5. Tarkov-font recovery / cache regression
 
 - current official full-item catalog만 candidate universe로 사용
-- actual title image를 normalized visual representation으로 비교
-- scan-time HTTP/API 없음
-- visual path가 successful primary OCR path를 덮어쓰지 않음
-- top1 score threshold 필요
-- top1/top2 margin 필요
-- ambiguous visual candidates reject
-- no catalog / no valid title image fail closed
-- visual result도 final Item ID가 current catalog에 존재해야 함
+- scan-time network 없음
+- visual top1 score와 top1/top2 margin 모두 필요
+- ambiguous visual candidate reject
+- user-installed Tarkov resource를 read-only source로 사용
+- source 전체를 단일 대형 managed buffer로 읽지 않음
+- source path/length/last-write manifest 유지
+- actual cached font bytes의 generation hash 유지
+- generation 변경 시 stale rendered template 폐기
+- OCR-guided/full-catalog caches는 bounded
+- corrupt/unavailable font cache는 primary OCR을 fatal로 만들지 않음
 
-## 7. v1.2.1 font source / cache generation
+## 6. Runtime / one-shot lifecycle regression
 
-`TarkovTitleFontProvider` 계약:
+- 서로 다른 geometry signature가 연속돼도 stable hit 누적 금지
+- verified geometry/title signature 유지 시 OCR 반복 억제
+- presentation refresh는 OCR 없이 최신 데이터 bridge만 재계산
+- one-shot 시작 전 continuous loop 실제 종료 await
+- one-shot 중 duplicate invocation 직렬화/거부
+- 종료 후 최신 사용자 state가 같은 mode를 여전히 요청할 때만 이전 mode 복원
+- stale profile/GameMode monitor 결과가 과거 mode를 되살리지 않음
+- title OCR과 inventory-context OCR은 shared serialized boundary 사용
+- 종료 중 active font-aware operation이 끝난 뒤 resource 정리
 
-- user-installed `EscapeFromTarkov_Data/resources.assets`만 read-only input으로 사용
-- game font binaries를 public release에 번들하지 않음
-- resources asset 전체를 `File.ReadAllBytes`로 적재하지 않음
-- bounded sequential scan + validated random-access SFNT payload extraction
-- invalid SFNT table directory / zero table / oversized payload reject
-- required Korean font + 최소 하나의 Bender variant 없으면 recovery unavailable
-- source path/length/last-write를 manifest에 기록
-- actual cached Bender/Noto bytes의 SHA-256 조합으로 generation key 생성
-- manifest는 font payload commit 뒤 마지막에 저장
-- extraction 중단/부분 cache는 정상 generation으로 인정하지 않음
-- legacy cache freshness는 존재하는 모든 Bender variant와 Noto의 oldest stamp 고려
-- corrupt manifest/path/font cache는 Scanner fatal이 아니라 visual recovery unavailable
+## 7. Mini Scanner regression
 
-Published EXE `ScannerTitleFontSmoke`는 SFNT parser와 Korean fallback segmentation 기본 계약을 검증합니다.
+- matched Item 정보만 표시
+- 실제 mode에서 foreground/inventory context를 보수적으로 확인
+- inventory context가 불확실하면 hidden
+- inventory-context OCR probe 동시 최대 1개
+- 반복 요청은 latest snapshot으로 coalesce
+- item/visibility epoch 변경 시 stale result 폐기
+- Topmost / no-activate 유지
+- 전체 card drag surface
+- negative multi-monitor coordinate 저장 가능
+- MiniMap과 독립 lifecycle
 
-## 8. v1.2.1 visual-cache boundedness
-
-코드/CI 감사 계약:
-
-- OCR-guided rendered template cache key에 `GenerationKey` 포함
-- full-catalog mask/aspect cache key에 `GenerationKey` 포함
-- font generation 변경 시 stale cache clear
-- template/mask/aspect cache에 명시적 상한 존재
-- cache eviction/clear가 confidence/identity 의미를 변경하지 않음
-- 장시간 사용에서 catalog 이름 수에 비례해 무제한 mask가 누적되는 구조 금지
-
-실제 장시간 메모리 곡선은 live E2E에서 추가 측정합니다.
-
-## 9. Candidate 안정화 / OCR 억제
-
-- candidate가 없으면 stable hit = 0
-- 서로 다른 geometry signature만 이어지면 stable로 승격하지 않음
-- 연속 candidate 집합에 같은 quantized `GeometrySignature`가 있을 때만 stable hit 누적
-- mode/change/miss/reset에서 previous signature history clear
-- verified bounds + title signature 유지 시 OCR 반복 억제
-- title/geometry 변화 시 기존 Item clear 후 재검증
-- presentation refresh는 OCR 재실행하지 않음
-
-## 10. One-shot precision scan
-
-- continuous Scanner OFF에서도 실행 가능
-- local healthy catalog 없으면 fail closed
-- scan-time network refresh 시작 금지
-- candidate 상위 집합 평가
-- original OCR pass
-- deep OCR pass
-- visual recovery path 허용
-- best successful candidate를 combined evidence로 선택
-- no successful evidence면 overlay hidden / Item ID clear
-- success면 presentation snapshot 생성
-- continuous mode가 없으면 result auto-hide timer 적용
-
-## 11. Continuous / one-shot / profile concurrency
-
-실시간 Scanner/Test, one-shot, profile/GameMode monitor가 shared runtime/catalog/presentation state를 오래된 관측으로 덮지 않아야 합니다.
-
-검증 계약:
-
-1. one-shot 시작 시 current active mode capture
-2. runtime `StopLoop()`
-3. previous loop Task completion await
-4. one-shot 수행
-5. one-shot coordinator gate로 duplicate invocation reject/serialize
-6. 종료 시 `resumeMode == current ActiveCaptureMode`일 때만 restart
-7. 사용자가 Scanner/Test를 끄거나 mode를 변경했다면 old mode restore 금지
-8. profile/GameMode monitor는 same gate 획득 뒤 latest context 재조회
-9. stale monitor tick이 old profile/mode를 restart하지 않음
-
-Published EXE smoke는 `ShouldRestoreOneShotMode`의 same-mode/changed-mode/disabled-mode 계약을 검사합니다.
-
-## 12. OCR serialization / shutdown lifetime
-
-- Item-title OCR과 inventory-context OCR은 같은 `SerializedScannerOcrEngine` semaphore 공유
-- WinRT OCR concurrent access 금지
-- one-shot은 continuous loop actual completion 뒤 OCR 시작
-
-`FontAwareScannerOcrEngine` disposal contract:
-
-- Dispose 시작 후 new operation reject
-- already-active operation count 보존
-- active operation이 0이 된 뒤 Skia/font matcher/verifier/provider dispose
-- disposed resource를 active recovery가 재사용하지 않음
-- UI thread에서 active Scanner task 동기 wait로 deadlock 만들지 않음
-
-## 13. Mini Scanner inventory-context coalescing
-
-실제 mode 계약:
-
-- foreground Tarkov + Korean inventory/stash context 없으면 hidden
-- inventory navigation semantic anchor 최소 2개 요구
-- 동시에 active inventory-context OCR probe 최대 1개
-- 반복 `Show`는 latest pending snapshot으로 coalesce
-- item change/hide가 visibility epoch 증가
-- old probe cancellation
-- late old-epoch result 화면 적용 금지
-- test/preview deterministic path는 기존대로 context gate bypass 가능
-
-실제 OCR latency/backlog는 live E2E에서 추가 관찰하지만, 코드상 unbounded queued probe를 만들 수 없어야 합니다.
-
-## 14. PrintWindow allocation contract
-
-Windows capture path:
-
-- `PrintWindow` 우선
-- invalid/empty capture면 exact client screen `CopyFromScreen` fallback
-- `HasVisualContent`는 sparse sample만 필요
-- sparse validation 때문에 full framebuffer managed copy 생성 금지
-- locked bitmap direct sample 후 반드시 UnlockBits
-- actual detector용 normalized BGRA copy는 1회 유지
-- negative stride 처리 유지
-
-## 15. Global hotkey / settings schema
-
-- Scanner display settings current schema = v3
-- 기존 settings normalize/migrate
-- default one-shot hotkey = `Ctrl+Shift+F10`
-- Ctrl/Alt/Shift modifier 최소 1개 필요
-- valid WPF Key parse/serialize roundtrip
-- disabled hotkey = empty/no registration
-- `MOD_NOREPEAT`
-- registration collision/failure가 status text로 노출
-- Window detach/dispose에서 unregister
-- handler 중복 동시 실행 방지
-
-## 16. Recognition debug image
-
-- latest frame 1개만 memory에 유지
-- capture origin/source 보존
-- selected detail/title/magnifier/close bounds local coordinate 변환
-- OCR text / candidate / reason / confidence / second score 표시
-- 최종 선택 recognition으로 metadata 갱신
-- discarded candidate score가 final metadata로 남지 않음
-- screenshot/raw pixel disk persistence 없음
-- clear 시 frame/signature/timestamp 초기화
-- title-anchor score는 actual detector evidence 보존
-
-## 17. Catalog / market data
-
-Full catalog:
-
-- 4,000개 이상 Korean item load
-- regular / pve / pvp-season
-- Korean translation + English per-key fallback
-- corrupt/missing cache reject
-- requested mode missing 시 wrong-mode identity 사용 금지
-- AtomicJson backup recovery
+## 8. Catalog identity / market regression
 
 Identity health:
 
 ```text
 item count >= 4000
-AND valid Item ID/name for every accepted item
+AND every accepted item has valid Item ID/name
 ```
 
-Market regression:
+- regular / pve / pvp-season 지원
+- Korean translation + English per-key fallback
+- corrupt/missing cache reject
+- requested mode missing 시 wrong-mode identity 사용 금지
+- market coverage는 identity health와 분리
+- raw `traderPrices`와 derived `sellFor` 지원
+- best trader = valid non-flea RUB 가격 최댓값
+- flea average = positive `avg24hPrice`
+- invalid dimension은 slots/price-per-slot만 fail closed
+- 4,000 valid identities + trader price 0개 허용
+- 3,999 identity reject
 
-- raw `traderPrices` 지원
-- derived `sellFor` 지원
-- 복수 trader 중 non-flea RUB 최댓값 선택
-- flea row는 best trader에서 제외
-- flea average는 positive `avg24hPrice`
-- zero/missing avg24hPrice → null
-- invalid/non-positive dimension → slots 0, price/slot null
-- valid price + slots → integer price/slot
-- 4,000-item identity + trader price 0개 허용
-- 3,999-item identity reject
+## 9. v1.2.2 catalog mode-transition regression
 
-## 18. 현재 필요한 수량
+`RefreshAsync`와 `LoadCacheAsync`는 같은 in-memory Scanner catalog state를 교체할 수 있으므로 동일 `_refreshGate` operation boundary를 사용합니다.
+
+필수 계약:
+
+- cache load와 network refresh 직렬화
+- cross-mode clear는 refresh가 gate를 얻은 뒤 수행
+- cache-load gate wait는 Scanner catalog lifetime cancellation과 연결
+- older mode refresh가 newer mode cache load 뒤에 final state가 되는 상태 역전 금지
+- matcher와 OCR character-policy가 서로 다른 mode catalog를 갖는 split state 금지
+
+`ScannerCatalogConcurrencyTests.LoadCacheAsync_WaitsForInFlightRefreshAndKeepsNewestMode`는 다음 ordering을 강제합니다.
+
+1. healthy PvE disk cache seed
+2. older Regular refresh 시작 후 block
+3. newer PvE cache load 요청
+4. newer load가 operation gate 뒤에서 wait함을 확인
+5. older refresh 완료
+6. newer PvE load 완료
+7. final LoadedMode가 PvE인지 확인
+8. healthy catalog와 Item lookup 확인
+
+이 테스트는 recognition threshold가 아니라 state-ordering correctness를 검증합니다.
+
+## 10. 표시 데이터 regression
+
+현재 필요한 수량:
 
 ```text
 ItemsWorkspace.Plan.NeededItems[itemId].RequiredTotal
 ```
 
-- Inventory 차감 부족량을 Scanner 의미로 사용하지 않음
-- NeededItems에 없으면 0
-- 동일 Item ID presentation snapshot 주기적 재구성
-- Quest/Hideout 진행 변화가 같은 상세창에서도 최신 RequiredTotal로 반영
+- Inventory 차감 shortage를 Scanner 필요 수량으로 사용하지 않음
+- Needed Items에 없으면 0
+- verified Item의 presentation snapshot을 주기적으로 재구성해 진행 변화 반영
+- 최고 상점가, 플리 평균가, price-per-slot 계약 유지
+- local icon cache만 읽고 scan 중 icon network 요청 없음
 
-## 19. Icon / performance
+## 11. UI / diagnostics smoke
 
-- scan-time icon HTTP 없음
-- local image-cache만 사용
-- Game Content update에서 canonical item 전체 icon prefetch
-- invalid/missing local icon은 icon 표시만 omit
-- decode/freeze 성공 아이콘 process memory cache 재사용
-- presentation refresh가 같은 PNG decode 반복하지 않음
+Scanner tab에 유지:
 
-## 20. Scanner UI / Mini Scanner actual WPF smoke
-
-Scanner tab 유지:
-
-- `스캐너 ON/OFF`
-- `테스트 ON/OFF`
-- `1회 고정밀 스캔`
-- `인식 이미지`
-- one-shot hotkey display/change
-- `아이템 목록 최신화`
+- Scanner/Test toggle
+- one-shot scan
+- recognition image
+- one-shot hotkey 설정
+- item catalog refresh
 - display checkboxes
 - recent recognition activity
-- `로그 삭제`
+- log clear
 
-없어야 함:
+실제 published EXE에서 확인:
 
-- Foundation verification/preview controls
-- Mini Scanner 별도 위치 편집/초기화 일반 사용자 control
-- Mini Scanner runtime/status text
+- safe defaults
+- activity/log 생성
+- current/rotated log clear
+- latest in-memory recognition image clear
+- diagnostic I/O failure가 Scanner fatal이 아님
+- screenshot/raw pixels disk persistence 없음
 
-Mini Scanner smoke:
+## 12. Windows capture / performance contract
 
-- matched-item-only
-- trader price 표시
-- trader price/slot 표시
-- Topmost
-- ShowActivated=false
-- WS_EX_NOACTIVATE / WS_EX_TOOLWINDOW
-- 전체 rectangular card hitbox
-- Arrow cursor
-- negative/multi-monitor position persistence contract
-- MiniMap과 독립 lifecycle
-
-## 21. 로그 삭제 end-to-end smoke
-
-실제 published EXE에서:
-
-1. Scanner diagnostic/activity baseline clear
-2. diagnostic/activity 생성
-3. `scanner.log` 생성 확인
-4. `scanner.log.1` 회전 로그 생성
-5. rendered `로그 삭제` click
-6. recent activity = 0
-7. current/rotated log 없음
-
-삭제 I/O 실패를 Scanner runtime fatal로 확대하지 않습니다.
-
-## 22. Windows capture/runtime
-
-Windows runner 확인:
-
-- EscapeFromTarkov process/window discovery
-- GetClientRect + ClientToScreen
-- PrintWindow + CopyFromScreen fallback
+- Tarkov client-area discovery
+- PrintWindow 우선 + invalid frame fallback
 - multi-monitor enumeration
-- Windows ko-KR OCR boundary
-- WPF BitmapSource handoff
-- real/test mutual exclusion
-- both OFF → no continuous capture/OCR loop
-- one-shot은 continuous OFF에서도 explicit invocation 시만 수행
+- Korean OCR boundary
+- both continuous modes OFF면 background capture/OCR loop 없음
+- one-shot은 explicit invocation에서만 수행
+- PrintWindow sparse validation을 위해 전체 framebuffer managed copy를 추가 생성하지 않음
+- visual template caches bounded
+- Mini Scanner inventory OCR queue가 무제한 증가하지 않음
 
-## 23. v1.2.0 Public baseline — 완료
-
-```text
-release source: a7601f8498e8d75e832962fb9dd60f4112d28dc6
-release run: 32514322439 — SUCCESS
-255 passed / 0 failed / 0 skipped
-asset: Junhyun-Helper-v1.2.0-win-x64.zip
-bytes: 80,298,514
-SHA-256: ab5e9ef35b300268d16a1c5eece86cd8c6e57c91c83364caf4b7d02cde1d27d1
-ProductVersion: 1.2.0+a7601f8498e8d75e832962fb9dd60f4112d28dc6
-public-downloaded EXE smoke: SUCCESS
-```
-
-## 24. v1.2.1 pre-release evidence
-
-Final static hardening candidate before version/docs:
-
-```text
-CI run: 32539676032 — SUCCESS
-255 passed / 0 failed / 0 skipped
-Windows Release build: PASS
-win-x64 publish/package audit: PASS
-published EXE Product UI / Scanner / Mini Scanner / Main Map / Factory / MiniMap smoke: PASS
-graceful shutdown / clean portable root: PASS
-```
-
-Final v1.2.1 version/FIRST_RUN/docs/smoke-contract head must pass the same gate before merge. Merge 후에는 exact merge SHA에서 별도 release build를 수행하고 Draft/Public asset을 각각 재다운로드해 hash/root/ProductVersion/FIRST_RUN/actual EXE smoke를 검증합니다.
-
-## 25. 공개 후 실제 Tarkov 검증
+## 13. 공개 후 실제 Tarkov 검증
 
 우선순위:
 
-1. 실제 Borderless detail candidate 안정성
-2. close/magnifier/title anchor 정확도와 실제 diagnostic score
-3. 실제 title ROI가 돋보기를 제외하는지
-4. current Korean title OCR
-5. OCR-invalid-character 발생 패턴
-6. semantic vs visual recovery 선택
-7. false positive / miss
-8. 실제 Tarkov update 후 font source/cache generation 교체
-9. 최고 상점가 / 플리 평균가 / 현재 필요한 수량
-10. one-shot hotkey 실전 사용성과 mode/context 변경 중 동작
-11. Mini Scanner inventory gate 및 OCR backlog 유무
-12. 장시간 CPU/memory/handles/OCR rate / bounded visual cache
+1. Borderless detail candidate 안정성
+2. close/magnifier/title anchor 정확도와 diagnostic score
+3. 실제 title ROI의 magnifier exclusion
+4. Korean title OCR 및 corrupted-character 패턴
+5. semantic vs visual recovery 선택
+6. false positive / miss
+7. Tarkov update 후 font generation 교체
+8. 최고 상점가 / 플리 평균가 / RequiredTotal
+9. one-shot과 profile/GameMode 변경의 공존
+10. catalog refresh/load와 profile GameMode 전환 공존
+11. Mini Scanner inventory gate와 OCR backlog
+12. 장시간 CPU/memory/handle/OCR rate
 13. Mini Scanner / MiniMap / Alt+Tab 공존
 
-문제가 있으면 `scanner.log`와 `인식 이미지`를 근거로 후속 PATCH에서 보정합니다. confidence/margin을 단순히 낮춰 오탐을 늘리는 방식은 사용하지 않습니다.
+문제가 있으면 `scanner.log`와 `인식 이미지`를 근거로 capture → geometry → anchors → ROI → OCR/visual matcher → catalog → presentation → overlay 단계로 분리해 후속 PATCH에서 보정합니다. confidence/margin을 단순히 낮추는 방식으로 해결하지 않습니다.
