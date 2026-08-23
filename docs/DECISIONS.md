@@ -18,7 +18,7 @@
 - `DEC-004` — 사용자는 제품 판단에 집중하고 개발 절차는 개발자가 책임 — **CONFIRMED**
 - `DEC-005` — 초기 Phase 1에서는 구현보다 설계를 선행 — **PHASE-SPECIFIC / SUPERSEDED by DEC-030**
 - `DEC-006` — 공식 제품명은 준현 헬퍼 — **CONFIRMED**
-- `DEC-007` — 초기 상위 기능 영역 정의 — **CONFIRMED**, Scanner 의미는 DEC-050~057
+- `DEC-007` — 초기 상위 기능 영역 정의 — **CONFIRMED**, Scanner 의미는 DEC-050~059
 - `DEC-008` — 구두 의도는 의미를 맞춘 뒤 공식 요구사항으로 확정 — **CONFIRMED**
 - `DEC-009` — Quest 원천은 json.tarkov.dev → 내부 canonical model — **CONFIRMED**
 - `DEC-010` — 받을 수 있는 Quest는 Helper에서 이미 수락한 것으로 간주 — **CONFIRMED**
@@ -181,7 +181,7 @@
 
 ## DEC-050 — Scanner는 한국어 Tarkov 화면을 Item ID로 변환하는 독립 입력 subsystem이다
 
-- 상태: `CONFIRMED / IMPLEMENTED / PARTIALLY SUPERSEDED by DEC-051/052/053/054/055/056/057`
+- 상태: `CONFIRMED / IMPLEMENTED / PARTIALLY SUPERSEDED by DEC-051/052/053/054/055/056/057/058/059`
 - 날짜: 2026-08-21
 - 자동 detail/title 인식 → current Korean official item name → Item ID
 - Item ID 이후 기존 JunhyunHelper 데이터 사용
@@ -199,6 +199,8 @@
 - title-recognition/diagnostics/one-shot 구조는 DEC-055가 확장
 - deterministic recognition/runtime hardening 경계는 DEC-056이 구체화
 - catalog mode-transition operation ordering은 DEC-057이 구체화
+- inspect-header frame ownership은 DEC-058이 구체화
+- live structural/OCR/diagnostic hardening은 DEC-059가 구체화
 - 상세: `docs/SCANNER.md`
 
 ## DEC-051 — Scanner v1.1.0은 실제 구현을 공개하고 live Tarkov 검증은 로그 기반 후속으로 진행한다
@@ -344,6 +346,27 @@
 - release run: `32625403609 — SUCCESS`
 - public ZIP SHA-256: `0771d3c7dee5a8f19904d52eeedc7b9abbd6027a7b000255ebd33c296bc2186f`
 - 상세: `docs/DECISION_SCANNER_HEADER_LOCK_2026-08-23.md`, `docs/SCANNER_V1.3.3_HEADER_LOCK.md`, `docs/RELEASE_1.3.3.md`
+
+## DEC-059 — Scanner v1.3.4는 실제 Tarkov evidence 기반 recognition/diagnostics hardening을 적용한다
+
+- 상태: `CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED v1.3.4`
+- 날짜: 2026-08-23
+- v1.3.3 공개 후 실제 Tarkov 사용에서 확인된 `Esma「ch` OCR glyph loss, title glyph의 magnifier 오인, structural detail bounds drift, 저장 PNG의 진단 rectangle 유실을 근거로 한다.
+- current official catalog 밖 embedded symbol을 `r` 같은 특정 문자로 고정 치환하지 않는다. 영숫자 사이 정확히 한 unknown glyph만 별도 pattern으로 보존하고 complete current catalog에서 exact-slot 후보가 유일하며 global runner-up과 10%p 이상 차이날 때만 복구한다.
+- magnifier는 long neutral header frame으로부터 계산한 fixed frame-left search-icon lane과 normalized ring/hollow/handle template가 소유한다. title lane glyph는 형태가 비슷해도 magnifier 후보가 될 수 없다.
+- close/X는 red dominance/geometry만이 아니라 normalized diagonal-X shape evidence를 함께 요구한다.
+- `HEADER_FRAME_LOCKED`, anchor score 0.68 이상, valid magnifier/close를 모두 만족한 candidate만 OCR identity path에 유지한다.
+- full header lock 이후 selected detail bounds의 top/left/right를 authoritative magnifier/X geometry로 다시 정렬하고 bottom은 item/stat pane 차이를 고려해 structural detector 값을 보수적으로 유지한다.
+- 사용자가 `이미지 저장`을 명시적으로 선택한 경우에만 export PNG를 만들며 selected detail/title ROI/magnifier/close rectangle을 실제 픽셀에 합성한다. 자동 screenshot persistence는 계속 금지한다.
+- ordinary confidence/top1-top2 margin, bounded unique one-edit safety, visual recovery safety는 완화하지 않는다.
+- highest trader / flea `avg24hPrice` / `RequiredTotal` 의미와 Content v7 / user.db v1 / Scanner display settings v4 / Scanner catalog v2 schema는 변경하지 않는다.
+- 신규 사용자 기능이 아닌 실전 recognition/diagnostics 결함 수정이므로 DEC-048에 따라 **v1.3.4 PATCH**다.
+- exact release source/tag: `a78ddbc649747f1320236556f17e6b908304674a`
+- final PR CI: `32636665202 — SUCCESS`, 267/267 tests
+- exact-source release run: `32636927134 — SUCCESS`
+- independent public verifier: `32637159066 — SUCCESS`
+- public ZIP SHA-256: `8c442fec81a0b993a9a6b080e59b656668a7a73d8fadd8434595545b08c82e8e`
+- 상세: `docs/DECISION_SCANNER_V1.3.4_LIVE_HARDENING_2026-08-23.md`, `docs/SCANNER_V1.3.4_LIVE_HARDENING.md`, `docs/RELEASE_1.3.4.md`
 
 ---
 
