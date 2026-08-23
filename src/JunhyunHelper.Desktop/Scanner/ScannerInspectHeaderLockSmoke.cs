@@ -6,39 +6,47 @@ internal static class ScannerInspectHeaderLockSmoke
 {
     public static void Verify()
     {
-        VerifyLockedHeader(
-            headerLeft: 170,
-            headerTop: 150,
-            headerWidth: 856,
-            closeWidth: 27,
-            closeHeight: 17,
-            magnifierOffsetX: 13,
-            titleGap: 6,
-            glyphCount: 9,
-            addDecoyRing: true);
+        var cases = new (int Width, int CloseW, int CloseH, int MagX, int Gap, int Glyphs)[]
+        {
+            (834, 25, 16, 12, 6, 12),
+            (862, 27, 17, 13, 6, 18),
+            (861, 27, 17, 12, 5, 3),
+            (862, 27, 17, 13, 6, 15),
+            (856, 27, 17, 13, 6, 14),
+            (855, 27, 17, 12, 6, 17),
+            (862, 27, 17, 13, 5, 17),
+            (854, 27, 17, 12, 6, 14),
+            (861, 27, 17, 12, 6, 8),
+            (861, 27, 17, 12, 6, 20),
+            (827, 26, 16, 11, 5, 9),
+            (822, 26, 16, 11, 6, 15),
+        };
 
-        VerifyLockedHeader(
-            headerLeft: 188,
-            headerTop: 174,
-            headerWidth: 821,
-            closeWidth: 26,
-            closeHeight: 16,
-            magnifierOffsetX: 11,
-            titleGap: 5,
-            glyphCount: 3,
-            addDecoyRing: false);
+        foreach (var sample in cases)
+        {
+            VerifyLockedHeader(
+                headerLeft: 170,
+                headerTop: 150,
+                headerWidth: sample.Width,
+                closeWidth: sample.CloseW,
+                closeHeight: sample.CloseH,
+                magnifierOffsetX: sample.MagX,
+                titleGap: sample.Gap,
+                glyphCount: sample.Glyphs,
+                addDecoyRing: true);
+        }
 
         // Live MP-153 evidence: the same header structure can be shifted far right and
         // must remain coordinate-relative rather than tied to screen-center heuristics.
         VerifyLockedHeader(
             headerLeft: 360,
             headerTop: 122,
-            headerWidth: 856,
+            headerWidth: 855,
             closeWidth: 27,
             closeHeight: 17,
             magnifierOffsetX: 12,
-            titleGap: 7,
-            glyphCount: 16,
+            titleGap: 6,
+            glyphCount: 17,
             addDecoyRing: true);
 
         VerifyMissingMagnifierFailsClosed();
