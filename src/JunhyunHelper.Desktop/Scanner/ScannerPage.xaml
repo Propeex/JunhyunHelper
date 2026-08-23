@@ -185,13 +185,13 @@
                             Padding="10,4"
                             Margin="0,0,8,0"
                             Click="ExportDiagnosticsButton_Click" />
-                    <Button x:Name="ClearDiagnosticsButton"
+                    <Button x:Name="ManageDiagnosticsButton"
                             Grid.Column="7"
-                            Content="교정 데이터 삭제"
+                            Content="교정 데이터 관리"
                             MinWidth="118"
                             Padding="10,4"
                             Margin="0,0,8,0"
-                            Click="ClearDiagnosticsButton_Click" />
+                            Click="ManageDiagnosticsButton_Click" />
                     <Button x:Name="ClearLogButton"
                             Grid.Column="8"
                             Content="로그 삭제"
