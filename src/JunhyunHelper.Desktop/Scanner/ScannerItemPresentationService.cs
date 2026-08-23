@@ -40,7 +40,7 @@ public sealed class ScannerItemPresentationService
         var iconUrl = canonicalItem?.IconUrl ?? catalogItem.IconUrl;
         var icon = _icons.Load($"item-{catalogItem.Id}", iconUrl);
 
-        return new ScannerItemSnapshot(
+        var snapshot = new ScannerItemSnapshot(
             catalogItem.Id,
             catalogItem.OfficialName,
             icon,
@@ -50,6 +50,8 @@ public sealed class ScannerItemPresentationService
             catalogItem.FleaPricePerSlot,
             catalogItem.Slots,
             needed?.RequiredTotal ?? 0);
+        ScannerRecognitionDebugStore.UpdatePresentation(snapshot);
+        return snapshot;
     }
 
     public ScannerItemSnapshot? CreateDefaultPreviewSnapshot()
