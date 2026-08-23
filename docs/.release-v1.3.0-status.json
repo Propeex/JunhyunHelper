@@ -1,0 +1,14 @@
+{
+  "version": "v1.3.0",
+  "status": "PUBLIC_RELEASE_VERIFIED",
+  "releaseSource": "f03441672d39165678fa53f57af46f103070d50e",
+  "releaseId": 375089921,
+  "tagSha": "f03441672d39165678fa53f57af46f103070d50e",
+  "asset": "Junhyun-Helper-v1.3.0-win-x64.zip",
+  "bytes": 80306655,
+  "sha256": "5880c71098d737b7ffd3447eb77a55195d09d76ea12be7ff79df4eb055ac8344",
+  "productVersion": "1.3.0+f03441672d39165678fa53f57af46f103070d50e",
+  "latest": true,
+  "publicDownloadedExeSmoke": "SUCCESS",
+  "verifiedAtUtc": "2026-08-23T01:58:02.2393394+00:00"
+}
