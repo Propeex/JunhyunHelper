@@ -63,8 +63,8 @@ public sealed class ScannerOcrCatalogAlphabetTests
         var catalog = new[]
         {
             Item("1", "Grizzly 응급 치료 키트"),
-            Item("2", "Grizzly 응급 처치 키트"),
-            Item("3", "Salewa 응급 치료 키트"),
+            Item("2", "Salewa 응급 처치 키트"),
+            Item("3", "AI-2 휴대용 응급 키트"),
         };
 
         var result = ScannerUnknownGlyphCatalogRecovery.TryRecover(
