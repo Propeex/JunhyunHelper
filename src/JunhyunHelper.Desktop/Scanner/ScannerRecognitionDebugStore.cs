@@ -34,15 +34,22 @@ public static class ScannerRecognitionDebugStore
     public static void PublishCapture(ScannerRecognitionDebugFrame frame)
     {
         ArgumentNullException.ThrowIfNull(frame);
+        ScannerRecognitionDebugFrame published;
         lock (Gate)
         {
-            _frame = string.IsNullOrWhiteSpace(frame.CaseId)
+            published = string.IsNullOrWhiteSpace(frame.CaseId)
                 ? frame with { CaseId = CreateCaseId() }
                 : frame;
+            _frame = published;
             _lastCaptureUtc = DateTimeOffset.UtcNow;
-            _lastSignature = frame.TitleSignature ?? string.Empty;
+            _lastSignature = published.TitleSignature ?? string.Empty;
         }
         Changed?.Invoke();
+
+        // Structural/detail and header-lock failures happen before OCR. Queueing them here
+        // gives the dataset a reproducible pixel sample while the dataset fingerprint gate
+        // prevents the same stationary failure from being written every capture tick.
+        ScannerDiagnosticDataset.QueueAutomaticObservation(published);
     }
 
     public static void UpdateAnalysis(
