@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Scanner 단축키 설정"
         Width="560"
-        Height="350"
+        Height="370"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource BackgroundDarkBrush}">
@@ -19,7 +19,7 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
@@ -68,7 +68,7 @@
                         Click="ChangeOneShotTestButton_Click" />
             </Grid>
 
-            <Grid Grid.Row="4" VerticalAlignment="Top">
+            <Grid Grid.Row="4">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="180" />
                     <ColumnDefinition Width="*" />
