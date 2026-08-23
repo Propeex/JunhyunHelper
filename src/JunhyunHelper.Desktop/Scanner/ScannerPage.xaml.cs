@@ -29,8 +29,6 @@ public partial class ScannerPage : UserControl
 
         _initialized = true;
         _coordinator = mainWindow.ScannerCoordinator;
-        _coordinator.AttachContextProvider(mainWindow.GetScannerDataContext);
-        _coordinator.AttachHotkeyHost(mainWindow);
         _coordinator.StatusChanged += Coordinator_StatusChanged;
         _coordinator.HotkeyStatusChanged += Coordinator_HotkeyStatusChanged;
         SubscribeActivityFeed();
