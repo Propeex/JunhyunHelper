@@ -9,6 +9,8 @@ namespace JunhyunHelper.Core.Scanner;
 /// </summary>
 public sealed class ScannerItemMatcher
 {
+    private const int DiagnosticCandidateLimit = 5;
+
     private ScannerCatalogItem[] _items = [];
     private string[] _normalizedNames = [];
     private Dictionary<string, int> _nameCounts = new(StringComparer.Ordinal);
@@ -66,7 +68,8 @@ public sealed class ScannerItemMatcher
                 item.Id,
                 item.OfficialName,
                 match.BestScore,
-                match.SecondScore);
+                match.SecondScore,
+                match.TopCandidates);
         }
 
         if (match.Exact)
@@ -77,7 +80,8 @@ public sealed class ScannerItemMatcher
                 item.Id,
                 item.OfficialName,
                 1.0,
-                match.SecondScore);
+                match.SecondScore,
+                match.TopCandidates);
         }
 
         var threshold = official.Length switch
@@ -99,7 +103,8 @@ public sealed class ScannerItemMatcher
                 item.Id,
                 item.OfficialName,
                 match.BestScore,
-                match.SecondScore);
+                match.SecondScore,
+                match.TopCandidates);
         }
 
         // A medium-length title can fall below the percentage floor from exactly one
@@ -109,7 +114,12 @@ public sealed class ScannerItemMatcher
             TryFindUniqueSingleEditCandidate(variants, out var singleEditIndex) &&
             singleEditIndex == match.BestIndex)
         {
-            var globalSecondScore = FindSecondBestScore(match.BestIndex, variants);
+            var globalRanking = RankAllCandidates(variants, DiagnosticCandidateLimit);
+            var globalSecondScore = globalRanking
+                .Where(candidate => candidate.Index != match.BestIndex)
+                .Select(candidate => candidate.Score)
+                .DefaultIfEmpty(0)
+                .Max();
             var boundedEditMargin = Math.Max(0.10, minimumMargin);
             if (match.BestScore - globalSecondScore >= boundedEditMargin)
             {
@@ -119,7 +129,8 @@ public sealed class ScannerItemMatcher
                     item.Id,
                     item.OfficialName,
                     match.BestScore,
-                    globalSecondScore);
+                    globalSecondScore,
+                    ToPublicRanking(globalRanking));
             }
         }
 
@@ -129,7 +140,8 @@ public sealed class ScannerItemMatcher
             item.Id,
             item.OfficialName,
             match.BestScore,
-            match.SecondScore);
+            match.SecondScore,
+            match.TopCandidates);
     }
 
     /// <summary>
@@ -172,6 +184,8 @@ public sealed class ScannerItemMatcher
 
         var bestIndex = exactMatches.Single();
         var normalizedOfficial = _normalizedNames[bestIndex];
+        var wildcardRanking = RankWildcardCandidates(patterns, DiagnosticCandidateLimit);
+        var publicRanking = ToPublicRanking(wildcardRanking);
         if (_nameCounts.TryGetValue(normalizedOfficial, out var duplicates) && duplicates > 1)
         {
             return new ScannerRecognition(
@@ -180,19 +194,15 @@ public sealed class ScannerItemMatcher
                 _items[bestIndex].Id,
                 _items[bestIndex].OfficialName,
                 0,
-                0);
+                0,
+                publicRanking);
         }
 
-        var second = 0.0;
-        foreach (var pattern in patterns)
-        {
-            for (var index = 0; index < _normalizedNames.Length; index++)
-            {
-                if (index == bestIndex || _normalizedNames[index].Length == 0)
-                    continue;
-                second = Math.Max(second, WildcardSimilarity(_normalizedNames[index], pattern));
-            }
-        }
+        var second = wildcardRanking
+            .Where(candidate => candidate.Index != bestIndex)
+            .Select(candidate => candidate.Score)
+            .DefaultIfEmpty(0)
+            .Max();
 
         var requiredMargin = Math.Max(0.10, minimumMargin);
         if (1.0 - second < requiredMargin)
@@ -203,7 +213,8 @@ public sealed class ScannerItemMatcher
                 _items[bestIndex].Id,
                 _items[bestIndex].OfficialName,
                 1.0 - 1.0 / Math.Max(1, normalizedOfficial.Length),
-                second);
+                second,
+                publicRanking);
         }
 
         // Report one unknown glyph as one unit of uncertainty even though the wildcard
@@ -216,7 +227,8 @@ public sealed class ScannerItemMatcher
             _items[bestIndex].Id,
             _items[bestIndex].OfficialName,
             confidence,
-            second);
+            second,
+            publicRanking);
     }
 
     public static string Normalize(string input)
@@ -262,8 +274,18 @@ public sealed class ScannerItemMatcher
             if (!variants.Contains(official, StringComparer.Ordinal))
                 continue;
 
-            var exactSecondScore = FindSecondBestScore(itemIndex, variants);
-            return new MatchResult(itemIndex, 1.0, exactSecondScore, true);
+            var globalRanking = RankAllCandidates(variants, DiagnosticCandidateLimit);
+            var exactSecondScore = globalRanking
+                .Where(candidate => candidate.Index != itemIndex)
+                .Select(candidate => candidate.Score)
+                .DefaultIfEmpty(0)
+                .Max();
+            return new MatchResult(
+                itemIndex,
+                1.0,
+                exactSecondScore,
+                true,
+                ToPublicRanking(globalRanking));
         }
 
         var variantBigrams = variants
@@ -296,6 +318,7 @@ public sealed class ScannerItemMatcher
         var bestIndex = -1;
         var best = 0.0;
         var second = 0.0;
+        var scored = new List<ScoredCandidate>();
 
         foreach (var candidate in prefiltered
                      .OrderByDescending(candidate => candidate.Overlap)
@@ -304,6 +327,7 @@ public sealed class ScannerItemMatcher
             var score = variants.Max(variant => GlobalSimilarity(
                 _normalizedNames[candidate.Index],
                 variant));
+            scored.Add(new ScoredCandidate(candidate.Index, score));
 
             if (score > best)
             {
@@ -317,8 +341,68 @@ public sealed class ScannerItemMatcher
             }
         }
 
-        return new MatchResult(bestIndex, best, second, false);
+        var ranking = scored
+            .OrderByDescending(candidate => candidate.Score)
+            .ThenBy(candidate => _items[candidate.Index].OfficialName, StringComparer.Ordinal)
+            .Take(DiagnosticCandidateLimit)
+            .ToArray();
+        return new MatchResult(
+            bestIndex,
+            best,
+            second,
+            false,
+            ToPublicRanking(ranking));
     }
+
+    private ScoredCandidate[] RankAllCandidates(
+        IReadOnlyList<string> variants,
+        int limit)
+    {
+        var ranking = new List<ScoredCandidate>(_normalizedNames.Length);
+        for (var index = 0; index < _normalizedNames.Length; index++)
+        {
+            if (_normalizedNames[index].Length == 0)
+                continue;
+            var score = variants.Max(variant => GlobalSimilarity(_normalizedNames[index], variant));
+            ranking.Add(new ScoredCandidate(index, score));
+        }
+
+        return ranking
+            .OrderByDescending(candidate => candidate.Score)
+            .ThenBy(candidate => _items[candidate.Index].OfficialName, StringComparer.Ordinal)
+            .Take(Math.Max(1, limit))
+            .ToArray();
+    }
+
+    private ScoredCandidate[] RankWildcardCandidates(
+        IReadOnlyList<string> patterns,
+        int limit)
+    {
+        var ranking = new List<ScoredCandidate>(_normalizedNames.Length);
+        for (var index = 0; index < _normalizedNames.Length; index++)
+        {
+            var official = _normalizedNames[index];
+            if (official.Length == 0)
+                continue;
+            var score = patterns.Max(pattern => WildcardSimilarity(official, pattern));
+            ranking.Add(new ScoredCandidate(index, score));
+        }
+
+        return ranking
+            .OrderByDescending(candidate => candidate.Score)
+            .ThenBy(candidate => _items[candidate.Index].OfficialName, StringComparer.Ordinal)
+            .Take(Math.Max(1, limit))
+            .ToArray();
+    }
+
+    private IReadOnlyList<ScannerMatchCandidate> ToPublicRanking(
+        IEnumerable<ScoredCandidate> ranking) =>
+        ranking
+            .Select(candidate => new ScannerMatchCandidate(
+                _items[candidate.Index].Id,
+                _items[candidate.Index].OfficialName,
+                candidate.Score))
+            .ToArray();
 
     private bool TryFindUniqueSingleEditCandidate(
         IReadOnlyList<string> variants,
@@ -354,20 +438,6 @@ public sealed class ScannerItemMatcher
         }
 
         return candidateIndex >= 0;
-    }
-
-    private double FindSecondBestScore(int exactIndex, IReadOnlyList<string> variants)
-    {
-        var second = 0.0;
-        for (var index = 0; index < _normalizedNames.Length; index++)
-        {
-            if (index == exactIndex || _normalizedNames[index].Length == 0)
-                continue;
-            var score = variants.Max(variant => GlobalSimilarity(_normalizedNames[index], variant));
-            if (score > second)
-                second = score;
-        }
-        return second;
     }
 
     private static IReadOnlyList<string> BuildTextVariants(string noisyText)
@@ -508,5 +578,8 @@ public sealed class ScannerItemMatcher
         int BestIndex,
         double BestScore,
         double SecondScore,
-        bool Exact);
+        bool Exact,
+        IReadOnlyList<ScannerMatchCandidate> TopCandidates);
+
+    private readonly record struct ScoredCandidate(int Index, double Score);
 }
