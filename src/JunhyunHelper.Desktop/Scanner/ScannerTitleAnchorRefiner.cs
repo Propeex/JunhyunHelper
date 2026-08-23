@@ -216,16 +216,29 @@ internal static class ScannerTitleAnchorRefiner
             panel.X - Math.Max(8, (int)Math.Round(panel.Width * 0.04)),
             0,
             width - 1);
-        var topBase = titleField.Height > 0 ? titleField.Y : fallbackTitle.Y;
-        var bottomBase = titleField.Height > 0
-            ? titleField.Y + titleField.Height
-            : fallbackTitle.Y + fallbackTitle.Height;
-        var top = Math.Clamp(topBase - Math.Max(4, (int)Math.Round(fieldHeight * 0.55)), 0, height - 1);
+
+        // Live v1.3.1 evidence shows that the actual ~21 px Tarkov magnifier can
+        // be present and segmented correctly while an imperfect title-strip band
+        // shifts the vertical association far enough to discard it. Search the
+        // union of structural panel-top, fallback title and refined title-field
+        // bands. Morphology/left-position scoring below decides identity.
+        var topBase = Math.Min(
+            Math.Min(panel.Y, fallbackTitle.Y),
+            titleField.Height > 0 ? titleField.Y : fallbackTitle.Y);
+        var bottomBase = Math.Max(
+            fallbackTitle.Y + fallbackTitle.Height,
+            titleField.Height > 0
+                ? titleField.Y + titleField.Height
+                : fallbackTitle.Y + fallbackTitle.Height);
+        bottomBase = Math.Max(
+            bottomBase,
+            panel.Y + Math.Max(18, (int)Math.Round(panel.Height * 0.065)));
+        var top = Math.Clamp(topBase - Math.Max(5, (int)Math.Round(fieldHeight * 0.40)), 0, height - 1);
         var right = Math.Clamp(
             fallbackTitle.X + Math.Max(36, (int)Math.Round(panel.Width * 0.085)),
             left,
             width - 1);
-        var bottom = Math.Clamp(bottomBase + Math.Max(4, (int)Math.Round(fieldHeight * 0.45)), top, height - 1);
+        var bottom = Math.Clamp(bottomBase + Math.Max(4, (int)Math.Round(fieldHeight * 0.35)), top, height - 1);
 
         var raw = FindBrightComponents(bgra, width, height, stride, left, top, right, bottom);
         var components = MergeNearbyComponents(raw, Math.Max(2, fieldHeight / 10));
@@ -251,21 +264,26 @@ internal static class ScannerTitleAnchorRefiner
                 continue;
 
             var textFollowers = components
-                .Skip(index + 1)
                 .Where(value =>
                     value.X > component.X + component.Width &&
                     value.X - (component.X + component.Width) <= Math.Max(20, (int)Math.Round(fieldHeight * 1.4)) &&
                     IsTextLike(value, fieldHeight))
+                .OrderBy(value => value.X)
                 .Take(4)
                 .ToArray();
-            if (textFollowers.Length == 0)
-                continue;
 
-            var followerHeight = Median(textFollowers.Select(value => value.Height));
-            var followerWidth = Median(textFollowers.Select(value => value.Width));
-            var dominance = Math.Max(
-                component.Height / Math.Max(1.0, followerHeight),
-                component.Width / Math.Max(1.0, followerWidth));
+            var hasFollowers = textFollowers.Length > 0;
+            var followerHeight = hasFollowers
+                ? Median(textFollowers.Select(value => value.Height))
+                : 0;
+            var followerWidth = hasFollowers
+                ? Median(textFollowers.Select(value => value.Width))
+                : 0;
+            var dominance = hasFollowers
+                ? Math.Max(
+                    component.Height / Math.Max(1.0, followerHeight),
+                    component.Width / Math.Max(1.0, followerWidth))
+                : 0.0;
 
             var scaleTarget = Math.Max(8.0, fieldHeight * 1.05);
             var scale = Math.Max(
@@ -277,25 +295,37 @@ internal static class ScannerTitleAnchorRefiner
             var vertical = Math.Max(
                 0,
                 1.0 - Math.Abs(centerY - fieldCenterY) / Math.Max(4.0, fieldHeight * 0.85));
-            var leftOrder = components.Count <= 1
-                ? 1.0
-                : 1.0 - Math.Min(1.0, index / (double)Math.Min(5, components.Count - 1));
+            var expectedLeft = panel.X;
+            var leftPosition = Math.Max(
+                0,
+                1.0 - Math.Abs(component.X - expectedLeft) /
+                Math.Max(10.0, panel.Width * 0.06));
             var morphology = MagnifierMorphologyScore(bgra, stride, component);
-            var followerScore = Math.Clamp((dominance - 0.92) / 0.35, 0, 1);
+            var followerScore = hasFollowers
+                ? Math.Clamp((dominance - 0.92) / 0.35, 0, 1)
+                : 0.0;
 
-            // A real Tarkov magnifier is visibly larger than the following glyphs at
-            // the same UI scale and has ring/handle morphology. A first Korean glyph
-            // can be square and bright, but normally fails both of these safeguards.
-            if (dominance < 1.08 && morphology < 0.68)
+            // Following text is corroboration, not a prerequisite. Real screenshots
+            // can segment the anti-aliased glyphs differently even when the magnifier
+            // itself is a clean ring/handle component. Without followers we require
+            // stronger magnifier morphology plus the expected left-header position.
+            if (hasFollowers)
+            {
+                if (dominance < 1.08 && morphology < 0.68)
+                    continue;
+            }
+            else if (morphology < 0.70 || leftPosition < 0.55)
+            {
                 continue;
+            }
 
             var score =
-                leftOrder * 0.20 +
-                scale * 0.18 +
-                square * 0.10 +
+                leftPosition * 0.24 +
+                scale * 0.14 +
+                square * 0.08 +
                 vertical * 0.12 +
-                morphology * 0.28 +
-                followerScore * 0.12;
+                morphology * 0.34 +
+                followerScore * 0.08;
             if (score <= bestScore)
                 continue;
 

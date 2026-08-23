@@ -183,6 +183,30 @@ public partial class ScannerPage
                 $"title={refinement.Title}, close={refinement.CloseButton}, " +
                 $"score={refinement.Score:F3}, reason={refinement.Reason}.");
         }
+
+        // Live v1.3.1 evidence: a real anti-aliased magnifier may be isolated
+        // cleanly while nearby title glyph components are too fragmented/sparse to
+        // satisfy the old mandatory follower relation. Morphology + left-header
+        // position must still identify the icon and exclude it from title OCR.
+        var sparsePixels = (byte[])pixels.Clone();
+        Fill(sparsePixels, stride, firstGlyphX, glyphY - 3, 88, 28, 30, 30, 30);
+        DrawGlyph(sparsePixels, stride, firstGlyphX + 64, glyphY);
+        var sparseRefinement = ScannerTitleAnchorRefiner.Refine(
+            sparsePixels,
+            width,
+            height,
+            stride,
+            candidate);
+        var sparseMagnifierRight = sparseRefinement.Magnifier.X + sparseRefinement.Magnifier.Width;
+        if (sparseRefinement.Magnifier.Width < 20 ||
+            sparseRefinement.Magnifier.X > magnifierX + 4 ||
+            sparseRefinement.Title.X <= sparseMagnifierRight)
+        {
+            throw new InvalidOperationException(
+                $"Scanner sparse-glyph magnifier regression failed: magnifier={sparseRefinement.Magnifier}, " +
+                $"title={sparseRefinement.Title}, score={sparseRefinement.Score:F3}, " +
+                $"reason={sparseRefinement.Reason}.");
+        }
     }
 
     private static void VerifyMiniScannerProductContract()
