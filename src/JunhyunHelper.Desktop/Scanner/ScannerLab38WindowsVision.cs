@@ -131,7 +131,8 @@ public sealed class ScannerLab38InspectDetector : IScannerCandidateInspectDetect
         }
 
         var result = all
-            .OrderByDescending(candidate => candidate.StructuralScore)
+            .OrderByDescending(IsSemanticReady)
+            .ThenByDescending(candidate => candidate.StructuralScore)
             .Take(CandidateLimit)
             .ToArray();
         SetStatus(result.Length > 0
@@ -171,6 +172,34 @@ public sealed class ScannerLab38InspectDetector : IScannerCandidateInspectDetect
                 anchors.Magnifier.Width <= 0 ||
                 anchors.CloseButton.Width <= 0)
             {
+                // Header-lock failure blocks OCR/identity, not observability. Keep the
+                // structural candidate and any partial anchor evidence so live tracking,
+                // scanner.log and the recognition-image overlay can explain the rejection.
+                // TitleImage deliberately remains null, so this candidate cannot reach OCR.
+                var rejectedWindowBounds = ToScreenRect(candidate.Window, screenLeft, screenTop);
+                var rejectedGeometrySignature = $"{sourceKey}:{Quantize(candidate.Window.X)}:{Quantize(candidate.Window.Y)}:{Quantize(candidate.Window.Width)}:{Quantize(candidate.Window.Height)}";
+                var rejectedTitleBounds = anchors.Title.Width > 0 && anchors.Title.Height > 0
+                    ? ToScreenRect(anchors.Title, screenLeft, screenTop)
+                    : Rect.Empty;
+                Rect? rejectedMagnifierBounds = anchors.Magnifier.Width > 0 && anchors.Magnifier.Height > 0
+                    ? ToScreenRect(anchors.Magnifier, screenLeft, screenTop)
+                    : null;
+                Rect? rejectedCloseBounds = anchors.CloseButton.Width > 0 && anchors.CloseButton.Height > 0
+                    ? ToScreenRect(anchors.CloseButton, screenLeft, screenTop)
+                    : null;
+
+                result.Add(new ScannerInspectCandidate(
+                    rejectedWindowBounds,
+                    rejectedGeometrySignature,
+                    string.Empty,
+                    null,
+                    candidate.Score,
+                    candidate.Reason,
+                    rejectedTitleBounds,
+                    rejectedMagnifierBounds,
+                    rejectedCloseBounds,
+                    anchors.Score,
+                    anchors.Reason));
                 continue;
             }
 
@@ -218,7 +247,10 @@ public sealed class ScannerLab38InspectDetector : IScannerCandidateInspectDetect
         }
 
         var ordered = result
-            .OrderByDescending(candidate => candidate.StructuralScore)
+            // A fully locked candidate is always preferred for semantic work, but
+            // rejected structural candidates remain available for tracking/diagnostics.
+            .OrderByDescending(IsSemanticReady)
+            .ThenByDescending(candidate => candidate.StructuralScore)
             .Take(CandidateLimit)
             .ToArray();
         PublishDebugCaptureIfNeeded(
@@ -226,6 +258,15 @@ public sealed class ScannerLab38InspectDetector : IScannerCandidateInspectDetect
             screenLeft, screenTop, sourceKey, ordered.FirstOrDefault());
         return ordered;
     }
+
+    private static bool IsSemanticReady(ScannerInspectCandidate candidate) =>
+        candidate.TitleImage is not null &&
+        candidate.TitleBounds.Width > 0 &&
+        candidate.TitleBounds.Height > 0 &&
+        candidate.MagnifierBounds is { Width: > 0, Height: > 0 } &&
+        candidate.CloseBounds is { Width: > 0, Height: > 0 } &&
+        candidate.TitleAnchorScore >= 0.68 &&
+        string.Equals(candidate.TitleAnchorReason, "HEADER_FRAME_LOCKED", StringComparison.Ordinal);
 
     private static ScannerDetectedRegion RefineLockedWindow(
         ScannerDetectedRegion structural,
