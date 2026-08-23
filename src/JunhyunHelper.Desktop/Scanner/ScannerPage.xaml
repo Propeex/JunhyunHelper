@@ -65,7 +65,6 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
@@ -81,20 +80,14 @@
                         MinWidth="112"
                         Margin="0,0,8,0"
                         Click="TestToggleButton_Click" />
-                <Button x:Name="OneShotScanButton"
+                <Button x:Name="HotkeySettingsButton"
                         Grid.Column="2"
-                        Content="1회 고정밀 스캔"
-                        MinWidth="132"
-                        Margin="0,0,8,0"
-                        Click="OneShotScanButton_Click" />
-                <Button x:Name="HotkeyButton"
-                        Grid.Column="3"
-                        Content="단축키: Ctrl+Shift+F10"
-                        MinWidth="174"
+                        Content="단축키 설정"
+                        MinWidth="112"
                         Padding="10,5"
-                        Click="HotkeyButton_Click" />
+                        Click="HotkeySettingsButton_Click" />
                 <Button x:Name="SyncCatalogButton"
-                        Grid.Column="5"
+                        Grid.Column="4"
                         Content="아이템 목록 최신화"
                         MinWidth="132"
                         Click="SyncCatalogButton_Click" />

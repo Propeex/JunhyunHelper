@@ -4,56 +4,135 @@ namespace JunhyunHelper.Desktop.Scanner;
 
 public sealed partial class ScannerCoordinator
 {
+    private const int OneShotTarkovHotkeyId = 0x4A53;
+    private const int OneShotTestHotkeyId = 0x4A54;
+    private const int ScannerToggleHotkeyId = 0x4A55;
+
     private readonly SemaphoreSlim _oneShotCoordinatorGate = new(1, 1);
+    // Keep the original field name for the in-game hotkey because ScannerCoordinator.Dispose
+    // already owns its explicit disposal path. Its Disposed callback closes the two new
+    // registrations as part of the same lifetime boundary.
     private ScannerGlobalHotkeyService? _hotkeyService;
+    private ScannerGlobalHotkeyService? _testHotkeyService;
+    private ScannerGlobalHotkeyService? _scannerToggleHotkeyService;
     private bool _hotkeySubscribed;
+    private bool _extraHotkeysSubscribed;
 
     public event Action<string>? HotkeyStatusChanged;
 
-    public string OneShotHotkeyText => _settings.Current.OneShotHotkey;
+    public string OneShotHotkeyText => OneShotTarkovHotkeyText;
+    public string OneShotTarkovHotkeyText => _settings.Current.OneShotTarkovHotkey;
+    public string OneShotTestHotkeyText => _settings.Current.OneShotTestHotkey;
+    public string ScannerToggleHotkeyText => _settings.Current.ScannerToggleHotkey;
 
-    public string HotkeyStatusText => _hotkeyService?.StatusText ??
-        (string.IsNullOrWhiteSpace(_settings.Current.OneShotHotkey)
-            ? "1회 스캔 단축키 사용 안 함"
-            : $"1회 스캔 단축키: {_settings.Current.OneShotHotkey}");
+    public string HotkeyStatusText
+    {
+        get
+        {
+            var statuses = new List<string>(3);
+            if (_hotkeyService is not null)
+                statuses.Add(_hotkeyService.StatusText);
+            if (_testHotkeyService is not null)
+                statuses.Add(_testHotkeyService.StatusText);
+            if (_scannerToggleHotkeyService is not null)
+                statuses.Add(_scannerToggleHotkeyService.StatusText);
+            return statuses.Count == 0
+                ? "Scanner 단축키가 아직 초기화되지 않았습니다."
+                : string.Join(" · ", statuses);
+        }
+    }
 
     public void AttachHotkeyHost(Window window)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(window);
 
-        _hotkeyService ??= new ScannerGlobalHotkeyService();
+        _hotkeyService ??= new ScannerGlobalHotkeyService(OneShotTarkovHotkeyId, "1회 인게임 스캔");
+        _testHotkeyService ??= new ScannerGlobalHotkeyService(OneShotTestHotkeyId, "1회 테스트 스캔");
+        _scannerToggleHotkeyService ??= new ScannerGlobalHotkeyService(ScannerToggleHotkeyId, "스캐너 ON/OFF");
+
         if (!_hotkeySubscribed)
         {
             _hotkeyService.RegistrationChanged += OnHotkeyRegistrationChanged;
+            _hotkeyService.Disposed += OnPrimaryHotkeyDisposed;
             _hotkeySubscribed = true;
         }
+        if (!_extraHotkeysSubscribed)
+        {
+            _testHotkeyService.RegistrationChanged += OnHotkeyRegistrationChanged;
+            _scannerToggleHotkeyService.RegistrationChanged += OnHotkeyRegistrationChanged;
+            _extraHotkeysSubscribed = true;
+        }
 
-        var gesture = ParseHotkey(_settings.Current.OneShotHotkey);
-        _hotkeyService.Attach(window, gesture, () => TriggerOneShotAsync());
+        _hotkeyService.Attach(
+            window,
+            ParseHotkey(_settings.Current.OneShotTarkovHotkey),
+            () => TriggerOneShotTarkovAsync());
+        _testHotkeyService.Attach(
+            window,
+            ParseHotkey(_settings.Current.OneShotTestHotkey),
+            () => TriggerOneShotTestAsync());
+        _scannerToggleHotkeyService.Attach(
+            window,
+            ParseHotkey(_settings.Current.ScannerToggleHotkey),
+            ToggleScannerFromHotkeyAsync);
     }
 
-    public void SetOneShotHotkey(ScannerHotkeyGesture? gesture)
+    public void SetOneShotHotkey(ScannerHotkeyGesture? gesture) => SetOneShotTarkovHotkey(gesture);
+
+    public void SetOneShotTarkovHotkey(ScannerHotkeyGesture? gesture)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         var text = gesture?.ToString() ?? string.Empty;
-        _settings.Update(settings => settings.OneShotHotkey = text);
+        _settings.Update(settings => settings.OneShotTarkovHotkey = text);
         _hotkeyService?.UpdateGesture(gesture);
-        HotkeyStatusChanged?.Invoke(HotkeyStatusText);
+        HotkeyStatusChanged?.Invoke(_hotkeyService?.StatusText ?? "1회 인게임 스캔 단축키 설정을 저장했습니다.");
     }
 
-    public async Task<bool> TriggerOneShotAsync(CancellationToken cancellationToken = default)
+    public void SetOneShotTestHotkey(ScannerHotkeyGesture? gesture)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        var text = gesture?.ToString() ?? string.Empty;
+        _settings.Update(settings => settings.OneShotTestHotkey = text);
+        _testHotkeyService?.UpdateGesture(gesture);
+        HotkeyStatusChanged?.Invoke(_testHotkeyService?.StatusText ?? "1회 테스트 스캔 단축키 설정을 저장했습니다.");
+    }
+
+    public void SetScannerToggleHotkey(ScannerHotkeyGesture? gesture)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        var text = gesture?.ToString() ?? string.Empty;
+        _settings.Update(settings => settings.ScannerToggleHotkey = text);
+        _scannerToggleHotkeyService?.UpdateGesture(gesture);
+        HotkeyStatusChanged?.Invoke(_scannerToggleHotkeyService?.StatusText ?? "스캐너 ON/OFF 단축키 설정을 저장했습니다.");
+    }
+
+    public Task<bool> TriggerOneShotAsync(CancellationToken cancellationToken = default) =>
+        TriggerOneShotTarkovAsync(cancellationToken);
+
+    public Task<bool> TriggerOneShotTarkovAsync(CancellationToken cancellationToken = default) =>
+        TriggerOneShotModeAsync(ScannerCaptureMode.TarkovWindow, cancellationToken);
+
+    public Task<bool> TriggerOneShotTestAsync(CancellationToken cancellationToken = default) =>
+        TriggerOneShotModeAsync(ScannerCaptureMode.DisplayTest, cancellationToken);
+
+    private async Task<bool> TriggerOneShotModeAsync(
+        ScannerCaptureMode requestedMode,
+        CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!await _oneShotCoordinatorGate.WaitAsync(0, cancellationToken))
             return false;
 
+        var label = requestedMode == ScannerCaptureMode.DisplayTest
+            ? "1회 테스트 스캔"
+            : "1회 인게임 스캔";
         try
         {
             var context = GetContext();
             if (context is null)
             {
-                Runtime.PublishExternalState(ScannerRuntimeState.NoProfile, "1회 스캔을 사용할 활성 프로필이 없습니다.");
+                Runtime.PublishExternalState(ScannerRuntimeState.NoProfile, $"{label}을 사용할 활성 프로필이 없습니다.");
                 return false;
             }
 
@@ -65,7 +144,7 @@ public sealed partial class ScannerCoordinator
             {
                 Runtime.PublishExternalState(
                     ScannerRuntimeState.CatalogUnavailable,
-                    "1회 스캔 전에 현재 게임 모드의 아이템 목록을 최신화해 주세요.");
+                    $"{label} 전에 현재 게임 모드의 아이템 목록을 최신화해 주세요.");
                 return false;
             }
 
@@ -76,19 +155,14 @@ public sealed partial class ScannerCoordinator
                 {
                     Runtime.PublishExternalState(
                         ScannerRuntimeState.Stabilizing,
-                        "1회 고정밀 스캔을 위해 실시간 스캔을 잠시 멈추는 중입니다.");
+                        $"{label}을 위해 실시간 스캔을 잠시 멈추는 중입니다.");
                     await Runtime.PauseForOneShotAsync(cancellationToken);
                 }
 
-                var mode = resumeMode ?? ScannerCaptureMode.TarkovWindow;
-                return await Runtime.ScanOnceAsync(mode, cancellationToken);
+                return await Runtime.ScanOnceAsync(requestedMode, cancellationToken);
             }
             finally
             {
-                // Restore only when the latest product state still requests exactly the
-                // mode that was paused. In particular, ScannerRuntimeService cannot know
-                // that Display Test was switched off while a one-shot was running, so
-                // blindly restarting resumeMode could resurrect a mode the user disabled.
                 if (resumeMode is not null &&
                     !_disposed &&
                     ActiveCaptureMode == resumeMode)
@@ -103,9 +177,29 @@ public sealed partial class ScannerCoordinator
         }
         catch (Exception exception)
         {
-            App.WriteDiagnostic("Scanner one-shot scan failed", exception);
-            Runtime.PublishExternalState(ScannerRuntimeState.Error, "1회 고정밀 스캔 중 오류가 발생했습니다.");
+            App.WriteDiagnostic($"Scanner {label} failed", exception);
+            Runtime.PublishExternalState(ScannerRuntimeState.Error, $"{label} 중 오류가 발생했습니다.");
             return false;
+        }
+        finally
+        {
+            _oneShotCoordinatorGate.Release();
+        }
+    }
+
+    private async Task ToggleScannerFromHotkeyAsync()
+    {
+        await _oneShotCoordinatorGate.WaitAsync();
+        try
+        {
+            if (_disposed)
+                return;
+            await SetEnabledAsync(!_settings.Current.Enabled);
+        }
+        catch (Exception exception)
+        {
+            App.WriteDiagnostic("Scanner ON/OFF hotkey failed", exception);
+            Runtime.PublishExternalState(ScannerRuntimeState.Error, "스캐너 ON/OFF 단축키 처리 중 오류가 발생했습니다.");
         }
         finally
         {
@@ -115,12 +209,31 @@ public sealed partial class ScannerCoordinator
 
     private void OnHotkeyRegistrationChanged(string status) => HotkeyStatusChanged?.Invoke(status);
 
+    private void OnPrimaryHotkeyDisposed()
+    {
+        if (_testHotkeyService is not null)
+        {
+            if (_extraHotkeysSubscribed)
+                _testHotkeyService.RegistrationChanged -= OnHotkeyRegistrationChanged;
+            _testHotkeyService.Dispose();
+            _testHotkeyService = null;
+        }
+        if (_scannerToggleHotkeyService is not null)
+        {
+            if (_extraHotkeysSubscribed)
+                _scannerToggleHotkeyService.RegistrationChanged -= OnHotkeyRegistrationChanged;
+            _scannerToggleHotkeyService.Dispose();
+            _scannerToggleHotkeyService = null;
+        }
+        _extraHotkeysSubscribed = false;
+    }
+
     private static ScannerHotkeyGesture? ParseHotkey(string? value) =>
         string.IsNullOrWhiteSpace(value)
             ? null
             : ScannerHotkeyGesture.TryParse(value, out var gesture)
                 ? gesture
-                : ScannerHotkeyGesture.Default;
+                : null;
 
     internal static bool ShouldRestoreOneShotMode(
         ScannerCaptureMode? pausedMode,

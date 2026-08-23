@@ -1,7 +1,10 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using Microsoft.Win32;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
@@ -39,7 +42,8 @@ public partial class ScannerRecognitionDebugWindow : Window
             $"pass: {_frame.Pass} · OCR: {ocr}\n" +
             $"후보: {_frame.CandidateName ?? "(없음)"} · 판단: {_frame.RecognitionReason} · " +
             $"신뢰도 {_frame.Confidence:P1} · 1·2순위 차이 {margin:P1}\n" +
-            "초록=선택 상세창 · 파랑=OCR 제목 영역 · 노랑=돋보기 anchor · 빨강=닫기 anchor · 이미지는 메모리에만 보관됩니다.";
+            "초록=선택 상세창 · 파랑=OCR 제목 영역 · 노랑=돋보기 anchor · 빨강=닫기 anchor · " +
+            "캡처는 메모리에만 유지되며 '이미지 저장'을 누를 때만 선택한 위치에 원본 PNG를 저장합니다.";
     }
 
     private void AddOverlay(Rect? bounds, Brush brush, double thickness)
@@ -59,6 +63,38 @@ public partial class ScannerRecognitionDebugWindow : Window
         Canvas.SetLeft(shape, rect.X);
         Canvas.SetTop(shape, rect.Y);
         OverlayCanvas.Children.Add(shape);
+    }
+
+    private void SaveButton_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new SaveFileDialog
+        {
+            Title = "Scanner 인식 이미지 저장",
+            Filter = "PNG 이미지 (*.png)|*.png",
+            DefaultExt = ".png",
+            AddExtension = true,
+            FileName = $"JunhyunHelper-Scanner-{_frame.Timestamp:yyyyMMdd-HHmmss}.png",
+        };
+        if (dialog.ShowDialog(this) != true)
+            return;
+
+        try
+        {
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(_frame.Image));
+            using var stream = new FileStream(dialog.FileName, FileMode.Create, FileAccess.Write, FileShare.None);
+            encoder.Save(stream);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            App.WriteDiagnostic("Scanner recognition image save failed", exception);
+            MessageBox.Show(
+                this,
+                "인식 이미지를 저장하지 못했습니다. 다른 저장 위치를 선택해 다시 시도해 주세요.",
+                "Scanner 인식 이미지",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
     }
 
     private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();

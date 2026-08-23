@@ -161,8 +161,29 @@ jobs:
           $exe = (Resolve-Path 'artifacts/publish/준현 헬퍼.exe').Path
           $diagnostic = Join-Path $env:TEMP 'junhyun-map-smoke-error.txt'
           $success = Join-Path $env:TEMP 'junhyun-map-smoke-success.txt'
+          $startupLog = Join-Path $env:LOCALAPPDATA 'JunhyunHelper/logs/startup.log'
           Remove-Item $diagnostic -Force -ErrorAction SilentlyContinue
           Remove-Item $success -Force -ErrorAction SilentlyContinue
+          Remove-Item $startupLog -Force -ErrorAction SilentlyContinue
+
+          function Write-SmokeFailureContext {
+            param([System.Diagnostics.Process]$Process)
+            try {
+              $Process.Refresh()
+              Write-Host "Process: id=$($Process.Id) exited=$($Process.HasExited) responding=$($Process.Responding) title='$($Process.MainWindowTitle)' cpu=$($Process.TotalProcessorTime)"
+            }
+            catch {
+              Write-Host "Could not read process state: $($_.Exception.Message)"
+            }
+            if (Test-Path $diagnostic) {
+              Write-Host 'Product smoke diagnostic:'
+              Get-Content $diagnostic | ForEach-Object { Write-Host $_ }
+            }
+            if (Test-Path $startupLog) {
+              Write-Host 'Application startup/dispatcher diagnostic:'
+              Get-Content $startupLog | ForEach-Object { Write-Host $_ }
+            }
+          }
 
           $process = Start-Process -FilePath $exe -WorkingDirectory artifacts/publish -PassThru
           try {
@@ -175,8 +196,7 @@ jobs:
               $process.Refresh()
 
               if (Test-Path $diagnostic) {
-                Write-Host 'Product smoke diagnostic:'
-                Get-Content $diagnostic | ForEach-Object { Write-Host $_ }
+                Write-SmokeFailureContext -Process $process
                 throw 'Published 준현 헬퍼 reported a product smoke failure.'
               }
 
@@ -186,6 +206,7 @@ jobs:
               }
 
               if ($process.HasExited) {
+                Write-SmokeFailureContext -Process $process
                 throw "Published 준현 헬퍼 exited before product smoke completion with code $($process.ExitCode)."
               }
 
@@ -193,10 +214,7 @@ jobs:
             }
 
             if (-not $smokeCompleted) {
-              if (Test-Path $diagnostic) {
-                Write-Host 'Product smoke diagnostic:'
-                Get-Content $diagnostic | ForEach-Object { Write-Host $_ }
-              }
+              Write-SmokeFailureContext -Process $process
               throw 'Product smoke did not publish an explicit success signal within 75 seconds.'
             }
 
@@ -219,11 +237,13 @@ jobs:
             }
 
             if (-not $closeRequested) {
+              Write-SmokeFailureContext -Process $process
               throw "Could not send a normal close request to the 준현 헬퍼 Main Window after retries."
             }
 
             $process.Refresh()
             if (-not $process.HasExited -and -not $process.WaitForExit(7000)) {
+              Write-SmokeFailureContext -Process $process
               throw "준현 헬퍼 Main Window closed but the process did not terminate within 7 seconds."
             }
 

@@ -28,18 +28,47 @@ public partial class ScannerPage
         var settings = new ScannerDisplaySettings();
         settings.Normalize();
         if (settings.SchemaVersion != ScannerDisplaySettings.CurrentSchemaVersion ||
-            settings.SchemaVersion != 3 ||
-            !ScannerHotkeyGesture.TryParse(settings.OneShotHotkey, out var gesture) ||
-            gesture != ScannerHotkeyGesture.Default ||
+            settings.SchemaVersion != 4 ||
+            !ScannerHotkeyGesture.TryParse(settings.OneShotTarkovHotkey, out var tarkovGesture) ||
+            !ScannerHotkeyGesture.TryParse(settings.OneShotTestHotkey, out var testGesture) ||
+            !ScannerHotkeyGesture.TryParse(settings.ScannerToggleHotkey, out var toggleGesture) ||
+            tarkovGesture != ScannerHotkeyGesture.DefaultOneShotTarkov ||
+            testGesture != ScannerHotkeyGesture.DefaultOneShotTest ||
+            toggleGesture != ScannerHotkeyGesture.DefaultScannerToggle ||
+            new[] { tarkovGesture, testGesture, toggleGesture }.Distinct().Count() != 3 ||
             ScannerHotkeyGesture.TryParse("F10", out _))
         {
             throw new InvalidOperationException(
-                "Scanner v1.2 one-shot hotkey/settings contract failed.");
+                "Scanner v1.3 three-hotkey/settings contract failed.");
         }
 
-        // v1.2.1 lifecycle contract: a one-shot may only restore the exact mode that
-        // is still requested after the scan. Turning Scanner/Test off or switching the
-        // active mode while the one-shot runs must not resurrect the previous mode.
+        // Schema v3 users may have customized the old one-shot gesture to one of the
+        // keys that v1.3 now uses as a new default. Preserve that user choice and move
+        // only the newly introduced commands to non-conflicting fallbacks.
+        var migrated = new ScannerDisplaySettings
+        {
+            SchemaVersion = 3,
+            OneShotHotkey = ScannerHotkeyGesture.DefaultOneShotTest.ToString(),
+        };
+        migrated.Normalize();
+        var migratedConfigured = new[]
+        {
+            migrated.OneShotTarkovHotkey,
+            migrated.OneShotTestHotkey,
+            migrated.ScannerToggleHotkey,
+        }
+        .Where(value => !string.IsNullOrWhiteSpace(value))
+        .ToArray();
+        if (migrated.OneShotTarkovHotkey != ScannerHotkeyGesture.DefaultOneShotTest.ToString() ||
+            migratedConfigured.Distinct(StringComparer.OrdinalIgnoreCase).Count() != migratedConfigured.Length)
+        {
+            throw new InvalidOperationException(
+                "Scanner v1.3 schema-v3 hotkey migration did not preserve the old user gesture without collisions.");
+        }
+
+        // v1.2.1 lifecycle contract remains: a one-shot may only restore the exact mode
+        // that is still requested after the scan. Turning Scanner/Test off or switching
+        // the active mode while the one-shot runs must not resurrect the previous mode.
         if (!ScannerCoordinator.ShouldRestoreOneShotMode(
                 ScannerCaptureMode.TarkovWindow,
                 ScannerCaptureMode.TarkovWindow) ||

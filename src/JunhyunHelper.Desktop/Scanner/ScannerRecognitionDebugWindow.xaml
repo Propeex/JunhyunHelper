@@ -42,14 +42,20 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <TextBlock x:Name="DetailText"
                            TextWrapping="Wrap"
                            Foreground="{StaticResource TextSecondaryBrush}" />
                 <Button Grid.Column="1"
+                        Content="이미지 저장"
+                        MinWidth="98"
+                        Margin="14,0,8,0"
+                        VerticalAlignment="Center"
+                        Click="SaveButton_Click" />
+                <Button Grid.Column="2"
                         Content="닫기"
                         MinWidth="84"
-                        Margin="14,0,0,0"
                         VerticalAlignment="Center"
                         Click="CloseButton_Click" />
             </Grid>

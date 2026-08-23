@@ -7,13 +7,14 @@ namespace JunhyunHelper.Desktop.Scanner;
 
 internal sealed class ScannerGlobalHotkeyService : IDisposable
 {
-    private const int HotkeyId = 0x4A53;
     private const int WmHotkey = 0x0312;
     private const uint ModAlt = 0x0001;
     private const uint ModControl = 0x0002;
     private const uint ModShift = 0x0004;
     private const uint ModNoRepeat = 0x4000;
 
+    private readonly int _hotkeyId;
+    private readonly string _actionLabel;
     private Window? _window;
     private HwndSource? _source;
     private IntPtr _handle;
@@ -23,9 +24,17 @@ internal sealed class ScannerGlobalHotkeyService : IDisposable
     private bool _disposed;
     private int _handlerRunning;
 
-    public event Action<string>? RegistrationChanged;
+    public ScannerGlobalHotkeyService(int hotkeyId, string actionLabel)
+    {
+        _hotkeyId = hotkeyId;
+        _actionLabel = string.IsNullOrWhiteSpace(actionLabel) ? "Scanner" : actionLabel.Trim();
+        StatusText = $"{_actionLabel} 단축키가 아직 초기화되지 않았습니다.";
+    }
 
-    public string StatusText { get; private set; } = "1회 스캔 단축키가 아직 초기화되지 않았습니다.";
+    public event Action<string>? RegistrationChanged;
+    public event Action? Disposed;
+
+    public string StatusText { get; private set; }
 
     public void Attach(Window window, ScannerHotkeyGesture? gesture, Func<Task> handler)
     {
@@ -84,7 +93,7 @@ internal sealed class ScannerGlobalHotkeyService : IDisposable
             return;
         if (_gesture is not { } gesture)
         {
-            SetStatus("1회 스캔 단축키 사용 안 함");
+            SetStatus($"{_actionLabel} 단축키 사용 안 함");
             return;
         }
 
@@ -98,19 +107,19 @@ internal sealed class ScannerGlobalHotkeyService : IDisposable
         var virtualKey = (uint)KeyInterop.VirtualKeyFromKey(gesture.Key);
         if (virtualKey == 0)
         {
-            SetStatus("1회 스캔 단축키가 유효하지 않습니다.");
+            SetStatus($"{_actionLabel} 단축키가 유효하지 않습니다.");
             return;
         }
 
-        _registered = RegisterHotKey(_handle, HotkeyId, modifiers, virtualKey);
+        _registered = RegisterHotKey(_handle, _hotkeyId, modifiers, virtualKey);
         SetStatus(_registered
-            ? $"1회 스캔 단축키: {gesture}"
-            : $"{gesture} 단축키를 등록하지 못했습니다. 다른 프로그램에서 사용 중일 수 있습니다.");
+            ? $"{_actionLabel} 단축키: {gesture}"
+            : $"{_actionLabel}: {gesture} 단축키를 등록하지 못했습니다. 다른 프로그램에서 사용 중일 수 있습니다.");
     }
 
     private IntPtr WndProc(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if (message != WmHotkey || wParam.ToInt32() != HotkeyId)
+        if (message != WmHotkey || wParam.ToInt32() != _hotkeyId)
             return IntPtr.Zero;
 
         handled = true;
@@ -130,7 +139,7 @@ internal sealed class ScannerGlobalHotkeyService : IDisposable
         }
         catch (Exception exception)
         {
-            App.WriteDiagnostic("Scanner one-shot hotkey handler failed", exception);
+            App.WriteDiagnostic($"Scanner hotkey handler failed: {_actionLabel}", exception);
         }
         finally
         {
@@ -148,7 +157,7 @@ internal sealed class ScannerGlobalHotkeyService : IDisposable
     {
         if (!_registered || _handle == IntPtr.Zero)
             return;
-        _ = UnregisterHotKey(_handle, HotkeyId);
+        _ = UnregisterHotKey(_handle, _hotkeyId);
         _registered = false;
     }
 
@@ -174,6 +183,9 @@ internal sealed class ScannerGlobalHotkeyService : IDisposable
         _disposed = true;
         DetachWindow();
         _handler = null;
+        var disposed = Disposed;
+        Disposed = null;
+        disposed?.Invoke();
         GC.SuppressFinalize(this);
     }
 
@@ -188,7 +200,11 @@ internal sealed class ScannerGlobalHotkeyService : IDisposable
 
 public readonly record struct ScannerHotkeyGesture(bool Control, bool Alt, bool Shift, Key Key)
 {
-    public static ScannerHotkeyGesture Default { get; } = new(true, false, true, Key.F10);
+    public static ScannerHotkeyGesture DefaultOneShotTarkov { get; } = new(true, false, true, Key.F10);
+    public static ScannerHotkeyGesture DefaultOneShotTest { get; } = new(true, false, true, Key.F11);
+    public static ScannerHotkeyGesture DefaultScannerToggle { get; } = new(true, false, true, Key.F12);
+
+    public static ScannerHotkeyGesture Default => DefaultOneShotTarkov;
 
     public static bool TryParse(string? value, out ScannerHotkeyGesture gesture)
     {
