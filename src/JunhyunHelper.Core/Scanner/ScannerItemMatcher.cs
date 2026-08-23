@@ -105,15 +105,15 @@ public sealed class ScannerItemMatcher
         // A medium-length title can fall below the percentage floor from exactly one
         // missing/substituted OCR glyph (for example 10/11 == 90.9%). Recover only when
         // the one-edit candidate is unique across the complete current catalog AND is
-        // still separated from the best global alternative. Do not rely on the normal
-        // bigram prefilter for this exceptional path: missing a nearby alternative there
-        // would make the safety gate weaker than intended.
+        // still clearly separated from the best global alternative. This exceptional
+        // path deliberately requires a wider margin than ordinary fuzzy matching so a
+        // nearby official name cannot be promoted merely because both are one edit away.
         if (official.Length >= 7 &&
             TryFindUniqueSingleEditCandidate(variants, out var singleEditIndex) &&
             singleEditIndex == match.BestIndex)
         {
             var globalSecondScore = FindSecondBestScore(match.BestIndex, variants);
-            var boundedEditMargin = Math.Max(0.08, minimumMargin);
+            var boundedEditMargin = Math.Max(0.10, minimumMargin);
             if (match.BestScore - globalSecondScore >= boundedEditMargin)
             {
                 return new ScannerRecognition(
