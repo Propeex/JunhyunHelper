@@ -25,6 +25,7 @@ public re-download: VERIFIED
 public SHA256SUMS: VERIFIED
 public package layout: VERIFIED
 public-downloaded EXE smoke: SUCCESS
+one-shot release/verifier workflows: CLEANED UP
 ```
 
 기계 판독 가능한 최종 증거:
@@ -158,6 +159,7 @@ Scanner Ground Truth는 `%LocalAppData%/JunhyunHelper/scanner/diagnostics`에 �
 10. public ZIP 재다운로드 + SHA256SUMS 검증 — VERIFIED
 11. public-downloaded EXE smoke + graceful shutdown — SUCCESS
 12. 독립 public verifier — SUCCESS
+13. 완료된 one-shot release/verifier workflow 제거 — VERIFIED
 
 관련 공식 문서:
 
