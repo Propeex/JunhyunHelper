@@ -18,7 +18,7 @@
 - `DEC-004` — 사용자는 제품 판단에 집중하고 개발 절차는 개발자가 책임 — **CONFIRMED**
 - `DEC-005` — 초기 Phase 1에서는 구현보다 설계를 선행 — **PHASE-SPECIFIC / SUPERSEDED by DEC-030**
 - `DEC-006` — 공식 제품명은 준현 헬퍼 — **CONFIRMED**
-- `DEC-007` — 초기 상위 기능 영역 정의 — **CONFIRMED**, Scanner 의미는 DEC-050~056
+- `DEC-007` — 초기 상위 기능 영역 정의 — **CONFIRMED**, Scanner 의미는 DEC-050~057
 - `DEC-008` — 구두 의도는 의미를 맞춘 뒤 공식 요구사항으로 확정 — **CONFIRMED**
 - `DEC-009` — Quest 원천은 json.tarkov.dev → 내부 canonical model — **CONFIRMED**
 - `DEC-010` — 받을 수 있는 Quest는 Helper에서 이미 수락한 것으로 간주 — **CONFIRMED**
@@ -169,6 +169,7 @@
 - Scanner market/needed-data 신뢰성 및 diagnostics 보완 → 1.1.4
 - Scanner diagnostic image/one-shot high-precision scan 추가 → 1.2.0
 - Scanner deterministic 안정성/정확성 hardening → 1.2.1
+- Scanner catalog GameMode transition race 수정 → 1.2.2
 - 상세: `docs/VERSIONING.md`
 
 ## DEC-049 — Map donor는 source pin과 fetch origin을 분리한다
@@ -180,7 +181,7 @@
 
 ## DEC-050 — Scanner는 한국어 Tarkov 화면을 Item ID로 변환하는 독립 입력 subsystem이다
 
-- 상태: `CONFIRMED / IMPLEMENTED / PARTIALLY SUPERSEDED by DEC-051/052/053/054/055/056`
+- 상태: `CONFIRMED / IMPLEMENTED / PARTIALLY SUPERSEDED by DEC-051/052/053/054/055/056/057`
 - 날짜: 2026-08-21
 - 자동 detail/title 인식 → current Korean official item name → Item ID
 - Item ID 이후 기존 JunhyunHelper 데이터 사용
@@ -196,7 +197,8 @@
 - recognition candidate 확정 구조는 DEC-053이 구체화
 - market/needed-data 표시 계약은 DEC-054가 구체화
 - title-recognition/diagnostics/one-shot 구조는 DEC-055가 확장
-- deterministic hardening 경계는 DEC-056이 구체화
+- deterministic recognition/runtime hardening 경계는 DEC-056이 구체화
+- catalog mode-transition operation ordering은 DEC-057이 구체화
 - 상세: `docs/SCANNER.md`
 
 ## DEC-051 — Scanner v1.1.0은 실제 구현을 공개하고 live Tarkov 검증은 로그 기반 후속으로 진행한다
@@ -306,6 +308,24 @@
 - final PR CI: `32540688111 — SUCCESS`
 - exact-source release run: `32542259521 — SUCCESS`, 255/255 tests
 - 상세: `docs/SCANNER.md`, `docs/RELEASE_1.2.1.md`
+
+## DEC-057 — Scanner catalog의 disk load와 network refresh는 하나의 mode-transition operation boundary를 사용한다
+
+- 상태: `CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED`
+- 날짜: 2026-08-23
+- `ScannerCatalogService.RefreshAsync`와 `LoadCacheAsync`는 동일한 in-memory Item identity/market state를 교체할 수 있으므로 동일 `_refreshGate`로 직렬화한다.
+- cross-GameMode `ClearForMode`는 refresh가 gate를 획득한 뒤 수행한다.
+- 이전 profile/GameMode에서 이미 진행 중이던 network refresh가 새 profile/GameMode의 cache load 결과를 뒤늦게 덮어쓰는 상태 역전을 허용하지 않는다.
+- cache load는 Scanner catalog lifetime cancellation과 연결해 shutdown 중 gate 대기에서 빠져나올 수 있어야 한다.
+- 이 변경은 recognition threshold, OCR/visual matcher, market-price 계산식 또는 `RequiredTotal` 의미를 변경하지 않는다.
+- 실제 race ordering을 강제하는 regression test를 유지한다.
+- 기존 기능의 deterministic concurrency defect 수정이므로 DEC-048에 따라 **v1.2.2 PATCH**다.
+- public release source: `e3925cbc55215c7de0502c9b6b1ff1428d2f272b`
+- final PR CI: `32590303579 — SUCCESS`
+- exact-source release run: `32590701086 — SUCCESS`, 256/256 tests
+- independent public finalizer: `32607942093 — SUCCESS`
+- public ZIP SHA-256: `125d4a5b0e6db64f6772cc63c112f13cbcdac2fb7bc9ce501313ca2fc3645d7c`
+- 상세: `docs/SCANNER.md`, `docs/RELEASE_1.2.2.md`
 
 ---
 
