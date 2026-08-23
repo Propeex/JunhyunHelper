@@ -19,6 +19,7 @@ public partial class MainWindow
         VerifyFlexibleCandidateRenderedLayout();
         VerifyAmmoRenderedControls();
         VerifyScannerRenderedControls();
+        await VerifyScannerRuntimeTransitionGateAsync();
         await VerifyQuestSidebarRenderedLayoutAsync();
     }
 
@@ -221,8 +222,6 @@ public partial class MainWindow
         if (ScannerDiagnosticLog.GetRecentActivities().Count == 0 || !File.Exists(ScannerDiagnosticLog.Path))
             throw new InvalidOperationException("Scanner smoke could not create a diagnostic/activity record before clear.");
 
-        // Also materialize the rotated file so the user action proves it clears both
-        // bounded diagnostic generations, not only the current scanner.log.
         File.WriteAllText(ScannerDiagnosticLog.Path + ".1", "scanner-log-clear-smoke");
 
         ScannerPlaceholder.ClearLogButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -231,6 +230,36 @@ public partial class MainWindow
             File.Exists(ScannerDiagnosticLog.Path + ".1"))
         {
             throw new InvalidOperationException("Scanner log clear button did not remove both activity history and log files.");
+        }
+    }
+
+    private static async Task VerifyScannerRuntimeTransitionGateAsync()
+    {
+        var gate = new ScannerRuntimeTransitionGate();
+        IDisposable? first = await gate.EnterAsync();
+        try
+        {
+            var queued = gate.EnterAsync().AsTask();
+            if (queued.IsCompleted)
+                throw new InvalidOperationException("Scanner runtime transition gate did not serialize a queued transition.");
+
+            using var rejected = await gate.TryEnterAsync();
+            if (rejected is not null)
+                throw new InvalidOperationException("Scanner one-shot non-blocking transition gate entered while another transition was active.");
+
+            first.Dispose();
+            first = null;
+
+            var second = await queued.WaitAsync(TimeSpan.FromSeconds(1));
+            second.Dispose();
+
+            using var available = await gate.TryEnterAsync();
+            if (available is null)
+                throw new InvalidOperationException("Scanner runtime transition gate did not become available after the prior transition exited.");
+        }
+        finally
+        {
+            first?.Dispose();
         }
     }
 
