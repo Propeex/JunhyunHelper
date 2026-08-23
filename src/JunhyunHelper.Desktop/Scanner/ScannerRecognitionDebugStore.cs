@@ -5,7 +5,7 @@ using JunhyunHelper.Core.Scanner;
 namespace JunhyunHelper.Desktop.Scanner;
 
 /// <summary>
-/// Keeps exactly one latest Scanner diagnostic frame in memory. The frame now carries a
+/// Keeps exactly one latest Scanner diagnostic frame in memory. The frame carries a
 /// stable Case ID so runtime logs, user correction and persisted diagnostic data can be
 /// joined without guessing. Persistence remains owned by ScannerDiagnosticDataset.
 /// </summary>
@@ -134,7 +134,6 @@ public static class ScannerRecognitionDebugStore
             _lastSignature = string.Empty;
             _lastCaptureUtc = DateTimeOffset.MinValue;
         }
-        ScannerOcrDebugStore.Clear();
         Changed?.Invoke();
     }
 
