@@ -62,3 +62,7 @@ v1.0.0 승격 작업 자체에서는 새 제품 기능을 추가하지 않습니
 2. 이 문서의 규칙으로 목표 버전을 결정합니다.
 3. Desktop project version, 배포 안내문, release tag, ZIP 이름, release notes가 같은 버전을 가리키는지 검증합니다.
 4. 자동 업데이트가 사용하는 GitHub stable release도 같은 버전인지 검증합니다.
+
+## v1.3.0 — 2026-08-23
+
+Explicit recognition PNG export, one-shot DisplayTest, and three configurable global Scanner commands are new user capabilities, therefore MINOR per DEC-048. Scanner settings schema moves v3→v4 with compatibility migration; recognition/market/RequiredTotal semantics are unchanged.

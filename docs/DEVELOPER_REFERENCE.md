@@ -857,3 +857,7 @@ SHA-256: 125d4a5b0e6db64f6772cc63c112f13cbcdac2fb7bc9ce501313ca2fc3645d7c
 13. 실제 Tarkov에서 남는 불확실성은 diagnostic으로 분리 가능한가?
 
 이 질문에 답할 수 있으면 변경 범위를 대체로 정확히 잡을 수 있습니다.
+
+## v1.3.0 Scanner implementation addendum
+
+Relevant implementation: `ScannerRecognitionDebugWindow`, `ScannerCoordinator.OneShot`, `ScannerRuntimeService.OneShot`, `ScannerGlobalHotkeyService`, `ScannerHotkeySettingsWindow`, `ScannerDisplaySettings`, `MainWindow.ProductLifecycle`, `ScannerPage`, `ScannerPage.MiniScannerSmoke`, `MainWindow.ProductUiLayoutSmoke`. Full responsibility/impact map: `docs/V1.3.0_PROJECT_DELTA.md`.

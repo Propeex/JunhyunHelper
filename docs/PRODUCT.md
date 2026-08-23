@@ -429,3 +429,9 @@ public-downloaded EXE smoke: SUCCESS
 - PvE Skier LL2 task-pool drift: exact fact 없으면 해당 pool fail-closed
 - code signing / installer
 - Scanner 최신 live Tarkov E2E는 공개 후 관측 기반 검증/튜닝 범위
+
+## v1.3.0 current addendum
+
+`CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED`
+
+Scanner v1.3.0 adds explicit raw recognition PNG export, one-shot DisplayTest, and three configurable MainWindow-lifetime global hotkeys. One-shot buttons are removed. Scanner settings schema v4 preserves the v3 user one-shot gesture. Recognition acceptance and market/RequiredTotal semantics are unchanged. Canonical delta: `docs/V1.3.0_PROJECT_DELTA.md`.

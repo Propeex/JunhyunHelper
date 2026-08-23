@@ -8,52 +8,38 @@
 
 **준현 헬퍼**는 Escape from Tarkov 플레이를 지원하는 Windows x64 .NET 10 WPF 데스크톱 프로그램입니다.
 
-핵심 기능:
-
-- GameMode별 Profile / User Progress
-- Quest availability / Hideout / Needed Items / Inventory
-- Items / Ammo
-- Map + MiniMap
-- Game Content 안전 업데이트
-- 사용자 동의형 Program Update
-- Scanner + Mini Scanner
-
-Runtime GPT/AI 의존성은 없습니다.
+핵심 기능: Profile/User Progress, Quest, Hideout, Needed Items/Inventory, Items, Ammo, Map/MiniMap, Game Content Update, Program Update, Scanner/Mini Scanner. Runtime GPT/AI 의존성은 없습니다.
 
 ## 2. 현재 공개 릴리즈
 
-현재 public stable은 **v1.2.2**입니다.
-
 ```text
-version: v1.2.2 PUBLIC RELEASE / VERIFIED
-release source: e3925cbc55215c7de0502c9b6b1ff1428d2f272b
-final PR CI: 32590303579 — SUCCESS
-exact-source release run: 32590701086 — SUCCESS
-independent public finalizer: 32607942093 — SUCCESS
-automated tests: 256 passed / 0 failed / 0 skipped
-asset: Junhyun-Helper-v1.2.2-win-x64.zip
-bytes: 80,302,910
-SHA-256: 125d4a5b0e6db64f6772cc63c112f13cbcdac2fb7bc9ce501313ca2fc3645d7c
-ProductVersion: 1.2.2+e3925cbc55215c7de0502c9b6b1ff1428d2f272b
+v1.3.0 PUBLIC RELEASE / VERIFIED
+release source: f03441672d39165678fa53f57af46f103070d50e
+final PR #142 CI: 32611343850 — SUCCESS
+public verification status commit: 4cefa27012eafa62d40ef99f4efd630f3c53127a
+tests: 256 passed / 0 failed / 0 skipped
+asset: Junhyun-Helper-v1.3.0-win-x64.zip
+bytes: 80,306,655
+SHA-256: 5880c71098d737b7ffd3447eb77a55195d09d76ea12be7ff79df4eb055ac8344
+ProductVersion: 1.3.0+f03441672d39165678fa53f57af46f103070d50e
 public/latest: VERIFIED
 exact public tag source: VERIFIED
 public-downloaded EXE smoke: SUCCESS
 ```
 
 ```text
-Desktop Version: 1.2.2
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
-Scanner display settings schema: v3
-Scanner catalog cache schema: v1/v2 readable, v2 written
-v1.2.1 → v1.2.2 mandatory Game Content update: none
-v1.2.1 → v1.2.2 user.db migration: none
+Scanner display settings schema: v4
+Scanner catalog cache: v1/v2 readable, v2 written
+v1.2.2 → v1.3.0 mandatory Game Content update: none
+v1.2.2 → v1.3.0 user.db migration: none
 ```
 
-상세 검증 기록은 `docs/RELEASE_1.2.2.md`에 있습니다.
+상세: `docs/RELEASE_1.3.0.md`.
 
-## 3. 제품 아키텍처 기준
+## 3. 아키텍처
 
 ```text
 JunhyunHelper.Desktop
@@ -67,356 +53,117 @@ JunhyunHelper.Desktop
 - Application: 사용자 유스케이스와 authoritative mutation
 - Infrastructure: HTTP/source parsing, SQLite/file persistence, content/scanner/update I/O
 - Desktop: WPF UI, presentation, Scanner capture/OCR/runtime, Map bridge
-- Map/MiniMap donor는 제한적 compile-link 예외이며 donor updater/content ownership은 사용하지 않음
+- pinned Map donor revision: `d933792b6042a51cea38dc44b686a096fe30de67`
 
-현재 pinned Map donor revision:
-
-```text
-d933792b6042a51cea38dc44b686a096fe30de67
-```
-
-## 4. Scanner 제품 계약
-
-Scanner는 게임 프로세스 내부 데이터를 읽지 않는 독립적인 화면 기반 보조 기능입니다.
+## 4. Scanner recognition 계약
 
 ```text
 Tarkov / Display pixels
-→ detail-window structural candidates
-→ red close + magnifier + title-field anchor refinement
+→ Scanner Lab v3.8 structural candidates
+→ red close + magnifier + title-field refinement
 → magnifier-free title ROI
 → Windows ko-KR OCR + current-catalog character validation
-→ current official Korean catalog semantic matching
+→ official-name semantic resolution
    OR conservative current-catalog Tarkov-font visual recovery
 → confidence + top1/top2 margin gates
-→ Item ID
-→ local JunhyunHelper presentation data
+→ Item ID or fail closed
+→ local presentation data
 → Mini Scanner
 ```
 
 장기 원칙:
 
 - false positive보다 miss 선호
-- geometry/structural/anchor score는 후보 evidence이지 Item identity가 아님
-- matcher confidence/top1-top2 margin을 편의상 완화하지 않음
+- structural/anchor score만으로 Item identity 확정 금지
 - current official Korean item catalog가 identity 권위
-- historical alias를 production identity source로 무제한 누적하지 않음
-- icon 하나만으로 Item identity 확정 금지
+- confidence/margin 임의 완화 금지
+- icon 단독 identity 금지
 - scan-time network 금지
 - game memory read / DLL injection / packet interception 금지
-- ambiguity/low confidence는 fail closed
 
-## 5. Scanner recognition 구조
+## 5. v1.3.0 Scanner workflow
 
-### Structural geometry
+### Recognition image export
 
-- Scanner Lab v3.8의 RED-X/rectangle structural candidate 구조 유지
-- 최대 8 candidate
-- structural floor `0.34`
-- 동일 quantized geometry가 연속 관측될 때만 continuous semantic recognition 안정화
-- verified detail/title signature가 유지되면 OCR 반복을 억제하고 presentation만 갱신
+- latest raw recognition source frame 1개를 process memory에 유지
+- 사용자가 `인식 이미지` → `이미지 저장`을 선택할 때만 PNG export
+- export PNG에는 diagnostic overlay를 합성하지 않음
+- automatic raw screenshot disk persistence는 하지 않음
+- `로그 삭제`는 user-exported PNG를 삭제하지 않음
 
-### Title anchor
+### One-shot
 
-- 우측 red close/X
-- 좌측 magnifier/search icon
-- 어두운 title-field strip
+- one-shot in-game = `ScannerCaptureMode.TarkovWindow`
+- one-shot test = `ScannerCaptureMode.DisplayTest`; 모든 연결 디스플레이를 한 번만 동일 pipeline으로 검사
+- 두 one-shot은 Scanner 탭 버튼 없이 global hotkey-only
+- continuous Scanner/Test 상태를 영구 변경하지 않음
+- local healthy catalog만 사용, scan-time network refresh 없음
+- 기존 one-shot/continuous/profile lifecycle serialization 유지
 
-magnifier evidence가 충분하면 실제 OCR ROI는 magnifier 오른쪽부터 시작합니다. anchor가 불확실하면 검증된 Scanner Lab geometry ROI로 fallback합니다.
-
-v1.2.1에서 anchor diagnostic score는 단순 존재 여부를 1.0으로 승격하지 않고 실제 detector score를 보존합니다. 이는 진단 정확도 개선이며 Item ID acceptance threshold 변경이 아닙니다.
-
-### OCR / character policy
-
-- Windows `ko-KR` OCR이 primary path
-- current official Korean catalog에서 허용 문자 집합 계산
-- catalog에 없는 unexpected character는 corrupted OCR evidence
-- Han ideograph는 Korean item-title contract에서 invalid evidence
-- 임의 문자 치환으로 confidence를 인위적으로 높이지 않음
-- existing OCR semantic success는 font visual recovery가 덮어쓰지 않음
-
-### Tarkov-font visual recovery
-
-OCR이 비거나 손상된 경우 current official item-name universe 안에서만 visual recovery를 수행할 수 있습니다.
-
-- Bender regular/bold + Noto Sans CJK KR local font support
-- conservative top1 score + top1/top2 margin 필요
-- ambiguous candidate는 거부
-- arbitrary text/Item 생성 금지
-- visual result도 current catalog identity를 통과해야 함
-
-## 6. Deterministic Scanner hardening
-
-### v1.2.1 — font/cache/lifecycle/capture
-
-#### Font source/cache generation
-
-- Tarkov `resources.assets`를 전체 managed byte array로 읽지 않고 bounded streaming scan
-- source path/length/last-write를 `scanner/fonts/font-cache.json` manifest에 기록
-- 실제 Bender/Noto cache 바이너리 SHA-256 조합을 generation key로 사용
-- Tarkov source generation 또는 font generation 변경 시 loaded fonts/rendered templates 재사용 금지
-- 부분/중단 추출에서 구세대와 신세대 font variant 혼합 방지
-- corrupt/unusable font cache는 font recovery만 fail-soft로 비활성화하고 primary OCR path 유지
-- 게임 font 바이너리는 배포 파일에 포함하지 않음
-
-#### Visual cache bounds
-
-- OCR-guided title template cache bounded
-- full-catalog glyph-mask cache bounded
-- full-catalog aspect cache bounded
-- 모든 visual cache key에 exact font generation 포함
-
-장시간 Scanner 실행에서 rendered template cache가 무제한 증가하지 않으며 Tarkov 업데이트 후 stale glyph template을 재사용하지 않습니다.
-
-#### Mini Scanner inventory probe
-
-- inventory/stash OCR probe 동시 실행 최대 1개
-- 반복 `Show` 요청은 latest snapshot으로 coalesce
-- item 변경 시 stale probe cancel
-- epoch가 바뀐 old result는 화면 적용 금지
-- inventory context가 불확실하면 Mini Scanner hidden
-
-#### One-shot/profile lifecycle
-
-- one-shot은 기존 continuous loop 실제 종료를 await한 뒤 shared detector/OCR/presentation state 사용
-- one-shot 종료 후 최신 사용자 state가 같은 mode를 여전히 요청할 때만 이전 mode 복구
-- profile/GameMode monitor는 one-shot gate 뒤 최신 context를 다시 읽음
-- stale monitor tick이 이전 profile/mode를 부활시키지 않음
-
-#### Shutdown/resource lifetime
-
-Font-aware OCR은 active-operation lease를 사용합니다. Dispose 요청 이후 신규 operation은 거부하고, 이미 실행 중인 recognition이 종료된 뒤 Skia/font resources를 해제합니다.
-
-#### Capture allocation
-
-`PrintWindow` visual-content validation은 locked bitmap의 sparse pixel을 직접 읽습니다. 이 사전 검사 때문에 1440p/4K 전체 frame을 별도의 managed array로 한 번 더 복사하지 않습니다. 실제 detector용 BGRA copy는 유지합니다.
-
-### v1.2.2 — catalog mode-transition serialization
-
-Scanner catalog의 `RefreshAsync`와 `LoadCacheAsync`는 모두 Item identity/market in-memory state를 교체할 수 있으므로 동일 `_refreshGate` operation boundary를 사용합니다.
-
-- local disk cache load와 network refresh를 직렬화
-- cross-GameMode in-memory clear를 gate 진입 뒤에 수행
-- older in-flight refresh가 newer profile/GameMode cache load를 뒤늦게 덮어쓰는 경합 차단
-- cache load도 catalog lifetime cancellation을 사용해 shutdown 대기 경계 보강
-- deterministic concurrency regression test 추가
-- OCR/detector/visual confidence 및 top1/top2 margin 변경 없음
-- market/RequiredTotal 의미 변경 없음
-
-## 7. 1회 고정밀 스캔 / 단축키
-
-- continuous Scanner OFF에서도 `1회 고정밀 스캔` 가능
-- 기본 global hotkey: `Ctrl+Shift+F10`
-- Scanner UI에서 변경/비활성화 가능
-- Scanner display settings schema v3
-- local healthy Scanner catalog만 사용
-- one-shot이 scan-time network refresh를 시작하지 않음
-- duplicate invocation은 coordinator gate로 직렬화/거부
-
-## 8. 인식 이미지 / diagnostics
-
-`인식 이미지`는 process memory에 최신 diagnostic frame 1개만 유지합니다.
-
-표시/기록 가능한 정보:
-
-- capture source/origin
-- selected detail bounds
-- title ROI
-- magnifier / close anchor bounds
-- structural/title-anchor evidence
-- OCR/visual recognition pass
-- OCR text
-- candidate official name
-- confidence / second score / reason
-
-스크린샷/raw pixel은 디스크에 저장하지 않습니다.
-
-개발자 로그:
+### Global hotkeys
 
 ```text
-%LocalAppData%/JunhyunHelper/logs/scanner.log
-%LocalAppData%/JunhyunHelper/logs/scanner.log.1
+Ctrl+Shift+F10  1회 인게임 스캔
+Ctrl+Shift+F11  1회 테스트 스캔
+Ctrl+Shift+F12  Scanner ON/OFF
 ```
 
-로그 삭제는 recent activity, current/rotated scanner log, 최신 in-memory recognition image를 함께 clear합니다. 진단 I/O 실패는 Scanner fatal이 아닙니다.
+- Scanner 탭의 하나의 설정 창에서 각 command 변경/disable
+- duplicate gesture 저장 금지
+- registration ownership은 ScannerPage가 아니라 MainWindow lifetime
+- Scanner settings schema v4
+- v3 `OneShotHotkey` 사용자 값은 v4 in-game one-shot으로 우선 보존
+- 기존 사용자 값과 신규 default 충돌 시 신규 command만 비충돌 fallback 사용
 
-## 9. Mini Scanner
+## 6. Scanner data contract
 
-- match 성공 item 정보만 표시
-- runtime/OCR/error/status text는 overlay에 표시하지 않음
-- WPF Topmost + native HWND_TOPMOST
-- ShowActivated=false / no-activate
-- 전체 카드가 drag hit surface
-- drag cursor는 Arrow
-- MiniMap과 독립 Window/service/settings lifecycle
-- 실제 Scanner mode에서는 Tarkov foreground + inventory/stash context를 보수적으로 확인
-- test/preview path는 deterministic 개발 검증을 위해 context gate bypass 가능
-
-Title OCR과 inventory-context OCR은 `SerializedScannerOcrEngine`을 통한 하나의 WinRT OCR serialization boundary를 공유합니다.
-
-## 10. Scanner catalog / market 계약
-
-Identity catalog health:
-
-```text
-accepted item count >= 4000
-AND every accepted item has non-empty Item ID
-AND every accepted item has non-empty official name
-```
-
-시장 데이터 coverage는 identity health와 분리합니다.
-
-- raw `traderPrices` 지원
-- derived `sellFor` 지원
-- best trader price = 유효한 non-flea RUB 환산 최고가
+- best trader = 유효한 non-flea RUB 환산 판매가 최댓값
 - flea average = positive `avg24hPrice`
-- slots = positive width × height
-- price/slot = valid price와 slots가 모두 있을 때만 계산
-- market/dimension 누락/오류는 해당 표시 필드만 fail closed
+- price/slot = 유효 price와 positive width×height가 모두 있을 때만 계산
+- current needed = `ItemsWorkspace.Plan.NeededItems[itemId].RequiredTotal`
+- Inventory 차감 부족량을 Scanner 필요 수량 의미로 사용하지 않음
+- 시장/크기 누락은 해당 field만 fail closed하고 Item identity 전체를 버리지 않음
 
-4,000개 valid identity에 trader price가 0개여도 identity catalog는 사용 가능하며, 3,999개 identity catalog는 거부합니다.
+## 7. 유지되는 deterministic hardening
 
-현재 필요한 수량:
+- generation-aware Tarkov title-font cache / bounded visual caches
+- Mini Scanner inventory OCR single-active/coalesced/stale-result reject
+- one-shot/profile/GameMode lifecycle serialization
+- shutdown-safe font-aware OCR lifetime
+- PrintWindow sparse validation duplicate full-frame allocation 제거
+- Scanner catalog disk load/network refresh mode-transition serialization
 
-```text
-ItemsWorkspace.Plan.NeededItems[itemId].RequiredTotal
-```
-
-Inventory 차감 부족량을 Scanner 의미로 사용하지 않습니다.
-
-## 11. Icon / local cache
-
-- Game Content update에서 canonical item 전체 icon prefetch
-- 실제 scan 순간에는 icon HTTP 없음
-- local image-cache만 사용
-- 개별 icon 실패는 전체 update/identity를 fatal로 만들지 않음
-- decode/freeze 성공 아이콘은 process-local cache에서 재사용 가능
-
-## 12. Persistence / 사용자 데이터
+## 8. Persistence
 
 ```text
 %LocalAppData%/JunhyunHelper/user.db
 %LocalAppData%/JunhyunHelper/content/
 %LocalAppData%/JunhyunHelper/image-cache/
-%LocalAppData%/JunhyunHelper/map-product-settings.json(.bak)
-%LocalAppData%/JunhyunHelper/ammo-favorites.json(.bak)
 %LocalAppData%/JunhyunHelper/scanner-settings.json(.bak)
 %LocalAppData%/JunhyunHelper/scanner/catalog/
 %LocalAppData%/JunhyunHelper/scanner/fonts/
 %LocalAppData%/JunhyunHelper/logs/scanner.log(.1)
 ```
 
-Program package와 사용자 데이터는 분리되어 있습니다. v1.2.1 → v1.2.2는 user.db migration이나 mandatory Game Content update가 없습니다.
+Program package와 사용자 데이터는 분리합니다.
 
-## 13. Map / MiniMap
+## 9. Release gate
 
-Map/MiniMap은 pinned donor source를 제한적으로 compile-link한 독립 subsystem입니다.
+v1.3.0은 다음을 통과했습니다.
 
-- general marker/artwork/config → pinned Map bundle
-- current Quest state/geometry → JunhyunHelper bridge
-- donor updater/content DB/global hidden command/legacy logger는 product ownership에서 제외
-- 구체적 defect/performance 근거 없이 broad refactor하지 않음
-
-Main Map cross-floor smoke는 donor의 bounded settle timer와 product-owned opacity `0.75`가 steady-state로 650 ms 유지되는 것을 검증합니다. post-v1.2.0 smoke hardening은 test harness 안정화이며 public binary의 기능 의미를 변경하지 않았습니다.
-
-## 14. Program Update / 배포
-
-정식 release는 Draft-first 검증을 사용합니다.
-
-```text
-exact release source
-→ build/tests/publish/smoke
-→ ZIP + SHA256SUMS
-→ Draft release
-→ Draft asset re-download verification
-→ Draft-downloaded EXE smoke
-→ public/latest
-→ exact tag verification
-→ public asset re-download verification
-→ public-downloaded EXE smoke
-```
-
-ZIP root:
-
-```text
-준현 헬퍼.exe
-FIRST_RUN_KO.txt
-Assets/
-```
-
-업데이트는 program-owned files만 교체하며 `%LocalAppData%/JunhyunHelper` 사용자 데이터를 건드리지 않습니다.
-
-릴리즈 완료 후 일회성 release/verify workflow를 제거합니다. release status marker는 검증 증거로 보존할 수 있으며 상시 workflow는 `.github/workflows/ci.yml`만 유지하는 것이 기본입니다.
-
-## 15. v1.2.2 검증 결과
-
-Final PR CI `32590303579`, exact-source release run `32590701086`, independent public finalizer `32607942093`에서 다음을 통과했습니다.
-
-- exact release source `e3925cbc55215c7de0502c9b6b1ff1428d2f272b`
 - Windows Release build
-- **256 automated tests / 0 failure / 0 skipped**
-- win-x64 self-contained single-file publish
-- ProductVersion / FIRST_RUN / package root audit
+- 256/256 automated tests
+- win-x64 self-contained single-file publish/root audit
+- ProductVersion/FIRST_RUN identity audit
+- rendered Scanner v1.3 UI contract
+- schema v4/default/v3 migration self-check
 - Product UI / Scanner / Mini Scanner / Main Map / Factory / MiniMap actual EXE smoke
 - graceful shutdown / clean portable root
-- Draft package re-download verification
-- Draft-downloaded EXE smoke
-- public/latest transition
-- exact public tag source verification
-- public package re-download checksum/root/ProductVersion/FIRST_RUN verification
+- Draft asset re-download verification + EXE smoke
+- public/latest + exact public tag verification
+- public asset checksum/root/ProductVersion/FIRST_RUN re-download verification
 - independent public-downloaded EXE smoke
 
-Public asset:
+## 10. 후속 원칙
 
-```text
-Junhyun-Helper-v1.2.2-win-x64.zip
-80,302,910 bytes
-SHA-256 125d4a5b0e6db64f6772cc63c112f13cbcdac2fb7bc9ce501313ca2fc3645d7c
-ProductVersion 1.2.2+e3925cbc55215c7de0502c9b6b1ff1428d2f272b
-```
-
-독립 finalizer 결과는 `docs/.release-v1.2.2-status.json`, 상세 릴리즈 이력은 `docs/RELEASE_1.2.2.md`에 기록합니다.
-
-## 16. 실제 Tarkov 후속 검증
-
-최신 Tarkov live E2E calibration은 public release blocker가 아니며 실제 사용자 환경에서 계속 검증합니다.
-
-문제 발생 시 다음 순서로 근거를 분리합니다.
-
-1. capture source/window state
-2. detail structural candidate geometry
-3. close/magnifier/title anchor evidence
-4. actual title ROI
-5. OCR character policy
-6. semantic/visual matcher
-7. current catalog Item ID
-8. presentation/market/RequiredTotal bridge
-9. inventory/stash visibility gate
-10. Mini Scanner window behavior
-11. long-session CPU/memory/handles/OCR rate
-
-`scanner.log`와 `인식 이미지`로 재현 조건을 고정한 뒤 evidence-based PATCH를 적용합니다. live 근거 없이 confidence/margin을 낮추지 않습니다.
-
-## 17. 기능 상태
-
-| 영역 | 상태 |
-|---|---|
-| Profile | 구현 완료 |
-| Quest | 구현 완료 / fail-closed availability |
-| Hideout | 구현 완료 |
-| Needed Items / Inventory | 구현 완료 |
-| Items | 구현 완료 |
-| Ammo | 구현 완료 |
-| Map + MiniMap | 구현 완료 / steady-state product smoke 유지 |
-| Game Content Update | 구현 완료 |
-| Program Update | 구현 완료 / v1.2.2 public package verified |
-| Scanner + Mini Scanner | **v1.2.2 public verified / live Tarkov calibration 및 evidence-based follow-up 진행 대상** |
-
-## 18. 다음 작업 원칙
-
-현재 공개 제품은 v1.2.2입니다. 다음 Scanner 수정은 실제 사용에서 관측된 miss/false positive/performance evidence 또는 코드/자동 검증으로 확정 가능한 deterministic defect를 우선합니다.
-
-- threshold를 추측해서 낮추지 않음
-- existing public behavior를 코드가 존재한다는 이유만으로 설계 요구사항으로 승격하지 않음
-- product contract와 current implementation 충돌 시 원인과 영향을 문서화한 뒤 수정
-- 기능 추가보다 요청된 범위의 안정성/정확성/일관성을 우선
-- 중요한 결정과 release 상태는 확정 즉시 저장소 문서에 기록
+최신 Tarkov live E2E calibration은 실제 사용자 환경에서 계속합니다. 실제 사용 중 문제가 생기면 `scanner.log`, `인식 이미지`, 필요 시 explicit PNG export로 근거를 고정한 뒤 capture → geometry/anchors → OCR/visual matcher → catalog → presentation → inventory gate → overlay → resource usage 순으로 분리합니다. Live evidence 없이 threshold를 추측 변경하지 않습니다.

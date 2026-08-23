@@ -469,3 +469,7 @@ Scanner가 이 계산을 독자적으로 복제하지 않습니다.
 - `docs/RELEASE_1.2.1.md`
 - `docs/PROGRAM_UPDATE.md`
 - `docs/DEPLOYMENT.md`
+
+## v1.3.0 current Scanner architecture addendum
+
+MainWindow owns three global Scanner registrations; ScannerPage owns configuration UI only. Both one-shot modes share `ScannerCoordinator` serialization and `ScannerRuntimeService.ScanOnceAsync(mode)`. Debug source frames remain memory-only unless the user explicitly exports a raw PNG. Scanner settings schema v4 owns migration/collision policy. Recognition and presentation data pipelines remain unchanged. Detailed flow: `docs/V1.3.0_PROJECT_DELTA.md`.

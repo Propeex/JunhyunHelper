@@ -242,3 +242,7 @@ Scanner tab에 유지:
 13. Mini Scanner / MiniMap / Alt+Tab 공존
 
 문제가 있으면 `scanner.log`와 `인식 이미지`를 근거로 capture → geometry → anchors → ROI → OCR/visual matcher → catalog → presentation → overlay 단계로 분리해 후속 PATCH에서 보정합니다. confidence/margin을 단순히 낮추는 방식으로 해결하지 않습니다.
+
+## v1.3.0 verified gate
+
+Final PR CI `32611343850 — SUCCESS`; 256/256 tests; Windows publish/root audit; rendered v1.3 Scanner UI and migration self-check; actual Product UI/Scanner/Mini Scanner/Main Map/Factory/MiniMap smoke; exact public tag source; SHA-256 `5880c71098d737b7ffd3447eb77a55195d09d76ea12be7ff79df4eb055ac8344`; independent public-downloaded EXE smoke SUCCESS.

@@ -346,3 +346,17 @@
 - Map 세부 계약: `docs/MAP_PRODUCT_REQUIREMENTS.md`
 - 기존 구현 참고 정책: `docs/REFERENCE_POLICY.md`
 - DEC-001~029 원문: `docs/DECISIONS_HISTORY_THROUGH_2026-08-09.md`
+
+## DEC-058 — Scanner v1.3.0 analysis workflow and global commands
+
+- 상태: `CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED`
+- explicit user-selected raw recognition PNG export 허용; automatic screenshot persistence는 계속 금지
+- one-shot `TarkovWindow` + one-shot `DisplayTest`, hotkey-only
+- defaults `Ctrl+Shift+F10/F11/F12`; configurable/disableable; duplicate gesture 금지
+- global registration lifetime = MainWindow
+- Scanner settings schema v4; v3 user one-shot gesture 보존, 신규 command collision만 fallback
+- recognition confidence/margin, market, `RequiredTotal` 의미 변경 없음
+- v1.3.0 MINOR
+- public source `f03441672d39165678fa53f57af46f103070d50e`
+- SHA-256 `5880c71098d737b7ffd3447eb77a55195d09d76ea12be7ff79df4eb055ac8344`
+- 상세: `docs/V1.3.0_PROJECT_DELTA.md`, `docs/RELEASE_1.3.0.md`

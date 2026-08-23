@@ -554,3 +554,7 @@ Release gate:
 실제 최신 Tarkov Borderless E2E는 release blocker가 아니며 사용자 환경에서 계속 검증합니다. 문제 발생 시 `scanner.log`와 `인식 이미지`로 capture → geometry → anchors → ROI → OCR/visual matcher → catalog → presentation → overlay를 분리해 진단합니다.
 
 상세: `docs/SCANNER_TEST_PLAN.md`, `docs/SCANNER_LAB_3_8_REFERENCE.md`, `docs/RELEASE_1.2.0.md`, `docs/RELEASE_1.2.1.md`, `docs/RELEASE_1.2.2.md`.
+
+## v1.3.0 current workflow addendum
+
+Latest recognition frame is memory-only by default; explicit user `이미지 저장` exports the raw source PNG without diagnostic overlay. One-shot Tarkov and all-display DisplayTest are hotkey-only. Defaults are Ctrl+Shift+F10/F11/F12; all are configurable/disableable with duplicate prevention and MainWindow-lifetime registration. Settings schema v4 preserves the v3 user gesture. Existing detector/OCR/visual thresholds, current-catalog identity, market and RequiredTotal semantics are unchanged. Detailed contract: `docs/SCANNER_V1.3.0_WORKFLOW.md`.
