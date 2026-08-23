@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.IO.Compression;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -7,6 +6,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using JunhyunHelper.Core.Scanner;
 using Windows.Media.Ocr;
 
 namespace JunhyunHelper.Desktop.Scanner;
@@ -53,6 +53,8 @@ public static class ScannerDiagnosticDataset
     private const string ScannerDatasetVersion = "ground-truth-v1";
     private const double LowConfidenceSampleThreshold = 0.93;
     private const int MaximumAutomaticFingerprints = 512;
+    private const int MaximumConfusionsInMarkdown = 30;
+
     private static readonly object Gate = new();
     private static readonly HashSet<string> AutomaticFingerprints = new(StringComparer.Ordinal);
     private static readonly Queue<string> AutomaticFingerprintOrder = new();
@@ -82,7 +84,8 @@ public static class ScannerDiagnosticDataset
 
             var casesPath = Path.Combine(RootPath, "cases");
             var caseCount = Directory.Exists(casesPath)
-                ? Directory.EnumerateDirectories(casesPath, "case_*", SearchOption.TopDirectoryOnly).Count()
+                ? Directory.EnumerateDirectories(casesPath, "case_*", SearchOption.TopDirectoryOnly)
+                    .Count(path => File.Exists(Path.Combine(path, "case.json")))
                 : 0;
             long bytes = 0;
             try
@@ -104,6 +107,7 @@ public static class ScannerDiagnosticDataset
     {
         if (frame is null || !ShouldRetainAutomatically(frame))
             return;
+
         var fingerprint = BuildAutomaticFingerprint(frame);
         lock (Gate)
         {
@@ -190,6 +194,33 @@ public static class ScannerDiagnosticDataset
         }, cancellationToken);
     }
 
+    public static bool DeleteCase(string caseId)
+    {
+        if (string.IsNullOrWhiteSpace(caseId))
+            return false;
+
+        lock (Gate)
+        {
+            try
+            {
+                var casesRoot = Path.Combine(RootPath, "cases");
+                var safeId = SafeCaseId(caseId.Trim());
+                var casePath = Path.Combine(casesRoot, safeId);
+                if (!Directory.Exists(casePath))
+                    return false;
+                Directory.Delete(casePath, recursive: true);
+                EnsureDatasetScaffold();
+                RebuildIndexesUnsafe();
+                return true;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                App.WriteDiagnostic("Scanner diagnostic case delete failed", exception);
+                return false;
+            }
+        }
+    }
+
     public static bool ClearAll()
     {
         lock (Gate)
@@ -272,10 +303,11 @@ public static class ScannerDiagnosticDataset
                 groundTruth,
                 groundTruthErrorType,
                 pipelineStage);
+
             File.WriteAllText(
                 Path.Combine(casePath, "case.json"),
                 JsonSerializer.Serialize(metadata, JsonOptions),
-                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+                new UTF8Encoding(false));
 
             RebuildIndexesUnsafe();
             ScannerDiagnosticLog.Write(
@@ -310,8 +342,6 @@ public static class ScannerDiagnosticDataset
         var programVersion = Assembly.GetEntryAssembly()?.GetName().Version?.ToString()
             ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString()
             ?? "unknown";
-        var detailDelta = BuildDelta(detailDetected, detailCorrected);
-        var titleDelta = BuildDelta(titleDetected, titleCorrected);
         var presentation = submission.Presentation;
         var hasFinalGroundTruth = groundTruth.Length > 0 || submission.UserConfirmed;
         var confirmedCorrect = submission.UserConfirmed ||
@@ -319,6 +349,16 @@ public static class ScannerDiagnosticDataset
                 NormalizeComparison(frame.CandidateName),
                 NormalizeComparison(groundTruth),
                 StringComparison.Ordinal));
+        var topCandidates = (frame.TopCandidates ?? [])
+            .Take(10)
+            .Select((candidate, index) => new
+            {
+                rank = index + 1,
+                item_id = candidate.ItemId,
+                official_name = candidate.OfficialName,
+                score = candidate.Score,
+            })
+            .ToArray();
 
         return new
         {
@@ -353,7 +393,7 @@ public static class ScannerDiagnosticDataset
             {
                 detected_roi = BuildRoi(detailDetected, frame.Image.PixelWidth, frame.Image.PixelHeight),
                 corrected_roi = BuildRoi(detailCorrected, frame.Image.PixelWidth, frame.Image.PixelHeight),
-                delta = detailDelta,
+                delta = BuildDelta(detailDetected, detailCorrected),
                 structural_confidence = frame.StructuralScore,
                 structural_reason = frame.StructuralReason,
                 header_confidence = frame.TitleAnchorScore,
@@ -365,7 +405,7 @@ public static class ScannerDiagnosticDataset
                 {
                     detected_roi = BuildRoi(titleDetected, frame.Image.PixelWidth, frame.Image.PixelHeight),
                     corrected_roi = BuildRoi(titleCorrected, frame.Image.PixelWidth, frame.Image.PixelHeight),
-                    delta = titleDelta,
+                    delta = BuildDelta(titleDetected, titleCorrected),
                     ocr_raw = frame.OcrText,
                     ocr_normalized = frame.MatcherText,
                     program_result = frame.CandidateName ?? string.Empty,
@@ -376,6 +416,7 @@ public static class ScannerDiagnosticDataset
                     match_margin = Math.Max(0, frame.Confidence - frame.SecondScore),
                     recognition_reason = frame.RecognitionReason,
                     pass = frame.Pass,
+                    top_candidates = topCandidates,
                     ground_truth_error_type = groundTruthErrorType is null ? null : ErrorTypeText(groundTruthErrorType.Value),
                 },
             },
@@ -393,7 +434,7 @@ public static class ScannerDiagnosticDataset
             artifacts = new
             {
                 full = "full.png",
-                detail_window = detailGroundTruthArtifact(detailDetected, detailCorrected),
+                detail_window = detailDetected is null && detailCorrected is null ? null : "detail_window.png",
                 annotated = "annotated.png",
                 item_name_detected = titleDetected is null ? null : "item_name/detected_roi.png",
                 item_name_corrected = titleCorrected is null ? null : "item_name/corrected_roi.png",
@@ -401,9 +442,6 @@ public static class ScannerDiagnosticDataset
             },
         };
     }
-
-    private static string? detailGroundTruthArtifact(Rect? detected, Rect? corrected) =>
-        detected is null && corrected is null ? null : "detail_window.png";
 
     private static bool IsReviewed(
         ScannerCorrectionSubmission submission,
@@ -686,7 +724,8 @@ public static class ScannerDiagnosticDataset
                Math.Abs(left.Height - right.Height) >= 0.5;
     }
 
-    private static string NormalizeText(string? value) => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
+    private static string NormalizeText(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
 
     private static string NormalizeComparison(string? value)
     {
@@ -714,9 +753,10 @@ public static class ScannerDiagnosticDataset
     {
         Directory.CreateDirectory(RootPath);
         Directory.CreateDirectory(Path.Combine(RootPath, "cases"));
-        var readme = Path.Combine(RootPath, "README.md");
-        if (!File.Exists(readme))
-            File.WriteAllText(readme, BuildReadme(), new UTF8Encoding(false));
+        File.WriteAllText(
+            Path.Combine(RootPath, "README.md"),
+            BuildReadme(),
+            new UTF8Encoding(false));
         File.WriteAllText(
             Path.Combine(RootPath, "environment.json"),
             JsonSerializer.Serialize(BuildEnvironment(), JsonOptions),
@@ -800,6 +840,7 @@ public static class ScannerDiagnosticDataset
     {
         var groundTruthErrors = new Dictionary<string, int>(StringComparer.Ordinal);
         var pipelineStages = new Dictionary<string, int>(StringComparer.Ordinal);
+        var ocrConfusions = new Dictionary<string, int>(StringComparer.Ordinal);
         var reviewed = 0;
         var finalReviewed = 0;
         var correct = 0;
@@ -841,9 +882,19 @@ public static class ScannerDiagnosticDataset
                     if (error != "NONE")
                         corrections++;
                 }
+
                 if (itemName.TryGetProperty("delta", out var delta) && delta.ValueKind == JsonValueKind.Object)
                     AddDelta(delta, itemNameDeltas);
+
+                if (isReviewed)
+                {
+                    var observed = GetJsonString(itemName, "ocr_normalized");
+                    var expected = GetJsonString(itemName, "ground_truth");
+                    if (observed.Length > 0 && expected.Length > 0)
+                        AddOcrConfusions(observed, expected, ocrConfusions);
+                }
             }
+
             if (root.TryGetProperty("detail_window", out var detail) &&
                 detail.TryGetProperty("delta", out var detailDelta) && detailDelta.ValueKind == JsonValueKind.Object)
             {
@@ -861,9 +912,81 @@ public static class ScannerDiagnosticDataset
             finalReviewed > 0 ? correct / (double)finalReviewed : null,
             groundTruthErrors,
             pipelineStages,
+            ocrConfusions,
             CalculateDeltaStatistics(detailDeltas),
             CalculateDeltaStatistics(itemNameDeltas));
     }
+
+    private static void AddOcrConfusions(
+        string observedText,
+        string expectedText,
+        IDictionary<string, int> target)
+    {
+        var observed = ScannerItemMatcher.Normalize(observedText);
+        var expected = ScannerItemMatcher.Normalize(expectedText);
+        if (observed.Length == 0 || expected.Length == 0 || string.Equals(observed, expected, StringComparison.Ordinal))
+            return;
+
+        var costs = new int[observed.Length + 1, expected.Length + 1];
+        for (var row = 0; row <= observed.Length; row++)
+            costs[row, 0] = row;
+        for (var column = 0; column <= expected.Length; column++)
+            costs[0, column] = column;
+
+        for (var row = 1; row <= observed.Length; row++)
+        for (var column = 1; column <= expected.Length; column++)
+        {
+            var substitution = observed[row - 1] == expected[column - 1] ? 0 : 1;
+            costs[row, column] = Math.Min(
+                Math.Min(costs[row - 1, column] + 1, costs[row, column - 1] + 1),
+                costs[row - 1, column - 1] + substitution);
+        }
+
+        var r = observed.Length;
+        var c = expected.Length;
+        while (r > 0 || c > 0)
+        {
+            if (r > 0 && c > 0 && observed[r - 1] == expected[c - 1] &&
+                costs[r, c] == costs[r - 1, c - 1])
+            {
+                r--;
+                c--;
+                continue;
+            }
+
+            if (r > 0 && c > 0 && costs[r, c] == costs[r - 1, c - 1] + 1)
+            {
+                AddConfusion(target, $"{observed[r - 1]} → {expected[c - 1]}");
+                r--;
+                c--;
+                continue;
+            }
+
+            if (r > 0 && costs[r, c] == costs[r - 1, c] + 1)
+            {
+                AddConfusion(target, $"{observed[r - 1]} → ∅");
+                r--;
+                continue;
+            }
+
+            if (c > 0)
+            {
+                AddConfusion(target, $"∅ → {expected[c - 1]}");
+                c--;
+                continue;
+            }
+
+            break;
+        }
+    }
+
+    private static void AddConfusion(IDictionary<string, int> target, string key) =>
+        target[key] = target.GetValueOrDefault(key) + 1;
+
+    private static string GetJsonString(JsonElement element, string property) =>
+        element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()?.Trim() ?? string.Empty
+            : string.Empty;
 
     private static void AddDelta(JsonElement delta, ICollection<(double X, double Y, double W, double H)> target)
     {
@@ -877,7 +1000,8 @@ public static class ScannerDiagnosticDataset
     private static double GetDouble(JsonElement element, string property) =>
         element.TryGetProperty(property, out var value) && value.TryGetDouble(out var parsed) ? parsed : 0;
 
-    private static ScannerRoiDeltaStatistics? CalculateDeltaStatistics(IReadOnlyList<(double X, double Y, double W, double H)> values)
+    private static ScannerRoiDeltaStatistics? CalculateDeltaStatistics(
+        IReadOnlyList<(double X, double Y, double W, double H)> values)
     {
         if (values.Count == 0)
             return null;
@@ -913,6 +1037,7 @@ public static class ScannerDiagnosticDataset
             .AppendLine($"- Reviewed final accuracy: {(summary.ReviewedAccuracy is null ? "n/a" : summary.ReviewedAccuracy.Value.ToString("P2"))}")
             .AppendLine()
             .AppendLine("## Ground Truth error types");
+
         if (summary.GroundTruthErrorTypes.Count == 0)
             builder.AppendLine("- No reviewed Ground Truth error labels yet.");
         else
@@ -926,6 +1051,19 @@ public static class ScannerDiagnosticDataset
         else
             foreach (var pair in summary.PipelineStages.OrderByDescending(pair => pair.Value).ThenBy(pair => pair.Key, StringComparer.Ordinal))
                 builder.AppendLine($"- {pair.Key}: {pair.Value}");
+
+        builder.AppendLine()
+            .AppendLine("## OCR confusion pairs (observed → Ground Truth)");
+        if (summary.OcrConfusions.Count == 0)
+            builder.AppendLine("- No reviewed OCR confusion pairs yet.");
+        else
+            foreach (var pair in summary.OcrConfusions
+                         .OrderByDescending(pair => pair.Value)
+                         .ThenBy(pair => pair.Key, StringComparer.Ordinal)
+                         .Take(MaximumConfusionsInMarkdown))
+            {
+                builder.AppendLine($"- {pair.Key}: {pair.Value}");
+            }
 
         AppendDeltaMarkdown(builder, "Detail window ROI correction delta", summary.DetailWindowRoiDelta);
         AppendDeltaMarkdown(builder, "Item name ROI correction delta", summary.ItemNameRoiDelta);
@@ -970,9 +1108,15 @@ public static class ScannerDiagnosticDataset
 
 `ground_truth_error_type`은 사용자 검증이 존재할 때만 기록됩니다. 자동 보존 사례의 `pipeline.stage`는 프로그램이 실제로 어느 단계까지 진행했는지를 나타내는 관찰값이며 실패 원인의 Ground Truth 라벨이 아닙니다.
 
+`fields.item_name.top_candidates`에는 현재 matcher가 비교한 상위 후보의 rank, Item ID, 공식 이름, 점수가 기록됩니다. 1위 결과만 보지 말고 실제 Ground Truth가 상위 후보 안에 있었는지와 후보 간 점수 차이를 함께 분석하십시오.
+
+`summary.json` / `summary.md`에는 사용자 검증 OCR 문자열과 Ground Truth를 edit alignment하여 반복 혼동 문자(관찰 → 정답), 삽입, 누락 통계를 생성합니다.
+
 현재 준현 헬퍼 Scanner는 가격과 필요 개수를 화면에서 OCR하지 않습니다. 아이템 이름으로 Item ID를 확정한 뒤 로컬 데이터에서 최고 상점가, 플리마켓 평균가, 슬롯, 필요한 개수를 조회합니다. 따라서 현재 OCR 필드는 `item_name`이며 가격/필요 개수는 `mapped_data` 검증 대상입니다.
 
 `full.png`는 전처리 전 원본 캡처, `detail_window.png`는 상세창, `item_name/detected_roi.png`는 프로그램 ROI, `item_name/corrected_roi.png`는 사용자 교정 ROI, `item_name/processed_roi.png` 및 `processed_variant_*.png`는 현재 Windows OCR 전처리 규칙을 재현한 입력 이미지입니다. `annotated.png`는 프로그램/사용자 영역을 함께 표시합니다.
+
+`regression.json` / `regression.md`가 존재하면 저장된 full.png를 현재 production detector/header/OCR/catalog 파이프라인으로 다시 실행한 결과입니다. `REGRESSION` Case는 전체 평균보다 우선해서 확인하십시오.
 
 알고리즘 수정 전 실패 단계를 먼저 분리하고, 수정 후 전체 Ground Truth를 재실행하여 새롭게 해결된 사례와 회귀 사례를 모두 확인하십시오.
 """;
@@ -1019,6 +1163,7 @@ public static class ScannerDiagnosticDataset
         double? ReviewedAccuracy,
         IReadOnlyDictionary<string, int> GroundTruthErrorTypes,
         IReadOnlyDictionary<string, int> PipelineStages,
+        IReadOnlyDictionary<string, int> OcrConfusions,
         ScannerRoiDeltaStatistics? DetailWindowRoiDelta,
         ScannerRoiDeltaStatistics? ItemNameRoiDelta);
 
