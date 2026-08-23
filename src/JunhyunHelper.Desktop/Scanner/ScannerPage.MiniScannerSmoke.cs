@@ -116,13 +116,18 @@ public partial class ScannerPage
 
         static void DrawMagnifier(byte[] target, int targetStride, int x, int y)
         {
+            // Match the live Tarkov inspect-header icon scale: the complete bright
+            // component, including its short lower-right handle, is about 21x19-21 px.
+            // Keeping the synthetic regression at the observed scale prevents the test
+            // itself from forcing the detector to accept unrealistically large icons.
             const byte bright = 178;
-            Fill(target, targetStride, x, y, 19, 3, bright, bright, bright);
-            Fill(target, targetStride, x, y + 16, 19, 3, bright, bright, bright);
-            Fill(target, targetStride, x, y, 3, 19, bright, bright, bright);
-            Fill(target, targetStride, x + 16, y, 3, 19, bright, bright, bright);
-            for (var step = 0; step < 9; step++)
-                Fill(target, targetStride, x + 17 + step, y + 17 + step, 3, 3, bright, bright, bright);
+            const int ringSize = 17;
+            Fill(target, targetStride, x, y, ringSize, 3, bright, bright, bright);
+            Fill(target, targetStride, x, y + ringSize - 3, ringSize, 3, bright, bright, bright);
+            Fill(target, targetStride, x, y, 3, ringSize, bright, bright, bright);
+            Fill(target, targetStride, x + ringSize - 3, y, 3, ringSize, bright, bright, bright);
+            for (var step = 0; step < 4; step++)
+                Fill(target, targetStride, x + 15 + step, y + 15 + step, 3, 3, bright, bright, bright);
         }
 
         static void DrawGlyph(byte[] target, int targetStride, int x, int y)
