@@ -20,6 +20,24 @@ public sealed class ScannerItemMatcherTests
     }
 
     [Fact]
+    public void Resolve_ExactCurrentOfficialName_PreservesRankedCandidates()
+    {
+        var matcher = CreateMatcher(
+            Item("water", "물병 Bottle of water (0.6L)"),
+            Item("water-filter", "Water filter 정수 필터"),
+            Item("juice", "사과 주스 Apple juice"));
+
+        var result = matcher.Resolve("물병 Bottle of water (0.6L)");
+
+        Assert.NotNull(result.TopCandidates);
+        Assert.NotEmpty(result.TopCandidates!);
+        Assert.Equal("water", result.TopCandidates![0].ItemId);
+        Assert.Equal(1.0, result.TopCandidates[0].Score, 6);
+        Assert.True(result.TopCandidates.Count >= 2);
+        Assert.True(result.TopCandidates[0].Score >= result.TopCandidates[1].Score);
+    }
+
+    [Fact]
     public void Resolve_SmallOcrError_WithClearMargin_Succeeds()
     {
         var matcher = CreateMatcher(
@@ -46,6 +64,7 @@ public sealed class ScannerItemMatcherTests
         Assert.Equal("thermite", result.ItemId);
         Assert.Equal("BOUNDED_EDIT_1", result.Reason);
         Assert.Equal(10.0 / 11.0, result.Confidence, 6);
+        Assert.Contains(result.TopCandidates ?? [], candidate => candidate.ItemId == "thermite");
     }
 
     [Fact]
@@ -62,6 +81,7 @@ public sealed class ScannerItemMatcherTests
         Assert.Equal("esmarch", result.ItemId);
         Assert.Equal("UNKNOWN_GLYPH_1", result.Reason);
         Assert.True(result.Confidence > 0.90);
+        Assert.Contains(result.TopCandidates ?? [], candidate => candidate.ItemId == "esmarch");
     }
 
     [Fact]
@@ -112,6 +132,10 @@ public sealed class ScannerItemMatcherTests
 
         Assert.False(result.Success);
         Assert.NotEqual("BOUNDED_EDIT_1", result.Reason);
+        Assert.NotNull(result.TopCandidates);
+        Assert.True(result.TopCandidates!.Count >= 2);
+        Assert.Equal("alpha", result.TopCandidates[0].ItemId);
+        Assert.Equal("beta", result.TopCandidates[1].ItemId);
     }
 
     [Fact]
