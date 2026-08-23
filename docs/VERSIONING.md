@@ -62,3 +62,11 @@ v1.0.0 승격 작업 자체에서는 새 제품 기능을 추가하지 않습니
 2. 이 문서의 규칙으로 목표 버전을 결정합니다.
 3. Desktop project version, 배포 안내문, release tag, ZIP 이름, release notes가 같은 버전을 가리키는지 검증합니다.
 4. 자동 업데이트가 사용하는 GitHub stable release도 같은 버전인지 검증합니다.
+
+
+## 8. 최근 적용 사례
+
+- v1.3.0 — recognition image export / one-shot test / 3종 global hotkey 추가 → **MINOR**
+- v1.3.1 — 기존 Scanner title recognition 보완 → **PATCH**
+- v1.3.2 — 추가 live OCR evidence 기반 안정성·정확성 보완 → **PATCH**
+- v1.3.3 — 12개 실제 상세창에서 재확인된 header/title-start 회귀 수정 → **PATCH**

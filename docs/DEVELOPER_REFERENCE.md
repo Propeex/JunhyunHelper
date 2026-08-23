@@ -243,6 +243,9 @@ Scanner는 **실제 제품 기능**입니다.
 - v1.2.0: title anchors, Tarkov-font visual recovery, `인식 이미지`, one-shot high-precision scan
 - v1.2.1: font/cache generation, bounded visual caches, one-shot/profile lifecycle, Mini Scanner OCR coalescing, shutdown/capture hardening
 - v1.2.2: Scanner catalog disk-load/network-refresh GameMode transition race 제거
+- v1.3.0: raw recognition-image export, one-shot DisplayTest, 3종 global hotkey/settings v4
+- v1.3.1~v1.3.2: live title/OCR evidence 기반 inspect-header 및 current-catalog sanitation/one-edit hardening
+- v1.3.3: 실제 2048×1280 상세창 12개를 근거로 actual inspect-header frame lock을 title ROI의 authoritative geometry로 고정
 
 ## 9.1 제품 경계
 
@@ -314,6 +317,10 @@ screen pixels
 
 - `Desktop/Scanner/ScannerLab38WindowsVision.cs`
   - Tarkov/display capture와 Scanner Lab v3.8 structural candidate generation.
+- `Desktop/Scanner/ScannerInspectHeaderLock.cs`
+  - red close/X + long neutral top frame + bounded left icon lane + magnifier + dark title field를 결합해 authoritative title ROI를 생성.
+- `Desktop/Scanner/ScannerInspectHeaderLockSmoke.cs`
+  - 12개 실제 measured header geometry와 missing-magnifier fail-closed를 packaged-EXE synthetic regression으로 고정.
 - `Desktop/Scanner/ScannerWindowsOcrEngine.cs`
   - Windows `ko-KR` OCR와 deep preprocessing.
 - `Desktop/Scanner/SerializedScannerOcrEngine.cs`
@@ -366,15 +373,23 @@ Structural score는 final identity가 아닙니다. candidate limit=8, structura
 
 Title ROI fallback 기준은 `docs/SCANNER_LAB_3_8_REFERENCE.md`가 권위입니다.
 
-## 9.5 Title anchors / OCR / matcher
+## 9.5 Inspect-header lock / OCR / matcher
 
-Header refinement evidence:
+Header ownership은 v1.3.3부터 다음 순서입니다.
 
-- red close/X
-- magnifier/search icon
-- dark title field
+```text
+structural detail candidate
+→ red close/X
+→ long neutral top frame
+→ bounded frame-left search-icon lane
+→ magnifier core/morphology
+→ dark title field + text presence
+→ HEADER_FRAME_LOCKED
+→ title ROI = magnifier right + structural gap ... red close left
+→ OCR
+```
 
-magnifier가 신뢰되면 실제 title OCR ROI는 magnifier 오른쪽에서 시작합니다. anchor가 불확실하면 Scanner Lab v3.8 geometry ROI로 돌아갑니다.
+first title glyph connected component는 ROI left edge를 소유하지 않습니다. `HEADER_FRAME_LOCKED`가 아니거나 anchor score가 0.68 미만이면 OCR identity path로 진행하지 않습니다.
 
 Windows `ko-KR` OCR adaptive scale:
 
@@ -382,13 +397,11 @@ Windows `ko-KR` OCR adaptive scale:
 - <=20 → 6x
 - else → 4x
 
-first-pass 성공 후보가 없으면 상위 candidate에 deep OCR을 수행합니다.
+first-pass 성공 후보가 없으면 trusted header-lock candidate에만 deep OCR을 수행합니다.
 
-Resolver는 OCR full text/individual line/adjacent line combination을 current official Korean full-item catalog와 비교합니다.
+`ScannerOcrCharacterPolicy`는 current official Korean catalog에서 허용 문자/기호를 파생합니다. raw OCR과 sanitized matcher input을 별도로 진단하며 current catalog 밖 punctuation/symbol은 matcher evidence에서 제거합니다. Han ideograph는 Korean item-title contract에서 invalid evidence입니다.
 
-Exact-first이며 fuzzy confidence/top1-top2 margin을 인식률 때문에 완화하지 않습니다. historical alias를 production에 누적하지 않습니다.
-
-`ScannerOcrCharacterPolicy`는 current official Korean catalog에서 허용 문자를 파생합니다. catalog에 없는 unexpected character와 Korean item-title contract의 Han ideograph는 corrupted OCR evidence로 다룹니다.
+Resolver는 exact-first + conservative fuzzy + top1/top2 margin을 유지합니다. normalized length >= 7의 정확히 1 edit만 complete current catalog에서 후보가 유일하고 global runner-up과 10%p 이상 벌어질 때 bounded recovery가 가능합니다.
 
 ## 9.6 Tarkov-font visual recovery — v1.2.0/v1.2.1
 
@@ -397,7 +410,7 @@ OCR이 비거나 손상된 경우에만 current official item-name universe 안�
 - Bender + Noto local support
 - current catalog 밖 arbitrary Item 생성 금지
 - conservative top1 score + top1/top2 margin
-- OCR semantic success가 있으면 visual recovery가 덮어쓰지 않음
+- OCR semantic success와 visual이 다를 때 strict current-catalog visual evidence가 명확한 경우에만 correction; visual unavailable/error/ambiguous이면 healthy OCR success 유지
 - game font binary는 배포하지 않음
 
 v1.2.1 generation/lifetime 계약:

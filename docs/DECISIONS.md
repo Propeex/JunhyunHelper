@@ -327,6 +327,24 @@
 - public ZIP SHA-256: `125d4a5b0e6db64f6772cc63c112f13cbcdac2fb7bc9ce501313ca2fc3645d7c`
 - 상세: `docs/SCANNER.md`, `docs/RELEASE_1.2.2.md`
 
+## DEC-058 — Scanner title ROI는 실제 inspect-header frame이 소유한다
+
+- 상태: `CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED v1.3.3`
+- 날짜: 2026-08-23
+- 실제 Tarkov 2048×1280 상세창 12개에서 재확인된 title-start/magnifier-anchor 회귀를 근거로 한다.
+- first title glyph connected component는 title ROI left edge를 결정하지 않는다.
+- red close/X + long neutral top frame + bounded frame-left search-icon lane + magnifier + dark title field/text evidence를 결합한 `HEADER_FRAME_LOCKED`가 title ROI의 권위 구조다.
+- runtime은 `HEADER_FRAME_LOCKED`와 anchor score 0.68 이상을 다시 요구하며 partial/failed lock은 OCR identity path에 진입하지 않는다.
+- raw Windows OCR과 current-catalog sanitation 후 matcher input을 diagnostics에서 분리한다.
+- 기존 confidence/top1-top2 margin과 bounded unique one-edit 안전 조건은 완화하지 않는다.
+- highest trader / flea `avg24hPrice` / `RequiredTotal` 의미와 schema는 변경하지 않는다.
+- 신규 기능이 아닌 live regression 수정이므로 DEC-048에 따라 v1.3.3 PATCH다.
+- release source/tag: `41bf5b8374ba774866aab4b60a25376d9b5548c2`
+- final PR CI: `32625223009 — SUCCESS`, 263/263 tests
+- release run: `32625403609 — SUCCESS`
+- public ZIP SHA-256: `0771d3c7dee5a8f19904d52eeedc7b9abbd6027a7b000255ebd33c296bc2186f`
+- 상세: `docs/DECISION_SCANNER_HEADER_LOCK_2026-08-23.md`, `docs/SCANNER_V1.3.3_HEADER_LOCK.md`, `docs/RELEASE_1.3.3.md`
+
 ---
 
 # 3. 현재 결정 확인 방법

@@ -174,9 +174,11 @@ Title OCR과 inventory-context OCR은 하나의 `SerializedScannerOcrEngine`을 
 ```text
 Tarkov client / display pixels
 → Scanner Lab v3.8 structural candidates
-→ close + magnifier + title-field anchor refinement
+→ red close/X + long neutral top frame
+→ bounded frame-left search-icon lane + magnifier + dark title field/text evidence
+→ HEADER_FRAME_LOCKED
 → magnifier-free title ROI
-   └─ anchor 불확실 시 검증된 Scanner Lab geometry ROI fallback
+   └─ incomplete header lock은 OCR identity path에 진입하지 않음
 → Windows ko-KR OCR
 → current-catalog character policy
 → official-name semantic resolver
@@ -190,24 +192,30 @@ Tarkov client / display pixels
 
 Structural score, anchor score, icon 또는 visual similarity 하나만으로 Item identity를 확정하지 않습니다. current official Item ID/name catalog가 identity 권위이며 ambiguous/low-confidence는 미표시합니다.
 
-### 8.3 Geometry / title anchors
+### 8.3 Geometry / inspect-header lock
 
 - structural floor `0.34` 유지
-- RED-X connected component + rectangle/edge fallback candidate 생성
-- 동일 quantized `GeometrySignature`의 연속 관측 후 continuous semantic recognition
-- close/magnifier/title-field evidence로 title ROI 보정
-- magnifier 발견 시 OCR ROI를 magnifier 오른쪽부터 시작
-- 불확실하면 기존 Scanner Lab title ROI로 fallback
-- v1.2.1 diagnostics는 detected close/magnifier의 실제 component score를 보존
+- RED-X connected component + rectangle/edge fallback은 **detail candidate 생성** 역할
+- 동일 quantized `GeometrySignature`의 연속 관측 후 continuous semantic recognition 시도
+- title ROI의 수평 ownership은 `ScannerInspectHeaderLock`이 담당
+- required evidence: red close/X + long neutral top frame + bounded frame-left search-icon lane + magnifier core/morphology + dark title field + text presence
+- first title glyph connected component는 ROI left edge를 결정하지 않음
+- `HEADER_FRAME_LOCKED`가 아니면 refiner score를 0.47 이하로 제한
+- runtime은 `HEADER_FRAME_LOCKED` + `TitleAnchorScore >= 0.68`을 다시 요구
+- incomplete header lock은 Scanner Lab geometry title ROI로 semantic fallback하지 않고 OCR identity를 fail closed
+- 실제 2048×1280 상세창 12개 measured geometry를 packaged-EXE synthetic regression에서 재생
 
 ### 8.4 OCR / semantic identity
 
 - Windows `ko-KR` OCR primary
-- current official Korean catalog에서 allowed character set 파생
-- Korean item-title contract에서 Han ideograph를 invalid OCR evidence로 처리
+- raw OCR은 diagnostics에 유지하고 matcher에는 current-catalog sanitation 후 text를 전달
+- current official Korean catalog에서 allowed character/symbol set 파생
+- current catalog 밖 punctuation/symbol은 matcher evidence에서 제거
+- Korean item-title contract에서 Han ideograph는 invalid OCR evidence
 - exact-first + conservative fuzzy threshold + top1/top2 margin
+- normalized length >= 7의 정확히 1 edit는 complete current catalog에서 후보가 유일하고 global runner-up과 10%p 이상 벌어질 때만 bounded recovery
 - historical alias를 production identity source로 무제한 누적하지 않음
-- successful existing OCR result를 visual layer가 교체/약화하지 않음
+- visual correction은 strict current-catalog evidence가 명확한 경우에만 허용하며 unavailable/error/ambiguous visual은 healthy OCR success를 폐기하지 않음
 
 ### 8.5 Tarkov title-font ownership / generation
 
@@ -311,7 +319,7 @@ Item ID
 
 ### 8.12 Diagnostics / 금지 경계
 
-`ScannerDiagnosticLog`는 bounded metadata log를 `%LocalAppData%/JunhyunHelper/logs/scanner.log(.1)`에 기록합니다. screenshot/raw pixel buffer는 디스크에 저장하지 않습니다. 최신 `인식 이미지` 한 장만 process memory에 유지합니다.
+`ScannerDiagnosticLog`는 bounded metadata log를 `%LocalAppData%/JunhyunHelper/logs/scanner.log(.1)`에 기록합니다. 최신 `인식 이미지` 한 장은 process memory에 유지하며 자동 screenshot 저장은 하지 않습니다. 사용자가 명시적으로 `이미지 저장`을 선택한 경우에만 실제 분석 원본 frame을 지정한 PNG로 export합니다; diagnostic overlay는 PNG에 합성하지 않습니다.
 
 금지:
 
