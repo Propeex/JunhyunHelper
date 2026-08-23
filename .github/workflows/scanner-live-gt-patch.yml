@@ -1,0 +1,241 @@
+name: Apply Scanner Live Ground Truth Calibration
+
+on:
+  push:
+    branches: [scanner-live-header-ground-truth-fix]
+    paths:
+      - '.github/workflows/scanner-live-gt-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: scanner-live-header-ground-truth-fix
+
+      - name: Apply exact evidence-backed patches
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          function Replace-Exact([string]$Path, [string]$Old, [string]$New) {
+            $content = Get-Content $Path -Raw
+            if (-not $content.Contains($Old)) { throw "Expected patch anchor not found in $Path" }
+            $updated = $content.Replace($Old, $New)
+            if ($updated -eq $content) { throw "Patch produced no change in $Path" }
+            $updated | Set-Content $Path -NoNewline -Encoding utf8NoBOM
+          }
+
+          $header = 'src/JunhyunHelper.Desktop/Scanner/ScannerInspectHeaderLock.cs'
+          Replace-Exact $header '            if (template < 0.46)' '            if (template < 0.40)'
+          Replace-Exact $header '        return gray is >= 40 and <= 108 && max - min <= 36;' '        return gray is >= 38 and <= 108 && max - min <= 36;'
+
+          $matcher = 'src/JunhyunHelper.Desktop/Scanner/ScannerHeaderIconTemplateMatcher.cs'
+          Replace-Exact $matcher @'
+            var dx = u - 0.46;
+            var dy = v - 0.46;
+            var radius = Math.Sqrt(dx * dx + dy * dy);
+            var bright = BrightNeutralScore(bgra, stride, x + px, y + py);
+            var dark = 1.0 - bright;
+
+            var isRing = radius is >= 0.29 and <= 0.46 && !(u > 0.67 && v > 0.67);
+            var isCenter = radius <= 0.22;
+            var diagonalDistance = Math.Abs(u - v);
+            var isHandle = u >= 0.58 && v >= 0.58 && diagonalDistance <= 0.13;
+            var isOutside = radius >= 0.52 && !isHandle;
+'@ @'
+            // Live Tarkov evidence shows the search icon as an upper-right lens with
+            // a lower-left handle. The old synthetic template mirrored the handle to
+            // the lower-right and therefore rejected the real 1920x1080 icon.
+            var dx = u - 0.58;
+            var dy = v - 0.35;
+            var radius = Math.Sqrt(dx * dx + dy * dy);
+            var bright = BrightNeutralScore(bgra, stride, x + px, y + py);
+            var dark = 1.0 - bright;
+
+            var isRing = radius is >= 0.27 and <= 0.45 && !(u < 0.38 && v > 0.55);
+            var isCenter = radius <= 0.20;
+            var isHandle = u <= 0.52 && v >= 0.48 && Math.Abs((u + v) - 0.92) <= 0.13;
+            var isOutside = radius >= 0.50 && !isHandle;
+'@
+          Replace-Exact $matcher '        // Normalize every candidate to [0,1]. The live 13x13 bright core is a circular`n        // lens plus a lower-right diagonal handle. Use soft bands so anti-aliasing and`n        // DPI resampling do not require exact pixels.' '        // Normalize every candidate to [0,1]. The live bright core is an upper-right`n        // circular lens plus a lower-left diagonal handle. Use soft bands so anti-aliasing`n        // and DPI resampling do not require exact pixels.'
+
+          $detector = 'src/JunhyunHelper.Core/Scanner/ScannerDetailGeometryDetector.cs'
+          Replace-Exact $detector @'
+            if (result.Any(existing => IntersectionOverUnion(existing.Window, candidate.Window) >= 0.72))
+                continue;
+'@ @'
+            if (result.Any(existing => AreDuplicateCandidates(existing, candidate)))
+                continue;
+'@
+          Replace-Exact $detector @'
+    private static double IntersectionOverUnion(ScannerDetectedRegion a, ScannerDetectedRegion b)
+'@ @'
+    private static bool AreDuplicateCandidates(
+        ScannerDetectedCandidate left,
+        ScannerDetectedCandidate right)
+    {
+        if (IntersectionOverUnion(left.Window, right.Window) < 0.72)
+            return false;
+
+        // Two highly-overlapping panels are not duplicates when each was independently
+        // reconstructed from a materially different red close control. Real live evidence
+        // contained a correct tall inspect panel that was previously deleted because a
+        // lower, wrong red control produced an overlapping higher-scored rectangle.
+        if (left.CloseButton.Width > 0 && left.CloseButton.Height > 0 &&
+            right.CloseButton.Width > 0 && right.CloseButton.Height > 0)
+        {
+            var leftCenterX = left.CloseButton.X + left.CloseButton.Width / 2.0;
+            var leftCenterY = left.CloseButton.Y + left.CloseButton.Height / 2.0;
+            var rightCenterX = right.CloseButton.X + right.CloseButton.Width / 2.0;
+            var rightCenterY = right.CloseButton.Y + right.CloseButton.Height / 2.0;
+            var dx = leftCenterX - rightCenterX;
+            var dy = leftCenterY - rightCenterY;
+            var sameCloseTolerance = Math.Max(
+                6.0,
+                Math.Min(left.CloseButton.Height, right.CloseButton.Height) * 0.75);
+            if (Math.Sqrt(dx * dx + dy * dy) > sameCloseTolerance)
+                return false;
+        }
+
+        return true;
+    }
+
+    private static double IntersectionOverUnion(ScannerDetectedRegion a, ScannerDetectedRegion b)
+'@
+
+          $dataset = 'src/JunhyunHelper.Desktop/Scanner/ScannerDiagnosticDataset.cs'
+          Replace-Exact $dataset @'
+        if (string.Equals(frame.RecognitionReason, "TITLE_ANCHOR_NOT_LOCKED", StringComparison.Ordinal))
+            return "DETAIL_HEADER_LOCK_FAILED";
+'@ @'
+        if (string.Equals(frame.RecognitionReason, "TITLE_ANCHOR_NOT_LOCKED", StringComparison.Ordinal) ||
+            string.Equals(frame.RecognitionReason, "TITLE_ANCHOR_INCOMPLETE", StringComparison.Ordinal))
+        {
+            return "DETAIL_HEADER_LOCK_FAILED";
+        }
+'@
+
+          $smoke = 'src/JunhyunHelper.Desktop/Scanner/ScannerInspectHeaderLockSmoke.cs'
+          Replace-Exact $smoke '        VerifyMissingMagnifierFailsClosed();' @'
+        // 1920x1080 Ground Truth calibration: darker neutral top border, dark red close
+        // control and the real lower-left-handle magnifier must all lock together.
+        VerifyLockedHeader(
+            headerLeft: 560,
+            headerTop: 255,
+            headerWidth: 800,
+            closeWidth: 25,
+            closeHeight: 16,
+            magnifierOffsetX: 11,
+            titleGap: 6,
+            glyphCount: 12,
+            addDecoyRing: true,
+            headerBorderGray: 38,
+            closeRed: 65);
+
+        VerifyMissingMagnifierFailsClosed();
+'@
+          Replace-Exact $smoke @'
+        int glyphCount,
+        bool addDecoyRing)
+'@ @'
+        int glyphCount,
+        bool addDecoyRing,
+        byte headerBorderGray = 68,
+        byte closeRed = 126)
+'@
+          Replace-Exact $smoke '        DrawHeaderField(pixels, stride, headerLeft, headerTop, headerWidth, closeHeight);' '        DrawHeaderField(pixels, stride, headerLeft, headerTop, headerWidth, closeHeight, headerBorderGray);'
+          Replace-Exact $smoke '        DrawClose(pixels, stride, closeX, closeY, closeWidth, closeHeight);' '        DrawClose(pixels, stride, closeX, closeY, closeWidth, closeHeight, closeRed);'
+          Replace-Exact $smoke @'
+        int width,
+        int closeHeight)
+    {
+        Fill(pixels, stride, x, y, width, 1, 68, 68, 68);
+'@ @'
+        int width,
+        int closeHeight,
+        byte borderGray = 68)
+    {
+        Fill(pixels, stride, x, y, width, 1, borderGray, borderGray, borderGray);
+'@
+          Replace-Exact $smoke @'
+        int width,
+        int height)
+    {
+        Fill(pixels, stride, x, y, width, height, 12, 12, 126);
+'@ @'
+        int width,
+        int height,
+        byte red = 126)
+    {
+        Fill(pixels, stride, x, y, width, height, 12, 12, red);
+'@
+          Replace-Exact $smoke @'
+    private static void DrawMagnifierCore(byte[] pixels, int stride, int x, int y)
+    {
+        const byte bright = 176;
+        const int size = 13;
+        var center = (size - 1) / 2.0;
+        for (var yy = 0; yy < size; yy++)
+        for (var xx = 0; xx < size; xx++)
+        {
+            var dx = xx - center;
+            var dy = yy - center;
+            var distance = Math.Sqrt(dx * dx + dy * dy);
+            if (distance is >= 4.2 and <= 5.8)
+                SetPixel(pixels, stride, x + xx, y + yy, bright, bright, bright);
+        }
+
+        for (var step = 0; step < 5; step++)
+        {
+            var px = Math.Min(size - 1, 8 + step);
+            var py = Math.Min(size - 1, 8 + step);
+            SetPixel(pixels, stride, x + px, y + py, bright, bright, bright);
+            if (px + 1 < size)
+                SetPixel(pixels, stride, x + px + 1, y + py, bright, bright, bright);
+        }
+    }
+'@ @'
+    private static void DrawMagnifierCore(byte[] pixels, int stride, int x, int y)
+    {
+        const byte bright = 176;
+        const int size = 13;
+        const double centerX = 7.1;
+        const double centerY = 4.1;
+        for (var yy = 0; yy < size; yy++)
+        for (var xx = 0; xx < size; xx++)
+        {
+            var dx = xx - centerX;
+            var dy = yy - centerY;
+            var distance = Math.Sqrt(dx * dx + dy * dy);
+            if (distance is >= 3.6 and <= 5.1)
+                SetPixel(pixels, stride, x + xx, y + yy, bright, bright, bright);
+        }
+
+        // Tarkov's magnifier handle extends from the lens toward the lower-left.
+        for (var step = 0; step < 6; step++)
+        {
+            var px = 5 - step;
+            var py = 7 + step;
+            SetPixel(pixels, stride, x + px, y + py, bright, bright, bright);
+            if (px + 1 < size)
+                SetPixel(pixels, stride, x + px + 1, y + py, bright, bright, bright);
+        }
+    }
+'@
+
+          git diff --check
+          git diff --exit-code --quiet && throw 'No scanner calibration changes were produced.'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/JunhyunHelper.Core/Scanner/ScannerDetailGeometryDetector.cs `
+                  src/JunhyunHelper.Desktop/Scanner/ScannerInspectHeaderLock.cs `
+                  src/JunhyunHelper.Desktop/Scanner/ScannerHeaderIconTemplateMatcher.cs `
+                  src/JunhyunHelper.Desktop/Scanner/ScannerInspectHeaderLockSmoke.cs `
+                  src/JunhyunHelper.Desktop/Scanner/ScannerDiagnosticDataset.cs
+          git commit -m 'fix: calibrate scanner header lock from live ground truth'
+          git push origin HEAD:scanner-live-header-ground-truth-fix
