@@ -1,8 +1,10 @@
+using System.Text.Json.Serialization;
+
 namespace JunhyunHelper.Desktop.Scanner;
 
 public sealed class ScannerDisplaySettings
 {
-    public const int CurrentSchemaVersion = 3;
+    public const int CurrentSchemaVersion = 4;
 
     public int SchemaVersion { get; set; }
     public bool Enabled { get; set; }
@@ -16,7 +18,12 @@ public sealed class ScannerDisplaySettings
     public double? PositionX { get; set; }
     public double? PositionY { get; set; }
     public double FontSize { get; set; } = 18;
-    public string OneShotHotkey { get; set; } = ScannerHotkeyGesture.Default.ToString();
+    public string OneShotTarkovHotkey { get; set; } = ScannerHotkeyGesture.DefaultOneShotTarkov.ToString();
+    public string OneShotTestHotkey { get; set; } = ScannerHotkeyGesture.DefaultOneShotTest.ToString();
+    public string ScannerToggleHotkey { get; set; } = ScannerHotkeyGesture.DefaultScannerToggle.ToString();
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? OneShotHotkey { get; set; }
 
     public ScannerDisplaySettings Clone() => new()
     {
@@ -32,15 +39,14 @@ public sealed class ScannerDisplaySettings
         PositionX = PositionX,
         PositionY = PositionY,
         FontSize = FontSize,
+        OneShotTarkovHotkey = OneShotTarkovHotkey,
+        OneShotTestHotkey = OneShotTestHotkey,
+        ScannerToggleHotkey = ScannerToggleHotkey,
         OneShotHotkey = OneShotHotkey,
     };
 
     public void Normalize()
     {
-        // v1.1.4 persisted the icon and trader-per-slot switches as false by default.
-        // v1.1.5 makes the complete matched-item presentation the product default. The
-        // one-time migration deliberately turns these fields on so existing installs do
-        // not keep the old accidental defaults forever.
         if (SchemaVersion < 2)
         {
             ShowItemIcon = true;
@@ -48,17 +54,36 @@ public sealed class ScannerDisplaySettings
             ShowTraderPricePerSlot = true;
         }
 
-        // v1.2.0 adds an optional global one-shot high-precision scan hotkey. Existing
-        // settings files have no field, so migrate them to the safe modified-key default.
-        if (SchemaVersion < 3 && string.IsNullOrWhiteSpace(OneShotHotkey))
-            OneShotHotkey = ScannerHotkeyGesture.Default.ToString();
-        SchemaVersion = CurrentSchemaVersion;
-
-        if (!string.IsNullOrWhiteSpace(OneShotHotkey) &&
-            !ScannerHotkeyGesture.TryParse(OneShotHotkey, out _))
+        if (SchemaVersion < 4)
         {
-            OneShotHotkey = ScannerHotkeyGesture.Default.ToString();
+            if (SchemaVersion >= 3)
+            {
+                OneShotTarkovHotkey = string.IsNullOrWhiteSpace(OneShotHotkey)
+                    ? string.Empty
+                    : ScannerHotkeyGesture.TryParse(OneShotHotkey, out var migrated)
+                        ? migrated.ToString()
+                        : ScannerHotkeyGesture.DefaultOneShotTarkov.ToString();
+            }
+            else
+            {
+                OneShotTarkovHotkey = ScannerHotkeyGesture.DefaultOneShotTarkov.ToString();
+            }
+
+            OneShotTestHotkey = ScannerHotkeyGesture.DefaultOneShotTest.ToString();
+            ScannerToggleHotkey = ScannerHotkeyGesture.DefaultScannerToggle.ToString();
+            OneShotHotkey = null;
         }
+
+        OneShotTarkovHotkey = NormalizeHotkey(
+            OneShotTarkovHotkey,
+            ScannerHotkeyGesture.DefaultOneShotTarkov);
+        OneShotTestHotkey = NormalizeHotkey(
+            OneShotTestHotkey,
+            ScannerHotkeyGesture.DefaultOneShotTest);
+        ScannerToggleHotkey = NormalizeHotkey(
+            ScannerToggleHotkey,
+            ScannerHotkeyGesture.DefaultScannerToggle);
+        SchemaVersion = CurrentSchemaVersion;
 
         if (PositionX is { } x && !double.IsFinite(x))
             PositionX = null;
@@ -70,5 +95,14 @@ public sealed class ScannerDisplaySettings
             PositionY = null;
         }
         FontSize = double.IsFinite(FontSize) ? Math.Clamp(FontSize, 12, 32) : 18;
+    }
+
+    private static string NormalizeHotkey(string? value, ScannerHotkeyGesture fallback)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+        return ScannerHotkeyGesture.TryParse(value, out var gesture)
+            ? gesture.ToString()
+            : fallback.ToString();
     }
 }

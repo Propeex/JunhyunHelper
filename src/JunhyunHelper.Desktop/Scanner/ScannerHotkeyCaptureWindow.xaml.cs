@@ -5,9 +5,12 @@ namespace JunhyunHelper.Desktop.Scanner;
 
 public partial class ScannerHotkeyCaptureWindow : Window
 {
-    public ScannerHotkeyCaptureWindow()
+    public ScannerHotkeyCaptureWindow(string actionLabel = "Scanner")
     {
         InitializeComponent();
+        var label = string.IsNullOrWhiteSpace(actionLabel) ? "Scanner" : actionLabel.Trim();
+        Title = $"{label} 단축키 설정";
+        ActionText.Text = $"{label} 단축키를 누르세요";
         Loaded += (_, _) => Keyboard.Focus(this);
     }
 

@@ -36,7 +36,6 @@ public partial class ScannerPage : UserControl
         SubscribeActivityFeed();
         ApplySettings(_coordinator.Settings);
         UpdateToggleButtons();
-        UpdateHotkeyUi();
 
         try
         {
@@ -64,7 +63,6 @@ public partial class ScannerPage : UserControl
         }
         ApplySettings(_coordinator.Settings);
         UpdateToggleButtons();
-        UpdateHotkeyUi();
         UpdateStatus(_coordinator.Status);
     }
 
@@ -114,42 +112,24 @@ public partial class ScannerPage : UserControl
         }
     }
 
-    private async void OneShotScanButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (_coordinator is null || !OneShotScanButton.IsEnabled)
-            return;
-
-        OneShotScanButton.IsEnabled = false;
-        try
-        {
-            await _coordinator.TriggerOneShotAsync();
-        }
-        catch (Exception exception)
-        {
-            App.WriteDiagnostic("Scanner one-shot button failed", exception);
-        }
-        finally
-        {
-            OneShotScanButton.IsEnabled = true;
-            UpdateStatus(_coordinator.Status);
-        }
-    }
-
-    private void HotkeyButton_Click(object sender, RoutedEventArgs e)
+    private void HotkeySettingsButton_Click(object sender, RoutedEventArgs e)
     {
         if (_coordinator is null)
             return;
 
-        var dialog = new ScannerHotkeyCaptureWindow
+        var dialog = new ScannerHotkeySettingsWindow(
+            _coordinator.OneShotTarkovHotkeyText,
+            _coordinator.OneShotTestHotkeyText,
+            _coordinator.ScannerToggleHotkeyText)
         {
             Owner = Window.GetWindow(this),
         };
         if (dialog.ShowDialog() != true)
             return;
 
-        _coordinator.SetOneShotHotkey(dialog.DisableRequested ? null : dialog.ResultGesture);
-        ApplySettings(_coordinator.Settings);
-        UpdateHotkeyUi();
+        _coordinator.SetOneShotTarkovHotkey(dialog.OneShotTarkovGesture);
+        _coordinator.SetOneShotTestHotkey(dialog.OneShotTestGesture);
+        _coordinator.SetScannerToggleHotkey(dialog.ScannerToggleGesture);
         RuntimeStatusText.Text = _coordinator.HotkeyStatusText;
     }
 
@@ -198,7 +178,7 @@ public partial class ScannerPage : UserControl
         {
             MessageBox.Show(
                 Window.GetWindow(this),
-                "아직 Scanner가 캡처한 인식 이미지가 없습니다. 상세창을 연 뒤 스캔하거나 1회 고정밀 스캔을 실행해 주세요.",
+                "아직 Scanner가 캡처한 인식 이미지가 없습니다. 상세창을 연 뒤 스캔하거나 1회 인게임/테스트 스캔 단축키를 사용해 주세요.",
                 "Scanner 인식 이미지",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -253,14 +233,9 @@ public partial class ScannerPage : UserControl
     {
         if (!Dispatcher.CheckAccess())
         {
-            _ = Dispatcher.BeginInvoke(() =>
-            {
-                UpdateHotkeyUi();
-                RuntimeStatusText.Text = status;
-            });
+            _ = Dispatcher.BeginInvoke(() => RuntimeStatusText.Text = status);
             return;
         }
-        UpdateHotkeyUi();
         RuntimeStatusText.Text = status;
     }
 
@@ -349,15 +324,6 @@ public partial class ScannerPage : UserControl
 
         ScannerToggleButton.Content = _coordinator.Settings.Enabled ? "스캐너 ON" : "스캐너 OFF";
         TestToggleButton.Content = _coordinator.TestEnabled ? "테스트 ON" : "테스트 OFF";
-    }
-
-    private void UpdateHotkeyUi()
-    {
-        if (_coordinator is null)
-            return;
-        HotkeyButton.Content = string.IsNullOrWhiteSpace(_coordinator.OneShotHotkeyText)
-            ? "단축키: 사용 안 함"
-            : $"단축키: {_coordinator.OneShotHotkeyText}";
     }
 
     private void SetToggleButtonsEnabled(bool enabled)
