@@ -74,3 +74,4 @@ v1.0.0 승격 작업 자체에서는 새 제품 기능을 추가하지 않습니
 - v1.4.0 — 사용자 Scanner 교정, Ground Truth dataset 관리, ZIP export, full-pipeline 회귀 테스트 추가 → **MINOR**
 - v1.4.1 — 실제 Tarkov Ground Truth 기반 상세보기 header lock 실패 수정 및 1회 스캔 후보 탐색 보완 → **PATCH**
 - v1.4.2 — 실제 v1.4.1 Ground Truth 기반 contained detail-window 복구, 보수적 OCR matcher 복구, Scanner 단축키 창 clipping 수정 → **PATCH**
+- v1.4.3 — 상세창 rectangle proposal/semantic validation 경계 재구성 및 current-catalog 기반 OCR 문자·기호 검증/unknown-glyph 복구 개선 → **PATCH**
