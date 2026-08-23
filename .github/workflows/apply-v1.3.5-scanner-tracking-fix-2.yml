@@ -1,0 +1,304 @@
+name: Apply v1.3.5 Scanner tracking regression fix retry
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-v1.3.5-scanner-tracking-fix-2.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/scanner-tracking-v1.3.5
+          fetch-depth: 0
+
+      - name: Patch tracking and diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              if old not in text:
+                  raise RuntimeError(f'expected block not found: {path}')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          detector = 'src/JunhyunHelper.Desktop/Scanner/ScannerLab38WindowsVision.cs'
+          replace_once(detector,
+          '''            if (anchors.Reason != "HEADER_FRAME_LOCKED" ||
+                anchors.Score < 0.68 ||
+                anchors.Magnifier.Width <= 0 ||
+                anchors.CloseButton.Width <= 0)
+            {
+                continue;
+            }
+''',
+          '''            if (anchors.Reason != "HEADER_FRAME_LOCKED" ||
+                anchors.Score < 0.68 ||
+                anchors.Magnifier.Width <= 0 ||
+                anchors.CloseButton.Width <= 0)
+            {
+                // Preserve structural evidence for tracking/diagnostics even when the
+                // strict semantic header gate fails. TitleImage remains null, therefore
+                // this candidate can never reach OCR or Item-ID resolution.
+                var rejectedWindowBounds = ToScreenRect(candidate.Window, screenLeft, screenTop);
+                var rejectedGeometrySignature = $"{sourceKey}:{Quantize(candidate.Window.X)}:{Quantize(candidate.Window.Y)}:{Quantize(candidate.Window.Width)}:{Quantize(candidate.Window.Height)}";
+                var rejectedTitleBounds = anchors.Title.Width > 0 && anchors.Title.Height > 0
+                    ? ToScreenRect(anchors.Title, screenLeft, screenTop)
+                    : Rect.Empty;
+                Rect? rejectedMagnifierBounds = anchors.Magnifier.Width > 0 && anchors.Magnifier.Height > 0
+                    ? ToScreenRect(anchors.Magnifier, screenLeft, screenTop)
+                    : null;
+                Rect? rejectedCloseBounds = anchors.CloseButton.Width > 0 && anchors.CloseButton.Height > 0
+                    ? ToScreenRect(anchors.CloseButton, screenLeft, screenTop)
+                    : null;
+
+                result.Add(new ScannerInspectCandidate(
+                    rejectedWindowBounds,
+                    rejectedGeometrySignature,
+                    string.Empty,
+                    null,
+                    candidate.Score,
+                    candidate.Reason,
+                    rejectedTitleBounds,
+                    rejectedMagnifierBounds,
+                    rejectedCloseBounds,
+                    anchors.Score,
+                    anchors.Reason));
+                continue;
+            }
+''')
+
+          replace_once(detector,
+          '''        var ordered = result
+            .OrderByDescending(candidate => candidate.StructuralScore)
+            .Take(CandidateLimit)
+            .ToArray();
+''',
+          '''        var ordered = result
+            .OrderByDescending(candidate =>
+                candidate.TitleImage is not null &&
+                string.Equals(candidate.TitleAnchorReason, "HEADER_FRAME_LOCKED", StringComparison.Ordinal) &&
+                candidate.TitleAnchorScore >= 0.68)
+            .ThenByDescending(candidate => candidate.StructuralScore)
+            .Take(CandidateLimit)
+            .ToArray();
+''')
+
+          models = 'src/JunhyunHelper.Desktop/Scanner/ScannerModels.cs'
+          p = Path(models)
+          text = p.read_text(encoding='utf-8')
+          if 'internal static class ScannerCandidateTrackingContract' not in text:
+              marker = 'public enum ScannerCaptureMode\n'
+              if marker not in text:
+                  raise RuntimeError('ScannerModels marker not found')
+              helper = '''internal static class ScannerCandidateTrackingContract
+{
+    internal static bool IsSemanticReady(ScannerInspectCandidate candidate) =>
+        candidate.TitleImage is not null &&
+        candidate.TitleBounds.Width > 0 &&
+        candidate.TitleBounds.Height > 0 &&
+        candidate.MagnifierBounds is { Width: > 0, Height: > 0 } &&
+        candidate.CloseBounds is { Width: > 0, Height: > 0 } &&
+        candidate.TitleAnchorScore >= 0.68 &&
+        string.Equals(candidate.TitleAnchorReason, "HEADER_FRAME_LOCKED", StringComparison.Ordinal);
+
+    internal static bool IsDiagnosticOnly(ScannerInspectCandidate candidate) =>
+        candidate.StructuralScore > 0 && !IsSemanticReady(candidate);
+}
+
+'''
+              p.write_text(text.replace(marker, helper + marker, 1), encoding='utf-8')
+
+          runtime = 'src/JunhyunHelper.Desktop/Scanner/ScannerRuntimeService.cs'
+          replace_once(runtime,
+          '''                    ("topScore", candidates[0].StructuralScore),
+                    ("topReason", candidates[0].StructuralReason),
+                    ("topBounds", FormatBounds(candidates[0].Bounds)));
+''',
+          '''                    ("topScore", candidates[0].StructuralScore),
+                    ("topReason", candidates[0].StructuralReason),
+                    ("topBounds", FormatBounds(candidates[0].Bounds)),
+                    ("topAnchorScore", candidates[0].TitleAnchorScore),
+                    ("topAnchorReason", candidates[0].TitleAnchorReason),
+                    ("topHasTitleImage", candidates[0].TitleImage is not null),
+                    ("topHasMagnifier", candidates[0].MagnifierBounds is not null),
+                    ("topHasClose", candidates[0].CloseBounds is not null));
+''')
+
+          replace_once(runtime,
+          '''            if (candidate.StructuralScore < CandidateStructuralFloor || candidate.TitleImage is null)
+                continue;
+
+            if (!HasTrustedTitleAnchors(candidate))
+            {
+                var rejected = CreateAnchorFailure(candidate, index, "ORIGINAL");
+                bestFailure = PickBetterFailure(bestFailure, rejected);
+                continue;
+            }
+''',
+          '''            if (candidate.StructuralScore < CandidateStructuralFloor)
+                continue;
+
+            if (!HasTrustedTitleAnchors(candidate))
+            {
+                LogAnchorRejection(mode, index, "ORIGINAL", candidate);
+                var rejected = CreateAnchorFailure(candidate, index, "ORIGINAL");
+                bestFailure = PickBetterFailure(bestFailure, rejected);
+                continue;
+            }
+''')
+
+          p = Path(runtime)
+          text = p.read_text(encoding='utf-8')
+          old_predicate = '''    private static bool HasTrustedTitleAnchors(ScannerInspectCandidate candidate) =>
+        candidate.TitleImage is not null &&
+        candidate.TitleBounds.Width > 0 &&
+        candidate.TitleBounds.Height > 0 &&
+        candidate.MagnifierBounds is { Width: > 0, Height: > 0 } &&
+        candidate.CloseBounds is { Width: > 0, Height: > 0 } &&
+        candidate.TitleAnchorScore >= 0.68 &&
+        string.Equals(candidate.TitleAnchorReason, "HEADER_FRAME_LOCKED", StringComparison.Ordinal);
+'''
+          if old_predicate not in text:
+              raise RuntimeError('HasTrustedTitleAnchors block not found')
+          text = text.replace(old_predicate,
+          '''    private static bool HasTrustedTitleAnchors(ScannerInspectCandidate candidate) =>
+        ScannerCandidateTrackingContract.IsSemanticReady(candidate);
+''', 1)
+          if 'private static void LogAnchorRejection(' not in text:
+              marker = '    private static CandidateSearchResult CreateAnchorFailure(\n'
+              if marker not in text:
+                  raise RuntimeError('CreateAnchorFailure marker not found')
+              helper = '''    private static void LogAnchorRejection(
+        ScannerCaptureMode mode,
+        int candidateIndex,
+        string pass,
+        ScannerInspectCandidate candidate) =>
+        ScannerDiagnosticLog.Write(
+            "anchor-rejected",
+            mode,
+            ("candidateIndex", candidateIndex),
+            ("pass", pass),
+            ("structure", candidate.StructuralScore),
+            ("structureReason", candidate.StructuralReason),
+            ("anchorScore", candidate.TitleAnchorScore),
+            ("anchorReason", candidate.TitleAnchorReason),
+            ("bounds", FormatBounds(candidate.Bounds)),
+            ("titleBounds", FormatBounds(candidate.TitleBounds)),
+            ("hasTitleImage", candidate.TitleImage is not null),
+            ("hasMagnifier", candidate.MagnifierBounds is not null),
+            ("hasClose", candidate.CloseBounds is not null));
+
+'''
+              text = text.replace(marker, helper + marker, 1)
+          p.write_text(text, encoding='utf-8')
+
+          oneshot = 'src/JunhyunHelper.Desktop/Scanner/ScannerRuntimeService.OneShot.cs'
+          replace_once(oneshot,
+          '''            if (candidate.StructuralScore < CandidateStructuralFloor || candidate.TitleImage is null)
+                continue;
+
+            if (!HasTrustedTitleAnchors(candidate))
+            {
+                var rejected = CreateAnchorFailure(candidate, index, "ONESHOT_ORIGINAL");
+                bestFailure = PickBetterFailure(bestFailure, rejected);
+                continue;
+            }
+''',
+          '''            if (candidate.StructuralScore < CandidateStructuralFloor)
+                continue;
+
+            if (!HasTrustedTitleAnchors(candidate))
+            {
+                LogAnchorRejection(mode, index, "ONESHOT_ORIGINAL", candidate);
+                var rejected = CreateAnchorFailure(candidate, index, "ONESHOT_ORIGINAL");
+                bestFailure = PickBetterFailure(bestFailure, rejected);
+                continue;
+            }
+''')
+          replace_once(oneshot,
+          '''        if (candidates.Count == 0)
+        {
+            _overlay.Hide();
+            Publish(
+                ScannerRuntimeState.Uncertain,
+                "1회 스캔에서 아이템 상세창을 찾지 못했습니다.",
+                captureMode: mode);
+            return false;
+        }
+''',
+          '''        if (candidates.Count == 0)
+        {
+            ScannerDiagnosticLog.Write(
+                "one-shot-no-structural-candidate",
+                mode,
+                ("detectorStatus", _detector.StatusMessage));
+            _overlay.Hide();
+            Publish(
+                ScannerRuntimeState.Uncertain,
+                "1회 스캔에서 아이템 상세창 구조 후보를 찾지 못했습니다.",
+                captureMode: mode);
+            return false;
+        }
+''')
+
+          smoke = 'src/JunhyunHelper.Desktop/Scanner/ScannerPage.MiniScannerSmoke.cs'
+          p = Path(smoke)
+          text = p.read_text(encoding='utf-8')
+          if 'VerifyScannerTrackingDiagnosticsContract();' not in text:
+              marker = '        ScannerInspectHeaderLockSmoke.Verify();\n'
+              if marker not in text:
+                  raise RuntimeError('Smoke call marker not found')
+              text = text.replace(marker, marker + '        VerifyScannerTrackingDiagnosticsContract();\n', 1)
+          if 'private static void VerifyScannerTrackingDiagnosticsContract()' not in text:
+              marker = '    private static void VerifyMiniScannerProductContract()\n'
+              if marker not in text:
+                  raise RuntimeError('Smoke method marker not found')
+              method = '''    private static void VerifyScannerTrackingDiagnosticsContract()
+    {
+        var rejected = new ScannerInspectCandidate(
+            new Rect(100, 100, 640, 780),
+            "diagnostic-geometry",
+            string.Empty,
+            null,
+            0.74,
+            "RED_X",
+            new Rect(120, 110, 300, 26),
+            null,
+            new Rect(710, 105, 24, 17),
+            0.46,
+            "MAGNIFIER_NOT_LOCKED");
+
+        if (!ScannerCandidateTrackingContract.IsDiagnosticOnly(rejected) ||
+            ScannerCandidateTrackingContract.IsSemanticReady(rejected))
+        {
+            throw new InvalidOperationException(
+                "Rejected structural candidates must stay visible for diagnostics without becoming OCR-eligible.");
+        }
+    }
+
+'''
+              text = text.replace(marker, method + marker, 1)
+          p.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Commit fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/JunhyunHelper.Desktop/Scanner
+          git diff --cached --check
+          git commit -m 'fix(scanner): preserve rejected detail candidates for tracking'
+          git push origin HEAD:feature/scanner-tracking-v1.3.5
