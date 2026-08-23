@@ -309,35 +309,16 @@ public partial class ScannerPage : UserControl
         }
     }
 
-    private void ClearDiagnosticsButton_Click(object sender, RoutedEventArgs e)
+    private void ManageDiagnosticsButton_Click(object sender, RoutedEventArgs e)
     {
-        var storage = ScannerDiagnosticDataset.GetStorageInfo();
-        if (storage.CaseCount == 0)
+        var window = new ScannerDiagnosticCasesWindow
         {
-            MessageBox.Show(
-                Window.GetWindow(this),
-                "저장된 Scanner 교정/진단 데이터가 없습니다.",
-                "Scanner",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-            return;
-        }
-
-        var answer = MessageBox.Show(
-            Window.GetWindow(this),
-            $"저장된 교정/진단 데이터 {storage.CaseCount}건 ({storage.SizeText})을 모두 삭제하시겠습니까?\n일반 Scanner 로그와 직접 내보낸 ZIP은 삭제되지 않습니다.",
-            "Scanner 교정 데이터 삭제",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Warning,
-            MessageBoxResult.No);
-        if (answer != MessageBoxResult.Yes)
-            return;
-
-        var success = ScannerDiagnosticDataset.ClearAll();
+            Owner = Window.GetWindow(this),
+        };
+        window.ShowDialog();
         UpdateDiagnosticStorageText();
-        RuntimeStatusText.Text = success
-            ? "Scanner 교정/진단 데이터를 삭제했습니다."
-            : "일부 Scanner 교정/진단 데이터를 삭제하지 못했습니다.";
+        if (window.DatasetChanged)
+            RuntimeStatusText.Text = "Scanner 교정/진단 데이터 변경을 반영했습니다.";
     }
 
     private void ClearLogButton_Click(object sender, RoutedEventArgs e)
@@ -456,7 +437,7 @@ public partial class ScannerPage : UserControl
             : $"교정 {storage.CaseCount}건 · {storage.SizeText}";
         RegressionButton.IsEnabled = storage.CaseCount > 0;
         ExportDiagnosticsButton.IsEnabled = true;
-        ClearDiagnosticsButton.IsEnabled = storage.CaseCount > 0;
+        ManageDiagnosticsButton.IsEnabled = true;
     }
 
     private void ApplySettings(ScannerDisplaySettings settings)
