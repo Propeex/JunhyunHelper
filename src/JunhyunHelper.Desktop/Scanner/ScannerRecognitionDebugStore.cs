@@ -47,6 +47,25 @@ public static class ScannerRecognitionDebugStore
 
     public static void UpdateAnalysis(
         ScannerInspectCandidate? candidate,
+        string pass,
+        string ocrText,
+        string matcherText,
+        ScannerRecognition recognition)
+    {
+        ScannerCaptureMode mode;
+        lock (Gate)
+        {
+            mode = _frame?.CaptureMode ??
+                (_frame?.Source.StartsWith("display:", StringComparison.OrdinalIgnoreCase) == true
+                    ? ScannerCaptureMode.DisplayTest
+                    : ScannerCaptureMode.TarkovWindow);
+        }
+        UpdateAnalysis(candidate, mode, pass, ocrText, matcherText, recognition);
+        ScannerDiagnosticDataset.QueueAutomaticObservation(GetSnapshot());
+    }
+
+    public static void UpdateAnalysis(
+        ScannerInspectCandidate? candidate,
         ScannerCaptureMode mode,
         string pass,
         string ocrText,
