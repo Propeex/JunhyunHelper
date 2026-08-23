@@ -1,0 +1,115 @@
+name: Finalize v1.3.3 documentation index
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/finalize-v1.3.3-doc-index.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  finalize-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Align canonical documentation
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_exact(path: str, old: str, new: str):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              if old not in text:
+                  raise SystemExit(f'expected exact block not found: {path}')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          def replace_between(path: str, start: str, end: str, replacement: str):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              a = text.find(start)
+              b = text.find(end, a + len(start))
+              if a < 0 or b < 0:
+                  raise SystemExit(f'section markers not found: {path}: {start!r} -> {end!r}')
+              p.write_text(text[:a] + replacement + text[b:], encoding='utf-8')
+
+          # DECISIONS: register the already-authoritative standalone DEC-058.
+          decisions = Path('docs/DECISIONS.md')
+          d = decisions.read_text(encoding='utf-8')
+          if '## DEC-058 — Scanner title ROI는 실제 inspect-header frame이 소유한다' not in d:
+              marker = '\n---\n\n# 3. 현재 결정 확인 방법\n'
+              if marker not in d:
+                  raise SystemExit('DECISIONS insertion marker not found')
+              section = '''\n## DEC-058 — Scanner title ROI는 실제 inspect-header frame이 소유한다\n\n- 상태: `CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED v1.3.3`\n- 날짜: 2026-08-23\n- 실제 Tarkov 2048×1280 상세창 12개에서 재확인된 title-start/magnifier-anchor 회귀를 근거로 한다.\n- first title glyph connected component는 title ROI left edge를 결정하지 않는다.\n- red close/X + long neutral top frame + bounded frame-left search-icon lane + magnifier + dark title field/text evidence를 결합한 `HEADER_FRAME_LOCKED`가 title ROI의 권위 구조다.\n- runtime은 `HEADER_FRAME_LOCKED`와 anchor score 0.68 이상을 다시 요구하며 partial/failed lock은 OCR identity path에 진입하지 않는다.\n- raw Windows OCR과 current-catalog sanitation 후 matcher input을 diagnostics에서 분리한다.\n- 기존 confidence/top1-top2 margin과 bounded unique one-edit 안전 조건은 완화하지 않는다.\n- highest trader / flea `avg24hPrice` / `RequiredTotal` 의미와 schema는 변경하지 않는다.\n- 신규 기능이 아닌 live regression 수정이므로 DEC-048에 따라 v1.3.3 PATCH다.\n- release source/tag: `41bf5b8374ba774866aab4b60a25376d9b5548c2`\n- final PR CI: `32625223009 — SUCCESS`, 263/263 tests\n- release run: `32625403609 — SUCCESS`\n- public ZIP SHA-256: `0771d3c7dee5a8f19904d52eeedc7b9abbd6027a7b000255ebd33c296bc2186f`\n- 상세: `docs/DECISION_SCANNER_HEADER_LOCK_2026-08-23.md`, `docs/SCANNER_V1.3.3_HEADER_LOCK.md`, `docs/RELEASE_1.3.3.md`\n'''
+              d = d.replace(marker, section + marker, 1)
+              decisions.write_text(d, encoding='utf-8')
+
+          # ARCHITECTURE: v1.3.3 header lock replaces geometry fallback ownership.
+          replace_exact(
+              'docs/ARCHITECTURE.md',
+              '''→ close + magnifier + title-field anchor refinement\n→ magnifier-free title ROI\n   └─ anchor 불확실 시 검증된 Scanner Lab geometry ROI fallback''',
+              '''→ red close/X + long neutral top frame\n→ bounded frame-left search-icon lane + magnifier + dark title field/text evidence\n→ HEADER_FRAME_LOCKED\n→ magnifier-free title ROI\n   └─ incomplete header lock은 OCR identity path에 진입하지 않음''')
+
+          replace_between(
+              'docs/ARCHITECTURE.md',
+              '### 8.3 Geometry / title anchors\n',
+              '### 8.4 OCR / semantic identity\n',
+              '''### 8.3 Geometry / inspect-header lock\n\n- structural floor `0.34` 유지\n- RED-X connected component + rectangle/edge fallback은 **detail candidate 생성** 역할\n- 동일 quantized `GeometrySignature`의 연속 관측 후 continuous semantic recognition 시도\n- title ROI의 수평 ownership은 `ScannerInspectHeaderLock`이 담당\n- required evidence: red close/X + long neutral top frame + bounded frame-left search-icon lane + magnifier core/morphology + dark title field + text presence\n- first title glyph connected component는 ROI left edge를 결정하지 않음\n- `HEADER_FRAME_LOCKED`가 아니면 refiner score를 0.47 이하로 제한\n- runtime은 `HEADER_FRAME_LOCKED` + `TitleAnchorScore >= 0.68`을 다시 요구\n- incomplete header lock은 Scanner Lab geometry title ROI로 semantic fallback하지 않고 OCR identity를 fail closed\n- 실제 2048×1280 상세창 12개 measured geometry를 packaged-EXE synthetic regression에서 재생\n\n''')
+
+          replace_between(
+              'docs/ARCHITECTURE.md',
+              '### 8.4 OCR / semantic identity\n',
+              '### 8.5 Tarkov title-font ownership / generation\n',
+              '''### 8.4 OCR / semantic identity\n\n- Windows `ko-KR` OCR primary\n- raw OCR은 diagnostics에 유지하고 matcher에는 current-catalog sanitation 후 text를 전달\n- current official Korean catalog에서 allowed character/symbol set 파생\n- current catalog 밖 punctuation/symbol은 matcher evidence에서 제거\n- Korean item-title contract에서 Han ideograph는 invalid OCR evidence\n- exact-first + conservative fuzzy threshold + top1/top2 margin\n- normalized length >= 7의 정확히 1 edit는 complete current catalog에서 후보가 유일하고 global runner-up과 10%p 이상 벌어질 때만 bounded recovery\n- historical alias를 production identity source로 무제한 누적하지 않음\n- visual correction은 strict current-catalog evidence가 명확한 경우에만 허용하며 unavailable/error/ambiguous visual은 healthy OCR success를 폐기하지 않음\n\n''')
+
+          replace_exact(
+              'docs/ARCHITECTURE.md',
+              '`ScannerDiagnosticLog`는 bounded metadata log를 `%LocalAppData%/JunhyunHelper/logs/scanner.log(.1)`에 기록합니다. screenshot/raw pixel buffer는 디스크에 저장하지 않습니다. 최신 `인식 이미지` 한 장만 process memory에 유지합니다.',
+              '`ScannerDiagnosticLog`는 bounded metadata log를 `%LocalAppData%/JunhyunHelper/logs/scanner.log(.1)`에 기록합니다. 최신 `인식 이미지` 한 장은 process memory에 유지하며 자동 screenshot 저장은 하지 않습니다. 사용자가 명시적으로 `이미지 저장`을 선택한 경우에만 실제 분석 원본 frame을 지정한 PNG로 export합니다; diagnostic overlay는 PNG에 합성하지 않습니다.')
+
+          # DEVELOPER_REFERENCE: add current implementation map and remove obsolete fallback semantics.
+          replace_exact(
+              'docs/DEVELOPER_REFERENCE.md',
+              '- v1.2.2: Scanner catalog disk-load/network-refresh GameMode transition race 제거\n',
+              '''- v1.2.2: Scanner catalog disk-load/network-refresh GameMode transition race 제거\n- v1.3.0: raw recognition-image export, one-shot DisplayTest, 3종 global hotkey/settings v4\n- v1.3.1~v1.3.2: live title/OCR evidence 기반 inspect-header 및 current-catalog sanitation/one-edit hardening\n- v1.3.3: 실제 2048×1280 상세창 12개를 근거로 actual inspect-header frame lock을 title ROI의 authoritative geometry로 고정\n''')
+
+          replace_exact(
+              'docs/DEVELOPER_REFERENCE.md',
+              '- `Desktop/Scanner/ScannerLab38WindowsVision.cs`\n  - Tarkov/display capture와 Scanner Lab v3.8 structural candidate generation.\n',
+              '''- `Desktop/Scanner/ScannerLab38WindowsVision.cs`\n  - Tarkov/display capture와 Scanner Lab v3.8 structural candidate generation.\n- `Desktop/Scanner/ScannerInspectHeaderLock.cs`\n  - red close/X + long neutral top frame + bounded left icon lane + magnifier + dark title field를 결합해 authoritative title ROI를 생성.\n- `Desktop/Scanner/ScannerInspectHeaderLockSmoke.cs`\n  - 12개 실제 measured header geometry와 missing-magnifier fail-closed를 packaged-EXE synthetic regression으로 고정.\n''')
+
+          replace_between(
+              'docs/DEVELOPER_REFERENCE.md',
+              '## 9.5 Title anchors / OCR / matcher\n',
+              '## 9.6 Tarkov-font visual recovery — v1.2.0/v1.2.1\n',
+              '''## 9.5 Inspect-header lock / OCR / matcher\n\nHeader ownership은 v1.3.3부터 다음 순서입니다.\n\n```text\nstructural detail candidate\n→ red close/X\n→ long neutral top frame\n→ bounded frame-left search-icon lane\n→ magnifier core/morphology\n→ dark title field + text presence\n→ HEADER_FRAME_LOCKED\n→ title ROI = magnifier right + structural gap ... red close left\n→ OCR\n```\n\nfirst title glyph connected component는 ROI left edge를 소유하지 않습니다. `HEADER_FRAME_LOCKED`가 아니거나 anchor score가 0.68 미만이면 OCR identity path로 진행하지 않습니다.\n\nWindows `ko-KR` OCR adaptive scale:\n\n- title height <=14 → 8x\n- <=20 → 6x\n- else → 4x\n\nfirst-pass 성공 후보가 없으면 trusted header-lock candidate에만 deep OCR을 수행합니다.\n\n`ScannerOcrCharacterPolicy`는 current official Korean catalog에서 허용 문자/기호를 파생합니다. raw OCR과 sanitized matcher input을 별도로 진단하며 current catalog 밖 punctuation/symbol은 matcher evidence에서 제거합니다. Han ideograph는 Korean item-title contract에서 invalid evidence입니다.\n\nResolver는 exact-first + conservative fuzzy + top1/top2 margin을 유지합니다. normalized length >= 7의 정확히 1 edit만 complete current catalog에서 후보가 유일하고 global runner-up과 10%p 이상 벌어질 때 bounded recovery가 가능합니다.\n\n''')
+
+          replace_exact(
+              'docs/DEVELOPER_REFERENCE.md',
+              '- OCR semantic success가 있으면 visual recovery가 덮어쓰지 않음\n',
+              '- OCR semantic success와 visual이 다를 때 strict current-catalog visual evidence가 명확한 경우에만 correction; visual unavailable/error/ambiguous이면 healthy OCR success 유지\n')
+
+          # VERSIONING: record the recent decisions without changing the rule.
+          versioning = Path('docs/VERSIONING.md')
+          v = versioning.read_text(encoding='utf-8')
+          if '## 8. 최근 적용 사례' not in v:
+              v += '''\n\n## 8. 최근 적용 사례\n\n- v1.3.0 — recognition image export / one-shot test / 3종 global hotkey 추가 → **MINOR**\n- v1.3.1 — 기존 Scanner title recognition 보완 → **PATCH**\n- v1.3.2 — 추가 live OCR evidence 기반 안정성·정확성 보완 → **PATCH**\n- v1.3.3 — 12개 실제 상세창에서 재확인된 header/title-start 회귀 수정 → **PATCH**\n'''
+              versioning.write_text(v, encoding='utf-8')
+          PY
+
+      - name: Commit aligned documentation
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/DECISIONS.md docs/ARCHITECTURE.md docs/DEVELOPER_REFERENCE.md docs/VERSIONING.md
+          git diff --cached --quiet && { echo 'No documentation changes'; exit 1; }
+          git commit -m 'docs: align v1.3.3 architecture and decisions'
+          git push origin HEAD:main
