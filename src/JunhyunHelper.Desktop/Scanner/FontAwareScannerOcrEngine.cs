@@ -4,10 +4,11 @@ using JunhyunHelper.Infrastructure.Scanner;
 namespace JunhyunHelper.Desktop.Scanner;
 
 /// <summary>
-/// Title-only OCR decorator. Regular OCR remains the first-stage recognizer. During
-/// deep recovery, catalog-driven character validation and Tarkov-font visual matching
-/// can supplement failed OCR, including when OCR is empty or corrupted. An already
-/// accepted semantic OCR result is never rejected or replaced by this layer.
+/// Title-only OCR decorator. Windows OCR remains the primary recognizer, but a semantic
+/// success now receives bounded Tarkov-font visual corroboration before it is returned.
+/// Failed/corrupted OCR retains the existing targeted/full-catalog recovery path.
+/// Font extraction/rendering is optional hardening: if local Tarkov font evidence is
+/// unavailable or inconclusive, the already accepted OCR result is preserved.
 /// </summary>
 public sealed class FontAwareScannerOcrEngine : IScannerDeepOcrEngine, IDisposable
 {
@@ -46,7 +47,8 @@ public sealed class FontAwareScannerOcrEngine : IScannerDeepOcrEngine, IDisposab
         EnterOperation();
         try
         {
-            return await _inner.ReadTextAsync(titleImage, cancellationToken);
+            var text = await _inner.ReadTextAsync(titleImage, cancellationToken);
+            return CorroborateAcceptedText(titleImage, text, cancellationToken);
         }
         finally
         {
@@ -66,84 +68,192 @@ public sealed class FontAwareScannerOcrEngine : IScannerDeepOcrEngine, IDisposab
                 ? await deepOcr.ReadDeepTextAsync(titleImage, cancellationToken)
                 : await _inner.ReadTextAsync(titleImage, cancellationToken);
 
-            // Do not touch any result that the existing semantic gate already accepts.
             var existing = _catalog.ResolveOcrText(text);
             if (existing.Success)
-                return text;
+                return CorroborateAcceptedText(titleImage, text, cancellationToken, existing);
 
-            var assessment = _catalog.AssessOcrText(text);
-            if (assessment.IsCorrupted)
-            {
-                ScannerDiagnosticLog.Write(
-                    "ocr-character-quality",
-                    null,
-                    ("validRatio", assessment.ValidCharacterRatio),
-                    ("invalidCharacters", assessment.InvalidCharacterCount),
-                    ("hanCharacters", assessment.HanCharacterCount),
-                    ("acceptedVariants", assessment.AcceptedVariantCount),
-                    ("totalVariants", assessment.TotalVariantCount));
-            }
-
-            var catalog = _catalog.GetItemsSnapshot();
-            FontVerificationResult? recovered = null;
-            try
-            {
-                // Fast recovery first: when at least one plausible OCR variant survived
-                // catalog character validation, use it to narrow the visual shortlist.
-                if (assessment.HasPlausibleVariant)
-                {
-                    recovered = _fontVerifier.TryRecover(
-                        titleImage,
-                        assessment.FilteredText,
-                        catalog,
-                        cancellationToken);
-                }
-
-                // If OCR could not narrow a trustworthy candidate set, search the complete
-                // official catalog by rendered title shape. OCR contributes only weak
-                // supporting evidence in this fallback and may be completely empty.
-                recovered ??= _fullVisualMatcher.TryRecover(
-                    titleImage,
-                    assessment.FilteredText,
-                    catalog,
-                    cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception exception) when (exception is not OutOfMemoryException)
-            {
-                // Font-aware recovery is optional hardening. Any extraction/rendering
-                // problem must degrade to the already-proven OCR-only path.
-                ScannerDiagnosticLog.Write(
-                    "title-font-recovery-error",
-                    null,
-                    ("type", exception.GetType().Name),
-                    ("message", exception.Message));
-                return text;
-            }
-
-            if (recovered is null ||
-                !recovered.Recognition.Success ||
-                string.IsNullOrWhiteSpace(recovered.Recognition.OfficialName))
-            {
-                return text;
-            }
-
-            var official = recovered.Recognition.OfficialName;
-            // ScannerItemMatcher considers individual lines/variants independently. Raw OCR
-            // remains available for diagnostics, while the exact visually-verified official
-            // name provides the semantic identity variant. If OCR was empty, return only the
-            // verified official name so recognition can succeed without OCR text.
-            return string.IsNullOrWhiteSpace(text)
-                ? official
-                : $"{text}\n{official}";
+            return RecoverFailedText(titleImage, text, cancellationToken);
         }
         finally
         {
             ExitOperation();
         }
+    }
+
+    private string CorroborateAcceptedText(
+        BitmapSource titleImage,
+        string text,
+        CancellationToken cancellationToken,
+        ScannerRecognition? resolved = null)
+    {
+        var existing = resolved ?? _catalog.ResolveOcrText(text);
+        if (!existing.Success || string.IsNullOrWhiteSpace(existing.ItemId))
+            return text;
+
+        var assessment = _catalog.AssessOcrText(text);
+        var catalog = _catalog.GetItemsSnapshot();
+        if (catalog.Count == 0)
+            return text;
+
+        try
+        {
+            FontVerificationResult? corroborated = null;
+            if (assessment.HasPlausibleVariant)
+            {
+                corroborated = _fontVerifier.TryRecover(
+                    titleImage,
+                    assessment.FilteredText,
+                    catalog,
+                    cancellationToken);
+            }
+
+            if (corroborated is not null &&
+                corroborated.Recognition.Success &&
+                !string.IsNullOrWhiteSpace(corroborated.Recognition.ItemId) &&
+                !string.IsNullOrWhiteSpace(corroborated.Recognition.OfficialName))
+            {
+                return ApplyCorroboration(existing, text, corroborated, "TARGETED");
+            }
+
+            // An exact-but-wrong OCR result can make the targeted semantic shortlist
+            // point only at the wrong item. If that rendering does not verify, run the
+            // existing strict full-catalog visual path once. It is aspect-pruned and
+            // bounded; OCR contributes only weak supporting evidence.
+            corroborated = _fullVisualMatcher.TryRecover(
+                titleImage,
+                assessment.FilteredText,
+                catalog,
+                cancellationToken);
+            if (corroborated is null ||
+                !corroborated.Recognition.Success ||
+                string.IsNullOrWhiteSpace(corroborated.Recognition.ItemId) ||
+                string.IsNullOrWhiteSpace(corroborated.Recognition.OfficialName))
+            {
+                return text;
+            }
+
+            return ApplyCorroboration(existing, text, corroborated, "FULL_CATALOG");
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            // Visual corroboration must never turn a healthy OCR path into a fatal
+            // Scanner failure when the local game font cache cannot be prepared.
+            ScannerDiagnosticLog.Write(
+                "title-font-corroboration-error",
+                null,
+                ("type", exception.GetType().Name),
+                ("message", exception.Message));
+            return text;
+        }
+    }
+
+    private static string ApplyCorroboration(
+        ScannerRecognition existing,
+        string originalText,
+        FontVerificationResult corroborated,
+        string pass)
+    {
+        var verified = corroborated.Recognition;
+        if (string.Equals(existing.ItemId, verified.ItemId, StringComparison.Ordinal))
+        {
+            ScannerDiagnosticLog.Write(
+                "title-font-corroborated",
+                null,
+                ("pass", pass),
+                ("itemId", existing.ItemId),
+                ("officialName", existing.OfficialName),
+                ("ocrConfidence", existing.Confidence),
+                ("visualConfidence", verified.Confidence),
+                ("visualScore", corroborated.VisualScore),
+                ("fontVariant", corroborated.FontVariant));
+            return originalText;
+        }
+
+        ScannerDiagnosticLog.Write(
+            "title-font-corrected",
+            null,
+            ("pass", pass),
+            ("ocrItemId", existing.ItemId),
+            ("ocrName", existing.OfficialName),
+            ("visualItemId", verified.ItemId),
+            ("visualName", verified.OfficialName),
+            ("ocrConfidence", existing.Confidence),
+            ("visualConfidence", verified.Confidence),
+            ("visualScore", corroborated.VisualScore),
+            ("fontVariant", corroborated.FontVariant));
+
+        // Return only the visually verified official name on a strict disagreement.
+        // Keeping the exact-but-wrong OCR line alongside it could produce an exact/exact
+        // tie in the semantic matcher and defeat the correction.
+        return verified.OfficialName ?? originalText;
+    }
+
+    private string RecoverFailedText(
+        BitmapSource titleImage,
+        string text,
+        CancellationToken cancellationToken)
+    {
+        var assessment = _catalog.AssessOcrText(text);
+        if (assessment.IsCorrupted)
+        {
+            ScannerDiagnosticLog.Write(
+                "ocr-character-quality",
+                null,
+                ("validRatio", assessment.ValidCharacterRatio),
+                ("invalidCharacters", assessment.InvalidCharacterCount),
+                ("hanCharacters", assessment.HanCharacterCount),
+                ("acceptedVariants", assessment.AcceptedVariantCount),
+                ("totalVariants", assessment.TotalVariantCount));
+        }
+
+        var catalog = _catalog.GetItemsSnapshot();
+        FontVerificationResult? recovered = null;
+        try
+        {
+            if (assessment.HasPlausibleVariant)
+            {
+                recovered = _fontVerifier.TryRecover(
+                    titleImage,
+                    assessment.FilteredText,
+                    catalog,
+                    cancellationToken);
+            }
+
+            recovered ??= _fullVisualMatcher.TryRecover(
+                titleImage,
+                assessment.FilteredText,
+                catalog,
+                cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            ScannerDiagnosticLog.Write(
+                "title-font-recovery-error",
+                null,
+                ("type", exception.GetType().Name),
+                ("message", exception.Message));
+            return text;
+        }
+
+        if (recovered is null ||
+            !recovered.Recognition.Success ||
+            string.IsNullOrWhiteSpace(recovered.Recognition.OfficialName))
+        {
+            return text;
+        }
+
+        var official = recovered.Recognition.OfficialName;
+        return string.IsNullOrWhiteSpace(text)
+            ? official
+            : $"{text}\n{official}";
     }
 
     private void EnterOperation()
@@ -153,8 +263,6 @@ public sealed class FontAwareScannerOcrEngine : IScannerDeepOcrEngine, IDisposab
         if (!_disposed)
             return;
 
-        // Dispose may race the tiny window between the first check and increment. Do
-        // not let a new operation enter after disposal has been requested.
         ExitOperation();
         throw new ObjectDisposedException(nameof(FontAwareScannerOcrEngine));
     }
