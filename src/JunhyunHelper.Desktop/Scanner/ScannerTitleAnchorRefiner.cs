@@ -11,6 +11,17 @@ namespace JunhyunHelper.Desktop.Scanner;
 /// </summary>
 internal static class ScannerTitleAnchorRefiner
 {
+    static ScannerTitleAnchorRefiner()
+    {
+        if (string.Equals(
+                Environment.GetEnvironmentVariable("JUNHYUNHELPER_MAP_SMOKE"),
+                "1",
+                StringComparison.Ordinal))
+        {
+            ScannerLiveHeaderGroundTruthSmoke.Verify();
+        }
+    }
+
     public static ScannerTitleAnchorRefinement Refine(
         ReadOnlySpan<byte> bgra,
         int width,
