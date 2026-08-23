@@ -56,6 +56,10 @@ public sealed class ScannerDisplaySettings
 
         if (SchemaVersion < 4)
         {
+            // Schema v3 stored the single one-shot gesture in OneShotHotkey. Preserve
+            // that exact user choice (including explicit disable) as the in-game
+            // one-shot command. The two new commands receive defaults later through
+            // the collision-safe assignment below.
             if (SchemaVersion >= 3)
             {
                 OneShotTarkovHotkey = string.IsNullOrWhiteSpace(OneShotHotkey)
@@ -83,6 +87,30 @@ public sealed class ScannerDisplaySettings
         ScannerToggleHotkey = NormalizeHotkey(
             ScannerToggleHotkey,
             ScannerHotkeyGesture.DefaultScannerToggle);
+
+        // RegisterHotKey cannot safely give two product commands the same gesture.
+        // Give the long-lived in-game one-shot setting priority, then keep the test and
+        // toggle gestures if they are distinct. On schema migration only the newly
+        // introduced commands are moved to nearby Ctrl+Shift function keys as needed.
+        var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        AddIfConfigured(used, OneShotTarkovHotkey);
+        OneShotTestHotkey = EnsureUnique(
+            OneShotTestHotkey,
+            used,
+            ScannerHotkeyGesture.DefaultOneShotTest,
+            ScannerHotkeyGesture.DefaultOneShotTarkov,
+            ScannerHotkeyGesture.DefaultScannerToggle,
+            new ScannerHotkeyGesture(true, false, true, System.Windows.Input.Key.F9),
+            new ScannerHotkeyGesture(true, false, true, System.Windows.Input.Key.F8));
+        ScannerToggleHotkey = EnsureUnique(
+            ScannerToggleHotkey,
+            used,
+            ScannerHotkeyGesture.DefaultScannerToggle,
+            ScannerHotkeyGesture.DefaultOneShotTest,
+            ScannerHotkeyGesture.DefaultOneShotTarkov,
+            new ScannerHotkeyGesture(true, false, true, System.Windows.Input.Key.F9),
+            new ScannerHotkeyGesture(true, false, true, System.Windows.Input.Key.F8));
+
         SchemaVersion = CurrentSchemaVersion;
 
         if (PositionX is { } x && !double.IsFinite(x))
@@ -104,5 +132,31 @@ public sealed class ScannerDisplaySettings
         return ScannerHotkeyGesture.TryParse(value, out var gesture)
             ? gesture.ToString()
             : fallback.ToString();
+    }
+
+    private static void AddIfConfigured(ISet<string> used, string value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+            used.Add(value);
+    }
+
+    private static string EnsureUnique(
+        string value,
+        ISet<string> used,
+        params ScannerHotkeyGesture[] fallbacks)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+        if (used.Add(value))
+            return value;
+
+        foreach (var fallback in fallbacks)
+        {
+            var candidate = fallback.ToString();
+            if (used.Add(candidate))
+                return candidate;
+        }
+
+        return string.Empty;
     }
 }
