@@ -3,43 +3,57 @@ using System.Text;
 namespace JunhyunHelper.Core.Scanner;
 
 /// <summary>
-/// Sanitizes OCR evidence against the character shape of the current official item-name
-/// catalog. Letters/digits remain available for fuzzy correction because OCR can confuse
-/// one glyph for another. Punctuation/symbols are stricter: only symbols that actually
-/// occur in the current official catalog survive into ordinary matcher evidence.
+/// Sanitizes OCR evidence against the character inventory of the current official
+/// item-name catalog. The Scanner reads a closed-domain item title, not arbitrary text,
+/// so even Unicode letters/digits are ordinary evidence only when that normalized
+/// character actually occurs somewhere in the current catalog.
 ///
-/// A single unsupported symbol that is physically between two letters/digits is also
-/// preserved in a separate pattern as '?' (unknown one-glyph evidence). This does NOT
-/// guess which character it was. The matcher may use that pattern only when the complete
-/// current catalog has one unique, safely separated name at that exact character slot.
-/// CJK Han ideographs remain a hard rejection for the Korean Tarkov item-title contract.
+/// Punctuation/symbols follow the same rule. A catalog-impossible glyph embedded between
+/// two catalog-valid identity characters can be preserved as '?' unknown-glyph evidence.
+/// This never guesses that the glyph was specifically r, 0, or any other character; the
+/// catalog matcher may recover it only when the complete current catalog proves a unique,
+/// safely separated pattern. CJK Han ideographs remain a hard rejection for the Korean
+/// Tarkov item-title contract.
 /// </summary>
 public sealed class ScannerOcrCharacterPolicy
 {
     public const char UnknownGlyph = '?';
+    private const int MaximumUnknownGlyphsPerVariant = 2;
 
     private readonly object _gate = new();
+    private HashSet<char> _allowedIdentityCharacters = [];
     private HashSet<char> _allowedSymbols = [];
 
     public void ReplaceCatalog(IEnumerable<ScannerCatalogItem> items)
     {
         ArgumentNullException.ThrowIfNull(items);
 
+        var allowedIdentityCharacters = new HashSet<char>();
         var allowedSymbols = new HashSet<char>();
         foreach (var item in items)
         {
             if (string.IsNullOrWhiteSpace(item.OfficialName))
                 continue;
 
-            foreach (var character in item.OfficialName)
+            var normalizedName = item.OfficialName
+                .Normalize(NormalizationForm.FormKC)
+                .ToLowerInvariant();
+            foreach (var character in normalizedName)
             {
-                if (!char.IsWhiteSpace(character) && !char.IsLetterOrDigit(character))
+                if (char.IsWhiteSpace(character))
+                    continue;
+                if (char.IsLetterOrDigit(character))
+                    allowedIdentityCharacters.Add(character);
+                else
                     allowedSymbols.Add(character);
             }
         }
 
         lock (_gate)
+        {
+            _allowedIdentityCharacters = allowedIdentityCharacters;
             _allowedSymbols = allowedSymbols;
+        }
     }
 
     public ScannerOcrTextAssessment Assess(string? text)
@@ -47,9 +61,13 @@ public sealed class ScannerOcrCharacterPolicy
         if (string.IsNullOrWhiteSpace(text))
             return ScannerOcrTextAssessment.Empty;
 
+        HashSet<char> allowedIdentityCharacters;
         HashSet<char> allowedSymbols;
         lock (_gate)
+        {
+            allowedIdentityCharacters = new HashSet<char>(_allowedIdentityCharacters);
             allowedSymbols = new HashSet<char>(_allowedSymbols);
+        }
 
         var accepted = new List<string>();
         var wildcardPatterns = new List<string>();
@@ -64,7 +82,10 @@ public sealed class ScannerOcrCharacterPolicy
                      ['\r', '\n', '|'],
                      StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
-            var variant = raw.Trim();
+            // Compatibility normalization makes OCR full-width forms comparable to the
+            // same normalization used to build the current catalog character inventory.
+            // Preserve casing in FilteredText; matching itself remains case-insensitive.
+            var variant = raw.Trim().Normalize(NormalizationForm.FormKC);
             if (variant.Length < 2)
                 continue;
 
@@ -93,17 +114,16 @@ public sealed class ScannerOcrCharacterPolicy
                     continue;
                 }
 
-                if (char.IsLetterOrDigit(character))
+                if (IsCatalogIdentityCharacter(character, allowedIdentityCharacters))
                 {
-                    // A letter/digit can itself be the OCR mistake (I/l, r omission, etc.).
-                    // Preserve it so the constrained catalog matcher can correct it.
                     validCharacters++;
                     sanitized.Append(character);
                     pattern.Append(character);
                     continue;
                 }
 
-                if (allowedSymbols.Contains(character))
+                var normalizedCharacter = char.ToLowerInvariant(character);
+                if (!char.IsLetterOrDigit(character) && allowedSymbols.Contains(normalizedCharacter))
                 {
                     validCharacters++;
                     sanitized.Append(character);
@@ -113,16 +133,16 @@ public sealed class ScannerOcrCharacterPolicy
 
                 invalidCharacters++;
 
-                // WinRT OCR repeatedly renders narrow Latin glyphs (notably lower-case r)
-                // as punctuation such as the Japanese bracket '「'. Do not hard-code an
-                // r replacement. Preserve only the fact that one unknown glyph existed,
-                // and only when it is embedded between two alphanumeric glyphs. Leading
-                // backticks and free punctuation therefore never become wildcards.
-                if (variantUnknownGlyphs == 0 &&
-                    index > 0 &&
-                    index + 1 < variant.Length &&
-                    char.IsLetterOrDigit(variant[index - 1]) &&
-                    char.IsLetterOrDigit(variant[index + 1]))
+                // WinRT OCR can render narrow Latin glyphs as brackets/punctuation and
+                // slash-zero-like glyphs as Unicode letters such as Ø. Do not maintain a
+                // guessed substitution table. Preserve only the fact that an impossible
+                // embedded glyph occupied one character position. Leading/trailing noise
+                // therefore still cannot manufacture a wildcard candidate.
+                if (variantUnknownGlyphs < MaximumUnknownGlyphsPerVariant &&
+                    IsEmbeddedBetweenCatalogIdentityCharacters(
+                        variant,
+                        index,
+                        allowedIdentityCharacters))
                 {
                     pattern.Append(UnknownGlyph);
                     variantUnknownGlyphs++;
@@ -136,19 +156,28 @@ public sealed class ScannerOcrCharacterPolicy
             var clean = CollapseWhitespace(sanitized.ToString()).Trim();
             var identityLength = ScannerItemMatcher.Normalize(clean).Length;
 
-            // Do not let symbol stripping turn a tiny noisy token (e.g. C※U) into a
-            // deceptively trustworthy two-character candidate. Real item-title evidence
-            // must retain at least three alphanumeric characters after sanitation.
+            // Do not let stripping impossible glyphs turn a tiny noisy token into a
+            // deceptively trustworthy candidate. Ordinary evidence still needs at least
+            // three identity characters after sanitation.
             if (identityLength >= 3 && clean.Length > 0)
                 accepted.Add(clean);
 
-            if (variantUnknownGlyphs == 1)
+            if (variantUnknownGlyphs is >= 1 and <= MaximumUnknownGlyphsPerVariant)
             {
                 var wildcard = CollapseWhitespace(pattern.ToString()).Trim();
-                var wildcardIdentityLength = ScannerItemMatcher.NormalizePattern(wildcard).Length;
-                // Unknown-glyph recovery is intentionally not available to short names.
-                if (wildcardIdentityLength >= 7 && wildcard.Count(c => c == UnknownGlyph) == 1)
+                var normalizedPattern = ScannerItemMatcher.NormalizePattern(wildcard);
+                var wildcardIdentityLength = normalizedPattern.Length;
+                var wildcardCount = normalizedPattern.Count(c => c == UnknownGlyph);
+
+                // One impossible glyph can be safely useful even for a medium-short name
+                // because the downstream recovery requires an exact unique catalog
+                // pattern. Two unknown glyphs require substantially more known context.
+                var minimumPatternLength = wildcardCount == 1 ? 5 : 9;
+                if (wildcardCount == variantUnknownGlyphs &&
+                    wildcardIdentityLength >= minimumPatternLength)
+                {
                     wildcardPatterns.Add(wildcard);
+                }
             }
         }
 
@@ -168,6 +197,21 @@ public sealed class ScannerOcrCharacterPolicy
         character is >= '\u3400' and <= '\u4DBF' ||
         character is >= '\u4E00' and <= '\u9FFF' ||
         character is >= '\uF900' and <= '\uFAFF';
+
+    private static bool IsCatalogIdentityCharacter(
+        char character,
+        IReadOnlySet<char> allowedIdentityCharacters) =>
+        char.IsLetterOrDigit(character) &&
+        allowedIdentityCharacters.Contains(char.ToLowerInvariant(character));
+
+    private static bool IsEmbeddedBetweenCatalogIdentityCharacters(
+        string variant,
+        int index,
+        IReadOnlySet<char> allowedIdentityCharacters) =>
+        index > 0 &&
+        index + 1 < variant.Length &&
+        IsCatalogIdentityCharacter(variant[index - 1], allowedIdentityCharacters) &&
+        IsCatalogIdentityCharacter(variant[index + 1], allowedIdentityCharacters);
 
     private static void AppendLogicalSpace(StringBuilder builder)
     {
@@ -214,8 +258,13 @@ public sealed record ScannerOcrTextAssessment(
 
     public bool HasPlausibleVariant => AcceptedVariantCount > 0 && !string.IsNullOrWhiteSpace(FilteredText);
 
-    public bool HasSingleUnknownGlyphPattern =>
+    public bool HasUnknownGlyphPattern =>
         UnknownGlyphCount > 0 && !string.IsNullOrWhiteSpace(UnknownGlyphPatternText);
+
+    // Compatibility name retained for the catalog service. The pattern stream can now
+    // contain one or two bounded unknown glyphs; the matcher adapter decides which
+    // recovery contract applies.
+    public bool HasSingleUnknownGlyphPattern => HasUnknownGlyphPattern;
 
     public bool IsCorrupted => !HasPlausibleVariant || HanCharacterCount > 0 || ValidCharacterRatio < 0.72;
 }
