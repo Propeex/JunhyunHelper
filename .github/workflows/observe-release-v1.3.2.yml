@@ -1,0 +1,38 @@
+name: Observe v1.3.2 release controller
+
+on:
+  workflow_run:
+    workflows: ['Release v1.3.2']
+    types: [completed]
+
+permissions:
+  contents: write
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Record controller outcome
+        shell: bash
+        run: |
+          mkdir -p docs
+          cat > docs/.release-v1.3.2-controller-outcome.json <<EOF
+          {
+            "run_id": ${{ github.event.workflow_run.id }},
+            "run_number": ${{ github.event.workflow_run.run_number }},
+            "conclusion": "${{ github.event.workflow_run.conclusion }}",
+            "head_sha": "${{ github.event.workflow_run.head_sha }}",
+            "event": "${{ github.event.workflow_run.event }}"
+          }
+          EOF
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git pull --rebase origin main
+          git add docs/.release-v1.3.2-controller-outcome.json
+          git diff --cached --quiet && exit 0
+          git commit -m 'chore: record v1.3.2 release controller outcome'
+          git push origin HEAD:main
