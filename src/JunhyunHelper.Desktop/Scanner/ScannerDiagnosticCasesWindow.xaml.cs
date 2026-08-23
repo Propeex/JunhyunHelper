@@ -27,8 +27,9 @@ public partial class ScannerDiagnosticCasesWindow : Window
         SummaryText.Text = _cases.Count == 0
             ? "저장된 Case가 없습니다."
             : $"총 {_cases.Count}건 · 사용자 검증 {reviewed}건 · 자동/미검증 {_cases.Count - reviewed}건";
-        SelectionText.Text = "삭제할 Case를 선택하면 해당 Case의 이미지와 metadata만 제거됩니다. 다른 Case와 일반 Scanner 로그는 유지됩니다.";
+        SelectionText.Text = "Case를 선택하면 해당 Case만 삭제할 수 있습니다. 전체 삭제도 일반 Scanner 로그와 직접 내보낸 ZIP에는 영향을 주지 않습니다.";
         DeleteSelectedButton.IsEnabled = false;
+        DeleteAllButton.IsEnabled = _cases.Count > 0;
     }
 
     private void CaseList_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -69,6 +70,38 @@ public partial class ScannerDiagnosticCasesWindow : Window
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
             DeleteSelectedButton.IsEnabled = true;
+            return;
+        }
+
+        DatasetChanged = true;
+        Reload();
+    }
+
+    private void DeleteAllButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_cases.Count == 0)
+            return;
+
+        var storage = ScannerDiagnosticDataset.GetStorageInfo();
+        var answer = MessageBox.Show(
+            this,
+            $"저장된 Scanner 교정/진단 데이터 {storage.CaseCount}건 ({storage.SizeText})을 모두 삭제하시겠습니까?\n\n일반 Scanner 로그와 사용자가 이미 내보낸 ZIP은 삭제되지 않습니다.",
+            "Scanner 교정 데이터 전체 삭제",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning,
+            MessageBoxResult.No);
+        if (answer != MessageBoxResult.Yes)
+            return;
+
+        if (!ScannerDiagnosticDataset.ClearAll())
+        {
+            MessageBox.Show(
+                this,
+                "일부 Scanner 교정/진단 데이터를 삭제하지 못했습니다.",
+                "Scanner 교정 데이터 삭제",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            Reload();
             return;
         }
 
