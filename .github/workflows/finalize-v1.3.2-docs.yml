@@ -1,0 +1,397 @@
+name: Finalize v1.3.2 project state
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/finalize-v1.3.2-docs.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Update canonical project state and remove one-shot release workflows
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          source = '922797a99ea221fdc4984dd6ed05df552149d6e4'
+          asset = 'Junhyun-Helper-v1.3.2-win-x64.zip'
+          size = '80,311,752'
+          sha256 = '6e3a7af2de50dfd14f1c49ccb39753177a0bce5b22993bb8bb94ffde93086767'
+          product = f'1.3.2+{source}'
+          pr_ci = '32619142034'
+          release_run = '32621021058'
+
+          def replace_once(text, pattern, replacement, label, flags=re.S):
+              new, count = re.subn(pattern, replacement, text, count=1, flags=flags)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly one replacement, got {count}')
+              return new
+
+          # README
+          p = Path('README.md')
+          text = p.read_text(encoding='utf-8')
+          release_block = f'''현재 public stable은 **v1.3.2**입니다.
+
+```text
+version: v1.3.2 PUBLIC RELEASE / VERIFIED
+release source: {source}
+final PR CI: {pr_ci} — SUCCESS
+automated tests: 263 passed / 0 failed / 0 skipped
+release run: {release_run}
+asset: {asset}
+bytes: {size}
+SHA-256: {sha256}
+ProductVersion: {product}
+public/latest: VERIFIED
+exact public tag source: VERIFIED
+public-downloaded EXE smoke: SUCCESS
+```
+
+```text
+Content schema: v7
+Readable schemas: v3~v7
+user.db schema: v1
+Scanner display settings schema: v4
+Scanner catalog cache schema: v1/v2 readable, v2 written
+v1.3.1 → v1.3.2 mandatory Game Content update: none
+v1.3.1 → v1.3.2 user.db migration: none
+```
+
+상세 릴리즈 기록은 `docs/RELEASE_1.3.2.md`에 있습니다.'''
+          text = replace_once(
+              text,
+              r'현재 public stable은 \*\*v1\.3\.1\*\*입니다\.\n\n```text\nversion: v1\.3\.1 PUBLIC RELEASE / VERIFIED.*?상세 릴리즈 기록은 `docs/RELEASE_1\.3\.1\.md`에 있습니다\.',
+              release_block,
+              'README release block')
+          marker = '### v1.3.1 — 실전 title recognition hardening'
+          v132 = '''### v1.3.2 — live-evidence OCR 보강
+
+v1.3.1 공개 후 실제 Tarkov/DisplayTest에서 확인된 두 title-recognition 실패를 근거로 보강했습니다.
+
+- magnifier의 ring / hollow center / lower-right handle / 좌측 헤더 위치를 핵심 evidence로 사용
+- 뒤따르는 title glyph component는 magnifier의 필수조건이 아니라 corroboration으로 사용
+- OCR punctuation/symbol 허용 집합을 current official Korean item catalog에서 자동 파생
+- current catalog에 없는 `「` 같은 기호는 matcher 입력 전에 제거
+- normalized 길이 7 이상에서 정확히 1 edit인 후보는 current catalog 전체에서 유일하고 global runner-up과 **10%p 이상** 차이가 있을 때만 제한적으로 복구
+- 저 80%대 multi-edit OCR은 percentage만으로 확정하지 않고 strict Tarkov-font visual corroboration 필요
+- 최고 상점가 / flea `avg24hPrice` / `RequiredTotal` 의미와 schema는 변경 없음
+
+상세: `docs/SCANNER_V1.3.2_LIVE_EVIDENCE.md`, `docs/RELEASE_1.3.2.md`.
+
+'''
+          if '### v1.3.2 — live-evidence OCR 보강' not in text:
+              if marker not in text:
+                  raise SystemExit('README v1.3.1 marker missing')
+              text = text.replace(marker, v132 + marker, 1)
+          text = text.replace(
+              'v1.3.0은 Scanner 분석 이미지 export, one-shot test scan, 3종 global hotkey를 추가한 MINOR 릴리즈입니다. v1.3.1은 실제 인게임 title recognition 실패 evidence와 버전 표시 UX를 반영한 PATCH 릴리즈입니다.',
+              'v1.3.0은 Scanner 분석 이미지 export, one-shot test scan, 3종 global hotkey를 추가한 MINOR 릴리즈입니다. v1.3.1은 실제 인게임 title recognition 실패 evidence와 버전 표시 UX를 반영한 PATCH이며, v1.3.2는 추가 live OCR evidence를 기반으로 magnifier association·catalog-derived symbol policy·bounded one-edit recovery를 보강한 PATCH입니다.')
+          text = text.replace(
+              '- `docs/SCANNER_V1.3.1_RECOGNITION.md` — v1.3.1 recognition 계약\n- `docs/RELEASE_1.3.1.md` — v1.3.1 공개 검증',
+              '- `docs/SCANNER_V1.3.2_LIVE_EVIDENCE.md` — v1.3.2 live recognition 계약\n- `docs/SCANNER_V1.3.1_RECOGNITION.md` — v1.3.1 recognition 이력\n- `docs/RELEASE_1.3.2.md` — v1.3.2 공개 검증')
+          p.write_text(text, encoding='utf-8')
+
+          # DEPLOYMENT
+          p = Path('docs/DEPLOYMENT.md')
+          text = p.read_text(encoding='utf-8')
+          deployment_public = f'''현재 public stable:
+
+```text
+v1.3.2 PUBLIC RELEASE / VERIFIED
+release source SHA: {source}
+final PR CI: {pr_ci} — SUCCESS
+exact-source release run: {release_run} — SUCCESS
+automated tests: 263 passed / 0 failed / 0 skipped
+asset: {asset}
+bytes: {size}
+SHA-256: {sha256}
+ProductVersion: {product}
+public/latest: VERIFIED
+exact public tag source: VERIFIED
+public downloaded EXE smoke: SUCCESS
+```
+
+상세: `docs/RELEASE_1.3.2.md`.'''
+          text = replace_once(
+              text,
+              r'현재 public stable:\n\n```text\nv1\.2\.2 PUBLIC RELEASE / VERIFIED.*?상세: `docs/RELEASE_1\.2\.2\.md`\.',
+              deployment_public,
+              'DEPLOYMENT public block')
+          section8 = f'''## 8. v1.3.2 release verification
+
+v1.3.2는 실제 Tarkov/DisplayTest live evidence를 반영한 Scanner 정확성 PATCH입니다.
+
+완료된 공개 차단 조건:
+
+- Windows Release build
+- **263 automated tests / 0 failed / 0 skipped**
+- current-catalog symbol sanitation / bounded one-edit safety regressions
+- real-like sparse-glyph magnifier packaged-EXE regression
+- self-contained package 및 dependency audit
+- exact packaged EXE Product UI + Scanner + Mini Scanner + Main Map + Factory + MiniMap smoke
+- Draft ZIP/checksum/package/ProductVersion/FIRST_RUN 검증
+- Draft-downloaded EXE smoke
+- public/latest 전환
+- exact public tag → source SHA 검증
+- public ZIP hash/size/ProductVersion 재검증
+- public-downloaded EXE smoke
+- independent finalizer로 public/latest/tag/assets/package/EXE 재검증
+
+Final release verification:
+
+```text
+final PR CI: {pr_ci}
+release run: {release_run}
+source: {source}
+asset: {asset}
+bytes: {size}
+SHA-256: {sha256}
+ProductVersion: {product}
+public downloaded EXE smoke: SUCCESS
+```
+
+상세 검증 증거는 `docs/RELEASE_1.3.2.md`와 `docs/.release-v1.3.2-status.json`에 있습니다.
+
+'''
+          text = replace_once(
+              text,
+              r'## 8\. v1\.2\.2 release verification\n.*?(?=### 의도적으로 release blocker가 아닌 것)',
+              section8,
+              'DEPLOYMENT release verification')
+          compatibility = '''## 10. 호환성
+
+v1.3.2:
+
+```text
+Content schema: v7
+Readable Content schemas: v3~v7
+user.db schema: v1
+Scanner display settings schema: v4
+Scanner catalog cache: v1/v2 readable, v2 written
+v1.3.1 → v1.3.2 mandatory Game Content update: none
+v1.3.1 → v1.3.2 user.db migration: none
+```
+
+기존 Profile / Quest / Inventory / Hideout / Scanner settings/catalog / Map preferences / Ammo favorites는 유지합니다.
+'''
+          text = replace_once(text, r'## 10\. 호환성\n.*\Z', compatibility, 'DEPLOYMENT compatibility')
+          p.write_text(text, encoding='utf-8')
+
+          # Canonical STATE: update current release block, compatibility line and add v1.3.2 delta.
+          p = Path('docs/STATE.md')
+          text = p.read_text(encoding='utf-8')
+          state_release = f'''## 2. 현재 공개 릴리즈
+
+현재 public stable은 **v1.3.2**입니다.
+
+```text
+version: v1.3.2 PUBLIC RELEASE / VERIFIED
+release source: {source}
+final PR CI: {pr_ci} — SUCCESS
+automated tests: 263 passed / 0 failed / 0 skipped
+release run: {release_run}
+asset: {asset}
+bytes: {size}
+SHA-256: {sha256}
+ProductVersion: {product}
+public/latest: VERIFIED
+exact public tag source: VERIFIED
+public re-download: VERIFIED
+public-downloaded EXE smoke: SUCCESS
+```
+
+```text
+Desktop Version: 1.3.2
+Content schema: v7
+Readable Content schemas: v3~v7
+user.db schema: v1
+Scanner display settings schema: v4
+Scanner catalog cache schema: v1/v2 readable, v2 written
+v1.3.1 → v1.3.2 mandatory Game Content update: none
+v1.3.1 → v1.3.2 user.db migration: none
+```
+
+상세 검증 기록:
+
+- `docs/RELEASE_1.3.2.md`
+- `docs/.release-v1.3.2-status.json`
+
+'''
+          text = replace_once(text, r'## 2\. 현재 공개 릴리즈\n.*?(?=## 3\. 제품 아키텍처 기준)', state_release, 'STATE current release')
+          text = text.replace(
+              'Program package와 사용자 데이터는 분리됩니다. v1.3.0 → v1.3.1은 user.db migration이나 mandatory Game Content update가 없습니다.',
+              'Program package와 사용자 데이터는 분리됩니다. v1.3.1 → v1.3.2는 user.db migration이나 mandatory Game Content update가 없습니다.')
+          marker = '## 8. OCR / character policy / semantic matching'
+          delta = '''## 7.1. v1.3.2 live-evidence recognition delta
+
+v1.3.2는 v1.3.1 공개 후 실제 Tarkov/DisplayTest에서 관측된 추가 OCR 실패를 근거로 한 PATCH입니다.
+
+- magnifier의 following-title component는 필수조건이 아니라 corroboration입니다.
+- ring / hollow center / lower-right handle / expected left-header position이 충분하면 sparse glyph segmentation에서도 magnifier를 유지합니다.
+- punctuation/symbol whitelist는 current official Korean item catalog에서 매 catalog generation마다 파생합니다.
+- catalog에 없는 punctuation/symbol은 matcher evidence에서 제거하되 letter/digit OCR confusion은 보수적 matcher/visual correction evidence로 유지합니다.
+- normalized 길이 7 이상에서 정확히 1 edit인 후보만 별도 bounded recovery 대상이며, current catalog 전체에서 유일하고 global runner-up과 최소 10%p 차이가 필요합니다.
+- multi-edit 저신뢰 OCR은 이 예외로 통과하지 않으며 strict Tarkov-font visual corroboration이 필요합니다.
+- false positive보다 miss 선호, current official catalog identity authority, scan-time network 금지 원칙은 그대로 유지합니다.
+
+상세: `docs/SCANNER_V1.3.2_LIVE_EVIDENCE.md`, `docs/DECISION_SCANNER_LIVE_EVIDENCE_2026-08-23.md`.
+
+'''
+          if '## 7.1. v1.3.2 live-evidence recognition delta' not in text:
+              if marker not in text:
+                  raise SystemExit('STATE OCR section marker missing')
+              text = text.replace(marker, delta + marker, 1)
+          p.write_text(text, encoding='utf-8')
+
+          # Short canonical/current indexes are rewritten to eliminate stale release-gate tasks.
+          Path('docs/CURRENT_STATE.md').write_text(f'''# CURRENT STATE
+
+> 최신 개발 상태의 짧은 인덱스입니다. 상세 설계와 이력은 `docs/STATE.md` 및 전문 문서를 참조합니다.
+
+기준일: 2026-08-23
+
+상태: **`v1.3.2 PUBLIC RELEASE / VERIFIED — Scanner live calibration continues from real evidence`**
+
+## 현재 공개 기준선
+
+```text
+public stable: v1.3.2
+release source: {source}
+asset: {asset}
+bytes: {size}
+SHA-256: {sha256}
+ProductVersion: {product}
+final PR CI: {pr_ci} — SUCCESS
+automated tests: 263 passed / 0 failed / 0 skipped
+release run: {release_run}
+public/latest: VERIFIED
+exact public tag source: VERIFIED
+public re-download: VERIFIED
+public-downloaded EXE smoke: SUCCESS
+```
+
+상세 공개 검증: `docs/RELEASE_1.3.2.md`, `docs/.release-v1.3.2-status.json`.
+
+```text
+Desktop Version: 1.3.2
+Content schema: v7
+Readable Content schemas: v3~v7
+user.db schema: v1
+Scanner display settings schema: v4
+Scanner catalog cache schema: v1/v2 readable, v2 written
+v1.3.1 → v1.3.2 mandatory Game Content update: none
+v1.3.1 → v1.3.2 user.db migration: none
+```
+
+## Scanner v1.3.2
+
+v1.3.1 공개 후 실제 Tarkov/DisplayTest에서 확인된 추가 title-recognition 실패를 보강했습니다.
+
+```text
+pixels
+→ detail structural candidate
+→ title field + red close/X
+→ magnifier morphology / left-header association
+→ magnifier-free title ROI
+→ Windows ko-KR OCR
+→ current-catalog-derived symbol sanitation
+→ exact / conservative fuzzy matcher
+→ unique bounded 1-edit recovery when safe
+→ optional strict Tarkov-font visual corroboration
+→ Item ID or fail closed
+→ local presentation data
+→ Mini Scanner
+```
+
+핵심 변경:
+
+- magnifier 뒤 title glyph segmentation은 corroboration이며 필수조건이 아님
+- current official Korean catalog에 없는 OCR punctuation/symbol 제거
+- 1-edit recovery는 normalized length >= 7, current catalog 전체 유일 후보, global runner-up margin >= 10%p일 때만 허용
+- multi-edit low-confidence OCR은 strict visual corroboration 없이 확정 금지
+- 최고 상점가 / flea `avg24hPrice` / `RequiredTotal` 의미와 schema 변경 없음
+
+## 기능 상태
+
+| 영역 | 상태 |
+|---|---|
+| Profile / Quest / Hideout | 구현 완료 |
+| Needed Items / Inventory / Items | 구현 완료 |
+| Ammo | 구현 완료 |
+| Map + MiniMap | 구현 완료 / steady-state smoke 유지 |
+| Game Content Update | 구현 완료 |
+| Program Update | 구현 완료 / v1.3.2 public package verified |
+| Scanner + Mini Scanner | **v1.3.2 public verified / 실제 Tarkov calibration 지속** |
+
+## 다음 개발 원칙
+
+새 Scanner 기능을 추가하는 단계가 아니라 실제 인게임 evidence를 기준으로 기존 인식의 정확성·안정성·데이터 연결을 검증하는 단계입니다.
+
+문제가 발생하면 `scanner.log`와 `인식 이미지`/사용자 export PNG를 근거로 capture → structural candidate → header anchors/title ROI → OCR → catalog matcher/visual → presentation → overlay 단계로 분리합니다. Live evidence 없이 confidence/margin을 임의로 낮추지 않습니다.
+''', encoding='utf-8')
+
+          Path('docs/NEXT.md').write_text('''# NEXT
+
+기준일: 2026-08-23
+
+v1.3.2는 정식 공개 및 public re-download 검증까지 완료되었습니다. 현재 우선순위는 **실제 Tarkov 사용 결과를 기반으로 Scanner를 계속 검증·보정하는 것**입니다.
+
+1. 실제 Tarkov Borderless 환경에서 다양한 아이템/상세창 위치/해상도·DPI로 스캔 사용
+2. 성공 / 미인식 / 오인식 / detail detection / title ROI / OCR / catalog matcher / visual corroboration 실패를 구분해 evidence 축적
+3. Item ID가 맞게 인식된 사례에서 최고 상점가, flea `avg24hPrice`, `RequiredTotal`가 해당 Item ID와 끝까지 정확히 연결되는지 실사용 표본으로 확인
+4. 빠른 연속 스캔에서 이전 결과가 남거나 서로 섞이지 않는지 확인
+5. 장시간 실행 시 CPU / memory / UI responsiveness 확인
+6. 새 실패 사례가 확보되면 해당 사례를 최소 재현 regression으로 고정한 뒤 필요한 단계만 수정
+7. live evidence 없이 global confidence/margin 완화 또는 unrelated Scanner 기능 추가 금지
+''', encoding='utf-8')
+
+          Path('docs/CURRENT_SCANNER_WORK.md').write_text('''# Current Scanner work
+
+현재 작업: **v1.3.2 public verified 이후 실제 Tarkov live calibration**
+
+공개 기준선:
+- `docs/RELEASE_1.3.2.md`
+- `docs/.release-v1.3.2-status.json`
+
+현재 recognition 계약/근거:
+- `docs/DECISION_SCANNER_LIVE_EVIDENCE_2026-08-23.md`
+- `docs/SCANNER_V1.3.2_LIVE_EVIDENCE.md`
+- `docs/SCANNER_SYMBOL_POLICY.md`
+- `docs/.scanner-v1.3.2-evidence.json`
+
+다음 변경은 실제 인게임 evidence가 발생한 단계만 대상으로 한다. 새 기능 추가나 전역 confidence 완화는 현재 작업 범위가 아니다.
+''', encoding='utf-8')
+
+          # Release diagnostics/controllers are one-shot. Keep only durable release evidence.
+          for name in [
+              '.github/workflows/release-v1.3.2.yml',
+              '.github/workflows/finalize-v1.3.2.yml',
+              '.github/workflows/observe-release-v1.3.2.yml',
+              '.github/workflows/rerun-release-v1.3.2.yml',
+              '.github/workflows/repair-release-v1.3.2.yml',
+              '.github/workflows/finalize-v1.3.2-docs.yml',
+              'docs/.release-v1.3.2-controller-outcome.json',
+          ]:
+              Path(name).unlink(missing_ok=True)
+          PY
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git pull --rebase origin main
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m 'docs: finalize v1.3.2 project state and release cleanup'
+          git push origin HEAD:main
