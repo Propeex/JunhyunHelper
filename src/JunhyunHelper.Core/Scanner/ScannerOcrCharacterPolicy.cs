@@ -1,34 +1,38 @@
+using System.Text;
+
 namespace JunhyunHelper.Core.Scanner;
 
 /// <summary>
-/// Restricts OCR evidence to characters that can actually occur in the current
-/// official item-name catalog. Variants containing CJK Han ideographs are rejected
-/// outright for the Korean Tarkov item-title contract; other unexpected characters
-/// may be tolerated only when they are a small minority of an otherwise plausible
-/// variant. Characters are never silently rewritten into a different item name.
+/// Sanitizes OCR evidence against the character shape of the current official item-name
+/// catalog. Letters/digits remain available for fuzzy correction because OCR can confuse
+/// one glyph for another. Punctuation/symbols are stricter: only symbols that actually
+/// occur in the current official catalog survive into matcher evidence. CJK Han
+/// ideographs remain a hard rejection for the Korean Tarkov item-title contract.
 /// </summary>
 public sealed class ScannerOcrCharacterPolicy
 {
     private readonly object _gate = new();
-    private HashSet<char> _allowed = [];
+    private HashSet<char> _allowedSymbols = [];
 
     public void ReplaceCatalog(IEnumerable<ScannerCatalogItem> items)
     {
         ArgumentNullException.ThrowIfNull(items);
-        var allowed = new HashSet<char>();
+
+        var allowedSymbols = new HashSet<char>();
         foreach (var item in items)
         {
             if (string.IsNullOrWhiteSpace(item.OfficialName))
                 continue;
+
             foreach (var character in item.OfficialName)
             {
-                if (!char.IsWhiteSpace(character))
-                    allowed.Add(character);
+                if (!char.IsWhiteSpace(character) && !char.IsLetterOrDigit(character))
+                    allowedSymbols.Add(character);
             }
         }
 
         lock (_gate)
-            _allowed = allowed;
+            _allowedSymbols = allowedSymbols;
     }
 
     public ScannerOcrTextAssessment Assess(string? text)
@@ -36,9 +40,9 @@ public sealed class ScannerOcrCharacterPolicy
         if (string.IsNullOrWhiteSpace(text))
             return ScannerOcrTextAssessment.Empty;
 
-        HashSet<char> allowed;
+        HashSet<char> allowedSymbols;
         lock (_gate)
-            allowed = new HashSet<char>(_allowed);
+            allowedSymbols = new HashSet<char>(_allowedSymbols);
 
         var accepted = new List<string>();
         var totalVariants = 0;
@@ -56,42 +60,66 @@ public sealed class ScannerOcrCharacterPolicy
                 continue;
 
             totalVariants++;
-            var variantTotal = 0;
-            var variantValid = 0;
-            var variantInvalid = 0;
+            var sanitized = new StringBuilder(variant.Length);
             var variantHan = 0;
+            var removedUnsupportedSymbols = 0;
 
             foreach (var character in variant)
             {
                 if (char.IsWhiteSpace(character))
-                    continue;
-
-                variantTotal++;
-                if (IsHanIdeograph(character))
                 {
-                    variantHan++;
-                    variantInvalid++;
+                    // Keep one logical separator for diagnostics/render-guided recovery.
+                    if (sanitized.Length > 0 && !char.IsWhiteSpace(sanitized[^1]))
+                        sanitized.Append(' ');
                     continue;
                 }
 
-                if (allowed.Contains(character))
-                    variantValid++;
-                else
-                    variantInvalid++;
+                totalCharacters++;
+                if (IsHanIdeograph(character))
+                {
+                    variantHan++;
+                    hanCharacters++;
+                    invalidCharacters++;
+                    continue;
+                }
+
+                if (char.IsLetterOrDigit(character))
+                {
+                    // A letter/digit can itself be the OCR mistake (I/l, r omission, etc.).
+                    // Preserve it so the constrained catalog matcher can correct it.
+                    validCharacters++;
+                    sanitized.Append(character);
+                    continue;
+                }
+
+                if (allowedSymbols.Contains(character))
+                {
+                    validCharacters++;
+                    sanitized.Append(character);
+                    continue;
+                }
+
+                // Unlike letters/digits, an impossible punctuation mark contributes no
+                // identity information. Drop it before matching instead of letting it
+                // consume the old generic 18% error allowance.
+                removedUnsupportedSymbols++;
+                invalidCharacters++;
             }
 
-            totalCharacters += variantTotal;
-            validCharacters += variantValid;
-            invalidCharacters += variantInvalid;
-            hanCharacters += variantHan;
-
-            if (variantTotal < 2 || variantHan > 0)
+            if (variantHan > 0)
                 continue;
 
-            var validRatio = variantTotal <= 0 ? 0 : variantValid / (double)variantTotal;
-            var invalidLimit = Math.Max(1, (int)Math.Floor(variantTotal * 0.18));
-            if (validRatio >= 0.82 && variantInvalid <= invalidLimit)
-                accepted.Add(variant);
+            var clean = CollapseWhitespace(sanitized.ToString()).Trim();
+            var identityLength = ScannerItemMatcher.Normalize(clean).Length;
+
+            // Do not let symbol stripping turn a tiny noisy token (e.g. C※U) into a
+            // deceptively trustworthy two-character candidate. Real item-title evidence
+            // must retain at least three alphanumeric characters after sanitation.
+            if (identityLength < 3)
+                continue;
+
+            if (clean.Length > 0)
+                accepted.Add(clean);
         }
 
         var overallRatio = totalCharacters <= 0 ? 0 : validCharacters / (double)totalCharacters;
@@ -108,6 +136,29 @@ public sealed class ScannerOcrCharacterPolicy
         character is >= '\u3400' and <= '\u4DBF' ||
         character is >= '\u4E00' and <= '\u9FFF' ||
         character is >= '\uF900' and <= '\uFAFF';
+
+    private static string CollapseWhitespace(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return string.Empty;
+
+        var builder = new StringBuilder(value.Length);
+        var previousWhitespace = false;
+        foreach (var character in value)
+        {
+            if (char.IsWhiteSpace(character))
+            {
+                if (!previousWhitespace && builder.Length > 0)
+                    builder.Append(' ');
+                previousWhitespace = true;
+                continue;
+            }
+
+            builder.Append(character);
+            previousWhitespace = false;
+        }
+        return builder.ToString();
+    }
 }
 
 public sealed record ScannerOcrTextAssessment(
