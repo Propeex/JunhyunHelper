@@ -74,11 +74,31 @@ internal static class ScannerTitleAnchorRefiner
 
         var textStart = glyphs.Count > 0 ? glyphs[0].X : -1;
         var leftPadding = Math.Max(1, (int)Math.Round(panel.Width * 0.0015));
-        var safeLeft = textStart >= 0
-            ? Math.Max(field.Region.Width > 0 ? field.Region.X : broadLeft, textStart - leftPadding)
-            : magnifier.Width > 0
-                ? magnifier.X + magnifier.Width + Math.Max(2, (int)Math.Round(panel.Width * 0.003))
-                : fallback.X;
+        var anchorGap = Math.Max(2, (int)Math.Round(panel.Width * 0.003));
+        var fallbackInset = Math.Max(2, (int)Math.Round(panel.Width * 0.006));
+
+        // Horizontal title ownership belongs to the search-icon lane, not to the first
+        // bright glyph component. Korean glyphs frequently split into several disconnected
+        // pieces; treating the first surviving text-like component as the crop origin can
+        // jump several syllables to the right (live v1.3.2 evidence: only "배" survived
+        // from "스트라이크 담배"). The glyph envelope may refine vertical/right bounds,
+        // but it must never move the title's left edge to the right of the icon/fallback lane.
+        var fallbackSafeLeft = Math.Max(
+            field.Region.Width > 0 ? field.Region.X : broadLeft,
+            fallback.X + fallbackInset);
+        fallbackSafeLeft = Math.Min(fallbackSafeLeft, Math.Max(broadLeft, broadRight - 1));
+
+        var safeLeft = magnifier.Width > 0
+            ? magnifier.X + magnifier.Width + anchorGap
+            : fallbackSafeLeft;
+
+        if (magnifier.Width > 0 && textStart >= 0)
+        {
+            var glyphLeft = Math.Max(
+                magnifier.X + magnifier.Width + 1,
+                textStart - leftPadding);
+            safeLeft = Math.Min(safeLeft, glyphLeft);
+        }
 
         var maximumRight = close.Width > 0
             ? Math.Max(safeLeft + 1, close.X - Math.Max(3, (int)Math.Round(panel.Width * 0.006)))
@@ -285,7 +305,16 @@ internal static class ScannerTitleAnchorRefiner
                     component.Width / Math.Max(1.0, followerWidth))
                 : 0.0;
 
-            var scaleTarget = Math.Max(8.0, fieldHeight * 1.05);
+            // The connected bright core of the live Tarkov magnifier is substantially
+            // smaller than the full anti-aliased icon box. v1.3.2 incorrectly targeted
+            // roughly one full title-field height, which penalized the real 13px bright
+            // ring extracted from a ~29px header. Restrict candidates to the pre-title
+            // lane first, then score the actual bright-core scale and ring topology.
+            var preTitleLaneRight = fallbackTitle.X + Math.Max(2, (int)Math.Round(fieldHeight * 0.18));
+            if (component.X > preTitleLaneRight)
+                continue;
+
+            var scaleTarget = Math.Max(7.0, fieldHeight * 0.50);
             var scale = Math.Max(
                 0,
                 1.0 - Math.Abs(Math.Max(component.Width, component.Height) - scaleTarget) / scaleTarget);
@@ -295,11 +324,11 @@ internal static class ScannerTitleAnchorRefiner
             var vertical = Math.Max(
                 0,
                 1.0 - Math.Abs(centerY - fieldCenterY) / Math.Max(4.0, fieldHeight * 0.85));
-            var expectedLeft = panel.X;
+            var expectedLeft = fallbackTitle.X - Math.Max(6, (int)Math.Round(fieldHeight * 0.34));
             var leftPosition = Math.Max(
                 0,
                 1.0 - Math.Abs(component.X - expectedLeft) /
-                Math.Max(10.0, panel.Width * 0.06));
+                Math.Max(8.0, fieldHeight * 0.90));
             var morphology = MagnifierMorphologyScore(bgra, stride, component);
             var followerScore = hasFollowers
                 ? Math.Clamp((dominance - 0.92) / 0.35, 0, 1)
@@ -311,10 +340,10 @@ internal static class ScannerTitleAnchorRefiner
             // stronger magnifier morphology plus the expected left-header position.
             if (hasFollowers)
             {
-                if (dominance < 1.08 && morphology < 0.68)
+                if (dominance < 1.08 && morphology < 0.58)
                     continue;
             }
-            else if (morphology < 0.70 || leftPosition < 0.55)
+            else if (morphology < 0.60 || leftPosition < 0.50)
             {
                 continue;
             }
@@ -338,7 +367,7 @@ internal static class ScannerTitleAnchorRefiner
                 Math.Clamp(score, 0, 1));
         }
 
-        return bestScore >= 0.56 ? best : default;
+        return bestScore >= 0.52 ? best : default;
     }
 
     private static IReadOnlyList<Component> FindTitleGlyphComponents(

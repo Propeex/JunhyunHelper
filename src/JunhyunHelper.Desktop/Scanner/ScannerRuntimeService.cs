@@ -425,10 +425,17 @@ public sealed partial class ScannerRuntimeService : IDisposable
             if (candidate.StructuralScore < CandidateStructuralFloor || candidate.TitleImage is null)
                 continue;
 
+            if (!HasTrustedTitleAnchors(candidate))
+            {
+                var rejected = CreateAnchorFailure(candidate, index, "ORIGINAL");
+                bestFailure = PickBetterFailure(bestFailure, rejected);
+                continue;
+            }
+
             var text = await _ocr.ReadTextAsync(candidate.TitleImage, cancellationToken);
-            var recognition = _catalog.ResolveOcrText(text);
-            LogCandidateAttempt(mode, index, "ORIGINAL", candidate, text, recognition);
-            var result = CreateSearchResult(candidate, recognition, text, "ORIGINAL", index, 0.82, 0.18);
+            var recognition = _catalog.ResolveOcrText(text, out var assessment);
+            LogCandidateAttempt(mode, index, "ORIGINAL", candidate, text, assessment.FilteredText, recognition);
+            var result = CreateSearchResult(candidate, recognition, text, assessment.FilteredText, "ORIGINAL", index, 0.82, 0.18);
             bestFailure = PickBetterFailure(bestFailure, result);
             if (recognition.Success && (bestSuccess is null || result.CombinedScore > bestSuccess.CombinedScore))
                 bestSuccess = result;
@@ -446,10 +453,13 @@ public sealed partial class ScannerRuntimeService : IDisposable
                 if (candidate.StructuralScore < CandidateStructuralFloor || candidate.TitleImage is null)
                     continue;
 
+                if (!HasTrustedTitleAnchors(candidate))
+                    continue;
+
                 var text = await deepOcr.ReadDeepTextAsync(candidate.TitleImage, cancellationToken);
-                var recognition = _catalog.ResolveOcrText(text);
-                LogCandidateAttempt(mode, index, "DEEP", candidate, text, recognition);
-                var result = CreateSearchResult(candidate, recognition, text, "DEEP", index, 0.86, 0.14);
+                var recognition = _catalog.ResolveOcrText(text, out var assessment);
+                LogCandidateAttempt(mode, index, "DEEP", candidate, text, assessment.FilteredText, recognition);
+                var result = CreateSearchResult(candidate, recognition, text, assessment.FilteredText, "DEEP", index, 0.86, 0.14);
                 bestFailure = PickBetterFailure(bestFailure, result);
                 if (recognition.Success && (bestSuccess is null || result.CombinedScore > bestSuccess.CombinedScore))
                     bestSuccess = result;
@@ -464,6 +474,7 @@ public sealed partial class ScannerRuntimeService : IDisposable
             null,
             ScannerRecognition.Failed("EMPTY_OCR"),
             string.Empty,
+            string.Empty,
             "NONE",
             -1,
             0);
@@ -472,7 +483,8 @@ public sealed partial class ScannerRuntimeService : IDisposable
     private static CandidateSearchResult CreateSearchResult(
         ScannerInspectCandidate candidate,
         ScannerRecognition recognition,
-        string text,
+        string rawText,
+        string matcherText,
         string pass,
         int candidateIndex,
         double semanticWeight,
@@ -481,10 +493,35 @@ public sealed partial class ScannerRuntimeService : IDisposable
             recognition.Success,
             candidate,
             recognition,
-            text,
+            rawText,
+            matcherText,
             pass,
             candidateIndex,
-            recognition.Confidence * semanticWeight + candidate.StructuralScore * structuralWeight);
+            recognition.Confidence * semanticWeight +
+            (candidate.StructuralScore * 0.55 + candidate.TitleAnchorScore * 0.45) * structuralWeight);
+
+    private static CandidateSearchResult CreateAnchorFailure(
+        ScannerInspectCandidate candidate,
+        int candidateIndex,
+        string pass) =>
+        new(
+            false,
+            candidate,
+            ScannerRecognition.Failed("TITLE_ANCHOR_INCOMPLETE"),
+            string.Empty,
+            string.Empty,
+            pass,
+            candidateIndex,
+            candidate.StructuralScore * 0.05);
+
+    private static bool HasTrustedTitleAnchors(ScannerInspectCandidate candidate) =>
+        candidate.TitleImage is not null &&
+        candidate.TitleBounds.Width > 0 &&
+        candidate.TitleBounds.Height > 0 &&
+        candidate.MagnifierBounds is { Width: > 0, Height: > 0 } &&
+        candidate.CloseBounds is { Width: > 0, Height: > 0 } &&
+        candidate.TitleAnchorScore >= 0.48 &&
+        !string.Equals(candidate.TitleAnchorReason, "GEOMETRY_FALLBACK", StringComparison.Ordinal);
 
     private static CandidateSearchResult PickBetterFailure(
         CandidateSearchResult? current,
@@ -492,7 +529,7 @@ public sealed partial class ScannerRuntimeService : IDisposable
     {
         if (current is null)
             return candidate;
-        if (!string.IsNullOrWhiteSpace(candidate.OcrText) && string.IsNullOrWhiteSpace(current.OcrText))
+        if (!string.IsNullOrWhiteSpace(candidate.MatcherText) && string.IsNullOrWhiteSpace(current.MatcherText))
             return candidate;
         if (candidate.Recognition.Confidence > current.Recognition.Confidence)
             return candidate;
@@ -509,7 +546,8 @@ public sealed partial class ScannerRuntimeService : IDisposable
         int index,
         string pass,
         ScannerInspectCandidate candidate,
-        string text,
+        string rawText,
+        string matcherText,
         ScannerRecognition recognition)
     {
         ScannerDiagnosticLog.Write(
@@ -520,7 +558,8 @@ public sealed partial class ScannerRuntimeService : IDisposable
             ("structure", candidate.StructuralScore),
             ("structureReason", candidate.StructuralReason),
             ("bounds", FormatBounds(candidate.Bounds)),
-            ("ocr", text),
+            ("rawOcr", rawText),
+            ("matcherText", matcherText),
             ("match", recognition.Reason),
             ("success", recognition.Success),
             ("officialName", recognition.OfficialName),
@@ -565,13 +604,15 @@ public sealed partial class ScannerRuntimeService : IDisposable
             search.Candidate,
             search.Pass,
             search.OcrText,
+            search.MatcherText,
             search.Recognition);
         ScannerDiagnosticLog.Write(
             "ocr-result",
             mode,
             ("candidateIndex", search.CandidateIndex),
             ("pass", search.Pass),
-            ("text", search.OcrText));
+            ("rawText", search.OcrText),
+            ("matcherText", search.MatcherText));
         ScannerDiagnosticLog.Write(
             "match-result",
             mode,
@@ -705,6 +746,7 @@ public sealed partial class ScannerRuntimeService : IDisposable
         ScannerInspectCandidate? Candidate,
         ScannerRecognition Recognition,
         string OcrText,
+        string MatcherText,
         string Pass,
         int CandidateIndex,
         double CombinedScore);

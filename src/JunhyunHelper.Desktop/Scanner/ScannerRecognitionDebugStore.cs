@@ -46,6 +46,7 @@ public static class ScannerRecognitionDebugStore
         ScannerInspectCandidate? candidate,
         string pass,
         string ocrText,
+        string matcherText,
         ScannerRecognition recognition)
     {
         lock (Gate)
@@ -82,6 +83,7 @@ public static class ScannerRecognitionDebugStore
                 TitleAnchorReason = candidate?.TitleAnchorReason ?? _frame.TitleAnchorReason,
                 Pass = pass,
                 OcrText = ocrText,
+                MatcherText = matcherText,
                 CandidateName = recognition.OfficialName,
                 RecognitionReason = recognition.Reason,
                 Confidence = recognition.Confidence,
@@ -130,6 +132,7 @@ public sealed record ScannerRecognitionDebugFrame(
     string? TitleSignature = null,
     string Pass = "NONE",
     string OcrText = "",
+    string MatcherText = "",
     string? CandidateName = null,
     string RecognitionReason = "NOT_RUN",
     double Confidence = 0,

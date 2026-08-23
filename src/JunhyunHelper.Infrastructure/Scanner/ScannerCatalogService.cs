@@ -305,12 +305,16 @@ public sealed class ScannerCatalogService : IDisposable
 
     public ScannerOcrTextAssessment AssessOcrText(string? text) => _ocrPolicy.Assess(text);
 
-    public ScannerRecognition ResolveOcrText(string text)
+    public ScannerRecognition ResolveOcrText(string text) =>
+        ResolveOcrText(text, out _);
+
+    public ScannerRecognition ResolveOcrText(
+        string text,
+        out ScannerOcrTextAssessment assessment)
     {
+        assessment = _ocrPolicy.Assess(text);
         if (string.IsNullOrWhiteSpace(text))
             return ScannerRecognition.Failed("EMPTY_OCR");
-
-        var assessment = _ocrPolicy.Assess(text);
         if (!assessment.HasPlausibleVariant)
             return ScannerRecognition.Failed("OCR_INVALID_CHARACTERS");
 
