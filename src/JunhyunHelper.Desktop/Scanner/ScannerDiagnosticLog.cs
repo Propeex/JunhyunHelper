@@ -4,15 +4,15 @@ using System.Text;
 namespace JunhyunHelper.Desktop.Scanner;
 
 /// <summary>
-/// Small, bounded diagnostic stream for live Scanner validation. It records decisions
-/// and capture/OCR metadata only; screenshots and raw pixel buffers are never persisted.
-/// Failures in diagnostics are always non-fatal.
+/// Small, bounded diagnostic stream for live Scanner validation. Persisted Ground Truth
+/// images live separately under ScannerDiagnosticDataset; this stream records runtime
+/// decisions and automatically includes the latest Case ID when one exists.
 ///
 /// Recognition attempts are also projected into a bounded user activity feed. The feed
 /// is independent of file I/O success and intentionally contains only readable OCR/match
 /// decision data, not low-level capture metadata. On startup it restores recent decisions
 /// from the existing bounded scanner.log(.1) files so the Scanner tab is useful across
-/// app restarts without adding a second persistence format.
+/// app restarts without adding a second activity persistence format.
 /// </summary>
 internal static class ScannerDiagnosticLog
 {
@@ -43,16 +43,13 @@ internal static class ScannerDiagnosticLog
 
     /// <summary>
     /// Clears both the user-facing recognition history and the bounded scanner.log files.
-    /// New runtime activity may create a fresh scanner.log immediately after this call.
-    /// File-system failures are reported through the return value and never affect Scanner.
+    /// Ground Truth/correction cases are intentionally not deleted here.
     /// </summary>
     public static bool Clear()
     {
         var success = true;
         lock (Gate)
         {
-            // Do not hydrate history just before deleting it. Mark the current process as
-            // hydrated so a partially undeletable old file is not replayed into the UI.
             _historyHydrated = true;
             LastOcrByMode.Clear();
             RecentActivities.Clear();
@@ -67,7 +64,6 @@ internal static class ScannerDiagnosticLog
         }
         catch
         {
-            // A presentation subscriber must never affect diagnostics or Scanner.
         }
 
         return success;
@@ -97,6 +93,14 @@ internal static class ScannerDiagnosticLog
 
                     if (mode is not null)
                         builder.Append(" | mode=").Append(mode.Value);
+
+                    var hasExplicitCaseId = fields.Any(field =>
+                        string.Equals(field.Key, "caseId", StringComparison.Ordinal));
+                    var currentCaseId = hasExplicitCaseId
+                        ? null
+                        : ScannerRecognitionDebugStore.GetSnapshot()?.CaseId;
+                    if (!string.IsNullOrWhiteSpace(currentCaseId))
+                        builder.Append(" | caseId=").Append(Sanitize(currentCaseId));
 
                     foreach (var (key, value) in fields)
                     {
@@ -129,7 +133,6 @@ internal static class ScannerDiagnosticLog
         }
         catch
         {
-            // A presentation subscriber must never affect recognition.
         }
     }
 
@@ -152,7 +155,6 @@ internal static class ScannerDiagnosticLog
             }
             catch
             {
-                // Existing diagnostics are best-effort history only.
             }
         }
 
@@ -188,7 +190,9 @@ internal static class ScannerDiagnosticLog
 
         if (string.Equals(eventName, "ocr-result", StringComparison.Ordinal))
         {
-            pendingOcr[mode] = fields.GetValueOrDefault("text", string.Empty);
+            pendingOcr[mode] = fields.GetValueOrDefault(
+                "rawText",
+                fields.GetValueOrDefault("text", string.Empty));
             return;
         }
 
@@ -240,7 +244,10 @@ internal static class ScannerDiagnosticLog
 
         if (string.Equals(eventName, "ocr-result", StringComparison.Ordinal))
         {
-            LastOcrByMode[mode.Value] = FieldText(fields, "text");
+            var raw = FieldText(fields, "rawText");
+            LastOcrByMode[mode.Value] = string.IsNullOrWhiteSpace(raw)
+                ? FieldText(fields, "text")
+                : raw;
             return null;
         }
 
@@ -352,7 +359,6 @@ internal static class ScannerDiagnosticLog
         }
         catch
         {
-            // If rotation cannot be completed, keep appending rather than affecting Scanner.
         }
     }
 
