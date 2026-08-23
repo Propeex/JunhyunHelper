@@ -1,14 +1,19 @@
 namespace JunhyunHelper.Core.Scanner;
 
 /// <summary>
-/// Scanner Lab 3.8-derived structural candidate generator for Tarkov item inspection windows.
-/// Structural confidence only ranks candidates. Production acceptance still requires OCR +
-/// current-catalog item resolution in the Desktop runtime.
+/// Scanner structural proposal generator for Tarkov item inspection windows.
+/// Geometry deliberately proposes plausible rectangles; it is not allowed to prove
+/// that a rectangle is an inspect window. Production acceptance is owned by the Desktop
+/// semantic header lock (close X + magnifier + header/title evidence) and then OCR/catalog
+/// identity. Overlapping but materially different rectangles therefore survive until the
+/// semantic stage instead of being removed by IoU alone.
 /// </summary>
 public static class ScannerDetailGeometryDetector
 {
     private const double PrimarySemanticFloor = 0.34;
     private const int DefaultCandidateLimit = 12;
+    private const double MinimumPlausibleAspect = 0.62;
+    private const double MaximumPlausibleAspect = 2.60;
 
     public static IReadOnlyList<ScannerDetectedCandidate> FindCandidates(
         ReadOnlySpan<byte> bgraPixels,
@@ -27,6 +32,8 @@ public static class ScannerDetailGeometryDetector
         var redComponents = FindRedComponents(pixels);
         var all = new List<ScannerDetectedCandidate>();
 
+        // A red close control is a useful proposal seed, but still not semantic proof.
+        // The Desktop header lock independently verifies the actual Tarkov close glyph.
         foreach (var component in redComponents)
         {
             var candidate = ScoreRedCloseCandidate(pixels, component);
@@ -40,7 +47,7 @@ public static class ScannerDetailGeometryDetector
 
     /// <summary>
     /// Compatibility helper for geometry-only tests/diagnostics. Runtime recognition should use
-    /// <see cref="FindCandidates"/> and semantically verify candidates with OCR/catalog matching.
+    /// <see cref="FindCandidates"/> and semantically verify candidates with the inspect-header lock.
     /// </summary>
     public static ScannerDetectedRegion? Detect(
         ReadOnlySpan<byte> bgraPixels,
@@ -221,8 +228,10 @@ public static class ScannerDetailGeometryDetector
         if (guessedHeight < 110)
             return null;
 
-        var minWidth = (int)Math.Round(guessedHeight * 1.05);
-        var maxWidth = (int)Math.Round(guessedHeight * 1.55);
+        // Detail-window height varies substantially with item/stat panels. Use only a
+        // broad impossible-shape guard here; aspect is no longer an identity condition.
+        var minWidth = (int)Math.Round(guessedHeight * MinimumPlausibleAspect);
+        var maxWidth = (int)Math.Round(guessedHeight * MaximumPlausibleAspect);
         var leftXStart = Math.Max(1, rightX - maxWidth);
         var leftXEnd = Math.Max(1, rightX - minWidth);
         if (leftXStart > leftXEnd)
@@ -235,8 +244,8 @@ public static class ScannerDetailGeometryDetector
             var count = CountVerticalEdges(pixels, x, topGuess, bottomGuess, edgeThreshold);
             var continuity = (double)count / Math.Max(1, guessedHeight);
             var aspect = (double)(rightX - x + 1) / Math.Max(1, guessedHeight);
-            var closeness = Math.Exp(-Math.Pow((aspect - 1.30) / 0.18, 2.0));
-            var score = continuity * 0.75 + closeness * 0.25;
+            var plausibility = AspectPlausibility(aspect);
+            var score = continuity * 0.90 + plausibility * 0.10;
             if (score <= leftScore)
                 continue;
             leftScore = score;
@@ -280,14 +289,25 @@ public static class ScannerDetailGeometryDetector
             return null;
 
         var aspectRatio = (double)windowWidth / windowHeight;
+        if (aspectRatio is < MinimumPlausibleAspect or > MaximumPlausibleAspect)
+            return null;
+
         var leftContinuity = (double)CountVerticalEdges(pixels, leftX, topY, bottomY, edgeThreshold) / windowHeight;
         var rightContinuity = (double)CountVerticalEdges(pixels, rightX, topY, bottomY, edgeThreshold) / windowHeight;
         var topContinuity = (double)CountHorizontalEdges(pixels, topY, leftX, rightX, edgeThreshold) / windowWidth;
         var bottomContinuity = (double)CountHorizontalEdges(pixels, bottomY, leftX, rightX, edgeThreshold) / windowWidth;
-        var aspectScore = Math.Exp(-Math.Pow((aspectRatio - 1.30) / 0.18, 2.0));
-        var finalScore = (leftContinuity + rightContinuity + topContinuity + bottomContinuity) / 4.0 * aspectScore;
+        var borderScore = (leftContinuity + rightContinuity + topContinuity + bottomContinuity) / 4.0;
+        var aspectScore = AspectPlausibility(aspectRatio);
+        var provisionalWindow = new ScannerDetectedRegion(leftX, topY, windowWidth, windowHeight, 0);
+        var darkness = SampleInteriorDarkness(pixels, provisionalWindow);
+        var redFill = Math.Clamp(close.Area / (double)Math.Max(1, close.Width * close.Height), 0, 1);
+        var finalScore =
+            borderScore * 0.70 +
+            darkness * 0.12 +
+            redFill * 0.12 +
+            aspectScore * 0.06;
 
-        var window = new ScannerDetectedRegion(leftX, topY, windowWidth, windowHeight, finalScore);
+        var window = provisionalWindow with { Score = finalScore };
         return new ScannerDetectedCandidate(
             window,
             GetTitleRegion(window),
@@ -335,10 +355,10 @@ public static class ScannerDetailGeometryDetector
             .ToArray();
 
         var approximated = new List<StructureCandidate>();
-        var minWidth = Math.Max(120, (int)Math.Round(pixels.Width * 0.12));
-        var minHeight = Math.Max(90, (int)Math.Round(pixels.Height * 0.12));
-        var maxWidth = Math.Max(minWidth, (int)Math.Round(pixels.Width * 0.92));
-        var maxHeight = Math.Max(minHeight, (int)Math.Round(pixels.Height * 0.92));
+        var minWidth = Math.Max(120, (int)Math.Round(pixels.Width * 0.10));
+        var minHeight = Math.Max(90, (int)Math.Round(pixels.Height * 0.08));
+        var maxWidth = Math.Max(minWidth, (int)Math.Round(pixels.Width * 0.94));
+        var maxHeight = Math.Max(minHeight, (int)Math.Round(pixels.Height * 0.94));
 
         for (var xi = 0; xi < xs.Length; xi++)
         {
@@ -364,20 +384,24 @@ public static class ScannerDetailGeometryDetector
                             continue;
 
                         var aspect = (double)rectWidth / Math.Max(1, rectHeight);
-                        if (aspect is < 1.05 or > 1.58)
+                        if (aspect is < MinimumPlausibleAspect or > MaximumPlausibleAspect)
                             continue;
 
                         var topProjection = (double)horizontalProjection[top] / Math.Max(1, pixels.Width);
                         var bottomProjection = (double)horizontalProjection[bottom] / Math.Max(1, pixels.Width);
-                        var aspectScore = Math.Exp(-Math.Pow((aspect - 1.30) / 0.22, 2.0));
+                        var aspectScore = AspectPlausibility(aspect);
                         var projectionScore = (leftProjection + rightProjection + topProjection + bottomProjection) / 4.0;
-                        var approximate = projectionScore * 0.72 + aspectScore * 0.28;
+
+                        // Aspect is now a weak ranking hint only. Strong border evidence
+                        // can therefore propose a tall/large inspect window for semantic
+                        // close/magnifier validation instead of being rejected up front.
+                        var approximate = projectionScore * 0.90 + aspectScore * 0.10;
                         if (approximate < 0.15)
                             continue;
 
                         var window = new ScannerDetectedRegion(left, top, rectWidth, rectHeight, approximate);
                         var darkness = SampleInteriorDarkness(pixels, window);
-                        approximate *= 0.65 + darkness * 0.35;
+                        approximate *= 0.72 + darkness * 0.28;
                         approximated.Add(new StructureCandidate(window with { Score = approximate }, approximate));
                     }
                 }
@@ -388,7 +412,7 @@ public static class ScannerDetailGeometryDetector
             return [];
 
         var results = new List<ScannerDetectedCandidate>();
-        foreach (var candidate in approximated.OrderByDescending(c => c.ApproximateScore).Take(80))
+        foreach (var candidate in approximated.OrderByDescending(c => c.ApproximateScore).Take(120))
         {
             var region = candidate.Region;
             var right = region.X + region.Width - 1;
@@ -398,38 +422,58 @@ public static class ScannerDetailGeometryDetector
             var topContinuity = (double)CountHorizontalEdges(pixels, region.Y, region.X, right, threshold) / Math.Max(1, region.Width);
             var bottomContinuity = (double)CountHorizontalEdges(pixels, bottom, region.X, right, threshold) / Math.Max(1, region.Width);
             var aspect = (double)region.Width / Math.Max(1, region.Height);
-            var aspectScore = Math.Exp(-Math.Pow((aspect - 1.30) / 0.20, 2.0));
+            var aspectScore = AspectPlausibility(aspect);
             var darkness = SampleInteriorDarkness(pixels, region);
 
-            var redBonus = 0.0;
+            var bestRedProximity = 0.0;
+            RedComponent? roughClose = null;
             foreach (var red in redComponents)
             {
                 var centerX = red.X + red.Width / 2;
                 var centerY = red.Y + red.Height / 2;
-                var dx = Math.Abs(centerX - (region.X + region.Width));
-                var dy = Math.Abs(centerY - region.Y);
-                if (dx <= Math.Max(20, (int)(region.Width * 0.08)) &&
-                    dy <= Math.Max(20, (int)(region.Height * 0.08)))
-                {
-                    redBonus = 0.08;
-                    break;
-                }
+                var expectedX = region.X + region.Width;
+                var expectedY = region.Y;
+                var xTolerance = Math.Max(20.0, region.Width * 0.08);
+                var yTolerance = Math.Max(20.0, Math.Min(region.Height * 0.08, 70.0));
+                var dx = Math.Abs(centerX - expectedX);
+                var dy = Math.Abs(centerY - expectedY);
+                if (dx > xTolerance || dy > yTolerance)
+                    continue;
+
+                var proximity =
+                    Math.Max(0, 1.0 - dx / xTolerance) * 0.60 +
+                    Math.Max(0, 1.0 - dy / yTolerance) * 0.40;
+                if (proximity <= bestRedProximity)
+                    continue;
+                bestRedProximity = proximity;
+                roughClose = red;
             }
 
+            var redBonus = roughClose.HasValue ? 0.08 * bestRedProximity : 0.0;
             var borderScore = (leftContinuity + rightContinuity + topContinuity + bottomContinuity) / 4.0;
-            var finalScore = borderScore * 0.68 + aspectScore * 0.17 + darkness * 0.15 + redBonus;
+            var finalScore =
+                borderScore * 0.72 +
+                darkness * 0.15 +
+                aspectScore * 0.05 +
+                redBonus;
             if (finalScore < PrimarySemanticFloor)
                 continue;
 
             var window = region with { Score = finalScore };
+            var closeHint = roughClose is { } red
+                ? new ScannerDetectedRegion(red.X, red.Y, red.Width, red.Height, bestRedProximity)
+                : default;
             results.Add(new ScannerDetectedCandidate(
                 window,
                 GetTitleRegion(window),
-                default,
-                "RECTANGLE_CANDIDATE"));
+                closeHint,
+                roughClose.HasValue ? "RECTANGLE_RED_X_HINT" : "RECTANGLE_CANDIDATE"));
         }
 
-        return DeduplicateCandidates(results, 12);
+        // Preserve a wider internal pool so outer red-X and rectangle proposals can be
+        // merged without one geometry family erasing the other. The public caller's
+        // requested maximum is still enforced by the final DeduplicateCandidates call.
+        return DeduplicateCandidates(results, 24);
     }
 
     private static double SampleInteriorDarkness(PixelBuffer pixels, ScannerDetectedRegion region)
@@ -453,6 +497,18 @@ public static class ScannerDetailGeometryDetector
         return total <= 0 ? 0 : (double)dark / total;
     }
 
+    private static double AspectPlausibility(double aspect)
+    {
+        if (aspect is < MinimumPlausibleAspect or > MaximumPlausibleAspect)
+            return 0;
+
+        // A broad, deliberately weak prior. 1.3 remains a useful ordering hint from
+        // historical captures but no longer acts as a hidden acceptance condition.
+        return Math.Max(
+            0.25,
+            Math.Exp(-Math.Pow((aspect - 1.30) / 1.10, 2.0)));
+    }
+
     private static IReadOnlyList<ScannerDetectedCandidate> DeduplicateCandidates(
         IEnumerable<ScannerDetectedCandidate> candidates,
         int maximum)
@@ -460,10 +516,16 @@ public static class ScannerDetailGeometryDetector
         var result = new List<ScannerDetectedCandidate>();
         foreach (var candidate in candidates
                      .Where(c => c.Window.Width > 0 && c.Window.Height > 0)
-                     .OrderByDescending(c => c.Score))
+                     .OrderByDescending(CandidateOrderingScore)
+                     .ThenByDescending(c => c.Score))
         {
-            if (result.Any(existing => IntersectionOverUnion(existing.Window, candidate.Window) >= 0.72))
+            // IoU alone is intentionally insufficient. A correct inspect rectangle and
+            // a wrong stash/inventory rectangle can overlap heavily while having
+            // materially different top/bottom/side ownership. Remove only edge-jitter
+            // duplicates that represent effectively the same proposal.
+            if (result.Any(existing => AreNearDuplicate(existing.Window, candidate.Window)))
                 continue;
+
             result.Add(candidate);
             if (result.Count >= maximum)
                 break;
@@ -471,20 +533,32 @@ public static class ScannerDetailGeometryDetector
         return result;
     }
 
-    private static double IntersectionOverUnion(ScannerDetectedRegion a, ScannerDetectedRegion b)
+    private static double CandidateOrderingScore(ScannerDetectedCandidate candidate)
     {
-        var left = Math.Max(a.X, b.X);
-        var top = Math.Max(a.Y, b.Y);
-        var right = Math.Min(a.X + a.Width, b.X + b.Width);
-        var bottom = Math.Min(a.Y + a.Height, b.Y + b.Height);
-        var intersectionWidth = right - left;
-        var intersectionHeight = bottom - top;
-        if (intersectionWidth <= 0 || intersectionHeight <= 0)
-            return 0;
+        var roughCloseHint = candidate.CloseButton.Width > 0 && candidate.CloseButton.Height > 0
+            ? 0.05
+            : 0.0;
+        return candidate.Score + roughCloseHint;
+    }
 
-        var intersection = (double)intersectionWidth * intersectionHeight;
-        var union = (double)a.Width * a.Height + (double)b.Width * b.Height - intersection;
-        return union <= 0 ? 0 : intersection / union;
+    private static bool AreNearDuplicate(ScannerDetectedRegion left, ScannerDetectedRegion right)
+    {
+        var scale = Math.Max(
+            1,
+            Math.Min(
+                Math.Min(left.Width, right.Width),
+                Math.Min(left.Height, right.Height)));
+        var tolerance = Math.Clamp((int)Math.Round(scale * 0.018), 5, 16);
+
+        var leftRight = left.X + left.Width;
+        var rightRight = right.X + right.Width;
+        var leftBottom = left.Y + left.Height;
+        var rightBottom = right.Y + right.Height;
+
+        return Math.Abs(left.X - right.X) <= tolerance &&
+               Math.Abs(left.Y - right.Y) <= tolerance &&
+               Math.Abs(leftRight - rightRight) <= tolerance &&
+               Math.Abs(leftBottom - rightBottom) <= tolerance;
     }
 
     private static int EdgeX(PixelBuffer pixels, int x, int y)
