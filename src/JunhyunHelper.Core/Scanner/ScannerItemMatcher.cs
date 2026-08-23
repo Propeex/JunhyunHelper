@@ -102,25 +102,28 @@ public sealed class ScannerItemMatcher
                 match.SecondScore);
         }
 
-        // Medium-length Tarkov titles are disproportionately penalized by a percentage
-        // threshold: one missing OCR glyph can turn an otherwise exact 11-character
-        // title into 90.9%, below the normal 94% floor. Treat exactly one edit as a
-        // distinct constrained case, but only when the catalog candidate is clearly
-        // separated from runner-up evidence. This does not make arbitrary 90% text
-        // acceptable and remains disabled for short names where one edit is dangerous.
-        var editDistance = official.Length >= 7
-            ? variants.Min(variant => EditDistance(official, variant))
-            : int.MaxValue;
-        var boundedEditMargin = Math.Max(0.08, minimumMargin);
-        if (editDistance == 1 && scoreMargin >= boundedEditMargin)
+        // A medium-length title can fall below the percentage floor from exactly one
+        // missing/substituted OCR glyph (for example 10/11 == 90.9%). Recover only when
+        // the one-edit candidate is unique across the complete current catalog AND is
+        // still separated from the best global alternative. Do not rely on the normal
+        // bigram prefilter for this exceptional path: missing a nearby alternative there
+        // would make the safety gate weaker than intended.
+        if (official.Length >= 7 &&
+            TryFindUniqueSingleEditCandidate(variants, out var singleEditIndex) &&
+            singleEditIndex == match.BestIndex)
         {
-            return new ScannerRecognition(
-                true,
-                "BOUNDED_EDIT_1",
-                item.Id,
-                item.OfficialName,
-                match.BestScore,
-                match.SecondScore);
+            var globalSecondScore = FindSecondBestScore(match.BestIndex, variants);
+            var boundedEditMargin = Math.Max(0.08, minimumMargin);
+            if (match.BestScore - globalSecondScore >= boundedEditMargin)
+            {
+                return new ScannerRecognition(
+                    true,
+                    "BOUNDED_EDIT_1",
+                    item.Id,
+                    item.OfficialName,
+                    match.BestScore,
+                    globalSecondScore);
+            }
         }
 
         return new ScannerRecognition(
@@ -215,6 +218,42 @@ public sealed class ScannerItemMatcher
         }
 
         return new MatchResult(bestIndex, best, second, false);
+    }
+
+    private bool TryFindUniqueSingleEditCandidate(
+        IReadOnlyList<string> variants,
+        out int candidateIndex)
+    {
+        candidateIndex = -1;
+
+        for (var index = 0; index < _normalizedNames.Length; index++)
+        {
+            var official = _normalizedNames[index];
+            if (official.Length < 7)
+                continue;
+
+            var oneEdit = false;
+            foreach (var variant in variants)
+            {
+                if (Math.Abs(official.Length - variant.Length) > 1)
+                    continue;
+                if (EditDistance(official, variant) == 1)
+                {
+                    oneEdit = true;
+                    break;
+                }
+            }
+
+            if (!oneEdit)
+                continue;
+
+            if (candidateIndex >= 0)
+                return false;
+
+            candidateIndex = index;
+        }
+
+        return candidateIndex >= 0;
     }
 
     private double FindSecondBestScore(int exactIndex, IReadOnlyList<string> variants)
