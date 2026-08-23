@@ -64,7 +64,49 @@ public sealed class ScannerOcrCharacterPolicyTests
         var result = policy.Assess("M4A1 (FDE) / 5.56x45mm");
 
         Assert.True(result.HasPlausibleVariant);
+        Assert.Equal("M4A1 (FDE) / 5.56x45mm", result.FilteredText);
         Assert.Equal(1.0, result.ValidCharacterRatio, 6);
+    }
+
+    [Fact]
+    public void Assess_ImpossibleJapaneseBracket_IsRemovedBeforeMatching()
+    {
+        var policy = CreatePolicy("Thermite 테르밋", "Gunpowder \"Eagle\" 화약");
+
+        var result = policy.Assess("` The「mite 테르밋");
+
+        Assert.True(result.HasPlausibleVariant);
+        Assert.Equal("Themite 테르밋", result.FilteredText);
+        Assert.Equal(2, result.InvalidCharacterCount);
+        Assert.Equal(0, result.HanCharacterCount);
+    }
+
+    [Fact]
+    public void Assess_CatalogQuoteSurvivesWhileImpossibleBracketIsRemoved()
+    {
+        var policy = CreatePolicy("Gunpowder \"Eagle\" 화약", "AK-74N 5.45x39 돌격소총");
+
+        var result = policy.Assess("` Gunpowde「 \"EagIen\" 화약");
+
+        Assert.True(result.HasPlausibleVariant);
+        Assert.Equal("Gunpowde \"EagIen\" 화약", result.FilteredText);
+        Assert.DoesNotContain('「', result.FilteredText);
+        Assert.DoesNotContain('`', result.FilteredText);
+        Assert.Contains('"', result.FilteredText);
+    }
+
+    [Fact]
+    public void Assess_SymbolWhitelistFollowsCurrentCatalogReplacement()
+    {
+        var policy = CreatePolicy("M4A1 (FDE)");
+        Assert.Contains('(', policy.Assess("M4A1 (FDE)").FilteredText);
+
+        policy.ReplaceCatalog([
+            new ScannerCatalogItem("1", "Thermite 테르밋", "Thermite", null, null, null, 1, 1),
+        ]);
+
+        var result = policy.Assess("Thermite (테르밋)");
+        Assert.Equal("Thermite 테르밋", result.FilteredText);
     }
 
     private static ScannerOcrCharacterPolicy CreatePolicy(params string[] names)
