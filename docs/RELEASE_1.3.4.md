@@ -1,12 +1,12 @@
 # 준현 헬퍼 v1.3.4 릴리즈 검증
 
-상태: **RELEASE CANDIDATE — PUBLIC RELEASE PENDING**
+상태: **PUBLIC RELEASE / VERIFIED**
 
 기준일: 2026-08-23
 
 ## 릴리즈 목적
 
-v1.3.3 공개 후 실제 Tarkov Scanner 사용에서 재현된 recognition/diagnostics 결함을 하나의 PATCH로 수정합니다.
+v1.3.3 공개 후 실제 Tarkov Scanner 사용에서 재현된 recognition/diagnostics 결함을 하나의 PATCH로 수정했습니다.
 
 - embedded `「` 계열 OCR glyph loss를 current-catalog unique one-unknown-glyph recovery로 보강
 - title glyph가 magnifier로 승격되는 경로를 fixed search-icon lane + normalized template로 차단
@@ -15,10 +15,10 @@ v1.3.3 공개 후 실제 Tarkov Scanner 사용에서 재현된 recognition/diagn
 - locked header에서 detail-window top/left/right bounds 재정렬
 - 사용자 저장 PNG에 detail/title/magnifier/close 진단 rectangle 합성
 
-## 변경하지 않는 제품 의미
+## 변경하지 않은 제품 의미
 
 - current official Korean item catalog가 identity source of truth
-- normal confidence/top1-top2 margin
+- normal confidence/top1/top2 margin
 - bounded unique one-edit recovery 조건
 - highest trader = valid non-flea RUB max
 - flea average = positive `avg24hPrice`
@@ -39,52 +39,45 @@ v1.3.3 → v1.3.4 mandatory Game Content update: none
 v1.3.3 → v1.3.4 user.db migration: none
 ```
 
-## Pre-release Windows gate
-
-```text
-PR: #146
-pre-identity CI: 32635992721 — SUCCESS
-automated tests: 267 passed / 0 failed / 0 skipped
-Release build: SUCCESS
-win-x64 publish: SUCCESS
-packaged EXE Product UI + Scanner + Mini Scanner + Main Map + Factory + MiniMap smoke: SUCCESS
-diagnostic PNG overlay renderer smoke: SUCCESS
-graceful shutdown: SUCCESS
-```
-
 ## 최종 릴리즈 식별자
 
-아래 값은 PR #146 final head CI와 main 병합 후 exact-source release controller가 완료된 뒤 확정합니다.
-
 ```text
-exact release source: PENDING
-public tag source: PENDING
-final PR CI: PENDING
-release run: PENDING
+exact release source: a78ddbc649747f1320236556f17e6b908304674a
+public tag source: a78ddbc649747f1320236556f17e6b908304674a
+final PR CI: 32636665202 — SUCCESS
+release run: 32636927134 — SUCCESS
+independent public verifier: 32637159066 — SUCCESS
+automated tests: 267 passed / 0 failed / 0 skipped
 asset: Junhyun-Helper-v1.3.4-win-x64.zip
-bytes: PENDING
-SHA-256: PENDING
-ProductVersion: 1.3.4+<exact release source SHA>
-public/latest: PENDING
-exact public tag source: PENDING
-public re-download: PENDING
-public-downloaded EXE smoke: PENDING
+bytes: 80,319,654
+SHA-256: 8c442fec81a0b993a9a6b080e59b656668a7a73d8fadd8434595545b08c82e8e
+ProductVersion: 1.3.4+a78ddbc649747f1320236556f17e6b908304674a
+public/latest: VERIFIED
+exact public tag source: VERIFIED
+Draft re-download: VERIFIED
+Draft-downloaded EXE smoke: SUCCESS
+public re-download: VERIFIED
+public-downloaded EXE smoke: SUCCESS
 ```
 
-## Release blocker
+## 검증한 릴리즈 gate
 
-다음이 모두 통과하기 전에는 v1.3.4를 public stable로 기록하지 않습니다.
+1. final PR head Windows Release build — **SUCCESS**
+2. 267 tests / 0 failed / 0 skipped — **SUCCESS**
+3. win-x64 self-contained publish/package audit — **SUCCESS**
+4. actual packaged EXE Product UI/Scanner/Mini Scanner/Main Map/Factory/MiniMap smoke — **SUCCESS**
+5. exact source SHA와 ProductVersion 일치 — **VERIFIED**
+6. Draft release asset re-download + SHA-256/size/layout/ProductVersion/FIRST_RUN 검증 — **VERIFIED**
+7. Draft-downloaded EXE smoke + graceful shutdown — **SUCCESS**
+8. public/latest 전환 — **VERIFIED**
+9. exact public tag source — **VERIFIED**
+10. public ZIP independent re-download + SHA256SUMS/size/layout/ProductVersion/FIRST_RUN 검증 — **VERIFIED**
+11. public-downloaded EXE smoke + graceful shutdown — **SUCCESS**
+12. one-shot release/public-verifier workflows cleanup — **VERIFIED**
 
-1. final PR head Windows Release build
-2. 267 tests / 0 failed / 0 skipped
-3. win-x64 self-contained publish/package audit
-4. actual packaged EXE Product UI/Scanner/Mini Scanner/Map smoke
-5. exact source SHA와 ProductVersion 일치
-6. Draft release asset re-download + SHA-256/size/layout/ProductVersion/FIRST_RUN 검증
-7. Draft-downloaded EXE smoke
-8. public/latest 전환
-9. exact public tag source 검증
-10. public ZIP 재다운로드 + SHA256SUMS/size/layout/ProductVersion/FIRST_RUN 검증
-11. public-downloaded EXE smoke + graceful shutdown
+기계 판독 가능한 최종 증거는 `docs/.release-v1.3.4-status.json`에 보존합니다.
 
-상세 기술 결정: `docs/DECISION_SCANNER_V1.3.4_LIVE_HARDENING_2026-08-23.md`
+상세 기술 결정:
+
+- `docs/DECISION_SCANNER_V1.3.4_LIVE_HARDENING_2026-08-23.md`
+- `docs/SCANNER_V1.3.4_LIVE_HARDENING.md`
