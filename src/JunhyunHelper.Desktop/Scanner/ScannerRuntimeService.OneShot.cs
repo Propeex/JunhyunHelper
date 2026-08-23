@@ -142,7 +142,9 @@ public sealed partial class ScannerRuntimeService
         ScannerCaptureMode mode,
         CancellationToken cancellationToken)
     {
-        var limit = Math.Min(CandidateLimit, candidates.Count);
+        // One-shot is an explicit precision action. Inspect the full detector candidate
+        // set while continuous scanning keeps its existing eight-candidate CPU budget.
+        var limit = Math.Min(12, candidates.Count);
         CandidateSearchResult? bestSuccess = null;
         CandidateSearchResult? bestFailure = null;
 

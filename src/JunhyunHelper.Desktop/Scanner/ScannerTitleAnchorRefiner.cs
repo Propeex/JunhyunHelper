@@ -11,6 +11,17 @@ namespace JunhyunHelper.Desktop.Scanner;
 /// </summary>
 internal static class ScannerTitleAnchorRefiner
 {
+    static ScannerTitleAnchorRefiner()
+    {
+        if (string.Equals(
+                Environment.GetEnvironmentVariable("JUNHYUNHELPER_MAP_SMOKE"),
+                "1",
+                StringComparison.Ordinal))
+        {
+            ScannerLiveHeaderGroundTruthSmoke.Verify();
+        }
+    }
+
     public static ScannerTitleAnchorRefinement Refine(
         ReadOnlySpan<byte> bgra,
         int width,
@@ -25,12 +36,23 @@ internal static class ScannerTitleAnchorRefiner
             stride,
             candidate);
 
-        // The runtime's existing trusted-anchor floor is 0.48. Every partial/failed
-        // frame lock is deliberately kept below it so OCR cannot run merely because
-        // some subset of close/icon/field evidence happened to score well.
-        return string.Equals(result.Reason, "HEADER_FRAME_LOCKED", StringComparison.Ordinal)
-            ? result
-            : result with { Score = Math.Min(result.Score, 0.47) };
+        if (string.Equals(result.Reason, "HEADER_FRAME_LOCKED", StringComparison.Ordinal))
+            return result;
+
+        // Keep the proven v1.4.0 lock authoritative. The live Ground Truth path is a
+        // fail-closed recovery path only for headers the older synthetic template rejects.
+        var recovered = ScannerLiveHeaderGroundTruthRefiner.TryRefine(
+            bgra,
+            width,
+            height,
+            stride,
+            candidate);
+        if (recovered is { } liveGroundTruthLock)
+            return liveGroundTruthLock;
+
+        // Every partial/failed lock stays below the runtime's trusted-anchor floor so OCR
+        // cannot run merely because some subset of close/icon/field evidence scored well.
+        return result with { Score = Math.Min(result.Score, 0.47) };
     }
 }
 
