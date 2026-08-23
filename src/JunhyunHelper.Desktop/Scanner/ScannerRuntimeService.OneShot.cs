@@ -67,10 +67,14 @@ public sealed partial class ScannerRuntimeService
 
         if (candidates.Count == 0)
         {
+            ScannerDiagnosticLog.Write(
+                "one-shot-no-structural-candidate",
+                mode,
+                ("detectorStatus", _detector.StatusMessage));
             _overlay.Hide();
             Publish(
                 ScannerRuntimeState.Uncertain,
-                "1회 스캔에서 아이템 상세창을 찾지 못했습니다.",
+                "1회 스캔에서 아이템 상세창 구조 후보를 찾지 못했습니다.",
                 captureMode: mode);
             return false;
         }
@@ -82,7 +86,10 @@ public sealed partial class ScannerRuntimeService
             ("topScore", candidates[0].StructuralScore),
             ("topReason", candidates[0].StructuralReason),
             ("topAnchorScore", candidates[0].TitleAnchorScore),
-            ("topAnchorReason", candidates[0].TitleAnchorReason));
+            ("topAnchorReason", candidates[0].TitleAnchorReason),
+            ("topHasTitleImage", candidates[0].TitleImage is not null),
+            ("topHasMagnifier", candidates[0].MagnifierBounds is not null),
+            ("topHasClose", candidates[0].CloseBounds is not null));
 
         var search = await SearchCandidatesPrecisionAsync(candidates, mode, cancellationToken);
         PublishSearchActivity(search, mode);
@@ -90,9 +97,11 @@ public sealed partial class ScannerRuntimeService
         {
             ClearVerifiedItem();
             _overlay.Hide();
-            var message = string.IsNullOrWhiteSpace(search.OcrText)
-                ? "1회 스캔에서 제목 픽셀은 확인했지만 아이템을 확정할 충분한 증거가 없었습니다."
-                : $"1회 스캔에서 아이템을 확실하게 식별하지 못했습니다. ({search.Recognition.Reason}, {search.Recognition.Confidence:P0})";
+            var message = search.Recognition.Reason == "TITLE_ANCHOR_INCOMPLETE"
+                ? "1회 스캔에서 상세창 구조는 찾았지만 제목 헤더 잠금에 실패해 식별을 보류했습니다."
+                : string.IsNullOrWhiteSpace(search.OcrText)
+                    ? "1회 스캔에서 제목 픽셀은 확인했지만 아이템을 확정할 충분한 증거가 없었습니다."
+                    : $"1회 스캔에서 아이템을 확실하게 식별하지 못했습니다. ({search.Recognition.Reason}, {search.Recognition.Confidence:P0})";
             Publish(ScannerRuntimeState.Uncertain, message, captureMode: mode);
             return false;
         }
@@ -140,17 +149,18 @@ public sealed partial class ScannerRuntimeService
         for (var index = 0; index < limit; index++)
         {
             var candidate = candidates[index];
-            if (candidate.StructuralScore < CandidateStructuralFloor || candidate.TitleImage is null)
+            if (candidate.StructuralScore < CandidateStructuralFloor)
                 continue;
 
             if (!HasTrustedTitleAnchors(candidate))
             {
+                LogAnchorRejection(mode, index, "ONESHOT_ORIGINAL", candidate);
                 var rejected = CreateAnchorFailure(candidate, index, "ONESHOT_ORIGINAL");
                 bestFailure = PickBetterFailure(bestFailure, rejected);
                 continue;
             }
 
-            var text = await _ocr.ReadTextAsync(candidate.TitleImage, cancellationToken);
+            var text = await _ocr.ReadTextAsync(candidate.TitleImage!, cancellationToken);
             var recognition = _catalog.ResolveOcrText(text, out var assessment);
             LogCandidateAttempt(mode, index, "ONESHOT_ORIGINAL", candidate, text, assessment.FilteredText, recognition);
             var result = CreateSearchResult(candidate, recognition, text, assessment.FilteredText, "ONESHOT_ORIGINAL", index, 0.82, 0.18);
@@ -165,18 +175,15 @@ public sealed partial class ScannerRuntimeService
         if (_ocr is IScannerDeepOcrEngine deepOcr)
         {
             // Unlike the 350ms continuous loop, one-shot mode intentionally spends
-            // more CPU once: every structural candidate receives deep OCR plus the
-            // OCR-independent visual recovery path.
+            // more CPU once: every semantic-ready candidate receives deep OCR plus the
+            // OCR-independent visual recovery path. Diagnostic-only candidates never do.
             for (var index = 0; index < limit; index++)
             {
                 var candidate = candidates[index];
-                if (candidate.StructuralScore < CandidateStructuralFloor || candidate.TitleImage is null)
+                if (candidate.StructuralScore < CandidateStructuralFloor || !HasTrustedTitleAnchors(candidate))
                     continue;
 
-                if (!HasTrustedTitleAnchors(candidate))
-                    continue;
-
-                var text = await deepOcr.ReadDeepTextAsync(candidate.TitleImage, cancellationToken);
+                var text = await deepOcr.ReadDeepTextAsync(candidate.TitleImage!, cancellationToken);
                 var recognition = _catalog.ResolveOcrText(text, out var assessment);
                 LogCandidateAttempt(mode, index, "ONESHOT_DEEP", candidate, text, assessment.FilteredText, recognition);
                 var result = CreateSearchResult(candidate, recognition, text, assessment.FilteredText, "ONESHOT_DEEP", index, 0.88, 0.12);
