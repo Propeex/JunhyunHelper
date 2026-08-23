@@ -2,7 +2,7 @@ name: Apply Scanner Live Ground Truth Calibration
 
 on:
   push:
-    branches: [scanner-live-header-ground-truth-fix]
+    branches: [main]
     paths:
       - '.github/workflows/scanner-live-gt-patch.yml'
 
@@ -62,7 +62,15 @@ jobs:
             var isHandle = u <= 0.52 && v >= 0.48 && Math.Abs((u + v) - 0.92) <= 0.13;
             var isOutside = radius >= 0.50 && !isHandle;
 '@
-          Replace-Exact $matcher '        // Normalize every candidate to [0,1]. The live 13x13 bright core is a circular`n        // lens plus a lower-right diagonal handle. Use soft bands so anti-aliasing and`n        // DPI resampling do not require exact pixels.' '        // Normalize every candidate to [0,1]. The live bright core is an upper-right`n        // circular lens plus a lower-left diagonal handle. Use soft bands so anti-aliasing`n        // and DPI resampling do not require exact pixels.'
+          Replace-Exact $matcher @'
+        // Normalize every candidate to [0,1]. The live 13x13 bright core is a circular
+        // lens plus a lower-right diagonal handle. Use soft bands so anti-aliasing and
+        // DPI resampling do not require exact pixels.
+'@ @'
+        // Normalize every candidate to [0,1]. The live bright core is an upper-right
+        // circular lens plus a lower-left diagonal handle. Use soft bands so anti-aliasing
+        // and DPI resampling do not require exact pixels.
+'@
 
           $detector = 'src/JunhyunHelper.Core/Scanner/ScannerDetailGeometryDetector.cs'
           Replace-Exact $detector @'
