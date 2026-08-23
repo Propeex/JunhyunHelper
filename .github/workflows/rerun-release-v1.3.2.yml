@@ -1,0 +1,39 @@
+name: Rerun Release v1.3.2 controller
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/rerun-release-v1.3.2.yml'
+
+permissions:
+  actions: write
+  contents: read
+
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  rerun:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Re-run latest exact-source v1.3.2 controller
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          payload="$(gh api "repos/$repo/actions/workflows/release-v1.3.2.yml/runs?per_page=1")"
+          run_id="$(jq -r '.workflow_runs[0].id // empty' <<<"$payload")"
+          status="$(jq -r '.workflow_runs[0].status // empty' <<<"$payload")"
+          conclusion="$(jq -r '.workflow_runs[0].conclusion // empty' <<<"$payload")"
+          if [[ -z "$run_id" ]]; then
+            echo 'No Release v1.3.2 workflow run exists to rerun.' >&2
+            exit 1
+          fi
+          echo "Latest release controller: run_id=$run_id status=$status conclusion=$conclusion"
+          if [[ "$status" != 'completed' ]]; then
+            echo 'Latest release controller is still running; no duplicate rerun started.'
+            exit 0
+          fi
+          gh api --method POST "repos/$repo/actions/runs/$run_id/rerun"
+          echo "Requested rerun of Release v1.3.2 run $run_id."
