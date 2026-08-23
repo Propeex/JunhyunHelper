@@ -95,6 +95,7 @@ diagnostics/
 
 현재 정책:
 
+- 상세창 탐지 실패 / header lock 실패: 대표 사례 보존
 - identity failure / fail-closed semantic 결과: 보존
 - 성공이지만 confidence < 0.93: 보존
 - 높은 confidence 정상 성공: title signature 기반 약 1/20 deterministic sampling
@@ -152,14 +153,17 @@ Scanner 탭의 `교정` 버튼은 최신 diagnostic frame을 엽니다.
 - program Item ID
 - user ground truth
 - confidence / second score / margin / pass / reason
-- error type
+- `pipeline.stage`: 실제 실행이 도달하거나 실패한 단계에 대한 관찰값
+- `ground_truth_error_type`: 사용자가 검증한 경우에만 존재하는 오류 라벨
 - current mapped presentation values when Item ID is available
 - artifact paths
 - reviewed/unreviewed 및 program-correct 상태
 
+`pipeline.stage`와 `ground_truth_error_type`은 서로 다른 의미입니다. 자동 Case가 상세창 탐지 단계에서 실패했다는 사실은 기록할 수 있지만, 사용자가 정답을 지정하지 않은 상태에서 그 실패의 진짜 원인을 Ground Truth 오류로 단정하지 않습니다.
+
 ## 8. 오류 분류
 
-자동 분류 enum:
+사용자 검증 Ground Truth에 적용 가능한 분류:
 
 - `DETAIL_WINDOW_DETECTION`
 - `FIELD_LOCALIZATION`
@@ -171,6 +175,17 @@ Scanner 탭의 `교정` 버튼은 최신 diagnostic frame을 엽니다.
 - `NONE`
 
 현재 사용자 교정으로 확실하게 판별할 수 있는 것은 detail/field/OCR/candidate 계열입니다. Parsing/Data Mapping은 해당 Ground Truth 입력이 실제로 존재할 때 사용합니다. 여러 층의 교정이 동시에 발생하면 원인을 억지로 단일 단계에 귀속하지 않고 `UNKNOWN_MULTIPLE`로 둡니다.
+
+자동/미검증 Case는 위 오류 라벨을 생성하지 않습니다. 대신 현재 구현은 관찰 가능한 파이프라인 상태를 다음처럼 기록합니다.
+
+- `DETAIL_WINDOW_DETECTION_FAILED`
+- `DETAIL_HEADER_LOCK_FAILED`
+- `OCR_OR_PREPROCESSING_FAILED`
+- `IDENTITY_MATCH_FAILED`
+- `FINALIZED`
+- `NOT_RUN`
+
+이 상태명은 문제 원인의 정답이 아니라 “프로그램이 어디까지 진행했는가”를 나타냅니다.
 
 ## 9. 일반 로그와 dataset 분리
 
@@ -211,16 +226,19 @@ ZIP은 dataset 전체와 export 시점의 scanner.log(.1)를 함께 포함합니
 dataset index rebuild 시 다음을 집계합니다.
 
 - total cases
-- reviewed cases
+- user-reviewed cases
+- final-result reviewed cases
 - reviewed program-correct cases
-- corrections
+- Ground Truth corrections
 - reviewed final accuracy
-- error type counts
-- ROI correction delta sample count
-- mean ΔX/ΔY/ΔW/ΔH
-- std ΔX/ΔY/ΔW/ΔH
+- 사용자 검증 Ground Truth 오류 유형별 건수
+- 자동/수동 전체 Case의 observed pipeline stage 건수
+- 상세보기 창 ROI 교정 offset 평균/표준편차
+- 아이템명 ROI 교정 offset 평균/표준편차
 
-초기 구현에서는 detail-window와 item-name ROI delta를 전체 ROI correction 통계로 함께 집계합니다. 충분한 실사용 표본이 생기면 필드별/detail별 통계를 분리하는 방향으로 확장합니다.
+ROI 통계는 detail-window와 item-name을 합치지 않습니다. 각각 독립적으로 `Samples`, 평균 `ΔX/ΔY/ΔW/ΔH`, 표준편차를 산출합니다.
+
+최종 정확도 분모는 단순 `reviewed cases` 전체가 아니라 실제 최종 아이템 판정의 맞음/틀림 여부가 존재하는 Case만 사용합니다. 영역만 교정했고 최종 아이템 정답을 확정하지 않은 Case가 최종 정확도를 인위적으로 낮추지 않도록 하기 위함입니다.
 
 ## 12. 전처리 evidence
 
@@ -298,6 +316,7 @@ OLD vs NEW
 
 - 한 번의 사용자 좌표 교정을 전역 offset으로 즉시 적용하지 않음
 - 자동 보존 unreviewed Case를 정답으로 학습하지 않음
+- 자동 보존 Case의 observed pipeline stage를 Ground Truth 오류 원인으로 취급하지 않음
 - 현재 존재하지 않는 숫자 OCR 필드를 문서 요구사항에 맞추기 위해 인위적으로 추가하지 않음
 - Ground Truth 없이 confidence/header/matcher threshold를 완화하지 않음
 - dataset persistence 실패를 Scanner identity 판정에 섞지 않음
