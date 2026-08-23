@@ -103,11 +103,8 @@ public sealed class ScannerItemMatcher
         }
 
         // A medium-length title can fall below the percentage floor from exactly one
-        // missing/substituted OCR glyph (for example 10/11 == 90.9%). Recover only when
-        // the one-edit candidate is unique across the complete current catalog AND is
-        // still clearly separated from the best global alternative. This exceptional
-        // path deliberately requires a wider margin than ordinary fuzzy matching so a
-        // nearby official name cannot be promoted merely because both are one edit away.
+        // missing/substituted OCR glyph. Recover only when the one-edit candidate is
+        // unique across the complete current catalog and clearly separated globally.
         if (official.Length >= 7 &&
             TryFindUniqueSingleEditCandidate(variants, out var singleEditIndex) &&
             singleEditIndex == match.BestIndex)
@@ -135,6 +132,93 @@ public sealed class ScannerItemMatcher
             match.SecondScore);
     }
 
+    /// <summary>
+    /// Resolves one unknown OCR glyph without guessing its character. The pattern uses
+    /// '?' for exactly one glyph that WinRT OCR rendered as impossible punctuation.
+    /// A result is accepted only when one current official name matches that exact slot
+    /// and no global alternative is within the conservative 10 percentage-point margin.
+    /// </summary>
+    public ScannerRecognition ResolveSingleUnknownGlyph(
+        string patternText,
+        double minimumMargin = 0.10)
+    {
+        if (_items.Length == 0)
+            return ScannerRecognition.Failed("NO_CATALOG");
+
+        var patterns = BuildPatternVariants(patternText);
+        if (patterns.Count == 0)
+            return ScannerRecognition.Failed("NO_UNKNOWN_GLYPH_PATTERN");
+
+        var exactMatches = new HashSet<int>();
+        foreach (var pattern in patterns)
+        {
+            if (pattern.Length < 7 || pattern.Count(character => character == ScannerOcrCharacterPolicy.UnknownGlyph) != 1)
+                continue;
+
+            for (var index = 0; index < _normalizedNames.Length; index++)
+            {
+                var official = _normalizedNames[index];
+                if (official.Length != pattern.Length || official.Length < 7)
+                    continue;
+                if (PatternMatchesExactly(official, pattern))
+                    exactMatches.Add(index);
+            }
+        }
+
+        if (exactMatches.Count != 1)
+            return ScannerRecognition.Failed(exactMatches.Count == 0
+                ? "UNKNOWN_GLYPH_NO_CANDIDATE"
+                : "UNKNOWN_GLYPH_AMBIGUOUS");
+
+        var bestIndex = exactMatches.Single();
+        var normalizedOfficial = _normalizedNames[bestIndex];
+        if (_nameCounts.TryGetValue(normalizedOfficial, out var duplicates) && duplicates > 1)
+        {
+            return new ScannerRecognition(
+                false,
+                "AMBIGUOUS_OFFICIAL_NAME",
+                _items[bestIndex].Id,
+                _items[bestIndex].OfficialName,
+                0,
+                0);
+        }
+
+        var second = 0.0;
+        foreach (var pattern in patterns)
+        {
+            for (var index = 0; index < _normalizedNames.Length; index++)
+            {
+                if (index == bestIndex || _normalizedNames[index].Length == 0)
+                    continue;
+                second = Math.Max(second, WildcardSimilarity(_normalizedNames[index], pattern));
+            }
+        }
+
+        var requiredMargin = Math.Max(0.10, minimumMargin);
+        if (1.0 - second < requiredMargin)
+        {
+            return new ScannerRecognition(
+                false,
+                "UNKNOWN_GLYPH_LOW_MARGIN",
+                _items[bestIndex].Id,
+                _items[bestIndex].OfficialName,
+                1.0 - 1.0 / Math.Max(1, normalizedOfficial.Length),
+                second);
+        }
+
+        // Report one unknown glyph as one unit of uncertainty even though the wildcard
+        // pattern structurally matched. This keeps diagnostics comparable to edit-based
+        // OCR confidence instead of pretending the OCR itself was exact.
+        var confidence = 1.0 - 1.0 / Math.Max(1, normalizedOfficial.Length);
+        return new ScannerRecognition(
+            true,
+            "UNKNOWN_GLYPH_1",
+            _items[bestIndex].Id,
+            _items[bestIndex].OfficialName,
+            confidence,
+            second);
+    }
+
     public static string Normalize(string input)
     {
         if (string.IsNullOrWhiteSpace(input))
@@ -149,6 +233,22 @@ public sealed class ScannerItemMatcher
                 builder.Append(character);
         }
 
+        return builder.ToString();
+    }
+
+    public static string NormalizePattern(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+            return string.Empty;
+
+        var normalized = input.Normalize(NormalizationForm.FormKC)
+            .ToLower(CultureInfo.InvariantCulture);
+        var builder = new StringBuilder(normalized.Length);
+        foreach (var character in normalized)
+        {
+            if (char.IsLetterOrDigit(character) || character == ScannerOcrCharacterPolicy.UnknownGlyph)
+                builder.Append(character);
+        }
         return builder.ToString();
     }
 
@@ -295,6 +395,43 @@ public sealed class ScannerItemMatcher
         }
     }
 
+    private static IReadOnlyList<string> BuildPatternVariants(string patternText)
+    {
+        if (string.IsNullOrWhiteSpace(patternText))
+            return [];
+
+        var variants = new HashSet<string>(StringComparer.Ordinal);
+        AddVariant(patternText);
+        foreach (var line in patternText.Split(
+                     ['\r', '\n', '|'],
+                     StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            AddVariant(line);
+        }
+        return variants.ToArray();
+
+        void AddVariant(string value)
+        {
+            var normalized = NormalizePattern(value);
+            if (normalized.Length >= 7 && normalized.Count(character => character == ScannerOcrCharacterPolicy.UnknownGlyph) == 1)
+                variants.Add(normalized);
+        }
+    }
+
+    private static bool PatternMatchesExactly(string official, string pattern)
+    {
+        if (official.Length != pattern.Length)
+            return false;
+        for (var index = 0; index < official.Length; index++)
+        {
+            if (pattern[index] == ScannerOcrCharacterPolicy.UnknownGlyph)
+                continue;
+            if (official[index] != pattern[index])
+                return false;
+        }
+        return true;
+    }
+
     private static HashSet<string> Bigrams(string value)
     {
         var result = new HashSet<string>(StringComparer.Ordinal);
@@ -323,7 +460,24 @@ public sealed class ScannerItemMatcher
             1);
     }
 
-    private static int EditDistance(string left, string right)
+    private static double WildcardSimilarity(string official, string pattern)
+    {
+        if (official.Length == 0 || pattern.Length == 0)
+            return 0;
+        var distance = WildcardEditDistance(official, pattern);
+        return Math.Clamp(
+            1.0 - (double)distance / Math.Max(official.Length, pattern.Length),
+            0,
+            1);
+    }
+
+    private static int EditDistance(string left, string right) =>
+        EditDistanceCore(left, right, wildcard: false);
+
+    private static int WildcardEditDistance(string left, string right) =>
+        EditDistanceCore(left, right, wildcard: true);
+
+    private static int EditDistanceCore(string left, string right, bool wildcard)
     {
         var previous = new int[right.Length + 1];
         var current = new int[right.Length + 1];
@@ -335,7 +489,11 @@ public sealed class ScannerItemMatcher
             current[0] = row;
             for (var column = 1; column <= right.Length; column++)
             {
-                var substitution = left[row - 1] == right[column - 1] ? 0 : 1;
+                var patternCharacter = right[column - 1];
+                var substitution = left[row - 1] == patternCharacter ||
+                                   (wildcard && patternCharacter == ScannerOcrCharacterPolicy.UnknownGlyph)
+                    ? 0
+                    : 1;
                 current[column] = Math.Min(
                     Math.Min(current[column - 1] + 1, previous[column] + 1),
                     previous[column - 1] + substitution);
