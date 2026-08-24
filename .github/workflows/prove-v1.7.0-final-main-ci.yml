@@ -1,0 +1,88 @@
+name: Prove v1.7.0 final main CI
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  record-final-ci:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact CI-tested commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Check final-release sentinel
+        id: sentinel
+        shell: bash
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          from pathlib import Path
+          path = Path('docs/.release-v1.7.0-status.json')
+          should_record = False
+          if path.exists():
+              try:
+                  data = json.loads(path.read_text(encoding='utf-8'))
+                  should_record = (
+                      data.get('version') == '1.7.0'
+                      and data.get('state') == 'PUBLIC_RELEASE_VERIFIED'
+                      and data.get('final_ci_requested') is True
+                  )
+              except Exception:
+                  should_record = False
+          print(f"should_record={'true' if should_record else 'false'}")
+          PY
+
+      - name: Checkout current main for proof commit
+        if: steps.sentinel.outputs.should_record == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Record successful final main CI and remove proof workflow
+        if: steps.sentinel.outputs.should_record == 'true'
+        shell: bash
+        env:
+          TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
+          TARGET_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor "$TARGET_SHA" HEAD
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          payload = {
+              'version': '1.7.0',
+              'final_main_ci_verified': True,
+              'ci_target_sha': os.environ['TARGET_SHA'],
+              'ci_run_id': int(os.environ['TARGET_RUN_ID']),
+              'ci_event': 'push',
+              'ci_conclusion': 'success',
+              'release_source_sha': '56e12342e3490fd0defa5f327a03d20d4f32b3a6',
+              'tests_expected_passed': 348,
+              'verified_at_utc': datetime.now(timezone.utc).isoformat(),
+          }
+          Path('docs/.v1.7.0-final-main-ci.json').write_text(
+              json.dumps(payload, ensure_ascii=False, indent=2) + '\n',
+              encoding='utf-8'
+          )
+          PY
+          git rm .github/workflows/prove-v1.7.0-final-main-ci.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/.v1.7.0-final-main-ci.json
+          git diff --cached --check
+          git commit -m 'Record v1.7.0 final main CI verification'
+          git push origin HEAD:main
