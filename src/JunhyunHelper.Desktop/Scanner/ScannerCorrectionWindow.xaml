@@ -2,10 +2,10 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Scanner 교정"
-        Width="1220"
-        Height="820"
-        MinWidth="820"
-        MinHeight="600"
+        Width="1260"
+        Height="900"
+        MinWidth="900"
+        MinHeight="680"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource BackgroundDarkBrush}">
     <Grid Margin="14">
@@ -48,35 +48,68 @@
                            TextWrapping="Wrap"
                            Margin="0,0,0,8" />
                 <TextBlock x:Name="InstructionText"
-                           Text="영역이 맞으면 건드리지 않아도 됩니다. 틀린 영역만 버튼을 누른 뒤 이미지에서 드래그하세요. 텍스트가 틀리면 정답 아이템명을 입력합니다."
+                           Text="각 영역은 Scanner가 실제 생성한 후보에서 정답을 선택하는 것이 기본입니다. 후보에 정답이 없으면 ‘직접 지정’을 선택해 이미지에서 드래그하고, 아예 검출되면 안 되는 항목은 ‘없음’을 선택하세요."
                            TextWrapping="Wrap"
                            Margin="0,0,0,10" />
-                <WrapPanel Margin="0,0,0,8">
-                    <Button x:Name="ConfirmButton"
-                            Content="맞음"
-                            MinWidth="84"
-                            Margin="0,0,8,8"
-                            Click="ConfirmButton_Click" />
-                    <Button x:Name="DetailCorrectionButton"
-                            Content="상세보기 영역 수정"
-                            MinWidth="138"
-                            Margin="0,0,8,8"
-                            Click="DetailCorrectionButton_Click" />
-                    <Button x:Name="TitleCorrectionButton"
-                            Content="아이템명 영역 수정"
-                            MinWidth="138"
-                            Margin="0,0,8,8"
-                            Click="TitleCorrectionButton_Click" />
-                    <Button x:Name="ResetCorrectionButton"
-                            Content="영역 수정 취소"
-                            MinWidth="112"
-                            Margin="0,0,8,8"
-                            Click="ResetCorrectionButton_Click" />
-                </WrapPanel>
-                <Grid>
+
+                <Border Background="{StaticResource BackgroundDarkBrush}"
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="10"
+                        Margin="0,0,0,10">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="150" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="150" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0"
+                                   Text="상세보기 창"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,8,8" />
+                        <ComboBox x:Name="DetailCandidateComboBox"
+                                  Grid.Row="0" Grid.Column="1"
+                                  Margin="0,0,18,8"
+                                  SelectionChanged="CandidateComboBox_SelectionChanged" />
+                        <TextBlock Grid.Row="0" Grid.Column="2"
+                                   Text="빨간 X"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,8,8" />
+                        <ComboBox x:Name="CloseCandidateComboBox"
+                                  Grid.Row="0" Grid.Column="3"
+                                  Margin="0,0,0,8"
+                                  SelectionChanged="CandidateComboBox_SelectionChanged" />
+
+                        <TextBlock Grid.Row="1" Grid.Column="0"
+                                   Text="돋보기"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,8,0" />
+                        <ComboBox x:Name="MagnifierCandidateComboBox"
+                                  Grid.Row="1" Grid.Column="1"
+                                  Margin="0,0,18,0"
+                                  SelectionChanged="CandidateComboBox_SelectionChanged" />
+                        <TextBlock Grid.Row="1" Grid.Column="2"
+                                   Text="아이템명 ROI"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,8,0" />
+                        <ComboBox x:Name="TitleCandidateComboBox"
+                                  Grid.Row="1" Grid.Column="3"
+                                  SelectionChanged="CandidateComboBox_SelectionChanged" />
+                    </Grid>
+                </Border>
+
+                <Grid Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
@@ -88,21 +121,56 @@
                              MinWidth="260"
                              VerticalContentAlignment="Center"
                              Margin="0,0,10,0" />
-                    <Button x:Name="SaveCorrectionButton"
+                    <Button x:Name="ConfirmButton"
                             Grid.Column="2"
-                            Content="텍스트/영역 교정 저장"
-                            MinWidth="154"
+                            Content="전부 맞음"
+                            MinWidth="94"
+                            Margin="0,0,8,0"
+                            Click="ConfirmButton_Click" />
+                    <Button x:Name="SaveCorrectionButton"
+                            Grid.Column="3"
+                            Content="교정 저장"
+                            MinWidth="104"
                             Margin="0,0,8,0"
                             Click="SaveCorrectionButton_Click" />
-                    <Button Grid.Column="3"
+                    <Button Grid.Column="4"
                             Content="닫기"
                             MinWidth="84"
                             Click="CloseButton_Click" />
                 </Grid>
+
+                <WrapPanel Margin="0,0,0,2">
+                    <Button x:Name="DetailCorrectionButton"
+                            Content="상세보기 직접 지정"
+                            MinWidth="138"
+                            Margin="0,0,8,6"
+                            Click="DetailCorrectionButton_Click" />
+                    <Button x:Name="CloseCorrectionButton"
+                            Content="빨간 X 직접 지정"
+                            MinWidth="132"
+                            Margin="0,0,8,6"
+                            Click="CloseCorrectionButton_Click" />
+                    <Button x:Name="MagnifierCorrectionButton"
+                            Content="돋보기 직접 지정"
+                            MinWidth="132"
+                            Margin="0,0,8,6"
+                            Click="MagnifierCorrectionButton_Click" />
+                    <Button x:Name="TitleCorrectionButton"
+                            Content="아이템명 직접 지정"
+                            MinWidth="138"
+                            Margin="0,0,8,6"
+                            Click="TitleCorrectionButton_Click" />
+                    <Button x:Name="ResetCorrectionButton"
+                            Content="선택 초기화"
+                            MinWidth="108"
+                            Margin="0,0,8,6"
+                            Click="ResetCorrectionButton_Click" />
+                </WrapPanel>
+
                 <TextBlock x:Name="SaveStatusText"
                            Foreground="{StaticResource TextSecondaryBrush}"
                            TextWrapping="Wrap"
-                           Margin="0,9,0,0" />
+                           Margin="0,5,0,0" />
             </StackPanel>
         </Border>
     </Grid>
