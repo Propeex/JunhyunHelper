@@ -4,47 +4,33 @@
 
 기준일: 2026-08-24
 
-상태: **`v1.5.0 PUBLIC RELEASE / VERIFIED`**
+상태: **`v1.6.0 RELEASE CANDIDATE / FINAL RELEASE GATE`**
 
-## 현재 공개 기준선
+## 공개 stable과 현재 source
+
+현재 공개 stable/latest는 아직 **v1.5.0**이다.
 
 ```text
 public stable/latest: v1.5.0
 exact release source/tag: 6de738959740d12e6ccb81b65e50006e463eb699
-asset: Junhyun-Helper-v1.5.0-win-x64.zip
-bytes: 80,422,292
-SHA-256: 6ad657653123ff35d8b6fe3d7f9877858992e9327697077492cf29f7c900e5e9
-ProductVersion: 1.5.0+6de738959740d12e6ccb81b65e50006e463eb699
-automated tests: 296 passed / 0 failed / 0 skipped
-release run: 32691423654 — SUCCESS
-independent public verifier: 32691641614 — SUCCESS
-public/latest: VERIFIED
-exact public tag source: VERIFIED
-public re-download: VERIFIED
-SHA256SUMS: VERIFIED
-package layout: VERIFIED
-public-downloaded EXE smoke: SUCCESS
+public verification: COMPLETE
 ```
 
-공식 공개 검증:
-
-- `docs/RELEASE_1.5.0.md`
-- `docs/.release-v1.5.0-status.json`
-- `docs/RELEASE_NOTES_V1.5.0.md`
+현재 저장소 작업 source는 **v1.6.0 release candidate**이며, 공개 release와 anonymous redownload 검증이 끝나기 전에는 public stable로 간주하지 않는다.
 
 ## Schema / compatibility
 
 ```text
-Desktop Version: 1.5.0
+Desktop target version: 1.6.0
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
-Scanner display settings schema: v5
+Scanner display settings schema: v6
 Scanner catalog cache: v1/v2 readable, v2 written
 Scanner Ground Truth: local diagnostics persistence
 ```
 
-v1.5.0은 기존 사용자 데이터 저장 위치를 변경하지 않는다. Program Update는 `%LocalAppData%/JunhyunHelper`의 user.db, content/image cache, Map/Ammo/Scanner 설정, Scanner logs/diagnostics를 교체하지 않는다.
+사용자 mutable data는 계속 `%LocalAppData%/JunhyunHelper`에 둔다. Program Update는 user.db, content/image cache, Map/Ammo/Scanner 설정, Scanner logs/diagnostics/Ground Truth를 덮어쓰지 않는다.
 
 ## 기능 상태
 
@@ -58,23 +44,31 @@ v1.5.0은 기존 사용자 데이터 저장 위치를 변경하지 않는다. Pr
 | Ammo | 구현 완료 |
 | Map + MiniMap | 구현 완료 / steady-state smoke 유지 |
 | Game Content Update | 구현 완료 |
-| Program Update | 구현 완료 / v1.5.0 public package verified |
-| Scanner + Mini Scanner | **v1.5.0 public verified / Ground Truth 기반 개선 지속** |
+| Program Update | 구현 완료 / v1.6 stable ZIP contract 반영 |
+| Scanner + Mini Scanner | **v1.6.0 RC 구현 완료 / final release gate** |
 
-## v1.5.0 핵심 변경
+## v1.6.0 핵심 변경
 
-- Scanner 최고 상점가/상인, flea avg24hPrice, slots, price-per-slot, RequiredTotal mapped-data 경로 보강
-- 일반 Game Data update와 Scanner item/market catalog refresh 통합
-- Quest `확인 필요` 최신 live-data 감사 및 GameMode-aware fail-closed task-pool compatibility
-- 사용자 OCR 문자열 치환 설정 추가; raw OCR forensic evidence 보존
-- candidate 기반 Ground Truth 교정 + manual rectangle / `없음` fallback
-- Scanner stage latency telemetry
-- 같은 scan-cycle 안의 exact-identical OCR bitmap만 재사용하는 보수적 최적화
-- continuous trusted-result 안정화
-- reviewed Ground Truth 보호 + automatic diagnostic/log bounded retention
-- Scanner normal/settings/advanced UI 분리
-- Mini Scanner 우클릭 `현재 결과 교정`
-- 전체 UI consistency audit 및 MainWindow 최소 폭 1180 보정
+- Scanner 일반 화면을 `스캐너 ON/OFF / 설정 / 고급` 중심으로 단순화
+- 하단을 local item search / Scanner recognition log 2분할로 구성
+- full-item catalog 검색, local cached icon/name, Wiki/flea/best trader/current needed presentation
+- Mini Scanner icon/name fixed header
+- Mini Scanner 다섯 정보 표시 여부 및 순서 저장
+- Scanner display settings schema v6 migration
+- 교정 image auto-fit + original pixel coordinate preservation
+- candidate box 직접 클릭 선택
+- manual rectangle / explicit `없음` fallback 유지
+- saved Case reopen / Ground Truth re-edit
+- stable user package `준현 헬퍼.zip` → `준현 헬퍼/`
+- CI에서 실제 stable ZIP 생성 및 내부 경로 검증
+
+공식 문서:
+
+- `docs/DECISION_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md`
+- `docs/STATUS_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md`
+- `docs/RELEASE_NOTES_V1.6.0.md`
+- `docs/SCANNER.md`
+- `docs/CURRENT_SCANNER_WORK.md`
 
 ## Scanner 안전 기준선
 
@@ -88,9 +82,10 @@ Tarkov window pixels
 → optional user substitution
 → catalog sanitation / normalization
 → conservative official-catalog matching / bounded recovery
+→ optional visual recovery
 → Item ID or fail closed
 → local mapped presentation
-→ Mini Scanner
+→ Scanner Page / Mini Scanner
 ```
 
 불변 계약:
@@ -106,62 +101,96 @@ Tarkov window pixels
 - price / slots / needed는 Item ID 이후 local mapped data
 - scan-time network 없음
 - game memory read / DLL injection / packet interception 없음
-- 자동 global r/0/한글 강제 substitution table 없음
+- automatic global forced substitution table 없음
+- cross-frame OCR cache 없음
 
-## OCR substitution
+## Scanner UI / hotkeys
 
-Scanner settings schema v5부터 사용자 소유 exact 문자열 치환을 지원한다.
+일반 surface:
+
+- Scanner ON/OFF
+- 설정
+- 고급
+- item search
+- recognition log
+
+기존 one-shot 기능은 hotkey로 유지한다.
 
 ```text
-raw OCR
-→ user substitutions (single pass)
-→ catalog sanitation / normalization
-→ matching
+1회 인게임 스캔: Ctrl+Shift+F10
+1회 테스트 스캔: Ctrl+Shift+F11
+Scanner ON/OFF: Ctrl+Shift+F12
 ```
 
-기본 규칙은 비어 있고, raw OCR은 별도로 보존한다. 재귀/연쇄 치환은 수행하지 않는다.
+## Mini Scanner schema v6
+
+항상 표시:
+
+- icon
+- official item name
+
+사용자 표시/순서 설정:
+
+- trader sell price
+- flea average price
+- trader price/slot
+- flea price/slot
+- current needed
+
+v5 이하 설정은 자동 migration하고 기존 hotkey/visibility/position/font size/OCR substitution data를 가능한 한 보존한다.
 
 ## Ground Truth / correction
 
-교정의 기본 경로는 detector candidate 선택이다.
+교정 image는 viewport 안에 auto-fit하지만 저장 ROI는 원본 pixel coordinate를 유지한다.
+
+Candidate-first fields:
 
 1. detail rectangle
 2. close-X
 3. magnifier
 4. item-name ROI
-5. 정답 item/text
-6. 저장
+5. correct item/text
 
-후보가 없으면 manual rectangle을 사용하며 semantic object가 실제로 없으면 `없음`으로 기록할 수 있다. Reviewed Ground Truth는 자동 retention 대상이 아니다.
+기본 선택 UX는 image 위 candidate box 직접 클릭이다.
+
+- 정답 candidate 없음 → manual rectangle
+- 실제 object 없음 → `없음`
+- saved Case → 다시 열기 / same Case ID로 재교정
+
+Reviewed Ground Truth는 자동 retention 대상이 아니다.
 
 ## Runtime stability / retention
 
-- 같은 검증 대상의 title-ink identity가 유지되면 일시적 pixel/OCR 흔들림으로 trusted result를 즉시 깜빡이지 않음
-- 명확한 다른 title/identity evidence에서는 stale result 즉시 해제
-- automatic unreviewed diagnostics: 30일 / 300건 / 512 MiB 상한
-- 최근 2시간 automatic case 보호
+- same-cycle exact-identical OCR bitmap만 reuse
+- cross-frame OCR cache 없음
+- title continuity signature는 Item identity proof가 아님
+- automatic unreviewed diagnostics: 30일 / 300건 / 512 MiB
+- recent 2시간 protection
 - Scanner/startup logs bounded rotation
 
-## 검증 상태
+## 검증 현황
 
-v1.5.0에서 확인 완료:
+v1.6 UI/기능 중간 gate CI `32700507526`:
 
-- final Release build
-- 296 tests / 0 failed / 0 skipped
-- Windows x64 self-contained single-file publish
-- exact ProductVersion / FIRST_RUN identity
-- Product UI / Scanner / Mini Scanner / Main Map / Factory / MiniMap smoke
-- graceful shutdown
-- draft asset re-download/hash/identity/EXE smoke
-- public/latest 전환
-- exact tag source verification
-- 독립 anonymous public ZIP + SHA256SUMS 재다운로드
-- public hash/size/layout/ProductVersion/FIRST_RUN 검증
-- public-downloaded EXE smoke + graceful shutdown
-- one-shot release/public verifier workflow cleanup
+- Desktop build SUCCESS
+- 296 / 296 tests SUCCESS
+- Windows x64 publish SUCCESS
+- Product UI / Scanner / Mini Scanner smoke SUCCESS
+- Main Map / Factory / MiniMap smoke SUCCESS
+- graceful shutdown SUCCESS
+- artifact upload SUCCESS
 
-## 현재 개발 방향
+이 성공 이후 1.6.0 version identity, FIRST_RUN, stable release ZIP CI gate, final docs를 추가했으므로 최신 HEAD에서 최종 CI를 다시 통과해야 한다.
 
-새 기능을 무분별하게 추가하는 단계가 아니다. v1.5.0을 공식 제품 기준선으로 유지하면서 실제 Tarkov 사용의 reviewed Ground Truth를 축적하고, 실패가 생기면 capture → proposal → semantic header → ROI → raw OCR → user substitution → catalog matching/visual recovery → mapped presentation → overlay 단계 중 원인을 특정해 필요한 단계만 수정한다.
+## 현재 남은 작업
 
-추가 Ground Truth 없이 generic confidence/margin/header threshold나 candidate cap을 완화하지 않는다.
+1. 최신 v1.6.0 HEAD final CI
+2. PR #174 merge
+3. main push CI
+4. exact release source/tag 고정
+5. public stable/latest v1.6.0 release
+6. `준현 헬퍼.zip` public redownload/hash/layout verification
+7. public-downloaded EXE ProductVersion / Product UI / Map / Scanner smoke
+8. final release status 기록
+
+공개 검증 후에는 새 기능 확장보다 live reviewed Ground Truth maintenance가 다시 기본 개발 단계가 된다.
