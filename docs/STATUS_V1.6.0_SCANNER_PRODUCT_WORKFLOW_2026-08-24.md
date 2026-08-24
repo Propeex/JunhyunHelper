@@ -24,9 +24,13 @@
 - 저장된 Case 재열기 및 재교정
 - 기존 candidate_selection / Ground Truth 복원
 - `준현 헬퍼.zip` / `준현 헬퍼/` stable package contract 추가
+- v1.6.0 updater가 stable Korean package를 우선 선택하고 wrapper folder를 안전하게 unwrap하도록 변경
+- legacy versioned package fallback 유지
+- 공백 포함 stable package filename을 정확히 읽는 SHA256SUMS parser 보완
+- v1.5.0 updater용 `Junhyun-Helper-v1.6.0-win-x64.zip` 일회성 bridge package 추가
 - Desktop target version 1.6.0 반영
 - FIRST_RUN v1.6.0 갱신
-- CI stable release ZIP 생성/검증 gate 추가
+- CI stable/bridge ZIP + SHA256SUMS 생성/검증 gate 추가
 
 ## 변경하지 않은 Scanner safety contract
 
@@ -55,7 +59,23 @@ HEAD 이전 smoke-fix 기준에서 다음이 모두 성공했다.
 - artifact upload: SUCCESS
 
 이 성공 후 release identity를 1.6.0으로 올리고 stable ZIP CI gate를 추가했다.
-따라서 최종 release candidate는 최신 HEAD에서 다시 전체 CI를 통과해야 한다.
+
+### CI 32703012551
+
+Program Update stable-package 전환과 checksum parser 수정 기준에서 다음 release gate가 성공했다.
+
+- Desktop build: SUCCESS
+- automated tests: 299 passed / 0 failed / 0 skipped
+- Windows x64 publish: SUCCESS
+- rendered Product UI / Scanner / Mini Scanner smoke: SUCCESS
+- Main Map / Factory / MiniMap smoke: SUCCESS
+- graceful shutdown: SUCCESS
+- stable `준현 헬퍼.zip` package gate: SUCCESS
+- v1.5 updater bridge ZIP gate: SUCCESS
+- stable/bridge SHA256SUMS verification: SUCCESS
+- artifact upload: SUCCESS
+
+이후 updater transition 규칙을 release/decision/status 문서에 명시했으므로 최종 HEAD는 문서 반영 후 CI를 한 번 더 통과해야 한다.
 
 ## 남은 release gate
 
@@ -65,13 +85,14 @@ HEAD 이전 smoke-fix 기준에서 다음이 모두 성공했다.
 4. exact release source 고정
 5. tag `v1.6.0`
 6. GitHub stable/latest release publish
-7. release asset `준현 헬퍼.zip` 업로드
-8. SHA-256 기록
+7. user-facing `준현 헬퍼.zip` + v1.5 bridge ZIP + `SHA256SUMS.txt` 업로드
+8. SHA-256 / size 기록
 9. anonymous/public exact-tag + latest release 확인
-10. public ZIP redownload
-11. ZIP 최상위 `준현 헬퍼/` 구조 확인
-12. public-downloaded EXE ProductVersion / Product UI / Map / Scanner smoke
-13. 최종 release status 문서 갱신
+10. public stable ZIP / bridge ZIP / SHA256SUMS redownload
+11. stable ZIP 최상위 `준현 헬퍼/` 구조 및 bridge legacy-root 구조 확인
+12. stable/bridge가 동일 v1.6.0 product payload를 담는지 검증
+13. public-downloaded EXE ProductVersion / Product UI / Map / Scanner smoke
+14. 최종 release status 문서 갱신
 
 ## v1.6.0 이후
 
