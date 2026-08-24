@@ -1,0 +1,11 @@
+{
+  "observed_at_utc": "2026-08-24T08:02:30.7201402Z",
+  "controller_run_id": 32703812076,
+  "controller_status": "completed",
+  "controller_conclusion": "failure",
+  "controller_head_sha": "e77846bb6b2254caa2a1623d77743365128541eb",
+  "verifier_run_id": 32704194181,
+  "verifier_status": "in_progress",
+  "verifier_conclusion": "",
+  "verifier_head_sha": "71fa87e3b76ed500e2ca24e114bfb8ed423a2883"
+}
