@@ -25,6 +25,7 @@ public sealed record ScannerCatalogDiagnostics(
 public sealed class ScannerCatalogService : IDisposable
 {
     public const int MinimumHealthyItemCount = 4000;
+    private const int CurrentCacheSchemaVersion = 3;
     private static readonly TimeSpan DefaultRefreshAge = TimeSpan.FromHours(12);
 
     private readonly HttpClient _httpClient;
@@ -38,6 +39,7 @@ public sealed class ScannerCatalogService : IDisposable
     private Dictionary<string, ScannerCatalogItem> _itemsById = new(StringComparer.Ordinal);
     private GameMode? _loadedMode;
     private DateTimeOffset? _generatedAtUtc;
+    private int _loadedCacheSchemaVersion;
     private ScannerCatalogDiagnostics _lastDiagnostics = new("not-run", 0, 0, 0, false);
     private bool _disposed;
 
@@ -77,6 +79,15 @@ public sealed class ScannerCatalogService : IDisposable
         }
     }
 
+    private int LoadedCacheSchemaVersion
+    {
+        get
+        {
+            lock (_dataGate)
+                return _loadedCacheSchemaVersion;
+        }
+    }
+
     public ScannerCatalogDiagnostics LastDiagnostics
     {
         get
@@ -90,6 +101,12 @@ public sealed class ScannerCatalogService : IDisposable
 
     public bool IsStale(TimeSpan? maximumAge = null)
     {
+        // v1/v2 caches remain readable so an offline upgrade can still recognize items,
+        // but they predate the static-API sellToTrader mapping and must be refreshed at
+        // the next online opportunity instead of being trusted as a fresh market cache.
+        if (LoadedCacheSchemaVersion < CurrentCacheSchemaVersion)
+            return true;
+
         var generated = GeneratedAtUtc;
         return generated is null || DateTimeOffset.UtcNow - generated.Value >= (maximumAge ?? DefaultRefreshAge);
     }
@@ -150,7 +167,7 @@ public sealed class ScannerCatalogService : IDisposable
                 return false;
             }
 
-            ReplaceData(mode, cache.Items, cache.GeneratedAtUtc);
+            ReplaceData(mode, cache.Items, cache.GeneratedAtUtc, cache.SchemaVersion);
             SetDiagnostics("cache-loaded", cache.Items, usedExistingCatalog: true);
             return true;
         }
@@ -211,8 +228,9 @@ public sealed class ScannerCatalogService : IDisposable
             var baseTask = DownloadStringAsync(root + "items", token);
             var koreanTask = DownloadStringAsync(root + "items_ko", token);
             var englishTask = TryDownloadStringAsync(root + "items_en", token);
+            var traderNamesTask = TryDownloadTraderNamesAsync(root, token);
 
-            await Task.WhenAll(new Task[] { baseTask, koreanTask, englishTask });
+            await Task.WhenAll(new Task[] { baseTask, koreanTask, englishTask, traderNamesTask });
 
             using var baseDocument = JsonDocument.Parse(await baseTask);
             using var koreanDocument = JsonDocument.Parse(await koreanTask);
@@ -225,14 +243,18 @@ public sealed class ScannerCatalogService : IDisposable
             var english = englishDocument is null
                 ? new Dictionary<string, string>(StringComparer.Ordinal)
                 : ReadTranslationDictionary(englishDocument.RootElement);
-            var items = ParseItems(baseDocument.RootElement, korean, english);
+            var items = ParseItems(
+                baseDocument.RootElement,
+                korean,
+                english,
+                await traderNamesTask);
             if (!IsHealthyItemSet(items))
                 return CompleteFailedRefresh(mode, "identity-invalid", items);
 
             var generatedAt = DateTimeOffset.UtcNow;
             var cache = new ScannerCatalogCache
             {
-                SchemaVersion = 2,
+                SchemaVersion = CurrentCacheSchemaVersion,
                 Source = "https://json.tarkov.dev",
                 Language = "ko",
                 GameMode = modeKey,
@@ -249,7 +271,7 @@ public sealed class ScannerCatalogService : IDisposable
             if (!IsHealthyCache(verified, mode))
                 return CompleteFailedRefresh(mode, "cache-readback-invalid", verified.Items);
 
-            ReplaceData(mode, verified.Items, verified.GeneratedAtUtc);
+            ReplaceData(mode, verified.Items, verified.GeneratedAtUtc, verified.SchemaVersion);
             SetDiagnostics("success", verified.Items);
             DataChanged?.Invoke();
             return true;
@@ -355,6 +377,51 @@ public sealed class ScannerCatalogService : IDisposable
         }
     }
 
+    private async Task<IReadOnlyDictionary<string, string>> TryDownloadTraderNamesAsync(
+        string root,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var baseTask = TryDownloadStringAsync(root + "traders", cancellationToken);
+            var koreanTask = TryDownloadStringAsync(root + "traders_ko", cancellationToken);
+            var englishTask = TryDownloadStringAsync(root + "traders_en", cancellationToken);
+            await Task.WhenAll(new Task[] { baseTask, koreanTask, englishTask });
+
+            var baseJson = await baseTask;
+            if (string.IsNullOrWhiteSpace(baseJson))
+                return new Dictionary<string, string>(StringComparer.Ordinal);
+
+            using var baseDocument = JsonDocument.Parse(baseJson);
+            var koreanJson = await koreanTask;
+            using var koreanDocument = string.IsNullOrWhiteSpace(koreanJson)
+                ? null
+                : JsonDocument.Parse(koreanJson);
+            var englishJson = await englishTask;
+            using var englishDocument = string.IsNullOrWhiteSpace(englishJson)
+                ? null
+                : JsonDocument.Parse(englishJson);
+
+            var korean = koreanDocument is null
+                ? new Dictionary<string, string>(StringComparer.Ordinal)
+                : ReadTranslationDictionary(koreanDocument.RootElement);
+            var english = englishDocument is null
+                ? new Dictionary<string, string>(StringComparer.Ordinal)
+                : ReadTranslationDictionary(englishDocument.RootElement);
+            return ReadTraderNames(baseDocument.RootElement, korean, english);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (exception is HttpRequestException or JsonException or InvalidDataException)
+        {
+            // Friendly trader names enrich presentation only. A missing/changed trader
+            // endpoint must never disable an otherwise valid item identity/market cache.
+            return new Dictionary<string, string>(StringComparer.Ordinal);
+        }
+    }
+
     private bool CompleteFailedRefresh(
         GameMode mode,
         string outcome,
@@ -385,7 +452,8 @@ public sealed class ScannerCatalogService : IDisposable
     private void ReplaceData(
         GameMode mode,
         IReadOnlyList<ScannerCatalogItem> items,
-        DateTimeOffset generatedAtUtc)
+        DateTimeOffset generatedAtUtc,
+        int schemaVersion)
     {
         var byId = items
             .Where(item => !string.IsNullOrWhiteSpace(item.Id) && !string.IsNullOrWhiteSpace(item.OfficialName))
@@ -396,6 +464,7 @@ public sealed class ScannerCatalogService : IDisposable
         {
             _loadedMode = mode;
             _generatedAtUtc = generatedAtUtc;
+            _loadedCacheSchemaVersion = schemaVersion;
             _itemsById = byId;
             _matcher.ReplaceCatalog(byId.Values);
             _ocrPolicy.ReplaceCatalog(byId.Values);
@@ -408,6 +477,7 @@ public sealed class ScannerCatalogService : IDisposable
         {
             _loadedMode = mode;
             _generatedAtUtc = null;
+            _loadedCacheSchemaVersion = 0;
             _itemsById = new Dictionary<string, ScannerCatalogItem>(StringComparer.Ordinal);
             _matcher.ReplaceCatalog([]);
             _ocrPolicy.ReplaceCatalog([]);
@@ -421,7 +491,8 @@ public sealed class ScannerCatalogService : IDisposable
     }
 
     private static bool IsHealthyCache(ScannerCatalogCache cache, GameMode mode) =>
-        cache.SchemaVersion is 1 or 2 &&
+        cache.SchemaVersion >= 1 &&
+        cache.SchemaVersion <= CurrentCacheSchemaVersion &&
         string.Equals(cache.Source, "https://json.tarkov.dev", StringComparison.Ordinal) &&
         string.Equals(cache.Language, "ko", StringComparison.OrdinalIgnoreCase) &&
         string.Equals(cache.GameMode, mode.ToDataKey(), StringComparison.Ordinal) &&
@@ -449,10 +520,40 @@ public sealed class ScannerCatalogService : IDisposable
         return result;
     }
 
-    private static List<ScannerCatalogItem> ParseItems(
+    private static IReadOnlyDictionary<string, string> ReadTraderNames(
         JsonElement envelope,
         IReadOnlyDictionary<string, string> koreanTranslations,
         IReadOnlyDictionary<string, string> englishTranslations)
+    {
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (!envelope.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Object)
+            return result;
+
+        foreach (var property in data.EnumerateObject())
+        {
+            if (property.Value.ValueKind != JsonValueKind.Object)
+                continue;
+
+            var id = GetString(property.Value, "id");
+            if (string.IsNullOrWhiteSpace(id))
+                id = property.Name;
+            var nameKey = GetString(property.Value, "name");
+            if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(nameKey))
+                continue;
+
+            var name = Translate(nameKey, koreanTranslations, englishTranslations);
+            if (!string.IsNullOrWhiteSpace(name))
+                result[id] = name;
+        }
+
+        return result;
+    }
+
+    private static List<ScannerCatalogItem> ParseItems(
+        JsonElement envelope,
+        IReadOnlyDictionary<string, string> koreanTranslations,
+        IReadOnlyDictionary<string, string> englishTranslations,
+        IReadOnlyDictionary<string, string> traderNames)
     {
         if (!envelope.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Object)
             throw new InvalidDataException("Scanner items.data is missing.");
@@ -483,42 +584,56 @@ public sealed class ScannerCatalogService : IDisposable
                 continue;
 
             var shortName = Translate(GetString(raw, "shortName"), koreanTranslations, englishTranslations);
+            var bestTrader = ReadBestTraderSellOffer(raw);
             result.Add(new ScannerCatalogItem(
                 id,
                 officialName,
                 shortName,
                 NullIfEmpty(GetString(raw, "iconLink")),
                 PositiveOrNull(GetInt(raw, "avg24hPrice")),
-                ReadBestTraderSellPrice(raw),
+                bestTrader?.PriceRoubles,
                 PositiveDimensionOrZero(GetInt(raw, "width")),
-                PositiveDimensionOrZero(GetInt(raw, "height"))));
+                PositiveDimensionOrZero(GetInt(raw, "height")))
+            {
+                BestTraderId = bestTrader?.TraderId,
+                BestTraderName = ResolveTraderDisplayName(bestTrader, traderNames),
+            });
         }
 
         return result;
     }
 
-    private static int? ReadBestTraderSellPrice(JsonElement item)
+    private static TraderSellOffer? ReadBestTraderSellOffer(JsonElement item)
     {
-        // json.tarkov.dev exposes raw traderPrices in its item data. The GraphQL layer
-        // currently derives sellFor from traderPrices and appends a flea row. Accept both
-        // representations so the Scanner is insulated from which layer produced a dump.
+        // The current json.tarkov.dev static /items endpoint maps its internal
+        // traderPrices to sellToTrader and deletes traderPrices before publishing.
+        // Prefer that public shape, while retaining compatibility with historical raw
+        // dumps and the GraphQL sellFor representation.
+        if (item.TryGetProperty("sellToTrader", out var sellToTrader) &&
+            sellToTrader.ValueKind == JsonValueKind.Array)
+        {
+            var staticBest = ReadBestOffer(sellToTrader, excludeFlea: false);
+            if (staticBest is not null)
+                return staticBest;
+        }
+
         if (item.TryGetProperty("traderPrices", out var traderPrices) &&
             traderPrices.ValueKind == JsonValueKind.Array)
         {
-            var rawTraderBest = ReadBestOfferPrice(traderPrices, excludeFlea: false);
-            if (rawTraderBest.HasValue)
+            var rawTraderBest = ReadBestOffer(traderPrices, excludeFlea: false);
+            if (rawTraderBest is not null)
                 return rawTraderBest;
         }
 
         if (item.TryGetProperty("sellFor", out var sellFor) && sellFor.ValueKind == JsonValueKind.Array)
-            return ReadBestOfferPrice(sellFor, excludeFlea: true);
+            return ReadBestOffer(sellFor, excludeFlea: true);
 
         return null;
     }
 
-    private static int? ReadBestOfferPrice(JsonElement offers, bool excludeFlea)
+    private static TraderSellOffer? ReadBestOffer(JsonElement offers, bool excludeFlea)
     {
-        int? best = null;
+        TraderSellOffer? best = null;
         foreach (var offer in offers.EnumerateArray())
         {
             if (offer.ValueKind != JsonValueKind.Object)
@@ -540,11 +655,65 @@ public sealed class ScannerCatalogService : IDisposable
                 }
             }
 
-            if (roubles is > 0 && (!best.HasValue || roubles.Value > best.Value))
-                best = roubles.Value;
+            if (roubles is not > 0 || best is not null && roubles.Value <= best.PriceRoubles)
+                continue;
+
+            best = new TraderSellOffer(
+                roubles.Value,
+                NullIfEmpty(ReadTraderId(offer)),
+                NullIfEmpty(source));
         }
 
         return best;
+    }
+
+    private static string ReadTraderId(JsonElement offer)
+    {
+        var direct = GetString(offer, "trader");
+        if (!string.IsNullOrWhiteSpace(direct))
+            return direct;
+
+        if (offer.TryGetProperty("vendor", out var vendor) && vendor.ValueKind == JsonValueKind.Object)
+        {
+            var trader = GetString(vendor, "trader");
+            if (!string.IsNullOrWhiteSpace(trader))
+                return trader;
+            var id = GetString(vendor, "id");
+            if (!string.IsNullOrWhiteSpace(id))
+                return id;
+        }
+
+        if (offer.TryGetProperty("source", out var source) && source.ValueKind == JsonValueKind.Object)
+        {
+            var trader = GetString(source, "trader");
+            if (!string.IsNullOrWhiteSpace(trader))
+                return trader;
+            return GetString(source, "id");
+        }
+
+        return string.Empty;
+    }
+
+    private static string? ResolveTraderDisplayName(
+        TraderSellOffer? offer,
+        IReadOnlyDictionary<string, string> traderNames)
+    {
+        if (offer is null)
+            return null;
+        if (!string.IsNullOrWhiteSpace(offer.TraderId) &&
+            traderNames.TryGetValue(offer.TraderId, out var name) &&
+            !string.IsNullOrWhiteSpace(name))
+        {
+            return name;
+        }
+
+        if (!string.IsNullOrWhiteSpace(offer.SourceName) &&
+            !offer.SourceName.Contains("flea", StringComparison.OrdinalIgnoreCase))
+        {
+            return offer.SourceName;
+        }
+
+        return null;
     }
 
     private static string ReadSourceName(JsonElement offer)
@@ -633,6 +802,11 @@ public sealed class ScannerCatalogService : IDisposable
         // may still execute its finally block and release the gate during app shutdown.
         GC.SuppressFinalize(this);
     }
+
+    private sealed record TraderSellOffer(
+        int PriceRoubles,
+        string? TraderId,
+        string? SourceName);
 
     private sealed class ScannerCatalogCache
     {
