@@ -1,0 +1,273 @@
+name: Finalize v1.6.0 Public Docs v3
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/finalize-v1.6.0-public-docs-v3.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Update canonical public release state
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          EXACT = "e18c108380572913552030aa677bba06ebf49355"
+          STABLE_HASH = "f9384ff49d522afb5976efe291ff932d66063dcfeee64b0aed7a5daa691a12c5"
+          BRIDGE_HASH = "3f05b20ccbd7463fb590889042b1b706290a88e0568cd00c3b2fa23cf966dfc8"
+
+          def read(path):
+              return Path(path).read_text(encoding="utf-8")
+
+          def write(path, text):
+              Path(path).write_text(text, encoding="utf-8", newline="\n")
+
+          def replace_required(text, old, new, label):
+              if old not in text:
+                  raise RuntimeError(f"required text not found: {label}")
+              return text.replace(old, new, 1)
+
+          def regex_required(text, pattern, replacement, label):
+              updated, count = re.subn(pattern, replacement, text, count=1, flags=re.S)
+              if count != 1:
+                  raise RuntimeError(f"required regex did not match exactly once: {label} count={count}")
+              return updated
+
+          def add_release_record(text):
+              target = "- `docs/RELEASE_NOTES_V1.6.0.md`"
+              record = "- `docs/RELEASE_1.6.0.md`"
+              if record in text:
+                  return text
+              if target not in text:
+                  raise RuntimeError("release notes link not found")
+              return text.replace(target, target + "\n" + record, 1)
+
+          # README
+          p = "README.md"
+          t = read(p)
+          t = regex_required(
+              t,
+              r"현재 공개 stable/latest는 \*\*v1\.5\.0\*\*이며, 저장소의 현재 작업은 \*\*v1\.6\.0 release candidate\*\*입니다\.\s*"
+              r"v1\.6\.0은 최종 CI와 공개 릴리즈 검증이 끝나기 전까지 public stable로 간주하지 않습니다\.\s*"
+              r"현재 v1\.6\.0 release candidate 기준:",
+              "현재 공개 stable/latest는 **v1.6.0**이며, public release와 anonymous redownload/product smoke 검증까지 완료되었습니다.\n\n현재 v1.6.0 public release 기준:",
+              "README release state",
+          )
+          t = t.replace("automated test suite: 296 tests", "automated test suite: 299 tests")
+          t = regex_required(
+              t,
+              r"마지막 공개 검증 기준선 v1\.5\.0:\s*```text.*?```",
+              "\n".join([
+                  "현재 공개 검증 기준선 v1.6.0:",
+                  "",
+                  "```text",
+                  f"exact release source/tag: {EXACT}",
+                  "stable asset: Junhyun-Helper.zip",
+                  "stable bytes: 80,425,013",
+                  f"stable SHA-256: {STABLE_HASH}",
+                  "v1.5 bridge asset: Junhyun-Helper-v1.6.0-win-x64.zip",
+                  "bridge bytes: 80,424,089",
+                  f"bridge SHA-256: {BRIDGE_HASH}",
+                  "299 passed / 0 failed / 0 skipped",
+                  "public/latest: VERIFIED",
+                  "public-downloaded EXE smoke: SUCCESS",
+                  "```",
+              ]),
+              "README public baseline",
+          )
+          t = add_release_record(t)
+          write(p, t)
+
+          # STATE
+          p = "docs/STATE.md"
+          t = read(p)
+          t = replace_required(
+              t,
+              "상태: **v1.6.0 RELEASE CANDIDATE / FINAL RELEASE GATE**",
+              "상태: **v1.6.0 PUBLIC RELEASE / VERIFIED — LIVE GROUND TRUTH MAINTENANCE**",
+              "STATE status",
+          )
+          t = regex_required(
+              t,
+              r"## 2\. 공개 stable과 현재 release candidate.*?Schema / compatibility:",
+              "\n".join([
+                  "## 2. 공개 stable과 현재 source",
+                  "",
+                  "현재 public stable/latest는 **v1.6.0**이다.",
+                  "",
+                  "```text",
+                  f"exact release source/tag: {EXACT}",
+                  "stable asset: Junhyun-Helper.zip",
+                  "stable bytes: 80,425,013",
+                  f"stable SHA-256: {STABLE_HASH}",
+                  "v1.5 bridge asset: Junhyun-Helper-v1.6.0-win-x64.zip",
+                  "bridge bytes: 80,424,089",
+                  f"bridge SHA-256: {BRIDGE_HASH}",
+                  "release verification run: 32710012954",
+                  "299 passed / 0 failed / 0 skipped",
+                  "public/latest: VERIFIED",
+                  "anonymous public redownload + EXE smoke: SUCCESS",
+                  "```",
+                  "",
+                  "현재 `main`은 public v1.6.0 exact source 이후의 release-record/housekeeping commit을 포함할 수 있다. 공개 v1.6.0 제품 source의 권위는 tag `v1.6.0`과 위 exact source SHA다.",
+                  "",
+                  "Schema / compatibility:",
+              ]),
+              "STATE release section",
+          )
+          t = add_release_record(t)
+          write(p, t)
+
+          # CURRENT_STATE
+          p = "docs/CURRENT_STATE.md"
+          t = read(p)
+          t = replace_required(
+              t,
+              "상태: **`v1.6.0 RELEASE CANDIDATE / FINAL RELEASE GATE`**",
+              "상태: **`v1.6.0 PUBLIC RELEASE / VERIFIED — LIVE GROUND TRUTH MAINTENANCE`**",
+              "CURRENT_STATE status",
+          )
+          t = regex_required(
+              t,
+              r"## 공개 stable과 현재 source.*?## Schema / compatibility",
+              "\n".join([
+                  "## 공개 stable과 현재 source",
+                  "",
+                  "현재 공개 stable/latest는 **v1.6.0**이다.",
+                  "",
+                  "```text",
+                  "public stable/latest: v1.6.0",
+                  f"exact release source/tag: {EXACT}",
+                  "stable asset: Junhyun-Helper.zip",
+                  "stable bytes: 80,425,013",
+                  f"stable SHA-256: {STABLE_HASH}",
+                  "v1.5 bridge: Junhyun-Helper-v1.6.0-win-x64.zip",
+                  "bridge bytes: 80,424,089",
+                  f"bridge SHA-256: {BRIDGE_HASH}",
+                  "299 passed / 0 failed / 0 skipped",
+                  "public verification run: 32710012954 — SUCCESS",
+                  "public-downloaded EXE smoke: SUCCESS",
+                  "```",
+                  "",
+                  "`main`의 후속 문서/housekeeping commit은 release source가 아니다. v1.6.0 제품 source는 tag `v1.6.0`의 exact SHA로 고정한다.",
+                  "",
+                  "## Schema / compatibility",
+              ]),
+              "CURRENT_STATE release section",
+          )
+          t = t.replace(
+              "| Scanner + Mini Scanner | **v1.6.0 RC 구현 완료 / final release gate** |",
+              "| Scanner + Mini Scanner | **v1.6.0 공개 검증 완료 / live Ground Truth maintenance** |",
+          )
+          t = add_release_record(t)
+          write(p, t)
+
+          # CURRENT_SCANNER_WORK
+          p = "docs/CURRENT_SCANNER_WORK.md"
+          t = read(p)
+          t = replace_required(
+              t,
+              "상태: **v1.6.0 RELEASE CANDIDATE — FINAL RELEASE GATE**",
+              "상태: **v1.6.0 PUBLIC RELEASE / VERIFIED — LIVE GROUND TRUTH MAINTENANCE**",
+              "CURRENT_SCANNER_WORK status",
+          )
+          t = regex_required(
+              t,
+              r"현재 Scanner 개발은 v1\.6\.0 사용자 작업 흐름 정리를 구현한 뒤 최종 릴리즈 검증 단계에 있다\.\s*"
+              r"v1\.6\.0 release가 공개 검증되면 다시 \*\*LIVE GROUND TRUTH MAINTENANCE\*\* 단계로 돌아간다\.",
+              "Scanner v1.6.0 사용자 작업 흐름 정리와 공개 릴리즈 검증이 완료되었다.\n\n현재 단계는 **LIVE GROUND TRUTH MAINTENANCE**다. 실사용에서 수집된 reviewed Ground Truth를 기준으로 실패 stage만 수정하고 전체 reviewed replay에서 REGRESSION=0을 유지한다.",
+              "CURRENT_SCANNER_WORK phase",
+          )
+          t = add_release_record(t)
+          write(p, t)
+
+          # v1.6 STATUS
+          p = "docs/STATUS_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md"
+          t = read(p)
+          t = replace_required(
+              t,
+              "상태: `IMPLEMENTED / RELEASE CANDIDATE`",
+              "상태: `IMPLEMENTED / PUBLIC RELEASE VERIFIED`",
+              "v1.6 status",
+          )
+          t = t.replace(
+              "v1.6.0 updater가 stable Korean package를 우선 선택하고 wrapper folder를 안전하게 unwrap하도록 변경",
+              "v1.6.0 updater가 stable `Junhyun-Helper.zip` package를 우선 선택하고 `준현 헬퍼/` wrapper folder를 안전하게 unwrap하도록 변경",
+          )
+          t = regex_required(
+              t,
+              r"## 남은 release gate.*?## v1\.6\.0 이후",
+              "\n".join([
+                  "## 최종 release verification",
+                  "",
+                  "교정 PR #175 HEAD `ad7f4259a44c72902fba452adbbcfd4c540ae577`는 CI `32708999577`에서 전체 release gate를 통과했다.",
+                  "",
+                  "- Desktop build: SUCCESS",
+                  "- automated tests: 299 passed / 0 failed / 0 skipped",
+                  "- Windows x64 publish: SUCCESS",
+                  "- rendered Product UI / Scanner / Mini Scanner smoke: SUCCESS",
+                  "- Main Map / Factory / MiniMap smoke: SUCCESS",
+                  "- graceful shutdown: SUCCESS",
+                  "- stable/bridge package + checksum gate: SUCCESS",
+                  "",
+                  "최종 제품 source:",
+                  "",
+                  "```text",
+                  f"v1.6.0 exact release source/tag: {EXACT}",
+                  f"ProductVersion: 1.6.0+{EXACT}",
+                  "```",
+                  "",
+                  "초기 final controller `32709414932`는 build/test/publish/package/product smoke/tag retarget/draft asset 교체까지 성공했으나 draft manifest 비교용 PowerShell 코드의 `TrimStart` 인자 오류에서 fail closed했다. 이때 stable/latest 공개는 수행하지 않았다.",
+                  "",
+                  "Recovery/final public verification run `32710012954`는 성공했다.",
+                  "",
+                  "```text",
+                  "stable asset: Junhyun-Helper.zip",
+                  "stable bytes: 80,425,013",
+                  f"stable SHA-256: {STABLE_HASH}",
+                  "v1.5 bridge: Junhyun-Helper-v1.6.0-win-x64.zip",
+                  "bridge bytes: 80,424,089",
+                  f"bridge SHA-256: {BRIDGE_HASH}",
+                  "public/latest: VERIFIED",
+                  "anonymous public redownload: VERIFIED",
+                  "public ProductVersion: VERIFIED",
+                  "public-downloaded EXE Product UI/Scanner/Mini Scanner/Map smoke: SUCCESS",
+                  "graceful shutdown / clean portable root: SUCCESS",
+                  "verified_at_utc: 2026-08-24T09:10:44.9630720Z",
+                  "```",
+                  "",
+                  "Durable release record:",
+                  "",
+                  "- `docs/.release-v1.6.0-status.json`",
+                  "- `docs/RELEASE_1.6.0.md`",
+                  "",
+                  "## v1.6.0 이후",
+              ]),
+              "v1.6 final verification",
+          )
+          write(p, t)
+          PY
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add README.md docs/STATE.md docs/CURRENT_STATE.md docs/CURRENT_SCANNER_WORK.md docs/STATUS_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md
+          if git diff --cached --quiet; then
+            echo 'No release documentation changes were produced.' >&2
+            exit 1
+          fi
+          git commit -m 'Finalize v1.6.0 public release documentation'
+          git push origin HEAD:main
