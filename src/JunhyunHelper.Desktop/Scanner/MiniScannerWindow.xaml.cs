@@ -68,12 +68,12 @@ public partial class MiniScannerWindow : Window
 
     private void ApplySnapshot(ScannerItemSnapshot snapshot, ScannerDisplaySettings settings)
     {
-        ItemIcon.Visibility = settings.ShowItemIcon && snapshot.Icon is not null
-            ? Visibility.Visible
-            : Visibility.Collapsed;
-        ItemIcon.Source = ItemIcon.Visibility == Visibility.Visible ? snapshot.Icon : null;
+        // Icon and item name are the fixed Mini Scanner identity header. They are never
+        // hidden by user settings; missing icon data leaves the reserved icon area empty.
+        ItemIcon.Visibility = Visibility.Visible;
+        ItemIcon.Source = snapshot.Icon;
+        ConfigureLine(ItemNameText, true, snapshot.OfficialName, settings.FontSize);
 
-        ConfigureLine(ItemNameText, settings.ShowItemName, snapshot.OfficialName, settings.FontSize);
         ConfigureLine(
             TraderPriceText,
             settings.ShowTraderSellPrice && snapshot.TraderSellPrice.HasValue,
@@ -101,12 +101,41 @@ public partial class MiniScannerWindow : Window
             settings.ShowCurrentNeeded,
             $"필요  {snapshot.CurrentNeeded.ToString("N0", CultureInfo.InvariantCulture)}",
             settings.FontSize);
+
+        ApplyInformationOrder(settings);
+    }
+
+    private void ApplyInformationOrder(ScannerDisplaySettings settings)
+    {
+        var controls = new Dictionary<string, TextBlock>(StringComparer.Ordinal)
+        {
+            [ScannerDisplaySettings.TraderSellPriceField] = TraderPriceText,
+            [ScannerDisplaySettings.FleaAveragePriceField] = FleaPriceText,
+            [ScannerDisplaySettings.TraderPricePerSlotField] = TraderSlotPriceText,
+            [ScannerDisplaySettings.FleaPricePerSlotField] = FleaSlotPriceText,
+            [ScannerDisplaySettings.CurrentNeededField] = CurrentNeededText,
+        };
+
+        InfoStackPanel.Children.Clear();
+        foreach (var key in settings.MiniScannerInfoOrder)
+        {
+            if (controls.Remove(key, out var control))
+                InfoStackPanel.Children.Add(control);
+        }
+
+        // Defensive compatibility for malformed/older settings passed directly to the
+        // window without normalization. Every known row still remains reachable.
+        foreach (var key in ScannerDisplaySettings.DefaultInfoOrder)
+        {
+            if (controls.Remove(key, out var control))
+                InfoStackPanel.Children.Add(control);
+        }
     }
 
     private static string TraderPriceLabel(ScannerItemSnapshot snapshot) =>
         string.IsNullOrWhiteSpace(snapshot.BestTraderName)
-            ? "최고 상점가"
-            : $"최고 상점가 · {snapshot.BestTraderName}";
+            ? "상인"
+            : snapshot.BestTraderName.Trim();
 
     private void ShowAndPosition(ScannerDisplaySettings settings)
     {

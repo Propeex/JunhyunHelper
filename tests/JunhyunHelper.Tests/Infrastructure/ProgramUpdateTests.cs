@@ -12,39 +12,72 @@ public sealed class ProgramUpdateTests
 {
     private const string StableReleaseJson = """
         {
-          "tag_name": "v0.1.14",
+          "tag_name": "v1.6.0",
           "draft": false,
           "prerelease": false,
           "assets": [
             {
-              "name": "Junhyun-Helper-v0.1.14-win-x64.zip",
-              "browser_download_url": "https://github.com/Propeex/JunhyunHelper/releases/download/v0.1.14/Junhyun-Helper-v0.1.14-win-x64.zip"
+              "name": "준현 헬퍼.zip",
+              "browser_download_url": "https://github.com/Propeex/JunhyunHelper/releases/download/v1.6.0/%EC%A4%80%ED%98%84%20%ED%97%AC%ED%8D%BC.zip"
+            },
+            {
+              "name": "Junhyun-Helper-v1.6.0-win-x64.zip",
+              "browser_download_url": "https://github.com/Propeex/JunhyunHelper/releases/download/v1.6.0/Junhyun-Helper-v1.6.0-win-x64.zip"
             },
             {
               "name": "SHA256SUMS.txt",
-              "browser_download_url": "https://github.com/Propeex/JunhyunHelper/releases/download/v0.1.14/SHA256SUMS.txt"
+              "browser_download_url": "https://github.com/Propeex/JunhyunHelper/releases/download/v1.6.0/SHA256SUMS.txt"
+            }
+          ]
+        }
+        """;
+
+    private const string LegacyReleaseJson = """
+        {
+          "tag_name": "v1.6.0",
+          "draft": false,
+          "prerelease": false,
+          "assets": [
+            {
+              "name": "Junhyun-Helper-v1.6.0-win-x64.zip",
+              "browser_download_url": "https://github.com/Propeex/JunhyunHelper/releases/download/v1.6.0/Junhyun-Helper-v1.6.0-win-x64.zip"
+            },
+            {
+              "name": "SHA256SUMS.txt",
+              "browser_download_url": "https://github.com/Propeex/JunhyunHelper/releases/download/v1.6.0/SHA256SUMS.txt"
             }
           ]
         }
         """;
 
     [Fact]
-    public void LatestReleaseParserRequiresStableExactWindowsAssets()
+    public void LatestReleaseParserPrefersStableProductNamedPackage()
     {
         using var document = JsonDocument.Parse(StableReleaseJson);
 
         var release = GitHubProgramUpdateClient.ParseLatestRelease(document.RootElement);
 
         Assert.NotNull(release);
-        Assert.Equal(new Version(0, 1, 14), release.Version);
-        Assert.Equal("v0.1.14", release.TagName);
-        Assert.Equal("Junhyun-Helper-v0.1.14-win-x64.zip", release.PackageFileName);
+        Assert.Equal(new Version(1, 6, 0), release.Version);
+        Assert.Equal("v1.6.0", release.TagName);
+        Assert.Equal(GitHubProgramUpdateClient.StablePackageFileName, release.PackageFileName);
+    }
+
+    [Fact]
+    public void LatestReleaseParserFallsBackToLegacyVersionedPackage()
+    {
+        using var document = JsonDocument.Parse(LegacyReleaseJson);
+
+        var release = GitHubProgramUpdateClient.ParseLatestRelease(document.RootElement);
+
+        Assert.NotNull(release);
+        Assert.Equal("Junhyun-Helper-v1.6.0-win-x64.zip", release.PackageFileName);
     }
 
     [Theory]
-    [InlineData("0.1.13", true)]
-    [InlineData("0.1.14", false)]
-    [InlineData("0.1.15", false)]
+    [InlineData("1.5.9", true)]
+    [InlineData("1.6.0", false)]
+    [InlineData("1.6.1", false)]
     public async Task LatestReleaseCheckOnlyReturnsStrictlyNewerStableVersion(string currentVersion, bool expectedUpdate)
     {
         using var handler = new StubHttpMessageHandler(StableReleaseJson);
@@ -73,9 +106,9 @@ public sealed class ProgramUpdateTests
     }
 
     [Fact]
-    public void ChecksumParserUsesTheExactPackageEntry()
+    public void ChecksumParserUsesTheExactStablePackageEntry()
     {
-        const string packageName = "Junhyun-Helper-v0.1.14-win-x64.zip";
+        const string packageName = "준현 헬퍼.zip";
         const string expected = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
         var checksumText = $"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  other.zip\n{expected}  {packageName}\n";
 
@@ -108,7 +141,34 @@ public sealed class ProgramUpdateTests
     }
 
     [Fact]
-    public void PackageExtractionAcceptsOnlyThePortableProductRoot()
+    public void PackageExtractionAcceptsStableProductFolderAndUnwrapsIt()
+    {
+        var root = CreateTempDirectory();
+        try
+        {
+            var package = Path.Combine(root, "update.zip");
+            using (var archive = ZipFile.Open(package, ZipArchiveMode.Create))
+            {
+                WriteEntry(archive, "준현 헬퍼/준현 헬퍼.exe", "new executable");
+                WriteEntry(archive, "준현 헬퍼/FIRST_RUN_KO.txt", "first run");
+                WriteEntry(archive, "준현 헬퍼/Assets/DB/Data/example.json", "{}");
+            }
+
+            var staging = Path.Combine(root, "staging");
+            GitHubProgramUpdateClient.ExtractAndValidatePackage(package, staging);
+
+            Assert.Equal("new executable", File.ReadAllText(Path.Combine(staging, "준현 헬퍼.exe")));
+            Assert.True(File.Exists(Path.Combine(staging, "Assets", "DB", "Data", "example.json")));
+            Assert.False(Directory.Exists(Path.Combine(staging, "준현 헬퍼")));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void PackageExtractionStillAcceptsLegacyPortableRootForTransitionCompatibility()
     {
         var root = CreateTempDirectory();
         try
@@ -125,7 +185,30 @@ public sealed class ProgramUpdateTests
             GitHubProgramUpdateClient.ExtractAndValidatePackage(package, staging);
 
             Assert.Equal("new executable", File.ReadAllText(Path.Combine(staging, "준현 헬퍼.exe")));
-            Assert.True(File.Exists(Path.Combine(staging, "Assets", "DB", "Data", "example.json")));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void PackageExtractionRejectsMixedStableAndLegacyRoots()
+    {
+        var root = CreateTempDirectory();
+        try
+        {
+            var package = Path.Combine(root, "update.zip");
+            using (var archive = ZipFile.Open(package, ZipArchiveMode.Create))
+            {
+                WriteEntry(archive, "준현 헬퍼/준현 헬퍼.exe", "new executable");
+                WriteEntry(archive, "준현 헬퍼/FIRST_RUN_KO.txt", "first run");
+                WriteEntry(archive, "준현 헬퍼/Assets/current.asset", "asset");
+                WriteEntry(archive, "unexpected.txt", "mixed root");
+            }
+
+            Assert.Throws<InvalidDataException>(() =>
+                GitHubProgramUpdateClient.ExtractAndValidatePackage(package, Path.Combine(root, "staging")));
         }
         finally
         {

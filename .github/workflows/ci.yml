@@ -187,9 +187,6 @@ jobs:
 
           $process = Start-Process -FilePath $exe -WorkingDirectory artifacts/publish -PassThru
           try {
-            # The in-process smoke performs rendered product UI assertions plus real
-            # asynchronous Factory/MainMap/MiniMap assertions. Process liveness alone
-            # is never considered success.
             $deadline = (Get-Date).AddSeconds(75)
             $smokeCompleted = $false
             while ((Get-Date) -lt $deadline) {
@@ -260,10 +257,74 @@ jobs:
             }
           }
 
+      - name: Build and verify release packages
+        shell: pwsh
+        run: |
+          ./packaging/New-ReleasePackage.ps1 `
+            -PublishDirectory artifacts/publish `
+            -OutputDirectory artifacts/release
+
+          [xml]$project = Get-Content 'src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj'
+          $expectedVersion = [string]($project.Project.PropertyGroup.Version | Select-Object -First 1)
+          $stableName = '준현 헬퍼.zip'
+          $stablePath = Join-Path 'artifacts/release' $stableName
+          $checksumPath = 'artifacts/release/SHA256SUMS.txt'
+
+          foreach ($requiredPath in @($stablePath, $checksumPath)) {
+            if (-not (Test-Path $requiredPath)) {
+              throw "Required release artifact was not produced: $requiredPath"
+            }
+          }
+
+          $expectedPackages = [System.Collections.Generic.List[string]]::new()
+          $expectedPackages.Add($stableName)
+          if ($expectedVersion -eq '1.6.0') {
+            $bridgeName = "Junhyun-Helper-v$expectedVersion-win-x64.zip"
+            $bridgePath = Join-Path 'artifacts/release' $bridgeName
+            if (-not (Test-Path $bridgePath)) {
+              throw "The v1.5 updater compatibility package was not produced: $bridgeName"
+            }
+            $expectedPackages.Add($bridgeName)
+          }
+
+          $checksumLines = @(Get-Content $checksumPath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+          if ($checksumLines.Count -ne $expectedPackages.Count) {
+            throw "SHA256SUMS.txt contains $($checksumLines.Count) entries; expected $($expectedPackages.Count)."
+          }
+
+          foreach ($packageName in $expectedPackages) {
+            $packagePath = Join-Path 'artifacts/release' $packageName
+            $actualHash = (Get-FileHash $packagePath -Algorithm SHA256).Hash.ToLowerInvariant()
+            $size = (Get-Item $packagePath).Length
+            $matching = @($checksumLines | Where-Object {
+              $_ -match '^([0-9a-fA-F]{64})\s+(.+)$' -and
+              [string]::Equals($Matches[2], $packageName, [System.StringComparison]::Ordinal)
+            })
+            if ($matching.Count -ne 1) {
+              throw "SHA256SUMS.txt does not contain exactly one entry for '$packageName'."
+            }
+            if ($matching[0] -notmatch '^([0-9a-fA-F]{64})\s+(.+)$') {
+              throw "Invalid SHA256SUMS.txt entry for '$packageName'."
+            }
+            $publishedHash = $Matches[1].ToLowerInvariant()
+            if (-not [string]::Equals($publishedHash, $actualHash, [System.StringComparison]::Ordinal)) {
+              throw "Checksum mismatch for '$packageName'."
+            }
+
+            Write-Host "Release package: $packageName"
+            Write-Host "Bytes: $size"
+            Write-Host "SHA-256: $actualHash"
+          }
+
+          Write-Host "Stable extracted folder: 준현 헬퍼/"
+          Write-Host "Checksum manifest: SHA256SUMS.txt"
+
       - name: Upload Windows x64 release candidate
         uses: actions/upload-artifact@v4
         with:
           name: JunhyunHelper-win-x64
-          path: artifacts/publish
+          path: |
+            artifacts/publish
+            artifacts/release
           if-no-files-found: error
           retention-days: ${{ github.event_name == 'push' && 14 || 3 }}

@@ -10,7 +10,7 @@
                     BorderBrush="{StaticResource BorderBrush}"
                     BorderThickness="0,0,0,1">
                 <StackPanel>
-                    <Grid Margin="0,0,0,5">
+                    <Grid Margin="0,0,0,4">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
@@ -19,19 +19,16 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="{Binding TimeText}"
                                    Foreground="{StaticResource TextSecondaryBrush}"
-                                   FontSize="11"
-                                   VerticalAlignment="Center" />
+                                   FontSize="11" />
                         <TextBlock Grid.Column="1"
                                    Text="{Binding ModeLabel}"
                                    Foreground="{StaticResource TextSecondaryBrush}"
                                    FontSize="11"
-                                   Margin="8,0,0,0"
-                                   VerticalAlignment="Center" />
+                                   Margin="8,0,0,0" />
                         <TextBlock Grid.Column="3"
                                    Text="{Binding ResultLabel}"
                                    Foreground="{StaticResource AccentBrush}"
-                                   FontWeight="SemiBold"
-                                   VerticalAlignment="Center" />
+                                   FontWeight="SemiBold" />
                     </Grid>
                     <TextBlock Text="{Binding Summary}"
                                TextWrapping="Wrap"
@@ -44,18 +41,33 @@
                 </StackPanel>
             </Border>
         </DataTemplate>
+
+        <DataTemplate x:Key="ScannerSearchResultTemplate">
+            <Grid Margin="5,4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="42" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Image Source="{Binding Icon}"
+                       Width="36"
+                       Height="36"
+                       Stretch="Uniform"
+                       VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1"
+                           Text="{Binding OfficialName}"
+                           Margin="8,0,0,0"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis" />
+            </Grid>
+        </DataTemplate>
     </UserControl.Resources>
 
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Everyday Scanner controls. Keep the primary path usable without exposing
-             detector/catalog/regression terminology. -->
         <Border Grid.Row="0"
                 Background="{StaticResource BackgroundMediumBrush}"
                 BorderBrush="{StaticResource BorderBrush}"
@@ -71,23 +83,21 @@
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
                 <Button x:Name="ScannerToggleButton"
-                        Grid.Column="0"
                         Content="스캐너 OFF"
                         MinWidth="112"
                         Margin="0,0,8,0"
                         Click="ScannerToggleButton_Click" />
-                <Button x:Name="OneShotScanButton"
+                <Button x:Name="SettingsButton"
                         Grid.Column="1"
-                        Content="1회 스캔"
-                        MinWidth="104"
+                        Content="설정"
+                        MinWidth="92"
                         Margin="0,0,8,0"
-                        Click="OneShotScanButton_Click" />
-                <Button x:Name="CorrectionButton"
+                        Click="SettingsButton_Click" />
+                <Button x:Name="AdvancedButton"
                         Grid.Column="2"
-                        Content="현재 결과 교정"
-                        MinWidth="118"
-                        Padding="10,5"
-                        Click="CorrectionButton_Click" />
+                        Content="고급"
+                        MinWidth="92"
+                        Click="AdvancedButton_Click" />
                 <TextBlock x:Name="RuntimeStatusText"
                            Grid.Column="3"
                            Foreground="{StaticResource TextSecondaryBrush}"
@@ -98,145 +108,155 @@
             </Grid>
         </Border>
 
-        <!-- User settings stay available, but do not occupy the main Scanner surface. -->
-        <Expander Grid.Row="1"
-                  Header="설정"
-                  Background="{StaticResource BackgroundMediumBrush}"
-                  BorderBrush="{StaticResource BorderBrush}"
-                  BorderThickness="1"
-                  Margin="0,0,0,10">
-            <StackPanel Margin="12,8,12,12">
-                <WrapPanel Margin="0,0,0,8">
-                    <Button x:Name="HotkeySettingsButton"
-                            Content="단축키 설정"
-                            MinWidth="112"
-                            Padding="10,5"
-                            Margin="0,0,8,0"
-                            Click="HotkeySettingsButton_Click" />
-                    <Button x:Name="OcrSubstitutionSettingsButton"
-                            Content="OCR 문자 치환"
-                            MinWidth="118"
-                            Padding="10,5"
-                            Click="OcrSubstitutionSettingsButton_Click" />
-                </WrapPanel>
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="11*" MinWidth="430" />
+                <ColumnDefinition Width="10" />
+                <ColumnDefinition Width="9*" MinWidth="360" />
+            </Grid.ColumnDefinitions>
 
-                <TextBlock Text="Mini Scanner 표시 정보"
-                           FontWeight="SemiBold"
-                           Margin="0,2,0,9" />
-                <WrapPanel>
-                    <CheckBox x:Name="ShowItemNameCheckBox" Content="아이템 이름" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
-                    <CheckBox x:Name="ShowItemIconCheckBox" Content="아이템 아이콘" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
-                    <CheckBox x:Name="ShowTraderSellPriceCheckBox" Content="최고 상점가" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
-                    <CheckBox x:Name="ShowFleaAveragePriceCheckBox" Content="플리마켓 평균가" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
-                    <CheckBox x:Name="ShowTraderPricePerSlotCheckBox" Content="상점가 / 칸" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
-                    <CheckBox x:Name="ShowFleaPricePerSlotCheckBox" Content="플리 평균가 / 칸" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
-                    <CheckBox x:Name="ShowCurrentNeededCheckBox" Content="현재 필요한 수량" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
-                </WrapPanel>
-            </StackPanel>
-        </Expander>
+            <Border Grid.Column="0"
+                    Background="{StaticResource BackgroundMediumBrush}"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="14">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
 
-        <!-- Developer/recovery features remain intact behind one advanced surface. -->
-        <Expander Grid.Row="2"
-                  Header="고급 / 진단"
-                  Background="{StaticResource BackgroundMediumBrush}"
-                  BorderBrush="{StaticResource BorderBrush}"
-                  BorderThickness="1"
-                  Margin="0,0,0,10">
-            <StackPanel Margin="12,8,12,12">
-                <Grid Margin="0,0,0,8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Text="일반 플레이에는 필요하지 않습니다. 테스트·복구·Ground Truth·개발 진단 기능을 제공합니다."
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               TextWrapping="Wrap"
-                               VerticalAlignment="Center" />
-                    <TextBlock x:Name="DiagnosticsStorageText"
-                               Grid.Column="1"
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               FontSize="11"
-                               Margin="12,0,0,0"
-                               VerticalAlignment="Center" />
-                </Grid>
-
-                <WrapPanel>
-                    <Button x:Name="TestToggleButton"
-                            Content="테스트 OFF"
-                            MinWidth="104"
-                            Margin="0,0,8,8"
-                            Click="TestToggleButton_Click" />
-                    <Button x:Name="RecognitionImageButton"
-                            Content="인식 이미지"
-                            MinWidth="96"
-                            Padding="10,4"
-                            Margin="0,0,8,8"
-                            Click="RecognitionImageButton_Click" />
-                    <Button x:Name="RegressionButton"
-                            Content="회귀 테스트"
-                            MinWidth="96"
-                            Padding="10,4"
-                            Margin="0,0,8,8"
-                            Click="RegressionButton_Click" />
-                    <Button x:Name="ExportDiagnosticsButton"
-                            Content="교정 데이터 내보내기"
-                            MinWidth="138"
-                            Padding="10,4"
-                            Margin="0,0,8,8"
-                            Click="ExportDiagnosticsButton_Click" />
-                    <Button x:Name="ManageDiagnosticsButton"
-                            Content="교정 데이터 관리"
-                            MinWidth="118"
-                            Padding="10,4"
-                            Margin="0,0,8,8"
-                            Click="ManageDiagnosticsButton_Click" />
-                    <Button x:Name="SyncCatalogButton"
-                            Content="아이템 목록 최신화"
-                            MinWidth="154"
-                            Padding="10,4"
-                            Margin="0,0,8,8"
-                            Click="SyncCatalogButton_Click" />
-                    <Button x:Name="ClearLogButton"
-                            Content="로그 삭제"
-                            MinWidth="84"
-                            Padding="10,4"
-                            Margin="0,0,0,8"
-                            Click="ClearLogButton_Click" />
-                </WrapPanel>
-            </StackPanel>
-        </Expander>
-
-        <Border Grid.Row="3"
-                Background="{StaticResource BackgroundMediumBrush}"
-                BorderBrush="{StaticResource BorderBrush}"
-                BorderThickness="1"
-                CornerRadius="8"
-                ClipToBounds="True">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
-
-                <Grid Grid.Row="0" Margin="12,10">
-                    <TextBlock Text="최근 인식 기록"
+                    <TextBlock Text="아이템 검색"
+                               FontSize="17"
                                FontWeight="SemiBold"
-                               VerticalAlignment="Center" />
-                </Grid>
+                               Margin="0,0,0,10" />
 
-                <Grid Grid.Row="1" Background="{StaticResource BackgroundDarkBrush}">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled">
-                        <ItemsControl x:Name="ActivityItems"
-                                      ItemTemplate="{StaticResource ScannerActivityTemplate}" />
-                    </ScrollViewer>
-                    <TextBlock x:Name="EmptyActivityText"
-                               Text="아직 인식 기록이 없습니다."
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center" />
+                    <Grid Grid.Row="1" Margin="0,0,0,14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="ItemSearchBox"
+                                 MinHeight="34"
+                                 VerticalContentAlignment="Center"
+                                 TextChanged="ItemSearchBox_TextChanged"
+                                 PreviewKeyDown="ItemSearchBox_PreviewKeyDown" />
+                        <Button Grid.Column="1"
+                                Content="×"
+                                Width="36"
+                                Height="34"
+                                Margin="6,0,0,0"
+                                ToolTip="검색어 지우기"
+                                Click="ClearSearchButton_Click" />
+                        <Popup x:Name="SearchResultsPopup"
+                               PlacementTarget="{Binding ElementName=ItemSearchBox}"
+                               Placement="Bottom"
+                               StaysOpen="False"
+                               AllowsTransparency="True">
+                            <Border MinWidth="380"
+                                    MaxWidth="560"
+                                    Background="{StaticResource BackgroundMediumBrush}"
+                                    BorderBrush="{StaticResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="5">
+                                <ListBox x:Name="SearchResultList"
+                                         MaxHeight="380"
+                                         Background="{StaticResource BackgroundDarkBrush}"
+                                         BorderThickness="0"
+                                         ItemTemplate="{StaticResource ScannerSearchResultTemplate}"
+                                         PreviewMouseLeftButtonUp="SearchResultList_PreviewMouseLeftButtonUp" />
+                            </Border>
+                        </Popup>
+                    </Grid>
+
+                    <Grid Grid.Row="2">
+                        <TextBlock x:Name="EmptyItemText"
+                                   Text="아이템을 검색해 선택하세요."
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" />
+
+                        <StackPanel x:Name="SelectedItemPanel" Visibility="Collapsed">
+                            <Grid Margin="0,0,0,18">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="84" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Image x:Name="SelectedItemIcon"
+                                       Width="72"
+                                       Height="72"
+                                       Stretch="Uniform"
+                                       VerticalAlignment="Top" />
+                                <TextBlock x:Name="SelectedItemNameText"
+                                           Grid.Column="1"
+                                           FontSize="19"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap"
+                                           VerticalAlignment="Center"
+                                           Margin="8,0,12,0" />
+                                <Button x:Name="WikiButton"
+                                        Grid.Column="2"
+                                        Content="위키"
+                                        MinWidth="72"
+                                        VerticalAlignment="Center"
+                                        Click="WikiButton_Click" />
+                            </Grid>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="190" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <TextBlock Text="플리마켓 평균가" Margin="0,0,12,12" />
+                                <TextBlock x:Name="FleaAverageText" Grid.Column="1" FontWeight="SemiBold" Margin="0,0,0,12" />
+                                <TextBlock Grid.Row="1" Text="최고 상인 판매가" Margin="0,0,12,12" />
+                                <TextBlock x:Name="BestTraderText" Grid.Row="1" Grid.Column="1" FontWeight="SemiBold" Margin="0,0,0,12" />
+                                <TextBlock Grid.Row="2" Text="필요 개수" Margin="0,0,12,0" />
+                                <TextBlock x:Name="NeededCountText" Grid.Row="2" Grid.Column="1" FontWeight="SemiBold" />
+                            </Grid>
+                        </StackPanel>
+                    </Grid>
                 </Grid>
-            </Grid>
-        </Border>
+            </Border>
+
+            <Border Grid.Column="2"
+                    Background="{StaticResource BackgroundMediumBrush}"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    ClipToBounds="True">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="로그"
+                               FontSize="17"
+                               FontWeight="SemiBold"
+                               Margin="12,10" />
+                    <Grid Grid.Row="1" Background="{StaticResource BackgroundDarkBrush}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled">
+                            <ItemsControl x:Name="ActivityItems"
+                                          ItemTemplate="{StaticResource ScannerActivityTemplate}" />
+                        </ScrollViewer>
+                        <TextBlock x:Name="EmptyActivityText"
+                                   Text="아직 인식 기록이 없습니다."
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" />
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
     </Grid>
 </UserControl>

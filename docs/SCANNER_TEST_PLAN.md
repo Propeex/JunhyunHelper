@@ -1,98 +1,94 @@
-# Scanner v1.5.0 Test Plan
+# Scanner v1.6.0 Test Plan
 
 기준일: 2026-08-24
-상태: **v1.5.0 PUBLIC RELEASE / VERIFIED / LIVE GROUND TRUTH CALIBRATION ONGOING**
+상태: **v1.6.0 RELEASE CANDIDATE / FINAL RELEASE GATE**
 
-이 문서는 deterministic release gate와 실제 Tarkov 환경에서만 얻을 수 있는 calibration을 분리한다. 실제 reviewed evidence 없이 geometry/OCR/visual confidence threshold나 candidate cap을 조정하지 않는다.
+이 문서는 deterministic release gate와 실제 Tarkov 환경 calibration을 분리한다. Reviewed evidence 없이 geometry/OCR/visual confidence threshold나 candidate cap을 조정하지 않는다.
 
-## 1. 현재 공개 기준선
+## 1. Current release candidate
 
 ```text
-exact source/tag: 6de738959740d12e6ccb81b65e50006e463eb699
-final PR CI: 32688080850 — SUCCESS
-296 passed / 0 failed / 0 skipped
-release run: 32691423654 — SUCCESS
-independent public verifier: 32691641614 — SUCCESS
-asset: Junhyun-Helper-v1.5.0-win-x64.zip
-bytes: 80,422,292
-SHA-256: 6ad657653123ff35d8b6fe3d7f9877858992e9327697077492cf29f7c900e5e9
-ProductVersion: 1.5.0+6de738959740d12e6ccb81b65e50006e463eb699
-public/latest: VERIFIED
-exact public tag source: VERIFIED
-public re-download/checksum/layout: VERIFIED
-public-downloaded EXE smoke: SUCCESS
+Desktop target: 1.6.0
+automated suite: 296 tests
+Scanner display settings schema: v6
+stable user package: 준현 헬퍼.zip
+stable archive root: 준현 헬퍼/
 ```
 
-상세:
+Intermediate feature/UI gate CI `32700507526`:
 
-- `docs/RELEASE_1.5.0.md`
-- `docs/.release-v1.5.0-status.json`
-- `docs/SCANNER.md`
-- `docs/SCANNER_GROUND_TRUTH.md`
+- build SUCCESS
+- 296/296 tests SUCCESS
+- Windows x64 publish SUCCESS
+- Product UI / Scanner / Mini Scanner smoke SUCCESS
+- Main Map / Factory / MiniMap smoke SUCCESS
+- graceful shutdown SUCCESS
+
+Final version/FIRST_RUN/package/docs commits were added afterward, so latest HEAD must pass the complete gate again.
 
 ## 2. Release-blocking gate
 
-Scanner 변경이 포함된 정식 release/PATCH는 최소 다음 범주를 모두 검토한다.
+### Build / deterministic regression
 
-### Build / unit-regression
-
-1. exact candidate source 고정
+1. exact candidate source fixed
 2. Windows Release build
 3. full automated tests — 0 failed / 0 skipped
 4. Scanner structural proposal regression
 5. inspect-header semantic lock regression
-6. incomplete lock fail-closed regression
+6. incomplete lock fail closed
 7. title ROI ownership regression
 8. raw/substituted/normalized OCR evidence separation
-9. current-catalog character/symbol policy regression
-10. current official catalog matcher regression
+9. current-catalog character/symbol policy
+10. official catalog matcher
 11. bounded unknown/edit recovery safety
-12. visual corroboration/recovery fail-soft safety
+12. visual recovery fail-soft safety
 13. font source/cache generation consistency
 14. bounded visual caches
-15. market/dimension/RequiredTotal mapping regression
-16. catalog load/refresh GameMode ordering regression
-17. one-shot/profile/GameMode lifecycle regression
-18. hotkey/settings migration/duplicate prevention regression
-19. user OCR substitution single-pass/default-empty regression
-20. title continuity signature regression
-21. Mini Scanner inventory-probe coalescing/stale-result regression
-22. Ground Truth candidate/manual fallback contracts
-23. retention reviewed-GT preservation contract
+15. market/dimension/RequiredTotal mapping
+16. catalog load/refresh GameMode ordering
+17. one-shot/profile/GameMode lifecycle
+18. hotkey migration/duplicate prevention
+19. user OCR substitution single-pass/default-empty
+20. title continuity signature
+21. Mini Scanner inventory coalescing/stale-result
+22. Ground Truth candidate/manual/none contracts
+23. reviewed-GT retention protection
+24. Scanner settings schema-v6 migration/order contract
+25. saved Case reopen/re-edit fail-closed contract
+26. item search local-data/no-network contract where testable
 
 ### Publish / product smoke
 
-24. Windows x64 self-contained single-file publish
-25. exact ProductVersion / FIRST_RUN identity
-26. package-root / PDB / nested-archive / forbidden dependency audit
-27. actual published EXE Product UI smoke
-28. Scanner normal/settings/advanced UI smoke
-29. `1회 스캔` / `현재 결과 교정` product contract
-30. Mini Scanner smoke + quick correction entry
-31. Main Map / Factory / MiniMap smoke
-32. graceful close / process termination
-33. clean portable root
+27. Windows x64 self-contained single-file publish
+28. exact ProductVersion / FIRST_RUN identity
+29. publish-root / PDB / nested-archive / forbidden dependency audit
+30. actual published EXE startup
+31. Scanner normal v1.6 surface smoke
+32. settings schema-v6 / Mini Scanner fixed identity + ordered fields smoke
+33. Main Map / Factory / MiniMap smoke
+34. graceful close / process termination
+35. clean portable root
+36. run `packaging/New-ReleasePackage.ps1`
+37. stable `준현 헬퍼.zip` exists
+38. every ZIP entry is under `준현 헬퍼/`
+39. required `준현 헬퍼/준현 헬퍼.exe`, `FIRST_RUN_KO.txt`, `Assets/tarkov_data.db`
+40. release ZIP SHA-256 recorded
 
 ### Public release verification
 
-34. exact source tag
-35. draft asset redownload + SHA-256 verification
-36. draft package ProductVersion/FIRST_RUN/layout verification
-37. draft-downloaded EXE smoke
-38. public stable/latest verification
-39. exact public tag source verification
-40. fresh independent anonymous public ZIP + SHA256SUMS redownload
-41. public hash/size/package layout verification
-42. public ProductVersion/FIRST_RUN verification
-43. public-downloaded EXE Product UI/Map/Scanner smoke
-44. durable `docs/.release-vX.Y.Z-status.json`
-45. one-shot release/verifier workflow cleanup
+41. exact source tag `v1.6.0`
+42. stable/latest release metadata points to exact source
+43. public asset name exactly `준현 헬퍼.zip`
+44. checksum asset verified
+45. fresh anonymous/public ZIP redownload
+46. public hash/size/layout verification
+47. public ProductVersion/FIRST_RUN verification
+48. public-downloaded EXE Product UI/Map/Scanner smoke
+49. graceful shutdown / clean extracted product root
+50. durable `docs/.release-v1.6.0-status.json`
+51. temporary one-shot release/verifier workflows cleaned up
 
-최신 실제 Tarkov E2E는 공개 후에도 계속한다. 이미 확보한 reviewed live failure는 관련 변경의 regression에 반영해야 한다.
-
-## 3. 불변 threshold / candidate budget
-
-현재 계약:
+## 3. Immutable threshold / candidate budget
 
 ```text
 structural floor = 0.34
@@ -101,93 +97,79 @@ continuous candidate cap = 8
 one-shot candidate cap = 12
 ```
 
-다음 이유만으로 변경하지 않는다.
+Do not change because:
 
-- “인식률이 낮아 보여서”
-- 한두 개 screenshot에서 miss가 나서
-- CPU 사용량을 줄이기 위해
-- fuzzy match를 더 쉽게 통과시키기 위해
+- recognition rate looks low
+- one or two screenshots miss
+- CPU reduction is desired
+- fuzzy matching should be easier
 
-변경하려면 reviewed Ground Truth replay와 false-positive impact evidence가 필요하다.
+Change requires reviewed Ground Truth replay + false-positive impact evidence.
 
 ## 4. Structural proposal regression
 
-유지 계약:
+Maintain:
 
-- RED-X connected-component proposal path
+- RED-X component proposals
 - rectangle/edge fallback
 - structural floor 0.34
-- continuous max 8
-- one-shot max 12
-- aspect prior는 약한 ranking hint
-- high IoU 자체는 duplicate 판정이 아님
-- edge가 다른 겹친 proposal 보존
-- near-identical edge jitter만 dedupe
-- geometry evidence만으로 Item ID 확정 금지
+- continuous 8 / one-shot 12
+- aspect prior only weak ranking hint
+- high IoU not sufficient for duplicate removal
+- different-edge overlapping proposals preserved
+- near-identical edge jitter deduped
+- geometry alone never establishes Item ID
 
-대표 regression:
+Representative cases:
 
-- cropped inspect window
-- full-screen inspect window
-- tall/large detail window
+- cropped inspect
+- full-screen inspect
+- tall/large detail
 - strong inner rectangle coexistence
-- high-IoU but different-edge detail proposal
-- no-RED-X proposal fallback
-- uniform-frame fail-closed
-
-구조 후보 생성과 **OCR identity 허용**은 별개다.
+- high-IoU different-edge proposal
+- no-RED-X fallback proposal
+- uniform-frame fail closed
 
 ## 5. Inspect-header semantic lock regression
 
 Required evidence:
 
 - right red close-X
-- long neutral inspect-header/frame
+- neutral inspect-header/frame
 - bounded frame-left search-icon lane
 - magnifier ring/hollow/handle morphology
 - dark title field
-- title text presence
+- title text evidence
 
-필수 assertions:
+Assertions:
 
-1. screen-center absolute heuristic에 의존하지 않음
-2. historical measured live header geometry regression 유지
-3. title-lane decoy ring/glyph가 magnifier를 대체하지 않음
-4. fragmented first glyph가 title ROI ownership을 가져가지 않음
-5. `HEADER_FRAME_LOCKED`가 아닌 candidate는 production OCR identity path에 진입하지 않음
-6. runtime은 score >= 0.68을 다시 요구
-7. magnifier/close/title bounds 중 필수 evidence 하나가 없으면 fail closed
-8. oversized/contained-subpanel fallback도 같은 semantic gate 재검증
+- no absolute screen-center dependency
+- live measured geometry regressions remain valid
+- decoy ring/glyph cannot replace magnifier
+- fragmented first glyph cannot own title ROI
+- non-`HEADER_FRAME_LOCKED` candidate cannot enter production OCR identity
+- runtime score >= 0.68 required
+- missing magnifier/close/title evidence → fail closed
+- contained-subpanel fallback re-runs same semantic gate
 
-## 6. OCR / sanitation / matcher regression
+## 6. OCR / sanitation / matcher
 
-- Windows `ko-KR` OCR primary
-- title-size adaptive scaling/preprocessing
-- normal pass + deep variants
-- raw Windows OCR 보존
-- current official Korean catalog에서 character/symbol policy 파생
-- catalog-impossible glyph를 특정 문자로 product-wide 치환하지 않음
-- exact official name 우선
-- fuzzy confidence + top1/top2 margin 유지
-- ambiguous candidate fail closed
-- bounded unknown/edit recovery만 허용
+- Windows ko-KR primary
+- adaptive scaling/preprocessing
+- normal + deep variants
+- raw OCR retained
+- character/symbol policy from current official catalog
+- impossible glyph not globally forced to a specific character
+- exact official name first
+- conservative fuzzy confidence + top1/top2 margin
+- ambiguity fail closed
+- bounded unique unknown/edit recovery only
 
-### Unknown-glyph recovery
+Unknown `?` is positional uncertainty, not a forced character replacement.
 
-- `?`는 특정 문자 치환이 아니라 unknown-position evidence
-- complete current catalog에서 후보가 유일해야 함
-- short/ambiguous case fail closed
-- global separation 부족 fail closed
+## 7. User OCR substitution / schema v6
 
-### Bounded edit recovery
-
-Current full catalog에서 유일하고 충분히 분리된 bounded edit 후보만 허용한다.
-
-Multi-edit low-confidence OCR을 percentage만으로 확정하지 않는다.
-
-## 7. User OCR substitution regression — schema v5
-
-필수 계약:
+Data flow:
 
 ```text
 raw OCR
@@ -196,183 +178,169 @@ raw OCR
 → matcher
 ```
 
-검증:
+Regression:
 
-- default substitution list empty
-- add/delete
-- enable/disable
-- reset
-- exact user string matching
-- ordered single-pass only
-- replacement 결과 recursive reprocessing 없음
+- default list empty
+- exact user rules
+- ordered single-pass
+- no recursive/chained reprocessing
 - raw OCR immutable forensic evidence
-- substituted text 별도 evidence
-- settings schema v5 normalization/migration
+- substituted text separate
 - malformed/empty rule normalization
-- user substitution이 automatic product-wide alias table로 승격되지 않음
-
-Regression에는 실제 반복 오류 예시를 넣을 수 있지만, preset/global forced substitution으로 자동 적용하지 않는다.
+- v5→v6 migration preserves existing user substitutions
+- user rule never becomes automatic product-wide alias table
 
 ## 8. Tarkov-font visual regression
 
-- public package에 game font binary 포함 금지
-- installed Tarkov `resources.assets` read-only source
-- source/font generation 변경 시 stale rendered cache 재사용 금지
-- partial/corrupt cache는 visual path만 fail-soft
+- game font binary excluded from public package
+- installed Tarkov resources/assets read-only source
+- generation change invalidates stale rendered cache
+- partial/corrupt cache fails only visual path
 - candidate universe = current official full-item catalog
-- visual top1 + top1/top2 margin 필요
-- semantic success와 visual conflict 시 strict evidence 없으면 healthy OCR 유지
-- renderer/font unavailable → primary OCR path 유지
-- arbitrary Item/text 생성 금지
-- template/aspect/mask caches bounded
+- visual top1 + margin required
+- unavailable/ambiguous visual path does not discard healthy OCR evidence
+- visual caches bounded
 
-## 9. Exact same-cycle OCR reuse regression
+## 9. Exact same-cycle OCR reuse
 
-`SerializedScannerOcrEngine` reuse는 다음 모두가 같아야 한다.
+Reuse requires:
 
 ```text
 same active scan cycle
 same normal/deep class
-same width
-same height
-same BPP
+same width/height/BPP
 same exact pixel SHA-256
 ```
 
-검증:
+- exact same bitmap same cycle → reuse allowed
+- one pixel difference → no reuse
+- normal/deep cache separate
+- cycle change → invalidate
+- late disposed-cycle result cannot pollute new cycle
+- cross-frame reuse prohibited
 
-- exact same bitmap same cycle → reuse 가능
-- one pixel difference → reuse 금지
-- normal vs deep → cache 공유 금지
-- cycle change → cache invalidation
-- disposed/ended cycle → late result가 새 cycle cache를 오염하지 않음
-- cross-frame reuse 없음
+## 10. Title continuity stabilization
 
-성능 최적화가 현재 frame evidence를 과거 frame 결과로 대체하지 않아야 한다.
-
-## 10. Title continuity stabilization regression
-
-`ScannerTitleIdentitySignature`는 already-verified detail continuity용이다.
-
-검증:
-
-- same glyph shape + dark background variation → same stable signature 가능
-- unused trailing ROI width variation → same signature 가능
-- visible glyph shape change → different signature
+- same glyph shape + harmless dark background variation may share signature
+- unused trailing ROI width variation may be ignored
+- visible glyph change → different signature
 - no visible title ink → fail closed
-- signature 자체로 Item ID 확정 금지
-- new geometry/title identity evidence → old trusted result clear
-- bounded detector miss policy 유지
+- signature cannot establish Item ID
+- new geometry/title identity clears old trusted result
 
-이 regression이 false-positive 증가 없이 flicker만 줄이는지 확인한다.
+## 11. Catalog / mapped data
 
-## 11. Scanner catalog / mapped-data regression
+Identity health remains separate from market coverage.
 
-Identity health:
+Catalog ordering:
 
-```text
-accepted item count >= 4000
-+ non-empty Item ID
-+ non-empty official name
-```
-
-Catalog transition:
-
-- `LoadCacheAsync` / `RefreshAsync` 동일 operation gate
-- older GameMode writer가 newer state overwrite 금지
-- shutdown cancellation boundary 유지
+- `LoadCacheAsync` / `RefreshAsync` same operation gate
+- older GameMode writer cannot overwrite newer final state
 
 Mapped presentation:
 
 ```text
 best trader price = valid non-flea RUB max
-best trader name = selected valid source when available
+best trader name = selected trusted source
 flea average = positive avg24hPrice
 slots = positive width × height
 trader price/slot = valid trader price + slots
 flea price/slot = valid flea price + slots
-needed count = NeededItems[itemId].RequiredTotal
+needed = NeededItems[itemId].RequiredTotal
 ```
 
-Market/dimension missing은 identity가 아니라 해당 field만 fail closed한다.
+Missing market/dimension data only clears affected field.
 
-Source payload shape regression은 raw `traderPrices`/derived `sellFor` 등 지원 경로를 실제 parser tests에서 고정한다.
+## 12. Unified Game Data refresh
 
-## 12. Unified Game Data + Scanner refresh regression
-
-사용자 top-level data update 후:
-
-- general Game Content update 수행
-- current GameMode Scanner catalog/market refresh 수행
-- 둘 다 성공하면 combined healthy state
-- Scanner refresh만 실패하면 general content success rollback 금지
-- existing healthy Scanner cache 보존 가능
-- partial failure status가 사용자에게 식별 가능
-- Scanner 전용 강제 refresh는 일반 필수 절차가 아님
+- general Game Content update runs
+- current GameMode Scanner catalog/market refresh runs
+- both success → healthy combined state
+- Scanner-only refresh failure cannot rollback general success
+- healthy Scanner cache preserved where safe
+- partial failure visible
+- normal Scanner page does not require a force-refresh action
 
 ## 13. One-shot / hotkey regression
 
-Scanner settings schema v5.
+Scanner settings schema v6.
 
-기본키:
+Defaults:
 
-- `Ctrl+Shift+F10` in-game one-shot
-- `Ctrl+Shift+F11` test one-shot
-- `Ctrl+Shift+F12` Scanner ON/OFF
+- Ctrl+Shift+F10 — in-game one-shot
+- Ctrl+Shift+F11 — test one-shot
+- Ctrl+Shift+F12 — Scanner ON/OFF
 
-검증:
+Verify:
 
-- MainWindow lifetime global registration
-- 각 command 변경/비활성화
-- 동일 gesture 중복 차단
-- old settings migration 시 사용자 선택 보존
-- one-shot duplicate invocation overlap 금지
-- one-shot 종료 후 current requested mode만 restore
-- **일반 Scanner UI에 `1회 스캔` 버튼 존재**
-- DisplayTest one-shot은 연결 display를 one-shot contract로 처리
-- scan-time network refresh 없음
-- continuous candidate cap과 one-shot candidate cap 분리
+- MainWindow lifetime registration
+- change/disable each command
+- duplicate gesture blocked
+- old settings migration preserves user choices
+- overlapping one-shot invocation serialized
+- requested continuous mode restored correctly
+- v1.6 normal Scanner page **does not require a visible one-shot button**
+- one-shot remains functionally available via hotkey
+- no scan-time network
+- one-shot cap 12 distinct from continuous cap 8
 
-## 14. Ground Truth correction regression
+## 14. Ground Truth correction regression — v1.6
 
-Candidate-first UX:
+Candidate-first sequence:
 
-1. detail candidate
-2. close-X candidate
-3. magnifier candidate
-4. item-name ROI candidate
+1. detail
+2. close-X
+3. magnifier
+4. item-name ROI
 5. correct item/text
 6. save
 
-검증:
+Verify:
 
-- candidate ID/rank/score/geometry 저장
-- candidate 선택 가능
-- explicit `없음` 저장 가능
-- manual rectangle fallback 유지
-- candidate가 없다고 correction 자체가 막히지 않음
-- reviewed status가 automatic save에 의해 overwrite되지 않음
-- raw/substituted/normalized OCR evidence 유지
-- matcher top candidates 유지
-- mapped_data snapshot 유지
+- candidate ID/rank/score/geometry stored
+- image candidate boxes directly clickable
+- selected state visually distinguishable
+- explicit `없음`
+- manual rectangle fallback
+- no candidate does not block correction
+- reviewed status cannot be overwritten by automatic save
+- raw/substituted/normalized OCR retained
+- matcher top candidates retained
+- mapped snapshot retained
 
-Mini Scanner `현재 결과 교정`은 latest debug snapshot과 current coordinator로 같은 correction flow를 열어야 한다.
+### Image scale contract
 
-## 15. Ground Truth full-pipeline replay regression
+- oversized source image fits correction viewport
+- displayed scale does not change saved ROI meaning
+- click/hit-test maps to original image coordinate
+- manual rectangle maps to original image coordinate
+- original full.png dimensions remain authoritative
 
-Reviewed `full.png`를 current production path에 재투입한다.
+### Saved Case re-edit
+
+- existing Case can reopen from dataset manager
+- `case.json` + `full.png` + `candidate_selection.json` restore where valid
+- existing GT item/text restored
+- existing selection restored where valid
+- save keeps same Case ID
+- re-save updates reviewed GT rather than creating unrelated truth
+- corrupt/missing source fails closed and preserves original Case
+
+## 15. Full-pipeline replay
+
+Reviewed `full.png`:
 
 ```text
 full.png
 → proposals
 → semantic header
 → title ROI
-→ OCR/deep/user substitution/visual recovery
+→ OCR/deep/substitution/visual
 → current catalog match
 → final Item ID
 ```
 
-결과:
+Result:
 
 - STILL_CORRECT
 - SOLVED
@@ -380,17 +348,15 @@ full.png
 - REGRESSION
 - ERROR
 
-과거 정상 Case가 현재 실패하면 평균 accuracy가 올라가도 `REGRESSION`이다.
+Past correct Case failing now = REGRESSION even if average improves.
 
-Mapped price 변화는 source freshness 때문일 수 있으므로 `MAPPED_DATA_CHANGED` 자체를 identity regression으로 보지 않는다.
+Mapped price changes can be freshness changes and are not automatically identity regressions.
 
-## 16. Retention / log regression
+## 16. Retention / logs
 
-Reviewed Ground Truth:
+Reviewed Ground Truth automatic delete: **never**.
 
-- automatic delete 절대 금지
-
-Automatic deletion eligibility:
+Automatic eligibility:
 
 ```text
 retention == automatic_sample
@@ -402,66 +368,86 @@ Bounds:
 - 30 days
 - 300 automatic cases
 - 512 MiB
-- recent 2-hour protection
+- recent 2h protection
 
-검증:
+Verify:
 
-- reviewed Case retained
-- unknown/corrupt metadata retained
-- recent Case retained
-- old excess automatic sample deleted within policy
-- deletion 직전 metadata re-read
-- retention cleanup failure가 recognition result를 바꾸지 않음
+- reviewed retained
+- unknown/corrupt retained
+- recent retained
+- old excess automatic deleted within policy
+- metadata re-read before delete
+- cleanup failure does not change recognition
 
-Logs:
+Logs remain bounded rotation. v1.6 normal Scanner page no longer requires a log-delete button.
 
-- scanner.log rotation bounded
-- startup.log rotation bounded
-- `로그 삭제`가 Ground Truth dataset을 삭제하지 않음
+## 17. Mini Scanner regression — schema v6
 
-## 17. Mini Scanner regression
+Window:
 
 - matched Item data only
-- Topmost / no-activate
-- full-card drag surface
-- inventory/stash probe single-active
-- latest request coalesce
-- old item/context epoch result reject
-- uncertain foreground/inventory context → hidden
-- title OCR과 inventory OCR serialized
-- quick correction context menu exists
-- quick correction이 latest Case를 사용
-- scan-time icon/network 없음
+- Topmost / no activate / no taskbar
+- full-card drag
+- inventory probe single-active + latest coalesce
+- stale context/epoch reject
+- uncertain inventory context → hidden
+- title/inventory OCR serialized
+- scan-time icon/network none
 
-## 18. Scanner Product UI regression
+Presentation:
 
-Normal surface에 다음이 있어야 한다.
+- icon always visible
+- official item name always visible
+- five optional rows appear in persisted configured order
+- hidden rows remain hidden
+- best trader row can include trader name + price
+- settings v5 migration produces valid canonical order
+
+## 18. Scanner Product UI regression — v1.6
+
+Normal surface must expose:
 
 - Scanner ON/OFF
-- `1회 스캔`
-- `현재 결과 교정`
-- runtime status
-- recent recognition history
+- Settings
+- Advanced
+- item search
+- recognition log
 
-`설정` 아래:
+Normal surface must not require/expose as primary controls:
 
-- hotkey settings
-- OCR substitutions
-- Mini Scanner display options
+- visible `1회 스캔` button
+- visible `현재 결과 교정` button
+- Display Test toggle
+- catalog force-refresh
+- regression/export developer buttons
+- log-delete button
 
-`고급 / 진단` 아래:
+Settings window:
+
+- three global hotkeys
+- Mini Scanner five fields show/hide
+- Mini Scanner order up/down
+- icon/name fixed
+
+Advanced window:
 
 - Display Test
-- 인식 이미지
-- regression
-- Ground Truth export/manage
-- `아이템 목록 최신화` recovery action
-- 로그 삭제
-- diagnostics storage information
+- current result correction
+- correction dataset management
 
-제품 smoke는 old v1.3 UI를 강제하지 않는다.
+## 19. Scanner item-search regression
 
-## 19. Latency telemetry regression
+- local/memory full-item catalog only
+- empty query closes results
+- search result contains official name and local cached icon when available
+- choosing result closes popup and does not reopen due TextChanged
+- selected item details use existing `ScannerItemPresentationService`
+- Wiki URL requires valid http/https
+- missing icon/wiki/market field fails only that presentation field
+- no search-time network request
+- current needed semantics remain RequiredTotal
+
+## 20. Latency telemetry
 
 Measured stages:
 
@@ -475,134 +461,98 @@ Measured stages:
 - presentation
 - end-to-end
 
-검증:
+Telemetry cannot alter acceptance threshold.
 
-- stage timing이 scan cycle에 연결
-- disposed cycle에 late async stage가 잘못 기록되지 않음
-- continuous detector-only sampling이 excessive log churn을 만들지 않음
-- one-shot/semantic cycles에서 useful timing evidence 확보
-- telemetry 추가가 acceptance threshold를 변경하지 않음
+## 21. Package / version regression — v1.6
 
-## 20. Product UI / version / package regression
+Published product identity:
 
-- MainWindow user-facing version은 assembly/product version에서 파생
-- `+commit` build metadata는 user-facing label에 강제 노출하지 않음
-- 특정 release version을 XAML에 하드코딩하지 않음
-- MainWindow minimum width 1180 contract가 actual two-pane/header structure를 보호
+- project version = 1.6.0
+- ProductVersion starts `1.6.0`
+- FIRST_RUN first line exactly `준현 헬퍼 v1.6.0 — Windows x64`
+- no PDB
+- no unexpected root DLL/archive
+- no forbidden legacy dependency
+- clean portable publish root
 
-ZIP root:
-
-```text
-준현 헬퍼.exe
-FIRST_RUN_KO.txt
-Assets/
-```
-
-검증:
-
-- PDB 없음
-- unexpected root DLL/archive 없음
-- nested archive 없음
-- forbidden unused legacy dependency 없음
-- ProductVersion = version + exact source SHA
-- FIRST_RUN first line exact identity
-- actual EXE rendered Product UI smoke
-- Scanner/Mini Scanner smoke
-- Main Map / Factory / MiniMap smoke
-- graceful shutdown
-- portable root runtime pollution 없음
-
-## 21. Public verification protocol
-
-Release controller:
-
-- exact source checkout
-- build + full tests
-- publish/package audit
-- packaged EXE smoke
-- exact source tag
-- draft asset upload
-- draft redownload hash/identity/layout
-- draft-downloaded EXE smoke
-- stable/latest publication
-
-Independent public verifier는 **release controller artifact를 재사용하지 않는다.**
-
-Fresh runner에서:
-
-- anonymous GitHub latest API check
-- anonymous public tag resolution
-- anonymous ZIP + SHA256SUMS download
-- hash/size verification
-- package layout/ProductVersion/FIRST_RUN verification
-- public-downloaded EXE Product UI/Map/Scanner smoke
-- graceful shutdown
-- durable release status persistence
-
-검증 완료 후 one-shot release/verifier workflow는 저장소에서 제거하고 steady-state `ci.yml`만 남긴다.
-
-## 22. v1.5.0 완료 증거
-
-- final PR #172 CI `32688080850`: SUCCESS
-- 296 tests / 0 failed / 0 skipped
-- exact source/tag `6de738959740d12e6ccb81b65e50006e463eb699`
-- release run `32691423654`: SUCCESS
-- independent public verifier `32691641614`: SUCCESS
-- public/latest: VERIFIED
-- public ZIP SHA-256: `6ad657653123ff35d8b6fe3d7f9877858992e9327697077492cf29f7c900e5e9`
-- public bytes: `80,422,292`
-- public ProductVersion exact match
-- public package layout: VERIFIED
-- public-downloaded EXE Product UI/Scanner/Mini Scanner/Main Map/Factory/MiniMap smoke: SUCCESS
-- graceful shutdown: SUCCESS
-- durable status: `docs/.release-v1.5.0-status.json`
-- temporary release/verifier workflows: REMOVED
-
-## 23. Live Tarkov calibration protocol
-
-권장 사용자 동선:
+Stable user ZIP:
 
 ```text
-아이템 상세창 열기
-→ Scanner 또는 1회 스캔
-→ 결과 확인
-→ 정상 대표 결과면 `현재 결과 교정` → 맞음
-→ miss/wrong identity면 즉시 `현재 결과 교정`
-→ candidate/영역/text truth 저장
-→ reviewed Ground Truth 축적
-→ 필요 시 diagnostics export
+준현 헬퍼.zip
+└─ 준현 헬퍼/
+   ├─ 준현 헬퍼.exe
+   ├─ FIRST_RUN_KO.txt
+   └─ Assets/...
 ```
 
-분류:
+Verify every archive entry starts `준현 헬퍼/` and no nested version folder is introduced.
+
+## 22. Public verification protocol
+
+Release process must use exact final source.
+
+Independent public verifier must not rely only on the build workspace artifact.
+
+Fresh public checks:
+
+- public latest release = v1.6.0
+- exact tag resolves to chosen release source
+- public `준현 헬퍼.zip` redownload
+- checksum redownload
+- hash/size match
+- archive root/path validation
+- ProductVersion / FIRST_RUN
+- public-downloaded EXE Product UI/Scanner/Mini Scanner/Map smoke
+- graceful shutdown
+- durable release status
+
+Temporary release/verifier workflows, if created, are deleted afterward so steady-state workflow returns to `ci.yml` only.
+
+## 23. Live Tarkov calibration after release
+
+Recommended flow:
+
+```text
+item detail open
+→ Scanner / one-shot hotkey
+→ inspect result
+→ correct representative result or failure
+→ reviewed GT save
+→ failure stage classify
+→ dataset replay
+```
+
+Failure stages:
 
 1. capture/window
 2. structural proposal recall/ranking
-3. close-X/magnifier semantic evidence
-4. header lock/title ROI
-5. OCR
-6. user substitution
-7. catalog sanitation/matcher
-8. font visual recovery
-9. mapped presentation
-10. continuous timing/stale-state
+3. close-X semantic
+4. magnifier semantic
+5. header lock
+6. item-name ROI
+7. raw OCR
+8. user substitution
+9. catalog sanitation/matcher
+10. visual recovery
+11. Item ID
+12. mapped presentation
+13. overlay/stale-state
 
-Wrong identity는 miss보다 높은 우선순위로 처리한다.
+Wrong identity has higher priority than miss.
 
-## 24. 다음 개발 기준
+## 24. Next development rule
 
-v1.5.0 deterministic/public verification은 완료됐다.
-
-다음 Scanner 개선은 실제 reviewed Ground Truth를 우선한다.
+After v1.6 public verification:
 
 ```text
-reviewed dataset 확보
-→ failure cluster 분석
-→ stage 특정
-→ 필요한 stage만 수정
-→ full replay regression
+reviewed dataset
+→ failure cluster
+→ affected stage
+→ narrow code change
+→ full replay
 → REGRESSION=0
 → full build/tests/publish smoke
-→ PATCH 여부 결정
+→ PATCH decision
 ```
 
-추가 evidence가 없는 상태에서 threshold/candidate cap을 임의 완화하거나 unrelated Scanner 기능을 추가하지 않는다.
+Do not loosen threshold/candidate cap or add unrelated Scanner behavior without evidence.

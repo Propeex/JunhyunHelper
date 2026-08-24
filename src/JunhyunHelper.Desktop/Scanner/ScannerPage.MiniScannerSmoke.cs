@@ -21,6 +21,7 @@ public partial class ScannerPage
         ScannerTitleFontSmoke.VerifyProductContract();
         VerifyScannerRecognitionProductContract();
         VerifyMiniScannerProductContract();
+        VerifyScannerPageProductContract();
     }
 
     private static void VerifyScannerRecognitionProductContract()
@@ -28,8 +29,11 @@ public partial class ScannerPage
         var settings = new ScannerDisplaySettings();
         settings.Normalize();
         if (settings.SchemaVersion != ScannerDisplaySettings.CurrentSchemaVersion ||
-            settings.SchemaVersion != 5 ||
+            settings.SchemaVersion != 6 ||
             settings.OcrSubstitutions.Count != 0 ||
+            !settings.ShowItemName ||
+            !settings.ShowItemIcon ||
+            !settings.MiniScannerInfoOrder.SequenceEqual(ScannerDisplaySettings.DefaultInfoOrder) ||
             !ScannerHotkeyGesture.TryParse(settings.OneShotTarkovHotkey, out var tarkovGesture) ||
             !ScannerHotkeyGesture.TryParse(settings.OneShotTestHotkey, out var testGesture) ||
             !ScannerHotkeyGesture.TryParse(settings.ScannerToggleHotkey, out var toggleGesture) ||
@@ -40,7 +44,20 @@ public partial class ScannerPage
             ScannerHotkeyGesture.TryParse("F10", out _))
         {
             throw new InvalidOperationException(
-                "Scanner v1.5 settings/hotkey/OCR-substitution contract failed.");
+                "Scanner v1.6 settings/hotkey/fixed-header/order contract failed.");
+        }
+
+        var hiddenIdentity = new ScannerDisplaySettings
+        {
+            SchemaVersion = 5,
+            ShowItemName = false,
+            ShowItemIcon = false,
+        };
+        hiddenIdentity.Normalize();
+        if (!hiddenIdentity.ShowItemName || !hiddenIdentity.ShowItemIcon)
+        {
+            throw new InvalidOperationException(
+                "Scanner v1.6 migration must force Mini Scanner icon/name visible.");
         }
 
         var migrated = new ScannerDisplaySettings
@@ -89,11 +106,12 @@ public partial class ScannerPage
         var settings = new ScannerDisplaySettings();
         settings.Normalize();
         if (!settings.ShowItemIcon ||
+            !settings.ShowItemName ||
             !settings.ShowTraderSellPrice ||
             !settings.ShowTraderPricePerSlot)
         {
             throw new InvalidOperationException(
-                "Mini Scanner defaults must show icon, trader price, and trader price per slot.");
+                "Mini Scanner defaults must show fixed identity header and trader information.");
         }
 
         var window = new MiniScannerWindow();
@@ -131,24 +149,51 @@ public partial class ScannerPage
                 21000,
                 28500,
                 2,
-                3);
+                3,
+                "Therapist");
             window.Render(snapshot, settings, editMode: false);
             window.UpdateLayout();
 
-            if (window.FindName("TraderPriceText") is not TextBlock trader ||
-                trader.Visibility != Visibility.Visible ||
-                !trader.Text.Contains("42,000", StringComparison.Ordinal))
+            if (window.FindName("ItemIcon") is not Image icon || icon.Visibility != Visibility.Visible ||
+                window.FindName("ItemNameText") is not TextBlock name || name.Visibility != Visibility.Visible)
             {
                 throw new InvalidOperationException(
-                    "Mini Scanner did not render the matched item's trader price.");
+                    "Mini Scanner icon/name fixed header is not visible.");
             }
 
-            if (window.FindName("TraderSlotPriceText") is not TextBlock traderPerSlot ||
-                traderPerSlot.Visibility != Visibility.Visible ||
-                !traderPerSlot.Text.Contains("21,000", StringComparison.Ordinal))
+            if (window.FindName("TraderPriceText") is not TextBlock trader ||
+                trader.Visibility != Visibility.Visible ||
+                !trader.Text.Contains("Therapist", StringComparison.Ordinal) ||
+                !trader.Text.Contains("42,000", StringComparison.Ordinal) ||
+                trader.Text.Contains("최고 상점가", StringComparison.Ordinal))
             {
                 throw new InvalidOperationException(
-                    "Mini Scanner did not render the matched item's trader price per slot.");
+                    "Mini Scanner trader row did not use the approved trader-name + price form.");
+            }
+
+            if (window.FindName("InfoStackPanel") is not StackPanel infoStack ||
+                infoStack.Children.Count != ScannerDisplaySettings.DefaultInfoOrder.Count ||
+                !ReferenceEquals(infoStack.Children[0], trader))
+            {
+                throw new InvalidOperationException(
+                    "Mini Scanner information rows did not follow persisted order.");
+            }
+
+            settings.MiniScannerInfoOrder =
+            [
+                ScannerDisplaySettings.CurrentNeededField,
+                ScannerDisplaySettings.FleaAveragePriceField,
+                ScannerDisplaySettings.TraderSellPriceField,
+                ScannerDisplaySettings.TraderPricePerSlotField,
+                ScannerDisplaySettings.FleaPricePerSlotField,
+            ];
+            window.Render(snapshot, settings, editMode: false);
+            if (window.FindName("CurrentNeededText") is not TextBlock needed ||
+                window.FindName("InfoStackPanel") is not StackPanel reordered ||
+                !ReferenceEquals(reordered.Children[0], needed))
+            {
+                throw new InvalidOperationException(
+                    "Mini Scanner did not apply user information order.");
             }
 
             if (!window.IsVisible || !window.Topmost)
@@ -157,6 +202,21 @@ public partial class ScannerPage
         finally
         {
             window.Close();
+        }
+    }
+
+    private static void VerifyScannerPageProductContract()
+    {
+        var page = new ScannerPage();
+        if (page.FindName("ScannerToggleButton") is not Button ||
+            page.FindName("ItemSearchBox") is not TextBox ||
+            page.FindName("ActivityItems") is not ItemsControl ||
+            page.FindName("OneShotScanButton") is not null ||
+            page.FindName("SyncCatalogButton") is not null ||
+            page.FindName("ClearLogButton") is not null)
+        {
+            throw new InvalidOperationException(
+                "Scanner v1.6 normal surface does not match the approved three-action/search/log contract.");
         }
     }
 }

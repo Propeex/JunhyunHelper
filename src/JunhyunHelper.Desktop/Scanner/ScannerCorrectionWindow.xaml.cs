@@ -27,35 +27,57 @@ public partial class ScannerCorrectionWindow : Window
 
     private readonly ScannerRecognitionDebugFrame _frame;
     private readonly ScannerCoordinator? _coordinator;
+    private CandidateField _activeField = CandidateField.DetailWindow;
     private SelectionTarget _selectionTarget;
     private Point? _dragStart;
     private Rectangle? _dragRectangle;
-    private bool _updatingSelectors;
 
     private Rect? _correctedDetailBounds;
     private Rect? _correctedCloseBounds;
     private Rect? _correctedMagnifierBounds;
     private Rect? _correctedTitleBounds;
 
-    private ScannerGroundTruthSelection _detailSelection;
-    private ScannerGroundTruthSelection _closeSelection;
-    private ScannerGroundTruthSelection _magnifierSelection;
-    private ScannerGroundTruthSelection _titleSelection;
+    private ScannerGroundTruthSelection _detailSelection = CurrentSelection("detail_window", null);
+    private ScannerGroundTruthSelection _closeSelection = CurrentSelection("close_button", null);
+    private ScannerGroundTruthSelection _magnifierSelection = CurrentSelection("magnifier", null);
+    private ScannerGroundTruthSelection _titleSelection = CurrentSelection("item_name_roi", null);
 
     public ScannerCorrectionWindow(ScannerRecognitionDebugFrame frame, ScannerCoordinator? coordinator)
+        : this(frame, coordinator, null, null)
+    {
+    }
+
+    public ScannerCorrectionWindow(ScannerStoredCorrectionCase storedCase, ScannerCoordinator? coordinator)
+        : this(
+            (storedCase ?? throw new ArgumentNullException(nameof(storedCase))).Frame,
+            coordinator,
+            storedCase.GroundTruthItemName,
+            storedCase.Selections)
+    {
+    }
+
+    private ScannerCorrectionWindow(
+        ScannerRecognitionDebugFrame frame,
+        ScannerCoordinator? coordinator,
+        string? initialGroundTruth,
+        IReadOnlyList<ScannerGroundTruthSelection>? initialSelections)
     {
         InitializeComponent();
         _frame = frame ?? throw new ArgumentNullException(nameof(frame));
         _coordinator = coordinator;
-        GroundTruthTextBox.Text = frame.CandidateName ?? string.Empty;
+        GroundTruthTextBox.Text = string.IsNullOrWhiteSpace(initialGroundTruth)
+            ? frame.CandidateName ?? string.Empty
+            : initialGroundTruth.Trim();
 
-        _detailSelection = CurrentSelection("detail_window", frame.SelectedBounds);
-        _closeSelection = CurrentSelection("close_button", frame.CloseBounds);
-        _magnifierSelection = CurrentSelection("magnifier", frame.MagnifierBounds);
-        _titleSelection = CurrentSelection("item_name_roi", frame.TitleBounds);
+        SetSelection(CandidateField.DetailWindow, InitialSelection(CandidateField.DetailWindow, initialSelections));
+        SetSelection(CandidateField.CloseButton, InitialSelection(CandidateField.CloseButton, initialSelections));
+        SetSelection(CandidateField.Magnifier, InitialSelection(CandidateField.Magnifier, initialSelections));
+        SetSelection(CandidateField.ItemName, InitialSelection(CandidateField.ItemName, initialSelections));
 
         Loaded += (_, _) => RenderFrame();
     }
+
+    public bool DatasetChanged { get; private set; }
 
     private void RenderFrame()
     {
@@ -67,138 +89,88 @@ public partial class ScannerCorrectionWindow : Window
         OverlayCanvas.Width = _frame.Image.PixelWidth;
         OverlayCanvas.Height = _frame.Image.PixelHeight;
 
-        InitializeCandidateSelectors();
         RenderOverlays();
+        UpdateActiveFieldUi();
 
         var candidate = string.IsNullOrWhiteSpace(_frame.CandidateName) ? "-" : _frame.CandidateName;
         var itemId = string.IsNullOrWhiteSpace(_frame.ItemId) ? "-" : _frame.ItemId;
         var candidateCount = _frame.Candidates?.Count ?? 0;
         CaseSummaryText.Text =
             $"Case {_frame.CaseId} · {_frame.Timestamp.ToLocalTime():yyyy-MM-dd HH:mm:ss} · " +
-            $"판정={candidate} · Item ID={itemId} · confidence={_frame.Confidence:P1} · " +
-            $"reason={_frame.RecognitionReason} · detector 후보={candidateCount}";
+            $"판정={candidate} · Item ID={itemId} · 후보={candidateCount}";
     }
 
-    private void InitializeCandidateSelectors()
+    private ScannerGroundTruthSelection InitialSelection(
+        CandidateField field,
+        IReadOnlyList<ScannerGroundTruthSelection>? saved)
     {
-        _updatingSelectors = true;
-        try
-        {
-            InitializeCombo(DetailCandidateComboBox, CandidateField.DetailWindow, _frame.SelectedBounds);
-            InitializeCombo(CloseCandidateComboBox, CandidateField.CloseButton, _frame.CloseBounds);
-            InitializeCombo(MagnifierCandidateComboBox, CandidateField.Magnifier, _frame.MagnifierBounds);
-            InitializeCombo(TitleCandidateComboBox, CandidateField.ItemName, _frame.TitleBounds);
-        }
-        finally
-        {
-            _updatingSelectors = false;
-        }
+        var fieldName = FieldName(field);
+        var existing = saved?.FirstOrDefault(selection =>
+            string.Equals(selection.Field, fieldName, StringComparison.Ordinal));
+        if (existing is not null)
+            return existing;
+
+        var currentBounds = CurrentBounds(field);
+        var matching = (_frame.Candidates ?? []).FirstOrDefault(candidate =>
+            RectsEquivalent(CandidateBounds(candidate, field), currentBounds));
+        return matching is null
+            ? CurrentSelection(fieldName, currentBounds)
+            : CandidateSelection(field, matching, CandidateBounds(matching, field));
     }
 
-    private void InitializeCombo(ComboBox comboBox, CandidateField field, Rect? currentBounds)
+    private void DetailFieldButton_Click(object sender, RoutedEventArgs e) => SelectField(CandidateField.DetailWindow);
+    private void CloseFieldButton_Click(object sender, RoutedEventArgs e) => SelectField(CandidateField.CloseButton);
+    private void MagnifierFieldButton_Click(object sender, RoutedEventArgs e) => SelectField(CandidateField.Magnifier);
+    private void TitleFieldButton_Click(object sender, RoutedEventArgs e) => SelectField(CandidateField.ItemName);
+
+    private void SelectField(CandidateField field)
     {
-        var options = BuildOptions(field, currentBounds);
-        comboBox.ItemsSource = options;
-
-        var matchingCandidate = options.FirstOrDefault(option =>
-            option.Mode == ScannerGroundTruthSelectionMode.Candidate &&
-            RectsEquivalent(option.Bounds, currentBounds));
-        var selected = matchingCandidate ?? options.First(option => option.Mode == ScannerGroundTruthSelectionMode.Current);
-        comboBox.SelectedItem = selected;
-        ApplyOption(field, selected, beginManual: false);
-    }
-
-    private IReadOnlyList<CandidateOption> BuildOptions(CandidateField field, Rect? currentBounds)
-    {
-        var options = new List<CandidateOption>
-        {
-            new("현재 검출값 유지" + (currentBounds is { } current ? $" · {FormatRect(current)}" : " · 없음"),
-                ScannerGroundTruthSelectionMode.Current,
-                null,
-                currentBounds),
-        };
-
-        foreach (var candidate in _frame.Candidates ?? [])
-        {
-            var bounds = CandidateBounds(candidate, field);
-            if (bounds is not { Width: > 0, Height: > 0 } rect)
-                continue;
-
-            var score = field == CandidateField.DetailWindow
-                ? candidate.StructuralScore
-                : candidate.TitleAnchorScore;
-            options.Add(new CandidateOption(
-                $"후보 {candidate.Rank} · {score:P0} · {FormatRect(rect)}",
-                ScannerGroundTruthSelectionMode.Candidate,
-                candidate,
-                rect));
-        }
-
-        options.Add(new CandidateOption("없음 · 해당 대상이 검출되면 안 됨", ScannerGroundTruthSelectionMode.None, null, null));
-        options.Add(new CandidateOption("직접 지정…", ScannerGroundTruthSelectionMode.Manual, null, null));
-        return options;
-    }
-
-    private void CandidateComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (_updatingSelectors || sender is not ComboBox comboBox || comboBox.SelectedItem is not CandidateOption option)
-            return;
-
-        var field = comboBox == DetailCandidateComboBox
-            ? CandidateField.DetailWindow
-            : comboBox == CloseCandidateComboBox
-                ? CandidateField.CloseButton
-                : comboBox == MagnifierCandidateComboBox
-                    ? CandidateField.Magnifier
-                    : CandidateField.ItemName;
-        ApplyOption(field, option, beginManual: true);
+        CancelManualSelection();
+        _activeField = field;
+        SaveStatusText.Text = string.Empty;
+        UpdateActiveFieldUi();
         RenderOverlays();
     }
 
-    private void ApplyOption(CandidateField field, CandidateOption option, bool beginManual)
+    private void KeepCurrentButton_Click(object sender, RoutedEventArgs e)
     {
-        var selection = BuildSelection(field, option);
-        SetSelection(field, selection);
+        CancelManualSelection();
+        SetSelection(_activeField, CurrentSelection(FieldName(_activeField), CurrentBounds(_activeField)));
+        SaveStatusText.Text = $"{FieldLabel(_activeField)}을 현재 검출값으로 지정했습니다.";
+        UpdateActiveFieldUi();
+        RenderOverlays();
+    }
 
-        if (option.Mode == ScannerGroundTruthSelectionMode.Manual && beginManual)
+    private void NoneButton_Click(object sender, RoutedEventArgs e)
+    {
+        CancelManualSelection();
+        SetSelection(
+            _activeField,
+            new ScannerGroundTruthSelection(
+                FieldName(_activeField),
+                ScannerGroundTruthSelectionMode.None,
+                null));
+        SaveStatusText.Text = $"{FieldLabel(_activeField)} 정답을 ‘없음’으로 지정했습니다.";
+        UpdateActiveFieldUi();
+        RenderOverlays();
+    }
+
+    private void ManualButton_Click(object sender, RoutedEventArgs e) =>
+        BeginSelection(ToSelectionTarget(_activeField), ManualInstruction(_activeField));
+
+    private void CandidateOverlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (_selectionTarget != SelectionTarget.None ||
+            sender is not Rectangle { Tag: CandidateHit hit })
         {
-            BeginSelection(ToSelectionTarget(field), ManualInstruction(field));
             return;
         }
 
-        _selectionTarget = SelectionTarget.None;
-        _dragStart = null;
-        _dragRectangle = null;
-        OverlayCanvas.Cursor = Cursors.Arrow;
-        SaveStatusText.Text = option.Mode switch
-        {
-            ScannerGroundTruthSelectionMode.Candidate => $"{FieldLabel(field)} 정답으로 {option.Label}를 선택했습니다.",
-            ScannerGroundTruthSelectionMode.None => $"{FieldLabel(field)} 정답을 ‘없음’으로 지정했습니다.",
-            _ => string.Empty,
-        };
-    }
-
-    private ScannerGroundTruthSelection BuildSelection(CandidateField field, CandidateOption option)
-    {
-        var fieldName = FieldName(field);
-        if (option.Mode != ScannerGroundTruthSelectionMode.Candidate || option.Candidate is null)
-            return new ScannerGroundTruthSelection(fieldName, option.Mode, option.Bounds);
-
-        var candidate = option.Candidate;
-        var score = field == CandidateField.DetailWindow
-            ? candidate.StructuralScore
-            : candidate.TitleAnchorScore;
-        var reason = field == CandidateField.DetailWindow
-            ? candidate.StructuralReason
-            : candidate.TitleAnchorReason;
-        return new ScannerGroundTruthSelection(
-            fieldName,
-            ScannerGroundTruthSelectionMode.Candidate,
-            option.Bounds,
-            candidate.Id,
-            candidate.Rank,
-            score,
-            reason);
+        SetSelection(_activeField, CandidateSelection(_activeField, hit.Candidate, hit.Bounds));
+        SaveStatusText.Text = $"{FieldLabel(_activeField)} 후보를 선택했습니다.";
+        UpdateActiveFieldUi();
+        RenderOverlays();
+        e.Handled = true;
     }
 
     private void SetSelection(CandidateField field, ScannerGroundTruthSelection selection)
@@ -226,7 +198,7 @@ public partial class ScannerCorrectionWindow : Window
 
     private static Rect? CorrectionBounds(ScannerGroundTruthSelection selection, Rect? currentBounds)
     {
-        if (selection.Mode == ScannerGroundTruthSelectionMode.Current || selection.Mode == ScannerGroundTruthSelectionMode.None)
+        if (selection.Mode is ScannerGroundTruthSelectionMode.Current or ScannerGroundTruthSelectionMode.None)
             return null;
         return RectsEquivalent(selection.Bounds, currentBounds) ? null : selection.Bounds;
     }
@@ -234,17 +206,61 @@ public partial class ScannerCorrectionWindow : Window
     private void RenderOverlays()
     {
         OverlayCanvas.Children.Clear();
-        AddOverlay(_frame.SelectedBounds, Brushes.Lime, 3);
-        AddOverlay(_frame.TitleBounds, Brushes.DeepSkyBlue, 2);
-        AddOverlay(_frame.MagnifierBounds, Brushes.Gold, 2);
-        AddOverlay(_frame.CloseBounds, Brushes.OrangeRed, 2);
 
+        // Existing selections remain visible for context. The active field additionally
+        // exposes every real detector candidate as a clickable rectangle.
         AddOverlay(SelectedBounds(_detailSelection), Brushes.Magenta, 3);
-        AddOverlay(SelectedBounds(_titleSelection), Brushes.Cyan, 3);
-        AddOverlay(SelectedBounds(_magnifierSelection), Brushes.MediumPurple, 3);
         AddOverlay(SelectedBounds(_closeSelection), Brushes.HotPink, 3);
+        AddOverlay(SelectedBounds(_magnifierSelection), Brushes.MediumPurple, 3);
+        AddOverlay(SelectedBounds(_titleSelection), Brushes.Cyan, 3);
+
+        foreach (var candidate in (_frame.Candidates ?? []).OrderByDescending(candidate => candidate.Rank))
+        {
+            var bounds = CandidateBounds(candidate, _activeField);
+            if (bounds is not { Width: > 0, Height: > 0 } rect)
+                continue;
+            AddCandidateOverlay(candidate, rect);
+        }
+
         if (_dragRectangle is not null)
             OverlayCanvas.Children.Add(_dragRectangle);
+    }
+
+    private void AddCandidateOverlay(ScannerDiagnosticCandidateEvidence candidate, Rect rect)
+    {
+        var selection = SelectionFor(_activeField);
+        var selected = selection.Mode == ScannerGroundTruthSelectionMode.Candidate &&
+                       string.Equals(selection.CandidateId, candidate.Id, StringComparison.Ordinal) &&
+                       RectsEquivalent(selection.Bounds, rect);
+        var rectangle = new Rectangle
+        {
+            Width = rect.Width,
+            Height = rect.Height,
+            Stroke = selected ? Brushes.Gold : Brushes.WhiteSmoke,
+            StrokeThickness = selected ? 5 : 2,
+            StrokeDashArray = selected ? null : new DoubleCollection([5, 3]),
+            Fill = new SolidColorBrush(Color.FromArgb(selected ? (byte)34 : (byte)18, 255, 255, 255)),
+            Cursor = Cursors.Hand,
+            Tag = new CandidateHit(candidate, rect),
+            ToolTip = "클릭하여 이 영역을 정답 후보로 선택",
+        };
+        rectangle.MouseLeftButtonDown += CandidateOverlay_MouseLeftButtonDown;
+        Canvas.SetLeft(rectangle, rect.X);
+        Canvas.SetTop(rectangle, rect.Y);
+        OverlayCanvas.Children.Add(rectangle);
+
+        var rank = new TextBlock
+        {
+            Text = candidate.Rank.ToString(),
+            Foreground = selected ? Brushes.Black : Brushes.White,
+            Background = selected ? Brushes.Gold : Brushes.Black,
+            FontSize = 11,
+            Padding = new Thickness(3, 1, 3, 1),
+            IsHitTestVisible = false,
+        };
+        Canvas.SetLeft(rank, rect.X + 2);
+        Canvas.SetTop(rank, rect.Y + 2);
+        OverlayCanvas.Children.Add(rank);
     }
 
     private static Rect? SelectedBounds(ScannerGroundTruthSelection selection) =>
@@ -267,31 +283,6 @@ public partial class ScannerCorrectionWindow : Window
         OverlayCanvas.Children.Add(rectangle);
     }
 
-    private void DetailCorrectionButton_Click(object sender, RoutedEventArgs e) =>
-        SelectManual(CandidateField.DetailWindow);
-
-    private void CloseCorrectionButton_Click(object sender, RoutedEventArgs e) =>
-        SelectManual(CandidateField.CloseButton);
-
-    private void MagnifierCorrectionButton_Click(object sender, RoutedEventArgs e) =>
-        SelectManual(CandidateField.Magnifier);
-
-    private void TitleCorrectionButton_Click(object sender, RoutedEventArgs e) =>
-        SelectManual(CandidateField.ItemName);
-
-    private void SelectManual(CandidateField field)
-    {
-        var combo = ComboFor(field);
-        if (combo.ItemsSource is not IEnumerable<CandidateOption> options)
-            return;
-        var manual = options.First(option => option.Mode == ScannerGroundTruthSelectionMode.Manual);
-        _updatingSelectors = true;
-        combo.SelectedItem = manual;
-        _updatingSelectors = false;
-        ApplyOption(field, manual, beginManual: true);
-        RenderOverlays();
-    }
-
     private void BeginSelection(SelectionTarget target, string instruction)
     {
         _selectionTarget = target;
@@ -299,22 +290,40 @@ public partial class ScannerCorrectionWindow : Window
         _dragRectangle = null;
         OverlayCanvas.Cursor = Cursors.Cross;
         SaveStatusText.Text = instruction;
+        UpdateActiveFieldUi();
         RenderOverlays();
+    }
+
+    private void CancelManualSelection()
+    {
+        if (OverlayCanvas.IsMouseCaptured)
+            OverlayCanvas.ReleaseMouseCapture();
+        _selectionTarget = SelectionTarget.None;
+        _dragStart = null;
+        _dragRectangle = null;
+        OverlayCanvas.Cursor = Cursors.Arrow;
     }
 
     private void ResetCorrectionButton_Click(object sender, RoutedEventArgs e)
     {
-        _selectionTarget = SelectionTarget.None;
-        _correctedDetailBounds = null;
-        _correctedCloseBounds = null;
-        _correctedMagnifierBounds = null;
-        _correctedTitleBounds = null;
-        _dragStart = null;
-        _dragRectangle = null;
-        OverlayCanvas.Cursor = Cursors.Arrow;
-        InitializeCandidateSelectors();
-        SaveStatusText.Text = "후보 선택과 직접 지정 영역을 현재 검출값 기준으로 초기화했습니다.";
+        CancelManualSelection();
+        SetSelection(CandidateField.DetailWindow, DefaultSelection(CandidateField.DetailWindow));
+        SetSelection(CandidateField.CloseButton, DefaultSelection(CandidateField.CloseButton));
+        SetSelection(CandidateField.Magnifier, DefaultSelection(CandidateField.Magnifier));
+        SetSelection(CandidateField.ItemName, DefaultSelection(CandidateField.ItemName));
+        SaveStatusText.Text = "영역 선택을 현재 Scanner 검출값 기준으로 초기화했습니다.";
+        UpdateActiveFieldUi();
         RenderOverlays();
+    }
+
+    private ScannerGroundTruthSelection DefaultSelection(CandidateField field)
+    {
+        var currentBounds = CurrentBounds(field);
+        var matching = (_frame.Candidates ?? []).FirstOrDefault(candidate =>
+            RectsEquivalent(CandidateBounds(candidate, field), currentBounds));
+        return matching is null
+            ? CurrentSelection(FieldName(field), currentBounds)
+            : CandidateSelection(field, matching, CandidateBounds(matching, field));
     }
 
     private void OverlayCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -371,9 +380,9 @@ public partial class ScannerCorrectionWindow : Window
                 FieldName(field),
                 ScannerGroundTruthSelectionMode.Manual,
                 rect));
-        SaveStatusText.Text = $"{FieldLabel(field)} 정답 영역을 직접 {FormatRect(rect)}로 지정했습니다.";
-        _selectionTarget = SelectionTarget.None;
-        OverlayCanvas.Cursor = Cursors.Arrow;
+        SaveStatusText.Text = $"{FieldLabel(field)} 정답 영역을 직접 지정했습니다.";
+        CancelManualSelection();
+        UpdateActiveFieldUi();
         RenderOverlays();
         e.Handled = true;
     }
@@ -387,7 +396,7 @@ public partial class ScannerCorrectionWindow : Window
         {
             MessageBox.Show(
                 this,
-                "후보/영역/텍스트 수정이 지정되어 있습니다. 수정 내용을 저장하려면 ‘교정 저장’을 사용해 주세요.",
+                "영역 또는 텍스트 수정이 지정되어 있습니다. 수정 내용을 저장하려면 ‘교정 저장’을 사용해 주세요.",
                 "Scanner 교정",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -415,7 +424,7 @@ public partial class ScannerCorrectionWindow : Window
         {
             MessageBox.Show(
                 this,
-                "수정된 후보/영역이나 정답 텍스트가 없습니다. 결과가 맞다면 ‘전부 맞음’을 눌러 주세요.",
+                "수정된 영역이나 정답 텍스트가 없습니다. 결과가 맞다면 ‘전부 맞음’을 눌러 주세요.",
                 "Scanner 교정",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -478,43 +487,31 @@ public partial class ScannerCorrectionWindow : Window
                 return;
             }
 
-            try
-            {
-                ScannerCandidateGroundTruth.Save(
-                    _frame,
-                    [
-                        _detailSelection,
-                        _closeSelection,
-                        _magnifierSelection,
-                        _titleSelection,
-                    ],
-                    groundTruth);
-            }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or NotSupportedException)
-            {
-                App.WriteDiagnostic("Scanner candidate Ground Truth sidecar save failed", exception);
-                SaveStatusText.Text = "기본 교정 데이터는 저장했지만 후보 선택 상세 정보를 저장하지 못했습니다.";
-                MessageBox.Show(
-                    this,
-                    "기본 교정 데이터는 저장했지만 후보 선택 상세 정보 저장에 실패했습니다. 같은 Case를 다시 교정해 주세요.",
-                    "Scanner 교정",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-                return;
-            }
+            ScannerCandidateGroundTruth.Save(
+                _frame,
+                [
+                    _detailSelection,
+                    _closeSelection,
+                    _magnifierSelection,
+                    _titleSelection,
+                ],
+                groundTruth);
 
+            DatasetChanged = true;
             SaveStatusText.Text = $"저장 완료 · {result.CaseId}";
             MessageBox.Show(
                 this,
-                $"교정/검증 데이터와 후보 선택 Ground Truth를 저장했습니다.\nCase ID: {result.CaseId}",
+                $"교정/검증 데이터를 저장했습니다.\nCase ID: {result.CaseId}",
                 "Scanner 교정",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
         }
-        catch (Exception exception)
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or NotSupportedException or InvalidDataException)
         {
             App.WriteDiagnostic("Scanner correction save failed", exception);
             SaveStatusText.Text = "교정 데이터 저장 중 오류가 발생했습니다.";
+            MessageBox.Show(this, "교정 데이터를 저장하지 못했습니다.", "Scanner 교정", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         finally
         {
@@ -526,17 +523,62 @@ public partial class ScannerCorrectionWindow : Window
     {
         ConfirmButton.IsEnabled = enabled;
         SaveCorrectionButton.IsEnabled = enabled;
-        DetailCorrectionButton.IsEnabled = enabled;
-        CloseCorrectionButton.IsEnabled = enabled;
-        MagnifierCorrectionButton.IsEnabled = enabled;
-        TitleCorrectionButton.IsEnabled = enabled;
+        DetailFieldButton.IsEnabled = enabled;
+        CloseFieldButton.IsEnabled = enabled;
+        MagnifierFieldButton.IsEnabled = enabled;
+        TitleFieldButton.IsEnabled = enabled;
+        KeepCurrentButton.IsEnabled = enabled;
+        NoneButton.IsEnabled = enabled;
+        ManualButton.IsEnabled = enabled;
         ResetCorrectionButton.IsEnabled = enabled;
-        DetailCandidateComboBox.IsEnabled = enabled;
-        CloseCandidateComboBox.IsEnabled = enabled;
-        MagnifierCandidateComboBox.IsEnabled = enabled;
-        TitleCandidateComboBox.IsEnabled = enabled;
         GroundTruthTextBox.IsEnabled = enabled;
     }
+
+    private void UpdateActiveFieldUi()
+    {
+        var buttons = new Dictionary<CandidateField, Button>
+        {
+            [CandidateField.DetailWindow] = DetailFieldButton,
+            [CandidateField.CloseButton] = CloseFieldButton,
+            [CandidateField.Magnifier] = MagnifierFieldButton,
+            [CandidateField.ItemName] = TitleFieldButton,
+        };
+        foreach (var pair in buttons)
+        {
+            pair.Value.FontWeight = pair.Key == _activeField ? FontWeights.Bold : FontWeights.Normal;
+            pair.Value.Opacity = pair.Key == _activeField ? 1 : 0.72;
+        }
+
+        ActiveFieldStatusText.Text =
+            $"{FieldLabel(_activeField)} · {SelectionDescription(SelectionFor(_activeField))} · " +
+            "흰색 후보 사각형을 클릭해 선택할 수 있습니다.";
+    }
+
+    private static string SelectionDescription(ScannerGroundTruthSelection selection) => selection.Mode switch
+    {
+        ScannerGroundTruthSelectionMode.Candidate => "후보 선택됨",
+        ScannerGroundTruthSelectionMode.Manual => "직접 지정됨",
+        ScannerGroundTruthSelectionMode.None => "없음",
+        _ => selection.Bounds is null ? "현재 검출값 없음" : "현재 검출값",
+    };
+
+    private ScannerGroundTruthSelection SelectionFor(CandidateField field) => field switch
+    {
+        CandidateField.DetailWindow => _detailSelection,
+        CandidateField.CloseButton => _closeSelection,
+        CandidateField.Magnifier => _magnifierSelection,
+        CandidateField.ItemName => _titleSelection,
+        _ => throw new ArgumentOutOfRangeException(nameof(field)),
+    };
+
+    private Rect? CurrentBounds(CandidateField field) => field switch
+    {
+        CandidateField.DetailWindow => _frame.SelectedBounds,
+        CandidateField.CloseButton => _frame.CloseBounds,
+        CandidateField.Magnifier => _frame.MagnifierBounds,
+        CandidateField.ItemName => _frame.TitleBounds,
+        _ => null,
+    };
 
     private Point ClampPoint(Point point) => new(
         Math.Clamp(point.X, 0, Math.Max(0, _frame.Image.PixelWidth)),
@@ -558,14 +600,26 @@ public partial class ScannerCorrectionWindow : Window
         _ => null,
     };
 
-    private ComboBox ComboFor(CandidateField field) => field switch
+    private static ScannerGroundTruthSelection CandidateSelection(
+        CandidateField field,
+        ScannerDiagnosticCandidateEvidence candidate,
+        Rect? bounds)
     {
-        CandidateField.DetailWindow => DetailCandidateComboBox,
-        CandidateField.CloseButton => CloseCandidateComboBox,
-        CandidateField.Magnifier => MagnifierCandidateComboBox,
-        CandidateField.ItemName => TitleCandidateComboBox,
-        _ => throw new ArgumentOutOfRangeException(nameof(field)),
-    };
+        var score = field == CandidateField.DetailWindow
+            ? candidate.StructuralScore
+            : candidate.TitleAnchorScore;
+        var reason = field == CandidateField.DetailWindow
+            ? candidate.StructuralReason
+            : candidate.TitleAnchorReason;
+        return new ScannerGroundTruthSelection(
+            FieldName(field),
+            ScannerGroundTruthSelectionMode.Candidate,
+            bounds,
+            candidate.Id,
+            candidate.Rank,
+            score,
+            reason);
+    }
 
     private static SelectionTarget ToSelectionTarget(CandidateField field) => field switch
     {
@@ -587,10 +641,10 @@ public partial class ScannerCorrectionWindow : Window
 
     private static string ManualInstruction(CandidateField field) => field switch
     {
-        CandidateField.DetailWindow => "실제 상세보기 창 전체를 드래그해 주세요.",
-        CandidateField.CloseButton => "실제 빨간 닫기 X 영역을 드래그해 주세요.",
-        CandidateField.Magnifier => "실제 아이템명 왼쪽 돋보기 영역을 드래그해 주세요.",
-        CandidateField.ItemName => "실제 아이템 이름 텍스트 영역을 드래그해 주세요.",
+        CandidateField.DetailWindow => "실제 상세보기 창 전체를 이미지에서 드래그해 주세요.",
+        CandidateField.CloseButton => "실제 빨간 닫기 X 영역을 이미지에서 드래그해 주세요.",
+        CandidateField.Magnifier => "실제 아이템명 왼쪽 돋보기 영역을 이미지에서 드래그해 주세요.",
+        CandidateField.ItemName => "실제 아이템 이름 텍스트 영역을 이미지에서 드래그해 주세요.",
         _ => "정답 영역을 드래그해 주세요.",
     };
 
@@ -608,7 +662,7 @@ public partial class ScannerCorrectionWindow : Window
         CandidateField.DetailWindow => "상세보기 창",
         CandidateField.CloseButton => "빨간 X",
         CandidateField.Magnifier => "돋보기",
-        CandidateField.ItemName => "아이템명 ROI",
+        CandidateField.ItemName => "아이템명 영역",
         _ => "영역",
     };
 
@@ -634,17 +688,7 @@ public partial class ScannerCorrectionWindow : Window
                Math.Abs(left.Value.Height - right.Value.Height) < 0.5;
     }
 
-    private static string FormatRect(Rect rect) =>
-        $"({rect.X:0},{rect.Y:0}) {rect.Width:0}x{rect.Height:0}";
-
     private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
 
-    private sealed record CandidateOption(
-        string Label,
-        ScannerGroundTruthSelectionMode Mode,
-        ScannerDiagnosticCandidateEvidence? Candidate,
-        Rect? Bounds)
-    {
-        public override string ToString() => Label;
-    }
+    private sealed record CandidateHit(ScannerDiagnosticCandidateEvidence Candidate, Rect Bounds);
 }
