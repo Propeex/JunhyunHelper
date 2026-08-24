@@ -192,6 +192,20 @@ v1.6.0 UX 작업 때문에 Scanner identity safety threshold를 완화하지 않
 
 CI는 실제 release ZIP을 생성한 뒤 최상위 폴더 구조와 필수 파일을 검증해야 한다.
 
+### v1.5.0 → v1.6.0 전환 호환성
+
+공개 v1.5.0 updater는 `Junhyun-Helper-vX.Y.Z-win-x64.zip` 이름과 archive-root product layout만 이해한다. 이미 배포된 updater는 수정할 수 없으므로 v1.6.0에 한해 다음 transition bridge asset을 함께 게시한다.
+
+- `Junhyun-Helper-v1.6.0-win-x64.zip`
+
+일반 사용자용 권위 asset은 `준현 헬퍼.zip`이며 bridge는 v1.5.0 자동 업데이트 호환성만 담당한다.
+
+v1.6.0 updater는 새 Korean stable package를 우선 선택하고 `준현 헬퍼/` wrapper를 staging root로 안전하게 unwrap한다. 전환 기간을 위해 legacy versioned package도 fallback으로 읽을 수 있다.
+
+`SHA256SUMS.txt`는 stable/bridge package를 모두 포함하며, checksum parser는 공백이 포함된 stable filename 전체를 정확히 비교해야 한다.
+
+v1.6.0 이후 release는 old v1.5 updater를 위한 bridge asset을 계속 만들 필요가 없다. 이 예외를 영구 package contract로 확대하지 않는다.
+
 ## 11. 검증 gate
 
 v1.6.0 release candidate는 최소 다음을 통과해야 한다.
@@ -208,6 +222,8 @@ v1.6.0 release candidate는 최소 다음을 통과해야 한다.
 - graceful shutdown
 - clean portable root
 - stable `준현 헬퍼.zip` 생성 및 내부 `준현 헬퍼/` 경로 검증
+- v1.5 updater bridge ZIP 생성 및 legacy root 구조 검증
+- stable/bridge package SHA256SUMS 일치 검증
 - 공개 release 후 anonymous/public redownload 검증
 
 ## 12. 다음 개발 원칙
