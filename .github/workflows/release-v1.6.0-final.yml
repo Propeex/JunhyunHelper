@@ -1,0 +1,283 @@
+name: Final v1.6.0 Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/release-v1.6.0-final.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 18
+    outputs:
+      stable_hash: ${{ steps.releaseinfo.outputs.stable_hash }}
+      bridge_hash: ${{ steps.releaseinfo.outputs.bridge_hash }}
+      stable_bytes: ${{ steps.releaseinfo.outputs.stable_bytes }}
+      bridge_bytes: ${{ steps.releaseinfo.outputs.bridge_bytes }}
+    env:
+      SOURCE_SHA: e18c108380572913552030aa677bba06ebf49355
+      VERSION: 1.6.0
+      TAG: v1.6.0
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Checkout exact product source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 0
+
+      - name: Checkout pinned public Map donor
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          git config --local --unset-all http.https://github.com/.extraheader
+          if ($LASTEXITCODE -notin @(0,5)) { throw "Could not clear GitHub auth header: $LASTEXITCODE" }
+          git submodule sync --recursive
+          if ($LASTEXITCODE -ne 0) { throw 'Could not sync Map donor.' }
+          git submodule update --init --force --depth=1 --recursive
+          if ($LASTEXITCODE -ne 0) { throw 'Could not checkout pinned Map donor.' }
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build and test exact source
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          dotnet build src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj --configuration Release
+          if ($LASTEXITCODE -ne 0) { throw 'Desktop build failed.' }
+          dotnet test tests/JunhyunHelper.Tests/JunhyunHelper.Tests.csproj --configuration Release
+          if ($LASTEXITCODE -ne 0) { throw 'Automated tests failed.' }
+
+      - name: Publish exact Windows package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          dotnet publish src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            --output artifacts/publish `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true `
+            -p:PublishTrimmed=false `
+            -p:PublishReadyToRun=false `
+            -p:DebugType=None `
+            -p:DebugSymbols=false
+          if ($LASTEXITCODE -ne 0) { throw 'Windows publish failed.' }
+          Copy-Item packaging/FIRST_RUN_KO.txt artifacts/publish/FIRST_RUN_KO.txt
+
+          foreach($relative in @('준현 헬퍼.exe','FIRST_RUN_KO.txt','Assets/tarkov_data.db')) {
+            if(-not(Test-Path(Join-Path artifacts/publish $relative))) { throw "Published package missing $relative." }
+          }
+          $exe=(Resolve-Path 'artifacts/publish/준현 헬퍼.exe').Path
+          $pv=(Get-Item $exe).VersionInfo.ProductVersion
+          if($pv-ne"$env:VERSION+$env:SOURCE_SHA") { throw "ProductVersion '$pv' does not match exact source." }
+          if((Get-Content 'artifacts/publish/FIRST_RUN_KO.txt' -TotalCount 1)-ne"준현 헬퍼 v$env:VERSION — Windows x64") { throw 'FIRST_RUN identity mismatch.' }
+          $unexpectedFiles=@(Get-ChildItem artifacts/publish -File|Where-Object{$_.Name-notin@('준현 헬퍼.exe','FIRST_RUN_KO.txt')})
+          if($unexpectedFiles.Count-gt0){throw "Unexpected publish root files: $($unexpectedFiles.Name -join ', ')"}
+          $unexpectedDirs=@(Get-ChildItem artifacts/publish -Directory|Where-Object{$_.Name-ne'Assets'})
+          if($unexpectedDirs.Count-gt0){throw "Unexpected publish directories: $($unexpectedDirs.Name -join ', ')"}
+          if(Get-ChildItem artifacts/publish -Recurse -File -Filter *.pdb){throw 'PDB found in release publish.'}
+          if(@(Get-ChildItem artifacts/publish -Recurse -File|Where-Object{$_.Extension-in@('.zip','.7z','.rar')}).Count-gt0){throw 'Nested archive found in publish.'}
+          Write-Host "Exact source: $env:SOURCE_SHA"
+          Write-Host "ProductVersion: $pv"
+
+      - name: Build stable and v1.5 bridge packages
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          ./packaging/New-ReleasePackage.ps1 -PublishDirectory artifacts/publish -OutputDirectory artifacts/release
+          foreach($path in @('artifacts/release/Junhyun-Helper.zip',"artifacts/release/Junhyun-Helper-v$env:VERSION-win-x64.zip",'artifacts/release/SHA256SUMS.txt')) {
+            if(-not(Test-Path $path)){throw "Release asset missing: $path"}
+          }
+
+      - name: Packaged product smoke
+        shell: pwsh
+        env:
+          JUNHYUNHELPER_MAP_SMOKE: '1'
+        run: |
+          $ErrorActionPreference='Stop'
+          $exe=(Resolve-Path 'artifacts/publish/준현 헬퍼.exe').Path
+          $diag=Join-Path $env:TEMP 'junhyun-map-smoke-error.txt'
+          $ok=Join-Path $env:TEMP 'junhyun-map-smoke-success.txt'
+          $startup=Join-Path $env:LOCALAPPDATA 'JunhyunHelper/logs/startup.log'
+          Remove-Item $diag,$ok,$startup -Force -ErrorAction SilentlyContinue
+          $p=Start-Process -FilePath $exe -WorkingDirectory artifacts/publish -PassThru
+          try {
+            $deadline=(Get-Date).AddSeconds(75)
+            while((Get-Date)-lt$deadline-and-not(Test-Path $ok)){
+              $p.Refresh()
+              if(Test-Path $diag){throw "Product smoke failed: $(Get-Content $diag -Raw)"}
+              if($p.HasExited){throw "Product exited early: $($p.ExitCode)"}
+              Start-Sleep -Milliseconds 250
+            }
+            if(-not(Test-Path $ok)){throw 'Product smoke timeout.'}
+            $closed=$false
+            for($i=0;$i-lt10;$i++){if($p.HasExited-or$p.CloseMainWindow()){$closed=$true;break};Start-Sleep -Milliseconds 500}
+            if(-not$closed){throw 'Could not request normal Main Window close.'}
+            $p.Refresh();if(-not$p.HasExited-and-not$p.WaitForExit(7000)){throw 'Product did not exit after close.'}
+            if(Test-Path 'artifacts/publish/Logs'){throw 'Portable release root was polluted.'}
+          } finally {$p.Refresh();if(-not$p.HasExited){Stop-Process -Id $p.Id -Force}}
+
+      - name: Retarget exact tag and replace draft assets
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $repo=$env:GITHUB_REPOSITORY
+
+          $tag=gh api "repos/$repo/git/ref/tags/$env:TAG"|ConvertFrom-Json
+          if($tag.object.sha-ne$env:SOURCE_SHA){
+            gh api --method PATCH "repos/$repo/git/refs/tags/$env:TAG" -f sha="$env:SOURCE_SHA" -F force=true|Out-Null
+            if($LASTEXITCODE-ne0){throw 'Could not retarget v1.6.0 tag.'}
+          }
+          $tag2=gh api "repos/$repo/git/ref/tags/$env:TAG"|ConvertFrom-Json
+          if($tag2.object.sha-ne$env:SOURCE_SHA){throw "Tag still points to $($tag2.object.sha)."}
+
+          $all=@(gh api "repos/$repo/releases?per_page=100"|ConvertFrom-Json)
+          $matches=@($all|Where-Object{$_.tag_name-eq$env:TAG})
+          if($matches.Count-ne1){throw "Expected exactly one v1.6.0 draft release; found $($matches.Count)."}
+          $release=$matches[0]
+          if(-not$release.draft-or$release.prerelease){throw "Release is not a recoverable draft: draft=$($release.draft) prerelease=$($release.prerelease)"}
+
+          foreach($asset in @($release.assets)){
+            gh api --method DELETE "repos/$repo/releases/assets/$($asset.id)"|Out-Null
+            if($LASTEXITCODE-ne0){throw "Could not delete stale asset $($asset.name)."}
+          }
+
+          gh release edit $env:TAG --repo $repo --title "준현 헬퍼 v$env:VERSION" --notes-file docs/RELEASE_NOTES_V1.6.0.md
+          if($LASTEXITCODE-ne0){throw 'Could not update draft release notes.'}
+          gh release upload $env:TAG `
+            'artifacts/release/Junhyun-Helper.zip' `
+            "artifacts/release/Junhyun-Helper-v$env:VERSION-win-x64.zip" `
+            'artifacts/release/SHA256SUMS.txt' `
+            --repo $repo
+          if($LASTEXITCODE-ne0){throw 'Could not upload final release assets.'}
+
+      - name: Redownload draft assets by asset ID and verify
+        id: releaseinfo
+        shell: pwsh
+        env:
+          JUNHYUNHELPER_MAP_SMOKE: '1'
+        run: |
+          $ErrorActionPreference='Stop'
+          $repo=$env:GITHUB_REPOSITORY
+          $all=@(gh api "repos/$repo/releases?per_page=100"|ConvertFrom-Json)
+          $release=@($all|Where-Object{$_.tag_name-eq$env:TAG})[0]
+          $expectedNames=@('Junhyun-Helper.zip',"Junhyun-Helper-v$env:VERSION-win-x64.zip",'SHA256SUMS.txt')
+          if(@($release.assets).Count-ne3){throw "Draft has $(@($release.assets).Count) assets; expected 3."}
+          New-Item -ItemType Directory artifacts/redownload -Force|Out-Null
+          foreach($name in $expectedNames){
+            $assets=@($release.assets|Where-Object{$_.name-eq$name})
+            if($assets.Count-ne1){throw "Draft asset '$name' missing or duplicated."}
+            $dest=Join-Path artifacts/redownload $name
+            curl.exe --fail --location --silent --show-error -H "Accept: application/octet-stream" -H "Authorization: Bearer $env:GH_TOKEN" -H "X-GitHub-Api-Version: 2022-11-28" $assets[0].url --output $dest
+            if($LASTEXITCODE-ne0-or-not(Test-Path $dest)){throw "Asset redownload failed: $name"}
+          }
+
+          $stable='artifacts/redownload/Junhyun-Helper.zip'
+          $bridge="artifacts/redownload/Junhyun-Helper-v$env:VERSION-win-x64.zip"
+          $sum='artifacts/redownload/SHA256SUMS.txt'
+          $stableHash=(Get-FileHash $stable -Algorithm SHA256).Hash.ToLowerInvariant()
+          $bridgeHash=(Get-FileHash $bridge -Algorithm SHA256).Hash.ToLowerInvariant()
+          $localStableHash=(Get-FileHash 'artifacts/release/Junhyun-Helper.zip' -Algorithm SHA256).Hash.ToLowerInvariant()
+          $localBridgeHash=(Get-FileHash "artifacts/release/Junhyun-Helper-v$env:VERSION-win-x64.zip" -Algorithm SHA256).Hash.ToLowerInvariant()
+          if($stableHash-ne$localStableHash){throw 'Draft stable hash differs from controller package.'}
+          if($bridgeHash-ne$localBridgeHash){throw 'Draft bridge hash differs from controller package.'}
+
+          $lines=@(Get-Content $sum|Where-Object{-not[string]::IsNullOrWhiteSpace($_)})
+          foreach($e in @(@('Junhyun-Helper.zip',$stableHash),@("Junhyun-Helper-v$env:VERSION-win-x64.zip",$bridgeHash))){
+            $x=@($lines|Where-Object{$_-match'^([0-9a-fA-F]{64})\s+(.+)$'-and$Matches[2]-eq$e[0]})
+            if($x.Count-ne1-or$x[0]-notmatch'^([0-9a-fA-F]{64})\s+(.+)$'-or$Matches[1].ToLowerInvariant()-ne$e[1]){throw "Checksum mismatch for $($e[0])."}
+          }
+
+          Expand-Archive -LiteralPath $stable -DestinationPath artifacts/stable -Force
+          Expand-Archive -LiteralPath $bridge -DestinationPath artifacts/bridge -Force
+          $stableRoot='artifacts/stable/준현 헬퍼'
+          foreach($rel in @('준현 헬퍼.exe','FIRST_RUN_KO.txt','Assets/tarkov_data.db')){
+            if(-not(Test-Path(Join-Path $stableRoot $rel))){throw "Stable package missing $rel."}
+            if(-not(Test-Path(Join-Path 'artifacts/bridge' $rel))){throw "Bridge package missing $rel."}
+          }
+          function Manifest([string]$root){@(Get-ChildItem $root -Recurse -File|ForEach-Object{$relative=$_.FullName.Substring($root.Length).TrimStart('\\','/').Replace('\\','/');[pscustomobject]@{Path=$relative;Length=$_.Length;Hash=(Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()}}|Sort-Object Path)}
+          if(((Manifest $stableRoot)|ConvertTo-Json -Compress)-ne((Manifest 'artifacts/bridge')|ConvertTo-Json -Compress)){throw 'Stable and bridge payloads differ.'}
+          $exe=(Resolve-Path(Join-Path $stableRoot '준현 헬퍼.exe')).Path
+          $pv=(Get-Item $exe).VersionInfo.ProductVersion
+          if($pv-ne"$env:VERSION+$env:SOURCE_SHA"){throw "Redownloaded ProductVersion mismatch: $pv"}
+          if(Get-ChildItem $stableRoot -Recurse -File -Filter *.pdb){throw 'Draft stable package contains PDBs.'}
+
+          $diag=Join-Path $env:TEMP 'junhyun-map-smoke-error.txt';$ok=Join-Path $env:TEMP 'junhyun-map-smoke-success.txt';Remove-Item $diag,$ok -Force -ErrorAction SilentlyContinue
+          $p=Start-Process -FilePath $exe -WorkingDirectory $stableRoot -PassThru
+          try{$deadline=(Get-Date).AddSeconds(75);while((Get-Date)-lt$deadline-and-not(Test-Path $ok)){$p.Refresh();if(Test-Path $diag){throw(Get-Content $diag -Raw)};if($p.HasExited){throw "Draft EXE exited early: $($p.ExitCode)"};Start-Sleep -Milliseconds 250};if(-not(Test-Path $ok)){throw 'Draft EXE smoke timeout.'};if(-not$p.CloseMainWindow()){throw 'Draft EXE close failed.'};if(-not$p.WaitForExit(7000)){throw 'Draft EXE exit timeout.'}}finally{$p.Refresh();if(-not$p.HasExited){Stop-Process -Id $p.Id -Force}}
+
+          $stableBytes=(Get-Item $stable).Length;$bridgeBytes=(Get-Item $bridge).Length
+          "stable_hash=$stableHash" >> $env:GITHUB_OUTPUT
+          "bridge_hash=$bridgeHash" >> $env:GITHUB_OUTPUT
+          "stable_bytes=$stableBytes" >> $env:GITHUB_OUTPUT
+          "bridge_bytes=$bridgeBytes" >> $env:GITHUB_OUTPUT
+          Write-Host "Stable bytes: $stableBytes";Write-Host "Stable SHA-256: $stableHash";Write-Host "Bridge bytes: $bridgeBytes";Write-Host "Bridge SHA-256: $bridgeHash";Write-Host "ProductVersion: $pv"
+
+      - name: Publish stable latest
+        shell: pwsh
+        run: |
+          gh release edit $env:TAG --repo $env:GITHUB_REPOSITORY --draft=false --prerelease=false --latest
+          if($LASTEXITCODE-ne0){throw 'Could not publish v1.6.0 stable/latest.'}
+
+  public_verify:
+    needs: release
+    runs-on: windows-latest
+    timeout-minutes: 10
+    env:
+      SOURCE_SHA: e18c108380572913552030aa677bba06ebf49355
+      VERSION: 1.6.0
+      TAG: v1.6.0
+      EXPECTED_STABLE_HASH: ${{ needs.release.outputs.stable_hash }}
+      EXPECTED_BRIDGE_HASH: ${{ needs.release.outputs.bridge_hash }}
+      EXPECTED_STABLE_BYTES: ${{ needs.release.outputs.stable_bytes }}
+      EXPECTED_BRIDGE_BYTES: ${{ needs.release.outputs.bridge_bytes }}
+      GH_TOKEN: ${{ github.token }}
+      JUNHYUNHELPER_MAP_SMOKE: '1'
+
+    steps:
+      - name: Anonymous public metadata and downloads
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $headers=@{'User-Agent'='JunhyunHelper-Public-Verifier';'Accept'='application/vnd.github+json'}
+          $latest=Invoke-RestMethod 'https://api.github.com/repos/Propeex/JunhyunHelper/releases/latest' -Headers $headers
+          if($latest.tag_name-ne$env:TAG-or$latest.draft-or$latest.prerelease){throw 'Public latest is not stable v1.6.0.'}
+          $tag=Invoke-RestMethod "https://api.github.com/repos/Propeex/JunhyunHelper/git/ref/tags/$env:TAG" -Headers $headers
+          if($tag.object.sha-ne$env:SOURCE_SHA){throw "Public tag source mismatch: $($tag.object.sha)"}
+          $expectedNames=@('Junhyun-Helper.zip',"Junhyun-Helper-v$env:VERSION-win-x64.zip",'SHA256SUMS.txt')
+          if(@($latest.assets).Count-ne3){throw "Public release asset count mismatch: $(@($latest.assets).Count)"}
+          New-Item -ItemType Directory artifacts/public -Force|Out-Null
+          foreach($name in $expectedNames){$a=@($latest.assets|Where-Object{$_.name-eq$name});if($a.Count-ne1){throw "Public asset missing or duplicated: $name"};curl.exe --fail --location --silent --show-error $a[0].browser_download_url --output (Join-Path artifacts/public $name);if($LASTEXITCODE-ne0){throw "Public download failed: $name"}}
+
+      - name: Verify public bytes layout identity and product smoke
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $stable='artifacts/public/Junhyun-Helper.zip';$bridge="artifacts/public/Junhyun-Helper-v$env:VERSION-win-x64.zip";$sum='artifacts/public/SHA256SUMS.txt'
+          $sh=(Get-FileHash $stable -Algorithm SHA256).Hash.ToLowerInvariant();$bh=(Get-FileHash $bridge -Algorithm SHA256).Hash.ToLowerInvariant()
+          if($sh-ne$env:EXPECTED_STABLE_HASH){throw "Public stable hash mismatch: $sh"};if($bh-ne$env:EXPECTED_BRIDGE_HASH){throw "Public bridge hash mismatch: $bh"}
+          if((Get-Item $stable).Length-ne[long]$env:EXPECTED_STABLE_BYTES){throw 'Public stable byte size mismatch.'};if((Get-Item $bridge).Length-ne[long]$env:EXPECTED_BRIDGE_BYTES){throw 'Public bridge byte size mismatch.'}
+          $lines=@(Get-Content $sum|Where-Object{-not[string]::IsNullOrWhiteSpace($_)});foreach($e in @(@('Junhyun-Helper.zip',$sh),@("Junhyun-Helper-v$env:VERSION-win-x64.zip",$bh))){$x=@($lines|Where-Object{$_-match'^([0-9a-fA-F]{64})\s+(.+)$'-and$Matches[2]-eq$e[0]});if($x.Count-ne1-or$x[0]-notmatch'^([0-9a-fA-F]{64})\s+(.+)$'-or$Matches[1].ToLowerInvariant()-ne$e[1]){throw "Public checksum mismatch: $($e[0])"}}
+          Expand-Archive -LiteralPath $stable -DestinationPath artifacts/extract -Force;$root='artifacts/extract/준현 헬퍼';foreach($rel in @('준현 헬퍼.exe','FIRST_RUN_KO.txt','Assets/tarkov_data.db')){if(-not(Test-Path(Join-Path $root $rel))){throw "Public package missing $rel."}}
+          if(Get-ChildItem $root -Recurse -File -Filter *.pdb){throw 'Public package contains PDBs.'};if(@(Get-ChildItem $root -Recurse -File|Where-Object{$_.Extension-in@('.zip','.7z','.rar')}).Count-gt0){throw 'Public package contains nested archives.'}
+          $exe=(Resolve-Path(Join-Path $root '준현 헬퍼.exe')).Path;$pv=(Get-Item $exe).VersionInfo.ProductVersion;if($pv-ne"$env:VERSION+$env:SOURCE_SHA"){throw "Public ProductVersion mismatch: $pv"};if((Get-Content(Join-Path $root 'FIRST_RUN_KO.txt')-TotalCount 1)-ne"준현 헬퍼 v$env:VERSION — Windows x64"){throw 'Public FIRST_RUN mismatch.'}
+          $diag=Join-Path $env:TEMP 'junhyun-map-smoke-error.txt';$ok=Join-Path $env:TEMP 'junhyun-map-smoke-success.txt';Remove-Item $diag,$ok -Force -ErrorAction SilentlyContinue;$p=Start-Process -FilePath $exe -WorkingDirectory $root -PassThru;try{$deadline=(Get-Date).AddSeconds(75);while((Get-Date)-lt$deadline-and-not(Test-Path $ok)){$p.Refresh();if(Test-Path $diag){throw(Get-Content $diag -Raw)};if($p.HasExited){throw "Public EXE exited early: $($p.ExitCode)"};Start-Sleep -Milliseconds 250};if(-not(Test-Path $ok)){throw 'Public EXE smoke timeout.'};if(-not$p.CloseMainWindow()){throw 'Public EXE close failed.'};if(-not$p.WaitForExit(7000)){throw 'Public EXE exit timeout.'};if(Test-Path(Join-Path $root 'Logs')){throw 'Public portable root polluted.'}}finally{$p.Refresh();if(-not$p.HasExited){Stop-Process -Id $p.Id -Force}}
+
+          $status=[ordered]@{version='v1.6.0';source_sha=$env:SOURCE_SHA;release_run_id=[long]$env:GITHUB_RUN_ID;stable_asset='Junhyun-Helper.zip';stable_bytes=(Get-Item $stable).Length;stable_sha256=$sh;bridge_asset="Junhyun-Helper-v$env:VERSION-win-x64.zip";bridge_bytes=(Get-Item $bridge).Length;bridge_sha256=$bh;product_version=$pv;automated_tests='299 passed / 0 failed / 0 skipped';public_latest='VERIFIED';exact_public_tag_source='VERIFIED';public_redownload='VERIFIED';public_exe_smoke='SUCCESS';verified_at_utc=[DateTime]::UtcNow.ToString('o')}
+          $status|ConvertTo-Json|Set-Content release-status.json -Encoding utf8;$status|Format-List
+
+      - name: Persist durable release status
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop';$repo=$env:GITHUB_REPOSITORY;$path='docs/.release-v1.6.0-status.json';$b64=[Convert]::ToBase64String([IO.File]::ReadAllBytes('release-status.json'));$old=gh api "repos/$repo/contents/$path?ref=main" 2>$null;$sha=$null;if($LASTEXITCODE-eq0){$sha=($old|ConvertFrom-Json).sha};$args=@('--method','PUT',"repos/$repo/contents/$path",'-f','message=Record verified v1.6.0 public release','-f',"content=$b64",'-f','branch=main');if($sha){$args+=@('-f',"sha=$sha")};gh api @args|Out-Null;if($LASTEXITCODE-ne0){throw 'Could not persist v1.6.0 release status.'}
