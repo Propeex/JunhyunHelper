@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
-using Microsoft.Win32;
+using System.Diagnostics;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
@@ -14,6 +16,7 @@ public partial class ScannerPage : UserControl
     private bool _initialized;
     private bool _updatingUi;
     private bool _activitySubscribed;
+    private string? _selectedWikiUrl;
 
     public ScannerPage()
     {
@@ -33,9 +36,7 @@ public partial class ScannerPage : UserControl
         _coordinator.StatusChanged += Coordinator_StatusChanged;
         _coordinator.HotkeyStatusChanged += Coordinator_HotkeyStatusChanged;
         SubscribeActivityFeed();
-        ApplySettings(_coordinator.Settings);
-        UpdateToggleButtons();
-        UpdateDiagnosticStorageText();
+        UpdateToggleButton();
 
         try
         {
@@ -61,10 +62,9 @@ public partial class ScannerPage : UserControl
         {
             App.WriteDiagnostic("Scanner context refresh failed", exception);
         }
-        ApplySettings(_coordinator.Settings);
-        UpdateToggleButtons();
+        UpdateToggleButton();
         UpdateStatus(_coordinator.Status);
-        UpdateDiagnosticStorageText();
+        RefreshSearchResults();
     }
 
     private async void ScannerToggleButton_Click(object sender, RoutedEventArgs e)
@@ -74,7 +74,8 @@ public partial class ScannerPage : UserControl
 
         try
         {
-            SetToggleButtonsEnabled(false);
+            _updatingUi = true;
+            ScannerToggleButton.IsEnabled = false;
             await _coordinator.SetEnabledAsync(!_coordinator.Settings.Enabled);
         }
         catch (Exception exception)
@@ -83,265 +84,168 @@ public partial class ScannerPage : UserControl
         }
         finally
         {
-            ApplySettings(_coordinator.Settings);
-            UpdateToggleButtons();
-            UpdateStatus(_coordinator.Status);
-            SetToggleButtonsEnabled(true);
-        }
-    }
-
-    private async void TestToggleButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (_updatingUi || _coordinator is null)
-            return;
-
-        try
-        {
-            SetToggleButtonsEnabled(false);
-            await _coordinator.SetTestEnabledAsync(!_coordinator.TestEnabled);
-        }
-        catch (Exception exception)
-        {
-            App.WriteDiagnostic("Scanner display test state update failed", exception);
-        }
-        finally
-        {
-            ApplySettings(_coordinator.Settings);
-            UpdateToggleButtons();
-            UpdateStatus(_coordinator.Status);
-            SetToggleButtonsEnabled(true);
-        }
-    }
-
-    private void HotkeySettingsButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (_coordinator is null)
-            return;
-
-        var dialog = new ScannerHotkeySettingsWindow(
-            _coordinator.OneShotTarkovHotkeyText,
-            _coordinator.OneShotTestHotkeyText,
-            _coordinator.ScannerToggleHotkeyText)
-        {
-            Owner = Window.GetWindow(this),
-        };
-        if (dialog.ShowDialog() != true)
-            return;
-
-        _coordinator.SetOneShotTarkovHotkey(dialog.OneShotTarkovGesture);
-        _coordinator.SetOneShotTestHotkey(dialog.OneShotTestGesture);
-        _coordinator.SetScannerToggleHotkey(dialog.ScannerToggleGesture);
-        RuntimeStatusText.Text = _coordinator.HotkeyStatusText;
-    }
-
-    private void DisplayOption_Changed(object sender, RoutedEventArgs e)
-    {
-        if (_updatingUi || _coordinator is null)
-            return;
-
-        _coordinator.UpdateDisplaySettings(settings =>
-        {
-            settings.ShowItemName = ShowItemNameCheckBox.IsChecked == true;
-            settings.ShowItemIcon = ShowItemIconCheckBox.IsChecked == true;
-            settings.ShowTraderSellPrice = ShowTraderSellPriceCheckBox.IsChecked == true;
-            settings.ShowFleaAveragePrice = ShowFleaAveragePriceCheckBox.IsChecked == true;
-            settings.ShowTraderPricePerSlot = ShowTraderPricePerSlotCheckBox.IsChecked == true;
-            settings.ShowFleaPricePerSlot = ShowFleaPricePerSlotCheckBox.IsChecked == true;
-            settings.ShowCurrentNeeded = ShowCurrentNeededCheckBox.IsChecked == true;
-        });
-    }
-
-    private async void SyncCatalogButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (_coordinator is null)
-            return;
-
-        try
-        {
-            SyncCatalogButton.IsEnabled = false;
-            await _coordinator.SyncCatalogAsync();
-        }
-        catch (Exception exception)
-        {
-            App.WriteDiagnostic("Scanner item list refresh failed", exception);
-        }
-        finally
-        {
-            SyncCatalogButton.IsEnabled = true;
+            _updatingUi = false;
+            ScannerToggleButton.IsEnabled = true;
+            UpdateToggleButton();
             UpdateStatus(_coordinator.Status);
         }
     }
 
-    private void RecognitionImageButton_Click(object sender, RoutedEventArgs e)
-    {
-        var frame = ScannerRecognitionDebugStore.GetSnapshot();
-        if (frame is null)
-        {
-            MessageBox.Show(
-                Window.GetWindow(this),
-                "아직 Scanner가 캡처한 인식 이미지가 없습니다. 상세창을 연 뒤 스캔하거나 1회 인게임/테스트 스캔 단축키를 사용해 주세요.",
-                "Scanner 인식 이미지",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-            return;
-        }
-
-        var window = new ScannerRecognitionDebugWindow(frame)
-        {
-            Owner = Window.GetWindow(this),
-        };
-        window.ShowDialog();
-    }
-
-    private void CorrectionButton_Click(object sender, RoutedEventArgs e)
-    {
-        var frame = ScannerRecognitionDebugStore.GetSnapshot();
-        if (frame is null)
-        {
-            MessageBox.Show(
-                Window.GetWindow(this),
-                "교정할 최신 Scanner 인식 이미지가 없습니다. 상세창을 연 뒤 스캔을 먼저 실행해 주세요.",
-                "Scanner 교정",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-            return;
-        }
-
-        var window = new ScannerCorrectionWindow(frame, _coordinator)
-        {
-            Owner = Window.GetWindow(this),
-        };
-        window.ShowDialog();
-        UpdateDiagnosticStorageText();
-    }
-
-    private async void RegressionButton_Click(object sender, RoutedEventArgs e)
+    private void SettingsButton_Click(object sender, RoutedEventArgs e)
     {
         if (_coordinator is null)
             return;
 
-        var storage = ScannerDiagnosticDataset.GetStorageInfo();
-        if (storage.CaseCount == 0)
-        {
-            MessageBox.Show(
-                Window.GetWindow(this),
-                "회귀 테스트에 사용할 Scanner 교정/진단 데이터가 없습니다.",
-                "Scanner 회귀 테스트",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-            return;
-        }
-
-        RegressionButton.IsEnabled = false;
-        try
-        {
-            RuntimeStatusText.Text = "저장된 Ground Truth를 현재 Scanner 파이프라인으로 다시 검사하는 중입니다.";
-            var result = await _coordinator.RunGroundTruthRegressionAsync();
-            UpdateDiagnosticStorageText();
-
-            var accuracy = result.CurrentAccuracy is null
-                ? "n/a"
-                : result.CurrentAccuracy.Value.ToString("P2");
-            var message = result.ExecutedCases == 0
-                ? "최종 정답이 확인된 Case가 아직 없습니다. 영역/텍스트를 교정하거나 ‘맞음’으로 검증한 뒤 다시 실행해 주세요."
-                : $"회귀 테스트 완료\n\n검증 Case: {result.ExecutedCases}\n현재 정확도: {accuracy}\n해결: {result.Solved}\n기존 정상 유지: {result.StillCorrect}\n여전히 실패: {result.StillFailing}\n새 회귀: {result.Regressions}\n재생 오류: {result.Errors}\n\n결과는 regression.json / regression.md에 저장되며 교정 데이터 ZIP에도 포함됩니다.";
-            MessageBox.Show(
-                Window.GetWindow(this),
-                message,
-                "Scanner 회귀 테스트",
-                MessageBoxButton.OK,
-                result.Regressions > 0 ? MessageBoxImage.Warning : MessageBoxImage.Information);
-        }
-        catch (Exception exception)
-        {
-            App.WriteDiagnostic("Scanner Ground Truth regression failed", exception);
-            MessageBox.Show(
-                Window.GetWindow(this),
-                $"Scanner 회귀 테스트를 완료하지 못했습니다.\n{exception.Message}",
-                "Scanner 회귀 테스트",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
-        }
-        finally
-        {
-            UpdateDiagnosticStorageText();
-        }
-    }
-
-    private async void ExportDiagnosticsButton_Click(object sender, RoutedEventArgs e)
-    {
-        var dialog = new SaveFileDialog
-        {
-            Title = "Scanner 교정/진단 데이터 내보내기",
-            Filter = "ZIP 압축 파일 (*.zip)|*.zip",
-            DefaultExt = ".zip",
-            AddExtension = true,
-            FileName = $"ScannerDiagnostics_{DateTime.Now:yyyy-MM-dd}.zip",
-        };
-        if (dialog.ShowDialog(Window.GetWindow(this)) != true)
-            return;
-
-        ExportDiagnosticsButton.IsEnabled = false;
-        try
-        {
-            await ScannerDiagnosticDataset.ExportAsync(dialog.FileName);
-            UpdateDiagnosticStorageText();
-            MessageBox.Show(
-                Window.GetWindow(this),
-                "교정/진단 데이터 패키지를 생성했습니다. 이 ZIP 하나만 개발 분석에 전달하면 됩니다.",
-                "Scanner",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-        }
-        catch (Exception exception)
-        {
-            App.WriteDiagnostic("Scanner diagnostic dataset export failed", exception);
-            MessageBox.Show(
-                Window.GetWindow(this),
-                $"교정/진단 데이터 패키지를 생성하지 못했습니다.\n{exception.Message}",
-                "Scanner",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
-        }
-        finally
-        {
-            ExportDiagnosticsButton.IsEnabled = true;
-        }
-    }
-
-    private void ManageDiagnosticsButton_Click(object sender, RoutedEventArgs e)
-    {
-        var window = new ScannerDiagnosticCasesWindow
+        var window = new ScannerSettingsWindow(_coordinator)
         {
             Owner = Window.GetWindow(this),
         };
         window.ShowDialog();
-        UpdateDiagnosticStorageText();
-        if (window.DatasetChanged)
-            RuntimeStatusText.Text = "Scanner 교정/진단 데이터 변경을 반영했습니다.";
+        UpdateStatus(_coordinator.Status);
     }
 
-    private void ClearLogButton_Click(object sender, RoutedEventArgs e)
+    private void AdvancedButton_Click(object sender, RoutedEventArgs e)
     {
-        ClearLogButton.IsEnabled = false;
-        try
+        if (_coordinator is null)
+            return;
+
+        var window = new ScannerAdvancedWindow(_coordinator)
         {
-            var success = ScannerDiagnosticLog.Clear();
-            ScannerRecognitionDebugStore.Clear();
-            RuntimeStatusText.Text = success
-                ? "Scanner 로그와 최신 인식 이미지를 삭제했습니다. 교정/진단 데이터는 유지됩니다."
-                : "일부 Scanner 로그 파일을 삭제하지 못했습니다. 최신 인식 이미지는 지웠고 교정/진단 데이터는 유지됩니다.";
+            Owner = Window.GetWindow(this),
+        };
+        window.ShowDialog();
+        UpdateToggleButton();
+        UpdateStatus(_coordinator.Status);
+    }
+
+    private void ItemSearchBox_TextChanged(object sender, TextChangedEventArgs e) => RefreshSearchResults();
+
+    private void RefreshSearchResults()
+    {
+        if (_coordinator is null || ItemSearchBox is null || SearchResultList is null || SearchResultsPopup is null)
+            return;
+
+        var query = ItemSearchBox.Text.Trim();
+        if (query.Length == 0)
+        {
+            SearchResultList.ItemsSource = null;
+            SearchResultsPopup.IsOpen = false;
+            return;
         }
-        catch (Exception exception)
+
+        var hits = _coordinator.SearchItems(query, 20);
+        SearchResultList.ItemsSource = hits;
+        SearchResultsPopup.IsOpen = hits.Count > 0;
+        if (hits.Count > 0)
+            SearchResultList.SelectedIndex = 0;
+    }
+
+    private void ItemSearchBox_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
         {
-            App.WriteDiagnostic("Scanner log clear failed", exception);
-            RuntimeStatusText.Text = "Scanner 로그 삭제 중 오류가 발생했습니다.";
+            SearchResultsPopup.IsOpen = false;
+            e.Handled = true;
+            return;
         }
-        finally
+
+        if (e.Key == Key.Down && SearchResultsPopup.IsOpen && SearchResultList.Items.Count > 0)
         {
-            ClearLogButton.IsEnabled = true;
+            SearchResultList.Focus();
+            if (SearchResultList.SelectedIndex < 0)
+                SearchResultList.SelectedIndex = 0;
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.Enter && SearchResultList.SelectedItem is ScannerItemSearchHit hit)
+        {
+            SelectSearchHit(hit);
+            e.Handled = true;
         }
     }
+
+    private void SearchResultList_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (SearchResultList.SelectedItem is ScannerItemSearchHit hit)
+            SelectSearchHit(hit);
+    }
+
+    private void ClearSearchButton_Click(object sender, RoutedEventArgs e)
+    {
+        ItemSearchBox.Clear();
+        SearchResultsPopup.IsOpen = false;
+        ItemSearchBox.Focus();
+    }
+
+    private void SelectSearchHit(ScannerItemSearchHit hit)
+    {
+        if (_coordinator is null)
+            return;
+
+        var details = _coordinator.GetSearchItemDetails(hit.ItemId);
+        if (details is null)
+        {
+            RuntimeStatusText.Text = "선택한 아이템 정보를 현재 데이터에서 불러올 수 없습니다.";
+            return;
+        }
+
+        SearchResultsPopup.IsOpen = false;
+        ItemSearchBox.Text = hit.OfficialName;
+        ItemSearchBox.CaretIndex = ItemSearchBox.Text.Length;
+        RenderSearchDetails(details);
+    }
+
+    private void RenderSearchDetails(ScannerItemSearchDetails details)
+    {
+        var snapshot = details.Snapshot;
+        SelectedItemIcon.Source = snapshot.Icon;
+        SelectedItemNameText.Text = snapshot.OfficialName;
+        FleaAverageText.Text = snapshot.FleaAveragePrice is { } flea
+            ? FormatRoubles(flea)
+            : "정보 없음";
+        BestTraderText.Text = snapshot.TraderSellPrice is { } trader
+            ? string.IsNullOrWhiteSpace(snapshot.BestTraderName)
+                ? FormatRoubles(trader)
+                : $"{snapshot.BestTraderName} · {FormatRoubles(trader)}"
+            : "정보 없음";
+        NeededCountText.Text = snapshot.CurrentNeeded.ToString("N0", CultureInfo.InvariantCulture);
+
+        _selectedWikiUrl = NormalizeWikiUrl(details.WikiUrl);
+        WikiButton.IsEnabled = _selectedWikiUrl is not null;
+        EmptyItemText.Visibility = Visibility.Collapsed;
+        SelectedItemPanel.Visibility = Visibility.Visible;
+    }
+
+    private void WikiButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedWikiUrl is null)
+            return;
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(_selectedWikiUrl) { UseShellExecute = true });
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            App.WriteDiagnostic("Scanner item wiki open failed", exception);
+            RuntimeStatusText.Text = "아이템 위키를 열지 못했습니다.";
+        }
+    }
+
+    private static string? NormalizeWikiUrl(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) ||
+            !Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri) ||
+            uri.Scheme is not ("http" or "https"))
+        {
+            return null;
+        }
+        return uri.AbsoluteUri;
+    }
+
+    private static string FormatRoubles(int value) =>
+        value.ToString("N0", CultureInfo.InvariantCulture) + "₽";
 
     private void Coordinator_StatusChanged(ScannerRuntimeStatus status)
     {
@@ -349,15 +253,13 @@ public partial class ScannerPage : UserControl
         {
             Dispatcher.Invoke(() =>
             {
-                UpdateToggleButtons();
+                UpdateToggleButton();
                 UpdateStatus(status);
-                UpdateDiagnosticStorageText();
             });
             return;
         }
-        UpdateToggleButtons();
+        UpdateToggleButton();
         UpdateStatus(status);
-        UpdateDiagnosticStorageText();
     }
 
     private void Coordinator_HotkeyStatusChanged(string status)
@@ -397,7 +299,7 @@ public partial class ScannerPage : UserControl
     {
         if (!Dispatcher.CheckAccess())
         {
-            _ = Dispatcher.BeginInvoke(() => ClearActivities());
+            _ = Dispatcher.BeginInvoke(ClearActivities);
             return;
         }
         ClearActivities();
@@ -424,53 +326,12 @@ public partial class ScannerPage : UserControl
             : Visibility.Collapsed;
     }
 
-    private void UpdateStatus(ScannerRuntimeStatus status)
-    {
-        RuntimeStatusText.Text = status.Message;
-    }
+    private void UpdateStatus(ScannerRuntimeStatus status) => RuntimeStatusText.Text = status.Message;
 
-    private void UpdateDiagnosticStorageText()
-    {
-        var storage = ScannerDiagnosticDataset.GetStorageInfo();
-        DiagnosticsStorageText.Text = storage.CaseCount == 0
-            ? "교정 데이터 없음"
-            : $"교정 {storage.CaseCount}건 · {storage.SizeText}";
-        RegressionButton.IsEnabled = storage.CaseCount > 0;
-        ExportDiagnosticsButton.IsEnabled = true;
-        ManageDiagnosticsButton.IsEnabled = true;
-    }
-
-    private void ApplySettings(ScannerDisplaySettings settings)
-    {
-        _updatingUi = true;
-        try
-        {
-            ShowItemNameCheckBox.IsChecked = settings.ShowItemName;
-            ShowItemIconCheckBox.IsChecked = settings.ShowItemIcon;
-            ShowTraderSellPriceCheckBox.IsChecked = settings.ShowTraderSellPrice;
-            ShowFleaAveragePriceCheckBox.IsChecked = settings.ShowFleaAveragePrice;
-            ShowTraderPricePerSlotCheckBox.IsChecked = settings.ShowTraderPricePerSlot;
-            ShowFleaPricePerSlotCheckBox.IsChecked = settings.ShowFleaPricePerSlot;
-            ShowCurrentNeededCheckBox.IsChecked = settings.ShowCurrentNeeded;
-        }
-        finally
-        {
-            _updatingUi = false;
-        }
-    }
-
-    private void UpdateToggleButtons()
+    private void UpdateToggleButton()
     {
         if (_coordinator is null)
             return;
-
         ScannerToggleButton.Content = _coordinator.Settings.Enabled ? "스캐너 ON" : "스캐너 OFF";
-        TestToggleButton.Content = _coordinator.TestEnabled ? "테스트 ON" : "테스트 OFF";
-    }
-
-    private void SetToggleButtonsEnabled(bool enabled)
-    {
-        ScannerToggleButton.IsEnabled = enabled;
-        TestToggleButton.IsEnabled = enabled;
     }
 }
