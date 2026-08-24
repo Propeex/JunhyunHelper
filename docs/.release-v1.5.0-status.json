@@ -1,0 +1,22 @@
+{
+  "version": "v1.5.0",
+  "source_sha": "6de738959740d12e6ccb81b65e50006e463eb699",
+  "tag_sha": "6de738959740d12e6ccb81b65e50006e463eb699",
+  "asset": "Junhyun-Helper-v1.5.0-win-x64.zip",
+  "bytes": 80422292,
+  "sha256": "6ad657653123ff35d8b6fe3d7f9877858992e9327697077492cf29f7c900e5e9",
+  "product_version": "1.5.0+6de738959740d12e6ccb81b65e50006e463eb699",
+  "tests": 296,
+  "release_run": 32691423654,
+  "release_workflow_conclusion": "success",
+  "public_verifier_run": 32691641614,
+  "public_verifier_conclusion": "success",
+  "public_latest_verified": true,
+  "exact_tag_source_verified": true,
+  "public_redownload_verified": true,
+  "public_sha256sums_verified": true,
+  "public_package_layout_verified": true,
+  "public_exe_smoke": "SUCCESS",
+  "published_at_utc": "2026-08-24T04:51:44.0000000Z",
+  "verified_at_utc": "2026-08-24T04:53:44.8811067+00:00"
+}
