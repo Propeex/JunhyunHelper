@@ -1,5 +1,4 @@
 using JunhyunHelper.Core.Content;
-using JunhyunHelper.Core.Items;
 
 namespace JunhyunHelper.Infrastructure.Validation;
 
@@ -86,11 +85,12 @@ public sealed class GameContentIntegrityValidator
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var quest in content.Quests)
         {
-            ValidateIdentity(quest.Id, quest.TitleKo, quest.TitleEn, "quest", seen, issues);
-            if (quest.MinPlayerLevel is < 0)
-            {
+            ValidateIdentity(quest.Id, quest.NameKo, quest.NameEn, "quest", seen, issues);
+            ValidateOptionalWebUrl(quest.WikiUrl, "quest.wiki.invalid", $"Quest '{quest.Id}' has an invalid wiki URL.", issues);
+            if (quest.MinimumPlayerLevel < 0)
                 Fatal(issues, "quest.level.negative", $"Quest '{quest.Id}' has negative minimum player level.");
-            }
+            if (quest.RequiredPrestigeLevel is < 0)
+                Fatal(issues, "quest.prestige.negative", $"Quest '{quest.Id}' has negative required prestige level.");
         }
     }
 
