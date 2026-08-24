@@ -1,7 +1,0 @@
-{
-  "observed_at_utc": "2026-08-24T08:45:36.7222445Z",
-  "finalizer_run_id": 32707905325,
-  "finalizer_status": "completed",
-  "finalizer_conclusion": "failure",
-  "finalizer_head_sha": "570db25b7fbbb05269a6761968e31b95efc372db"
-}
