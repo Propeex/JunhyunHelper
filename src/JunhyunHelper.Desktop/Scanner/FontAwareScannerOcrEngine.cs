@@ -90,7 +90,7 @@ public sealed class FontAwareScannerOcrEngine : IScannerDeepOcrEngine, IDisposab
                 ? await deepOcr.ReadDeepTextAsync(titleImage, cancellationToken)
                 : await _inner.ReadTextAsync(titleImage, cancellationToken);
 
-            var existing = _catalog.ResolveOcrText(text);
+            var existing = ResolveCatalogText(text);
             if (existing.Success)
                 return CorroborateAcceptedText(titleImage, text, cancellationToken, existing);
 
@@ -104,7 +104,7 @@ public sealed class FontAwareScannerOcrEngine : IScannerDeepOcrEngine, IDisposab
 
                 text = MergeOcrEvidence(text, tightText);
                 recoveryImage = tightTitle;
-                existing = _catalog.ResolveOcrText(text);
+                existing = ResolveCatalogText(text);
                 if (existing.Success)
                     return CorroborateAcceptedText(tightTitle, text, cancellationToken, existing);
             }
@@ -123,7 +123,7 @@ public sealed class FontAwareScannerOcrEngine : IScannerDeepOcrEngine, IDisposab
         CancellationToken cancellationToken,
         ScannerRecognition? resolved = null)
     {
-        var existing = resolved ?? _catalog.ResolveOcrText(text);
+        var existing = resolved ?? ResolveCatalogText(text);
         if (!existing.Success || string.IsNullOrWhiteSpace(existing.ItemId))
             return text;
 
@@ -137,7 +137,7 @@ public sealed class FontAwareScannerOcrEngine : IScannerDeepOcrEngine, IDisposab
             FontVerificationResult? corroborated = null;
             if (assessment.HasPlausibleVariant)
             {
-                corroborated = _fontVerifier.TryRecover(
+                corroborated = TryTargetedVisualRecovery(
                     titleImage,
                     assessment.FilteredText,
                     catalog,
@@ -156,7 +156,7 @@ public sealed class FontAwareScannerOcrEngine : IScannerDeepOcrEngine, IDisposab
             // point only at the wrong item. If that rendering does not verify, run the
             // existing strict full-catalog visual path once. It is aspect-pruned and
             // bounded; OCR contributes only weak supporting evidence.
-            corroborated = _fullVisualMatcher.TryRecover(
+            corroborated = TryFullCatalogVisualRecovery(
                 titleImage,
                 assessment.FilteredText,
                 catalog,
@@ -248,14 +248,14 @@ public sealed class FontAwareScannerOcrEngine : IScannerDeepOcrEngine, IDisposab
         {
             if (assessment.HasPlausibleVariant)
             {
-                recovered = _fontVerifier.TryRecover(
+                recovered = TryTargetedVisualRecovery(
                     titleImage,
                     assessment.FilteredText,
                     catalog,
                     cancellationToken);
             }
 
-            recovered ??= _fullVisualMatcher.TryRecover(
+            recovered ??= TryFullCatalogVisualRecovery(
                 titleImage,
                 assessment.FilteredText,
                 catalog,
@@ -286,6 +286,32 @@ public sealed class FontAwareScannerOcrEngine : IScannerDeepOcrEngine, IDisposab
         return string.IsNullOrWhiteSpace(text)
             ? official
             : $"{text}\n{official}";
+    }
+
+    private ScannerRecognition ResolveCatalogText(string text)
+    {
+        using var timing = ScannerLatencyTelemetry.Measure(ScannerLatencyTelemetry.CatalogMatching);
+        return _catalog.ResolveOcrText(text);
+    }
+
+    private FontVerificationResult? TryTargetedVisualRecovery(
+        BitmapSource titleImage,
+        string filteredText,
+        IReadOnlyList<ScannerCatalogItem> catalog,
+        CancellationToken cancellationToken)
+    {
+        using var timing = ScannerLatencyTelemetry.Measure(ScannerLatencyTelemetry.VisualRecovery);
+        return _fontVerifier.TryRecover(titleImage, filteredText, catalog, cancellationToken);
+    }
+
+    private FontVerificationResult? TryFullCatalogVisualRecovery(
+        BitmapSource titleImage,
+        string filteredText,
+        IReadOnlyList<ScannerCatalogItem> catalog,
+        CancellationToken cancellationToken)
+    {
+        using var timing = ScannerLatencyTelemetry.Measure(ScannerLatencyTelemetry.VisualRecovery);
+        return _fullVisualMatcher.TryRecover(titleImage, filteredText, catalog, cancellationToken);
     }
 
     private static bool TryCreateTightTitleImage(
