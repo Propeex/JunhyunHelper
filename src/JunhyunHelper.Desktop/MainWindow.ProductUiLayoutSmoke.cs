@@ -142,10 +142,14 @@ public partial class MainWindow
         ScannerPlaceholder.UpdateLayout();
 
         if (ScannerPlaceholder.ScannerToggleButton.Content as string != "스캐너 OFF" ||
-            ScannerPlaceholder.ScannerToggleButton.MinWidth < 100)
+            ScannerPlaceholder.ScannerToggleButton.MinWidth < 100 ||
+            ScannerPlaceholder.SettingsButton.Content as string != "설정" ||
+            ScannerPlaceholder.SettingsButton.MinWidth < 80 ||
+            ScannerPlaceholder.AdvancedButton.Content as string != "고급" ||
+            ScannerPlaceholder.AdvancedButton.MinWidth < 80)
         {
             throw new InvalidOperationException(
-                "Scanner product page did not render the real-mode OFF toggle in its safe default state.");
+                "Scanner top bar did not render the approved Scanner/Settings/Advanced controls.");
         }
 
         if (ScannerPlaceholder.ItemSearchBox.MinHeight < 30 ||
@@ -156,24 +160,26 @@ public partial class MainWindow
                 "Scanner search/log split surface did not render its product contract.");
         }
 
-        var buttonLabels = FindVisualDescendants<Button>(ScannerPlaceholder)
+        var forbiddenLabels = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "1회 스캔",
+            "현재 결과 교정",
+            "테스트 OFF",
+            "아이템 목록 최신화",
+            "로그 삭제",
+            "회귀 테스트",
+            "인식 이미지",
+            "교정 데이터 내보내기",
+        };
+        var exposedForbidden = FindVisualDescendants<Button>(ScannerPlaceholder)
             .Select(button => button.Content as string)
-            .Where(label => !string.IsNullOrWhiteSpace(label))
-            .ToHashSet(StringComparer.Ordinal);
-        if (!buttonLabels.Contains("스캐너 OFF") ||
-            !buttonLabels.Contains("설정") ||
-            !buttonLabels.Contains("고급") ||
-            buttonLabels.Contains("1회 스캔") ||
-            buttonLabels.Contains("현재 결과 교정") ||
-            buttonLabels.Contains("테스트 OFF") ||
-            buttonLabels.Contains("아이템 목록 최신화") ||
-            buttonLabels.Contains("로그 삭제") ||
-            buttonLabels.Contains("회귀 테스트") ||
-            buttonLabels.Contains("인식 이미지") ||
-            buttonLabels.Contains("교정 데이터 내보내기"))
+            .Where(label => !string.IsNullOrWhiteSpace(label) && forbiddenLabels.Contains(label))
+            .ToArray();
+        if (exposedForbidden.Length > 0)
         {
             throw new InvalidOperationException(
-                "Scanner normal page exposes controls outside the approved Scanner/Settings/Advanced surface.");
+                "Scanner normal page exposes an advanced/developer control: " +
+                string.Join(", ", exposedForbidden));
         }
 
         var activityProbe = new ScannerActivityEntry(
