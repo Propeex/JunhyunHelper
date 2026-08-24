@@ -35,13 +35,25 @@ public sealed class ContentUpdateCompletenessGuardTests
     [Fact]
     public void BulkItemIconCoverageLossIsRejected()
     {
-        var baseline = EmptyCatalog() with { Items = CreateItems(iconCount: 20) };
-        var candidate = EmptyCatalog() with { Items = CreateItems(iconCount: 9) };
+        var baseline = EmptyCatalog() with { Items = CreateItems(iconCount: 20, koreanCount: 20) };
+        var candidate = EmptyCatalog() with { Items = CreateItems(iconCount: 9, koreanCount: 20) };
 
         var result = new ContentUpdateCompletenessGuard().Validate(candidate, baseline);
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Issues, issue => issue.Code == "update.item-icons.suspicious-shrink");
+    }
+
+    [Fact]
+    public void BulkKoreanLocalizationLossIsRejected()
+    {
+        var baseline = EmptyCatalog() with { Items = CreateItems(iconCount: 20, koreanCount: 20) };
+        var candidate = EmptyCatalog() with { Items = CreateItems(iconCount: 20, koreanCount: 9) };
+
+        var result = new ContentUpdateCompletenessGuard().Validate(candidate, baseline);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Issues, issue => issue.Code == "update.item-korean.suspicious-shrink");
     }
 
     private static GameContentCatalog EmptyCatalog() => new(
@@ -74,11 +86,11 @@ public sealed class ContentUpdateCompletenessGuardTests
                         .ToArray()),
             ]);
 
-    private static IReadOnlyList<GameItem> CreateItems(int iconCount) =>
+    private static IReadOnlyList<GameItem> CreateItems(int iconCount, int koreanCount) =>
         Enumerable.Range(0, 20)
             .Select(index => new GameItem(
                 $"item-{index}",
-                $"아이템 {index}",
+                index < koreanCount ? $"아이템 {index}" : null,
                 $"Item {index}",
                 null,
                 null,
