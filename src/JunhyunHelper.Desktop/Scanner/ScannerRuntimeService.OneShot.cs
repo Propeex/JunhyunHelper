@@ -79,6 +79,10 @@ public sealed partial class ScannerRuntimeService
             return false;
         }
 
+        // Persist exactly the proposal set used by this precision pass. Correction can
+        // then select detector evidence instead of redrawing boxes from memory.
+        ScannerRecognitionDebugStore.UpdateCandidates(candidates);
+
         ScannerDiagnosticLog.Write(
             "one-shot-candidates",
             mode,
