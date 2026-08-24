@@ -14,8 +14,8 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     env:
-      RELEASE_TRIGGER_SHA: a3f4e67ca094aa048c9092b31a940b09d4274193
-      VERIFIER_TRIGGER_SHA: c857933beb070a6b341362a0a6b6486fd68d98ce
+      RELEASE_TRIGGER_SHA: 85f8aa42e03cd555ff83adb085216d2e8b6102f2
+      VERIFIER_TRIGGER_SHA: 39cdf8b749af39ebb2344ee5b3074e92006d8f08
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,7 +28,7 @@ jobs:
         run: |
           $releaseRuns = gh api "repos/$env:GITHUB_REPOSITORY/actions/workflows/release-v1.4.4.yml/runs?event=push&per_page=20" | ConvertFrom-Json
           $releaseRun = $releaseRuns.workflow_runs | Where-Object { $_.head_sha -eq $env:RELEASE_TRIGGER_SHA } | Select-Object -First 1
-          $verifyRuns = gh api "repos/$env:GITHUB_REPOSITORY/actions/workflows/verify-v1.4.4-public.yml/runs?event=push&per_page=20" | ConvertFrom-Json
+          $verifyRuns = gh api "repos/$env:GITHUB_REPOSITORY/actions/workflows/verify-v1.4.4-public-final.yml/runs?event=push&per_page=20" | ConvertFrom-Json
           $verifyRun = $verifyRuns.workflow_runs | Where-Object { $_.head_sha -eq $env:VERIFIER_TRIGGER_SHA } | Select-Object -First 1
           $release = $null
           gh release view v1.4.4 --repo $env:GITHUB_REPOSITORY --json tagName,isDraft,isPrerelease,publishedAt,url *> probe-release.json
