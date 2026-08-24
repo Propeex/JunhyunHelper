@@ -1,26 +1,7 @@
-using JunhyunHelper.Core.Items;
 using JunhyunHelper.Core.Scanner;
 using JunhyunHelper.Infrastructure.Scanner;
 
 namespace JunhyunHelper.Desktop.Scanner;
-
-/// <summary>
-/// Primitive presentation values resolved from one Scanner-confirmed Tarkov item ID.
-/// Keeping this identity join explicit makes it possible for the release smoke to prove
-/// that market, canonical metadata and needed-item state cannot be mixed across IDs.
-/// </summary>
-internal sealed record ScannerItemPresentationMapping(
-    string ItemId,
-    string OfficialName,
-    string? IconUrl,
-    string? WikiUrl,
-    int? TraderSellPrice,
-    int? FleaAveragePrice,
-    int? TraderPricePerSlot,
-    int? FleaPricePerSlot,
-    int Slots,
-    int CurrentNeeded,
-    string? BestTraderName);
 
 /// <summary>
 /// Bridges a Scanner-confirmed Tarkov item ID to current JunhyunHelper derived state.
@@ -54,7 +35,7 @@ public sealed class ScannerItemPresentationService
         if (context is null || _catalog.LoadedMode != context.GameMode)
             return null;
 
-        var mapping = ResolveMapping(
+        var mapping = ScannerPresentationJoin.Resolve(
             catalogItem,
             context.Content.Items,
             context.ItemsWorkspace.Plan.NeededItems
@@ -72,36 +53,6 @@ public sealed class ScannerItemPresentationService
             mapping.Slots,
             mapping.CurrentNeeded,
             mapping.BestTraderName);
-    }
-
-    internal static ScannerItemPresentationMapping ResolveMapping(
-        ScannerCatalogItem catalogItem,
-        IEnumerable<GameItem> canonicalItems,
-        IEnumerable<(string ItemId, int RequiredTotal)> neededItems)
-    {
-        ArgumentNullException.ThrowIfNull(catalogItem);
-        ArgumentNullException.ThrowIfNull(canonicalItems);
-        ArgumentNullException.ThrowIfNull(neededItems);
-
-        // The Scanner catalog item is the identity authority after recognition. Every
-        // secondary data source is joined only on that exact Tarkov item ID.
-        var canonicalItem = canonicalItems.FirstOrDefault(item =>
-            string.Equals(item.Id, catalogItem.Id, StringComparison.Ordinal));
-        var needed = neededItems.FirstOrDefault(item =>
-            string.Equals(item.ItemId, catalogItem.Id, StringComparison.Ordinal));
-
-        return new ScannerItemPresentationMapping(
-            catalogItem.Id,
-            catalogItem.OfficialName,
-            canonicalItem?.IconUrl ?? catalogItem.IconUrl,
-            canonicalItem?.WikiUrl,
-            catalogItem.BestTraderSellPrice,
-            catalogItem.FleaAveragePrice,
-            catalogItem.TraderPricePerSlot,
-            catalogItem.FleaPricePerSlot,
-            catalogItem.Slots,
-            needed.RequiredTotal,
-            catalogItem.BestTraderName);
     }
 
     public ScannerItemSnapshot? CreateDefaultPreviewSnapshot()
