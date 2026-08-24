@@ -12,7 +12,7 @@ public sealed record ContentUpdateResult(
 
 public sealed class TarkovContentUpdateService
 {
-    private readonly TarkovContentBuildService _buildService;
+    private readonly ITarkovContentBuildService _buildService;
     private readonly ContentSnapshotStore _snapshotStore;
     private readonly ContentActivationService _activationService;
     private readonly ContentUpdateCompletenessGuard _completenessGuard;
@@ -20,7 +20,7 @@ public sealed class TarkovContentUpdateService
     private readonly SemaphoreSlim _updateGate = new(1, 1);
 
     public TarkovContentUpdateService(
-        TarkovContentBuildService buildService,
+        ITarkovContentBuildService buildService,
         ContentActivationService activationService,
         ContentSnapshotStore? snapshotStore = null,
         ContentUpdateCompletenessGuard? completenessGuard = null,
@@ -40,6 +40,7 @@ public sealed class TarkovContentUpdateService
     {
         var trackedProgress = new TrackingProgress(progress);
         var gateEntered = false;
+        var applied = false;
 
         try
         {
@@ -116,6 +117,7 @@ public sealed class TarkovContentUpdateService
             // If activation produced an invalid file, ContentActivationService restores
             // the previous last-known-good snapshot before this call returns.
             _ = await _activationService.ReadActiveOrRecoverAsync(gameMode, cancellationToken);
+            applied = true;
 
             trackedProgress.Report(new ContentUpdateProgress(
                 ContentUpdateStage.Completed,
@@ -145,6 +147,22 @@ public sealed class TarkovContentUpdateService
         }
         finally
         {
+            if (gateEntered && !applied)
+            {
+                // A canceled/failed write must not leave a stale candidate that looks
+                // actionable to maintenance tooling or a future code path. Active and
+                // previous last-known-good snapshots are never touched here.
+                try
+                {
+                    _activationService.DiscardCandidate(gameMode);
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                    // Preserve the original update result/error; the next update also
+                    // discards candidates before building a new one.
+                }
+            }
+
             if (gateEntered)
                 _updateGate.Release();
         }
