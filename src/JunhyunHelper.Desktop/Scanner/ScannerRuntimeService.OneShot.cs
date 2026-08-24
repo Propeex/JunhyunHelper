@@ -49,6 +49,7 @@ public sealed partial class ScannerRuntimeService
             return false;
         }
 
+        using var latencyCycle = ScannerLatencyTelemetry.BeginCycle(mode, "one-shot");
         CancelOneShotDisplayTimer();
         _detector.SetCaptureMode(mode);
         const string readingMessage = "1회 고정밀 스캔 · 상세창과 아이템 이름을 분석하는 중입니다.";
@@ -168,7 +169,7 @@ public sealed partial class ScannerRuntimeService
 
             var rawText = await _ocr.ReadTextAsync(candidate.TitleImage!, cancellationToken);
             var substitution = ApplyUserOcrSubstitutions(rawText);
-            var recognition = _catalog.ResolveOcrText(substitution.Text, out var assessment);
+            var (recognition, assessment) = ResolveCatalogTextMeasured(substitution.Text);
             LogCandidateAttempt(
                 mode,
                 index,
@@ -208,7 +209,7 @@ public sealed partial class ScannerRuntimeService
 
                 var rawText = await deepOcr.ReadDeepTextAsync(candidate.TitleImage!, cancellationToken);
                 var substitution = ApplyUserOcrSubstitutions(rawText);
-                var recognition = _catalog.ResolveOcrText(substitution.Text, out var assessment);
+                var (recognition, assessment) = ResolveCatalogTextMeasured(substitution.Text);
                 LogCandidateAttempt(
                     mode,
                     index,
