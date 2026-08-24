@@ -7,8 +7,10 @@ namespace JunhyunHelper.Tests.Quests;
 public sealed class QuestTaskPoolVariableCompatibilityTests
 {
     private const string Prapor = "54cb50c76803fa8b248b4571";
+    private const string Skier = "58330581ace78e27b8b10cee";
     private const string PraporLl1Pool = "6a20540cf1b67a977cc5a088";
     private const string PraporLl2Pool = "6a2688488bba18e0b0187a04";
+    private const string SkierLl2Pool = "6a5a111de1f417ac80a163e5";
 
     [Fact]
     public void Ll2PoolReconstructsFromAuditedSeedAndCompletedPoolQuests()
@@ -94,42 +96,108 @@ public sealed class QuestTaskPoolVariableCompatibilityTests
         Assert.False(enriched.ProfileVariables.ContainsKey(PraporLl1Pool));
     }
 
+    [Fact]
+    public void SkierLl2RegularUsesFourSeedShapeFromCurrentAudit()
+    {
+        var quests = BuildSkierLl2Shape(seedCount: 4);
+        var completed = new HashSet<string> { "skier-seed-1", "skier-seed-2", "skier-seed-3" };
+        var profile = CreateProfile(
+            loyalty: 2,
+            completed: completed,
+            traderId: Skier,
+            gameMode: GameMode.Regular);
+
+        var enriched = QuestTaskPoolVariableCompatibility.ApplyInferredProfileValues(quests, profile);
+
+        Assert.Equal(3, enriched.ProfileVariables[SkierLl2Pool]);
+    }
+
+    [Fact]
+    public void SkierLl2PvpSeasonUsesThreeSeedShapeFromCurrentAudit()
+    {
+        var quests = BuildSkierLl2Shape(seedCount: 3);
+        var completed = new HashSet<string> { "skier-seed-1", "skier-seed-2" };
+        var profile = CreateProfile(
+            loyalty: 2,
+            completed: completed,
+            traderId: Skier,
+            gameMode: GameMode.PvpSeason);
+
+        var enriched = QuestTaskPoolVariableCompatibility.ApplyInferredProfileValues(quests, profile);
+
+        Assert.Equal(2, enriched.ProfileVariables[SkierLl2Pool]);
+    }
+
+    [Fact]
+    public void SkierLl2PvpSeasonRejectsRegularFourSeedShape()
+    {
+        var quests = BuildSkierLl2Shape(seedCount: 4);
+        var profile = CreateProfile(
+            loyalty: 2,
+            completed: new HashSet<string>(),
+            traderId: Skier,
+            gameMode: GameMode.PvpSeason);
+
+        var enriched = QuestTaskPoolVariableCompatibility.ApplyInferredProfileValues(quests, profile);
+
+        Assert.False(enriched.ProfileVariables.ContainsKey(SkierLl2Pool));
+    }
+
     private static QuestDefinition[] BuildPraporLl1Shape(bool includeOrdinaryQuest)
     {
         var pool = Enumerable.Range(1, 8)
             .Select(index => PoolQuest(
                 $"ll1-{index}",
                 PraporLl1Pool,
-                index <= 2 ? 1 : index <= 5 ? 3 : 5))
+                index <= 2 ? 1 : index <= 5 ? 3 : 5,
+                Prapor))
             .ToList();
         if (includeOrdinaryQuest)
-            pool.Add(CreateQuest("ordinary-ll1", [], []));
+            pool.Add(CreateQuest("ordinary-ll1", [], [], Prapor));
         return pool.ToArray();
     }
 
     private static QuestDefinition[] BuildPraporLl2Shape()
     {
         var seeds = Enumerable.Range(1, 4)
-            .Select(index => SeedQuest($"seed-{index}", 2));
+            .Select(index => SeedQuest($"seed-{index}", 2, Prapor));
         var pool = new[]
         {
-            PoolQuest("pool-1", PraporLl2Pool, 3),
-            PoolQuest("pool-2", PraporLl2Pool, 3),
-            PoolQuest("pool-3", PraporLl2Pool, 3),
-            PoolQuest("pool-4", PraporLl2Pool, 5),
-            PoolQuest("pool-5", PraporLl2Pool, 5),
-            PoolQuest("pool-6", PraporLl2Pool, 5),
+            PoolQuest("pool-1", PraporLl2Pool, 3, Prapor),
+            PoolQuest("pool-2", PraporLl2Pool, 3, Prapor),
+            PoolQuest("pool-3", PraporLl2Pool, 3, Prapor),
+            PoolQuest("pool-4", PraporLl2Pool, 5, Prapor),
+            PoolQuest("pool-5", PraporLl2Pool, 5, Prapor),
+            PoolQuest("pool-6", PraporLl2Pool, 5, Prapor),
         };
         return seeds.Concat(pool).ToArray();
     }
 
-    private static QuestDefinition SeedQuest(string id, int loyalty) =>
+    private static QuestDefinition[] BuildSkierLl2Shape(int seedCount)
+    {
+        var seeds = Enumerable.Range(1, seedCount)
+            .Select(index => SeedQuest($"skier-seed-{index}", 2, Skier));
+        var pool = Enumerable.Range(1, 9)
+            .Select(index => PoolQuest(
+                $"skier-pool-{index}",
+                SkierLl2Pool,
+                index <= 3 ? 1 : index <= 6 ? 3 : 4,
+                Skier));
+        return seeds.Concat(pool).ToArray();
+    }
+
+    private static QuestDefinition SeedQuest(string id, int loyalty, string traderId) =>
         CreateQuest(
             id,
             profileVariableRequirements: [],
-            loyaltyRequirements: [new QuestTraderLoyaltyRequirement(Prapor, loyalty)]);
+            loyaltyRequirements: [new QuestTraderLoyaltyRequirement(traderId, loyalty)],
+            traderId: traderId);
 
-    private static QuestDefinition PoolQuest(string id, string variableId, int threshold) =>
+    private static QuestDefinition PoolQuest(
+        string id,
+        string variableId,
+        int threshold,
+        string traderId) =>
         CreateQuest(
             id,
             profileVariableRequirements:
@@ -139,17 +207,19 @@ public sealed class QuestTaskPoolVariableCompatibilityTests
                     threshold,
                     ProfileVariableRequirementOperator.AtLeast),
             ],
-            loyaltyRequirements: []);
+            loyaltyRequirements: [],
+            traderId: traderId);
 
     private static QuestDefinition CreateQuest(
         string id,
         IReadOnlyList<QuestProfileVariableRequirement> profileVariableRequirements,
-        IReadOnlyList<QuestTraderLoyaltyRequirement> loyaltyRequirements) =>
+        IReadOnlyList<QuestTraderLoyaltyRequirement> loyaltyRequirements,
+        string traderId) =>
         new(
             Id: id,
             NameKo: null,
             NameEn: id,
-            TraderId: Prapor,
+            TraderId: traderId,
             MapId: null,
             WikiUrl: null,
             Experience: null,
@@ -167,16 +237,18 @@ public sealed class QuestTaskPoolVariableCompatibilityTests
     private static GameProfileSnapshot CreateProfile(
         int loyalty,
         IReadOnlySet<string> completed,
-        IReadOnlyDictionary<string, int>? variables = null) =>
+        IReadOnlyDictionary<string, int>? variables = null,
+        string traderId = Prapor,
+        GameMode gameMode = GameMode.Regular) =>
         new()
         {
             ProfileId = "profile-a",
-            GameMode = GameMode.Regular,
+            GameMode = gameMode,
             Level = 50,
             Faction = PmcFaction.Usec,
             Traders = new Dictionary<string, TraderProgress>
             {
-                [Prapor] = new TraderProgress(loyalty, 1m),
+                [traderId] = new TraderProgress(loyalty, 1m),
             },
             CompletedQuestIds = completed,
             ProfileVariables = variables ?? new Dictionary<string, int>(),
