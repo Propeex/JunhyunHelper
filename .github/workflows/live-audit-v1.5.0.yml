@@ -77,12 +77,12 @@ jobs:
             $globalQuestRows = @()
             foreach ($q in $questList) {
               foreach ($g in @($q.otherRequirements | Where-Object { $_.type -eq 'globalVariable' })) {
-                $globalQuestRows += [pscustomobject]@{ Quest=$q; VariableId=$g.variableId; Value=[int]$g.value; CompareMethod=$g.compareMethod }
+                $globalQuestRows += [pscustomobject]@{ Quest=$q; QuestId=$q.id; VariableId=$g.variableId; Value=[int]$g.value; CompareMethod=$g.compareMethod }
               }
             }
             Write-Host "globalVariableRequirements=$($globalQuestRows.Count) uniqueVariables=$((@($globalQuestRows | Select-Object -ExpandProperty VariableId -Unique)).Count)"
             foreach ($group in $globalQuestRows | Group-Object VariableId | Sort-Object Name) {
-              $questsForVar = @($group.Group | Select-Object -ExpandProperty Quest -Unique)
+              $questsForVar = @($group.Group | Group-Object QuestId | ForEach-Object { $_.Group[0].Quest })
               $thresholds = @($group.Group | Select-Object -ExpandProperty Value -Unique | Sort-Object)
               $traders = @($questsForVar | Select-Object -ExpandProperty trader -Unique)
               $badCompare = @($group.Group | Where-Object { $_.CompareMethod -ne '>=' }).Count
@@ -96,7 +96,7 @@ jobs:
               }
               $expected = $poolRules[$group.Name]
               $expectedText = if ($null -eq $expected) { 'NEW_VARIABLE' } else { "expectedCount=$($expected.count),expectedThresholds=$($expected.thresholds -join ','),expectedTrader=$($expected.trader),LL=$($expected.ll)" }
-              Write-Host "POOL|$($group.Name)|count=$($questsForVar.Count)|thresholds=$($thresholds -join ',')|traders=$($traders -join ',')|badCompare=$badCompare|extraAvailability=$extraAvailability|$expectedText"
+              Write-Host "POOL|$($group.Name)|count=$($questsForVar.Count)|thresholds=$($thresholds -join ',')|traders=$($traders -join ',')|badCompare=$badCompare|extraAvailability=$extraAvailability|questIds=$((@($questsForVar | Select-Object -ExpandProperty id)) -join ',')|$expectedText"
 
               if ($null -ne $expected) {
                 $seeds = @($questList | Where-Object {
