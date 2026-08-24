@@ -1,0 +1,47 @@
+name: Run v1.7.0 current-doc normalization
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/run-v1.7.0-current-doc-normalizer.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  normalize:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout current main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Normalize current documentation
+        shell: pwsh
+        run: |
+          python scripts/normalize_v170_current_docs.py
+          if ($LASTEXITCODE -ne 0) { throw 'Current-document normalization failed.' }
+          git diff --check
+          if ($LASTEXITCODE -ne 0) { throw 'Current-document normalization introduced whitespace errors.' }
+
+      - name: Commit normalized docs and remove temporary machinery
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git rm --ignore-unmatch `
+            .github/workflows/prove-v1.7.0-final-main-ci.yml `
+            .github/workflows/run-v1.7.0-current-doc-normalizer.yml `
+            scripts/normalize_v170_current_docs.py
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs
+          git diff --cached --check
+          if ($LASTEXITCODE -ne 0) { throw 'Normalized documentation has whitespace errors.' }
+          git commit -m 'Normalize v1.7.0 current documentation contracts'
+          if ($LASTEXITCODE -ne 0) { throw 'Could not create current-document normalization commit.' }
+          git push origin HEAD:main
+          if ($LASTEXITCODE -ne 0) { throw 'Could not push current-document normalization commit.' }
