@@ -1,6 +1,6 @@
 # STATUS — v1.6.0 Scanner product workflow
 
-상태: `IMPLEMENTED / RELEASE CANDIDATE`
+상태: `IMPLEMENTED / PUBLIC RELEASE VERIFIED`
 
 기준일: 2026-08-24
 
@@ -24,7 +24,7 @@
 - 저장된 Case 재열기 및 재교정
 - 기존 candidate_selection / Ground Truth 복원
 - `Junhyun-Helper.zip` / `준현 헬퍼/` stable package contract 추가
-- v1.6.0 updater가 stable Korean package를 우선 선택하고 wrapper folder를 안전하게 unwrap하도록 변경
+- v1.6.0 updater가 stable `Junhyun-Helper.zip` package를 우선 선택하고 `준현 헬퍼/` wrapper folder를 안전하게 unwrap하도록 변경
 - legacy versioned package fallback 유지
 - 공백 포함 stable package filename을 정확히 읽는 SHA256SUMS parser 보완
 - v1.5.0 updater용 `Junhyun-Helper-v1.6.0-win-x64.zip` 일회성 bridge package 추가
@@ -77,22 +77,48 @@ Program Update stable-package 전환과 checksum parser 수정 기준에서 다�
 
 이후 updater transition 규칙을 release/decision/status 문서에 명시했으므로 최종 HEAD는 문서 반영 후 CI를 한 번 더 통과해야 한다.
 
-## 남은 release gate
+## 최종 release verification
 
-1. 최신 v1.6.0 HEAD 전체 CI 성공
-2. PR #174 ready + merge
-3. main push CI 성공 확인
-4. exact release source 고정
-5. tag `v1.6.0`
-6. GitHub stable/latest release publish
-7. user-facing `Junhyun-Helper.zip` + v1.5 bridge ZIP + `SHA256SUMS.txt` 업로드
-8. SHA-256 / size 기록
-9. anonymous/public exact-tag + latest release 확인
-10. public stable ZIP / bridge ZIP / SHA256SUMS redownload
-11. stable ZIP 최상위 `준현 헬퍼/` 구조 및 bridge legacy-root 구조 확인
-12. stable/bridge가 동일 v1.6.0 product payload를 담는지 검증
-13. public-downloaded EXE ProductVersion / Product UI / Map / Scanner smoke
-14. 최종 release status 문서 갱신
+교정 PR #175 HEAD `ad7f4259a44c72902fba452adbbcfd4c540ae577`는 CI `32708999577`에서 전체 release gate를 통과했다.
+
+- Desktop build: SUCCESS
+- automated tests: 299 passed / 0 failed / 0 skipped
+- Windows x64 publish: SUCCESS
+- rendered Product UI / Scanner / Mini Scanner smoke: SUCCESS
+- Main Map / Factory / MiniMap smoke: SUCCESS
+- graceful shutdown: SUCCESS
+- stable/bridge package + checksum gate: SUCCESS
+
+최종 제품 source:
+
+```text
+v1.6.0 exact release source/tag: e18c108380572913552030aa677bba06ebf49355
+ProductVersion: 1.6.0+e18c108380572913552030aa677bba06ebf49355
+```
+
+초기 final controller `32709414932`는 build/test/publish/package/product smoke/tag retarget/draft asset 교체까지 성공했으나 draft manifest 비교용 PowerShell 코드의 `TrimStart` 인자 오류에서 fail closed했다. 이때 stable/latest 공개는 수행하지 않았다.
+
+Recovery/final public verification run `32710012954`는 성공했다.
+
+```text
+stable asset: Junhyun-Helper.zip
+stable bytes: 80,425,013
+stable SHA-256: f9384ff49d522afb5976efe291ff932d66063dcfeee64b0aed7a5daa691a12c5
+v1.5 bridge: Junhyun-Helper-v1.6.0-win-x64.zip
+bridge bytes: 80,424,089
+bridge SHA-256: 3f05b20ccbd7463fb590889042b1b706290a88e0568cd00c3b2fa23cf966dfc8
+public/latest: VERIFIED
+anonymous public redownload: VERIFIED
+public ProductVersion: VERIFIED
+public-downloaded EXE Product UI/Scanner/Mini Scanner/Map smoke: SUCCESS
+graceful shutdown / clean portable root: SUCCESS
+verified_at_utc: 2026-08-24T09:10:44.9630720Z
+```
+
+Durable release record:
+
+- `docs/.release-v1.6.0-status.json`
+- `docs/RELEASE_1.6.0.md`
 
 ## v1.6.0 이후
 

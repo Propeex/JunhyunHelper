@@ -4,11 +4,9 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 릴리즈 상태
 
-현재 공개 stable/latest는 **v1.5.0**이며, 저장소의 현재 작업은 **v1.6.0 release candidate**입니다.
+현재 공개 stable/latest는 **v1.6.0**이며, public release와 anonymous redownload/product smoke 검증까지 완료되었습니다.
 
-v1.6.0은 최종 CI와 공개 릴리즈 검증이 끝나기 전까지 public stable로 간주하지 않습니다.
-
-현재 v1.6.0 release candidate 기준:
+현재 v1.6.0 public release 기준:
 
 ```text
 Desktop target version: 1.6.0
@@ -17,18 +15,22 @@ Readable content schemas: v3~v7
 user.db schema: v1
 Scanner display settings schema: v6
 Scanner catalog cache: v1/v2 readable, v2 written
-automated test suite: 296 tests
+automated test suite: 299 tests
 stable user ZIP name: Junhyun-Helper.zip
 stable extracted folder: 준현 헬퍼/
 ```
 
-마지막 공개 검증 기준선 v1.5.0:
+현재 공개 검증 기준선 v1.6.0:
 
 ```text
-exact release source/tag: 6de738959740d12e6ccb81b65e50006e463eb699
-asset: Junhyun-Helper-v1.5.0-win-x64.zip
-SHA-256: 6ad657653123ff35d8b6fe3d7f9877858992e9327697077492cf29f7c900e5e9
-296 passed / 0 failed / 0 skipped
+exact release source/tag: e18c108380572913552030aa677bba06ebf49355
+stable asset: Junhyun-Helper.zip
+stable bytes: 80,425,013
+stable SHA-256: f9384ff49d522afb5976efe291ff932d66063dcfeee64b0aed7a5daa691a12c5
+v1.5 bridge asset: Junhyun-Helper-v1.6.0-win-x64.zip
+bridge bytes: 80,424,089
+bridge SHA-256: 3f05b20ccbd7463fb590889042b1b706290a88e0568cd00c3b2fa23cf966dfc8
+299 passed / 0 failed / 0 skipped
 public/latest: VERIFIED
 public-downloaded EXE smoke: SUCCESS
 ```
@@ -38,6 +40,7 @@ v1.6.0 공식 작업 기록:
 - `docs/DECISION_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md`
 - `docs/STATUS_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md`
 - `docs/RELEASE_NOTES_V1.6.0.md`
+- `docs/RELEASE_1.6.0.md`
 
 ## 주요 기능
 

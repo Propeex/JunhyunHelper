@@ -3,7 +3,7 @@
 > 새 대화/새 개발자는 이 문서를 먼저 읽습니다. 대화 기억이 아니라 저장소의 공식 문서와 코드가 프로젝트의 기준입니다.
 
 기준일: 2026-08-24
-상태: **v1.6.0 RELEASE CANDIDATE / FINAL RELEASE GATE**
+상태: **v1.6.0 PUBLIC RELEASE / VERIFIED — LIVE GROUND TRUTH MAINTENANCE**
 
 ## 1. 제품
 
@@ -27,18 +27,25 @@ Runtime GPT/AI 의존성은 없다.
 
 기존 `Propeex/Tarkov-Helper` 프로토타입은 제품 요구사항의 권위가 아니다. 유지할 기능, 검증된 데이터/자산, 구현 아이디어, 시행착오 참고 용도로만 사용한다.
 
-## 2. 공개 stable과 현재 release candidate
+## 2. 공개 stable과 현재 source
 
-현재 public stable/latest는 **v1.5.0**이다.
+현재 public stable/latest는 **v1.6.0**이다.
 
 ```text
-exact release source/tag: 6de738959740d12e6ccb81b65e50006e463eb699
-public verification: COMPLETE
+exact release source/tag: e18c108380572913552030aa677bba06ebf49355
+stable asset: Junhyun-Helper.zip
+stable bytes: 80,425,013
+stable SHA-256: f9384ff49d522afb5976efe291ff932d66063dcfeee64b0aed7a5daa691a12c5
+v1.5 bridge asset: Junhyun-Helper-v1.6.0-win-x64.zip
+bridge bytes: 80,424,089
+bridge SHA-256: 3f05b20ccbd7463fb590889042b1b706290a88e0568cd00c3b2fa23cf966dfc8
+release verification run: 32710012954
+299 passed / 0 failed / 0 skipped
+public/latest: VERIFIED
+anonymous public redownload + EXE smoke: SUCCESS
 ```
 
-현재 저장소 작업 source는 **v1.6.0 release candidate**다.
-
-v1.6.0은 public release + anonymous/public redownload verification이 완료되기 전에는 public stable로 표기하지 않는다.
+현재 `main`은 public v1.6.0 exact source 이후의 release-record/housekeeping commit을 포함할 수 있다. 공개 v1.6.0 제품 source의 권위는 tag `v1.6.0`과 위 exact source SHA다.
 
 Schema / compatibility:
 
@@ -57,6 +64,7 @@ v1.6.0 공식 문서:
 - `docs/DECISION_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md`
 - `docs/STATUS_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md`
 - `docs/RELEASE_NOTES_V1.6.0.md`
+- `docs/RELEASE_1.6.0.md`
 - `docs/SCANNER.md`
 - `docs/CURRENT_SCANNER_WORK.md`
 

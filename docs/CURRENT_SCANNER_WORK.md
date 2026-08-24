@@ -1,11 +1,11 @@
 # Current Scanner Work
 
 기준일: 2026-08-24
-상태: **v1.6.0 RELEASE CANDIDATE — FINAL RELEASE GATE**
+상태: **v1.6.0 PUBLIC RELEASE / VERIFIED — LIVE GROUND TRUTH MAINTENANCE**
 
-현재 Scanner 개발은 v1.6.0 사용자 작업 흐름 정리를 구현한 뒤 최종 릴리즈 검증 단계에 있다.
+Scanner v1.6.0 사용자 작업 흐름 정리와 공개 릴리즈 검증이 완료되었다.
 
-v1.6.0 release가 공개 검증되면 다시 **LIVE GROUND TRUTH MAINTENANCE** 단계로 돌아간다.
+현재 단계는 **LIVE GROUND TRUTH MAINTENANCE**다. 실사용에서 수집된 reviewed Ground Truth를 기준으로 실패 stage만 수정하고 전체 reviewed replay에서 REGRESSION=0을 유지한다.
 
 ## v1.6.0 목표
 
@@ -25,6 +25,7 @@ v1.6.0은 인식 threshold를 완화하거나 새 OCR 알고리즘을 무리하�
 - `docs/DECISION_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md`
 - `docs/STATUS_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md`
 - `docs/RELEASE_NOTES_V1.6.0.md`
+- `docs/RELEASE_1.6.0.md`
 
 ## 현재 production recognition pipeline
 

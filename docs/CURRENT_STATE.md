@@ -4,19 +4,27 @@
 
 기준일: 2026-08-24
 
-상태: **`v1.6.0 RELEASE CANDIDATE / FINAL RELEASE GATE`**
+상태: **`v1.6.0 PUBLIC RELEASE / VERIFIED — LIVE GROUND TRUTH MAINTENANCE`**
 
 ## 공개 stable과 현재 source
 
-현재 공개 stable/latest는 아직 **v1.5.0**이다.
+현재 공개 stable/latest는 **v1.6.0**이다.
 
 ```text
-public stable/latest: v1.5.0
-exact release source/tag: 6de738959740d12e6ccb81b65e50006e463eb699
-public verification: COMPLETE
+public stable/latest: v1.6.0
+exact release source/tag: e18c108380572913552030aa677bba06ebf49355
+stable asset: Junhyun-Helper.zip
+stable bytes: 80,425,013
+stable SHA-256: f9384ff49d522afb5976efe291ff932d66063dcfeee64b0aed7a5daa691a12c5
+v1.5 bridge: Junhyun-Helper-v1.6.0-win-x64.zip
+bridge bytes: 80,424,089
+bridge SHA-256: 3f05b20ccbd7463fb590889042b1b706290a88e0568cd00c3b2fa23cf966dfc8
+299 passed / 0 failed / 0 skipped
+public verification run: 32710012954 — SUCCESS
+public-downloaded EXE smoke: SUCCESS
 ```
 
-현재 저장소 작업 source는 **v1.6.0 release candidate**이며, 공개 release와 anonymous redownload 검증이 끝나기 전에는 public stable로 간주하지 않는다.
+`main`의 후속 문서/housekeeping commit은 release source가 아니다. v1.6.0 제품 source는 tag `v1.6.0`의 exact SHA로 고정한다.
 
 ## Schema / compatibility
 
@@ -45,7 +53,7 @@ Scanner Ground Truth: local diagnostics persistence
 | Map + MiniMap | 구현 완료 / steady-state smoke 유지 |
 | Game Content Update | 구현 완료 |
 | Program Update | 구현 완료 / v1.6 stable ZIP contract 반영 |
-| Scanner + Mini Scanner | **v1.6.0 RC 구현 완료 / final release gate** |
+| Scanner + Mini Scanner | **v1.6.0 공개 검증 완료 / live Ground Truth maintenance** |
 
 ## v1.6.0 핵심 변경
 
@@ -67,6 +75,7 @@ Scanner Ground Truth: local diagnostics persistence
 - `docs/DECISION_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md`
 - `docs/STATUS_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md`
 - `docs/RELEASE_NOTES_V1.6.0.md`
+- `docs/RELEASE_1.6.0.md`
 - `docs/SCANNER.md`
 - `docs/CURRENT_SCANNER_WORK.md`
 
