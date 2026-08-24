@@ -82,7 +82,7 @@ v1.7.0 release gate는 build/test/publish/rendered Product UI/Scanner/Map smoke,
 47. public ProductVersion/FIRST_RUN verification
 48. public-downloaded EXE Product UI/Map/Scanner smoke
 49. graceful shutdown / clean extracted product root
-50. durable `docs/.release-v1.6.0-status.json`
+50. durable `docs/.release-v1.7.0-status.json`
 51. temporary one-shot release/verifier workflows cleaned up
 
 ## 3. Immutable threshold / candidate budget
@@ -276,12 +276,12 @@ Verify:
 - old settings migration preserves user choices
 - overlapping one-shot invocation serialized
 - requested continuous mode restored correctly
-- v1.6 normal Scanner page **does not require a visible one-shot button**
+- current normal Scanner page **does not require a visible one-shot button**
 - one-shot remains functionally available via hotkey
 - no scan-time network
 - one-shot cap 12 distinct from continuous cap 8
 
-## 14. Ground Truth correction regression — v1.6
+## 14. Ground Truth correction regression — current
 
 Candidate-first sequence:
 
@@ -376,7 +376,7 @@ Verify:
 - metadata re-read before delete
 - cleanup failure does not change recognition
 
-Logs remain bounded rotation. v1.6 normal Scanner page no longer requires a log-delete button.
+Logs remain bounded rotation. Current normal Scanner page does not require a log-delete button.
 
 ## 17. Mini Scanner regression — schema v6
 
@@ -400,7 +400,7 @@ Presentation:
 - best trader row can include trader name + price
 - settings v5 migration produces valid canonical order
 
-## 18. Scanner Product UI regression — v1.6
+## 18. Scanner Product UI regression — current
 
 Normal surface must expose:
 
@@ -460,13 +460,13 @@ Measured stages:
 
 Telemetry cannot alter acceptance threshold.
 
-## 21. Package / version regression — v1.6
+## 21. Package / version regression — v1.7.0
 
 Published product identity:
 
-- project version = 1.6.0
-- ProductVersion starts `1.6.0`
-- FIRST_RUN first line exactly `준현 헬퍼 v1.6.0 — Windows x64`
+- project version = 1.7.0
+- ProductVersion starts `1.7.0`
+- FIRST_RUN first line exactly `준현 헬퍼 v1.7.0 — Windows x64`
 - no PDB
 - no unexpected root DLL/archive
 - no forbidden legacy dependency
@@ -492,7 +492,7 @@ Independent public verifier must not rely only on the build workspace artifact.
 
 Fresh public checks:
 
-- public latest release = v1.6.0
+- public latest release = v1.7.0
 - exact tag resolves to chosen release source
 - public `Junhyun-Helper.zip` redownload
 - checksum redownload
@@ -503,7 +503,7 @@ Fresh public checks:
 - graceful shutdown
 - durable release status
 
-Temporary release/verifier workflows, if created, are deleted afterward so steady-state workflow returns to `ci.yml` only.
+Temporary one-shot release/verifier workflows, if created, are deleted afterward. Steady-state workflows are the permanent `ci.yml` + immutable-release `release.yml` pair.
 
 ## 23. Live Tarkov calibration after release
 
@@ -539,7 +539,7 @@ Wrong identity has higher priority than miss.
 
 ## 24. Next development rule
 
-After v1.6 public verification:
+After v1.7.0 public verification:
 
 ```text
 reviewed dataset

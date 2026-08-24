@@ -92,8 +92,8 @@ Scanner 작업이면 추가로:
 - `docs/SCANNER_TEST_PLAN.md`
 - `docs/CURRENT_SCANNER_WORK.md`
 - `docs/SCANNER_LAB_3_8_REFERENCE.md`
-- `docs/DECISION_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md`
-- `docs/STATUS_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md`
+- `docs/DECISION_V1.7.0_PRODUCT_COMPLETION_2026-08-24.md`
+- `docs/STATUS_V1.7.0_PRODUCT_COMPLETION_2026-08-25.md`
 
 Quest availability 작업이면:
 
@@ -325,6 +325,7 @@ Scanner specialist contract: `docs/SCANNER.md`.
 - v1.4.x: Ground Truth dataset/correction/regression 및 live evidence 보강
 - v1.5.0: mapped-data repair, unified data refresh, user OCR substitutions, candidate GT, latency telemetry, same-cycle OCR reuse, continuity stabilization, retention, UI finishing
 - **v1.6.0**: normal Scanner surface/search, Mini Scanner ordered fields, settings schema v6, image-first correction, saved Case re-edit, stable release package naming
+- **v1.7.0**: recognition-log quick correction, Data Update transaction/completeness hardening, Scanner market baseline protection, same-ID presentation join, public release proof
 
 ## 9.1 Scanner product boundary
 
@@ -382,7 +383,7 @@ screen pixels
 - `Scanner/ScannerCoordinator.cs` — settings/catalog/runtime/profile lifecycle
 - `Scanner/ScannerCoordinator.CatalogStatus.cs` — readiness/status
 - `Scanner/ScannerCoordinator.OcrSubstitutions.cs` — user substitution persistence boundary
-- `Scanner/ScannerCoordinator.Search.cs` — v1.6 local full-item search/details
+- `Scanner/ScannerCoordinator.Search.cs` — current local full-item search/details
 - `Scanner/ScannerRuntimeService.cs` — continuous recognition lifecycle
 - `Scanner/ScannerRuntimeService.OneShot.cs` — one-shot observation path
 - `Scanner/ScannerRuntimeService.Latency.cs` — latency wrapper
@@ -390,7 +391,7 @@ screen pixels
 - `Scanner/ScannerItemPresentationService.cs` — Item ID → catalog/content/ItemsWorkspace → snapshot
 - `Scanner/ScannerLocalIconService.cs` — local image-cache read-only projection
 - `Scanner/ScannerRecognitionDebugStore.cs` — latest recognition evidence
-- `Scanner/ScannerPage.xaml(.cs)` — v1.6 normal Scanner/search/log surface
+- `Scanner/ScannerPage.xaml(.cs)` — current normal Scanner/search/log surface
 - `Scanner/ScannerSettingsWindow.xaml(.cs)` — hotkeys + Mini Scanner fields/order
 - `Scanner/ScannerAdvancedWindow.xaml(.cs)` — Display Test/correction/dataset management
 - `Scanner/MiniScannerWindow.xaml(.cs)` — no-activate Topmost overlay
@@ -408,7 +409,7 @@ Inspect-header first-party files는 red close-X + neutral frame + magnifier + ti
 ## 9.6 Ground Truth / diagnostics files
 
 - `Scanner/ScannerCandidateGroundTruth.cs` — detector candidate selection persistence
-- `Scanner/ScannerCorrectionWindow.xaml(.cs)` — v1.6 auto-fit image + direct candidate box selection + manual/none fallback
+- `Scanner/ScannerCorrectionWindow.xaml(.cs)` — current auto-fit image + direct candidate box selection + manual/none fallback
 - `Scanner/ScannerDiagnosticCaseBrowser.cs` — Case summary + re-open source parsing
 - `Scanner/ScannerDiagnosticCasesWindow.xaml(.cs)` — saved Case list/delete/re-edit
 - `Scanner/ScannerDiagnosticRetentionService.cs` — automatic unreviewed retention
@@ -435,7 +436,7 @@ connected displays
 
 Real/test continuous mode는 동시에 실행하지 않는다.
 
-One-shot 기능은 유지하지만 v1.6 normal page에는 버튼을 두지 않는다.
+One-shot 기능은 유지하지만 current normal page에는 버튼을 두지 않는다.
 
 ```text
 Ctrl+Shift+F10 = one-shot Tarkov
@@ -520,7 +521,7 @@ User substitution contract:
 - raw/substituted/normalized/matched diagnostics 분리
 - recursive/chained reprocessing 금지
 
-v1.6 normal settings UI는 hotkey/Mini Scanner order를 우선하지만 기존 substitution data는 migration에서 보존한다.
+Current normal settings UI는 hotkey/Mini Scanner order를 우선하지만 기존 substitution data는 migration에서 보존한다.
 
 v6 Mini Scanner fixed header:
 
@@ -620,7 +621,7 @@ RequiredTotal = ItemsWorkspace.Plan.NeededItems[itemId].RequiredTotal
 
 Market/dimension missing은 affected field만 fail closed. Item identity와 분리한다. Scanner에서 별도 shortage 계산을 추가하지 않는다.
 
-## 9.18 v1.6 Ground Truth correction / re-edit
+## 9.18 Current Ground Truth correction / re-edit
 
 기본 correction:
 
@@ -707,7 +708,7 @@ Logs:
 
 bounded rotation.
 
-## 9.20 Scanner UI — v1.6
+## 9.20 Scanner UI — current
 
 Normal surface:
 
@@ -824,7 +825,7 @@ Presentation JSON은 same-directory temp + flush + atomic replace + `.bak` recov
 
 Updater는 TEMP self-copy runner에서 parent 종료 후 program-owned files만 transaction 교체하고 실패 시 rollback/restart를 시도한다.
 
-v1.6.0 user-facing package contract:
+Current user-facing package contract (v1.6.0부터):
 
 ```text
 Junhyun-Helper.zip
@@ -954,12 +955,12 @@ Scanner 상세 ownership은 이 문서 9절과 `docs/SCANNER.md`가 권위다.
 Current automated suite:
 
 ```text
-296 tests
+348 tests
 ```
 
 WPF/Map/Scanner interaction은 xUnit만으로 충분하지 않으므로 CI에서 실제 published EXE를 실행한다.
 
-v1.6 release-candidate gate:
+v1.7.0 verified release gate:
 
 1. Release build
 2. full tests
@@ -984,10 +985,10 @@ Public release는 추가로:
 - fresh independent anonymous public ZIP/checksum redownload
 - hash/size/layout/ProductVersion/FIRST_RUN verification
 - public-downloaded Product UI/Map/Scanner EXE smoke
-- durable `docs/.release-v1.6.0-status.json`
+- durable `docs/.release-v1.7.0-status.json`
 - temporary release/verifier workflow cleanup
 
-Intermediate green gate CI `32700507526` passed build/296 tests/publish/Product UI/Scanner/Map/graceful shutdown before final version/package/doc changes. Latest HEAD must pass again.
+v1.7.0 exact-source/public proof completed 348 tests, Windows publish, rendered Product UI/Scanner/Map smoke, graceful shutdown, package integrity, anonymous public redownload, and public-downloaded product smoke. Current housekeeping state remains separately CI-verified.
 
 ---
 
@@ -1033,7 +1034,7 @@ Intermediate green gate CI `32700507526` passed build/296 tests/publish/Product 
 
 작은 기술 부채:
 
-`Scanner/ScannerLatencyTypeAliases.cs`는 `ScannerDetectedCandidate` type alias다. v1.6 release risk를 감수해 제거할 제품 이점이 없다. 향후 PATCH에서 제거 시 full build/tests/publish/Product UI/Map/Scanner smoke를 다시 수행한다.
+`Scanner/ScannerLatencyTypeAliases.cs`는 `ScannerDetectedCandidate` type alias다. 불필요한 release risk를 감수해 제거할 제품 이점이 없다. 향후 PATCH에서 제거 시 full build/tests/publish/Product UI/Map/Scanner smoke를 다시 수행한다.
 
 ---
 

@@ -147,9 +147,9 @@ review_status = unreviewed
 
 Ground Truth는 사용자가 review/correction을 완료한 Case만 의미한다.
 
-## 6. v1.6 correction UX — image-first candidate selection
+## 6. Current correction UX — image-first candidate selection
 
-v1.6.0 기본 교정 흐름:
+현재 기본 교정 흐름:
 
 ```text
 Case image 열기
@@ -189,7 +189,7 @@ UI scale change는 dataset geometry 의미를 바꾸면 안 된다.
 
 ## 8. Saved Case re-edit
 
-v1.6.0부터 `교정 데이터 관리`에서 기존 Case를 다시 열 수 있다.
+현재 `교정 데이터 관리`에서 기존 Case를 다시 열 수 있다.
 
 복원 source:
 
@@ -364,7 +364,7 @@ Substitution statistics가 product-wide automatic correction table을 자동 생
 
 `scanner.log`는 bounded runtime diagnostic이고 Ground Truth dataset은 image/ROI/prediction/truth/candidate evidence persistence다.
 
-v1.6 일반 Scanner page는 user-facing log-delete/developer export buttons를 노출하지 않는다.
+현재 일반 Scanner page는 user-facing log-delete/developer export buttons를 노출하지 않는다.
 
 Internal log retention/cleanup과 Ground Truth Case management는 계속 별도 책임이다.
 
@@ -491,7 +491,7 @@ Privacy/user control:
 - exported copy는 internal delete가 자동 제거하지 않음
 - dataset persistence failure가 Scanner recognition result를 바꾸면 안 됨
 
-## 19. v1.6.0 completed scope
+## 19. Current completed scope
 
 Ground Truth workflow에서 구현된 범위:
 
@@ -515,7 +515,7 @@ Ground Truth workflow에서 구현된 범위:
 18. full.png replay regression
 19. automatic unreviewed retention bounds
 
-## 20. Post-v1.6 development loop
+## 20. Current development loop
 
 공개 검증 후:
 

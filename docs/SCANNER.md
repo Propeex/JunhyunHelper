@@ -58,7 +58,7 @@ v1.7.0에서도 live recognition threshold/candidate budget은 변경하지 않�
 - Data Update transactional validation/read-back/activation hardening
 - anonymous public release redownload + public product smoke proof
 
-계속 유지되는 v1.6.x 사용자 흐름은 일반 Scanner 화면, local item search, Mini Scanner settings schema v6, 교정 이미지 원본 좌표 보존 및 saved Case 재교정이다.
+계속 유지되는 기존 사용자 흐름은 일반 Scanner 화면, local item search, Mini Scanner settings schema v6, 교정 이미지 원본 좌표 보존 및 saved Case 재교정이다.
 
 ## 3. 핵심 안전 불변식
 
@@ -108,11 +108,11 @@ EscapeFromTarkov process/window
 연결된 display에 실사용과 동일한 detector/OCR/catalog/presentation pipeline을 적용한다.
 
 - 실제 continuous Scanner와 Display Test continuous mode는 상호 배타적이다.
-- v1.6.0에서는 일반 Scanner surface가 아니라 `고급` 영역에서 다룬다.
+- 현재 일반 Scanner surface가 아니라 `고급` 영역에서 다룬다.
 
 ### One-shot
 
-one-shot 기능은 v1.6.0에서도 유지된다.
+one-shot 기능은 현재도 유지된다.
 
 일반 Scanner 화면에서는 별도 1회 스캔 버튼을 노출하지 않지만 전역 hotkey로 계속 사용할 수 있다.
 
@@ -159,9 +159,9 @@ remote Game Content fetch/build
 - Scanner refresh만 실패하면 healthy general Game Content를 rollback하지 않는다.
 - 기존 healthy Scanner cache가 있으면 유지한다.
 - partial failure를 상태로 보고한다.
-- v1.6.0 일반 Scanner surface에는 catalog force-refresh 버튼을 노출하지 않는다.
+- 현재 일반 Scanner surface에는 catalog force-refresh 버튼을 노출하지 않는다.
 
-## 7. Scanner 일반 UI — v1.6.0
+## 7. Scanner 일반 UI — current
 
 상단 primary controls:
 
@@ -299,7 +299,7 @@ raw OCR
 - recursive/cyclic/chained reprocessing 금지
 - 사용자 rule은 product-wide automatic substitution table이 아님
 
-v1.6.0 일반 Scanner 설정 창은 Mini Scanner/hotkey 사용 흐름을 우선하고, 기존 substitution 설정 데이터는 schema migration에서 보존한다.
+현재 일반 Scanner 설정 창은 Mini Scanner/hotkey 사용 흐름을 우선하고, 기존 substitution 설정 데이터는 schema migration에서 보존한다.
 
 ## 14. Scanner display settings schema v6
 
@@ -399,7 +399,7 @@ RequiredTotal = ItemsWorkspace.Plan.NeededItems[itemId].RequiredTotal
 
 Market/dimension 일부 누락은 affected field만 비우고 healthy Item identity를 폐기하지 않는다.
 
-## 20. Mini Scanner — v1.6.0
+## 20. Mini Scanner — current
 
 Mini Scanner는 matched Item presentation만 표시한다.
 
@@ -432,7 +432,7 @@ Mini Scanner window contract:
 - inventory OCR single-active + latest coalescing
 - stale epoch result reject
 
-## 21. Ground Truth / correction — v1.6.0
+## 21. Ground Truth / correction — current
 
 Canonical evidence source는 `%LocalAppData%/JunhyunHelper/scanner/diagnostics/` 아래 Case dataset이다.
 
@@ -452,7 +452,7 @@ Candidate-first fields:
 4. item-name ROI
 5. correct item/text
 
-v1.6.0 기본 선택 UX는 이미지 위 candidate box 직접 클릭이다.
+현재 기본 선택 UX는 이미지 위 candidate box 직접 클릭이다.
 
 Fallback:
 
@@ -523,7 +523,7 @@ Reviewed Case replay result:
 
 기존에 맞았던 reviewed Case가 새 코드에서 틀리면 평균 정확도가 올라가도 `REGRESSION`이다.
 
-## 25. Release package contract — v1.6.0
+## 25. Release package contract — current (v1.6.0부터)
 
 정식 user-facing package:
 
@@ -546,9 +546,9 @@ Version identity는 다음에서 관리한다.
 
 CI는 실제 stable ZIP을 생성해 내부 top-level folder와 required files를 검증한다.
 
-## 26. v1.6.0 이후 작업
+## 26. Current work — LIVE GROUND TRUTH MAINTENANCE
 
-v1.6.0 공개 검증 후 Scanner는 live Ground Truth maintenance 단계다.
+v1.7.0 공개 검증 후 Scanner는 LIVE GROUND TRUTH MAINTENANCE 단계다.
 
 ```text
 real Tarkov usage
