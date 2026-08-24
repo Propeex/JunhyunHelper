@@ -48,3 +48,5 @@ jobs:
           gh api @args | Out-Null
           if ($LASTEXITCODE -ne 0) { throw 'Could not persist release probe.' }
           $status | Format-List
+
+      # refresh: 2026-08-24T08:04Z
