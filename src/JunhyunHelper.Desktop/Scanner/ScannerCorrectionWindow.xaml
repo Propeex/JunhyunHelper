@@ -14,25 +14,24 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
+        <!-- The child keeps original pixel coordinates while Viewbox performs display-only
+             scaling. Ground Truth rectangles therefore remain in source-image coordinates. -->
         <Border Grid.Row="0"
                 Background="Black"
                 BorderBrush="{StaticResource BorderBrush}"
                 BorderThickness="1"
                 CornerRadius="8"
                 ClipToBounds="True">
-            <ScrollViewer HorizontalScrollBarVisibility="Auto"
-                          VerticalScrollBarVisibility="Auto">
-                <Viewbox Stretch="Uniform" StretchDirection="DownOnly">
-                    <Grid x:Name="ImageCanvasHost">
-                        <Image x:Name="CaptureImage" Stretch="None" />
-                        <Canvas x:Name="OverlayCanvas"
-                                Background="Transparent"
-                                MouseLeftButtonDown="OverlayCanvas_MouseLeftButtonDown"
-                                MouseMove="OverlayCanvas_MouseMove"
-                                MouseLeftButtonUp="OverlayCanvas_MouseLeftButtonUp" />
-                    </Grid>
-                </Viewbox>
-            </ScrollViewer>
+            <Viewbox Stretch="Uniform" StretchDirection="DownOnly">
+                <Grid x:Name="ImageCanvasHost">
+                    <Image x:Name="CaptureImage" Stretch="None" />
+                    <Canvas x:Name="OverlayCanvas"
+                            Background="Transparent"
+                            MouseLeftButtonDown="OverlayCanvas_MouseLeftButtonDown"
+                            MouseMove="OverlayCanvas_MouseMove"
+                            MouseLeftButtonUp="OverlayCanvas_MouseLeftButtonUp" />
+                </Grid>
+            </Viewbox>
         </Border>
 
         <Border Grid.Row="1"
@@ -48,62 +47,67 @@
                            TextWrapping="Wrap"
                            Margin="0,0,0,8" />
                 <TextBlock x:Name="InstructionText"
-                           Text="각 영역은 Scanner가 실제 생성한 후보에서 정답을 선택하는 것이 기본입니다. 후보에 정답이 없으면 ‘직접 지정’을 선택해 이미지에서 드래그하고, 아예 검출되면 안 되는 항목은 ‘없음’을 선택하세요."
+                           Text="교정할 항목을 선택한 뒤 이미지에 표시된 후보 사각형을 마우스로 클릭하세요. 후보가 없으면 직접 지정하거나 ‘없음’을 선택할 수 있습니다."
                            TextWrapping="Wrap"
                            Margin="0,0,0,10" />
 
-                <Border Background="{StaticResource BackgroundDarkBrush}"
-                        BorderBrush="{StaticResource BorderBrush}"
-                        BorderThickness="1"
-                        CornerRadius="6"
-                        Padding="10"
-                        Margin="0,0,0,10">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="150" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="150" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="20" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Button x:Name="DetailFieldButton"
+                            Content="상세보기 창"
+                            MinWidth="112"
+                            Margin="0,0,6,0"
+                            Click="DetailFieldButton_Click" />
+                    <Button x:Name="CloseFieldButton"
+                            Grid.Column="1"
+                            Content="빨간 X"
+                            MinWidth="88"
+                            Margin="0,0,6,0"
+                            Click="CloseFieldButton_Click" />
+                    <Button x:Name="MagnifierFieldButton"
+                            Grid.Column="2"
+                            Content="돋보기"
+                            MinWidth="88"
+                            Margin="0,0,6,0"
+                            Click="MagnifierFieldButton_Click" />
+                    <Button x:Name="TitleFieldButton"
+                            Grid.Column="3"
+                            Content="아이템명 영역"
+                            MinWidth="112"
+                            Click="TitleFieldButton_Click" />
 
-                        <TextBlock Grid.Row="0" Grid.Column="0"
-                                   Text="상세보기 창"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,8,8" />
-                        <ComboBox x:Name="DetailCandidateComboBox"
-                                  Grid.Row="0" Grid.Column="1"
-                                  Margin="0,0,18,8"
-                                  SelectionChanged="CandidateComboBox_SelectionChanged" />
-                        <TextBlock Grid.Row="0" Grid.Column="2"
-                                   Text="빨간 X"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,8,8" />
-                        <ComboBox x:Name="CloseCandidateComboBox"
-                                  Grid.Row="0" Grid.Column="3"
-                                  Margin="0,0,0,8"
-                                  SelectionChanged="CandidateComboBox_SelectionChanged" />
+                    <Button x:Name="KeepCurrentButton"
+                            Grid.Column="5"
+                            Content="현재 검출값"
+                            MinWidth="104"
+                            Margin="0,0,6,0"
+                            Click="KeepCurrentButton_Click" />
+                    <Button x:Name="NoneButton"
+                            Grid.Column="6"
+                            Content="없음"
+                            MinWidth="72"
+                            Margin="0,0,6,0"
+                            Click="NoneButton_Click" />
+                    <Button x:Name="ManualButton"
+                            Grid.Column="7"
+                            Content="직접 지정"
+                            MinWidth="92"
+                            Click="ManualButton_Click" />
+                </Grid>
 
-                        <TextBlock Grid.Row="1" Grid.Column="0"
-                                   Text="돋보기"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,8,0" />
-                        <ComboBox x:Name="MagnifierCandidateComboBox"
-                                  Grid.Row="1" Grid.Column="1"
-                                  Margin="0,0,18,0"
-                                  SelectionChanged="CandidateComboBox_SelectionChanged" />
-                        <TextBlock Grid.Row="1" Grid.Column="2"
-                                   Text="아이템명 ROI"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,8,0" />
-                        <ComboBox x:Name="TitleCandidateComboBox"
-                                  Grid.Row="1" Grid.Column="3"
-                                  SelectionChanged="CandidateComboBox_SelectionChanged" />
-                    </Grid>
-                </Border>
+                <TextBlock x:Name="ActiveFieldStatusText"
+                           Foreground="{StaticResource AccentBrush}"
+                           TextWrapping="Wrap"
+                           Margin="0,0,0,10" />
 
                 <Grid Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
@@ -139,38 +143,17 @@
                             Click="CloseButton_Click" />
                 </Grid>
 
-                <WrapPanel Margin="0,0,0,2">
-                    <Button x:Name="DetailCorrectionButton"
-                            Content="상세보기 직접 지정"
-                            MinWidth="138"
-                            Margin="0,0,8,6"
-                            Click="DetailCorrectionButton_Click" />
-                    <Button x:Name="CloseCorrectionButton"
-                            Content="빨간 X 직접 지정"
-                            MinWidth="132"
-                            Margin="0,0,8,6"
-                            Click="CloseCorrectionButton_Click" />
-                    <Button x:Name="MagnifierCorrectionButton"
-                            Content="돋보기 직접 지정"
-                            MinWidth="132"
-                            Margin="0,0,8,6"
-                            Click="MagnifierCorrectionButton_Click" />
-                    <Button x:Name="TitleCorrectionButton"
-                            Content="아이템명 직접 지정"
-                            MinWidth="138"
-                            Margin="0,0,8,6"
-                            Click="TitleCorrectionButton_Click" />
+                <StackPanel Orientation="Horizontal">
                     <Button x:Name="ResetCorrectionButton"
                             Content="선택 초기화"
                             MinWidth="108"
-                            Margin="0,0,8,6"
+                            Margin="0,0,8,0"
                             Click="ResetCorrectionButton_Click" />
-                </WrapPanel>
-
-                <TextBlock x:Name="SaveStatusText"
-                           Foreground="{StaticResource TextSecondaryBrush}"
-                           TextWrapping="Wrap"
-                           Margin="0,5,0,0" />
+                    <TextBlock x:Name="SaveStatusText"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               TextWrapping="Wrap"
+                               VerticalAlignment="Center" />
+                </StackPanel>
             </StackPanel>
         </Border>
     </Grid>
