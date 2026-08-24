@@ -36,21 +36,11 @@ public partial class MainWindow
             // Refresh Scanner only after canonical content/workspaces have switched to
             // the newly activated snapshot. Scanner context then points at one coherent
             // game mode/content/profile set throughout the refresh/restart operation.
+            // Network retry/timeout policy is owned by ScannerCatalogService so this UI
+            // path never stacks another full retry sequence on top of service retries.
             StatusText.Text = "Scanner 아이템·가격 데이터를 업데이트하는 중...";
             var scannerUsable = await ScannerCoordinator.SyncCatalogAsync();
             var scannerDiagnostics = ScannerCoordinator.CatalogDiagnostics;
-
-            // A transient upstream response can fail independently of the canonical
-            // Game Content update. Retry only quick/transient payload failures here;
-            // a request-wide timeout is already long enough and is not repeated from
-            // this UI path to avoid turning one update into a minute-long block.
-            if (ScannerCatalogOutcomePolicy.IsRetryableFromUserUpdate(scannerDiagnostics.Outcome))
-            {
-                StatusText.Text = "Scanner 아이템·가격 데이터를 한 번 더 확인하는 중...";
-                await Task.Delay(TimeSpan.FromMilliseconds(500));
-                scannerUsable = await ScannerCoordinator.SyncCatalogAsync();
-                scannerDiagnostics = ScannerCoordinator.CatalogDiagnostics;
-            }
 
             // `fresh-cache` deliberately uses the already-current local cache without a
             // network request. v1.6.0 treated every UsedExistingCatalog outcome other
