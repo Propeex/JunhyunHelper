@@ -1,0 +1,60 @@
+name: Patch v1.6.0 ASCII Release Asset Contract
+
+on:
+  push:
+    branches:
+      - release/v1.6.0-ascii-asset-contract
+    paths:
+      - '.github/workflows/patch-v1.6.0-ascii-asset.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/v1.6.0-ascii-asset-contract
+          fetch-depth: 0
+
+      - name: Apply GitHub-compatible stable asset contract
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $old = '준현 헬퍼.zip'
+          $new = 'Junhyun-Helper.zip'
+          $files = @(git grep -Il -- $old)
+          foreach ($path in $files) {
+            $text = [IO.File]::ReadAllText($path)
+            $text = $text.Replace($old, $new)
+            [IO.File]::WriteAllText($path, $text, [Text.UTF8Encoding]::new($false))
+          }
+
+          $testPath = 'tests/JunhyunHelper.Tests/Infrastructure/ProgramUpdateTests.cs'
+          $testText = [IO.File]::ReadAllText($testPath)
+          $testText = $testText.Replace('%EC%A4%80%ED%98%84%20%ED%97%AC%ED%8D%BC.zip', 'Junhyun-Helper.zip')
+          [IO.File]::WriteAllText($testPath, $testText, [Text.UTF8Encoding]::new($false))
+
+          $decisionPath = 'docs/DECISION_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md'
+          $decision = [IO.File]::ReadAllText($decisionPath)
+          $needle = "정식 사용자 배포 ZIP 이름은 버전 번호와 분리한다.`n`n- 파일명: ``Junhyun-Helper.zip``"
+          $replacement = "정식 사용자 배포 ZIP 이름은 버전 번호와 분리한다.`n`nGitHub Release는 비영문/특수문자 asset filename을 정규화하므로 release asset 자체는 version-independent ASCII 이름을 사용한다. 사용자에게 압축 해제되는 제품 폴더와 실행 파일의 한국어 이름은 유지한다.`n`n- 파일명: ``Junhyun-Helper.zip``"
+          if (-not $decision.Contains($needle)) { throw 'Could not locate v1.6.0 package decision text.' }
+          $decision = $decision.Replace($needle, $replacement)
+          [IO.File]::WriteAllText($decisionPath, $decision, [Text.UTF8Encoding]::new($false))
+
+          $productPath = 'docs/PRODUCT.md'
+          $product = [IO.File]::ReadAllText($productPath)
+          $productNeedle = "ZIP/folder 이름은 version과 분리한다. Version identity는 EXE ProductVersion, Git tag, GitHub Release metadata에 둔다."
+          $productReplacement = "ZIP/folder 이름은 version과 분리한다. GitHub Release asset은 filename normalization 제약 때문에 ``Junhyun-Helper.zip`` ASCII 이름을 사용하고, 압축 내부 제품 폴더는 ``준현 헬퍼/``를 유지한다. Version identity는 EXE ProductVersion, Git tag, GitHub Release metadata에 둔다."
+          if (-not $product.Contains($productNeedle)) { throw 'Could not locate PRODUCT package policy text.' }
+          $product = $product.Replace($productNeedle, $productReplacement)
+          [IO.File]::WriteAllText($productPath, $product, [Text.UTF8Encoding]::new($false))
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add --all
+          git commit -m 'Use GitHub-compatible stable release asset name'
+          git push origin HEAD:release/v1.6.0-ascii-asset-contract
