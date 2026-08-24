@@ -438,10 +438,19 @@ public sealed partial class ScannerRuntimeService : IDisposable
                 continue;
             }
 
-            var text = await _ocr.ReadTextAsync(candidate.TitleImage!, cancellationToken);
-            var recognition = _catalog.ResolveOcrText(text, out var assessment);
-            LogCandidateAttempt(mode, index, "ORIGINAL", candidate, text, assessment.FilteredText, recognition);
-            var result = CreateSearchResult(candidate, recognition, text, assessment.FilteredText, "ORIGINAL", index, 0.82, 0.18);
+            var rawText = await _ocr.ReadTextAsync(candidate.TitleImage!, cancellationToken);
+            var substitution = ApplyUserOcrSubstitutions(rawText);
+            var recognition = _catalog.ResolveOcrText(substitution.Text, out var assessment);
+            LogCandidateAttempt(
+                mode,
+                index,
+                "ORIGINAL",
+                candidate,
+                rawText,
+                substitution.Text,
+                assessment.FilteredText,
+                recognition);
+            var result = CreateSearchResult(candidate, recognition, rawText, assessment.FilteredText, "ORIGINAL", index, 0.82, 0.18);
             bestFailure = PickBetterFailure(bestFailure, result);
             if (recognition.Success && (bestSuccess is null || result.CombinedScore > bestSuccess.CombinedScore))
                 bestSuccess = result;
@@ -459,10 +468,19 @@ public sealed partial class ScannerRuntimeService : IDisposable
                 if (candidate.StructuralScore < CandidateStructuralFloor || !HasTrustedTitleAnchors(candidate))
                     continue;
 
-                var text = await deepOcr.ReadDeepTextAsync(candidate.TitleImage!, cancellationToken);
-                var recognition = _catalog.ResolveOcrText(text, out var assessment);
-                LogCandidateAttempt(mode, index, "DEEP", candidate, text, assessment.FilteredText, recognition);
-                var result = CreateSearchResult(candidate, recognition, text, assessment.FilteredText, "DEEP", index, 0.86, 0.14);
+                var rawText = await deepOcr.ReadDeepTextAsync(candidate.TitleImage!, cancellationToken);
+                var substitution = ApplyUserOcrSubstitutions(rawText);
+                var recognition = _catalog.ResolveOcrText(substitution.Text, out var assessment);
+                LogCandidateAttempt(
+                    mode,
+                    index,
+                    "DEEP",
+                    candidate,
+                    rawText,
+                    substitution.Text,
+                    assessment.FilteredText,
+                    recognition);
+                var result = CreateSearchResult(candidate, recognition, rawText, assessment.FilteredText, "DEEP", index, 0.86, 0.14);
                 bestFailure = PickBetterFailure(bestFailure, result);
                 if (recognition.Success && (bestSuccess is null || result.CombinedScore > bestSuccess.CombinedScore))
                     bestSuccess = result;
@@ -482,6 +500,9 @@ public sealed partial class ScannerRuntimeService : IDisposable
             -1,
             0);
     }
+
+    private ScannerOcrSubstitutionResult ApplyUserOcrSubstitutions(string rawText) =>
+        ScannerOcrSubstitutionEngine.Apply(rawText, _settings.Current.OcrSubstitutions);
 
     private static CandidateSearchResult CreateSearchResult(
         ScannerInspectCandidate candidate,
@@ -570,6 +591,7 @@ public sealed partial class ScannerRuntimeService : IDisposable
         string pass,
         ScannerInspectCandidate candidate,
         string rawText,
+        string userSubstitutedText,
         string matcherText,
         ScannerRecognition recognition)
     {
@@ -582,6 +604,7 @@ public sealed partial class ScannerRuntimeService : IDisposable
             ("structureReason", candidate.StructuralReason),
             ("bounds", FormatBounds(candidate.Bounds)),
             ("rawOcr", rawText),
+            ("userSubstitutedOcr", userSubstitutedText),
             ("matcherText", matcherText),
             ("match", recognition.Reason),
             ("success", recognition.Success),
@@ -621,8 +644,9 @@ public sealed partial class ScannerRuntimeService : IDisposable
     private static string FormatBounds(Rect bounds) =>
         $"{bounds.X:F0},{bounds.Y:F0},{bounds.Width:F0},{bounds.Height:F0}";
 
-    private static void PublishSearchActivity(CandidateSearchResult search, ScannerCaptureMode mode)
+    private void PublishSearchActivity(CandidateSearchResult search, ScannerCaptureMode mode)
     {
+        var substitution = ApplyUserOcrSubstitutions(search.OcrText);
         ScannerRecognitionDebugStore.UpdateAnalysis(
             search.Candidate,
             search.Pass,
@@ -635,6 +659,8 @@ public sealed partial class ScannerRuntimeService : IDisposable
             ("candidateIndex", search.CandidateIndex),
             ("pass", search.Pass),
             ("rawText", search.OcrText),
+            ("userSubstitutedText", substitution.Text),
+            ("substitutionCount", substitution.ReplacementCount),
             ("matcherText", search.MatcherText));
         ScannerDiagnosticLog.Write(
             "match-result",
