@@ -9,8 +9,8 @@ namespace JunhyunHelper.Infrastructure.Scanner;
 
 /// <summary>
 /// Compact non-sensitive diagnostics for the most recent Scanner catalog load/refresh.
-/// Market coverage is reported for troubleshooting, but never participates in identity
-/// catalog health: missing prices fail closed per field instead of disabling recognition.
+/// Market coverage is reported for troubleshooting. Identity health remains independent,
+/// while an established healthy market baseline is protected from severe coverage loss.
 /// </summary>
 public sealed record ScannerCatalogDiagnostics(
     string Outcome,
@@ -210,10 +210,16 @@ public sealed class ScannerCatalogService : IDisposable
             cancellationToken,
             _lifetimeCts.Token);
         var gateEntered = false;
+        ScannerCatalogCache? baseline = null;
         try
         {
             await _refreshGate.WaitAsync(operation.Token);
             gateEntered = true;
+
+            // Capture the same-mode last-known-good cache before any mode transition.
+            // Data Update may run while Scanner is disabled, in which case the healthy
+            // baseline can exist only on disk and still must survive a failed refresh.
+            baseline = CaptureHealthyBaseline(mode);
 
             // Do not mutate the loaded mode before entering the operation gate. A newer
             // cache load may be waiting behind this refresh and must be the final writer.
@@ -259,7 +265,14 @@ public sealed class ScannerCatalogService : IDisposable
                 english,
                 await traderNamesTask);
             if (!IsHealthyItemSet(items))
-                return CompleteFailedRefresh(mode, "identity-invalid", items);
+                return CompleteFailedRefresh(mode, "identity-invalid", items, baseline);
+
+            if (baseline is not null)
+            {
+                var marketCoverage = ScannerMarketCoverageGuard.Assess(items, baseline.Items);
+                if (!marketCoverage.IsAcceptable)
+                    return CompleteFailedRefresh(mode, "market-regression", items, baseline);
+            }
 
             var generatedAt = DateTimeOffset.UtcNow;
             var cache = new ScannerCatalogCache
@@ -279,7 +292,7 @@ public sealed class ScannerCatalogService : IDisposable
             // a write that cannot be recovered as the same validated document.
             var verified = new AtomicJsonFileStore(path).LoadOrDefault(() => new ScannerCatalogCache());
             if (!IsHealthyCache(verified, mode))
-                return CompleteFailedRefresh(mode, "cache-readback-invalid", verified.Items);
+                return CompleteFailedRefresh(mode, "cache-readback-invalid", verified.Items, baseline);
 
             ReplaceData(mode, verified.Items, verified.GeneratedAtUtc, verified.SchemaVersion);
             SetDiagnostics("success", verified.Items);
@@ -288,31 +301,31 @@ public sealed class ScannerCatalogService : IDisposable
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return CompleteFailedRefresh(mode, "timeout-or-shutdown");
+            return CompleteFailedRefresh(mode, "timeout-or-shutdown", baseline: baseline);
         }
         catch (TimeoutException)
         {
-            return CompleteFailedRefresh(mode, "timeout-or-shutdown");
+            return CompleteFailedRefresh(mode, "timeout-or-shutdown", baseline: baseline);
         }
         catch (HttpRequestException)
         {
-            return CompleteFailedRefresh(mode, "http-failure");
+            return CompleteFailedRefresh(mode, "http-failure", baseline: baseline);
         }
         catch (IOException)
         {
-            return CompleteFailedRefresh(mode, "io-failure");
+            return CompleteFailedRefresh(mode, "io-failure", baseline: baseline);
         }
         catch (UnauthorizedAccessException)
         {
-            return CompleteFailedRefresh(mode, "access-failure");
+            return CompleteFailedRefresh(mode, "access-failure", baseline: baseline);
         }
         catch (JsonException)
         {
-            return CompleteFailedRefresh(mode, "json-invalid");
+            return CompleteFailedRefresh(mode, "json-invalid", baseline: baseline);
         }
         catch (InvalidDataException)
         {
-            return CompleteFailedRefresh(mode, "payload-invalid");
+            return CompleteFailedRefresh(mode, "payload-invalid", baseline: baseline);
         }
         finally
         {
@@ -518,12 +531,53 @@ public sealed class ScannerCatalogService : IDisposable
         _ => SecondRetryDelay,
     };
 
+    private ScannerCatalogCache? CaptureHealthyBaseline(GameMode mode)
+    {
+        if (LoadedMode == mode &&
+            HasHealthyCatalog &&
+            GeneratedAtUtc is { } generatedAt &&
+            LoadedCacheSchemaVersion >= 1 &&
+            LoadedCacheSchemaVersion <= CurrentCacheSchemaVersion)
+        {
+            return new ScannerCatalogCache
+            {
+                SchemaVersion = LoadedCacheSchemaVersion,
+                Source = "https://json.tarkov.dev",
+                Language = "ko",
+                GameMode = mode.ToDataKey(),
+                GeneratedAtUtc = generatedAt,
+                Items = GetItemsSnapshot().ToList(),
+            };
+        }
+
+        var path = GetCachePath(mode);
+        if (!File.Exists(path) && !File.Exists(path + ".bak"))
+            return null;
+
+        try
+        {
+            var cache = new AtomicJsonFileStore(path).LoadOrDefault(() => new ScannerCatalogCache());
+            return IsHealthyCache(cache, mode) ? cache : null;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
     private bool CompleteFailedRefresh(
         GameMode mode,
         string outcome,
-        IReadOnlyCollection<ScannerCatalogItem>? candidateItems = null)
+        IReadOnlyCollection<ScannerCatalogItem>? candidateItems = null,
+        ScannerCatalogCache? baseline = null)
     {
         var useExisting = LoadedMode == mode && HasHealthyCatalog;
+        if (!useExisting && baseline is not null && IsHealthyCache(baseline, mode))
+        {
+            ReplaceData(mode, baseline.Items, baseline.GeneratedAtUtc, baseline.SchemaVersion);
+            useExisting = true;
+        }
+
         SetDiagnostics(outcome, candidateItems, useExisting);
         return useExisting;
     }
