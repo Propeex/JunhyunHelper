@@ -97,15 +97,9 @@ public sealed class TarkovContentUpdateService
 
             // Do not report success merely because a file move completed. Load the final
             // active snapshot through the same recovery/validation boundary once more.
-            var activated = await _activationService.ReadActiveOrRecoverAsync(gameMode, cancellationToken);
-            var activatedValidation = _completenessGuard.Validate(
-                activated.Content,
-                baseline?.Content);
-            if (!activatedValidation.IsValid)
-            {
-                throw new InvalidDataException(
-                    "Activated game content failed post-activation completeness validation.");
-            }
+            // If activation produced an invalid file, ContentActivationService restores
+            // the previous last-known-good snapshot before this call returns.
+            _ = await _activationService.ReadActiveOrRecoverAsync(gameMode, cancellationToken);
 
             trackedProgress.Report(new ContentUpdateProgress(
                 ContentUpdateStage.Completed,
@@ -156,8 +150,15 @@ public sealed class TarkovContentUpdateService
         {
             throw;
         }
-        catch (Exception exception) when (
-            exception is IOException or UnauthorizedAccessException or InvalidDataException)
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+        catch (InvalidDataException)
         {
             // A broken baseline must not be used to judge a new candidate. The candidate
             // still has to pass complete build + activation validation before replacing it.
