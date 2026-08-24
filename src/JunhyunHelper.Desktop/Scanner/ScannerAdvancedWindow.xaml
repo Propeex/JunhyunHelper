@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Scanner 고급"
         Width="460"
-        Height="330"
+        SizeToContent="Height"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource BackgroundDarkBrush}">
@@ -19,7 +19,7 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
@@ -45,12 +45,12 @@
             <Button Grid.Row="4"
                     Content="교정 데이터 관리"
                     Height="38"
-                    VerticalAlignment="Top"
                     Click="ManageCorrectionsButton_Click" />
 
             <Button Grid.Row="5"
                     Content="닫기"
                     MinWidth="84"
+                    Margin="0,18,0,0"
                     HorizontalAlignment="Right"
                     Click="CloseButton_Click" />
         </Grid>
