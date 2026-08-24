@@ -1,0 +1,56 @@
+name: Probe v1.4.4 release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/probe-v1.4.4.yml'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TRIGGER_SHA: a3f4e67ca094aa048c9092b31a940b09d4274193
+      VERIFIER_TRIGGER_SHA: c857933beb070a6b341362a0a6b6486fd68d98ce
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+      - name: Record current release state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $releaseRuns = gh api "repos/$env:GITHUB_REPOSITORY/actions/workflows/release-v1.4.4.yml/runs?event=push&per_page=20" | ConvertFrom-Json
+          $releaseRun = $releaseRuns.workflow_runs | Where-Object { $_.head_sha -eq $env:RELEASE_TRIGGER_SHA } | Select-Object -First 1
+          $verifyRuns = gh api "repos/$env:GITHUB_REPOSITORY/actions/workflows/verify-v1.4.4-public.yml/runs?event=push&per_page=20" | ConvertFrom-Json
+          $verifyRun = $verifyRuns.workflow_runs | Where-Object { $_.head_sha -eq $env:VERIFIER_TRIGGER_SHA } | Select-Object -First 1
+          $release = $null
+          gh release view v1.4.4 --repo $env:GITHUB_REPOSITORY --json tagName,isDraft,isPrerelease,publishedAt,url *> probe-release.json
+          if ($LASTEXITCODE -eq 0) { $release = Get-Content probe-release.json -Raw | ConvertFrom-Json }
+          $state = [ordered]@{
+            checked_at_utc = [DateTimeOffset]::UtcNow.ToString('O')
+            release_run_id = if ($releaseRun) { $releaseRun.id } else { $null }
+            release_run_status = if ($releaseRun) { $releaseRun.status } else { $null }
+            release_run_conclusion = if ($releaseRun) { $releaseRun.conclusion } else { $null }
+            verifier_run_id = if ($verifyRun) { $verifyRun.id } else { $null }
+            verifier_run_status = if ($verifyRun) { $verifyRun.status } else { $null }
+            verifier_run_conclusion = if ($verifyRun) { $verifyRun.conclusion } else { $null }
+            release_exists = $null -ne $release
+            release_tag = if ($release) { $release.tagName } else { $null }
+            release_draft = if ($release) { $release.isDraft } else { $null }
+            release_prerelease = if ($release) { $release.isPrerelease } else { $null }
+            release_published_at = if ($release) { $release.publishedAt } else { $null }
+            release_url = if ($release) { $release.url } else { $null }
+          }
+          $state | ConvertTo-Json | Set-Content docs/.v1.4.4-probe.json -Encoding utf8
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/.v1.4.4-probe.json
+          git commit -m 'Record temporary v1.4.4 release probe'
+          git push origin HEAD:main
