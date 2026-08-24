@@ -142,7 +142,8 @@ public partial class ScannerPage : UserControl
         ScannerCorrectionWindow? correctionWindow = null;
         var summary = ScannerDiagnosticCaseBrowser.GetCases().FirstOrDefault(item =>
             string.Equals(item.CaseId, activity.CaseId, StringComparison.Ordinal));
-        if (summary is not null && ScannerDiagnosticCaseBrowser.TryLoadCase(summary, out var storedCase, out var loadError))
+        var loadError = string.Empty;
+        if (summary is not null && ScannerDiagnosticCaseBrowser.TryLoadCase(summary, out var storedCase, out loadError))
         {
             correctionWindow = new ScannerCorrectionWindow(storedCase, _coordinator);
         }
