@@ -191,7 +191,7 @@
                             Margin="0,0,8,8"
                             Click="ManageDiagnosticsButton_Click" />
                     <Button x:Name="SyncCatalogButton"
-                            Content="아이템 목록 복구 / 최신화"
+                            Content="아이템 목록 최신화"
                             MinWidth="154"
                             Padding="10,4"
                             Margin="0,0,8,8"
