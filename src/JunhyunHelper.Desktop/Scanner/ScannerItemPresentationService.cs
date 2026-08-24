@@ -49,7 +49,8 @@ public sealed class ScannerItemPresentationService
             catalogItem.TraderPricePerSlot,
             catalogItem.FleaPricePerSlot,
             catalogItem.Slots,
-            needed?.RequiredTotal ?? 0);
+            needed?.RequiredTotal ?? 0,
+            catalogItem.BestTraderName);
     }
 
     public ScannerItemSnapshot? CreateDefaultPreviewSnapshot()
