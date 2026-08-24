@@ -1,6 +1,6 @@
 # DECISION — v1.6.1 Scanner hardening
 
-상태: `CONFIRMED / IMPLEMENTATION IN PROGRESS`
+상태: `VERIFIED / READY FOR MERGE & RELEASE`
 
 기준일: 2026-08-24
 
@@ -119,6 +119,7 @@ one-shot candidate cap = 12
 
 - retry는 data-update 시에만 bounded하게 수행하고 scan-time hot path에는 추가 work를 넣지 않는다.
 - recognition threshold를 성능 목적으로 완화하지 않는다.
+- Scanner item search 결과 행은 full mapped presentation을 반복 계산하지 않고 필요한 icon/name/wiki 데이터만 조회한다.
 - telemetry evidence 없는 broad Scanner refactor는 하지 않는다.
 
 ## 8. 검증 gate
@@ -139,3 +140,22 @@ one-shot candidate cap = 12
 - graceful shutdown / clean portable root
 
 최종 검증에서 회귀가 발견되면 v1.6.1 release를 진행하지 않는다.
+
+## 9. Release-candidate 검증 기록
+
+2026-08-24 PR #176의 release-candidate CI run `#1803`에서 위 gate를 전부 통과했다.
+
+- Release build: 성공, error 0
+- Automated tests: **319 passed / 0 failed / 0 skipped**
+- Windows x64 self-contained single-file publish: 성공
+- Published identity: `v1.6.1`, ProductVersion `1.6.1+40feb605033d3ea67c1db3bd6d0f1354b35ff28f`
+- Startup + rendered Product UI smoke: 성공
+- Scanner Advanced 실제 렌더링 clipping/overlap smoke: 성공
+- Main Map / Factory / MiniMap smoke: 성공
+- graceful shutdown + portable root cleanliness smoke: 성공
+- stable package: `Junhyun-Helper.zip`
+- package size: `80,429,131 bytes`
+- package SHA-256: `95e7c7b7c3ae53dc21950cebdb7351901400d360f98863c691c62ef9d9c07b65`
+- CI artifact upload: 성공 (`JunhyunHelper-win-x64`, artifact ID `9516185946`)
+
+현재 상태는 구현 완료 및 release-candidate 검증 완료다. PR 최종 문서 커밋이 동일 gate를 다시 통과한 뒤 `main` 병합 및 v1.6.1 정식 릴리즈를 진행한다.
