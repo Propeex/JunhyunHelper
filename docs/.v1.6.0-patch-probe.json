@@ -1,7 +1,7 @@
 {
-  "observed_at_utc": "2026-08-24T08:51:52.1546256Z",
-  "run_id": 32708288991,
+  "observed_at_utc": "2026-08-24T08:54:34.1775734Z",
+  "run_id": 32708613427,
   "status": "completed",
   "conclusion": "failure",
-  "head_sha": "c37a5500f2422057d6a1db65d2a9e8ae4b67d42c"
+  "head_sha": "ba2ae1be55fd8ab157c63a7d0fb67f255d346840"
 }
