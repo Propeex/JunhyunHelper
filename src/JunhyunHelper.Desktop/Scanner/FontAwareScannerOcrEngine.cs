@@ -1,3 +1,4 @@
+using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using JunhyunHelper.Core.Scanner;
@@ -314,7 +315,7 @@ public sealed class FontAwareScannerOcrEngine : IScannerDeepOcrEngine, IDisposab
 
         var cropped = new CroppedBitmap(
             bgra,
-            new System.Windows.Int32Rect(0, 0, plan.CropWidth, bgra.PixelHeight));
+            new Int32Rect(0, 0, plan.CropWidth, bgra.PixelHeight));
         cropped.Freeze();
         tightTitle = cropped;
         return true;
