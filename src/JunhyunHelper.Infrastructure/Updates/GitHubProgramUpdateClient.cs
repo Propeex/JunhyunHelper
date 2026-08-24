@@ -22,6 +22,8 @@ public sealed record ProgramUpdateProgress(string Message, double? Fraction = nu
 
 public sealed class GitHubProgramUpdateClient : IDisposable
 {
+    internal const string StablePackageFileName = "준현 헬퍼.zip";
+    internal const string StablePackageRootDirectory = "준현 헬퍼";
     internal static readonly Uri LatestReleaseUri = new("https://api.github.com/repos/Propeex/JunhyunHelper/releases/latest");
 
     private readonly HttpClient _httpClient;
@@ -132,14 +134,13 @@ public sealed class GitHubProgramUpdateClient : IDisposable
             throw new InvalidDataException("GitHub release tag is missing or invalid.");
         }
 
-        var tagName = tagElement.GetString()!;
-        var versionText = version.ToString(3);
-        var packageFileName = $"Junhyun-Helper-v{versionText}-win-x64.zip";
-
         if (!root.TryGetProperty("assets", out var assetsElement) || assetsElement.ValueKind != JsonValueKind.Array)
             throw new InvalidDataException("GitHub release assets are missing.");
 
-        Uri? packageUri = null;
+        var tagName = tagElement.GetString()!;
+        var legacyPackageFileName = $"Junhyun-Helper-v{version.ToString(3)}-win-x64.zip";
+        Uri? stablePackageUri = null;
+        Uri? legacyPackageUri = null;
         Uri? checksumUri = null;
 
         foreach (var asset in assetsElement.EnumerateArray())
@@ -154,7 +155,8 @@ public sealed class GitHubProgramUpdateClient : IDisposable
             }
 
             var name = nameElement.GetString();
-            if (!string.Equals(name, packageFileName, StringComparison.Ordinal) &&
+            if (!string.Equals(name, StablePackageFileName, StringComparison.Ordinal) &&
+                !string.Equals(name, legacyPackageFileName, StringComparison.Ordinal) &&
                 !string.Equals(name, "SHA256SUMS.txt", StringComparison.Ordinal))
             {
                 continue;
@@ -166,12 +168,16 @@ public sealed class GitHubProgramUpdateClient : IDisposable
 
             ValidateReleaseAssetUri(uri);
 
-            if (string.Equals(name, packageFileName, StringComparison.Ordinal))
-                packageUri = uri;
+            if (string.Equals(name, StablePackageFileName, StringComparison.Ordinal))
+                stablePackageUri = uri;
+            else if (string.Equals(name, legacyPackageFileName, StringComparison.Ordinal))
+                legacyPackageUri = uri;
             else
                 checksumUri = uri;
         }
 
+        var packageUri = stablePackageUri ?? legacyPackageUri;
+        var packageFileName = stablePackageUri is not null ? StablePackageFileName : legacyPackageFileName;
         if (packageUri is null || checksumUri is null)
             throw new InvalidDataException("The latest release does not contain the required Windows package and checksum assets.");
 
@@ -236,7 +242,6 @@ public sealed class GitHubProgramUpdateClient : IDisposable
             Directory.Delete(stagingDirectory, recursive: true);
         Directory.CreateDirectory(stagingDirectory);
 
-        var seenEntries = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var allowedRoots = new HashSet<string>(StringComparer.Ordinal)
         {
             "준현 헬퍼.exe",
@@ -245,34 +250,60 @@ public sealed class GitHubProgramUpdateClient : IDisposable
         };
 
         using var archive = ZipFile.OpenRead(packagePath);
-        foreach (var entry in archive.Entries)
+        var normalizedEntries = archive.Entries
+            .Select(entry => (Entry: entry, Name: entry.FullName.Replace('\\', '/').Trim()))
+            .Where(item => item.Name.Length > 0)
+            .ToArray();
+
+        var stableRootPrefix = StablePackageRootDirectory + "/";
+        var hasStableRoot = normalizedEntries.Any(item =>
+            string.Equals(item.Name.TrimEnd('/'), StablePackageRootDirectory, StringComparison.Ordinal) ||
+            item.Name.StartsWith(stableRootPrefix, StringComparison.Ordinal));
+        var hasLegacyRoot = normalizedEntries.Any(item =>
+            !string.Equals(item.Name.TrimEnd('/'), StablePackageRootDirectory, StringComparison.Ordinal) &&
+            !item.Name.StartsWith(stableRootPrefix, StringComparison.Ordinal));
+
+        if (hasStableRoot && hasLegacyRoot)
+            throw new InvalidDataException("The update package mixes the stable product folder with legacy root entries.");
+
+        var stripStableRoot = hasStableRoot;
+        var seenEntries = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var item in normalizedEntries)
         {
-            var normalized = entry.FullName.Replace('\\', '/').Trim();
-            if (normalized.Length == 0)
-                continue;
-
+            var normalized = item.Name;
             if (normalized.StartsWith("/", StringComparison.Ordinal) || normalized.Contains(':'))
-                throw new InvalidDataException($"Unsafe update archive path: {entry.FullName}");
+                throw new InvalidDataException($"Unsafe update archive path: {item.Entry.FullName}");
 
-            var segments = normalized.Split('/', StringSplitOptions.RemoveEmptyEntries);
-            if (segments.Length == 0 || segments.Any(segment => segment is "." or ".."))
-                throw new InvalidDataException($"Unsafe update archive path: {entry.FullName}");
+            var sourceSegments = normalized.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            if (sourceSegments.Length == 0 || sourceSegments.Any(segment => segment is "." or ".."))
+                throw new InvalidDataException($"Unsafe update archive path: {item.Entry.FullName}");
 
-            if (!allowedRoots.Contains(segments[0]))
-                throw new InvalidDataException($"Unexpected update package root entry: {segments[0]}");
+            if (stripStableRoot)
+            {
+                if (!string.Equals(sourceSegments[0], StablePackageRootDirectory, StringComparison.Ordinal))
+                    throw new InvalidDataException($"Unexpected stable update package root entry: {sourceSegments[0]}");
+                sourceSegments = sourceSegments.Skip(1).ToArray();
+                if (sourceSegments.Length == 0)
+                    continue;
+            }
 
-            if (!seenEntries.Add(normalized))
-                throw new InvalidDataException($"Duplicate update archive entry: {entry.FullName}");
+            if (!allowedRoots.Contains(sourceSegments[0]))
+                throw new InvalidDataException($"Unexpected update package root entry: {sourceSegments[0]}");
 
-            var unixFileType = (entry.ExternalAttributes >> 16) & 0xF000;
+            var relativePath = string.Join('/', sourceSegments);
+            if (!seenEntries.Add(relativePath))
+                throw new InvalidDataException($"Duplicate update archive entry: {item.Entry.FullName}");
+
+            var unixFileType = (item.Entry.ExternalAttributes >> 16) & 0xF000;
             if (unixFileType == 0xA000)
-                throw new InvalidDataException($"Symbolic links are not allowed in the update package: {entry.FullName}");
+                throw new InvalidDataException($"Symbolic links are not allowed in the update package: {item.Entry.FullName}");
 
-            if (string.Equals(Path.GetExtension(normalized), ".pdb", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(Path.GetExtension(relativePath), ".pdb", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException("Debug symbols are not allowed in the update package.");
 
-            var destinationPath = Path.Combine(stagingDirectory, Path.Combine(segments));
-            var isDirectory = normalized.EndsWith("/", StringComparison.Ordinal) || string.IsNullOrEmpty(entry.Name);
+            var destinationPath = Path.Combine(stagingDirectory, Path.Combine(sourceSegments));
+            var isDirectory = normalized.EndsWith("/", StringComparison.Ordinal) || string.IsNullOrEmpty(item.Entry.Name);
 
             if (isDirectory)
             {
@@ -281,7 +312,7 @@ public sealed class GitHubProgramUpdateClient : IDisposable
             }
 
             Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
-            entry.ExtractToFile(destinationPath, overwrite: false);
+            item.Entry.ExtractToFile(destinationPath, overwrite: false);
         }
 
         ValidateStagingDirectory(stagingDirectory);
