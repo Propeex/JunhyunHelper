@@ -96,7 +96,7 @@ jobs:
           Write-Host "Junhyun-Helper.zip bytes: $stableSize"
           Write-Host "Junhyun-Helper.zip SHA-256: $actualHash"
 
-          $existingJson = & gh release view $tag --repo $env:GITHUB_REPOSITORY --json tagName,isDraft,isPrerelease,assets 2>$null
+          $existingJson = & gh release view $tag --repo $env:GITHUB_REPOSITORY --json tagName,isDraft,isPrerelease,assets,url 2>$null
           $releaseExists = $LASTEXITCODE -eq 0
 
           if (-not $releaseExists) {
@@ -112,7 +112,7 @@ jobs:
               throw "Could not create draft release $tag."
             }
 
-            $existingJson = & gh release view $tag --repo $env:GITHUB_REPOSITORY --json tagName,isDraft,isPrerelease,assets
+            $existingJson = & gh release view $tag --repo $env:GITHUB_REPOSITORY --json tagName,isDraft,isPrerelease,assets,url
             if ($LASTEXITCODE -ne 0) {
               throw "Draft release $tag was created but could not be read back."
             }
@@ -133,16 +133,35 @@ jobs:
             }
           }
 
+          # Published stable releases are immutable. A later documentation-only main
+          # commit can legitimately build different bytes for the same assembly version
+          # (for example because ProductVersion contains commit metadata). Never replace
+          # or mutate an already-published version. Merely verify that its required
+          # updater assets still exist, then finish successfully.
+          if (-not $release.isDraft) {
+            foreach ($requiredName in @('Junhyun-Helper.zip', 'SHA256SUMS.txt')) {
+              if (-not $assetsByName.ContainsKey($requiredName)) {
+                throw "Published stable release $tag is missing required immutable asset '$requiredName'."
+              }
+            }
+
+            Write-Host "Stable release $tag is already published and remains immutable: $($release.url)"
+            exit 0
+          }
+
           $expectedAssets = @(
             @{ Name = 'Junhyun-Helper.zip'; Path = $stablePath; Size = $stableSize },
             @{ Name = 'SHA256SUMS.txt'; Path = $checksumPath; Size = $checksumSize }
           )
 
+          # Draft releases are resumable. Existing draft assets must match the verified
+          # main-CI artifact size; mismatches are treated as contamination and never
+          # overwritten silently.
           foreach ($expected in $expectedAssets) {
             if ($assetsByName.ContainsKey($expected.Name)) {
               $remoteSize = [long]$assetsByName[$expected.Name].size
               if ($remoteSize -ne [long]$expected.Size) {
-                throw "Existing release asset '$($expected.Name)' has size $remoteSize, expected $($expected.Size). Refusing to overwrite a published version."
+                throw "Existing draft release asset '$($expected.Name)' has size $remoteSize, expected $($expected.Size). Refusing to overwrite it."
               }
               continue
             }
@@ -153,7 +172,7 @@ jobs:
             }
           }
 
-          $verifiedJson = & gh release view $tag --repo $env:GITHUB_REPOSITORY --json tagName,isDraft,isPrerelease,assets
+          $verifiedJson = & gh release view $tag --repo $env:GITHUB_REPOSITORY --json tagName,isDraft,isPrerelease,assets,url
           if ($LASTEXITCODE -ne 0) {
             throw "Could not verify release $tag after asset upload."
           }
