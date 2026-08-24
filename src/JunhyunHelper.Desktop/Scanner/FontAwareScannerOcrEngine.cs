@@ -1,3 +1,5 @@
+using System.Windows;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using JunhyunHelper.Core.Scanner;
 using JunhyunHelper.Infrastructure.Scanner;
@@ -10,6 +12,10 @@ namespace JunhyunHelper.Desktop.Scanner;
 /// Failed/corrupted OCR retains the existing targeted/full-catalog recovery path.
 /// Font extraction/rendering is optional hardening: if local Tarkov font evidence is
 /// unavailable or inconclusive, the already accepted OCR result is preserved.
+///
+/// A live Ground Truth short-title fallback also retries OCR on an OCR-only view whose
+/// empty trailing title-field background has been removed. The semantic TitleImage/ROI
+/// itself is never changed; only the bitmap passed to the OCR engine is tightened.
 /// </summary>
 public sealed class FontAwareScannerOcrEngine : IScannerDeepOcrEngine, IDisposable
 {
@@ -49,7 +55,22 @@ public sealed class FontAwareScannerOcrEngine : IScannerDeepOcrEngine, IDisposab
         try
         {
             var text = await _inner.ReadTextAsync(titleImage, cancellationToken);
-            return CorroborateAcceptedText(titleImage, text, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(text))
+                return CorroborateAcceptedText(titleImage, text, cancellationToken);
+
+            // v1.4.3 live GT: Awl occupied only ~30 px inside a ~985 px title ROI.
+            // WinRT OCR returned no lines even though the title pixels were clear. Retry
+            // only when the shared sparse-title planner proves that most of the field is
+            // trailing dark background. This does not alter semantic ROI ownership.
+            if (TryCreateTightTitleImage(titleImage, out var tightTitle, out var plan))
+            {
+                LogTightCrop("PRIMARY_EMPTY", titleImage, plan);
+                var tightText = await _inner.ReadTextAsync(tightTitle, cancellationToken);
+                if (!string.IsNullOrWhiteSpace(tightText))
+                    return CorroborateAcceptedText(tightTitle, tightText, cancellationToken);
+            }
+
+            return text;
         }
         finally
         {
@@ -73,7 +94,22 @@ public sealed class FontAwareScannerOcrEngine : IScannerDeepOcrEngine, IDisposab
             if (existing.Success)
                 return CorroborateAcceptedText(titleImage, text, cancellationToken, existing);
 
-            return RecoverFailedText(titleImage, text, cancellationToken);
+            var recoveryImage = titleImage;
+            if (TryCreateTightTitleImage(titleImage, out var tightTitle, out var plan))
+            {
+                LogTightCrop("DEEP_FAILED", titleImage, plan);
+                var tightText = _inner is IScannerDeepOcrEngine tightDeepOcr
+                    ? await tightDeepOcr.ReadDeepTextAsync(tightTitle, cancellationToken)
+                    : await _inner.ReadTextAsync(tightTitle, cancellationToken);
+
+                text = MergeOcrEvidence(text, tightText);
+                recoveryImage = tightTitle;
+                existing = _catalog.ResolveOcrText(text);
+                if (existing.Success)
+                    return CorroborateAcceptedText(tightTitle, text, cancellationToken, existing);
+            }
+
+            return RecoverFailedText(recoveryImage, text, cancellationToken);
         }
         finally
         {
@@ -250,6 +286,78 @@ public sealed class FontAwareScannerOcrEngine : IScannerDeepOcrEngine, IDisposab
         return string.IsNullOrWhiteSpace(text)
             ? official
             : $"{text}\n{official}";
+    }
+
+    private static bool TryCreateTightTitleImage(
+        BitmapSource source,
+        out BitmapSource tightTitle,
+        out ScannerSparseTitleCropPlan plan)
+    {
+        BitmapSource bgra = source.Format == PixelFormats.Bgra32
+            ? source
+            : new FormatConvertedBitmap(source, PixelFormats.Bgra32, null, 0);
+        if (!bgra.IsFrozen && bgra is Freezable freezable && freezable.CanFreeze)
+            freezable.Freeze();
+
+        var stride = bgra.PixelWidth * 4;
+        var pixels = new byte[stride * bgra.PixelHeight];
+        bgra.CopyPixels(pixels, stride, 0);
+        if (!ScannerSparseTitleCropPlanner.TryPlan(
+                pixels,
+                bgra.PixelWidth,
+                bgra.PixelHeight,
+                stride,
+                out plan))
+        {
+            tightTitle = null!;
+            return false;
+        }
+
+        var cropped = new CroppedBitmap(
+            bgra,
+            new Int32Rect(0, 0, plan.CropWidth, bgra.PixelHeight));
+        cropped.Freeze();
+        tightTitle = cropped;
+        return true;
+    }
+
+    private static void LogTightCrop(
+        string pass,
+        BitmapSource original,
+        ScannerSparseTitleCropPlan plan)
+    {
+        ScannerDiagnosticLog.Write(
+            "ocr-tight-title-crop",
+            null,
+            ("pass", pass),
+            ("originalWidth", original.PixelWidth),
+            ("height", original.PixelHeight),
+            ("cropWidth", plan.CropWidth),
+            ("rightmostInk", plan.RightmostInkX),
+            ("retainedRatio", plan.RetainedWidthRatio),
+            ("foregroundPixels", plan.ForegroundPixelCount),
+            ("activeColumns", plan.ActiveColumnCount),
+            ("background", plan.BackgroundLuminance),
+            ("threshold", plan.ForegroundThreshold));
+    }
+
+    private static string MergeOcrEvidence(string first, string second)
+    {
+        if (string.IsNullOrWhiteSpace(first))
+            return second?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(second))
+            return first.Trim();
+
+        var variants = first.Split(
+                ['\r', '\n', '|'],
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Concat(second.Split(
+                ['\r', '\n', '|'],
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        return string.Join(" | ", variants);
     }
 
     private void EnterOperation()

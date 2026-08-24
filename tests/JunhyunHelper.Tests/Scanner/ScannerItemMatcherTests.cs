@@ -20,6 +20,21 @@ public sealed class ScannerItemMatcherTests
     }
 
     [Fact]
+    public void Resolve_LatinCaseOnlyDifference_IsIdentityExact()
+    {
+        var matcher = CreateMatcher(
+            Item("meds", "Pile of meds 약더미"),
+            Item("other", "Medical tools 의료 도구"));
+
+        var result = matcher.Resolve("Pile Of meds 약더미");
+
+        Assert.True(result.Success);
+        Assert.Equal("meds", result.ItemId);
+        Assert.Equal("EXACT", result.Reason);
+        Assert.Equal(1.0, result.Confidence, 6);
+    }
+
+    [Fact]
     public void Resolve_ExactCurrentOfficialName_PreservesRankedCandidates()
     {
         var matcher = CreateMatcher(
