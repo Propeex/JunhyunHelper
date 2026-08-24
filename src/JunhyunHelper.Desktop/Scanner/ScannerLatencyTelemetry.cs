@@ -25,6 +25,15 @@ internal static class ScannerLatencyTelemetry
     private static long _nextCycleId;
     private static long _continuousDetectorCycles;
 
+    public static long? CurrentCycleId
+    {
+        get
+        {
+            var cycle = CurrentCycle.Value;
+            return cycle is { IsActive: true } ? cycle.Id : null;
+        }
+    }
+
     public static IDisposable BeginCycle(ScannerCaptureMode mode, string operation)
     {
         var previous = CurrentCycle.Value;
@@ -41,7 +50,7 @@ internal static class ScannerLatencyTelemetry
     public static IDisposable Measure(string stage)
     {
         var cycle = CurrentCycle.Value;
-        return cycle is null
+        return cycle is not { IsActive: true }
             ? NoopScope.Instance
             : new StageScope(cycle, stage, Stopwatch.GetTimestamp());
     }
@@ -74,14 +83,18 @@ internal static class ScannerLatencyTelemetry
         public long Id { get; }
         public ScannerCaptureMode Mode { get; }
         public string Operation { get; }
+        public bool IsActive => Volatile.Read(ref _disposed) == 0;
 
         public void Add(string stage, long elapsedTicks)
         {
-            if (elapsedTicks < 0 || string.IsNullOrWhiteSpace(stage))
+            if (!IsActive || elapsedTicks < 0 || string.IsNullOrWhiteSpace(stage))
                 return;
 
             lock (_gate)
             {
+                if (!IsActive)
+                    return;
+
                 if (_stages.TryGetValue(stage, out var existing))
                 {
                     _stages[stage] = new StageAggregate(
