@@ -24,32 +24,35 @@
             </ContextMenu>
         </Border.ContextMenu>
 
-        <Grid x:Name="ItemContentGrid">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-
-            <Image x:Name="ItemIcon"
-                   Width="48"
-                   Height="48"
-                   Stretch="Uniform"
-                   Margin="0,0,9,0"
-                   VerticalAlignment="Top" />
-
-            <StackPanel Grid.Column="1" MinWidth="110">
+        <StackPanel x:Name="ItemContentPanel" MinWidth="150">
+            <Grid Margin="0,0,0,5">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Image x:Name="ItemIcon"
+                       Width="48"
+                       Height="48"
+                       Stretch="Uniform"
+                       Margin="0,0,9,0"
+                       VerticalAlignment="Top" />
                 <TextBlock x:Name="ItemNameText"
+                           Grid.Column="1"
                            Foreground="White"
                            FontWeight="SemiBold"
                            TextWrapping="Wrap"
                            MaxWidth="420"
-                           Margin="0,0,0,2" />
+                           VerticalAlignment="Center" />
+            </Grid>
+
+            <StackPanel x:Name="InfoStackPanel"
+                        HorizontalAlignment="Left">
                 <TextBlock x:Name="TraderPriceText" Foreground="White" />
                 <TextBlock x:Name="FleaPriceText" Foreground="White" />
                 <TextBlock x:Name="TraderSlotPriceText" Foreground="White" />
                 <TextBlock x:Name="FleaSlotPriceText" Foreground="White" />
                 <TextBlock x:Name="CurrentNeededText" Foreground="White" />
             </StackPanel>
-        </Grid>
+        </StackPanel>
     </Border>
 </Window>
