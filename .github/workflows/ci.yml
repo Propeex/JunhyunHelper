@@ -260,10 +260,31 @@ jobs:
             }
           }
 
+      - name: Build and verify stable release ZIP
+        shell: pwsh
+        run: |
+          ./packaging/New-ReleasePackage.ps1 `
+            -PublishDirectory artifacts/publish `
+            -OutputDirectory artifacts/release
+
+          $zip = 'artifacts/release/준현 헬퍼.zip'
+          if (-not (Test-Path $zip)) {
+            throw "Stable release ZIP was not produced."
+          }
+
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          $size = (Get-Item $zip).Length
+          Write-Host "Stable release ZIP: 준현 헬퍼.zip"
+          Write-Host "Stable extracted folder: 준현 헬퍼/"
+          Write-Host "ZIP bytes: $size"
+          Write-Host "ZIP SHA-256: $hash"
+
       - name: Upload Windows x64 release candidate
         uses: actions/upload-artifact@v4
         with:
           name: JunhyunHelper-win-x64
-          path: artifacts/publish
+          path: |
+            artifacts/publish
+            artifacts/release/준현 헬퍼.zip
           if-no-files-found: error
           retention-days: ${{ github.event_name == 'push' && 14 || 3 }}
