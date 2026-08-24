@@ -25,6 +25,8 @@ public sealed class ScannerItemPresentationService
 
     public ScannerItemSnapshot? CreateSnapshot(string itemId)
     {
+        using var timing = ScannerLatencyTelemetry.Measure(ScannerLatencyTelemetry.Presentation);
+
         if (string.IsNullOrWhiteSpace(itemId) || !_catalog.TryGetItem(itemId.Trim(), out var catalogItem))
             return null;
 
