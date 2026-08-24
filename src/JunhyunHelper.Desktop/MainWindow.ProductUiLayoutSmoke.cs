@@ -141,62 +141,39 @@ public partial class MainWindow
     {
         ScannerPlaceholder.UpdateLayout();
 
-        if (ScannerPlaceholder.ScannerToggleButton.Content as string != "스캐너 OFF")
+        if (ScannerPlaceholder.ScannerToggleButton.Content as string != "스캐너 OFF" ||
+            ScannerPlaceholder.ScannerToggleButton.MinWidth < 100)
         {
             throw new InvalidOperationException(
                 "Scanner product page did not render the real-mode OFF toggle in its safe default state.");
         }
 
-        if (ScannerPlaceholder.TestToggleButton.Content as string != "테스트 OFF")
+        if (ScannerPlaceholder.ItemSearchBox.MinHeight < 30 ||
+            ScannerPlaceholder.ActivityItems.ItemsSource is null ||
+            ScannerPlaceholder.EmptyActivityText.Text != "아직 인식 기록이 없습니다.")
         {
             throw new InvalidOperationException(
-                "Scanner product page did not render the display-test OFF toggle in its safe default state.");
-        }
-
-        if (ScannerPlaceholder.HotkeySettingsButton.Content as string != "단축키 설정" ||
-            ScannerPlaceholder.HotkeySettingsButton.MinWidth < 100)
-        {
-            throw new InvalidOperationException(
-                "Scanner v1.3 hotkey settings control did not render at its product contract.");
-        }
-
-        if (ScannerPlaceholder.SyncCatalogButton.Content as string != "아이템 목록 최신화")
-            throw new InvalidOperationException("Scanner catalog action did not render the user-facing '아이템 목록 최신화' label.");
-
-        if (ScannerPlaceholder.ClearLogButton.Content as string != "로그 삭제" ||
-            ScannerPlaceholder.ClearLogButton.MinWidth < 80)
-        {
-            throw new InvalidOperationException("Scanner recent-recognition log clear control did not render at its product contract.");
-        }
-
-        if (ScannerPlaceholder.ScannerToggleButton.MinWidth < 100 ||
-            ScannerPlaceholder.TestToggleButton.MinWidth < 100 ||
-            ScannerPlaceholder.SyncCatalogButton.MinWidth < 120)
-        {
-            throw new InvalidOperationException("Scanner top-bar controls rendered below the minimum usable button width.");
-        }
-
-        if (ScannerPlaceholder.EmptyActivityText.Text != "아직 인식 기록이 없습니다." ||
-            ScannerPlaceholder.ActivityItems.ItemsSource is null)
-        {
-            throw new InvalidOperationException("Scanner recent-recognition activity area did not render its safe empty state.");
+                "Scanner search/log split surface did not render its product contract.");
         }
 
         var buttonLabels = FindVisualDescendants<Button>(ScannerPlaceholder)
             .Select(button => button.Content as string)
             .Where(label => !string.IsNullOrWhiteSpace(label))
             .ToHashSet(StringComparer.Ordinal);
-        if (buttonLabels.Contains("위치 편집") ||
-            buttonLabels.Contains("위치 초기화") ||
-            buttonLabels.Contains("Item ID 미리보기") ||
-            buttonLabels.Contains("자동 미리보기") ||
-            buttonLabels.Contains("미리보기 숨기기") ||
-            buttonLabels.Contains("1회 고정밀 스캔") ||
-            buttonLabels.Contains("1회 인게임 스캔") ||
-            buttonLabels.Contains("1회 테스트 스캔"))
+        if (!buttonLabels.Contains("스캐너 OFF") ||
+            !buttonLabels.Contains("설정") ||
+            !buttonLabels.Contains("고급") ||
+            buttonLabels.Contains("1회 스캔") ||
+            buttonLabels.Contains("현재 결과 교정") ||
+            buttonLabels.Contains("테스트 OFF") ||
+            buttonLabels.Contains("아이템 목록 최신화") ||
+            buttonLabels.Contains("로그 삭제") ||
+            buttonLabels.Contains("회귀 테스트") ||
+            buttonLabels.Contains("인식 이미지") ||
+            buttonLabels.Contains("교정 데이터 내보내기"))
         {
             throw new InvalidOperationException(
-                "Scanner product page still exposes a removed developer or one-shot scan button.");
+                "Scanner normal page exposes controls outside the approved Scanner/Settings/Advanced surface.");
         }
 
         var activityProbe = new ScannerActivityEntry(
@@ -217,32 +194,23 @@ public partial class MainWindow
             throw new InvalidOperationException("Scanner recognition activity does not produce the required user-readable decision summary.");
         }
 
+        // Log clearing remains an internal bounded-retention operation. v1.6 intentionally
+        // removes the user-facing clear button from the normal Scanner page.
         if (!ScannerDiagnosticLog.Clear())
             throw new InvalidOperationException("Scanner smoke could not establish an empty diagnostic baseline.");
-        ScannerDiagnosticLog.Write("ocr-result", ScannerCaptureMode.DisplayTest, ("text", "로그 삭제 테스트"));
+        ScannerDiagnosticLog.Write("ocr-result", ScannerCaptureMode.DisplayTest, ("text", "로그 보존 테스트"));
         ScannerDiagnosticLog.Write(
             "match-result",
             ScannerCaptureMode.DisplayTest,
             ("success", true),
             ("reason", "EXACT"),
-            ("officialName", "로그 삭제 테스트"),
+            ("officialName", "로그 보존 테스트"),
             ("confidence", 1d),
             ("secondScore", 0d));
-
         if (ScannerDiagnosticLog.GetRecentActivities().Count == 0 || !File.Exists(ScannerDiagnosticLog.Path))
-            throw new InvalidOperationException("Scanner smoke could not create a diagnostic/activity record before clear.");
-
-        // Also materialize the rotated file so the user action proves it clears both
-        // bounded diagnostic generations, not only the current scanner.log.
-        File.WriteAllText(ScannerDiagnosticLog.Path + ".1", "scanner-log-clear-smoke");
-
-        ScannerPlaceholder.ClearLogButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        if (ScannerDiagnosticLog.GetRecentActivities().Count != 0 ||
-            File.Exists(ScannerDiagnosticLog.Path) ||
-            File.Exists(ScannerDiagnosticLog.Path + ".1"))
-        {
-            throw new InvalidOperationException("Scanner log clear button did not remove both activity history and log files.");
-        }
+            throw new InvalidOperationException("Scanner smoke could not create a diagnostic/activity record.");
+        if (!ScannerDiagnosticLog.Clear())
+            throw new InvalidOperationException("Scanner internal log retention cleanup failed.");
 
         VerifyScannerDiagnosticExportOverlay();
     }
