@@ -1,6 +1,6 @@
 using System.Windows.Media;
 using JunhyunHelper.Core.Items;
-using JunhyunHelper.Infrastructure.Scanner;
+using JunhyunHelper.Core.Scanner;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
