@@ -65,7 +65,7 @@ v1.0.0 승격 작업 자체에서는 새 제품 기능을 추가하지 않습니
 5. v1.6.0부터 사용자 배포 ZIP과 압축 해제 폴더 이름은 버전 식별자가 아니라 stable product name을 사용합니다.
 
 ```text
-준현 헬퍼.zip
+Junhyun-Helper.zip
 └─ 준현 헬퍼/
 ```
 

@@ -23,7 +23,7 @@
 - `없음` / 직접 지정 fallback 유지
 - 저장된 Case 재열기 및 재교정
 - 기존 candidate_selection / Ground Truth 복원
-- `준현 헬퍼.zip` / `준현 헬퍼/` stable package contract 추가
+- `Junhyun-Helper.zip` / `준현 헬퍼/` stable package contract 추가
 - v1.6.0 updater가 stable Korean package를 우선 선택하고 wrapper folder를 안전하게 unwrap하도록 변경
 - legacy versioned package fallback 유지
 - 공백 포함 stable package filename을 정확히 읽는 SHA256SUMS parser 보완
@@ -70,7 +70,7 @@ Program Update stable-package 전환과 checksum parser 수정 기준에서 다�
 - rendered Product UI / Scanner / Mini Scanner smoke: SUCCESS
 - Main Map / Factory / MiniMap smoke: SUCCESS
 - graceful shutdown: SUCCESS
-- stable `준현 헬퍼.zip` package gate: SUCCESS
+- stable `Junhyun-Helper.zip` package gate: SUCCESS
 - v1.5 updater bridge ZIP gate: SUCCESS
 - stable/bridge SHA256SUMS verification: SUCCESS
 - artifact upload: SUCCESS
@@ -85,7 +85,7 @@ Program Update stable-package 전환과 checksum parser 수정 기준에서 다�
 4. exact release source 고정
 5. tag `v1.6.0`
 6. GitHub stable/latest release publish
-7. user-facing `준현 헬퍼.zip` + v1.5 bridge ZIP + `SHA256SUMS.txt` 업로드
+7. user-facing `Junhyun-Helper.zip` + v1.5 bridge ZIP + `SHA256SUMS.txt` 업로드
 8. SHA-256 / size 기록
 9. anonymous/public exact-tag + latest release 확인
 10. public stable ZIP / bridge ZIP / SHA256SUMS redownload

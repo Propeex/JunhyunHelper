@@ -85,7 +85,7 @@ v6부터 아이템 아이콘과 이름은 Mini Scanner identity header이므로 
 
 사용자 배포 파일 이름을 버전 번호와 분리했습니다.
 
-- ZIP: `준현 헬퍼.zip`
+- ZIP: `Junhyun-Helper.zip`
 - 압축 내부 최상위 폴더: `준현 헬퍼/`
 - 실행 파일: `준현 헬퍼/준현 헬퍼.exe`
 
@@ -99,9 +99,9 @@ CI도 실제 ZIP을 생성해 이 구조를 검증합니다.
 
 - `Junhyun-Helper-v1.6.0-win-x64.zip`
 
-이 파일은 v1.5.0 → v1.6.0 자동 업데이트용 bridge입니다. 일반 사용자가 직접 받을 기본 배포 파일은 계속 `준현 헬퍼.zip`입니다.
+이 파일은 v1.5.0 → v1.6.0 자동 업데이트용 bridge입니다. 일반 사용자가 직접 받을 기본 배포 파일은 계속 `Junhyun-Helper.zip`입니다.
 
-v1.6.0의 updater는 새 `준현 헬퍼.zip`을 우선 사용하고 `준현 헬퍼/` 최상위 폴더를 안전하게 해제합니다. 전환 안정성을 위해 예전 영문 package도 fallback으로 읽을 수 있습니다. SHA256SUMS는 공백이 포함된 새 Korean package filename도 정확히 검증합니다.
+v1.6.0의 updater는 새 `Junhyun-Helper.zip`을 우선 사용하고 `준현 헬퍼/` 최상위 폴더를 안전하게 해제합니다. 전환 안정성을 위해 예전 영문 package도 fallback으로 읽을 수 있습니다. SHA256SUMS는 공백이 포함된 새 Korean package filename도 정확히 검증합니다.
 
 ## 인식 안전성
 

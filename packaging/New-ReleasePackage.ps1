@@ -13,7 +13,7 @@ $output = [System.IO.Path]::GetFullPath($OutputDirectory)
 $productFolderName = '준현 헬퍼'
 $stablePackageRoot = Join-Path $output 'stable-package'
 $productFolder = Join-Path $stablePackageRoot $productFolderName
-$stableZipPath = Join-Path $output '준현 헬퍼.zip'
+$stableZipPath = Join-Path $output 'Junhyun-Helper.zip'
 $checksumPath = Join-Path $output 'SHA256SUMS.txt'
 
 if (Test-Path $output) {

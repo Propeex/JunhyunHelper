@@ -18,7 +18,7 @@ user.db schema: v1
 Scanner display settings schema: v6
 Scanner catalog cache: v1/v2 readable, v2 written
 automated test suite: 296 tests
-stable user ZIP name: 준현 헬퍼.zip
+stable user ZIP name: Junhyun-Helper.zip
 stable extracted folder: 준현 헬퍼/
 ```
 
@@ -281,7 +281,7 @@ Windows x64 portable / .NET 10 self-contained single-file.
 정식 user ZIP contract:
 
 ```text
-준현 헬퍼.zip
+Junhyun-Helper.zip
 └─ 준현 헬퍼/
    ├─ 준현 헬퍼.exe
    ├─ FIRST_RUN_KO.txt

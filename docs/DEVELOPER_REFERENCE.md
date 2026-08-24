@@ -822,7 +822,7 @@ Updater는 TEMP self-copy runner에서 parent 종료 후 program-owned files만 
 v1.6.0 user-facing package contract:
 
 ```text
-준현 헬퍼.zip
+Junhyun-Helper.zip
 └─ 준현 헬퍼/
    ├─ 준현 헬퍼.exe
    ├─ FIRST_RUN_KO.txt
@@ -969,7 +969,7 @@ v1.6 release-candidate gate:
 11. process exit
 12. portable root pollution check
 13. `packaging/New-ReleasePackage.ps1`
-14. `준현 헬퍼.zip` + `준현 헬퍼/` path validation
+14. `Junhyun-Helper.zip` + `준현 헬퍼/` path validation
 15. release artifact upload
 
 Public release는 추가로:

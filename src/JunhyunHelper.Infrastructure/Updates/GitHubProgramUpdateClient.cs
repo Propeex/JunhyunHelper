@@ -22,7 +22,7 @@ public sealed record ProgramUpdateProgress(string Message, double? Fraction = nu
 
 public sealed class GitHubProgramUpdateClient : IDisposable
 {
-    internal const string StablePackageFileName = "준현 헬퍼.zip";
+    internal const string StablePackageFileName = "Junhyun-Helper.zip";
     internal const string StablePackageRootDirectory = "준현 헬퍼";
     internal static readonly Uri LatestReleaseUri = new("https://api.github.com/repos/Propeex/JunhyunHelper/releases/latest");
 

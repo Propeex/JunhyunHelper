@@ -44,14 +44,14 @@
 v1.6.0부터 user-facing package contract:
 
 ```text
-준현 헬퍼.zip
+Junhyun-Helper.zip
 └─ 준현 헬퍼/
    ├─ 준현 헬퍼.exe
    ├─ FIRST_RUN_KO.txt
    └─ Assets/
 ```
 
-ZIP/folder 이름은 version과 분리한다. Version identity는 EXE ProductVersion, Git tag, GitHub Release metadata에 둔다.
+ZIP/folder 이름은 version과 분리한다. GitHub Release asset은 filename normalization 제약 때문에 `Junhyun-Helper.zip` ASCII 이름을 사용하고, 압축 내부 제품 폴더는 `준현 헬퍼/`를 유지한다. Version identity는 EXE ProductVersion, Git tag, GitHub Release metadata에 둔다.
 
 Mutable user data는 `%LocalAppData%/JunhyunHelper`에 저장한다.
 
@@ -448,7 +448,7 @@ v1.6.0 release candidate는 최소 다음을 통과해야 한다.
 - Main Map / Factory / MiniMap smoke
 - graceful shutdown
 - clean portable root
-- `준현 헬퍼.zip` 생성
+- `Junhyun-Helper.zip` 생성
 - archive top-level `준현 헬퍼/` + required file verification
 - exact public tag/source
 - public stable/latest publication
