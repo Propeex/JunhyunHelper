@@ -89,7 +89,12 @@ internal static class ScannerDiagnosticLog
             lock (Gate)
             {
                 EnsureRecentActivitiesLoaded();
-                activity = UpdateUserActivity(eventName, mode, fields, DateTimeOffset.Now);
+
+                var explicitCaseId = FieldText(fields, "caseId");
+                var caseId = string.IsNullOrWhiteSpace(explicitCaseId)
+                    ? ScannerRecognitionDebugStore.GetSnapshot()?.CaseId
+                    : explicitCaseId;
+                activity = UpdateUserActivity(eventName, mode, fields, DateTimeOffset.Now, caseId);
 
                 try
                 {
@@ -106,13 +111,9 @@ internal static class ScannerDiagnosticLog
                     if (mode is not null)
                         builder.Append(" | mode=").Append(mode.Value);
 
-                    var hasExplicitCaseId = fields.Any(field =>
-                        string.Equals(field.Key, "caseId", StringComparison.Ordinal));
-                    var currentCaseId = hasExplicitCaseId
-                        ? null
-                        : ScannerRecognitionDebugStore.GetSnapshot()?.CaseId;
-                    if (!string.IsNullOrWhiteSpace(currentCaseId))
-                        builder.Append(" | caseId=").Append(Sanitize(currentCaseId));
+                    var hasExplicitCaseId = !string.IsNullOrWhiteSpace(explicitCaseId);
+                    if (!hasExplicitCaseId && !string.IsNullOrWhiteSpace(caseId))
+                        builder.Append(" | caseId=").Append(Sanitize(caseId));
 
                     foreach (var (key, value) in fields)
                     {
@@ -245,7 +246,8 @@ internal static class ScannerDiagnosticLog
             ParseDouble(fields.GetValueOrDefault("confidence", string.Empty)),
             ParseDouble(fields.GetValueOrDefault("secondScore", string.Empty)),
             ParseBoolean(fields.GetValueOrDefault("success", string.Empty)),
-            fields.GetValueOrDefault("reason", string.Empty));
+            fields.GetValueOrDefault("reason", string.Empty),
+            EmptyToNull(fields.GetValueOrDefault("caseId", string.Empty)));
 
         RecentActivities.Insert(0, activity);
         if (RecentActivities.Count > MaximumRecentActivities)
@@ -272,7 +274,8 @@ internal static class ScannerDiagnosticLog
         string eventName,
         ScannerCaptureMode? mode,
         IReadOnlyList<(string Key, object? Value)> fields,
-        DateTimeOffset timestamp)
+        DateTimeOffset timestamp,
+        string? caseId)
     {
         if (mode is null)
             return null;
@@ -300,7 +303,8 @@ internal static class ScannerDiagnosticLog
             FieldDouble(fields, "confidence"),
             FieldDouble(fields, "secondScore"),
             FieldBoolean(fields, "success"),
-            FieldText(fields, "reason"));
+            FieldText(fields, "reason"),
+            EmptyToNull(caseId ?? string.Empty));
 
         RecentActivities.Insert(0, activity);
         if (RecentActivities.Count > MaximumRecentActivities)
