@@ -1,0 +1,40 @@
+name: Patch v1.6.0 ASCII Asset Contract v2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/patch-v1.6.0-ascii-asset-main-v2.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/v1.6.0-ascii-asset-contract
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - name: Apply non-workflow release contract changes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $old='준현 헬퍼.zip';$new='Junhyun-Helper.zip'
+          $files=@(git grep -Il -- $old | Where-Object { $_ -ne '.github/workflows/ci.yml' })
+          if($files.Count-eq0){throw 'No non-workflow stable asset references found.'}
+          foreach($path in $files){$text=[IO.File]::ReadAllText($path).Replace($old,$new);[IO.File]::WriteAllText($path,$text,[Text.UTF8Encoding]::new($false))}
+
+          $test='tests/JunhyunHelper.Tests/Infrastructure/ProgramUpdateTests.cs';$t=[IO.File]::ReadAllText($test).Replace('%EC%A4%80%ED%98%84%20%ED%97%AC%ED%8D%BC.zip','Junhyun-Helper.zip');[IO.File]::WriteAllText($test,$t,[Text.UTF8Encoding]::new($false))
+
+          $decision='docs/DECISION_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md';$d=[IO.File]::ReadAllText($decision);$n="정식 사용자 배포 ZIP 이름은 버전 번호와 분리한다.`n`n- 파일명: ``Junhyun-Helper.zip``";$r="정식 사용자 배포 ZIP 이름은 버전 번호와 분리한다.`n`nGitHub Release는 비영문/특수문자 asset filename을 정규화하므로 release asset 자체는 version-independent ASCII 이름을 사용한다. 사용자에게 압축 해제되는 제품 폴더와 실행 파일의 한국어 이름은 유지한다.`n`n- 파일명: ``Junhyun-Helper.zip``";if(-not$d.Contains($n)){throw 'Decision package text not found.'};[IO.File]::WriteAllText($decision,$d.Replace($n,$r),[Text.UTF8Encoding]::new($false))
+
+          $product='docs/PRODUCT.md';$p=[IO.File]::ReadAllText($product);$pn='ZIP/folder 이름은 version과 분리한다. Version identity는 EXE ProductVersion, Git tag, GitHub Release metadata에 둔다.';$pr='ZIP/folder 이름은 version과 분리한다. GitHub Release asset은 filename normalization 제약 때문에 `Junhyun-Helper.zip` ASCII 이름을 사용하고, 압축 내부 제품 폴더는 `준현 헬퍼/`를 유지한다. Version identity는 EXE ProductVersion, Git tag, GitHub Release metadata에 둔다.';if(-not$p.Contains($pn)){throw 'PRODUCT package text not found.'};[IO.File]::WriteAllText($product,$p.Replace($pn,$pr),[Text.UTF8Encoding]::new($false))
+
+          git config user.name 'github-actions[bot]';git config user.email '41898282+github-actions[bot]@users.noreply.github.com';git add --all
+          if(git diff --cached --quiet){throw 'Patch produced no tracked changes.'}
+          git commit -m 'Use GitHub-compatible stable release asset name'
+          git push origin HEAD:release/v1.6.0-ascii-asset-contract
