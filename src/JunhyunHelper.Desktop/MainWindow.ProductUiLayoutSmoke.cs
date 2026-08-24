@@ -19,6 +19,7 @@ public partial class MainWindow
         VerifyFlexibleCandidateRenderedLayout();
         VerifyAmmoRenderedControls();
         VerifyScannerRenderedControls();
+        VerifyScannerAdvancedRenderedLayout();
         await VerifyQuestSidebarRenderedLayoutAsync();
     }
 
@@ -219,6 +220,68 @@ public partial class MainWindow
             throw new InvalidOperationException("Scanner internal log retention cleanup failed.");
 
         VerifyScannerDiagnosticExportOverlay();
+    }
+
+    private void VerifyScannerAdvancedRenderedLayout()
+    {
+        var window = new ScannerAdvancedWindow(ScannerCoordinator)
+        {
+            Owner = this,
+            ShowActivated = false,
+        };
+
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+            window.AdvancedContentBorder.UpdateLayout();
+
+            var controls = new[]
+            {
+                window.TestToggleButton,
+                window.CurrentCorrectionButton,
+                window.ManageCorrectionsButton,
+                window.AdvancedCloseButton,
+            };
+
+            if (window.ActualHeight <= 0 || window.AdvancedContentBorder.ActualHeight <= 0)
+                throw new InvalidOperationException("Scanner advanced dialog did not receive a rendered height.");
+
+            double previousBottom = double.NegativeInfinity;
+            foreach (var control in controls)
+            {
+                if (control.ActualHeight <= 0 || control.ActualWidth <= 0)
+                {
+                    throw new InvalidOperationException(
+                        $"Scanner advanced control '{control.Content}' did not render with positive size.");
+                }
+
+                var topLeft = control.TranslatePoint(new Point(0, 0), window.AdvancedContentBorder);
+                var bottom = topLeft.Y + control.ActualHeight;
+                if (topLeft.X < -0.5 ||
+                    topLeft.Y < -0.5 ||
+                    topLeft.X + control.ActualWidth > window.AdvancedContentBorder.ActualWidth + 0.5 ||
+                    bottom > window.AdvancedContentBorder.ActualHeight + 0.5)
+                {
+                    throw new InvalidOperationException(
+                        $"Scanner advanced control '{control.Content}' is clipped: " +
+                        $"x={topLeft.X:F1}, y={topLeft.Y:F1}, w={control.ActualWidth:F1}, h={control.ActualHeight:F1}, " +
+                        $"host={window.AdvancedContentBorder.ActualWidth:F1}x{window.AdvancedContentBorder.ActualHeight:F1}.");
+                }
+
+                if (topLeft.Y < previousBottom - 0.5)
+                {
+                    throw new InvalidOperationException(
+                        $"Scanner advanced control '{control.Content}' overlaps the previous action row.");
+                }
+
+                previousBottom = bottom;
+            }
+        }
+        finally
+        {
+            window.Close();
+        }
     }
 
     private static void VerifyScannerDiagnosticExportOverlay()
