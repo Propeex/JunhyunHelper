@@ -1,6 +1,6 @@
 # DECISION — v1.6.1 Scanner hardening
 
-상태: `VERIFIED / READY FOR MERGE & RELEASE`
+상태: `RELEASED`
 
 기준일: 2026-08-24
 
@@ -158,4 +158,21 @@ one-shot candidate cap = 12
 - package SHA-256: `95e7c7b7c3ae53dc21950cebdb7351901400d360f98863c691c62ef9d9c07b65`
 - CI artifact upload: 성공 (`JunhyunHelper-win-x64`, artifact ID `9516185946`)
 
-현재 상태는 구현 완료 및 release-candidate 검증 완료다. PR 최종 문서 커밋이 동일 gate를 다시 통과한 뒤 `main` 병합 및 v1.6.1 정식 릴리즈를 진행한다.
+이 hash/size는 PR release-candidate의 검증 기록이며, 최종 `main` build는 commit metadata가 ProductVersion에 포함되므로 byte-identical하다고 가정하지 않는다.
+
+PR의 최종 head에 대해서도 CI `#1806`이 build, 전체 test, Windows x64 publish, rendered Product UI/Scanner Advanced smoke, Map/MiniMap smoke, package verification, artifact upload까지 전부 통과한 뒤 병합했다.
+
+## 10. 정식 릴리즈 기록
+
+- PR: `#176 Harden Scanner update, layout, and log retention`
+- merge 방식: squash
+- release source / main commit: `db69917781fb398bc1b16ebf5ee876897c37087c`
+- version: `v1.6.1`
+- `v1.6.1` tag와 release source commit은 identical (`ahead_by=0`, `behind_by=0`)임을 검증했다.
+- 정식 배포 자산 이름은 updater 계약과 동일하게 `Junhyun-Helper.zip` + `SHA256SUMS.txt`를 사용한다.
+- stable release publish는 `main`의 `CI`가 성공한 경우에만 별도 `Release` workflow가 동일 CI artifact를 내려받아 수행한다.
+- release 전 ProductVersion, `FIRST_RUN_KO.txt` version line, package SHA-256 manifest를 재검증한다.
+- 새 release는 필요한 asset을 검증한 draft 상태에서 준비한 뒤 stable/latest로 publish한다.
+- 이미 publish된 동일 version은 immutable로 취급하며 후속 같은-version main build가 release asset을 덮어쓰지 않는다.
+
+결론: **v1.6.1은 2026-08-24 정식 릴리즈 상태다.**
