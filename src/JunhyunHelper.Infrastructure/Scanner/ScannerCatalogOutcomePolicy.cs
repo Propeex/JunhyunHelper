@@ -15,5 +15,6 @@ public static class ScannerCatalogOutcomePolicy
         "json-invalid" or
         "payload-invalid" or
         "identity-invalid" or
+        "market-regression" or
         "cache-readback-invalid";
 }
