@@ -24,18 +24,22 @@ jobs:
           $repo = $env:GITHUB_REPOSITORY
           $controller = gh api "repos/$repo/actions/workflows/release-v1.6.0.yml/runs?per_page=5" | ConvertFrom-Json
           $verifier = gh api "repos/$repo/actions/workflows/verify-v1.6.0-public-success.yml/runs?per_page=5" | ConvertFrom-Json
+          $finalizer = gh api "repos/$repo/actions/workflows/finalize-v1.6.0-release.yml/runs?per_page=5" | ConvertFrom-Json
           $c = @($controller.workflow_runs | Sort-Object created_at -Descending | Select-Object -First 1)[0]
           $v = @($verifier.workflow_runs | Sort-Object created_at -Descending | Select-Object -First 1)[0]
+          $f = @($finalizer.workflow_runs | Sort-Object created_at -Descending | Select-Object -First 1)[0]
           $status = [ordered]@{
             observed_at_utc = [DateTime]::UtcNow.ToString('o')
             controller_run_id = if ($null -ne $c) { [long]$c.id } else { $null }
             controller_status = if ($null -ne $c) { [string]$c.status } else { $null }
             controller_conclusion = if ($null -ne $c) { [string]$c.conclusion } else { $null }
-            controller_head_sha = if ($null -ne $c) { [string]$c.head_sha } else { $null }
             verifier_run_id = if ($null -ne $v) { [long]$v.id } else { $null }
             verifier_status = if ($null -ne $v) { [string]$v.status } else { $null }
             verifier_conclusion = if ($null -ne $v) { [string]$v.conclusion } else { $null }
-            verifier_head_sha = if ($null -ne $v) { [string]$v.head_sha } else { $null }
+            finalizer_run_id = if ($null -ne $f) { [long]$f.id } else { $null }
+            finalizer_status = if ($null -ne $f) { [string]$f.status } else { $null }
+            finalizer_conclusion = if ($null -ne $f) { [string]$f.conclusion } else { $null }
+            finalizer_head_sha = if ($null -ne $f) { [string]$f.head_sha } else { $null }
           }
           $json = $status | ConvertTo-Json
           $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($json))
@@ -49,4 +53,4 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Could not persist release probe.' }
           $status | Format-List
 
-      # refresh: 2026-08-24T08:04Z
+      # refresh: 2026-08-24T08:09Z
