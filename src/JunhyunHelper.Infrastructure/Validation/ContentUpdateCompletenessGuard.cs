@@ -5,9 +5,9 @@ namespace JunhyunHelper.Infrastructure.Validation;
 /// <summary>
 /// Compares a newly built canonical catalog with the last-known-good snapshot. This is
 /// intentionally conservative: ordinary Tarkov data churn is accepted, while a source
-/// that suddenly returns less than half of a previously healthy critical domain or
-/// nested relationship set is treated as a suspicious partial payload and never
-/// activated automatically.
+/// that suddenly returns less than half of a previously healthy critical domain,
+/// relationship set, localization set, or visible-resource set is treated as a
+/// suspicious partial payload and never activated automatically.
 /// </summary>
 public sealed class ContentUpdateCompletenessGuard
 {
@@ -70,7 +70,43 @@ public sealed class ContentUpdateCompletenessGuard
                 ammo.Acquisitions.Sum(static acquisition => acquisition.Requirements.Count)),
             issues);
 
-        // Icon/wiki URLs are optional per individual record, but a sudden bulk loss of
+        // Translation endpoints are deliberately fail-soft in the source loader. That is
+        // useful on a first install, but an established installation must not replace a
+        // healthy Korean catalog with raw translation keys after a partial localization
+        // outage. NameKo/DescriptionKo are null when the Korean key cannot be resolved,
+        // so baseline coverage gives us a precise, non-heuristic regression signal.
+        CheckCoverage(
+            "item-korean",
+            candidate.Items.Count(static item => !string.IsNullOrWhiteSpace(item.NameKo)),
+            baseline.Items.Count(static item => !string.IsNullOrWhiteSpace(item.NameKo)),
+            issues);
+        CheckCoverage(
+            "trader-korean",
+            candidate.Traders.Count(static trader => !string.IsNullOrWhiteSpace(trader.NameKo)),
+            baseline.Traders.Count(static trader => !string.IsNullOrWhiteSpace(trader.NameKo)),
+            issues);
+        CheckCoverage(
+            "map-korean",
+            candidate.Maps.Count(static map => !string.IsNullOrWhiteSpace(map.NameKo)),
+            baseline.Maps.Count(static map => !string.IsNullOrWhiteSpace(map.NameKo)),
+            issues);
+        CheckCoverage(
+            "quest-korean",
+            candidate.Quests.Count(static quest => !string.IsNullOrWhiteSpace(quest.NameKo)),
+            baseline.Quests.Count(static quest => !string.IsNullOrWhiteSpace(quest.NameKo)),
+            issues);
+        CheckCoverage(
+            "quest-objective-korean",
+            candidate.QuestObjectives.Count(static objective => !string.IsNullOrWhiteSpace(objective.DescriptionKo)),
+            baseline.QuestObjectives.Count(static objective => !string.IsNullOrWhiteSpace(objective.DescriptionKo)),
+            issues);
+        CheckCoverage(
+            "hideout-korean",
+            candidate.HideoutStations.Count(static station => !string.IsNullOrWhiteSpace(station.NameKo)),
+            baseline.HideoutStations.Count(static station => !string.IsNullOrWhiteSpace(station.NameKo)),
+            issues);
+
+        // URLs/images are optional per individual record, but a sudden bulk loss of
         // previously populated coverage would break visible product behavior. Only compare
         // an established baseline so first-install/source sparsity remains supported.
         CheckCoverage(
@@ -122,7 +158,7 @@ public sealed class ContentUpdateCompletenessGuard
         int baselineCount,
         ICollection<ContentValidationIssue> issues)
     {
-        // Small optional sets are too volatile to infer a source regression safely.
+        // Small optional/localized sets are too volatile to infer a source regression safely.
         if (baselineCount < 10)
             return;
         Check(domain, candidateCount, baselineCount, issues);
