@@ -15,7 +15,20 @@ public sealed record TarkovContentBuildResult(
     public bool IsValid => Validation.IsValid;
 }
 
-public sealed class TarkovContentBuildService
+/// <summary>
+/// Narrow build seam for the transactional update coordinator. Production uses
+/// TarkovContentBuildService; tests can supply a deterministic candidate without network
+/// or importer coupling and verify activation/failure behavior directly.
+/// </summary>
+public interface ITarkovContentBuildService
+{
+    Task<TarkovContentBuildResult> BuildAsync(
+        GameMode gameMode,
+        CancellationToken cancellationToken = default,
+        IProgress<ContentUpdateProgress>? progress = null);
+}
+
+public sealed class TarkovContentBuildService : ITarkovContentBuildService
 {
     private const int PrimarySourceCount = 8;
 
