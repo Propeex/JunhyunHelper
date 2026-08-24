@@ -63,17 +63,22 @@ public partial class ScannerRecognitionDebugWindow : Window
     private static string BuildOcrSummary(ScannerRecognitionDebugFrame frame)
     {
         var candidate = string.IsNullOrWhiteSpace(frame.CandidateName) ? "-" : frame.CandidateName;
-        var rawOcr = string.IsNullOrWhiteSpace(frame.OcrText)
-            ? "-"
-            : frame.OcrText.ReplaceLineEndings(" / ");
-        var matcherText = string.IsNullOrWhiteSpace(frame.MatcherText)
-            ? "-"
-            : frame.MatcherText.ReplaceLineEndings(" / ");
+        var rawOcr = DisplayOcr(frame.OcrText);
+        var substitutedOcr = DisplayOcr(
+            string.IsNullOrWhiteSpace(frame.UserSubstitutedOcrText)
+                ? frame.OcrText
+                : frame.UserSubstitutedOcrText);
+        var matcherText = DisplayOcr(frame.MatcherText);
         return
-            $"pass={frame.Pass} | rawOcr={rawOcr} | matcherText={matcherText} | " +
+            $"pass={frame.Pass} | rawOcr={rawOcr} | userSubstituted={substitutedOcr} | matcherText={matcherText} | " +
             $"candidate={candidate} | confidence={frame.Confidence:P1} | " +
             $"second={frame.SecondScore:P1} | reason={frame.RecognitionReason}";
     }
+
+    private static string DisplayOcr(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? "-"
+            : value.ReplaceLineEndings(" / ");
 
     private static string FormatRegion(Rect? region) =>
         region is not { } rect || rect.Width <= 0 || rect.Height <= 0

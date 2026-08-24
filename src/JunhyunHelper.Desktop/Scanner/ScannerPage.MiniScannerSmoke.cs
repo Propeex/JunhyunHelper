@@ -28,7 +28,8 @@ public partial class ScannerPage
         var settings = new ScannerDisplaySettings();
         settings.Normalize();
         if (settings.SchemaVersion != ScannerDisplaySettings.CurrentSchemaVersion ||
-            settings.SchemaVersion != 4 ||
+            settings.SchemaVersion != 5 ||
+            settings.OcrSubstitutions.Count != 0 ||
             !ScannerHotkeyGesture.TryParse(settings.OneShotTarkovHotkey, out var tarkovGesture) ||
             !ScannerHotkeyGesture.TryParse(settings.OneShotTestHotkey, out var testGesture) ||
             !ScannerHotkeyGesture.TryParse(settings.ScannerToggleHotkey, out var toggleGesture) ||
@@ -39,7 +40,7 @@ public partial class ScannerPage
             ScannerHotkeyGesture.TryParse("F10", out _))
         {
             throw new InvalidOperationException(
-                "Scanner v1.3 three-hotkey/settings contract failed.");
+                "Scanner v1.5 settings/hotkey/OCR-substitution contract failed.");
         }
 
         var migrated = new ScannerDisplaySettings
@@ -60,7 +61,7 @@ public partial class ScannerPage
             migratedConfigured.Distinct(StringComparer.OrdinalIgnoreCase).Count() != migratedConfigured.Length)
         {
             throw new InvalidOperationException(
-                "Scanner v1.3 schema-v3 hotkey migration did not preserve the old user gesture without collisions.");
+                "Scanner schema-v3 hotkey migration did not preserve the old user gesture without collisions.");
         }
 
         if (!ScannerCoordinator.ShouldRestoreOneShotMode(

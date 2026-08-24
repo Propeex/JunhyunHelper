@@ -25,6 +25,8 @@ public sealed class ScannerItemPresentationService
 
     public ScannerItemSnapshot? CreateSnapshot(string itemId)
     {
+        using var timing = ScannerLatencyTelemetry.Measure(ScannerLatencyTelemetry.Presentation);
+
         if (string.IsNullOrWhiteSpace(itemId) || !_catalog.TryGetItem(itemId.Trim(), out var catalogItem))
             return null;
 
@@ -49,7 +51,8 @@ public sealed class ScannerItemPresentationService
             catalogItem.TraderPricePerSlot,
             catalogItem.FleaPricePerSlot,
             catalogItem.Slots,
-            needed?.RequiredTotal ?? 0);
+            needed?.RequiredTotal ?? 0,
+            catalogItem.BestTraderName);
     }
 
     public ScannerItemSnapshot? CreateDefaultPreviewSnapshot()

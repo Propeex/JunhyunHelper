@@ -49,6 +49,7 @@ public sealed partial class ScannerRuntimeService
             return false;
         }
 
+        using var latencyCycle = ScannerLatencyTelemetry.BeginCycle(mode, "one-shot");
         CancelOneShotDisplayTimer();
         _detector.SetCaptureMode(mode);
         const string readingMessage = "1회 고정밀 스캔 · 상세창과 아이템 이름을 분석하는 중입니다.";
@@ -78,6 +79,10 @@ public sealed partial class ScannerRuntimeService
                 captureMode: mode);
             return false;
         }
+
+        // Persist exactly the proposal set used by this precision pass. Correction can
+        // then select detector evidence instead of redrawing boxes from memory.
+        ScannerRecognitionDebugStore.UpdateCandidates(candidates);
 
         ScannerDiagnosticLog.Write(
             "one-shot-candidates",
@@ -162,10 +167,27 @@ public sealed partial class ScannerRuntimeService
                 continue;
             }
 
-            var text = await _ocr.ReadTextAsync(candidate.TitleImage!, cancellationToken);
-            var recognition = _catalog.ResolveOcrText(text, out var assessment);
-            LogCandidateAttempt(mode, index, "ONESHOT_ORIGINAL", candidate, text, assessment.FilteredText, recognition);
-            var result = CreateSearchResult(candidate, recognition, text, assessment.FilteredText, "ONESHOT_ORIGINAL", index, 0.82, 0.18);
+            var rawText = await _ocr.ReadTextAsync(candidate.TitleImage!, cancellationToken);
+            var substitution = ApplyUserOcrSubstitutions(rawText);
+            var (recognition, assessment) = ResolveCatalogTextMeasured(substitution.Text);
+            LogCandidateAttempt(
+                mode,
+                index,
+                "ONESHOT_ORIGINAL",
+                candidate,
+                rawText,
+                substitution.Text,
+                assessment.FilteredText,
+                recognition);
+            var result = CreateSearchResult(
+                candidate,
+                recognition,
+                rawText,
+                assessment.FilteredText,
+                "ONESHOT_ORIGINAL",
+                index,
+                0.82,
+                0.18);
             bestFailure = PickBetterFailure(bestFailure, result);
             if (recognition.Success && (bestSuccess is null || result.CombinedScore > bestSuccess.CombinedScore))
                 bestSuccess = result;
@@ -185,10 +207,27 @@ public sealed partial class ScannerRuntimeService
                 if (candidate.StructuralScore < CandidateStructuralFloor || !HasTrustedTitleAnchors(candidate))
                     continue;
 
-                var text = await deepOcr.ReadDeepTextAsync(candidate.TitleImage!, cancellationToken);
-                var recognition = _catalog.ResolveOcrText(text, out var assessment);
-                LogCandidateAttempt(mode, index, "ONESHOT_DEEP", candidate, text, assessment.FilteredText, recognition);
-                var result = CreateSearchResult(candidate, recognition, text, assessment.FilteredText, "ONESHOT_DEEP", index, 0.88, 0.12);
+                var rawText = await deepOcr.ReadDeepTextAsync(candidate.TitleImage!, cancellationToken);
+                var substitution = ApplyUserOcrSubstitutions(rawText);
+                var (recognition, assessment) = ResolveCatalogTextMeasured(substitution.Text);
+                LogCandidateAttempt(
+                    mode,
+                    index,
+                    "ONESHOT_DEEP",
+                    candidate,
+                    rawText,
+                    substitution.Text,
+                    assessment.FilteredText,
+                    recognition);
+                var result = CreateSearchResult(
+                    candidate,
+                    recognition,
+                    rawText,
+                    assessment.FilteredText,
+                    "ONESHOT_DEEP",
+                    index,
+                    0.88,
+                    0.12);
                 bestFailure = PickBetterFailure(bestFailure, result);
                 if (recognition.Success && (bestSuccess is null || result.CombinedScore > bestSuccess.CombinedScore))
                     bestSuccess = result;
@@ -240,8 +279,14 @@ public sealed partial class ScannerRuntimeService
     private async Task<IReadOnlyList<ScannerInspectCandidate>> ObserveCandidatesCoreAsync(CancellationToken cancellationToken)
     {
         if (_detector is IScannerCandidateInspectDetector candidateDetector)
-            return await candidateDetector.ObserveCandidatesAsync(cancellationToken);
+        {
+            var candidates = await candidateDetector.ObserveCandidatesAsync(cancellationToken);
+            return NormalizeTitleIdentitySignatures(candidates);
+        }
+
         var candidate = await _detector.ObserveAsync(cancellationToken);
-        return candidate is null ? [] : [candidate];
+        return candidate is null
+            ? []
+            : NormalizeTitleIdentitySignatures([candidate]);
     }
 }

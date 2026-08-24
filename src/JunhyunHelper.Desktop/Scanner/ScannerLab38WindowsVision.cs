@@ -92,18 +92,23 @@ public sealed class ScannerLab38InspectDetector : IScannerCandidateInspectDetect
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        using var bitmap = CaptureWindowClient(window, screenRect);
-        if (bitmap is null)
+        Bitmap? bitmap;
+        using (ScannerLatencyTelemetry.Measure(ScannerLatencyTelemetry.Capture))
+            bitmap = CaptureWindowClient(window, screenRect);
+        using (bitmap)
         {
-            SetStatus("Tarkov 창을 찾았지만 화면 픽셀을 캡처하지 못했습니다.");
-            return [];
-        }
+            if (bitmap is null)
+            {
+                SetStatus("Tarkov 창을 찾았지만 화면 픽셀을 캡처하지 못했습니다.");
+                return [];
+            }
 
-        var candidates = DetectCandidates(bitmap, screenRect.Left, screenRect.Top, "tarkov");
-        SetStatus(candidates.Count > 0
-            ? $"Tarkov 창 감지됨 · 상세창 후보 {candidates.Count}개"
-            : "Tarkov 창 감지됨 · 아이템 상세창을 기다리는 중입니다.");
-        return candidates;
+            var candidates = DetectCandidates(bitmap, screenRect.Left, screenRect.Top, "tarkov");
+            SetStatus(candidates.Count > 0
+                ? $"Tarkov 창 감지됨 · 상세창 후보 {candidates.Count}개"
+                : "Tarkov 창 감지됨 · 아이템 상세창을 기다리는 중입니다.");
+            return candidates;
+        }
     }
 
     private IReadOnlyList<ScannerInspectCandidate> ObserveDisplays(CancellationToken cancellationToken)
@@ -122,12 +127,17 @@ public sealed class ScannerLab38InspectDetector : IScannerCandidateInspectDetect
             if (monitor.Bounds.Width < 150 || monitor.Bounds.Height < 110)
                 continue;
 
-            using var bitmap = CaptureScreenRectangle(monitor.Bounds);
-            all.AddRange(DetectCandidates(
-                bitmap,
-                monitor.Bounds.Left,
-                monitor.Bounds.Top,
-                $"display:{monitor.DeviceName}"));
+            Bitmap bitmap;
+            using (ScannerLatencyTelemetry.Measure(ScannerLatencyTelemetry.Capture))
+                bitmap = CaptureScreenRectangle(monitor.Bounds);
+            using (bitmap)
+            {
+                all.AddRange(DetectCandidates(
+                    bitmap,
+                    monitor.Bounds.Left,
+                    monitor.Bounds.Top,
+                    $"display:{monitor.DeviceName}"));
+            }
         }
 
         var result = all
@@ -147,13 +157,20 @@ public sealed class ScannerLab38InspectDetector : IScannerCandidateInspectDetect
         int screenTop,
         string sourceKey)
     {
-        var data = ReadBgra(bitmap);
-        var structural = ScannerDetailGeometryDetector.FindCandidates(
-            data.Pixels,
-            bitmap.Width,
-            bitmap.Height,
-            data.Stride,
-            CandidateLimit);
+        (byte[] Pixels, int Stride) data;
+        using (ScannerLatencyTelemetry.Measure(ScannerLatencyTelemetry.Capture))
+            data = ReadBgra(bitmap);
+
+        IReadOnlyList<ScannerDetailCandidate> structural;
+        using (ScannerLatencyTelemetry.Measure(ScannerLatencyTelemetry.RectangleProposal))
+        {
+            structural = ScannerDetailGeometryDetector.FindCandidates(
+                data.Pixels,
+                bitmap.Width,
+                bitmap.Height,
+                data.Stride,
+                CandidateLimit);
+        }
         if (structural.Count == 0)
         {
             PublishDebugCaptureIfNeeded(
@@ -165,8 +182,12 @@ public sealed class ScannerLab38InspectDetector : IScannerCandidateInspectDetect
         var result = new List<ScannerInspectCandidate>(structural.Count);
         foreach (var candidate in structural)
         {
-            var anchors = ScannerTitleAnchorRefiner.Refine(
-                data.Pixels, bitmap.Width, bitmap.Height, data.Stride, candidate);
+            ScannerTitleAnchorRefinement anchors;
+            using (ScannerLatencyTelemetry.Measure(ScannerLatencyTelemetry.SemanticHeader))
+            {
+                anchors = ScannerTitleAnchorRefiner.Refine(
+                    data.Pixels, bitmap.Width, bitmap.Height, data.Stride, candidate);
+            }
             if (anchors.Reason != "HEADER_FRAME_LOCKED" ||
                 anchors.Score < 0.68 ||
                 anchors.Magnifier.Width <= 0 ||
@@ -707,6 +728,7 @@ public sealed class ScannerLab38OcrEngine : IScannerDeepOcrEngine
         if (_engine is null)
             return string.Empty;
 
+        using var timing = ScannerLatencyTelemetry.Measure(ScannerLatencyTelemetry.OcrNormal);
         var enlarged = EnlargeTitle(titleImage);
         return await RecognizeLinesAndPairsAsync(enlarged, cancellationToken);
     }
@@ -717,6 +739,7 @@ public sealed class ScannerLab38OcrEngine : IScannerDeepOcrEngine
         if (_engine is null)
             return string.Empty;
 
+        using var timing = ScannerLatencyTelemetry.Measure(ScannerLatencyTelemetry.OcrDeep);
         var enlarged = EnlargeTitle(titleImage);
         var variants = new[]
         {

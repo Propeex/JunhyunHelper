@@ -15,6 +15,14 @@ public sealed record ScannerCatalogItem(
     int Width,
     int Height)
 {
+    /// <summary>
+    /// Optional source identity for the highest explicit trader sell offer. These are
+    /// additive cache fields so v1/v2 Scanner catalogs can still be read offline.
+    /// </summary>
+    public string? BestTraderId { get; init; }
+
+    public string? BestTraderName { get; init; }
+
     public int Slots => Width > 0 && Height > 0 ? Width * Height : 0;
 
     public int? TraderPricePerSlot => BestTraderSellPrice is { } value && Slots > 0

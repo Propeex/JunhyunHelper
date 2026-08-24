@@ -1,10 +1,11 @@
 using System.Text.Json.Serialization;
+using JunhyunHelper.Core.Scanner;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
 public sealed class ScannerDisplaySettings
 {
-    public const int CurrentSchemaVersion = 4;
+    public const int CurrentSchemaVersion = 5;
 
     public int SchemaVersion { get; set; }
     public bool Enabled { get; set; }
@@ -21,6 +22,12 @@ public sealed class ScannerDisplaySettings
     public string OneShotTarkovHotkey { get; set; } = ScannerHotkeyGesture.DefaultOneShotTarkov.ToString();
     public string OneShotTestHotkey { get; set; } = ScannerHotkeyGesture.DefaultOneShotTest.ToString();
     public string ScannerToggleHotkey { get; set; } = ScannerHotkeyGesture.DefaultScannerToggle.ToString();
+
+    /// <summary>
+    /// Optional user-owned exact OCR corrections. The default is deliberately empty;
+    /// rules are evidence supplied by the user, not a global product substitution table.
+    /// </summary>
+    public List<ScannerOcrSubstitutionRule> OcrSubstitutions { get; set; } = [];
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? OneShotHotkey { get; set; }
@@ -42,6 +49,7 @@ public sealed class ScannerDisplaySettings
         OneShotTarkovHotkey = OneShotTarkovHotkey,
         OneShotTestHotkey = OneShotTestHotkey,
         ScannerToggleHotkey = ScannerToggleHotkey,
+        OcrSubstitutions = OcrSubstitutions?.Select(rule => rule.Clone()).ToList() ?? [],
         OneShotHotkey = OneShotHotkey,
     };
 
@@ -111,7 +119,10 @@ public sealed class ScannerDisplaySettings
             new ScannerHotkeyGesture(true, false, true, System.Windows.Input.Key.F9),
             new ScannerHotkeyGesture(true, false, true, System.Windows.Input.Key.F8));
 
-        SchemaVersion = CurrentSchemaVersion;
+        OcrSubstitutions = ScannerOcrSubstitutionEngine
+            .NormalizeRules(OcrSubstitutions)
+            .Select(rule => rule.Clone())
+            .ToList();
 
         if (PositionX is { } x && !double.IsFinite(x))
             PositionX = null;
@@ -123,6 +134,8 @@ public sealed class ScannerDisplaySettings
             PositionY = null;
         }
         FontSize = double.IsFinite(FontSize) ? Math.Clamp(FontSize, 12, 32) : 18;
+
+        SchemaVersion = CurrentSchemaVersion;
     }
 
     private static string NormalizeHotkey(string? value, ScannerHotkeyGesture fallback)

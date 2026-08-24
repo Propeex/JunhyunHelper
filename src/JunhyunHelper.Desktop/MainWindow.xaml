@@ -11,7 +11,7 @@
         Icon="Assets/AppIcon.png"
         Width="1320"
         Height="820"
-        MinWidth="900"
+        MinWidth="1180"
         MinHeight="600"
         WindowStartupLocation="CenterScreen"
         Loaded="Window_Loaded"
@@ -79,7 +79,7 @@
                           SelectionChanged="ProfileComboBox_CompactSelectionChanged" />
                 <Button x:Name="EditProfileButton" Grid.Column="9" Content="프로필 수정" Margin="0,0,8,0"
                         Click="EditProfileCompactButton_Click" />
-                <Button x:Name="UpdateDataButton" Grid.Column="10" Content="데이터 업데이트" Click="UpdateDataButton_Click" />
+                <Button x:Name="UpdateDataButton" Grid.Column="10" Content="데이터 업데이트" Click="UnifiedUpdateDataButton_Click" />
             </Grid>
         </Border>
 

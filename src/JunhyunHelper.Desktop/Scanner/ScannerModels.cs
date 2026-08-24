@@ -21,7 +21,8 @@ public sealed record ScannerItemSnapshot(
     int? TraderPricePerSlot,
     int? FleaPricePerSlot,
     int Slots,
-    int CurrentNeeded);
+    int CurrentNeeded,
+    string? BestTraderName = null);
 
 public sealed record ScannerInspectCandidate(
     Rect Bounds,

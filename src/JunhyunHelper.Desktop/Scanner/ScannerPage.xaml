@@ -50,9 +50,12 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
+        <!-- Everyday Scanner controls. Keep the primary path usable without exposing
+             detector/catalog/regression terminology. -->
         <Border Grid.Row="0"
                 Background="{StaticResource BackgroundMediumBrush}"
                 BorderBrush="{StaticResource BorderBrush}"
@@ -66,7 +69,6 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <Button x:Name="ScannerToggleButton"
                         Grid.Column="0"
@@ -74,50 +76,137 @@
                         MinWidth="112"
                         Margin="0,0,8,0"
                         Click="ScannerToggleButton_Click" />
-                <Button x:Name="TestToggleButton"
+                <Button x:Name="OneShotScanButton"
                         Grid.Column="1"
-                        Content="테스트 OFF"
-                        MinWidth="112"
+                        Content="1회 스캔"
+                        MinWidth="104"
                         Margin="0,0,8,0"
-                        Click="TestToggleButton_Click" />
-                <Button x:Name="HotkeySettingsButton"
+                        Click="OneShotScanButton_Click" />
+                <Button x:Name="CorrectionButton"
                         Grid.Column="2"
-                        Content="단축키 설정"
-                        MinWidth="112"
+                        Content="현재 결과 교정"
+                        MinWidth="118"
                         Padding="10,5"
-                        Click="HotkeySettingsButton_Click" />
-                <Button x:Name="SyncCatalogButton"
-                        Grid.Column="4"
-                        Content="아이템 목록 최신화"
-                        MinWidth="132"
-                        Click="SyncCatalogButton_Click" />
+                        Click="CorrectionButton_Click" />
+                <TextBlock x:Name="RuntimeStatusText"
+                           Grid.Column="3"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           TextAlignment="Right"
+                           TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Center"
+                           Margin="16,0,2,0" />
             </Grid>
         </Border>
 
-        <Border Grid.Row="1"
-                Background="{StaticResource BackgroundMediumBrush}"
-                BorderBrush="{StaticResource BorderBrush}"
-                BorderThickness="1"
-                CornerRadius="8"
-                Padding="12"
-                Margin="0,0,0,10">
-            <StackPanel>
-                <TextBlock Text="표시 정보"
+        <!-- User settings stay available, but do not occupy the main Scanner surface. -->
+        <Expander Grid.Row="1"
+                  Header="설정"
+                  Background="{StaticResource BackgroundMediumBrush}"
+                  BorderBrush="{StaticResource BorderBrush}"
+                  BorderThickness="1"
+                  Margin="0,0,0,10">
+            <StackPanel Margin="12,8,12,12">
+                <WrapPanel Margin="0,0,0,8">
+                    <Button x:Name="HotkeySettingsButton"
+                            Content="단축키 설정"
+                            MinWidth="112"
+                            Padding="10,5"
+                            Margin="0,0,8,0"
+                            Click="HotkeySettingsButton_Click" />
+                    <Button x:Name="OcrSubstitutionSettingsButton"
+                            Content="OCR 문자 치환"
+                            MinWidth="118"
+                            Padding="10,5"
+                            Click="OcrSubstitutionSettingsButton_Click" />
+                </WrapPanel>
+
+                <TextBlock Text="Mini Scanner 표시 정보"
                            FontWeight="SemiBold"
-                           Margin="0,0,0,9" />
+                           Margin="0,2,0,9" />
                 <WrapPanel>
                     <CheckBox x:Name="ShowItemNameCheckBox" Content="아이템 이름" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
                     <CheckBox x:Name="ShowItemIconCheckBox" Content="아이템 아이콘" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
-                    <CheckBox x:Name="ShowTraderSellPriceCheckBox" Content="상인 판매 가격" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
-                    <CheckBox x:Name="ShowFleaAveragePriceCheckBox" Content="플리마켓 평균 가격" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
-                    <CheckBox x:Name="ShowTraderPricePerSlotCheckBox" Content="상인 가격 / 슬롯" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
-                    <CheckBox x:Name="ShowFleaPricePerSlotCheckBox" Content="플리 가격 / 슬롯" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
+                    <CheckBox x:Name="ShowTraderSellPriceCheckBox" Content="최고 상점가" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
+                    <CheckBox x:Name="ShowFleaAveragePriceCheckBox" Content="플리마켓 평균가" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
+                    <CheckBox x:Name="ShowTraderPricePerSlotCheckBox" Content="상점가 / 칸" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
+                    <CheckBox x:Name="ShowFleaPricePerSlotCheckBox" Content="플리 평균가 / 칸" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
                     <CheckBox x:Name="ShowCurrentNeededCheckBox" Content="현재 필요한 수량" Margin="0,0,22,8" Checked="DisplayOption_Changed" Unchecked="DisplayOption_Changed" />
                 </WrapPanel>
             </StackPanel>
-        </Border>
+        </Expander>
 
-        <Border Grid.Row="2"
+        <!-- Developer/recovery features remain intact behind one advanced surface. -->
+        <Expander Grid.Row="2"
+                  Header="고급 / 진단"
+                  Background="{StaticResource BackgroundMediumBrush}"
+                  BorderBrush="{StaticResource BorderBrush}"
+                  BorderThickness="1"
+                  Margin="0,0,0,10">
+            <StackPanel Margin="12,8,12,12">
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="일반 플레이에는 필요하지 않습니다. 테스트·복구·Ground Truth·개발 진단 기능을 제공합니다."
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               TextWrapping="Wrap"
+                               VerticalAlignment="Center" />
+                    <TextBlock x:Name="DiagnosticsStorageText"
+                               Grid.Column="1"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="11"
+                               Margin="12,0,0,0"
+                               VerticalAlignment="Center" />
+                </Grid>
+
+                <WrapPanel>
+                    <Button x:Name="TestToggleButton"
+                            Content="테스트 OFF"
+                            MinWidth="104"
+                            Margin="0,0,8,8"
+                            Click="TestToggleButton_Click" />
+                    <Button x:Name="RecognitionImageButton"
+                            Content="인식 이미지"
+                            MinWidth="96"
+                            Padding="10,4"
+                            Margin="0,0,8,8"
+                            Click="RecognitionImageButton_Click" />
+                    <Button x:Name="RegressionButton"
+                            Content="회귀 테스트"
+                            MinWidth="96"
+                            Padding="10,4"
+                            Margin="0,0,8,8"
+                            Click="RegressionButton_Click" />
+                    <Button x:Name="ExportDiagnosticsButton"
+                            Content="교정 데이터 내보내기"
+                            MinWidth="138"
+                            Padding="10,4"
+                            Margin="0,0,8,8"
+                            Click="ExportDiagnosticsButton_Click" />
+                    <Button x:Name="ManageDiagnosticsButton"
+                            Content="교정 데이터 관리"
+                            MinWidth="118"
+                            Padding="10,4"
+                            Margin="0,0,8,8"
+                            Click="ManageDiagnosticsButton_Click" />
+                    <Button x:Name="SyncCatalogButton"
+                            Content="아이템 목록 최신화"
+                            MinWidth="154"
+                            Padding="10,4"
+                            Margin="0,0,8,8"
+                            Click="SyncCatalogButton_Click" />
+                    <Button x:Name="ClearLogButton"
+                            Content="로그 삭제"
+                            MinWidth="84"
+                            Padding="10,4"
+                            Margin="0,0,0,8"
+                            Click="ClearLogButton_Click" />
+                </WrapPanel>
+            </StackPanel>
+        </Expander>
+
+        <Border Grid.Row="3"
                 Background="{StaticResource BackgroundMediumBrush}"
                 BorderBrush="{StaticResource BorderBrush}"
                 BorderThickness="1"
@@ -130,74 +219,9 @@
                 </Grid.RowDefinitions>
 
                 <Grid Grid.Row="0" Margin="12,10">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
                     <TextBlock Text="최근 인식 기록"
                                FontWeight="SemiBold"
                                VerticalAlignment="Center" />
-                    <TextBlock x:Name="RuntimeStatusText"
-                               Grid.Column="1"
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               TextAlignment="Right"
-                               TextTrimming="CharacterEllipsis"
-                               VerticalAlignment="Center"
-                               Margin="16,0,12,0" />
-                    <TextBlock x:Name="DiagnosticsStorageText"
-                               Grid.Column="2"
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               FontSize="11"
-                               VerticalAlignment="Center"
-                               Margin="0,0,10,0" />
-                    <Button x:Name="RecognitionImageButton"
-                            Grid.Column="3"
-                            Content="인식 이미지"
-                            MinWidth="92"
-                            Padding="10,4"
-                            Margin="0,0,8,0"
-                            Click="RecognitionImageButton_Click" />
-                    <Button x:Name="CorrectionButton"
-                            Grid.Column="4"
-                            Content="교정"
-                            MinWidth="70"
-                            Padding="10,4"
-                            Margin="0,0,8,0"
-                            Click="CorrectionButton_Click" />
-                    <Button x:Name="RegressionButton"
-                            Grid.Column="5"
-                            Content="회귀 테스트"
-                            MinWidth="92"
-                            Padding="10,4"
-                            Margin="0,0,8,0"
-                            Click="RegressionButton_Click" />
-                    <Button x:Name="ExportDiagnosticsButton"
-                            Grid.Column="6"
-                            Content="교정 데이터 내보내기"
-                            MinWidth="138"
-                            Padding="10,4"
-                            Margin="0,0,8,0"
-                            Click="ExportDiagnosticsButton_Click" />
-                    <Button x:Name="ManageDiagnosticsButton"
-                            Grid.Column="7"
-                            Content="교정 데이터 관리"
-                            MinWidth="118"
-                            Padding="10,4"
-                            Margin="0,0,8,0"
-                            Click="ManageDiagnosticsButton_Click" />
-                    <Button x:Name="ClearLogButton"
-                            Grid.Column="8"
-                            Content="로그 삭제"
-                            MinWidth="84"
-                            Padding="10,4"
-                            Click="ClearLogButton_Click" />
                 </Grid>
 
                 <Grid Grid.Row="1" Background="{StaticResource BackgroundDarkBrush}">

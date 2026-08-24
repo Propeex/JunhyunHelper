@@ -55,10 +55,58 @@ public static class ScannerRecognitionDebugStore
             ScannerDiagnosticDataset.QueueAutomaticObservation(retentionFrame);
     }
 
+    /// <summary>
+    /// Stores the exact proposal set consumed by the runtime for this capture. Candidate
+    /// geometry is converted to capture-local coordinates so correction UI and persisted
+    /// Ground Truth use the same coordinate system as full.png.
+    /// </summary>
+    public static void UpdateCandidates(IReadOnlyList<ScannerInspectCandidate> candidates)
+    {
+        ArgumentNullException.ThrowIfNull(candidates);
+        lock (Gate)
+        {
+            if (_frame is null)
+                return;
+
+            _frame = _frame with
+            {
+                Candidates = candidates
+                    .Select((candidate, index) => new ScannerDiagnosticCandidateEvidence(
+                        Id: $"candidate-{index + 1:D2}",
+                        Rank: index + 1,
+                        Bounds: ToLocal(candidate.Bounds, _frame.CaptureOriginX, _frame.CaptureOriginY),
+                        StructuralScore: candidate.StructuralScore,
+                        StructuralReason: candidate.StructuralReason,
+                        TitleBounds: candidate.TitleBounds.Width > 0 && candidate.TitleBounds.Height > 0
+                            ? ToLocal(candidate.TitleBounds, _frame.CaptureOriginX, _frame.CaptureOriginY)
+                            : null,
+                        MagnifierBounds: candidate.MagnifierBounds is { Width: > 0, Height: > 0 } magnifier
+                            ? ToLocal(magnifier, _frame.CaptureOriginX, _frame.CaptureOriginY)
+                            : null,
+                        CloseBounds: candidate.CloseBounds is { Width: > 0, Height: > 0 } close
+                            ? ToLocal(close, _frame.CaptureOriginX, _frame.CaptureOriginY)
+                            : null,
+                        TitleAnchorScore: candidate.TitleAnchorScore,
+                        TitleAnchorReason: candidate.TitleAnchorReason))
+                    .ToArray(),
+            };
+        }
+        Changed?.Invoke();
+    }
+
     public static void UpdateAnalysis(
         ScannerInspectCandidate? candidate,
         string pass,
         string ocrText,
+        string matcherText,
+        ScannerRecognition recognition) =>
+        UpdateAnalysis(candidate, pass, ocrText, ocrText, matcherText, recognition);
+
+    public static void UpdateAnalysis(
+        ScannerInspectCandidate? candidate,
+        string pass,
+        string ocrText,
+        string userSubstitutedOcrText,
         string matcherText,
         ScannerRecognition recognition)
     {
@@ -70,7 +118,14 @@ public static class ScannerRecognitionDebugStore
                     ? ScannerCaptureMode.DisplayTest
                     : ScannerCaptureMode.TarkovWindow);
         }
-        UpdateAnalysis(candidate, mode, pass, ocrText, matcherText, recognition);
+        UpdateAnalysis(
+            candidate,
+            mode,
+            pass,
+            ocrText,
+            userSubstitutedOcrText,
+            matcherText,
+            recognition);
         ScannerDiagnosticDataset.QueueAutomaticObservation(GetSnapshot());
     }
 
@@ -79,6 +134,16 @@ public static class ScannerRecognitionDebugStore
         ScannerCaptureMode mode,
         string pass,
         string ocrText,
+        string matcherText,
+        ScannerRecognition recognition) =>
+        UpdateAnalysis(candidate, mode, pass, ocrText, ocrText, matcherText, recognition);
+
+    public static void UpdateAnalysis(
+        ScannerInspectCandidate? candidate,
+        ScannerCaptureMode mode,
+        string pass,
+        string ocrText,
+        string userSubstitutedOcrText,
         string matcherText,
         ScannerRecognition recognition)
     {
@@ -120,6 +185,7 @@ public static class ScannerRecognitionDebugStore
                 CaptureMode = mode,
                 Pass = pass,
                 OcrText = ocrText,
+                UserSubstitutedOcrText = userSubstitutedOcrText,
                 MatcherText = matcherText,
                 ItemId = recognition.Success ? recognition.ItemId : null,
                 CandidateName = recognition.OfficialName,
@@ -172,6 +238,18 @@ public static class ScannerRecognitionDebugStore
     }
 }
 
+public sealed record ScannerDiagnosticCandidateEvidence(
+    string Id,
+    int Rank,
+    Rect Bounds,
+    double StructuralScore,
+    string StructuralReason,
+    Rect? TitleBounds,
+    Rect? MagnifierBounds,
+    Rect? CloseBounds,
+    double TitleAnchorScore,
+    string TitleAnchorReason);
+
 public sealed record ScannerRecognitionDebugFrame(
     BitmapSource Image,
     int CaptureOriginX,
@@ -188,6 +266,7 @@ public sealed record ScannerRecognitionDebugFrame(
     string? TitleSignature = null,
     string Pass = "NONE",
     string OcrText = "",
+    string UserSubstitutedOcrText = "",
     string MatcherText = "",
     string? ItemId = null,
     string? CandidateName = null,
@@ -197,7 +276,8 @@ public sealed record ScannerRecognitionDebugFrame(
     IReadOnlyList<ScannerMatchCandidate>? TopCandidates = null,
     DateTimeOffset? UpdatedAt = null,
     ScannerCaptureMode? CaptureMode = null,
-    string CaseId = "")
+    string CaseId = "",
+    IReadOnlyList<ScannerDiagnosticCandidateEvidence>? Candidates = null)
 {
     public DateTimeOffset Timestamp { get; init; } = UpdatedAt ?? DateTimeOffset.Now;
 }

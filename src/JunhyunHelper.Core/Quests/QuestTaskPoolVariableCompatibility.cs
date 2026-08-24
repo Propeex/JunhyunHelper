@@ -6,9 +6,10 @@ namespace JunhyunHelper.Core.Quests;
 /// Current-version compatibility for the 27 EFT 1.1 trader side-task pool counters.
 ///
 /// Public task data exposes only the read-side condition (variable >= threshold), not
-/// the server write rule. A 2026-08-17 live audit established a stable trader-local
-/// LL1→LL4 staged structure (Ragman currently has three stages) and direct LL2–LL4
-/// seed batches. We use that exact audited structure only while it continues to match.
+/// the server write rule. Live audits on 2026-08-17 and 2026-08-24 established the
+/// trader-local LL1→LL4 staged structure (Ragman currently has three stages) and direct
+/// LL2–LL4 seed batches. We use that exact audited structure only while it continues to
+/// match the active game-mode dataset.
 ///
 /// Exact profile variable values always win. Synthetic values are runtime-only and are
 /// never persisted back into user.db. Any structural drift fails closed.
@@ -164,7 +165,7 @@ public sealed class QuestTaskPoolVariableCompatibility
         }
 
         var seedQuests = FindSeedQuests(rule);
-        if (seedQuests.Length != rule.ExpectedSeedQuestCount)
+        if (seedQuests.Length != rule.ExpectedSeedQuestCountFor(_profile.GameMode))
             return false;
 
         inferredValue = seedQuests.Count(quest => _profile.CompletedQuestIds.Contains(quest.Id)) +
@@ -205,8 +206,9 @@ public sealed class QuestTaskPoolVariableCompatibility
 
         if (rule.LoyaltyLevel > 1)
         {
+            var expectedSeedQuestCount = rule.ExpectedSeedQuestCountFor(_profile.GameMode);
             var seeds = FindSeedQuests(rule);
-            if (seeds.Length != rule.ExpectedSeedQuestCount ||
+            if (seeds.Length != expectedSeedQuestCount ||
                 seeds.Length < rule.ExpectedThresholds.Min())
             {
                 return false;
@@ -231,7 +233,7 @@ public sealed class QuestTaskPoolVariableCompatibility
         var rules = new Dictionary<string, PoolRule>(StringComparer.Ordinal);
         Add(rules, "6a20540cf1b67a977cc5a088", Prapor, 1, 8, [1, 3, 5]);
         Add(rules, "6a2688488bba18e0b0187a04", Prapor, 2, 6, [3, 5], 4);
-        Add(rules, "6a32651a811905ed0cac0973", Prapor, 3, 6, [1, 3], 5);
+        Add(rules, "6a32651a811905ed0cac0973", Prapor, 3, 7, [1, 3], 5);
         Add(rules, "6a326525789ae12ecb0b2807", Prapor, 4, 5, [1, 2], 4);
 
         Add(rules, "6a4e4ab3ecd1145894d00990", Therapist, 1, 6, [1, 2, 4]);
@@ -240,9 +242,17 @@ public sealed class QuestTaskPoolVariableCompatibility
         Add(rules, "6a56925b1c30ba5a77c7c518", Therapist, 4, 1, [1], 3);
 
         Add(rules, "6a59f3ba06c8949abad30871", Skier, 1, 8, [1, 2, 3]);
-        Add(rules, "6a5a111de1f417ac80a163e5", Skier, 2, 9, [1, 3, 4], 3);
+        Add(
+            rules,
+            "6a5a111de1f417ac80a163e5",
+            Skier,
+            2,
+            9,
+            [1, 3, 4],
+            expectedSeedQuestCount: 4,
+            pvpSeasonExpectedSeedQuestCount: 3);
         Add(rules, "6a5a115181116e807b55f258", Skier, 3, 6, [1, 3], 3);
-        Add(rules, "6a5a1192efde11cc7105b18f", Skier, 4, 2, [1], 4);
+        Add(rules, "6a5a1192efde11cc7105b18f", Skier, 4, 2, [1], 5);
 
         Add(rules, "6a5ba40fe5c4eaef5610f232", Peacekeeper, 1, 6, [1, 3]);
         Add(rules, "6a5ba450a7851e16ce0bde44", Peacekeeper, 2, 9, [1, 3, 5], 4);
@@ -250,13 +260,13 @@ public sealed class QuestTaskPoolVariableCompatibility
         Add(rules, "6a5ba4c57cbb93b629051591", Peacekeeper, 4, 7, [1, 3], 3);
 
         Add(rules, "6a3171c927ca9591bf4db1c4", Mechanic, 1, 6, [1, 3]);
-        Add(rules, "6a3c0fefbea2d2ad581c090b", Mechanic, 2, 10, [1, 3, 5], 4);
+        Add(rules, "6a3c0fefbea2d2ad581c090b", Mechanic, 2, 11, [1, 3, 5], 4);
         Add(rules, "6a3cf95c6b35530c4a4f532e", Mechanic, 3, 12, [1, 3, 5], 5);
         Add(rules, "6a3d1c0990e9ffe15463e961", Mechanic, 4, 2, [1], 5);
 
         Add(rules, "6a4b339f18db62e03b4f7ded", Ragman, 1, 6, [1, 2]);
         Add(rules, "6a4b4e6a30dac4b01af220aa", Ragman, 2, 7, [1, 2, 4], 4);
-        Add(rules, "6a4b9c9a60b56d421cceea18", Ragman, 3, 3, [1, 2], 5);
+        Add(rules, "6a4b9c9a60b56d421cceea18", Ragman, 3, 3, [1, 2], 6);
 
         Add(rules, "6a43a01ccc83aceedd35f09c", Jaeger, 1, 8, [1, 3]);
         Add(rules, "6a43a095bfef0cd74c298963", Jaeger, 2, 4, [2, 5], 6);
@@ -272,18 +282,27 @@ public sealed class QuestTaskPoolVariableCompatibility
         int loyaltyLevel,
         int expectedQuestCount,
         int[] thresholds,
-        int expectedSeedQuestCount = 0) =>
+        int expectedSeedQuestCount = 0,
+        int? pvpSeasonExpectedSeedQuestCount = null) =>
         rules.Add(variableId, new PoolRule(
             traderId,
             loyaltyLevel,
             expectedQuestCount,
             thresholds,
-            expectedSeedQuestCount));
+            expectedSeedQuestCount,
+            pvpSeasonExpectedSeedQuestCount));
 
     private sealed record PoolRule(
         string TraderId,
         int LoyaltyLevel,
         int ExpectedQuestCount,
         int[] ExpectedThresholds,
-        int ExpectedSeedQuestCount);
+        int ExpectedSeedQuestCount,
+        int? PvpSeasonExpectedSeedQuestCount)
+    {
+        public int ExpectedSeedQuestCountFor(GameMode gameMode) =>
+            gameMode == GameMode.PvpSeason && PvpSeasonExpectedSeedQuestCount.HasValue
+                ? PvpSeasonExpectedSeedQuestCount.Value
+                : ExpectedSeedQuestCount;
+    }
 }
