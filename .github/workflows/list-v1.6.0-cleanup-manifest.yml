@@ -1,0 +1,35 @@
+name: List v1.6.0 Cleanup Manifest
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/list-v1.6.0-cleanup-manifest.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  list:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Persist cleanup manifest
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $repo=$env:GITHUB_REPOSITORY
+          $workflowFiles=@(Get-ChildItem '.github/workflows' -File | Where-Object { $_.Name -ne 'ci.yml' } | ForEach-Object { '.github/workflows/' + $_.Name } | Sort-Object)
+          $probeFiles=@(Get-ChildItem 'docs' -File | Where-Object { $_.Name -match '^\.v1\.6\.0-.*(?:probe|assets).*\.json$' } | ForEach-Object { 'docs/' + $_.Name } | Sort-Object)
+          $all=@($workflowFiles + $probeFiles)
+          $text=($all -join "`n") + "`n"
+          $b64=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($text))
+          $path="repos/$repo/contents/docs/.v1.6.0-cleanup-manifest.txt"
+          $old=gh api $path 2>$null
+          $sha=$null
+          if($LASTEXITCODE-eq0){$sha=($old|ConvertFrom-Json).sha}
+          $args=@('--method','PUT',$path,'-f','message=Record v1.6.0 cleanup manifest','-f',"content=$b64",'-f','branch=main')
+          if($sha){$args+=@('-f',"sha=$sha")}
+          gh api @args|Out-Null
