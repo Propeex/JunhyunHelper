@@ -1,3 +1,4 @@
+using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.Profiles;
 using JunhyunHelper.Infrastructure.Storage;
 using JunhyunHelper.Infrastructure.Validation;
@@ -14,15 +15,19 @@ public sealed class TarkovContentUpdateService
     private readonly TarkovContentBuildService _buildService;
     private readonly ContentSnapshotStore _snapshotStore;
     private readonly ContentActivationService _activationService;
+    private readonly ContentUpdateCompletenessGuard _completenessGuard;
+    private readonly SemaphoreSlim _updateGate = new(1, 1);
 
     public TarkovContentUpdateService(
         TarkovContentBuildService buildService,
         ContentActivationService activationService,
-        ContentSnapshotStore? snapshotStore = null)
+        ContentSnapshotStore? snapshotStore = null,
+        ContentUpdateCompletenessGuard? completenessGuard = null)
     {
         _buildService = buildService ?? throw new ArgumentNullException(nameof(buildService));
         _activationService = activationService ?? throw new ArgumentNullException(nameof(activationService));
         _snapshotStore = snapshotStore ?? new ContentSnapshotStore();
+        _completenessGuard = completenessGuard ?? new ContentUpdateCompletenessGuard();
     }
 
     public async Task<ContentUpdateResult> UpdateAsync(
@@ -31,30 +36,42 @@ public sealed class TarkovContentUpdateService
         IProgress<ContentUpdateProgress>? progress = null)
     {
         var trackedProgress = new TrackingProgress(progress);
+        var gateEntered = false;
 
         try
         {
+            // Data Update is a transactional product boundary. Never let two callers
+            // race candidate deletion/write/activation for the same shared content root.
+            await _updateGate.WaitAsync(cancellationToken);
+            gateEntered = true;
+
             trackedProgress.Report(new ContentUpdateProgress(
                 ContentUpdateStage.Preparing,
                 "기존 정상 데이터를 보존하고 업데이트를 준비하는 중...",
                 0));
 
+            var baseline = await TryReadBaselineAsync(gameMode, cancellationToken);
             _activationService.DiscardCandidate(gameMode);
 
             var build = await _buildService.BuildAsync(
                 gameMode,
                 cancellationToken,
                 trackedProgress);
-            if (!build.IsValid)
+
+            var regressionValidation = _completenessGuard.Validate(
+                build.Content,
+                baseline?.Content);
+            var validation = MergeValidation(build.Validation, regressionValidation);
+            if (!validation.IsValid)
             {
                 trackedProgress.Report(new ContentUpdateProgress(
                     ContentUpdateStage.Failed,
-                    "새 데이터 검증에 실패했습니다. 기존 정상 데이터를 유지합니다.",
+                    "새 데이터의 구성·관계 검증에 실패했습니다. 기존 정상 데이터를 유지합니다.",
                     Math.Max(trackedProgress.LastPercent, 80)));
 
                 return new ContentUpdateResult(
                     Applied: false,
-                    build.Validation,
+                    validation,
                     build.Warnings);
             }
 
@@ -78,6 +95,18 @@ public sealed class TarkovContentUpdateService
 
             await _activationService.ActivateCandidateAsync(gameMode, cancellationToken);
 
+            // Do not report success merely because a file move completed. Load the final
+            // active snapshot through the same recovery/validation boundary once more.
+            var activated = await _activationService.ReadActiveOrRecoverAsync(gameMode, cancellationToken);
+            var activatedValidation = _completenessGuard.Validate(
+                activated.Content,
+                baseline?.Content);
+            if (!activatedValidation.IsValid)
+            {
+                throw new InvalidDataException(
+                    "Activated game content failed post-activation completeness validation.");
+            }
+
             trackedProgress.Report(new ContentUpdateProgress(
                 ContentUpdateStage.Completed,
                 "게임 데이터 업데이트 완료",
@@ -85,7 +114,7 @@ public sealed class TarkovContentUpdateService
 
             return new ContentUpdateResult(
                 Applied: true,
-                build.Validation,
+                validation,
                 build.Warnings);
         }
         catch (OperationCanceledException)
@@ -104,6 +133,47 @@ public sealed class TarkovContentUpdateService
                 trackedProgress.LastPercent));
             throw;
         }
+        finally
+        {
+            if (gateEntered)
+                _updateGate.Release();
+        }
+    }
+
+    private async Task<StoredContentSnapshot?> TryReadBaselineAsync(
+        GameMode gameMode,
+        CancellationToken cancellationToken)
+    {
+        var paths = _activationService.GetPaths(gameMode);
+        if (!File.Exists(paths.ActivePath) && !File.Exists(paths.PreviousPath))
+            return null;
+
+        try
+        {
+            return await _activationService.ReadActiveOrRecoverAsync(gameMode, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            // A broken baseline must not be used to judge a new candidate. The candidate
+            // still has to pass complete build + activation validation before replacing it.
+            return null;
+        }
+    }
+
+    private static ContentValidationResult MergeValidation(
+        ContentValidationResult first,
+        ContentValidationResult second)
+    {
+        if (second.Issues.Count == 0)
+            return first;
+        if (first.Issues.Count == 0)
+            return second;
+        return new ContentValidationResult(first.Issues.Concat(second.Issues).ToArray());
     }
 
     private sealed class TrackingProgress(IProgress<ContentUpdateProgress>? inner)
