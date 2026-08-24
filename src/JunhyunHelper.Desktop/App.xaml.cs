@@ -3,6 +3,7 @@ using System.IO;
 using System.Text;
 using System.Windows;
 using System.Windows.Threading;
+using JunhyunHelper.Desktop.Scanner;
 using JunhyunHelper.Desktop.Updates;
 using JunhyunHelper.Infrastructure.Updates;
 
@@ -10,7 +11,10 @@ namespace JunhyunHelper.Desktop;
 
 public partial class App : System.Windows.Application
 {
+    private const long MaximumStartupLogBytes = 2 * 1024 * 1024;
+
     private ProgramUpdateCoordinator? _programUpdateCoordinator;
+    private ScannerDiagnosticRetentionService? _scannerDiagnosticRetentionService;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -27,6 +31,7 @@ public partial class App : System.Windows.Application
         try
         {
             ProgramUpdateCoordinator.ScheduleStaleUpdaterRunnerCleanup();
+            _scannerDiagnosticRetentionService = new ScannerDiagnosticRetentionService();
 
             var window = new MainWindow();
             MainWindow = window;
@@ -54,6 +59,7 @@ public partial class App : System.Windows.Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _scannerDiagnosticRetentionService?.Dispose();
         _programUpdateCoordinator?.Dispose();
         base.OnExit(e);
     }
@@ -168,6 +174,7 @@ public partial class App : System.Windows.Application
                 "logs");
             Directory.CreateDirectory(root);
             var path = Path.Combine(root, "startup.log");
+            RotateStartupLogIfNeeded(path);
             var entry = new StringBuilder()
                 .AppendLine("============================================================")
                 .AppendLine($"UTC: {DateTimeOffset.UtcNow:O}")
@@ -185,6 +192,17 @@ public partial class App : System.Windows.Application
         {
             // Diagnostics must never replace the original failure.
         }
+    }
+
+    private static void RotateStartupLogIfNeeded(string path)
+    {
+        if (!File.Exists(path) || new FileInfo(path).Length < MaximumStartupLogBytes)
+            return;
+
+        var previous = path + ".1";
+        if (File.Exists(previous))
+            File.Delete(previous);
+        File.Move(path, previous);
     }
 
     private void App_DispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
