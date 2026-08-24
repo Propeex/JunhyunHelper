@@ -1,0 +1,62 @@
+name: Temporary v1.5.0 live data audit
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  live-data-audit:
+    if: github.event.pull_request.number == 172 || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Audit current json.tarkov.dev shapes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($mode in @('regular','pve','pvp-season')) {
+            Write-Host "=== MODE $mode ==="
+            $tasks = Invoke-RestMethod "https://json.tarkov.dev/$mode/tasks"
+            $items = Invoke-RestMethod "https://json.tarkov.dev/$mode/items"
+            $questList = @($tasks.data.tasks.PSObject.Properties | ForEach-Object { $_.Value })
+            $itemList = @($items.data.items.PSObject.Properties | ForEach-Object { $_.Value })
+            if ($itemList.Count -eq 0 -and $items.data.items -is [System.Array]) { $itemList = @($items.data.items) }
+
+            Write-Host "quests=$($questList.Count) items=$($itemList.Count)"
+            $other = @($questList | ForEach-Object { @($_.otherRequirements) } | Where-Object { $_ -ne $null })
+            $types = $other | Group-Object type | Sort-Object Count -Descending
+            Write-Host 'otherRequirements by type:'
+            $types | ForEach-Object { Write-Host "  $($_.Name)=$($_.Count)" }
+
+            $delayed = @($questList | Where-Object { [int]$_.availableDelaySecondsMax -gt 0 })
+            Write-Host "delayedQuests=$($delayed.Count)"
+
+            $dialogueQuests = @($questList | Where-Object {
+              @($_.otherRequirements | Where-Object { $_.type -eq 'dialogue' }).Count -gt 0
+            })
+            Write-Host "dialogueQuests=$($dialogueQuests.Count)"
+            foreach ($q in $dialogueQuests) {
+              $dialogue = @($q.otherRequirements | Where-Object { $_.type -eq 'dialogue' })
+              $reqs = @($q.taskRequirements)
+              $dialogueSummary = ($dialogue | ForEach-Object { "traders=" + (@($_.traders) -join ',') }) -join ';'
+              $reqSummary = ($reqs | ForEach-Object { "$($_.task):$(@($_.status)-join ',')" }) -join ';'
+              Write-Host "DIALOGUE|$($q.id)|$($q.name)|giver=$($q.trader)|taskReq=$reqSummary|$dialogueSummary"
+            }
+
+            $global = @($questList | ForEach-Object { @($_.otherRequirements | Where-Object { $_.type -eq 'globalVariable' }) })
+            Write-Host "globalVariableRequirements=$($global.Count)"
+            foreach ($g in $global | Select-Object -First 30) {
+              Write-Host "GLOBAL|id=$($g.variableId)|cmp=$($g.compareMethod)|value=$($g.value)"
+            }
+
+            $study = @($questList | ForEach-Object { @($_.otherRequirements | Where-Object { $_.type -eq 'studyItems' }) })
+            Write-Host "studyItemsRequirements=$($study.Count)"
+
+            $withStaticTrader = @($itemList | Where-Object { @($_.sellToTrader).Count -gt 0 })
+            $withLegacyTrader = @($itemList | Where-Object { @($_.traderPrices).Count -gt 0 })
+            $withFlea = @($itemList | Where-Object { [int]$_.avg24hPrice -gt 0 })
+            Write-Host "itemsWithSellToTrader=$($withStaticTrader.Count) itemsWithTraderPrices=$($withLegacyTrader.Count) itemsWithFleaAvg=$($withFlea.Count)"
+            foreach ($item in $withStaticTrader | Select-Object -First 2) {
+              Write-Host "ITEM_SAMPLE|$($item.id)|$($item.name)|sellToTrader=$((@($item.sellToTrader) | ConvertTo-Json -Compress -Depth 5))"
+            }
+          }
