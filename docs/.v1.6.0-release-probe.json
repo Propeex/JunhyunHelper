@@ -1,11 +1,13 @@
 {
-  "observed_at_utc": "2026-08-24T08:05:47.3627908Z",
+  "observed_at_utc": "2026-08-24T08:41:27.0528330Z",
   "controller_run_id": 32704439581,
-  "controller_status": "in_progress",
-  "controller_conclusion": "",
-  "controller_head_sha": "02881fa7cc1f5ef20241b8b020f64ff9fab04673",
+  "controller_status": "completed",
+  "controller_conclusion": "failure",
   "verifier_run_id": 32704194181,
-  "verifier_status": "in_progress",
-  "verifier_conclusion": "",
-  "verifier_head_sha": "71fa87e3b76ed500e2ca24e114bfb8ed423a2883"
+  "verifier_status": "completed",
+  "verifier_conclusion": "failure",
+  "finalizer_run_id": 32707509600,
+  "finalizer_status": "completed",
+  "finalizer_conclusion": "failure",
+  "finalizer_head_sha": "861968ab8305d2c35606f603947860af8f89a3e4"
 }
