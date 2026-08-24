@@ -39,9 +39,26 @@ public partial class MainWindow
             var scannerUsable = await ScannerCoordinator.SyncCatalogAsync();
             var scannerDiagnostics = ScannerCoordinator.CatalogDiagnostics;
 
+            // A transient upstream response can fail independently of the canonical
+            // Game Content update. Retry only quick/transient payload failures here;
+            // a request-wide timeout is already long enough and is not repeated from
+            // this UI path to avoid turning one update into a minute-long block.
+            if (IsRetryableScannerCatalogOutcome(scannerDiagnostics.Outcome))
+            {
+                StatusText.Text = "Scanner 아이템·가격 데이터를 한 번 더 확인하는 중...";
+                await Task.Delay(TimeSpan.FromMilliseconds(500));
+                scannerUsable = await ScannerCoordinator.SyncCatalogAsync();
+                scannerDiagnostics = ScannerCoordinator.CatalogDiagnostics;
+            }
+
+            // `fresh-cache` deliberately uses the already-current local cache without a
+            // network request. v1.6.0 treated every UsedExistingCatalog outcome other
+            // than `success` as a failed download, so a healthy fresh cache incorrectly
+            // produced the "Scanner 기존 데이터 유지" modal. Only actual failure
+            // outcomes count as fallback.
             var scannerUsedFallback = scannerUsable &&
                                       scannerDiagnostics.UsedExistingCatalog &&
-                                      !string.Equals(scannerDiagnostics.Outcome, "success", StringComparison.Ordinal);
+                                      IsScannerCatalogRefreshFailure(scannerDiagnostics.Outcome);
 
             if (cleanupChanges.Count > 0)
             {
@@ -64,19 +81,13 @@ public partial class MainWindow
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
             }
-            else if (scannerUsedFallback)
-            {
-                MessageBox.Show(
-                    this,
-                    "일반 게임 데이터 업데이트는 완료했습니다.\n\n" +
-                    "Scanner 최신 데이터 다운로드에는 실패했지만 기존에 검증된 정상 Scanner 캐시를 그대로 유지했습니다. " +
-                    "인식 기능은 기존 데이터로 계속 사용할 수 있습니다.",
-                    "Scanner 기존 데이터 유지",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
-            }
 
-            StatusText.Text = BuildLoadedStatus(gameMode);
+            // A verified same-mode Scanner cache is a successful fail-soft recovery, not
+            // a user-blocking condition. Keep the failure visible in the status/log but
+            // do not interrupt every data update with an informational MessageBox.
+            StatusText.Text = scannerUsedFallback
+                ? $"{BuildLoadedStatus(gameMode)} · Scanner 기존 정상 캐시 유지"
+                : BuildLoadedStatus(gameMode);
         }
         catch (Exception exception)
         {
@@ -87,4 +98,19 @@ public partial class MainWindow
             SetBusy(false, StatusText.Text);
         }
     }
+
+    private static bool IsRetryableScannerCatalogOutcome(string outcome) => outcome is
+        "http-failure" or
+        "json-invalid" or
+        "payload-invalid";
+
+    private static bool IsScannerCatalogRefreshFailure(string outcome) => outcome is
+        "timeout-or-shutdown" or
+        "http-failure" or
+        "io-failure" or
+        "access-failure" or
+        "json-invalid" or
+        "payload-invalid" or
+        "identity-invalid" or
+        "cache-readback-invalid";
 }
