@@ -1,0 +1,33 @@
+name: Probe v1.6.0 Recovery
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/probe-recover-v1.6.0.yml'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Record recovery workflow state
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $repo=$env:GITHUB_REPOSITORY
+          Start-Sleep -Seconds 8
+          $runs=gh api "repos/$repo/actions/workflows/recover-v1.6.0-release.yml/runs?per_page=5"|ConvertFrom-Json
+          $r=@($runs.workflow_runs|Sort-Object created_at -Descending|Select-Object -First 1)[0]
+          $o=[ordered]@{observed_at_utc=[DateTime]::UtcNow.ToString('o');run_id=if($r){[long]$r.id}else{$null};status=if($r){[string]$r.status}else{$null};conclusion=if($r){[string]$r.conclusion}else{$null};head_sha=if($r){[string]$r.head_sha}else{$null}}
+          $json=$o|ConvertTo-Json
+          $b64=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($json))
+          $path="repos/$repo/contents/docs/.v1.6.0-recovery-probe.json"
+          $old=gh api $path 2>$null;$sha=$null;if($LASTEXITCODE-eq0){$sha=($old|ConvertFrom-Json).sha}
+          $a=@('--method','PUT',$path,'-f','message=Record v1.6.0 recovery state','-f',"content=$b64",'-f','branch=main');if($sha){$a+=@('-f',"sha=$sha")}
+          gh api @a|Out-Null
