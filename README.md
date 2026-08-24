@@ -4,27 +4,31 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 릴리즈 상태
 
-현재 public stable은 **v1.4.4**입니다.
+현재 public stable / latest는 **v1.5.0**입니다.
 
 ```text
-version: v1.4.4 PUBLIC RELEASE / VERIFIED
-release source/tag: 0c7f31e118122ffef6e5999f7a20a77d823a450d
-asset: Junhyun-Helper-v1.4.4-win-x64.zip
-SHA-256: 64320e36ba94b6f206ef997e3d42a809c7beef2c859f4bc7f53f704f74866f40
-ProductVersion: 1.4.4+0c7f31e118122ffef6e5999f7a20a77d823a450d
+version: v1.5.0 PUBLIC RELEASE / VERIFIED
+exact release source/tag: 6de738959740d12e6ccb81b65e50006e463eb699
+asset: Junhyun-Helper-v1.5.0-win-x64.zip
+bytes: 80,422,292
+SHA-256: 6ad657653123ff35d8b6fe3d7f9877858992e9327697077492cf29f7c900e5e9
+ProductVersion: 1.5.0+6de738959740d12e6ccb81b65e50006e463eb699
+automated tests: 296 passed / 0 failed / 0 skipped
+release run: 32691423654 — SUCCESS
+independent public verifier: 32691641614 — SUCCESS
 public/latest: VERIFIED
 exact public tag source: VERIFIED
 public re-download / checksum / package layout: VERIFIED
 public-downloaded EXE smoke: SUCCESS
 ```
 
-공개 검증 기록은 `docs/.release-v1.4.4-status.json`에 있습니다.
+공식 검증 기록:
 
-**v1.5.0 Product Finishing Pass**는 구현 완료 후 final release gate를 진행 중입니다. 공식 범위와 현재 상태는 다음 문서가 기준입니다.
-
-- `docs/DECISION_V1.5.0_PRODUCT_FINISHING_PASS_2026-08-24.md`
-- `docs/STATUS_V1.5.0_PRODUCT_FINISHING_PASS_2026-08-24.md`
+- `docs/RELEASE_1.5.0.md`
+- `docs/.release-v1.5.0-status.json`
 - `docs/RELEASE_NOTES_V1.5.0.md`
+
+현재 schema:
 
 ```text
 Content schema: v7
@@ -37,17 +41,37 @@ Scanner catalog cache: v1/v2 readable, v2 written
 ## 주요 기능
 
 - GameMode별 Profile
-- Quest / prerequisite / special trader / profile-variable 판정
+- Quest availability / prerequisite / special trader / profile-variable
 - Hideout 진행 관리
-- Needed Items / FIR·일반 Inventory / cleanup safety / consumption ledger
+- Needed Items / FIR·일반 Inventory / consumption ledger
 - Items / cross-navigation
 - Ammo / favorites
 - Game Content 안전 업데이트 / image cache
 - Map + MiniMap
 - Scanner + Mini Scanner
+- Scanner Ground Truth 교정 / diagnostics export / regression
 - 사용자 동의형 Program Update
 
 Runtime GPT/AI 의존성은 없습니다.
+
+## v1.5.0 주요 변경
+
+v1.5.0은 Scanner 연구 기능만 늘리는 버전이 아니라 현재 프로그램을 장시간 실제 플레이에서 쓰기 위한 **Product Finishing Pass**입니다.
+
+- Scanner 최고 상점가/상인, flea 평균가, slots, price-per-slot, 필요한 수량 mapped-data 경로 보강
+- 일반 Game Data update와 Scanner item/market catalog 갱신 통합
+- 최신 Quest task-pool live data 감사 및 GameMode-aware fail-closed compatibility
+- 사용자 OCR exact 문자열 치환 설정
+- detector candidate 기반 Ground Truth 교정 + manual rectangle / `없음` fallback
+- Scanner stage latency telemetry
+- 같은 scan-cycle의 exact-identical OCR bitmap만 재사용하는 정확도 보존 최적화
+- continuous trusted-result 안정화
+- reviewed Ground Truth 보호 + automatic diagnostics/log bounded retention
+- Scanner 일반 화면 / 설정 / 고급·진단 UI 분리
+- Mini Scanner 우클릭 `현재 결과 교정`
+- 전체 UI consistency audit 및 MainWindow 최소 폭 보정
+
+상세: `docs/RELEASE_NOTES_V1.5.0.md`
 
 ## Scanner
 
@@ -55,151 +79,140 @@ Production Scanner는 게임 화면 픽셀만 사용합니다.
 
 ```text
 Tarkov window pixels
-→ detail-window rectangle proposals
+→ capture
+→ detail rectangle proposals
 → red close-X + magnifier + neutral header semantic validation
 → HEADER_FRAME_LOCKED
 → item-name ROI
 → Windows ko-KR OCR
 → optional user OCR substitution
 → current-catalog sanitation / normalization
-→ conservative catalog matching / bounded recovery
+→ conservative official-catalog matching / bounded recovery
 → Item ID or fail closed
-→ local mapped presentation data
+→ local mapped presentation
 → Mini Scanner
 ```
 
-핵심 안전 원칙:
+### 핵심 안전 계약
 
 - false positive보다 miss 선호
-- geometry만으로 Item identity 확정 금지
+- rectangle geometry는 proposal이며 identity proof가 아님
 - `HEADER_FRAME_LOCKED >= 0.68`
 - magnifier + red close-X 필수
 - structural floor `0.34`
-- continuous candidate max `8`
-- one-shot candidate max `12`
+- continuous max 8 candidates
+- one-shot max 12 candidates
 - current official Korean Tarkov item catalog가 identity authority
-- matcher/visual ambiguity는 fail closed
 - production OCR field는 item-name 하나
-- 가격·슬롯·필요 수량은 Item ID 확정 후 local mapped data
+- price / slots / needed는 Item ID 이후 local mapped data
 - scan-time network 없음
 - game memory read / DLL injection / packet interception 없음
-- 자동 global `r/0/한글` 강제 substitution table 없음
+- 제품 기본값에 automatic global r/0/한글 forced substitution table 없음
 
-### v1.5.0 Scanner 제품 흐름
+## Scanner 사용 흐름
 
 일반 Scanner 화면은 실제 플레이 동선에 필요한 기능을 우선합니다.
 
-- `스캐너 ON/OFF`
+- Scanner ON/OFF
 - `1회 스캔`
 - `현재 결과 교정`
 - runtime status
 - 최근 인식 기록
 
-`설정`에는 전역 단축키, OCR 문자 치환, Mini Scanner 표시 항목이 있습니다.
+`설정`에는 전역 단축키, OCR 치환, Mini Scanner 표시 설정이 있습니다.
 
-`고급 / 진단`에는 display test, 인식 이미지, Ground Truth 회귀/관리/내보내기, Scanner catalog 강제 최신화, 로그 삭제를 둡니다. 진단 기능은 삭제하지 않고 일반 사용 surface에서 분리합니다.
+`고급 / 진단`에는 Display Test, 인식 이미지, regression, Ground Truth export/manage, Scanner catalog 강제 최신화, 로그 삭제를 둡니다.
 
-Mini Scanner에서는 우클릭 → `현재 결과 교정`으로 방금 본 결과를 바로 교정할 수 있습니다.
+Mini Scanner에서는 우클릭 → `현재 결과 교정`으로 방금 본 결과를 즉시 교정할 수 있습니다.
+
+기본 전역 단축키:
+
+```text
+1회 인게임 스캔: Ctrl+Shift+F10
+1회 테스트 스캔: Ctrl+Shift+F11
+Scanner ON/OFF: Ctrl+Shift+F12
+```
 
 ## OCR 문자 치환
 
-반복해서 확인한 OCR 오인식은 사용자가 Scanner 설정에 exact 문자열 치환 규칙으로 등록할 수 있습니다.
+Scanner settings schema v5부터 사용자 소유 exact 문자열 치환을 지원합니다.
 
 ```text
 raw OCR
-→ user substitution (single pass)
+→ enabled user substitutions (single pass)
 → catalog sanitation / normalization
 → matching
 ```
 
-- 규칙 추가 / 삭제 / ON·OFF / 초기화
 - 기본 규칙은 비어 있음
-- recursive replacement / substitution chain 없음
-- raw OCR 원문은 forensic diagnostic evidence로 별도 보존
+- 규칙 추가 / 삭제 / ON·OFF / 초기화
+- raw OCR forensic evidence 별도 보존
+- 재귀/연쇄 치환 없음
+- 사용자가 만든 규칙은 product-wide 자동 치환표가 아님
 
 ## Scanner 표시 데이터
 
-Item ID 확정 후 다음 값은 OCR이 아니라 local data에서 조회합니다.
+Item ID 확정 후 아래는 OCR이 아니라 local trusted data에서 조회/계산합니다.
 
-- 최고 상점가 = 유효한 non-flea RUB 환산 판매가 최댓값
-- 최고가 판매 상인
+- 최고 상점가 = flea 제외 유효 판매처의 RUB 환산 가격 최댓값
+- 최고가 상인명
 - 플리마켓 평균가 = positive `avg24hPrice`
-- 슬롯 = positive `width × height`
-- 상인/플리 가격·슬롯
+- slots = positive `width × height`
+- 상인 가격/슬롯
+- flea 가격/슬롯
 - 필요한 개수 = `NeededItems[itemId].RequiredTotal`
 
-Inventory를 차감한 부족량은 Scanner의 `필요 개수` 의미가 아닙니다. 가격/크기 일부가 없으면 해당 표시 필드만 비우고 Item identity를 폐기하지 않습니다.
+Inventory를 차감한 부족량은 Scanner의 `필요 개수` 의미가 아닙니다. Market/dimension 일부가 없으면 해당 표시 필드만 비우고 건강한 Item ID를 폐기하지 않습니다.
 
-## 교정 / Ground Truth
+## Ground Truth / 교정
 
-교정은 detector가 실제 생성한 후보를 선택하는 방식이 기본입니다.
+교정은 detector candidate 선택이 기본입니다.
 
-1. detail rectangle 후보
-2. red close-X 후보
-3. magnifier 후보
-4. item-name ROI 후보
+1. detail rectangle
+2. close-X
+3. magnifier
+4. item-name ROI
 5. 정답 item/text
 6. 저장
 
-정답 후보가 없으면 manual rectangle을 직접 지정할 수 있고, 실제로 없어야 하는 semantic object는 `없음`으로 기록할 수 있습니다. Candidate ID / rank / score / geometry가 Ground Truth와 함께 저장됩니다.
+정답 후보가 없으면 manual rectangle 지정이 가능하며, detector가 semantic object를 만들지 못한 경우 `없음`을 기록할 수 있습니다.
 
-기본 진단 저장 위치:
+사용자-reviewed Case만 Ground Truth로 취급합니다. 자동 diagnostic Case는 정답이 아닙니다.
+
+기본 저장 위치:
 
 ```text
 %LocalAppData%\JunhyunHelper\scanner\diagnostics
 ```
 
-사용자가 확인한 Ground Truth는 자동 retention 대상이 아닙니다. 자동 미검토 diagnostic Case만 30일 / 300건 / 512MiB 상한과 최근 2시간 보호창으로 관리합니다.
+Reviewed Ground Truth는 자동 retention 대상이 아닙니다.
 
-## Scanner 성능 / 안정화
+## Scanner 성능 / 장시간 실행
 
-v1.5.0은 threshold를 낮추지 않고 stage latency를 계측합니다.
-
-- capture
-- rectangle proposal
-- semantic header validation
-- normal/deep OCR
-- visual recovery
-- catalog matching/recovery
-- presentation
-- end-to-end
-
-같은 active scan-cycle 안에서 픽셀 단위로 완전히 동일한 OCR bitmap만 재사용하며 frame/cycle 사이에는 OCR 결과를 캐시하지 않습니다.
-
-이미 검증된 item의 title glyph identity가 유지되는 동안에는 미세한 dark-background/trailing-ROI 변화 때문에 OCR을 매 frame 반복하거나 Mini Scanner 결과를 불필요하게 흔들지 않습니다. 다른 title/identity evidence가 확인되면 기존 trusted result를 폐기하고 다시 검증합니다.
-
-## Mini Scanner
-
-- matched item 정보만 overlay 표시
-- Topmost + no-activate
-- 전체 카드 drag
-- 실제 Scanner mode에서는 Tarkov foreground/inventory context를 보수적으로 확인
-- stale item/context epoch를 적용하지 않음
-- canonical icon은 update/cache 경로에서 준비하고 scan 순간 HTTP 없음
-
-## Scanner font 정책
-
-게임 폰트 파일을 준현 헬퍼 배포물에 재배포하지 않습니다.
+v1.5.0은 threshold 완화가 아니라 stage latency를 계측합니다.
 
 ```text
-Tarkov resources.assets (read-only)
-→ bounded SFNT discovery/extraction
-→ %LocalAppData%/JunhyunHelper/scanner/fonts
-→ source/font generation 검증
-→ local visual corroboration/recovery
+capture
+rectangle proposal
+semantic header
+OCR normal/deep
+visual recovery
+catalog matching
+presentation
+end-to-end
 ```
 
-Tarkov/font generation이 바뀌면 stale rendered template generation을 그대로 신뢰하지 않습니다.
+같은 active scan cycle에서 픽셀 단위로 완전히 동일한 OCR bitmap만 재사용합니다. Frame 간 OCR cache는 사용하지 않습니다.
 
-## 로그 / 진단
+Automatic unreviewed diagnostic samples는 30일 / 300건 / 512 MiB 상한과 최근 2시간 보호창으로 관리합니다. Scanner/startup logs도 bounded rotation합니다.
 
-```text
-%LocalAppData%\JunhyunHelper\logs\scanner.log
-%LocalAppData%\JunhyunHelper\logs\scanner.log.1
-%LocalAppData%\JunhyunHelper\logs\startup.log
-```
+## Quest `확인 필요`
 
-일반 로그는 bounded rotation을 사용합니다. `로그 삭제`는 recent Scanner activity, scanner.log(.1), 최신 in-memory recognition image를 정리하지만 Ground Truth dataset은 삭제하지 않습니다.
+`확인 필요`를 UI에서 억지로 숨기지 않습니다. 최신 source에서 안전하게 판정할 수 있는 조건만 evaluator에 반영하고, 실제로 알 수 없는 조건은 fail closed합니다.
+
+2026-08-24 live audit는 `regular`, `pve`, `pvp-season`을 대상으로 수행했습니다.
+
+상세: `docs/QUEST_TASK_POOL_AUDIT_2026-08-24.md`
 
 ## Program Update
 
@@ -212,7 +225,7 @@ latest public stable 확인
 → 새 버전 재시작
 ```
 
-사용자 데이터는 `%LocalAppData%\JunhyunHelper`에 분리되어 있으며 프로그램 업데이트가 덮어쓰지 않습니다.
+사용자 데이터는 `%LocalAppData%/JunhyunHelper`에 분리되어 있으며 프로그램 업데이트가 덮어쓰지 않습니다.
 
 ## 배포 형태
 
@@ -228,25 +241,28 @@ Assets/
 
 별도 .NET Runtime 설치나 관리자 권한은 필요하지 않으며 현재 code signing은 하지 않습니다.
 
-## 버전 정책
+## 개발 원칙
 
-- 새 사용자 기능 또는 명확한 제품 UX 확장 → MINOR +1, PATCH=0
-- 기존 기능의 수정/보완/버그 수정/성능·안정성·정확성 개선 → PATCH +1
-
-v1.5.0은 OCR 사용자 설정, candidate-based correction UX, Scanner surface 재구성과 제품 동작 변경이 포함되어 MINOR 릴리즈로 분류합니다.
+- 사용자 의도 / 제품 요구사항 / 현재 구현을 구분
+- 기존 프로토타입 동작을 공식 요구사항으로 추정하지 않음
+- 중요한 결정과 상태는 GitHub 문서에 즉시 기록
+- Scanner는 실제 reviewed Ground Truth 기반으로 개선
+- 기존 정상 Ground Truth의 `REGRESSION=0`을 우선
+- 추가 evidence 없이 generic matcher/header threshold 또는 candidate cap 완화 금지
+- 국소 수정 반복보다 전체 시스템 일관성을 우선하되 단순 변경에 불필요한 전면 리팩터링은 하지 않음
 
 ## 개발 문서
 
 - `docs/STATE.md` — canonical 현재 상태
 - `docs/CURRENT_STATE.md` — 짧은 상태 인덱스
 - `docs/PRODUCT.md` — 제품 요구사항
-- `docs/DECISIONS.md` — 장기 결정 인덱스
 - `docs/ARCHITECTURE.md` — 전체 아키텍처
 - `docs/DEVELOPER_REFERENCE.md` — 구현/참조 지도
+- `docs/DECISIONS.md` — 장기 결정 인덱스
 - `docs/SCANNER.md` — Scanner 제품/기술 기준선
+- `docs/SCANNER_GROUND_TRUTH.md` — Ground Truth 계약
 - `docs/SCANNER_TEST_PLAN.md` — Scanner 검증 gate
-- `docs/SCANNER_SYMBOL_POLICY.md` — current-catalog symbol 정책
 - `docs/DECISION_V1.5.0_PRODUCT_FINISHING_PASS_2026-08-24.md` — v1.5.0 승인 범위
-- `docs/QUEST_TASK_POOL_AUDIT_2026-08-24.md` — v1.5.0 Quest live-data audit
-- `docs/STATUS_V1.5.0_PRODUCT_FINISHING_PASS_2026-08-24.md` — v1.5.0 구현/릴리즈 상태
-- `docs/RELEASE_NOTES_V1.5.0.md` — v1.5.0 release notes
+- `docs/STATUS_V1.5.0_PRODUCT_FINISHING_PASS_2026-08-24.md` — v1.5.0 최종 상태
+- `docs/RELEASE_1.5.0.md` — v1.5.0 공개 검증
+- `docs/RELEASE_NOTES_V1.5.0.md` — v1.5.0 사용자 변경점
