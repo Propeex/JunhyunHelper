@@ -12,7 +12,7 @@ public sealed record ContentModePaths(
 public sealed class ContentActivationService
 {
     private readonly ContentSnapshotStore _store;
-    private readonly GameContentValidator _validator;
+    private readonly GameContentIntegrityValidator _validator;
 
     public ContentActivationService(
         string rootDirectory,
@@ -23,7 +23,7 @@ public sealed class ContentActivationService
 
         RootDirectory = Path.GetFullPath(rootDirectory);
         _store = store ?? new ContentSnapshotStore();
-        _validator = validator ?? new GameContentValidator();
+        _validator = new GameContentIntegrityValidator(validator);
     }
 
     public string RootDirectory { get; }
@@ -45,7 +45,7 @@ public sealed class ContentActivationService
         var paths = GetPaths(gameMode);
         Directory.CreateDirectory(paths.Directory);
 
-        var candidate = await ReadAndValidateAsync(
+        _ = await ReadAndValidateAsync(
             paths.CandidatePath,
             gameMode,
             cancellationToken);
@@ -69,7 +69,7 @@ public sealed class ContentActivationService
 
         try
         {
-            await ReadAndValidateAsync(
+            _ = await ReadAndValidateAsync(
                 paths.ActivePath,
                 gameMode,
                 cancellationToken);
@@ -135,7 +135,14 @@ public sealed class ContentActivationService
 
         var validation = _validator.Validate(snapshot.Content);
         if (!validation.IsValid)
-            throw new InvalidDataException($"Content at '{path}' failed canonical validation.");
+        {
+            var firstFatal = validation.Issues.FirstOrDefault(issue =>
+                issue.Severity == ContentValidationSeverity.Fatal);
+            var suffix = firstFatal is null
+                ? string.Empty
+                : $" First fatal issue: {firstFatal.Code}.";
+            throw new InvalidDataException($"Content at '{path}' failed canonical integrity validation.{suffix}");
+        }
         return snapshot;
     }
 
