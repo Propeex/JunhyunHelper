@@ -1,0 +1,11 @@
+{
+  "version": "1.7.0",
+  "final_main_ci_verified": true,
+  "ci_target_sha": "3675bca2b636a45c2336d466d2ca366d9a68b34c",
+  "ci_run_id": 32746843203,
+  "ci_event": "push",
+  "ci_conclusion": "success",
+  "release_source_sha": "56e12342e3490fd0defa5f327a03d20d4f32b3a6",
+  "tests_expected_passed": 348,
+  "verified_at_utc": "2026-08-24T15:49:52.854307+00:00"
+}
