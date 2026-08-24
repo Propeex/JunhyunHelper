@@ -93,6 +93,16 @@ v6부터 아이템 아이콘과 이름은 Mini Scanner identity header이므로 
 
 CI도 실제 ZIP을 생성해 이 구조를 검증합니다.
 
+### v1.5.0 자동 업데이트 호환
+
+이미 공개된 v1.5.0의 updater는 예전 영문 버전형 ZIP 이름과 archive-root 구조만 이해합니다. 기존 사용자의 자동 업데이트를 끊지 않기 위해 **v1.6.0 릴리즈에 한해서** 다음 호환 asset도 함께 제공합니다.
+
+- `Junhyun-Helper-v1.6.0-win-x64.zip`
+
+이 파일은 v1.5.0 → v1.6.0 자동 업데이트용 bridge입니다. 일반 사용자가 직접 받을 기본 배포 파일은 계속 `준현 헬퍼.zip`입니다.
+
+v1.6.0의 updater는 새 `준현 헬퍼.zip`을 우선 사용하고 `준현 헬퍼/` 최상위 폴더를 안전하게 해제합니다. 전환 안정성을 위해 예전 영문 package도 fallback으로 읽을 수 있습니다. SHA256SUMS는 공백이 포함된 새 Korean package filename도 정확히 검증합니다.
+
 ## 인식 안전성
 
 이번 릴리즈는 Scanner UI/교정 workflow 개선이 목적이며 identity threshold를 완화하지 않았습니다.
