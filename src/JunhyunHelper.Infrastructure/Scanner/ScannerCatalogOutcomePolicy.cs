@@ -16,14 +16,4 @@ public static class ScannerCatalogOutcomePolicy
         "payload-invalid" or
         "identity-invalid" or
         "cache-readback-invalid";
-
-    /// <summary>
-    /// Quick/transient responses that are safe to retry once from the explicit user
-    /// data-update flow. The service-level timeout is intentionally excluded so the UI
-    /// does not repeat an already long timeout window.
-    /// </summary>
-    public static bool IsRetryableFromUserUpdate(string? outcome) => outcome is
-        "http-failure" or
-        "json-invalid" or
-        "payload-invalid";
 }
