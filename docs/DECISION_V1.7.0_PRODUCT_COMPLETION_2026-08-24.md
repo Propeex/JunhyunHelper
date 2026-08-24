@@ -1,6 +1,6 @@
 # DECISION — v1.7.0 Product Completion Hardening
 
-상태: `CONFIRMED / IMPLEMENTATION IN PROGRESS`
+상태: `IMPLEMENTED / RELEASE CANDIDATE VALIDATION`
 
 기준일: 2026-08-24
 
@@ -193,3 +193,20 @@ v1.7.0은 단순히 코드 변경이 끝났다고 완료하지 않는다.
 - 공식 상태 문서 최신화
 
 검증 중 회귀가 발견되면 원인을 해결하기 전에는 v1.7.0을 릴리즈하지 않는다.
+
+## 8. Release Candidate 검증 현황
+
+2026-08-25 기준 release-candidate CI에서 다음을 확인했다.
+
+- Release build 성공, JunhyunHelper 자체 컴파일 오류/경고 0
+- 자동 테스트 `347 passed / 0 failed / 0 skipped`
+- Windows x64 self-contained single-file publish 성공
+- ProductVersion `1.7.0+<CI merge SHA>` 확인
+- FIRST_RUN v1.7.0 identity 확인
+- rendered Product UI / Scanner / Scanner Advanced / Quest sidebar 검증
+- Main Map / Factory / MiniMap smoke 통과
+- 정상 Main Window close 후 clean process shutdown 확인
+- portable root에 runtime Logs/DLL/PDB/nested archive/legacy updater dependency가 생성되지 않음
+- stable `Junhyun-Helper.zip` 생성, layout 및 SHA-256 manifest 일치 검증
+
+이 상태는 **release candidate**이며 아직 public release 완료를 의미하지 않는다. `main` 병합 후 CI와 공개 GitHub asset 재다운로드 검증까지 통과한 뒤에만 이 문서를 `PUBLIC RELEASE VERIFIED`로 전환한다.
