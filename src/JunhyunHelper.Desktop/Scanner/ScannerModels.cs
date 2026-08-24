@@ -72,6 +72,8 @@ public sealed record ScannerRuntimeStatus(
 /// User-facing recognition history. This is deliberately separate from scanner.log:
 /// the UI receives only the OCR text, nearest official candidate, similarity and the
 /// final decision, while the developer log keeps lower-level capture/runtime metadata.
+/// CaseId is an exact join key to an already-persisted diagnostic case; it is never
+/// inferred from timestamps or nearby frames.
 /// </summary>
 public sealed record ScannerActivityEntry(
     DateTimeOffset Timestamp,
@@ -81,7 +83,8 @@ public sealed record ScannerActivityEntry(
     double Confidence,
     double SecondScore,
     bool Success,
-    string Reason)
+    string Reason,
+    string? CaseId = null)
 {
     public string TimeText => Timestamp.ToLocalTime().ToString("HH:mm:ss");
 
@@ -90,6 +93,8 @@ public sealed record ScannerActivityEntry(
         : "스캐너";
 
     public string ResultLabel => Success ? "식별 성공" : "식별 보류";
+
+    public bool CanCorrect => !string.IsNullOrWhiteSpace(CaseId);
 
     public string Summary
     {
