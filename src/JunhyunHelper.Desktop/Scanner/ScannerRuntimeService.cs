@@ -259,6 +259,7 @@ public sealed partial class ScannerRuntimeService : IDisposable
                     continue;
                 }
 
+                using var latencyCycle = ScannerLatencyTelemetry.BeginCycle(mode, "continuous");
                 var candidates = await ObserveCandidatesAsync(cancellationToken);
                 if (epoch != Volatile.Read(ref _loopEpoch))
                     return;
@@ -440,7 +441,7 @@ public sealed partial class ScannerRuntimeService : IDisposable
 
             var rawText = await _ocr.ReadTextAsync(candidate.TitleImage!, cancellationToken);
             var substitution = ApplyUserOcrSubstitutions(rawText);
-            var recognition = _catalog.ResolveOcrText(substitution.Text, out var assessment);
+            var (recognition, assessment) = ResolveCatalogTextMeasured(substitution.Text);
             LogCandidateAttempt(
                 mode,
                 index,
@@ -470,7 +471,7 @@ public sealed partial class ScannerRuntimeService : IDisposable
 
                 var rawText = await deepOcr.ReadDeepTextAsync(candidate.TitleImage!, cancellationToken);
                 var substitution = ApplyUserOcrSubstitutions(rawText);
-                var recognition = _catalog.ResolveOcrText(substitution.Text, out var assessment);
+                var (recognition, assessment) = ResolveCatalogTextMeasured(substitution.Text);
                 LogCandidateAttempt(
                     mode,
                     index,
