@@ -10,24 +10,50 @@ namespace JunhyunHelper.Tests.Scanner;
 public sealed class ScannerCatalogMarketShapeTests
 {
     [Fact]
-    public async Task RefreshAsync_RawJsonTraderPricesPopulateTraderAndPerSlotValues()
+    public async Task RefreshAsync_CurrentStaticSellToTraderPopulatesTraderIdentityAndPerSlotValues()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         var root = CreateTemporaryDirectory();
         try
         {
-            using var httpClient = new HttpClient(new RawCatalogHandler(includeTraderPrices: true));
+            using var httpClient = new HttpClient(new RawCatalogHandler(MarketShape.StaticSellToTrader));
             using var service = new ScannerCatalogService(httpClient, root);
 
             Assert.True(await service.RefreshAsync(GameMode.Regular, cancellationToken));
             Assert.True(service.TryGetItem("raw-item-17", out var item));
             Assert.Equal(1517, item.BestTraderSellPrice);
+            Assert.Equal("mechanic-id", item.BestTraderId);
+            Assert.Equal("메카닉", item.BestTraderName);
             Assert.Equal(379, item.TraderPricePerSlot);
             Assert.Equal(3017, item.FleaAveragePrice);
+            Assert.Equal(754, item.FleaPricePerSlot);
             Assert.Equal("success", service.LastDiagnostics.Outcome);
             Assert.Equal(4000, service.LastDiagnostics.ItemCount);
             Assert.Equal(4000, service.LastDiagnostics.TraderPriceCount);
             Assert.Equal(4000, service.LastDiagnostics.FleaPriceCount);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task RefreshAsync_LegacyRawTraderPricesRemainCompatible()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var root = CreateTemporaryDirectory();
+        try
+        {
+            using var httpClient = new HttpClient(new RawCatalogHandler(MarketShape.LegacyTraderPrices));
+            using var service = new ScannerCatalogService(httpClient, root);
+
+            Assert.True(await service.RefreshAsync(GameMode.Regular, cancellationToken));
+            Assert.True(service.TryGetItem("raw-item-17", out var item));
+            Assert.Equal(1517, item.BestTraderSellPrice);
+            Assert.Equal("mechanic-id", item.BestTraderId);
+            Assert.Equal("메카닉", item.BestTraderName);
+            Assert.Equal(379, item.TraderPricePerSlot);
         }
         finally
         {
@@ -42,7 +68,7 @@ public sealed class ScannerCatalogMarketShapeTests
         var root = CreateTemporaryDirectory();
         try
         {
-            using var httpClient = new HttpClient(new RawCatalogHandler(includeTraderPrices: false));
+            using var httpClient = new HttpClient(new RawCatalogHandler(MarketShape.None));
             using var service = new ScannerCatalogService(httpClient, root);
 
             Assert.True(await service.RefreshAsync(GameMode.Regular, cancellationToken));
@@ -51,6 +77,8 @@ public sealed class ScannerCatalogMarketShapeTests
             Assert.True(service.TryGetItem("raw-item-17", out var item));
             Assert.Equal("원본 아이템 17", item.OfficialName);
             Assert.Null(item.BestTraderSellPrice);
+            Assert.Null(item.BestTraderId);
+            Assert.Null(item.BestTraderName);
             Assert.Null(item.TraderPricePerSlot);
             Assert.Equal(3017, item.FleaAveragePrice);
             Assert.Equal(754, item.FleaPricePerSlot);
@@ -74,7 +102,7 @@ public sealed class ScannerCatalogMarketShapeTests
         var root = CreateTemporaryDirectory();
         try
         {
-            using var httpClient = new HttpClient(new RawCatalogHandler(includeTraderPrices: true, itemCount: 3999));
+            using var httpClient = new HttpClient(new RawCatalogHandler(MarketShape.StaticSellToTrader, itemCount: 3999));
             using var service = new ScannerCatalogService(httpClient, root);
 
             Assert.False(await service.RefreshAsync(GameMode.Regular, cancellationToken));
@@ -97,41 +125,26 @@ public sealed class ScannerCatalogMarketShapeTests
         return path;
     }
 
+    private enum MarketShape
+    {
+        None,
+        StaticSellToTrader,
+        LegacyTraderPrices,
+    }
+
     private sealed class RawCatalogHandler : HttpMessageHandler
     {
         private readonly string _items;
         private readonly string _korean;
         private readonly string _english;
+        private readonly string _traders;
+        private readonly string _tradersKorean;
+        private readonly string _tradersEnglish;
 
-        public RawCatalogHandler(bool includeTraderPrices, int itemCount = 4000)
+        public RawCatalogHandler(MarketShape marketShape, int itemCount = 4000)
         {
             object[] records = Enumerable.Range(0, itemCount)
-                .Select(index => includeTraderPrices
-                    ? (object)new
-                    {
-                        id = $"raw-item-{index}",
-                        name = $"raw-name-{index}",
-                        shortName = $"raw-short-{index}",
-                        iconLink = $"https://example.test/icons/raw-{index}.png",
-                        avg24hPrice = 3000 + index,
-                        width = 2,
-                        height = 2,
-                        traderPrices = new[]
-                        {
-                            new { priceRUB = 1200 + index, price = 1200 + index, currency = "RUB", source = "Therapist" },
-                            new { priceRUB = 1500 + index, price = 1500 + index, currency = "RUB", source = "Mechanic" },
-                        },
-                    }
-                    : new
-                    {
-                        id = $"raw-item-{index}",
-                        name = $"raw-name-{index}",
-                        shortName = $"raw-short-{index}",
-                        iconLink = $"https://example.test/icons/raw-{index}.png",
-                        avg24hPrice = 3000 + index,
-                        width = 2,
-                        height = 2,
-                    })
+                .Select(index => CreateItem(index, marketShape))
                 .ToArray();
 
             _items = JsonSerializer.Serialize(new { data = new { items = records } });
@@ -148,6 +161,80 @@ public sealed class ScannerCatalogMarketShapeTests
 
             _korean = JsonSerializer.Serialize(new { data = korean });
             _english = JsonSerializer.Serialize(new { data = english });
+
+            _traders = JsonSerializer.Serialize(new
+            {
+                data = new Dictionary<string, object>(StringComparer.Ordinal)
+                {
+                    ["therapist-id"] = new { id = "therapist-id", name = "trader-therapist" },
+                    ["mechanic-id"] = new { id = "mechanic-id", name = "trader-mechanic" },
+                },
+            });
+            _tradersKorean = JsonSerializer.Serialize(new
+            {
+                data = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["trader-therapist"] = "테라피스트",
+                    ["trader-mechanic"] = "메카닉",
+                },
+            });
+            _tradersEnglish = JsonSerializer.Serialize(new
+            {
+                data = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["trader-therapist"] = "Therapist",
+                    ["trader-mechanic"] = "Mechanic",
+                },
+            });
+        }
+
+        private static object CreateItem(int index, MarketShape marketShape)
+        {
+            var common = new
+            {
+                id = $"raw-item-{index}",
+                name = $"raw-name-{index}",
+                shortName = $"raw-short-{index}",
+                iconLink = $"https://example.test/icons/raw-{index}.png",
+                avg24hPrice = 3000 + index,
+                width = 2,
+                height = 2,
+            };
+
+            return marketShape switch
+            {
+                MarketShape.StaticSellToTrader => new
+                {
+                    common.id,
+                    common.name,
+                    common.shortName,
+                    common.iconLink,
+                    common.avg24hPrice,
+                    common.width,
+                    common.height,
+                    sellToTrader = new[]
+                    {
+                        new { trader = "therapist-id", priceRUB = 1200 + index, price = 1200 + index, currency = "RUB" },
+                        new { trader = "mechanic-id", priceRUB = 1500 + index, price = 1500 + index, currency = "RUB" },
+                    },
+                },
+                MarketShape.LegacyTraderPrices => new
+                {
+                    common.id,
+                    common.name,
+                    common.shortName,
+                    common.iconLink,
+                    common.avg24hPrice,
+                    common.width,
+                    common.height,
+                    traderPrices = new[]
+                    {
+                        new { trader = "therapist-id", priceRUB = 1200 + index, price = 1200 + index, currency = "RUB", source = "Therapist" },
+                        new { trader = "mechanic-id", priceRUB = 1500 + index, price = 1500 + index, currency = "RUB", source = "Mechanic" },
+                    },
+                },
+                _ => common,
+            };
         }
 
         protected override Task<HttpResponseMessage> SendAsync(
@@ -159,7 +246,13 @@ public sealed class ScannerCatalogMarketShapeTests
                 ? _korean
                 : path.EndsWith("/items_en", StringComparison.Ordinal)
                     ? _english
-                    : _items;
+                    : path.EndsWith("/traders_ko", StringComparison.Ordinal)
+                        ? _tradersKorean
+                        : path.EndsWith("/traders_en", StringComparison.Ordinal)
+                            ? _tradersEnglish
+                            : path.EndsWith("/traders", StringComparison.Ordinal)
+                                ? _traders
+                                : _items;
 
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
