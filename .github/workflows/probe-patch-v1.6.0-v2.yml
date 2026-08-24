@@ -1,0 +1,21 @@
+name: Probe v1.6.0 Asset Patch v2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/probe-patch-v1.6.0-v2.yml'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - shell: pwsh
+        run: |
+          $repo=$env:GITHUB_REPOSITORY;$runs=gh api "repos/$repo/actions/workflows/patch-v1.6.0-ascii-asset-main-v2.yml/runs?per_page=5"|ConvertFrom-Json;$r=@($runs.workflow_runs|Sort-Object created_at -Descending|Select-Object -First 1)[0];$o=[ordered]@{run_id=[long]$r.id;status=[string]$r.status;conclusion=[string]$r.conclusion;head_sha=[string]$r.head_sha;observed_at_utc=[DateTime]::UtcNow.ToString('o')};$json=$o|ConvertTo-Json;$b64=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($json));$path="repos/$repo/contents/docs/.v1.6.0-patch-v2-probe.json";$old=gh api $path 2>$null;$sha=$null;if($LASTEXITCODE-eq0){$sha=($old|ConvertFrom-Json).sha};$a=@('--method','PUT',$path,'-f','message=Record patch v2 state','-f',"content=$b64",'-f','branch=main');if($sha){$a+=@('-f',"sha=$sha")};gh api @a|Out-Null
