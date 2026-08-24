@@ -1,5 +1,6 @@
 using System.Windows.Media;
-using JunhyunHelper.Core.Content;
+using JunhyunHelper.Core.Items;
+using JunhyunHelper.Infrastructure.Scanner;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
@@ -71,7 +72,7 @@ public sealed partial class ScannerCoordinator
     }
 
     private ScannerItemSearchHit CreateSearchHit(
-        Infrastructure.Scanner.ScannerCatalogItem item,
+        ScannerCatalogItem item,
         IReadOnlyDictionary<string, GameItem> contentById)
     {
         contentById.TryGetValue(item.Id, out var canonicalItem);
