@@ -36,7 +36,7 @@ public sealed class GameContentIntegrityValidatorTests
     [Fact]
     public void EmptyCriticalDomainIsFatal()
     {
-        var content = CreateCatalog() with { Ammunition = [] };
+        var content = CreateCatalog() with { Ammo = [] };
 
         var result = new GameContentIntegrityValidator().Validate(content);
 
