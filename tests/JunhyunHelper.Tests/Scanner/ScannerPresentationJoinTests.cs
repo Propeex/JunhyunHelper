@@ -1,0 +1,87 @@
+using JunhyunHelper.Core.Items;
+using JunhyunHelper.Core.Scanner;
+using Xunit;
+
+namespace JunhyunHelper.Tests.Scanner;
+
+public sealed class ScannerPresentationJoinTests
+{
+    [Fact]
+    public void ResolveJoinsEverySecondaryValueByConfirmedItemId()
+    {
+        var target = new ScannerCatalogItem(
+            "item-a",
+            "공식 A",
+            "A",
+            "https://scanner.test/a.png",
+            FleaAveragePrice: 123_456,
+            BestTraderSellPrice: 80_000,
+            Width: 2,
+            Height: 3)
+        {
+            BestTraderId = "trader-a",
+            BestTraderName = "상인 A",
+        };
+        var canonicalItems = new[]
+        {
+            Item("item-b", "https://canonical.test/b.png", "https://wiki.test/b"),
+            Item("item-a", "https://canonical.test/a.png", "https://wiki.test/a"),
+        };
+        var neededItems = new[]
+        {
+            (ItemId: "item-b", RequiredTotal: 99),
+            (ItemId: "item-a", RequiredTotal: 7),
+        };
+
+        var result = ScannerPresentationJoin.Resolve(target, canonicalItems, neededItems);
+
+        Assert.Equal("item-a", result.ItemId);
+        Assert.Equal("공식 A", result.OfficialName);
+        Assert.Equal("https://canonical.test/a.png", result.IconUrl);
+        Assert.Equal("https://wiki.test/a", result.WikiUrl);
+        Assert.Equal(80_000, result.TraderSellPrice);
+        Assert.Equal(123_456, result.FleaAveragePrice);
+        Assert.Equal(13_333, result.TraderPricePerSlot);
+        Assert.Equal(20_576, result.FleaPricePerSlot);
+        Assert.Equal(6, result.Slots);
+        Assert.Equal(7, result.CurrentNeeded);
+        Assert.Equal("상인 A", result.BestTraderName);
+    }
+
+    [Fact]
+    public void ResolveUsesCatalogIconAndZeroNeededWhenCanonicalOrPlanEntryIsAbsent()
+    {
+        var target = new ScannerCatalogItem(
+            "item-a",
+            "공식 A",
+            "A",
+            "https://scanner.test/a.png",
+            FleaAveragePrice: null,
+            BestTraderSellPrice: null,
+            Width: 1,
+            Height: 1);
+
+        var result = ScannerPresentationJoin.Resolve(
+            target,
+            [Item("item-b", "https://canonical.test/b.png", "https://wiki.test/b")],
+            [(ItemId: "item-b", RequiredTotal: 5)]);
+
+        Assert.Equal("item-a", result.ItemId);
+        Assert.Equal("https://scanner.test/a.png", result.IconUrl);
+        Assert.Null(result.WikiUrl);
+        Assert.Equal(0, result.CurrentNeeded);
+        Assert.Null(result.TraderSellPrice);
+        Assert.Null(result.FleaAveragePrice);
+    }
+
+    private static GameItem Item(string id, string iconUrl, string wikiUrl) =>
+        new(
+            id,
+            $"이름 {id}",
+            $"Name {id}",
+            null,
+            null,
+            iconUrl,
+            wikiUrl,
+            Array.Empty<string>());
+}

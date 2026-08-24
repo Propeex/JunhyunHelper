@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Background="{StaticResource BackgroundDarkBrush}"
              Loaded="ScannerPage_Loaded"
+             Unloaded="ScannerPage_Unloaded"
              IsVisibleChanged="ScannerPage_IsVisibleChanged">
     <UserControl.Resources>
         <DataTemplate x:Key="ScannerActivityTemplate">
@@ -15,6 +16,7 @@
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="{Binding TimeText}"
@@ -29,6 +31,15 @@
                                    Text="{Binding ResultLabel}"
                                    Foreground="{StaticResource AccentBrush}"
                                    FontWeight="SemiBold" />
+                        <Button Grid.Column="4"
+                                Content="교정"
+                                Tag="{Binding}"
+                                IsEnabled="{Binding CanCorrect}"
+                                MinWidth="54"
+                                Padding="8,2"
+                                Margin="8,-3,0,-3"
+                                ToolTip="이 인식 결과의 저장된 진단 자료를 바로 교정합니다."
+                                Click="CorrectActivityButton_Click" />
                     </Grid>
                     <TextBlock Text="{Binding Summary}"
                                TextWrapping="Wrap"

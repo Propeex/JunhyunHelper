@@ -1,3 +1,4 @@
+using JunhyunHelper.Core.Scanner;
 using JunhyunHelper.Infrastructure.Scanner;
 
 namespace JunhyunHelper.Desktop.Scanner;
@@ -34,25 +35,24 @@ public sealed class ScannerItemPresentationService
         if (context is null || _catalog.LoadedMode != context.GameMode)
             return null;
 
-        var canonicalItem = context.Content.Items.FirstOrDefault(item =>
-            string.Equals(item.Id, catalogItem.Id, StringComparison.Ordinal));
-        var needed = context.ItemsWorkspace.Plan.NeededItems.FirstOrDefault(item =>
-            string.Equals(item.ItemId, catalogItem.Id, StringComparison.Ordinal));
-
-        var iconUrl = canonicalItem?.IconUrl ?? catalogItem.IconUrl;
-        var icon = _icons.Load($"item-{catalogItem.Id}", iconUrl);
+        var mapping = ScannerPresentationJoin.Resolve(
+            catalogItem,
+            context.Content.Items,
+            context.ItemsWorkspace.Plan.NeededItems
+                .Select(static item => (item.ItemId, item.RequiredTotal)));
+        var icon = _icons.Load($"item-{mapping.ItemId}", mapping.IconUrl);
 
         return new ScannerItemSnapshot(
-            catalogItem.Id,
-            catalogItem.OfficialName,
+            mapping.ItemId,
+            mapping.OfficialName,
             icon,
-            catalogItem.BestTraderSellPrice,
-            catalogItem.FleaAveragePrice,
-            catalogItem.TraderPricePerSlot,
-            catalogItem.FleaPricePerSlot,
-            catalogItem.Slots,
-            needed?.RequiredTotal ?? 0,
-            catalogItem.BestTraderName);
+            mapping.TraderSellPrice,
+            mapping.FleaAveragePrice,
+            mapping.TraderPricePerSlot,
+            mapping.FleaPricePerSlot,
+            mapping.Slots,
+            mapping.CurrentNeeded,
+            mapping.BestTraderName);
     }
 
     public ScannerItemSnapshot? CreateDefaultPreviewSnapshot()

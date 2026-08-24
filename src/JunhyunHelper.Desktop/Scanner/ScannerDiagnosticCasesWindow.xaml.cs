@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using Microsoft.Win32;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
@@ -10,6 +11,7 @@ public partial class ScannerDiagnosticCasesWindow : Window
     private readonly ObservableCollection<ScannerDiagnosticCaseSummary> _cases = [];
     private readonly ScannerCoordinator? _coordinator;
     private bool _openingEditor;
+    private bool _exporting;
 
     public ScannerDiagnosticCasesWindow()
         : this(null)
@@ -91,6 +93,50 @@ public partial class ScannerDiagnosticCasesWindow : Window
         finally
         {
             _openingEditor = false;
+        }
+    }
+
+    private async void ExportButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_exporting)
+            return;
+
+        var dialog = new SaveFileDialog
+        {
+            Title = "Scanner 개발 자료 내보내기",
+            Filter = "ZIP 파일 (*.zip)|*.zip",
+            AddExtension = true,
+            DefaultExt = ".zip",
+            FileName = $"JunhyunHelper-Scanner-Diagnostics-{DateTime.Now:yyyyMMdd-HHmmss}.zip",
+        };
+        if (dialog.ShowDialog(this) != true)
+            return;
+
+        _exporting = true;
+        ExportButton.IsEnabled = false;
+        var previousText = SelectionText.Text;
+        SelectionText.Text = "Scanner 교정 데이터와 로그를 ZIP으로 정리하는 중...";
+        try
+        {
+            await ScannerDiagnosticDataset.ExportAsync(dialog.FileName);
+            SelectionText.Text = "개발 자료 ZIP을 저장했습니다. 이 파일 하나를 개발 분석용으로 전달하면 됩니다.";
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or NotSupportedException or InvalidDataException)
+        {
+            App.WriteDiagnostic("Scanner diagnostic export failed", exception);
+            SelectionText.Text = previousText;
+            MessageBox.Show(
+                this,
+                "Scanner 개발 자료 ZIP을 저장하지 못했습니다. 기존 교정 데이터는 변경하지 않았습니다.",
+                "Scanner 개발 자료 내보내기",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+        finally
+        {
+            _exporting = false;
+            ExportButton.IsEnabled = true;
         }
     }
 

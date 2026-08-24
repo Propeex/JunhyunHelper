@@ -15,6 +15,7 @@ public partial class ScannerPage : UserControl
     private ScannerCoordinator? _coordinator;
     private bool _initialized;
     private bool _updatingUi;
+    private bool _coordinatorSubscribed;
     private bool _activitySubscribed;
     private bool _suppressSearchRefresh;
     private string? _selectedWikiUrl;
@@ -27,27 +28,35 @@ public partial class ScannerPage : UserControl
 
     private async void ScannerPage_Loaded(object sender, RoutedEventArgs e)
     {
-        if (_initialized)
-            return;
         if (Window.GetWindow(this) is not MainWindow mainWindow)
             return;
 
-        _initialized = true;
-        _coordinator = mainWindow.ScannerCoordinator;
-        _coordinator.StatusChanged += Coordinator_StatusChanged;
-        _coordinator.HotkeyStatusChanged += Coordinator_HotkeyStatusChanged;
+        _coordinator ??= mainWindow.ScannerCoordinator;
+        SubscribeCoordinator();
         SubscribeActivityFeed();
+        RefreshActivityCorrectionAvailability();
         UpdateToggleButton();
 
-        try
+        if (!_initialized)
         {
-            await _coordinator.InitializeAsync();
+            _initialized = true;
+            try
+            {
+                await _coordinator.InitializeAsync();
+            }
+            catch (Exception exception)
+            {
+                App.WriteDiagnostic("Scanner initialization failed", exception);
+            }
         }
-        catch (Exception exception)
-        {
-            App.WriteDiagnostic("Scanner initialization failed", exception);
-        }
+
         UpdateStatus(_coordinator.Status);
+    }
+
+    private void ScannerPage_Unloaded(object sender, RoutedEventArgs e)
+    {
+        UnsubscribeCoordinator();
+        UnsubscribeActivityFeed();
     }
 
     private async void ScannerPage_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
@@ -66,6 +75,7 @@ public partial class ScannerPage : UserControl
         UpdateToggleButton();
         UpdateStatus(_coordinator.Status);
         RefreshSearchResults();
+        RefreshActivityCorrectionAvailability();
     }
 
     private async void ScannerToggleButton_Click(object sender, RoutedEventArgs e)
@@ -117,6 +127,59 @@ public partial class ScannerPage : UserControl
         window.ShowDialog();
         UpdateToggleButton();
         UpdateStatus(_coordinator.Status);
+        RefreshActivityCorrectionAvailability();
+    }
+
+    private void CorrectActivityButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_coordinator is null ||
+            sender is not Button { Tag: ScannerActivityEntry activity } ||
+            string.IsNullOrWhiteSpace(activity.CaseId))
+        {
+            return;
+        }
+
+        ScannerCorrectionWindow? correctionWindow = null;
+        var summary = ScannerDiagnosticCaseBrowser.GetCases().FirstOrDefault(item =>
+            string.Equals(item.CaseId, activity.CaseId, StringComparison.Ordinal));
+        var loadError = string.Empty;
+        if (summary is not null && ScannerDiagnosticCaseBrowser.TryLoadCase(summary, out var storedCase, out loadError))
+        {
+            correctionWindow = new ScannerCorrectionWindow(storedCase, _coordinator);
+        }
+        else
+        {
+            var currentFrame = ScannerRecognitionDebugStore.GetSnapshot();
+            if (currentFrame is not null &&
+                string.Equals(currentFrame.CaseId, activity.CaseId, StringComparison.Ordinal))
+            {
+                // Automatic persistence is asynchronous. The exact current frame is a
+                // valid non-guessed fallback while its Case is still being written.
+                correctionWindow = new ScannerCorrectionWindow(currentFrame, _coordinator);
+            }
+            else
+            {
+                MarkCorrectionUnavailable(activity.CaseId);
+                var message = summary is null
+                    ? "이 로그의 원본 교정 자료는 보존되지 않았거나 이미 정리되었습니다. 다른 프레임을 대신 사용하지 않습니다."
+                    : string.IsNullOrWhiteSpace(loadError)
+                        ? "이 로그의 저장된 교정 자료를 열 수 없습니다. 원본 데이터는 변경하지 않았습니다."
+                        : loadError;
+                MessageBox.Show(
+                    Window.GetWindow(this),
+                    message,
+                    "Scanner 교정",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+        }
+
+        correctionWindow.Owner = Window.GetWindow(this);
+        correctionWindow.ShowDialog();
+        if (correctionWindow.DatasetChanged)
+            RuntimeStatusText.Text = "Scanner 교정 데이터를 저장했습니다.";
+        RefreshActivityCorrectionAvailability();
     }
 
     private void ItemSearchBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -264,7 +327,7 @@ public partial class ScannerPage : UserControl
     {
         if (!Dispatcher.CheckAccess())
         {
-            Dispatcher.Invoke(() =>
+            _ = Dispatcher.BeginInvoke(() =>
             {
                 UpdateToggleButton();
                 UpdateStatus(status);
@@ -285,17 +348,48 @@ public partial class ScannerPage : UserControl
         RuntimeStatusText.Text = status;
     }
 
+    private void SubscribeCoordinator()
+    {
+        if (_coordinator is null || _coordinatorSubscribed)
+            return;
+
+        _coordinator.StatusChanged += Coordinator_StatusChanged;
+        _coordinator.HotkeyStatusChanged += Coordinator_HotkeyStatusChanged;
+        _coordinatorSubscribed = true;
+    }
+
+    private void UnsubscribeCoordinator()
+    {
+        if (_coordinator is null || !_coordinatorSubscribed)
+            return;
+
+        _coordinator.StatusChanged -= Coordinator_StatusChanged;
+        _coordinator.HotkeyStatusChanged -= Coordinator_HotkeyStatusChanged;
+        _coordinatorSubscribed = false;
+    }
+
     private void SubscribeActivityFeed()
     {
         if (_activitySubscribed)
             return;
 
-        _activitySubscribed = true;
+        _activities.Clear();
         foreach (var activity in ScannerDiagnosticLog.GetRecentActivities().Take(MaximumVisibleActivities))
             _activities.Add(activity);
         ScannerDiagnosticLog.ActivityAdded += ScannerDiagnosticLog_ActivityAdded;
         ScannerDiagnosticLog.ActivitiesCleared += ScannerDiagnosticLog_ActivitiesCleared;
+        _activitySubscribed = true;
         UpdateEmptyActivityState();
+    }
+
+    private void UnsubscribeActivityFeed()
+    {
+        if (!_activitySubscribed)
+            return;
+
+        ScannerDiagnosticLog.ActivityAdded -= ScannerDiagnosticLog_ActivityAdded;
+        ScannerDiagnosticLog.ActivitiesCleared -= ScannerDiagnosticLog_ActivitiesCleared;
+        _activitySubscribed = false;
     }
 
     private void ScannerDiagnosticLog_ActivityAdded(ScannerActivityEntry activity)
@@ -320,10 +414,45 @@ public partial class ScannerPage : UserControl
 
     private void AddActivity(ScannerActivityEntry activity)
     {
-        _activities.Insert(0, activity);
+        var currentCaseId = ScannerRecognitionDebugStore.GetSnapshot()?.CaseId;
+        var available = !string.IsNullOrWhiteSpace(activity.CaseId) &&
+                        string.Equals(activity.CaseId, currentCaseId, StringComparison.Ordinal);
+        _activities.Insert(0, activity with { CorrectionAvailable = available });
         while (_activities.Count > MaximumVisibleActivities)
             _activities.RemoveAt(_activities.Count - 1);
         UpdateEmptyActivityState();
+    }
+
+    private void RefreshActivityCorrectionAvailability()
+    {
+        if (_activities.Count == 0)
+            return;
+
+        var storedCaseIds = ScannerDiagnosticCaseBrowser.GetCases()
+            .Select(static item => item.CaseId)
+            .Where(static id => !string.IsNullOrWhiteSpace(id))
+            .ToHashSet(StringComparer.Ordinal);
+        var currentCaseId = ScannerRecognitionDebugStore.GetSnapshot()?.CaseId;
+
+        for (var index = 0; index < _activities.Count; index++)
+        {
+            var activity = _activities[index];
+            var available = !string.IsNullOrWhiteSpace(activity.CaseId) &&
+                            (storedCaseIds.Contains(activity.CaseId) ||
+                             string.Equals(activity.CaseId, currentCaseId, StringComparison.Ordinal));
+            if (activity.CorrectionAvailable != available)
+                _activities[index] = activity with { CorrectionAvailable = available };
+        }
+    }
+
+    private void MarkCorrectionUnavailable(string caseId)
+    {
+        for (var index = 0; index < _activities.Count; index++)
+        {
+            var activity = _activities[index];
+            if (string.Equals(activity.CaseId, caseId, StringComparison.Ordinal) && activity.CorrectionAvailable)
+                _activities[index] = activity with { CorrectionAvailable = false };
+        }
     }
 
     private void ClearActivities()

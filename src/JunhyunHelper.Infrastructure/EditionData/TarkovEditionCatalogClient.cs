@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.Json;
 using JunhyunHelper.Core.Editions;
 
@@ -7,6 +8,11 @@ public sealed class TarkovEditionCatalogClient
 {
     public static readonly Uri DefaultSourceUri = new(
         "https://cdn.jsdelivr.net/gh/tarkovtracker-org/tarkov-data-overlay@main/dist/overlay.json");
+
+    private const int MaximumAttempts = 3;
+    private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan FirstRetryDelay = TimeSpan.FromMilliseconds(250);
+    private static readonly TimeSpan SecondRetryDelay = TimeSpan.FromMilliseconds(750);
 
     private readonly HttpClient _httpClient;
     private readonly Uri _sourceUri;
@@ -20,6 +26,47 @@ public sealed class TarkovEditionCatalogClient
     public async Task<IReadOnlyList<EditionDefinition>> GetAsync(
         CancellationToken cancellationToken = default)
     {
+        Exception? lastFailure = null;
+        for (var attempt = 1; attempt <= MaximumAttempts; attempt++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            using var requestTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            requestTimeout.CancelAfter(RequestTimeout);
+
+            try
+            {
+                return await GetOnceAsync(requestTimeout.Token);
+            }
+            catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                lastFailure = new TimeoutException(
+                    $"Edition data request timed out after {RequestTimeout.TotalSeconds:0.#} seconds.",
+                    exception);
+            }
+            catch (HttpRequestException exception) when (IsRetryableHttpFailure(exception))
+            {
+                lastFailure = exception;
+            }
+            catch (JsonException exception)
+            {
+                lastFailure = exception;
+            }
+            catch (InvalidDataException exception)
+            {
+                lastFailure = exception;
+            }
+
+            if (attempt >= MaximumAttempts)
+                break;
+
+            await Task.Delay(GetRetryDelay(attempt), cancellationToken);
+        }
+
+        throw lastFailure ?? new HttpRequestException($"Edition data request failed: {_sourceUri}");
+    }
+
+    private async Task<IReadOnlyList<EditionDefinition>> GetOnceAsync(CancellationToken cancellationToken)
+    {
         using var response = await _httpClient.GetAsync(_sourceUri, cancellationToken);
         response.EnsureSuccessStatusCode();
 
@@ -27,6 +74,22 @@ public sealed class TarkovEditionCatalogClient
         using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
         return Parse(document.RootElement);
     }
+
+    private static bool IsRetryableHttpFailure(HttpRequestException exception)
+    {
+        if (exception.StatusCode is null)
+            return true;
+
+        return exception.StatusCode.Value is HttpStatusCode.RequestTimeout or
+               HttpStatusCode.TooManyRequests ||
+               (int)exception.StatusCode.Value >= 500;
+    }
+
+    private static TimeSpan GetRetryDelay(int completedAttempt) => completedAttempt switch
+    {
+        <= 1 => FirstRetryDelay,
+        _ => SecondRetryDelay,
+    };
 
     internal static IReadOnlyList<EditionDefinition> Parse(JsonElement root)
     {

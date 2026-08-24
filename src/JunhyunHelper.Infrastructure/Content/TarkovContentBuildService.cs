@@ -15,14 +15,27 @@ public sealed record TarkovContentBuildResult(
     public bool IsValid => Validation.IsValid;
 }
 
-public sealed class TarkovContentBuildService
+/// <summary>
+/// Narrow build seam for the transactional update coordinator. Production uses
+/// TarkovContentBuildService; tests can supply a deterministic candidate without network
+/// or importer coupling and verify activation/failure behavior directly.
+/// </summary>
+public interface ITarkovContentBuildService
+{
+    Task<TarkovContentBuildResult> BuildAsync(
+        GameMode gameMode,
+        CancellationToken cancellationToken = default,
+        IProgress<ContentUpdateProgress>? progress = null);
+}
+
+public sealed class TarkovContentBuildService : ITarkovContentBuildService
 {
     private const int PrimarySourceCount = 8;
 
     private readonly TarkovEndpointSourceLoader _sourceLoader;
     private readonly TarkovEditionCatalogClient _editionClient;
     private readonly TarkovGameContentImporter _importer;
-    private readonly GameContentValidator _validator;
+    private readonly GameContentIntegrityValidator _validator;
     private readonly WikiBallisticsEffectivenessClient? _effectivenessClient;
 
     public TarkovContentBuildService(
@@ -35,7 +48,7 @@ public sealed class TarkovContentBuildService
         _sourceLoader = sourceLoader ?? throw new ArgumentNullException(nameof(sourceLoader));
         _editionClient = editionClient ?? throw new ArgumentNullException(nameof(editionClient));
         _importer = importer ?? new TarkovGameContentImporter();
-        _validator = validator ?? new GameContentValidator();
+        _validator = new GameContentIntegrityValidator(validator);
         _effectivenessClient = effectivenessClient;
     }
 
@@ -164,7 +177,7 @@ public sealed class TarkovContentBuildService
 
         progress?.Report(new ContentUpdateProgress(
             ContentUpdateStage.Validating,
-            "변환된 게임 데이터의 관계와 필수 값을 검증하는 중...",
+            "아이템·퀘스트·상인·지도·은신처·탄약과 상호 참조를 검증하는 중...",
             80));
 
         return new TarkovContentBuildResult(

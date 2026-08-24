@@ -45,7 +45,7 @@ public sealed class ContentActivationService
         var paths = GetPaths(gameMode);
         Directory.CreateDirectory(paths.Directory);
 
-        var candidate = await ReadAndValidateAsync(
+        _ = await ReadAndValidateAsync(
             paths.CandidatePath,
             gameMode,
             cancellationToken);
@@ -69,7 +69,7 @@ public sealed class ContentActivationService
 
         try
         {
-            await ReadAndValidateAsync(
+            _ = await ReadAndValidateAsync(
                 paths.ActivePath,
                 gameMode,
                 cancellationToken);
