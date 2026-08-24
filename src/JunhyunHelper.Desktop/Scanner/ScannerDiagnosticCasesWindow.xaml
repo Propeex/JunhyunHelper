@@ -30,6 +30,10 @@
                            Foreground="{StaticResource TextSecondaryBrush}"
                            TextWrapping="Wrap"
                            Margin="0,5,0,0" />
+                <TextBlock Text="목록의 Case를 클릭하면 기존 교정을 확인하고 다시 수정할 수 있습니다."
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           TextWrapping="Wrap"
+                           Margin="0,4,0,0" />
             </StackPanel>
         </Border>
 
@@ -42,7 +46,8 @@
             <ListBox x:Name="CaseList"
                      Background="{StaticResource BackgroundDarkBrush}"
                      BorderThickness="0"
-                     SelectionChanged="CaseList_SelectionChanged">
+                     SelectionChanged="CaseList_SelectionChanged"
+                     PreviewMouseLeftButtonUp="CaseList_PreviewMouseLeftButtonUp">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <Border Padding="12,10"
