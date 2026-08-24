@@ -1,148 +1,126 @@
-# v1.5.0 Product Finishing Pass — Implementation Status
+# v1.5.0 Product Finishing Pass — Final Status
 
 Date: 2026-08-24
 
-Status: **IMPLEMENTATION COMPLETE / FINAL RELEASE GATE**
+Status: **PUBLIC RELEASE / VERIFIED**
 
-Authoritative product decision:
+## Release identity
 
-- `docs/DECISION_V1.5.0_PRODUCT_FINISHING_PASS_2026-08-24.md`
+```text
+version: v1.5.0
+exact source/tag: 6de738959740d12e6ccb81b65e50006e463eb699
+asset: Junhyun-Helper-v1.5.0-win-x64.zip
+bytes: 80,422,292
+SHA-256: 6ad657653123ff35d8b6fe3d7f9877858992e9327697077492cf29f7c900e5e9
+ProductVersion: 1.5.0+6de738959740d12e6ccb81b65e50006e463eb699
+tests: 296 passed / 0 failed / 0 skipped
+release run: 32691423654 — SUCCESS
+public verifier: 32691641614 — SUCCESS
+```
 
-Working branch / PR:
+Durable evidence:
 
-- Branch: `product/v1.5.0-usability-data-hardening`
-- PR: #172 — `Build v1.5.0 product finishing pass`
-- GitHub HEAD and CI are authoritative if newer than this document.
+- `docs/.release-v1.5.0-status.json`
+- `docs/RELEASE_1.5.0.md`
+- `docs/RELEASE_NOTES_V1.5.0.md`
 
-## Scanner safety contracts preserved
+## Completed scope
 
-v1.5.0 does not intentionally relax Scanner identity acceptance.
+| Stage | Result |
+|---|---|
+| Scanner mapped market data | COMPLETE |
+| Quest `확인 필요` live-data audit | COMPLETE |
+| Unified Game Data + Scanner catalog/market refresh | COMPLETE |
+| User OCR substitutions | COMPLETE |
+| Candidate-based Ground Truth correction + manual fallback | COMPLETE |
+| Scanner latency telemetry | COMPLETE |
+| Accuracy-preserving OCR duplicate-work optimization | COMPLETE |
+| Continuous result stabilization | COMPLETE |
+| Diagnostics/log retention | COMPLETE |
+| Scanner normal/settings/advanced UI separation | COMPLETE |
+| Mini Scanner quick current-result correction | COMPLETE |
+| Whole-product UI consistency audit | COMPLETE |
+| Windows build/test/publish/product smoke | COMPLETE |
+| Public stable release | COMPLETE |
+| Independent public redownload verification | COMPLETE |
+| One-shot release workflow cleanup | COMPLETE |
 
-- false positive보다 miss 선호
-- detail rectangle geometry는 proposal evidence이며 identity proof가 아님
-- semantic header lock 필수
-- `HEADER_FRAME_LOCKED >= 0.68`
-- magnifier + red close-X 필수
-- structural floor `0.34`
-- continuous candidate cap `8`
-- one-shot candidate cap `12`
-- current official Korean Tarkov item catalog가 identity authority
-- production OCR field는 item-name 하나
-- price / flea / slots / needed는 Item ID 이후 mapped data
-- scan-time network access 금지
-- game memory read / DLL injection / packet interception 금지
-- 자동 global r/0/한글 강제 substitution table 미사용
+## Scanner mapped-data contract
 
-## Approved scope completion
+After Item ID is established, Scanner presentation resolves data from local trusted content rather than OCR.
 
-### 1. Scanner mapped market data — COMPLETE
+- best non-flea trader RUB-equivalent sell price
+- best trader name when available
+- positive flea `avg24hPrice`
+- positive `width × height` slot count
+- trader/flea price per slot when both inputs are valid
+- `NeededItems[itemId].RequiredTotal`
 
-Item ID 확정 이후 아래 presentation path를 보완하고 자동 테스트로 고정했다.
+Missing market or dimension data clears only the affected presentation field and does not invalidate an otherwise healthy Item ID.
 
-- best trader sell price
-- best trader name
-- flea `avg24hPrice`
-- slot count
-- trader price per slot
-- flea price per slot
-- active Items workspace의 current required quantity
+## Quest live-data audit
 
-Market/dimension 일부가 없다고 Item identity 자체를 실패시키지 않는다.
+The 2026-08-24 live audit covered `regular`, `pve`, and `pvp-season` data. Task-pool compatibility is GameMode-aware and remains fail-closed when audited structure differs. Unknown requirements are not converted into guessed availability.
 
-### 2. Quest `확인 필요` live-data audit — COMPLETE
+Reference: `docs/QUEST_TASK_POOL_AUDIT_2026-08-24.md`.
 
-공식 감사 문서:
+## OCR substitutions
 
-- `docs/QUEST_TASK_POOL_AUDIT_2026-08-24.md`
+Scanner display settings schema is **v5**.
 
-최신 live data에서 Prapor/Mechanic/Ragman/Skier task-pool 구조 변화를 확인했고, `QuestTaskPoolVariableCompatibility`는 GameMode까지 포함한 감사된 구조에서만 synthetic interpretation을 허용한다. Exact profile variable은 항상 우선하며 구조가 다르면 fail closed한다.
+- default substitution list is empty
+- exact user-owned substitutions are persistent
+- substitution is applied once after raw OCR and before catalog normalization/matching
+- recursive or chained rewriting is not performed
+- raw OCR remains separately preserved as forensic evidence
+- this feature does not create a product-wide automatic r/0/Korean substitution table
 
-임시 live audit의 마지막 보존 실행:
+## Ground Truth correction
 
-- run `32687388519` — **SUCCESS**
+Correction is candidate-first:
 
-감사 완료 후 임시 `.github/workflows/live-audit-v1.5.0.yml`은 release candidate에서 제거했다.
+1. detail rectangle candidate
+2. close-X candidate
+3. magnifier candidate
+4. item-name ROI candidate
+5. correct item/text
+6. save
 
-### 3. Unified Game Data + Scanner catalog/market update — COMPLETE
+Manual rectangle selection and explicit `없음` remain fallback paths when detector proposals do not contain the truth. Candidate identity/rank/score/geometry is saved with reviewed Ground Truth.
 
-상단 `데이터 업데이트` 한 번으로 일반 Tarkov content와 Scanner catalog/market data를 함께 갱신한다.
+## Performance and continuous stability
 
-- 일반 데이터 성공 후 Scanner refresh만 실패하면 일반 데이터를 rollback하지 않음
-- existing healthy Scanner cache 유지
-- partial Scanner failure를 사용자 상태로 보고
-- Scanner-only forced refresh는 `고급 / 진단`의 recovery action으로 유지
-
-### 4. User OCR substitutions — COMPLETE
-
-Persistent rule에 대해 add / delete / per-rule ON/OFF / reset을 지원한다.
-
-Processing contract:
-
-`raw OCR -> user substitution -> catalog sanitation/normalization -> matching`
-
-치환은 single-pass/non-recursive이며 raw OCR은 forensic evidence로 별도 보존된다.
-
-### 5. Candidate-based Ground Truth correction — COMPLETE
-
-기본 교정 흐름은 detector evidence 선택이다.
-
-- detail rectangle
-- red close-X
-- magnifier
-- item-name ROI
-- correct item/text
-
-정답 후보가 없으면 manual rectangle fallback을 사용하고 `없음`도 Ground Truth로 기록할 수 있다. Candidate ID / rank / score / geometry를 Ground Truth와 함께 보존한다.
-
-### 6. Scanner latency telemetry + accuracy-preserving optimization — COMPLETE
-
-계측 단계:
+Stage telemetry records:
 
 - capture
 - rectangle proposal
 - semantic header validation
-- normal OCR
-- deep OCR
+- OCR normal/deep
 - visual recovery
 - catalog matching/recovery
 - presentation
 - end-to-end
 
-첫 최적화는 동일 active scan-cycle 안의 **완전히 동일한 OCR bitmap**만 SHA-256 + dimensions/format key로 재사용한다. Normal/deep cache는 분리하고 frame/cycle 사이에는 재사용하지 않는다. Threshold/candidate cap은 변경하지 않았다.
+Optimization is conservative: only an exactly identical OCR bitmap inside the same active scan cycle may reuse OCR output. There is no cross-frame OCR cache.
 
-### 7. Continuous result stabilization — COMPLETE
+Continuous Scanner uses a stable title-ink identity signature to tolerate harmless dark-background pixel variation while keeping an already verified result. This signature never establishes Item identity. Different title evidence clears stale trusted results.
 
-검증된 item이 있는 동안 가장 가까운 detail candidate의 title identity signature가 유지되면 OCR을 다시 요구하지 않고 trusted snapshot을 유지한다.
+## Retention
 
-v1.5의 title identity signature는 raw BGRA 완전일치 대신 밝은 title glyph shape를 사용해 dark-background/trailing-ROI 변동에 대한 안정성을 높인다.
+Reviewed Ground Truth is never automatically removed.
 
-- 새 Item identity를 만드는 증거가 아님
-- visible glyph shape가 달라지면 signature 변경
-- signature 계산 실패 시 기존 exact detector signature로 fail closed
-- detector 단발 miss는 기존 consecutive-miss 안정화 경로로 처리
-- 다른 title/identity evidence가 확인되면 기존 snapshot 즉시 폐기 후 재검증
+Automatic unreviewed diagnostic samples are bounded by:
 
-Core tests가 background/trailing-width stability, glyph-change separation, no-ink fail-closed behavior를 검증한다.
+- maximum age: 30 days
+- maximum automatic cases: 300
+- maximum automatic bytes: 512 MiB
+- recent-case safety window: 2 hours
 
-### 8. Diagnostics/log/temp retention — COMPLETE
+Scanner and startup logs use bounded rotation.
 
-자동 삭제 금지:
+## UI finishing
 
-- user-reviewed Ground Truth
-- ownership/review state를 확정할 수 없는 unknown/corrupt case
-
-자동 unreviewed diagnostic case 제한:
-
-- 30 days
-- 300 automatic cases
-- 512 MiB
-- 2-hour recent-case safety window
-
-`scanner.log`와 `startup.log` 모두 bounded rotation을 사용한다.
-
-### 9. Scanner primary/advanced UI + quick correction — COMPLETE
-
-일반 Scanner surface:
+Scanner normal surface prioritizes:
 
 - Scanner ON/OFF
 - 1회 스캔
@@ -150,91 +128,37 @@ Core tests가 background/trailing-width stability, glyph-change separation, no-i
 - runtime status
 - recent recognition history
 
-`설정`:
+Settings and developer/recovery functions are separated into `설정` and `고급 / 진단`. Mini Scanner offers right-click `현재 결과 교정`.
 
-- hotkeys
-- OCR substitutions
-- Mini Scanner display fields
+Whole-product UI review found a real Main-window structural clipping risk at the old 900 px minimum width; minimum width is now 1180 px. Map/MiniMap architecture and validated smoke contracts were preserved rather than unnecessarily redesigned.
 
-`고급 / 진단`:
+## Safety contracts preserved
 
-- test mode
-- recognition image
-- regression
-- Ground Truth export/manage
-- forced catalog refresh
-- log clear
+No v1.5.0 finishing work relaxed these contracts:
 
-Mini Scanner context menu에서 `현재 결과 교정`으로 최신 Case를 바로 열 수 있다. 기능 삭제 없이 surface complexity만 낮췄다.
+- prefer miss over false positive
+- geometry is proposal evidence only
+- `HEADER_FRAME_LOCKED >= 0.68`
+- magnifier + red close-X required
+- structural floor `0.34`
+- continuous max 8 candidates
+- one-shot max 12 candidates
+- current official Korean Tarkov item catalog is identity authority
+- production OCR field is item-name only
+- mapped price/slot/needed fields are resolved after Item ID
+- no scan-time network
+- no game memory read
+- no DLL injection
+- no packet interception
 
-### 10. Whole-product UI consistency audit — COMPLETE
+## Validation
 
-검토 범위:
+Final PR release-candidate CI run `32688080850` passed Release build, 296 tests, Windows x64 publish, package identity audit, rendered Product UI/Map/Scanner smoke, graceful shutdown, and artifact upload.
 
-- Main
-- Quest
-- Hideout
-- Items
-- Ammo
-- Map host / Map smoke path
-- Scanner
-- Profile mode/editor
-- Scanner correction / OCR substitution / hotkey / recognition image / diagnostic case dialogs
+Release workflow run `32691423654` rebuilt exact source, repeated package/smoke verification, created the exact tag, redownloaded the draft asset, revalidated it, and published stable/latest.
 
-Main의 기존 `MinWidth=900`은 header + Items 2-pane 구조가 실제 요구하는 폭보다 작아 clipping 가능성이 있었으므로 지원 가능한 `1180`으로 맞췄다. Map은 기존 검증된 subsystem을 불필요하게 재설계하지 않고 전용 smoke 계약을 유지했다.
+Independent public verifier run `32691641614` anonymously redownloaded the public ZIP and checksum on a fresh Windows runner and verified hash, size, layout, ProductVersion, FIRST_RUN, Product UI/Map/Scanner smoke, and normal shutdown.
 
-### 11. Full automated validation / Windows publish / product smoke — RELEASE CANDIDATE GATE
+## Post-release development rule
 
-Pre-version-finalization HEAD `7cb9aea9e62b900ed2972196789e5127a405d21e`에서 CI run `32687388529`이 **SUCCESS**였다.
-
-검증 내용:
-
-- Desktop Release build
-- Core tests
-- Windows x64 self-contained single-file publish
-- ProductVersion/package layout audit
-- startup + rendered Product UI + Map + Scanner smoke
-- graceful Main Window shutdown
-- clean portable root
-- release-candidate artifact upload
-
-이후 release candidate에는 다음 housekeeping만 추가했다.
-
-- Desktop version `1.5.0`
-- `FIRST_RUN_KO.txt` v1.5.0 identity/guide
-- `docs/RELEASE_NOTES_V1.5.0.md`
-- temporary live-audit workflow 제거
-
-따라서 **최종 release candidate HEAD 자체의 fresh CI success가 merge 전 마지막 필수 gate**다.
-
-### 12. Public v1.5.0 release + independent public verification — NEXT
-
-실제 현재 public stable/latest는 handoff의 v1.4.3이 아니라 **v1.4.4**다.
-
-공식 repository record:
-
-- `docs/.release-v1.4.4-status.json`
-- source/tag SHA: `0c7f31e118122ffef6e5999f7a20a77d823a450d`
-- asset: `Junhyun-Helper-v1.4.4-win-x64.zip`
-- public redownload/hash/package/ProductVersion/smoke verification: complete
-
-v1.5.0 release procedure:
-
-1. final PR HEAD CI green 확인
-2. PR #172 merge
-3. exact main merge SHA의 normal CI green 확인
-4. main에 temporary `release-v1.5.0.yml` 추가하되 release source SHA는 **workflow commit이 아니라 exact product merge SHA로 고정**
-5. exact source build/test/publish/product smoke
-6. `Junhyun-Helper-v1.5.0-win-x64.zip` + `SHA256SUMS.txt` draft release 생성
-7. tag exact-source verification
-8. draft asset redownload/hash/ProductVersion/layout/smoke verification
-9. stable/latest publish
-10. 인증 없이 public release URL에서 asset/SHA256SUMS 재다운로드 후 hash/layout/ProductVersion/smoke 재검증
-11. `docs/.release-v1.5.0-status.json` 기록
-12. temporary release workflow 제거 및 final status/housekeeping
-
-## Current conclusion
-
-**Approved implementation scope 1–10 is complete.**
-
-남은 작업은 새 기능 개발이 아니라 final release gate와 public publication/independent verification이다. Final release candidate CI가 green이면 제품 PR을 merge하고 exact-source v1.5.0 release 절차로 진행한다.
+v1.5.0 is the public baseline. Further Scanner tuning must be driven by reviewed real-world Ground Truth and must preserve existing normal cases with `REGRESSION=0`. Thresholds/candidate caps are not to be loosened without evidence.
