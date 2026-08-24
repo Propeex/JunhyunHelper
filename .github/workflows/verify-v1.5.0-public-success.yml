@@ -1,0 +1,166 @@
+name: Verify public v1.5.0 success
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-v1.5.0-public-success.yml'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  verify-public:
+    runs-on: windows-latest
+    timeout-minutes: 12
+    env:
+      SOURCE_SHA: 6de738959740d12e6ccb81b65e50006e463eb699
+      RELEASE_RUN: 32691423654
+      VERSION: 1.5.0
+      TAG: v1.5.0
+      ASSET: Junhyun-Helper-v1.5.0-win-x64.zip
+      EXPECTED_SHA256: 6ad657653123ff35d8b6fe3d7f9877858992e9327697077492cf29f7c900e5e9
+      EXPECTED_BYTES: 80422292
+    steps:
+      - name: Confirm successful release workflow
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $run = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:RELEASE_RUN" | ConvertFrom-Json
+          if ($run.status -ne 'completed' -or $run.conclusion -ne 'success') { throw "Release run $env:RELEASE_RUN is not successful." }
+
+      - name: Verify public latest and exact tag anonymously
+        id: metadata
+        shell: pwsh
+        run: |
+          $headers = @{ 'User-Agent' = 'JunhyunHelper-PublicVerifier-v1.5.0'; 'Accept' = 'application/vnd.github+json' }
+          $latest = Invoke-RestMethod -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases/latest" -Headers $headers
+          if ($latest.tag_name -ne $env:TAG -or $latest.draft -or $latest.prerelease) { throw 'v1.5.0 is not public stable/latest.' }
+          $ref = Invoke-RestMethod -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/git/ref/tags/$env:TAG" -Headers $headers
+          $tagSha = $ref.object.sha
+          if ($ref.object.type -eq 'tag') {
+            $tagObject = Invoke-RestMethod -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/git/tags/$tagSha" -Headers $headers
+            $tagSha = $tagObject.object.sha
+          }
+          if ($tagSha -ne $env:SOURCE_SHA) { throw "Public tag source mismatch: $tagSha" }
+          $zipAsset = $latest.assets | Where-Object name -eq $env:ASSET | Select-Object -First 1
+          $sumAsset = $latest.assets | Where-Object name -eq 'SHA256SUMS.txt' | Select-Object -First 1
+          if ($null -eq $zipAsset -or $null -eq $sumAsset) { throw 'Required public assets missing.' }
+          "zip_url=$($zipAsset.browser_download_url)" >> $env:GITHUB_OUTPUT
+          "sum_url=$($sumAsset.browser_download_url)" >> $env:GITHUB_OUTPUT
+          "published_at=$($latest.published_at.ToString('o'))" >> $env:GITHUB_OUTPUT
+
+      - name: Redownload public assets anonymously
+        id: package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path verify -Force | Out-Null
+          $headers = @{ 'User-Agent' = 'JunhyunHelper-PublicVerifier-v1.5.0' }
+          Invoke-WebRequest -Uri '${{ steps.metadata.outputs.zip_url }}' -Headers $headers -OutFile "verify/$env:ASSET"
+          Invoke-WebRequest -Uri '${{ steps.metadata.outputs.sum_url }}' -Headers $headers -OutFile verify/SHA256SUMS.txt
+          $expected = ((Get-Content verify/SHA256SUMS.txt -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
+          $actual = (Get-FileHash "verify/$env:ASSET" -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($expected -ne $actual) { throw "Public checksum mismatch: $expected / $actual" }
+          if ($actual -ne $env:EXPECTED_SHA256) { throw "Public asset differs from release-controller hash: $actual" }
+          $bytes = (Get-Item "verify/$env:ASSET").Length
+          if ($bytes -ne [long]$env:EXPECTED_BYTES) { throw "Public asset size mismatch: $bytes" }
+          "sha256=$actual" >> $env:GITHUB_OUTPUT
+          "bytes=$bytes" >> $env:GITHUB_OUTPUT
+
+      - name: Verify public package layout and identity
+        shell: pwsh
+        run: |
+          Expand-Archive "verify/$env:ASSET" verify/package -Force
+          $rootFiles = @(Get-ChildItem verify/package -File)
+          if (@($rootFiles | Where-Object { $_.Name -notin @('준현 헬퍼.exe','FIRST_RUN_KO.txt') }).Count -gt 0) { throw 'Unexpected public package root files.' }
+          $rootDirs = @(Get-ChildItem verify/package -Directory)
+          if ($rootDirs.Count -ne 1 -or $rootDirs[0].Name -ne 'Assets') { throw 'Unexpected public package root directories.' }
+          if (-not (Test-Path verify/package/Assets/tarkov_data.db)) { throw 'Public Map database missing.' }
+          if (@(Get-ChildItem verify/package -Recurse -File -Filter *.pdb).Count -gt 0) { throw 'Public package contains PDB.' }
+          if (@(Get-ChildItem verify/package -Recurse -File | Where-Object Extension -in @('.zip','.7z','.rar')).Count -gt 0) { throw 'Public package contains nested archive.' }
+          $exe = (Resolve-Path 'verify/package/준현 헬퍼.exe').Path
+          $pv = (Get-Item $exe).VersionInfo.ProductVersion
+          if ($pv -ne "$env:VERSION+$env:SOURCE_SHA") { throw "Public ProductVersion mismatch: $pv" }
+          $first = Get-Content verify/package/FIRST_RUN_KO.txt -TotalCount 1
+          if ($first -ne "준현 헬퍼 v$env:VERSION — Windows x64") { throw "Public FIRST_RUN mismatch: $first" }
+
+      - name: Smoke public-downloaded executable
+        shell: pwsh
+        env:
+          JUNHYUNHELPER_MAP_SMOKE: '1'
+        run: |
+          $exe = (Resolve-Path 'verify/package/준현 헬퍼.exe').Path
+          $diagnostic = Join-Path $env:TEMP 'junhyun-map-smoke-error.txt'
+          $success = Join-Path $env:TEMP 'junhyun-map-smoke-success.txt'
+          $startupLog = Join-Path $env:LOCALAPPDATA 'JunhyunHelper/logs/startup.log'
+          Remove-Item $diagnostic,$success,$startupLog -Force -ErrorAction SilentlyContinue
+          $process = Start-Process -FilePath $exe -WorkingDirectory verify/package -PassThru
+          try {
+            $deadline = (Get-Date).AddSeconds(75)
+            while ((Get-Date) -lt $deadline -and -not (Test-Path $success)) {
+              $process.Refresh()
+              if (Test-Path $diagnostic) { Get-Content $diagnostic | Write-Host; throw 'Public EXE Product UI/Map/Scanner smoke failure.' }
+              if ($process.HasExited) { throw "Public EXE exited early: $($process.ExitCode)" }
+              Start-Sleep -Milliseconds 250
+            }
+            if (-not (Test-Path $success)) { throw 'Public EXE smoke timed out.' }
+            $closed = $false
+            for ($attempt = 1; $attempt -le 10; $attempt++) {
+              $process.Refresh()
+              if ($process.HasExited -or $process.CloseMainWindow()) { $closed = $true; break }
+              Start-Sleep -Milliseconds 500
+            }
+            if (-not $closed) { throw 'Could not close public EXE normally.' }
+            $process.Refresh()
+            if (-not $process.HasExited -and -not $process.WaitForExit(7000)) { throw 'Public EXE did not terminate normally.' }
+            if (Test-Path verify/package/Logs) { throw 'Public EXE recreated portable-root Logs.' }
+          }
+          finally {
+            $process.Refresh()
+            if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
+          }
+
+      - name: Persist durable verified status
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ASSET_SHA256: ${{ steps.package.outputs.sha256 }}
+          ASSET_BYTES: ${{ steps.package.outputs.bytes }}
+          PUBLISHED_AT: ${{ steps.metadata.outputs.published_at }}
+        run: |
+          $status = [ordered]@{
+            version = $env:TAG
+            source_sha = $env:SOURCE_SHA
+            tag_sha = $env:SOURCE_SHA
+            asset = $env:ASSET
+            bytes = [long]$env:ASSET_BYTES
+            sha256 = $env:ASSET_SHA256
+            product_version = "$env:VERSION+$env:SOURCE_SHA"
+            tests = 296
+            release_run = [long]$env:RELEASE_RUN
+            release_workflow_conclusion = 'success'
+            public_verifier_run = [long]$env:GITHUB_RUN_ID
+            public_verifier_conclusion = 'success'
+            public_latest_verified = $true
+            exact_tag_source_verified = $true
+            public_redownload_verified = $true
+            public_sha256sums_verified = $true
+            public_package_layout_verified = $true
+            public_exe_smoke = 'SUCCESS'
+            published_at_utc = $env:PUBLISHED_AT
+            verified_at_utc = [DateTimeOffset]::UtcNow.ToString('O')
+          }
+          $json = $status | ConvertTo-Json -Depth 4
+          $base64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($json + "`n"))
+          $path = 'docs/.release-v1.5.0-status.json'
+          $existingJson = gh api "repos/$env:GITHUB_REPOSITORY/contents/$path" 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            $existing = $existingJson | ConvertFrom-Json
+            gh api --method PUT "repos/$env:GITHUB_REPOSITORY/contents/$path" -f message='Record verified v1.5.0 public release status' -f content="$base64" -f sha="$($existing.sha)" | Out-Null
+          }
+          else {
+            gh api --method PUT "repos/$env:GITHUB_REPOSITORY/contents/$path" -f message='Record verified v1.5.0 public release status' -f content="$base64" | Out-Null
+          }
+          if ($LASTEXITCODE -ne 0) { throw 'Could not persist durable v1.5.0 release status.' }
