@@ -60,6 +60,15 @@ public static class ScannerRecognitionDebugStore
         string pass,
         string ocrText,
         string matcherText,
+        ScannerRecognition recognition) =>
+        UpdateAnalysis(candidate, pass, ocrText, ocrText, matcherText, recognition);
+
+    public static void UpdateAnalysis(
+        ScannerInspectCandidate? candidate,
+        string pass,
+        string ocrText,
+        string userSubstitutedOcrText,
+        string matcherText,
         ScannerRecognition recognition)
     {
         ScannerCaptureMode mode;
@@ -70,7 +79,14 @@ public static class ScannerRecognitionDebugStore
                     ? ScannerCaptureMode.DisplayTest
                     : ScannerCaptureMode.TarkovWindow);
         }
-        UpdateAnalysis(candidate, mode, pass, ocrText, matcherText, recognition);
+        UpdateAnalysis(
+            candidate,
+            mode,
+            pass,
+            ocrText,
+            userSubstitutedOcrText,
+            matcherText,
+            recognition);
         ScannerDiagnosticDataset.QueueAutomaticObservation(GetSnapshot());
     }
 
@@ -79,6 +95,16 @@ public static class ScannerRecognitionDebugStore
         ScannerCaptureMode mode,
         string pass,
         string ocrText,
+        string matcherText,
+        ScannerRecognition recognition) =>
+        UpdateAnalysis(candidate, mode, pass, ocrText, ocrText, matcherText, recognition);
+
+    public static void UpdateAnalysis(
+        ScannerInspectCandidate? candidate,
+        ScannerCaptureMode mode,
+        string pass,
+        string ocrText,
+        string userSubstitutedOcrText,
         string matcherText,
         ScannerRecognition recognition)
     {
@@ -120,6 +146,7 @@ public static class ScannerRecognitionDebugStore
                 CaptureMode = mode,
                 Pass = pass,
                 OcrText = ocrText,
+                UserSubstitutedOcrText = userSubstitutedOcrText,
                 MatcherText = matcherText,
                 ItemId = recognition.Success ? recognition.ItemId : null,
                 CandidateName = recognition.OfficialName,
@@ -188,6 +215,7 @@ public sealed record ScannerRecognitionDebugFrame(
     string? TitleSignature = null,
     string Pass = "NONE",
     string OcrText = "",
+    string UserSubstitutedOcrText = "",
     string MatcherText = "",
     string? ItemId = null,
     string? CandidateName = null,
