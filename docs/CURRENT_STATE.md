@@ -2,39 +2,37 @@
 
 > 최신 개발 상태의 짧은 인덱스입니다. 상세 설계와 이력은 `docs/STATE.md` 및 전문 문서를 참조합니다.
 
-기준일: 2026-08-24
+기준일: 2026-08-25
 
-상태: **`v1.6.0 PUBLIC RELEASE / VERIFIED — LIVE GROUND TRUTH MAINTENANCE`**
+상태: **`v1.7.0 PUBLIC RELEASE / VERIFIED — LIVE GROUND TRUTH MAINTENANCE`**
 
 ## 공개 stable과 현재 source
 
-현재 공개 stable/latest는 **v1.6.0**이다.
+현재 공개 stable/latest는 **v1.7.0**이다.
 
 ```text
-public stable/latest: v1.6.0
-exact release source/tag: e18c108380572913552030aa677bba06ebf49355
+public stable/latest: v1.7.0
+exact release source/tag: 56e12342e3490fd0defa5f327a03d20d4f32b3a6
 stable asset: Junhyun-Helper.zip
-stable bytes: 80,425,013
-stable SHA-256: f9384ff49d522afb5976efe291ff932d66063dcfeee64b0aed7a5daa691a12c5
-v1.5 bridge: Junhyun-Helper-v1.6.0-win-x64.zip
-bridge bytes: 80,424,089
-bridge SHA-256: 3f05b20ccbd7463fb590889042b1b706290a88e0568cd00c3b2fa23cf966dfc8
-299 passed / 0 failed / 0 skipped
-public verification run: 32710012954 — SUCCESS
-public-downloaded EXE smoke: SUCCESS
+stable bytes: 80,443,318
+stable SHA-256: 1c640c80bf6113176b885a47e19478666e27dbf584f872d1a8396886334f3418
+ProductVersion: 1.7.0+56e12342e3490fd0defa5f327a03d20d4f32b3a6
+348 passed / 0 failed / 0 skipped
+public proof run: 32745399476 — SUCCESS
+anonymous public redownload + public-downloaded EXE/UI/Map smoke: SUCCESS
 ```
 
-`main`의 후속 문서/housekeeping commit은 release source가 아니다. v1.6.0 제품 source는 tag `v1.6.0`의 exact SHA로 고정한다.
+`main`의 후속 문서/housekeeping commit은 release source가 아니다. v1.7.0 제품 source는 tag `v1.7.0`의 exact SHA로 고정한다.
 
 ## Schema / compatibility
 
 ```text
-Desktop target version: 1.6.0
+Desktop target version: 1.7.0
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
 Scanner display settings schema: v6
-Scanner catalog cache: v1/v2 readable, v2 written
+Scanner catalog cache: v1~v3 readable, v3 written
 Scanner Ground Truth: local diagnostics persistence
 ```
 
@@ -52,32 +50,21 @@ Scanner Ground Truth: local diagnostics persistence
 | Ammo | 구현 완료 |
 | Map + MiniMap | 구현 완료 / steady-state smoke 유지 |
 | Game Content Update | 구현 완료 |
-| Program Update | 구현 완료 / v1.6 stable ZIP contract 반영 |
-| Scanner + Mini Scanner | **v1.6.0 공개 검증 완료 / live Ground Truth maintenance** |
+| Program Update | 구현 완료 / stable ZIP + immutable published-release contract |
+| Scanner + Mini Scanner | **v1.7.0 공개 검증 완료 / live Ground Truth maintenance** |
 
-## v1.6.0 핵심 변경
+## v1.7.0 핵심 변경
 
-- Scanner 일반 화면을 `스캐너 ON/OFF / 설정 / 고급` 중심으로 단순화
-- 하단을 local item search / Scanner recognition log 2분할로 구성
-- full-item catalog 검색, local cached icon/name, Wiki/flea/best trader/current needed presentation
-- Mini Scanner icon/name fixed header
-- Mini Scanner 다섯 정보 표시 여부 및 순서 저장
-- Scanner display settings schema v6 migration
-- 교정 image auto-fit + original pixel coordinate preservation
-- candidate box 직접 클릭 선택
-- manual rectangle / explicit `없음` fallback 유지
-- saved Case reopen / Ground Truth re-edit
-- stable user package `Junhyun-Helper.zip` → `준현 헬퍼/`
-- CI에서 실제 stable ZIP 생성 및 내부 경로 검증
-
-공식 문서:
-
-- `docs/DECISION_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md`
-- `docs/STATUS_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md`
-- `docs/RELEASE_NOTES_V1.6.0.md`
-- `docs/RELEASE_1.6.0.md`
-- `docs/SCANNER.md`
-- `docs/CURRENT_SCANNER_WORK.md`
+- Scanner recognition log → exact diagnostic Case/current frame quick-correction
+- 기존 Ground Truth + Scanner log ZIP export pipeline 유지/재사용
+- Data Update request-local timeout / bounded retry / whole-transaction serialization
+- critical domain + nested relationship + localization/icon/wiki completeness guard
+- candidate persistence → disk read-back/revalidation → atomic activation
+- Scanner market trader/Flea/slot coverage collapse protection
+- Scanner Item ID → canonical metadata/market/needed 동일-ID join과 교차오염 회귀 검증
+- Scanner Advanced clipping 방지와 runtime log 7일 자동 정리 유지
+- exact-source + anonymous public release proof 완료
+- Scanner recognition threshold/candidate cap은 reviewed live Ground Truth 없이 변경하지 않음
 
 ## Scanner 안전 기준선
 

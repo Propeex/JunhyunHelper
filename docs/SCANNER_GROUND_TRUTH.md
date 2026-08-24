@@ -1,9 +1,9 @@
 # Scanner Ground Truth / Correction Development Contract
 
-기준일: 2026-08-24
-상태: **v1.6.0 RELEASE CANDIDATE / ACTIVE**
+기준일: 2026-08-25
+상태: **v1.7.0 PUBLIC RELEASE VERIFIED / ACTIVE**
 
-이 문서는 준현 헬퍼 Scanner의 실사용 성공·실패를 재현 가능한 개발 데이터로 전환하는 공식 계약이다. `docs/SCANNER.md`의 production recognition pipeline을 폐기하지 않고 그 위에 진단, 사용자 교정, Ground Truth, replay regression 체계를 둔다.
+이 문서는 준현 헬퍼 Scanner의 실사용 성공·실패를 재현 가능한 개발 데이터로 전환하는 공식 계약이다. `docs/SCANNER.md`의 production recognition pipeline을 폐기하지 않고 그 위에 진단, 사용자 교정, Ground Truth, replay regression 체계를 둔다. v1.7.0부터 recognition log의 교정 action도 동일 Case ID의 저장된 diagnostic evidence 또는 정확히 같은 current frame이 있을 때만 이 계약으로 진입한다.
 
 ## 1. 목표
 

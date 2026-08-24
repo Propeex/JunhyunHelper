@@ -4,43 +4,42 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 릴리즈 상태
 
-현재 공개 stable/latest는 **v1.6.0**이며, public release와 anonymous redownload/product smoke 검증까지 완료되었습니다.
-
-현재 v1.6.0 public release 기준:
+현재 공개 stable/latest는 **v1.7.0**이며, exact-source tag와 공개 asset을 대상으로 anonymous redownload/product smoke까지 검증했습니다.
 
 ```text
-Desktop target version: 1.6.0
+Desktop target version: 1.7.0
 Content schema: v7
 Readable content schemas: v3~v7
 user.db schema: v1
 Scanner display settings schema: v6
-Scanner catalog cache: v1/v2 readable, v2 written
-automated test suite: 299 tests
+Scanner catalog cache: v1~v3 readable, v3 written
+automated test suite: 348 tests
 stable user ZIP name: Junhyun-Helper.zip
 stable extracted folder: 준현 헬퍼/
 ```
 
-현재 공개 검증 기준선 v1.6.0:
+공개 검증 기준선:
 
 ```text
-exact release source/tag: e18c108380572913552030aa677bba06ebf49355
+exact release source/tag: 56e12342e3490fd0defa5f327a03d20d4f32b3a6
 stable asset: Junhyun-Helper.zip
-stable bytes: 80,425,013
-stable SHA-256: f9384ff49d522afb5976efe291ff932d66063dcfeee64b0aed7a5daa691a12c5
-v1.5 bridge asset: Junhyun-Helper-v1.6.0-win-x64.zip
-bridge bytes: 80,424,089
-bridge SHA-256: 3f05b20ccbd7463fb590889042b1b706290a88e0568cd00c3b2fa23cf966dfc8
-299 passed / 0 failed / 0 skipped
-public/latest: VERIFIED
-public-downloaded EXE smoke: SUCCESS
+stable bytes: 80,443,318
+stable SHA-256: 1c640c80bf6113176b885a47e19478666e27dbf584f872d1a8396886334f3418
+ProductVersion: 1.7.0+56e12342e3490fd0defa5f327a03d20d4f32b3a6
+348 passed / 0 failed / 0 skipped
+public stable/latest: VERIFIED
+anonymous public redownload: VERIFIED
+public-downloaded EXE / rendered UI / Map smoke: SUCCESS
+public proof run: 32745399476
 ```
 
-v1.6.0 공식 작업 기록:
+v1.7.0 공식 작업 기록:
 
-- `docs/DECISION_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md`
-- `docs/STATUS_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md`
-- `docs/RELEASE_NOTES_V1.6.0.md`
-- `docs/RELEASE_1.6.0.md`
+- `docs/DECISION_V1.7.0_PRODUCT_COMPLETION_2026-08-24.md`
+- `docs/STATUS_V1.7.0_PRODUCT_COMPLETION_2026-08-25.md`
+- `docs/RELEASE_NOTES_V1.7.0.md`
+- `docs/RELEASE_1.7.0.md`
+- `docs/.release-v1.7.0-public-proof.json`
 
 ## 주요 기능
 
@@ -58,25 +57,22 @@ v1.6.0 공식 작업 기록:
 
 Runtime GPT/AI 의존성은 없습니다.
 
-## v1.6.0 주요 변경
+## v1.7.0 주요 변경
 
-v1.6.0은 Scanner의 identity threshold를 낮추는 버전이 아니라 **실사용·검색·Mini Scanner·교정 작업 흐름을 정리하는 MINOR 릴리즈**입니다.
+v1.7.0은 Scanner threshold를 임의로 완화하는 버전이 아니라 **현재 제품의 데이터·저장·Scanner·배포 신뢰 경계를 강화한 Product Completion MINOR 릴리즈**입니다.
 
-- Scanner 일반 화면을 `스캐너 ON/OFF / 설정 / 고급` 중심으로 단순화
-- 하단을 `아이템 검색 / Scanner 로그` 2분할로 구성
-- 현재 local full-item catalog 기반 아이템 검색 추가
-- 검색 결과 icon/name, 선택 후 Wiki/flea/best trader/current needed 표시
-- Mini Scanner icon/name fixed identity header
-- Mini Scanner 다섯 정보의 표시 여부와 순서 저장
-- 가능한 경우 최고가 상인 이름 + 판매가 표시
-- Scanner settings schema v6 migration
-- 큰 교정 이미지를 화면 안에 자동 축소하되 원본 pixel 좌표 보존
-- 상세창/X/돋보기/item-name ROI candidate를 이미지 위에서 직접 클릭 선택
-- manual rectangle / explicit `없음` fallback 유지
-- 저장된 Scanner Case 재열기·재교정
-- 배포 ZIP/폴더 이름을 버전과 분리
+- Scanner 인식 로그에서 정확한 diagnostic Case/current frame이 있을 때 바로 교정
+- 기존 Ground Truth + Scanner 로그 ZIP export 흐름 재사용
+- Game Content update request-local timeout / bounded retry / transaction 직렬화
+- domain·nested relation·localization·icon/wiki coverage의 비정상 대량 축소 fail-closed
+- candidate DB 저장 후 read-back/revalidation을 통과해야 active data로 승격
+- Scanner 상점가/Flea/slot coverage collapse protection
+- Item ID 확정 후 name/icon/wiki/trader/price/slot/needed 동일-ID join + 교차오염 회귀 테스트
+- Scanner Advanced DPI clipping 방지와 runtime log 7일 자동 정리 유지
+- project version / FIRST_RUN / release notes identity drift 자동 검사
+- reviewed Ground Truth 없이 Scanner live recognition threshold/candidate cap은 변경하지 않음
 
-상세: `docs/RELEASE_NOTES_V1.6.0.md`
+상세: `docs/RELEASE_NOTES_V1.7.0.md`
 
 ## Scanner
 
@@ -117,7 +113,7 @@ Tarkov window pixels
 - 제품 기본값에 automatic global r/0/한글 forced substitution table 없음
 - cross-frame OCR cache 없음
 
-## Scanner 사용 흐름 — v1.6.0
+## Scanner 사용 흐름 — current
 
 일반 Scanner 화면 상단:
 

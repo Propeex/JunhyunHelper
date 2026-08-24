@@ -1,31 +1,22 @@
 # Current Scanner Work
 
-기준일: 2026-08-24
-상태: **v1.6.0 PUBLIC RELEASE / VERIFIED — LIVE GROUND TRUTH MAINTENANCE**
+기준일: 2026-08-25
+상태: **v1.7.0 PUBLIC RELEASE / VERIFIED — LIVE GROUND TRUTH MAINTENANCE**
 
-Scanner v1.6.0 사용자 작업 흐름 정리와 공개 릴리즈 검증이 완료되었다.
+Scanner v1.7.0 Product Completion hardening과 공개 릴리즈 검증이 완료되었다.
 
 현재 단계는 **LIVE GROUND TRUTH MAINTENANCE**다. 실사용에서 수집된 reviewed Ground Truth를 기준으로 실패 stage만 수정하고 전체 reviewed replay에서 REGRESSION=0을 유지한다.
 
-## v1.6.0 목표
+## v1.7.0 완료 내용
 
-v1.6.0은 인식 threshold를 완화하거나 새 OCR 알고리즘을 무리하게 추가하는 릴리즈가 아니다.
+v1.7.0에서도 reviewed live Ground Truth 없이 detection/OCR/matcher threshold를 조정하지 않았다.
 
-목표:
-
-- Scanner 일반 화면 단순화
-- local full-item catalog 검색
-- Mini Scanner 표시 순서 설정
-- 교정 화면의 이미지 직접 선택 UX
-- 저장된 Ground Truth Case 재교정
-- 버전과 분리된 안정적인 배포 ZIP/폴더 이름
-
-공식 결정:
-
-- `docs/DECISION_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md`
-- `docs/STATUS_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md`
-- `docs/RELEASE_NOTES_V1.6.0.md`
-- `docs/RELEASE_1.6.0.md`
+- recognition log → exact Case/current frame quick-correction
+- 기존 Ground Truth + Scanner log ZIP export pipeline 재사용
+- Scanner catalog/market last-known-good 보호 강화
+- Item ID 이후 mapped presentation 동일-ID join 회귀 검증
+- Scanner Advanced clipping 방지와 runtime log 7일 자동 정리 유지
+- Data Update transactional hardening과 public release proof 완료
 
 ## 현재 production recognition pipeline
 
@@ -49,7 +40,7 @@ Tarkov window pixels
 
 ## 인식 안전 불변식
 
-v1.6.0 UI 작업으로 다음 값을 변경하지 않았다.
+v1.7.0 hardening에서도 다음 값을 변경하지 않았다.
 
 ```text
 structural floor = 0.34
@@ -71,7 +62,7 @@ one-shot candidate cap = 12
 - product-default automatic global OCR forced substitution 없음
 - cross-frame OCR cache 없음
 
-## v1.6.0 Scanner 일반 UI
+## Scanner 일반 UI — current
 
 상단:
 

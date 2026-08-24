@@ -2,8 +2,8 @@
 
 이 문서는 **무엇을 만들고 왜 만드는지**를 정의하는 공식 제품 요구사항이다. 사용자의 최신 확정 의도가 과거 구현보다 우선하며, 현재 코드가 존재한다는 이유만으로 그 동작을 제품 요구사항으로 추정하지 않는다.
 
-기준일: 2026-08-24
-상태: **v1.6.0 RELEASE CANDIDATE / FINAL RELEASE GATE**
+기준일: 2026-08-25
+상태: **v1.7.0 PUBLIC RELEASE / VERIFIED**
 
 ## 1. 제품 정의
 
@@ -55,7 +55,7 @@ ZIP/folder 이름은 version과 분리한다. GitHub Release asset은 filename n
 
 Mutable user data는 `%LocalAppData%/JunhyunHelper`에 저장한다.
 
-현재 public stable은 v1.5.0이고, current source는 v1.6.0 release candidate다. v1.6.0은 공개 검증 전 public stable로 간주하지 않는다.
+현재 public stable/latest는 v1.7.0이다. 제품 source의 권위는 tag `v1.7.0`의 exact SHA `56e12342e3490fd0defa5f327a03d20d4f32b3a6`이며, main의 후속 문서/housekeeping commit은 release source가 아니다.
 
 ## 3. Game Content
 

@@ -1,6 +1,6 @@
 # 준현 헬퍼 v1.7.0 Release Record
 
-상태: `RELEASE CANDIDATE VALIDATION`
+상태: `PUBLIC RELEASE VERIFIED`
 
 기준일: 2026-08-25
 
@@ -59,31 +59,26 @@ one-shot candidate cap = 12
 - automatic global OCR substitution 없음
 - cross-frame OCR cache 없음
 
-## 자동 검증 — Release Candidate
+## 자동/공개 검증 — FINAL
 
-2026-08-25 release-candidate gate:
-
-- `347 passed / 0 failed / 0 skipped`
-- Release build 성공
-- Windows x64 self-contained single-file publish 성공
-- ProductVersion `1.7.0+<CI merge SHA>`
+- `348 passed / 0 failed / 0 skipped`
+- exact release source/tag: `56e12342e3490fd0defa5f327a03d20d4f32b3a6`
+- ProductVersion `1.7.0+56e12342e3490fd0defa5f327a03d20d4f32b3a6`
 - FIRST_RUN `준현 헬퍼 v1.7.0 — Windows x64`
 - rendered Product UI / Scanner / Scanner Advanced / Quest sidebar smoke 통과
 - Main Map / Factory / MiniMap smoke 통과
 - graceful shutdown + clean portable root 통과
 - stable package layout/checksum 검증 통과
 
-## 공개 릴리즈 전 남은 gate
+```text
+tag: v1.7.0
+stable asset: Junhyun-Helper.zip
+bytes: 80,443,318
+SHA-256: 1c640c80bf6113176b885a47e19478666e27dbf584f872d1a8396886334f3418
+checksum asset: SHA256SUMS.txt
+public proof run: 32745399476
+```
 
-아래 항목은 public release가 실제 생성된 이후에만 완료로 기록한다.
+공개 asset을 인증 없는 GitHub URL에서 다시 내려받아 byte size, SHA-256 manifest, ZIP root/layout, forbidden debug/legacy payload 부재, exact ProductVersion, FIRST_RUN, 실제 rendered Product UI/Map smoke, normal close/clean portable root까지 재검증했다.
 
-- final branch HEAD CI
-- main merge source CI
-- `v1.7.0` tag/source 고정
-- public `Junhyun-Helper.zip` publication
-- public asset re-download
-- public asset SHA-256/bytes/layout/ProductVersion/FIRST_RUN 확인
-- public downloaded copy startup/product smoke
-- official current-state documentation finalization
-
-공개 asset 검증이 끝나기 전에는 이 문서를 `PUBLIC RELEASE VERIFIED`로 전환하지 않는다.
+v1.7.0은 **PUBLIC RELEASE VERIFIED**이며 이미 공개된 동일 version asset은 immutable로 유지한다. 이후 `main`의 문서/housekeeping commit은 v1.7.0 제품 source가 아니다.

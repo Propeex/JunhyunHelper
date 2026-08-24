@@ -2,8 +2,8 @@
 
 > 새 대화/새 개발자는 이 문서를 먼저 읽습니다. 대화 기억이 아니라 저장소의 공식 문서와 코드가 프로젝트의 기준입니다.
 
-기준일: 2026-08-24
-상태: **v1.6.0 PUBLIC RELEASE / VERIFIED — LIVE GROUND TRUTH MAINTENANCE**
+기준일: 2026-08-25
+상태: **v1.7.0 PUBLIC RELEASE / VERIFIED — LIVE GROUND TRUTH MAINTENANCE**
 
 ## 1. 제품
 
@@ -29,44 +29,43 @@ Runtime GPT/AI 의존성은 없다.
 
 ## 2. 공개 stable과 현재 source
 
-현재 public stable/latest는 **v1.6.0**이다.
+현재 public stable/latest는 **v1.7.0**이다.
 
 ```text
-exact release source/tag: e18c108380572913552030aa677bba06ebf49355
+exact release source/tag: 56e12342e3490fd0defa5f327a03d20d4f32b3a6
 stable asset: Junhyun-Helper.zip
-stable bytes: 80,425,013
-stable SHA-256: f9384ff49d522afb5976efe291ff932d66063dcfeee64b0aed7a5daa691a12c5
-v1.5 bridge asset: Junhyun-Helper-v1.6.0-win-x64.zip
-bridge bytes: 80,424,089
-bridge SHA-256: 3f05b20ccbd7463fb590889042b1b706290a88e0568cd00c3b2fa23cf966dfc8
-release verification run: 32710012954
-299 passed / 0 failed / 0 skipped
+stable bytes: 80,443,318
+stable SHA-256: 1c640c80bf6113176b885a47e19478666e27dbf584f872d1a8396886334f3418
+ProductVersion: 1.7.0+56e12342e3490fd0defa5f327a03d20d4f32b3a6
+public proof run: 32745399476
+348 passed / 0 failed / 0 skipped
 public/latest: VERIFIED
-anonymous public redownload + EXE smoke: SUCCESS
+anonymous public redownload + EXE/UI/Map smoke: SUCCESS
 ```
 
-현재 `main`은 public v1.6.0 exact source 이후의 release-record/housekeeping commit을 포함할 수 있다. 공개 v1.6.0 제품 source의 권위는 tag `v1.6.0`과 위 exact source SHA다.
+현재 `main`은 public v1.7.0 exact source 이후의 release-record/housekeeping commit을 포함할 수 있다. 공개 v1.7.0 제품 source의 권위는 tag `v1.7.0`과 위 exact source SHA다.
 
 Schema / compatibility:
 
 ```text
-Desktop target version: 1.6.0
+Desktop target version: 1.7.0
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
 Scanner display settings schema: v6
-Scanner catalog cache: v1/v2 readable, v2 written
+Scanner catalog cache: v1~v3 readable, v3 written
 Scanner Ground Truth dataset: local diagnostics persistence
 ```
 
-v1.6.0 공식 문서:
+v1.7.0 공식 문서:
 
-- `docs/DECISION_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md`
-- `docs/STATUS_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md`
-- `docs/RELEASE_NOTES_V1.6.0.md`
-- `docs/RELEASE_1.6.0.md`
+- `docs/DECISION_V1.7.0_PRODUCT_COMPLETION_2026-08-24.md`
+- `docs/STATUS_V1.7.0_PRODUCT_COMPLETION_2026-08-25.md`
+- `docs/RELEASE_NOTES_V1.7.0.md`
+- `docs/RELEASE_1.7.0.md`
 - `docs/SCANNER.md`
 - `docs/CURRENT_SCANNER_WORK.md`
+- `docs/.release-v1.7.0-public-proof.json`
 
 ## 3. 아키텍처
 
@@ -128,7 +127,7 @@ remote Game Content
 
 Scanner refresh만 실패하면 healthy general Game Content를 rollback하지 않는다. 기존 healthy Scanner cache를 유지하고 partial failure를 보고한다.
 
-v1.6.0 일반 Scanner 화면에는 catalog force-refresh action을 노출하지 않는다.
+현재 일반 Scanner 화면에는 catalog force-refresh action을 노출하지 않는다.
 
 ## 6. Quest availability / latest live-data audit
 
@@ -200,7 +199,7 @@ EscapeFromTarkov process/window
 
 Display Test는 같은 recognition pipeline을 적용하며 real continuous Scanner와 상호 배타적이다.
 
-One-shot 기능은 v1.6.0에서도 유지한다.
+One-shot 기능은 현재도 유지한다.
 
 ```text
 1회 인게임 스캔: Ctrl+Shift+F10
@@ -268,14 +267,14 @@ Item ID 확정 후 local trusted data:
 
 Inventory shortage는 Scanner `필요 개수` 의미가 아니다.
 
-v1.6.0 Scanner item search는 같은 current full-item catalog와 local presentation data를 사용한다.
+현재 Scanner item search는 같은 current full-item catalog와 local presentation data를 사용한다.
 
 검색 순간 network request를 만들지 않는다.
 
 검색 결과: cached icon + official name.
 선택 후: icon/name/Wiki/flea/best trader/current needed.
 
-## 11. Scanner 일반 UI — v1.6.0
+## 11. Scanner 일반 UI — current
 
 상단 primary actions:
 

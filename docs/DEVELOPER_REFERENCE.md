@@ -1,8 +1,8 @@
 # DEVELOPER_REFERENCE — 준현 헬퍼 개발자용 시스템 설명서
 
-상태: **ACTIVE / v1.6.0 RELEASE CANDIDATE**
+상태: **ACTIVE / v1.7.0 PUBLIC RELEASE VERIFIED**
 
-기준일: 2026-08-24
+기준일: 2026-08-25
 
 이 문서는 다음 개발 세션이 대화 기억 없이 저장소만 보고 이어서 작업할 수 있도록 만든 구현 지도다.
 
@@ -40,27 +40,32 @@
 
 Runtime GPT/LLM API는 없다.
 
-현재 public stable은 v1.5.0이다.
+현재 public stable/latest는 **v1.7.0**이다.
 
-현재 source는 **v1.6.0 release candidate**이며 public release verification 전에는 stable로 표기하지 않는다.
+제품 source의 권위는 tag `v1.7.0`의 exact SHA `56e12342e3490fd0defa5f327a03d20d4f32b3a6`이다. `main`의 후속 문서/housekeeping commit은 release source가 아니다.
 
 ```text
-Desktop target version: 1.6.0
+Desktop target version: 1.7.0
 Content schema: v7
 Readable content: v3~v7
 user.db schema: v1
 Scanner display settings schema: v6
-Scanner catalog: v1/v2 readable, v2 written
-automated test suite: 296
+Scanner catalog: v1~v3 readable, v3 written
+automated test suite: 348
+stable asset: Junhyun-Helper.zip
+stable SHA-256: 1c640c80bf6113176b885a47e19478666e27dbf584f872d1a8396886334f3418
+public proof run: 32745399476
 ```
 
-v1.6.0 current records:
+v1.7.0 current records:
 
-- `docs/DECISION_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md`
-- `docs/STATUS_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md`
-- `docs/RELEASE_NOTES_V1.6.0.md`
+- `docs/DECISION_V1.7.0_PRODUCT_COMPLETION_2026-08-24.md`
+- `docs/STATUS_V1.7.0_PRODUCT_COMPLETION_2026-08-25.md`
+- `docs/RELEASE_NOTES_V1.7.0.md`
+- `docs/RELEASE_1.7.0.md`
 - `docs/SCANNER.md`
 - `docs/CURRENT_SCANNER_WORK.md`
+- `docs/.release-v1.7.0-public-proof.json`
 
 `vendor/Tarkov-Helper`는 일반 제품 사양이 아니다. Map/MiniMap만 pinned donor revision을 명시적으로 채택한 제한적 예외다. Quest/Hideout/Items/Ammo/Scanner/updater 의미는 JunhyunHelper first-party code/docs가 소유한다.
 

@@ -1,7 +1,7 @@
 # Scanner — 제품/기술 계약
 
-기준일: 2026-08-24
-상태: **v1.6.0 RELEASE CANDIDATE**
+기준일: 2026-08-25
+상태: **v1.7.0 PUBLIC RELEASE / VERIFIED — LIVE GROUND TRUTH MAINTENANCE**
 
 이 문서는 현재 Scanner 제품 동작과 기술 안전 계약의 canonical 전문 문서다.
 역사적 v1.3.x/v1.4.x/v1.5.0 근거는 각 버전별 결정·릴리즈 문서에 보존하고, 현재 구현 판단은 이 문서와 `STATE.md`, 실제 코드가 우선한다.
@@ -45,27 +45,20 @@ Scanner는 범용 OCR이 아니라 **현재 공식 한국어 Tarkov Item catalog
 - 제품 기본값에 automatic global `r`/`0`/한글 forced substitution table 추가
 - cross-frame OCR result를 현재 Item identity proof로 재사용
 
-## 2. v1.6.0 release scope
+## 2. Current v1.7.0 product state
 
-v1.6.0은 Scanner 인식 threshold를 변경하는 릴리즈가 아니다.
+v1.7.0에서도 live recognition threshold/candidate budget은 변경하지 않았다.
 
-주요 범위:
+현재 추가된 신뢰 경계:
 
-- 일반 Scanner 화면 단순화
-- local full-item catalog 기반 아이템 검색
-- Mini Scanner identity header 고정
-- Mini Scanner 정보 표시/순서 설정
-- Scanner settings schema v6
-- 교정 이미지 자동 축소 + 원본 좌표계 보존
-- candidate box 이미지 직접 선택
-- 저장된 Case 재교정
-- stable release ZIP/folder contract
+- recognition log → exact diagnostic Case/current frame quick-correction
+- reviewed Ground Truth와 runtime log lifecycle 분리 유지
+- Scanner catalog last-known-good / market coverage collapse protection
+- Item ID 확정 이후 metadata/market/needed 동일-ID join
+- Data Update transactional validation/read-back/activation hardening
+- anonymous public release redownload + public product smoke proof
 
-공식 결정:
-
-- `docs/DECISION_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md`
-- `docs/STATUS_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md`
-- `docs/RELEASE_NOTES_V1.6.0.md`
+계속 유지되는 v1.6.x 사용자 흐름은 일반 Scanner 화면, local item search, Mini Scanner settings schema v6, 교정 이미지 원본 좌표 보존 및 saved Case 재교정이다.
 
 ## 3. 핵심 안전 불변식
 

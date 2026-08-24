@@ -1,6 +1,6 @@
 # DECISION — v1.7.0 Product Completion Hardening
 
-상태: `IMPLEMENTED / RELEASE CANDIDATE VALIDATION`
+상태: `IMPLEMENTED / PUBLIC RELEASE VERIFIED`
 
 기준일: 2026-08-24
 
@@ -194,19 +194,23 @@ v1.7.0은 단순히 코드 변경이 끝났다고 완료하지 않는다.
 
 검증 중 회귀가 발견되면 원인을 해결하기 전에는 v1.7.0을 릴리즈하지 않는다.
 
-## 8. Release Candidate 검증 현황
+## 8. Public Release 검증 완료
 
-2026-08-25 기준 release-candidate CI에서 다음을 확인했다.
+2026-08-25 기준 v1.7.0은 모든 release gate를 통과했다.
 
-- Release build 성공, JunhyunHelper 자체 컴파일 오류/경고 0
-- 자동 테스트 `347 passed / 0 failed / 0 skipped`
-- Windows x64 self-contained single-file publish 성공
-- ProductVersion `1.7.0+<CI merge SHA>` 확인
-- FIRST_RUN v1.7.0 identity 확인
+- exact source/tag: `56e12342e3490fd0defa5f327a03d20d4f32b3a6`
+- automated tests: `348 passed / 0 failed / 0 skipped`
+- ProductVersion: `1.7.0+56e12342e3490fd0defa5f327a03d20d4f32b3a6`
 - rendered Product UI / Scanner / Scanner Advanced / Quest sidebar 검증
 - Main Map / Factory / MiniMap smoke 통과
-- 정상 Main Window close 후 clean process shutdown 확인
-- portable root에 runtime Logs/DLL/PDB/nested archive/legacy updater dependency가 생성되지 않음
-- stable `Junhyun-Helper.zip` 생성, layout 및 SHA-256 manifest 일치 검증
+- graceful shutdown + clean portable root 통과
+- public stable/latest: `v1.7.0`
+- public asset: `Junhyun-Helper.zip`
+- public bytes: `80,443,318`
+- public SHA-256: `1c640c80bf6113176b885a47e19478666e27dbf584f872d1a8396886334f3418`
+- anonymous public redownload / checksum / ZIP layout 검증 통과
+- public-downloaded EXE ProductVersion / FIRST_RUN 확인
+- public-downloaded rendered product/Map smoke + normal close 통과
+- public proof run: `32745399476`
 
-이 상태는 **release candidate**이며 아직 public release 완료를 의미하지 않는다. `main` 병합 후 CI와 공개 GitHub asset 재다운로드 검증까지 통과한 뒤에만 이 문서를 `PUBLIC RELEASE VERIFIED`로 전환한다.
+따라서 v1.7.0 Product Completion Hardening은 **PUBLIC RELEASE VERIFIED**로 완료한다. 다음 Scanner 단계는 기존 안전 기준을 유지한 **LIVE GROUND TRUTH MAINTENANCE**이며, reviewed evidence 없이 detection/OCR/matcher threshold 또는 candidate cap을 조정하지 않는다.

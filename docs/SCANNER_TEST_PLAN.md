@@ -1,30 +1,27 @@
-# Scanner v1.6.0 Test Plan
+# Scanner Current Test Plan
 
-기준일: 2026-08-24
-상태: **v1.6.0 RELEASE CANDIDATE / FINAL RELEASE GATE**
+기준일: 2026-08-25
+상태: **v1.7.0 PUBLIC RELEASE VERIFIED / LIVE GROUND TRUTH MAINTENANCE**
 
 이 문서는 deterministic release gate와 실제 Tarkov 환경 calibration을 분리한다. Reviewed evidence 없이 geometry/OCR/visual confidence threshold나 candidate cap을 조정하지 않는다.
 
-## 1. Current release candidate
+## 1. Current verified stable
 
 ```text
-Desktop target: 1.6.0
-automated suite: 296 tests
+Desktop target: 1.7.0
+automated suite: 348 tests
 Scanner display settings schema: v6
+Scanner catalog cache: v1~v3 readable, v3 written
 stable user package: Junhyun-Helper.zip
 stable archive root: 준현 헬퍼/
+exact release source: 56e12342e3490fd0defa5f327a03d20d4f32b3a6
+public SHA-256: 1c640c80bf6113176b885a47e19478666e27dbf584f872d1a8396886334f3418
+public proof run: 32745399476
 ```
 
-Intermediate feature/UI gate CI `32700507526`:
+v1.7.0 release gate는 build/test/publish/rendered Product UI/Scanner/Map smoke, graceful shutdown, package checksum/layout, exact source tag, anonymous public redownload, public ProductVersion/FIRST_RUN, public downloaded product smoke까지 모두 통과했다.
 
-- build SUCCESS
-- 296/296 tests SUCCESS
-- Windows x64 publish SUCCESS
-- Product UI / Scanner / Mini Scanner smoke SUCCESS
-- Main Map / Factory / MiniMap smoke SUCCESS
-- graceful shutdown SUCCESS
-
-Final version/FIRST_RUN/package/docs commits were added afterward, so latest HEAD must pass the complete gate again.
+이후 Scanner recognition 변경은 reviewed live Ground Truth replay에서 regression=0을 확인하는 별도 calibration gate를 사용한다.
 
 ## 2. Release-blocking gate
 
@@ -63,7 +60,7 @@ Final version/FIRST_RUN/package/docs commits were added afterward, so latest HEA
 28. exact ProductVersion / FIRST_RUN identity
 29. publish-root / PDB / nested-archive / forbidden dependency audit
 30. actual published EXE startup
-31. Scanner normal v1.6 surface smoke
+31. Scanner current normal surface smoke
 32. settings schema-v6 / Mini Scanner fixed identity + ordered fields smoke
 33. Main Map / Factory / MiniMap smoke
 34. graceful close / process termination
@@ -76,7 +73,7 @@ Final version/FIRST_RUN/package/docs commits were added afterward, so latest HEA
 
 ### Public release verification
 
-41. exact source tag `v1.6.0`
+41. exact source tag `v1.7.0`
 42. stable/latest release metadata points to exact source
 43. public asset name exactly `Junhyun-Helper.zip`
 44. checksum asset verified
