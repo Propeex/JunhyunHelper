@@ -213,17 +213,21 @@ public sealed class GitHubProgramUpdateClient : IDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(checksumText);
         ArgumentException.ThrowIfNullOrWhiteSpace(packageFileName);
 
-        foreach (var rawLine in checksumText.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (var rawLine in checksumText.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
         {
-            var tokens = rawLine.Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            if (tokens.Length < 2)
+            var line = rawLine.Trim();
+            var separatorIndex = line.IndexOfAny([' ', '\t']);
+            if (separatorIndex <= 0)
                 continue;
 
-            var fileName = tokens[^1].TrimStart('*');
+            var hash = line[..separatorIndex];
+            var fileName = line[separatorIndex..].TrimStart(' ', '\t');
+            if (fileName.StartsWith('*'))
+                fileName = fileName[1..].TrimStart(' ', '\t');
+
             if (!string.Equals(fileName, packageFileName, StringComparison.Ordinal))
                 continue;
 
-            var hash = tokens[0];
             if (hash.Length != 64 || !IsHex(hash))
                 throw new InvalidDataException("The release checksum is not a valid SHA-256 value.");
 
