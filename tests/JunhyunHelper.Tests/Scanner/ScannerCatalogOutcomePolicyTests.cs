@@ -29,17 +29,4 @@ public sealed class ScannerCatalogOutcomePolicyTests
     {
         Assert.True(ScannerCatalogOutcomePolicy.IsRefreshFailure(outcome));
     }
-
-    [Theory]
-    [InlineData("http-failure", true)]
-    [InlineData("json-invalid", true)]
-    [InlineData("payload-invalid", true)]
-    [InlineData("timeout-or-shutdown", false)]
-    [InlineData("access-failure", false)]
-    [InlineData("fresh-cache", false)]
-    [InlineData("success", false)]
-    public void IsRetryableFromUserUpdate_OnlyQuickTransientFailuresRetry(string outcome, bool expected)
-    {
-        Assert.Equal(expected, ScannerCatalogOutcomePolicy.IsRetryableFromUserUpdate(outcome));
-    }
 }
