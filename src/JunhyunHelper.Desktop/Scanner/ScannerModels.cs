@@ -72,8 +72,8 @@ public sealed record ScannerRuntimeStatus(
 /// User-facing recognition history. This is deliberately separate from scanner.log:
 /// the UI receives only the OCR text, nearest official candidate, similarity and the
 /// final decision, while the developer log keeps lower-level capture/runtime metadata.
-/// CaseId is an exact join key to an already-persisted diagnostic case; it is never
-/// inferred from timestamps or nearby frames.
+/// CaseId is an exact join key and CorrectionAvailable is set only when the Scanner page
+/// can prove that the matching persisted/current evidence is available.
 /// </summary>
 public sealed record ScannerActivityEntry(
     DateTimeOffset Timestamp,
@@ -84,7 +84,8 @@ public sealed record ScannerActivityEntry(
     double SecondScore,
     bool Success,
     string Reason,
-    string? CaseId = null)
+    string? CaseId = null,
+    bool CorrectionAvailable = false)
 {
     public string TimeText => Timestamp.ToLocalTime().ToString("HH:mm:ss");
 
@@ -94,7 +95,7 @@ public sealed record ScannerActivityEntry(
 
     public string ResultLabel => Success ? "식별 성공" : "식별 보류";
 
-    public bool CanCorrect => !string.IsNullOrWhiteSpace(CaseId);
+    public bool CanCorrect => CorrectionAvailable && !string.IsNullOrWhiteSpace(CaseId);
 
     public string Summary
     {
