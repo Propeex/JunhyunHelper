@@ -1,0 +1,41 @@
+{
+  "version": "1.6.0",
+  "status": "PUBLIC_RELEASE_VERIFIED",
+  "exact_release_source": "e18c108380572913552030aa677bba06ebf49355",
+  "tag": "v1.6.0",
+  "release_run_id": 32710012954,
+  "release_run_conclusion": "success",
+  "public_verify_job_id": 97379365581,
+  "public_verify_conclusion": "success",
+  "verified_at_utc": "2026-08-24T09:10:44.9630720Z",
+  "stable_asset": {
+    "name": "Junhyun-Helper.zip",
+    "bytes": 80425013,
+    "sha256": "f9384ff49d522afb5976efe291ff932d66063dcfeee64b0aed7a5daa691a12c5",
+    "extracted_root": "준현 헬퍼/"
+  },
+  "v1_5_bridge_asset": {
+    "name": "Junhyun-Helper-v1.6.0-win-x64.zip",
+    "bytes": 80424089,
+    "sha256": "3f05b20ccbd7463fb590889042b1b706290a88e0568cd00c3b2fa23cf966dfc8"
+  },
+  "checksum_asset": "SHA256SUMS.txt",
+  "product_version": "1.6.0+e18c108380572913552030aa677bba06ebf49355",
+  "tests": {
+    "passed": 299,
+    "failed": 0,
+    "skipped": 0
+  },
+  "verification": {
+    "exact_tag_source": true,
+    "stable_latest": true,
+    "anonymous_public_metadata": true,
+    "anonymous_public_redownload": true,
+    "checksum_and_size": true,
+    "stable_and_bridge_payload_match": true,
+    "product_version": true,
+    "product_ui_scanner_miniscanner_map_smoke": true,
+    "graceful_shutdown": true,
+    "clean_portable_root": true
+  }
+}
