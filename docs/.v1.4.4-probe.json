@@ -1,15 +1,15 @@
 {
-  "checked_at_utc": "2026-08-24T01:30:01.8085139+00:00",
-  "release_run_id": 32679464462,
+  "checked_at_utc": "2026-08-24T01:35:32.1612149+00:00",
+  "release_run_id": 32680058795,
   "release_run_status": "completed",
-  "release_run_conclusion": "failure",
-  "verifier_run_id": 32679600982,
-  "verifier_run_status": "completed",
-  "verifier_run_conclusion": "failure",
+  "release_run_conclusion": "success",
+  "verifier_run_id": 32680093008,
+  "verifier_run_status": "in_progress",
+  "verifier_run_conclusion": null,
   "release_exists": true,
   "release_tag": "v1.4.4",
-  "release_draft": true,
+  "release_draft": false,
   "release_prerelease": false,
-  "release_published_at": null,
-  "release_url": "https://github.com/Propeex/JunhyunHelper/releases/tag/untagged-64841b82e0770d56846c"
+  "release_published_at": "2026-08-24T01:35:12Z",
+  "release_url": "https://github.com/Propeex/JunhyunHelper/releases/tag/v1.4.4"
 }
