@@ -65,6 +65,7 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
@@ -85,9 +86,16 @@
                         Content="단축키 설정"
                         MinWidth="112"
                         Padding="10,5"
+                        Margin="0,0,8,0"
                         Click="HotkeySettingsButton_Click" />
+                <Button x:Name="OcrSubstitutionSettingsButton"
+                        Grid.Column="3"
+                        Content="OCR 문자 치환"
+                        MinWidth="118"
+                        Padding="10,5"
+                        Click="OcrSubstitutionSettingsButton_Click" />
                 <Button x:Name="SyncCatalogButton"
-                        Grid.Column="4"
+                        Grid.Column="5"
                         Content="아이템 목록 최신화"
                         MinWidth="132"
                         Click="SyncCatalogButton_Click" />
