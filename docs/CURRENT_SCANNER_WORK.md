@@ -201,7 +201,7 @@ Corrupt/unknown metadata는 fail closed하여 보존한다.
 정식 ZIP:
 
 ```text
-준현 헬퍼.zip
+Junhyun-Helper.zip
 └─ 준현 헬퍼/
    ├─ 준현 헬퍼.exe
    ├─ FIRST_RUN_KO.txt

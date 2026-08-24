@@ -59,7 +59,7 @@ Scanner Ground Truth: local diagnostics persistence
 - candidate box 직접 클릭 선택
 - manual rectangle / explicit `없음` fallback 유지
 - saved Case reopen / Ground Truth re-edit
-- stable user package `준현 헬퍼.zip` → `준현 헬퍼/`
+- stable user package `Junhyun-Helper.zip` → `준현 헬퍼/`
 - CI에서 실제 stable ZIP 생성 및 내부 경로 검증
 
 공식 문서:
@@ -189,7 +189,7 @@ v1.6 UI/기능 중간 gate CI `32700507526`:
 3. main push CI
 4. exact release source/tag 고정
 5. public stable/latest v1.6.0 release
-6. `준현 헬퍼.zip` public redownload/hash/layout verification
+6. `Junhyun-Helper.zip` public redownload/hash/layout verification
 7. public-downloaded EXE ProductVersion / Product UI / Map / Scanner smoke
 8. final release status 기록
 

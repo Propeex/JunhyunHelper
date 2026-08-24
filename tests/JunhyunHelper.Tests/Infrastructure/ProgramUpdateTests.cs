@@ -17,8 +17,8 @@ public sealed class ProgramUpdateTests
           "prerelease": false,
           "assets": [
             {
-              "name": "준현 헬퍼.zip",
-              "browser_download_url": "https://github.com/Propeex/JunhyunHelper/releases/download/v1.6.0/%EC%A4%80%ED%98%84%20%ED%97%AC%ED%8D%BC.zip"
+              "name": "Junhyun-Helper.zip",
+              "browser_download_url": "https://github.com/Propeex/JunhyunHelper/releases/download/v1.6.0/Junhyun-Helper.zip"
             },
             {
               "name": "Junhyun-Helper-v1.6.0-win-x64.zip",
@@ -108,7 +108,7 @@ public sealed class ProgramUpdateTests
     [Fact]
     public void ChecksumParserUsesTheExactStablePackageEntry()
     {
-        const string packageName = "준현 헬퍼.zip";
+        const string packageName = "Junhyun-Helper.zip";
         const string expected = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
         var checksumText = $"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  other.zip\n{expected}  {packageName}\n";
 

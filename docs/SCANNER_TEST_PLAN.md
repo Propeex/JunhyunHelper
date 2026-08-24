@@ -11,7 +11,7 @@
 Desktop target: 1.6.0
 automated suite: 296 tests
 Scanner display settings schema: v6
-stable user package: 준현 헬퍼.zip
+stable user package: Junhyun-Helper.zip
 stable archive root: 준현 헬퍼/
 ```
 
@@ -69,7 +69,7 @@ Final version/FIRST_RUN/package/docs commits were added afterward, so latest HEA
 34. graceful close / process termination
 35. clean portable root
 36. run `packaging/New-ReleasePackage.ps1`
-37. stable `준현 헬퍼.zip` exists
+37. stable `Junhyun-Helper.zip` exists
 38. every ZIP entry is under `준현 헬퍼/`
 39. required `준현 헬퍼/준현 헬퍼.exe`, `FIRST_RUN_KO.txt`, `Assets/tarkov_data.db`
 40. release ZIP SHA-256 recorded
@@ -78,7 +78,7 @@ Final version/FIRST_RUN/package/docs commits were added afterward, so latest HEA
 
 41. exact source tag `v1.6.0`
 42. stable/latest release metadata points to exact source
-43. public asset name exactly `준현 헬퍼.zip`
+43. public asset name exactly `Junhyun-Helper.zip`
 44. checksum asset verified
 45. fresh anonymous/public ZIP redownload
 46. public hash/size/layout verification
@@ -478,7 +478,7 @@ Published product identity:
 Stable user ZIP:
 
 ```text
-준현 헬퍼.zip
+Junhyun-Helper.zip
 └─ 준현 헬퍼/
    ├─ 준현 헬퍼.exe
    ├─ FIRST_RUN_KO.txt
@@ -497,7 +497,7 @@ Fresh public checks:
 
 - public latest release = v1.6.0
 - exact tag resolves to chosen release source
-- public `준현 헬퍼.zip` redownload
+- public `Junhyun-Helper.zip` redownload
 - checksum redownload
 - hash/size match
 - archive root/path validation

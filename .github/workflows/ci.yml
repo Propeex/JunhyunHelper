@@ -266,7 +266,7 @@ jobs:
 
           [xml]$project = Get-Content 'src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj'
           $expectedVersion = [string]($project.Project.PropertyGroup.Version | Select-Object -First 1)
-          $stableName = '준현 헬퍼.zip'
+          $stableName = 'Junhyun-Helper.zip'
           $stablePath = Join-Path 'artifacts/release' $stableName
           $checksumPath = 'artifacts/release/SHA256SUMS.txt'
 

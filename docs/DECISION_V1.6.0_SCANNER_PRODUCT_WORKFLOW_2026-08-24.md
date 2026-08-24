@@ -177,7 +177,9 @@ v1.6.0 UX 작업 때문에 Scanner identity safety threshold를 완화하지 않
 
 정식 사용자 배포 ZIP 이름은 버전 번호와 분리한다.
 
-- 파일명: `준현 헬퍼.zip`
+GitHub Release는 비영문/특수문자 asset filename을 정규화하므로 release asset 자체는 version-independent ASCII 이름을 사용한다. 사용자에게 압축 해제되는 제품 폴더와 실행 파일의 한국어 이름은 유지한다.
+
+- 파일명: `Junhyun-Helper.zip`
 - 압축 내부 최상위 폴더: `준현 헬퍼/`
 - 실행 파일: `준현 헬퍼/준현 헬퍼.exe`
 
@@ -198,7 +200,7 @@ CI는 실제 release ZIP을 생성한 뒤 최상위 폴더 구조와 필수 파�
 
 - `Junhyun-Helper-v1.6.0-win-x64.zip`
 
-일반 사용자용 권위 asset은 `준현 헬퍼.zip`이며 bridge는 v1.5.0 자동 업데이트 호환성만 담당한다.
+일반 사용자용 권위 asset은 `Junhyun-Helper.zip`이며 bridge는 v1.5.0 자동 업데이트 호환성만 담당한다.
 
 v1.6.0 updater는 새 Korean stable package를 우선 선택하고 `준현 헬퍼/` wrapper를 staging root로 안전하게 unwrap한다. 전환 기간을 위해 legacy versioned package도 fallback으로 읽을 수 있다.
 
@@ -221,7 +223,7 @@ v1.6.0 release candidate는 최소 다음을 통과해야 한다.
 - Map / Factory / MiniMap smoke
 - graceful shutdown
 - clean portable root
-- stable `준현 헬퍼.zip` 생성 및 내부 `준현 헬퍼/` 경로 검증
+- stable `Junhyun-Helper.zip` 생성 및 내부 `준현 헬퍼/` 경로 검증
 - v1.5 updater bridge ZIP 생성 및 legacy root 구조 검증
 - stable/bridge package SHA256SUMS 일치 검증
 - 공개 release 후 anonymous/public redownload 검증

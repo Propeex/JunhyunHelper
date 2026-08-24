@@ -404,7 +404,7 @@ LocalAppData user data is untouched.
 v1.6 stable package:
 
 ```text
-준현 헬퍼.zip
+Junhyun-Helper.zip
 └─ 준현 헬퍼/
    ├─ 준현 헬퍼.exe
    ├─ FIRST_RUN_KO.txt
@@ -466,7 +466,7 @@ v1.6 release candidate must verify:
 - Product UI + Scanner/Mini Scanner smoke
 - Main Map/Factory/MiniMap smoke
 - graceful shutdown / clean portable root
-- stable `준현 헬퍼.zip` generation
+- stable `Junhyun-Helper.zip` generation
 - archive root `준현 헬퍼/` validation
 - exact tag/source
 - public latest release

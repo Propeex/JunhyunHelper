@@ -423,7 +423,7 @@ installer 없음
 v1.6.0부터 stable user package:
 
 ```text
-준현 헬퍼.zip
+Junhyun-Helper.zip
 └─ 준현 헬퍼/
    ├─ 준현 헬퍼.exe
    ├─ FIRST_RUN_KO.txt
