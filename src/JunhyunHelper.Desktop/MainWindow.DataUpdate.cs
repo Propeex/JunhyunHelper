@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using JunhyunHelper.Infrastructure.Scanner;
 
 namespace JunhyunHelper.Desktop;
 
@@ -43,7 +44,7 @@ public partial class MainWindow
             // Game Content update. Retry only quick/transient payload failures here;
             // a request-wide timeout is already long enough and is not repeated from
             // this UI path to avoid turning one update into a minute-long block.
-            if (IsRetryableScannerCatalogOutcome(scannerDiagnostics.Outcome))
+            if (ScannerCatalogOutcomePolicy.IsRetryableFromUserUpdate(scannerDiagnostics.Outcome))
             {
                 StatusText.Text = "Scanner 아이템·가격 데이터를 한 번 더 확인하는 중...";
                 await Task.Delay(TimeSpan.FromMilliseconds(500));
@@ -58,7 +59,7 @@ public partial class MainWindow
             // outcomes count as fallback.
             var scannerUsedFallback = scannerUsable &&
                                       scannerDiagnostics.UsedExistingCatalog &&
-                                      IsScannerCatalogRefreshFailure(scannerDiagnostics.Outcome);
+                                      ScannerCatalogOutcomePolicy.IsRefreshFailure(scannerDiagnostics.Outcome);
 
             if (cleanupChanges.Count > 0)
             {
@@ -98,19 +99,4 @@ public partial class MainWindow
             SetBusy(false, StatusText.Text);
         }
     }
-
-    private static bool IsRetryableScannerCatalogOutcome(string outcome) => outcome is
-        "http-failure" or
-        "json-invalid" or
-        "payload-invalid";
-
-    private static bool IsScannerCatalogRefreshFailure(string outcome) => outcome is
-        "timeout-or-shutdown" or
-        "http-failure" or
-        "io-failure" or
-        "access-failure" or
-        "json-invalid" or
-        "payload-invalid" or
-        "identity-invalid" or
-        "cache-readback-invalid";
 }
