@@ -1,4 +1,6 @@
 using System.Windows.Media;
+using JunhyunHelper.Core.Items;
+using JunhyunHelper.Core.Scanner;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
@@ -30,9 +32,14 @@ public sealed partial class ScannerCoordinator
         if (context is null || _catalog.LoadedMode != context.GameMode || !_catalog.HasHealthyCatalog)
             return [];
 
-        var wikiById = context.Content.Items
+        // Search runs on every query edit. Build one canonical lookup for this search
+        // instead of routing each of the top-N hits through full mapped presentation,
+        // which would repeatedly scan Content.Items and NeededItems even though the
+        // result row only needs icon/name/wiki metadata.
+        var contentById = context.Content.Items
             .Where(item => !string.IsNullOrWhiteSpace(item.Id))
-            .ToDictionary(item => item.Id, item => item.WikiUrl, StringComparer.Ordinal);
+            .GroupBy(item => item.Id, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
 
         return _catalog.GetItemsSnapshot()
             .Select(item => new { Item = item, Rank = SearchRank(item.OfficialName, item.ShortName, text) })
@@ -40,16 +47,7 @@ public sealed partial class ScannerCoordinator
             .OrderBy(entry => entry.Rank)
             .ThenBy(entry => entry.Item.OfficialName, StringComparer.CurrentCultureIgnoreCase)
             .Take(Math.Clamp(maximumResults, 1, 50))
-            .Select(entry =>
-            {
-                var snapshot = Presentation.CreateSnapshot(entry.Item.Id);
-                wikiById.TryGetValue(entry.Item.Id, out var wikiUrl);
-                return new ScannerItemSearchHit(
-                    entry.Item.Id,
-                    entry.Item.OfficialName,
-                    snapshot?.Icon,
-                    wikiUrl);
-            })
+            .Select(entry => CreateSearchHit(entry.Item, contentById))
             .ToArray();
     }
 
@@ -71,6 +69,19 @@ public sealed partial class ScannerCoordinator
             .FirstOrDefault(item => string.Equals(item.Id, snapshot.ItemId, StringComparison.Ordinal))
             ?.WikiUrl;
         return new ScannerItemSearchDetails(snapshot, wikiUrl);
+    }
+
+    private ScannerItemSearchHit CreateSearchHit(
+        ScannerCatalogItem item,
+        IReadOnlyDictionary<string, GameItem> contentById)
+    {
+        contentById.TryGetValue(item.Id, out var canonicalItem);
+        var iconUrl = canonicalItem?.IconUrl ?? item.IconUrl;
+        return new ScannerItemSearchHit(
+            item.Id,
+            item.OfficialName,
+            _icons.Load($"item-{item.Id}", iconUrl),
+            canonicalItem?.WikiUrl);
     }
 
     private static int SearchRank(string officialName, string shortName, string query)

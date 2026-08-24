@@ -3,11 +3,12 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Scanner 고급"
         Width="460"
-        Height="330"
+        SizeToContent="Height"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource BackgroundDarkBrush}">
-    <Border Margin="14"
+    <Border x:Name="AdvancedContentBorder"
+            Margin="14"
             Background="{StaticResource BackgroundMediumBrush}"
             BorderBrush="{StaticResource BorderBrush}"
             BorderThickness="1"
@@ -19,7 +20,7 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
@@ -37,20 +38,23 @@
                     Height="38"
                     Margin="0,0,0,10"
                     Click="TestToggleButton_Click" />
-            <Button Grid.Row="3"
+            <Button x:Name="CurrentCorrectionButton"
+                    Grid.Row="3"
                     Content="현재 결과 교정"
                     Height="38"
                     Margin="0,0,0,10"
                     Click="CurrentCorrectionButton_Click" />
-            <Button Grid.Row="4"
+            <Button x:Name="ManageCorrectionsButton"
+                    Grid.Row="4"
                     Content="교정 데이터 관리"
                     Height="38"
-                    VerticalAlignment="Top"
                     Click="ManageCorrectionsButton_Click" />
 
-            <Button Grid.Row="5"
+            <Button x:Name="AdvancedCloseButton"
+                    Grid.Row="5"
                     Content="닫기"
                     MinWidth="84"
+                    Margin="0,18,0,0"
                     HorizontalAlignment="Right"
                     Click="CloseButton_Click" />
         </Grid>

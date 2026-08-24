@@ -1,0 +1,211 @@
+name: Release
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish-stable-release:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: windows-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout verified main commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Download verified Windows x64 artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: JunhyunHelper-win-x64
+          path: artifacts
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Verify and publish stable GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          gh --version
+          if ($LASTEXITCODE -ne 0) {
+            throw 'GitHub CLI is unavailable on the release runner.'
+          }
+
+          gh auth status
+          if ($LASTEXITCODE -ne 0) {
+            throw 'GitHub Actions token could not authenticate GitHub CLI.'
+          }
+
+          [xml]$project = Get-Content 'src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj'
+          $expectedVersion = [string]($project.Project.PropertyGroup.Version | Select-Object -First 1)
+          if ([string]::IsNullOrWhiteSpace($expectedVersion)) {
+            throw 'Desktop project version is missing.'
+          }
+
+          $tag = "v$expectedVersion"
+          $stablePath = (Resolve-Path 'artifacts/release/Junhyun-Helper.zip').Path
+          $checksumPath = (Resolve-Path 'artifacts/release/SHA256SUMS.txt').Path
+          $publishedExe = (Resolve-Path 'artifacts/publish/준현 헬퍼.exe').Path
+          $publishedFirstRun = (Resolve-Path 'artifacts/publish/FIRST_RUN_KO.txt').Path
+
+          $productVersion = (Get-Item $publishedExe).VersionInfo.ProductVersion
+          $escapedVersion = [Regex]::Escape($expectedVersion)
+          if ([string]::IsNullOrWhiteSpace($productVersion) -or $productVersion -notmatch "^$escapedVersion(?:$|[+-])") {
+            throw "Verified artifact ProductVersion '$productVersion' does not match '$expectedVersion'."
+          }
+
+          $expectedFirstRunLine = "준현 헬퍼 v$expectedVersion — Windows x64"
+          $firstRunFirstLine = Get-Content $publishedFirstRun -TotalCount 1
+          if (-not [string]::Equals($firstRunFirstLine, $expectedFirstRunLine, [System.StringComparison]::Ordinal)) {
+            throw "Verified artifact FIRST_RUN_KO.txt does not match '$expectedFirstRunLine'."
+          }
+
+          $checksumLines = @(Get-Content $checksumPath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+          $stableChecksumLine = @($checksumLines | Where-Object {
+            $_ -match '^([0-9a-fA-F]{64})\s+Junhyun-Helper\.zip$'
+          })
+          if ($stableChecksumLine.Count -ne 1) {
+            throw 'SHA256SUMS.txt must contain exactly one Junhyun-Helper.zip checksum entry.'
+          }
+
+          if ($stableChecksumLine[0] -notmatch '^([0-9a-fA-F]{64})\s+Junhyun-Helper\.zip$') {
+            throw 'Junhyun-Helper.zip checksum entry is malformed.'
+          }
+          $manifestHash = $Matches[1].ToLowerInvariant()
+          $actualHash = (Get-FileHash $stablePath -Algorithm SHA256).Hash.ToLowerInvariant()
+          if (-not [string]::Equals($manifestHash, $actualHash, [System.StringComparison]::Ordinal)) {
+            throw "Verified release package checksum mismatch: manifest=$manifestHash actual=$actualHash"
+          }
+
+          $stableSize = (Get-Item $stablePath).Length
+          $checksumSize = (Get-Item $checksumPath).Length
+          Write-Host "Publishing verified release candidate: $tag"
+          Write-Host "Source main commit: $env:RELEASE_SHA"
+          Write-Host "Junhyun-Helper.zip bytes: $stableSize"
+          Write-Host "Junhyun-Helper.zip SHA-256: $actualHash"
+
+          $existingJson = & gh release view $tag --repo $env:GITHUB_REPOSITORY --json tagName,isDraft,isPrerelease,assets,url 2>$null
+          $releaseExists = $LASTEXITCODE -eq 0
+
+          if (-not $releaseExists) {
+            & gh release create $tag `
+              $stablePath `
+              $checksumPath `
+              --repo $env:GITHUB_REPOSITORY `
+              --target $env:RELEASE_SHA `
+              --title "준현 헬퍼 $tag" `
+              --notes-file 'packaging/FIRST_RUN_KO.txt' `
+              --draft
+            if ($LASTEXITCODE -ne 0) {
+              throw "Could not create draft release $tag."
+            }
+
+            $existingJson = & gh release view $tag --repo $env:GITHUB_REPOSITORY --json tagName,isDraft,isPrerelease,assets,url
+            if ($LASTEXITCODE -ne 0) {
+              throw "Draft release $tag was created but could not be read back."
+            }
+          }
+
+          $release = $existingJson | ConvertFrom-Json
+          if (-not [string]::Equals([string]$release.tagName, $tag, [System.StringComparison]::Ordinal)) {
+            throw "Release tag mismatch. Expected '$tag', received '$($release.tagName)'."
+          }
+          if ($release.isPrerelease) {
+            throw "Existing $tag release is unexpectedly marked prerelease."
+          }
+
+          $assetsByName = @{}
+          foreach ($asset in @($release.assets)) {
+            if ($null -ne $asset -and -not [string]::IsNullOrWhiteSpace([string]$asset.name)) {
+              $assetsByName[[string]$asset.name] = $asset
+            }
+          }
+
+          # Published stable releases are immutable. A later documentation-only main
+          # commit can legitimately build different bytes for the same assembly version
+          # (for example because ProductVersion contains commit metadata). Never replace
+          # or mutate an already-published version. Merely verify that its required
+          # updater assets still exist, then finish successfully.
+          if (-not $release.isDraft) {
+            foreach ($requiredName in @('Junhyun-Helper.zip', 'SHA256SUMS.txt')) {
+              if (-not $assetsByName.ContainsKey($requiredName)) {
+                throw "Published stable release $tag is missing required immutable asset '$requiredName'."
+              }
+            }
+
+            Write-Host "Stable release $tag is already published and remains immutable: $($release.url)"
+            exit 0
+          }
+
+          $expectedAssets = @(
+            @{ Name = 'Junhyun-Helper.zip'; Path = $stablePath; Size = $stableSize },
+            @{ Name = 'SHA256SUMS.txt'; Path = $checksumPath; Size = $checksumSize }
+          )
+
+          # Draft releases are resumable. Existing draft assets must match the verified
+          # main-CI artifact size; mismatches are treated as contamination and never
+          # overwritten silently.
+          foreach ($expected in $expectedAssets) {
+            if ($assetsByName.ContainsKey($expected.Name)) {
+              $remoteSize = [long]$assetsByName[$expected.Name].size
+              if ($remoteSize -ne [long]$expected.Size) {
+                throw "Existing draft release asset '$($expected.Name)' has size $remoteSize, expected $($expected.Size). Refusing to overwrite it."
+              }
+              continue
+            }
+
+            & gh release upload $tag $expected.Path --repo $env:GITHUB_REPOSITORY
+            if ($LASTEXITCODE -ne 0) {
+              throw "Could not upload release asset '$($expected.Name)'."
+            }
+          }
+
+          $verifiedJson = & gh release view $tag --repo $env:GITHUB_REPOSITORY --json tagName,isDraft,isPrerelease,assets,url
+          if ($LASTEXITCODE -ne 0) {
+            throw "Could not verify release $tag after asset upload."
+          }
+          $verified = $verifiedJson | ConvertFrom-Json
+          $verifiedNames = @($verified.assets | ForEach-Object { [string]$_.name })
+          foreach ($requiredName in @('Junhyun-Helper.zip', 'SHA256SUMS.txt')) {
+            if ($requiredName -notin $verifiedNames) {
+              throw "Release $tag is missing required asset '$requiredName'."
+            }
+          }
+
+          if ($verified.isDraft) {
+            & gh release edit $tag --repo $env:GITHUB_REPOSITORY --draft=false --prerelease=false --latest
+            if ($LASTEXITCODE -ne 0) {
+              throw "Verified draft release $tag could not be published."
+            }
+          }
+
+          $finalJson = & gh release view $tag --repo $env:GITHUB_REPOSITORY --json tagName,isDraft,isPrerelease,assets,url
+          if ($LASTEXITCODE -ne 0) {
+            throw "Published release $tag could not be read back."
+          }
+          $final = $finalJson | ConvertFrom-Json
+          if ($final.isDraft -or $final.isPrerelease) {
+            throw "Release $tag is not a stable published release after publication."
+          }
+
+          $finalNames = @($final.assets | ForEach-Object { [string]$_.name })
+          foreach ($requiredName in @('Junhyun-Helper.zip', 'SHA256SUMS.txt')) {
+            if ($requiredName -notin $finalNames) {
+              throw "Published release $tag lost required asset '$requiredName'."
+            }
+          }
+
+          Write-Host "Stable GitHub release published: $($final.url)"
+          Write-Host "Release package SHA-256: $actualHash"

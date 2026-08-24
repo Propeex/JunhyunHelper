@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using JunhyunHelper.Infrastructure.Scanner;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
@@ -18,6 +19,7 @@ internal static class ScannerDiagnosticLog
 {
     private const long MaximumBytes = 2 * 1024 * 1024;
     private const int MaximumRecentActivities = 60;
+    private static readonly TimeSpan MaximumAge = TimeSpan.FromDays(7);
     private static readonly object Gate = new();
     private static readonly Dictionary<ScannerCaptureMode, string> LastOcrByMode = [];
     private static readonly List<ScannerActivityEntry> RecentActivities = [];
@@ -39,6 +41,16 @@ internal static class ScannerDiagnosticLog
             EnsureRecentActivitiesLoaded();
             return RecentActivities.ToArray();
         }
+    }
+
+    /// <summary>
+    /// Removes Scanner runtime log lines older than the product retention window.
+    /// Ground Truth/correction cases are stored elsewhere and are never touched here.
+    /// </summary>
+    public static bool PruneExpiredEntries()
+    {
+        lock (Gate)
+            return PruneExpiredEntriesLocked();
     }
 
     /// <summary>
@@ -142,6 +154,10 @@ internal static class ScannerDiagnosticLog
             return;
         _historyHydrated = true;
 
+        // Runtime logs are ephemeral. Prune them before hydration so the Scanner page
+        // never restores activity older than the same seven-day on-disk policy.
+        PruneExpiredEntriesLocked();
+
         var pendingOcr = new Dictionary<ScannerCaptureMode, string>();
         foreach (var path in new[] { Path + ".1", Path })
         {
@@ -160,6 +176,25 @@ internal static class ScannerDiagnosticLog
 
         if (RecentActivities.Count > MaximumRecentActivities)
             RecentActivities.RemoveRange(MaximumRecentActivities, RecentActivities.Count - MaximumRecentActivities);
+    }
+
+    private static bool PruneExpiredEntriesLocked()
+    {
+        try
+        {
+            var result = ScannerLogRetention.PruneFiles(
+                Path,
+                Path + ".1",
+                MaximumAge,
+                MaximumBytes,
+                DateTimeOffset.UtcNow);
+            return result.Success;
+        }
+        catch
+        {
+            // Log maintenance is best-effort and must never affect Scanner recognition.
+            return false;
+        }
     }
 
     private static void ReplayDiagnosticLine(

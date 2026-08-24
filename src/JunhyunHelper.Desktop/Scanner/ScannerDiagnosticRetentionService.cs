@@ -3,9 +3,10 @@ using System.Text.Json;
 namespace JunhyunHelper.Desktop.Scanner;
 
 /// <summary>
-/// Bounds only automatically captured, unreviewed Scanner diagnostic cases. Human-reviewed
-/// Ground Truth is intentionally outside this retention policy and is never deleted here.
-/// Unknown/corrupt metadata also fails closed and remains untouched.
+/// Bounds automatically captured, unreviewed Scanner diagnostic cases and performs
+/// lightweight runtime-log maintenance. Human-reviewed Ground Truth is intentionally
+/// outside every automatic deletion policy here. Unknown/corrupt Case metadata also
+/// fails closed and remains untouched.
 /// </summary>
 internal sealed class ScannerDiagnosticRetentionService : IDisposable
 {
@@ -41,6 +42,11 @@ internal sealed class ScannerDiagnosticRetentionService : IDisposable
         {
             try
             {
+                // Text-only Scanner runtime logs are ephemeral and use their own short
+                // retention window. This call is synchronized by ScannerDiagnosticLog
+                // so it cannot race an in-process append. Reviewed Ground Truth remains
+                // in the separate diagnostics dataset and is never touched here.
+                ScannerDiagnosticLog.PruneExpiredEntries();
                 PruneAutomaticCases();
             }
             catch (Exception exception) when (exception is not OutOfMemoryException)

@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using JunhyunHelper.Core.Profiles;
@@ -26,7 +27,13 @@ public sealed class ScannerCatalogService : IDisposable
 {
     public const int MinimumHealthyItemCount = 4000;
     private const int CurrentCacheSchemaVersion = 3;
+    private const int RequiredDownloadAttempts = 3;
+    private const int OptionalDownloadAttempts = 2;
     private static readonly TimeSpan DefaultRefreshAge = TimeSpan.FromHours(12);
+    private static readonly TimeSpan RequiredRequestTimeout = TimeSpan.FromSeconds(12);
+    private static readonly TimeSpan OptionalRequestTimeout = TimeSpan.FromSeconds(8);
+    private static readonly TimeSpan FirstRetryDelay = TimeSpan.FromMilliseconds(250);
+    private static readonly TimeSpan SecondRetryDelay = TimeSpan.FromMilliseconds(750);
 
     private readonly HttpClient _httpClient;
     private readonly string _cacheDirectory;
@@ -219,30 +226,33 @@ public sealed class ScannerCatalogService : IDisposable
                 return true;
             }
 
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(operation.Token);
-            timeout.CancelAfter(TimeSpan.FromSeconds(20));
-            var token = timeout.Token;
-
+            var token = operation.Token;
             var modeKey = mode.ToDataKey();
             var root = $"https://json.tarkov.dev/{modeKey}/";
-            var baseTask = DownloadStringAsync(root + "items", token);
-            var koreanTask = DownloadStringAsync(root + "items_ko", token);
-            var englishTask = TryDownloadStringAsync(root + "items_en", token);
+
+            // Korean identity data is required. English localization and trader display
+            // names enrich presentation only, so their timeout/schema failures must not
+            // cancel an otherwise healthy Korean full-item refresh.
+            var baseTask = DownloadWithRetryAsync(
+                root + "items",
+                RequiredDownloadAttempts,
+                RequiredRequestTimeout,
+                token);
+            var koreanTask = DownloadWithRetryAsync(
+                root + "items_ko",
+                RequiredDownloadAttempts,
+                RequiredRequestTimeout,
+                token);
+            var englishTask = TryDownloadOptionalStringAsync(root + "items_en", token);
             var traderNamesTask = TryDownloadTraderNamesAsync(root, token);
 
             await Task.WhenAll(new Task[] { baseTask, koreanTask, englishTask, traderNamesTask });
 
             using var baseDocument = JsonDocument.Parse(await baseTask);
             using var koreanDocument = JsonDocument.Parse(await koreanTask);
-            var englishJson = await englishTask;
-            using var englishDocument = string.IsNullOrWhiteSpace(englishJson)
-                ? null
-                : JsonDocument.Parse(englishJson);
+            var english = TryReadTranslationDictionary(await englishTask);
 
             var korean = ReadTranslationDictionary(koreanDocument.RootElement);
-            var english = englishDocument is null
-                ? new Dictionary<string, string>(StringComparer.Ordinal)
-                : ReadTranslationDictionary(englishDocument.RootElement);
             var items = ParseItems(
                 baseDocument.RootElement,
                 korean,
@@ -277,6 +287,10 @@ public sealed class ScannerCatalogService : IDisposable
             return true;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return CompleteFailedRefresh(mode, "timeout-or-shutdown");
+        }
+        catch (TimeoutException)
         {
             return CompleteFailedRefresh(mode, "timeout-or-shutdown");
         }
@@ -361,17 +375,65 @@ public sealed class ScannerCatalogService : IDisposable
         return content;
     }
 
-    private async Task<string?> TryDownloadStringAsync(string url, CancellationToken cancellationToken)
+    private async Task<string> DownloadWithRetryAsync(
+        string url,
+        int maximumAttempts,
+        TimeSpan requestTimeout,
+        CancellationToken cancellationToken)
+    {
+        Exception? lastFailure = null;
+        for (var attempt = 1; attempt <= maximumAttempts; attempt++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            using var attemptTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            attemptTimeout.CancelAfter(requestTimeout);
+
+            try
+            {
+                return await DownloadStringAsync(url, attemptTimeout.Token);
+            }
+            catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                lastFailure = new TimeoutException(
+                    $"Scanner catalog request timed out after {requestTimeout.TotalSeconds:0.#} seconds: {url}",
+                    exception);
+            }
+            catch (HttpRequestException exception) when (IsRetryableHttpFailure(exception))
+            {
+                lastFailure = exception;
+            }
+            catch (InvalidDataException exception)
+            {
+                lastFailure = exception;
+            }
+
+            if (attempt >= maximumAttempts)
+                break;
+
+            await Task.Delay(GetRetryDelay(attempt), cancellationToken);
+        }
+
+        throw lastFailure ?? new HttpRequestException($"Scanner catalog request failed: {url}");
+    }
+
+    private async Task<string?> TryDownloadOptionalStringAsync(
+        string url,
+        CancellationToken cancellationToken)
     {
         try
         {
-            return await DownloadStringAsync(url, cancellationToken);
+            return await DownloadWithRetryAsync(
+                url,
+                OptionalDownloadAttempts,
+                OptionalRequestTimeout,
+                cancellationToken);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
         }
-        catch (HttpRequestException)
+        catch (Exception exception) when (
+            exception is HttpRequestException or InvalidDataException or TimeoutException)
         {
             return null;
         }
@@ -383,9 +445,9 @@ public sealed class ScannerCatalogService : IDisposable
     {
         try
         {
-            var baseTask = TryDownloadStringAsync(root + "traders", cancellationToken);
-            var koreanTask = TryDownloadStringAsync(root + "traders_ko", cancellationToken);
-            var englishTask = TryDownloadStringAsync(root + "traders_en", cancellationToken);
+            var baseTask = TryDownloadOptionalStringAsync(root + "traders", cancellationToken);
+            var koreanTask = TryDownloadOptionalStringAsync(root + "traders_ko", cancellationToken);
+            var englishTask = TryDownloadOptionalStringAsync(root + "traders_en", cancellationToken);
             await Task.WhenAll(new Task[] { baseTask, koreanTask, englishTask });
 
             var baseJson = await baseTask;
@@ -410,17 +472,51 @@ public sealed class ScannerCatalogService : IDisposable
                 : ReadTranslationDictionary(englishDocument.RootElement);
             return ReadTraderNames(baseDocument.RootElement, korean, english);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
         }
-        catch (Exception exception) when (exception is HttpRequestException or JsonException or InvalidDataException)
+        catch (Exception exception) when (
+            exception is HttpRequestException or JsonException or InvalidDataException or TimeoutException)
         {
             // Friendly trader names enrich presentation only. A missing/changed trader
             // endpoint must never disable an otherwise valid item identity/market cache.
             return new Dictionary<string, string>(StringComparer.Ordinal);
         }
     }
+
+    private static Dictionary<string, string> TryReadTranslationDictionary(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return new Dictionary<string, string>(StringComparer.Ordinal);
+
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            return ReadTranslationDictionary(document.RootElement);
+        }
+        catch (JsonException)
+        {
+            return new Dictionary<string, string>(StringComparer.Ordinal);
+        }
+    }
+
+    private static bool IsRetryableHttpFailure(HttpRequestException exception)
+    {
+        if (exception.StatusCode is null)
+            return true;
+
+        var statusCode = exception.StatusCode.Value;
+        return statusCode is HttpStatusCode.RequestTimeout or
+               HttpStatusCode.TooManyRequests ||
+               (int)statusCode >= 500;
+    }
+
+    private static TimeSpan GetRetryDelay(int completedAttempt) => completedAttempt switch
+    {
+        <= 1 => FirstRetryDelay,
+        _ => SecondRetryDelay,
+    };
 
     private bool CompleteFailedRefresh(
         GameMode mode,
