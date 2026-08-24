@@ -20,3 +20,12 @@
 .github/workflows/release-v1.6.0-final.yml
 .github/workflows/release-v1.6.0.yml
 .github/workflows/verify-v1.6.0-public-success.yml
+docs/.v1.6.0-doc-finalizer-probe.json
+docs/.v1.6.0-doc-finalizer-v2-probe.json
+docs/.v1.6.0-doc-finalizer-v3-probe.json
+docs/.v1.6.0-draft-assets.json
+docs/.v1.6.0-final-run-probe.json
+docs/.v1.6.0-patch-probe.json
+docs/.v1.6.0-patch-v2-probe.json
+docs/.v1.6.0-recovery-probe.json
+docs/.v1.6.0-release-probe.json
