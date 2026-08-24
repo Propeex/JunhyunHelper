@@ -1,0 +1,50 @@
+name: Probe v1.6.0 Release State
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/probe-v1.6.0-release.yml'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Record current workflow state
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $repo = $env:GITHUB_REPOSITORY
+          $controller = gh api "repos/$repo/actions/workflows/release-v1.6.0.yml/runs?per_page=5" | ConvertFrom-Json
+          $verifier = gh api "repos/$repo/actions/workflows/verify-v1.6.0-public-success.yml/runs?per_page=5" | ConvertFrom-Json
+          $c = @($controller.workflow_runs | Sort-Object created_at -Descending | Select-Object -First 1)[0]
+          $v = @($verifier.workflow_runs | Sort-Object created_at -Descending | Select-Object -First 1)[0]
+          $status = [ordered]@{
+            observed_at_utc = [DateTime]::UtcNow.ToString('o')
+            controller_run_id = if ($null -ne $c) { [long]$c.id } else { $null }
+            controller_status = if ($null -ne $c) { [string]$c.status } else { $null }
+            controller_conclusion = if ($null -ne $c) { [string]$c.conclusion } else { $null }
+            controller_head_sha = if ($null -ne $c) { [string]$c.head_sha } else { $null }
+            verifier_run_id = if ($null -ne $v) { [long]$v.id } else { $null }
+            verifier_status = if ($null -ne $v) { [string]$v.status } else { $null }
+            verifier_conclusion = if ($null -ne $v) { [string]$v.conclusion } else { $null }
+            verifier_head_sha = if ($null -ne $v) { [string]$v.head_sha } else { $null }
+          }
+          $json = $status | ConvertTo-Json
+          $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($json))
+          $path = "repos/$repo/contents/docs/.v1.6.0-release-probe.json"
+          $existing = gh api $path 2>$null
+          $sha = $null
+          if ($LASTEXITCODE -eq 0) { $sha = ($existing | ConvertFrom-Json).sha }
+          $args = @('--method','PUT',$path,'-f','message=Record v1.6.0 release workflow state','-f',"content=$encoded",'-f','branch=main')
+          if ($sha) { $args += @('-f',"sha=$sha") }
+          gh api @args | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Could not persist release probe.' }
+          $status | Format-List
