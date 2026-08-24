@@ -54,6 +54,11 @@ jobs:
           $product = $product.Replace($productNeedle, $productReplacement)
           [IO.File]::WriteAllText($productPath, $product, [Text.UTF8Encoding]::new($false))
 
+          # GitHub Actions tokens cannot push workflow-file changes without the
+          # workflows permission. Apply all product/test/docs changes here and let
+          # the repository API update ci.yml separately after this commit lands.
+          git restore --source=HEAD -- .github/workflows/ci.yml
+
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add --all
