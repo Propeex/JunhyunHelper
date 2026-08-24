@@ -16,6 +16,7 @@ public partial class ScannerPage : UserControl
     private bool _initialized;
     private bool _updatingUi;
     private bool _activitySubscribed;
+    private bool _suppressSearchRefresh;
     private string? _selectedWikiUrl;
 
     public ScannerPage()
@@ -118,7 +119,11 @@ public partial class ScannerPage : UserControl
         UpdateStatus(_coordinator.Status);
     }
 
-    private void ItemSearchBox_TextChanged(object sender, TextChangedEventArgs e) => RefreshSearchResults();
+    private void ItemSearchBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!_suppressSearchRefresh)
+            RefreshSearchResults();
+    }
 
     private void RefreshSearchResults()
     {
@@ -190,9 +195,17 @@ public partial class ScannerPage : UserControl
             return;
         }
 
+        _suppressSearchRefresh = true;
+        try
+        {
+            ItemSearchBox.Text = hit.OfficialName;
+            ItemSearchBox.CaretIndex = ItemSearchBox.Text.Length;
+        }
+        finally
+        {
+            _suppressSearchRefresh = false;
+        }
         SearchResultsPopup.IsOpen = false;
-        ItemSearchBox.Text = hit.OfficialName;
-        ItemSearchBox.CaretIndex = ItemSearchBox.Text.Length;
         RenderSearchDetails(details);
     }
 
