@@ -1,53 +1,77 @@
 # Scanner Ground Truth / Correction Development Contract
 
-기준일: 2026-08-23
+기준일: 2026-08-24
+상태: **v1.5.0 ACTIVE / PUBLIC VERIFIED**
 
-이 문서는 준현 헬퍼 Scanner의 실사용 실패를 재현 가능한 개발 데이터로 전환하는 공식 계약이다. 기존 `docs/SCANNER.md`의 production 인식 파이프라인을 폐기하지 않고 그 위에 진단·사용자 교정·Ground Truth·Export·회귀 개발 체계를 둔다.
+이 문서는 준현 헬퍼 Scanner의 실사용 성공·실패를 재현 가능한 개발 데이터로 전환하는 공식 계약이다. `docs/SCANNER.md`의 production recognition pipeline을 폐기하지 않고 그 위에 진단, 사용자 교정, Ground Truth, export, regression 체계를 둔다.
 
 ## 1. 목표
 
-Scanner는 범용 OCR이 아니라 Tarkov UI 전용 폐쇄형 인식 시스템으로 취급한다.
+Scanner는 범용 OCR이 아니라 Tarkov UI 전용 closed-domain recognizer로 취급한다.
 
 ```text
 capture
-→ detail candidate
-→ inspect-header lock
+→ detail proposals
+→ inspect-header semantic lock
 → item-name ROI
-→ Windows ko-KR OCR / Tarkov-font visual corroboration
+→ Windows ko-KR OCR / optional user substitution / Tarkov-font corroboration
 → current official item catalog matching
 → Item ID or fail closed
 → local mapped presentation data
 → user verification/correction
-→ Ground Truth dataset
+→ reviewed Ground Truth dataset
 → full-pipeline replay regression
 → evidence-based algorithm change
 ```
 
-성능 평가는 OCR 문자열 정확도만으로 끝내지 않는다. 상세창 탐지, ROI, OCR, 후보 매칭, 최종 Item ID, mapped presentation을 서로 분리해 진단하고, 최종적으로는 사용자에게 표시되는 아이템 판정이 맞는지를 핵심 지표로 본다.
+성능 평가는 OCR 문자열 정확도만으로 끝내지 않는다.
 
-## 2. 현재 production 필드 계약
+다음 층을 분리한다.
 
-현재 Scanner가 게임 화면에서 OCR하는 텍스트 필드는 `item_name` 하나다.
+- capture health
+- detail proposal recall/ranking
+- close-X semantic detection
+- magnifier semantic detection
+- header lock
+- item-name ROI localization
+- OCR recognition
+- user substitution effect
+- catalog candidate matching
+- final Item ID
+- mapped presentation
 
-다음 값은 게임 화면 숫자 OCR 결과가 아니다.
+최종적으로 사용자에게 표시되는 Item identity가 맞는지를 핵심 정확도 지표로 본다.
+
+## 2. Production 필드 계약
+
+현재 Scanner가 게임 화면에서 OCR하는 production text field는 `item_name` 하나다.
+
+다음 값은 화면 숫자 OCR이 아니다.
 
 - 최고 상인 판매가
+- 최고가 상인명
 - 플리마켓 24시간 평균가
-- 슬롯 / 슬롯당 가격
+- slots / price per slot
 - 현재 필요한 개수
 
-이 값은 `item_name → Item ID` 확정 뒤 기존 JunhyunHelper 로컬 데이터에서 계산/조회한다.
+이 값은 `item_name → Item ID` 확정 뒤 기존 JunhyunHelper local trusted data에서 계산/조회한다.
 
-따라서 dataset도 다음처럼 분리한다.
+Dataset도 분리한다.
 
 ```text
-OCR / localization field: item_name
-mapped_data: highest trader sell price, flea average, slots, price/slot, required total
+localization/OCR field: item_name
+mapped_data:
+  highest trader sell price
+  best trader name
+  flea average
+  slots
+  trader/flea price per slot
+  RequiredTotal
 ```
 
-존재하지 않는 가격/필요 개수 OCR ROI를 요구사항 문구에 맞추기 위해 인위적으로 만들지 않는다. 향후 실제 화면 숫자 인식이 제품 요구사항으로 추가될 때만 숫자 전용 recognizer/grammar를 별도로 설계한다.
+현재 존재하지 않는 가격/필요 개수 OCR ROI를 요구사항 문구에 맞추기 위해 인위적으로 만들지 않는다. 향후 실제 화면 숫자 인식이 별도 제품 요구사항으로 확정될 때만 숫자 recognizer/grammar를 설계한다.
 
-## 3. Case ID와 로그 연결
+## 3. Case ID와 evidence 연결
 
 진단 capture에는 프로세스 내 고유 Case ID를 부여한다.
 
@@ -55,13 +79,26 @@ mapped_data: highest trader sell price, flea average, slots, price/slot, require
 case_YYYYMMDDHHMMSSfff_000142
 ```
 
-같은 Case ID가 최신 diagnostic frame, `scanner.log`, dataset 디렉터리, `case.json`을 연결한다. 개발자는 이미지와 로그를 시간 추정으로 맞출 필요가 없다.
+동일 Case ID가:
 
-## 4. 저장 위치와 구조
+- latest diagnostic frame
+- `scanner.log`
+- Case directory
+- `case.json`
+- correction window
+- regression output
+
+을 연결한다.
+
+개발자는 이미지와 로그를 시간 추정으로 맞추지 않는다.
+
+## 4. 저장 위치 / 기본 구조
 
 ```text
 %LocalAppData%/JunhyunHelper/scanner/diagnostics/
 ```
+
+대표 구조:
 
 ```text
 diagnostics/
@@ -70,8 +107,8 @@ diagnostics/
 ├─ dataset.jsonl
 ├─ summary.json
 ├─ summary.md
-├─ regression.json              # 회귀 테스트 실행 후
-├─ regression.md                # 회귀 테스트 실행 후
+├─ regression.json
+├─ regression.md
 └─ cases/
    └─ case_.../
       ├─ full.png
@@ -80,86 +117,150 @@ diagnostics/
       ├─ case.json
       └─ item_name/
          ├─ detected_roi.png
-         ├─ corrected_roi.png       # 사용자가 영역을 수정한 경우
+         ├─ corrected_roi.png
          ├─ processed_roi.png
-         ├─ processed_variant_1.png
-         ├─ processed_variant_2.png
-         └─ processed_variant_3.png
+         └─ processed_variant_*.png
 ```
 
-`full.png`는 detector/OCR 전처리 전 원본 capture frame이다. 새 알고리즘으로 과거 실패를 실제 재실행하기 위해 반드시 보존한다.
+`full.png`는 detector/OCR 전처리 전 capture evidence다. 새 알고리즘으로 과거 Case를 실제 replay하려면 원본 full frame이 필요하다.
 
-## 5. 자동 보존 정책
+## 5. Automatic diagnostic Case와 Ground Truth 구분
 
-자동 진단 저장이 350ms live Scanner loop를 직접 지연시키지 않도록 persistence는 background best-effort로 수행한다.
+Automatic diagnostic persistence는 Scanner recognition 결과를 바꾸지 않는 background best-effort다.
 
-현재 자동 보존 대상:
+대표 automatic sample 대상:
 
-- 상세창 탐지 실패 / header lock 실패 대표 사례
-- identity failure / fail-closed semantic 결과
-- 성공했지만 confidence < 0.93
-- 높은 confidence 정상 성공의 title-signature 기반 약 1/20 deterministic sample
+- detail detection/header lock failure
+- identity failure/fail-closed semantic result
+- 성공했지만 저신뢰 결과
+- 정상 성공의 bounded deterministic sample
 
-동일 source/title/reason/ROI fingerprint의 반복 저장은 프로세스 내에서 억제한다.
+동일 source/title/reason/ROI fingerprint 반복 저장은 프로세스 내에서 억제할 수 있다.
 
-자동 Case는 `review_status=unreviewed`다. 사용자가 확인하지 않은 자동 Case를 Ground Truth 정답이나 오류 원인으로 사용하지 않는다.
-
-## 6. 사용자 교정 UX
-
-Scanner 탭의 `교정`은 최신 diagnostic frame을 연다.
+Automatic Case는 기본적으로:
 
 ```text
-결과가 맞음
-→ 맞음
-
-상세창이 틀림
-→ 상세보기 영역 수정
-→ 실제 상세창 드래그
-→ 저장
-
-아이템명 ROI가 틀림
-→ 아이템명 영역 수정
-→ 실제 텍스트 영역 드래그
-→ 저장
-
-최종 아이템명이 틀림
-→ 정답 아이템명 입력
-→ 저장
-
-영역 + 텍스트 둘 다 틀림
-→ 필요한 영역 드래그 + 정답 입력
-→ 한 Case로 저장
+retention = automatic_sample
+review_status = unreviewed
 ```
 
-사용자가 JSON, 좌표, 파일명, 이미지 분류를 직접 관리하지 않는다.
+다.
 
-## 7. Case metadata
+**Automatic Case를 Ground Truth 정답 또는 오류 원인으로 취급하지 않는다.**
 
-`case.json`은 최소 다음을 보존한다.
+Ground Truth는 사용자가 review/correction을 완료한 Case만 의미한다.
+
+## 6. Candidate-first 사용자 교정 UX
+
+v1.5.0부터 교정 기본 경로는 manual drawing이 아니라 **현재 detector가 실제로 생성한 evidence 후보 선택**이다.
+
+권장 흐름:
+
+```text
+최신 Case 열기
+→ detail rectangle 후보 선택
+→ red close-X 후보 선택
+→ magnifier 후보 선택
+→ item-name ROI 후보 선택
+→ 정답 item/text 지정
+→ 저장
+```
+
+각 semantic object 단계에서:
+
+- 후보 중 정답 선택
+- detector가 정답을 생성하지 않았다면 `없음`
+- 후보가 없거나 geometry 자체를 직접 지정해야 하면 manual rectangle fallback
+
+을 지원한다.
+
+Manual rectangle은 제거하지 않는다. Candidate 선택이 기본 경로이고 manual drawing은 recall miss를 표현하기 위한 fallback이다.
+
+사용자는 JSON, 좌표, candidate rank, 파일명을 직접 편집하지 않는다.
+
+### 빠른 접근성
+
+Scanner 일반 화면의 `현재 결과 교정`과 Mini Scanner 우클릭 `현재 결과 교정`이 최신 debug snapshot을 correction window로 전달한다.
+
+오인식 직후 몇 초 안에 해당 Case를 reviewed Ground Truth로 남기는 것을 목표로 한다.
+
+## 7. Candidate Ground Truth metadata
+
+각 semantic candidate 선택은 가능한 경우 다음을 보존한다.
+
+- candidate ID
+- candidate type
+- rank
+- score
+- rectangle geometry
+- normalized geometry
+- 선택 여부
+- explicit `none` 여부
+- manual fallback 여부
+
+이를 통해 단순히 “ROI가 틀렸다”가 아니라 다음을 분리한다.
+
+- proposal recall failure
+- proposal ranking failure
+- close-X semantic failure
+- magnifier semantic failure
+- title ROI candidate failure
+- OCR/matcher failure
+
+## 8. Case metadata
+
+`case.json`은 최소 다음 종류의 evidence를 보존한다.
+
+### Identity / environment
 
 - Case / dataset / program / scanner version
-- timestamp / capture mode / capture source
-- capture width/height/origin / system DPI
-- detected/corrected detail ROI + normalized ratio + delta
+- timestamp
+- capture mode/source
+- capture width/height/origin
+- system DPI
+
+### Geometry / semantic evidence
+
+- detected/corrected detail ROI
 - structural score/reason
 - header score/reason
-- detected/corrected item-name ROI + delta
-- OCR raw text
-- matcher/sanitized text
+- close-X candidate/evidence
+- magnifier candidate/evidence
+- detected/corrected item-name ROI
+- normalized ratios / deltas
+- candidate ID/rank/score/geometry
+
+### OCR / matcher evidence
+
+- raw OCR text
+- user-substituted OCR text when applicable
+- normalized/sanitized matcher input
+- OCR/deep/visual pass information
+- matcher top candidates
 - program official-name result
 - program Item ID
-- user Ground Truth
 - confidence / second score / margin / pass / reason
-- matcher 상위 후보 rank / Item ID / 공식명 / score
+
+### User truth / pipeline
+
+- user Ground Truth item/text
+- user corrected rectangles/semantic selections
+- reviewed/unreviewed state
+- program-correct state
 - `pipeline.stage`
 - `ground_truth_error_type`
+
+### Presentation / artifacts
+
 - Item ID가 있을 때 current mapped presentation
 - artifact paths
-- reviewed/unreviewed / program-correct 상태
+- retention/review metadata
 
-### 후보 ranking
+## 9. Matcher top candidates
 
-최종 1위만 저장하지 않는다. Matcher는 acceptance 기준을 바꾸지 않은 채 상위 후보를 diagnostic evidence로 전달한다.
+최종 1위만 저장하지 않는다.
+
+Matcher acceptance 기준을 바꾸지 않은 채 상위 후보를 diagnostic evidence로 전달한다.
 
 예:
 
@@ -170,13 +271,19 @@ Scanner 탭의 `교정`은 최신 diagnostic frame을 연다.
 ]
 ```
 
-이를 통해 정답이 2~5위 안에 있었는지, 1·2위 간 margin이 구조적으로 부족한지 분석할 수 있다.
+이 evidence로:
 
-## 8. Ground Truth 오류와 파이프라인 관찰 분리
+- 정답이 top-N 안에 있었는지
+- top1/top2 margin이 구조적으로 부족한지
+- OCR text가 후보군을 어디까지 좁혔는지
+
+를 분석한다.
+
+## 10. Ground Truth 오류와 pipeline observation 분리
 
 `pipeline.stage`와 `ground_truth_error_type`은 의미가 다르다.
 
-사용자 검증 Ground Truth에만 적용 가능한 오류 유형:
+### 사용자-reviewed Ground Truth 오류 유형
 
 - `DETAIL_WINDOW_DETECTION`
 - `FIELD_LOCALIZATION`
@@ -187,9 +294,9 @@ Scanner 탭의 `교정`은 최신 diagnostic frame을 연다.
 - `UNKNOWN_MULTIPLE`
 - `NONE`
 
-현재 사용자 UI로 직접 확정 가능한 것은 detail/field/OCR/candidate 계열이다. 여러 층의 수정이 동시에 발생하면 원인을 억지로 하나로 귀속하지 않고 `UNKNOWN_MULTIPLE`로 둔다.
+Candidate-first evidence가 있으므로 detail/anchor/ROI failure를 이전보다 세분해 분석할 수 있지만, 저장 schema가 하나의 high-level error type을 요구할 경우 원인이 여러 층이면 억지로 하나로 귀속하지 않고 `UNKNOWN_MULTIPLE`을 사용한다.
 
-자동/미검증 Case는 오류 Ground Truth를 만들지 않는다. 대신 프로그램이 실제로 어디까지 갔는지만 기록한다.
+### Automatic/unreviewed pipeline observation
 
 - `DETAIL_WINDOW_DETECTION_FAILED`
 - `DETAIL_HEADER_LOCK_FAILED`
@@ -198,54 +305,82 @@ Scanner 탭의 `교정`은 최신 diagnostic frame을 연다.
 - `FINALIZED`
 - `NOT_RUN`
 
-## 9. 일반 로그와 dataset 분리
+Automatic Case는 observed stage를 기록할 뿐 Ground Truth 오류 원인을 생성하지 않는다.
 
-`scanner.log`는 bounded runtime diagnostics이고, Ground Truth dataset은 원본 이미지·ROI·예측·정답을 포함하는 별도 persistence다.
+## 11. OCR substitution evidence
 
-- `로그 삭제`: scanner.log(.1), 최근 활동, 최신 메모리 diagnostic frame 삭제
-- `교정 데이터 관리`: Case 목록 확인, 선택 Case 삭제, 전체 dataset 삭제
-- 사용자가 이미 내보낸 ZIP은 어느 삭제 기능도 자동 삭제하지 않음
+Scanner settings schema v5의 user substitution은 Ground Truth 분석에서 raw OCR과 분리한다.
 
-Case 삭제 후 `dataset.jsonl`, `summary.json`, `summary.md`는 디렉터리를 다시 스캔하여 재생성한다. 연속 번호에 의존하지 않는다.
+```text
+raw OCR
+→ user substitution
+→ normalized matcher input
+→ final match
+```
 
-## 10. Export
+Case/diagnostics에서 가능한 한 다음을 별도로 남긴다.
 
-Scanner 탭의 `교정 데이터 내보내기`는 다음 ZIP을 생성한다.
+- raw OCR
+- substituted OCR
+- normalized/sanitized text
+- matched official name
+
+따라서 사용자가 만든 규칙이 실제 반복 오인식을 보정했는지, 오히려 잘못된 후보를 만들었는지 replay에서 확인할 수 있어야 한다.
+
+Raw OCR을 substitution 결과로 덮어쓰지 않는다.
+
+## 12. 일반 로그와 dataset 분리
+
+`scanner.log`는 bounded runtime diagnostics이고 Ground Truth dataset은 원본 이미지/ROI/예측/정답/candidate evidence를 포함하는 별도 persistence다.
+
+- `로그 삭제`: scanner.log(.1), recent activity, latest in-memory diagnostic frame
+- `교정 데이터 관리`: Case 목록, 선택 Case 삭제, 전체 dataset 삭제
+- export ZIP: 사용자 지정 위치에 생성; program dataset 삭제가 자동 제거하지 않음
+
+Case 삭제 후 dataset index/summary는 실제 remaining directories를 다시 스캔해 재생성한다. 연속 번호에 의존하지 않는다.
+
+## 13. Export
+
+Scanner `교정 데이터 내보내기`는 개발 분석용 ZIP을 생성한다.
+
+예:
 
 ```text
 ScannerDiagnostics_YYYY-MM-DD.zip
 ```
 
-포함 내용:
+포함 가능 내용:
 
-- `README.md`
-- `summary.md`
-- `summary.json`
-- `environment.json`
-- `dataset.jsonl`
-- `regression.json` / `regression.md` (실행된 경우)
-- `cases/**`
-- `logs/scanner.log*` (존재할 때)
+- README
+- summary.md / summary.json
+- environment.json
+- dataset.jsonl
+- regression.json / regression.md
+- cases/**
+- scanner.log* if present
 
-사용자는 ZIP 하나만 개발 분석에 전달하면 된다.
+사용자는 ZIP 하나를 개발 분석에 전달하면 된다.
 
-## 11. 자동 통계
+## 14. 자동 통계
 
-Dataset index rebuild 시 다음을 집계한다.
+Dataset index rebuild 시 대표 집계:
 
 - total cases
+- automatic unreviewed cases
 - user-reviewed cases
 - final-result reviewed cases
 - reviewed program-correct cases
 - Ground Truth corrections
 - reviewed final accuracy
-- Ground Truth 오류 유형별 건수
-- observed pipeline stage별 건수
-- 상세보기 ROI `ΔX/ΔY/ΔW/ΔH` 평균/표준편차
-- 아이템명 ROI `ΔX/ΔY/ΔW/ΔH` 평균/표준편차
-- 사용자 검증 OCR 문자열 → Ground Truth의 반복 문자 혼동/삽입/누락
+- Ground Truth error types
+- pipeline stages
+- detail ROI delta statistics
+- title ROI delta statistics
+- candidate rank/recall pattern
+- repeated OCR substitution/insertion/deletion patterns
+- matcher top-candidate distribution
 
-OCR 혼동 통계는 normalized observed text와 Ground Truth를 edit alignment하여 계산한다.
+OCR confusion은 observed raw/substituted text와 Ground Truth를 edit alignment하여 계산할 수 있다.
 
 예:
 
@@ -254,119 +389,186 @@ OCR 혼동 통계는 normalized observed text와 Ground Truth를 edit alignment�
 1 → l
 r → ∅
 ∅ → i
+「 → r   # 사용자가 실제 환경에서 검증한 경우의 관찰 통계 예
 ```
 
-단순 문자 위치 비교보다 삽입/누락에 강한 진단 데이터를 만든다.
+이 통계 자체가 automatic global substitution rule을 생성하는 근거는 아니다.
 
-최종 정확도의 분모는 실제 최종 아이템 맞음/틀림이 확인된 Case만 사용한다. 영역만 교정하고 아이템 정답을 확정하지 않은 Case는 최종 정확도에 섞지 않는다.
+최종 정확도의 분모는 실제 final Item correctness가 사용자에 의해 확인된 Case만 사용한다. 영역만 교정하고 최종 Item truth가 없는 Case는 final accuracy에 섞지 않는다.
 
-## 12. 전처리 evidence
+## 15. OCR preprocessing evidence
 
-현재 production Windows OCR의 primary/deep preprocessing은 Scanner Lab 3.8 계열 규칙을 사용한다.
+Production OCR은 title size와 pass에 따라 확대/contrast/binary/inverse 등 preprocessing을 사용한다.
 
-- title height에 따라 4x/6x/8x 확대
-- contrast variant
-- threshold variant
-- inverse threshold variant
+Case 저장 시 가능한 범위에서 processed ROI/variant를 보존한다.
 
-Case 저장 시 이 규칙을 재현한 `processed_roi.png`와 `processed_variant_*.png`를 함께 보존한다.
+현재 남은 기술 부채:
 
-현재 기술 부채: 저장 계층이 production OCR 전처리 규칙을 재현하고 있으며, OCR engine이 실제 소비한 processed bitmap 자체를 evidence로 직접 발행하는 구조는 아직 아니다. OCR 전처리 구현을 변경할 때 이 재현 코드도 반드시 같이 검토한다.
+- 저장 계층이 production preprocessing을 재현하는 경로가 일부 존재함
+- OCR engine이 실제 소비한 processed bitmap 자체를 evidence로 직접 발행하는 구조는 개선 여지가 있음
 
-## 13. Full-pipeline 회귀 테스트
+OCR preprocessing 구현을 변경할 때 diagnostic persistence/replay evidence가 같은 의미를 유지하는지 함께 검토한다.
 
-Scanner 탭의 `회귀 테스트`는 최종 Ground Truth가 있는 reviewed Case의 `full.png`를 현재 production Scanner 경로에 다시 투입한다.
+## 16. Full-pipeline regression
 
-재실행 경로:
+Reviewed Ground Truth가 있는 `full.png`를 현재 production pipeline에 다시 투입한다.
 
 ```text
 full.png
-→ ScannerDetailGeometryDetector
-→ ScannerTitleAnchorRefiner / ScannerInspectHeaderLock
-→ current title ROI crop
-→ current OCR / deep OCR / Tarkov-font recovery
+→ current structural proposals
+→ current inspect-header semantic lock
+→ current title ROI
+→ current OCR/deep OCR
+→ current user-substitution behavior
+→ current Tarkov-font recovery
 → current official catalog matching
 → final recognition
 ```
 
-실시간 Scanner가 켜져 있다면 one-shot과 같은 직렬화 경계에서 잠시 중단한 뒤 회귀 실행 후 원래 모드로 복귀한다.
+실시간 Scanner가 켜져 있으면 one-shot과 같은 serialization/lifecycle boundary에서 안전하게 중단/복귀한다.
 
-결과 분류:
+Result classification:
 
-- `STILL_CORRECT`: 과거 정상 + 현재 정상
-- `SOLVED`: 과거 오답 + 현재 정답
-- `STILL_FAILING`: 과거 오답 + 현재도 오답
-- `REGRESSION`: 과거 정상 + 현재 오답
-- `ERROR`: Case 파일 또는 replay 자체 오류
+- `STILL_CORRECT`
+- `SOLVED`
+- `STILL_FAILING`
+- `REGRESSION`
+- `ERROR`
 
-Baseline이 충분하지 않은 초기 reviewed Case는 current-no-baseline 상태로 남길 수 있다.
+Baseline이 충분하지 않은 reviewed Case는 current-no-baseline 상태로 남길 수 있다.
 
-`regression.json`에는 현재 OCR raw/normalized, Item ID, 공식명, confidence, second score, pass, 예측 ROI, corrected ROI 대비 IoU, top candidates, mapped-data 비교도 남긴다.
+Regression output에는 가능한 경우:
 
-`program_correct=true`였던 Case가 `REGRESSION`이 되면 전체 평균 정확도가 상승했더라도 회귀로 취급한다.
+- current raw/substituted/normalized OCR
+- Item ID / official name
+- confidence / second score / margin
+- predicted/corrected geometry
+- candidate evidence
+- top candidates
+- mapped-data comparison
 
-### mapped_data 비교 주의
+을 보존한다.
 
-가격·플리 평균가 등 mapped data는 데이터 최신화로 정상적으로 변할 수 있다. 따라서 현재 replay의 `MAPPED_DATA_CHANGED`는 진단 신호이며, 그 자체로 OCR/identity 회귀를 판정하지 않는다.
+`program_correct=true`였던 Case가 현재 실패하면 전체 평균 정확도가 올라가도 `REGRESSION`이다.
 
-## 14. 성능 / 저장 공간 / 개인정보
+### mapped_data 비교
 
-- dataset persistence 실패는 Scanner recognition 결과를 바꾸지 않음
-- automatic persistence는 background best-effort
-- 동일 실패 fingerprint 중복 억제
-- Scanner 탭에 Case 수/총 용량 표시
-- 개별 Case 삭제 가능
-- 전체 dataset 삭제 가능
-- export ZIP은 사용자 지정 위치에만 생성
-- 전체 게임 화면 픽셀이 저장될 수 있음을 숨기지 않음
+가격/flea average 등 mapped data는 최신 Game Content로 정상 변화할 수 있다.
 
-## 15. 현재 완료 범위
+`MAPPED_DATA_CHANGED`는 diagnostic signal이며 그 자체로 OCR/identity regression은 아니다.
 
-이번 Ground Truth foundation에서 구현된 범위:
+## 17. Retention / 저장 공간 / 개인정보
 
-1. Case ID / 단계 evidence / scanner.log 연결
-2. 상세창·아이템명 ROI·텍스트 사용자 교정
-3. 원본/ROI/전처리/annotation Ground Truth dataset 저장
-4. 자동 실패/저신뢰/정상 sample 보존
-5. matcher 상위 후보 evidence
-6. 자동 OCR 혼동 통계
-7. README/summary/index/ZIP export
-8. 저장 용량 표시
-9. Case 목록 / 개별 삭제 / 전체 삭제
-10. 실제 `full.png` 기반 full-pipeline replay regression
+### Reviewed Ground Truth
 
-## 16. 다음 개발 단계
+**자동 삭제 금지.**
 
-다음 단계는 실제 Ground Truth가 축적된 뒤 데이터 근거로 진행한다.
+### Automatic diagnostic Case
+
+Auto-delete eligibility는 다음 둘을 동시에 만족해야 한다.
 
 ```text
-실사용 dataset 확보
-→ detail/header/ROI failure cluster 분석
-→ 해당 단계만 수정
-→ OCR confusion / top-candidate pattern 분석
-→ 필요한 경우 Tarkov font / real-render sample 활용 강화
-→ full replay regression 실행
-→ solved / still failing / regression 확인
-→ 회귀가 없을 때만 배포 후보 승인
+retention == automatic_sample
+AND review_status == unreviewed
 ```
+
+Default bounds:
+
+```text
+max age: 30 days
+max automatic cases: 300
+max automatic bytes: 512 MiB
+recent-case safety window: 2 hours
+```
+
+- recent safety window 안의 Case는 자동 삭제하지 않음
+- deletion 직전 metadata를 다시 읽어 correction/delete race를 줄임
+- corrupt/unknown metadata는 fail closed하여 보존
+- retention delete 발생 시 diagnostic log에 기록
+
+### Privacy / user control
+
+- full game/display pixels가 Case에 포함될 수 있음을 숨기지 않음
+- Case 목록/용량을 UI에서 확인 가능
+- 선택 Case 삭제 가능
+- 전체 dataset 삭제 가능
+- export ZIP은 사용자 지정 위치에만 생성
+- export된 ZIP은 internal dataset delete 기능이 자동 제거하지 않음
+
+Dataset persistence 실패는 Scanner recognition result를 변경하지 않는다.
+
+## 18. v1.5.0 완료 범위
+
+현재 구현된 Ground Truth 관련 범위:
+
+1. Case ID / stage evidence / scanner.log 연결
+2. original/detail/title/preprocessing/annotation Case artifact
+3. automatic failure/low-confidence/normal sampling
+4. user-reviewed Ground Truth separation
+5. candidate-first detail/close/magnifier/title ROI correction
+6. explicit `없음` semantic-object truth
+7. manual rectangle fallback
+8. correct item/text input
+9. candidate ID/rank/score/geometry persistence
+10. matcher top-candidate evidence
+11. raw/substituted/normalized OCR evidence separation
+12. automatic OCR confusion statistics
+13. summary/index/export
+14. Case count/storage UI
+15. Case list/selective delete/full delete
+16. full.png-based replay regression
+17. automatic unreviewed retention bounds
+18. Mini Scanner quick correction entry
+
+## 19. 다음 개발 단계
+
+v1.5.0 public baseline 이후:
+
+```text
+real usage
+→ 정상 대표 Case `맞음`
+→ miss/wrong identity 즉시 교정
+→ reviewed Ground Truth 축적
+→ candidate recall/ranking + OCR/matcher cluster 분석
+→ 실제 failure stage 특정
+→ 해당 stage만 수정
+→ full replay regression
+→ REGRESSION=0 확인
+→ PATCH candidate
+```
+
+관찰 우선순위:
+
+- 다양한 resolution/DPI/UI scale
+- detail proposal recall/ranking
+- close-X/magnifier semantic miss
+- short/sparse title OCR
+- `r`, `0`, slash-zero-like glyph, complex Hangul
+- near-name ambiguity
+- mapped market data completeness
+- 빠른 Item 전환 stale-result isolation
+- telemetry 기반 latency bottleneck
 
 추가 기술 부채 후보:
 
-- OCR engine이 실제 소비한 processed frame 직접 evidence 발행
-- 반복 사용자 Ground Truth에서 실제 Tarkov 렌더 샘플 사전 구축
-- detail/title 공통 projection helper를 live/replay가 공유하도록 중복 제거
-- 데이터가 충분해지면 환경별(해상도/DPI/capture mode) 통계 분리
+- OCR engine actual-consumed processed bitmap 직접 evidence 발행
+- 반복 reviewed Ground Truth에서 real-render sample dictionary 구축
+- live/replay 공통 projection helper 중복 축소
+- 환경별 statistics segmentation
 
-## 17. 금지 사항
+## 20. 금지 사항
 
-- 한 번의 사용자 좌표 교정을 즉시 전역 offset으로 적용하지 않음
-- unreviewed 자동 Case를 정답 학습 데이터로 취급하지 않음
-- observed pipeline stage를 Ground Truth 오류 원인으로 바꾸지 않음
-- 현재 존재하지 않는 숫자 OCR 필드를 억지로 추가하지 않음
-- Ground Truth 없이 detector/header/matcher threshold를 완화하지 않음
-- dataset persistence 실패를 Scanner identity 판단에 섞지 않음
+- 한 번의 사용자 좌표 교정을 즉시 global offset으로 적용하지 않음
+- unreviewed automatic Case를 truth로 취급하지 않음
+- observed pipeline stage를 Ground Truth 오류 원인으로 자동 변환하지 않음
+- 현재 존재하지 않는 숫자 OCR field를 억지로 추가하지 않음
+- Ground Truth 없이 detector/header/matcher threshold 완화하지 않음
+- dataset persistence failure를 Item identity 판단에 섞지 않음
 - OCR 하나의 결과를 최종 권위로 승격하지 않음
-- metadata-only 비교를 full-pipeline regression이라고 부르지 않음
+- metadata-only comparison을 full-pipeline regression이라고 부르지 않음
 - 평균 정확도 상승만 보고 `REGRESSION` Case를 무시하지 않음
+- reviewed Ground Truth를 automatic retention 대상으로 분류하지 않음
+- candidate selection을 manual correction의 유일한 경로로 강제하지 않음
+- user substitution 결과로 raw OCR evidence를 덮어쓰지 않음
 
-특히 현재 detail structural floor, header lock 0.68, matcher confidence/margin은 실제 Ground Truth evidence 없이 변경하지 않는다.
+특히 structural floor `0.34`, trusted header floor `0.68`, candidate caps, matcher confidence/margin은 새로운 reviewed Ground Truth evidence 없이 변경하지 않는다.
