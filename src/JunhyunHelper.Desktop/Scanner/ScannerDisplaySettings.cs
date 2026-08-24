@@ -5,7 +5,22 @@ namespace JunhyunHelper.Desktop.Scanner;
 
 public sealed class ScannerDisplaySettings
 {
-    public const int CurrentSchemaVersion = 5;
+    public const int CurrentSchemaVersion = 6;
+
+    public const string TraderSellPriceField = "trader_sell_price";
+    public const string FleaAveragePriceField = "flea_average_price";
+    public const string TraderPricePerSlotField = "trader_price_per_slot";
+    public const string FleaPricePerSlotField = "flea_price_per_slot";
+    public const string CurrentNeededField = "current_needed";
+
+    private static readonly string[] DefaultMiniScannerInfoOrder =
+    [
+        TraderSellPriceField,
+        FleaAveragePriceField,
+        TraderPricePerSlotField,
+        FleaPricePerSlotField,
+        CurrentNeededField,
+    ];
 
     public int SchemaVersion { get; set; }
     public bool Enabled { get; set; }
@@ -16,6 +31,7 @@ public sealed class ScannerDisplaySettings
     public bool ShowTraderPricePerSlot { get; set; } = true;
     public bool ShowFleaPricePerSlot { get; set; }
     public bool ShowCurrentNeeded { get; set; } = true;
+    public List<string> MiniScannerInfoOrder { get; set; } = [.. DefaultMiniScannerInfoOrder];
     public double? PositionX { get; set; }
     public double? PositionY { get; set; }
     public double FontSize { get; set; } = 18;
@@ -26,11 +42,15 @@ public sealed class ScannerDisplaySettings
     /// <summary>
     /// Optional user-owned exact OCR corrections. The default is deliberately empty;
     /// rules are evidence supplied by the user, not a global product substitution table.
+    /// This remains an internal compatibility setting even though the normal Scanner
+    /// settings surface no longer exposes a dedicated editor.
     /// </summary>
     public List<ScannerOcrSubstitutionRule> OcrSubstitutions { get; set; } = [];
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? OneShotHotkey { get; set; }
+
+    public static IReadOnlyList<string> DefaultInfoOrder => DefaultMiniScannerInfoOrder;
 
     public ScannerDisplaySettings Clone() => new()
     {
@@ -43,6 +63,7 @@ public sealed class ScannerDisplaySettings
         ShowTraderPricePerSlot = ShowTraderPricePerSlot,
         ShowFleaPricePerSlot = ShowFleaPricePerSlot,
         ShowCurrentNeeded = ShowCurrentNeeded,
+        MiniScannerInfoOrder = MiniScannerInfoOrder?.ToList() ?? [],
         PositionX = PositionX,
         PositionY = PositionY,
         FontSize = FontSize,
@@ -85,6 +106,12 @@ public sealed class ScannerDisplaySettings
             ScannerToggleHotkey = ScannerHotkeyGesture.DefaultScannerToggle.ToString();
             OneShotHotkey = null;
         }
+
+        // v6 makes icon and item name part of the fixed Mini Scanner header. Preserve
+        // old files, but never allow those two identity fields to be hidden.
+        ShowItemName = true;
+        ShowItemIcon = true;
+        MiniScannerInfoOrder = NormalizeInfoOrder(MiniScannerInfoOrder);
 
         OneShotTarkovHotkey = NormalizeHotkey(
             OneShotTarkovHotkey,
@@ -136,6 +163,56 @@ public sealed class ScannerDisplaySettings
         FontSize = double.IsFinite(FontSize) ? Math.Clamp(FontSize, 12, 32) : 18;
 
         SchemaVersion = CurrentSchemaVersion;
+    }
+
+    public bool IsInfoVisible(string field) => field switch
+    {
+        TraderSellPriceField => ShowTraderSellPrice,
+        FleaAveragePriceField => ShowFleaAveragePrice,
+        TraderPricePerSlotField => ShowTraderPricePerSlot,
+        FleaPricePerSlotField => ShowFleaPricePerSlot,
+        CurrentNeededField => ShowCurrentNeeded,
+        _ => false,
+    };
+
+    public void SetInfoVisible(string field, bool visible)
+    {
+        switch (field)
+        {
+            case TraderSellPriceField:
+                ShowTraderSellPrice = visible;
+                break;
+            case FleaAveragePriceField:
+                ShowFleaAveragePrice = visible;
+                break;
+            case TraderPricePerSlotField:
+                ShowTraderPricePerSlot = visible;
+                break;
+            case FleaPricePerSlotField:
+                ShowFleaPricePerSlot = visible;
+                break;
+            case CurrentNeededField:
+                ShowCurrentNeeded = visible;
+                break;
+        }
+    }
+
+    private static List<string> NormalizeInfoOrder(IEnumerable<string>? values)
+    {
+        var known = new HashSet<string>(DefaultMiniScannerInfoOrder, StringComparer.Ordinal);
+        var result = new List<string>(DefaultMiniScannerInfoOrder.Length);
+        foreach (var value in values ?? [])
+        {
+            if (known.Contains(value) && !result.Contains(value, StringComparer.Ordinal))
+                result.Add(value);
+        }
+
+        foreach (var value in DefaultMiniScannerInfoOrder)
+        {
+            if (!result.Contains(value, StringComparer.Ordinal))
+                result.Add(value);
+        }
+        return result;
     }
 
     private static string NormalizeHotkey(string? value, ScannerHotkeyGesture fallback)
