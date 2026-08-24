@@ -87,12 +87,14 @@
                         MinWidth="112"
                         Margin="0,0,8,0"
                         Click="ScannerToggleButton_Click" />
-                <Button Grid.Column="1"
+                <Button x:Name="SettingsButton"
+                        Grid.Column="1"
                         Content="설정"
                         MinWidth="92"
                         Margin="0,0,8,0"
                         Click="SettingsButton_Click" />
-                <Button Grid.Column="2"
+                <Button x:Name="AdvancedButton"
+                        Grid.Column="2"
                         Content="고급"
                         MinWidth="92"
                         Click="AdvancedButton_Click" />
