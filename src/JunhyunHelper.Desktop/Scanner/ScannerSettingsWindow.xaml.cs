@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using System.Windows;
-using System.Windows.Controls;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
@@ -8,9 +7,9 @@ public partial class ScannerSettingsWindow : Window
 {
     private readonly ScannerCoordinator _coordinator;
     private readonly ObservableCollection<MiniInfoRow> _rows = [];
-    private ScannerHotkeyGesture _oneShotTarkov;
-    private ScannerHotkeyGesture _oneShotTest;
-    private ScannerHotkeyGesture _scannerToggle;
+    private ScannerHotkeyGesture? _oneShotTarkov;
+    private ScannerHotkeyGesture? _oneShotTest;
+    private ScannerHotkeyGesture? _scannerToggle;
 
     public ScannerSettingsWindow(ScannerCoordinator coordinator)
     {
@@ -19,9 +18,9 @@ public partial class ScannerSettingsWindow : Window
 
         var settings = coordinator.Settings.Clone();
         settings.Normalize();
-        _oneShotTarkov = ParseOrDefault(settings.OneShotTarkovHotkey, ScannerHotkeyGesture.DefaultOneShotTarkov);
-        _oneShotTest = ParseOrDefault(settings.OneShotTestHotkey, ScannerHotkeyGesture.DefaultOneShotTest);
-        _scannerToggle = ParseOrDefault(settings.ScannerToggleHotkey, ScannerHotkeyGesture.DefaultScannerToggle);
+        _oneShotTarkov = Parse(settings.OneShotTarkovHotkey);
+        _oneShotTest = Parse(settings.OneShotTestHotkey);
+        _scannerToggle = Parse(settings.ScannerToggleHotkey);
 
         foreach (var key in settings.MiniScannerInfoOrder)
         {
@@ -38,9 +37,9 @@ public partial class ScannerSettingsWindow : Window
     private void HotkeySettingsButton_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new ScannerHotkeySettingsWindow(
-            _oneShotTarkov.ToString(),
-            _oneShotTest.ToString(),
-            _scannerToggle.ToString())
+            _oneShotTarkov?.ToString(),
+            _oneShotTest?.ToString(),
+            _scannerToggle?.ToString())
         {
             Owner = this,
         };
@@ -103,11 +102,13 @@ public partial class ScannerSettingsWindow : Window
     private void UpdateHotkeySummary()
     {
         HotkeySummaryText.Text =
-            $"1회 인게임: {_oneShotTarkov}   ·   1회 테스트: {_oneShotTest}   ·   ON/OFF: {_scannerToggle}";
+            $"1회 인게임: {Format(_oneShotTarkov)}   ·   1회 테스트: {Format(_oneShotTest)}   ·   ON/OFF: {Format(_scannerToggle)}";
     }
 
-    private static ScannerHotkeyGesture ParseOrDefault(string value, ScannerHotkeyGesture fallback) =>
-        ScannerHotkeyGesture.TryParse(value, out var gesture) ? gesture : fallback;
+    private static ScannerHotkeyGesture? Parse(string? value) =>
+        ScannerHotkeyGesture.TryParse(value, out var gesture) ? gesture : null;
+
+    private static string Format(ScannerHotkeyGesture? gesture) => gesture?.ToString() ?? "사용 안 함";
 
     private static string LabelFor(string key) => key switch
     {
