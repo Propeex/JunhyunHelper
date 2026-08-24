@@ -60,8 +60,16 @@ v1.0.0 승격 작업 자체에서는 새 제품 기능을 추가하지 않습니
 
 1. 변경 내용이 새 기능인지 기존 기능 수정/보완인지 분류합니다.
 2. 이 문서의 규칙으로 목표 버전을 결정합니다.
-3. Desktop project version, 배포 안내문, release tag, ZIP 이름, release notes가 같은 버전을 가리키는지 검증합니다.
+3. Desktop project version, EXE ProductVersion, 배포 안내문, release tag, release notes가 같은 버전을 가리키는지 검증합니다.
 4. 자동 업데이트가 사용하는 GitHub stable release도 같은 버전인지 검증합니다.
+5. v1.6.0부터 사용자 배포 ZIP과 압축 해제 폴더 이름은 버전 식별자가 아니라 stable product name을 사용합니다.
+
+```text
+준현 헬퍼.zip
+└─ 준현 헬퍼/
+```
+
+따라서 ZIP 파일명에 버전 문자열이 없다는 이유로 version mismatch로 판단하지 않습니다. 실제 버전 identity는 EXE ProductVersion, tag, release metadata를 기준으로 검증합니다.
 
 ## 8. 최근 적용 사례
 
@@ -76,3 +84,5 @@ v1.0.0 승격 작업 자체에서는 새 제품 기능을 추가하지 않습니
 - v1.4.2 — 실제 v1.4.1 Ground Truth 기반 contained detail-window 복구, 보수적 OCR matcher 복구, Scanner 단축키 창 clipping 수정 → **PATCH**
 - v1.4.3 — 상세창 rectangle proposal/semantic validation 경계 재구성 및 current-catalog 기반 OCR 문자·기호 검증/unknown-glyph 복구 개선 → **PATCH**
 - v1.4.4 — 실제 v1.4.3 Ground Truth 기반 짧은 title OCR tight-view 재시도 및 r-symbol/o-O matcher evidence 고정 → **PATCH**
+- v1.5.0 — mapped market data, unified Scanner catalog update, user OCR substitutions, candidate-first GT, latency telemetry, stabilization/retention/UI finishing 추가 → **MINOR**
+- v1.6.0 — Scanner local item search, Mini Scanner 정보 순서 설정, 저장된 GT Case 재교정, 이미지 직접 candidate 선택, stable release package naming 추가 → **MINOR**
