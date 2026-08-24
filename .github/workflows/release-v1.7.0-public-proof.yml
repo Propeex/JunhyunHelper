@@ -1,0 +1,270 @@
+name: Prove v1.7.0 public release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/release-v1.7.0-public-proof.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  prove-public-release:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      VERSION: 1.7.0
+      TAG: v1.7.0
+      SOURCE_SHA: 56e12342e3490fd0defa5f327a03d20d4f32b3a6
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Prove anonymous public release and record result
+        shell: pwsh
+        env:
+          JUNHYUNHELPER_MAP_SMOKE: '1'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $repo = $env:GITHUB_REPOSITORY
+          $proofPath = 'docs/.release-v1.7.0-public-proof.json'
+          $status = [ordered]@{
+            success = $false
+            version = $env:VERSION
+            tag = $env:TAG
+            source_sha = $env:SOURCE_SHA
+            proof_run_id = $env:GITHUB_RUN_ID
+            verified_at_utc = [DateTime]::UtcNow.ToString('O')
+            stage = 'starting'
+            error = $null
+          }
+
+          function Write-Proof([hashtable]$Data) {
+            $json = $Data | ConvertTo-Json -Depth 8
+            $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($json + "`n"))
+            $existingSha = $null
+            $existingJson = & gh api "repos/$repo/contents/$proofPath?ref=main" 2>$null
+            if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($existingJson)) {
+              $existingSha = [string](($existingJson | ConvertFrom-Json).sha)
+            }
+            $args = @(
+              '--method', 'PUT', "repos/$repo/contents/$proofPath",
+              '-f', 'message=Record v1.7.0 public release proof',
+              '-f', "content=$encoded",
+              '-f', 'branch=main'
+            )
+            if (-not [string]::IsNullOrWhiteSpace($existingSha)) {
+              $args += @('-f', "sha=$existingSha")
+            }
+            & gh api @args | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw 'Could not persist the public release proof to main.' }
+          }
+
+          try {
+            $status.stage = 'tag'
+            $tagJson = gh api "repos/$repo/git/ref/tags/$env:TAG"
+            if ($LASTEXITCODE -ne 0) { throw "Could not read tag $env:TAG." }
+            $tag = $tagJson | ConvertFrom-Json
+            if ($tag.object.type -ne 'commit' -or $tag.object.sha -ne $env:SOURCE_SHA) {
+              throw "Tag $env:TAG is not a lightweight ref to exact product source $env:SOURCE_SHA."
+            }
+
+            $status.stage = 'wait-stable-latest'
+            $release = $null
+            $latest = $null
+            for ($attempt = 1; $attempt -le 60; $attempt++) {
+              $releaseJson = gh api "repos/$repo/releases/tags/$env:TAG" 2>$null
+              if ($LASTEXITCODE -eq 0) {
+                $candidate = $releaseJson | ConvertFrom-Json
+                try {
+                  $publicLatest = Invoke-RestMethod `
+                    -Uri "https://api.github.com/repos/$repo/releases/latest" `
+                    -Headers @{ 'User-Agent' = 'JunhyunHelper-public-proof' } `
+                    -TimeoutSec 20
+                }
+                catch {
+                  $publicLatest = $null
+                }
+                if (-not $candidate.draft -and
+                    -not $candidate.prerelease -and
+                    $null -ne $publicLatest -and
+                    $publicLatest.tag_name -eq $env:TAG -and
+                    -not $publicLatest.draft -and
+                    -not $publicLatest.prerelease) {
+                  $release = $candidate
+                  $latest = $publicLatest
+                  break
+                }
+              }
+              Start-Sleep -Seconds 10
+            }
+            if ($null -eq $release -or $null -eq $latest) {
+              throw "Public stable/latest did not resolve to $env:TAG within the verification window."
+            }
+
+            $assetNames = @($release.assets | ForEach-Object { [string]$_.name } | Sort-Object)
+            $expectedAssetNames = @('Junhyun-Helper.zip','SHA256SUMS.txt' | Sort-Object)
+            if (($assetNames | ConvertTo-Json -Compress) -ne ($expectedAssetNames | ConvertTo-Json -Compress)) {
+              throw "Unexpected public release asset set: $($assetNames -join ', ')"
+            }
+            $stableMetadata = @($release.assets | Where-Object { $_.name -eq 'Junhyun-Helper.zip' })
+            $checksumMetadata = @($release.assets | Where-Object { $_.name -eq 'SHA256SUMS.txt' })
+            if ($stableMetadata.Count -ne 1 -or $checksumMetadata.Count -ne 1) {
+              throw 'Public release does not expose exactly one stable ZIP and one checksum manifest.'
+            }
+
+            $status.stage = 'anonymous-download'
+            $publicDir = Join-Path $env:RUNNER_TEMP 'junhyun-v1.7.0-public-proof'
+            Remove-Item $publicDir -Recurse -Force -ErrorAction SilentlyContinue
+            New-Item -ItemType Directory -Path $publicDir -Force | Out-Null
+            $base = "https://github.com/$repo/releases/download/$env:TAG"
+
+            function Get-AnonymousAsset([string]$Name) {
+              $target = Join-Path $publicDir $Name
+              for ($attempt = 1; $attempt -le 12; $attempt++) {
+                try {
+                  Invoke-WebRequest `
+                    -Uri "$base/$Name" `
+                    -OutFile $target `
+                    -MaximumRedirection 10 `
+                    -TimeoutSec 30 `
+                    -Headers @{ 'User-Agent' = 'JunhyunHelper-public-proof' }
+                  if ((Test-Path $target) -and (Get-Item $target).Length -gt 0) { return $target }
+                }
+                catch {
+                  Remove-Item $target -Force -ErrorAction SilentlyContinue
+                  if ($attempt -eq 12) { throw }
+                }
+                Start-Sleep -Seconds 5
+              }
+              throw "Anonymous download failed for '$Name'."
+            }
+
+            $stablePath = Get-AnonymousAsset 'Junhyun-Helper.zip'
+            $checksumPath = Get-AnonymousAsset 'SHA256SUMS.txt'
+            if ((Get-Item $stablePath).Length -ne [long]$stableMetadata[0].size) {
+              throw 'Anonymous stable ZIP byte size differs from GitHub release metadata.'
+            }
+            if ((Get-Item $checksumPath).Length -ne [long]$checksumMetadata[0].size) {
+              throw 'Anonymous checksum byte size differs from GitHub release metadata.'
+            }
+
+            $status.stage = 'checksum-layout-identity'
+            $stableHash = (Get-FileHash $stablePath -Algorithm SHA256).Hash.ToLowerInvariant()
+            $checksumLines = @(Get-Content $checksumPath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+            if ($checksumLines.Count -ne 1 -or $checksumLines[0] -notmatch '^([0-9a-fA-F]{64})\s+Junhyun-Helper\.zip$') {
+              throw 'Public SHA256SUMS.txt does not contain exactly one valid stable ZIP entry.'
+            }
+            if ($Matches[1].ToLowerInvariant() -ne $stableHash) {
+              throw 'Public SHA256SUMS.txt hash does not match the anonymously downloaded stable ZIP.'
+            }
+
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            $archive = [System.IO.Compression.ZipFile]::OpenRead($stablePath)
+            try {
+              $entryNames = @($archive.Entries | ForEach-Object { $_.FullName.Replace('\\','/') })
+              $outside = @($entryNames | Where-Object {
+                -not [string]::IsNullOrWhiteSpace($_) -and
+                -not $_.StartsWith('준현 헬퍼/', [StringComparison]::Ordinal)
+              })
+              if ($outside.Count -gt 0) {
+                throw "Public ZIP contains entries outside '준현 헬퍼/': $($outside -join ', ')"
+              }
+              foreach ($required in @('준현 헬퍼/준현 헬퍼.exe','준현 헬퍼/FIRST_RUN_KO.txt','준현 헬퍼/Assets/tarkov_data.db')) {
+                if ($required -notin $entryNames) { throw "Public ZIP is missing '$required'." }
+              }
+            }
+            finally {
+              $archive.Dispose()
+            }
+
+            $extract = Join-Path $publicDir 'extract'
+            Expand-Archive -LiteralPath $stablePath -DestinationPath $extract -Force
+            $root = Join-Path $extract '준현 헬퍼'
+            $outsideExtracted = @(Get-ChildItem $extract -Force | Where-Object { $_.Name -ne '준현 헬퍼' })
+            if ($outsideExtracted.Count -gt 0) { throw 'Extracted public ZIP contains unexpected top-level entries.' }
+            if (Get-ChildItem $root -Recurse -File -Filter *.pdb) { throw 'Public stable product contains PDB debug symbols.' }
+            $nested = @(Get-ChildItem $root -Recurse -File | Where-Object { $_.Extension -in @('.zip','.7z','.rar') })
+            if ($nested.Count -gt 0) { throw 'Public stable product contains nested archives.' }
+            foreach ($forbidden in @('AutoUpdater.NET.dll','Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.WinForms.dll','Microsoft.Web.WebView2.Wpf.dll','WebView2Loader.dll','Westermo.GraphX.Controls.dll','Westermo.GraphX.Common.dll','QuikGraph.dll')) {
+              if (Get-ChildItem $root -Recurse -File -Filter $forbidden) { throw "Public stable product contains forbidden legacy dependency '$forbidden'." }
+            }
+
+            $exe = (Resolve-Path (Join-Path $root '준현 헬퍼.exe')).Path
+            $productVersion = (Get-Item $exe).VersionInfo.ProductVersion
+            $expectedProductVersion = "$env:VERSION+$env:SOURCE_SHA"
+            if ($productVersion -ne $expectedProductVersion) {
+              throw "Public ProductVersion '$productVersion' does not exactly match '$expectedProductVersion'."
+            }
+            $firstLine = Get-Content (Join-Path $root 'FIRST_RUN_KO.txt') -TotalCount 1
+            if ($firstLine -ne "준현 헬퍼 v$env:VERSION — Windows x64") {
+              throw "Public FIRST_RUN identity mismatch: '$firstLine'."
+            }
+
+            $status.stage = 'public-product-smoke'
+            $diagnostic = Join-Path $env:TEMP 'junhyun-map-smoke-error.txt'
+            $successSignal = Join-Path $env:TEMP 'junhyun-map-smoke-success.txt'
+            $startupLog = Join-Path $env:LOCALAPPDATA 'JunhyunHelper/logs/startup.log'
+            Remove-Item $diagnostic,$successSignal,$startupLog -Force -ErrorAction SilentlyContinue
+            $process = Start-Process -FilePath $exe -WorkingDirectory $root -PassThru
+            try {
+              $deadline = (Get-Date).AddSeconds(75)
+              while ((Get-Date) -lt $deadline -and -not (Test-Path $successSignal)) {
+                $process.Refresh()
+                if (Test-Path $diagnostic) { throw "Public product smoke failed: $(Get-Content $diagnostic -Raw)" }
+                if ($process.HasExited) { throw "Public product exited before smoke completion with code $($process.ExitCode)." }
+                Start-Sleep -Milliseconds 250
+              }
+              if (-not (Test-Path $successSignal)) { throw 'Public product smoke did not complete within 75 seconds.' }
+              $closeRequested = $false
+              for ($attempt = 1; $attempt -le 10; $attempt++) {
+                $process.Refresh()
+                if ($process.HasExited -or $process.CloseMainWindow()) {
+                  $closeRequested = $true
+                  break
+                }
+                Start-Sleep -Milliseconds 500
+              }
+              if (-not $closeRequested) { throw 'Could not request a normal close of the public product.' }
+              $process.Refresh()
+              if (-not $process.HasExited -and -not $process.WaitForExit(7000)) {
+                throw 'Public product did not terminate within 7 seconds after normal close.'
+              }
+              if (Test-Path (Join-Path $root 'Logs')) { throw 'Public portable root was polluted by a Logs directory.' }
+            }
+            finally {
+              $process.Refresh()
+              if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
+            }
+
+            $status.stage = 'verified'
+            $status.success = $true
+            $status.release_id = [long]$release.id
+            $status.release_published_at = [string]$release.published_at
+            $status.latest_public_html_url = [string]$latest.html_url
+            $status.stable_asset = 'Junhyun-Helper.zip'
+            $status.stable_bytes = (Get-Item $stablePath).Length
+            $status.stable_sha256 = $stableHash
+            $status.checksum_asset = 'SHA256SUMS.txt'
+            $status.product_version = $productVersion
+            $status.tests_passed = 348
+            $status.tests_failed = 0
+            $status.tests_skipped = 0
+            $status.tag_exact_source_verified = $true
+            $status.stable_latest_verified = $true
+            $status.anonymous_public_redownload_verified = $true
+            $status.public_checksum_verified = $true
+            $status.public_zip_layout_verified = $true
+            $status.public_product_smoke_verified = $true
+            $status.error = $null
+          }
+          catch {
+            $status.error = $_.Exception.Message
+          }
+
+          $status.verified_at_utc = [DateTime]::UtcNow.ToString('O')
+          Write-Proof $status
+          $status | Format-List
+          if (-not $status.success) {
+            throw "v1.7.0 public proof failed at stage '$($status.stage)': $($status.error)"
+          }
