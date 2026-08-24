@@ -1,0 +1,15 @@
+{
+  "checked_at_utc": "2026-08-24T01:30:01.8085139+00:00",
+  "release_run_id": 32679464462,
+  "release_run_status": "completed",
+  "release_run_conclusion": "failure",
+  "verifier_run_id": 32679600982,
+  "verifier_run_status": "completed",
+  "verifier_run_conclusion": "failure",
+  "release_exists": true,
+  "release_tag": "v1.4.4",
+  "release_draft": true,
+  "release_prerelease": false,
+  "release_published_at": null,
+  "release_url": "https://github.com/Propeex/JunhyunHelper/releases/tag/untagged-64841b82e0770d56846c"
+}
