@@ -1,16 +1,25 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
 public partial class ScannerDiagnosticCasesWindow : Window
 {
     private readonly ObservableCollection<ScannerDiagnosticCaseSummary> _cases = [];
+    private readonly ScannerCoordinator? _coordinator;
+    private bool _openingEditor;
 
     public ScannerDiagnosticCasesWindow()
+        : this(null)
+    {
+    }
+
+    public ScannerDiagnosticCasesWindow(ScannerCoordinator? coordinator)
     {
         InitializeComponent();
+        _coordinator = coordinator;
         CaseList.ItemsSource = _cases;
         Loaded += (_, _) => Reload();
     }
@@ -27,7 +36,7 @@ public partial class ScannerDiagnosticCasesWindow : Window
         SummaryText.Text = _cases.Count == 0
             ? "저장된 Case가 없습니다."
             : $"총 {_cases.Count}건 · 사용자 검증 {reviewed}건 · 자동/미검증 {_cases.Count - reviewed}건";
-        SelectionText.Text = "Case를 선택하면 해당 Case만 삭제할 수 있습니다. 전체 삭제도 일반 Scanner 로그와 직접 내보낸 ZIP에는 영향을 주지 않습니다.";
+        SelectionText.Text = "Case를 클릭하면 교정 화면이 열립니다. 선택 Case 삭제 또는 전체 데이터 삭제도 여기서 관리할 수 있습니다.";
         DeleteSelectedButton.IsEnabled = false;
         DeleteAllButton.IsEnabled = _cases.Count > 0;
     }
@@ -43,6 +52,46 @@ public partial class ScannerDiagnosticCasesWindow : Window
         DeleteSelectedButton.IsEnabled = true;
         SelectionText.Text =
             $"{selected.TimestampText} · {selected.ReviewText} · 판정 {selected.ResultText} · 정답 {selected.GroundTruthText}";
+    }
+
+    private void CaseList_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_openingEditor || CaseList.SelectedItem is not ScannerDiagnosticCaseSummary selected)
+            return;
+        OpenCaseEditor(selected);
+    }
+
+    private void OpenCaseEditor(ScannerDiagnosticCaseSummary selected)
+    {
+        _openingEditor = true;
+        try
+        {
+            if (!ScannerDiagnosticCaseBrowser.TryLoadCase(selected, out var storedCase, out var error))
+            {
+                MessageBox.Show(
+                    this,
+                    error,
+                    "Scanner 교정",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            var window = new ScannerCorrectionWindow(storedCase, _coordinator)
+            {
+                Owner = this,
+            };
+            window.ShowDialog();
+            if (window.DatasetChanged)
+            {
+                DatasetChanged = true;
+                Reload();
+            }
+        }
+        finally
+        {
+            _openingEditor = false;
+        }
     }
 
     private void DeleteSelectedButton_Click(object sender, RoutedEventArgs e)
