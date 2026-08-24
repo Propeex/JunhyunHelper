@@ -1,6 +1,6 @@
 # RELEASE 1.4.4 — Scanner short-title OCR and live glyph evidence hardening
 
-상태: `RELEASE PREP / NOT PUBLIC`
+상태: `PUBLIC STABLE / VERIFIED`
 
 기준일: 2026-08-24
 
@@ -133,6 +133,18 @@ Feature PR #170 final CI:
 
 `32678557783 — SUCCESS`
 
+Feature merge:
+
+`e4e20aa306225cdc9224bb929ef93099f1a3e3ab`
+
+Release-prep PR #171 final CI:
+
+`32678982028 — SUCCESS`
+
+Exact public release source / tag:
+
+`0c7f31e118122ffef6e5999f7a20a77d823a450d`
+
 검증:
 
 ```text
@@ -142,10 +154,6 @@ Windows x64 self-contained single-file publish: SUCCESS
 packaged Product UI + Map/Factory/MiniMap + Scanner smoke: SUCCESS
 graceful shutdown + clean portable root: SUCCESS
 ```
-
-Feature merge:
-
-`e4e20aa306225cdc9224bb929ef93099f1a3e3ab`
 
 추가 자동 회귀:
 
@@ -161,43 +169,57 @@ Feature merge:
 
 - `docs/DECISION_SCANNER_SHORT_TITLE_AND_LIVE_GLYPH_EVIDENCE_2026-08-24.md`
 
-## 릴리즈 준비
+## 공개 릴리즈 결과
 
-Release-prep branch:
-
-`release-v1.4.4-prep`
-
-현재 release-prep의 목표 identity:
+v1.4.4는 2026-08-24에 public stable/latest로 공개하고 독립 검증을 완료했다.
 
 ```text
-Desktop Version: 1.4.4
-FIRST_RUN: 준현 헬퍼 v1.4.4 — Windows x64
-version classification: PATCH
-expected tests: 283
+version: v1.4.4
+exact source/tag: 0c7f31e118122ffef6e5999f7a20a77d823a450d
 asset: Junhyun-Helper-v1.4.4-win-x64.zip
+bytes: 80391895
+SHA256: 64320e36ba94b6f206ef997e3d42a809c7beef2c859f4bc7f53f704f74866f40
+ProductVersion: 1.4.4+0c7f31e118122ffef6e5999f7a20a77d823a450d
+tests: 283 / 283
+release run: 32680058795 — SUCCESS
+independent public verifier: 32680422756 — SUCCESS
+published at UTC: 2026-08-24T01:35:12Z
 ```
 
-Exact public release source는 release-prep PR이 전체 CI를 통과하고 main에 merge된 뒤 그 merge SHA로 고정한다.
+독립 public verifier는 인증된 빌드 산출물을 그대로 신뢰하지 않고 GitHub public latest 경로에서 ZIP과 `SHA256SUMS.txt`를 다시 내려받아 다음을 재검증했다.
 
-## 공개 릴리즈 게이트
+- public latest가 `v1.4.4`이며 draft/prerelease가 아님
+- public `v1.4.4` tag가 exact source SHA를 가리킴
+- public ZIP SHA256이 `SHA256SUMS.txt`와 일치
+- package root/layout 정상
+- required Map database 존재
+- PDB/nested archive 없음
+- EXE ProductVersion exact match
+- FIRST_RUN version exact match
+- public-downloaded EXE Product UI + Map + Scanner smoke 성공
+- 정상 Main Window close 및 graceful shutdown 성공
 
-1. release-prep PR CI success
-2. exact source SHA 고정
-3. tag `v1.4.4` exact source 생성
-4. exact-source build + exactly 283 tests
-5. win-x64 self-contained single-file publish
-6. package root / ProductVersion / FIRST_RUN audit
-7. packaged EXE Product UI + Map + Scanner smoke / graceful shutdown
-8. ZIP + `SHA256SUMS.txt`
-9. draft asset re-download / hash / layout / EXE smoke
-10. public stable/latest publish
-11. public asset re-download / hash / SHA256SUMS / layout / ProductVersion
-12. public-downloaded EXE smoke
-13. independent public verifier
-14. durable `docs/.release-v1.4.4-status.json`
-15. one-shot release/verifier workflow 제거
+Durable machine-readable release status:
 
-위 항목이 모두 완료되기 전에는 v1.4.4를 public stable/latest로 기록하지 않는다.
+- `docs/.release-v1.4.4-status.json`
+
+## 릴리즈 게이트 결과
+
+1. release-prep PR CI success — 완료
+2. exact source SHA 고정 — 완료
+3. tag `v1.4.4` exact source 생성 — 완료
+4. exact-source build + exactly 283 tests — 완료
+5. win-x64 self-contained single-file publish — 완료
+6. package root / ProductVersion / FIRST_RUN audit — 완료
+7. packaged EXE Product UI + Map + Scanner smoke / graceful shutdown — 완료
+8. ZIP + `SHA256SUMS.txt` — 완료
+9. draft asset re-download / hash / layout / EXE smoke — 완료
+10. public stable/latest publish — 완료
+11. public asset re-download / hash / SHA256SUMS / layout / ProductVersion — 완료
+12. public-downloaded EXE smoke — 완료
+13. independent public verifier — 완료 (`32680422756 — SUCCESS`)
+14. durable `docs/.release-v1.4.4-status.json` — 완료
+15. one-shot release/verifier workflow 제거 — housekeeping에서 완료
 
 ## 알려진 잔여 과제
 
