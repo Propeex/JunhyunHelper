@@ -1,0 +1,221 @@
+name: Release v1.4.4
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/release-v1.4.4.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      SOURCE_SHA: 0c7f31e118122ffef6e5999f7a20a77d823a450d
+      VERSION: 1.4.4
+      TAG: v1.4.4
+      ASSET: Junhyun-Helper-v1.4.4-win-x64.zip
+    steps:
+      - name: Checkout exact release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 1
+
+      - name: Checkout pinned public Map donor
+        shell: pwsh
+        run: |
+          git config --local --unset-all http.https://github.com/.extraheader
+          if ($LASTEXITCODE -notin @(0, 5)) { throw "Could not clear GitHub auth header." }
+          git submodule sync --recursive
+          if ($LASTEXITCODE -ne 0) { throw "Could not synchronize submodule metadata." }
+          git submodule update --init --force --depth=1 --recursive
+          if ($LASTEXITCODE -ne 0) { throw "Could not checkout the pinned public Map donor." }
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build exact source
+        shell: pwsh
+        run: |
+          $head = (git rev-parse HEAD).Trim()
+          if ($head -ne $env:SOURCE_SHA) { throw "Exact source mismatch: $head" }
+          dotnet build src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj --configuration Release
+          if ($LASTEXITCODE -ne 0) { throw "Desktop build failed." }
+
+      - name: Test exact source
+        shell: pwsh
+        run: |
+          $output = dotnet test tests/JunhyunHelper.Tests/JunhyunHelper.Tests.csproj --configuration Release 2>&1 | Tee-Object -Variable testLog
+          $output | Write-Host
+          if ($LASTEXITCODE -ne 0) { throw "Tests failed." }
+          $joined = $testLog -join "`n"
+          if ($joined -notmatch 'Passed:\s+283' -or $joined -notmatch 'Failed:\s+0') {
+            throw "Expected exactly 283 passing tests and 0 failures."
+          }
+
+      - name: Publish Windows x64 package
+        shell: pwsh
+        run: |
+          dotnet publish src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            --output artifacts/publish `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true `
+            -p:PublishTrimmed=false `
+            -p:PublishReadyToRun=false `
+            -p:DebugType=None `
+            -p:DebugSymbols=false
+          if ($LASTEXITCODE -ne 0) { throw "Publish failed." }
+
+          Copy-Item packaging/FIRST_RUN_KO.txt artifacts/publish/FIRST_RUN_KO.txt
+          $exe = (Resolve-Path 'artifacts/publish/준현 헬퍼.exe').Path
+          $productVersion = (Get-Item $exe).VersionInfo.ProductVersion
+          $expectedProductVersion = "$env:VERSION+$env:SOURCE_SHA"
+          if ($productVersion -ne $expectedProductVersion) {
+            throw "ProductVersion '$productVersion' != '$expectedProductVersion'."
+          }
+          $first = Get-Content artifacts/publish/FIRST_RUN_KO.txt -TotalCount 1
+          if ($first -ne "준현 헬퍼 v$env:VERSION — Windows x64") {
+            throw "FIRST_RUN identity mismatch: $first"
+          }
+
+          $rootFiles = @(Get-ChildItem artifacts/publish -File)
+          $unexpectedRootFiles = @($rootFiles | Where-Object { $_.Name -notin @('준현 헬퍼.exe','FIRST_RUN_KO.txt') })
+          if ($unexpectedRootFiles.Count -gt 0) { throw "Unexpected release-root files." }
+          $rootDirs = @(Get-ChildItem artifacts/publish -Directory)
+          if (@($rootDirs | Where-Object Name -ne 'Assets').Count -gt 0) { throw "Unexpected release-root directories." }
+          if (@(Get-ChildItem artifacts/publish -Recurse -File -Filter *.pdb).Count -gt 0) { throw "PDB leaked into package." }
+          if (@(Get-ChildItem artifacts/publish -Recurse -File | Where-Object Extension -in @('.zip','.7z','.rar')).Count -gt 0) { throw "Nested archive leaked into package." }
+
+      - name: Packaged product smoke
+        shell: pwsh
+        env:
+          JUNHYUNHELPER_MAP_SMOKE: '1'
+        run: |
+          $exe = (Resolve-Path 'artifacts/publish/준현 헬퍼.exe').Path
+          $diagnostic = Join-Path $env:TEMP 'junhyun-map-smoke-error.txt'
+          $success = Join-Path $env:TEMP 'junhyun-map-smoke-success.txt'
+          Remove-Item $diagnostic,$success -Force -ErrorAction SilentlyContinue
+          $process = Start-Process -FilePath $exe -WorkingDirectory artifacts/publish -PassThru
+          try {
+            $deadline = (Get-Date).AddSeconds(75)
+            while ((Get-Date) -lt $deadline -and -not (Test-Path $success)) {
+              $process.Refresh()
+              if (Test-Path $diagnostic) { Get-Content $diagnostic | Write-Host; throw 'Product smoke failure.' }
+              if ($process.HasExited) { throw "Product exited early: $($process.ExitCode)" }
+              Start-Sleep -Milliseconds 250
+            }
+            if (-not (Test-Path $success)) { throw 'Product smoke timed out.' }
+            if (-not $process.CloseMainWindow()) { throw 'Could not request normal close.' }
+            if (-not $process.WaitForExit(7000)) { throw 'Product did not exit normally.' }
+          }
+          finally {
+            $process.Refresh()
+            if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
+          }
+
+      - name: Create ZIP and checksums
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path artifacts/release -Force | Out-Null
+          Compress-Archive -Path artifacts/publish/* -DestinationPath "artifacts/release/$env:ASSET" -CompressionLevel Optimal
+          $hash = (Get-FileHash "artifacts/release/$env:ASSET" -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $env:ASSET" | Set-Content artifacts/release/SHA256SUMS.txt -Encoding utf8
+          Write-Host "ASSET_SHA256=$hash"
+          Write-Host "ASSET_BYTES=$((Get-Item "artifacts/release/$env:ASSET").Length)"
+
+      - name: Create draft release from exact source
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view $env:TAG --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) { throw "Release/tag $env:TAG already exists." }
+          @"
+          ## v1.4.4 — Scanner OCR 정확도 보완
+
+          실제 v1.4.3 Ground Truth에서 확인된 잔여 OCR 실패를 보완한 PATCH 릴리즈입니다.
+
+          - `Awl`처럼 매우 짧은 이름이 넓은 제목 영역에서 OCR EMPTY가 되던 경우에 OCR 전용 sparse-title tight view를 제한적으로 재시도합니다.
+          - `r`이 `「` 같은 카탈로그 불가능 기호로 읽히는 경우 전역 치환 없이 unknown-glyph + 공식 전체 카탈로그 유일성 검증으로만 복구합니다.
+          - `o/O` 등 영문 대소문자 차이는 기존 canonical matcher에서 동일 identity로 처리하며 회귀 테스트로 고정했습니다.
+          - 상세창 semantic ROI, header floor 0.68, structural floor 0.34, short-name fuzzy threshold는 완화하지 않았습니다.
+          - 283개 자동 테스트, Windows x64 publish, Product UI/Map/Scanner smoke를 통과한 exact source만 배포합니다.
+          "@ | Set-Content artifacts/release/RELEASE_NOTES.md -Encoding utf8
+
+          gh release create $env:TAG `
+            --repo $env:GITHUB_REPOSITORY `
+            --target $env:SOURCE_SHA `
+            --title "준현 헬퍼 v$env:VERSION" `
+            --notes-file artifacts/release/RELEASE_NOTES.md `
+            --draft
+          if ($LASTEXITCODE -ne 0) { throw "Draft release creation failed." }
+          gh release upload $env:TAG "artifacts/release/$env:ASSET" artifacts/release/SHA256SUMS.txt --repo $env:GITHUB_REPOSITORY
+          if ($LASTEXITCODE -ne 0) { throw "Release asset upload failed." }
+
+          $ref = gh api "repos/$env:GITHUB_REPOSITORY/git/ref/tags/$env:TAG" | ConvertFrom-Json
+          if ($ref.object.sha -ne $env:SOURCE_SHA) { throw "Tag does not point to exact release source: $($ref.object.sha)" }
+
+      - name: Draft asset redownload and verification
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JUNHYUNHELPER_MAP_SMOKE: '1'
+        run: |
+          New-Item -ItemType Directory -Path artifacts/redownload -Force | Out-Null
+          gh release download $env:TAG --repo $env:GITHUB_REPOSITORY --dir artifacts/redownload --pattern $env:ASSET --pattern SHA256SUMS.txt
+          if ($LASTEXITCODE -ne 0) { throw "Draft asset redownload failed." }
+
+          $expected = ((Get-Content artifacts/redownload/SHA256SUMS.txt -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
+          $actual = (Get-FileHash "artifacts/redownload/$env:ASSET" -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $expected) { throw "Redownload hash mismatch." }
+
+          Expand-Archive "artifacts/redownload/$env:ASSET" artifacts/redownload/package -Force
+          $exe = (Resolve-Path 'artifacts/redownload/package/준현 헬퍼.exe').Path
+          $pv = (Get-Item $exe).VersionInfo.ProductVersion
+          if ($pv -ne "$env:VERSION+$env:SOURCE_SHA") { throw "Redownload ProductVersion mismatch: $pv" }
+          $first = Get-Content artifacts/redownload/package/FIRST_RUN_KO.txt -TotalCount 1
+          if ($first -ne "준현 헬퍼 v$env:VERSION — Windows x64") { throw "Redownload FIRST_RUN mismatch." }
+          if (-not (Test-Path artifacts/redownload/package/Assets/tarkov_data.db)) { throw "Required Map database missing." }
+
+          $diagnostic = Join-Path $env:TEMP 'junhyun-map-smoke-error.txt'
+          $success = Join-Path $env:TEMP 'junhyun-map-smoke-success.txt'
+          Remove-Item $diagnostic,$success -Force -ErrorAction SilentlyContinue
+          $process = Start-Process -FilePath $exe -WorkingDirectory artifacts/redownload/package -PassThru
+          try {
+            $deadline = (Get-Date).AddSeconds(75)
+            while ((Get-Date) -lt $deadline -and -not (Test-Path $success)) {
+              $process.Refresh()
+              if (Test-Path $diagnostic) { Get-Content $diagnostic | Write-Host; throw 'Redownload smoke failure.' }
+              if ($process.HasExited) { throw "Redownload product exited early: $($process.ExitCode)" }
+              Start-Sleep -Milliseconds 250
+            }
+            if (-not (Test-Path $success)) { throw 'Redownload smoke timed out.' }
+            if (-not $process.CloseMainWindow()) { throw 'Could not request normal close.' }
+            if (-not $process.WaitForExit(7000)) { throw 'Redownload product did not exit normally.' }
+          }
+          finally {
+            $process.Refresh()
+            if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
+          }
+
+      - name: Publish stable latest release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release edit $env:TAG --repo $env:GITHUB_REPOSITORY --draft=false --latest
+          if ($LASTEXITCODE -ne 0) { throw "Could not publish stable latest release." }
+          $latest = gh api "repos/$env:GITHUB_REPOSITORY/releases/latest" | ConvertFrom-Json
+          if ($latest.tag_name -ne $env:TAG -or $latest.draft -or $latest.prerelease) {
+            throw "Published release is not public stable/latest."
+          }
