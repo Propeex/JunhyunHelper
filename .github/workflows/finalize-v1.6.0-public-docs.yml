@@ -1,0 +1,209 @@
+name: Finalize v1.6.0 Public Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/finalize-v1.6.0-public-docs.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Update canonical public release state
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $utf8=[Text.UTF8Encoding]::new($false)
+
+          function Read([string]$p){[IO.File]::ReadAllText($p)}
+          function Write([string]$p,[string]$s){[IO.File]::WriteAllText($p,$s,$utf8)}
+          function Replace-Required([string]$text,[string]$old,[string]$new,[string]$label){
+            if(-not$text.Contains($old)){throw "Required text not found: $label"}
+            $text.Replace($old,$new)
+          }
+
+          $p='README.md';$t=Read $p
+          $old=@'
+현재 공개 stable/latest는 **v1.5.0**이며, 저장소의 현재 작업은 **v1.6.0 release candidate**입니다.
+
+v1.6.0은 최종 CI와 공개 릴리즈 검증이 끝나기 전까지 public stable로 간주하지 않습니다.
+
+현재 v1.6.0 release candidate 기준:
+'@
+          $new=@'
+현재 공개 stable/latest는 **v1.6.0**이며, public release와 anonymous redownload/product smoke 검증까지 완료되었습니다.
+
+현재 v1.6.0 public release 기준:
+'@
+          $t=Replace-Required $t $old $new 'README release state'
+          $t=$t.Replace('automated test suite: 296 tests','automated test suite: 299 tests')
+          $pattern='마지막 공개 검증 기준선 v1\.5\.0:\s*```text.*?```'
+          $replacement=@'
+현재 공개 검증 기준선 v1.6.0:
+
+```text
+exact release source/tag: e18c108380572913552030aa677bba06ebf49355
+stable asset: Junhyun-Helper.zip
+stable bytes: 80,425,013
+stable SHA-256: f9384ff49d522afb5976efe291ff932d66063dcfeee64b0aed7a5daa691a12c5
+v1.5 bridge asset: Junhyun-Helper-v1.6.0-win-x64.zip
+bridge bytes: 80,424,089
+bridge SHA-256: 3f05b20ccbd7463fb590889042b1b706290a88e0568cd00c3b2fa23cf966dfc8
+299 passed / 0 failed / 0 skipped
+public/latest: VERIFIED
+public-downloaded EXE smoke: SUCCESS
+```
+'@
+          $u=[regex]::Replace($t,$pattern,$replacement,[Text.RegularExpressions.RegexOptions]::Singleline)
+          if($u-eq$t){throw 'README verified baseline block was not replaced.'};$t=$u
+          $t=$t.Replace('- `docs/RELEASE_NOTES_V1.6.0.md`','- `docs/RELEASE_NOTES_V1.6.0.md`'+[Environment]::NewLine+'- `docs/RELEASE_1.6.0.md`')
+          Write $p $t
+
+          $p='docs/STATE.md';$t=Read $p
+          $t=Replace-Required $t '상태: **v1.6.0 RELEASE CANDIDATE / FINAL RELEASE GATE**' '상태: **v1.6.0 PUBLIC RELEASE / VERIFIED — LIVE GROUND TRUTH MAINTENANCE**' 'STATE status'
+          $pattern='## 2\. 공개 stable과 현재 release candidate.*?Schema / compatibility:'
+          $replacement=@'
+## 2. 공개 stable과 현재 source
+
+현재 public stable/latest는 **v1.6.0**이다.
+
+```text
+exact release source/tag: e18c108380572913552030aa677bba06ebf49355
+stable asset: Junhyun-Helper.zip
+stable bytes: 80,425,013
+stable SHA-256: f9384ff49d522afb5976efe291ff932d66063dcfeee64b0aed7a5daa691a12c5
+v1.5 bridge asset: Junhyun-Helper-v1.6.0-win-x64.zip
+bridge bytes: 80,424,089
+bridge SHA-256: 3f05b20ccbd7463fb590889042b1b706290a88e0568cd00c3b2fa23cf966dfc8
+release verification run: 32710012954
+299 passed / 0 failed / 0 skipped
+public/latest: VERIFIED
+anonymous public redownload + EXE smoke: SUCCESS
+```
+
+현재 `main`은 public v1.6.0 exact source 이후의 release-record/housekeeping commit을 포함할 수 있다. 공개 v1.6.0 제품 source의 권위는 tag `v1.6.0`과 위 exact source SHA다.
+
+Schema / compatibility:
+'@
+          $u=[regex]::Replace($t,$pattern,$replacement,[Text.RegularExpressions.RegexOptions]::Singleline)
+          if($u-eq$t){throw 'STATE public release section was not replaced.'};$t=$u
+          $t=$t.Replace('- `docs/RELEASE_NOTES_V1.6.0.md`','- `docs/RELEASE_NOTES_V1.6.0.md`'+[Environment]::NewLine+'- `docs/RELEASE_1.6.0.md`')
+          Write $p $t
+
+          $p='docs/CURRENT_STATE.md';$t=Read $p
+          $t=Replace-Required $t '상태: **`v1.6.0 RELEASE CANDIDATE / FINAL RELEASE GATE`**' '상태: **`v1.6.0 PUBLIC RELEASE / VERIFIED — LIVE GROUND TRUTH MAINTENANCE`**' 'CURRENT_STATE status'
+          $pattern='## 공개 stable과 현재 source.*?## Schema / compatibility'
+          $replacement=@'
+## 공개 stable과 현재 source
+
+현재 공개 stable/latest는 **v1.6.0**이다.
+
+```text
+public stable/latest: v1.6.0
+exact release source/tag: e18c108380572913552030aa677bba06ebf49355
+stable asset: Junhyun-Helper.zip
+stable bytes: 80,425,013
+stable SHA-256: f9384ff49d522afb5976efe291ff932d66063dcfeee64b0aed7a5daa691a12c5
+v1.5 bridge: Junhyun-Helper-v1.6.0-win-x64.zip
+bridge bytes: 80,424,089
+bridge SHA-256: 3f05b20ccbd7463fb590889042b1b706290a88e0568cd00c3b2fa23cf966dfc8
+299 passed / 0 failed / 0 skipped
+public verification run: 32710012954 — SUCCESS
+public-downloaded EXE smoke: SUCCESS
+```
+
+`main`의 후속 문서/housekeeping commit은 release source가 아니다. v1.6.0 제품 source는 tag `v1.6.0`의 exact SHA로 고정한다.
+
+## Schema / compatibility
+'@
+          $u=[regex]::Replace($t,$pattern,$replacement,[Text.RegularExpressions.RegexOptions]::Singleline)
+          if($u-eq$t){throw 'CURRENT_STATE release section was not replaced.'};$t=$u
+          $t=$t.Replace('| Scanner + Mini Scanner | **v1.6.0 RC 구현 완료 / final release gate** |','| Scanner + Mini Scanner | **v1.6.0 공개 검증 완료 / live Ground Truth maintenance** |')
+          $t=$t.Replace('- `docs/RELEASE_NOTES_V1.6.0.md`','- `docs/RELEASE_NOTES_V1.6.0.md`'+[Environment]::NewLine+'- `docs/RELEASE_1.6.0.md`')
+          Write $p $t
+
+          $p='docs/CURRENT_SCANNER_WORK.md';$t=Read $p
+          $t=Replace-Required $t '상태: **v1.6.0 RELEASE CANDIDATE — FINAL RELEASE GATE**' '상태: **v1.6.0 PUBLIC RELEASE / VERIFIED — LIVE GROUND TRUTH MAINTENANCE**' 'CURRENT_SCANNER_WORK status'
+          $old=@'
+현재 Scanner 개발은 v1.6.0 사용자 작업 흐름 정리를 구현한 뒤 최종 릴리즈 검증 단계에 있다.
+
+v1.6.0 release가 공개 검증되면 다시 **LIVE GROUND TRUTH MAINTENANCE** 단계로 돌아간다.
+'@
+          $new=@'
+Scanner v1.6.0 사용자 작업 흐름 정리와 공개 릴리즈 검증이 완료되었다.
+
+현재 단계는 **LIVE GROUND TRUTH MAINTENANCE**다. 실사용에서 수집된 reviewed Ground Truth를 기준으로 실패 stage만 수정하고 전체 reviewed replay에서 REGRESSION=0을 유지한다.
+'@
+          $t=Replace-Required $t $old $new 'CURRENT_SCANNER_WORK phase'
+          $t=$t.Replace('- `docs/RELEASE_NOTES_V1.6.0.md`','- `docs/RELEASE_NOTES_V1.6.0.md`'+[Environment]::NewLine+'- `docs/RELEASE_1.6.0.md`')
+          Write $p $t
+
+          $p='docs/STATUS_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md';$t=Read $p
+          $t=Replace-Required $t '상태: `IMPLEMENTED / RELEASE CANDIDATE`' '상태: `IMPLEMENTED / PUBLIC RELEASE VERIFIED`' 'v1.6 status'
+          $t=$t.Replace('v1.6.0 updater가 stable Korean package를 우선 선택하고 wrapper folder를 안전하게 unwrap하도록 변경','v1.6.0 updater가 stable `Junhyun-Helper.zip` package를 우선 선택하고 `준현 헬퍼/` wrapper folder를 안전하게 unwrap하도록 변경')
+          $pattern='## 남은 release gate.*?## v1\.6\.0 이후'
+          $replacement=@'
+## 최종 release verification
+
+교정 PR #175 HEAD `ad7f4259a44c72902fba452adbbcfd4c540ae577`는 CI `32708999577`에서 다음 전체 gate를 통과했다.
+
+- Desktop build: SUCCESS
+- automated tests: 299 passed / 0 failed / 0 skipped
+- Windows x64 publish: SUCCESS
+- rendered Product UI / Scanner / Mini Scanner smoke: SUCCESS
+- Main Map / Factory / MiniMap smoke: SUCCESS
+- graceful shutdown: SUCCESS
+- stable/bridge package + checksum gate: SUCCESS
+
+최종 제품 source:
+
+```text
+v1.6.0 exact release source/tag: e18c108380572913552030aa677bba06ebf49355
+ProductVersion: 1.6.0+e18c108380572913552030aa677bba06ebf49355
+```
+
+초기 final controller `32709414932`는 build/test/publish/package/product smoke/tag retarget/draft asset 교체까지 성공했으나, draft manifest 비교용 PowerShell 코드의 `TrimStart` 인자 오류에서 fail closed했다. 이때 stable/latest 공개는 수행하지 않았다.
+
+Recovery/final public verification run `32710012954`는 성공했다.
+
+```text
+stable asset: Junhyun-Helper.zip
+stable bytes: 80,425,013
+stable SHA-256: f9384ff49d522afb5976efe291ff932d66063dcfeee64b0aed7a5daa691a12c5
+v1.5 bridge: Junhyun-Helper-v1.6.0-win-x64.zip
+bridge bytes: 80,424,089
+bridge SHA-256: 3f05b20ccbd7463fb590889042b1b706290a88e0568cd00c3b2fa23cf966dfc8
+public/latest: VERIFIED
+anonymous public redownload: VERIFIED
+public ProductVersion: VERIFIED
+public-downloaded EXE Product UI/Scanner/Mini Scanner/Map smoke: SUCCESS
+graceful shutdown / clean portable root: SUCCESS
+verified_at_utc: 2026-08-24T09:10:44.9630720Z
+```
+
+Durable release record:
+
+- `docs/.release-v1.6.0-status.json`
+- `docs/RELEASE_1.6.0.md`
+
+## v1.6.0 이후
+'@
+          $u=[regex]::Replace($t,$pattern,$replacement,[Text.RegularExpressions.RegexOptions]::Singleline)
+          if($u-eq$t){throw 'v1.6 STATUS release gate section was not replaced.'};$t=$u
+          Write $p $t
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add README.md docs/STATE.md docs/CURRENT_STATE.md docs/CURRENT_SCANNER_WORK.md docs/STATUS_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md
+          if(git diff --cached --quiet){throw 'No public release documentation changes were produced.'}
+          git commit -m 'Finalize v1.6.0 public release documentation'
+          git push origin HEAD:main
