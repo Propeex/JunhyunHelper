@@ -1,0 +1,31 @@
+{
+  "id": 375531958,
+  "draft": true,
+  "tag": "v1.6.0",
+  "assets": [
+    {
+      "id": 527283841,
+      "name": "default.zip",
+      "size": 80424835,
+      "state": "uploaded",
+      "url": "https://api.github.com/repos/Propeex/JunhyunHelper/releases/assets/527283841",
+      "browser_download_url": "https://github.com/Propeex/JunhyunHelper/releases/download/untagged-28fdcf8f6980729a90b4/default.zip"
+    },
+    {
+      "id": 527283838,
+      "name": "Junhyun-Helper-v1.6.0-win-x64.zip",
+      "size": 80423911,
+      "state": "uploaded",
+      "url": "https://api.github.com/repos/Propeex/JunhyunHelper/releases/assets/527283838",
+      "browser_download_url": "https://github.com/Propeex/JunhyunHelper/releases/download/untagged-28fdcf8f6980729a90b4/Junhyun-Helper-v1.6.0-win-x64.zip"
+    },
+    {
+      "id": 527283839,
+      "name": "SHA256SUMS.txt",
+      "size": 186,
+      "state": "uploaded",
+      "url": "https://api.github.com/repos/Propeex/JunhyunHelper/releases/assets/527283839",
+      "browser_download_url": "https://github.com/Propeex/JunhyunHelper/releases/download/untagged-28fdcf8f6980729a90b4/SHA256SUMS.txt"
+    }
+  ]
+}
