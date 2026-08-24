@@ -77,12 +77,14 @@ public partial class MiniScannerWindow : Window
         ConfigureLine(
             TraderPriceText,
             settings.ShowTraderSellPrice && snapshot.TraderSellPrice.HasValue,
-            snapshot.TraderSellPrice is { } trader ? $"상인  {FormatRoubles(trader)}" : string.Empty,
+            snapshot.TraderSellPrice is { } trader
+                ? $"{TraderPriceLabel(snapshot)}  {FormatRoubles(trader)}"
+                : string.Empty,
             settings.FontSize);
         ConfigureLine(
             FleaPriceText,
             settings.ShowFleaAveragePrice && snapshot.FleaAveragePrice.HasValue,
-            snapshot.FleaAveragePrice is { } flea ? $"플리  {FormatRoubles(flea)}" : string.Empty,
+            snapshot.FleaAveragePrice is { } flea ? $"플리 평균  {FormatRoubles(flea)}" : string.Empty,
             settings.FontSize);
         ConfigureLine(
             TraderSlotPriceText,
@@ -100,6 +102,11 @@ public partial class MiniScannerWindow : Window
             $"필요  {snapshot.CurrentNeeded.ToString("N0", CultureInfo.InvariantCulture)}",
             settings.FontSize);
     }
+
+    private static string TraderPriceLabel(ScannerItemSnapshot snapshot) =>
+        string.IsNullOrWhiteSpace(snapshot.BestTraderName)
+            ? "최고 상점가"
+            : $"최고 상점가 · {snapshot.BestTraderName}";
 
     private void ShowAndPosition(ScannerDisplaySettings settings)
     {
