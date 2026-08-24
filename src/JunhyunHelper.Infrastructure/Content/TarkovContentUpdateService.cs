@@ -16,18 +16,21 @@ public sealed class TarkovContentUpdateService
     private readonly ContentSnapshotStore _snapshotStore;
     private readonly ContentActivationService _activationService;
     private readonly ContentUpdateCompletenessGuard _completenessGuard;
+    private readonly GameContentIntegrityValidator _integrityValidator;
     private readonly SemaphoreSlim _updateGate = new(1, 1);
 
     public TarkovContentUpdateService(
         TarkovContentBuildService buildService,
         ContentActivationService activationService,
         ContentSnapshotStore? snapshotStore = null,
-        ContentUpdateCompletenessGuard? completenessGuard = null)
+        ContentUpdateCompletenessGuard? completenessGuard = null,
+        GameContentIntegrityValidator? integrityValidator = null)
     {
         _buildService = buildService ?? throw new ArgumentNullException(nameof(buildService));
         _activationService = activationService ?? throw new ArgumentNullException(nameof(activationService));
         _snapshotStore = snapshotStore ?? new ContentSnapshotStore();
         _completenessGuard = completenessGuard ?? new ContentUpdateCompletenessGuard();
+        _integrityValidator = integrityValidator ?? new GameContentIntegrityValidator();
     }
 
     public async Task<ContentUpdateResult> UpdateAsync(
@@ -88,6 +91,19 @@ public sealed class TarkovContentUpdateService
                 build.Warnings,
                 cancellationToken);
 
+            // Verify the bytes we actually persisted, not only the in-memory import.
+            // This catches storage/serialization regressions before the active snapshot
+            // is touched and repeats the baseline partial-payload guard on read-back.
+            var persistedCandidate = await _snapshotStore.ReadAsync(paths.CandidatePath, cancellationToken);
+            if (persistedCandidate.GameMode != gameMode)
+                throw new InvalidDataException("Persisted candidate belongs to a different game mode.");
+
+            var persistedValidation = MergeValidation(
+                _integrityValidator.Validate(persistedCandidate.Content),
+                _completenessGuard.Validate(persistedCandidate.Content, baseline?.Content));
+            if (!persistedValidation.IsValid)
+                throw new InvalidDataException("Persisted content candidate failed integrity validation.");
+
             trackedProgress.Report(new ContentUpdateProgress(
                 ContentUpdateStage.Activating,
                 "candidate를 다시 검증하고 최신 게임 데이터로 적용하는 중...",
@@ -96,7 +112,7 @@ public sealed class TarkovContentUpdateService
             await _activationService.ActivateCandidateAsync(gameMode, cancellationToken);
 
             // Do not report success merely because a file move completed. Load the final
-            // active snapshot through the same recovery/validation boundary once more.
+            // active snapshot through the existing recovery/validation boundary once more.
             // If activation produced an invalid file, ContentActivationService restores
             // the previous last-known-good snapshot before this call returns.
             _ = await _activationService.ReadActiveOrRecoverAsync(gameMode, cancellationToken);
