@@ -279,8 +279,14 @@ public sealed partial class ScannerRuntimeService
     private async Task<IReadOnlyList<ScannerInspectCandidate>> ObserveCandidatesCoreAsync(CancellationToken cancellationToken)
     {
         if (_detector is IScannerCandidateInspectDetector candidateDetector)
-            return await candidateDetector.ObserveCandidatesAsync(cancellationToken);
+        {
+            var candidates = await candidateDetector.ObserveCandidatesAsync(cancellationToken);
+            return NormalizeTitleIdentitySignatures(candidates);
+        }
+
         var candidate = await _detector.ObserveAsync(cancellationToken);
-        return candidate is null ? [] : [candidate];
+        return candidate is null
+            ? []
+            : NormalizeTitleIdentitySignatures([candidate]);
     }
 }
