@@ -1,140 +1,33 @@
-준현 헬퍼 v1.5.0 — Windows x64
+준현 헬퍼 v1.6.0 — Windows x64
 
 실행 방법
-1. 받은 ZIP 파일을 원하는 폴더에 압축 해제합니다.
-2. '준현 헬퍼.exe'를 실행합니다.
+1. 받은 '준현 헬퍼.zip'을 원하는 위치에 압축 해제합니다.
+2. 압축을 풀면 생성되는 '준현 헬퍼' 폴더 안의 '준현 헬퍼.exe'를 실행합니다.
 3. 처음 실행하면 프로필을 만들고 필요한 최신 게임 데이터를 온라인에서 내려받습니다.
 4. 프로그램 실행 시 GitHub의 최신 정식 준현 헬퍼 릴리즈를 확인합니다. 더 최신 버전이 있으면 업데이트 여부를 묻습니다.
 
-v1.5.0 주요 변경 — 제품 완성도·Scanner 실사용성·데이터 신뢰성 마감
-- Scanner에서 Item ID가 확정된 뒤 최고 상점가, 최고가 상인, 플리마켓 24시간 평균가, 슬롯 수, 상인/플리 칸당 가격, 현재 필요한 수량이 mapped data로 일관되게 표시되도록 보완했습니다.
-- 상단 '데이터 업데이트' 한 번으로 일반 Tarkov 데이터와 Scanner 아이템/시장 카탈로그를 함께 갱신합니다. Scanner 쪽 네트워크 갱신만 실패하면 정상 일반 데이터를 되돌리지 않고 기존 healthy Scanner cache를 보존합니다.
-- 최신 Tarkov live data를 기준으로 Quest task-pool 구조를 재감사하고 GameMode까지 포함한 안전한 호환 조건에서만 추론합니다. 구조가 감사 결과와 다르면 값을 만들지 않고 '확인 필요'로 남깁니다.
-- 반복 OCR 오인식은 Scanner 설정의 'OCR 문자 치환'에서 사용자가 직접 규칙을 추가·삭제·ON/OFF·초기화할 수 있습니다. raw OCR 원문은 진단 증거로 그대로 보존되며 치환은 catalog matching 전에 한 번만 적용됩니다.
-- Scanner 교정은 detector가 만든 상세창·빨간 X·돋보기·아이템명 ROI 후보를 선택하는 방식이 기본입니다. 정답 후보가 없으면 직접 영역 지정이 가능하고, 실제로 없어야 하는 항목은 '없음'으로 기록할 수 있습니다.
-- Scanner 처리 시간은 capture, rectangle proposal, semantic header, normal/deep OCR, visual recovery, catalog matching, presentation, end-to-end 단계별로 진단 로그에 측정됩니다.
-- 같은 scan-cycle 안에서 입력 bitmap이 픽셀 단위로 완전히 동일한 경우에만 OCR 결과를 재사용합니다. 프레임 간 OCR 캐시는 사용하지 않으며 인식 threshold와 candidate cap은 낮추지 않았습니다.
-- 연속 Scanner는 이미 검증된 상세창의 제목 glyph 형태가 유지되면 미세한 배경 픽셀 변화나 일시적인 OCR 흔들림으로 Mini Scanner가 깜빡이지 않도록 안정화했습니다. 다른 제목/창 닫힘/identity evidence 변경 시에는 기존 결과를 즉시 폐기하는 방향을 유지합니다.
-- 자동 미검토 Scanner 진단 Case는 30일·300건·512MiB 상한과 최근 2시간 보호창으로 관리합니다. 사용자가 확인한 Ground Truth와 상태가 불명확한 Case는 자동 삭제하지 않습니다. Scanner/startup 로그도 무제한 증가하지 않도록 rotation합니다.
-- Scanner 화면은 일반 사용, 설정, '고급 / 진단' 영역으로 정리했습니다. 일반 화면에는 Scanner ON/OFF, 1회 스캔, 현재 결과 교정, 상태와 최근 인식 기록을 우선 배치합니다.
-- Mini Scanner에서 우클릭 → '현재 결과 교정'으로 방금 본 오인식을 바로 Ground Truth 교정 흐름으로 보낼 수 있습니다.
-- Main/Quest/Hideout/Items/Ammo/Map/Scanner 및 주요 설정·진단 창의 layout consistency를 점검하고 실제 2-pane 구조보다 작던 메인 창 최소 폭을 지원 가능한 크기에 맞췄습니다.
-- Scanner의 false-positive보다 miss를 선호하는 원칙, structural floor 0.34, HEADER_FRAME_LOCKED 0.68, continuous 8 / one-shot 12 candidate cap, scan-time network 금지, game memory/DLL injection/packet interception 금지 계약은 유지합니다.
+v1.6.0 주요 변경 — Scanner 사용 화면·Mini Scanner·교정 작업 흐름 정리
+- Scanner 일반 화면은 '스캐너 ON/OFF', '설정', '고급' 세 동작을 중심으로 정리했습니다.
+- 일반 화면 아래쪽은 아이템 검색과 Scanner 인식 로그를 나란히 확인하는 구조로 변경했습니다.
+- 아이템 검색은 현재 내려받은 전체 Tarkov 아이템 카탈로그를 사용하며 검색 중 네트워크 요청을 만들지 않습니다.
+- 검색한 아이템은 아이콘, 이름, Tarkov Wiki, 플리마켓 평균가, 최고 상인 판매가, 현재 필요 개수를 확인할 수 있습니다.
+- 기존 1회 인게임 스캔, 1회 테스트 스캔, Scanner ON/OFF 전역 단축키 기능은 유지됩니다.
+- Mini Scanner는 아이템 아이콘과 이름을 항상 상단에 고정하고, 상인 판매가·플리 평균가·상인 칸당 가격·플리 칸당 가격·필요 개수의 표시 여부와 순서를 설정할 수 있습니다.
+- Mini Scanner의 상인 가격은 '최고 상점가' 같은 일반 문구 대신 가능한 경우 실제 최고가 상인 이름과 가격을 함께 표시합니다.
+- Scanner '고급' 화면은 테스트 Scanner, 현재 결과 교정, 교정 데이터 관리처럼 실사용 진단 기능 위주로 정리했습니다.
+- 교정 화면은 큰 원본 스크린샷도 창 안에 맞게 자동 축소해 보여 주되 Ground Truth 좌표는 원본 이미지 좌표계로 저장합니다.
+- 상세창·닫기 X·돋보기·아이템명 ROI는 드롭다운 대신 이미지 위 후보 사각형을 직접 클릭해 선택할 수 있습니다.
+- 후보가 없으면 '없음' 또는 직접 영역 지정을 사용할 수 있습니다.
+- 저장된 Scanner Case를 교정 데이터 관리에서 다시 열어 기존 Ground Truth를 재검토하고 수정할 수 있습니다.
+- Scanner 설정 파일은 schema v6으로 자동 마이그레이션되며 기존 단축키·표시 설정·OCR 사용자 교정 규칙을 가능한 한 보존합니다.
+- 배포 ZIP 이름과 압축 해제 폴더 이름을 버전과 분리했습니다. 앞으로 정식 배포 파일은 '준현 헬퍼.zip', 내부 최상위 폴더는 '준현 헬퍼'를 사용합니다.
 
-v1.4.4 주요 변경 — 짧은 아이템명 OCR 및 실사용 문자 혼동 보완
-- public v1.4.3 실사용 교정 데이터 7 Case / 사용자 검증 4 Case를 분석해 남은 OCR 실패를 보완했습니다.
-- reviewed Awl Case는 상세창과 header가 정확히 잠겼지만 985x28 아이템명 영역에서 실제 글자가 왼쪽 약 30px만 차지해 Windows OCR이 빈 결과를 반환했습니다.
-- 아이템명 semantic ROI와 교정 좌표는 변경하지 않고, 일반 OCR이 실패했을 때만 실제 밝은 glyph 뒤의 긴 어두운 여백을 제거한 OCR 전용 tight view로 재시도합니다.
-- tight view는 왼쪽 경계와 전체 높이, 마지막 glyph 뒤의 안전 여백을 보존하며 실제 글자가 넓게 분포한 title은 자르지 않습니다.
-- 실제 데이터에서 Esmarch → Esma「ch, figurine → figu「ine 형태의 r 혼동을 재확인했습니다. 「→r 같은 전역 치환은 추가하지 않고 current-catalog에 존재할 수 없는 glyph를 unknown-position evidence로 계속 처리합니다.
-- o/O는 matcher canonical normalization에서 이미 대소문자를 같은 identity로 처리하며 이 동작을 자동 회귀 테스트로 고정했습니다.
-- 짧은 이름의 fuzzy threshold, structural floor 0.34, trusted header floor 0.68은 낮추지 않았습니다.
-- Awl-like sparse title, 넓은 title no-crop, isolated far-right noise, Latin case-only identity를 자동 회귀 테스트에 추가했습니다.
-- 자동 테스트는 283개로 증가했습니다.
-- Scanner 속도 최적화는 정확도 안정화 후 별도 진행합니다.
-
-v1.4.3 주요 변경 — 상세창 후보 검증 구조 및 OCR 문자 정책 개선
-- 상세보기 창 geometry는 더 이상 사각형 점수만으로 상세창을 확정하지 않고, 가능한 rectangle proposal을 만드는 역할만 담당합니다.
-- 상세창의 높이·비율이 아이템에 따라 크게 달라질 수 있으므로 기존 1.3 근처 aspect 선호를 강한 조건에서 약한 ranking hint로 낮췄습니다.
-- 서로 크게 겹치는 후보라도 상·하·좌·우 경계가 실질적으로 다르면 X/돋보기/header 검증 전에 제거하지 않습니다. 거의 같은 edge-jitter duplicate만 정리합니다.
-- 각 후보의 최종 OCR 진입은 기존과 동일하게 실제 빨간 닫기 X, 돋보기, neutral header, dark title field, text evidence를 모두 확인하고 HEADER_FRAME_LOCKED >= 0.68을 충족해야 합니다.
-- 따라서 stash/inventory의 큰 사각형이 geometry 점수에서 앞서더라도 X/돋보기 semantic evidence가 없는 후보는 상세보기 창으로 확정되지 않습니다.
-- OCR 문자 정책은 current official item-name catalog에서 실제 사용하는 문자·기호를 기준으로 강화했습니다.
-- slash-zero가 Ø처럼 카탈로그에 없는 Unicode 문자로 읽히거나 r 같은 좁은 글자가 특수기호로 읽히면 해당 문자를 정상 identity 문자로 신뢰하지 않습니다.
-- 이런 embedded glyph는 특정 r/0으로 강제 치환하지 않고 '?' unknown-glyph evidence로 보존하며, 현재 전체 카탈로그에서 정답 패턴이 유일하고 충분히 분리된 경우에만 1~2글자를 제한적으로 복구합니다.
-- 일반 ASCII I/l/r/0 등은 fuzzy matcher가 비교할 수 있도록 정상 noisy evidence로 유지합니다.
-- 실제 공식 아이템명에서 사용되는 따옴표·하이픈·괄호 등의 기호는 제거하지 않습니다.
-- 일반 OCR confidence, matcher fuzzy threshold, structural floor 0.34, trusted header floor 0.68은 낮추지 않았습니다.
-- tall/large detail rectangle, high-IoU different-edge proposal 보존, catalog-impossible Unicode glyph, ambiguous wildcard fail-closed를 자동 회귀 테스트로 고정했습니다.
-- Scanner 속도 최적화는 정확도 안정화 이후 작업으로 유지합니다.
-
-v1.4.2 기반 변경 — 실제 Tarkov Ground Truth 기반 상세창·아이템명 인식 보완
-- 실제 v1.4.1 인게임 교정 데이터 61 Case / 사용자 검증 16 Case를 분석해 반복되는 실패 단계만 보완했습니다.
-- 보관함/인벤토리의 큰 프레임을 상세창 후보로 잡고 그 내부의 실제 상세창 헤더를 놓치던 사례를 위해 contained-subpanel fallback을 추가했습니다.
-- contained-subpanel 복구는 기존 primary 및 v1.4.1 live header lock이 모두 실패했을 때만 실행되며, 실제 후보도 닫기 X·돋보기·title field·text evidence와 HEADER_FRAME_LOCKED >= 0.68을 다시 통과해야 합니다.
-- Emelya/Grizzly 교정 사례처럼 공식 아이템이 이미 matcher 1위지만 OCR 2~3글자 오류 때문에 LOW_CONFIDENCE로 거부되던 경우를 제한적으로 복구합니다.
-- OCR 복구는 현재 공식 카탈로그 전체에서 유일한 2-edit 후보이거나 긴 공통 suffix를 가진 유일 후보일 때만 허용합니다.
-- 전역 문자 치환, 일반 OCR confidence 완화, structural floor 0.34, trusted header floor 0.68은 변경하지 않았습니다.
-- 기존 다중 오인식/근접 후보 사례는 계속 fail-closed로 유지합니다.
-- Scanner 단축키 설정 창에서 '스캐너 ON/OFF' 행이 아래쪽에서 잘리던 레이아웃 문제를 수정했습니다.
-- Scanner 인식 속도 최적화는 정확도와 안정화가 더 진행된 이후 작업으로 남겨 이번 릴리즈에서는 변경하지 않았습니다.
-- large contained detail panel 및 OCR 복구 경계 조건을 자동 회귀 테스트로 고정했습니다.
-
-v1.4.1 기반 변경 — 실제 Tarkov 상세보기 헤더 식별 보완
-- 실제 1920x1080 인게임 교정 Ground Truth 4건에서 상세보기 창 후보는 존재하지만 헤더 잠금 단계에서 탈락하던 문제를 수정했습니다.
-- 기존 v1.4.0 헤더 검출 경로는 그대로 우선 사용하며, 해당 경로가 실패한 경우에만 실제 Ground Truth 기반 fallback 검증을 수행합니다.
-- 실제 화면에서 측정된 어두운 닫기 X, gray 38~39 헤더 상단선, upper-right lens + lower-left handle 형태의 돋보기 구조를 검증합니다.
-- coarse 상세창 후보의 상단이 실제 헤더보다 아래로 잡힌 경우에도 주변 실제 헤더를 다시 탐색해 잠글 수 있도록 보완했습니다.
-- 1회 고정밀 스캔은 detector가 제공하는 최대 12개 후보를 모두 확인합니다. 연속 Scanner는 기존 8후보 CPU 예산을 유지합니다.
-- 구조 floor 0.34, trusted header floor 0.68, OCR 및 Item matcher 임계값은 변경하지 않았습니다.
-- 실제 화면 특성을 재현한 제품 smoke regression을 추가해 이후 같은 헤더 식별 회귀를 자동 검출합니다.
-
-v1.4.0 기반 기능 — Scanner 교정·Ground Truth·회귀 검증 체계
-- Scanner 인식 결과를 Case ID로 추적하고 실패·저신뢰·표본 정상 사례를 진단 데이터로 보존합니다.
-- '교정'에서 프로그램 판정이 맞는지 확인하거나 상세보기 영역, 아이템명 영역, 정답 아이템명을 직접 수정할 수 있습니다.
-- 교정된 좌표와 텍스트는 Ground Truth로 저장되며 자동 진단 사례와 구분됩니다.
-- 원본 full.png, 상세창/아이템명 ROI, 전처리 이미지, annotated 이미지와 case.json이 함께 보존됩니다.
-- '교정 데이터 관리'에서 저장 Case 목록을 확인하고 특정 Case만 삭제하거나 전체 데이터를 삭제할 수 있습니다.
-- 저장된 Case 수와 용량을 Scanner 탭에서 확인할 수 있습니다.
-- '교정 데이터 내보내기'는 dataset.jsonl, summary, 환경 정보, 이미지 Case와 Scanner 로그를 하나의 ZIP으로 묶습니다.
-- matcher 상위 후보의 Item ID·공식명·점수를 보존해 오답이 어떤 후보와 경쟁했는지 분석할 수 있습니다.
-- 사용자 Ground Truth와 OCR 결과의 반복 문자 치환·삽입·누락 패턴을 자동 통계로 집계합니다.
-- '회귀 테스트'는 사용자 검증 Case의 원본 full.png를 현재 상세창 탐지 → header lock → title ROI → OCR/deep OCR/font recovery → 공식 카탈로그 매칭 파이프라인으로 다시 실행합니다.
-- 회귀 결과는 STILL_CORRECT / SOLVED / STILL_FAILING / REGRESSION / ERROR로 분류되고 regression.json / regression.md에 저장됩니다.
-- 자동 보존 작업이 이미 사용자 검증된 Ground Truth를 덮어쓰지 못하도록 저장 우선순위를 보강했습니다.
-- Ground Truth가 충분히 쌓이기 전에는 detector/header/OCR/matcher 임계값을 임의로 완화하지 않습니다.
-
-Scanner 사용
-- 일반 Scanner 화면의 '스캐너 ON/OFF'는 EscapeFromTarkov 게임 창의 Borderless client-area를 실시간 감지합니다.
-- '1회 스캔'은 현재 Tarkov 게임 창을 한 번 고정밀 검사하는 일반 사용 동작입니다.
-- '설정'에서 전역 단축키와 OCR 문자 치환, Mini Scanner 표시 항목을 관리합니다.
-- '고급 / 진단'의 '테스트'는 연결된 전체 디스플레이에 같은 인식 파이프라인을 적용합니다. 실사용 Scanner와 동시에 켤 수 없습니다.
-- 1회 인게임 스캔 기본 단축키는 Ctrl+Shift+F10입니다.
-- 1회 테스트 스캔 기본 단축키는 Ctrl+Shift+F11입니다.
-- Scanner ON/OFF 기본 단축키는 Ctrl+Shift+F12입니다.
-- 세 전역 단축키는 Scanner 탭을 보고 있지 않아도 준현 헬퍼가 실행 중이면 사용할 수 있습니다.
-- 일반 데이터 최신화는 상단 '데이터 업데이트'를 사용합니다. '고급 / 진단'의 '아이템 목록 최신화'는 Scanner 카탈로그 복구가 필요한 경우를 위한 강제 갱신입니다.
-- '인식 이미지'는 최신 캡처와 상세창/제목 ROI, 돋보기, 닫기 X, OCR 및 최종 판단을 확인하는 진단 기능입니다.
-- '현재 결과 교정'은 최신 인식 Case의 후보/영역/텍스트 정답을 저장합니다. Mini Scanner에서도 우클릭으로 바로 열 수 있습니다.
-- '회귀 테스트'는 이미 검증된 Case를 현재 Scanner 알고리즘으로 다시 실행합니다.
-- '교정 데이터 내보내기'는 개발 분석용 ZIP을 생성합니다.
-- '교정 데이터 관리'는 Case별 삭제와 전체 삭제를 제공합니다.
-- '로그 삭제'는 최근 인식 기록, %LocalAppData%\JunhyunHelper\logs\scanner.log(.1), 최신 메모리 인식 이미지만 정리하며 Ground Truth dataset은 유지합니다.
-
-Scanner 표시 데이터
-- 최고 상점가: fleaMarket을 제외한 유효 판매처의 RUB 환산 가격 중 최댓값
-- 플리마켓 평균가: positive avg24hPrice
-- 상인/플리 가격·슬롯: 유효한 width × height 슬롯 수 기준
-- 필요한 개수: 현재 Needed Items 계획의 RequiredTotal. 보유 Inventory를 뺀 부족량이 아닙니다.
-- 가격이나 크기 정보가 누락되면 해당 표시 필드만 비우고 Item ID 식별 자체를 버리지 않습니다.
-- 현재 화면 OCR 필드는 아이템명입니다. 가격·슬롯·필요 개수는 Item ID 확정 후 로컬 데이터에서 조회합니다.
-
-Scanner 인식 원칙
-- 현재 공식 한국어 전체 아이템 카탈로그가 Item identity의 권위입니다.
-- 상세창 구조 후보와 Item identity 후보는 분리합니다. 구조 후보는 진단을 위해 남을 수 있지만 HEADER_FRAME_LOCKED + anchor score 0.68을 충족하기 전에는 OCR을 실행하지 않습니다.
-- 돋보기와 닫기 X는 위치 geometry뿐 아니라 icon-shape template evidence를 함께 사용합니다.
-- Windows ko-KR OCR이 primary text recognizer입니다.
-- OCR 텍스트는 current official catalog에서 실제 사용되는 문자/기호 정책으로 정리한 뒤 matcher에 전달합니다.
-- 사용자 OCR 치환 규칙은 raw OCR 뒤, catalog normalization 앞에서 한 번만 적용되며 raw OCR은 진단 데이터에 별도 보존합니다.
-- confidence와 1·2순위 차이가 부족하면 Item ID를 확정하지 않습니다.
-- 실제 스캔 순간에는 외부 API를 호출하지 않고, 아이콘도 새로 다운로드하지 않습니다.
-- 게임 메모리 읽기, DLL injection, 패킷 가로채기를 사용하지 않습니다.
-
-교정/진단 데이터
-- 기본 저장 위치: %LocalAppData%\JunhyunHelper\scanner\diagnostics
-- 전체 게임 창/디스플레이 캡처 픽셀이 진단 Case에 포함될 수 있습니다.
-- 자동 보존 Case는 정답으로 간주하지 않으며 사용자가 확인/교정한 Case만 Ground Truth로 취급합니다.
-- 사용자 검증 Ground Truth는 자동 retention 대상이 아닙니다. 자동 미검토 Case만 보존 상한에 따라 정리됩니다.
-- 일반 Scanner 로그 삭제와 교정/진단 dataset 삭제는 서로 독립적입니다.
-- 내보낸 ZIP은 사용자가 지정한 위치에 생성되며 프로그램의 데이터 삭제 기능으로 자동 제거되지 않습니다.
+Scanner 인식 안전 계약
+- false positive보다 miss를 선호합니다.
+- structural floor 0.34, HEADER_FRAME_LOCKED 0.68, continuous candidate cap 8, one-shot candidate cap 12를 이번 버전에서 완화하지 않았습니다.
+- Item ID가 확정되기 전에는 가격·필요 개수 같은 mapped data를 identity 증거로 사용하지 않습니다.
+- Scanner 인식 중 네트워크 요청, 게임 메모리 읽기, DLL injection, packet interception을 사용하지 않습니다.
 
 사용자 데이터
-- 사용자 데이터는 프로그램 폴더가 아니라 %LocalAppData%\JunhyunHelper 에 저장됩니다.
-- 프로그램 업데이트는 user.db, Game Content cache, 이미지 cache, Map/Ammo/Scanner 사용자 설정과 Scanner 로그/교정 데이터를 교체하지 않습니다.
-
-배포 형태
-- Windows x64
-- .NET 10 self-contained single-file
-- 별도 .NET Runtime 설치 불필요
-- 관리자 권한 불필요
-- installer 없음
+- 프로필, 진행도, Scanner 설정, 교정 데이터, 로그 등 변경 가능한 사용자 데이터는 프로그램 폴더가 아니라 %LocalAppData%\JunhyunHelper 아래에 보관됩니다.
+- 프로그램 업데이트로 기존 사용자 진행도와 Scanner Ground Truth를 덮어쓰지 않습니다.
