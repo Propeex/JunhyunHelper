@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO.Compression;
 using System.Reflection;
+using System.Runtime;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
@@ -29,7 +30,7 @@ internal static class ScannerSupportBundleExporter
             archive,
             "README.txt",
             "준현 헬퍼 Scanner 성능 진단 자료입니다.\r\n" +
-            "scanner-performance-trace.txt는 세부 OCR/UI timing을, scanner.log는 기존 Scanner 결정을 기록합니다.\r\n" +
+            "scanner-performance-trace.txt는 전체 Scanner stage와 세부 OCR/UI timing을, scanner.log는 기존 Scanner 결정을 기록합니다.\r\n" +
             "Ground Truth 이미지, 프로필 DB, 게임 계정 정보는 이 ZIP에 포함하지 않습니다.\r\n");
 
         AddFileIfPresent(archive, ScannerDiagnosticLog.Path, "scanner.log");
@@ -63,7 +64,30 @@ internal static class ScannerSupportBundleExporter
             .AppendLine($"CurrentCulture={CultureInfo.CurrentCulture.Name}")
             .AppendLine($"CurrentUICulture={CultureInfo.CurrentUICulture.Name}")
             .AppendLine($"ProcessorCount={Environment.ProcessorCount}")
-            .AppendLine($"ProcessorIdentifier={Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER") ?? string.Empty}");
+            .AppendLine($"ProcessorIdentifier={Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER") ?? string.Empty}")
+            .AppendLine($"ServerGC={GCSettings.IsServerGC}")
+            .AppendLine($"GCLatencyMode={GCSettings.LatencyMode}")
+            .AppendLine($"GCGen0Collections={GC.CollectionCount(0)}")
+            .AppendLine($"GCGen1Collections={GC.CollectionCount(1)}")
+            .AppendLine($"GCGen2Collections={GC.CollectionCount(2)}")
+            .AppendLine($"ManagedMemoryBytes={GC.GetTotalMemory(forceFullCollection: false)}")
+            .AppendLine($"WpfRenderTier={RenderCapability.Tier >> 16}");
+
+        try
+        {
+            using var process = Process.GetCurrentProcess();
+            process.Refresh();
+            builder.AppendLine($"ProcessWorkingSetBytes={process.WorkingSet64}")
+                .AppendLine($"ProcessPrivateMemoryBytes={process.PrivateMemorySize64}")
+                .AppendLine($"ProcessVirtualMemoryBytes={process.VirtualMemorySize64}")
+                .AppendLine($"ProcessThreadCount={process.Threads.Count}")
+                .AppendLine($"ProcessHandleCount={process.HandleCount}")
+                .AppendLine($"ProcessTotalCpuMs={process.TotalProcessorTime.TotalMilliseconds:F2}");
+        }
+        catch (Exception exception)
+        {
+            builder.AppendLine($"ProcessMetricsError={exception.GetType().Name}:{Sanitize(exception.Message)}");
+        }
 
         try
         {
