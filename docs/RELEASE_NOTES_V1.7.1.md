@@ -4,24 +4,24 @@
 
 v1.7.1은 v1.7.0의 게임 데이터 안전 업데이트 기능에서 발견된 검증 회귀를 수정하는 hotfix입니다.
 
-json.tarkov.dev의 퀘스트 objective 필드는 모두 같은 종류의 item reference가 아닙니다. `item/items`는 objective 의미에 따라 실제 인벤토리 아이템이거나 조건 selector일 수 있고, `questItem`은 일반 `/items`와 별개인 QuestItem objective 전용 참조입니다. v1.7.0은 이들을 canonical `/items` 관계로 과도하게 검증해 정상 데이터 업데이트 전체를 거부할 수 있었습니다.
+json.tarkov.dev의 퀘스트 objective에서 `item/items`와 `questItem`은 같은 관계가 아닙니다. `item/items`는 준현 헬퍼가 canonical `/items`에 연결해 사용하는 일반 item reference이고, `questItem`은 별도의 quest-only entity reference입니다. v1.7.0은 `QuestItemId`도 canonical `/items`에 존재해야 한다고 검증해 정상 데이터 업데이트를 거부할 수 있었습니다.
 
-v1.7.1에서는 objective 의미를 기준으로 검증 경계를 분리합니다.
+v1.7.1에서는 검증 경계를 다음처럼 제한합니다.
 
-- `Submit`, `FindOrCollect`, `Sell` objective의 `item/items`는 실제 canonical item 참조이므로 계속 엄격하게 검증합니다.
-- `Other` objective의 `item/items`는 objective 조건 selector로 취급하며 canonical `/items` 부재만으로 업데이트 전체를 Fatal 처리하지 않습니다.
-- `questItem`은 별도의 QuestItem objective 계약이므로 canonical `/items` 존재 여부를 검사하지 않습니다.
-- 일반 `QuestItemRequirement`, 은신처 필요 아이템, 탄약 및 탄약 획득 조건의 item 참조 검증은 기존처럼 fail-closed로 유지합니다.
+- 모든 objective의 `item/items`는 기존처럼 canonical `/items`에 반드시 존재해야 하며, objective kind와 관계없이 dangling reference를 Fatal로 차단합니다.
+- `questItem`/`QuestItemId`만 quest-only reference로 취급하여 canonical `/items` 부재만으로 Fatal 처리하지 않습니다.
+- 일반 `QuestItemRequirement`, 은신처 필요 아이템, 탄약 및 탄약 획득 조건의 item/currency/requirement 참조 검증은 기존처럼 fail-closed로 유지합니다.
+- partial-payload/completeness guard, candidate 재검증, Last Known Good 보존 정책도 변경하지 않습니다.
 
-실제 회귀에 사용된 ID는 deterministic regression test에 고정했습니다.
+실제 회귀에 전달된 ID는 deterministic regression test에 고정했습니다.
 
 ```text
 quest: 6524640578137d9edc1628e4
 objective: objective-6710469f5474276231657a22
-special item selector: 6662e9aca7e0b43baa3d5f74
+quest-only item/entity reference: 6662e9aca7e0b43baa3d5f74
 ```
 
-별도 회귀 테스트는 제출·획득·판매 objective의 진짜 dangling canonical item reference와 일반 QuestItemRequirement의 누락 item이 계속 차단되는지 확인합니다.
+회귀 테스트는 위 ID가 `QuestItemId`로 존재하면서 canonical `/items`에 없을 때는 허용되는지 확인합니다. 동시에 같은 item ID가 일반 `ItemIds` canonical reference로 들어오면 `quest-objective.item.missing` Fatal이 발생하는지 확인합니다. Submit/Find/Sell objective, 일반 `QuestItemRequirement`, hideout, ammunition의 실제 dangling reference도 계속 차단됩니다.
 
 ## 사용자 오류 표시 개선
 
@@ -39,7 +39,7 @@ special item selector: 6662e9aca7e0b43baa3d5f74
 - update transaction 직렬화
 - Scanner market/catalog fail-soft 보호
 
-Scanner OCR 판단 기준도 변경하지 않았습니다.
+Scanner OCR 판단 기준과 candidate cap도 변경하지 않았습니다.
 
 ```text
 structural floor: 0.34
@@ -50,6 +50,8 @@ one-shot candidate cap: 12
 
 ## 진단 출처 주의
 
-초기 전달된 diagnostic job `97643534791`의 원본 로그를 GitHub Actions API로 다시 검사한 결과, 위 target quest/objective/item ID는 해당 job 로그에 존재하지 않았습니다. 또한 릴리즈 준비 시점의 live `/tasks`에서는 해당 quest가 Regular/PvE/PvpSeason 모두 이미 제거된 상태였습니다.
+초기 전달된 diagnostic job `97643534791`의 원본 로그를 GitHub Actions API로 다시 내려받아 target quest/objective/item ID를 직접 검색한 결과, 세 target ID는 해당 job 로그에 존재하지 않았습니다(`TARGET_OBJECTIVE_REF_COUNT=0`, `TARGET_ANY_LINE_COUNT=0`). 따라서 해당 job에서 target objective의 정확한 type/kind가 확인됐다고 기록하지 않습니다.
 
-따라서 v1.7.1은 해당 job에서 target objective의 type/kind가 확인됐다고 기록하지 않습니다. 대신 현재 json.tarkov.dev 계약에서 `TaskObjectiveItem`과 `TaskObjectiveQuestItem`이 서로 다른 objective schema이며 `questItem`이 후자에 속한다는 점, 현재 live payload의 검증 결과, 그리고 준현 헬퍼 importer의 `QuestItemObjectiveKind` 경계를 함께 기준으로 수정 범위를 제한했습니다.
+다만 동일 원본 broad probe에서 누락으로 출력된 objective reference 284건은 전부 `missingQuestItem`이었고 `missingItems`는 0건이었습니다. 이 증거와 importer의 분리된 `QuestItemId` 모델을 기준으로 수정 범위를 `QuestItemId`의 canonical `/items` 존재 요구 제거에만 제한했습니다.
+
+릴리즈 준비 시점의 현재 live `/tasks`에서는 target quest가 이미 제거되어 있으므로, 실제 전달 ID를 사용하는 deterministic fixture가 이 회귀를 지속적으로 보존합니다.
