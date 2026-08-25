@@ -16,6 +16,8 @@ internal static class ScannerPerformanceTrace
     private const int MaximumEntries = 1200;
     private static readonly object Gate = new();
     private static readonly Queue<TraceEntry> Entries = new();
+    private static ScannerUiResponsivenessMonitor? _uiMonitor;
+    private static int _uiMonitorStarted;
     private static long _nextSequence;
 
     public static void Mark(string eventName, params (string Key, object? Value)[] fields)
@@ -23,10 +25,10 @@ internal static class ScannerPerformanceTrace
         if (string.IsNullOrWhiteSpace(eventName))
             return;
 
+        EnsureUiMonitorStarted();
         var entry = new TraceEntry(
             Interlocked.Increment(ref _nextSequence),
             DateTimeOffset.UtcNow,
-            Stopwatch.GetTimestamp(),
             ScannerLatencyTelemetry.CurrentCycleId,
             Environment.CurrentManagedThreadId,
             IsUiThread(),
@@ -74,6 +76,29 @@ internal static class ScannerPerformanceTrace
     public static double ElapsedMilliseconds(long startedTimestamp) =>
         (Stopwatch.GetTimestamp() - startedTimestamp) * 1000.0 / Stopwatch.Frequency;
 
+    private static void EnsureUiMonitorStarted()
+    {
+        if (Volatile.Read(ref _uiMonitorStarted) != 0)
+            return;
+
+        Dispatcher? dispatcher;
+        try
+        {
+            dispatcher = Application.Current?.Dispatcher;
+        }
+        catch
+        {
+            return;
+        }
+
+        if (dispatcher is null || dispatcher.HasShutdownStarted || dispatcher.HasShutdownFinished)
+            return;
+        if (Interlocked.CompareExchange(ref _uiMonitorStarted, 1, 0) != 0)
+            return;
+
+        _uiMonitor = new ScannerUiResponsivenessMonitor(dispatcher);
+    }
+
     private static bool IsUiThread()
     {
         try
@@ -95,7 +120,6 @@ internal static class ScannerPerformanceTrace
     private sealed record TraceEntry(
         long Sequence,
         DateTimeOffset TimestampUtc,
-        long StopwatchTimestamp,
         long? CycleId,
         int ManagedThreadId,
         bool UiThread,
