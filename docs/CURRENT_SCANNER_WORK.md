@@ -1,52 +1,89 @@
 # Current Scanner Work
 
 기준일: 2026-08-25
-상태: **v1.7.0 PUBLIC RELEASE / VERIFIED — LIVE GROUND TRUTH MAINTENANCE**
+상태: **P0 — v1.7.6 SCANNER STALL DIAGNOSTIC CANDIDATE / DESKTOP VERIFICATION REQUIRED**
 
-Scanner v1.7.0 Product Completion hardening과 공개 릴리즈 검증이 완료되었다.
+## 현재 우선순위
 
-현재 단계는 **LIVE GROUND TRUTH MAINTENANCE**다. 실사용에서 수집된 reviewed Ground Truth를 기준으로 실패 stage만 수정하고 전체 reviewed replay에서 REGRESSION=0을 유지한다.
+현재 Scanner의 최우선 작업은 일부 Windows 데스크탑에서 발생하는 심각한 아이템 이름 인식 지연과 UI 응답성 문제를 해결하는 것이다.
 
-## v1.7.0 완료 내용
+이 문제는 일반적인 OCR miss나 몇 초의 지연이 아니라, 상세창을 찾은 뒤 `아이템 이름을 읽는 중입니다.` 상태에서 장시간 멈춘 것처럼 보이는 제품 수준의 중대 결함으로 취급한다.
 
-v1.7.0에서도 reviewed live Ground Truth 없이 detection/OCR/matcher threshold를 조정하지 않았다.
+현재 public stable은 **v1.7.5**다.
 
-- recognition log → exact Case/current frame quick-correction
-- 기존 Ground Truth + Scanner log ZIP export pipeline 재사용
-- Scanner catalog/market last-known-good 보호 강화
-- Item ID 이후 mapped presentation 동일-ID join 회귀 검증
-- Scanner Advanced clipping 방지와 runtime log 7일 자동 정리 유지
-- Data Update transactional hardening과 public release proof 완료
+```text
+public stable: v1.7.5
+exact release source: 215541a694459e9484716c4942a436c26defe919
+stable asset: Junhyun-Helper.zip
+stable bytes: 80,450,225
+stable SHA-256: 6706f12e63caa2039cf3f89c6823b457d125e43f8af47779082caa843282923f
+```
+
+v1.7.6은 아직 public stable이 아니다. 문제 PC에서 실제 blocking phase를 확인하기 위한 diagnostic candidate다.
+
+Reference:
+
+- `docs/DECISION_V1.7.5_OCR_ENVIRONMENT_GUARD_2026-08-25.md`
+- `docs/DECISION_V1.7.6_SCANNER_STALL_DIAGNOSTICS_2026-08-25.md`
+- `docs/RELEASE_NOTES_V1.7.6.md`
+
+## 재현 근거
+
+문제 데스크탑:
+
+- AMD Ryzen CPU
+- NVIDIA GTX 1080 Ti
+- RAM 32 GiB
+- 실제 Tarkov Scanner에서 심각한 지연
+- Display Test에서 같은 screenshot을 사용해도 동일한 심각한 지연
+
+비교 노트북:
+
+- Intel CPU
+- integrated graphics
+- 전체적으로 더 낮은 사양
+- screenshot 기반 Display Test는 빠름
+
+버전 비교:
+
+```text
+v1.7.2 desktop: slow
+v1.7.3 desktop: slow
+v1.7.5 desktop: slow
+```
+
+따라서 v1.7.3의 cadence 변경은 root cause가 아니다. GPU/CPU vendor, Windows OCR, DPI, filesystem, visual recovery 중 어느 하나도 실행 evidence 없이 원인으로 단정하지 않는다.
 
 ## 현재 production recognition pipeline
 
 ```text
-Tarkov window pixels
+Tarkov window / Display Test pixels
 → capture
 → detail rectangle proposals
 → red close-X + magnifier + neutral inspect-header semantic validation
 → HEADER_FRAME_LOCKED
 → item-name ROI
-→ Windows ko-KR OCR
+→ serialized Windows ko-KR OCR
 → optional user OCR substitution
 → current-catalog sanitation / normalization
-→ conservative official-catalog matching / bounded recovery
-→ optional Tarkov-font visual corroboration/recovery
+→ conservative official-catalog matching
+→ optional deep OCR / tight-title retry
+→ optional strict Tarkov-font visual corroboration/recovery
 → Item ID or fail closed
 → local mapped presentation
 → Scanner Page / Mini Scanner
-→ optional correction / Ground Truth
 ```
 
 ## 인식 안전 불변식
 
-v1.7.0 hardening에서도 다음 값을 변경하지 않았다.
+성능 문제 해결을 위해 다음 값을 완화하지 않는다.
 
 ```text
 structural floor = 0.34
-trusted header floor = 0.68
+trusted HEADER_FRAME_LOCKED floor = 0.68
 continuous candidate cap = 8
 one-shot candidate cap = 12
+deep OCR candidate limit = existing value
 ```
 
 추가 계약:
@@ -55,245 +92,207 @@ one-shot candidate cap = 12
 - geometry는 proposal이며 identity proof가 아님
 - magnifier + red close-X semantic evidence 필수
 - current official Korean Tarkov catalog가 identity authority
-- production OCR field는 item-name only
-- price/flea/slots/needed는 Item ID 이후 mapped data
+- stale Item ID를 current identity proof로 사용하지 않음
+- cross-frame OCR identity cache 금지
+- price/flea/slots/needed는 Item ID 확정 이후 mapped presentation data
 - scan-time network 없음
-- game memory read / DLL injection / packet interception 없음
-- product-default automatic global OCR forced substitution 없음
-- cross-frame OCR cache 없음
+- game memory read / DLL injection / packet interception / Tarkov process hook 없음
+- reviewed Ground Truth 없이 acceptance threshold/candidate cap 완화 금지
 
-## Scanner 일반 UI — current
+## v1.7.5에서 확인된 한계
 
-상단:
+v1.7.5는 OCR operation이 800 ms 이상 걸리고 empty일 때 30초 circuit breaker를 두었다.
 
-- `스캐너 ON/OFF`
-- `설정`
-- `고급`
+그러나 구현 검토 결과 `ocr-backend-call`은 실제 Windows OCR 호출 1회가 아니라 complete normal/deep operation을 측정했다.
 
-하단 2분할:
+Deep OCR 한 operation 내부에는 최대 4회의 실제 `OcrEngine.RecognizeAsync`가 들어간다. 따라서 첫 actual WinRT call이 slow-empty여도 complete deep operation이 끝나기 전에는 v1.7.5 outer guard가 degraded 상태를 알 수 없었다.
 
-- 왼쪽: 아이템 검색
-- 오른쪽: Scanner 인식 로그
+즉 v1.7.5 decision의 “each actual OS OCR invocation” telemetry/containment 계약이 구현에서 충분히 세분화되지 않았다.
 
-기존 전역 단축키는 유지한다.
+## 확인된 UI 결함
 
-```text
-1회 인게임 스캔: Ctrl+Shift+F10
-1회 테스트 스캔: Ctrl+Shift+F11
-Scanner ON/OFF: Ctrl+Shift+F12
-```
+Continuous Scanner loop 자체는 `Task.Run` worker에서 동작한다.
 
-일반 화면에서 1회 스캔 버튼을 제거했지만 one-shot 기능 자체를 제거한 것이 아니다.
+반면 global hotkey one-shot path는 WPF message pump에서 진입하고, 초기 await가 synchronous completion될 경우 capture/detection/OCR setup이 UI dispatcher에서 시작될 수 있었다.
 
-## Scanner 아이템 검색
+v1.7.6 diagnostic candidate에서는 one-shot `ScanOnceAsync`를 explicit worker로 보내 이 confirmed UI-thread blocking path를 제거한다.
 
-검색은 현재 메모리/local catalog를 사용한다.
+Mini Scanner Window access와 Scanner UI status subscriber는 기존 dispatcher marshalling을 유지한다.
 
-scan-time network request를 만들지 않는다.
+## v1.7.6 diagnostic candidate
 
-검색 결과:
+### 전체 pipeline timing
 
-- local cached icon
-- official item name
+Bounded in-memory performance trace에 다음 start/end를 연결한다.
 
-선택 후:
+- whole Scanner cycle
+- capture
+- rectangle proposal
+- semantic header
+- OCR normal
+- OCR deep
+- visual recovery
+- catalog matching
+- presentation
 
-- icon
-- official name
-- Tarkov Wiki
-- flea 24h average
-- best non-flea trader sell price + trader name where trusted
-- current needed total
+### exact OCR timing
 
-`current needed`는 inventory shortage가 아니라 `ItemsWorkspace.Plan.NeededItems[itemId].RequiredTotal`이다.
+추가로 다음을 분리한다.
 
-## Mini Scanner — settings schema v6
+- serialized OCR semaphore wait
+- exact-image key `CopyPixels` + SHA-256
+- title enlargement
+- deep image variant generation
+- BGRA conversion
+- OCR input `CopyPixels`
+- WinRT buffer / `SoftwareBitmap` creation
+- **each actual `OcrEngine.RecognizeAsync`**
+- pass / variant / image dimensions / duration / text presence / line count
 
-고정 identity header:
+Fine-grained trace는 per-event synchronous file append를 사용하지 않는다. 최근 4,000 entries만 memory에 bounded 보존한다.
 
-- item icon
-- official item name
+### actual-call circuit breaker
 
-사용자 표시/순서 설정 대상:
-
-1. trader sell price
-2. flea average price
-3. trader price/slot
-4. flea price/slot
-5. current needed
-
-기존 schema v5 이하 파일은 자동 migration한다.
-
-보존 대상:
-
-- enable state
-- hotkeys
-- display visibility
-- window position
-- font size
-- user OCR substitutions
-
-아이콘/이름은 v6부터 숨길 수 없다.
-
-## Ground Truth correction
-
-교정 창은 화면보다 큰 원본도 자동 축소해 전체를 보여 준다.
-
-표시 배율은 저장 좌표계에 영향을 주지 않는다. 모든 Ground Truth ROI는 원본 image coordinate로 저장한다.
-
-후보 선택:
-
-- detail rectangle
-- close-X
-- magnifier
-- item-name ROI
-
-은 이미지 위 candidate box를 직접 클릭하는 방식이 기본이다.
-
-Fallback:
-
-- correct candidate 없음 → manual rectangle
-- 실제 object 없음 → explicit `없음`
-
-## 저장 Case 재교정
-
-`교정 데이터 관리`에서 기존 Case를 다시 열 수 있다.
-
-복원 source:
-
-- `case.json`
-- `full.png`
-- `candidate_selection.json`
-
-기존 Ground Truth와 candidate selection을 복원해 같은 editor에서 수정한다.
-
-재저장은 동일 Case ID를 유지한다.
-
-복원 실패 시 기존 Case를 삭제하거나 임의 변환하지 않는다.
-
-## Diagnostics / retention
-
-Reviewed Ground Truth는 자동 삭제하지 않는다.
-
-Automatic unreviewed sample만 다음 범위로 제한한다.
+v1.7.5 outer operation guard를 유지하면서 같은 health policy를 실제 WinRT call 단위에도 적용한다.
 
 ```text
-max age = 30 days
-max cases = 300
-max bytes = 512 MiB
-recent protection = 2 hours
+actual RecognizeAsync < 800 ms + empty
+→ ordinary miss
+
+actual RecognizeAsync >= 800 ms + text
+→ valid result, no suppression
+
+actual RecognizeAsync >= 800 ms + empty
+→ degraded for 30 s
+→ later OS OCR calls in the same recovery chain suppressed
+→ current-pixel/current-catalog strict visual recovery remains available
+→ insufficient evidence => fail closed
 ```
 
-Corrupt/unknown metadata는 fail closed하여 보존한다.
+Recognition acceptance semantics는 변경하지 않는다.
 
-로그는 bounded rotation한다.
+### UI responsiveness probe
 
-## 현재 release package 계약
+WPF dispatcher를 별도로 probe한다.
 
-정식 ZIP:
+- probe interval: 500 ms
+- normal dispatcher priority
+- stall threshold: 750 ms
+- pending / eventual recovery duration 기록
+
+이를 통해 backend latency와 실제 Windows `Not Responding` 성격의 dispatcher starvation을 분리한다.
+
+### support bundle
+
+`Scanner > 고급 > Scanner 성능 진단 자료 내보내기`
+
+ZIP 포함:
+
+- `scanner-performance-trace.txt`
+- `scanner.log`
+- `scanner.log.1` when present
+- `startup.log` when present
+- `environment.txt`
+- README
+
+Environment:
+
+- product/runtime/Windows information
+- OS/process architecture
+- culture/UI culture
+- Windows OCR languages / ko-KR availability
+- CPU identifier/count
+- display bounds
+- WPF DPI / render tier
+- GC/process memory/thread/CPU information
+- LocalAppData diagnostic file append timing
+
+제외:
+
+- Ground Truth images
+- profile database
+- game account information
+
+ZIP 생성 자체도 worker에서 수행한다. WPF-only environment property는 dispatcher를 통해 읽는다.
+
+## diagnostic candidate CI proof
+
+Code-complete diagnostic HEAD `d03b11ee16ddc9d201c904f460a8050d0397a2a9` CI run `32863058685`:
+
+```text
+Desktop build: SUCCESS
+Tests: 380 passed / 0 failed / 0 skipped
+Windows x64 self-contained publish: SUCCESS
+Product UI smoke: SUCCESS
+Map / Factory / MiniMap smoke: SUCCESS
+Graceful shutdown: SUCCESS
+Release package verification: SUCCESS
+Artifact upload: SUCCESS
+```
+
+Diagnostic user package produced by that CI:
 
 ```text
 Junhyun-Helper.zip
-└─ 준현 헬퍼/
-   ├─ 준현 헬퍼.exe
-   ├─ FIRST_RUN_KO.txt
-   └─ Assets/...
+bytes: 80,461,362
+SHA-256: ecbd92f7c67f5af9a37f12a1074e3f51a7aab648e538c62c48233a628b058c89
 ```
 
-버전은 folder/ZIP 이름이 아니라 ProductVersion/tag/release metadata에 둔다.
+Later commits that only update documentation must still pass normal CI before merge, but the executable code at the above HEAD already passed the full Windows gate.
 
-CI는 `packaging/New-ReleasePackage.ps1`로 실제 ZIP을 만들고 구조를 검증한다.
+## 다음 필수 검증
 
-## 검증 현황
-
-### 성공한 중간 gate
-
-CI `32700507526`:
-
-- Desktop build SUCCESS
-- 296 passed / 0 failed / 0 skipped
-- Windows x64 publish SUCCESS
-- Product UI smoke SUCCESS
-- Scanner UI smoke SUCCESS
-- Map / Factory / MiniMap smoke SUCCESS
-- graceful shutdown SUCCESS
-- artifact upload SUCCESS
-
-이 성공 이후 version `1.6.0`, FIRST_RUN, stable release ZIP gate를 추가했으므로 최신 HEAD에서 최종 CI를 다시 통과해야 한다.
-
-## release 직후 작업
+문제 desktop에서:
 
 ```text
-v1.6.0 실제 Tarkov 사용
-→ 정상 representative result 확인
-→ miss/wrong identity 즉시 교정
-→ reviewed Ground Truth 축적
-→ failure stage 분류
-→ affected stage만 수정
-→ full reviewed replay
-→ REGRESSION = 0
-→ PATCH 판단
+v1.7.6 diagnostic candidate 실행
+→ 기존에 사용한 동일 screenshot으로 Display Test 재현
+→ 가능하면 실제 Tarkov에서도 재현
+→ 결과/지연 직후 Scanner > 고급 > Scanner 성능 진단 자료 내보내기
+→ generated ZIP 분석
 ```
 
-Failure stage:
+사용자는 raw log를 직접 찾거나 해석할 필요가 없다.
+
+## bundle 해석 계약
 
 ```text
-capture
-→ structural proposal recall/ranking
-→ close-X semantic evidence
-→ magnifier semantic evidence
-→ inspect-header lock
-→ item-name ROI
-→ raw OCR
-→ user substitution
-→ catalog sanitation/matcher
-→ visual recovery
-→ Item ID
-→ mapped presentation
-→ overlay / stale-state timing
+long ocr-winrt-recognize
+→ Windows OCR backend stall proven
+
+long ocr-copy-pixels / variant / image-key / software-bitmap
+→ preprocessing/runtime conversion bottleneck proven
+
+long serialized wait
+→ shared OCR contention proven
+
+fast OCR + long visual-recovery stage
+→ Tarkov-font visual recovery bottleneck proven
+
+slow file append probe
+→ filesystem / antivirus I/O is material
+
+ui-dispatcher-stall overlapping recognition
+→ actual WPF UI starvation proven
+
+slow recognition without dispatcher stall
+→ worker-side backend/recovery delay; UI thread itself is responsive
 ```
 
-## 성능 개선 원칙
+## 완료 조건
 
-Telemetry evidence 없이 최적화하지 않는다.
+이 P0 결함은 다음이 모두 만족되어야 해결 완료다.
 
-가능한 최적화 대상:
+- desktop Display Test에서 abnormal long stall 없음
+- desktop actual Tarkov scan에서 abnormal long stall 없음
+- OCR 실패/느린 환경에서도 UI remains responsive
+- one backend fault가 dozens of serial delays로 증폭되지 않음
+- notebook/desktop 간 동일 screenshot latency 차이가 비정상적이지 않음
+- false Item ID 증가 없음
+- recognition thresholds/acceptance safety 유지
+- reviewed Scanner Ground Truth regression = 0
+- future environment issues를 재현 가능한 telemetry 유지
+- full Windows build/tests/publish/Product/Scanner/Map smoke 성공
+- final `STATE.md`, release notes, decision status 갱신
 
-- duplicate candidate/frame work
-- unnecessary deep OCR
-- bitmap copy/convert
-- visual recovery early exit
-- catalog recovery candidate work
-
-금지:
-
-- 성능을 이유로 header/matcher threshold 완화
-- Ground Truth 없이 candidate cap 변경
-- cross-frame OCR reuse
-- stale previous Item을 현재 identity proof로 사용
-
-## 작은 기술 부채
-
-`src/JunhyunHelper.Desktop/Scanner/ScannerLatencyTypeAliases.cs`의 `ScannerDetectedCandidate` type alias는 여전히 작은 cleanup 후보다.
-
-v1.6.0 release 안정성과 무관하므로 이번 MINOR release에서 억지로 제거하지 않는다.
-
-향후 제거 시 full build/tests/publish/Product UI/Map/Scanner smoke를 다시 통과해야 한다.
-
-
-## v1.7.3 Scanner Performance Pass — 2026-08-25
-
-accuracy-neutral latency pass:
-
-```text
-continuous observation: 350 ms -> 200 ms
-semantic retry: fixed 1200 ms -> 250 / 500 / 800 / 1200 ms adaptive backoff
-OCR transport: PNG encode/decode round-trip -> direct BGRA SoftwareBitmap copy
-verified detail: fresh small-rectangle semantic/title revalidation fast-path
-```
-
-fast-path는 새 identity를 결정하지 않는다. fresh close-X + magnifier + HEADER_FRAME_LOCKED + title signature가 모두 기존 verified frame과 일치할 때만 presentation을 유지하며, 불일치/실패 시 같은 cycle에서 full detector로 fallback한다.
-
-변경 금지/유지: structural floor 0.34, trusted header floor 0.68, continuous candidate cap 8, one-shot candidate cap 12, matcher/deep OCR/visual recovery acceptance semantics, cross-frame OCR identity cache 금지.
-
-결과 선택을 바꿀 수 있는 candidate early-exit, deep candidate 축소, visual recovery 생략은 이번 pass에서 의도적으로 제외한다.
+문제 desktop evidence가 확보되기 전에는 v1.7.6을 resolved public performance release로 선언하지 않는다.
