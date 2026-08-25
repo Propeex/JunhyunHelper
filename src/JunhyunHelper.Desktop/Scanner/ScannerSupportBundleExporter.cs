@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.IO.Compression;
 using System.Reflection;
@@ -109,7 +110,57 @@ internal static class ScannerSupportBundleExporter
             builder.AppendLine($"DpiError={exception.GetType().Name}:{Sanitize(exception.Message)}");
         }
 
+        AppendFileIoProbe(builder);
         return builder.ToString();
+    }
+
+    private static void AppendFileIoProbe(StringBuilder builder)
+    {
+        var root = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "JunhyunHelper",
+            "logs");
+        var probePath = System.IO.Path.Combine(root, ".scanner-io-probe.tmp");
+        try
+        {
+            Directory.CreateDirectory(root);
+            if (File.Exists(probePath))
+                File.Delete(probePath);
+
+            const int writes = 24;
+            var total = Stopwatch.StartNew();
+            var maximumMs = 0.0;
+            for (var index = 0; index < writes; index++)
+            {
+                var one = Stopwatch.StartNew();
+                File.AppendAllText(
+                    probePath,
+                    $"{DateTimeOffset.UtcNow:O} | probe={index} | payload=scanner-diagnostic-file-append-probe{Environment.NewLine}",
+                    Encoding.UTF8);
+                one.Stop();
+                maximumMs = Math.Max(maximumMs, one.Elapsed.TotalMilliseconds);
+            }
+            total.Stop();
+            builder.AppendLine($"DiagnosticFileAppendCount={writes}")
+                .AppendLine($"DiagnosticFileAppendTotalMs={total.Elapsed.TotalMilliseconds:F2}")
+                .AppendLine($"DiagnosticFileAppendAverageMs={total.Elapsed.TotalMilliseconds / writes:F2}")
+                .AppendLine($"DiagnosticFileAppendMaximumMs={maximumMs:F2}");
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            builder.AppendLine($"DiagnosticFileAppendError={exception.GetType().Name}:{Sanitize(exception.Message)}");
+        }
+        finally
+        {
+            try
+            {
+                if (File.Exists(probePath))
+                    File.Delete(probePath);
+            }
+            catch
+            {
+            }
+        }
     }
 
     private static void AddText(ZipArchive archive, string name, string content)
