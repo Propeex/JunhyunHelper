@@ -63,7 +63,7 @@ public partial class ScannerAdvancedWindow : Window
         window.ShowDialog();
     }
 
-    private void ExportDiagnosticsButton_Click(object sender, RoutedEventArgs e)
+    private async void ExportDiagnosticsButton_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new SaveFileDialog
         {
@@ -81,7 +81,8 @@ public partial class ScannerAdvancedWindow : Window
         try
         {
             ScannerPerformanceTrace.Mark("support-bundle-export-start");
-            ScannerSupportBundleExporter.Export(dialog.FileName);
+            var destination = dialog.FileName;
+            await Task.Run(() => ScannerSupportBundleExporter.Export(destination));
             MessageBox.Show(
                 this,
                 "Scanner 성능 진단 자료를 저장했습니다. 이 ZIP 파일만 전달하면 세부 로그를 직접 찾아볼 필요가 없습니다.",
