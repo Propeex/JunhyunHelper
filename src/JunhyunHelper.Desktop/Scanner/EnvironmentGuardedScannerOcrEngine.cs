@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Windows.Media.Imaging;
 using JunhyunHelper.Core.Scanner;
 
@@ -78,19 +79,37 @@ internal sealed class EnvironmentGuardedScannerOcrEngine : IScannerDeepOcrEngine
         var hasUsableText = !string.IsNullOrWhiteSpace(text);
         var enteredDegraded = _health.RecordResult(DateTimeOffset.UtcNow, elapsed, hasUsableText);
 
-        if (enteredDegraded || elapsed >= ScannerOcrBackendHealthPolicy.DefaultSlowEmptyThreshold)
+        ScannerDiagnosticLog.Write(
+            "ocr-backend-call",
+            null,
+            ("pass", deep ? "deep" : "normal"),
+            ("elapsedMs", elapsed.TotalMilliseconds.ToString("F2", CultureInfo.InvariantCulture)),
+            ("hasText", hasUsableText),
+            ("textLength", text?.Length ?? 0),
+            ("width", titleImage.PixelWidth),
+            ("height", titleImage.PixelHeight));
+
+        if (enteredDegraded)
         {
             ScannerDiagnosticLog.Write(
-                enteredDegraded ? "ocr-backend-degraded" : "ocr-backend-slow",
+                "ocr-backend-degraded",
                 null,
                 ("pass", deep ? "deep" : "normal"),
-                ("elapsedMs", elapsed.TotalMilliseconds.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)),
-                ("hasText", hasUsableText),
+                ("elapsedMs", elapsed.TotalMilliseconds.ToString("F2", CultureInfo.InvariantCulture)),
                 ("width", titleImage.PixelWidth),
                 ("height", titleImage.PixelHeight),
-                ("degradedUntilUtc", _health.DegradedUntilUtc == DateTimeOffset.MinValue
-                    ? string.Empty
-                    : _health.DegradedUntilUtc.ToString("O")));
+                ("degradedUntilUtc", _health.DegradedUntilUtc.ToString("O")));
+        }
+        else if (elapsed >= ScannerOcrBackendHealthPolicy.DefaultSlowEmptyThreshold)
+        {
+            ScannerDiagnosticLog.Write(
+                "ocr-backend-slow",
+                null,
+                ("pass", deep ? "deep" : "normal"),
+                ("elapsedMs", elapsed.TotalMilliseconds.ToString("F2", CultureInfo.InvariantCulture)),
+                ("hasText", hasUsableText),
+                ("width", titleImage.PixelWidth),
+                ("height", titleImage.PixelHeight));
         }
 
         return text;
