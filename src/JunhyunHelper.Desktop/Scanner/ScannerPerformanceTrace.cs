@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using System.Windows;
+using System.Windows.Threading;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
