@@ -20,7 +20,10 @@ internal sealed class SerializedScannerOcrEngine : IScannerDeepOcrEngine
 
     public SerializedScannerOcrEngine(IScannerOcrEngine inner)
     {
-        _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+        ArgumentNullException.ThrowIfNull(inner);
+        _inner = inner is EnvironmentGuardedScannerOcrEngine
+            ? inner
+            : new EnvironmentGuardedScannerOcrEngine(inner);
     }
 
     public bool IsAvailable => _inner.IsAvailable;
