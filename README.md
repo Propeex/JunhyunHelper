@@ -18,10 +18,10 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 릴리즈 상태
 
-현재 공개 stable/latest는 **v1.7.6**입니다.
+현재 공개 stable/latest는 **v1.7.7**입니다.
 
 ```text
-Desktop target version: 1.7.6
+Desktop target version: 1.7.7
 Content schema: v7
 Readable content schemas: v3~v7
 user.db schema: v1
@@ -35,23 +35,23 @@ stable extracted folder: 준현 헬퍼/
 공개 검증 기준선:
 
 ```text
-exact release source/tag target: 0e5240620ca0867a93f426824ff03374b93dcd1a
-release CI run: 32868778549
-release workflow run: 32869081513
-release id: 376532454
+exact release source/tag target: b6deaaa900daa94113737f6cc8dd1cf8fcef60c8
+release CI run: 32879402260
+release workflow run: 32879713326
+release id: 376595527
 stable asset: Junhyun-Helper.zip
-stable bytes: 80,462,038
-stable SHA-256: 1de4e203c7e219f1d995d4482fa903dc7544d208deee684b5b821f6b5c325e35
+stable bytes: 80,463,825
+stable SHA-256: eab46695362bc9d1e656fb954694a681dd95066dae5210f2498387b14c163f5b
 public stable/latest: VERIFIED
 published: 2026-08-26 KST
 ```
 
-v1.7.6 공식 작업 기록:
+v1.7.7 공식 작업 기록:
 
-- `docs/RELEASE_NOTES_V1.7.6.md`
-- `docs/CURRENT_SCANNER_WORK.md`
-- `docs/DECISION_V1.7.6_SCANNER_STALL_DIAGNOSTICS_2026-08-25.md`
-- `docs/.release-v1.7.6-status.json`
+- `docs/RELEASE_NOTES_V1.7.7.md`
+- `docs/RELEASE_1.7.7.md`
+- `docs/DECISION_SCANNER_STORAGE_AND_HOTKEYS_2026-08-26.md`
+- `docs/.release-v1.7.7-status.json`
 - `docs/DECISION_PRODUCT_COMPLETE_2026-08-26.md`
 
 ## 주요 기능
@@ -70,7 +70,7 @@ v1.7.6 공식 작업 기록:
 
 Runtime GPT/AI 의존성은 없습니다.
 
-## v1.7.6 완료 기준
+## Scanner 성능 기준선
 
 v1.7.6은 일부 실제 데스크톱에서 Scanner 인식이 5~13초까지 지연되던 문제의 root cause를 실측 자료로 확인하고 해결한 stable release입니다.
 
@@ -98,6 +98,8 @@ mean:    211.47 ms
 ```
 
 실사용 평가에서도 충분한 반응성을 확인했으며 Scanner 성능 알고리즘은 완료 상태로 취급합니다. 새로운 runtime evidence 없이 threshold, candidate cap, OCR variant 또는 visual acceptance를 성능 목적으로 변경하지 않습니다.
+
+v1.7.7은 이 인식 알고리즘을 변경하지 않고, 실사용에서 확인된 Scanner 교정 데이터 폭증·반복 로그·단축키 설정 불일치만 수정한 유지보수 PATCH입니다.
 
 ## Scanner
 
@@ -158,6 +160,10 @@ Tarkov window pixels
 1회 테스트 스캔: Ctrl+Shift+F11
 Scanner ON/OFF: Ctrl+Shift+F12
 ```
+
+Scanner와 configurable Map 단축키는 **일반 키 하나 + 선택적 Ctrl/Alt/Shift 조합**을 공통 계약으로 사용합니다. 따라서 `F10`, `K`, `Ctrl+K`, `Alt+F10`, `Ctrl+Shift+K` 같은 형태를 사용할 수 있습니다. Windows 키 조합은 지원하지 않습니다.
+
+Map의 bare `NumPad0~5`는 기존 직접 층 선택에 예약되며, `Ctrl+NumPad1`처럼 modifier가 붙은 NumPad 조합은 일반 Map 단축키로 사용할 수 있습니다.
 
 `설정`에서는 전역 단축키와 Mini Scanner 정보 표시/순서를 관리합니다.
 
@@ -244,7 +250,7 @@ Candidate-first fields:
 
 저장된 Case는 교정 데이터 관리에서 다시 열어 기존 Ground Truth와 candidate selection을 수정할 수 있습니다.
 
-사용자-reviewed Case만 Ground Truth로 취급합니다. 자동 diagnostic Case는 정답이 아닙니다.
+**v1.7.7부터 정상 연속 Scanner는 실패 프레임을 durable Case로 자동 저장하지 않습니다.** 최신 exact diagnostic frame은 현재 교정을 위해 메모리에만 유지하며, 사용자가 명시적으로 교정 저장한 Case만 장기 Ground Truth가 됩니다.
 
 기본 저장 위치:
 
@@ -252,9 +258,11 @@ Candidate-first fields:
 %LocalAppData%\JunhyunHelper\scanner\diagnostics
 ```
 
-Reviewed Ground Truth는 자동 retention 대상이 아닙니다.
+이전 버전에서 생성된 legacy Case는 `retention=automatic_sample`과 `review_status=unreviewed`를 모두 증명할 수 있고 최근 쓰기 중이 아님을 확인한 경우에만 background cleanup합니다. 삭제 직전 상태를 다시 확인하며 reviewed/manual/corrupt/unknown Case는 자동 삭제하지 않습니다.
 
-## Scanner 성능 / 장시간 실행
+사용자-reviewed Ground Truth는 자동 retention 대상이 아닙니다.
+
+## Scanner 로그 / 장시간 실행
 
 Stage latency telemetry:
 
@@ -273,7 +281,7 @@ v1.7.6은 같은 active latency cycle에서 동일한 title bitmap dimensions + 
 
 Continuous observation은 non-backlogging pacing을 사용합니다. 작업 시간이 target interval을 초과해도 missed tick을 몰아서 재생하지 않고 cooperative yield를 둡니다.
 
-Automatic unreviewed diagnostic samples는 30일 / 300건 / 512 MiB 상한과 최근 2시간 보호창으로 관리합니다. Scanner/startup logs도 bounded rotation합니다.
+v1.7.7에서는 동일 실패를 사용자 activity feed에서 30초 동안 collapse해 필요한 기록의 가시성을 유지합니다. 지원 분석용 `scanner.log`는 기존의 작은 bounded rotation/retention을 유지하며 Ground Truth lifetime과 분리됩니다.
 
 ## Quest `확인 필요`
 
@@ -338,4 +346,5 @@ ZIP과 압축 해제 폴더 이름에는 버전 번호를 넣지 않습니다. �
 - `docs/SCANNER_GROUND_TRUTH.md` — Ground Truth dataset 계약
 - `docs/SCANNER_TEST_PLAN.md` — Scanner release/regression gate
 - `docs/CURRENT_SCANNER_WORK.md` — Scanner 유지보수 기준
+- `docs/DECISION_SCANNER_STORAGE_AND_HOTKEYS_2026-08-26.md` — v1.7.7 저장/단축키 결정
 - `docs/DECISION_PRODUCT_COMPLETE_2026-08-26.md` — 제품 완성 및 유지보수 전환 결정
