@@ -69,7 +69,7 @@
 - prerequisite task reference가 해석 가능
 - trader/map reference가 존재하거나 명시적 null
 - objective는 `(questId, objectiveId)` 기준으로 충돌하지 않음
-- item 관련 objective의 item reference가 해석 가능
+- item 관련 objective의 item reference가 objective 의미에 맞게 해석 가능
 - count가 필요한 objective에서 유효한 수량 존재
 
 ### Hideout
@@ -95,13 +95,32 @@
 - Quest → Trader
 - Quest → Map
 - QuestPrerequisite → Quest
-- QuestObjective → Item
+- material QuestObjective → Item
+- QuestItemRequirement → Item
 - HideoutRequirement → Item
 - HideoutStationRequirement → HideoutStation
 - Ammo → Item
 - AmmoAcquisition → Trader/HideoutStation
 
 표시용 선택 정보의 누락과 핵심 계산 관계의 누락을 구분합니다.
+
+### Quest objective `item/items` semantic boundary
+
+`json.tarkov.dev`의 objective `item/items`는 하나의 의미만 갖지 않습니다. 준현 헬퍼는 내부 `QuestItemObjectiveKind`로 의미를 먼저 분류한 뒤 관계를 검증합니다.
+
+- `Submit` — 실제 제출/인도 item. canonical `/items`에 반드시 존재해야 함.
+- `FindOrCollect` — 실제 획득/발견 item. canonical `/items`에 반드시 존재해야 함.
+- `Sell` — 실제 판매 item. canonical `/items`에 반드시 존재해야 함.
+- `Other` — objective 전용 조건 selector일 수 있음. 특수 dogtag variant처럼 canonical `/items`에 없다는 사실만으로 Fatal 처리하지 않음.
+
+이 예외는 **QuestObjective의 `Other` item selector에만** 적용합니다. 다음 참조 검증은 느슨하게 하지 않습니다.
+
+- `questItem`
+- 일반 `QuestItemRequirement`
+- Hideout item requirement
+- Ammunition item/currency/requirement
+
+따라서 실제 material item의 dangling canonical reference는 계속 업데이트를 차단합니다.
 
 ---
 
@@ -184,6 +203,8 @@ Importer는 objective를 최소 다음 범주로 분류합니다.
 `필요 아이템` 합산 규칙에 포함되는 objective type은 명시적으로 허용 목록으로 관리합니다.
 
 새로운 item objective type이 나타나고 그 의미를 모르면 조용히 제외하지 않습니다. **필요 수량 누락 가능성이 있으므로 데이터 갱신 검증에서 발견**해야 합니다.
+
+`Other`로 분류된 objective의 `item/items`가 canonical `/items`에 없다는 이유만으로 material item 누락으로 단정하지 않습니다. 다만 새로운 objective type 자체가 필요한 수량 계산에 영향을 줄 가능성이 있으면 importer/contract 검증에서 별도로 조사합니다.
 
 ## 5.2 Hideout 요구 아이템
 
@@ -278,7 +299,9 @@ Tarkov 대형 패치에서 실제로 대량 추가/삭제가 발생할 수 있�
 - 퀘스트 선행 조건
 - 여러 accepted status
 - 진영/레벨/평판/프레스티지 조건
-- item objective 제출/획득/판매 구분
+- item objective 제출/획득/판매/기타 selector 구분
+- `Other` special item selector의 canonical `/items` 비존재 허용
+- 제출/획득/판매의 실제 dangling canonical item 차단
 - 대체 가능한 여러 item
 - FIR/비FIR 요구
 - 은신처 item/station/trader/skill requirement
@@ -324,6 +347,7 @@ API와 무관한 순수 계산 테스트입니다.
 
 - 획득 목표를 제출 재료로 잘못 합산
 - sellItem 데이터를 필요 재료로 잘못 해석
+- objective 조건 selector를 canonical material item으로 오판해 정상 업데이트를 거부
 - 번역 과정에서 objective ID가 손상
 - objective ID의 전역 유일성 오가정
 - FIR/일반 수량 이중 계산
