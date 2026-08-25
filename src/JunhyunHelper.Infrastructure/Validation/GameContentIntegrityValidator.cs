@@ -1,4 +1,5 @@
 using JunhyunHelper.Core.Content;
+using JunhyunHelper.Core.Quests;
 
 namespace JunhyunHelper.Infrastructure.Validation;
 
@@ -136,14 +137,24 @@ public sealed class GameContentIntegrityValidator
                     $"Quest '{objective.QuestId}' objective '{objective.ObjectiveId}' has non-positive count '{objective.Count}'.");
             }
 
-            foreach (var itemId in objective.ItemIds)
+            // json.tarkov.dev uses objective.item/items for more than one semantic role.
+            // Submit/find/sell objectives contain canonical inventory item references and
+            // therefore must resolve against /items. Other objective types may carry
+            // condition selectors (for example special dogtag variants) that are valid
+            // task constraints even when the variant is intentionally absent from /items.
+            // Do not globally weaken item validation: material QuestItemRequirement,
+            // hideout and ammunition references remain independently fail-closed.
+            if (RequiresCanonicalObjectiveItems(objective.ItemKind))
             {
-                if (!itemIds.Contains(itemId))
+                foreach (var itemId in objective.ItemIds)
                 {
-                    Fatal(
-                        issues,
-                        "quest-objective.item.missing",
-                        $"Quest '{objective.QuestId}' objective '{objective.ObjectiveId}' references missing item '{itemId}'.");
+                    if (!itemIds.Contains(itemId))
+                    {
+                        Fatal(
+                            issues,
+                            "quest-objective.item.missing",
+                            $"Quest '{objective.QuestId}' objective '{objective.ObjectiveId}' references missing item '{itemId}'.");
+                    }
                 }
             }
 
@@ -203,6 +214,11 @@ public sealed class GameContentIntegrityValidator
             }
         }
     }
+
+    private static bool RequiresCanonicalObjectiveItems(QuestItemObjectiveKind itemKind) =>
+        itemKind is QuestItemObjectiveKind.Submit or
+            QuestItemObjectiveKind.FindOrCollect or
+            QuestItemObjectiveKind.Sell;
 
     private static void ValidateHideout(
         GameContentCatalog content,
