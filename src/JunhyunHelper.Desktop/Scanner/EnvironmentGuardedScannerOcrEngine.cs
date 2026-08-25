@@ -75,6 +75,7 @@ internal sealed class EnvironmentGuardedScannerOcrEngine : IScannerDeepOcrEngine
         var text = deep && _inner is IScannerDeepOcrEngine deepEngine
             ? await deepEngine.ReadDeepTextAsync(titleImage, cancellationToken)
             : await _inner.ReadTextAsync(titleImage, cancellationToken);
+        text ??= string.Empty;
         var elapsed = Stopwatch.GetElapsedTime(started);
         var hasUsableText = !string.IsNullOrWhiteSpace(text);
         var enteredDegraded = _health.RecordResult(DateTimeOffset.UtcNow, elapsed, hasUsableText);
@@ -85,7 +86,7 @@ internal sealed class EnvironmentGuardedScannerOcrEngine : IScannerDeepOcrEngine
             ("pass", deep ? "deep" : "normal"),
             ("elapsedMs", elapsed.TotalMilliseconds.ToString("F2", CultureInfo.InvariantCulture)),
             ("hasText", hasUsableText),
-            ("textLength", text?.Length ?? 0),
+            ("textLength", text.Length),
             ("width", titleImage.PixelWidth),
             ("height", titleImage.PixelHeight));
 
