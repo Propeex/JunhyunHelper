@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using JunhyunHelper.Core.Scanner;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
@@ -21,7 +22,6 @@ public sealed partial class ScannerRuntimeService
 {
     private sealed class PeriodicTimer : IDisposable
     {
-        private static readonly TimeSpan MinimumOverrunYield = TimeSpan.FromMilliseconds(25);
         private readonly TimeSpan _interval;
         private long _lastTickTimestamp;
         private int _disposed;
@@ -41,9 +41,7 @@ public sealed partial class ScannerRuntimeService
                 return false;
 
             var elapsed = Stopwatch.GetElapsedTime(_lastTickTimestamp);
-            var delay = _interval - elapsed;
-            if (delay < MinimumOverrunYield)
-                delay = MinimumOverrunYield;
+            var delay = ScannerObservationPacingPolicy.NextDelay(_interval, elapsed);
 
             await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
             if (Volatile.Read(ref _disposed) != 0)
