@@ -104,23 +104,21 @@
 
 표시용 선택 정보의 누락과 핵심 계산 관계의 누락을 구분합니다.
 
-### Quest objective `item/items` semantic boundary
+### Quest objective `item/items` / `questItem` semantic boundary
 
-`json.tarkov.dev`의 objective `item/items`는 하나의 의미만 갖지 않습니다. 준현 헬퍼는 내부 `QuestItemObjectiveKind`로 의미를 먼저 분류한 뒤 관계를 검증합니다.
+`json.tarkov.dev`의 objective 참조는 필드 의미를 구분해서 검증합니다.
 
-- `Submit` — 실제 제출/인도 item. canonical `/items`에 반드시 존재해야 함.
-- `FindOrCollect` — 실제 획득/발견 item. canonical `/items`에 반드시 존재해야 함.
-- `Sell` — 실제 판매 item. canonical `/items`에 반드시 존재해야 함.
-- `Other` — objective 전용 조건 selector일 수 있음. 특수 dogtag variant처럼 canonical `/items`에 없다는 사실만으로 Fatal 처리하지 않음.
+- `item/items` — canonical inventory item reference. `Submit`, `FindOrCollect`, `Sell`, `Other` 등 objective kind와 관계없이 `/items`에 존재해야 하며 dangling reference는 Fatal입니다.
+- `questItem` / 내부 `QuestItemId` — 별도의 quest-only entity reference. canonical `/items` 부재만으로 Fatal 처리하지 않습니다.
 
-이 예외는 **QuestObjective의 `Other` item selector에만** 적용합니다. 다음 참조 검증은 느슨하게 하지 않습니다.
+이 예외는 **`QuestItemId`의 canonical `/items` 존재 요구에만** 적용합니다. 다음 참조 검증은 모두 기존처럼 fail-closed입니다.
 
-- `questItem`
+- 모든 QuestObjective `item/items`
 - 일반 `QuestItemRequirement`
 - Hideout item requirement
 - Ammunition item/currency/requirement
 
-따라서 실제 material item의 dangling canonical reference는 계속 업데이트를 차단합니다.
+따라서 실제 material/canonical item의 dangling reference는 objective kind와 무관하게 계속 업데이트를 차단합니다.
 
 ---
 
@@ -204,7 +202,7 @@ Importer는 objective를 최소 다음 범주로 분류합니다.
 
 새로운 item objective type이 나타나고 그 의미를 모르면 조용히 제외하지 않습니다. **필요 수량 누락 가능성이 있으므로 데이터 갱신 검증에서 발견**해야 합니다.
 
-`Other`로 분류된 objective의 `item/items`가 canonical `/items`에 없다는 이유만으로 material item 누락으로 단정하지 않습니다. 다만 새로운 objective type 자체가 필요한 수량 계산에 영향을 줄 가능성이 있으면 importer/contract 검증에서 별도로 조사합니다.
+`Other`를 포함한 모든 objective의 `item/items`는 canonical `/items` 참조로 엄격하게 검증합니다. `questItem`만 별도의 quest-only entity 계약으로 분리하며, 새로운 objective type 자체가 필요한 수량 계산에 영향을 줄 가능성이 있으면 importer/contract 검증에서 별도로 조사합니다.
 
 ## 5.2 Hideout 요구 아이템
 
@@ -299,9 +297,9 @@ Tarkov 대형 패치에서 실제로 대량 추가/삭제가 발생할 수 있�
 - 퀘스트 선행 조건
 - 여러 accepted status
 - 진영/레벨/평판/프레스티지 조건
-- item objective 제출/획득/판매/기타 selector 구분
-- `Other` special item selector의 canonical `/items` 비존재 허용
-- 제출/획득/판매의 실제 dangling canonical item 차단
+- item objective 제출/획득/판매/기타 구분
+- 실제 회귀 ID의 `QuestItemId`가 canonical `/items`에 없더라도 quest-only 참조로 허용
+- `Other`를 포함한 모든 `item/items`의 실제 dangling canonical item 차단
 - 대체 가능한 여러 item
 - FIR/비FIR 요구
 - 은신처 item/station/trader/skill requirement
