@@ -41,10 +41,15 @@ public partial class ScannerPage
             testGesture != ScannerHotkeyGesture.DefaultOneShotTest ||
             toggleGesture != ScannerHotkeyGesture.DefaultScannerToggle ||
             new[] { tarkovGesture, testGesture, toggleGesture }.Distinct().Count() != 3 ||
-            ScannerHotkeyGesture.TryParse("F10", out _))
+            !ScannerHotkeyGesture.TryParse("F10", out var bareGesture) ||
+            bareGesture != new ScannerHotkeyGesture(false, false, false, Key.F10) ||
+            !ScannerHotkeyGesture.TryParse("Ctrl+Alt+F9", out var combinedGesture) ||
+            combinedGesture != new ScannerHotkeyGesture(true, true, false, Key.F9) ||
+            ScannerHotkeyGesture.TryParse("Ctrl", out _) ||
+            ScannerHotkeyGesture.TryParse("Win+F10", out _))
         {
             throw new InvalidOperationException(
-                "Scanner v1.6 settings/hotkey/fixed-header/order contract failed.");
+                "Scanner settings/hotkey/fixed-header/order contract failed.");
         }
 
         var hiddenIdentity = new ScannerDisplaySettings
