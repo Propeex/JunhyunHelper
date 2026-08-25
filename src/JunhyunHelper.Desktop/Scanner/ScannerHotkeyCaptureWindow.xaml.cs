@@ -39,12 +39,6 @@ public partial class ScannerHotkeyCaptureWindow : Window
             modifiers.HasFlag(ModifierKeys.Alt),
             modifiers.HasFlag(ModifierKeys.Shift),
             key);
-        if (!gesture.Control && !gesture.Alt && !gesture.Shift)
-        {
-            GestureText.Text = "Ctrl / Alt / Shift 중 하나 이상을 함께 눌러주세요.";
-            e.Handled = true;
-            return;
-        }
 
         ResultGesture = gesture;
         GestureText.Text = gesture.ToString();
