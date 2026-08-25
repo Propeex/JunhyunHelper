@@ -1,4 +1,4 @@
-준현 헬퍼 v1.7.2 — Windows x64
+준현 헬퍼 v1.7.3 — Windows x64
 
 실행 방법
 1. 받은 'Junhyun-Helper.zip'을 원하는 위치에 압축 해제합니다.
@@ -6,19 +6,18 @@
 3. 처음 실행하면 프로필을 만들고 필요한 최신 게임 데이터를 온라인에서 내려받습니다.
 4. 프로그램 실행 시 GitHub의 최신 정식 준현 헬퍼 릴리즈를 확인합니다. 더 최신 버전이 있으면 업데이트 여부를 묻습니다.
 
-v1.7.2 주요 변경 — Mini Scanner 표시 안정성 개선
-- 한 번 확정된 아이템 정보는 일시적인 1~2회 인식 실패에도 Mini Scanner에서 계속 표시됩니다.
-- 실제 인식 실패가 3회 연속 누적되었을 때만 기존 아이템 표시를 종료합니다.
-- 다른 아이템이 정상 식별되면 기다리지 않고 즉시 새 아이템 정보로 교체합니다.
-- 상세창 후보 안정화, 아이템 제목 변화 확인, 이름 OCR 진행 같은 중간 상태는 실패 횟수로 계산하지 않습니다.
-- Tarkov 인벤토리/보관함 context OCR은 최초 표시의 안전 게이트로 유지하지만, 이미 표시 중인 정상 결과를 보조 OCR 한 번의 실패 때문에 숨기지 않습니다.
-- Scanner 내부의 보수적 재탐색 경계와 false-positive 방지 정책은 그대로 유지합니다.
+v1.7.3 주요 변경 — Scanner 인식 지연 최적화
+- Scanner 관측 주기를 350 ms에서 200 ms로 단축해 상세창 변화 감지를 더 촘촘하게 수행합니다.
+- 새 상세창의 첫 식별 시도는 기존 안전 게이트를 통과하는 즉시 수행하고, 실패한 동일 후보만 250 → 500 → 800 → 1200 ms로 보수적으로 backoff합니다.
+- Windows OCR 입력에서 PNG 인코딩/디코딩 왕복을 제거하고 동일 BGRA 픽셀을 SoftwareBitmap으로 직접 전달합니다.
+- 이미 확정된 상세창은 이전 위치의 좁은 화면 영역만 먼저 다시 캡처해 close-X, 돋보기, HEADER_FRAME_LOCKED와 새 제목 픽셀을 재검증합니다.
+- fast-path에서 제목 변화나 검증 실패가 감지되면 같은 cycle에서 기존 전체 Tarkov 창 탐지로 즉시 되돌아갑니다.
+- 후보 선택, deep OCR, Tarkov-font visual recovery의 판정 로직은 성능을 이유로 생략하거나 완화하지 않았습니다.
 
 Scanner 인식 안전 계약
-- Scanner OCR threshold와 candidate cap은 v1.7.2에서 변경하지 않았습니다.
-- false positive보다 miss를 선호합니다.
-- structural floor 0.34, HEADER_FRAME_LOCKED 0.68, continuous candidate cap 8, one-shot candidate cap 12를 유지합니다.
-- continuous scan interval 350 ms와 semantic retry 1200 ms도 이번 안정성 PATCH에서는 변경하지 않았습니다.
+- structural floor 0.34, HEADER_FRAME_LOCKED 0.68, continuous candidate cap 8, one-shot candidate cap 12는 그대로 유지합니다.
+- false positive보다 miss를 선호하며, fast-path는 이전 Item ID를 새 identity 증거로 사용하지 않습니다.
+- cross-frame OCR 결과를 재사용하지 않습니다. 매 인식 판단의 OCR/제목 픽셀은 현재 화면에서 새로 획득합니다.
 - Item ID가 확정되기 전에는 가격·필요 개수 같은 mapped data를 identity 증거로 사용하지 않습니다.
 - Scanner 인식 중 네트워크 요청, 게임 메모리 읽기, DLL injection, packet interception을 사용하지 않습니다.
 
