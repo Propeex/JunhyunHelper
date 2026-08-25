@@ -334,9 +334,7 @@ internal static class ScannerDiagnosticLog
 
     private static string BuildFailureSignature(ScannerActivityEntry activity) => string.Join(
         '\u001f',
-        activity.Mode.ToString(),
         activity.OcrText.Trim(),
-        activity.OfficialName?.Trim() ?? string.Empty,
         activity.Reason.Trim());
 
     private static void TrimFailureSignatures()
