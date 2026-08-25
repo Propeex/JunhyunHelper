@@ -110,8 +110,27 @@ internal static class ScannerSupportBundleExporter
             builder.AppendLine($"DpiError={exception.GetType().Name}:{Sanitize(exception.Message)}");
         }
 
+        AppendScannerLogWriteProbe(builder);
         AppendFileIoProbe(builder);
         return builder.ToString();
+    }
+
+    private static void AppendScannerLogWriteProbe(StringBuilder builder)
+    {
+        try
+        {
+            var started = Stopwatch.StartNew();
+            ScannerDiagnosticLog.Write(
+                "diagnostic-file-io-probe",
+                null,
+                ("purpose", "support-bundle"));
+            started.Stop();
+            builder.AppendLine($"ScannerDiagnosticLogWriteProbeMs={started.Elapsed.TotalMilliseconds:F2}");
+        }
+        catch (Exception exception)
+        {
+            builder.AppendLine($"ScannerDiagnosticLogWriteProbeError={exception.GetType().Name}:{Sanitize(exception.Message)}");
+        }
     }
 
     private static void AppendFileIoProbe(StringBuilder builder)
