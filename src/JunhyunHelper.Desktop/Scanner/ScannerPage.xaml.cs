@@ -153,8 +153,8 @@ public partial class ScannerPage : UserControl
             if (currentFrame is not null &&
                 string.Equals(currentFrame.CaseId, activity.CaseId, StringComparison.Ordinal))
             {
-                // Automatic persistence is asynchronous. The exact current frame is a
-                // valid non-guessed fallback while its Case is still being written.
+                // Normal monitoring no longer persists automatic Cases. Only this exact
+                // latest in-memory frame may be opened without substituting another scan.
                 correctionWindow = new ScannerCorrectionWindow(currentFrame, _coordinator);
             }
             else
