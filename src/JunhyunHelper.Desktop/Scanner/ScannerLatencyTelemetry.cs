@@ -44,6 +44,11 @@ internal static class ScannerLatencyTelemetry
             Stopwatch.GetTimestamp(),
             previous);
         CurrentCycle.Value = cycle;
+        ScannerPerformanceTrace.Mark(
+            "scanner-cycle-start",
+            ("cycleId", cycle.Id),
+            ("mode", mode),
+            ("operation", cycle.Operation));
         return cycle;
     }
 
@@ -121,6 +126,13 @@ internal static class ScannerLatencyTelemetry
                 snapshot = new Dictionary<string, StageAggregate>(_stages, StringComparer.Ordinal);
 
             var elapsed = Stopwatch.GetTimestamp() - _startedTimestamp;
+            ScannerPerformanceTrace.Mark(
+                "scanner-cycle-end",
+                ("cycleId", Id),
+                ("mode", Mode),
+                ("operation", Operation),
+                ("elapsedMs", Format(ToMilliseconds(elapsed))));
+
             var hasSemanticWork =
                 snapshot.ContainsKey(OcrNormal) ||
                 snapshot.ContainsKey(OcrDeep) ||
@@ -178,13 +190,24 @@ internal static class ScannerLatencyTelemetry
             _cycle = cycle;
             _stage = stage;
             _startedTimestamp = startedTimestamp;
+            ScannerPerformanceTrace.Mark(
+                "scanner-stage-start",
+                ("cycleId", cycle.Id),
+                ("stage", stage));
         }
 
         public void Dispose()
         {
             if (Interlocked.Exchange(ref _disposed, 1) != 0)
                 return;
-            _cycle.Add(_stage, Stopwatch.GetTimestamp() - _startedTimestamp);
+
+            var elapsedTicks = Stopwatch.GetTimestamp() - _startedTimestamp;
+            _cycle.Add(_stage, elapsedTicks);
+            ScannerPerformanceTrace.Mark(
+                "scanner-stage-end",
+                ("cycleId", _cycle.Id),
+                ("stage", _stage),
+                ("elapsedMs", ToMilliseconds(elapsedTicks).ToString("F2", CultureInfo.InvariantCulture)));
         }
     }
 
