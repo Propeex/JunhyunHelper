@@ -38,8 +38,11 @@ internal sealed class ScannerUiResponsivenessMonitor : IDisposable
                     TaskCreationOptions.RunContinuationsAsynchronously);
                 try
                 {
+                    // Normal priority measures whether the ordinary application message
+                    // pump is progressing. Background priority can be delayed by healthy
+                    // input/render traffic and would over-report UI starvation.
                     _ = _dispatcher.BeginInvoke(
-                        DispatcherPriority.Background,
+                        DispatcherPriority.Normal,
                         new Action(() => completion.TrySetResult()));
                 }
                 catch (InvalidOperationException)
