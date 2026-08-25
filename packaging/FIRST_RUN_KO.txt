@@ -1,4 +1,4 @@
-준현 헬퍼 v1.7.1 — Windows x64
+준현 헬퍼 v1.7.2 — Windows x64
 
 실행 방법
 1. 받은 'Junhyun-Helper.zip'을 원하는 위치에 압축 해제합니다.
@@ -6,17 +6,19 @@
 3. 처음 실행하면 프로필을 만들고 필요한 최신 게임 데이터를 온라인에서 내려받습니다.
 4. 프로그램 실행 시 GitHub의 최신 정식 준현 헬퍼 릴리즈를 확인합니다. 더 최신 버전이 있으면 업데이트 여부를 묻습니다.
 
-v1.7.1 주요 변경 — 게임 데이터 업데이트 검증 회귀 수정
-- 퀘스트 objective의 `item/items`가 실제 제출·획득·판매 아이템인지, 특수 조건 selector인지 구분해 검증합니다.
-- 제출·획득·판매 objective의 실제 아이템 참조, 일반 QuestItemRequirement, 은신처 필요 아이템, 탄약 관련 아이템 참조는 기존처럼 존재하지 않는 canonical item을 엄격하게 차단합니다.
-- 특수 dogtag variant처럼 objective 조건에만 쓰이는 selector가 canonical `/items`에 없다는 이유만으로 정상 게임 데이터 업데이트 전체를 거부하지 않습니다.
-- 게임 데이터 검증 실패 시 단순한 generic 오류 대신 첫 번째 치명적 검증 사유를 사용자가 이해할 수 있는 짧은 문구로 표시합니다.
-- candidate 검증, 디스크 재검증, LKG 유지, 부분 payload 보호 등 v1.7.0의 fail-closed 데이터 보호는 그대로 유지합니다.
+v1.7.2 주요 변경 — Mini Scanner 표시 안정성 개선
+- 한 번 확정된 아이템 정보는 일시적인 1~2회 인식 실패에도 Mini Scanner에서 계속 표시됩니다.
+- 실제 인식 실패가 3회 연속 누적되었을 때만 기존 아이템 표시를 종료합니다.
+- 다른 아이템이 정상 식별되면 기다리지 않고 즉시 새 아이템 정보로 교체합니다.
+- 상세창 후보 안정화, 아이템 제목 변화 확인, 이름 OCR 진행 같은 중간 상태는 실패 횟수로 계산하지 않습니다.
+- Tarkov 인벤토리/보관함 context OCR은 최초 표시의 안전 게이트로 유지하지만, 이미 표시 중인 정상 결과를 보조 OCR 한 번의 실패 때문에 숨기지 않습니다.
+- Scanner 내부의 보수적 재탐색 경계와 false-positive 방지 정책은 그대로 유지합니다.
 
 Scanner 인식 안전 계약
-- Scanner OCR threshold와 candidate cap은 v1.7.1에서 변경하지 않았습니다.
+- Scanner OCR threshold와 candidate cap은 v1.7.2에서 변경하지 않았습니다.
 - false positive보다 miss를 선호합니다.
 - structural floor 0.34, HEADER_FRAME_LOCKED 0.68, continuous candidate cap 8, one-shot candidate cap 12를 유지합니다.
+- continuous scan interval 350 ms와 semantic retry 1200 ms도 이번 안정성 PATCH에서는 변경하지 않았습니다.
 - Item ID가 확정되기 전에는 가격·필요 개수 같은 mapped data를 identity 증거로 사용하지 않습니다.
 - Scanner 인식 중 네트워크 요청, 게임 메모리 읽기, DLL injection, packet interception을 사용하지 않습니다.
 
