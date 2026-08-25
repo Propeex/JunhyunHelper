@@ -1,4 +1,4 @@
-준현 헬퍼 v1.7.5 — Windows x64
+준현 헬퍼 v1.7.6 — Windows x64
 
 실행 방법
 1. 받은 'Junhyun-Helper.zip'을 원하는 위치에 압축 해제합니다.
@@ -6,16 +6,16 @@
 3. 처음 실행하면 프로필을 만들고 필요한 최신 게임 데이터를 온라인에서 내려받습니다.
 4. 프로그램 실행 시 GitHub의 최신 정식 준현 헬퍼 릴리즈를 확인합니다. 더 최신 버전이 있으면 업데이트 여부를 묻습니다.
 
-v1.7.5 주요 변경 — Scanner OCR 환경 호환성 보호
-- 일부 Windows PC에서 아이템 이름 OCR이 빈 결과를 매우 늦게 반환할 때 같은 OS OCR 호출이 여러 후보/복구 단계에서 연속 반복되어 Scanner가 장시간 멈춘 것처럼 보일 수 있던 구조를 보호합니다.
-- OS OCR 호출이 800 ms 이상 걸린 뒤에도 읽은 텍스트가 비어 있을 때만 해당 OCR backend를 30초간 degraded 상태로 두고 추가 OS OCR 호출을 즉시 생략합니다.
-- 느리더라도 유효한 텍스트를 반환한 OCR은 차단하지 않습니다. 정상 환경의 기존 OCR 성공 경로와 정확도 판정은 그대로 유지합니다.
-- degraded 상태에서는 기존의 보수적인 Tarkov-font visual recovery가 현재 화면 픽셀과 현재 아이템 catalog를 사용해 식별을 계속 시도합니다. 충분한 근거가 없으면 기존과 같이 fail closed 합니다.
-- scanner.log에 실제 OS OCR 호출 시간과 degraded/suppressed 상태를 기록하여 PC별 OCR backend 성능을 직접 확인할 수 있게 했습니다.
-- v1.7.4의 non-backlogging 200 ms 관측 pacing과 v1.7.3의 adaptive semantic retry/direct BGRA OCR은 유지합니다.
+v1.7.6 진단 후보 — Scanner 장시간 정지 원인 측정
+- v1.7.5에서 해결되지 않은 PC별 Scanner 장시간 정지를 추측으로 수정하지 않고 실제 blocking 지점을 측정하는 진단 후보입니다.
+- 기존 Windows OCR 인스턴스와 기존 인식 경로를 그대로 사용하면서 확대/variant 생성, BGRA 변환, CopyPixels, SoftwareBitmap 생성, 실제 Windows.Media.Ocr RecognizeAsync, 직렬화 대기 시간을 각각 구분해 기록합니다.
+- WPF UI dispatcher 응답 지연을 OCR latency와 별도로 측정하여 OCR이 느린 문제와 프로그램 자체가 응답 없음이 되는 문제를 구분합니다.
+- Scanner > 고급 > 'Scanner 성능 진단 자료 내보내기'에서 환경 정보와 기존 Scanner 로그, 세부 성능 trace를 ZIP 하나로 저장할 수 있습니다.
+- 진단 ZIP에는 Ground Truth 이미지, 프로필 DB, 게임 계정 정보가 포함되지 않습니다.
+- v1.7.5의 OCR circuit breaker와 기존 strict Tarkov-font visual recovery는 유지합니다.
 
 Scanner 인식 안전 계약
-- structural floor 0.34, HEADER_FRAME_LOCKED 0.68, continuous candidate cap 8, one-shot candidate cap 12는 그대로 유지합니다.
+- structural floor 0.34, HEADER_FRAME_LOCKED floor 0.68, continuous candidate cap 8, one-shot candidate cap 12는 그대로 유지합니다.
 - false positive보다 miss를 선호하며, 이전 Item ID나 OCR 결과를 새 Item identity 증거로 사용하지 않습니다.
 - cross-frame OCR 결과를 재사용하지 않습니다. 매 인식 판단의 제목 픽셀은 현재 화면에서 새로 획득합니다.
 - OCR backend가 degraded되어도 matcher/visual recovery acceptance 기준을 완화하지 않습니다.

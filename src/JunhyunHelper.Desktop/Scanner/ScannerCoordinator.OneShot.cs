@@ -159,7 +159,23 @@ public sealed partial class ScannerCoordinator
                     await Runtime.PauseForOneShotAsync(cancellationToken);
                 }
 
-                return await Runtime.ScanOnceAsync(requestedMode, cancellationToken);
+                // Global-hotkey callbacks enter through the WPF window message pump.
+                // Several Scanner APIs can complete their first awaits synchronously
+                // (capture gate, detector Task.FromResult, local catalog), so invoking
+                // ScanOnceAsync directly here can run capture/detection/OCR setup on the
+                // UI dispatcher before an asynchronous boundary exists. Execute the scan
+                // worker explicitly on the thread pool; Runtime status subscribers and
+                // Mini Scanner window access already marshal to the dispatcher.
+                ScannerPerformanceTrace.Mark(
+                    "one-shot-worker-dispatch",
+                    ("mode", requestedMode));
+                return await Task.Run(async () =>
+                {
+                    ScannerPerformanceTrace.Mark(
+                        "one-shot-worker-start",
+                        ("mode", requestedMode));
+                    return await Runtime.ScanOnceAsync(requestedMode, cancellationToken).ConfigureAwait(false);
+                }, cancellationToken);
             }
             finally
             {

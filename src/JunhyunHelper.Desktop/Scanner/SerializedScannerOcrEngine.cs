@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Windows.Media.Imaging;
 
@@ -21,9 +22,12 @@ internal sealed class SerializedScannerOcrEngine : IScannerDeepOcrEngine
     public SerializedScannerOcrEngine(IScannerOcrEngine inner)
     {
         ArgumentNullException.ThrowIfNull(inner);
-        _inner = inner is EnvironmentGuardedScannerOcrEngine
-            ? inner
-            : new EnvironmentGuardedScannerOcrEngine(inner);
+        IScannerOcrEngine effectiveInner = inner is ScannerLab38OcrEngine lab38
+            ? new DiagnosticScannerLab38OcrEngine(lab38)
+            : inner;
+        _inner = effectiveInner is EnvironmentGuardedScannerOcrEngine
+            ? effectiveInner
+            : new EnvironmentGuardedScannerOcrEngine(effectiveInner);
     }
 
     public bool IsAvailable => _inner.IsAvailable;
@@ -46,7 +50,19 @@ internal sealed class SerializedScannerOcrEngine : IScannerDeepOcrEngine
         bool deep,
         CancellationToken cancellationToken)
     {
+        var pass = deep ? "deep" : "normal";
+        var gateStarted = Stopwatch.GetTimestamp();
+        ScannerPerformanceTrace.Mark(
+            "ocr-serialized-wait-start",
+            ("pass", pass),
+            ("width", titleImage.PixelWidth),
+            ("height", titleImage.PixelHeight));
         await _gate.WaitAsync(cancellationToken);
+        ScannerPerformanceTrace.Mark(
+            "ocr-serialized-wait-end",
+            ("pass", pass),
+            ("elapsedMs", ScannerPerformanceTrace.ElapsedMilliseconds(gateStarted).ToString("F2", System.Globalization.CultureInfo.InvariantCulture)));
+
         try
         {
             var cycleId = ScannerLatencyTelemetry.CurrentCycleId;
@@ -56,24 +72,49 @@ internal sealed class SerializedScannerOcrEngine : IScannerDeepOcrEngine
             if (cycleId is { } activeCycle)
             {
                 ResetCycleCacheIfNeeded(activeCycle);
+                var keyStarted = Stopwatch.GetTimestamp();
+                ScannerPerformanceTrace.Mark(
+                    "ocr-image-key-start",
+                    ("pass", pass),
+                    ("width", titleImage.PixelWidth),
+                    ("height", titleImage.PixelHeight));
                 imageKey = CreateExactImageKey(titleImage);
+                ScannerPerformanceTrace.Mark(
+                    "ocr-image-key-end",
+                    ("pass", pass),
+                    ("elapsedMs", ScannerPerformanceTrace.ElapsedMilliseconds(keyStarted).ToString("F2", System.Globalization.CultureInfo.InvariantCulture)),
+                    ("bitsPerPixel", imageKey.Value.BitsPerPixel));
+
                 cycleCache = deep ? _deepCycleCache : _normalCycleCache;
                 if (cycleCache.TryGetValue(imageKey.Value, out var cached))
                 {
+                    ScannerPerformanceTrace.Mark("ocr-cycle-cache-hit", ("pass", pass));
                     ScannerDiagnosticLog.Write(
                         "ocr-cycle-reuse",
                         null,
                         ("cycleId", activeCycle),
-                        ("pass", deep ? "deep" : "normal"),
+                        ("pass", pass),
                         ("width", imageKey.Value.Width),
                         ("height", imageKey.Value.Height));
                     return cached;
                 }
             }
 
-            var result = deep && _inner is IScannerDeepOcrEngine deepEngine
+            var operationStarted = Stopwatch.GetTimestamp();
+            ScannerPerformanceTrace.Mark(
+                "ocr-operation-start",
+                ("pass", pass),
+                ("width", titleImage.PixelWidth),
+                ("height", titleImage.PixelHeight));
+            var result = (deep && _inner is IScannerDeepOcrEngine deepEngine
                 ? await deepEngine.ReadDeepTextAsync(titleImage, cancellationToken)
-                : await _inner.ReadTextAsync(titleImage, cancellationToken);
+                : await _inner.ReadTextAsync(titleImage, cancellationToken)) ?? string.Empty;
+            ScannerPerformanceTrace.Mark(
+                "ocr-operation-end",
+                ("pass", pass),
+                ("elapsedMs", ScannerPerformanceTrace.ElapsedMilliseconds(operationStarted).ToString("F2", System.Globalization.CultureInfo.InvariantCulture)),
+                ("hasText", !string.IsNullOrWhiteSpace(result)),
+                ("textLength", result.Length));
 
             // A fire-and-forget overlay probe can inherit an ExecutionContext briefly.
             // Store only if this exact Scanner cycle is still active after OCR completes.

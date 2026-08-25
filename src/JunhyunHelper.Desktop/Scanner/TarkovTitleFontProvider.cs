@@ -19,7 +19,8 @@ public sealed class TarkovTitleFontProvider : IDisposable
     private const int MaxFontPayloadBytes = 67_108_864;
     private const int ScanBufferBytes = 1024 * 1024;
     private const int FontCacheSchemaVersion = 1;
-    private static readonly TimeSpan RetryInterval = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan RetryInterval = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan SourceValidationInterval = TimeSpan.FromSeconds(5);
 
     private readonly object _gate = new();
     private readonly string _cacheDirectory;
@@ -27,7 +28,9 @@ public sealed class TarkovTitleFontProvider : IDisposable
 
     private TarkovTitleFonts? _fonts;
     private SourceStamp? _loadedSourceStamp;
+    private string? _cachedResourcesPath;
     private DateTimeOffset _nextAttemptUtc = DateTimeOffset.MinValue;
+    private DateTimeOffset _nextSourceValidationUtc = DateTimeOffset.MinValue;
     private bool _disposed;
 
     public TarkovTitleFontProvider(string rootDirectory)
@@ -43,8 +46,36 @@ public sealed class TarkovTitleFontProvider : IDisposable
 
         lock (_gate)
         {
-            var resourcesPath = FindResourcesAssets();
+            var now = DateTimeOffset.UtcNow;
+
+            // The live Tarkov executable-path lookup can be expensive on protected game
+            // processes. When no usable font generation is loaded, the retry window must
+            // cover that lookup itself rather than starting only after it has already run.
+            if (_fonts is null && now < _nextAttemptUtc)
+            {
+                fonts = null!;
+                return false;
+            }
+
+            // A loaded generation is immutable for the duration of a running Tarkov
+            // process. Revalidate periodically, not once per OCR candidate.
+            if (_fonts is not null && now < _nextSourceValidationUtc)
+            {
+                fonts = _fonts;
+                return true;
+            }
+
+            var probeStarted = Stopwatch.GetTimestamp();
+            var resourcesPath = ResolveResourcesAssets();
             var sourceStamp = TryGetSourceStamp(resourcesPath);
+            _nextSourceValidationUtc = now + SourceValidationInterval;
+            ScannerPerformanceTrace.Mark(
+                "title-font-source-probe",
+                ("elapsedMs", ScannerPerformanceTrace.ElapsedMilliseconds(probeStarted).ToString("F2", System.Globalization.CultureInfo.InvariantCulture)),
+                ("found", resourcesPath is not null),
+                ("cachedPath", _cachedResourcesPath is not null),
+                ("hasLoadedFonts", _fonts is not null));
+
             if (_fonts is not null && IsLoadedGenerationCurrent(sourceStamp))
             {
                 fonts = _fonts;
@@ -59,17 +90,13 @@ public sealed class TarkovTitleFontProvider : IDisposable
                 ScannerDiagnosticLog.Write("title-font-source-changed");
             }
 
-            if (DateTimeOffset.UtcNow < _nextAttemptUtc)
-            {
-                fonts = null!;
-                return false;
-            }
-            _nextAttemptUtc = DateTimeOffset.UtcNow + RetryInterval;
+            _nextAttemptUtc = now + RetryInterval;
 
             if (TryLoadCache(resourcesPath, sourceStamp, out var cached))
             {
                 _fonts = cached;
                 _loadedSourceStamp = sourceStamp;
+                _nextAttemptUtc = DateTimeOffset.MinValue;
                 fonts = cached;
                 return true;
             }
@@ -88,9 +115,32 @@ public sealed class TarkovTitleFontProvider : IDisposable
 
             _fonts = cached;
             _loadedSourceStamp = sourceStamp;
+            _nextAttemptUtc = DateTimeOffset.MinValue;
             fonts = cached;
             return true;
         }
+    }
+
+    private string? ResolveResourcesAssets()
+    {
+        if (!string.IsNullOrWhiteSpace(_cachedResourcesPath))
+        {
+            try
+            {
+                if (File.Exists(_cachedResourcesPath))
+                    return _cachedResourcesPath;
+            }
+            catch (Exception exception) when (
+                exception is IOException or UnauthorizedAccessException or NotSupportedException)
+            {
+            }
+            _cachedResourcesPath = null;
+        }
+
+        var discovered = FindResourcesAssets();
+        if (!string.IsNullOrWhiteSpace(discovered))
+            _cachedResourcesPath = discovered;
+        return discovered;
     }
 
     private bool IsLoadedGenerationCurrent(SourceStamp? currentSource)
@@ -678,6 +728,9 @@ public sealed class TarkovTitleFontProvider : IDisposable
             _fonts?.Dispose();
             _fonts = null;
             _loadedSourceStamp = null;
+            _cachedResourcesPath = null;
+            _nextAttemptUtc = DateTimeOffset.MinValue;
+            _nextSourceValidationUtc = DateTimeOffset.MinValue;
         }
         GC.SuppressFinalize(this);
     }

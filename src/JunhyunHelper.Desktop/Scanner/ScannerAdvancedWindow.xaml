@@ -22,6 +22,7 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
             <TextBlock Text="Scanner 고급"
@@ -48,10 +49,16 @@
                     Grid.Row="4"
                     Content="교정 데이터 관리"
                     Height="38"
+                    Margin="0,0,0,10"
                     Click="ManageCorrectionsButton_Click" />
+            <Button x:Name="ExportDiagnosticsButton"
+                    Grid.Row="5"
+                    Content="Scanner 성능 진단 자료 내보내기"
+                    Height="38"
+                    Click="ExportDiagnosticsButton_Click" />
 
             <Button x:Name="AdvancedCloseButton"
-                    Grid.Row="5"
+                    Grid.Row="6"
                     Content="닫기"
                     MinWidth="84"
                     Margin="0,18,0,0"

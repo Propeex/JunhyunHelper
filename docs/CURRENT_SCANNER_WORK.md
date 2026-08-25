@@ -1,299 +1,243 @@
 # Current Scanner Work
 
-기준일: 2026-08-25
-상태: **v1.7.0 PUBLIC RELEASE / VERIFIED — LIVE GROUND TRUTH MAINTENANCE**
+기준일: 2026-08-26
+상태: **P0 RESOLVED — v1.7.6 PERFORMANCE FIX VERIFIED / RELEASE FINALIZATION**
 
-Scanner v1.7.0 Product Completion hardening과 공개 릴리즈 검증이 완료되었다.
+## 현재 결론
 
-현재 단계는 **LIVE GROUND TRUTH MAINTENANCE**다. 실사용에서 수집된 reviewed Ground Truth를 기준으로 실패 stage만 수정하고 전체 reviewed replay에서 REGRESSION=0을 유지한다.
+v1.7.5까지 문제 데스크탑에서 재현되던 Scanner 장시간 인식 지연은 v1.7.6 fix candidate에서 실사용 가능한 수준으로 정상화되었다.
 
-## v1.7.0 완료 내용
+사용자 체감 평가도 `엄청 괜찮아졌다`이며, 두 번째 support bundle의 수치가 이를 뒷받침한다.
 
-v1.7.0에서도 reviewed live Ground Truth 없이 detection/OCR/matcher threshold를 조정하지 않았다.
-
-- recognition log → exact Case/current frame quick-correction
-- 기존 Ground Truth + Scanner log ZIP export pipeline 재사용
-- Scanner catalog/market last-known-good 보호 강화
-- Item ID 이후 mapped presentation 동일-ID join 회귀 검증
-- Scanner Advanced clipping 방지와 runtime log 7일 자동 정리 유지
-- Data Update transactional hardening과 public release proof 완료
-
-## 현재 production recognition pipeline
+현재 public stable은 **v1.7.5**다. v1.7.6은 아직 public stable이 아니며, 성능 수정은 완료 판정하고 release finalization만 남긴다.
 
 ```text
-Tarkov window pixels
-→ capture
-→ detail rectangle proposals
-→ red close-X + magnifier + neutral inspect-header semantic validation
-→ HEADER_FRAME_LOCKED
-→ item-name ROI
-→ Windows ko-KR OCR
-→ optional user OCR substitution
-→ current-catalog sanitation / normalization
-→ conservative official-catalog matching / bounded recovery
-→ optional Tarkov-font visual corroboration/recovery
-→ Item ID or fail closed
-→ local mapped presentation
-→ Scanner Page / Mini Scanner
-→ optional correction / Ground Truth
+public stable: v1.7.5
+exact release source: 215541a694459e9484716c4942a436c26defe919
+stable asset: Junhyun-Helper.zip
+stable bytes: 80,450,225
+stable SHA-256: 6706f12e63caa2039cf3f89c6823b457d125e43f8af47779082caa843282923f
 ```
 
-## 인식 안전 불변식
+Reference:
 
-v1.7.0 hardening에서도 다음 값을 변경하지 않았다.
+- `docs/DECISION_V1.7.5_OCR_ENVIRONMENT_GUARD_2026-08-25.md`
+- `docs/DECISION_V1.7.6_SCANNER_STALL_DIAGNOSTICS_2026-08-25.md`
+- `docs/RELEASE_NOTES_V1.7.6.md`
+
+## Root cause
+
+첫 diagnostic bundle에서 장시간 지연의 실제 원인은 Windows OCR backend가 아니라 `FontAwareScannerOcrEngine` 이후의 optional Tarkov-font visual recovery였다.
+
+대표 baseline Tarkov cycle:
+
+```text
+end-to-end                  12,540.77 ms
+OCR normal                      12.26 ms
+actual WinRT RecognizeAsync     10.57 ms
+visual recovery             12,306.61 ms / 16 calls
+catalog matching                75.16 ms
+capture                         21.57 ms
+rectangle proposal              53.57 ms
+semantic header                 53.51 ms
+```
+
+같은 current-frame title bitmap/text를 공유하는 구조 후보 8개가 각각 targeted + full-catalog visual verification을 반복하면서 동일 증거를 16회 계산했다.
+
+또한 `TarkovTitleFontProvider`의 unavailable retry check가 expensive process/source discovery 뒤에 있어 optional font source discovery 자체도 candidate hot path에서 반복될 수 있었다.
+
+## v1.7.6 수정
+
+### Current-cycle exact visual evidence reuse
+
+동일 Scanner latency cycle 안에서 다음 값이 모두 같은 visual corroboration 결과는 한 번만 계산한다.
+
+- cycle ID
+- title bitmap width/height
+- exact current-pixel SHA-256
+- OCR text
+
+이는 cross-frame Item identity cache가 아니다. cycle이 바뀌면 즉시 폐기되며, 현재 frame의 동일 deterministic visual proof만 재사용한다.
+
+Trace:
+
+```text
+visual-cycle-cache-hit
+```
+
+### Tarkov font source discovery hot-path 차단
+
+`TarkovTitleFontProvider`는:
+
+- unavailable retry state를 expensive process/source discovery 전에 확인
+- failed/unavailable source attempt는 30초 동안 재실행 억제
+- 성공적으로 찾은 `resources.assets` path를 process-local cache로 재사용
+- loaded generation source validation을 candidate마다 하지 않고 5초 주기로 제한
+- live source length/timestamp 변경 시 기존 invalidation/re-extraction 안전 계약 유지
+
+### 기존 v1.7.6 hardening 유지
+
+- actual `OcrEngine.RecognizeAsync` call별 timing
+- actual slow-empty WinRT circuit breaker
+- serialized OCR semaphore/image-key/preprocessing timing
+- one-shot scan worker dispatch
+- independent WPF dispatcher stall probe
+- one-click Scanner support bundle export
+
+## 두 번째 문제 데스크탑 검증
+
+사용자가 root-cause fix candidate를 같은 문제 PC에서 다시 시험하고 support bundle을 제공했다.
+
+### 동일 Display Test 직접 비교
+
+```text
+하프 마스크
+before: 10,840.877 ms
+ after:     70.603 ms
+reduction: 약 99.35%
+
+USB 보안 플래시 드라이브
+before: 12,686.278 ms
+ after:  1,354.775 ms
+reduction: 약 89.32%
+```
+
+USB 사례는 corrupted normal OCR 뒤 deep OCR을 수행하는 어려운 첫 인식 사례다. 약 1.35초는 기존 12.7초 직렬 stall과 성격이 다르며 사용자가 실사용상 만족한다고 평가했다.
+
+그 외 새 Display Test 결과:
+
+```text
+Maska-1SCh:          106.619 ms
+Domontovich 우샨카:   88.190 ms
+Wires 전선:          100.802 ms
+PSU 전원공급장치:     48.123 ms
+```
+
+### 실제 Tarkov 검증
+
+새 bundle에는 `mode=TarkovWindow` 실제 게임 인식이 포함된다.
+
+확정 Item 예:
+
+- USB 보안 플래시 드라이브
+- 하프 마스크 (Lower half-mask)
+- Metal fuel tank 금속 연료통
+- Tech manual 기술 매뉴얼
+- T-Shaped plug T자형 멀티탭
+- Shustrilo 슈스트릴로 실링 폼
+- Plexiglass 조각
+- BEAR Buddy 인형
+- Power cord 파워코드
+- Filter 방독면 정화통
+- Cat 고양이 조각상
+
+12개의 ShowingItem 사례에서 `ReadingTitle → ShowingItem`:
+
+```text
+minimum:  38.07 ms
+median:   63.92 ms
+maximum:   1.05 s
+mean:     211.47 ms
+```
+
+최대 약 1.05초인 USB 사례는 deep/retry가 필요한 어려운 OCR 사례다.
+
+retained performance trace에서 OCR이 실제 실행된 complete Scanner cycle 11개의 end-to-end:
+
+```text
+minimum: 178.04 ms
+median:  210.82 ms
+maximum: 517.74 ms
+```
+
+첫 약 1초 USB cycle은 bounded trace의 oldest-entry drop 이전 구간이라 이 11-cycle 집계에는 포함되지 않는다.
+
+### 병목 제거 증거
+
+retained trace:
+
+```text
+visual-cycle-cache-hit: 73회
+visual-recovery stage: 반복 cycle에서 0~0.01 ms 수준
+WPF ui-dispatcher-stall: 0회
+actual WinRT OCR: 대체로 약 4~13 ms
+```
+
+Environment/file I/O:
+
+```text
+ScannerDiagnosticLogWriteProbeMs: 0.30 ms
+DiagnosticFileAppendAverageMs:    0.14 ms
+DiagnosticFileAppendMaximumMs:    0.25 ms
+```
+
+따라서 기존 5~13초 지연 증폭은 제거되었고 UI thread starvation이나 filesystem I/O가 남은 병목으로 보이지 않는다.
+
+## 성능 최종 판단
+
+**P0 Scanner 장시간 stall은 해결 완료로 판정한다.**
+
+추가로 sub-100ms를 목표로 recovery/acceptance 구조를 변경하지 않는다. 현재 어려운 OCR에서 약 1초까지 발생하는 것은 허용 가능한 bounded recovery cost이며, 더 공격적인 성능 최적화는 false positive 방지와 복구 정확도에 불필요한 위험을 만든다.
+
+성능 관련 threshold/candidate cap은 변경하지 않는다.
 
 ```text
 structural floor = 0.34
-trusted header floor = 0.68
+HEADER_FRAME_LOCKED floor = 0.68
 continuous candidate cap = 8
 one-shot candidate cap = 12
+deep OCR candidate limit = existing value
 ```
 
-추가 계약:
+추가 안전 계약:
 
-- false positive보다 miss 선호
-- geometry는 proposal이며 identity proof가 아님
-- magnifier + red close-X semantic evidence 필수
-- current official Korean Tarkov catalog가 identity authority
-- production OCR field는 item-name only
+- false positive보다 miss 우선
+- current official Tarkov catalog가 identity authority
+- stale Item ID를 current identity proof로 사용하지 않음
+- cross-frame OCR/visual Item identity cache 금지
 - price/flea/slots/needed는 Item ID 이후 mapped data
 - scan-time network 없음
-- game memory read / DLL injection / packet interception 없음
-- product-default automatic global OCR forced substitution 없음
-- cross-frame OCR cache 없음
+- game memory read / DLL injection / packet interception / process hook 없음
+- matcher 및 targeted/full-catalog visual acceptance 완화 없음
 
-## Scanner 일반 UI — current
+## CI proof
 
-상단:
-
-- `스캐너 ON/OFF`
-- `설정`
-- `고급`
-
-하단 2분할:
-
-- 왼쪽: 아이템 검색
-- 오른쪽: Scanner 인식 로그
-
-기존 전역 단축키는 유지한다.
+Root-cause fix code HEAD:
 
 ```text
-1회 인게임 스캔: Ctrl+Shift+F10
-1회 테스트 스캔: Ctrl+Shift+F11
-Scanner ON/OFF: Ctrl+Shift+F12
+d04f39697a4ea4d6ff4eabcb2acdc6bc535c8f9c
+CI run: 32866068233
+Desktop build: SUCCESS
+Tests: 380 passed / 0 failed / 0 skipped
+Windows x64 self-contained publish: SUCCESS
+Product UI smoke: SUCCESS
+Map / Factory / MiniMap smoke: SUCCESS
+Graceful shutdown: SUCCESS
+Release package verification: SUCCESS
+Artifact upload: SUCCESS
 ```
 
-일반 화면에서 1회 스캔 버튼을 제거했지만 one-shot 기능 자체를 제거한 것이 아니다.
-
-## Scanner 아이템 검색
-
-검색은 현재 메모리/local catalog를 사용한다.
-
-scan-time network request를 만들지 않는다.
-
-검색 결과:
-
-- local cached icon
-- official item name
-
-선택 후:
-
-- icon
-- official name
-- Tarkov Wiki
-- flea 24h average
-- best non-flea trader sell price + trader name where trusted
-- current needed total
-
-`current needed`는 inventory shortage가 아니라 `ItemsWorkspace.Plan.NeededItems[itemId].RequiredTotal`이다.
-
-## Mini Scanner — settings schema v6
-
-고정 identity header:
-
-- item icon
-- official item name
-
-사용자 표시/순서 설정 대상:
-
-1. trader sell price
-2. flea average price
-3. trader price/slot
-4. flea price/slot
-5. current needed
-
-기존 schema v5 이하 파일은 자동 migration한다.
-
-보존 대상:
-
-- enable state
-- hotkeys
-- display visibility
-- window position
-- font size
-- user OCR substitutions
-
-아이콘/이름은 v6부터 숨길 수 없다.
-
-## Ground Truth correction
-
-교정 창은 화면보다 큰 원본도 자동 축소해 전체를 보여 준다.
-
-표시 배율은 저장 좌표계에 영향을 주지 않는다. 모든 Ground Truth ROI는 원본 image coordinate로 저장한다.
-
-후보 선택:
-
-- detail rectangle
-- close-X
-- magnifier
-- item-name ROI
-
-은 이미지 위 candidate box를 직접 클릭하는 방식이 기본이다.
-
-Fallback:
-
-- correct candidate 없음 → manual rectangle
-- 실제 object 없음 → explicit `없음`
-
-## 저장 Case 재교정
-
-`교정 데이터 관리`에서 기존 Case를 다시 열 수 있다.
-
-복원 source:
-
-- `case.json`
-- `full.png`
-- `candidate_selection.json`
-
-기존 Ground Truth와 candidate selection을 복원해 같은 editor에서 수정한다.
-
-재저장은 동일 Case ID를 유지한다.
-
-복원 실패 시 기존 Case를 삭제하거나 임의 변환하지 않는다.
-
-## Diagnostics / retention
-
-Reviewed Ground Truth는 자동 삭제하지 않는다.
-
-Automatic unreviewed sample만 다음 범위로 제한한다.
+사용자가 검증한 fix-candidate package:
 
 ```text
-max age = 30 days
-max cases = 300
-max bytes = 512 MiB
-recent protection = 2 hours
+bytes: 80,462,063
+SHA-256: 96af948b2cd24caeb612d1d89a368bf30329606d3e934a292758292f70dcae30
 ```
 
-Corrupt/unknown metadata는 fail closed하여 보존한다.
+현재 documentation HEAD CI도 SUCCESS다.
 
-로그는 bounded rotation한다.
+## 남은 작업
 
-## 현재 release package 계약
+성능 알고리즘 자체는 더 수정하지 않는다.
 
-정식 ZIP:
+public v1.7.6 finalization 전에:
 
-```text
-Junhyun-Helper.zip
-└─ 준현 헬퍼/
-   ├─ 준현 헬퍼.exe
-   ├─ FIRST_RUN_KO.txt
-   └─ Assets/...
-```
+1. reviewed Scanner Ground Truth regression에서 REGRESSION=0 확인
+2. temporary diagnostic implementation 중 release에 불필요한 부분은 동작 변화 없이 정리 가능한지 검토; 위험하면 그대로 두고 후속 기술부채로 기록
+3. `STATE.md`를 v1.7.5/v1.7.6 실제 상태에 맞게 갱신
+4. final release notes/proof 갱신
+5. final HEAD Windows build/tests/publish/smoke/package gate
+6. PR #185 merge
+7. v1.7.6 public stable publication 및 release asset hash/size readback
 
-버전은 folder/ZIP 이름이 아니라 ProductVersion/tag/release metadata에 둔다.
-
-CI는 `packaging/New-ReleasePackage.ps1`로 실제 ZIP을 만들고 구조를 검증한다.
-
-## 검증 현황
-
-### 성공한 중간 gate
-
-CI `32700507526`:
-
-- Desktop build SUCCESS
-- 296 passed / 0 failed / 0 skipped
-- Windows x64 publish SUCCESS
-- Product UI smoke SUCCESS
-- Scanner UI smoke SUCCESS
-- Map / Factory / MiniMap smoke SUCCESS
-- graceful shutdown SUCCESS
-- artifact upload SUCCESS
-
-이 성공 이후 version `1.6.0`, FIRST_RUN, stable release ZIP gate를 추가했으므로 최신 HEAD에서 최종 CI를 다시 통과해야 한다.
-
-## release 직후 작업
-
-```text
-v1.6.0 실제 Tarkov 사용
-→ 정상 representative result 확인
-→ miss/wrong identity 즉시 교정
-→ reviewed Ground Truth 축적
-→ failure stage 분류
-→ affected stage만 수정
-→ full reviewed replay
-→ REGRESSION = 0
-→ PATCH 판단
-```
-
-Failure stage:
-
-```text
-capture
-→ structural proposal recall/ranking
-→ close-X semantic evidence
-→ magnifier semantic evidence
-→ inspect-header lock
-→ item-name ROI
-→ raw OCR
-→ user substitution
-→ catalog sanitation/matcher
-→ visual recovery
-→ Item ID
-→ mapped presentation
-→ overlay / stale-state timing
-```
-
-## 성능 개선 원칙
-
-Telemetry evidence 없이 최적화하지 않는다.
-
-가능한 최적화 대상:
-
-- duplicate candidate/frame work
-- unnecessary deep OCR
-- bitmap copy/convert
-- visual recovery early exit
-- catalog recovery candidate work
-
-금지:
-
-- 성능을 이유로 header/matcher threshold 완화
-- Ground Truth 없이 candidate cap 변경
-- cross-frame OCR reuse
-- stale previous Item을 현재 identity proof로 사용
-
-## 작은 기술 부채
-
-`src/JunhyunHelper.Desktop/Scanner/ScannerLatencyTypeAliases.cs`의 `ScannerDetectedCandidate` type alias는 여전히 작은 cleanup 후보다.
-
-v1.6.0 release 안정성과 무관하므로 이번 MINOR release에서 억지로 제거하지 않는다.
-
-향후 제거 시 full build/tests/publish/Product UI/Map/Scanner smoke를 다시 통과해야 한다.
-
-
-## v1.7.3 Scanner Performance Pass — 2026-08-25
-
-accuracy-neutral latency pass:
-
-```text
-continuous observation: 350 ms -> 200 ms
-semantic retry: fixed 1200 ms -> 250 / 500 / 800 / 1200 ms adaptive backoff
-OCR transport: PNG encode/decode round-trip -> direct BGRA SoftwareBitmap copy
-verified detail: fresh small-rectangle semantic/title revalidation fast-path
-```
-
-fast-path는 새 identity를 결정하지 않는다. fresh close-X + magnifier + HEADER_FRAME_LOCKED + title signature가 모두 기존 verified frame과 일치할 때만 presentation을 유지하며, 불일치/실패 시 같은 cycle에서 full detector로 fallback한다.
-
-변경 금지/유지: structural floor 0.34, trusted header floor 0.68, continuous candidate cap 8, one-shot candidate cap 12, matcher/deep OCR/visual recovery acceptance semantics, cross-frame OCR identity cache 금지.
-
-결과 선택을 바꿀 수 있는 candidate early-exit, deep candidate 축소, visual recovery 생략은 이번 pass에서 의도적으로 제외한다.
+성능 문제 재수정은 새로운 실측 evidence가 생긴 경우에만 재개한다.
