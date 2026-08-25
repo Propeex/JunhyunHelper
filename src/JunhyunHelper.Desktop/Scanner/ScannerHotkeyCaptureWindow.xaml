@@ -26,7 +26,7 @@
                        FontSize="18"
                        FontWeight="SemiBold" />
             <TextBlock Grid.Row="1"
-                       Text="Ctrl / Alt / Shift 중 하나 이상과 일반 키를 함께 사용합니다. Esc는 취소입니다."
+                       Text="일반 키를 단독으로 사용하거나 Ctrl / Alt / Shift를 원하는 조합으로 함께 사용할 수 있습니다. Esc는 취소입니다."
                        Foreground="{StaticResource TextSecondaryBrush}"
                        TextWrapping="Wrap"
                        Margin="0,8,0,0" />
