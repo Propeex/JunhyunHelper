@@ -2,18 +2,32 @@
 
 Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **준현 헬퍼**의 공식 저장소입니다.
 
+## 제품 상태
+
+현재 제품 상태는 **PRODUCT COMPLETE / PUBLIC STABLE / MAINTENANCE MODE**입니다.
+
+2026-08-26 제품 사용자는 기존 제품 요구사항과 Scanner 실사용 검증을 기준으로 준현 헬퍼가 완성 상태에 도달했다고 최종 확정했습니다. 마지막 집중 개발 영역이었던 Scanner도 v1.7.6에서 실사용 성능 문제가 해결되어 기능 개발 단계에서 유지보수 단계로 전환했습니다.
+
+새로운 실제 회귀, Tarkov/Windows/.NET 호환성 변화, 또는 사용자가 명시적으로 결정한 새 제품 요구사항이 없는 한 선제적 기능 추가나 구조 변경을 시작하지 않습니다.
+
+상세 결정:
+
+- `docs/DECISION_PRODUCT_COMPLETE_2026-08-26.md`
+- `docs/CURRENT_SCANNER_WORK.md`
+- `docs/STATE.md`
+
 ## 릴리즈 상태
 
-현재 공개 stable/latest는 **v1.7.0**이며, exact-source tag와 공개 asset을 대상으로 anonymous redownload/product smoke까지 검증했습니다.
+현재 공개 stable/latest는 **v1.7.6**입니다.
 
 ```text
-Desktop target version: 1.7.0
+Desktop target version: 1.7.6
 Content schema: v7
 Readable content schemas: v3~v7
 user.db schema: v1
 Scanner display settings schema: v6
 Scanner catalog cache: v1~v3 readable, v3 written
-automated test suite: 348 tests
+automated test suite: 380 tests
 stable user ZIP name: Junhyun-Helper.zip
 stable extracted folder: 준현 헬퍼/
 ```
@@ -21,25 +35,24 @@ stable extracted folder: 준현 헬퍼/
 공개 검증 기준선:
 
 ```text
-exact release source/tag: 56e12342e3490fd0defa5f327a03d20d4f32b3a6
+exact release source/tag target: 0e5240620ca0867a93f426824ff03374b93dcd1a
+release CI run: 32868778549
+release workflow run: 32869081513
+release id: 376532454
 stable asset: Junhyun-Helper.zip
-stable bytes: 80,443,318
-stable SHA-256: 1c640c80bf6113176b885a47e19478666e27dbf584f872d1a8396886334f3418
-ProductVersion: 1.7.0+56e12342e3490fd0defa5f327a03d20d4f32b3a6
-348 passed / 0 failed / 0 skipped
+stable bytes: 80,462,038
+stable SHA-256: 1de4e203c7e219f1d995d4482fa903dc7544d208deee684b5b821f6b5c325e35
 public stable/latest: VERIFIED
-anonymous public redownload: VERIFIED
-public-downloaded EXE / rendered UI / Map smoke: SUCCESS
-public proof run: 32745399476
+published: 2026-08-26 KST
 ```
 
-v1.7.0 공식 작업 기록:
+v1.7.6 공식 작업 기록:
 
-- `docs/DECISION_V1.7.0_PRODUCT_COMPLETION_2026-08-24.md`
-- `docs/STATUS_V1.7.0_PRODUCT_COMPLETION_2026-08-25.md`
-- `docs/RELEASE_NOTES_V1.7.0.md`
-- `docs/RELEASE_1.7.0.md`
-- `docs/.release-v1.7.0-public-proof.json`
+- `docs/RELEASE_NOTES_V1.7.6.md`
+- `docs/CURRENT_SCANNER_WORK.md`
+- `docs/DECISION_V1.7.6_SCANNER_STALL_DIAGNOSTICS_2026-08-25.md`
+- `docs/.release-v1.7.6-status.json`
+- `docs/DECISION_PRODUCT_COMPLETE_2026-08-26.md`
 
 ## 주요 기능
 
@@ -57,22 +70,34 @@ v1.7.0 공식 작업 기록:
 
 Runtime GPT/AI 의존성은 없습니다.
 
-## v1.7.0 주요 변경
+## v1.7.6 완료 기준
 
-v1.7.0은 Scanner threshold를 임의로 완화하는 버전이 아니라 **현재 제품의 데이터·저장·Scanner·배포 신뢰 경계를 강화한 Product Completion MINOR 릴리즈**입니다.
+v1.7.6은 일부 실제 데스크톱에서 Scanner 인식이 5~13초까지 지연되던 문제의 root cause를 실측 자료로 확인하고 해결한 stable release입니다.
 
-- Scanner 인식 로그에서 정확한 diagnostic Case/current frame이 있을 때 바로 교정
-- 기존 Ground Truth + Scanner 로그 ZIP export 흐름 재사용
-- Game Content update request-local timeout / bounded retry / transaction 직렬화
-- domain·nested relation·localization·icon/wiki coverage의 비정상 대량 축소 fail-closed
-- candidate DB 저장 후 read-back/revalidation을 통과해야 active data로 승격
-- Scanner 상점가/Flea/slot coverage collapse protection
-- Item ID 확정 후 name/icon/wiki/trader/price/slot/needed 동일-ID join + 교차오염 회귀 테스트
-- Scanner Advanced DPI clipping 방지와 runtime log 7일 자동 정리 유지
-- project version / FIRST_RUN / release notes identity drift 자동 검사
-- reviewed Ground Truth 없이 Scanner live recognition threshold/candidate cap은 변경하지 않음
+문제는 Windows OCR 자체가 아니라 동일 current-frame visual proof가 여러 구조 후보에서 반복 계산되며 latency가 증폭되는 것이었습니다. v1.7.6은 동일 Scanner cycle의 exact current-pixel visual evidence를 안전하게 재사용하고 optional Tarkov font source 탐색의 hot-path 반복도 억제합니다.
 
-상세: `docs/RELEASE_NOTES_V1.7.0.md`
+문제 PC 재검증:
+
+```text
+Display Test — 하프 마스크
+10,840.877 ms → 70.603 ms
+약 99.35% 감소
+
+Display Test — USB 보안 플래시 드라이브
+12,686.278 ms → 1,354.775 ms
+약 89.32% 감소
+```
+
+실제 Tarkov 성공 12건의 `ReadingTitle → ShowingItem`:
+
+```text
+minimum: 38.07 ms
+median:  63.92 ms
+maximum: 1.05 s
+mean:    211.47 ms
+```
+
+실사용 평가에서도 충분한 반응성을 확인했으며 Scanner 성능 알고리즘은 완료 상태로 취급합니다. 새로운 runtime evidence 없이 threshold, candidate cap, OCR variant 또는 visual acceptance를 성능 목적으로 변경하지 않습니다.
 
 ## Scanner
 
@@ -109,11 +134,11 @@ Tarkov window pixels
 - production OCR field는 item-name 하나
 - price / slots / needed는 Item ID 이후 local mapped data
 - scan-time network 없음
-- game memory read / DLL injection / packet interception 없음
+- game memory read / DLL injection / packet interception / process hook 없음
 - 제품 기본값에 automatic global r/0/한글 forced substitution table 없음
-- cross-frame OCR cache 없음
+- cross-frame OCR/visual identity cache 없음
 
-## Scanner 사용 흐름 — current
+## Scanner 사용 흐름
 
 일반 Scanner 화면 상단:
 
@@ -126,7 +151,7 @@ Tarkov window pixels
 - 왼쪽 `아이템 검색`
 - 오른쪽 최근 Scanner 인식 로그
 
-기존 one-shot 기능은 삭제하지 않았습니다. 기본 전역 단축키:
+기본 전역 단축키:
 
 ```text
 1회 인게임 스캔: Ctrl+Shift+F10
@@ -136,13 +161,11 @@ Scanner ON/OFF: Ctrl+Shift+F12
 
 `설정`에서는 전역 단축키와 Mini Scanner 정보 표시/순서를 관리합니다.
 
-`고급`에서는 Display Test와 현재 결과 교정, 교정 데이터 관리 같은 실사용 진단 작업을 다룹니다.
+`고급`에서는 Display Test, 현재 결과 교정, 교정 데이터 관리, Scanner 성능 진단 자료 export를 다룹니다.
 
 ## Scanner 아이템 검색
 
-검색은 현재 내려받은 local/memory full-item catalog를 사용합니다.
-
-검색 순간 network request를 만들지 않습니다.
+검색은 현재 내려받은 local/memory full-item catalog를 사용하며 검색 순간 network request를 만들지 않습니다.
 
 선택한 아이템에서 확인할 수 있는 핵심 정보:
 
@@ -155,7 +178,7 @@ Scanner ON/OFF: Ctrl+Shift+F12
 
 Inventory를 차감한 부족량은 Scanner의 필요 개수 의미가 아닙니다.
 
-## Mini Scanner — schema v6
+## Mini Scanner
 
 항상 표시:
 
@@ -170,7 +193,7 @@ Inventory를 차감한 부족량은 Scanner의 필요 개수 의미가 아닙니
 - 플리 가격/칸
 - 필요 개수
 
-기존 v5 이하 설정은 자동 migration되며 hotkey/visibility/position/font size/user OCR substitutions를 가능한 한 보존합니다.
+기존 설정은 schema migration을 통해 hotkey/visibility/position/font size/user OCR substitutions를 가능한 한 보존합니다.
 
 ## OCR 사용자 치환
 
@@ -188,8 +211,6 @@ raw OCR
 - recursive/chained reprocessing 없음
 - user rule은 product-wide automatic substitution table이 아님
 
-v1.6.0의 일반 설정 UI는 hotkey와 Mini Scanner 표시 흐름을 우선하지만 기존 사용자 substitution 데이터는 schema migration에서 보존합니다.
-
 ## Scanner 표시 데이터
 
 Item ID 확정 후 아래 데이터는 OCR이 아니라 local trusted data에서 조회/계산합니다.
@@ -206,7 +227,7 @@ Market/dimension 일부가 없으면 affected field만 비우고 healthy Item id
 
 ## Ground Truth / 교정
 
-v1.6.0 교정 화면은 큰 원본 image를 viewport에 맞게 축소해 보여 주되 **저장 좌표는 항상 원본 pixel coordinate**를 사용합니다.
+교정 화면은 큰 원본 image를 viewport에 맞게 축소해 보여 주되 **저장 좌표는 항상 원본 pixel coordinate**를 사용합니다.
 
 Candidate-first fields:
 
@@ -216,7 +237,7 @@ Candidate-first fields:
 4. item-name ROI
 5. correct item/text
 
-후보 box는 이미지 위에서 직접 클릭합니다.
+후보 box는 이미지 위에서 직접 선택할 수 있습니다.
 
 - 정답 candidate 없음 → manual rectangle
 - 실제 semantic object 없음 → explicit `없음`
@@ -248,7 +269,9 @@ presentation
 end-to-end
 ```
 
-같은 active scan cycle에서 픽셀 단위로 완전히 동일한 OCR bitmap만 재사용합니다. Frame 간 OCR cache는 사용하지 않습니다.
+v1.7.6은 같은 active latency cycle에서 동일한 title bitmap dimensions + exact current-pixel SHA-256 + OCR text 조합의 visual corroboration 결과만 재사용합니다. Cycle이 바뀌면 폐기하며 frame 간 identity cache로 사용하지 않습니다.
+
+Continuous observation은 non-backlogging pacing을 사용합니다. 작업 시간이 target interval을 초과해도 missed tick을 몰아서 재생하지 않고 cooperative yield를 둡니다.
 
 Automatic unreviewed diagnostic samples는 30일 / 300건 / 512 MiB 상한과 최근 2시간 보호창으로 관리합니다. Scanner/startup logs도 bounded rotation합니다.
 
@@ -273,7 +296,7 @@ latest public stable 확인
 
 사용자 데이터는 `%LocalAppData%/JunhyunHelper`에 분리되어 있으며 프로그램 업데이트가 덮어쓰지 않습니다.
 
-## 배포 형태 — v1.6.0부터
+## 배포 형태
 
 Windows x64 portable / .NET 10 self-contained single-file.
 
@@ -287,20 +310,22 @@ Junhyun-Helper.zip
    └─ Assets/
 ```
 
-ZIP과 압축 해제 폴더 이름에는 버전 번호를 넣지 않습니다.
-버전은 EXE ProductVersion, Git tag, GitHub Release metadata에서 관리합니다.
+ZIP과 압축 해제 폴더 이름에는 버전 번호를 넣지 않습니다. 버전은 EXE ProductVersion, Git tag, GitHub Release metadata에서 관리합니다.
 
 별도 .NET Runtime 설치나 관리자 권한은 필요하지 않으며 현재 code signing은 하지 않습니다.
 
-## 개발 원칙
+## 유지보수 원칙
 
 - 사용자 의도 / 제품 요구사항 / 현재 구현을 구분
 - 기존 프로토타입 동작을 공식 요구사항으로 추정하지 않음
 - 중요한 결정과 상태는 GitHub 문서에 즉시 기록
+- 실사용 defect/regression은 exact evidence를 확보하고 영향받은 계층만 수정
 - Scanner는 실제 reviewed Ground Truth 기반으로 개선
 - 기존 정상 Ground Truth의 `REGRESSION=0`을 우선
 - 추가 evidence 없이 matcher/header threshold 또는 candidate cap 완화 금지
-- 국소 수정 반복보다 전체 시스템 일관성을 우선하되 단순 변경에 불필요한 전면 리팩터링은 하지 않음
+- 코드 미관만을 위한 위험한 대규모 refactor 금지
+- Tarkov 데이터/UI 및 Windows/.NET 호환성 변화는 필요할 때 대응
+- 새 기능은 사용자가 새로운 제품 요구사항으로 결정했을 때 시작
 
 ## 개발 문서
 
@@ -312,4 +337,5 @@ ZIP과 압축 해제 폴더 이름에는 버전 번호를 넣지 않습니다.
 - `docs/SCANNER.md` — Scanner canonical 전문 계약
 - `docs/SCANNER_GROUND_TRUTH.md` — Ground Truth dataset 계약
 - `docs/SCANNER_TEST_PLAN.md` — Scanner release/regression gate
-- `docs/CURRENT_SCANNER_WORK.md` — 현재 Scanner 작업 단계
+- `docs/CURRENT_SCANNER_WORK.md` — Scanner 유지보수 기준
+- `docs/DECISION_PRODUCT_COMPLETE_2026-08-26.md` — 제품 완성 및 유지보수 전환 결정
