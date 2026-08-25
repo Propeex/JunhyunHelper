@@ -3,18 +3,16 @@ using System.Text.Json;
 namespace JunhyunHelper.Desktop.Scanner;
 
 /// <summary>
-/// Bounds automatically captured, unreviewed Scanner diagnostic cases and performs
-/// lightweight runtime-log maintenance. Human-reviewed Ground Truth is intentionally
-/// outside every automatic deletion policy here. Unknown/corrupt Case metadata also
-/// fails closed and remains untouched.
+/// Removes legacy automatically captured, unreviewed Scanner diagnostic cases and
+/// performs lightweight runtime-log maintenance. New Scanner builds do not create
+/// durable automatic cases during normal monitoring; only explicit user review saves
+/// correction/Ground Truth data. Human-reviewed data and unknown/corrupt metadata are
+/// outside every automatic deletion policy here and fail closed.
 /// </summary>
 internal sealed class ScannerDiagnosticRetentionService : IDisposable
 {
-    private const int MaximumAutomaticCaseCount = 300;
-    private const long MaximumAutomaticBytes = 512L * 1024 * 1024;
-    private static readonly TimeSpan MaximumAutomaticAge = TimeSpan.FromDays(30);
-    private static readonly TimeSpan RecentCaseSafetyWindow = TimeSpan.FromHours(2);
-    private static readonly TimeSpan InitialDelay = TimeSpan.FromMinutes(2);
+    private static readonly TimeSpan RecentCaseSafetyWindow = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan InitialDelay = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan MaintenanceInterval = TimeSpan.FromHours(6);
 
     private readonly Timer _timer;
@@ -42,16 +40,14 @@ internal sealed class ScannerDiagnosticRetentionService : IDisposable
         {
             try
             {
-                // Text-only Scanner runtime logs are ephemeral and use their own short
-                // retention window. This call is synchronized by ScannerDiagnosticLog
-                // so it cannot race an in-process append. Reviewed Ground Truth remains
-                // in the separate diagnostics dataset and is never touched here.
+                // Text-only Scanner runtime logs are ephemeral and independently bounded.
+                // Durable correction data is user-owned and handled separately below.
                 ScannerDiagnosticLog.PruneExpiredEntries();
-                PruneAutomaticCases();
+                RemoveLegacyAutomaticCases();
             }
             catch (Exception exception) when (exception is not OutOfMemoryException)
             {
-                App.WriteDiagnostic("Scanner automatic diagnostic retention failed", exception);
+                App.WriteDiagnostic("Scanner diagnostic maintenance failed", exception);
             }
             finally
             {
@@ -60,57 +56,44 @@ internal sealed class ScannerDiagnosticRetentionService : IDisposable
         });
     }
 
-    private static void PruneAutomaticCases()
+    private static void RemoveLegacyAutomaticCases()
     {
         var casesRoot = Path.Combine(ScannerDiagnosticDataset.RootPath, "cases");
         if (!Directory.Exists(casesRoot))
             return;
 
         var nowUtc = DateTimeOffset.UtcNow;
-        var cases = new List<AutomaticCaseInfo>();
-        foreach (var directory in Directory.EnumerateDirectories(casesRoot, "case_*", SearchOption.TopDirectoryOnly))
-        {
-            if (TryReadAutomaticUnreviewedCase(directory, out var info))
-                cases.Add(info);
-        }
-
-        if (cases.Count == 0)
-            return;
-
-        long totalBytes = cases.Sum(item => item.Bytes);
-        var remainingCount = cases.Count;
         var deletedCount = 0;
         long deletedBytes = 0;
 
-        foreach (var item in cases
-                     .Where(item => nowUtc - item.TimestampUtc > MaximumAutomaticAge)
-                     .OrderBy(item => item.TimestampUtc))
+        foreach (var directory in Directory.EnumerateDirectories(casesRoot, "case_*", SearchOption.TopDirectoryOnly))
         {
-            if (!IsSafeToDelete(item, nowUtc) || !TryDeleteStillAutomaticUnreviewed(item.DirectoryPath, nowUtc))
-                continue;
-            remainingCount--;
-            totalBytes -= item.Bytes;
-            deletedCount++;
-            deletedBytes += item.Bytes;
-        }
-
-        if (remainingCount > MaximumAutomaticCaseCount || totalBytes > MaximumAutomaticBytes)
-        {
-            foreach (var item in cases.OrderBy(item => item.TimestampUtc))
+            if (!TryReadAutomaticUnreviewedCase(directory, out var info) ||
+                nowUtc - info.LastWriteUtc < RecentCaseSafetyWindow)
             {
-                if (remainingCount <= MaximumAutomaticCaseCount && totalBytes <= MaximumAutomaticBytes)
-                    break;
-                if (!Directory.Exists(item.DirectoryPath) ||
-                    !IsSafeToDelete(item, nowUtc) ||
-                    !TryDeleteStillAutomaticUnreviewed(item.DirectoryPath, nowUtc))
-                {
-                    continue;
-                }
+                continue;
+            }
 
-                remainingCount--;
-                totalBytes -= item.Bytes;
+            // Re-read immediately before deletion. A case that was reviewed, manually
+            // saved, changed, or became unreadable after enumeration is preserved.
+            if (!TryReadAutomaticUnreviewedCase(directory, out var current) ||
+                nowUtc - current.LastWriteUtc < RecentCaseSafetyWindow ||
+                current.LastWriteUtc != info.LastWriteUtc)
+            {
+                continue;
+            }
+
+            try
+            {
+                Directory.Delete(directory, recursive: true);
                 deletedCount++;
-                deletedBytes += item.Bytes;
+                deletedBytes += info.Bytes;
+            }
+            catch (Exception exception) when (
+                exception is IOException or UnauthorizedAccessException or NotSupportedException)
+            {
+                // Best effort. A locked or otherwise unsafe case is preserved and can be
+                // reconsidered by a later maintenance pass.
             }
         }
 
@@ -119,10 +102,8 @@ internal sealed class ScannerDiagnosticRetentionService : IDisposable
             ScannerDiagnosticLog.Write(
                 "diagnostic-retention",
                 null,
-                ("deletedAutomaticCases", deletedCount),
-                ("deletedBytes", deletedBytes),
-                ("remainingAutomaticCases", Math.Max(0, remainingCount)),
-                ("remainingAutomaticBytes", Math.Max(0, totalBytes)));
+                ("deletedLegacyAutomaticCases", deletedCount),
+                ("deletedBytes", deletedBytes));
         }
     }
 
@@ -148,10 +129,8 @@ internal sealed class ScannerDiagnosticRetentionService : IDisposable
             }
 
             var directory = new DirectoryInfo(directoryPath);
-            var timestamp = ReadTimestamp(root) ?? new DateTimeOffset(directory.LastWriteTimeUtc, TimeSpan.Zero);
             info = new AutomaticCaseInfo(
                 directoryPath,
-                timestamp.ToUniversalTime(),
                 GetDirectoryBytes(directoryPath),
                 new DateTimeOffset(directory.LastWriteTimeUtc, TimeSpan.Zero));
             return true;
@@ -159,39 +138,7 @@ internal sealed class ScannerDiagnosticRetentionService : IDisposable
         catch (Exception exception) when (
             exception is IOException or UnauthorizedAccessException or JsonException or NotSupportedException)
         {
-            // Fail closed: a case whose ownership/review status cannot be proven is retained.
-            return false;
-        }
-    }
-
-    private static DateTimeOffset? ReadTimestamp(JsonElement root)
-    {
-        if (!root.TryGetProperty("timestamp", out var timestampElement))
-            return null;
-        return DateTimeOffset.TryParse(timestampElement.GetString(), out var timestamp)
-            ? timestamp
-            : null;
-    }
-
-    private static bool IsSafeToDelete(AutomaticCaseInfo item, DateTimeOffset nowUtc) =>
-        nowUtc - item.LastWriteUtc >= RecentCaseSafetyWindow;
-
-    private static bool TryDeleteStillAutomaticUnreviewed(string directoryPath, DateTimeOffset nowUtc)
-    {
-        try
-        {
-            if (!TryReadAutomaticUnreviewedCase(directoryPath, out var current) ||
-                !IsSafeToDelete(current, nowUtc))
-            {
-                return false;
-            }
-
-            Directory.Delete(directoryPath, recursive: true);
-            return true;
-        }
-        catch (Exception exception) when (
-            exception is IOException or UnauthorizedAccessException or NotSupportedException)
-        {
+            // Fail closed: ownership/review status must be proven before deletion.
             return false;
         }
     }
@@ -222,7 +169,6 @@ internal sealed class ScannerDiagnosticRetentionService : IDisposable
 
     private readonly record struct AutomaticCaseInfo(
         string DirectoryPath,
-        DateTimeOffset TimestampUtc,
         long Bytes,
         DateTimeOffset LastWriteUtc);
 }
