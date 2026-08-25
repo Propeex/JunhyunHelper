@@ -3,7 +3,7 @@
 > 새 대화/새 개발자는 이 문서를 먼저 읽습니다. 대화 기억이 아니라 저장소의 공식 문서와 코드가 프로젝트의 기준입니다.
 
 기준일: 2026-08-25
-상태: **v1.7.0 PUBLIC RELEASE / VERIFIED — LIVE GROUND TRUTH MAINTENANCE**
+상태: **v1.7.2 PUBLIC RELEASE / VERIFIED — LIVE GROUND TRUTH MAINTENANCE**
 
 ## 1. 제품
 
@@ -27,28 +27,31 @@ Runtime GPT/AI 의존성은 없다.
 
 기존 `Propeex/Tarkov-Helper` 프로토타입은 제품 요구사항의 권위가 아니다. 유지할 기능, 검증된 데이터/자산, 구현 아이디어, 시행착오 참고 용도로만 사용한다.
 
-## 2. 공개 stable과 현재 source
+## 2. 공개 stable과 exact source
 
-현재 public stable/latest는 **v1.7.0**이다.
+현재 public stable/latest는 **v1.7.2**다.
 
 ```text
-exact release source/tag: 56e12342e3490fd0defa5f327a03d20d4f32b3a6
+exact release source/tag: 8775feba23a2c9ecc6326626527cdfd54f4f0414
 stable asset: Junhyun-Helper.zip
-stable bytes: 80,443,318
-stable SHA-256: 1c640c80bf6113176b885a47e19478666e27dbf584f872d1a8396886334f3418
-ProductVersion: 1.7.0+56e12342e3490fd0defa5f327a03d20d4f32b3a6
-public proof run: 32745399476
-348 passed / 0 failed / 0 skipped
-public/latest: VERIFIED
-anonymous public redownload + EXE/UI/Map smoke: SUCCESS
+stable bytes: 80,444,391
+stable SHA-256: 81d8e6a82db0f4b33ebbdd2bf7f455c1d92ffc2f8b6015f6ba6190e616be1fc0
+main CI run: 32842508995
+release workflow run: 32842783940
+362 passed / 0 failed / 0 skipped
+Windows x64 publish: SUCCESS
+Product UI / Scanner / Mini Scanner / Map / Factory / MiniMap smoke: SUCCESS
+public/latest: v1.7.2 / VERIFIED
 ```
 
-현재 `main`은 public v1.7.0 exact source 이후의 release-record/housekeeping commit을 포함할 수 있다. 공개 v1.7.0 제품 source의 권위는 tag `v1.7.0`과 위 exact source SHA다.
+GitHub public release asset metadata의 `Junhyun-Helper.zip` digest와 size를 다시 읽어 Release runner가 업로드 직전에 계산한 hash/size와 동일함을 확인했다.
+
+현재 `main`은 public v1.7.2 exact source 이후의 release-record/housekeeping commit을 포함할 수 있다. 공개 v1.7.2 제품 source의 권위는 tag `v1.7.2`와 위 exact source SHA다.
 
 Schema / compatibility:
 
 ```text
-Desktop target version: 1.7.0
+Desktop target version: 1.7.2
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
@@ -57,15 +60,13 @@ Scanner catalog cache: v1~v3 readable, v3 written
 Scanner Ground Truth dataset: local diagnostics persistence
 ```
 
-v1.7.0 공식 문서:
+v1.7.2 공식 문서:
 
-- `docs/DECISION_V1.7.0_PRODUCT_COMPLETION_2026-08-24.md`
-- `docs/STATUS_V1.7.0_PRODUCT_COMPLETION_2026-08-25.md`
-- `docs/RELEASE_NOTES_V1.7.0.md`
-- `docs/RELEASE_1.7.0.md`
+- `docs/DECISION_V1.7.2_MINI_SCANNER_STABILITY_2026-08-25.md`
+- `docs/RELEASE_NOTES_V1.7.2.md`
+- `docs/RELEASE_1.7.2.md`
 - `docs/SCANNER.md`
 - `docs/CURRENT_SCANNER_WORK.md`
-- `docs/.release-v1.7.0-public-proof.json`
 
 ## 3. 아키텍처
 
@@ -79,7 +80,7 @@ JunhyunHelper.Desktop
 
 책임:
 
-- **Core**: canonical domain, deterministic calculation, Quest 조건 규칙, Scanner structural/identity/matcher 규칙
+- **Core**: canonical domain, deterministic calculation, Quest 조건 규칙, Scanner structural/identity/matcher 및 presentation retention 정책
 - **Application**: 사용자 use case, authoritative mutation, workspace orchestration
 - **Infrastructure**: HTTP/source parsing, SQLite/file persistence, Game Content/Scanner/update I/O
 - **Desktop**: WPF UI, presentation, Scanner capture/OCR/runtime/diagnostics, Map bridge
@@ -119,25 +120,26 @@ d933792b6042a51cea38dc44b686a096fe30de67
 
 ```text
 remote Game Content
-→ validate/build new content
+→ validate/build candidate
+→ integrity validation
 → general content activation
 → Scanner official item/market catalog refresh
 → status report
 ```
 
-Scanner refresh만 실패하면 healthy general Game Content를 rollback하지 않는다. 기존 healthy Scanner cache를 유지하고 partial failure를 보고한다.
+안전 계약:
+
+- fail closed / Last Known Good 유지
+- partial payload 보호
+- canonical dangling reference 검증 유지
+- objective-specific selector semantics만 필요한 경우 좁게 예외 처리
+- Scanner refresh만 실패하면 healthy general Game Content를 rollback하지 않음
 
 현재 일반 Scanner 화면에는 catalog force-refresh action을 노출하지 않는다.
 
-## 6. Quest availability / latest live-data audit
+## 6. Quest availability / live-data audit
 
 `확인 필요`는 숨겨야 할 UI 노이즈가 아니라 안전하게 판정할 수 없는 조건을 나타낸다.
-
-2026-08-24 live audit 대상:
-
-- `regular`
-- `pve`
-- `pvp-season`
 
 Task-pool/profile-variable compatibility는 audited structure와 GameMode가 일치할 때만 synthetic value를 허용한다. Pool membership, threshold, trader, requirement shape가 달라지면 추측하지 않고 fail closed한다.
 
@@ -175,6 +177,8 @@ Tarkov window pixels
 - structural floor `0.34`
 - continuous max 8 candidates
 - one-shot max 12 candidates
+- continuous scan interval `350 ms`
+- semantic retry interval `1200 ms`
 - current official Korean Tarkov full-item catalog가 identity authority
 - ambiguity / low confidence는 fail closed
 - production OCR field는 item-name 하나
@@ -182,8 +186,10 @@ Tarkov window pixels
 - scan-time network 금지
 - game memory read / DLL injection / packet interception 금지
 - product-default automatic global forced substitution 금지
-- cross-frame OCR cache 금지
+- cross-frame OCR cache를 Item identity proof로 사용 금지
 - reviewed Ground Truth 없이 threshold/cap 완화 금지
+
+v1.7.2에서 위 threshold/candidate cap/cadence는 변경하지 않았다.
 
 ## 8. Capture / one-shot / semantic header
 
@@ -199,15 +205,13 @@ EscapeFromTarkov process/window
 
 Display Test는 같은 recognition pipeline을 적용하며 real continuous Scanner와 상호 배타적이다.
 
-One-shot 기능은 현재도 유지한다.
+One-shot 기능:
 
 ```text
 1회 인게임 스캔: Ctrl+Shift+F10
 1회 테스트 스캔: Ctrl+Shift+F11
 Scanner ON/OFF: Ctrl+Shift+F12
 ```
-
-일반 화면의 `1회 스캔` 버튼은 제거했지만 기능 자체를 삭제한 것이 아니다.
 
 Rectangle proposal:
 
@@ -251,8 +255,6 @@ locked item-name ROI
 - current catalog impossible glyph를 특정 r/0/I/l로 전역 강제 치환하지 않음
 - ambiguous candidate는 fail closed
 
-Scanner display settings는 v6이지만 기존 user OCR substitution data는 migration에서 보존한다.
-
 ## 10. Scanner mapped presentation / item search
 
 Item ID 확정 후 local trusted data:
@@ -267,14 +269,9 @@ Item ID 확정 후 local trusted data:
 
 Inventory shortage는 Scanner `필요 개수` 의미가 아니다.
 
-현재 Scanner item search는 같은 current full-item catalog와 local presentation data를 사용한다.
+현재 Scanner item search는 같은 current full-item catalog와 local presentation data를 사용하며 검색 순간 network request를 만들지 않는다.
 
-검색 순간 network request를 만들지 않는다.
-
-검색 결과: cached icon + official name.
-선택 후: icon/name/Wiki/flea/best trader/current needed.
-
-## 11. Scanner 일반 UI — current
+## 11. Scanner 일반 UI
 
 상단 primary actions:
 
@@ -288,12 +285,9 @@ Inventory shortage는 Scanner `필요 개수` 의미가 아니다.
 - 오른쪽 `Scanner 로그`
 
 `설정`은 hotkey와 Mini Scanner display/order를 우선한다.
-
 `고급`은 Display Test, current-result correction, correction dataset management 같은 실사용 진단 흐름을 우선한다.
 
-개발/복구 action을 일반 Scanner surface에 펼쳐 놓지 않는다.
-
-## 12. Mini Scanner / settings schema v6
+## 12. Mini Scanner / presentation retention
 
 항상 표시하는 identity header:
 
@@ -308,19 +302,6 @@ Inventory shortage는 Scanner `필요 개수` 의미가 아니다.
 4. flea price/slot
 5. current needed
 
-가능하면 trader row는 실제 최고가 상인명 + price 형식을 사용한다.
-
-예: `Therapist 42,000₽`
-
-v5 이하 migration에서 가능한 한 다음을 보존한다.
-
-- enabled state
-- 3 hotkeys
-- 기존 visibility
-- position
-- font size
-- OCR substitutions
-
 Mini Scanner window safety:
 
 - Topmost
@@ -328,10 +309,32 @@ Mini Scanner window safety:
 - ShowInTaskbar=false
 - full-surface drag
 - matched Item presentation only
-- inventory OCR single-active/latest coalescing
 - stale epoch reject
 
-## 13. Ground Truth / correction / saved Case re-edit
+v1.7.2 sticky presentation 계약:
+
+```text
+No Item
+  └─ A 확정 → Show A
+
+Show A
+  ├─ A 재확정 → A 유지 / presentation miss budget reset
+  ├─ B 확정 → 즉시 B로 교체 / budget reset
+  ├─ 실제 식별 miss #1 → A 유지
+  ├─ 실제 식별 miss #2 → A 유지
+  └─ 실제 식별 miss #3 → Hide
+```
+
+- candidate 안정화 / title 변화 확인 / OCR 진행은 miss로 집계하지 않음
+- runtime 내부 verified identity 재탐색 기준 `MissesToHide = 2`는 그대로 유지
+- Mini Scanner presentation만 별도 3-miss retention 사용
+- inventory/stash context OCR은 hidden overlay의 **initial entry gate**
+- 이미 visible인 확정 Item을 단발 auxiliary context-OCR false/exception으로 숨기지 않음
+- Scanner OFF / suspend / profile·catalog·vision unavailable / fatal error / dispose는 즉시 hard hide
+
+Reference: `docs/DECISION_V1.7.2_MINI_SCANNER_STABILITY_2026-08-25.md`
+
+## 13. Ground Truth / correction
 
 Root:
 
@@ -354,25 +357,6 @@ Root:
 - mapped presentation
 - user Ground Truth
 
-v1.6.0 correction UX:
-
-- 큰 원본 image는 viewport 안에 auto-fit
-- display scale과 saved coordinate를 분리
-- Ground Truth ROI는 항상 original pixel coordinate
-- detail / close-X / magnifier / item-name ROI 후보를 image 위 box 직접 클릭
-- correct candidate 없음 → manual rectangle
-- actual semantic object 없음 → explicit `없음`
-
-저장된 Case는 correction data manager에서 다시 열 수 있다.
-
-복원 source:
-
-- `case.json`
-- `full.png`
-- `candidate_selection.json`
-
-same Case ID를 유지해 reviewed Ground Truth를 재교정한다. 복원 실패 시 기존 Case를 보존한다.
-
 자동 diagnostic Case는 정답이 아니다. user-reviewed Case만 Ground Truth다.
 
 Replay result:
@@ -385,7 +369,7 @@ Replay result:
 
 기존 정상 reviewed Case가 실패하면 평균 성능과 무관하게 REGRESSION이다.
 
-## 14. Latency / stabilization / retention
+## 14. Latency / diagnostics retention
 
 Stage telemetry:
 
@@ -399,11 +383,7 @@ Stage telemetry:
 - presentation
 - end-to-end
 
-OCR reuse는 같은 active scan cycle + exact-identical pixel bitmap일 때만 허용한다.
-
-Title continuity signature는 이미 trusted semantic detail의 continuity evidence일 뿐 Item identity proof가 아니다.
-
-Reviewed Ground Truth는 자동 삭제하지 않는다.
+성능 최적화는 telemetry와 live evidence를 바탕으로 별도 수행한다. v1.7.2 표시 안정성 수정에서 recognition threshold/candidate cap/cadence를 성능 목적으로 변경하지 않았다.
 
 Automatic unreviewed diagnostics only:
 
@@ -427,7 +407,7 @@ installer 없음
 관리자 권한 불필요
 ```
 
-v1.6.0부터 stable user package:
+stable user package:
 
 ```text
 Junhyun-Helper.zip
@@ -449,41 +429,49 @@ Release gate:
 - stable ZIP 생성 + top-level `준현 헬퍼/` 구조 검증
 - exact tag/source identity
 - public stable/latest publication
-- independent anonymous public redownload
-- checksum/hash/size/layout/ProductVersion/FIRST_RUN 검증
-- public-downloaded EXE Product UI/Map/Scanner smoke + graceful shutdown
-- durable machine-readable release status
-- temporary release/verifier workflow cleanup
+- release asset hash/size metadata readback
+- durable release status 기록
 
-## 16. v1.6.0 검증 현황
+## 16. v1.7.2 검증 현황
 
-중간 feature/UI gate CI `32700507526`:
+PR #180 final CI:
 
 ```text
-Desktop build: SUCCESS
-automated tests: 296 / 296 SUCCESS
+build: SUCCESS
+362 / 362 tests: SUCCESS
 Windows x64 publish: SUCCESS
 Product UI / Scanner / Mini Scanner smoke: SUCCESS
-Main Map / Factory / MiniMap smoke: SUCCESS
-graceful shutdown: SUCCESS
-artifact upload: SUCCESS
+Map / Factory / MiniMap smoke: SUCCESS
+package verification: SUCCESS
 ```
 
-이 성공 후 version 1.6.0, FIRST_RUN, stable ZIP CI gate, final docs를 추가했으므로 **최신 HEAD final CI가 release prerequisite**다.
+main exact source CI:
+
+```text
+run: 32842508995
+source: 8775feba23a2c9ecc6326626527cdfd54f4f0414
+362 / 362 tests: SUCCESS
+Windows x64 publish: SUCCESS
+Product UI / Scanner / Mini Scanner / Map smoke: SUCCESS
+package verification: SUCCESS
+```
+
+release:
+
+```text
+workflow run: 32842783940
+tag/latest: v1.7.2
+asset: Junhyun-Helper.zip
+bytes: 80,444,391
+SHA-256: 81d8e6a82db0f4b33ebbdd2bf7f455c1d92ffc2f8b6015f6ba6190e616be1fc0
+public metadata readback: MATCH
+```
 
 ## 17. 현재 개발 방향
 
-v1.6.0 공개 검증 전:
+v1.7.2는 공개 stable 완료 상태다.
 
-1. latest HEAD final CI
-2. PR #174 merge
-3. main push CI
-4. exact source/tag
-5. public v1.6.0 release
-6. public ZIP/EXE independent verification
-7. final release status 기록
-
-v1.6.0 공개 검증 후:
+다음 Scanner 개선은 추측 기반 threshold 완화가 아니라 다음 순서를 따른다.
 
 ```text
 real Tarkov usage
@@ -499,4 +487,4 @@ real Tarkov usage
 
 추가 evidence 없이 matcher confidence, top1/top2 margin, header floor, structural floor, candidate caps를 완화하지 않는다.
 
-작은 기술 부채 `ScannerLatencyTypeAliases.cs`는 release risk를 감수해 제거할 사안이 아니며 향후 PATCH cleanup 후보로 유지한다.
+Mini Scanner 표시 안정성 문제는 v1.7.2에서 recognition과 presentation life-cycle을 분리해 해결했다. 이후 사용성 이슈는 Item identity 정확도 문제와 presentation 문제를 구분해서 진단한다.
