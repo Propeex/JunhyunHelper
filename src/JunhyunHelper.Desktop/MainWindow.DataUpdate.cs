@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
 using JunhyunHelper.Infrastructure.Scanner;
+using JunhyunHelper.Infrastructure.Validation;
 
 namespace JunhyunHelper.Desktop;
 
@@ -23,8 +24,9 @@ public partial class MainWindow
             var result = await RunContentUpdateAsync(gameMode);
             if (!result.Applied)
             {
+                var reason = ContentValidationUserMessageFormatter.FormatFirstFatal(result.Validation);
                 throw new InvalidDataException(
-                    "새 데이터가 검증을 통과하지 못해 기존 정상 데이터를 유지했습니다.");
+                    $"{reason} 기존 정상 데이터는 그대로 유지했습니다.");
             }
 
             var snapshot = await _services.Content.ReadActiveOrRecoverAsync(gameMode);
