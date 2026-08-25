@@ -1,124 +1,109 @@
-# Decision — v1.7.6 Scanner stall root-cause diagnostics
+# Decision — v1.7.6 Scanner stall root cause and fix candidate
 
-Date: 2026-08-25
-Status: DIAGNOSTIC CANDIDATE / DESKTOP VERIFICATION REQUIRED
+Date: 2026-08-26
+Status: **ROOT CAUSE CONFIRMED / FIX CANDIDATE / DESKTOP RE-VERIFICATION REQUIRED**
 
 ## Problem
 
-v1.7.5 did not resolve the severe Scanner delay observed on the Ryzen + GTX 1080 Ti desktop. The same desktop reproduces the problem in both Tarkov-window scanning and display-test mode, while screenshot-based testing on the lower-spec Intel laptop remains fast.
+v1.7.5 did not resolve the severe Scanner delay observed on the Ryzen + GTX 1080 Ti desktop. The same PC reproduced the problem in Tarkov-window scanning and Display Test. The product stayed responsive after the v1.7.6 one-shot worker hardening, but recognition itself remained unacceptably slow.
 
-The observed product state reaches `아이템 이름을 읽는 중입니다.` and then remains stalled for an abnormally long period before either recognizing the item or failing closed.
+The user ran the v1.7.6 diagnostic candidate and exported a support bundle. That evidence is now authoritative for this defect.
 
-v1.7.2 also reproduces the desktop problem, so the v1.7.3 observation-cadence change is not the root cause.
+## Confirmed measured root cause
 
-## Confirmed code facts
+The long Scanner delay on the problematic desktop is **not caused by Windows OCR latency**.
 
-The following are established from the production execution path and are not hypotheses.
+Representative continuous Tarkov cycle:
 
-1. Continuous Scanner recognition is launched with `Task.Run`, so the continuous scan loop itself does not normally execute on the WPF UI thread.
-2. The v1.7.5 `ocr-backend-call` diagnostic wraps a complete raw normal/deep OCR operation. In deep mode that operation can contain four actual Windows `OcrEngine.RecognizeAsync` calls plus preprocessing. Therefore the event did **not** satisfy the v1.7.5 decision requirement to measure each actual OS OCR invocation.
-3. For the same reason, the v1.7.5 circuit breaker could only react after the complete normal/deep operation returned. A slow-empty first WinRT call inside deep OCR could therefore still be followed by the remaining variants before the outer guard entered degraded state.
-4. `SerializedScannerOcrEngine` can spend time waiting on its shared OCR semaphore and synchronously creating an exact-image SHA-256 key via `CopyPixels` before the guarded raw OCR operation begins. Those phases were not separately measured in v1.7.5.
-5. Raw Scanner Lab 3.8 OCR performs image enlargement, optional deep image variants, BGRA conversion/`CopyPixels`, WinRT buffer/`SoftwareBitmap` construction, and only then calls `OcrEngine.RecognizeAsync`.
-6. `FontAwareScannerOcrEngine` can continue into tight-crop retries and strict targeted/full-catalog Tarkov-font visual recovery after raw OCR returns.
-7. `ScannerDiagnosticLog.Write` appends synchronously to `scanner.log`. The log is bounded, but the latency of each append can still vary by filesystem/antivirus environment and must be distinguished from OCR latency rather than assumed harmless.
-8. One-shot scanning triggered by the global hotkey enters through the WPF window message pump. Several early Scanner awaits can complete synchronously, allowing capture/detection/OCR setup to begin on the WPF dispatcher before a naturally asynchronous boundary. This is a confirmed UI-responsiveness defect independent of the still-unproven continuous-scanner root cause.
-9. `MiniScannerOverlayService` owns WPF Window thread affinity and marshals Window access to the dispatcher, so moving one-shot recognition work to a worker does not require moving Mini Scanner window ownership.
+```text
+end-to-end                12,540.77 ms
+OCR normal                    12.26 ms
+actual WinRT RecognizeAsync    10.57 ms
+visual recovery            12,306.61 ms / 16 calls
+catalog matching               75.16 ms
+capture                         21.57 ms
+rectangle proposal              53.57 ms
+semantic header                 53.51 ms
+```
 
-Microsoft documents `Windows.Media.Ocr.OcrEngine` as agile and `ThreadingModel.Both`. Therefore CPU vendor or COM apartment mode is not treated as the root cause without runtime evidence.
+Other measured slow cycles:
 
-## Why v1.7.5 was insufficient
+```text
+Display Test one-shot: 13,156.10 ms total / 12,277.39 ms visual recovery / 16 visual calls
+Display Test one-shot: 11,127.35 ms total / 10,745.07 ms visual recovery / 14 visual calls
+Tarkov continuous:      4,898.39 ms total /  4,624.02 ms visual recovery /  6 visual calls
+```
 
-The v1.7.5 circuit breaker remains a useful outer safety mechanism for one specific failure mode: a completed OCR operation that is both slow and empty.
+File I/O probes were sub-millisecond per append and no WPF dispatcher stall overlapped the long Scanner cycles. Therefore filesystem logging and UI-thread starvation are not the principal cause of this measured latency.
 
-However it cannot establish or solve all remaining cases:
+## Why visual recovery amplified the delay
 
-- a single actual `OcrEngine.RecognizeAsync` call itself may take a very long time before returning;
-- the previous guard could not stop later calls inside the same deep operation after an earlier actual slow-empty call;
-- slow calls may return text and therefore intentionally remain enabled under the policy;
-- delay may occur before WinRT OCR, such as semaphore wait, `CopyPixels`, variant creation, or `SoftwareBitmap` construction;
-- delay may occur after raw OCR in strict visual recovery or matching;
-- UI starvation may be separate from backend latency.
+In the representative cycle Windows OCR returned `하프 마스크 (Lower half-mask)` in about 10.57 ms and the catalog matcher resolved it as `EXACT` with confidence 1.0.
 
-Therefore changing recognition thresholds or blindly reducing OCR/recovery work without evidence remains prohibited.
+The runtime still evaluates multiple structurally valid candidates because candidate count is an accuracy safeguard. Candidates 0 through 7 in this cycle shared the same exact title bitmap and OCR result. `SerializedScannerOcrEngine` correctly reused the raw OCR result inside the cycle, but `FontAwareScannerOcrEngine` sits outside that raw cache and independently reran visual corroboration for every candidate.
 
-## v1.7.6 diagnostic and hardening design
+Each successful-text corroboration may run:
 
-v1.7.6 remains a diagnostic candidate, not yet a resolved public performance release.
+1. targeted Tarkov-font verification;
+2. full-catalog visual verification when targeted verification does not accept.
 
-### Exact OCR phase trace
+On this desktop each measured visual stage consumed roughly 0.75–0.78 seconds. Eight equivalent candidates therefore produced sixteen expensive visual stages and more than twelve seconds of latency even though the primary OCR result itself was already available in milliseconds.
 
-Keep the existing Scanner Lab 3.8 OCR algorithm and existing Windows OCR engine instance, but record bounded in-memory start/end markers for:
+## Font provider hot-path defect
 
-- whole Scanner cycle and existing stage boundaries;
-- shared serialized OCR gate wait;
-- exact-image `CopyPixels` + SHA-256 key creation;
-- title enlargement;
-- deep image variant generation;
-- BGRA conversion;
-- OCR input `CopyPixels`;
-- WinRT buffer/`SoftwareBitmap` creation;
-- each individual `OcrEngine.RecognizeAsync` call, including pass, variant, dimensions, duration, text presence and line count;
-- overall serialized/raw OCR operation.
+`TarkovTitleFontProvider.TryGetFonts()` also had a structural retry bug.
 
-Fine-grained markers are held in a bounded in-memory trace rather than appended to `scanner.log` one by one. This avoids making a slow filesystem or antivirus path part of the instrumentation itself.
+The old order was effectively:
 
-The diagnostic adapter reuses the already-created `ScannerLab38OcrEngine` WinRT engine instance. It does not activate a second OCR engine, change language, change image variants, change recognition thresholds, or introduce a new OCR backend. Direct BGRA input semantics are preserved.
+```text
+FindResourcesAssets()
+→ TryGetSourceStamp()
+→ only then check 5-second retry window
+```
 
-### Actual WinRT-call circuit breaker correction
+`FindResourcesAssets()` enumerates `EscapeFromTarkov` processes and reads `process.MainModule.FileName`. That environment lookup can be expensive or restricted on a protected game process. Because the retry guard came after the lookup, an unavailable/retry state did not protect the expensive part of the operation. Every targeted/full visual pass could pay the same environment-discovery cost before returning no font evidence.
 
-Apply the existing slow-empty health policy at the actual `OcrEngine.RecognizeAsync` boundary as well as retaining the v1.7.5 outer guard.
+The original diagnostic candidate did not have an internal font-provider marker, so the exact 0.75–0.78 second subphase cannot be attributed solely to `MainModule` from the first bundle. The new fix candidate therefore records `title-font-source-probe` timing. What is already proven is that the repeated delay is inside visual recovery and that the provider retry ordering permits repeated expensive discovery in that path.
 
-- A successful OCR result is never suppressed merely because it is slow.
-- A fast empty result remains an ordinary miss.
-- An actual WinRT call that is both at least 800 ms and empty enters the same 30-second degraded policy.
-- Once that actual call proves the backend degraded, later OS OCR calls in the same deep/tight recovery chain are suppressed instead of multiplying the known environment failure.
-- Existing strict Tarkov-font visual recovery remains available using current pixels/current catalog evidence.
-- If that recovery is insufficient, recognition still fails closed.
+## Fix candidate architecture
 
-This changes latency containment, not Item ID acceptance semantics.
+### 1. Current-cycle exact visual evidence reuse
 
-### UI responsiveness hardening
+`FontAwareScannerOcrEngine` now caches a completed corroboration result only within the current `ScannerLatencyTelemetry` cycle, keyed by:
 
-Independently post a low-frequency normal-priority probe to the WPF dispatcher. Record only stalls at or above 750 ms and their eventual recovery duration. This separates:
+- cycle ID;
+- exact title bitmap dimensions;
+- SHA-256 of current title pixels;
+- OCR text.
 
-- backend work that is slow while UI remains responsive; and
-- actual WPF dispatcher starvation corresponding to Windows `Not Responding` behavior.
+This is not cross-frame identity caching. The cache is cleared on cycle change and cannot prove a future frame. It merely prevents multiple structurally equivalent candidates in one decision cycle from recomputing the same deterministic visual proof.
 
-The confirmed one-shot path defect is also corrected: `ScanOnceAsync` is explicitly dispatched to a thread-pool worker so synchronous capture/detection/OCR setup cannot begin on the WPF hotkey/message-pump thread. Runtime status and Mini Scanner presentation retain their existing dispatcher marshalling.
+No candidate count is reduced. No candidate is accepted without the same evidence that would have been evaluated before. The optimization removes duplicate computation, not validation.
 
-### Environment/support bundle
+Trace event: `visual-cycle-cache-hit`.
 
-Add one user-facing action under `Scanner > 고급`:
+### 2. Font source discovery outside repeated candidate hot path
 
-`Scanner 성능 진단 자료 내보내기`
+`TarkovTitleFontProvider` now:
 
-It produces one ZIP containing:
+- checks unavailable retry state before process/source discovery;
+- uses a 30-second retry window after an unavailable extraction/source attempt;
+- caches a successfully discovered `resources.assets` path in the current process;
+- revalidates an already-loaded font generation at a bounded 5-second interval rather than for every candidate;
+- continues to invalidate/re-extract when the live source length/timestamp changes.
 
-- bounded Scanner performance trace;
-- existing `scanner.log` / rotated log when present;
-- startup log when present;
-- Windows/runtime/process architecture;
-- culture/UI culture;
-- available Windows OCR languages and `ko-KR` availability;
-- display bounds and WPF DPI/render tier;
-- CPU identifier/count available from the process environment;
-- GC/process memory/thread/CPU diagnostics;
-- a small on-demand append benchmark in the same LocalAppData log directory to identify unusually slow synchronous diagnostic-file I/O.
+Trace event: `title-font-source-probe` with elapsed time and source availability.
 
-Bundle construction runs off the UI thread. WPF-only environment values are read through the dispatcher. The bundle deliberately excludes Ground Truth images, profile database contents, and game account information.
+The longer unavailable retry window trades repeated expensive optional visual-provider discovery for a conservative miss when that optional evidence is temporarily unavailable. It does not weaken Item ID acceptance and does not suppress successful Windows OCR.
 
-## Interpretation contract
+### 3. Existing v1.7.6 hardening retained
 
-The desktop bundle will be interpreted as follows.
-
-- Long `ocr-winrt-recognize-start` → `end` with short surrounding phases: Windows OCR backend stall is proven.
-- Long `ocr-copy-pixels`, variant, image-key, or SoftwareBitmap phase: preprocessing/runtime conversion is proven.
-- Long serialized wait with another OCR operation active: shared OCR serialization/contention is proven.
-- Fast raw OCR boundaries followed by a long `visual-recovery` stage: strict visual recovery is the bottleneck.
-- Fast semantic stages but slow diagnostic file append benchmark: synchronous file I/O is a material environment factor and should be removed from the recognition hot path.
-- `ui-dispatcher-stall-*` overlapping the recognition interval: actual UI starvation is proven independently of backend latency.
-- No dispatcher stall while recognition is slow: product status is waiting on a worker, not a true UI-thread freeze; UI feedback can then be hardened separately without misidentifying the backend cause.
+- each actual `OcrEngine.RecognizeAsync` call is measured independently;
+- actual slow-empty WinRT calls use the same conservative circuit breaker;
+- OCR semaphore/image-key/preprocessing phases are separately traced;
+- one-shot recognition is explicitly dispatched off the WPF message pump;
+- WPF dispatcher responsiveness is independently measured;
+- one-click support bundle export remains available.
 
 ## Accuracy and safety invariants
 
@@ -133,23 +118,45 @@ Unchanged:
 - existing targeted/full-catalog Tarkov-font visual acceptance semantics;
 - false positive remains worse than miss;
 - no stale Item ID as current identity evidence;
-- no cross-frame OCR identity cache;
+- no cross-frame OCR or visual identity cache;
 - no mapped price/need data as identity evidence before Item ID;
 - no scan-time network dependency;
 - no game memory reading, DLL injection, packet interception, or Tarkov process hook.
 
+## CI proof for root-cause fix candidate
+
+Code HEAD:
+
+`d04f39697a4ea4d6ff4eabcb2acdc6bc535c8f9c`
+
+CI run `32866068233`:
+
+- Desktop build: SUCCESS
+- 380 passed / 0 failed / 0 skipped
+- Windows x64 self-contained publish: SUCCESS
+- Product UI / Map / Factory / MiniMap smoke: SUCCESS
+- graceful shutdown: SUCCESS
+- release package verification: SUCCESS
+- artifact upload: SUCCESS
+
+Extracted user package:
+
+```text
+bytes: 80,462,063
+SHA-256: 96af948b2cd24caeb612d1d89a368bf30329606d3e934a292758292f70dcae30
+```
+
 ## Release gate
 
-Do **not** call v1.7.6 a resolved performance release until the problematic desktop reproduces the symptom with this diagnostic candidate and the exported bundle identifies the blocking phase.
+Root cause has been identified, but v1.7.6 is still not a resolved public release.
 
-Before a public resolved release:
+Required before release:
 
-1. complete Windows build, full tests, publish/package verification and product/Scanner smoke for the diagnostic candidate;
-2. run the candidate on the problematic desktop with the same screenshot test path and, where practical, real Tarkov;
-3. export and inspect the support bundle;
-4. identify the measured root cause;
-5. implement any additional smallest architecture-level fix required by that evidence;
-6. keep UI responsive even when OCR itself is slow;
-7. run Scanner Ground Truth regression with zero acceptance regressions;
-8. repeat desktop test mode and in-game validation;
-9. update `STATE.md`, `CURRENT_SCANNER_WORK.md`, release notes and final decision status before public release.
+1. run this fix candidate on the same problematic desktop and same Display Test screenshot;
+2. export a second support bundle and compare end-to-end/visual recovery timing with the 12.54-second baseline;
+3. confirm `visual-cycle-cache-hit` and `title-font-source-probe` behavior;
+4. verify actual Tarkov scan responsiveness;
+5. confirm no Item ID accuracy regression and run reviewed Ground Truth regression with zero regressions;
+6. remove or normalize temporary diagnostic-only implementation details that should not remain in the final production architecture;
+7. run final full Windows build/tests/publish/smoke/package gate;
+8. update `STATE.md`, release notes and final release proof before public v1.7.6 publication.
