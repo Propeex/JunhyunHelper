@@ -100,30 +100,58 @@ public sealed class JunhyunMapProductSettingsStore
         set => Update(settings => settings.ScreenshotFolder = value);
     }
 
-    public int GetHotkey(OverlayMiniMapHotkeyAction action, int fallback)
+    public int GetHotkey(OverlayMiniMapHotkeyAction action, int fallback) =>
+        GetHotkeyGesture(action, fallback).VirtualKey;
+
+    public JunhyunMapHotkeyGesture GetHotkeyGesture(OverlayMiniMapHotkeyAction action, int fallback)
     {
         lock (_gate)
         {
-            return _settings.Hotkeys.TryGetValue(action.ToString(), out var value)
-                ? Math.Max(0, value)
+            var name = action.ToString();
+            var key = _settings.Hotkeys.TryGetValue(name, out var storedKey)
+                ? Math.Max(0, storedKey)
                 : Math.Max(0, fallback);
+            var modifiers = _settings.HotkeyModifiers.TryGetValue(name, out var storedModifiers)
+                ? NormalizeModifiers(storedModifiers)
+                : JunhyunMapHotkeyModifiers.None;
+            return new JunhyunMapHotkeyGesture(key, modifiers);
         }
     }
 
-    public void SetHotkey(OverlayMiniMapHotkeyAction action, int virtualKey) => Update(settings =>
+    public void SetHotkey(OverlayMiniMapHotkeyAction action, int virtualKey) =>
+        SetHotkeyGesture(action, new JunhyunMapHotkeyGesture(Math.Max(0, virtualKey), JunhyunMapHotkeyModifiers.None));
+
+    public void SetHotkeyGesture(OverlayMiniMapHotkeyAction action, JunhyunMapHotkeyGesture gesture) => Update(settings =>
     {
-        RemoveDuplicateHotkey(settings, virtualKey, action.ToString());
-        settings.Hotkeys[action.ToString()] = Math.Max(0, virtualKey);
+        var normalized = NormalizeGesture(gesture);
+        RemoveDuplicateHotkey(settings, normalized, action.ToString());
+        settings.Hotkeys[action.ToString()] = normalized.VirtualKey;
+        settings.HotkeyModifiers[action.ToString()] = (int)normalized.Modifiers;
     });
 
     public int TemporaryHideKey
     {
         get { lock (_gate) return Math.Max(0, _settings.TemporaryHideKey); }
+        set => TemporaryHideGesture = new JunhyunMapHotkeyGesture(Math.Max(0, value), JunhyunMapHotkeyModifiers.None);
+    }
+
+    public JunhyunMapHotkeyGesture TemporaryHideGesture
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return new JunhyunMapHotkeyGesture(
+                    Math.Max(0, _settings.TemporaryHideKey),
+                    NormalizeModifiers(_settings.TemporaryHideModifiers));
+            }
+        }
         set => Update(settings =>
         {
-            var key = Math.Max(0, value);
-            RemoveDuplicateHotkey(settings, key, TemporaryHideKeyName);
-            settings.TemporaryHideKey = key;
+            var normalized = NormalizeGesture(value);
+            RemoveDuplicateHotkey(settings, normalized, TemporaryHideKeyName);
+            settings.TemporaryHideKey = normalized.VirtualKey;
+            settings.TemporaryHideModifiers = (int)normalized.Modifiers;
         });
     }
 
@@ -164,25 +192,39 @@ public sealed class JunhyunMapProductSettingsStore
 
     private static void RemoveDuplicateHotkey(
         JunhyunMapProductSettings settings,
-        int virtualKey,
+        JunhyunMapHotkeyGesture gesture,
         string keepName)
     {
-        if (virtualKey == 0)
+        if (gesture.IsDisabled)
             return;
 
-        foreach (var key in settings.Hotkeys
-                     .Where(pair => pair.Value == virtualKey &&
-                                    !string.Equals(pair.Key, keepName, StringComparison.Ordinal))
-                     .Select(pair => pair.Key)
-                     .ToArray())
+        foreach (var key in settings.Hotkeys.Keys.ToArray())
         {
+            if (string.Equals(key, keepName, StringComparison.Ordinal))
+                continue;
+
+            var existing = new JunhyunMapHotkeyGesture(
+                Math.Max(0, settings.Hotkeys[key]),
+                settings.HotkeyModifiers.TryGetValue(key, out var modifiers)
+                    ? NormalizeModifiers(modifiers)
+                    : JunhyunMapHotkeyModifiers.None);
+            if (existing != gesture)
+                continue;
+
             settings.Hotkeys[key] = 0;
+            settings.HotkeyModifiers[key] = 0;
         }
 
-        if (!string.Equals(keepName, TemporaryHideKeyName, StringComparison.Ordinal) &&
-            settings.TemporaryHideKey == virtualKey)
+        if (!string.Equals(keepName, TemporaryHideKeyName, StringComparison.Ordinal))
         {
-            settings.TemporaryHideKey = 0;
+            var temporary = new JunhyunMapHotkeyGesture(
+                Math.Max(0, settings.TemporaryHideKey),
+                NormalizeModifiers(settings.TemporaryHideModifiers));
+            if (temporary == gesture)
+            {
+                settings.TemporaryHideKey = 0;
+                settings.TemporaryHideModifiers = 0;
+            }
         }
     }
 
@@ -231,14 +273,18 @@ public sealed class JunhyunMapProductSettingsStore
         settings.Values ??= new Dictionary<string, double>(StringComparer.Ordinal);
         settings.Selections ??= new Dictionary<string, int>(StringComparer.Ordinal);
         settings.Hotkeys ??= new Dictionary<string, int>(StringComparer.Ordinal);
+        settings.HotkeyModifiers ??= new Dictionary<string, int>(StringComparer.Ordinal);
 
         settings.TemporaryHideKey = Math.Max(0, settings.TemporaryHideKey);
+        settings.TemporaryHideModifiers = (int)NormalizeModifiers(settings.TemporaryHideModifiers);
         settings.TemporaryHideSeconds = Math.Clamp(settings.TemporaryHideSeconds, 1.0, 15.0);
         settings.MiniMapOpacity = Math.Clamp(settings.MiniMapOpacity, 0.10, 1.0);
         settings.MiniMapMarkerScale = Math.Clamp(settings.MiniMapMarkerScale, 0.25, 1.50);
 
         foreach (var key in settings.Hotkeys.Keys.ToArray())
             settings.Hotkeys[key] = Math.Max(0, settings.Hotkeys[key]);
+        foreach (var key in settings.HotkeyModifiers.Keys.ToArray())
+            settings.HotkeyModifiers[key] = (int)NormalizeModifiers(settings.HotkeyModifiers[key]);
 
         foreach (var key in settings.Values
                      .Where(pair => !double.IsFinite(pair.Value))
@@ -250,6 +296,30 @@ public sealed class JunhyunMapProductSettingsStore
 
         return settings;
     }
+
+    private static JunhyunMapHotkeyGesture NormalizeGesture(JunhyunMapHotkeyGesture gesture) =>
+        gesture.VirtualKey <= 0
+            ? JunhyunMapHotkeyGesture.Disabled
+            : new JunhyunMapHotkeyGesture(gesture.VirtualKey, NormalizeModifiers((int)gesture.Modifiers));
+
+    private static JunhyunMapHotkeyModifiers NormalizeModifiers(int value) =>
+        (JunhyunMapHotkeyModifiers)(value & (int)JunhyunMapHotkeyModifiers.All);
+}
+
+[Flags]
+public enum JunhyunMapHotkeyModifiers
+{
+    None = 0,
+    Control = 1,
+    Alt = 2,
+    Shift = 4,
+    All = Control | Alt | Shift,
+}
+
+public readonly record struct JunhyunMapHotkeyGesture(int VirtualKey, JunhyunMapHotkeyModifiers Modifiers)
+{
+    public static JunhyunMapHotkeyGesture Disabled { get; } = new(0, JunhyunMapHotkeyModifiers.None);
+    public bool IsDisabled => VirtualKey <= 0;
 }
 
 public sealed class JunhyunMapProductSettings
@@ -259,9 +329,11 @@ public sealed class JunhyunMapProductSettings
     public Dictionary<string, double> Values { get; set; } = new(StringComparer.Ordinal);
     public Dictionary<string, int> Selections { get; set; } = new(StringComparer.Ordinal);
     public Dictionary<string, int> Hotkeys { get; set; } = new(StringComparer.Ordinal);
+    public Dictionary<string, int> HotkeyModifiers { get; set; } = new(StringComparer.Ordinal);
     public string? ScreenshotFolder { get; set; }
     public bool? RaiderVisible { get; set; }
     public int TemporaryHideKey { get; set; }
+    public int TemporaryHideModifiers { get; set; }
     public double TemporaryHideSeconds { get; set; } = 3.0;
     public double MiniMapOpacity { get; set; } = 1.0;
     public double MiniMapMarkerScale { get; set; } = 1.0;
