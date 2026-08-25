@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using JunhyunHelper.Core.Scanner;
 using Windows.Graphics.Imaging;
 using Windows.Media.Ocr;
 using Windows.Security.Cryptography;
@@ -14,10 +15,11 @@ namespace JunhyunHelper.Desktop.Scanner;
 /// variant, line/pair and WinRT recognition semantics while exposing the exact blocking
 /// phase to the bounded in-memory performance trace.
 ///
-/// This adapter exists only to diagnose the v1.7.5 PC-specific stall without changing
-/// the established recognition thresholds. Once the blocking phase is proven, the final
-/// fix should move the required instrumentation/guard to the owning OCR implementation
-/// rather than retain reflective access.
+/// The v1.7.5 environment guard sits outside a whole normal/deep operation. Deep OCR can
+/// contain four actual WinRT calls, so a slow-empty first call could still be amplified
+/// before the outer guard observed the result. This diagnostic candidate therefore also
+/// applies the same slow-empty health policy at the actual RecognizeAsync boundary. It
+/// does not suppress successful OCR or relax any recognition acceptance rule.
 /// </summary>
 internal sealed class DiagnosticScannerLab38OcrEngine : IScannerDeepOcrEngine
 {
@@ -26,8 +28,10 @@ internal sealed class DiagnosticScannerLab38OcrEngine : IScannerDeepOcrEngine
 
     private readonly ScannerLab38OcrEngine _fallback;
     private readonly OcrEngine? _engine;
+    private readonly ScannerOcrBackendHealthPolicy _actualBackendHealth = new();
     private readonly bool _canTraceExactWinRtBoundary;
     private long _nextBackendCallId;
+    private bool _actualSuppressionLogged;
 
     public DiagnosticScannerLab38OcrEngine(ScannerLab38OcrEngine source)
     {
@@ -186,8 +190,41 @@ internal sealed class DiagnosticScannerLab38OcrEngine : IScannerDeepOcrEngine
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var result = await RecognizeAsync(image, pass, variant, cancellationToken);
-        var lines = result.Lines
+
+        var now = DateTimeOffset.UtcNow;
+        if (!_actualBackendHealth.ShouldAttempt(now))
+        {
+            if (!_actualSuppressionLogged)
+            {
+                _actualSuppressionLogged = true;
+                ScannerPerformanceTrace.Mark(
+                    "ocr-winrt-suppressed",
+                    ("pass", pass),
+                    ("variant", variant),
+                    ("degradedUntilUtc", _actualBackendHealth.DegradedUntilUtc.ToString("O")),
+                    ("width", image.PixelWidth),
+                    ("height", image.PixelHeight));
+            }
+            return string.Empty;
+        }
+
+        _actualSuppressionLogged = false;
+        var backend = await RecognizeAsync(image, pass, variant, cancellationToken);
+        var hasUsableText = !string.IsNullOrWhiteSpace(backend.Result.Text);
+        var enteredDegraded = _actualBackendHealth.RecordResult(
+            DateTimeOffset.UtcNow,
+            backend.WinRtElapsed,
+            hasUsableText);
+        ScannerPerformanceTrace.Mark(
+            "ocr-winrt-health-result",
+            ("pass", pass),
+            ("variant", variant),
+            ("elapsedMs", backend.WinRtElapsed.TotalMilliseconds.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)),
+            ("hasText", hasUsableText),
+            ("enteredDegraded", enteredDegraded),
+            ("degradedUntilUtc", enteredDegraded ? _actualBackendHealth.DegradedUntilUtc.ToString("O") : string.Empty));
+
+        var lines = backend.Result.Lines
             .Select(line => line.Text?.Trim() ?? string.Empty)
             .Where(line => line.Length >= 2)
             .ToArray();
@@ -205,7 +242,7 @@ internal sealed class DiagnosticScannerLab38OcrEngine : IScannerDeepOcrEngine
         return string.Join(" | ", candidates.Distinct(StringComparer.Ordinal));
     }
 
-    private async Task<OcrResult> RecognizeAsync(
+    private async Task<BackendRecognition> RecognizeAsync(
         BitmapSource image,
         string pass,
         int variant,
@@ -223,9 +260,8 @@ internal sealed class DiagnosticScannerLab38OcrEngine : IScannerDeepOcrEngine
             ("width", image.PixelWidth),
             ("height", image.PixelHeight),
             ("format", image.Format));
-        BitmapSource bgra = image.Format == PixelFormats.Bgra32
-            ? image
-            : new FormatConvertedBitmap(image, PixelFormats.Bgra32, null, 0);
+        var bgra = new FormatConvertedBitmap(image, PixelFormats.Bgra32, null, 0);
+        bgra.Freeze();
         ScannerPerformanceTrace.Mark(
             "ocr-bgra-convert-end",
             ("callId", callId),
@@ -268,17 +304,18 @@ internal sealed class DiagnosticScannerLab38OcrEngine : IScannerDeepOcrEngine
         try
         {
             var result = await _engine!.RecognizeAsync(softwareBitmap);
+            var winRtElapsed = Stopwatch.GetElapsedTime(winRtStarted);
             ScannerPerformanceTrace.Mark(
                 "ocr-winrt-recognize-end",
                 ("callId", callId),
                 ("pass", pass),
                 ("variant", variant),
-                ("elapsedMs", FormatMs(winRtStarted)),
+                ("elapsedMs", winRtElapsed.TotalMilliseconds.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)),
                 ("hasText", !string.IsNullOrWhiteSpace(result.Text)),
                 ("textLength", result.Text?.Length ?? 0),
                 ("lineCount", result.Lines?.Count ?? 0));
             cancellationToken.ThrowIfCancellationRequested();
-            return result;
+            return new BackendRecognition(result, winRtElapsed);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -297,4 +334,6 @@ internal sealed class DiagnosticScannerLab38OcrEngine : IScannerDeepOcrEngine
     private static string FormatMs(long startedTimestamp) =>
         ScannerPerformanceTrace.ElapsedMilliseconds(startedTimestamp)
             .ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+
+    private readonly record struct BackendRecognition(OcrResult Result, TimeSpan WinRtElapsed);
 }
