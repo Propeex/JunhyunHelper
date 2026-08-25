@@ -106,15 +106,15 @@ internal sealed class SerializedScannerOcrEngine : IScannerDeepOcrEngine
                 ("pass", pass),
                 ("width", titleImage.PixelWidth),
                 ("height", titleImage.PixelHeight));
-            var result = deep && _inner is IScannerDeepOcrEngine deepEngine
+            var result = (deep && _inner is IScannerDeepOcrEngine deepEngine
                 ? await deepEngine.ReadDeepTextAsync(titleImage, cancellationToken)
-                : await _inner.ReadTextAsync(titleImage, cancellationToken);
+                : await _inner.ReadTextAsync(titleImage, cancellationToken)) ?? string.Empty;
             ScannerPerformanceTrace.Mark(
                 "ocr-operation-end",
                 ("pass", pass),
                 ("elapsedMs", ScannerPerformanceTrace.ElapsedMilliseconds(operationStarted).ToString("F2", System.Globalization.CultureInfo.InvariantCulture)),
                 ("hasText", !string.IsNullOrWhiteSpace(result)),
-                ("textLength", result?.Length ?? 0));
+                ("textLength", result.Length));
 
             // A fire-and-forget overlay probe can inherit an ExecutionContext briefly.
             // Store only if this exact Scanner cycle is still active after OCR completes.
