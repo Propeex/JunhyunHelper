@@ -3,11 +3,13 @@
 > 새 대화/새 개발자는 이 문서를 먼저 읽습니다. 대화 기억이 아니라 저장소의 공식 문서와 현재 GitHub 상태가 프로젝트의 기준입니다.
 
 기준일: 2026-08-26  
-상태: **v1.7.6 PUBLIC STABLE / SCANNER P0 RESOLVED / LIVE MAINTENANCE**
+상태: **v1.7.6 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 1. 제품
 
 **준현 헬퍼**는 Escape from Tarkov 플레이를 지원하는 Windows x64 .NET 10 WPF 데스크톱 프로그램이다.
+
+2026-08-26 제품 사용자는 현재 요구사항 범위의 준현 헬퍼가 완성 상태에 도달했다고 최종 확정했다. 마지막 집중 개발 영역이었던 Scanner 역시 실사용 검증을 통과해 기능 개발 단계에서 유지보수 단계로 전환했다. 기본 프로젝트 모드는 **유지보수**이며, 새 기능은 사용자가 새로운 제품 요구사항으로 명시적으로 결정할 때만 시작한다.
 
 주요 기능:
 
@@ -26,6 +28,8 @@
 Runtime GPT/AI 의존성은 없다.
 
 기존 `Propeex/Tarkov-Helper`는 불완전한 프로토타입이며 새 제품 요구사항의 권위가 아니다. 유지할 기능, 검증된 데이터/자산, 구현 아이디어와 시행착오 참고 용도로만 사용한다.
+
+제품 완성 및 유지보수 전환의 공식 결정은 `docs/DECISION_PRODUCT_COMPLETE_2026-08-26.md`에 기록한다.
 
 ## 2. 현재 public stable
 
@@ -147,7 +151,7 @@ trusted HEADER_FRAME_LOCKED floor = 0.68
 continuous candidate cap = 8
 one-shot candidate cap = 12
 deep OCR candidate limit = existing value
-continuous scan interval = 350 ms
+continuous scan target interval = 200 ms
 semantic retry interval = 1200 ms
 ```
 
@@ -469,11 +473,17 @@ v1.7.6의 fine-grained WinRT timing을 위해 diagnostic adapter가 production `
 
 향후 구조 정리 시 exact telemetry/health policy를 raw OCR owner로 이동하고 adapter/reflection 의존을 제거하되, Ground Truth와 문제-PC performance evidence를 유지해야 한다.
 
-## 17. 다음 작업
+## 17. 유지보수 상태
 
-현재 Scanner P0는 종료됐다.
+현재 요구사항 범위의 제품 개발은 종료됐다. 활성 기능 개발 backlog를 기본적으로 만들지 않는다.
 
-다음 개발은 새 제품 요구사항 또는 실사용 evidence가 생길 때 시작한다.
+향후 작업은 다음 조건에서만 시작한다.
+
+- 사용자가 새로운 제품 요구사항을 명시적으로 결정함
+- 실사용 defect/regression이 확인됨
+- Tarkov UI/데이터 변경으로 기존 기능이 깨짐
+- Windows/.NET/platform 또는 외부 데이터 소스 변화로 호환성 문제가 생김
+- 보안 또는 데이터 무결성 문제를 수정해야 함
 
 Scanner 관련 새 문제가 생기면:
 
@@ -483,4 +493,4 @@ Scanner 관련 새 문제가 생기면:
 4. reviewed Ground Truth가 있으면 full replay REGRESSION=0 확인
 5. full Windows CI/publish/smoke/package 검증
 
-추측 기반 threshold/candidate-cap 완화나 선제적 성능 재설계는 하지 않는다.
+추측 기반 threshold/candidate-cap 완화, 선제적 Scanner 성능 재설계, 코드 미관만을 위한 위험한 대규모 refactor는 하지 않는다.
