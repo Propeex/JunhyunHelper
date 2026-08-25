@@ -70,8 +70,7 @@ internal static class ScannerSupportBundleExporter
             .AppendLine($"GCGen0Collections={GC.CollectionCount(0)}")
             .AppendLine($"GCGen1Collections={GC.CollectionCount(1)}")
             .AppendLine($"GCGen2Collections={GC.CollectionCount(2)}")
-            .AppendLine($"ManagedMemoryBytes={GC.GetTotalMemory(forceFullCollection: false)}")
-            .AppendLine($"WpfRenderTier={RenderCapability.Tier >> 16}");
+            .AppendLine($"ManagedMemoryBytes={GC.GetTotalMemory(forceFullCollection: false)}");
 
         try
         {
@@ -119,23 +118,48 @@ internal static class ScannerSupportBundleExporter
             builder.AppendLine($"DisplayError={exception.GetType().Name}:{Sanitize(exception.Message)}");
         }
 
+        AppendWpfEnvironment(builder);
+        AppendScannerLogWriteProbe(builder);
+        AppendFileIoProbe(builder);
+        return builder.ToString();
+    }
+
+    private static void AppendWpfEnvironment(StringBuilder builder)
+    {
         try
         {
-            var window = System.Windows.Application.Current?.MainWindow;
-            if (window is not null)
+            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+            if (dispatcher is null || dispatcher.HasShutdownStarted || dispatcher.HasShutdownFinished)
             {
-                var dpi = VisualTreeHelper.GetDpi(window);
-                builder.AppendLine($"WpfDpiScale={dpi.DpiScaleX:F3},{dpi.DpiScaleY:F3}")
-                    .AppendLine($"WpfPixelsPerDip={dpi.PixelsPerDip:F3}");
+                builder.AppendLine("WpfEnvironment=dispatcher-unavailable");
+                return;
             }
+
+            var report = dispatcher.CheckAccess()
+                ? BuildWpfEnvironmentReport()
+                : dispatcher.Invoke(BuildWpfEnvironmentReport);
+            builder.Append(report);
         }
         catch (Exception exception)
         {
-            builder.AppendLine($"DpiError={exception.GetType().Name}:{Sanitize(exception.Message)}");
+            builder.AppendLine($"WpfEnvironmentError={exception.GetType().Name}:{Sanitize(exception.Message)}");
+        }
+    }
+
+    private static string BuildWpfEnvironmentReport()
+    {
+        var builder = new StringBuilder()
+            .AppendLine($"WpfRenderTier={RenderCapability.Tier >> 16}");
+        var window = System.Windows.Application.Current?.MainWindow;
+        if (window is null)
+        {
+            builder.AppendLine("WpfMainWindow=unavailable");
+            return builder.ToString();
         }
 
-        AppendScannerLogWriteProbe(builder);
-        AppendFileIoProbe(builder);
+        var dpi = VisualTreeHelper.GetDpi(window);
+        builder.AppendLine($"WpfDpiScale={dpi.DpiScaleX:F3},{dpi.DpiScaleY:F3}")
+            .AppendLine($"WpfPixelsPerDip={dpi.PixelsPerDip:F3}");
         return builder.ToString();
     }
 
