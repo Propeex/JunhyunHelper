@@ -142,8 +142,10 @@ public sealed class GameContentIntegrityValidator
             // therefore must resolve against /items. Other objective types may carry
             // condition selectors (for example special dogtag variants) that are valid
             // task constraints even when the variant is intentionally absent from /items.
-            // Do not globally weaken item validation: material QuestItemRequirement,
-            // hideout and ammunition references remain independently fail-closed.
+            // `questItem` belongs to the separate QuestItem objective contract and is not
+            // a canonical /items relationship at all. Do not globally weaken item
+            // validation: material QuestItemRequirement, hideout and ammunition
+            // references remain independently fail-closed.
             if (RequiresCanonicalObjectiveItems(objective.ItemKind))
             {
                 foreach (var itemId in objective.ItemIds)
@@ -156,14 +158,6 @@ public sealed class GameContentIntegrityValidator
                             $"Quest '{objective.QuestId}' objective '{objective.ObjectiveId}' references missing item '{itemId}'.");
                     }
                 }
-            }
-
-            if (!string.IsNullOrWhiteSpace(objective.QuestItemId) && !itemIds.Contains(objective.QuestItemId))
-            {
-                Fatal(
-                    issues,
-                    "quest-objective.quest-item.missing",
-                    $"Quest '{objective.QuestId}' objective '{objective.ObjectiveId}' references missing quest item '{objective.QuestItemId}'.");
             }
 
             foreach (var mapId in objective.MapIds)
