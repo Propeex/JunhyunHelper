@@ -3,7 +3,7 @@
 > 새 대화/새 개발자는 이 문서를 먼저 읽습니다. 대화 기억이 아니라 저장소의 공식 문서와 현재 GitHub 상태가 프로젝트의 기준입니다.
 
 기준일: 2026-08-26  
-상태: **v1.7.6 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+상태: **v1.7.7 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 1. 제품
 
@@ -31,31 +31,36 @@ Runtime GPT/AI 의존성은 없다.
 
 제품 완성 및 유지보수 전환의 공식 결정은 `docs/DECISION_PRODUCT_COMPLETE_2026-08-26.md`에 기록한다.
 
+v1.7.7의 Scanner durable-data ownership 및 Scanner/Map 공통 hotkey 계약은 `docs/DECISION_SCANNER_STORAGE_AND_HOTKEYS_2026-08-26.md`에 기록한다.
+
 ## 2. 현재 public stable
 
 ```text
-version: v1.7.6
-release source: 0e5240620ca0867a93f426824ff03374b93dcd1a
-release CI run: 32868778549
-release workflow run: 32869081513
-release id: 376532454
+version: v1.7.7
+release source: b6deaaa900daa94113737f6cc8dd1cf8fcef60c8
+release CI run: 32879402260
+release workflow run: 32879713326
+release id: 376595527
 asset: Junhyun-Helper.zip
-asset bytes: 80,462,038
-asset SHA-256: 1de4e203c7e219f1d995d4482fa903dc7544d208deee684b5b821f6b5c325e35
+asset bytes: 80,463,825
+asset SHA-256: eab46695362bc9d1e656fb954694a681dd95066dae5210f2498387b14c163f5b
 checksum asset: SHA256SUMS.txt
 published: 2026-08-26 KST
 ```
 
 GitHub release readback:
 
-- tag `v1.7.6`
-- target commit = exact release source
+- tag `v1.7.7`
+- target commit = exact release source `b6deaaa900daa94113737f6cc8dd1cf8fcef60c8`
 - draft = false
 - prerelease = false
-- latest stable
-- required assets present
+- `releases/latest` = v1.7.7
+- `Junhyun-Helper.zip` + `SHA256SUMS.txt` present
+- ZIP GitHub asset digest = `sha256:eab46695362bc9d1e656fb954694a681dd95066dae5210f2498387b14c163f5b`
 
 v1.7.6의 P0 목표였던 일부 데스크탑 Scanner 장시간 인식 지연은 문제 PC의 실측 자료로 root cause를 확인하고 수정했으며, 같은 PC의 Display Test와 실제 Tarkov에서 정상화를 재검증했다.
+
+v1.7.7은 그 인식 알고리즘을 변경하지 않고 실사용에서 확인된 Scanner 자동 교정 Case 폭증, 반복 실패 로그 가시성, Scanner/Map 단축키 정책 불일치를 수정한 유지보수 PATCH다.
 
 현재 Scanner 성능 알고리즘은 완료 상태다. 새로운 runtime evidence가 없는 한 성능을 목적으로 recognition threshold/candidate cap/recovery acceptance를 더 변경하지 않는다.
 
@@ -98,6 +103,7 @@ JunhyunHelper.Desktop
 - Program Update가 user.db, content/image cache, Map/Ammo/Scanner settings, Scanner logs/diagnostics를 교체하지 않음
 - user-reviewed Scanner Ground Truth는 자동 삭제하지 않음
 - Scanner logs와 Ground Truth dataset lifetime을 분리
+- 정상 Scanner monitoring은 durable automatic correction Case를 생성하지 않음
 
 ## 5. Game Content / Scanner catalog update
 
@@ -191,6 +197,10 @@ Display Test는 같은 recognition pipeline을 사용하며 real continuous Scan
 1회 테스트 스캔: Ctrl+Shift+F11
 Scanner ON/OFF: Ctrl+Shift+F12
 ```
+
+v1.7.7부터 Scanner와 configurable Map actions는 **primary non-modifier key + optional Ctrl/Alt/Shift** 공통 gesture contract를 사용한다. Bare key도 허용한다. Windows modifier는 지원하지 않는다.
+
+Map의 bare NumPad0~5는 기존 direct floor selection에 예약하고, modifier가 붙은 NumPad gesture는 configurable Map hotkey로 사용할 수 있다. 기존 Map key-only 설정은 modifier `None`으로 migration한다.
 
 v1.7.6에서는 one-shot `ScanOnceAsync`를 explicit worker에 배치해 global-hotkey WPF message-pump가 capture/OCR synchronous setup을 직접 수행할 수 있는 경로를 제거했다.
 
@@ -339,9 +349,20 @@ Root:
 %LocalAppData%/JunhyunHelper/scanner/diagnostics/
 ```
 
-자동 diagnostic Case는 정답이 아니다. user-reviewed Case만 Ground Truth다.
+v1.7.7부터 정상 Scanner runtime은 automatic diagnostic Case를 durable storage에 만들지 않는다.
 
-Full-pipeline regression은 reviewed Case의 보존된 `full.png`를 현재 production geometry/header/OCR/catalog path로 다시 실행한다.
+```text
+current capture / recognition evidence
+→ latest exact frame in memory
+→ bounded runtime text log
+→ user explicitly chooses correction
+→ user explicitly saves
+→ reviewed durable Ground Truth
+```
+
+상세창 미탐지, header lock 실패, OCR/matcher 실패, ambiguity, 반복 stationary failure만으로 correction dataset이 증가하지 않는다.
+
+사용자가 저장한 reviewed Case만 Ground Truth다. Full-pipeline regression은 reviewed Case의 보존된 `full.png`를 현재 production geometry/header/OCR/catalog path로 다시 실행한다.
 
 결과:
 
@@ -353,18 +374,22 @@ Full-pipeline regression은 reviewed Case의 보존된 `full.png`를 현재 prod
 
 기존 정상 reviewed Case가 실패하면 평균 성능과 무관하게 REGRESSION이다.
 
-Scanner performance support ZIP은 Ground Truth image/dataset을 포함하지 않는다. 최근 v1.7.6 문제-PC support log에서 관측된 Case는 `UNREVIEWED` 자동 Case였다. Reviewed dataset이 존재할 때에는 기존 full-pipeline replay의 `REGRESSION=0` 계약을 적용하며, reviewed evidence가 없을 때 값을 추정하지 않는다.
+Scanner performance support ZIP은 Ground Truth image/dataset을 포함하지 않는다. v1.7.6 문제-PC support log에서 관측된 Case 51개는 모두 `UNREVIEWED / automatic_sample`이었으며 이 legacy 자동 Case 축적이 7GB 이상 증가 문제의 원인으로 확인됐다.
 
-Automatic unreviewed diagnostic retention:
+v1.7.7 legacy cleanup은 다음을 모두 증명할 때만 자동 Case를 삭제한다.
 
 ```text
-max age = 30 days
-max cases = 300
-max bytes = 512 MiB
-recent protection = 2 hours
+retention = automatic_sample
+review_status = unreviewed
+recent write safety window = 5 minutes
+pre-delete metadata/state recheck = required
 ```
 
-Corrupt/unknown metadata는 preserve fail closed한다. Logs는 bounded rotation한다.
+reviewed/manual/corrupt/unknown/state-changed Case는 preserve fail closed한다. 새 버전은 정상 monitoring에서 새로운 durable automatic Case를 만들지 않는다.
+
+사용자 activity feed의 동일 실패는 30초 window로 collapse한다. 지원용 `scanner.log`는 기존 bounded rotation/retention을 유지하며 Ground Truth lifetime과 분리한다.
+
+Reviewed dataset이 존재할 때에는 기존 full-pipeline replay의 `REGRESSION=0` 계약을 적용하며, reviewed evidence가 없을 때 값을 추정하지 않는다.
 
 ## 13. Diagnostics / telemetry
 
@@ -398,38 +423,42 @@ fine-grained trace는 bounded in-memory storage를 사용한다.
 
 `Scanner > 고급 > Scanner 성능 진단 자료 내보내기`는 환경/성능 trace/log를 ZIP 하나로 저장한다. Ground Truth image, profile DB, game account information은 포함하지 않는다.
 
-## 14. v1.7.6 CI / release proof
+## 14. v1.7.7 CI / release proof
 
-PR #185 root-cause fix code HEAD `d04f39697a4ea4d6ff4eabcb2acdc6bc535c8f9c` CI run `32866068233`:
+PR #186 final HEAD `b17e4ccbaf52afe3015fb74b28f27ffae721abd1` CI run `32879065725`:
 
 ```text
 Desktop build: SUCCESS
 Tests: 380 passed / 0 failed / 0 skipped
 Windows x64 self-contained publish: SUCCESS
-Product UI smoke: SUCCESS
+Product UI / Scanner smoke: SUCCESS
 Map / Factory / MiniMap smoke: SUCCESS
 Graceful shutdown: SUCCESS
 Release package verification: SUCCESS
 Artifact upload: SUCCESS
 ```
 
-PR #185 final HEAD도 전체 CI를 성공했고 main으로 merge했다.
-
 Final release source:
 
 ```text
-0e5240620ca0867a93f426824ff03374b93dcd1a
-main CI run 32868778549: SUCCESS
-Release run 32869081513: SUCCESS
+b6deaaa900daa94113737f6cc8dd1cf8fcef60c8
+main CI run 32879402260: SUCCESS
+Release run 32879713326: SUCCESS
+release id: 376595527
 ```
 
 Public asset:
 
 ```text
 Junhyun-Helper.zip
-bytes: 80,462,038
-SHA-256: 1de4e203c7e219f1d995d4482fa903dc7544d208deee684b5b821f6b5c325e35
+asset id: 529560085
+bytes: 80,463,825
+SHA-256: eab46695362bc9d1e656fb954694a681dd95066dae5210f2498387b14c163f5b
 ```
+
+Release workflow은 성공한 exact main CI artifact의 ProductVersion, `FIRST_RUN_KO.txt`, package checksum을 검증한 뒤 v1.7.7을 공개했다. GitHub `releases/latest` readback도 v1.7.7이다.
+
+상세 공개 기록은 `docs/RELEASE_1.7.7.md` 및 `docs/.release-v1.7.7-status.json`에 둔다.
 
 ## 15. Release / Program Update contract
 
@@ -457,15 +486,6 @@ ZIP/folder name에는 version을 넣지 않는다. Version identity는 Desktop p
 Program Update는 public stable의 exact asset/checksum/package identity를 검증한 뒤 program-owned files만 transaction 교체한다. 사용자 LocalAppData는 유지한다.
 
 ## 16. Known issue / technical debt
-
-### v1.7.6 FIRST_RUN wording
-
-공개 v1.7.6 ZIP의 `FIRST_RUN_KO.txt` 첫 줄 version identity는 정확하지만 본문 일부가 개발 중 작성된 `진단 후보` 표현을 유지한다.
-
-- runtime/Scanner behavior에는 영향 없음
-- release asset/hash에는 문제 없음
-- published stable asset은 immutable 원칙에 따라 덮어쓰지 않음
-- 다음 patch에서 현재 resolved 상태에 맞게 사용자 안내 문구 수정
 
 ### Diagnostic OCR adapter
 
