@@ -1,4 +1,5 @@
 using JunhyunHelper.Core.Content;
+using JunhyunHelper.Core.Quests;
 
 namespace JunhyunHelper.Infrastructure.Validation;
 
@@ -136,6 +137,12 @@ public sealed class GameContentIntegrityValidator
                     $"Quest '{objective.QuestId}' objective '{objective.ObjectiveId}' has non-positive count '{objective.Count}'.");
             }
 
+            // objective.item/items are canonical inventory-item relationships and remain
+            // fail-closed for every objective kind. `questItem` is a separate quest-only
+            // world-object/entity reference; json.tarkov.dev can legitimately expose a
+            // QuestItemId that is absent from canonical /items. The special semantics are
+            // intentionally limited to that field so ordinary dangling item references,
+            // QuestItemRequirement, hideout and ammunition references remain strict.
             foreach (var itemId in objective.ItemIds)
             {
                 if (!itemIds.Contains(itemId))
@@ -145,14 +152,6 @@ public sealed class GameContentIntegrityValidator
                         "quest-objective.item.missing",
                         $"Quest '{objective.QuestId}' objective '{objective.ObjectiveId}' references missing item '{itemId}'.");
                 }
-            }
-
-            if (!string.IsNullOrWhiteSpace(objective.QuestItemId) && !itemIds.Contains(objective.QuestItemId))
-            {
-                Fatal(
-                    issues,
-                    "quest-objective.quest-item.missing",
-                    $"Quest '{objective.QuestId}' objective '{objective.ObjectiveId}' references missing quest item '{objective.QuestItemId}'.");
             }
 
             foreach (var mapId in objective.MapIds)

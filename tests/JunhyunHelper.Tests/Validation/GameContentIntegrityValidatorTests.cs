@@ -12,6 +12,10 @@ namespace JunhyunHelper.Tests.Validation;
 
 public sealed class GameContentIntegrityValidatorTests
 {
+    private const string RegressionQuestId = "6524640578137d9edc1628e4";
+    private const string RegressionObjectiveId = "objective-6710469f5474276231657a22";
+    private const string RegressionSpecialDogtagId = "6662e9aca7e0b43baa3d5f74";
+
     [Fact]
     public void CompleteConnectedCatalogPasses()
     {
@@ -60,6 +64,94 @@ public sealed class GameContentIntegrityValidatorTests
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Issues, issue => issue.Code == "quest-item.objective.missing");
+    }
+
+    [Fact]
+    public void OtherObjectiveStillRejectsDanglingCanonicalItemReference()
+    {
+        var content = CreateCatalog();
+        var regressionQuest = content.Quests[0] with { Id = RegressionQuestId };
+        var regressionObjective = new QuestObjective(
+            RegressionQuestId,
+            RegressionObjectiveId,
+            "specialCondition",
+            "특수 아이템 조건",
+            "Special item condition",
+            false,
+            1,
+            false,
+            Array.Empty<string>(),
+            [RegressionSpecialDogtagId],
+            null,
+            QuestItemObjectiveKind.Other);
+
+        content = content with
+        {
+            Quests = [regressionQuest],
+            QuestObjectives = [regressionObjective],
+            QuestItemRequirements =
+            [
+                new QuestItemRequirement(RegressionQuestId, RegressionObjectiveId, ["item-0"], 1, false),
+            ],
+        };
+
+        var result = new GameContentIntegrityValidator().Validate(content);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Issues, issue =>
+            issue.Code == "quest-objective.item.missing" &&
+            issue.Message.Contains(RegressionSpecialDogtagId, StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData(QuestItemObjectiveKind.Submit, "giveItem")]
+    [InlineData(QuestItemObjectiveKind.FindOrCollect, "findItem")]
+    [InlineData(QuestItemObjectiveKind.Sell, "sellItem")]
+    public void CanonicalItemObjectiveStillRejectsDanglingItemReference(
+        QuestItemObjectiveKind itemKind,
+        string type)
+    {
+        const string danglingItemId = "actual-dangling-canonical-item";
+        var content = CreateCatalog();
+        var objective = content.QuestObjectives[0] with
+        {
+            Type = type,
+            ItemIds = [danglingItemId],
+            ItemKind = itemKind,
+        };
+
+        content = content with
+        {
+            QuestObjectives = [objective],
+            QuestItemRequirements = itemKind == QuestItemObjectiveKind.Submit
+                ? [new QuestItemRequirement("quest-a", "objective-a", [danglingItemId], 1, true)]
+                : content.QuestItemRequirements,
+        };
+
+        var result = new GameContentIntegrityValidator().Validate(content);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Issues, issue =>
+            issue.Code == "quest-objective.item.missing" &&
+            issue.Message.Contains(danglingItemId, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void OrdinaryQuestItemRequirementStillRejectsMissingCanonicalItem()
+    {
+        const string danglingItemId = "missing-material-item";
+        var content = CreateCatalog() with
+        {
+            QuestItemRequirements =
+            [
+                new QuestItemRequirement("quest-a", "objective-a", [danglingItemId], 1, true),
+            ],
+        };
+
+        var result = new GameContentIntegrityValidator().Validate(content);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Issues, issue => issue.Code == "quest-item.item.missing");
     }
 
     [Fact]
