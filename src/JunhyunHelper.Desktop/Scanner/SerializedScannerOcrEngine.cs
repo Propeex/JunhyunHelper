@@ -22,9 +22,12 @@ internal sealed class SerializedScannerOcrEngine : IScannerDeepOcrEngine
     public SerializedScannerOcrEngine(IScannerOcrEngine inner)
     {
         ArgumentNullException.ThrowIfNull(inner);
-        _inner = inner is EnvironmentGuardedScannerOcrEngine
-            ? inner
-            : new EnvironmentGuardedScannerOcrEngine(inner);
+        IScannerOcrEngine effectiveInner = inner is ScannerLab38OcrEngine lab38
+            ? new DiagnosticScannerLab38OcrEngine(lab38)
+            : inner;
+        _inner = effectiveInner is EnvironmentGuardedScannerOcrEngine
+            ? effectiveInner
+            : new EnvironmentGuardedScannerOcrEngine(effectiveInner);
     }
 
     public bool IsAvailable => _inner.IsAvailable;
