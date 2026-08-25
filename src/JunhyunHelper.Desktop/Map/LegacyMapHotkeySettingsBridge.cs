@@ -68,18 +68,8 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
         foreach (var action in Enum.GetValues<OverlayMiniMapHotkeyAction>())
         {
             var current = _overlay.Settings.GetHotkey(action);
-            var persisted = _store.GetHotkey(action, current);
-            _overlay.Settings.SetHotkey(action, persisted);
-        }
-
-        var temporary = _store.TemporaryHideKey;
-        if (temporary != 0)
-        {
-            foreach (var action in Enum.GetValues<OverlayMiniMapHotkeyAction>())
-            {
-                if (_overlay.Settings.GetHotkey(action) == temporary)
-                    _overlay.Settings.SetHotkey(action, 0);
-            }
+            var persisted = _store.GetHotkeyGesture(action, current);
+            _overlay.Settings.SetHotkey(action, persisted.VirtualKey);
         }
     }
 
@@ -108,7 +98,7 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
         });
         stack.Children.Add(new TextBlock
         {
-            Text = "버튼을 누른 뒤 키를 입력합니다. Delete/Backspace는 미지정, Esc는 취소입니다. 같은 키는 마지막으로 지정한 동작에만 남습니다.",
+            Text = "일반 키를 단독으로 사용하거나 Ctrl / Alt / Shift를 원하는 조합으로 함께 사용할 수 있습니다. Delete/Backspace는 미지정, Esc는 취소입니다. 같은 조합은 마지막으로 지정한 동작에만 남습니다.",
             Foreground = Brush("TextSecondaryBrush", Brushes.Gray),
             FontSize = 11,
             TextWrapping = TextWrapping.Wrap,
@@ -141,7 +131,7 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
         var row = CreateRow("미니맵 일시 투명");
         _temporaryHideButton = new Button
         {
-            Width = 118,
+            Width = 150,
             Padding = new Thickness(6, 4, 6, 4),
             Margin = new Thickness(8, 0, 0, 0),
         };
@@ -208,7 +198,7 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
     {
         var button = new Button
         {
-            Width = 118,
+            Width = 150,
             Padding = new Thickness(6, 4, 6, 4),
             Tag = action,
             Margin = new Thickness(8, 0, 0, 0),
@@ -260,7 +250,7 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
 
         if (key is Key.Delete or Key.Back)
         {
-            AssignCapturedKey(0);
+            AssignCapturedGesture(JunhyunMapHotkeyGesture.Disabled);
             FinishCapture(save: true);
             return;
         }
@@ -268,12 +258,12 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
         if (IsModifier(key))
             return;
 
-        if (IsReserved(key))
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Windows))
         {
             MessageBox.Show(
                 Window.GetWindow(_page),
-                "NumPad 0~5는 직접 층 선택에 사용하므로 다른 지도 단축키로 지정할 수 없습니다.",
-                "예약된 단축키",
+                "Windows 키는 지도 단축키 조합에 사용할 수 없습니다. Ctrl / Alt / Shift 조합을 사용해주세요.",
+                "지원하지 않는 단축키",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
             return;
@@ -283,25 +273,27 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
         if (virtualKey <= 0)
             return;
 
-        AssignCapturedKey(virtualKey);
+        var gesture = new JunhyunMapHotkeyGesture(virtualKey, CurrentModifiers());
+        if (IsReservedBareNumPad(key, gesture.Modifiers))
+        {
+            MessageBox.Show(
+                Window.GetWindow(_page),
+                "NumPad 0~5 단독 입력은 직접 층 선택에 사용됩니다. Ctrl / Alt / Shift를 함께 사용하면 다른 지도 단축키로 지정할 수 있습니다.",
+                "예약된 단축키",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        AssignCapturedGesture(gesture);
         FinishCapture(save: true);
     }
 
-    private void AssignCapturedKey(int virtualKey)
+    private void AssignCapturedGesture(JunhyunMapHotkeyGesture gesture)
     {
         if (_captureTemporaryHide)
         {
-            if (virtualKey != 0)
-            {
-                foreach (var action in Enum.GetValues<OverlayMiniMapHotkeyAction>())
-                {
-                    if (_overlay.Settings.GetHotkey(action) != virtualKey)
-                        continue;
-                    _overlay.Settings.SetHotkey(action, 0);
-                    _store.SetHotkey(action, 0);
-                }
-            }
-            _store.TemporaryHideKey = virtualKey;
+            _store.TemporaryHideGesture = gesture;
             return;
         }
 
@@ -309,22 +301,12 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
             return;
 
         var targetAction = _captureAction.Value;
-        if (virtualKey != 0)
-        {
-            foreach (var action in Enum.GetValues<OverlayMiniMapHotkeyAction>())
-            {
-                if (action == targetAction || _overlay.Settings.GetHotkey(action) != virtualKey)
-                    continue;
-                _overlay.Settings.SetHotkey(action, 0);
-                _store.SetHotkey(action, 0);
-            }
+        _store.SetHotkeyGesture(targetAction, gesture);
 
-            if (_store.TemporaryHideKey == virtualKey)
-                _store.TemporaryHideKey = 0;
-        }
-
-        _overlay.Settings.SetHotkey(targetAction, virtualKey);
-        _store.SetHotkey(targetAction, virtualKey);
+        // The transplanted settings object cannot represent modifiers. Keep only the
+        // primary key there for compatibility/UI initialization; the JunhyunHelper store
+        // and JunhyunMapHotkeyService remain authoritative for the full gesture.
+        _overlay.Settings.SetHotkey(targetAction, gesture.VirtualKey);
     }
 
     private void FinishCapture(bool save)
@@ -394,22 +376,46 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
                 continue;
             }
 
-            var virtualKey = _overlay.Settings.GetHotkey(action);
-            button.Content = KeyText(virtualKey);
+            var current = _overlay.Settings.GetHotkey(action);
+            button.Content = GestureText(_store.GetHotkeyGesture(action, current));
         }
 
         if (_temporaryHideButton is not null)
         {
             _temporaryHideButton.Content = _captureTemporaryHide
                 ? "입력 대기..."
-                : KeyText(_store.TemporaryHideKey);
+                : GestureText(_store.TemporaryHideGesture);
         }
         UpdateDurationText();
     }
 
-    private static string KeyText(int virtualKey) => virtualKey == 0
-        ? "미지정"
-        : KeyInterop.KeyFromVirtualKey(virtualKey).ToString();
+    private static string GestureText(JunhyunMapHotkeyGesture gesture)
+    {
+        if (gesture.IsDisabled)
+            return "미지정";
+
+        var parts = new List<string>(4);
+        if (gesture.Modifiers.HasFlag(JunhyunMapHotkeyModifiers.Control))
+            parts.Add("Ctrl");
+        if (gesture.Modifiers.HasFlag(JunhyunMapHotkeyModifiers.Alt))
+            parts.Add("Alt");
+        if (gesture.Modifiers.HasFlag(JunhyunMapHotkeyModifiers.Shift))
+            parts.Add("Shift");
+        parts.Add(KeyInterop.KeyFromVirtualKey(gesture.VirtualKey).ToString());
+        return string.Join("+", parts);
+    }
+
+    private static JunhyunMapHotkeyModifiers CurrentModifiers()
+    {
+        var modifiers = JunhyunMapHotkeyModifiers.None;
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+            modifiers |= JunhyunMapHotkeyModifiers.Control;
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Alt))
+            modifiers |= JunhyunMapHotkeyModifiers.Alt;
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+            modifiers |= JunhyunMapHotkeyModifiers.Shift;
+        return modifiers;
+    }
 
     private Brush Brush(string key, Brush fallback) =>
         _page.TryFindResource(key) as Brush ?? fallback;
@@ -418,8 +424,9 @@ public sealed class LegacyMapHotkeySettingsBridge : IDisposable
         Key.LeftCtrl or Key.RightCtrl or Key.LeftShift or Key.RightShift or
         Key.LeftAlt or Key.RightAlt or Key.LWin or Key.RWin;
 
-    private static bool IsReserved(Key key) => key is
-        Key.NumPad0 or Key.NumPad1 or Key.NumPad2 or Key.NumPad3 or Key.NumPad4 or Key.NumPad5;
+    private static bool IsReservedBareNumPad(Key key, JunhyunMapHotkeyModifiers modifiers) =>
+        modifiers == JunhyunMapHotkeyModifiers.None && key is
+            Key.NumPad0 or Key.NumPad1 or Key.NumPad2 or Key.NumPad3 or Key.NumPad4 or Key.NumPad5;
 
     public void Dispose()
     {
