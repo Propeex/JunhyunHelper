@@ -1,13 +1,15 @@
 # Current Scanner Work
 
 기준일: 2026-08-26
-상태: **P0 RESOLVED / v1.7.6 PUBLIC STABLE / LIVE MAINTENANCE**
+상태: **FEATURE COMPLETE / MAINTENANCE ONLY / v1.7.6 PUBLIC STABLE**
 
 ## 최종 결론
 
 v1.7.5까지 문제 데스크탑에서 재현되던 Scanner 5~13초 장시간 인식 지연은 v1.7.6에서 해결됐다.
 
 사용자 실사용 평가와 두 번의 support bundle이 동일한 결론을 지지한다. 성능 알고리즘은 더 수정하지 않는다. 새로운 실측 regression이 생기기 전에는 threshold, candidate cap, OCR variant 또는 visual acceptance를 성능 목적으로 조정하지 않는다.
+
+2026-08-26 제품 사용자는 Scanner가 실사용 가능한 수준으로 자리 잡았으며 기능 개발 단계가 종료되었다고 최종 확정했다. Scanner의 기본 상태는 앞으로 **유지보수 전용**이다. 새로운 제품 요구사항이나 실제 회귀 증거가 없는 한 선제적 기능 추가, 구조 변경, 정확도/성능 튜닝을 시작하지 않는다.
 
 ## Public stable
 
@@ -181,16 +183,23 @@ v1.7.6 공개 ZIP의 `FIRST_RUN_KO.txt` 본문 일부는 개발 중 작성된 `�
 - 게시된 stable asset은 immutable 원칙에 따라 덮어쓰지 않는다.
 - 다음 patch에서 사용자 안내 문구를 현재 resolved 상태에 맞게 갱신한다.
 
-## 다음 Scanner 작업
+## Scanner 유지보수 원칙
 
-현재 P0는 종료한다.
+Scanner 기능 개발은 종료됐다.
 
-앞으로는:
+앞으로 Scanner 작업은 다음 조건 중 하나가 실제로 발생했을 때만 시작한다.
 
-1. 실사용에서 새로운 miss/wrong identity/performance regression이 생기면 exact Case/support bundle 확보
+1. 실사용에서 새로운 miss/wrong identity/performance regression이 확인됨
+2. Tarkov UI/데이터 변경으로 기존 인식 계약이 깨짐
+3. Windows/.NET/platform 변화로 runtime compatibility 문제가 생김
+4. 사용자가 새로운 Scanner 제품 요구사항을 명시적으로 결정함
+
+문제가 생기면:
+
+1. exact Case/support bundle 확보
 2. failure stage를 측정
 3. affected stage만 수정
 4. reviewed Ground Truth가 있으면 full replay에서 REGRESSION=0 확인
-5. 추측 기반 threshold/candidate-cap 완화 금지
+5. 전체 Windows CI/publish/smoke/package gate 통과 후 배포
 
-성능 수치를 더 낮추기 위한 선제적 Scanner 구조 변경은 하지 않는다.
+성능 수치를 더 낮추기 위한 선제적 Scanner 구조 변경이나 추측 기반 threshold/candidate-cap 완화는 하지 않는다.
