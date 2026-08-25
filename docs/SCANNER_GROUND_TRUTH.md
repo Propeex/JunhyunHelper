@@ -1,9 +1,20 @@
 # Scanner Ground Truth / Correction Development Contract
 
-기준일: 2026-08-25
-상태: **v1.7.0 PUBLIC RELEASE VERIFIED / ACTIVE**
+기준일: 2026-08-26
+상태: **v1.7.8 PUBLIC STABLE / MAINTENANCE ONLY**
 
-이 문서는 준현 헬퍼 Scanner의 실사용 성공·실패를 재현 가능한 개발 데이터로 전환하는 공식 계약이다. `docs/SCANNER.md`의 production recognition pipeline을 폐기하지 않고 그 위에 진단, 사용자 교정, Ground Truth, replay regression 체계를 둔다. v1.7.0부터 recognition log의 교정 action도 동일 Case ID의 저장된 diagnostic evidence 또는 정확히 같은 current frame이 있을 때만 이 계약으로 진입한다.
+이 문서는 준현 헬퍼 Scanner의 실사용 성공·실패를 재현 가능한 개발 데이터로 전환하는 공식 계약이다. `docs/SCANNER.md`의 production recognition pipeline을 폐기하지 않고 그 위에 진단, 사용자 교정, Ground Truth, replay regression 체계를 둔다.
+
+가장 중요한 현재 계약은 **runtime diagnostic evidence와 durable Ground Truth의 소유권을 분리하는 것**이다.
+
+```text
+runtime frame / failure
+≠ durable Ground Truth
+
+user explicitly opens correction
++ user explicitly saves
+= reviewed durable Ground Truth
+```
 
 ## 1. 목표
 
@@ -19,7 +30,7 @@ capture
 → current official item catalog matching
 → Item ID or fail closed
 → local mapped presentation
-→ user review/correction
+→ optional user review/correction
 → reviewed Ground Truth dataset
 → full-pipeline replay regression
 → evidence-based algorithm change
@@ -72,33 +83,35 @@ mapped_data:
 
 ## 3. Case ID / evidence link
 
-진단 capture에는 process-local unique Case ID를 부여한다.
+진단 capture에는 process-local unique Case ID를 부여할 수 있다.
 
 ```text
 case_YYYYMMDDHHMMSSfff_000142
 ```
 
-동일 Case ID가 다음을 연결한다.
+Case ID는 가능한 경우 다음 evidence를 연결한다.
 
-- latest diagnostic frame
-- scanner.log
-- Case directory
+- latest exact in-memory diagnostic frame
+- scanner.log activity
+- 사용자가 저장한 durable Case directory
 - case.json
 - candidate_selection.json
 - correction window
 - regression output
 
-시간 추정으로 image/log를 맞추지 않는다.
+시간 추정으로 다른 frame/image/log를 대신 연결하지 않는다.
 
-## 4. Storage
+v1.7.7 이후 일반 monitoring에서 Case ID가 존재한다는 사실만으로 durable directory가 존재하는 것은 아니다.
 
-Root:
+## 4. Storage ownership
+
+Durable reviewed dataset root:
 
 ```text
 %LocalAppData%/JunhyunHelper/scanner/diagnostics/
 ```
 
-Representative layout:
+사용자가 교정 저장한 Case의 representative layout:
 
 ```text
 diagnostics/
@@ -125,34 +138,36 @@ diagnostics/
 
 `full.png`는 full-pipeline replay의 핵심 원본 evidence다.
 
-## 5. Automatic diagnostic Case vs Ground Truth
+정상 runtime monitoring은 위 image dataset을 자동으로 계속 생성하지 않는다.
 
-Automatic diagnostic persistence는 recognition result를 바꾸지 않는 best-effort background work다.
+## 5. Runtime diagnostic frame vs Ground Truth
 
-대표 automatic sample:
-
-- detail/header lock failure
-- fail-closed identity failure
-- low-confidence success
-- bounded deterministic normal sample
-
-Automatic Case 기본 metadata:
+현재 runtime flow:
 
 ```text
-retention = automatic_sample
-review_status = unreviewed
+capture / recognition
+→ latest exact diagnostic frame in memory
+→ bounded runtime text diagnostics
+→ user chooses current correction
+→ user reviews/corrects
+→ user saves
+→ durable reviewed Ground Truth
 ```
 
-**Automatic Case는 Ground Truth가 아니다.**
+상세창 없음, detail/header lock failure, OCR/matcher failure, ambiguity, low-confidence result 또는 반복 stationary failure만으로 durable Case를 자동 저장하지 않는다.
 
-Ground Truth는 사용자가 review/correction을 완료한 Case만 의미한다.
+**Ground Truth는 사용자가 review/correction을 완료하고 저장한 Case만 의미한다.**
+
+Automatic pipeline observation은 truth가 아니다.
 
 ## 6. Current correction UX — image-first candidate selection
+
+Scanner 메인 상단의 `현재 결과 교정`은 `ScannerRecognitionDebugStore`가 보존한 최신 exact in-memory frame을 연다.
 
 현재 기본 교정 흐름:
 
 ```text
-Case image 열기
+exact current Case image 열기
 → detail rectangle candidate 직접 클릭
 → red close-X candidate 직접 클릭
 → magnifier candidate 직접 클릭
@@ -173,6 +188,8 @@ Candidate selection은 manual rectangle의 대체가 아니라 recall/ranking ev
 
 사용자는 JSON/candidate rank/coordinate를 직접 편집하지 않는다.
 
+오래된 activity가 durable reviewed Case도 아니고 현재 exact in-memory frame도 아니면 다른 frame으로 대체해 교정하지 않는다.
+
 ## 7. Image auto-fit / coordinate contract
 
 큰 Tarkov screenshot도 correction window/monitor viewport 안에 전체가 보이도록 auto-fit한다.
@@ -189,7 +206,7 @@ UI scale change는 dataset geometry 의미를 바꾸면 안 된다.
 
 ## 8. Saved Case re-edit
 
-현재 `교정 데이터 관리`에서 기존 Case를 다시 열 수 있다.
+현재 `교정 데이터 관리`에서 기존 durable Case를 다시 열 수 있다.
 
 복원 source:
 
@@ -334,6 +351,8 @@ Automatic pipeline observation:
 
 Automatic observed stage를 Ground Truth cause로 자동 변환하지 않는다.
 
+v1.7.8 reviewed raid Case처럼 사용자에게는 “인식 실패”로 보이더라도 raw OCR이 empty이고 `HEADER_CLOSE_NOT_LOCKED`라면 실제 failure stage는 OCR 이전 semantic header일 수 있다. Ground Truth와 pipeline stage를 분리해 기록한다.
+
 ## 13. User OCR substitution evidence — settings schema v6
 
 Scanner display settings schema는 v6이다.
@@ -362,11 +381,11 @@ Substitution statistics가 product-wide automatic correction table을 자동 생
 
 ## 14. Logs / dataset management separation
 
-`scanner.log`는 bounded runtime diagnostic이고 Ground Truth dataset은 image/ROI/prediction/truth/candidate evidence persistence다.
+`scanner.log`는 bounded runtime diagnostic이고 Ground Truth dataset은 user-reviewed image/ROI/prediction/truth/candidate evidence persistence다.
 
 현재 일반 Scanner page는 user-facing log-delete/developer export buttons를 노출하지 않는다.
 
-Internal log retention/cleanup과 Ground Truth Case management는 계속 별도 책임이다.
+Internal log retention/cleanup과 Ground Truth Case management는 별도 책임이다.
 
 Correction dataset manager는:
 
@@ -379,23 +398,15 @@ Correction dataset manager는:
 
 Case 삭제 후 index/summary는 remaining directories를 다시 스캔해 재생성한다. 연속 번호에 의존하지 않는다.
 
-## 15. Export / statistics
+## 15. Export / support bundle separation
 
-기존 diagnostic export capability가 사용되는 개발 흐름에서는 ZIP 하나로 dataset/evidence/log를 전달할 수 있다.
+Scanner **성능 진단 자료 내보내기**는 runtime 환경/성능 trace와 bounded text logs를 지원용 ZIP으로 제공한다. 사용자의 Ground Truth image/dataset을 자동 포함하지 않는다.
 
-Representative contents:
-
-- README
-- summary.md/json
-- environment.json
-- dataset.jsonl
-- regression.json/md
-- cases/**
-- scanner.log* if included
+Ground Truth dataset을 개발 evidence로 전달하는 별도 흐름이 존재하는 경우에도 사용자가 명시적으로 선택한 reviewed data만 대상으로 하며, runtime support bundle과 같은 것으로 취급하지 않는다.
 
 자동 통계 예:
 
-- total / automatic / reviewed counts
+- reviewed total count
 - reviewed final accuracy
 - Ground Truth error types
 - pipeline stages
@@ -410,11 +421,7 @@ Final accuracy denominator에는 user-confirmed final Item truth가 있는 Case�
 
 Production OCR은 title size/pass에 따라 scale/contrast/binary/inverse preprocessing을 사용할 수 있다.
 
-가능한 범위에서 processed ROI/variants를 Case에 보존한다.
-
-남은 개선 여지:
-
-- OCR engine이 실제 소비한 processed bitmap 자체를 직접 evidence로 발행
+가능한 범위에서 user-saved Case에 processed ROI/variants를 보존한다.
 
 Preprocessing 변경 시 persistence/replay evidence 의미가 유지되는지 확인한다.
 
@@ -458,95 +465,91 @@ Mapped price/flea data는 latest Game Content로 정상 변화할 수 있다. `M
 
 ## 18. Retention / privacy
 
-Reviewed Ground Truth:
+### Reviewed Ground Truth
 
 **automatic delete 금지.**
 
-Automatic Case delete eligibility:
+### New runtime monitoring
+
+새 버전은 automatic diagnostic image Case를 durable storage에 생성하지 않는다.
+
+### Legacy automatic Case cleanup
+
+이전 버전에서 이미 존재하는 Case는 다음을 모두 증명할 때만 자동 삭제할 수 있다.
 
 ```text
 retention == automatic_sample
 AND review_status == unreviewed
+AND recent write safety window >= 5 minutes
+AND pre-delete metadata/state re-read confirms unchanged state
 ```
 
-Default bounds:
-
-```text
-max age: 30 days
-max automatic cases: 300
-max automatic bytes: 512 MiB
-recent safety window: 2 hours
-```
-
-- recent Case 자동 삭제 금지
-- delete 직전 metadata re-read
-- corrupt/unknown metadata preserve fail closed
-- retention delete는 diagnostic log에 기록
+- reviewed/manual Case 자동 삭제 금지
+- corrupt/unknown/unreadable metadata preserve fail closed
+- delete 직전 state가 달라지면 보존
+- cleanup은 recognition hot path 밖에서 수행
+- legacy cleanup에 과거 30일/300개/512MiB cap을 current durable persistence 정책으로 사용하지 않음
 
 Privacy/user control:
 
-- full game/display pixels가 Case에 포함될 수 있음
+- user-saved full game/display pixels가 Case에 포함될 수 있음
 - Case count/storage 확인 가능
 - selected/all delete 가능
 - exported copy는 internal delete가 자동 제거하지 않음
 - dataset persistence failure가 Scanner recognition result를 바꾸면 안 됨
 
+공식 결정: `docs/DECISION_SCANNER_STORAGE_AND_HOTKEYS_2026-08-26.md`.
+
 ## 19. Current completed scope
 
-Ground Truth workflow에서 구현된 범위:
+Ground Truth workflow에서 현재 구현된 범위:
 
 1. Case ID/stage/log evidence linkage
-2. original/detail/title/preprocessing/annotation artifacts
-3. automatic failure/low-confidence/normal sampling
-4. user-reviewed Ground Truth separation
-5. candidate-first detail/close/magnifier/title ROI correction
-6. candidate box image-direct selection
-7. image auto-fit + original coordinate preservation
-8. explicit `없음`
-9. manual rectangle fallback
-10. correct item/text
-11. candidate ID/rank/score/geometry persistence
-12. matcher top candidates
-13. raw/substituted/normalized OCR separation
-14. summary/index/statistics
-15. Case list/selective/full delete
-16. saved Case reopen/re-edit
-17. same Case ID reviewed update
-18. full.png replay regression
-19. automatic unreviewed retention bounds
+2. latest exact runtime frame in-memory retention
+3. user-selected durable correction save
+4. original/detail/title/preprocessing/annotation artifacts for saved Case
+5. user-reviewed Ground Truth separation
+6. candidate-first detail/close/magnifier/title ROI correction
+7. candidate box image-direct selection
+8. image auto-fit + original coordinate preservation
+9. explicit `없음`
+10. manual rectangle fallback
+11. correct item/text
+12. candidate ID/rank/score/geometry persistence
+13. matcher top candidates
+14. raw/substituted/normalized OCR separation
+15. summary/index/statistics
+16. Case list/selective/full delete
+17. saved Case reopen/re-edit
+18. same Case ID reviewed update
+19. full.png replay regression
+20. fail-closed cleanup of legacy automatic unreviewed Cases
+21. runtime support bundle and Ground Truth dataset lifetime separation
 
 ## 20. Current development loop
 
-공개 검증 후:
+현재 maintenance loop:
 
 ```text
 real Tarkov usage
-→ representative correct Case review
-→ miss/wrong identity immediate correction
+→ representative correct result review
+→ miss/wrong identity correction
 → reviewed Ground Truth accumulation
 → failure-stage clustering
 → affected stage only modification
 → full replay
 → REGRESSION=0
 → PATCH candidate
+→ full Windows CI/publish/smoke/package gate
+→ public release readback
 ```
 
-관찰 우선순위:
-
-- resolution/DPI/UI scale
-- detail proposal recall/ranking
-- close-X/magnifier semantic miss
-- short/sparse title OCR
-- r / 0 / slash-zero-like glyph / complex Hangul
-- near-name ambiguity
-- mapped market completeness
-- rapid Item transition stale-state isolation
-- telemetry latency bottleneck
+관찰 우선순위는 특정 glyph나 stage를 미리 가정하지 않는다. 실제 reviewed Case/support evidence가 가리키는 failure stage를 먼저 확정한다.
 
 ## 21. 금지 사항
 
 - 한 번의 user coordinate correction을 global offset으로 즉시 적용
-- unreviewed automatic Case를 truth로 취급
+- unreviewed automatic/runtime diagnostic을 truth로 취급
 - observed pipeline stage를 GT cause로 자동 변환
 - 존재하지 않는 숫자 OCR field를 억지로 추가
 - GT 없이 detector/header/matcher threshold 완화
@@ -559,5 +562,7 @@ real Tarkov usage
 - substitution 결과로 raw OCR overwrite
 - UI display scale 좌표를 original GT pixel coordinate로 저장
 - saved Case restore failure에서 existing GT overwrite/delete
+- 오래된 activity에 다른 current frame을 대신 연결해 교정
+- runtime failure를 durable Case로 자동 축적하는 정책 재도입
 
 특히 structural floor `0.34`, trusted header floor `0.68`, candidate caps, matcher confidence/margin은 새로운 reviewed Ground Truth evidence 없이 변경하지 않는다.
