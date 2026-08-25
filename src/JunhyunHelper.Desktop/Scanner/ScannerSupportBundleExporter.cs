@@ -97,7 +97,7 @@ internal static class ScannerSupportBundleExporter
 
         try
         {
-            var window = Application.Current?.MainWindow;
+            var window = System.Windows.Application.Current?.MainWindow;
             if (window is not null)
             {
                 var dpi = VisualTreeHelper.GetDpi(window);
