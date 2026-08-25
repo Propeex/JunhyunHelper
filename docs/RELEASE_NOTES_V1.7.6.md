@@ -1,49 +1,43 @@
 # 준현 헬퍼 v1.7.6
 
-## Scanner 장시간 정지 진단 후보
+## Scanner 장시간 지연 fix candidate
 
-v1.7.6은 v1.7.5에서도 해결되지 않은 PC별 Scanner 장시간 정지의 실제 blocking phase를 측정하고, 코드에서 이미 확정된 지연 증폭/UI 응답성 결함을 먼저 차단하기 위한 진단 후보입니다. 문제 데스크탑의 실행 자료로 최종 root cause가 확인되기 전에는 성능 문제 해결 완료 릴리즈로 취급하지 않습니다.
+v1.7.6은 아직 정식 공개 릴리즈가 아닙니다. 문제 데스크탑의 진단 자료로 장시간 지연의 root cause를 확인했고, 해당 병목을 직접 수정한 재검증 후보입니다.
 
-### 세부 성능 진단
+### 확인된 원인
 
-- 기존 Windows `OcrEngine` 인스턴스와 기존 Scanner 인식 경로를 유지합니다.
-- 전체 Scanner cycle과 capture / rectangle proposal / semantic header / OCR / visual recovery / catalog matching / presentation stage의 시작·종료를 연결해 기록합니다.
-- serialized OCR semaphore 대기 시간을 측정합니다.
-- exact-image key 생성의 `CopyPixels` 및 SHA-256 시간을 측정합니다.
-- title 확대와 deep OCR variant 생성을 각각 측정합니다.
-- BGRA 변환, OCR input `CopyPixels`, WinRT `SoftwareBitmap` 생성을 각각 측정합니다.
-- 실제 `Windows.Media.Ocr.OcrEngine.RecognizeAsync` 호출 하나하나의 시작/종료와 latency를 기록합니다.
-- WPF dispatcher 지연을 OCR latency와 독립적으로 관측해 실제 UI starvation 여부를 구분합니다.
-- 세부 timing은 bounded in-memory trace에 저장하여 진단 기록 자체가 파일 I/O 병목을 만들지 않도록 합니다.
+문제 PC의 대표 실제 Tarkov Scanner cycle:
 
-### v1.7.5 OCR guard 보강
+```text
+전체              12,540.77 ms
+Windows OCR            12.26 ms
+실제 RecognizeAsync     10.57 ms
+visual recovery     12,306.61 ms / 16 calls
+```
 
-v1.7.5의 circuit breaker는 normal/deep OCR 작업 전체가 끝난 뒤에만 slow-empty 상태를 알 수 있었습니다. deep OCR 내부의 첫 실제 Windows OCR 호출이 이미 느린 빈 결과를 반환해도 같은 deep 작업의 나머지 variant가 계속 실행될 수 있었습니다.
+Windows OCR, 파일 로그 I/O, WPF UI thread가 주 병목이 아니었습니다. 동일한 현재-frame title evidence를 여러 Scanner 후보가 공유하는데도 Tarkov-font visual corroboration을 후보마다 반복하고, optional font provider의 source discovery도 retry 보호 밖에서 반복될 수 있던 구조가 지연을 증폭했습니다.
 
-v1.7.6에서는 같은 slow-empty 정책을 실제 `RecognizeAsync` 호출 단위에도 적용합니다.
+### 이번 fix candidate
 
-- 실제 OCR 1회가 800 ms 이상이고 결과가 비어 있을 때만 degraded로 판정합니다.
-- 느리더라도 텍스트를 정상 반환한 OCR은 억제하지 않습니다.
-- 실제 slow-empty가 확인된 뒤에는 같은 recovery chain의 후속 OS OCR 호출도 반복하지 않습니다.
-- 기존 strict Tarkov-font visual recovery는 그대로 유지합니다.
-- visual evidence가 충분하지 않으면 기존과 같이 fail closed 합니다.
+- 동일 Scanner decision cycle에서 title pixels + OCR text가 정확히 동일한 경우 완료된 visual corroboration 결과를 cycle-local로 재사용합니다.
+- cycle이 바뀌면 해당 결과는 폐기합니다. cross-frame Item identity/OCR cache를 만들지 않습니다.
+- candidate cap을 줄이지 않으며 동일한 후보 검증 의미를 유지합니다.
+- Tarkov font provider의 unavailable retry를 비싼 process/source discovery보다 먼저 적용합니다.
+- 발견한 `resources.assets` 경로를 process-local로 재사용하고, loaded font source 검증을 candidate마다 반복하지 않습니다.
+- `visual-cycle-cache-hit`, `title-font-source-probe`를 추가해 수정 효과를 다음 support bundle에서 직접 확인할 수 있습니다.
 
-### UI 응답성
+### 기존 v1.7.6 진단/응답성 개선 유지
 
-- 1회 스캔 단축키는 WPF 메시지 처리 스레드에서 capture/OCR 작업을 직접 시작하지 않고 Scanner worker에서 실행하도록 변경했습니다.
-- OCR 자체가 느리더라도 1회 스캔 때문에 준현 헬퍼 UI가 같이 멈추지 않도록 실행 경계를 분리했습니다.
-- normal-priority WPF dispatcher probe로 실제 UI 응답 없음과 backend 지연을 따로 기록합니다.
-
-### 진단 자료 내보내기
-
-- `Scanner > 고급 > Scanner 성능 진단 자료 내보내기`에서 환경 정보, 기존 Scanner 로그와 세부 performance trace를 ZIP 하나로 저장할 수 있습니다.
-- Windows/runtime/process architecture, OCR 언어, 화면/DPI/render tier, CPU/GC/process 상태, LocalAppData 파일 쓰기 성능 등을 함께 기록합니다.
-- ZIP 생성 자체도 UI thread 밖에서 수행합니다.
-- 진단 ZIP에는 Ground Truth 이미지, 프로필 DB, 게임 계정 정보가 포함되지 않습니다.
+- 실제 `Windows.Media.Ocr.OcrEngine.RecognizeAsync` 호출별 latency 기록
+- actual slow-empty OCR call circuit breaker
+- OCR semaphore / image-key / preprocessing timing 분리
+- 1회 스캔 recognition worker 분리
+- WPF dispatcher stall 독립 측정
+- `Scanner > 고급 > Scanner 성능 진단 자료 내보내기`
 
 ## 정확도·안전 계약
 
-다음 기준은 변경하지 않았습니다.
+변경하지 않았습니다.
 
 - structural floor `0.34`
 - `HEADER_FRAME_LOCKED` floor `0.68`
@@ -51,14 +45,32 @@ v1.7.6에서는 같은 slow-empty 정책을 실제 `RecognizeAsync` 호출 단�
 - one-shot candidate cap `12`
 - 기존 deep OCR candidate limit
 - 기존 catalog matcher acceptance
-- 기존 Tarkov-font targeted/full-catalog visual recovery acceptance
+- 기존 Tarkov-font targeted/full-catalog visual acceptance
 - false positive보다 miss 우선
 - stale Item ID를 현재 identity 근거로 사용하지 않음
-- cross-frame OCR identity cache 금지
+- cross-frame OCR/visual identity cache 금지
 - Item ID 확정 전 가격/필요 개수 등의 mapped data를 identity 근거로 사용하지 않음
 - scan-time network 없음
 - game memory reading, DLL injection, packet interception, Tarkov process hook 없음
 
+## 자동 검증
+
+Root-cause fix code HEAD `d04f39697a4ea4d6ff4eabcb2acdc6bc535c8f9c`, CI run `32866068233`:
+
+- Desktop build 성공
+- 380/380 tests 통과
+- Windows x64 self-contained publish 성공
+- Product UI / Map / Factory / MiniMap smoke 성공
+- graceful shutdown 성공
+- release package verification 성공
+
+재검증용 패키지:
+
+```text
+bytes: 80,462,063
+SHA-256: 96af948b2cd24caeb612d1d89a368bf30329606d3e934a292758292f70dcae30
+```
+
 ## 릴리즈 게이트
 
-문제 데스크탑에서 동일 증상을 재현하고 진단 ZIP으로 실제 blocking phase가 확인된 뒤에만 최종 수정과 정식 patch release 여부를 결정합니다.
+동일 문제 데스크탑에서 Display Test와 실제 Tarkov Scanner의 latency가 정상화되고, 새 support bundle에서 반복 visual recovery가 제거된 것을 확인한 뒤에만 final production cleanup, Ground Truth regression, 최종 CI와 공개 v1.7.6 릴리즈를 진행합니다.
