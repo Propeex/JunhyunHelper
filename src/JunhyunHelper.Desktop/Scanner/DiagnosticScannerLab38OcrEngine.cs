@@ -48,7 +48,7 @@ internal sealed class DiagnosticScannerLab38OcrEngine : IScannerDeepOcrEngine
     {
         ArgumentNullException.ThrowIfNull(titleImage);
         if (!_canTraceExactWinRtBoundary)
-            return await _fallback.ReadTextAsync(titleImage, cancellationToken);
+            return await _fallback.ReadTextAsync(titleImage, cancellationToken) ?? string.Empty;
         if (_engine is null)
             return string.Empty;
 
@@ -73,7 +73,7 @@ internal sealed class DiagnosticScannerLab38OcrEngine : IScannerDeepOcrEngine
     {
         ArgumentNullException.ThrowIfNull(titleImage);
         if (!_canTraceExactWinRtBoundary)
-            return await _fallback.ReadDeepTextAsync(titleImage, cancellationToken);
+            return await _fallback.ReadDeepTextAsync(titleImage, cancellationToken) ?? string.Empty;
         if (_engine is null)
             return string.Empty;
 
@@ -226,8 +226,6 @@ internal sealed class DiagnosticScannerLab38OcrEngine : IScannerDeepOcrEngine
         BitmapSource bgra = image.Format == PixelFormats.Bgra32
             ? image
             : new FormatConvertedBitmap(image, PixelFormats.Bgra32, null, 0);
-        if (!bgra.IsFrozen && bgra is Freezable freezable && freezable.CanFreeze)
-            freezable.Freeze();
         ScannerPerformanceTrace.Mark(
             "ocr-bgra-convert-end",
             ("callId", callId),
