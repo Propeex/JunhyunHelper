@@ -9,8 +9,8 @@ namespace JunhyunHelper.Desktop.Map;
 /// <summary>
 /// JunhyunHelper-owned Map keyboard hook. Configured Map actions must work while
 /// Escape from Tarkov or 준현 헬퍼 has focus, regardless of whether MiniMap is
-/// currently visible. The transplanted hook remains only for its direct NumPad floor
-/// selection compatibility path.
+/// currently visible. Product bindings use one primary key plus optional Ctrl/Alt/Shift.
+/// The transplanted hook remains only for its direct bare-NumPad floor selection path.
 /// </summary>
 public sealed class JunhyunMapHotkeyService : IDisposable
 {
@@ -19,6 +19,18 @@ public sealed class JunhyunMapHotkeyService : IDisposable
     private const int WmSysKeyDown = 0x0104;
     private const int WmKeyUp = 0x0101;
     private const int WmSysKeyUp = 0x0105;
+
+    private const int VkShift = 0x10;
+    private const int VkControl = 0x11;
+    private const int VkMenu = 0x12;
+    private const int VkLShift = 0xA0;
+    private const int VkRShift = 0xA1;
+    private const int VkLControl = 0xA2;
+    private const int VkRControl = 0xA3;
+    private const int VkLMenu = 0xA4;
+    private const int VkRMenu = 0xA5;
+    private const int VkLWin = 0x5B;
+    private const int VkRWin = 0x5C;
 
     private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
 
@@ -86,13 +98,16 @@ public sealed class JunhyunMapHotkeyService : IDisposable
 
         var firstPress = _pressed.Add(virtualKey);
         if (GlobalKeyboardHookService.Instance.OverlayHotkeysSuppressed ||
-            !IsTarkovOrHelperForeground())
+            !IsTarkovOrHelperForeground() ||
+            IsModifierVirtualKey(virtualKey) ||
+            HasWindowsModifierPressed())
         {
             return CallNextHookEx(_hook, code, wParam, lParam);
         }
 
+        var gesture = new JunhyunMapHotkeyGesture(virtualKey, GetPressedModifiers());
         var productSettings = JunhyunMapProductSettingsStore.Instance;
-        if (virtualKey != 0 && virtualKey == productSettings.TemporaryHideKey)
+        if (gesture == productSettings.TemporaryHideGesture)
         {
             if (firstPress)
             {
@@ -103,7 +118,7 @@ public sealed class JunhyunMapHotkeyService : IDisposable
             return CallNextHookEx(_hook, code, wParam, lParam);
         }
 
-        var action = GetProductActionForHotkey(virtualKey);
+        var action = GetProductActionForHotkey(gesture);
         if (action is null)
             return CallNextHookEx(_hook, code, wParam, lParam);
 
@@ -116,22 +131,42 @@ public sealed class JunhyunMapHotkeyService : IDisposable
         return CallNextHookEx(_hook, code, wParam, lParam);
     }
 
-    private static OverlayMiniMapHotkeyAction? GetProductActionForHotkey(int virtualKey)
+    private static OverlayMiniMapHotkeyAction? GetProductActionForHotkey(JunhyunMapHotkeyGesture gesture)
     {
-        if (virtualKey == 0)
+        if (gesture.IsDisabled)
             return null;
 
         var overlaySettings = OverlayMiniMapService.Instance.Settings;
         var productSettings = JunhyunMapProductSettingsStore.Instance;
         foreach (var action in Enum.GetValues<OverlayMiniMapHotkeyAction>())
         {
-            var configuredKey = productSettings.GetHotkey(action, overlaySettings.GetHotkey(action));
-            if (configuredKey == virtualKey)
+            var configured = productSettings.GetHotkeyGesture(action, overlaySettings.GetHotkey(action));
+            if (configured == gesture)
                 return action;
         }
 
         return null;
     }
+
+    private JunhyunMapHotkeyModifiers GetPressedModifiers()
+    {
+        var modifiers = JunhyunMapHotkeyModifiers.None;
+        if (IsAnyPressed(VkControl, VkLControl, VkRControl))
+            modifiers |= JunhyunMapHotkeyModifiers.Control;
+        if (IsAnyPressed(VkMenu, VkLMenu, VkRMenu))
+            modifiers |= JunhyunMapHotkeyModifiers.Alt;
+        if (IsAnyPressed(VkShift, VkLShift, VkRShift))
+            modifiers |= JunhyunMapHotkeyModifiers.Shift;
+        return modifiers;
+    }
+
+    private bool HasWindowsModifierPressed() => _pressed.Contains(VkLWin) || _pressed.Contains(VkRWin);
+
+    private bool IsAnyPressed(int generic, int left, int right) =>
+        _pressed.Contains(generic) || _pressed.Contains(left) || _pressed.Contains(right);
+
+    private static bool IsModifierVirtualKey(int virtualKey) => virtualKey is
+        VkShift or VkControl or VkMenu or VkLShift or VkRShift or VkLControl or VkRControl or VkLMenu or VkRMenu or VkLWin or VkRWin;
 
     private async Task ExecuteSafelyAsync(OverlayMiniMapHotkeyAction action)
     {

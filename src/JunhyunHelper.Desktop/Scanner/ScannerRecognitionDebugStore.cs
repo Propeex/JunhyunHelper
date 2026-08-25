@@ -6,8 +6,9 @@ namespace JunhyunHelper.Desktop.Scanner;
 
 /// <summary>
 /// Keeps exactly one latest Scanner diagnostic frame in memory. The frame carries a
-/// stable Case ID so runtime logs, user correction and persisted diagnostic data can be
-/// joined without guessing. Persistence remains owned by ScannerDiagnosticDataset.
+/// stable Case ID so runtime logs and explicit user correction can be joined without
+/// guessing. Durable correction/Ground Truth persistence happens only when the user
+/// explicitly saves a reviewed case through ScannerDiagnosticDataset.
 /// </summary>
 public static class ScannerRecognitionDebugStore
 {
@@ -34,10 +35,9 @@ public static class ScannerRecognitionDebugStore
     public static void PublishCapture(ScannerRecognitionDebugFrame frame)
     {
         ArgumentNullException.ThrowIfNull(frame);
-        ScannerRecognitionDebugFrame published;
         lock (Gate)
         {
-            published = string.IsNullOrWhiteSpace(frame.CaseId)
+            var published = string.IsNullOrWhiteSpace(frame.CaseId)
                 ? frame with { CaseId = CreateCaseId() }
                 : frame;
             _frame = published;
@@ -45,14 +45,6 @@ public static class ScannerRecognitionDebugStore
             _lastSignature = published.TitleSignature ?? string.Empty;
         }
         Changed?.Invoke();
-
-        // Structural/detail and header-lock failures happen before OCR. Give those
-        // observations an explicit diagnostic reason only for persistence; identity still
-        // remains NOT_RUN in the live frame. The dataset fingerprint gate prevents the
-        // same stationary failure from being written every capture tick.
-        var retentionFrame = BuildPreOcrRetentionFrame(published);
-        if (retentionFrame is not null)
-            ScannerDiagnosticDataset.QueueAutomaticObservation(retentionFrame);
     }
 
     /// <summary>
@@ -126,7 +118,6 @@ public static class ScannerRecognitionDebugStore
             userSubstitutedOcrText,
             matcherText,
             recognition);
-        ScannerDiagnosticDataset.QueueAutomaticObservation(GetSnapshot());
     }
 
     public static void UpdateAnalysis(
@@ -215,17 +206,6 @@ public static class ScannerRecognitionDebugStore
             _lastCaptureUtc = DateTimeOffset.MinValue;
         }
         Changed?.Invoke();
-    }
-
-    private static ScannerRecognitionDebugFrame? BuildPreOcrRetentionFrame(ScannerRecognitionDebugFrame frame)
-    {
-        if (!string.Equals(frame.RecognitionReason, "NOT_RUN", StringComparison.Ordinal))
-            return null;
-        if (string.Equals(frame.StructuralReason, "NO_DETAIL_CANDIDATE", StringComparison.Ordinal))
-            return frame with { RecognitionReason = "DETAIL_WINDOW_NOT_DETECTED" };
-        if (!string.Equals(frame.TitleAnchorReason, "HEADER_FRAME_LOCKED", StringComparison.Ordinal))
-            return frame with { RecognitionReason = "TITLE_ANCHOR_NOT_LOCKED" };
-        return null;
     }
 
     private static Rect ToLocal(Rect absolute, int originX, int originY) =>

@@ -1,4 +1,4 @@
-준현 헬퍼 v1.7.6 — Windows x64
+준현 헬퍼 v1.7.7 — Windows x64
 
 실행 방법
 1. 받은 'Junhyun-Helper.zip'을 원하는 위치에 압축 해제합니다.
@@ -6,22 +6,22 @@
 3. 처음 실행하면 프로필을 만들고 필요한 최신 게임 데이터를 온라인에서 내려받습니다.
 4. 프로그램 실행 시 GitHub의 최신 정식 준현 헬퍼 릴리즈를 확인합니다. 더 최신 버전이 있으면 업데이트 여부를 묻습니다.
 
-v1.7.6 진단 후보 — Scanner 장시간 정지 원인 측정
-- v1.7.5에서 해결되지 않은 PC별 Scanner 장시간 정지를 추측으로 수정하지 않고 실제 blocking 지점을 측정하는 진단 후보입니다.
-- 기존 Windows OCR 인스턴스와 기존 인식 경로를 그대로 사용하면서 확대/variant 생성, BGRA 변환, CopyPixels, SoftwareBitmap 생성, 실제 Windows.Media.Ocr RecognizeAsync, 직렬화 대기 시간을 각각 구분해 기록합니다.
-- WPF UI dispatcher 응답 지연을 OCR latency와 별도로 측정하여 OCR이 느린 문제와 프로그램 자체가 응답 없음이 되는 문제를 구분합니다.
-- Scanner > 고급 > 'Scanner 성능 진단 자료 내보내기'에서 환경 정보와 기존 Scanner 로그, 세부 성능 trace를 ZIP 하나로 저장할 수 있습니다.
-- 진단 ZIP에는 Ground Truth 이미지, 프로필 DB, 게임 계정 정보가 포함되지 않습니다.
-- v1.7.5의 OCR circuit breaker와 기존 strict Tarkov-font visual recovery는 유지합니다.
+v1.7.7 유지보수
+- Scanner 연속 감시 중 상세보기 창이 없거나 인식에 실패한 프레임을 교정 Case로 자동 저장하지 않습니다.
+- Scanner 교정/Ground Truth는 사용자가 직접 교정하여 저장한 경우에만 영구 보존됩니다.
+- 이전 버전에서 생성된 `UNREVIEWED / automatic_sample` Case는 해당 상태를 안전하게 재확인한 경우에만 자동 정리합니다. 사용자가 검토한 Ground Truth, 수동 자료, 상태를 확신할 수 없는 자료는 자동 삭제하지 않습니다.
+- Scanner 화면의 동일 실패는 짧은 시간 동안 반복 표시하지 않아 필요한 인식 기록을 확인하기 쉽게 했습니다. 지원용 텍스트 진단 로그는 기존처럼 작은 회전 파일로 유지합니다.
+- Scanner와 Map 단축키는 일반 키 단독 또는 Ctrl / Alt / Shift의 선택적 조합을 지원합니다.
+- Map의 NumPad 0~5 단독 입력은 기존 직접 층 선택을 유지하며, modifier가 붙은 NumPad 조합은 일반 Map 단축키로 사용할 수 있습니다.
 
 Scanner 인식 안전 계약
 - structural floor 0.34, HEADER_FRAME_LOCKED floor 0.68, continuous candidate cap 8, one-shot candidate cap 12는 그대로 유지합니다.
+- v1.7.6에서 검증된 OCR, matcher, visual recovery acceptance와 200ms observation target을 변경하지 않습니다.
 - false positive보다 miss를 선호하며, 이전 Item ID나 OCR 결과를 새 Item identity 증거로 사용하지 않습니다.
-- cross-frame OCR 결과를 재사용하지 않습니다. 매 인식 판단의 제목 픽셀은 현재 화면에서 새로 획득합니다.
-- OCR backend가 degraded되어도 matcher/visual recovery acceptance 기준을 완화하지 않습니다.
+- cross-frame OCR/visual 결과를 Item identity proof로 사용하지 않습니다.
 - Item ID가 확정되기 전에는 가격·필요 개수 같은 mapped data를 identity 증거로 사용하지 않습니다.
 - Scanner 인식 중 네트워크 요청, 게임 메모리 읽기, DLL injection, packet interception을 사용하지 않습니다.
 
 사용자 데이터
 - 프로필, 진행도, Scanner 설정, 교정 데이터, 로그 등 변경 가능한 사용자 데이터는 프로그램 폴더가 아니라 %LocalAppData%\JunhyunHelper 아래에 보관됩니다.
-- 프로그램 업데이트로 기존 사용자 진행도와 Scanner Ground Truth를 덮어쓰지 않습니다.
+- 프로그램 업데이트로 기존 사용자 진행도와 사용자가 검토한 Scanner Ground Truth를 덮어쓰지 않습니다.

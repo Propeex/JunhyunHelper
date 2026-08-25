@@ -7,8 +7,8 @@ namespace TarkovHelper.Services;
 /// <summary>
 /// JunhyunHelper-owned compatibility replacement for the transplanted Tarkov Helper
 /// global keyboard hook. Product overlay hotkeys are dispatched by JunhyunHelper's
-/// own runtime. This class retains only the direct NumPad floor-selection input needed
-/// by the Map product and exposes it through a Junhyun-owned viewport-safe endpoint.
+/// own runtime. This class retains only the direct bare-NumPad floor-selection input
+/// needed by the Map product and exposes it through a viewport-safe endpoint.
 ///
 /// Deliberately absent from the old implementation:
 /// - hidden S/S+D/D/O command sequence
@@ -24,6 +24,13 @@ public sealed class GlobalKeyboardHookService : IDisposable
     private const int WmSysKeyDown = 0x0104;
     private const int WmKeyUp = 0x0101;
     private const int WmSysKeyUp = 0x0105;
+
+    private static readonly int[] ModifierVirtualKeys =
+    [
+        0x10, 0x11, 0x12,
+        0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5,
+        0x5B, 0x5C,
+    ];
 
     [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
     private static extern IntPtr SetWindowsHookEx(
@@ -68,8 +75,9 @@ public sealed class GlobalKeyboardHookService : IDisposable
     public event Action<int>? FloorKeyPressed { add { } remove { } }
 
     /// <summary>
-    /// Product direct floor-selection event. NumPad0..5 map to floor indexes 0..5 and
-    /// are handled by LegacyMapProductRuntime through MapPage.JunhyunSelectFloorAsync.
+    /// Product direct floor-selection event. Bare NumPad0..5 map to floor indexes 0..5
+    /// and are handled by LegacyMapProductRuntime through MapPage.JunhyunSelectFloorAsync.
+    /// Modifier combinations remain available to configurable Map product hotkeys.
     /// </summary>
     public event Action<int>? DirectFloorSelectionPressed;
 
@@ -172,7 +180,7 @@ public sealed class GlobalKeyboardHookService : IDisposable
         if (!firstPress || OverlayHotkeysSuppressed || !IsAllowedForeground())
             return CallNextHookEx(_hookId, code, wParam, lParam);
 
-        var floorIndex = GetFloorIndex(virtualKey);
+        var floorIndex = HasModifierPressed() ? null : GetFloorIndex(virtualKey);
         if (floorIndex.HasValue)
         {
             System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
@@ -183,6 +191,8 @@ public sealed class GlobalKeyboardHookService : IDisposable
 
         return CallNextHookEx(_hookId, code, wParam, lParam);
     }
+
+    private bool HasModifierPressed() => ModifierVirtualKeys.Any(_pressedKeys.Contains);
 
     private static bool IsAllowedForeground()
     {
