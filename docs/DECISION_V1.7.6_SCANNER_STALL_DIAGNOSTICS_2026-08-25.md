@@ -1,109 +1,176 @@
-# Decision — v1.7.6 Scanner stall root cause and fix candidate
+# Decision — v1.7.6 Scanner stall root cause and verified fix
 
 Date: 2026-08-26
-Status: **ROOT CAUSE CONFIRMED / FIX CANDIDATE / DESKTOP RE-VERIFICATION REQUIRED**
+Status: **P0 RESOLVED / PERFORMANCE FIX VERIFIED / RELEASE FINALIZATION**
 
-## Problem
+## Decision
 
-v1.7.5 did not resolve the severe Scanner delay observed on the Ryzen + GTX 1080 Ti desktop. The same PC reproduced the problem in Tarkov-window scanning and Display Test. The product stayed responsive after the v1.7.6 one-shot worker hardening, but recognition itself remained unacceptably slow.
+The severe Scanner delay reproduced on the Ryzen + GTX 1080 Ti desktop is considered resolved by the v1.7.6 fix candidate.
 
-The user ran the v1.7.6 diagnostic candidate and exported a support bundle. That evidence is now authoritative for this defect.
+The decision is based on two support bundles from the same problematic desktop plus user validation. The first bundle established the root cause. The second bundle measured the post-fix result in both Display Test and actual `TarkovWindow` mode.
 
-## Confirmed measured root cause
+No further performance tuning should be made without new runtime evidence. In particular, recognition thresholds, candidate caps and recovery acceptance rules must not be relaxed merely to chase lower latency.
 
-The long Scanner delay on the problematic desktop is **not caused by Windows OCR latency**.
+## Baseline root cause
 
-Representative continuous Tarkov cycle:
+The original long delay was not caused by Windows OCR.
+
+Representative slow Tarkov cycle:
 
 ```text
-end-to-end                12,540.77 ms
-OCR normal                    12.26 ms
-actual WinRT RecognizeAsync    10.57 ms
-visual recovery            12,306.61 ms / 16 calls
-catalog matching               75.16 ms
+end-to-end                  12,540.77 ms
+OCR normal                      12.26 ms
+actual WinRT RecognizeAsync     10.57 ms
+visual recovery             12,306.61 ms / 16 calls
+catalog matching                75.16 ms
 capture                         21.57 ms
 rectangle proposal              53.57 ms
 semantic header                 53.51 ms
 ```
 
-Other measured slow cycles:
+Windows OCR returned `하프 마스크 (Lower half-mask)` in about 10.57 ms and catalog matching resolved it as `EXACT`, confidence 1.0.
+
+The runtime kept multiple structurally valid candidates as an accuracy safeguard. Eight equivalent candidates shared the same current title bitmap and OCR text, but `FontAwareScannerOcrEngine` reran targeted plus full-catalog visual corroboration independently for each candidate.
 
 ```text
-Display Test one-shot: 13,156.10 ms total / 12,277.39 ms visual recovery / 16 visual calls
-Display Test one-shot: 11,127.35 ms total / 10,745.07 ms visual recovery / 14 visual calls
-Tarkov continuous:      4,898.39 ms total /  4,624.02 ms visual recovery /  6 visual calls
+8 equivalent candidates
+× targeted visual pass
+× full-catalog visual fallback
+= 16 visual-recovery calls
 ```
 
-File I/O probes were sub-millisecond per append and no WPF dispatcher stall overlapped the long Scanner cycles. Therefore filesystem logging and UI-thread starvation are not the principal cause of this measured latency.
+Each optional visual pass took roughly 0.75–0.78 seconds on the problem PC, amplifying a millisecond OCR result into more than twelve seconds.
 
-## Why visual recovery amplified the delay
+`TarkovTitleFontProvider.TryGetFonts()` also checked its unavailable retry window only after process/source discovery. `FindResourcesAssets()` enumerates `EscapeFromTarkov` processes and reads `MainModule.FileName`; therefore an unavailable optional font provider could still repeat expensive environment discovery before the retry guard returned.
 
-In the representative cycle Windows OCR returned `하프 마스크 (Lower half-mask)` in about 10.57 ms and the catalog matcher resolved it as `EXACT` with confidence 1.0.
+File-I/O probes were sub-millisecond and no WPF dispatcher stall overlapped the slow cycles. Those were rejected as primary root causes.
 
-The runtime still evaluates multiple structurally valid candidates because candidate count is an accuracy safeguard. Candidates 0 through 7 in this cycle shared the same exact title bitmap and OCR result. `SerializedScannerOcrEngine` correctly reused the raw OCR result inside the cycle, but `FontAwareScannerOcrEngine` sits outside that raw cache and independently reran visual corroboration for every candidate.
+## Implemented fix
 
-Each successful-text corroboration may run:
+### Current-cycle exact visual evidence reuse
 
-1. targeted Tarkov-font verification;
-2. full-catalog visual verification when targeted verification does not accept.
+A completed visual corroboration result is reused only when all of the following are identical within the same Scanner latency cycle:
 
-On this desktop each measured visual stage consumed roughly 0.75–0.78 seconds. Eight equivalent candidates therefore produced sixteen expensive visual stages and more than twelve seconds of latency even though the primary OCR result itself was already available in milliseconds.
+- cycle ID
+- exact title bitmap dimensions
+- SHA-256 of current title pixels
+- OCR text
 
-## Font provider hot-path defect
+The cache is cleared when the Scanner cycle changes. It does not prove a future frame and is not a cross-frame identity cache. It removes repeated computation of the same deterministic current-frame proof while retaining the original candidate count and acceptance rules.
 
-`TarkovTitleFontProvider.TryGetFonts()` also had a structural retry bug.
-
-The old order was effectively:
+Trace marker:
 
 ```text
-FindResourcesAssets()
-→ TryGetSourceStamp()
-→ only then check 5-second retry window
+visual-cycle-cache-hit
 ```
 
-`FindResourcesAssets()` enumerates `EscapeFromTarkov` processes and reads `process.MainModule.FileName`. That environment lookup can be expensive or restricted on a protected game process. Because the retry guard came after the lookup, an unavailable/retry state did not protect the expensive part of the operation. Every targeted/full visual pass could pay the same environment-discovery cost before returning no font evidence.
-
-The original diagnostic candidate did not have an internal font-provider marker, so the exact 0.75–0.78 second subphase cannot be attributed solely to `MainModule` from the first bundle. The new fix candidate therefore records `title-font-source-probe` timing. What is already proven is that the repeated delay is inside visual recovery and that the provider retry ordering permits repeated expensive discovery in that path.
-
-## Fix candidate architecture
-
-### 1. Current-cycle exact visual evidence reuse
-
-`FontAwareScannerOcrEngine` now caches a completed corroboration result only within the current `ScannerLatencyTelemetry` cycle, keyed by:
-
-- cycle ID;
-- exact title bitmap dimensions;
-- SHA-256 of current title pixels;
-- OCR text.
-
-This is not cross-frame identity caching. The cache is cleared on cycle change and cannot prove a future frame. It merely prevents multiple structurally equivalent candidates in one decision cycle from recomputing the same deterministic visual proof.
-
-No candidate count is reduced. No candidate is accepted without the same evidence that would have been evaluated before. The optimization removes duplicate computation, not validation.
-
-Trace event: `visual-cycle-cache-hit`.
-
-### 2. Font source discovery outside repeated candidate hot path
+### Font-provider hot-path protection
 
 `TarkovTitleFontProvider` now:
 
-- checks unavailable retry state before process/source discovery;
-- uses a 30-second retry window after an unavailable extraction/source attempt;
-- caches a successfully discovered `resources.assets` path in the current process;
-- revalidates an already-loaded font generation at a bounded 5-second interval rather than for every candidate;
-- continues to invalidate/re-extract when the live source length/timestamp changes.
+- checks unavailable retry state before expensive process/source discovery;
+- applies a 30-second retry window after an unavailable source/extraction attempt;
+- reuses a successfully discovered `resources.assets` path in the process;
+- limits loaded-generation live source validation to a 5-second cadence instead of every candidate;
+- retains source timestamp/length invalidation and re-extraction safety.
 
-Trace event: `title-font-source-probe` with elapsed time and source availability.
+### UI and OCR diagnostics retained
 
-The longer unavailable retry window trades repeated expensive optional visual-provider discovery for a conservative miss when that optional evidence is temporarily unavailable. It does not weaken Item ID acceptance and does not suppress successful Windows OCR.
+v1.7.6 also retains:
 
-### 3. Existing v1.7.6 hardening retained
+- actual `OcrEngine.RecognizeAsync` call-level timing;
+- slow-empty actual WinRT call health protection;
+- OCR semaphore/image-key/preprocessing timing;
+- explicit one-shot worker dispatch;
+- WPF dispatcher responsiveness probes;
+- one-click Scanner support bundle export.
 
-- each actual `OcrEngine.RecognizeAsync` call is measured independently;
-- actual slow-empty WinRT calls use the same conservative circuit breaker;
-- OCR semaphore/image-key/preprocessing phases are separately traced;
-- one-shot recognition is explicitly dispatched off the WPF message pump;
-- WPF dispatcher responsiveness is independently measured;
-- one-click support bundle export remains available.
+## Post-fix verification
+
+### Display Test
+
+Same problematic PC and same test flow:
+
+```text
+하프 마스크
+before: 10,840.877 ms
+ after:     70.603 ms
+reduction: about 99.35%
+
+USB 보안 플래시 드라이브
+before: 12,686.278 ms
+ after:  1,354.775 ms
+reduction: about 89.32%
+```
+
+Additional post-fix Display Test candidate-to-result times:
+
+```text
+Maska-1SCh:          106.619 ms
+Domontovich 우샨카:   88.190 ms
+Wires 전선:          100.802 ms
+PSU 전원공급장치:     48.123 ms
+```
+
+The USB case requires corrupted-normal-OCR recovery and deep OCR. A bounded roughly one-second difficult case is considered acceptable and is fundamentally different from the previous repeated 5–13 second serial stall.
+
+### Actual Tarkov
+
+The second bundle contains real `mode=TarkovWindow` recognition.
+
+Twelve successful `ShowingItem` cases had `ReadingTitle → ShowingItem` timing:
+
+```text
+minimum:  38.07 ms
+median:   63.92 ms
+maximum:   1.05 s
+mean:     211.47 ms
+```
+
+Recognized examples included:
+
+- USB 보안 플래시 드라이브
+- 하프 마스크 (Lower half-mask)
+- Metal fuel tank 금속 연료통
+- Tech manual 기술 매뉴얼
+- T-Shaped plug T자형 멀티탭
+- Shustrilo 슈스트릴로 실링 폼
+- Plexiglass 조각
+- BEAR Buddy 인형
+- Power cord 파워코드
+- Filter 방독면 정화통
+- Cat 고양이 조각상
+
+The retained performance trace contains eleven complete OCR-active Scanner cycles after the oldest bounded entries were dropped:
+
+```text
+minimum end-to-end: 178.04 ms
+median end-to-end:  210.82 ms
+maximum end-to-end: 517.74 ms
+```
+
+The initial roughly one-second USB cycle predates the retained section and is therefore not included in that eleven-cycle aggregate.
+
+### Duplicate-work and UI evidence
+
+Retained trace:
+
+```text
+visual-cycle-cache-hit: 73
+visual-recovery stages during repeated OCR cycles: 0–0.01 ms
+ui-dispatcher-stall events: 0
+actual WinRT OCR calls: generally about 4–13 ms
+```
+
+Environment file-I/O probe:
+
+```text
+ScannerDiagnosticLogWriteProbeMs: 0.30 ms
+DiagnosticFileAppendAverageMs:    0.14 ms
+DiagnosticFileAppendMaximumMs:    0.25 ms
+```
+
+The user independently reported the fixed candidate as `엄청 괜찮아졌다` and satisfactory in use.
 
 ## Accuracy and safety invariants
 
@@ -115,17 +182,19 @@ Unchanged:
 - one-shot candidate cap `12`;
 - existing deep OCR candidate limit;
 - existing matcher acceptance semantics;
-- existing targeted/full-catalog Tarkov-font visual acceptance semantics;
+- existing targeted/full-catalog visual acceptance semantics;
 - false positive remains worse than miss;
 - no stale Item ID as current identity evidence;
 - no cross-frame OCR or visual identity cache;
 - no mapped price/need data as identity evidence before Item ID;
 - no scan-time network dependency;
-- no game memory reading, DLL injection, packet interception, or Tarkov process hook.
+- no game memory reading, DLL injection, packet interception or process hook.
 
-## CI proof for root-cause fix candidate
+The performance fix does not reduce candidate count and does not lower any recognition threshold.
 
-Code HEAD:
+## CI proof
+
+Root-cause fix code HEAD:
 
 `d04f39697a4ea4d6ff4eabcb2acdc6bc535c8f9c`
 
@@ -139,24 +208,25 @@ CI run `32866068233`:
 - release package verification: SUCCESS
 - artifact upload: SUCCESS
 
-Extracted user package:
+User-verified fix candidate:
 
 ```text
 bytes: 80,462,063
 SHA-256: 96af948b2cd24caeb612d1d89a368bf30329606d3e934a292758292f70dcae30
 ```
 
-## Release gate
+Subsequent documentation-only HEAD CI also passed before this final evidence update.
 
-Root cause has been identified, but v1.7.6 is still not a resolved public release.
+## Finalization policy
 
-Required before release:
+The performance defect itself is closed. Do not introduce another performance algorithm change before v1.7.6 release unless new evidence shows a regression.
 
-1. run this fix candidate on the same problematic desktop and same Display Test screenshot;
-2. export a second support bundle and compare end-to-end/visual recovery timing with the 12.54-second baseline;
-3. confirm `visual-cycle-cache-hit` and `title-font-source-probe` behavior;
-4. verify actual Tarkov scan responsiveness;
-5. confirm no Item ID accuracy regression and run reviewed Ground Truth regression with zero regressions;
-6. remove or normalize temporary diagnostic-only implementation details that should not remain in the final production architecture;
-7. run final full Windows build/tests/publish/smoke/package gate;
-8. update `STATE.md`, release notes and final release proof before public v1.7.6 publication.
+Before public release:
+
+1. confirm reviewed Scanner Ground Truth has `REGRESSION=0` where available;
+2. review temporary diagnostic-only implementation details and remove them only if this can be done without changing the user-verified execution behavior; otherwise record them as follow-up technical debt;
+3. reconcile `STATE.md` with the actual v1.7.5 public stable and v1.7.6 verified fix state;
+4. update final release notes/proof;
+5. run final Windows build/tests/publish/product-smoke/package gate;
+6. merge PR #185;
+7. publish v1.7.6 as stable and verify public asset size/hash/source readback.
