@@ -18,10 +18,10 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 릴리즈 상태
 
-현재 공개 stable/latest는 **v1.7.7**입니다.
+현재 공개 stable/latest는 **v1.7.8**입니다.
 
 ```text
-Desktop target version: 1.7.7
+Desktop target version: 1.7.8
 Content schema: v7
 Readable content schemas: v3~v7
 user.db schema: v1
@@ -35,23 +35,24 @@ stable extracted folder: 준현 헬퍼/
 공개 검증 기준선:
 
 ```text
-exact release source/tag target: b6deaaa900daa94113737f6cc8dd1cf8fcef60c8
-release CI run: 32879402260
-release workflow run: 32879713326
-release id: 376595527
+exact release source/tag target: 3ba9d99c43ad143dbc8329e7d29b1d01da335b06
+release CI run: 32888653630
+release workflow run: 32888935292
+release id: 376650517
 stable asset: Junhyun-Helper.zip
-stable bytes: 80,463,825
-stable SHA-256: eab46695362bc9d1e656fb954694a681dd95066dae5210f2498387b14c163f5b
+stable bytes: 80,469,671
+stable SHA-256: 3716d2d3c6d3c9ce2f87c759aac74f6b56b483a09016339c0d8bb6d3bc67e730
 public stable/latest: VERIFIED
 published: 2026-08-26 KST
 ```
 
-v1.7.7 공식 작업 기록:
+v1.7.8 공식 작업 기록:
 
-- `docs/RELEASE_NOTES_V1.7.7.md`
-- `docs/RELEASE_1.7.7.md`
+- `docs/RELEASE_NOTES_V1.7.8.md`
+- `docs/RELEASE_1.7.8.md`
+- `docs/DECISION_V1.7.8_RAID_HEADER_LOCK_2026-08-26.md`
+- `docs/.release-v1.7.8-status.json`
 - `docs/DECISION_SCANNER_STORAGE_AND_HOTKEYS_2026-08-26.md`
-- `docs/.release-v1.7.7-status.json`
 - `docs/DECISION_PRODUCT_COMPLETE_2026-08-26.md`
 
 ## 주요 기능
@@ -101,6 +102,8 @@ mean:    211.47 ms
 
 v1.7.7은 이 인식 알고리즘을 변경하지 않고, 실사용에서 확인된 Scanner 교정 데이터 폭증·반복 로그·단축키 설정 불일치만 수정한 유지보수 PATCH입니다.
 
+v1.7.8은 사용자 reviewed 레이드 Case에서 확인된 inspect-header 수평 소유권 오류를 수정합니다. 주변 인벤토리 수평선이 상세창 header와 이어져도 강한 detail proposal의 실제 왼쪽 경계를 기준으로 red close-X, magnifier, neutral header, dark title field와 text evidence를 다시 검증하며 기존 `HEADER_FRAME_LOCKED >= 0.68` 기준은 완화하지 않습니다.
+
 ## Scanner
 
 Production Scanner는 게임 화면 픽셀만 사용합니다.
@@ -147,6 +150,7 @@ Tarkov window pixels
 - `스캐너 ON/OFF`
 - `설정`
 - `고급`
+- `현재 결과 교정`
 
 하단:
 
@@ -167,7 +171,9 @@ Map의 bare `NumPad0~5`는 기존 직접 층 선택에 예약되며, `Ctrl+NumPa
 
 `설정`에서는 전역 단축키와 Mini Scanner 정보 표시/순서를 관리합니다.
 
-`고급`에서는 Display Test, 현재 결과 교정, 교정 데이터 관리, Scanner 성능 진단 자료 export를 다룹니다.
+`현재 결과 교정`은 메모리에 보존된 최신 exact Scanner frame을 바로 교정 창으로 엽니다.
+
+`고급`에서는 Display Test, 교정 데이터 관리, Scanner 성능 진단 자료 export를 다룹니다.
 
 ## Scanner 아이템 검색
 
@@ -346,5 +352,6 @@ ZIP과 압축 해제 폴더 이름에는 버전 번호를 넣지 않습니다. �
 - `docs/SCANNER_GROUND_TRUTH.md` — Ground Truth dataset 계약
 - `docs/SCANNER_TEST_PLAN.md` — Scanner release/regression gate
 - `docs/CURRENT_SCANNER_WORK.md` — Scanner 유지보수 기준
+- `docs/DECISION_V1.7.8_RAID_HEADER_LOCK_2026-08-26.md` — v1.7.8 레이드 header ownership 및 교정 UI 결정
 - `docs/DECISION_SCANNER_STORAGE_AND_HOTKEYS_2026-08-26.md` — v1.7.7 저장/단축키 결정
 - `docs/DECISION_PRODUCT_COMPLETE_2026-08-26.md` — 제품 완성 및 유지보수 전환 결정

@@ -1,27 +1,30 @@
 # Scanner Current Test Plan
 
-기준일: 2026-08-25
-상태: **v1.7.0 PUBLIC RELEASE VERIFIED / LIVE GROUND TRUTH MAINTENANCE**
+기준일: 2026-08-26
+상태: **v1.7.8 PUBLIC STABLE / FEATURE COMPLETE / MAINTENANCE ONLY**
 
-이 문서는 deterministic release gate와 실제 Tarkov 환경 calibration을 분리한다. Reviewed evidence 없이 geometry/OCR/visual confidence threshold나 candidate cap을 조정하지 않는다.
+이 문서는 deterministic release gate와 실제 Tarkov reviewed Ground Truth calibration을 분리한다. Reviewed evidence 없이 geometry/OCR/visual confidence threshold나 candidate cap을 조정하지 않는다.
 
 ## 1. Current verified stable
 
 ```text
-Desktop target: 1.7.0
-automated suite: 348 tests
+Desktop target: 1.7.8
+automated suite: 380 tests
 Scanner display settings schema: v6
 Scanner catalog cache: v1~v3 readable, v3 written
 stable user package: Junhyun-Helper.zip
 stable archive root: 준현 헬퍼/
-exact release source: 56e12342e3490fd0defa5f327a03d20d4f32b3a6
-public SHA-256: 1c640c80bf6113176b885a47e19478666e27dbf584f872d1a8396886334f3418
-public proof run: 32745399476
+exact release source: 3ba9d99c43ad143dbc8329e7d29b1d01da335b06
+main CI run: 32888653630
+release workflow run: 32888935292
+release id: 376650517
+public bytes: 80,469,671
+public SHA-256: 3716d2d3c6d3c9ce2f87c759aac74f6b56b483a09016339c0d8bb6d3bc67e730
 ```
 
-v1.7.0 release gate는 build/test/publish/rendered Product UI/Scanner/Map smoke, graceful shutdown, package checksum/layout, exact source tag, anonymous public redownload, public ProductVersion/FIRST_RUN, public downloaded product smoke까지 모두 통과했다.
+v1.7.8 release gate는 build/test/publish/rendered Product UI/Scanner/Map smoke, graceful shutdown, package checksum/layout, exact source tag, stable release metadata와 public asset readback을 모두 통과했다.
 
-이후 Scanner recognition 변경은 reviewed live Ground Truth replay에서 regression=0을 확인하는 별도 calibration gate를 사용한다.
+이후 Scanner recognition 변경은 reviewed live Ground Truth가 있으면 replay에서 `REGRESSION=0`을 확인하는 별도 calibration gate를 사용한다.
 
 ## 2. Release-blocking gate
 
@@ -34,56 +37,56 @@ v1.7.0 release gate는 build/test/publish/rendered Product UI/Scanner/Map smoke,
 5. inspect-header semantic lock regression
 6. incomplete lock fail closed
 7. title ROI ownership regression
-8. raw/substituted/normalized OCR evidence separation
-9. current-catalog character/symbol policy
-10. official catalog matcher
-11. bounded unknown/edit recovery safety
-12. visual recovery fail-soft safety
-13. font source/cache generation consistency
-14. bounded visual caches
-15. market/dimension/RequiredTotal mapping
-16. catalog load/refresh GameMode ordering
-17. one-shot/profile/GameMode lifecycle
-18. hotkey migration/duplicate prevention
-19. user OCR substitution single-pass/default-empty
-20. title continuity signature
-21. Mini Scanner inventory coalescing/stale-result
-22. Ground Truth candidate/manual/none contracts
-23. reviewed-GT retention protection
-24. Scanner settings schema-v6 migration/order contract
-25. saved Case reopen/re-edit fail-closed contract
-26. item search local-data/no-network contract where testable
+8. v1.7.8 raid horizontal-bleed recovery positive/negative regression
+9. raw/substituted/normalized OCR evidence separation
+10. current-catalog character/symbol policy
+11. official catalog matcher
+12. bounded unknown/edit recovery safety
+13. visual recovery fail-soft safety
+14. font source/cache generation consistency
+15. bounded visual caches
+16. market/dimension/RequiredTotal mapping
+17. catalog load/refresh GameMode ordering
+18. one-shot/profile/GameMode lifecycle
+19. Scanner/Map hotkey migration + duplicate prevention
+20. user OCR substitution single-pass/default-empty
+21. title continuity signature
+22. Mini Scanner inventory coalescing/stale-result
+23. Ground Truth candidate/manual/none contracts
+24. reviewed-GT retention protection
+25. no durable automatic Case creation during normal monitoring
+26. legacy automatic Case cleanup fail-closed contract
+27. Scanner settings schema-v6 migration/order contract
+28. saved Case reopen/re-edit fail-closed contract
+29. item search local-data/no-network contract where testable
+30. Scanner main correction action exact-frame contract
 
 ### Publish / product smoke
 
-27. Windows x64 self-contained single-file publish
-28. exact ProductVersion / FIRST_RUN identity
-29. publish-root / PDB / nested-archive / forbidden dependency audit
-30. actual published EXE startup
-31. Scanner current normal surface smoke
-32. settings schema-v6 / Mini Scanner fixed identity + ordered fields smoke
-33. Main Map / Factory / MiniMap smoke
-34. graceful close / process termination
-35. clean portable root
-36. run `packaging/New-ReleasePackage.ps1`
-37. stable `Junhyun-Helper.zip` exists
-38. every ZIP entry is under `준현 헬퍼/`
-39. required `준현 헬퍼/준현 헬퍼.exe`, `FIRST_RUN_KO.txt`, `Assets/tarkov_data.db`
-40. release ZIP SHA-256 recorded
+31. Windows x64 self-contained single-file publish
+32. exact ProductVersion / FIRST_RUN identity
+33. publish-root / PDB / nested-archive / forbidden dependency audit
+34. actual published EXE startup
+35. Scanner current normal surface smoke
+36. settings schema-v6 / Mini Scanner fixed identity + ordered fields smoke
+37. Main Map / Factory / MiniMap smoke
+38. graceful close / process termination
+39. clean portable root
+40. run `packaging/New-ReleasePackage.ps1`
+41. stable `Junhyun-Helper.zip` exists
+42. every ZIP entry is under `준현 헬퍼/`
+43. required `준현 헬퍼/준현 헬퍼.exe`, `FIRST_RUN_KO.txt`, `Assets/tarkov_data.db`
+44. release ZIP SHA-256 recorded
 
 ### Public release verification
 
-41. exact source tag `v1.7.0`
-42. stable/latest release metadata points to exact source
-43. public asset name exactly `Junhyun-Helper.zip`
-44. checksum asset verified
-45. fresh anonymous/public ZIP redownload
-46. public hash/size/layout verification
-47. public ProductVersion/FIRST_RUN verification
-48. public-downloaded EXE Product UI/Map/Scanner smoke
-49. graceful shutdown / clean extracted product root
-50. durable `docs/.release-v1.7.0-status.json`
-51. temporary one-shot release/verifier workflows cleaned up
+45. exact source tag points to chosen release source
+46. stable/latest release metadata points to exact source
+47. public asset name exactly `Junhyun-Helper.zip`
+48. checksum asset present/verified
+49. public hash/size/layout readback
+50. ProductVersion/FIRST_RUN correspond to target version
+51. durable release record/status written after public readback
 
 ## 3. Immutable threshold / candidate budget
 
@@ -92,6 +95,7 @@ structural floor = 0.34
 HEADER_FRAME_LOCKED floor = 0.68
 continuous candidate cap = 8
 one-shot candidate cap = 12
+continuous observation target = 200 ms
 ```
 
 Do not change because:
@@ -133,7 +137,7 @@ Required evidence:
 
 - right red close-X
 - neutral inspect-header/frame
-- bounded frame-left search-icon lane
+- bounded magnifier/search lane
 - magnifier ring/hollow/handle morphology
 - dark title field
 - title text evidence
@@ -148,6 +152,47 @@ Assertions:
 - runtime score >= 0.68 required
 - missing magnifier/close/title evidence → fail closed
 - contained-subpanel fallback re-runs same semantic gate
+
+### v1.7.8 raid ownership regression
+
+Reviewed raid failures showed surrounding neutral horizontal UI lines can visually join the inspect header and push the old header-left ownership 47–132px left.
+
+Current recovery priority:
+
+```text
+primary header lock
+→ live Ground Truth recovery
+→ raid ownership recovery
+→ contained-subpanel recovery
+→ fail closed
+```
+
+Raid recovery may enter only when:
+
+```text
+candidate reason = RED_X_CANDIDATE
+structural score >= 0.90
+```
+
+It must independently satisfy:
+
+```text
+close-X template >= 0.40
+close relation evidence >= 0.60
+candidate-owned neutral header >= 0.74
+magnifier template >= 0.54
+magnifier relation evidence >= 0.66
+dark title field >= 0.58
+title text evidence >= 0.22
+final HEADER_FRAME_LOCKED >= 0.68
+```
+
+Regression smoke must include:
+
+- positive: inspect header visually joined to a much longer outside neutral line, valid red close + magnifier + title evidence → lock succeeds
+- negative: same geometry without red close-X → recovery fails closed
+
+Coarse detail geometry remains ownership proposal only, not Item identity proof.
 
 ## 6. OCR / sanitation / matcher
 
@@ -198,23 +243,19 @@ Regression:
 - unavailable/ambiguous visual path does not discard healthy OCR evidence
 - visual caches bounded
 
-## 9. Exact same-cycle OCR reuse
+## 9. Exact same-cycle OCR / visual reuse
 
-Reuse requires:
+Reuse may occur only inside the same current scan-cycle proof boundary.
 
-```text
-same active scan cycle
-same normal/deep class
-same width/height/BPP
-same exact pixel SHA-256
-```
+Relevant exact keys include current image dimensions/pixels and the associated OCR evidence required by the implementation.
 
-- exact same bitmap same cycle → reuse allowed
-- one pixel difference → no reuse
-- normal/deep cache separate
+- exact same evidence same cycle → deterministic result reuse allowed
+- one pixel difference → no exact-image reuse
 - cycle change → invalidate
 - late disposed-cycle result cannot pollute new cycle
-- cross-frame reuse prohibited
+- cross-frame/cross-cycle Item identity reuse prohibited
+
+v1.7.6 problem-PC performance baseline must remain protected.
 
 ## 10. Title continuity stabilization
 
@@ -268,18 +309,32 @@ Defaults:
 - Ctrl+Shift+F11 — test one-shot
 - Ctrl+Shift+F12 — Scanner ON/OFF
 
+Configured gesture contract:
+
+```text
+bare primary key
+or primary key + optional Ctrl/Alt/Shift combination
+```
+
+Windows key modifier is unsupported.
+
 Verify:
 
 - MainWindow lifetime registration
+- bare key parse/register supported
+- Ctrl/Alt/Shift combinations supported
+- Windows modifier rejected
 - change/disable each command
-- duplicate gesture blocked
+- exact duplicate gesture blocked/resolved by product contract
 - old settings migration preserves user choices
 - overlapping one-shot invocation serialized
 - requested continuous mode restored correctly
-- current normal Scanner page **does not require a visible one-shot button**
+- current normal Scanner page does not require a visible one-shot button
 - one-shot remains functionally available via hotkey
 - no scan-time network
 - one-shot cap 12 distinct from continuous cap 8
+
+Map regression additionally keeps bare NumPad0~5 reserved for direct floor selection while modifier+NumPad remains configurable.
 
 ## 14. Ground Truth correction regression — current
 
@@ -300,10 +355,18 @@ Verify:
 - explicit `없음`
 - manual rectangle fallback
 - no candidate does not block correction
-- reviewed status cannot be overwritten by automatic save
+- reviewed status cannot be overwritten by automatic/background state
 - raw/substituted/normalized OCR retained
 - matcher top candidates retained
 - mapped snapshot retained
+
+### Current-frame ownership
+
+- main `현재 결과 교정` opens latest exact in-memory Scanner frame
+- if no exact current frame exists, no unrelated frame substitution
+- activity correction may use a durable saved Case with matching Case ID
+- stale activity with neither durable Case nor matching current frame is not silently correctable
+- durable save occurs only after explicit user save
 
 ### Image scale contract
 
@@ -349,34 +412,47 @@ Past correct Case failing now = REGRESSION even if average improves.
 
 Mapped price changes can be freshness changes and are not automatically identity regressions.
 
+User reviewed image data is not committed to the public repository merely to make CI deterministic. Procedural smoke and local reviewed replay are distinct evidence layers.
+
 ## 16. Retention / logs
 
 Reviewed Ground Truth automatic delete: **never**.
 
-Automatic eligibility:
+### New runtime monitoring
+
+Normal monitoring must not create durable automatic image Cases from:
+
+- no detail window
+- header failure
+- OCR/matcher failure
+- ambiguity
+- repeated stationary failure
+
+Latest exact diagnostic frame may remain transiently in memory for current correction.
+
+### Legacy cleanup eligibility
 
 ```text
 retention == automatic_sample
 AND review_status == unreviewed
+AND recent-write safety window >= 5 minutes
+AND pre-delete metadata/state re-read confirms unchanged state
 ```
-
-Bounds:
-
-- 30 days
-- 300 automatic cases
-- 512 MiB
-- recent 2h protection
 
 Verify:
 
-- reviewed retained
-- unknown/corrupt retained
-- recent retained
-- old excess automatic deleted within policy
+- reviewed/manual retained
+- unknown/corrupt/unreadable retained
+- state-changed retained
+- recent-writing Case retained
+- qualifying old legacy automatic Case can be deleted
 - metadata re-read before delete
 - cleanup failure does not change recognition
+- cleanup runs outside recognition hot path
 
-Logs remain bounded rotation. Current normal Scanner page does not require a log-delete button.
+The obsolete 30-day / 300-case / 512MiB automatic persistence policy is not the current normal-monitoring contract.
+
+Logs remain bounded rotation. User activity equivalent failures may collapse for 30 seconds. Current normal Scanner page does not require a log-delete button.
 
 ## 17. Mini Scanner regression — schema v6
 
@@ -402,35 +478,47 @@ Presentation:
 
 ## 18. Scanner Product UI regression — current
 
-Normal surface must expose:
+Normal top surface must expose in this order:
 
-- Scanner ON/OFF
-- Settings
-- Advanced
+1. Scanner ON/OFF
+2. Settings
+3. Advanced
+4. Current Result Correction
+
+Korean product labels are:
+
+```text
+스캐너 ON/OFF / 설정 / 고급 / 현재 결과 교정
+```
+
+Normal surface also provides:
+
 - item search
 - recognition log
 
 Normal surface must not require/expose as primary controls:
 
 - visible `1회 스캔` button
-- visible `현재 결과 교정` button
 - Display Test toggle
 - catalog force-refresh
-- regression/export developer buttons
+- regression/developer export buttons
 - log-delete button
 
 Settings window:
 
-- three global hotkeys
+- three Scanner global hotkeys
+- bare/modifier gesture contract
 - Mini Scanner five fields show/hide
 - Mini Scanner order up/down
 - icon/name fixed
 
 Advanced window:
 
-- Display Test
-- current result correction
+- Display Test / test Scanner
 - correction dataset management
+- Scanner performance diagnostic export
+
+`현재 결과 교정` must not be duplicated in Advanced.
 
 ## 19. Scanner item-search regression
 
@@ -460,13 +548,29 @@ Measured stages:
 
 Telemetry cannot alter acceptance threshold.
 
-## 21. Package / version regression — v1.7.0
+Performance support bundle should remain useful without automatically embedding user Ground Truth image/dataset.
 
-Published product identity:
+## 21. Package / version regression — current
 
-- project version = 1.7.0
-- ProductVersion starts `1.7.0`
-- FIRST_RUN first line exactly `준현 헬퍼 v1.7.0 — Windows x64`
+Published product identity for the candidate version must agree across:
+
+- Desktop project version
+- EXE ProductVersion
+- `FIRST_RUN_KO.txt` first line
+- Git tag
+- GitHub Release metadata
+
+Current stable v1.7.8 identity:
+
+```text
+project version = 1.7.8
+FIRST_RUN first line = 준현 헬퍼 v1.7.8 — Windows x64
+exact public source = 3ba9d99c43ad143dbc8329e7d29b1d01da335b06
+public asset SHA-256 = 3716d2d3c6d3c9ce2f87c759aac74f6b56b483a09016339c0d8bb6d3bc67e730
+```
+
+Package must have:
+
 - no PDB
 - no unexpected root DLL/archive
 - no forbidden legacy dependency
@@ -486,24 +590,20 @@ Verify every archive entry starts `준현 헬퍼/` and no nested version folder 
 
 ## 22. Public verification protocol
 
-Release process must use exact final source.
-
-Independent public verifier must not rely only on the build workspace artifact.
+Release process must use exact final main source and successful exact-main CI artifact.
 
 Fresh public checks:
 
-- public latest release = v1.7.0
-- exact tag resolves to chosen release source
-- public `Junhyun-Helper.zip` redownload
-- checksum redownload
-- hash/size match
-- archive root/path validation
-- ProductVersion / FIRST_RUN
-- public-downloaded EXE Product UI/Scanner/Mini Scanner/Map smoke
-- graceful shutdown
-- durable release status
+- public latest release = intended version
+- exact tag target = chosen release source
+- release is draft=false / prerelease=false
+- public `Junhyun-Helper.zip` exists
+- checksum asset exists
+- GitHub asset digest/hash and size match recorded proof
+- ProductVersion / FIRST_RUN correspond to intended version
+- durable release status and canonical STATE updated after public readback
 
-Temporary one-shot release/verifier workflows, if created, are deleted afterward. Steady-state workflows are the permanent `ci.yml` + immutable-release `release.yml` pair.
+A later docs-only commit must never be rewritten as the product release source for an already-published stable.
 
 ## 23. Live Tarkov calibration after release
 
@@ -513,7 +613,7 @@ Recommended flow:
 item detail open
 → Scanner / one-shot hotkey
 → inspect result
-→ correct representative result or failure
+→ correct representative result or failure when useful
 → reviewed GT save
 → failure stage classify
 → dataset replay
@@ -539,16 +639,17 @@ Wrong identity has higher priority than miss.
 
 ## 24. Next development rule
 
-After v1.7.0 public verification:
+After v1.7.8 public verification:
 
 ```text
-reviewed dataset
+new user evidence
+→ reviewed dataset/support evidence
 → failure cluster
 → affected stage
 → narrow code change
-→ full replay
+→ full replay where available
 → REGRESSION=0
-→ full build/tests/publish smoke
+→ full build/tests/publish smoke/package gate
 → PATCH decision
 ```
 

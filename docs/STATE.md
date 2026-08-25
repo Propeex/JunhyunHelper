@@ -3,7 +3,7 @@
 > 새 대화/새 개발자는 이 문서를 먼저 읽습니다. 대화 기억이 아니라 저장소의 공식 문서와 현재 GitHub 상태가 프로젝트의 기준입니다.
 
 기준일: 2026-08-26  
-상태: **v1.7.7 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+상태: **v1.7.8 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 1. 제품
 
@@ -33,34 +33,38 @@ Runtime GPT/AI 의존성은 없다.
 
 v1.7.7의 Scanner durable-data ownership 및 Scanner/Map 공통 hotkey 계약은 `docs/DECISION_SCANNER_STORAGE_AND_HOTKEYS_2026-08-26.md`에 기록한다.
 
+v1.7.8의 레이드 inspect-header ownership 회귀 수정 및 `현재 결과 교정` 메인 배치 결정은 `docs/DECISION_V1.7.8_RAID_HEADER_LOCK_2026-08-26.md`에 기록한다.
+
 ## 2. 현재 public stable
 
 ```text
-version: v1.7.7
-release source: b6deaaa900daa94113737f6cc8dd1cf8fcef60c8
-release CI run: 32879402260
-release workflow run: 32879713326
-release id: 376595527
+version: v1.7.8
+release source: 3ba9d99c43ad143dbc8329e7d29b1d01da335b06
+release CI run: 32888653630
+release workflow run: 32888935292
+release id: 376650517
 asset: Junhyun-Helper.zip
-asset bytes: 80,463,825
-asset SHA-256: eab46695362bc9d1e656fb954694a681dd95066dae5210f2498387b14c163f5b
+asset bytes: 80,469,671
+asset SHA-256: 3716d2d3c6d3c9ce2f87c759aac74f6b56b483a09016339c0d8bb6d3bc67e730
 checksum asset: SHA256SUMS.txt
 published: 2026-08-26 KST
 ```
 
 GitHub release readback:
 
-- tag `v1.7.7`
-- target commit = exact release source `b6deaaa900daa94113737f6cc8dd1cf8fcef60c8`
+- tag `v1.7.8`
+- target commit = exact release source `3ba9d99c43ad143dbc8329e7d29b1d01da335b06`
 - draft = false
 - prerelease = false
-- `releases/latest` = v1.7.7
+- `releases/latest` = v1.7.8
 - `Junhyun-Helper.zip` + `SHA256SUMS.txt` present
-- ZIP GitHub asset digest = `sha256:eab46695362bc9d1e656fb954694a681dd95066dae5210f2498387b14c163f5b`
+- ZIP GitHub asset digest = `sha256:3716d2d3c6d3c9ce2f87c759aac74f6b56b483a09016339c0d8bb6d3bc67e730`
 
 v1.7.6의 P0 목표였던 일부 데스크탑 Scanner 장시간 인식 지연은 문제 PC의 실측 자료로 root cause를 확인하고 수정했으며, 같은 PC의 Display Test와 실제 Tarkov에서 정상화를 재검증했다.
 
 v1.7.7은 그 인식 알고리즘을 변경하지 않고 실사용에서 확인된 Scanner 자동 교정 Case 폭증, 반복 실패 로그 가시성, Scanner/Map 단축키 정책 불일치를 수정한 유지보수 PATCH다.
+
+v1.7.8은 사용자 reviewed 레이드 Case 8건에서 확인된 inspect-header 수평 소유권 오류를 수정했다. 실패 6건은 OCR 오인식이 아니라 `HEADER_CLOSE_NOT_LOCKED` / `TITLE_ANCHOR_INCOMPLETE`로 OCR 이전에 중단됐고, 레이드 인벤토리 수평선이 상세창 header와 이어져 기존 fallback이 실제 상세창보다 47~132px 왼쪽까지 header를 소유한 것이 원인이었다. 새 recovery는 강한 `RED_X_CANDIDATE >= 0.90`인 경우에만 사용하며 기존 red close-X, magnifier, neutral header, dark title field, text evidence와 최종 `HEADER_FRAME_LOCKED >= 0.68`을 모두 요구한다.
 
 현재 Scanner 성능 알고리즘은 완료 상태다. 새로운 runtime evidence가 없는 한 성능을 목적으로 recognition threshold/candidate cap/recovery acceptance를 더 변경하지 않는다.
 
@@ -322,13 +326,16 @@ Scanner 일반 화면 primary actions:
 - `스캐너 ON/OFF`
 - `설정`
 - `고급`
+- `현재 결과 교정`
 
 하단:
 
 - `아이템 검색`
 - `Scanner 로그`
 
-`고급`에는 Display Test, current-result correction, correction dataset 관리, Scanner 성능 진단 자료 export가 있다.
+`현재 결과 교정`은 메모리에 보존된 최신 exact Scanner frame을 바로 기존 `ScannerCorrectionWindow`로 연다.
+
+`고급`에는 Display Test, correction dataset 관리, Scanner 성능 진단 자료 export가 있다.
 
 Mini Scanner:
 
@@ -423,9 +430,9 @@ fine-grained trace는 bounded in-memory storage를 사용한다.
 
 `Scanner > 고급 > Scanner 성능 진단 자료 내보내기`는 환경/성능 trace/log를 ZIP 하나로 저장한다. Ground Truth image, profile DB, game account information은 포함하지 않는다.
 
-## 14. v1.7.7 CI / release proof
+## 14. v1.7.8 CI / release proof
 
-PR #186 final HEAD `b17e4ccbaf52afe3015fb74b28f27ffae721abd1` CI run `32879065725`:
+PR #188 final HEAD `52fbeaf6d56cf01631325ba3d65a1f018e9eb138` CI run `32886379050`:
 
 ```text
 Desktop build: SUCCESS
@@ -441,24 +448,24 @@ Artifact upload: SUCCESS
 Final release source:
 
 ```text
-b6deaaa900daa94113737f6cc8dd1cf8fcef60c8
-main CI run 32879402260: SUCCESS
-Release run 32879713326: SUCCESS
-release id: 376595527
+3ba9d99c43ad143dbc8329e7d29b1d01da335b06
+main CI run 32888653630: SUCCESS
+Release run 32888935292: SUCCESS
+release id: 376650517
 ```
 
 Public asset:
 
 ```text
 Junhyun-Helper.zip
-asset id: 529560085
-bytes: 80,463,825
-SHA-256: eab46695362bc9d1e656fb954694a681dd95066dae5210f2498387b14c163f5b
+asset id: 529666832
+bytes: 80,469,671
+SHA-256: 3716d2d3c6d3c9ce2f87c759aac74f6b56b483a09016339c0d8bb6d3bc67e730
 ```
 
-Release workflow은 성공한 exact main CI artifact의 ProductVersion, `FIRST_RUN_KO.txt`, package checksum을 검증한 뒤 v1.7.7을 공개했다. GitHub `releases/latest` readback도 v1.7.7이다.
+Release workflow은 성공한 exact main CI artifact의 ProductVersion, `FIRST_RUN_KO.txt`, package checksum을 검증한 뒤 v1.7.8을 공개했다. GitHub `releases/latest` readback도 v1.7.8이다.
 
-상세 공개 기록은 `docs/RELEASE_1.7.7.md` 및 `docs/.release-v1.7.7-status.json`에 둔다.
+상세 공개 기록은 `docs/RELEASE_1.7.8.md` 및 `docs/.release-v1.7.8-status.json`에 둔다. 이전 v1.7.7 공개 증거는 `docs/RELEASE_1.7.7.md`에 역사 기록으로 유지한다.
 
 ## 15. Release / Program Update contract
 
