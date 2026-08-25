@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Threading;
+using JunhyunHelper.Core.Scanner;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
@@ -13,6 +14,7 @@ public sealed class MiniScannerOverlayService : IDisposable
     private readonly ScannerSettingsService _settings;
     private readonly Dispatcher _dispatcher;
     private readonly ScannerInventoryContextDetector _inventoryContext;
+    private readonly ScannerPresentationRetention _presentationRetention = new();
     private readonly object _requestGate = new();
     private MiniScannerWindow? _window;
     private ScannerItemSnapshot? _snapshot;
@@ -45,6 +47,7 @@ public sealed class MiniScannerOverlayService : IDisposable
         int epoch;
         lock (_requestGate)
         {
+            _presentationRetention.Confirm(snapshot.ItemId);
             if (!string.Equals(_requestedItemId, snapshot.ItemId, StringComparison.Ordinal))
             {
                 _requestedItemId = snapshot.ItemId;
@@ -63,8 +66,20 @@ public sealed class MiniScannerOverlayService : IDisposable
 
         // Display-test and explicit preview remain deterministic development/test tools.
         // A real Scanner has Enabled=true and is visually gated to the foreground Tarkov
-        // inventory/stash before the overlay is allowed to appear.
+        // inventory/stash before the overlay is allowed to appear for the first time.
         if (preview || !_settings.Current.Enabled)
+        {
+            CancelVisibilityProbe(clearPending: false);
+            ShowVerified(snapshot, epoch);
+            return;
+        }
+
+        // Once a Scanner result has passed the initial Tarkov inventory/stash gate, a
+        // later authoritative item match is stronger evidence than the auxiliary header
+        // OCR. Update the held result immediately instead of repeatedly re-gating a
+        // visible overlay and allowing a single context-OCR miss to make it blink.
+        var hasVisibleSnapshot = Invoke(() => _snapshot is not null && _window?.IsVisible == true);
+        if (hasVisibleSnapshot)
         {
             CancelVisibilityProbe(clearPending: false);
             ShowVerified(snapshot, epoch);
@@ -75,10 +90,9 @@ public sealed class MiniScannerOverlayService : IDisposable
     }
 
     /// <summary>
-    /// At most one inventory/stash OCR probe is active for this overlay. The continuous
-    /// Scanner can call Show every 350 ms, but those calls only replace the pending
-    /// snapshot while a probe is running instead of queueing more OCR work behind the
-    /// serialized WinRT engine.
+    /// At most one inventory/stash OCR probe is active for this overlay. The probe is an
+    /// initial visibility gate only; once a confirmed Scanner item is visible, subsequent
+    /// confirmed items update the overlay directly and do not enqueue more context OCR.
     /// </summary>
     private void RequestInventoryProbe()
     {
@@ -130,13 +144,15 @@ public sealed class MiniScannerOverlayService : IDisposable
 
             if (!allowed)
             {
+                // Context OCR is intentionally fail-closed for opening a hidden overlay,
+                // but it must never tear down an already visible, authoritative Scanner
+                // match. Continuous recognition owns liveness after the initial gate.
                 Invoke(() =>
                 {
                     if (_disposed || epoch != Volatile.Read(ref _visibilityEpoch))
                         return;
-                    _snapshot = null;
-                    if (!_editMode)
-                        _window?.Hide();
+                    if (_window?.IsVisible != true)
+                        _snapshot = null;
                 });
                 return;
             }
@@ -151,11 +167,12 @@ public sealed class MiniScannerOverlayService : IDisposable
             App.WriteDiagnostic("Mini Scanner inventory context detection failed", exception);
             if (!_disposed && epoch == Volatile.Read(ref _visibilityEpoch))
             {
+                // An auxiliary context-probe failure can prevent an initial show, but it
+                // cannot invalidate an item that is already being presented successfully.
                 Invoke(() =>
                 {
-                    _snapshot = null;
-                    if (!_editMode)
-                        _window?.Hide();
+                    if (_window?.IsVisible != true)
+                        _snapshot = null;
                 });
             }
         }
@@ -193,14 +210,42 @@ public sealed class MiniScannerOverlayService : IDisposable
     }
 
     /// <summary>
-    /// Runtime status belongs to the Scanner page/activity log, never to the overlay.
-    /// Any non-item state clears the current match and hides Mini Scanner.
+    /// Hard non-item state. Scanner stop/suspend/unavailable states use this path and
+    /// clear the Mini Scanner immediately rather than consuming the transient miss budget.
     /// </summary>
     public void ShowStandby(string message)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
         Hide();
+    }
+
+    /// <summary>
+    /// Progress-only state such as candidate stabilization or OCR work. The Scanner page
+    /// may report the status, while the last confirmed Mini Scanner item stays untouched.
+    /// </summary>
+    public void HoldStandby(string message)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentException.ThrowIfNullOrWhiteSpace(message);
+    }
+
+    /// <summary>
+    /// Records one completed continuous-recognition miss. The last confirmed item remains
+    /// visible through two misses and is hidden on the third consecutive miss. Any later
+    /// successful Show call resets this budget, including an immediate switch to a new item.
+    /// </summary>
+    public void ReportTransientMiss(string message)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentException.ThrowIfNullOrWhiteSpace(message);
+
+        bool shouldHide;
+        lock (_requestGate)
+            shouldHide = _presentationRetention.ReportMiss();
+
+        if (shouldHide)
+            Hide();
     }
 
     public void Hide()
@@ -237,6 +282,7 @@ public sealed class MiniScannerOverlayService : IDisposable
             _snapshot = preview;
             lock (_requestGate)
             {
+                _presentationRetention.Confirm(preview.ItemId);
                 _requestedItemId = preview.ItemId;
                 _pendingVisibilitySnapshot = preview;
                 _pendingVisibilityEpoch = Volatile.Read(ref _visibilityEpoch);
@@ -292,6 +338,7 @@ public sealed class MiniScannerOverlayService : IDisposable
         CancellationTokenSource? cancellation;
         lock (_requestGate)
         {
+            _presentationRetention.Reset();
             _requestedItemId = null;
             _pendingVisibilitySnapshot = null;
             _pendingVisibilityEpoch = Interlocked.Increment(ref _visibilityEpoch);

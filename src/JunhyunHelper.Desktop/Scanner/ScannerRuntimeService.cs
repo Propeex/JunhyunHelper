@@ -305,7 +305,7 @@ public sealed partial class ScannerRuntimeService : IDisposable
                             {
                                 ClearVerifiedItem();
                                 const string refreshMessage = "현재 아이템 표시 데이터를 갱신할 수 없어 다시 확인합니다.";
-                                _overlay.ShowStandby(refreshMessage);
+                                _overlay.ReportTransientMiss(refreshMessage);
                                 Publish(ScannerRuntimeState.Uncertain, refreshMessage, captureMode: mode);
                                 continue;
                             }
@@ -319,14 +319,14 @@ public sealed partial class ScannerRuntimeService : IDisposable
                     ClearVerifiedItem();
                     _candidatePresenceHits = 1;
                     const string changedMessage = "아이템 제목 변화를 확인하는 중입니다.";
-                    _overlay.ShowStandby(changedMessage);
+                    _overlay.HoldStandby(changedMessage);
                     Publish(ScannerRuntimeState.Stabilizing, changedMessage, captureMode: mode);
                 }
 
                 if (_candidatePresenceHits < StableCandidateHitsRequired)
                 {
                     const string message = "상세창 후보를 확인하는 중입니다.";
-                    _overlay.ShowStandby(message);
+                    _overlay.HoldStandby(message);
                     Publish(ScannerRuntimeState.Stabilizing, message, captureMode: mode);
                     continue;
                 }
@@ -336,7 +336,7 @@ public sealed partial class ScannerRuntimeService : IDisposable
 
                 _nextSemanticAttemptAtUtc = DateTimeOffset.UtcNow + SemanticRetryInterval;
                 const string readingMessage = "아이템 이름을 읽는 중입니다.";
-                _overlay.ShowStandby(readingMessage);
+                _overlay.HoldStandby(readingMessage);
                 Publish(ScannerRuntimeState.ReadingTitle, readingMessage, captureMode: mode);
 
                 var search = await SearchCandidatesAsync(candidates, mode, cancellationToken);
@@ -352,7 +352,7 @@ public sealed partial class ScannerRuntimeService : IDisposable
                     var message = string.IsNullOrWhiteSpace(search.OcrText)
                         ? "아이템 이름을 읽지 못해 식별을 보류했습니다."
                         : $"아이템을 확실하게 식별하지 못했습니다. ({search.Recognition.Reason}, {search.Recognition.Confidence:P0})";
-                    _overlay.ShowStandby(message);
+                    _overlay.ReportTransientMiss(message);
                     Publish(ScannerRuntimeState.Uncertain, message, captureMode: mode);
                     continue;
                 }
@@ -362,7 +362,7 @@ public sealed partial class ScannerRuntimeService : IDisposable
                 {
                     ClearVerifiedItem();
                     const string message = "Item ID는 확정했지만 현재 표시 데이터를 만들 수 없습니다.";
-                    _overlay.ShowStandby(message);
+                    _overlay.ReportTransientMiss(message);
                     Publish(ScannerRuntimeState.Uncertain, message, captureMode: mode);
                     continue;
                 }
@@ -679,14 +679,19 @@ public sealed partial class ScannerRuntimeService : IDisposable
         _consecutiveMisses++;
         _candidatePresenceHits = 0;
         _previousCandidateGeometrySignatures.Clear();
+
+        var message = string.IsNullOrWhiteSpace(detectorMessage)
+            ? ModeInitialMessage(mode)
+            : detectorMessage;
+        _overlay.ReportTransientMiss(message);
+
+        // Runtime identity state remains conservative and is cleared on the existing
+        // second geometry miss. Mini Scanner presentation has its own three-miss latch,
+        // so the last confirmed item can remain visually stable while reacquisition runs.
         if (_consecutiveMisses < MissesToHide)
             return;
 
         ClearVerifiedItem();
-        var message = string.IsNullOrWhiteSpace(detectorMessage)
-            ? ModeInitialMessage(mode)
-            : detectorMessage;
-        _overlay.ShowStandby(message);
         Publish(ScannerRuntimeState.WaitingForInspectWindow, message, captureMode: mode);
     }
 
