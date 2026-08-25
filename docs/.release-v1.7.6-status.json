@@ -1,0 +1,49 @@
+{
+  "version": "1.7.6",
+  "tag": "v1.7.6",
+  "status": "public_stable",
+  "release_source": "0e5240620ca0867a93f426824ff03374b93dcd1a",
+  "pull_request": 185,
+  "main_ci_run": 32868778549,
+  "release_workflow_run": 32869081513,
+  "release_id": 376532454,
+  "release_published_at_utc": "2026-08-25T15:58:48Z",
+  "asset": {
+    "name": "Junhyun-Helper.zip",
+    "bytes": 80462038,
+    "sha256": "1de4e203c7e219f1d995d4482fa903dc7544d208deee684b5b821f6b5c325e35"
+  },
+  "checksum_asset": {
+    "name": "SHA256SUMS.txt",
+    "bytes": 86,
+    "sha256": "82fb0ef2ad18635d7e86ab13107e71cc58d6dd154e3650dd76dcc6fe0846590b"
+  },
+  "verification": {
+    "draft": false,
+    "prerelease": false,
+    "latest": true,
+    "main_ci": "success",
+    "release_workflow": "success",
+    "desktop_build": "success",
+    "tests": {
+      "passed": 380,
+      "failed": 0,
+      "skipped": 0
+    },
+    "windows_x64_publish": "success",
+    "product_ui_smoke": "success",
+    "map_factory_minimap_smoke": "success",
+    "graceful_shutdown": "success",
+    "release_package_verification": "success"
+  },
+  "scanner_performance": {
+    "status": "p0_resolved",
+    "user_verified": true,
+    "same_display_test_half_mask_before_ms": 10840.877,
+    "same_display_test_half_mask_after_ms": 70.603,
+    "actual_tarkov_reading_to_showing_median_ms": 63.92,
+    "actual_tarkov_reading_to_showing_max_ms": 1048.7,
+    "ui_dispatcher_stalls": 0
+  },
+  "known_nonfunctional_issue": "The published v1.7.6 FIRST_RUN_KO.txt first line is correct, but part of its body still uses the pre-verification diagnostic-candidate wording. Published stable assets remain immutable; correct this wording in the next patch."
+}

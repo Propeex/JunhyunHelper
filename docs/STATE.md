@@ -3,7 +3,7 @@
 > 새 대화/새 개발자는 이 문서를 먼저 읽습니다. 대화 기억이 아니라 저장소의 공식 문서와 현재 GitHub 상태가 프로젝트의 기준입니다.
 
 기준일: 2026-08-26  
-상태: **v1.7.5 PUBLIC STABLE / v1.7.6 SCANNER PERFORMANCE FIX VERIFIED — RELEASE FINALIZATION**
+상태: **v1.7.6 PUBLIC STABLE / SCANNER P0 RESOLVED / LIVE MAINTENANCE**
 
 ## 1. 제품
 
@@ -27,36 +27,33 @@ Runtime GPT/AI 의존성은 없다.
 
 기존 `Propeex/Tarkov-Helper`는 불완전한 프로토타입이며 새 제품 요구사항의 권위가 아니다. 유지할 기능, 검증된 데이터/자산, 구현 아이디어와 시행착오 참고 용도로만 사용한다.
 
-## 2. 공개 stable과 현재 개발 상태
-
-현재 public stable/latest는 **v1.7.5**다.
+## 2. 현재 public stable
 
 ```text
-public stable: v1.7.5
-exact release source: 215541a694459e9484716c4942a436c26defe919
-stable asset: Junhyun-Helper.zip
-stable bytes: 80,450,225
-stable SHA-256: 6706f12e63caa2039cf3f89c6823b457d125e43f8af47779082caa843282923f
+version: v1.7.6
+release source: 0e5240620ca0867a93f426824ff03374b93dcd1a
+release CI run: 32868778549
+release workflow run: 32869081513
+release id: 376532454
+asset: Junhyun-Helper.zip
+asset bytes: 80,462,038
+asset SHA-256: 1de4e203c7e219f1d995d4482fa903dc7544d208deee684b5b821f6b5c325e35
+checksum asset: SHA256SUMS.txt
+published: 2026-08-26 KST
 ```
 
-현재 개발 목표는 **v1.7.6**이다.
+GitHub release readback:
 
-v1.7.6의 P0 목표였던 일부 데스크탑의 Scanner 5~13초 장시간 인식 지연은 root cause를 실측한 뒤 수정했고, 같은 문제 PC의 Display Test와 실제 Tarkov에서 성능 정상화를 확인했다.
+- tag `v1.7.6`
+- target commit = exact release source
+- draft = false
+- prerelease = false
+- latest stable
+- required assets present
 
-따라서 현재 단계는:
+v1.7.6의 P0 목표였던 일부 데스크탑 Scanner 장시간 인식 지연은 문제 PC의 실측 자료로 root cause를 확인하고 수정했으며, 같은 PC의 Display Test와 실제 Tarkov에서 정상화를 재검증했다.
 
-```text
-P0 Scanner long stall: RESOLVED
-performance algorithm work: CLOSED unless new evidence appears
-v1.7.6: release finalization
-```
-
-관련 문서:
-
-- `docs/CURRENT_SCANNER_WORK.md`
-- `docs/DECISION_V1.7.5_OCR_ENVIRONMENT_GUARD_2026-08-25.md`
-- `docs/DECISION_V1.7.6_SCANNER_STALL_DIAGNOSTICS_2026-08-25.md`
-- `docs/RELEASE_NOTES_V1.7.6.md`
+현재 Scanner 성능 알고리즘은 완료 상태다. 새로운 runtime evidence가 없는 한 성능을 목적으로 recognition threshold/candidate cap/recovery acceptance를 더 변경하지 않는다.
 
 ## 3. 아키텍처
 
@@ -75,8 +72,6 @@ JunhyunHelper.Desktop
 - **Infrastructure**: HTTP/source parsing, SQLite/file persistence, Game Content/Scanner/update I/O
 - **Desktop**: WPF UI, presentation, Scanner capture/OCR/runtime/diagnostics, Map bridge
 - **Map/MiniMap donor**: 제한적 compile-link 예외. donor updater/content ownership/hidden command는 사용하지 않음
-
-현재 pinned Map donor는 저장소 submodule pin을 권위로 사용한다.
 
 ## 4. 사용자 데이터 / persistence
 
@@ -193,9 +188,9 @@ Display Test는 같은 recognition pipeline을 사용하며 real continuous Scan
 Scanner ON/OFF: Ctrl+Shift+F12
 ```
 
-v1.7.6에서는 one-shot `ScanOnceAsync` 실행을 explicit worker에 배치해 global-hotkey WPF message-pump가 capture/OCR synchronous setup을 직접 수행할 수 있는 경로를 제거했다.
+v1.7.6에서는 one-shot `ScanOnceAsync`를 explicit worker에 배치해 global-hotkey WPF message-pump가 capture/OCR synchronous setup을 직접 수행할 수 있는 경로를 제거했다.
 
-Mini Scanner와 WPF status presentation은 기존 dispatcher marshalling을 유지한다.
+Mini Scanner와 WPF status presentation은 dispatcher marshalling을 유지한다.
 
 ## 8. OCR / matcher / visual recovery
 
@@ -230,13 +225,13 @@ v1.7.6은 동일 Scanner latency cycle 안에서 다음이 동일한 visual corr
 - exact current-pixel SHA-256
 - OCR text
 
-cycle이 변경되면 즉시 폐기한다. 이는 cross-frame identity cache가 아니며 동일한 현재-frame deterministic proof를 후보마다 반복 계산하지 않기 위한 성능 최적화다.
+cycle이 변경되면 즉시 폐기한다. 이는 cross-frame identity cache가 아니며 동일한 현재-frame deterministic proof를 후보마다 반복 계산하지 않기 위한 최적화다.
 
 candidate count와 visual acceptance semantics는 변경하지 않았다.
 
-## 9. Scanner P0 성능 결함 — root cause와 해결 증거
+## 9. Scanner P0 성능 결함 — 해결 증거
 
-문제 데스크탑의 첫 진단 bundle에서 대표 Tarkov cycle:
+수정 전 문제 PC 대표 Tarkov cycle:
 
 ```text
 end-to-end                  12,540.77 ms
@@ -246,8 +241,6 @@ visual recovery             12,306.61 ms / 16 calls
 ```
 
 Windows OCR 자체가 아니라 동일 current-frame visual proof가 후보별로 반복되며 latency를 증폭한 것이 root cause였다.
-
-또한 Tarkov font provider의 unavailable retry check가 expensive process/source discovery 뒤에 있어 optional source lookup이 반복될 수 있는 구조가 있었다.
 
 수정 후 동일 문제 PC:
 
@@ -290,13 +283,7 @@ LocalAppData diagnostic append: sub-ms
 
 사용자 실사용 평가에서도 수정 후 속도가 충분히 만족스러운 수준임을 확인했다.
 
-### 성능 정책
-
-P0 long-stall은 해결 완료로 판정한다.
-
-약 1초의 어려운 deep/recovery 사례는 허용 가능한 bounded recovery cost로 본다. 추가로 latency만 줄이기 위해 OCR variant, candidate count, matcher/visual threshold를 변경하지 않는다.
-
-새로운 실측 regression이 없는 한 v1.7.6 이전에 성능 알고리즘을 다시 변경하지 않는다.
+약 1초의 어려운 deep/recovery 사례는 허용 가능한 bounded recovery cost로 본다. latency만 줄이기 위해 OCR variant, candidate count, matcher/visual threshold를 변경하지 않는다.
 
 ## 10. Scanner mapped presentation / item search
 
@@ -314,7 +301,7 @@ Inventory shortage는 Scanner의 `필요 개수` 의미가 아니다.
 
 Scanner item search는 같은 current full-item catalog와 local presentation data를 사용하며 검색 순간 network request를 만들지 않는다.
 
-## 11. Scanner 일반 UI / Mini Scanner
+## 11. Scanner UI / Mini Scanner
 
 Scanner 일반 화면 primary actions:
 
@@ -348,24 +335,9 @@ Root:
 %LocalAppData%/JunhyunHelper/scanner/diagnostics/
 ```
 
-대표 evidence:
-
-- full.png
-- detail/title/processed ROI
-- annotated image
-- case.json
-- candidate_selection.json
-- raw/substituted/normalized OCR
-- Item ID / official name
-- confidence / second / margin
-- matcher top candidates
-- structural/header evidence
-- mapped presentation
-- user Ground Truth
-
 자동 diagnostic Case는 정답이 아니다. user-reviewed Case만 Ground Truth다.
 
-Full-pipeline regression은 reviewed case의 보존된 `full.png`를 현재 production geometry/header/OCR/catalog path로 다시 실행한다.
+Full-pipeline regression은 reviewed Case의 보존된 `full.png`를 현재 production geometry/header/OCR/catalog path로 다시 실행한다.
 
 결과:
 
@@ -377,7 +349,18 @@ Full-pipeline regression은 reviewed case의 보존된 `full.png`를 현재 prod
 
 기존 정상 reviewed Case가 실패하면 평균 성능과 무관하게 REGRESSION이다.
 
-**중요:** Scanner 성능 support ZIP은 개인정보/대용량 이미지 최소화를 위해 Ground Truth image/dataset을 포함하지 않는다. 따라서 성능 support bundle만으로 reviewed Ground Truth regression을 실행할 수 없다.
+Scanner performance support ZIP은 Ground Truth image/dataset을 포함하지 않는다. 최근 v1.7.6 문제-PC support log에서 관측된 Case는 `UNREVIEWED` 자동 Case였다. Reviewed dataset이 존재할 때에는 기존 full-pipeline replay의 `REGRESSION=0` 계약을 적용하며, reviewed evidence가 없을 때 값을 추정하지 않는다.
+
+Automatic unreviewed diagnostic retention:
+
+```text
+max age = 30 days
+max cases = 300
+max bytes = 512 MiB
+recent protection = 2 hours
+```
+
+Corrupt/unknown metadata는 preserve fail closed한다. Logs는 bounded rotation한다.
 
 ## 13. Diagnostics / telemetry
 
@@ -407,28 +390,15 @@ v1.7.6 additional trace:
 - Tarkov font source probe
 - WPF dispatcher stall/recovery
 
-fine-grained trace는 bounded in-memory storage를 사용해 진단 자체가 synchronous file-I/O 병목을 만들지 않도록 한다.
+fine-grained trace는 bounded in-memory storage를 사용한다.
 
 `Scanner > 고급 > Scanner 성능 진단 자료 내보내기`는 환경/성능 trace/log를 ZIP 하나로 저장한다. Ground Truth image, profile DB, game account information은 포함하지 않는다.
 
-Automatic unreviewed diagnostic retention:
+## 14. v1.7.6 CI / release proof
+
+PR #185 root-cause fix code HEAD `d04f39697a4ea4d6ff4eabcb2acdc6bc535c8f9c` CI run `32866068233`:
 
 ```text
-max age = 30 days
-max cases = 300
-max bytes = 512 MiB
-recent protection = 2 hours
-```
-
-Corrupt/unknown metadata는 preserve fail closed한다. Logs는 bounded rotation한다.
-
-## 14. v1.7.6 검증 현황
-
-Root-cause fix code HEAD:
-
-```text
-d04f39697a4ea4d6ff4eabcb2acdc6bc535c8f9c
-CI run: 32866068233
 Desktop build: SUCCESS
 Tests: 380 passed / 0 failed / 0 skipped
 Windows x64 self-contained publish: SUCCESS
@@ -439,14 +409,23 @@ Release package verification: SUCCESS
 Artifact upload: SUCCESS
 ```
 
-사용자가 실제 문제 PC에서 검증한 fix candidate:
+PR #185 final HEAD도 전체 CI를 성공했고 main으로 merge했다.
+
+Final release source:
 
 ```text
-bytes: 80,462,063
-SHA-256: 96af948b2cd24caeb612d1d89a368bf30329606d3e934a292758292f70dcae30
+0e5240620ca0867a93f426824ff03374b93dcd1a
+main CI run 32868778549: SUCCESS
+Release run 32869081513: SUCCESS
 ```
 
-이 package에서 Display Test와 actual Tarkov 성능 정상화를 확인했다.
+Public asset:
+
+```text
+Junhyun-Helper.zip
+bytes: 80,462,038
+SHA-256: 1de4e203c7e219f1d995d4482fa903dc7544d208deee684b5b821f6b5c325e35
+```
 
 ## 15. Release / Program Update contract
 
@@ -473,28 +452,35 @@ ZIP/folder name에는 version을 넣지 않는다. Version identity는 Desktop p
 
 Program Update는 public stable의 exact asset/checksum/package identity를 검증한 뒤 program-owned files만 transaction 교체한다. 사용자 LocalAppData는 유지한다.
 
-Release gate:
+## 16. Known issue / technical debt
 
-- exact source build/test/publish/smoke
-- exact ProductVersion/FIRST_RUN identity
-- stable ZIP + top-level `준현 헬퍼/` structure verification
-- reviewed Ground Truth regression `REGRESSION=0` where reviewed local dataset is available
-- exact tag/source identity
-- public stable/latest publication
-- release asset hash/size metadata readback
-- durable release status 기록
+### v1.7.6 FIRST_RUN wording
 
-## 16. 현재 다음 작업
+공개 v1.7.6 ZIP의 `FIRST_RUN_KO.txt` 첫 줄 version identity는 정확하지만 본문 일부가 개발 중 작성된 `진단 후보` 표현을 유지한다.
 
-성능 알고리즘은 더 수정하지 않는다.
+- runtime/Scanner behavior에는 영향 없음
+- release asset/hash에는 문제 없음
+- published stable asset은 immutable 원칙에 따라 덮어쓰지 않음
+- 다음 patch에서 현재 resolved 상태에 맞게 사용자 안내 문구 수정
 
-v1.7.6 finalization:
+### Diagnostic OCR adapter
 
-1. reviewed Ground Truth regression 가능 범위 확인
-2. user-verified runtime behavior를 바꾸지 않는 선에서 diagnostic-only temporary implementation 정리 여부 결정; 위험하면 후속 기술부채로 기록
-3. final HEAD CI / publish / Product UI / Scanner / Map smoke / package verification
-4. PR #185 merge
-5. v1.7.6 public stable publication
-6. tag/source/package/hash/size readback 후 release proof 기록
+v1.7.6의 fine-grained WinRT timing을 위해 diagnostic adapter가 production `ScannerLab38OcrEngine`의 기존 engine instance를 재사용한다. 사용자 검증된 실행 behavior를 바꾸는 cleanup은 v1.7.6 직전에 강행하지 않았다.
 
-새 Scanner 성능 결함이 보고되면 support bundle telemetry를 근거로 해당 stage만 수정한다. 추측 기반 threshold/candidate-cap 완화는 하지 않는다.
+향후 구조 정리 시 exact telemetry/health policy를 raw OCR owner로 이동하고 adapter/reflection 의존을 제거하되, Ground Truth와 문제-PC performance evidence를 유지해야 한다.
+
+## 17. 다음 작업
+
+현재 Scanner P0는 종료됐다.
+
+다음 개발은 새 제품 요구사항 또는 실사용 evidence가 생길 때 시작한다.
+
+Scanner 관련 새 문제가 생기면:
+
+1. exact support bundle / Case 확보
+2. failure stage 측정
+3. affected stage만 수정
+4. reviewed Ground Truth가 있으면 full replay REGRESSION=0 확인
+5. full Windows CI/publish/smoke/package 검증
+
+추측 기반 threshold/candidate-cap 완화나 선제적 성능 재설계는 하지 않는다.
