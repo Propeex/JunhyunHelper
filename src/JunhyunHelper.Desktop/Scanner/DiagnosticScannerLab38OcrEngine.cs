@@ -260,12 +260,16 @@ internal sealed class DiagnosticScannerLab38OcrEngine : IScannerDeepOcrEngine
             ("width", image.PixelWidth),
             ("height", image.PixelHeight),
             ("format", image.Format));
-        var bgra = new FormatConvertedBitmap(image, PixelFormats.Bgra32, null, 0);
-        bgra.Freeze();
+        BitmapSource bgra = image.Format == PixelFormats.Bgra32
+            ? image
+            : new FormatConvertedBitmap(image, PixelFormats.Bgra32, null, 0);
+        if (!bgra.IsFrozen && bgra.CanFreeze)
+            bgra.Freeze();
         ScannerPerformanceTrace.Mark(
             "ocr-bgra-convert-end",
             ("callId", callId),
-            ("elapsedMs", FormatMs(conversionStarted)));
+            ("elapsedMs", FormatMs(conversionStarted)),
+            ("converted", !ReferenceEquals(bgra, image)));
 
         var copyStarted = Stopwatch.GetTimestamp();
         ScannerPerformanceTrace.Mark("ocr-copy-pixels-start", ("callId", callId));
