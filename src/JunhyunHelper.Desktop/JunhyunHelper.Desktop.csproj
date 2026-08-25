@@ -102,7 +102,7 @@
     <Page Include="../../vendor/Tarkov-Helper/TarkovHelper/Windows/Dialogs/OverlaySettingsWindow.xaml"
           Link="Legacy/TarkovHelper/Windows/Dialogs/OverlaySettingsWindow.xaml" />
     <Page Include="../../vendor/Tarkov-Helper/TarkovHelper/Windows/Dialogs/CustomMarkerEditorWindow.xaml"
-          Link="Legacy/TarkovHelper/Windows/Dialogs/%(Filename)%(Extension)" />
+          Link="Legacy/TarkovHelper/Windows/Dialogs/CustomMarkerEditorWindow.xaml" />
   </ItemGroup>
 
   <!-- Map/MiniMap read these files directly by path. Keep them outside the single-file
