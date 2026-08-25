@@ -6,8 +6,7 @@ namespace JunhyunHelper.Desktop.Scanner;
 
 public sealed partial class ScannerRuntimeService : IDisposable
 {
-    private static readonly TimeSpan TickInterval = TimeSpan.FromMilliseconds(350);
-    private static readonly TimeSpan SemanticRetryInterval = TimeSpan.FromMilliseconds(1200);
+    private static readonly TimeSpan TickInterval = TimeSpan.FromMilliseconds(200);
     private static readonly TimeSpan PresentationRefreshInterval = TimeSpan.FromSeconds(1);
     private const int StableCandidateHitsRequired = 2;
     private const int MissesToHide = 2;
@@ -33,9 +32,11 @@ public sealed partial class ScannerRuntimeService : IDisposable
     private ScannerCaptureMode? _activeMode;
     private int _candidatePresenceHits;
     private int _consecutiveMisses;
+    private int _semanticFailureCount;
     private DateTimeOffset _nextSemanticAttemptAtUtc = DateTimeOffset.MinValue;
     private DateTimeOffset _nextPresentationRefreshAtUtc = DateTimeOffset.MinValue;
     private Rect? _verifiedBounds;
+    private ScannerInspectCandidate? _verifiedCandidate;
     private string _verifiedTitleSignature = string.Empty;
     private ScannerItemSnapshot? _currentSnapshot;
     private string _lastDiagnosticStatusKey = string.Empty;
@@ -260,6 +261,46 @@ public sealed partial class ScannerRuntimeService : IDisposable
                 }
 
                 using var latencyCycle = ScannerLatencyTelemetry.BeginCycle(mode, "continuous");
+
+                // Once an Item has been fully verified, first revalidate only that known
+                // detail-window rectangle with the same close-X/magnifier/header lock and
+                // a freshly computed title signature. This is never allowed to identify a
+                // new Item: any miss or title change falls through to the original full
+                // client capture + proposal pipeline in this same cycle.
+                if (_currentSnapshot is not null && _verifiedCandidate is not null)
+                {
+                    var tracked = await ObserveTrackedCandidateAsync(cancellationToken);
+                    if (epoch != Volatile.Read(ref _loopEpoch))
+                        return;
+
+                    if (tracked is not null &&
+                        HasTrustedTitleAnchors(tracked) &&
+                        GeometryDistance(tracked.Bounds, _verifiedCandidate.Bounds) <= VerifiedGeometryDistanceLimit &&
+                        string.Equals(tracked.TitleSignature, _verifiedTitleSignature, StringComparison.Ordinal))
+                    {
+                        _verifiedCandidate = tracked;
+                        _verifiedBounds = tracked.Bounds;
+                        if (DateTimeOffset.UtcNow >= _nextPresentationRefreshAtUtc)
+                        {
+                            _nextPresentationRefreshAtUtc = DateTimeOffset.UtcNow + PresentationRefreshInterval;
+                            var refreshed = _presentation.CreateSnapshot(_currentSnapshot.ItemId);
+                            if (refreshed is null)
+                            {
+                                ScheduleSemanticRetry();
+                                ClearVerifiedItem();
+                                const string refreshMessage = "현재 아이템 표시 데이터를 갱신할 수 없어 다시 확인합니다.";
+                                _overlay.ReportTransientMiss(refreshMessage);
+                                Publish(ScannerRuntimeState.Uncertain, refreshMessage, captureMode: mode);
+                                continue;
+                            }
+                            _currentSnapshot = refreshed;
+                        }
+
+                        _overlay.Show(_currentSnapshot);
+                        continue;
+                    }
+                }
+
                 var candidates = await ObserveCandidatesAsync(cancellationToken);
                 if (epoch != Volatile.Read(ref _loopEpoch))
                     return;
@@ -297,6 +338,8 @@ public sealed partial class ScannerRuntimeService : IDisposable
                     if (closest.Distance <= VerifiedGeometryDistanceLimit &&
                         string.Equals(closest.Candidate.TitleSignature, _verifiedTitleSignature, StringComparison.Ordinal))
                     {
+                        _verifiedCandidate = closest.Candidate;
+                        _verifiedBounds = closest.Candidate.Bounds;
                         if (DateTimeOffset.UtcNow >= _nextPresentationRefreshAtUtc)
                         {
                             _nextPresentationRefreshAtUtc = DateTimeOffset.UtcNow + PresentationRefreshInterval;
@@ -317,6 +360,7 @@ public sealed partial class ScannerRuntimeService : IDisposable
                     }
 
                     ClearVerifiedItem();
+                    ResetSemanticRetry();
                     _candidatePresenceHits = 1;
                     const string changedMessage = "아이템 제목 변화를 확인하는 중입니다.";
                     _overlay.HoldStandby(changedMessage);
@@ -334,7 +378,6 @@ public sealed partial class ScannerRuntimeService : IDisposable
                 if (DateTimeOffset.UtcNow < _nextSemanticAttemptAtUtc)
                     continue;
 
-                _nextSemanticAttemptAtUtc = DateTimeOffset.UtcNow + SemanticRetryInterval;
                 const string readingMessage = "아이템 이름을 읽는 중입니다.";
                 _overlay.HoldStandby(readingMessage);
                 Publish(ScannerRuntimeState.ReadingTitle, readingMessage, captureMode: mode);
@@ -348,6 +391,7 @@ public sealed partial class ScannerRuntimeService : IDisposable
                 if (!search.Success || search.Candidate is null ||
                     string.IsNullOrWhiteSpace(search.Recognition.ItemId))
                 {
+                    ScheduleSemanticRetry();
                     ClearVerifiedItem();
                     var message = string.IsNullOrWhiteSpace(search.OcrText)
                         ? "아이템 이름을 읽지 못해 식별을 보류했습니다."
@@ -360,6 +404,7 @@ public sealed partial class ScannerRuntimeService : IDisposable
                 var snapshot = _presentation.CreateSnapshot(search.Recognition.ItemId);
                 if (snapshot is null)
                 {
+                    ScheduleSemanticRetry();
                     ClearVerifiedItem();
                     const string message = "Item ID는 확정했지만 현재 표시 데이터를 만들 수 없습니다.";
                     _overlay.ReportTransientMiss(message);
@@ -367,7 +412,9 @@ public sealed partial class ScannerRuntimeService : IDisposable
                     continue;
                 }
 
+                ResetSemanticRetry();
                 _verifiedBounds = search.Candidate.Bounds;
+                _verifiedCandidate = search.Candidate;
                 _verifiedTitleSignature = search.Candidate.TitleSignature;
                 _currentSnapshot = snapshot;
                 _nextPresentationRefreshAtUtc = DateTimeOffset.UtcNow + PresentationRefreshInterval;
@@ -409,6 +456,23 @@ public sealed partial class ScannerRuntimeService : IDisposable
         try
         {
             return await ObserveCandidatesCoreAsync(cancellationToken);
+        }
+        finally
+        {
+            _captureGate.Release();
+        }
+    }
+
+    private async Task<ScannerInspectCandidate?> ObserveTrackedCandidateAsync(CancellationToken cancellationToken)
+    {
+        if (_verifiedCandidate is null || _detector is not IScannerTrackedInspectDetector trackedDetector)
+            return null;
+
+        await _captureGate.WaitAsync(cancellationToken);
+        try
+        {
+            var tracked = await trackedDetector.ObserveTrackedAsync(_verifiedCandidate, cancellationToken);
+            return tracked is null ? null : NormalizeTitleIdentitySignature(tracked);
         }
         finally
         {
@@ -623,6 +687,8 @@ public sealed partial class ScannerRuntimeService : IDisposable
             .ToHashSet(StringComparer.Ordinal);
 
         var overlapsPrevious = current.Count > 0 && _previousCandidateGeometrySignatures.Overlaps(current);
+        if (!overlapsPrevious)
+            ResetSemanticRetry();
         _candidatePresenceHits = overlapsPrevious
             ? Math.Min(_candidatePresenceHits + 1, StableCandidateHitsRequired)
             : 1;
@@ -678,6 +744,7 @@ public sealed partial class ScannerRuntimeService : IDisposable
     {
         _consecutiveMisses++;
         _candidatePresenceHits = 0;
+        ResetSemanticRetry();
         _previousCandidateGeometrySignatures.Clear();
 
         var message = string.IsNullOrWhiteSpace(detectorMessage)
@@ -698,6 +765,7 @@ public sealed partial class ScannerRuntimeService : IDisposable
     private void ClearVerifiedItem()
     {
         _verifiedBounds = null;
+        _verifiedCandidate = null;
         _verifiedTitleSignature = string.Empty;
         _currentSnapshot = null;
         _nextPresentationRefreshAtUtc = DateTimeOffset.MinValue;
@@ -708,11 +776,24 @@ public sealed partial class ScannerRuntimeService : IDisposable
         _candidatePresenceHits = 0;
         _consecutiveMisses = 0;
         _previousCandidateGeometrySignatures.Clear();
-        _nextSemanticAttemptAtUtc = DateTimeOffset.MinValue;
+        ResetSemanticRetry();
         ClearVerifiedItem();
         _lastDiagnosticStatusKey = string.Empty;
         if (hideOverlay)
             _overlay.Hide();
+    }
+
+    private void ResetSemanticRetry()
+    {
+        _semanticFailureCount = 0;
+        _nextSemanticAttemptAtUtc = DateTimeOffset.MinValue;
+    }
+
+    private void ScheduleSemanticRetry()
+    {
+        _semanticFailureCount = Math.Min(_semanticFailureCount + 1, 32);
+        _nextSemanticAttemptAtUtc = DateTimeOffset.UtcNow +
+            ScannerSemanticRetryPolicy.DelayAfterFailure(_semanticFailureCount);
     }
 
     private void StopLoop()

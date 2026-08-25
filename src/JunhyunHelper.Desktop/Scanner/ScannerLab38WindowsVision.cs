@@ -7,8 +7,9 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using JunhyunHelper.Core.Scanner;
 using Windows.Globalization;
+using Windows.Graphics.Imaging;
 using Windows.Media.Ocr;
-using Windows.Storage.Streams;
+using Windows.Security.Cryptography;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
@@ -17,9 +18,10 @@ namespace JunhyunHelper.Desktop.Scanner;
 /// JunhyunHelper capture contract (Tarkov client only in real mode; all displays in
 /// test mode) while restoring v3.8's ranked structural candidate set.
 /// </summary>
-public sealed class ScannerLab38InspectDetector : IScannerCandidateInspectDetector
+public sealed class ScannerLab38InspectDetector : IScannerTrackedInspectDetector
 {
     private const int CandidateLimit = 12;
+    private const int TrackedCaptureMargin = 24;
     private static readonly TimeSpan WindowDiscoveryInterval = TimeSpan.FromSeconds(1.5);
 
     private readonly object _gate = new();
@@ -74,6 +76,207 @@ public sealed class ScannerLab38InspectDetector : IScannerCandidateInspectDetect
         return Task.FromResult(CaptureMode == ScannerCaptureMode.DisplayTest
             ? ObserveDisplays(cancellationToken)
             : ObserveTarkovWindow(cancellationToken));
+    }
+
+    public Task<ScannerInspectCandidate?> ObserveTrackedAsync(
+        ScannerInspectCandidate previous,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(CaptureMode == ScannerCaptureMode.TarkovWindow
+            ? ObserveTrackedTarkovWindow(previous, cancellationToken)
+            : ObserveTrackedScreen(previous, cancellationToken));
+    }
+
+    private ScannerInspectCandidate? ObserveTrackedTarkovWindow(
+        ScannerInspectCandidate previous,
+        CancellationToken cancellationToken)
+    {
+        var window = GetTarkovWindow();
+        if (window == IntPtr.Zero || IsIconic(window) || !IsWindowVisible(window) ||
+            !TryGetClientScreenRect(window, out var clientRect) ||
+            !TryCreateTrackedCaptureRect(previous.Bounds, clientRect, out var captureRect))
+        {
+            return null;
+        }
+
+        return CaptureAndValidateTracked(previous, captureRect, cancellationToken);
+    }
+
+    private ScannerInspectCandidate? ObserveTrackedScreen(
+        ScannerInspectCandidate previous,
+        CancellationToken cancellationToken)
+    {
+        if (!TryCreateTrackedCaptureRect(previous.Bounds, null, out var captureRect))
+            return null;
+        return CaptureAndValidateTracked(previous, captureRect, cancellationToken);
+    }
+
+    private static ScannerInspectCandidate? CaptureAndValidateTracked(
+        ScannerInspectCandidate previous,
+        NativeRect captureRect,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Bitmap bitmap;
+        try
+        {
+            using (ScannerLatencyTelemetry.Measure(ScannerLatencyTelemetry.Capture))
+                bitmap = CaptureScreenRectangle(captureRect);
+        }
+        catch (Exception exception) when (
+            exception is ExternalException or System.ComponentModel.Win32Exception or ArgumentException)
+        {
+            return null;
+        }
+
+        using (bitmap)
+            return DetectTrackedCandidate(bitmap, captureRect.Left, captureRect.Top, previous);
+    }
+
+    private static ScannerInspectCandidate? DetectTrackedCandidate(
+        Bitmap bitmap,
+        int screenLeft,
+        int screenTop,
+        ScannerInspectCandidate previous)
+    {
+        (byte[] Pixels, int Stride) data;
+        using (ScannerLatencyTelemetry.Measure(ScannerLatencyTelemetry.Capture))
+            data = ReadBgra(bitmap);
+
+        var localWindow = ToLocalRegion(
+            previous.Bounds,
+            screenLeft,
+            screenTop,
+            bitmap.Width,
+            bitmap.Height,
+            previous.StructuralScore);
+        var localTitle = ToLocalRegion(
+            previous.TitleBounds,
+            screenLeft,
+            screenTop,
+            bitmap.Width,
+            bitmap.Height,
+            previous.TitleAnchorScore);
+        var localClose = previous.CloseBounds is { } close
+            ? ToLocalRegion(close, screenLeft, screenTop, bitmap.Width, bitmap.Height, previous.TitleAnchorScore)
+            : default;
+
+        if (localWindow.Width < 2 || localWindow.Height < 2 || localTitle.Width < 1 || localClose.Width < 1)
+            return null;
+
+        ScannerTitleAnchorRefinement anchors;
+        using (ScannerLatencyTelemetry.Measure(ScannerLatencyTelemetry.SemanticHeader))
+        {
+            anchors = ScannerTitleAnchorRefiner.Refine(
+                data.Pixels,
+                bitmap.Width,
+                bitmap.Height,
+                data.Stride,
+                new ScannerDetectedCandidate(localWindow, localTitle, localClose, "TRACKED_VERIFIED_BOUNDS"));
+        }
+
+        if (anchors.Reason != "HEADER_FRAME_LOCKED" ||
+            anchors.Score < 0.68 ||
+            anchors.Magnifier.Width <= 0 ||
+            anchors.CloseButton.Width <= 0)
+        {
+            return null;
+        }
+
+        var lockedWindow = RefineLockedWindow(localWindow, anchors, bitmap.Width, bitmap.Height);
+        var titlePixels = CropBgra(
+            data.Pixels,
+            data.Stride,
+            anchors.Title,
+            bitmap.Width,
+            bitmap.Height,
+            out var titleStride);
+        if (titlePixels.Length == 0)
+            return null;
+
+        var titleImage = BitmapSource.Create(
+            anchors.Title.Width,
+            anchors.Title.Height,
+            96,
+            96,
+            PixelFormats.Bgra32,
+            null,
+            titlePixels,
+            titleStride);
+        titleImage.Freeze();
+
+        var windowBounds = ToScreenRect(lockedWindow, screenLeft, screenTop);
+        var titleBounds = ToScreenRect(anchors.Title, screenLeft, screenTop);
+        var magnifierBounds = ToScreenRect(anchors.Magnifier, screenLeft, screenTop);
+        var closeBounds = ToScreenRect(anchors.CloseButton, screenLeft, screenTop);
+        var geometrySignature = $"tracked:{Quantize(lockedWindow.X + screenLeft)}:{Quantize(lockedWindow.Y + screenTop)}:{Quantize(lockedWindow.Width)}:{Quantize(lockedWindow.Height)}";
+        var titleSignature = $"{HashPixels(titlePixels):X16}";
+
+        return new ScannerInspectCandidate(
+            windowBounds,
+            geometrySignature,
+            titleSignature,
+            titleImage,
+            previous.StructuralScore,
+            "TRACKED_VERIFIED_BOUNDS",
+            titleBounds,
+            magnifierBounds,
+            closeBounds,
+            anchors.Score,
+            anchors.Reason);
+    }
+
+    private static ScannerDetectedRegion ToLocalRegion(
+        Rect screenBounds,
+        int screenLeft,
+        int screenTop,
+        int captureWidth,
+        int captureHeight,
+        double score)
+    {
+        if (screenBounds.Width <= 0 || screenBounds.Height <= 0)
+            return default;
+
+        var left = Math.Clamp((int)Math.Round(screenBounds.Left) - screenLeft, 0, Math.Max(0, captureWidth - 1));
+        var top = Math.Clamp((int)Math.Round(screenBounds.Top) - screenTop, 0, Math.Max(0, captureHeight - 1));
+        var right = Math.Clamp((int)Math.Round(screenBounds.Right) - screenLeft, left + 1, captureWidth);
+        var bottom = Math.Clamp((int)Math.Round(screenBounds.Bottom) - screenTop, top + 1, captureHeight);
+        return new ScannerDetectedRegion(left, top, right - left, bottom - top, score);
+    }
+
+    private static bool TryCreateTrackedCaptureRect(
+        Rect previousBounds,
+        NativeRect? containingRect,
+        out NativeRect captureRect)
+    {
+        captureRect = default;
+        if (previousBounds.Width < 150 || previousBounds.Height < 80)
+            return false;
+
+        var left = (int)Math.Floor(previousBounds.Left) - TrackedCaptureMargin;
+        var top = (int)Math.Floor(previousBounds.Top) - TrackedCaptureMargin;
+        var right = (int)Math.Ceiling(previousBounds.Right) + TrackedCaptureMargin;
+        var bottom = (int)Math.Ceiling(previousBounds.Bottom) + TrackedCaptureMargin;
+
+        if (containingRect is { } container)
+        {
+            if (previousBounds.Right < container.Left || previousBounds.Left > container.Right ||
+                previousBounds.Bottom < container.Top || previousBounds.Top > container.Bottom)
+            {
+                return false;
+            }
+            left = Math.Max(left, container.Left);
+            top = Math.Max(top, container.Top);
+            right = Math.Min(right, container.Right);
+            bottom = Math.Min(bottom, container.Bottom);
+        }
+
+        if (right - left < 150 || bottom - top < 80)
+            return false;
+
+        captureRect = new NativeRect { Left = left, Top = top, Right = right, Bottom = bottom };
+        return true;
     }
 
     private IReadOnlyList<ScannerInspectCandidate> ObserveTarkovWindow(CancellationToken cancellationToken)
@@ -845,29 +1048,25 @@ public sealed class ScannerLab38OcrEngine : IScannerDeepOcrEngine
 
     private async Task<OcrResult> RecognizeAsync(BitmapSource image, CancellationToken cancellationToken)
     {
-        var encoder = new PngBitmapEncoder();
-        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(image));
-        byte[] png;
-        using (var memory = new MemoryStream())
-        {
-            encoder.Save(memory);
-            png = memory.ToArray();
-        }
+        cancellationToken.ThrowIfCancellationRequested();
 
-        using var stream = new InMemoryRandomAccessStream();
-        using (var writer = new DataWriter(stream.GetOutputStreamAt(0)))
-        {
-            writer.WriteBytes(png);
-            await writer.StoreAsync();
-            await writer.FlushAsync();
-            writer.DetachStream();
-        }
+        BitmapSource bgra = image.Format == PixelFormats.Bgra32
+            ? image
+            : new FormatConvertedBitmap(image, PixelFormats.Bgra32, null, 0);
+        if (!bgra.IsFrozen && bgra is Freezable freezable && freezable.CanFreeze)
+            freezable.Freeze();
 
-        stream.Seek(0);
-        var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(stream);
-        using var softwareBitmap = await decoder.GetSoftwareBitmapAsync(
-            Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8,
-            Windows.Graphics.Imaging.BitmapAlphaMode.Premultiplied);
+        var stride = checked(bgra.PixelWidth * 4);
+        var pixels = new byte[checked(stride * bgra.PixelHeight)];
+        bgra.CopyPixels(pixels, stride, 0);
+
+        var buffer = CryptographicBuffer.CreateFromByteArray(pixels);
+        using var softwareBitmap = SoftwareBitmap.CreateCopyFromBuffer(
+            buffer,
+            BitmapPixelFormat.Bgra8,
+            bgra.PixelWidth,
+            bgra.PixelHeight,
+            BitmapAlphaMode.Premultiplied);
 
         cancellationToken.ThrowIfCancellationRequested();
         var result = await _engine!.RecognizeAsync(softwareBitmap);

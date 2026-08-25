@@ -121,6 +121,7 @@ public sealed partial class ScannerRuntimeService
         }
 
         _verifiedBounds = search.Candidate.Bounds;
+        _verifiedCandidate = search.Candidate;
         _verifiedTitleSignature = search.Candidate.TitleSignature;
         _currentSnapshot = snapshot;
         _nextPresentationRefreshAtUtc = DateTimeOffset.UtcNow + PresentationRefreshInterval;
@@ -198,7 +199,7 @@ public sealed partial class ScannerRuntimeService
 
         if (_ocr is IScannerDeepOcrEngine deepOcr)
         {
-            // Unlike the 350ms continuous loop, one-shot mode intentionally spends
+            // Unlike the continuous loop, one-shot mode intentionally spends
             // more CPU once: every semantic-ready candidate receives deep OCR plus the
             // OCR-independent visual recovery path. Diagnostic-only candidates never do.
             for (var index = 0; index < limit; index++)

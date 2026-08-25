@@ -279,3 +279,21 @@ Telemetry evidence 없이 최적화하지 않는다.
 v1.6.0 release 안정성과 무관하므로 이번 MINOR release에서 억지로 제거하지 않는다.
 
 향후 제거 시 full build/tests/publish/Product UI/Map/Scanner smoke를 다시 통과해야 한다.
+
+
+## v1.7.3 Scanner Performance Pass — 2026-08-25
+
+accuracy-neutral latency pass:
+
+```text
+continuous observation: 350 ms -> 200 ms
+semantic retry: fixed 1200 ms -> 250 / 500 / 800 / 1200 ms adaptive backoff
+OCR transport: PNG encode/decode round-trip -> direct BGRA SoftwareBitmap copy
+verified detail: fresh small-rectangle semantic/title revalidation fast-path
+```
+
+fast-path는 새 identity를 결정하지 않는다. fresh close-X + magnifier + HEADER_FRAME_LOCKED + title signature가 모두 기존 verified frame과 일치할 때만 presentation을 유지하며, 불일치/실패 시 같은 cycle에서 full detector로 fallback한다.
+
+변경 금지/유지: structural floor 0.34, trusted header floor 0.68, continuous candidate cap 8, one-shot candidate cap 12, matcher/deep OCR/visual recovery acceptance semantics, cross-frame OCR identity cache 금지.
+
+결과 선택을 바꿀 수 있는 candidate early-exit, deep candidate 축소, visual recovery 생략은 이번 pass에서 의도적으로 제외한다.

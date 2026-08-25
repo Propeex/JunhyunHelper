@@ -21,6 +21,19 @@ public interface IScannerCandidateInspectDetector : IScannerInspectDetector
     Task<IReadOnlyList<ScannerInspectCandidate>> ObserveCandidatesAsync(CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Optional fast path for revalidating a previously fully verified detail window.
+/// Implementations must return fresh pixels and the same semantic header evidence.
+/// A tracked candidate is never an Item identity proof by itself; runtime falls back to
+/// the full detector whenever the fresh title signature is different or validation fails.
+/// </summary>
+public interface IScannerTrackedInspectDetector : IScannerCandidateInspectDetector
+{
+    Task<ScannerInspectCandidate?> ObserveTrackedAsync(
+        ScannerInspectCandidate previous,
+        CancellationToken cancellationToken);
+}
+
 public interface IScannerOcrEngine
 {
     bool IsAvailable { get; }
