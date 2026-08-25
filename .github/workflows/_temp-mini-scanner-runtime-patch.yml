@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   patch:
-    if: ${{ !contains(github.event.head_commit.message, '[mini-scanner-runtime-patch]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,8 +18,8 @@ jobs:
           fetch-depth: 0
 
       - name: Wire continuous presentation retention
-        shell: python
         run: |
+          python3 - <<'PY'
           from pathlib import Path
 
           path = Path("src/JunhyunHelper.Desktop/Scanner/ScannerRuntimeService.cs")
@@ -34,57 +33,57 @@ jobs:
               text = text.replace(old, new, 1)
 
           replace_once(
-              '''                                _overlay.ShowStandby(refreshMessage);''',
-              '''                                _overlay.ReportTransientMiss(refreshMessage);''',
+              "                                _overlay.ShowStandby(refreshMessage);",
+              "                                _overlay.ReportTransientMiss(refreshMessage);",
               "presentation refresh miss")
 
           replace_once(
-              '''                    _overlay.ShowStandby(changedMessage);''',
-              '''                    _overlay.HoldStandby(changedMessage);''',
+              "                    _overlay.ShowStandby(changedMessage);",
+              "                    _overlay.HoldStandby(changedMessage);",
               "candidate change progress")
 
           replace_once(
-              '''                    const string message = "상세창 후보를 확인하는 중입니다.";
+              """                    const string message = \"상세창 후보를 확인하는 중입니다.\";
                     _overlay.ShowStandby(message);
-                    Publish(ScannerRuntimeState.Stabilizing, message, captureMode: mode);''',
-              '''                    const string message = "상세창 후보를 확인하는 중입니다.";
+                    Publish(ScannerRuntimeState.Stabilizing, message, captureMode: mode);""",
+              """                    const string message = \"상세창 후보를 확인하는 중입니다.\";
                     _overlay.HoldStandby(message);
-                    Publish(ScannerRuntimeState.Stabilizing, message, captureMode: mode);''',
+                    Publish(ScannerRuntimeState.Stabilizing, message, captureMode: mode);""",
               "candidate stabilization progress")
 
           replace_once(
-              '''                const string readingMessage = "아이템 이름을 읽는 중입니다.";
+              """                const string readingMessage = \"아이템 이름을 읽는 중입니다.\";
                 _overlay.ShowStandby(readingMessage);
-                Publish(ScannerRuntimeState.ReadingTitle, readingMessage, captureMode: mode);''',
-              '''                const string readingMessage = "아이템 이름을 읽는 중입니다.";
+                Publish(ScannerRuntimeState.ReadingTitle, readingMessage, captureMode: mode);""",
+              """                const string readingMessage = \"아이템 이름을 읽는 중입니다.\";
                 _overlay.HoldStandby(readingMessage);
-                Publish(ScannerRuntimeState.ReadingTitle, readingMessage, captureMode: mode);''',
+                Publish(ScannerRuntimeState.ReadingTitle, readingMessage, captureMode: mode);""",
               "OCR progress")
 
           replace_once(
-              '''                    var message = string.IsNullOrWhiteSpace(search.OcrText)
-                        ? "아이템 이름을 읽지 못해 식별을 보류했습니다."
-                        : $"아이템을 확실하게 식별하지 못했습니다. ({search.Recognition.Reason}, {search.Recognition.Confidence:P0})";
+              """                    var message = string.IsNullOrWhiteSpace(search.OcrText)
+                        ? \"아이템 이름을 읽지 못해 식별을 보류했습니다.\"
+                        : $\"아이템을 확실하게 식별하지 못했습니다. ({search.Recognition.Reason}, {search.Recognition.Confidence:P0})\";
                     _overlay.ShowStandby(message);
-                    Publish(ScannerRuntimeState.Uncertain, message, captureMode: mode);''',
-              '''                    var message = string.IsNullOrWhiteSpace(search.OcrText)
-                        ? "아이템 이름을 읽지 못해 식별을 보류했습니다."
-                        : $"아이템을 확실하게 식별하지 못했습니다. ({search.Recognition.Reason}, {search.Recognition.Confidence:P0})";
+                    Publish(ScannerRuntimeState.Uncertain, message, captureMode: mode);""",
+              """                    var message = string.IsNullOrWhiteSpace(search.OcrText)
+                        ? \"아이템 이름을 읽지 못해 식별을 보류했습니다.\"
+                        : $\"아이템을 확실하게 식별하지 못했습니다. ({search.Recognition.Reason}, {search.Recognition.Confidence:P0})\";
                     _overlay.ReportTransientMiss(message);
-                    Publish(ScannerRuntimeState.Uncertain, message, captureMode: mode);''',
+                    Publish(ScannerRuntimeState.Uncertain, message, captureMode: mode);""",
               "semantic recognition miss")
 
           replace_once(
-              '''                    const string message = "Item ID는 확정했지만 현재 표시 데이터를 만들 수 없습니다.";
+              """                    const string message = \"Item ID는 확정했지만 현재 표시 데이터를 만들 수 없습니다.\";
                     _overlay.ShowStandby(message);
-                    Publish(ScannerRuntimeState.Uncertain, message, captureMode: mode);''',
-              '''                    const string message = "Item ID는 확정했지만 현재 표시 데이터를 만들 수 없습니다.";
+                    Publish(ScannerRuntimeState.Uncertain, message, captureMode: mode);""",
+              """                    const string message = \"Item ID는 확정했지만 현재 표시 데이터를 만들 수 없습니다.\";
                     _overlay.ReportTransientMiss(message);
-                    Publish(ScannerRuntimeState.Uncertain, message, captureMode: mode);''',
+                    Publish(ScannerRuntimeState.Uncertain, message, captureMode: mode);""",
               "presentation join miss")
 
           replace_once(
-              '''    private void HandleMiss(ScannerCaptureMode mode, string detectorMessage)
+              """    private void HandleMiss(ScannerCaptureMode mode, string detectorMessage)
     {
         _consecutiveMisses++;
         _candidatePresenceHits = 0;
@@ -98,8 +97,8 @@ jobs:
             : detectorMessage;
         _overlay.ShowStandby(message);
         Publish(ScannerRuntimeState.WaitingForInspectWindow, message, captureMode: mode);
-    }''',
-              '''    private void HandleMiss(ScannerCaptureMode mode, string detectorMessage)
+    }""",
+              """    private void HandleMiss(ScannerCaptureMode mode, string detectorMessage)
     {
         _consecutiveMisses++;
         _candidatePresenceHits = 0;
@@ -118,11 +117,12 @@ jobs:
 
         ClearVerifiedItem();
         Publish(ScannerRuntimeState.WaitingForInspectWindow, message, captureMode: mode);
-    }''',
+    }""",
               "geometry miss handling")
 
           path.write_text(text, encoding="utf-8", newline="\n")
           Path(".github/workflows/_temp-mini-scanner-runtime-patch.yml").unlink()
+          PY
 
       - name: Verify patch shape
         run: |
