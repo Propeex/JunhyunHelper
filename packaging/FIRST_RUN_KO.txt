@@ -1,4 +1,4 @@
-준현 헬퍼 v1.7.3 — Windows x64
+준현 헬퍼 v1.7.4 — Windows x64
 
 실행 방법
 1. 받은 'Junhyun-Helper.zip'을 원하는 위치에 압축 해제합니다.
@@ -6,17 +6,16 @@
 3. 처음 실행하면 프로필을 만들고 필요한 최신 게임 데이터를 온라인에서 내려받습니다.
 4. 프로그램 실행 시 GitHub의 최신 정식 준현 헬퍼 릴리즈를 확인합니다. 더 최신 버전이 있으면 업데이트 여부를 묻습니다.
 
-v1.7.3 주요 변경 — Scanner 인식 지연 최적화
-- Scanner 관측 주기를 350 ms에서 200 ms로 단축해 상세창 변화 감지를 더 촘촘하게 수행합니다.
-- 새 상세창의 첫 식별 시도는 기존 안전 게이트를 통과하는 즉시 수행하고, 실패한 동일 후보만 250 → 500 → 800 → 1200 ms로 보수적으로 backoff합니다.
-- Windows OCR 입력에서 PNG 인코딩/디코딩 왕복을 제거하고 동일 BGRA 픽셀을 SoftwareBitmap으로 직접 전달합니다.
-- 이미 확정된 상세창은 이전 위치의 좁은 화면 영역만 먼저 다시 캡처해 close-X, 돋보기, HEADER_FRAME_LOCKED와 새 제목 픽셀을 재검증합니다.
-- fast-path에서 제목 변화나 검증 실패가 감지되면 같은 cycle에서 기존 전체 Tarkov 창 탐지로 즉시 되돌아갑니다.
-- 후보 선택, deep OCR, Tarkov-font visual recovery의 판정 로직은 성능을 이유로 생략하거나 완화하지 않았습니다.
+v1.7.4 주요 변경 — Scanner 처리량 회귀 수정
+- v1.7.3의 200 ms 관측 목표는 유지하되, 한 scan cycle이 200 ms를 초과했을 때 밀린 timer tick을 연속 실행하지 않도록 pacing을 변경했습니다.
+- cycle이 목표 시간을 초과한 경우 다음 관측 전에 최소 25 ms를 양보하여 화면 캡처/탐지가 OCR과 UI 작업을 지속적으로 밀어내지 않도록 했습니다.
+- v1.7.3의 빠른 semantic retry(250 → 500 → 800 → 1200 ms)와 direct BGRA Windows OCR 경로는 유지합니다.
+- Scanner 로그는 2 MiB 단위 회전과 7일 보존 정책으로 이미 bounded되어 있으며, 오래된 로그가 무한히 누적되어 인식 시간이 계속 늘어나는 구조가 아닙니다. 성능 때문에 로그나 Ground Truth를 삭제할 필요가 없습니다.
+- 후보 선택, deep OCR, Tarkov-font visual recovery, catalog matching의 판정 로직은 변경하지 않았습니다.
 
 Scanner 인식 안전 계약
 - structural floor 0.34, HEADER_FRAME_LOCKED 0.68, continuous candidate cap 8, one-shot candidate cap 12는 그대로 유지합니다.
-- false positive보다 miss를 선호하며, fast-path는 이전 Item ID를 새 identity 증거로 사용하지 않습니다.
+- false positive보다 miss를 선호하며, 이전 Item ID나 OCR 결과를 새 Item identity 증거로 사용하지 않습니다.
 - cross-frame OCR 결과를 재사용하지 않습니다. 매 인식 판단의 OCR/제목 픽셀은 현재 화면에서 새로 획득합니다.
 - Item ID가 확정되기 전에는 가격·필요 개수 같은 mapped data를 identity 증거로 사용하지 않습니다.
 - Scanner 인식 중 네트워크 요청, 게임 메모리 읽기, DLL injection, packet interception을 사용하지 않습니다.
