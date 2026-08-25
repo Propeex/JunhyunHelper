@@ -223,16 +223,12 @@ public sealed class GameContentIntegrityValidator
             var levels = new HashSet<int>();
             foreach (var level in station.Levels)
             {
-                if (!string.Equals(level.StationId, station.Id, StringComparison.Ordinal) ||
-                    level.Level <= 0)
+                if (!string.Equals(level.StationId, station.Id, StringComparison.Ordinal))
                 {
-                    if (!string.Equals(level.StationId, station.Id, StringComparison.Ordinal))
-                    {
-                        Fatal(
-                            issues,
-                            "hideout.level.station-mismatch",
-                            $"Hideout station '{station.Id}' contains level data for '{level.StationId}'.");
-                    }
+                    Fatal(
+                        issues,
+                        "hideout.level.station-mismatch",
+                        $"Hideout station '{station.Id}' contains level data for '{level.StationId}'.");
                 }
                 if (level.Level <= 0)
                     Fatal(issues, "hideout.level.nonpositive", $"Hideout station '{station.Id}' has invalid level '{level.Level}'.");
@@ -287,7 +283,7 @@ public sealed class GameContentIntegrityValidator
                     Fatal(issues, "ammo.acquisition.duration.negative", $"Ammo '{ammo.ItemId}' acquisition has negative duration.");
                 if (acquisition.BuyLimit is <= 0)
                     Fatal(issues, "ammo.acquisition.buy-limit.nonpositive", $"Ammo '{ammo.ItemId}' acquisition has non-positive buy limit.");
-                foreach (var requirement in acquisition.Requirements)
+                foreach (var requirement in ammo.Acquisitions.SelectMany(static value => value.Requirements))
                 {
                     if (requirement.Count <= 0)
                         Fatal(issues, "ammo.requirement.count.nonpositive", $"Ammo '{ammo.ItemId}' acquisition has non-positive requirement count.");
