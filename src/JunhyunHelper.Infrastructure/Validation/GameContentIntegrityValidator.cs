@@ -283,7 +283,7 @@ public sealed class GameContentIntegrityValidator
                     Fatal(issues, "ammo.acquisition.duration.negative", $"Ammo '{ammo.ItemId}' acquisition has negative duration.");
                 if (acquisition.BuyLimit is <= 0)
                     Fatal(issues, "ammo.acquisition.buy-limit.nonpositive", $"Ammo '{ammo.ItemId}' acquisition has non-positive buy limit.");
-                foreach (var requirement in ammo.Acquisitions.SelectMany(static value => value.Requirements))
+                foreach (var requirement in acquisition.Requirements)
                 {
                     if (requirement.Count <= 0)
                         Fatal(issues, "ammo.requirement.count.nonpositive", $"Ammo '{ammo.ItemId}' acquisition has non-positive requirement count.");
