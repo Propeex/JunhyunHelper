@@ -137,26 +137,20 @@ public sealed class GameContentIntegrityValidator
                     $"Quest '{objective.QuestId}' objective '{objective.ObjectiveId}' has non-positive count '{objective.Count}'.");
             }
 
-            // json.tarkov.dev uses objective.item/items for more than one semantic role.
-            // Submit/find/sell objectives contain canonical inventory item references and
-            // therefore must resolve against /items. Other objective types may carry
-            // condition selectors (for example special dogtag variants) that are valid
-            // task constraints even when the variant is intentionally absent from /items.
-            // `questItem` belongs to the separate QuestItem objective contract and is not
-            // a canonical /items relationship at all. Do not globally weaken item
-            // validation: material QuestItemRequirement, hideout and ammunition
-            // references remain independently fail-closed.
-            if (RequiresCanonicalObjectiveItems(objective.ItemKind))
+            // objective.item/items are canonical inventory-item relationships and remain
+            // fail-closed for every objective kind. `questItem` is a separate quest-only
+            // world-object/entity reference; json.tarkov.dev can legitimately expose a
+            // QuestItemId that is absent from canonical /items. The special semantics are
+            // intentionally limited to that field so ordinary dangling item references,
+            // QuestItemRequirement, hideout and ammunition references remain strict.
+            foreach (var itemId in objective.ItemIds)
             {
-                foreach (var itemId in objective.ItemIds)
+                if (!itemIds.Contains(itemId))
                 {
-                    if (!itemIds.Contains(itemId))
-                    {
-                        Fatal(
-                            issues,
-                            "quest-objective.item.missing",
-                            $"Quest '{objective.QuestId}' objective '{objective.ObjectiveId}' references missing item '{itemId}'.");
-                    }
+                    Fatal(
+                        issues,
+                        "quest-objective.item.missing",
+                        $"Quest '{objective.QuestId}' objective '{objective.ObjectiveId}' references missing item '{itemId}'.");
                 }
             }
 
@@ -209,11 +203,6 @@ public sealed class GameContentIntegrityValidator
         }
     }
 
-    private static bool RequiresCanonicalObjectiveItems(QuestItemObjectiveKind itemKind) =>
-        itemKind is QuestItemObjectiveKind.Submit or
-            QuestItemObjectiveKind.FindOrCollect or
-            QuestItemObjectiveKind.Sell;
-
     private static void ValidateHideout(
         GameContentCatalog content,
         ICollection<ContentValidationIssue> issues)
@@ -234,12 +223,16 @@ public sealed class GameContentIntegrityValidator
             var levels = new HashSet<int>();
             foreach (var level in station.Levels)
             {
-                if (!string.Equals(level.StationId, station.Id, StringComparison.Ordinal))
+                if (!string.Equals(level.StationId, station.Id, StringComparison.Ordinal) ||
+                    level.Level <= 0)
                 {
-                    Fatal(
-                        issues,
-                        "hideout.level.station-mismatch",
-                        $"Hideout station '{station.Id}' contains level data for '{level.StationId}'.");
+                    if (!string.Equals(level.StationId, station.Id, StringComparison.Ordinal))
+                    {
+                        Fatal(
+                            issues,
+                            "hideout.level.station-mismatch",
+                            $"Hideout station '{station.Id}' contains level data for '{level.StationId}'.");
+                    }
                 }
                 if (level.Level <= 0)
                     Fatal(issues, "hideout.level.nonpositive", $"Hideout station '{station.Id}' has invalid level '{level.Level}'.");
