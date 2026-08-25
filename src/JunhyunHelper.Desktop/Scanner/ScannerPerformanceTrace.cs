@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Text;
-using System.Windows;
 using System.Windows.Threading;
 
 namespace JunhyunHelper.Desktop.Scanner;
@@ -85,7 +84,7 @@ internal static class ScannerPerformanceTrace
         Dispatcher? dispatcher;
         try
         {
-            dispatcher = Application.Current?.Dispatcher;
+            dispatcher = System.Windows.Application.Current?.Dispatcher;
         }
         catch
         {
@@ -104,7 +103,7 @@ internal static class ScannerPerformanceTrace
     {
         try
         {
-            return Application.Current?.Dispatcher?.CheckAccess() == true;
+            return System.Windows.Application.Current?.Dispatcher?.CheckAccess() == true;
         }
         catch
         {
