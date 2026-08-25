@@ -67,7 +67,7 @@ public sealed class GameContentIntegrityValidatorTests
     }
 
     [Fact]
-    public void OtherObjectiveMayUseNonCanonicalSpecialDogtagSelector()
+    public void OtherObjectiveStillRejectsDanglingCanonicalItemReference()
     {
         var content = CreateCatalog();
         var regressionQuest = content.Quests[0] with { Id = RegressionQuestId };
@@ -75,8 +75,8 @@ public sealed class GameContentIntegrityValidatorTests
             RegressionQuestId,
             RegressionObjectiveId,
             "specialCondition",
-            "특수 도그태그 조건",
-            "Special dogtag condition",
+            "특수 아이템 조건",
+            "Special item condition",
             false,
             1,
             false,
@@ -97,7 +97,8 @@ public sealed class GameContentIntegrityValidatorTests
 
         var result = new GameContentIntegrityValidator().Validate(content);
 
-        Assert.DoesNotContain(result.Issues, issue =>
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Issues, issue =>
             issue.Code == "quest-objective.item.missing" &&
             issue.Message.Contains(RegressionSpecialDogtagId, StringComparison.Ordinal));
     }
