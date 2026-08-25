@@ -1,4 +1,4 @@
-준현 헬퍼 v1.7.7 — Windows x64
+준현 헬퍼 v1.7.8 — Windows x64
 
 실행 방법
 1. 받은 'Junhyun-Helper.zip'을 원하는 위치에 압축 해제합니다.
@@ -6,13 +6,12 @@
 3. 처음 실행하면 프로필을 만들고 필요한 최신 게임 데이터를 온라인에서 내려받습니다.
 4. 프로그램 실행 시 GitHub의 최신 정식 준현 헬퍼 릴리즈를 확인합니다. 더 최신 버전이 있으면 업데이트 여부를 묻습니다.
 
-v1.7.7 유지보수
-- Scanner 연속 감시 중 상세보기 창이 없거나 인식에 실패한 프레임을 교정 Case로 자동 저장하지 않습니다.
-- Scanner 교정/Ground Truth는 사용자가 직접 교정하여 저장한 경우에만 영구 보존됩니다.
-- 이전 버전에서 생성된 `UNREVIEWED / automatic_sample` Case는 해당 상태를 안전하게 재확인한 경우에만 자동 정리합니다. 사용자가 검토한 Ground Truth, 수동 자료, 상태를 확신할 수 없는 자료는 자동 삭제하지 않습니다.
-- Scanner 화면의 동일 실패는 짧은 시간 동안 반복 표시하지 않아 필요한 인식 기록을 확인하기 쉽게 했습니다. 지원용 텍스트 진단 로그는 기존처럼 작은 회전 파일로 유지합니다.
-- Scanner와 Map 단축키는 일반 키 단독 또는 Ctrl / Alt / Shift의 선택적 조합을 지원합니다.
-- Map의 NumPad 0~5 단독 입력은 기존 직접 층 선택을 유지하며, modifier가 붙은 NumPad 조합은 일반 Map 단축키로 사용할 수 있습니다.
+v1.7.8 유지보수
+- 레이드 인벤토리 화면에서 주변 수평선이 상세보기 header와 이어져 보일 때 빨간 X/돋보기 위치를 잘못 소유하던 Scanner header lock을 수정했습니다.
+- 상세보기 창과 아이템명 영역이 이미 강하게 검출된 경우에도 빨간 X, 돋보기, 중립 header, 어두운 제목 필드, 실제 텍스트 evidence를 모두 다시 확인한 뒤에만 OCR 단계로 진입합니다.
+- Scanner 인식 임계값이나 candidate 수를 낮추지 않았으며 기존 HEADER_FRAME_LOCKED 최종 기준 0.68을 유지합니다.
+- Scanner 메인 상단에 '현재 결과 교정' 버튼을 배치했습니다. 이제 '스캐너 ON/OFF / 설정 / 고급 / 현재 결과 교정' 순서로 바로 접근할 수 있습니다.
+- v1.7.7의 사용자 선택형 교정 저장, legacy 자동 Case 안전 정리, 반복 로그 억제, Scanner/Map 단축키 규칙은 그대로 유지합니다.
 
 Scanner 인식 안전 계약
 - structural floor 0.34, HEADER_FRAME_LOCKED floor 0.68, continuous candidate cap 8, one-shot candidate cap 12는 그대로 유지합니다.

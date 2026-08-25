@@ -19,6 +19,7 @@ internal static class ScannerTitleAnchorRefiner
                 StringComparison.Ordinal))
         {
             ScannerLiveHeaderGroundTruthSmoke.Verify();
+            ScannerRaidHeaderGroundTruthSmoke.Verify();
             ScannerContainedSubpanelGroundTruthSmoke.Verify();
         }
     }
@@ -50,6 +51,19 @@ internal static class ScannerTitleAnchorRefiner
             candidate);
         if (recovered is { } liveGroundTruthLock)
             return liveGroundTruthLock;
+
+        // Reviewed v1.7.7 raid captures show another fail-closed geometry case: a neutral
+        // inventory row can visually continue the inspect header far to the left. The
+        // strong RED_X_CANDIDATE owns only that horizontal boundary; close/magnifier/
+        // field/text evidence and the existing 0.68 final floor are still mandatory.
+        var raidRecovered = ScannerRaidHeaderGroundTruthRefiner.TryRefine(
+            bgra,
+            width,
+            height,
+            stride,
+            candidate);
+        if (raidRecovered is { } raidGroundTruthLock)
+            return raidGroundTruthLock;
 
         // Reviewed v1.4.1 cases show that a large stash/inventory rectangle can contain
         // the real inspect panel hundreds of pixels below the coarse top. Only oversized

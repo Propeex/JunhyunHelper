@@ -33,27 +33,6 @@ public partial class ScannerAdvancedWindow : Window
         }
     }
 
-    private void CurrentCorrectionButton_Click(object sender, RoutedEventArgs e)
-    {
-        var frame = ScannerRecognitionDebugStore.GetSnapshot();
-        if (frame is null)
-        {
-            MessageBox.Show(
-                this,
-                "교정할 최신 Scanner 인식 이미지가 없습니다. 상세창을 연 뒤 스캔을 먼저 실행해 주세요.",
-                "Scanner 교정",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-            return;
-        }
-
-        var window = new ScannerCorrectionWindow(frame, _coordinator)
-        {
-            Owner = this,
-        };
-        window.ShowDialog();
-    }
-
     private void ManageCorrectionsButton_Click(object sender, RoutedEventArgs e)
     {
         var window = new ScannerDiagnosticCasesWindow(_coordinator)
