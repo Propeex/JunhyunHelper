@@ -230,7 +230,7 @@ public readonly record struct ScannerHotkeyGesture(bool Control, bool Alt, bool 
                 return false;
         }
 
-        if (key is null || (!control && !alt && !shift))
+        if (key is null)
             return false;
         gesture = new ScannerHotkeyGesture(control, alt, shift, key.Value);
         return true;
