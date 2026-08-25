@@ -13,7 +13,10 @@ namespace JunhyunHelper.Desktop.Scanner;
 /// </summary>
 internal static class ScannerPerformanceTrace
 {
-    private const int MaximumEntries = 1200;
+    // Stage-boundary tracing now covers the full capture -> presentation pipeline in
+    // addition to the exact OCR phases. Keep enough recent history for several semantic
+    // cycles while retaining a hard process-memory bound.
+    private const int MaximumEntries = 4000;
     private static readonly object Gate = new();
     private static readonly Queue<TraceEntry> Entries = new();
     private static ScannerUiResponsivenessMonitor? _uiMonitor;
