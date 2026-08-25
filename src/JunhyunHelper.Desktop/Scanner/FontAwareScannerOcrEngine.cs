@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -24,6 +25,9 @@ public sealed class FontAwareScannerOcrEngine : IScannerDeepOcrEngine, IDisposab
     private readonly TarkovTitleFontProvider _fontProvider;
     private readonly ScannerTitleFontVerifier _fontVerifier;
     private readonly ScannerFullCatalogVisualMatcher _fullVisualMatcher;
+    private readonly object _visualCycleCacheGate = new();
+    private readonly Dictionary<VisualCycleCacheKey, string> _visualCycleCache = [];
+    private long _visualCycleCacheId = long.MinValue;
     private int _activeOperations;
     private int _resourcesDisposed;
     private volatile bool _disposed;
@@ -122,6 +126,53 @@ public sealed class FontAwareScannerOcrEngine : IScannerDeepOcrEngine, IDisposab
         string text,
         CancellationToken cancellationToken,
         ScannerRecognition? resolved = null)
+    {
+        var cycleId = ScannerLatencyTelemetry.CurrentCycleId;
+        VisualCycleCacheKey? cycleKey = null;
+        if (cycleId is { } activeCycle)
+        {
+            cycleKey = CreateVisualCycleCacheKey(titleImage, text);
+            lock (_visualCycleCacheGate)
+            {
+                if (_visualCycleCacheId != activeCycle)
+                {
+                    _visualCycleCache.Clear();
+                    _visualCycleCacheId = activeCycle;
+                }
+
+                if (_visualCycleCache.TryGetValue(cycleKey.Value, out var cached))
+                {
+                    ScannerPerformanceTrace.Mark(
+                        "visual-cycle-cache-hit",
+                        ("width", titleImage.PixelWidth),
+                        ("height", titleImage.PixelHeight),
+                        ("textLength", text.Length));
+                    return cached;
+                }
+            }
+        }
+
+        var result = CorroborateAcceptedTextCore(titleImage, text, cancellationToken, resolved);
+        if (cycleId is { } cacheCycle && cycleKey is { } key)
+        {
+            lock (_visualCycleCacheGate)
+            {
+                if (_visualCycleCacheId != cacheCycle)
+                {
+                    _visualCycleCache.Clear();
+                    _visualCycleCacheId = cacheCycle;
+                }
+                _visualCycleCache[key] = result;
+            }
+        }
+        return result;
+    }
+
+    private string CorroborateAcceptedTextCore(
+        BitmapSource titleImage,
+        string text,
+        CancellationToken cancellationToken,
+        ScannerRecognition? resolved)
     {
         var existing = resolved ?? ResolveCatalogText(text);
         if (!existing.Success || string.IsNullOrWhiteSpace(existing.ItemId))
@@ -314,6 +365,25 @@ public sealed class FontAwareScannerOcrEngine : IScannerDeepOcrEngine, IDisposab
         return _fullVisualMatcher.TryRecover(titleImage, filteredText, catalog, cancellationToken);
     }
 
+    private static VisualCycleCacheKey CreateVisualCycleCacheKey(BitmapSource source, string text)
+    {
+        BitmapSource bgra = source.Format == PixelFormats.Bgra32
+            ? source
+            : new FormatConvertedBitmap(source, PixelFormats.Bgra32, null, 0);
+        if (!bgra.IsFrozen && bgra is Freezable freezable && freezable.CanFreeze)
+            freezable.Freeze();
+
+        var stride = checked(bgra.PixelWidth * 4);
+        var pixels = new byte[checked(stride * bgra.PixelHeight)];
+        bgra.CopyPixels(pixels, stride, 0);
+        var hash = Convert.ToHexString(SHA256.HashData(pixels));
+        return new VisualCycleCacheKey(
+            bgra.PixelWidth,
+            bgra.PixelHeight,
+            hash,
+            text);
+    }
+
     private static bool TryCreateTightTitleImage(
         BitmapSource source,
         out BitmapSource tightTitle,
@@ -421,4 +491,10 @@ public sealed class FontAwareScannerOcrEngine : IScannerDeepOcrEngine, IDisposab
             DisposeResources();
         GC.SuppressFinalize(this);
     }
+
+    private readonly record struct VisualCycleCacheKey(
+        int Width,
+        int Height,
+        string PixelHash,
+        string OcrText);
 }
