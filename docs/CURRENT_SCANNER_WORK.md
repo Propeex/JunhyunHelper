@@ -1,13 +1,15 @@
 # Current Scanner Work
 
 기준일: 2026-08-26
-상태: **P0 — ROOT CAUSE CONFIRMED / v1.7.6 FIX CANDIDATE / DESKTOP RE-VERIFICATION REQUIRED**
+상태: **P0 RESOLVED — v1.7.6 PERFORMANCE FIX VERIFIED / RELEASE FINALIZATION**
 
-## 1. 현재 최우선 결함
+## 현재 결론
 
-일부 Windows 데스크탑에서 Scanner가 상세창을 찾은 뒤 `아이템 이름을 읽는 중입니다.` 상태에 5~13초 이상 머무르는 심각한 제품 결함을 P0으로 처리한다.
+v1.7.5까지 문제 데스크탑에서 재현되던 Scanner 장시간 인식 지연은 v1.7.6 fix candidate에서 실사용 가능한 수준으로 정상화되었다.
 
-현재 public stable은 **v1.7.5**다.
+사용자 체감 평가도 `엄청 괜찮아졌다`이며, 두 번째 support bundle의 수치가 이를 뒷받침한다.
+
+현재 public stable은 **v1.7.5**다. v1.7.6은 아직 public stable이 아니며, 성능 수정은 완료 판정하고 release finalization만 남긴다.
 
 ```text
 public stable: v1.7.5
@@ -17,124 +19,167 @@ stable bytes: 80,450,225
 stable SHA-256: 6706f12e63caa2039cf3f89c6823b457d125e43f8af47779082caa843282923f
 ```
 
-v1.7.6은 아직 public stable이 아니다. 문제 데스크탑에서 root cause를 실측했고 이를 교정한 fix candidate 단계다.
-
 Reference:
 
 - `docs/DECISION_V1.7.5_OCR_ENVIRONMENT_GUARD_2026-08-25.md`
 - `docs/DECISION_V1.7.6_SCANNER_STALL_DIAGNOSTICS_2026-08-25.md`
 - `docs/RELEASE_NOTES_V1.7.6.md`
 
-## 2. 문제 데스크탑 실측 결과
+## Root cause
 
-사용자가 v1.7.6 diagnostic candidate를 문제 데스크탑에서 실행하고 support bundle을 제공했다.
+첫 diagnostic bundle에서 장시간 지연의 실제 원인은 Windows OCR backend가 아니라 `FontAwareScannerOcrEngine` 이후의 optional Tarkov-font visual recovery였다.
 
-결론은 명확하다.
-
-**이 환경의 장시간 지연 root cause는 Windows OCR backend가 아니다.**
-
-대표 continuous Tarkov cycle:
+대표 baseline Tarkov cycle:
 
 ```text
-end-to-end             12,540.77 ms
-OCR normal                 12.26 ms
-actual WinRT RecognizeAsync 10.57 ms
-visual recovery         12,306.61 ms / 16 calls
-catalog matching            75.16 ms
-capture                      21.57 ms
-rectangle proposal           53.57 ms
-semantic header              53.51 ms
+end-to-end                  12,540.77 ms
+OCR normal                      12.26 ms
+actual WinRT RecognizeAsync     10.57 ms
+visual recovery             12,306.61 ms / 16 calls
+catalog matching                75.16 ms
+capture                         21.57 ms
+rectangle proposal              53.57 ms
+semantic header                 53.51 ms
 ```
 
-같은 bundle의 다른 지연 사례:
+같은 current-frame title bitmap/text를 공유하는 구조 후보 8개가 각각 targeted + full-catalog visual verification을 반복하면서 동일 증거를 16회 계산했다.
 
-```text
-Display Test one-shot #1
-end-to-end       13,156.10 ms
-visual recovery  12,277.39 ms / 16 calls
+또한 `TarkovTitleFontProvider`의 unavailable retry check가 expensive process/source discovery 뒤에 있어 optional font source discovery 자체도 candidate hot path에서 반복될 수 있었다.
 
-Display Test one-shot #2
-end-to-end       11,127.35 ms
-visual recovery  10,745.07 ms / 14 calls
+## v1.7.6 수정
 
-Tarkov continuous
-end-to-end        4,898.39 ms
-visual recovery   4,624.02 ms / 6 calls
-```
+### Current-cycle exact visual evidence reuse
 
-LocalAppData file append는 평균 약 0.14 ms, 최대 약 0.27 ms였으므로 filesystem/log I/O도 root cause가 아니다.
+동일 Scanner latency cycle 안에서 다음 값이 모두 같은 visual corroboration 결과는 한 번만 계산한다.
 
-지연 Scanner cycle과 겹치는 WPF dispatcher stall도 없었다. 따라서 현재 증상은 UI thread freeze가 아니라 **worker-side visual recovery latency**다.
-
-## 3. root cause 세부 구조
-
-대표 cycle에서 Windows OCR은 `하프 마스크 (Lower half-mask)`를 약 10.57 ms 만에 읽었고 catalog matcher는 `EXACT`, confidence 1.0으로 판정했다.
-
-그러나 후보 0~7이 동일한 title bitmap/text를 공유했음에도 각 후보가 `FontAwareScannerOcrEngine`의 Tarkov-font visual corroboration을 다시 실행했다.
-
-```text
-8 equivalent candidates
-× targeted visual pass
-× full-catalog visual fallback
-= 16 visual-recovery calls
-```
-
-각 visual pass는 문제 PC에서 대략 0.75~0.78초를 소비했다. 따라서 이미 raw OCR cycle cache가 재사용되더라도 그 바깥의 visual corroboration이 같은 current-frame evidence를 반복 계산하면서 12초 이상으로 증폭됐다.
-
-또한 `TarkovTitleFontProvider.TryGetFonts()`의 retry guard는 `FindResourcesAssets()`와 source-stamp 조회 **뒤**에 있었다. `FindResourcesAssets()`는 `EscapeFromTarkov` process의 `MainModule.FileName`을 조회한다. 따라서 font provider가 unavailable/retry 상태여도 비싼 source discovery가 매 visual call마다 먼저 실행될 수 있었다. 5초 retry가 실제 expensive lookup을 보호하지 못하는 구조적 버그였다.
-
-새 fix candidate는 `title-font-source-probe` timing을 추가해 재검증 bundle에서 이 세부 비용도 직접 확인한다.
-
-## 4. v1.7.6 fix candidate
-
-### current-cycle exact visual evidence reuse
-
-`FontAwareScannerOcrEngine`은 같은 Scanner decision cycle 안에서 다음이 모두 동일한 경우 visual corroboration 결과를 재사용한다.
-
-- latency cycle ID
+- cycle ID
 - title bitmap width/height
-- exact pixel SHA-256
+- exact current-pixel SHA-256
 - OCR text
 
-이는 cross-frame OCR/Item identity cache가 아니다.
+이는 cross-frame Item identity cache가 아니다. cycle이 바뀌면 즉시 폐기되며, 현재 frame의 동일 deterministic visual proof만 재사용한다.
 
-- cycle ID가 바뀌면 즉시 폐기
-- 현재 cycle의 exact current pixels만 대상
-- 동일 입력에 이미 수행한 동일 visual acceptance 결과만 재사용
-- candidate count와 matcher/visual threshold는 그대로 유지
-
-따라서 대표 cycle처럼 동일 title image/text가 8개 후보에 반복되더라도 같은 expensive visual proof를 8번 다시 계산하지 않는다.
-
-Trace event:
+Trace:
 
 ```text
 visual-cycle-cache-hit
 ```
 
-### Tarkov font source discovery hot-path 제거
+### Tarkov font source discovery hot-path 차단
 
-`TarkovTitleFontProvider`는 이제:
+`TarkovTitleFontProvider`는:
 
-- unavailable retry window를 **비싼 process/source discovery 전에** 검사한다.
-- 실패 상태에서는 source discovery를 30초 동안 재실행하지 않는다.
-- 성공적으로 찾은 `resources.assets` path를 process-local cache로 재사용한다.
-- loaded font generation의 live source validation은 candidate마다 하지 않고 5초 주기로 제한한다.
-- source file timestamp/length가 바뀌면 기존 generation 검증/재추출 안전 계약은 유지한다.
-
-이 변경은 Item ID acceptance를 완화하지 않고, 동일한 local font evidence를 얻기 위한 반복 환경 탐색만 hot path에서 제거한다.
+- unavailable retry state를 expensive process/source discovery 전에 확인
+- failed/unavailable source attempt는 30초 동안 재실행 억제
+- 성공적으로 찾은 `resources.assets` path를 process-local cache로 재사용
+- loaded generation source validation을 candidate마다 하지 않고 5초 주기로 제한
+- live source length/timestamp 변경 시 기존 invalidation/re-extraction 안전 계약 유지
 
 ### 기존 v1.7.6 hardening 유지
 
-- actual `OcrEngine.RecognizeAsync` 단위 timing
-- slow-empty actual WinRT call circuit breaker
-- serialized OCR/image-key/preprocessing timing
+- actual `OcrEngine.RecognizeAsync` call별 timing
+- actual slow-empty WinRT circuit breaker
+- serialized OCR semaphore/image-key/preprocessing timing
 - one-shot scan worker dispatch
 - independent WPF dispatcher stall probe
-- one-click support bundle export
+- one-click Scanner support bundle export
 
-## 5. 정확도·안전 불변식
+## 두 번째 문제 데스크탑 검증
 
-변경하지 않는다.
+사용자가 root-cause fix candidate를 같은 문제 PC에서 다시 시험하고 support bundle을 제공했다.
+
+### 동일 Display Test 직접 비교
+
+```text
+하프 마스크
+before: 10,840.877 ms
+ after:     70.603 ms
+reduction: 약 99.35%
+
+USB 보안 플래시 드라이브
+before: 12,686.278 ms
+ after:  1,354.775 ms
+reduction: 약 89.32%
+```
+
+USB 사례는 corrupted normal OCR 뒤 deep OCR을 수행하는 어려운 첫 인식 사례다. 약 1.35초는 기존 12.7초 직렬 stall과 성격이 다르며 사용자가 실사용상 만족한다고 평가했다.
+
+그 외 새 Display Test 결과:
+
+```text
+Maska-1SCh:          106.619 ms
+Domontovich 우샨카:   88.190 ms
+Wires 전선:          100.802 ms
+PSU 전원공급장치:     48.123 ms
+```
+
+### 실제 Tarkov 검증
+
+새 bundle에는 `mode=TarkovWindow` 실제 게임 인식이 포함된다.
+
+확정 Item 예:
+
+- USB 보안 플래시 드라이브
+- 하프 마스크 (Lower half-mask)
+- Metal fuel tank 금속 연료통
+- Tech manual 기술 매뉴얼
+- T-Shaped plug T자형 멀티탭
+- Shustrilo 슈스트릴로 실링 폼
+- Plexiglass 조각
+- BEAR Buddy 인형
+- Power cord 파워코드
+- Filter 방독면 정화통
+- Cat 고양이 조각상
+
+12개의 ShowingItem 사례에서 `ReadingTitle → ShowingItem`:
+
+```text
+minimum:  38.07 ms
+median:   63.92 ms
+maximum:   1.05 s
+mean:     211.47 ms
+```
+
+최대 약 1.05초인 USB 사례는 deep/retry가 필요한 어려운 OCR 사례다.
+
+retained performance trace에서 OCR이 실제 실행된 complete Scanner cycle 11개의 end-to-end:
+
+```text
+minimum: 178.04 ms
+median:  210.82 ms
+maximum: 517.74 ms
+```
+
+첫 약 1초 USB cycle은 bounded trace의 oldest-entry drop 이전 구간이라 이 11-cycle 집계에는 포함되지 않는다.
+
+### 병목 제거 증거
+
+retained trace:
+
+```text
+visual-cycle-cache-hit: 73회
+visual-recovery stage: 반복 cycle에서 0~0.01 ms 수준
+WPF ui-dispatcher-stall: 0회
+actual WinRT OCR: 대체로 약 4~13 ms
+```
+
+Environment/file I/O:
+
+```text
+ScannerDiagnosticLogWriteProbeMs: 0.30 ms
+DiagnosticFileAppendAverageMs:    0.14 ms
+DiagnosticFileAppendMaximumMs:    0.25 ms
+```
+
+따라서 기존 5~13초 지연 증폭은 제거되었고 UI thread starvation이나 filesystem I/O가 남은 병목으로 보이지 않는다.
+
+## 성능 최종 판단
+
+**P0 Scanner 장시간 stall은 해결 완료로 판정한다.**
+
+추가로 sub-100ms를 목표로 recovery/acceptance 구조를 변경하지 않는다. 현재 어려운 OCR에서 약 1초까지 발생하는 것은 허용 가능한 bounded recovery cost이며, 더 공격적인 성능 최적화는 false positive 방지와 복구 정확도에 불필요한 위험을 만든다.
+
+성능 관련 threshold/candidate cap은 변경하지 않는다.
 
 ```text
 structural floor = 0.34
@@ -144,7 +189,7 @@ one-shot candidate cap = 12
 deep OCR candidate limit = existing value
 ```
 
-추가 계약:
+추가 안전 계약:
 
 - false positive보다 miss 우선
 - current official Tarkov catalog가 identity authority
@@ -155,7 +200,7 @@ deep OCR candidate limit = existing value
 - game memory read / DLL injection / packet interception / process hook 없음
 - matcher 및 targeted/full-catalog visual acceptance 완화 없음
 
-## 6. CI proof
+## CI proof
 
 Root-cause fix code HEAD:
 
@@ -172,49 +217,27 @@ Release package verification: SUCCESS
 Artifact upload: SUCCESS
 ```
 
-Fix-candidate user package extracted from that CI artifact:
+사용자가 검증한 fix-candidate package:
 
 ```text
 bytes: 80,462,063
 SHA-256: 96af948b2cd24caeb612d1d89a368bf30329606d3e934a292758292f70dcae30
 ```
 
-## 7. 다음 필수 검증
+현재 documentation HEAD CI도 SUCCESS다.
 
-문제 데스크탑에서 동일 screenshot Display Test를 먼저 반복한다.
+## 남은 작업
 
-목표는 기존 실측과 직접 비교하는 것이다.
+성능 알고리즘 자체는 더 수정하지 않는다.
 
-```text
-baseline representative cycle:
-end-to-end        12,540.77 ms
-actual WinRT OCR      10.57 ms
-visual recovery   12,306.61 ms / 16 calls
-```
+public v1.7.6 finalization 전에:
 
-새 bundle에서는 다음을 확인한다.
+1. reviewed Scanner Ground Truth regression에서 REGRESSION=0 확인
+2. temporary diagnostic implementation 중 release에 불필요한 부분은 동작 변화 없이 정리 가능한지 검토; 위험하면 그대로 두고 후속 기술부채로 기록
+3. `STATE.md`를 v1.7.5/v1.7.6 실제 상태에 맞게 갱신
+4. final release notes/proof 갱신
+5. final HEAD Windows build/tests/publish/smoke/package gate
+6. PR #185 merge
+7. v1.7.6 public stable publication 및 release asset hash/size readback
 
-- `visualRecoveryMs`가 수십 회 반복되지 않는지
-- `visual-cycle-cache-hit`이 equivalent candidates에서 발생하는지
-- `title-font-source-probe` 실제 latency와 횟수
-- end-to-end가 실사용 가능한 수준으로 감소하는지
-- Item ID 결과가 동일한지
-- UI dispatcher stall이 없는지
-
-Display Test가 정상화되면 actual Tarkov에서도 같은 검증을 수행한다.
-
-## 8. 완료 조건
-
-이 P0 결함은 다음이 모두 만족되어야 해결 완료다.
-
-- desktop Display Test abnormal long stall 제거
-- desktop actual Tarkov scan abnormal long stall 제거
-- one backend/provider fault가 serial delay로 증폭되지 않음
-- UI remains responsive
-- false Item ID 증가 없음
-- recognition thresholds/acceptance safety 유지
-- reviewed Scanner Ground Truth regression = 0
-- full Windows build/tests/publish/Product/Scanner/Map smoke 성공
-- final `STATE.md`, release notes, decision status 갱신
-
-문제 데스크탑 재검증 전에는 v1.7.6을 public resolved release로 선언하지 않는다.
+성능 문제 재수정은 새로운 실측 evidence가 생긴 경우에만 재개한다.
