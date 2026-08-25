@@ -1,4 +1,5 @@
 using JunhyunHelper.Core.Scanner;
+using Xunit;
 
 namespace JunhyunHelper.Tests.Scanner;
 
