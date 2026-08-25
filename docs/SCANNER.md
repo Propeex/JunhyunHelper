@@ -1,10 +1,10 @@
 # Scanner — 제품/기술 계약
 
-기준일: 2026-08-25
-상태: **v1.7.0 PUBLIC RELEASE / VERIFIED — LIVE GROUND TRUTH MAINTENANCE**
+기준일: 2026-08-26
+상태: **v1.7.8 PUBLIC STABLE / FEATURE COMPLETE / MAINTENANCE ONLY**
 
 이 문서는 현재 Scanner 제품 동작과 기술 안전 계약의 canonical 전문 문서다.
-역사적 v1.3.x/v1.4.x/v1.5.0 근거는 각 버전별 결정·릴리즈 문서에 보존하고, 현재 구현 판단은 이 문서와 `STATE.md`, 실제 코드가 우선한다.
+역사적 v1.3.x/v1.4.x/v1.5.x/v1.6.x/v1.7.x 근거는 각 버전별 결정·릴리즈 문서에 보존하고, 현재 구현 판단은 이 문서와 `STATE.md`, 실제 코드가 우선한다.
 
 ## 1. 목적과 경계
 
@@ -45,20 +45,28 @@ Scanner는 범용 OCR이 아니라 **현재 공식 한국어 Tarkov Item catalog
 - 제품 기본값에 automatic global `r`/`0`/한글 forced substitution table 추가
 - cross-frame OCR result를 현재 Item identity proof로 재사용
 
-## 2. Current v1.7.0 product state
+## 2. Current v1.7.8 product state
 
-v1.7.0에서도 live recognition threshold/candidate budget은 변경하지 않았다.
+Scanner는 기능 개발이 끝난 **maintenance-only** 상태다. 실제 사용자 evidence가 있는 회귀만 failure stage를 확인해 최소 수정한다.
 
-현재 추가된 신뢰 경계:
+현재 신뢰 경계와 사용자 계약:
 
-- recognition log → exact diagnostic Case/current frame quick-correction
-- reviewed Ground Truth와 runtime log lifecycle 분리 유지
+- recognition log → exact current in-memory frame quick-correction
+- reviewed Ground Truth와 runtime log lifecycle 분리
+- 정상 monitoring은 durable automatic diagnostic Case를 생성하지 않음
+- user-explicit correction save만 reviewed durable Ground Truth가 됨
+- legacy `automatic_sample + unreviewed` Case만 fail-closed background cleanup
 - Scanner catalog last-known-good / market coverage collapse protection
 - Item ID 확정 이후 metadata/market/needed 동일-ID join
 - Data Update transactional validation/read-back/activation hardening
+- Scanner/Map hotkey는 primary key + optional Ctrl/Alt/Shift 공통 gesture contract
 - anonymous public release redownload + public product smoke proof
 
-계속 유지되는 기존 사용자 흐름은 일반 Scanner 화면, local item search, Mini Scanner settings schema v6, 교정 이미지 원본 좌표 보존 및 saved Case 재교정이다.
+v1.7.8은 레이드 인벤토리 수평선이 inspect header와 이어져 header-left ownership이 실제 상세창보다 왼쪽으로 확장되는 회귀를 사용자 reviewed 8 Case로 확인해 수정했다. 실패 6건은 OCR 오인식이 아니라 `HEADER_CLOSE_NOT_LOCKED` / `TITLE_ANCHOR_INCOMPLETE`로 OCR 이전에 차단됐다.
+
+새 raid ownership recovery는 기존 정상 header 경로가 실패한 뒤 강한 `RED_X_CANDIDATE >= 0.90`인 경우에만 사용한다. 기존 최종 semantic floor `0.68`과 red close-X/magnifier/header/title evidence를 모두 유지한다.
+
+일반 Scanner 화면, local item search, Mini Scanner settings schema v6, 교정 이미지 원본 좌표 보존 및 saved Case 재교정 흐름은 유지한다.
 
 ## 3. 핵심 안전 불변식
 
@@ -67,6 +75,7 @@ structural floor = 0.34
 trusted header floor = 0.68
 continuous candidate cap = 8
 one-shot candidate cap = 12
+continuous observation target = 200 ms
 ```
 
 Runtime OCR identity path의 최소 semantic gate:
@@ -116,11 +125,15 @@ one-shot 기능은 현재도 유지된다.
 
 일반 Scanner 화면에서는 별도 1회 스캔 버튼을 노출하지 않지만 전역 hotkey로 계속 사용할 수 있다.
 
+기본값:
+
 ```text
 1회 인게임 스캔: Ctrl+Shift+F10
 1회 테스트 스캔: Ctrl+Shift+F11
 Scanner ON/OFF: Ctrl+Shift+F12
 ```
+
+사용자 설정 gesture는 일반 key 단독 또는 Ctrl/Alt/Shift의 선택적 조합을 허용한다. Windows key modifier는 지원하지 않는다.
 
 계약:
 
@@ -168,13 +181,22 @@ remote Game Content fetch/build
 - `스캐너 ON/OFF`
 - `설정`
 - `고급`
+- `현재 결과 교정`
+
+`현재 결과 교정`은 `ScannerRecognitionDebugStore`에 보존된 최신 exact in-memory frame을 기존 `ScannerCorrectionWindow`로 연다. 다른 오래된 frame을 임의로 대체하지 않는다.
 
 하단 2분할:
 
 - 왼쪽: `아이템 검색`
 - 오른쪽: `Scanner 로그`
 
-일반 surface에는 Display Test, catalog recovery, regression/export, log-delete 같은 개발/진단 action을 펼쳐 놓지 않는다.
+`고급`에는 다음만 둔다.
+
+- Display Test / 테스트 스캐너
+- 교정 데이터 관리
+- Scanner 성능 진단 자료 내보내기
+
+일반 surface에는 catalog recovery, regression/export, log-delete 같은 개발/진단 action을 펼쳐 놓지 않는다.
 
 ## 8. Scanner 아이템 검색
 
@@ -243,7 +265,47 @@ Required evidence:
 
 Title glyph segmentation은 title ROI ownership을 결정하지 않는다.
 
+현재 recovery 우선순위:
+
+```text
+primary inspect-header lock
+→ live Ground Truth recovery
+→ v1.7.8 raid header ownership recovery
+→ contained-subpanel recovery
+→ fail closed
+```
+
 Oversized/coarse proposal을 contained-subpanel fallback으로 복구하는 경우에도 동일 semantic gate를 다시 통과해야 한다.
+
+### v1.7.8 raid header ownership recovery
+
+사용자 reviewed 레이드 실패 6건에서 주변 UI의 neutral horizontal line이 inspect header와 이어져 기존 fallback의 header-left가 실제 상세창보다 47~132px 왼쪽으로 이동했다. 이 잘못된 left ownership 때문에 magnifier 예상 lane도 함께 밀려 실제 돋보기를 놓쳤다.
+
+새 recovery 진입 조건:
+
+```text
+candidate reason = RED_X_CANDIDATE
+candidate structural score >= 0.90
+```
+
+coarse detail rectangle은 header-left ownership proposal로만 사용하며 Item identity proof가 아니다.
+
+독립적으로 다시 요구하는 evidence:
+
+```text
+close-X template >= 0.40
+close relation evidence >= 0.60
+candidate-owned neutral header >= 0.74
+magnifier template >= 0.54
+magnifier relation evidence >= 0.66
+dark title field >= 0.58
+title text evidence >= 0.22
+final HEADER_FRAME_LOCKED >= 0.68
+```
+
+기존 threshold를 낮춘 것이 아니라 잘못된 horizontal ownership만 교정한 뒤 기존 semantic evidence를 다시 계산한다. 빨간 X가 없는 동일 geometry는 procedural negative smoke에서 반드시 fail closed한다.
+
+공식 결정: `docs/DECISION_V1.7.8_RAID_HEADER_LOCK_2026-08-26.md`.
 
 ## 11. OCR pipeline
 
@@ -434,7 +496,9 @@ Mini Scanner window contract:
 
 ## 21. Ground Truth / correction — current
 
-Canonical evidence source는 `%LocalAppData%/JunhyunHelper/scanner/diagnostics/` 아래 Case dataset이다.
+Canonical durable evidence source는 `%LocalAppData%/JunhyunHelper/scanner/diagnostics/` 아래 **사용자가 명시적으로 저장한 reviewed Case dataset**이다.
+
+정상 Scanner monitoring의 latest exact frame은 현재 교정을 위해 메모리에만 유지한다. 실패 자체만으로 durable Case를 만들지 않는다.
 
 교정 화면은 원본 image가 커도 viewport 안에 맞게 자동 축소한다.
 
@@ -483,33 +547,52 @@ Candidate evidence 저장:
 - same Case ID 유지
 - reviewed Ground Truth 갱신
 - 복원 실패 시 기존 data 보존
-- automatic Case != Ground Truth 원칙 유지
+- legacy automatic Case != Ground Truth 원칙 유지
 
 ## 23. Diagnostics / retention
 
-Reviewed Ground Truth는 자동 삭제하지 않는다.
+### Durable Ground Truth
 
-자동 삭제 eligibility:
+새 버전의 정상 monitoring은 durable automatic Case를 생성하지 않는다.
+
+```text
+runtime capture / recognition
+→ latest exact frame in memory
+→ bounded runtime text log
+→ user explicitly chooses correction
+→ user explicitly saves
+→ reviewed durable Ground Truth
+```
+
+상세창 미탐지, header lock 실패, OCR/matcher 실패, ambiguity, 반복 stationary failure만으로 dataset이 증가하지 않는다.
+
+### Legacy automatic Case cleanup
+
+이전 버전에서 이미 생성된 Case는 다음을 모두 증명할 때만 background cleanup 대상이다.
 
 ```text
 retention == automatic_sample
 AND review_status == unreviewed
+AND recent write safety window >= 5 minutes
+AND pre-delete metadata/state re-read confirms unchanged ownership/status
 ```
 
-bounds:
+- qualifying legacy automatic Case는 오래된 30일/300개/512MiB cap 정책이 아니라 해당 proof를 기준으로 정리한다.
+- reviewed/manual Case는 자동 삭제하지 않는다.
+- corrupt/unknown/unreadable metadata는 preserve fail closed한다.
+- 삭제 직전 상태가 변경되면 보존한다.
+- cleanup은 recognition hot path 밖 background maintenance에서 수행한다.
 
-- max age 30 days
-- max automatic cases 300
-- max automatic bytes 512 MiB
-- recent safety window 2 hours
-- corrupt/unknown metadata → preserve fail closed
-
-Logs:
+### Logs
 
 - `%LocalAppData%/JunhyunHelper/logs/scanner.log(.1)`
 - `%LocalAppData%/JunhyunHelper/logs/startup.log(.1)`
 
-bounded rotation을 유지한다.
+Scanner text diagnostic log는 bounded rotation/retention을 유지한다. Ground Truth image lifetime과 분리한다.
+
+사용자 activity feed의 동일 실패는 30초 동안 collapse하지만 support text diagnostics 자체를 Ground Truth로 취급하지 않는다.
+
+공식 결정: `docs/DECISION_SCANNER_STORAGE_AND_HOTKEYS_2026-08-26.md`.
 
 ## 24. Replay regression
 
@@ -523,7 +606,9 @@ Reviewed Case replay result:
 
 기존에 맞았던 reviewed Case가 새 코드에서 틀리면 평균 정확도가 올라가도 `REGRESSION`이다.
 
-## 25. Release package contract — current (v1.6.0부터)
+v1.7.8 raid fix는 사용자 reviewed 8 Case의 픽셀 evidence와 procedural positive/negative smoke로 검증했다. 사용자 원본 Ground Truth image는 공개 저장소/CI artifact에 포함하지 않는다.
+
+## 25. Release package contract — current
 
 정식 user-facing package:
 
@@ -546,9 +631,11 @@ Version identity는 다음에서 관리한다.
 
 CI는 실제 stable ZIP을 생성해 내부 top-level folder와 required files를 검증한다.
 
-## 26. Current work — LIVE GROUND TRUTH MAINTENANCE
+현재 public stable proof는 `docs/RELEASE_1.7.8.md`와 `docs/.release-v1.7.8-status.json`을 기준으로 한다.
 
-v1.7.0 공개 검증 후 Scanner는 LIVE GROUND TRUTH MAINTENANCE 단계다.
+## 26. Current work — MAINTENANCE ONLY
+
+v1.7.8 공개 검증 후 Scanner는 FEATURE COMPLETE / MAINTENANCE ONLY 단계다.
 
 ```text
 real Tarkov usage
@@ -562,5 +649,5 @@ real Tarkov usage
 → PATCH 판단
 ```
 
-새 기능을 계속 추가하는 것이 기본 방향이 아니다.
-실제 Ground Truth evidence가 있는 실패를 좁게 수정한다.
+새 기능을 계속 추가하거나 성능 수치만 더 낮추는 것이 기본 방향이 아니다.
+실제 Ground Truth/support evidence가 있는 실패만 좁게 수정한다.
