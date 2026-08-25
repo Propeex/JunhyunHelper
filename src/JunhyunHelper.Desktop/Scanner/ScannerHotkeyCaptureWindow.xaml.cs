@@ -34,6 +34,13 @@ public partial class ScannerHotkeyCaptureWindow : Window
         }
 
         var modifiers = Keyboard.Modifiers;
+        if (modifiers.HasFlag(ModifierKeys.Windows))
+        {
+            GestureText.Text = "Windows 키 조합은 지원하지 않습니다.";
+            e.Handled = true;
+            return;
+        }
+
         var gesture = new ScannerHotkeyGesture(
             modifiers.HasFlag(ModifierKeys.Control),
             modifiers.HasFlag(ModifierKeys.Alt),
