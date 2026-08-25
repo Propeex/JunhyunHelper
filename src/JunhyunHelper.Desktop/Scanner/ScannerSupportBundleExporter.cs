@@ -1,0 +1,146 @@
+using System.Globalization;
+using System.IO.Compression;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Windows;
+using System.Windows.Media;
+using Windows.Media.Ocr;
+
+namespace JunhyunHelper.Desktop.Scanner;
+
+internal static class ScannerSupportBundleExporter
+{
+    public static void Export(string destinationPath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(destinationPath);
+        var fullPath = System.IO.Path.GetFullPath(destinationPath);
+        var directory = System.IO.Path.GetDirectoryName(fullPath);
+        if (!string.IsNullOrWhiteSpace(directory))
+            Directory.CreateDirectory(directory);
+        if (File.Exists(fullPath))
+            File.Delete(fullPath);
+
+        using var archive = ZipFile.Open(fullPath, ZipArchiveMode.Create);
+        AddText(archive, "environment.txt", BuildEnvironmentReport());
+        AddText(archive, "scanner-performance-trace.txt", ScannerPerformanceTrace.ExportText());
+        AddText(
+            archive,
+            "README.txt",
+            "준현 헬퍼 Scanner 성능 진단 자료입니다.\r\n" +
+            "scanner-performance-trace.txt는 세부 OCR/UI timing을, scanner.log는 기존 Scanner 결정을 기록합니다.\r\n" +
+            "Ground Truth 이미지, 프로필 DB, 게임 계정 정보는 이 ZIP에 포함하지 않습니다.\r\n");
+
+        AddFileIfPresent(archive, ScannerDiagnosticLog.Path, "scanner.log");
+        AddFileIfPresent(archive, ScannerDiagnosticLog.Path + ".1", "scanner.log.1");
+
+        var startupLog = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "JunhyunHelper",
+            "logs",
+            "startup.log");
+        AddFileIfPresent(archive, startupLog, "startup.log");
+    }
+
+    private static string BuildEnvironmentReport()
+    {
+        var builder = new StringBuilder();
+        var assembly = typeof(ScannerSupportBundleExporter).Assembly;
+        var productVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            ?? assembly.GetName().Version?.ToString()
+            ?? "unknown";
+
+        builder.AppendLine("# Junhyun Helper Scanner environment")
+            .AppendLine($"ExportUtc={DateTimeOffset.UtcNow:O}")
+            .AppendLine($"ProductVersion={productVersion}")
+            .AppendLine($"OSVersion={Environment.OSVersion.VersionString}")
+            .AppendLine($"OSDescription={RuntimeInformation.OSDescription}")
+            .AppendLine($"OSArchitecture={RuntimeInformation.OSArchitecture}")
+            .AppendLine($"ProcessArchitecture={RuntimeInformation.ProcessArchitecture}")
+            .AppendLine($"Is64BitProcess={Environment.Is64BitProcess}")
+            .AppendLine($"RuntimeVersion={Environment.Version}")
+            .AppendLine($"CurrentCulture={CultureInfo.CurrentCulture.Name}")
+            .AppendLine($"CurrentUICulture={CultureInfo.CurrentUICulture.Name}")
+            .AppendLine($"ProcessorCount={Environment.ProcessorCount}")
+            .AppendLine($"ProcessorIdentifier={Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER") ?? string.Empty}");
+
+        try
+        {
+            var recognizers = OcrEngine.AvailableRecognizerLanguages
+                .Select(language => language.LanguageTag)
+                .OrderBy(tag => tag, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            builder.AppendLine($"OcrLanguages={string.Join(',', recognizers)}")
+                .AppendLine($"KoKrOcrAvailable={recognizers.Contains("ko-KR", StringComparer.OrdinalIgnoreCase)}");
+        }
+        catch (Exception exception)
+        {
+            builder.AppendLine($"OcrLanguagesError={exception.GetType().Name}:{Sanitize(exception.Message)}");
+        }
+
+        try
+        {
+            var screens = System.Windows.Forms.Screen.AllScreens;
+            builder.AppendLine($"DisplayCount={screens.Length}");
+            for (var index = 0; index < screens.Length; index++)
+            {
+                var screen = screens[index];
+                builder.AppendLine(
+                    $"Display[{index}]={screen.DeviceName};Bounds={screen.Bounds.X},{screen.Bounds.Y},{screen.Bounds.Width},{screen.Bounds.Height};Primary={screen.Primary}");
+            }
+        }
+        catch (Exception exception)
+        {
+            builder.AppendLine($"DisplayError={exception.GetType().Name}:{Sanitize(exception.Message)}");
+        }
+
+        try
+        {
+            var window = Application.Current?.MainWindow;
+            if (window is not null)
+            {
+                var dpi = VisualTreeHelper.GetDpi(window);
+                builder.AppendLine($"WpfDpiScale={dpi.DpiScaleX:F3},{dpi.DpiScaleY:F3}")
+                    .AppendLine($"WpfPixelsPerDip={dpi.PixelsPerDip:F3}");
+            }
+        }
+        catch (Exception exception)
+        {
+            builder.AppendLine($"DpiError={exception.GetType().Name}:{Sanitize(exception.Message)}");
+        }
+
+        return builder.ToString();
+    }
+
+    private static void AddText(ZipArchive archive, string name, string content)
+    {
+        var entry = archive.CreateEntry(name, CompressionLevel.Fastest);
+        using var stream = entry.Open();
+        using var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        writer.Write(content);
+    }
+
+    private static void AddFileIfPresent(ZipArchive archive, string sourcePath, string entryName)
+    {
+        try
+        {
+            if (!File.Exists(sourcePath))
+                return;
+            var entry = archive.CreateEntry(entryName, CompressionLevel.Fastest);
+            using var input = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var output = entry.Open();
+            input.CopyTo(output);
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+    }
+
+    private static string Sanitize(string value) => value
+        .Replace("\r", " ", StringComparison.Ordinal)
+        .Replace("\n", " ", StringComparison.Ordinal)
+        .Trim();
+}
