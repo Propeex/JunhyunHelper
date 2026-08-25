@@ -5,23 +5,25 @@ using JunhyunHelper.Infrastructure.Scanner;
 namespace JunhyunHelper.Desktop.Scanner;
 
 /// <summary>
-/// Small, bounded diagnostic stream for live Scanner validation. Persisted Ground Truth
-/// images live separately under ScannerDiagnosticDataset; this stream records runtime
-/// decisions and automatically includes the latest Case ID when one exists.
+/// Small, bounded diagnostic stream for live Scanner validation. Durable Ground Truth
+/// images live separately under ScannerDiagnosticDataset and are created only through
+/// explicit user correction. This stream records runtime decisions and automatically
+/// includes the latest in-memory Case ID when one exists.
 ///
-/// Recognition attempts are also projected into a bounded user activity feed. The feed
-/// is independent of file I/O success and intentionally contains only readable OCR/match
-/// decision data, not low-level capture metadata. On startup it restores recent decisions
-/// from the existing bounded scanner.log(.1) files so the Scanner tab is useful across
-/// app restarts without adding a second activity persistence format.
+/// Recognition attempts are also projected into a bounded user activity feed. Repeated
+/// equivalent failures are collapsed so normal continuous monitoring does not bury useful
+/// results, while the small rotated text log remains available for support diagnostics.
 /// </summary>
 internal static class ScannerDiagnosticLog
 {
     private const long MaximumBytes = 2 * 1024 * 1024;
     private const int MaximumRecentActivities = 60;
+    private const int MaximumFailureSignatures = 256;
     private static readonly TimeSpan MaximumAge = TimeSpan.FromDays(7);
+    private static readonly TimeSpan RepeatedFailureActivityWindow = TimeSpan.FromSeconds(30);
     private static readonly object Gate = new();
     private static readonly Dictionary<ScannerCaptureMode, string> LastOcrByMode = [];
+    private static readonly Dictionary<string, DateTimeOffset> LastFailureActivityBySignature = new(StringComparer.Ordinal);
     private static readonly List<ScannerActivityEntry> RecentActivities = [];
     private static bool _historyHydrated;
 
@@ -64,6 +66,7 @@ internal static class ScannerDiagnosticLog
         {
             _historyHydrated = true;
             LastOcrByMode.Clear();
+            LastFailureActivityBySignature.Clear();
             RecentActivities.Clear();
 
             success &= TryDelete(Path);
@@ -249,9 +252,7 @@ internal static class ScannerDiagnosticLog
             fields.GetValueOrDefault("reason", string.Empty),
             EmptyToNull(fields.GetValueOrDefault("caseId", string.Empty)));
 
-        RecentActivities.Insert(0, activity);
-        if (RecentActivities.Count > MaximumRecentActivities)
-            RecentActivities.RemoveAt(RecentActivities.Count - 1);
+        AddRecentActivity(activity);
     }
 
     private static Dictionary<string, string> ParseFields(ReadOnlySpan<string> segments)
@@ -306,10 +307,51 @@ internal static class ScannerDiagnosticLog
             FieldText(fields, "reason"),
             EmptyToNull(caseId ?? string.Empty));
 
+        return AddRecentActivity(activity) ? activity : null;
+    }
+
+    private static bool AddRecentActivity(ScannerActivityEntry activity)
+    {
+        if (!activity.Success)
+        {
+            var signature = BuildFailureSignature(activity);
+            if (LastFailureActivityBySignature.TryGetValue(signature, out var previous) &&
+                activity.Timestamp >= previous &&
+                activity.Timestamp - previous < RepeatedFailureActivityWindow)
+            {
+                return false;
+            }
+
+            LastFailureActivityBySignature[signature] = activity.Timestamp;
+            TrimFailureSignatures();
+        }
+
         RecentActivities.Insert(0, activity);
         if (RecentActivities.Count > MaximumRecentActivities)
             RecentActivities.RemoveRange(MaximumRecentActivities, RecentActivities.Count - MaximumRecentActivities);
-        return activity;
+        return true;
+    }
+
+    private static string BuildFailureSignature(ScannerActivityEntry activity) => string.Join(
+        '\u001f',
+        activity.Mode.ToString(),
+        activity.OcrText.Trim(),
+        activity.OfficialName?.Trim() ?? string.Empty,
+        activity.Reason.Trim());
+
+    private static void TrimFailureSignatures()
+    {
+        if (LastFailureActivityBySignature.Count <= MaximumFailureSignatures)
+            return;
+
+        foreach (var key in LastFailureActivityBySignature
+                     .OrderBy(pair => pair.Value)
+                     .Take(LastFailureActivityBySignature.Count - MaximumFailureSignatures)
+                     .Select(pair => pair.Key)
+                     .ToArray())
+        {
+            LastFailureActivityBySignature.Remove(key);
+        }
     }
 
     private static string FieldText(IReadOnlyList<(string Key, object? Value)> fields, string key)
