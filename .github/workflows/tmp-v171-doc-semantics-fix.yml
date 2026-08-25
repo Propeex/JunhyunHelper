@@ -1,0 +1,80 @@
+name: Temporary v1.7.1 doc semantics fix
+
+on:
+  push:
+    branches:
+      - fix/v1.7.1-data-update-validation-2026-08-25
+
+permissions:
+  contents: write
+
+jobs:
+  patch-doc:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/v1.7.1-data-update-validation-2026-08-25
+          fetch-depth: 0
+
+      - name: Narrow validation semantics in official docs
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $path = 'docs/DATA_VALIDATION.md'
+          $text = [IO.File]::ReadAllText($path)
+
+          $boundary = @'
+### Quest objective `item/items` / `questItem` semantic boundary
+
+`json.tarkov.dev`의 objective 참조는 필드 의미를 구분해서 검증합니다.
+
+- `item/items` — canonical inventory item reference. `Submit`, `FindOrCollect`, `Sell`, `Other` 등 objective kind와 관계없이 `/items`에 존재해야 하며 dangling reference는 Fatal입니다.
+- `questItem` / 내부 `QuestItemId` — 별도의 quest-only entity reference. canonical `/items` 부재만으로 Fatal 처리하지 않습니다.
+
+이 예외는 **`QuestItemId`의 canonical `/items` 존재 요구에만** 적용합니다. 다음 참조 검증은 모두 기존처럼 fail-closed입니다.
+
+- 모든 QuestObjective `item/items`
+- 일반 `QuestItemRequirement`
+- Hideout item requirement
+- Ammunition item/currency/requirement
+
+따라서 실제 material/canonical item의 dangling reference는 objective kind와 무관하게 계속 업데이트를 차단합니다.
+'@
+          $pattern = '(?s)### Quest objective `item/items` semantic boundary.*?(?=\r?\n---\r?\n\r?\n# 3\.)'
+          if (-not [regex]::IsMatch($text, $pattern)) { throw 'DATA_VALIDATION semantic boundary section not found.' }
+          $text = [regex]::Replace($text, $pattern, $boundary.TrimEnd())
+
+          $oldMeaning = '`Other`로 분류된 objective의 `item/items`가 canonical `/items`에 없다는 이유만으로 material item 누락으로 단정하지 않습니다. 다만 새로운 objective type 자체가 필요한 수량 계산에 영향을 줄 가능성이 있으면 importer/contract 검증에서 별도로 조사합니다.'
+          $newMeaning = '`Other`를 포함한 모든 objective의 `item/items`는 canonical `/items` 참조로 엄격하게 검증합니다. `questItem`만 별도의 quest-only entity 계약으로 분리하며, 새로운 objective type 자체가 필요한 수량 계산에 영향을 줄 가능성이 있으면 importer/contract 검증에서 별도로 조사합니다.'
+          if (-not $text.Contains($oldMeaning)) { throw 'DATA_VALIDATION item-meaning paragraph not found.' }
+          $text = $text.Replace($oldMeaning, $newMeaning)
+
+          $oldTests = @'
+- item objective 제출/획득/판매/기타 selector 구분
+- `Other` special item selector의 canonical `/items` 비존재 허용
+- 제출/획득/판매의 실제 dangling canonical item 차단
+'@
+          $newTests = @'
+- item objective 제출/획득/판매/기타 구분
+- 실제 회귀 ID의 `QuestItemId`가 canonical `/items`에 없더라도 quest-only 참조로 허용
+- `Other`를 포함한 모든 `item/items`의 실제 dangling canonical item 차단
+'@
+          $normalizedOldTests = $oldTests.TrimEnd().Replace("`r`n", "`n")
+          $normalizedNewTests = $newTests.TrimEnd().Replace("`r`n", "`n")
+          $normalizedText = $text.Replace("`r`n", "`n")
+          if (-not $normalizedText.Contains($normalizedOldTests)) { throw 'DATA_VALIDATION regression-test bullets not found.' }
+          $normalizedText = $normalizedText.Replace($normalizedOldTests, $normalizedNewTests)
+          $text = $normalizedText.Replace("`n", [Environment]::NewLine)
+
+          [IO.File]::WriteAllText($path, $text, [Text.UTF8Encoding]::new($false))
+          Remove-Item '.github/workflows/tmp-v171-doc-semantics-fix.yml' -Force
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/DATA_VALIDATION.md .github/workflows/tmp-v171-doc-semantics-fix.yml
+          git diff --cached --check
+          if ($LASTEXITCODE -ne 0) { throw 'Patched docs failed git diff --check.' }
+          git commit -m 'docs: keep v1.7.1 questItem exception narrowly scoped'
+          git push origin HEAD:fix/v1.7.1-data-update-validation-2026-08-25
