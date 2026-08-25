@@ -147,10 +147,12 @@ public partial class MainWindow
             ScannerPlaceholder.SettingsButton.Content as string != "설정" ||
             ScannerPlaceholder.SettingsButton.MinWidth < 80 ||
             ScannerPlaceholder.AdvancedButton.Content as string != "고급" ||
-            ScannerPlaceholder.AdvancedButton.MinWidth < 80)
+            ScannerPlaceholder.AdvancedButton.MinWidth < 80 ||
+            ScannerPlaceholder.CurrentCorrectionButton.Content as string != "현재 결과 교정" ||
+            ScannerPlaceholder.CurrentCorrectionButton.MinWidth < 100)
         {
             throw new InvalidOperationException(
-                "Scanner top bar did not render the approved Scanner/Settings/Advanced controls.");
+                "Scanner top bar did not render the approved Scanner/Settings/Advanced/CurrentCorrection controls.");
         }
 
         if (ScannerPlaceholder.ItemSearchBox.MinHeight < 30 ||
@@ -164,7 +166,6 @@ public partial class MainWindow
         var forbiddenLabels = new HashSet<string>(StringComparer.Ordinal)
         {
             "1회 스캔",
-            "현재 결과 교정",
             "테스트 OFF",
             "아이템 목록 최신화",
             "로그 삭제",
@@ -239,8 +240,8 @@ public partial class MainWindow
             var controls = new[]
             {
                 window.TestToggleButton,
-                window.CurrentCorrectionButton,
                 window.ManageCorrectionsButton,
+                window.ExportDiagnosticsButton,
                 window.AdvancedCloseButton,
             };
 
