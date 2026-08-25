@@ -1,3 +1,4 @@
+using Microsoft.Win32;
 using System.Windows;
 
 namespace JunhyunHelper.Desktop.Scanner;
@@ -60,6 +61,48 @@ public partial class ScannerAdvancedWindow : Window
             Owner = this,
         };
         window.ShowDialog();
+    }
+
+    private void ExportDiagnosticsButton_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new SaveFileDialog
+        {
+            Title = "Scanner 성능 진단 자료 저장",
+            Filter = "ZIP 압축 파일 (*.zip)|*.zip",
+            DefaultExt = ".zip",
+            AddExtension = true,
+            OverwritePrompt = true,
+            FileName = $"JunhyunHelper-Scanner-Diagnostics-{DateTime.Now:yyyyMMdd-HHmmss}.zip",
+        };
+        if (dialog.ShowDialog(this) != true)
+            return;
+
+        ExportDiagnosticsButton.IsEnabled = false;
+        try
+        {
+            ScannerPerformanceTrace.Mark("support-bundle-export-start");
+            ScannerSupportBundleExporter.Export(dialog.FileName);
+            MessageBox.Show(
+                this,
+                "Scanner 성능 진단 자료를 저장했습니다. 이 ZIP 파일만 전달하면 세부 로그를 직접 찾아볼 필요가 없습니다.",
+                "Scanner 성능 진단",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        catch (Exception exception)
+        {
+            App.WriteDiagnostic("Scanner support bundle export failed", exception);
+            MessageBox.Show(
+                this,
+                "Scanner 성능 진단 자료를 저장하지 못했습니다.",
+                "Scanner 성능 진단",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+        finally
+        {
+            ExportDiagnosticsButton.IsEnabled = true;
+        }
     }
 
     private void UpdateTestToggle() =>
