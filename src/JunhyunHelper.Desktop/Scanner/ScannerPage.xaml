@@ -91,6 +91,7 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
                 <Button x:Name="ScannerToggleButton"
@@ -108,9 +109,15 @@
                         Grid.Column="2"
                         Content="고급"
                         MinWidth="92"
+                        Margin="0,0,8,0"
                         Click="AdvancedButton_Click" />
+                <Button x:Name="CurrentCorrectionButton"
+                        Grid.Column="3"
+                        Content="현재 결과 교정"
+                        MinWidth="118"
+                        Click="CurrentCorrectionButton_Click" />
                 <TextBlock x:Name="RuntimeStatusText"
-                           Grid.Column="3"
+                           Grid.Column="4"
                            Foreground="{StaticResource TextSecondaryBrush}"
                            TextAlignment="Right"
                            TextTrimming="CharacterEllipsis"
