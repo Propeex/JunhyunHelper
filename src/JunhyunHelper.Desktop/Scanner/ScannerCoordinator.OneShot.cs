@@ -104,7 +104,7 @@ public sealed partial class ScannerCoordinator
         var text = gesture?.ToString() ?? string.Empty;
         _settings.Update(settings => settings.ScannerToggleHotkey = text);
         _scannerToggleHotkeyService?.UpdateGesture(gesture);
-        HotkeyStatusChanged?.Invoke(_scannerToggleHotkeyService?.StatusText ?? "스캐너 ON/OFF 단축키 설정을 저장했습니다.");
+        HotkeyStatusChanged?.Invoke(_scannerToggleHotkeyService?.StatusText ?? "Scanner ON/OFF 단축키 설정을 저장했습니다.");
     }
 
     public Task<bool> TriggerOneShotAsync(CancellationToken cancellationToken = default) =>
@@ -159,7 +159,23 @@ public sealed partial class ScannerCoordinator
                     await Runtime.PauseForOneShotAsync(cancellationToken);
                 }
 
-                return await Runtime.ScanOnceAsync(requestedMode, cancellationToken);
+                // Global-hotkey callbacks enter through the WPF window message pump.
+                // Several Scanner APIs can complete their first awaits synchronously
+                // (capture gate, detector Task.FromResult, local catalog), so invoking
+                // ScanOnceAsync directly here can run capture/detection/OCR setup on the
+                // UI dispatcher before an asynchronous boundary exists. Execute the scan
+                // worker explicitly on the thread pool; Runtime status subscribers and
+                // Mini Scanner window access already marshal to the dispatcher.
+                ScannerPerformanceTrace.Mark(
+                    "one-shot-worker-dispatch",
+                    ("mode", requestedMode));
+                return await Task.Run(async () =>
+                {
+                    ScannerPerformanceTrace.Mark(
+                        "one-shot-worker-start",
+                        ("mode", requestedMode));
+                    return await Runtime.ScanOnceAsync(requestedMode, cancellationToken).ConfigureAwait(false);
+                }, cancellationToken);
             }
             finally
             {
@@ -199,7 +215,7 @@ public sealed partial class ScannerCoordinator
         catch (Exception exception)
         {
             App.WriteDiagnostic("Scanner ON/OFF hotkey failed", exception);
-            Runtime.PublishExternalState(ScannerRuntimeState.Error, "스캐너 ON/OFF 단축키 처리 중 오류가 발생했습니다.");
+            Runtime.PublishExternalState(ScannerRuntimeState.Error, "Scanner ON/OFF 단축키 처리 중 오류가 발생했습니다.");
         }
         finally
         {
