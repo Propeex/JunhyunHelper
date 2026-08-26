@@ -4,21 +4,21 @@
 
 기준일: 2026-08-26
 
-상태: **`v1.7.8 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE`**
+상태: **`v1.7.9 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE`**
 
 ## 공개 stable과 현재 source
 
-현재 공개 stable/latest는 **v1.7.8**이다.
+현재 공개 stable/latest는 **v1.7.9**이다.
 
 ```text
-public stable/latest: v1.7.8
-exact release source/tag: 3ba9d99c43ad143dbc8329e7d29b1d01da335b06
-main CI run: 32888653630 — SUCCESS
-release workflow run: 32888935292 — SUCCESS
-release id: 376650517
+public stable/latest: v1.7.9
+exact release source/tag: bbb04e02385026eba6c77ba0a9d66bad9868cc92
+main CI run: 32971976531 — SUCCESS
+release workflow run: 32972267012 — SUCCESS
+release id: 377149426
 stable asset: Junhyun-Helper.zip
-stable bytes: 80,469,671
-stable SHA-256: 3716d2d3c6d3c9ce2f87c759aac74f6b56b483a09016339c0d8bb6d3bc67e730
+stable bytes: 80,468,715
+stable SHA-256: bd9285f7d8f819a1cf7f161f72baaae1c32a68f5db2e6f9a305053bbf3852946
 380 passed / 0 failed / 0 skipped
 Product UI / Scanner / Map / Factory / MiniMap / graceful shutdown smoke: SUCCESS
 ```
@@ -28,15 +28,15 @@ GitHub release readback:
 - tag target = exact release source
 - draft = false
 - prerelease = false
-- `releases/latest` = v1.7.8
+- `releases/latest` = v1.7.9
 - ZIP + checksum assets present
 
-상세 공개 증거는 `docs/RELEASE_1.7.8.md`와 `docs/.release-v1.7.8-status.json`을 기준으로 한다.
+상세 공개 증거는 `docs/RELEASE_1.7.9.md`와 `docs/.release-v1.7.9-status.json`을 기준으로 한다.
 
 ## Schema / compatibility
 
 ```text
-Desktop target version: 1.7.8
+Desktop target version: 1.7.9
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
@@ -62,7 +62,41 @@ Scanner Ground Truth: explicit user-reviewed durable cases
 | Program Update | 구현 완료 / verified stable ZIP contract |
 | Scanner + Mini Scanner | **실사용 검증 완료 / maintenance** |
 
-## v1.7.8 핵심 변경
+## v1.7.9 핵심 변경
+
+v1.7.8 실사용에서 Scanner 로그에는 아이템 인식 성공이 기록되지만 Mini Scanner 창이 열리지 않는 presentation 회귀가 확인되었다.
+
+원인은 Scanner semantic success 이후에도 hidden Mini Scanner가 별도의 top-band inventory/stash OCR을 다시 실행하고, `장비/건강상태/스킬/지도/종합정보` 계열 중 2개 이상을 인식하지 못하면 이미 확정된 Item 결과의 표시를 막던 구조였다.
+
+v1.7.9에서는 authoritative Scanner Item identity와 Mini Scanner presentation authority를 일치시켰다.
+
+```text
+Scanner semantic success
+→ Item ID 확정
+→ presentation snapshot 생성
+→ Mini Scanner
+   ├─ preview/display-test: show
+   ├─ already visible: authoritative Item result로 즉시 update
+   └─ hidden real Scanner:
+        Tarkov foreground yes → show
+        Tarkov foreground no  → fail closed / hidden
+```
+
+따라서 auxiliary inventory-header OCR은 더 이상 Mini Scanner 표시를 veto하지 않는다. 실제 Tarkov client가 foreground인지 확인하는 initial visibility guard는 유지한다.
+
+v1.7.2의 sticky presentation 계약도 유지한다.
+
+- 성공 Item → miss budget reset
+- 새 Item → 즉시 교체
+- 실제 miss #1/#2 → 마지막 정상 Item 유지
+- 실제 miss #3 → Hide
+- 진행 상태는 miss로 세지 않음
+
+Recognition threshold/candidate cap/OCR/matcher/visual acceptance는 변경하지 않았다.
+
+공식 결정: `docs/DECISION_V1.7.9_MINI_SCANNER_SHOW_2026-08-26.md`
+
+## v1.7.8 유지 계약
 
 사용자가 제공한 reviewed Scanner Case 8건에서 레이드 인식 저하를 분석했다.
 
@@ -86,7 +120,7 @@ raid recovery는 강한 `RED_X_CANDIDATE >= 0.90`에서만 사용하며 red clos
 
 threshold/candidate cap/OCR/matcher/visual acceptance는 완화하지 않았다.
 
-Scanner 메인 상단 primary actions는 사용자 결정에 따라 다음 순서다.
+Scanner 메인 상단 primary actions:
 
 ```text
 스캐너 ON/OFF
@@ -101,7 +135,7 @@ Scanner 메인 상단 primary actions는 사용자 결정에 따라 다음 순�
 
 ## v1.7.7 유지 계약
 
-v1.7.8은 다음 v1.7.7 동작을 그대로 유지한다.
+v1.7.9은 다음 v1.7.7 동작을 그대로 유지한다.
 
 - 정상 Scanner monitoring의 durable automatic diagnostic Case 저장 금지
 - latest exact frame은 메모리에만 유지하고 사용자 명시적 교정 저장만 Ground Truth로 영구 보존
