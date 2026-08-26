@@ -34,6 +34,7 @@ public static class ScannerTitleEnvironmentNormalizer
             throw new ArgumentException("BGRA buffer is smaller than the declared image.", nameof(bgra));
 
         Span<int> histogram = stackalloc int[HistogramBins];
+        histogram.Clear();
         for (var y = 0; y < height; y++)
         {
             var row = y * stride;
