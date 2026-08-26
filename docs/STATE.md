@@ -3,13 +3,13 @@
 > 새 대화/새 개발자는 이 문서를 먼저 읽습니다. 대화 기억이 아니라 저장소의 공식 문서와 현재 GitHub 상태가 프로젝트의 기준입니다.
 
 기준일: 2026-08-26  
-상태: **v1.7.8 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+상태: **v1.7.10 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 1. 제품
 
 **준현 헬퍼**는 Escape from Tarkov 플레이를 지원하는 Windows x64 .NET 10 WPF 데스크톱 프로그램이다.
 
-2026-08-26 제품 사용자는 현재 요구사항 범위의 준현 헬퍼가 완성 상태에 도달했다고 최종 확정했다. 마지막 집중 개발 영역이었던 Scanner 역시 실사용 검증을 통과해 기능 개발 단계에서 유지보수 단계로 전환했다. 기본 프로젝트 모드는 **유지보수**이며, 새 기능은 사용자가 새로운 제품 요구사항으로 명시적으로 결정할 때만 시작한다.
+현재 요구사항 범위의 제품은 완성 상태이며 기본 운영 모드는 **유지보수**다. 새 기능은 사용자가 새로운 제품 요구사항으로 명시적으로 결정할 때만 시작한다.
 
 주요 기능:
 
@@ -23,50 +23,46 @@
 - Game Content 안전 업데이트 / image cache
 - 사용자 동의형 Program Update
 - Scanner + Mini Scanner
-- Scanner Ground Truth 교정 / diagnostic dataset / full-pipeline regression
+- Scanner Ground Truth 교정 / diagnostic dataset / regression
 
 Runtime GPT/AI 의존성은 없다.
 
-기존 `Propeex/Tarkov-Helper`는 불완전한 프로토타입이며 새 제품 요구사항의 권위가 아니다. 유지할 기능, 검증된 데이터/자산, 구현 아이디어와 시행착오 참고 용도로만 사용한다.
-
-제품 완성 및 유지보수 전환의 공식 결정은 `docs/DECISION_PRODUCT_COMPLETE_2026-08-26.md`에 기록한다.
-
-v1.7.7의 Scanner durable-data ownership 및 Scanner/Map 공통 hotkey 계약은 `docs/DECISION_SCANNER_STORAGE_AND_HOTKEYS_2026-08-26.md`에 기록한다.
-
-v1.7.8의 레이드 inspect-header ownership 회귀 수정 및 `현재 결과 교정` 메인 배치 결정은 `docs/DECISION_V1.7.8_RAID_HEADER_LOCK_2026-08-26.md`에 기록한다.
+기존 `Propeex/Tarkov-Helper`는 불완전한 프로토타입이며 새 제품 요구사항의 권위가 아니다. 검증된 Map/MiniMap donor source와 유용한 자산/아이디어만 제한적으로 사용한다.
 
 ## 2. 현재 public stable
 
 ```text
-version: v1.7.8
-release source: 3ba9d99c43ad143dbc8329e7d29b1d01da335b06
-release CI run: 32888653630
-release workflow run: 32888935292
-release id: 376650517
+version: v1.7.10
+exact product release source/tag target: a557daad5b37aca11a189524ecf256564d2b8ea4
+main CI run: 32983155982 — SUCCESS
+release workflow run: 32983498402 — SUCCESS
+release id: 377231814
 asset: Junhyun-Helper.zip
-asset bytes: 80,469,671
-asset SHA-256: 3716d2d3c6d3c9ce2f87c759aac74f6b56b483a09016339c0d8bb6d3bc67e730
+asset id: 530959212
+asset bytes: 80,471,678
+asset SHA-256: 6d4f3f8580318d05361cd4d62bf265c4590532722df22dc8b8d734fe8ec10eb9
 checksum asset: SHA256SUMS.txt
-published: 2026-08-26 KST
+checksum asset id: 530959213
+389 passed / 0 failed / 0 skipped
+published UTC: 2026-08-26T14:59:06Z
 ```
 
-GitHub release readback:
+GitHub `/releases/latest` readback:
 
-- tag `v1.7.8`
-- target commit = exact release source `3ba9d99c43ad143dbc8329e7d29b1d01da335b06`
+- tag `v1.7.10`
+- target = exact product release source
 - draft = false
 - prerelease = false
-- `releases/latest` = v1.7.8
-- `Junhyun-Helper.zip` + `SHA256SUMS.txt` present
-- ZIP GitHub asset digest = `sha256:3716d2d3c6d3c9ce2f87c759aac74f6b56b483a09016339c0d8bb6d3bc67e730`
+- latest stable = true
+- ZIP + checksum assets present
 
-v1.7.6의 P0 목표였던 일부 데스크탑 Scanner 장시간 인식 지연은 문제 PC의 실측 자료로 root cause를 확인하고 수정했으며, 같은 PC의 Display Test와 실제 Tarkov에서 정상화를 재검증했다.
+상세 공개 증거:
 
-v1.7.7은 그 인식 알고리즘을 변경하지 않고 실사용에서 확인된 Scanner 자동 교정 Case 폭증, 반복 실패 로그 가시성, Scanner/Map 단축키 정책 불일치를 수정한 유지보수 PATCH다.
+- `docs/RELEASE_1.7.10.md`
+- `docs/.release-v1.7.10-status.json`
+- `docs/RELEASE_NOTES_V1.7.10.md`
 
-v1.7.8은 사용자 reviewed 레이드 Case 8건에서 확인된 inspect-header 수평 소유권 오류를 수정했다. 실패 6건은 OCR 오인식이 아니라 `HEADER_CLOSE_NOT_LOCKED` / `TITLE_ANCHOR_INCOMPLETE`로 OCR 이전에 중단됐고, 레이드 인벤토리 수평선이 상세창 header와 이어져 기존 fallback이 실제 상세창보다 47~132px 왼쪽까지 header를 소유한 것이 원인이었다. 새 recovery는 강한 `RED_X_CANDIDATE >= 0.90`인 경우에만 사용하며 기존 red close-X, magnifier, neutral header, dark title field, text evidence와 최종 `HEADER_FRAME_LOCKED >= 0.68`을 모두 요구한다.
-
-현재 Scanner 성능 알고리즘은 완료 상태다. 새로운 runtime evidence가 없는 한 성능을 목적으로 recognition threshold/candidate cap/recovery acceptance를 더 변경하지 않는다.
+이후 documentation-only commit은 v1.7.10 product release source가 아니다.
 
 ## 3. 아키텍처
 
@@ -80,13 +76,22 @@ JunhyunHelper.Desktop
 
 책임:
 
-- **Core**: canonical domain, deterministic calculation, Quest 조건 규칙, Scanner structural/identity/matcher/presentation 정책
+- **Core**: canonical domain, deterministic calculation, Quest 규칙, Scanner structural/normalization/matcher/presentation 정책
 - **Application**: 사용자 use case, authoritative mutation, workspace orchestration
-- **Infrastructure**: HTTP/source parsing, SQLite/file persistence, Game Content/Scanner/update I/O
+- **Infrastructure**: HTTP/source parsing, SQLite/file persistence, content/update I/O
 - **Desktop**: WPF UI, presentation, Scanner capture/OCR/runtime/diagnostics, Map bridge
-- **Map/MiniMap donor**: 제한적 compile-link 예외. donor updater/content ownership/hidden command는 사용하지 않음
+- **Map/MiniMap donor**: 제한적 compile-link 예외. donor updater/content ownership은 사용하지 않음
 
-## 4. 사용자 데이터 / persistence
+## 4. Schema / 사용자 데이터
+
+```text
+Desktop target version: 1.7.10
+Content schema: v7
+Readable Content schemas: v3~v7
+user.db schema: v1
+Scanner display settings schema: v6
+Scanner catalog cache: v1~v3 readable, v3 written
+```
 
 대표 저장 위치:
 
@@ -104,54 +109,52 @@ JunhyunHelper.Desktop
 원칙:
 
 - portable executable 옆에 mutable user data/log 생성 금지
-- Program Update가 user.db, content/image cache, Map/Ammo/Scanner settings, Scanner logs/diagnostics를 교체하지 않음
+- Program Update가 user.db, content/image cache, Map/Ammo/Scanner settings, Scanner logs/diagnostics/Ground Truth를 교체하지 않음
 - user-reviewed Scanner Ground Truth는 자동 삭제하지 않음
-- Scanner logs와 Ground Truth dataset lifetime을 분리
+- Scanner logs와 Ground Truth dataset lifetime 분리
 - 정상 Scanner monitoring은 durable automatic correction Case를 생성하지 않음
 
-## 5. Game Content / Scanner catalog update
+## 5. Game Content / Scanner catalog
 
-일반 Game Content와 Scanner catalog는 사용자에게 별개의 관리 절차를 요구하지 않는다.
+일반 Game Content와 Scanner catalog는 사용자에게 별도 관리 절차를 요구하지 않는다.
 
 ```text
 remote Game Content
 → validate/build candidate
 → integrity validation
 → general content activation
-→ Scanner official item/market catalog refresh
-→ status report
+→ Scanner catalog refresh
+→ local last-known-good preservation on partial failure
 ```
 
-안전 계약:
+Scanner scan 순간에는 local/memory catalog만 사용하며 identity 결정을 위해 network 요청을 시작하지 않는다.
 
-- fail closed / Last Known Good 유지
-- partial payload 보호
-- canonical dangling reference 검증 유지
-- Scanner refresh만 실패하면 healthy general Game Content를 rollback하지 않음
-- Scanner scan-time에는 network request 없음
+공식 Korean Tarkov full-item catalog가 Scanner Item identity authority다. market/dimension coverage와 Item identity health는 분리한다.
 
-## 6. Scanner production contract
+## 6. Scanner — 현재 제품 계약
 
-Scanner는 게임 프로세스 내부 데이터를 읽지 않는 화면 기반 Tarkov UI recognizer다.
+Scanner 상태: **FEATURE COMPLETE / MAINTENANCE ONLY**.
 
 ```text
-Tarkov window / Display Test pixels
+Tarkov window pixels
 → capture
 → detail rectangle proposals
-→ red close-X + magnifier + neutral inspect-header semantic validation
+→ close-X / magnifier / inspect-header semantic validation
 → HEADER_FRAME_LOCKED
 → item-name ROI
 → serialized Windows ko-KR OCR
 → optional user OCR substitution
+→ conditional cross-environment title normalization
 → current-catalog sanitation / normalization
-→ conservative catalog matching
-→ optional deep OCR / tight-title retry
-→ optional current-pixel Tarkov-font visual corroboration/recovery
+→ conservative catalog matching / bounded recovery
+→ optional current-pixel visual corroboration
 → Item ID or fail closed
 → local mapped presentation
 → Scanner Page / Mini Scanner
-→ optional user correction / Ground Truth
+→ optional correction / Ground Truth
 ```
+
+Scanner는 범용 OCR이 아니라 closed-domain recognizer다. false positive는 miss보다 나쁘다.
 
 핵심 불변식:
 
@@ -160,41 +163,142 @@ structural floor = 0.34
 trusted HEADER_FRAME_LOCKED floor = 0.68
 continuous candidate cap = 8
 one-shot candidate cap = 12
-deep OCR candidate limit = existing value
-continuous scan target interval = 200 ms
-semantic retry interval = 1200 ms
+continuous observation target = 200 ms
 ```
 
-추가 계약:
+- geometry/environment normalization은 Item identity proof가 아님
+- stale/cross-frame OCR/visual result를 current identity proof로 사용하지 않음
+- Item ID 확정 전 price/needed/slot metadata를 identity evidence로 사용하지 않음
+- current official catalog 밖 임의 Item 생성 금지
+- reviewed evidence 없이 recognition threshold/candidate cap/matcher/visual acceptance 완화 금지
 
-- false positive보다 miss 선호
-- geometry/structural score는 proposal evidence이며 Item identity proof가 아님
-- full semantic gate 전 production OCR identity path 진입 금지
-- valid magnifier + red close-X evidence 필수
-- current official Korean Tarkov full-item catalog가 identity authority
-- ambiguity / low confidence는 fail closed
-- production OCR field는 item-name 하나
-- price/flea/slots/needed는 Item ID 확정 이후 mapped presentation data
-- stale Item ID를 current identity proof로 사용 금지
-- cross-frame OCR/visual identity cache를 Item proof로 사용 금지
-- reviewed Ground Truth 없이 threshold/candidate cap 완화 금지
-- game memory read / DLL injection / packet interception / process hook 금지
+## 7. Scanner v1.7.10 — cross-environment normalization
 
-## 7. Capture / one-shot / semantic header
+사용자가 확정한 제품 방향은 특정 PC별 보정이 아니라 공개 배포 범용성이다.
 
-Tarkov capture:
+v1.7.10 runtime:
 
 ```text
-EscapeFromTarkov process/window
-→ GetClientRect + ClientToScreen
-→ Borderless client-area
-→ PrintWindow 우선
-→ invalid/empty이면 exact client screen rectangle fallback
+normal OCR
+→ text 있음: 기존 결과 즉시 사용
+→ text 없음: title luminance profile 분석
+    → reference/flat: 기존 경로 유지
+    → lifted/washed/low-contrast: adaptive grayscale normalized auxiliary OCR
+→ existing bounded deep OCR
+    → environment abnormal일 때만 normalized auxiliary evidence 추가
+→ existing conservative catalog matching
+→ Item ID or fail closed
 ```
 
-Display Test는 같은 recognition pipeline을 사용하며 real continuous Scanner와 상호 배타적이다.
+정규화 정책:
 
-기본 hotkey:
+- P60로 dark title-field background 추정
+- P99.75로 sparse bright glyph foreground 추정
+- effectively flat/no-contrast input은 normalization 금지
+- 정상 normal OCR 성공 시 histogram/copy/추가 OCR 비용을 만들지 않음
+- normalization은 identity proof가 아니며 기존 catalog matcher를 그대로 통과해야 함
+
+Deterministic procedural regression:
+
+- reference SDR-like luminance
+- lifted/washed HDR→SDR-like luminance
+- compressed contrast
+- low-contrast gamma/rendering variation
+- 1080p/1440p/4K proportional title raster
+- flat/no-contrast negative input
+
+공식 결정: `docs/DECISION_SCANNER_CROSS_ENVIRONMENT_2026-08-26.md`.
+
+## 8. Scanner v1.7.9 — Mini Scanner presentation authority
+
+v1.7.9는 recognition success 뒤 Mini Scanner가 별도 inventory-header OCR 실패로 표시를 veto하던 presentation 회귀를 제거했다.
+
+현재 권위:
+
+```text
+Scanner semantic success
+→ Item ID confirmed
+→ presentation snapshot
+→ Mini Scanner
+```
+
+- preview/display-test는 표시 가능
+- 이미 표시 중이면 confirmed Item result로 즉시 갱신
+- 숨겨진 real Scanner의 최초 표시만 Tarkov foreground를 요구
+- auxiliary inventory-header OCR은 confirmed Item presentation을 veto하지 못함
+
+Sticky presentation은 성공 시 miss budget을 reset하고 실제 miss 3회째에 숨긴다.
+
+## 9. Scanner v1.7.8 — raid inspect-header ownership
+
+사용자 reviewed 8 Case에서 실패 6건은 OCR 오인식이 아니라 OCR 이전 `HEADER_CLOSE_NOT_LOCKED` / `TITLE_ANCHOR_INCOMPLETE`였다.
+
+레이드 인벤토리 수평선이 inspect header와 이어져 header-left ownership이 실제 상세창보다 47~132px 왼쪽으로 확장됐다.
+
+Recovery order:
+
+```text
+primary header lock
+→ live Ground Truth recovery
+→ v1.7.8 raid ownership recovery
+→ contained-subpanel recovery
+→ fail closed
+```
+
+raid recovery는 `RED_X_CANDIDATE >= 0.90`에서만 진입하고 기존 close-X, magnifier, neutral header, dark title field, text evidence와 최종 `HEADER_FRAME_LOCKED >= 0.68`을 모두 요구한다.
+
+## 10. Scanner v1.7.7 — data/log/hotkey contract
+
+- normal monitoring은 durable automatic Case를 만들지 않음
+- latest exact frame은 current correction용으로 메모리에만 유지
+- 사용자 명시적 correction save만 reviewed durable Ground Truth
+- legacy `automatic_sample + unreviewed`만 5분 recent-write safety 및 pre-delete state 재확인 후 cleanup
+- reviewed/manual/corrupt/unknown/state-changed Case는 preserve fail closed
+- 동일 activity failure는 30초 collapse
+- Scanner/Map configurable gesture = primary key + optional Ctrl/Alt/Shift
+- bare key 허용, Windows modifier 미지원
+- Map bare NumPad0~5 direct floor 유지
+
+## 11. Scanner v1.7.6 — performance baseline
+
+문제 PC actual Tarkov `ReadingTitle → ShowingItem` 성공 12건:
+
+```text
+minimum: 38.07 ms
+median: 63.92 ms
+maximum: 1.05 s
+mean: 211.47 ms
+```
+
+Display Test:
+
+```text
+하프 마스크: 10,840.877 ms → 70.603 ms
+USB 보안 플래시 드라이브: 12,686.278 ms → 1,354.775 ms
+```
+
+root cause는 Windows OCR 자체가 아니라 같은 cycle의 exact current-pixel visual evidence 반복 계산이었다. 재사용은 동일 cycle/exact pixels에만 한정하며 cross-frame identity cache가 아니다.
+
+## 12. Scanner UI / hotkeys
+
+일반 Scanner 상단:
+
+```text
+스캐너 ON/OFF
+설정
+고급
+현재 결과 교정
+```
+
+`현재 결과 교정`은 최신 exact in-memory Scanner frame만 교정 창으로 연다.
+
+`고급`:
+
+- Display Test / 테스트 스캐너
+- 교정 데이터 관리
+- Scanner 성능 진단 자료 내보내기
+
+기본 one-shot hotkeys:
 
 ```text
 1회 인게임 스캔: Ctrl+Shift+F10
@@ -202,322 +306,103 @@ Display Test는 같은 recognition pipeline을 사용하며 real continuous Scan
 Scanner ON/OFF: Ctrl+Shift+F12
 ```
 
-v1.7.7부터 Scanner와 configurable Map actions는 **primary non-modifier key + optional Ctrl/Alt/Shift** 공통 gesture contract를 사용한다. Bare key도 허용한다. Windows modifier는 지원하지 않는다.
+## 13. Ground Truth
 
-Map의 bare NumPad0~5는 기존 direct floor selection에 예약하고, modifier가 붙은 NumPad gesture는 configurable Map hotkey로 사용할 수 있다. 기존 Map key-only 설정은 modifier `None`으로 migration한다.
+Ground Truth는 **사용자가 직접 검토/교정하고 명시적으로 저장한 Case**만 의미한다.
 
-v1.7.6에서는 one-shot `ScanOnceAsync`를 explicit worker에 배치해 global-hotkey WPF message-pump가 capture/OCR synchronous setup을 직접 수행할 수 있는 경로를 제거했다.
+- normal monitoring의 자동 결과 ≠ Ground Truth
+- private user pixel evidence를 CI에 넣기 위해 공개 저장소에 commit하지 않음
+- reviewed dataset이 runnable한 recognition 변경은 `REGRESSION=0`을 요구
+- procedural/synthetic matrix는 reviewed Ground Truth를 대체하지 않으며 환경 robustness regression용이다
 
-Mini Scanner와 WPF status presentation은 dispatcher marshalling을 유지한다.
+## 14. CI / release contract
 
-## 8. OCR / matcher / visual recovery
-
-Primary recognizer는 Windows OCR이다.
-
-```text
-locked item-name ROI
-→ normal/deep OCR variants
-→ raw OCR preservation
-→ optional user substitution
-→ current-catalog sanitation / normalization
-→ exact-first conservative matching
-→ bounded recovery
-→ optional visual corroboration/recovery
-```
-
-- raw OCR forensic evidence는 별도 보존
-- user substitution은 single ordered pass
-- 기본 substitution list는 empty
-- recursive/cyclic/chained reprocessing 없음
-- catalog-impossible glyph를 특정 문자로 전역 강제 치환하지 않음
-- ambiguous candidate는 fail closed
-
-v1.7.6은 실제 `OcrEngine.RecognizeAsync` 호출 단위를 측정하고 slow-empty actual WinRT call을 bounded health policy로 보호한다.
-
-### Current-cycle visual evidence reuse
-
-v1.7.6은 동일 Scanner latency cycle 안에서 다음이 동일한 visual corroboration 결과를 재사용한다.
-
-- cycle ID
-- title bitmap dimensions
-- exact current-pixel SHA-256
-- OCR text
-
-cycle이 변경되면 즉시 폐기한다. 이는 cross-frame identity cache가 아니며 동일한 현재-frame deterministic proof를 후보마다 반복 계산하지 않기 위한 최적화다.
-
-candidate count와 visual acceptance semantics는 변경하지 않았다.
-
-## 9. Scanner P0 성능 결함 — 해결 증거
-
-수정 전 문제 PC 대표 Tarkov cycle:
+Release candidate gate:
 
 ```text
-end-to-end                  12,540.77 ms
-OCR normal                      12.26 ms
-actual WinRT RecognizeAsync     10.57 ms
-visual recovery             12,306.61 ms / 16 calls
+Release build
+→ automated tests
+→ Windows x64 self-contained single-file publish
+→ startup / rendered Product UI / Scanner / Map / Factory / MiniMap smoke
+→ graceful shutdown / clean portable root
+→ release package + SHA256 verification
+→ artifact upload
 ```
 
-Windows OCR 자체가 아니라 동일 current-frame visual proof가 후보별로 반복되며 latency를 증폭한 것이 root cause였다.
+Stable release는 **main push CI가 성공한 exact main commit**의 artifact만 Release workflow가 게시한다.
 
-수정 후 동일 문제 PC:
+v1.7.10 proof:
 
 ```text
-Display Test — 하프 마스크
-10,840.877 ms → 70.603 ms
-약 99.35% 감소
-
-Display Test — USB 보안 플래시 드라이브
-12,686.278 ms → 1,354.775 ms
-약 89.32% 감소
+PR #192 final head: 322c2e4e1dd641905411cc10fb9a81ba22816d33
+PR CI: 32981693237 — SUCCESS
+main release source: a557daad5b37aca11a189524ecf256564d2b8ea4
+main CI: 32983155982 — SUCCESS
+Release workflow: 32983498402 — SUCCESS
+389 tests passed
 ```
 
-실제 `TarkovWindow` 성공 12건의 `ReadingTitle → ShowingItem`:
+## 15. 유지보수 원칙
+
+새 문제는 다음 순서로 처리한다.
 
 ```text
-minimum: 38.07 ms
-median:  63.92 ms
-maximum:  1.05 s
-mean:    211.47 ms
+evidence
+→ failure stage
+→ root cause
+→ affected layer only
+→ reviewed regression where runnable
+→ deterministic procedural regression where applicable
+→ full Windows CI/publish/product smoke/package
+→ PATCH release
+→ public release readback
+→ canonical docs sync
 ```
 
-retained OCR-active full Scanner cycles 11건:
+새 실제 evidence 없이 Scanner threshold/candidate cap/OCR/matcher/visual acceptance를 선제 조정하지 않는다.
 
-```text
-minimum end-to-end: 178.04 ms
-median:              210.82 ms
-maximum:              517.74 ms
-```
+## 16. 공식 문서
 
-추가 evidence:
+- `docs/CURRENT_STATE.md`
+- `docs/CURRENT_SCANNER_WORK.md`
+- `docs/SCANNER.md`
+- `docs/SCANNER_GROUND_TRUTH.md`
+- `docs/SCANNER_TEST_PLAN.md`
+- `docs/DECISION_PRODUCT_COMPLETE_2026-08-26.md`
+- `docs/DECISION_SCANNER_STORAGE_AND_HOTKEYS_2026-08-26.md`
+- `docs/DECISION_V1.7.8_RAID_HEADER_LOCK_2026-08-26.md`
+- `docs/DECISION_V1.7.9_MINI_SCANNER_SHOW_2026-08-26.md`
+- `docs/DECISION_SCANNER_CROSS_ENVIRONMENT_2026-08-26.md`
+- `docs/RELEASE_1.7.10.md`
+- `docs/.release-v1.7.10-status.json`
 
-```text
-visual-cycle-cache-hit: 73
-repeated visual-recovery: effectively 0~0.01 ms
-WPF dispatcher stall: 0
-actual WinRT OCR: generally ~4~13 ms
-LocalAppData diagnostic append: sub-ms
-```
+## 17. 유지보수 안전 계약 및 알려진 기술 부채
 
-사용자 실사용 평가에서도 수정 후 속도가 충분히 만족스러운 수준임을 확인했다.
+### Scanner support-bundle privacy
 
-약 1초의 어려운 deep/recovery 사례는 허용 가능한 bounded recovery cost로 본다. latency만 줄이기 위해 OCR variant, candidate count, matcher/visual threshold를 변경하지 않는다.
+`Scanner > 고급 > Scanner 성능 진단 자료 내보내기`의 support ZIP은 환경/성능 trace와 bounded diagnostic log만 포함한다.
 
-## 10. Scanner mapped presentation / item search
+다음은 포함하지 않는다.
 
-Item ID 확정 후 local trusted data:
+- Scanner Ground Truth image / source pixel dataset
+- `user.db` 또는 profile database
+- Tarkov/game account information
+- 사용자 진행도나 계정 식별에 해당하는 데이터
 
-- highest valid non-flea trader RUB price
-- best trader name where trustworthy
-- flea positive `avg24hPrice`
-- slots = positive `width × height`
-- trader price/slot
-- flea price/slot
-- required total = `NeededItems[itemId].RequiredTotal`
-
-Inventory shortage는 Scanner의 `필요 개수` 의미가 아니다.
-
-Scanner item search는 같은 current full-item catalog와 local presentation data를 사용하며 검색 순간 network request를 만들지 않는다.
-
-## 11. Scanner UI / Mini Scanner
-
-Scanner 일반 화면 primary actions:
-
-- `스캐너 ON/OFF`
-- `설정`
-- `고급`
-- `현재 결과 교정`
-
-하단:
-
-- `아이템 검색`
-- `Scanner 로그`
-
-`현재 결과 교정`은 메모리에 보존된 최신 exact Scanner frame을 바로 기존 `ScannerCorrectionWindow`로 연다.
-
-`고급`에는 Display Test, correction dataset 관리, Scanner 성능 진단 자료 export가 있다.
-
-Mini Scanner:
-
-- Topmost
-- ShowActivated=false
-- ShowInTaskbar=false
-- full-surface drag
-- matched Item presentation only
-- stale epoch reject
-
-identity가 확인된 Item presentation은 transient recognition miss에 대해 기존 sticky retention 정책을 유지한다. Scanner OFF/suspend/profile/catalog/vision fatal state에서는 즉시 hide한다.
-
-## 12. Ground Truth / correction / regression
-
-Root:
-
-```text
-%LocalAppData%/JunhyunHelper/scanner/diagnostics/
-```
-
-v1.7.7부터 정상 Scanner runtime은 automatic diagnostic Case를 durable storage에 만들지 않는다.
-
-```text
-current capture / recognition evidence
-→ latest exact frame in memory
-→ bounded runtime text log
-→ user explicitly chooses correction
-→ user explicitly saves
-→ reviewed durable Ground Truth
-```
-
-상세창 미탐지, header lock 실패, OCR/matcher 실패, ambiguity, 반복 stationary failure만으로 correction dataset이 증가하지 않는다.
-
-사용자가 저장한 reviewed Case만 Ground Truth다. Full-pipeline regression은 reviewed Case의 보존된 `full.png`를 현재 production geometry/header/OCR/catalog path로 다시 실행한다.
-
-결과:
-
-- STILL_CORRECT
-- SOLVED
-- STILL_FAILING
-- REGRESSION
-- ERROR
-
-기존 정상 reviewed Case가 실패하면 평균 성능과 무관하게 REGRESSION이다.
-
-Scanner performance support ZIP은 Ground Truth image/dataset을 포함하지 않는다. v1.7.6 문제-PC support log에서 관측된 Case 51개는 모두 `UNREVIEWED / automatic_sample`이었으며 이 legacy 자동 Case 축적이 7GB 이상 증가 문제의 원인으로 확인됐다.
-
-v1.7.7 legacy cleanup은 다음을 모두 증명할 때만 자동 Case를 삭제한다.
-
-```text
-retention = automatic_sample
-review_status = unreviewed
-recent write safety window = 5 minutes
-pre-delete metadata/state recheck = required
-```
-
-reviewed/manual/corrupt/unknown/state-changed Case는 preserve fail closed한다. 새 버전은 정상 monitoring에서 새로운 durable automatic Case를 만들지 않는다.
-
-사용자 activity feed의 동일 실패는 30초 window로 collapse한다. 지원용 `scanner.log`는 기존 bounded rotation/retention을 유지하며 Ground Truth lifetime과 분리한다.
-
-Reviewed dataset이 존재할 때에는 기존 full-pipeline replay의 `REGRESSION=0` 계약을 적용하며, reviewed evidence가 없을 때 값을 추정하지 않는다.
-
-## 13. Diagnostics / telemetry
-
-Scanner latency stages:
-
-- capture
-- rectangle-proposal
-- semantic-header
-- ocr-normal
-- ocr-deep
-- visual-recovery
-- catalog-matching
-- presentation
-- end-to-end
-
-v1.7.6 additional trace:
-
-- Scanner cycle start/end
-- serialized OCR wait
-- exact image-key CopyPixels/SHA
-- OCR enlarge/deep variant creation
-- BGRA conversion
-- OCR CopyPixels
-- SoftwareBitmap creation
-- each actual WinRT RecognizeAsync
-- current-cycle visual cache hit
-- Tarkov font source probe
-- WPF dispatcher stall/recovery
-
-fine-grained trace는 bounded in-memory storage를 사용한다.
-
-`Scanner > 고급 > Scanner 성능 진단 자료 내보내기`는 환경/성능 trace/log를 ZIP 하나로 저장한다. Ground Truth image, profile DB, game account information은 포함하지 않는다.
-
-## 14. v1.7.8 CI / release proof
-
-PR #188 final HEAD `52fbeaf6d56cf01631325ba3d65a1f018e9eb138` CI run `32886379050`:
-
-```text
-Desktop build: SUCCESS
-Tests: 380 passed / 0 failed / 0 skipped
-Windows x64 self-contained publish: SUCCESS
-Product UI / Scanner smoke: SUCCESS
-Map / Factory / MiniMap smoke: SUCCESS
-Graceful shutdown: SUCCESS
-Release package verification: SUCCESS
-Artifact upload: SUCCESS
-```
-
-Final release source:
-
-```text
-3ba9d99c43ad143dbc8329e7d29b1d01da335b06
-main CI run 32888653630: SUCCESS
-Release run 32888935292: SUCCESS
-release id: 376650517
-```
-
-Public asset:
-
-```text
-Junhyun-Helper.zip
-asset id: 529666832
-bytes: 80,469,671
-SHA-256: 3716d2d3c6d3c9ce2f87c759aac74f6b56b483a09016339c0d8bb6d3bc67e730
-```
-
-Release workflow은 성공한 exact main CI artifact의 ProductVersion, `FIRST_RUN_KO.txt`, package checksum을 검증한 뒤 v1.7.8을 공개했다. GitHub `releases/latest` readback도 v1.7.8이다.
-
-상세 공개 기록은 `docs/RELEASE_1.7.8.md` 및 `docs/.release-v1.7.8-status.json`에 둔다. 이전 v1.7.7 공개 증거는 `docs/RELEASE_1.7.7.md`에 역사 기록으로 유지한다.
-
-## 15. Release / Program Update contract
-
-배포 형태:
-
-```text
-Windows x64
-.NET 10 self-contained single-file
-installer 없음
-관리자 권한 불필요
-```
-
-stable user package:
-
-```text
-Junhyun-Helper.zip
-└─ 준현 헬퍼/
-   ├─ 준현 헬퍼.exe
-   ├─ FIRST_RUN_KO.txt
-   └─ Assets/...
-```
-
-ZIP/folder name에는 version을 넣지 않는다. Version identity는 Desktop project / ProductVersion / tag / GitHub Release metadata에 둔다.
-
-Program Update는 public stable의 exact asset/checksum/package identity를 검증한 뒤 program-owned files만 transaction 교체한다. 사용자 LocalAppData는 유지한다.
-
-## 16. Known issue / technical debt
+Exporter 변경 시 이 exclusion을 release regression으로 계속 검증한다.
 
 ### Diagnostic OCR adapter
 
-v1.7.6의 fine-grained WinRT timing을 위해 diagnostic adapter가 production `ScannerLab38OcrEngine`의 기존 engine instance를 재사용한다. 사용자 검증된 실행 behavior를 바꾸는 cleanup은 v1.7.6 직전에 강행하지 않았다.
+현재 `SerializedScannerOcrEngine`은 production `ScannerLab38OcrEngine`을 `DiagnosticScannerLab38OcrEngine`으로 감싸 fine-grained WinRT OCR timing/health telemetry를 수집한다. 이 diagnostic adapter는 기존 production engine instance를 재사용하기 위해 내부 `_engine` 접근에 reflection을 사용한다.
 
-향후 구조 정리 시 exact telemetry/health policy를 raw OCR owner로 이동하고 adapter/reflection 의존을 제거하되, Ground Truth와 문제-PC performance evidence를 유지해야 한다.
+이 구조는 v1.7.6 문제-PC에서 검증된 실행 behavior를 보존하기 위해 당시 즉시 정리하지 않은 **알려진 유지보수 기술 부채**다.
 
-## 17. 유지보수 상태
+향후 구조 정리 시에는:
 
-현재 요구사항 범위의 제품 개발은 종료됐다. 활성 기능 개발 backlog를 기본적으로 만들지 않는다.
+- exact telemetry/health policy를 raw OCR owner로 이동
+- diagnostic adapter/reflection 의존 제거
+- 사용자-reviewed Ground Truth 회귀 `REGRESSION=0` 유지
+- v1.7.6 문제-PC performance evidence와 현재 latency contract 유지
+- full Windows CI/publish/Scanner product smoke 통과
 
-향후 작업은 다음 조건에서만 시작한다.
-
-- 사용자가 새로운 제품 요구사항을 명시적으로 결정함
-- 실사용 defect/regression이 확인됨
-- Tarkov UI/데이터 변경으로 기존 기능이 깨짐
-- Windows/.NET/platform 또는 외부 데이터 소스 변화로 호환성 문제가 생김
-- 보안 또는 데이터 무결성 문제를 수정해야 함
-
-Scanner 관련 새 문제가 생기면:
-
-1. exact support bundle / Case 확보
-2. failure stage 측정
-3. affected stage만 수정
-4. reviewed Ground Truth가 있으면 full replay REGRESSION=0 확인
-5. full Windows CI/publish/smoke/package 검증
-
-추측 기반 threshold/candidate-cap 완화, 선제적 Scanner 성능 재설계, 코드 미관만을 위한 위험한 대규모 refactor는 하지 않는다.
+를 모두 만족해야 한다. 코드 미관만을 이유로 이 경계를 선제 변경하지 않는다.
