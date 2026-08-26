@@ -432,3 +432,16 @@ evidence
 ```
 
 새 실제 evidence 없이 threshold/candidate cap/OCR/matcher/visual acceptance를 선제 변경하지 않는다.
+
+## 20. Support-bundle privacy contract
+
+`Scanner > 고급 > Scanner 성능 진단 자료 내보내기`는 환경/성능 trace와 bounded diagnostic log만 지원 분석용 ZIP으로 내보낸다.
+
+다음 사용자-private 또는 계정 관련 데이터는 support bundle에 포함하지 않는다.
+
+- Scanner Ground Truth image / source pixel dataset
+- `user.db` 또는 profile database
+- Tarkov/game account information
+- 사용자 진행도나 계정 식별에 해당하는 데이터
+
+이 exclusion은 진단 기능의 제품 안전 계약이다. 향후 exporter를 변경할 때도 유지해야 하며, release regression에서 금지 파일/데이터가 support ZIP에 들어가지 않음을 검증한다.
