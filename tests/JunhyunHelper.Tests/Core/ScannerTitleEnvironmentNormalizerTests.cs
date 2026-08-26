@@ -8,12 +8,8 @@ public sealed class ScannerTitleEnvironmentNormalizerTests
     [Fact]
     public void ReferenceSdrProfileKeepsHistoricalDeepOcrTransforms()
     {
-        var image = CreateSyntheticTitle(background: 32, foreground: 210);
-        var profile = ScannerTitleEnvironmentNormalizer.AnalyzeBgra(
-            image.Pixels,
-            image.Width,
-            image.Height,
-            image.Stride);
+        var image = CreateSyntheticTitle(80, 20, background: 32, foreground: 210);
+        var profile = Analyze(image);
 
         Assert.False(profile.UseAdaptiveNormalization);
         Assert.True(profile.HasUsableContrast);
@@ -33,12 +29,8 @@ public sealed class ScannerTitleEnvironmentNormalizerTests
         byte background,
         byte foreground)
     {
-        var image = CreateSyntheticTitle(background, foreground);
-        var profile = ScannerTitleEnvironmentNormalizer.AnalyzeBgra(
-            image.Pixels,
-            image.Width,
-            image.Height,
-            image.Stride);
+        var image = CreateSyntheticTitle(80, 20, background, foreground);
+        var profile = Analyze(image);
 
         Assert.True(profile.UseAdaptiveNormalization);
         Assert.True(profile.HasUsableContrast);
@@ -60,21 +52,31 @@ public sealed class ScannerTitleEnvironmentNormalizerTests
         Assert.True(normalizedForeground - normalizedBackground >= 200);
     }
 
+    [Theory]
+    [InlineData(80, 20)]   // 1080p-class title raster
+    [InlineData(107, 27)]  // 1440p-class proportional raster
+    [InlineData(160, 40)]  // 4K-class proportional raster
+    public void CommonResolutionScaleClassesProduceEquivalentAdaptiveProfile(int width, int height)
+    {
+        var image = CreateSyntheticTitle(width, height, background: 110, foreground: 180);
+        var profile = Analyze(image);
+
+        Assert.True(profile.UseAdaptiveNormalization);
+        Assert.True(profile.HasUsableContrast);
+        Assert.InRange(profile.BackgroundLuminance, 108, 112);
+        Assert.InRange(profile.ForegroundLuminance, 178, 182);
+        Assert.InRange(profile.AdaptiveThreshold, 132, 142);
+        Assert.Equal(0, ScannerTitleEnvironmentNormalizer.TransformGray(110, 2, profile));
+        Assert.Equal(255, ScannerTitleEnvironmentNormalizer.TransformGray(180, 2, profile));
+    }
+
     [Fact]
     public void WashedEnvironmentBinaryMaskMatchesReferenceStructure()
     {
-        var reference = CreateSyntheticTitle(background: 30, foreground: 215);
-        var washed = CreateSyntheticTitle(background: 112, foreground: 178);
-        var referenceProfile = ScannerTitleEnvironmentNormalizer.AnalyzeBgra(
-            reference.Pixels,
-            reference.Width,
-            reference.Height,
-            reference.Stride);
-        var washedProfile = ScannerTitleEnvironmentNormalizer.AnalyzeBgra(
-            washed.Pixels,
-            washed.Width,
-            washed.Height,
-            washed.Stride);
+        var reference = CreateSyntheticTitle(80, 20, background: 30, foreground: 215);
+        var washed = CreateSyntheticTitle(80, 20, background: 112, foreground: 178);
+        var referenceProfile = Analyze(reference);
+        var washedProfile = Analyze(washed);
 
         Assert.False(referenceProfile.UseAdaptiveNormalization);
         Assert.True(washedProfile.UseAdaptiveNormalization);
@@ -101,22 +103,27 @@ public sealed class ScannerTitleEnvironmentNormalizerTests
     [Fact]
     public void VeryFlatImageDoesNotInventAdaptiveContrast()
     {
-        var image = CreateSyntheticTitle(background: 118, foreground: 128);
-        var profile = ScannerTitleEnvironmentNormalizer.AnalyzeBgra(
-            image.Pixels,
-            image.Width,
-            image.Height,
-            image.Stride);
+        var image = CreateSyntheticTitle(80, 20, background: 118, foreground: 128);
+        var profile = Analyze(image);
 
         Assert.False(profile.HasUsableContrast);
         Assert.False(profile.UseAdaptiveNormalization);
         Assert.Equal(105, profile.AdaptiveThreshold);
     }
 
-    private static SyntheticImage CreateSyntheticTitle(byte background, byte foreground)
+    private static ScannerTitleLuminanceProfile Analyze(SyntheticImage image) =>
+        ScannerTitleEnvironmentNormalizer.AnalyzeBgra(
+            image.Pixels,
+            image.Width,
+            image.Height,
+            image.Stride);
+
+    private static SyntheticImage CreateSyntheticTitle(
+        int width,
+        int height,
+        byte background,
+        byte foreground)
     {
-        const int width = 80;
-        const int height = 20;
         var stride = width * 4;
         var pixels = new byte[stride * height];
 
@@ -124,7 +131,7 @@ public sealed class ScannerTitleEnvironmentNormalizerTests
         {
             for (var x = 0; x < width; x++)
             {
-                var glyph = IsGlyphPixel(x, y);
+                var glyph = IsGlyphPixel(x, y, width, height);
                 var value = glyph ? foreground : background;
                 var offset = y * stride + x * 4;
                 pixels[offset] = value;
@@ -137,20 +144,21 @@ public sealed class ScannerTitleEnvironmentNormalizerTests
         return new SyntheticImage(width, height, stride, pixels);
     }
 
-    private static bool IsGlyphPixel(int x, int y)
+    private static bool IsGlyphPixel(int x, int y, int width, int height)
     {
-        if (y < 4 || y > 15)
+        // Normalize coordinates to the 80x20 procedural reference so the same title
+        // structure can be deterministically replayed across common resolution classes.
+        var referenceX = Math.Clamp((int)Math.Floor(x * 80.0 / width), 0, 79);
+        var referenceY = Math.Clamp((int)Math.Floor(y * 20.0 / height), 0, 19);
+        if (referenceY < 4 || referenceY > 15)
             return false;
 
-        // Procedural title-like strokes. They intentionally occupy less than half the
-        // field so percentile analysis must distinguish sparse bright glyphs from the
-        // long trailing dark title background.
-        return (x >= 6 && x <= 9) ||
-               (x >= 13 && x <= 16 && (y <= 6 || y >= 13)) ||
-               (x >= 20 && x <= 23) ||
-               (x >= 27 && x <= 35 && (y == 4 || y == 9 || y == 15)) ||
-               (x >= 40 && x <= 43) ||
-               (x >= 47 && x <= 55 && (y == 4 || y == 15));
+        return (referenceX >= 6 && referenceX <= 9) ||
+               (referenceX >= 13 && referenceX <= 16 && (referenceY <= 6 || referenceY >= 13)) ||
+               (referenceX >= 20 && referenceX <= 23) ||
+               (referenceX >= 27 && referenceX <= 35 && (referenceY == 4 || referenceY == 9 || referenceY == 15)) ||
+               (referenceX >= 40 && referenceX <= 43) ||
+               (referenceX >= 47 && referenceX <= 55 && (referenceY == 4 || referenceY == 15));
     }
 
     private static int ReadGray(SyntheticImage image, int x, int y)
