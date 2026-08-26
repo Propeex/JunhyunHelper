@@ -8,9 +8,9 @@ using System.Windows.Media.Imaging;
 namespace JunhyunHelper.Desktop.Scanner;
 
 /// <summary>
-/// Determines whether the foreground Tarkov client is showing the character inventory
-/// surface used both in raid and in the out-of-raid stash. It uses only display pixels
-/// and the existing Korean OCR engine; no process memory, injection or packet access.
+/// Legacy OCR helper for recognizing the Tarkov character inventory header plus the
+/// foreground-window guard shared by Mini Scanner presentation. It uses only display
+/// pixels/window state; no process memory, injection or packet access.
 /// </summary>
 internal sealed class ScannerInventoryContextDetector
 {
@@ -34,6 +34,21 @@ internal sealed class ScannerInventoryContextDetector
     public ScannerInventoryContextDetector(IScannerOcrEngine ocr)
     {
         _ocr = ocr ?? throw new ArgumentNullException(nameof(ocr));
+    }
+
+    /// <summary>
+    /// Checks only whether the real Tarkov client owns the foreground. Mini Scanner uses
+    /// this as its initial presentation safety guard after the Scanner has already
+    /// authoritatively identified an Item. Auxiliary inventory-header OCR must not veto
+    /// that confirmed Item presentation.
+    /// </summary>
+    internal static bool IsForegroundTarkovClient()
+    {
+        var tarkovWindow = FindTarkovWindow();
+        return tarkovWindow != IntPtr.Zero &&
+               GetForegroundWindow() == tarkovWindow &&
+               !IsIconic(tarkovWindow) &&
+               IsWindowVisible(tarkovWindow);
     }
 
     public async Task<bool> IsInventoryOrStashAsync(CancellationToken cancellationToken)

@@ -13,16 +13,11 @@ public sealed class MiniScannerOverlayService : IDisposable
 {
     private readonly ScannerSettingsService _settings;
     private readonly Dispatcher _dispatcher;
-    private readonly ScannerInventoryContextDetector _inventoryContext;
     private readonly ScannerPresentationRetention _presentationRetention = new();
     private readonly object _requestGate = new();
     private MiniScannerWindow? _window;
     private ScannerItemSnapshot? _snapshot;
-    private ScannerItemSnapshot? _pendingVisibilitySnapshot;
-    private CancellationTokenSource? _visibilityProbeCts;
     private string? _requestedItemId;
-    private int _pendingVisibilityEpoch;
-    private bool _visibilityProbeRunning;
     private bool _editMode;
     private bool _disposed;
     private int _visibilityEpoch;
@@ -32,18 +27,19 @@ public sealed class MiniScannerOverlayService : IDisposable
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         ArgumentNullException.ThrowIfNull(ocr);
         _dispatcher = System.Windows.Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
-        _inventoryContext = new ScannerInventoryContextDetector(ocr);
         _settings.SettingsChanged += OnSettingsChanged;
     }
 
     public bool IsEditing => Invoke(() => _editMode);
+
+    internal static bool CanOpenConfirmedItem(bool preview, bool scannerEnabled, bool foregroundTarkov) =>
+        preview || !scannerEnabled || foregroundTarkov;
 
     public void Show(ScannerItemSnapshot snapshot, bool preview = false)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(snapshot);
 
-        CancellationTokenSource? staleProbe = null;
         int epoch;
         lock (_requestGate)
         {
@@ -52,150 +48,47 @@ public sealed class MiniScannerOverlayService : IDisposable
             {
                 _requestedItemId = snapshot.ItemId;
                 epoch = Interlocked.Increment(ref _visibilityEpoch);
-                staleProbe = _visibilityProbeCts;
             }
             else
             {
                 epoch = Volatile.Read(ref _visibilityEpoch);
             }
-
-            _pendingVisibilitySnapshot = snapshot;
-            _pendingVisibilityEpoch = epoch;
         }
-        TryCancel(staleProbe);
 
         // Display-test and explicit preview remain deterministic development/test tools.
-        // A real Scanner has Enabled=true and is visually gated to the foreground Tarkov
-        // inventory/stash before the overlay is allowed to appear for the first time.
         if (preview || !_settings.Current.Enabled)
         {
-            CancelVisibilityProbe(clearPending: false);
             ShowVerified(snapshot, epoch);
             return;
         }
 
-        // Once a Scanner result has passed the initial Tarkov inventory/stash gate, a
-        // later authoritative item match is stronger evidence than the auxiliary header
-        // OCR. Update the held result immediately instead of repeatedly re-gating a
-        // visible overlay and allowing a single context-OCR miss to make it blink.
+        // Once an Item has already been presented, an authoritative later Scanner match
+        // updates it directly. Recognition owns liveness; Mini Scanner must not run an
+        // independent OCR gate for every presentation refresh.
         var hasVisibleSnapshot = Invoke(() => _snapshot is not null && _window?.IsVisible == true);
         if (hasVisibleSnapshot)
         {
-            CancelVisibilityProbe(clearPending: false);
             ShowVerified(snapshot, epoch);
             return;
         }
 
-        RequestInventoryProbe();
-    }
-
-    /// <summary>
-    /// At most one inventory/stash OCR probe is active for this overlay. The probe is an
-    /// initial visibility gate only; once a confirmed Scanner item is visible, subsequent
-    /// confirmed items update the overlay directly and do not enqueue more context OCR.
-    /// </summary>
-    private void RequestInventoryProbe()
-    {
-        CancellationTokenSource? cancellation = null;
-        lock (_requestGate)
+        // A hidden Mini Scanner still opens only while the real Tarkov client owns the
+        // foreground. The Scanner has already verified the detail window and Item ID at
+        // this point, so auxiliary top-band inventory OCR is weaker evidence and must not
+        // veto a confirmed result. This fixes successful Scanner recognition being logged
+        // while the Mini Scanner remained hidden because that second OCR missed raid UI.
+        var foregroundTarkov = ScannerInventoryContextDetector.IsForegroundTarkovClient();
+        if (!CanOpenConfirmedItem(preview, _settings.Current.Enabled, foregroundTarkov))
         {
-            if (_disposed || _pendingVisibilitySnapshot is null || _visibilityProbeRunning)
-                return;
-
-            _visibilityProbeRunning = true;
-            cancellation = new CancellationTokenSource();
-            _visibilityProbeCts = cancellation;
+            ScannerDiagnosticLog.Write(
+                "mini-scanner-show-blocked",
+                ScannerCaptureMode.TarkovWindow,
+                ("reason", "TARKOV_NOT_FOREGROUND"),
+                ("itemId", snapshot.ItemId));
+            return;
         }
 
-        _ = RunInventoryProbeAsync(cancellation);
-    }
-
-    private async Task RunInventoryProbeAsync(CancellationTokenSource cancellation)
-    {
-        var token = cancellation.Token;
-        ScannerItemSnapshot? requested;
-        int epoch;
-        lock (_requestGate)
-        {
-            requested = _pendingVisibilitySnapshot;
-            epoch = _pendingVisibilityEpoch;
-        }
-
-        try
-        {
-            if (requested is null)
-                return;
-
-            var allowed = await _inventoryContext.IsInventoryOrStashAsync(token);
-            token.ThrowIfCancellationRequested();
-
-            ScannerItemSnapshot? latest;
-            lock (_requestGate)
-            {
-                latest = !_disposed &&
-                         epoch == Volatile.Read(ref _visibilityEpoch) &&
-                         _pendingVisibilityEpoch == epoch
-                    ? _pendingVisibilitySnapshot
-                    : null;
-            }
-
-            if (latest is null)
-                return;
-
-            if (!allowed)
-            {
-                // Context OCR is intentionally fail-closed for opening a hidden overlay,
-                // but it must never tear down an already visible, authoritative Scanner
-                // match. Continuous recognition owns liveness after the initial gate.
-                Invoke(() =>
-                {
-                    if (_disposed || epoch != Volatile.Read(ref _visibilityEpoch))
-                        return;
-                    if (_window?.IsVisible != true)
-                        _snapshot = null;
-                });
-                return;
-            }
-
-            ShowVerified(latest, epoch);
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (Exception exception)
-        {
-            App.WriteDiagnostic("Mini Scanner inventory context detection failed", exception);
-            if (!_disposed && epoch == Volatile.Read(ref _visibilityEpoch))
-            {
-                // An auxiliary context-probe failure can prevent an initial show, but it
-                // cannot invalidate an item that is already being presented successfully.
-                Invoke(() =>
-                {
-                    if (_window?.IsVisible != true)
-                        _snapshot = null;
-                });
-            }
-        }
-        finally
-        {
-            var restart = false;
-            lock (_requestGate)
-            {
-                if (ReferenceEquals(_visibilityProbeCts, cancellation))
-                    _visibilityProbeCts = null;
-                _visibilityProbeRunning = false;
-
-                // A new item may have arrived while the old probe was being cancelled.
-                // Start exactly one replacement probe for that latest epoch.
-                restart = !_disposed &&
-                          _pendingVisibilitySnapshot is not null &&
-                          _pendingVisibilityEpoch == Volatile.Read(ref _visibilityEpoch) &&
-                          _pendingVisibilityEpoch != epoch;
-            }
-            cancellation.Dispose();
-            if (restart)
-                RequestInventoryProbe();
-        }
+        ShowVerified(snapshot, epoch);
     }
 
     private void ShowVerified(ScannerItemSnapshot snapshot, int epoch)
@@ -284,8 +177,6 @@ public sealed class MiniScannerOverlayService : IDisposable
             {
                 _presentationRetention.Confirm(preview.ItemId);
                 _requestedItemId = preview.ItemId;
-                _pendingVisibilitySnapshot = preview;
-                _pendingVisibilityEpoch = Volatile.Read(ref _visibilityEpoch);
             }
             EnsureWindow().Render(preview, _settings.Current, editMode: true);
         });
@@ -335,40 +226,11 @@ public sealed class MiniScannerOverlayService : IDisposable
 
     private void ClearRequestedItem()
     {
-        CancellationTokenSource? cancellation;
         lock (_requestGate)
         {
             _presentationRetention.Reset();
             _requestedItemId = null;
-            _pendingVisibilitySnapshot = null;
-            _pendingVisibilityEpoch = Interlocked.Increment(ref _visibilityEpoch);
-            cancellation = _visibilityProbeCts;
-        }
-        TryCancel(cancellation);
-    }
-
-    private void CancelVisibilityProbe(bool clearPending)
-    {
-        CancellationTokenSource? cancellation;
-        lock (_requestGate)
-        {
-            if (clearPending)
-                _pendingVisibilitySnapshot = null;
-            cancellation = _visibilityProbeCts;
-        }
-        TryCancel(cancellation);
-    }
-
-    private static void TryCancel(CancellationTokenSource? cancellation)
-    {
-        if (cancellation is null)
-            return;
-        try
-        {
-            cancellation.Cancel();
-        }
-        catch (ObjectDisposedException)
-        {
+            Interlocked.Increment(ref _visibilityEpoch);
         }
     }
 
