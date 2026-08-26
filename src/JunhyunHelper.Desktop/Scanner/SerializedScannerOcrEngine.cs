@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using JunhyunHelper.Core.Scanner;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
@@ -10,6 +12,11 @@ namespace JunhyunHelper.Desktop.Scanner;
 /// pipeline or create a second OCR runtime solely for overlay visibility decisions.
 /// Exact title bitmaps are also reused only inside the current Scanner latency cycle;
 /// no OCR result is cached across frames or one-shot invocations.
+///
+/// Public-distribution hardening: the proven OCR result is always attempted first. If
+/// the input luminance profile looks lifted/washed or unusually low-contrast, an
+/// adaptive grayscale-normalized retry is added without lowering semantic/catalog
+/// acceptance thresholds. Healthy reference SDR inputs keep the historical path only.
 /// </summary>
 internal sealed class SerializedScannerOcrEngine : IScannerDeepOcrEngine
 {
@@ -109,6 +116,29 @@ internal sealed class SerializedScannerOcrEngine : IScannerDeepOcrEngine
             var result = (deep && _inner is IScannerDeepOcrEngine deepEngine
                 ? await deepEngine.ReadDeepTextAsync(titleImage, cancellationToken)
                 : await _inner.ReadTextAsync(titleImage, cancellationToken)) ?? string.Empty;
+
+            if (TryCreateEnvironmentNormalizedImage(titleImage, out var normalizedImage, out var luminanceProfile) &&
+                (deep || string.IsNullOrWhiteSpace(result)))
+            {
+                var adaptiveStarted = Stopwatch.GetTimestamp();
+                var adaptiveText = await _inner.ReadTextAsync(normalizedImage, cancellationToken) ?? string.Empty;
+                result = deep
+                    ? MergeOcrEvidence(result, adaptiveText)
+                    : string.IsNullOrWhiteSpace(result)
+                        ? adaptiveText
+                        : result;
+
+                ScannerPerformanceTrace.Mark(
+                    "ocr-environment-normalization",
+                    ("pass", pass),
+                    ("elapsedMs", ScannerPerformanceTrace.ElapsedMilliseconds(adaptiveStarted).ToString("F2", System.Globalization.CultureInfo.InvariantCulture)),
+                    ("background", luminanceProfile.BackgroundLuminance),
+                    ("foreground", luminanceProfile.ForegroundLuminance),
+                    ("contrast", luminanceProfile.ContrastSpan),
+                    ("adaptiveThreshold", luminanceProfile.AdaptiveThreshold),
+                    ("adaptiveHasText", !string.IsNullOrWhiteSpace(adaptiveText)));
+            }
+
             ScannerPerformanceTrace.Mark(
                 "ocr-operation-end",
                 ("pass", pass),
@@ -132,6 +162,80 @@ internal sealed class SerializedScannerOcrEngine : IScannerDeepOcrEngine
         {
             _gate.Release();
         }
+    }
+
+    private static bool TryCreateEnvironmentNormalizedImage(
+        BitmapSource source,
+        out BitmapSource normalized,
+        out ScannerTitleLuminanceProfile profile)
+    {
+        BitmapSource bgra = source.Format == PixelFormats.Bgra32
+            ? source
+            : new FormatConvertedBitmap(source, PixelFormats.Bgra32, null, 0);
+        if (!bgra.IsFrozen && bgra is Freezable freezable && freezable.CanFreeze)
+            freezable.Freeze();
+
+        if (bgra.PixelWidth <= 0 || bgra.PixelHeight <= 0)
+        {
+            profile = default;
+            normalized = null!;
+            return false;
+        }
+
+        var stride = checked(bgra.PixelWidth * 4);
+        var pixels = new byte[checked(stride * bgra.PixelHeight)];
+        bgra.CopyPixels(pixels, stride, 0);
+        profile = ScannerTitleEnvironmentNormalizer.AnalyzeBgra(
+            pixels,
+            bgra.PixelWidth,
+            bgra.PixelHeight,
+            stride);
+        if (!profile.UseAdaptiveNormalization)
+        {
+            normalized = null!;
+            return false;
+        }
+
+        for (var offset = 0; offset < pixels.Length; offset += 4)
+        {
+            var gray = ScannerTitleEnvironmentNormalizer.ToGray(
+                pixels[offset + 2],
+                pixels[offset + 1],
+                pixels[offset]);
+            var output = (byte)ScannerTitleEnvironmentNormalizer.TransformGray(gray, 1, profile);
+            pixels[offset] = output;
+            pixels[offset + 1] = output;
+            pixels[offset + 2] = output;
+            pixels[offset + 3] = 255;
+        }
+
+        normalized = BitmapSource.Create(
+            bgra.PixelWidth,
+            bgra.PixelHeight,
+            96,
+            96,
+            PixelFormats.Bgra32,
+            null,
+            pixels,
+            stride);
+        normalized.Freeze();
+        return true;
+    }
+
+    private static string MergeOcrEvidence(string primary, string adaptive)
+    {
+        if (string.IsNullOrWhiteSpace(primary))
+            return adaptive?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(adaptive))
+            return primary.Trim();
+
+        var candidates = primary
+            .Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Concat(adaptive.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            .Where(candidate => !string.IsNullOrWhiteSpace(candidate))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        return string.Join(" | ", candidates);
     }
 
     private void ResetCycleCacheIfNeeded(long cycleId)
