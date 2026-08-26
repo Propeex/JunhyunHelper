@@ -1,10 +1,17 @@
-준현 헬퍼 v1.7.8 — Windows x64
+준현 헬퍼 v1.7.9 — Windows x64
 
 실행 방법
 1. 받은 'Junhyun-Helper.zip'을 원하는 위치에 압축 해제합니다.
 2. 압축을 풀면 생성되는 '준현 헬퍼' 폴더 안의 '준현 헬퍼.exe'를 실행합니다.
 3. 처음 실행하면 프로필을 만들고 필요한 최신 게임 데이터를 온라인에서 내려받습니다.
 4. 프로그램 실행 시 GitHub의 최신 정식 준현 헬퍼 릴리즈를 확인합니다. 더 최신 버전이 있으면 업데이트 여부를 묻습니다.
+
+v1.7.9 유지보수
+- Scanner 로그에는 아이템 인식 성공이 기록되는데 Mini Scanner가 열리지 않던 표시 회귀를 수정했습니다.
+- Item ID가 이미 확정된 뒤 Mini Scanner만 별도로 수행하던 상단 인벤토리 OCR을 표시 허가 조건에서 제거했습니다.
+- 실제 Scanner에서는 Tarkov 클라이언트가 foreground인지 여부만 초기 표시 안전 조건으로 유지합니다.
+- 이미 표시 중인 Mini Scanner는 기존처럼 확정된 Scanner Item 결과로 즉시 갱신되고, 연속 실제 miss 3회 전까지 마지막 정상 결과를 유지합니다.
+- Scanner 인식 임계값, candidate 수, OCR/matcher/visual acceptance는 변경하지 않았습니다.
 
 v1.7.8 유지보수
 - 레이드 인벤토리 화면에서 주변 수평선이 상세보기 header와 이어져 보일 때 빨간 X/돋보기 위치를 잘못 소유하던 Scanner header lock을 수정했습니다.
