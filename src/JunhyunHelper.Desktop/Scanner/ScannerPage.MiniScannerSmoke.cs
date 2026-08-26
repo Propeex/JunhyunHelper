@@ -211,7 +211,7 @@ public partial class ScannerPage
                 ScannerDisplaySettings.FleaAveragePriceField,
                 ScannerDisplaySettings.TraderSellPriceField,
                 ScannerDisplaySettings.TraderPricePerSlotField,
-                ScannerDisplaySettings.FleaSlotPriceField,
+                ScannerDisplaySettings.FleaPricePerSlotField,
             ];
             window.Render(snapshot, settings, editMode: false);
             if (window.FindName("CurrentNeededText") is not TextBlock needed ||
