@@ -375,3 +375,34 @@ evidence
 - `docs/DECISION_SCANNER_CROSS_ENVIRONMENT_2026-08-26.md`
 - `docs/RELEASE_1.7.10.md`
 - `docs/.release-v1.7.10-status.json`
+
+## 17. 유지보수 안전 계약 및 알려진 기술 부채
+
+### Scanner support-bundle privacy
+
+`Scanner > 고급 > Scanner 성능 진단 자료 내보내기`의 support ZIP은 환경/성능 trace와 bounded diagnostic log만 포함한다.
+
+다음은 포함하지 않는다.
+
+- Scanner Ground Truth image / source pixel dataset
+- `user.db` 또는 profile database
+- Tarkov/game account information
+- 사용자 진행도나 계정 식별에 해당하는 데이터
+
+Exporter 변경 시 이 exclusion을 release regression으로 계속 검증한다.
+
+### Diagnostic OCR adapter
+
+현재 `SerializedScannerOcrEngine`은 production `ScannerLab38OcrEngine`을 `DiagnosticScannerLab38OcrEngine`으로 감싸 fine-grained WinRT OCR timing/health telemetry를 수집한다. 이 diagnostic adapter는 기존 production engine instance를 재사용하기 위해 내부 `_engine` 접근에 reflection을 사용한다.
+
+이 구조는 v1.7.6 문제-PC에서 검증된 실행 behavior를 보존하기 위해 당시 즉시 정리하지 않은 **알려진 유지보수 기술 부채**다.
+
+향후 구조 정리 시에는:
+
+- exact telemetry/health policy를 raw OCR owner로 이동
+- diagnostic adapter/reflection 의존 제거
+- 사용자-reviewed Ground Truth 회귀 `REGRESSION=0` 유지
+- v1.7.6 문제-PC performance evidence와 현재 latency contract 유지
+- full Windows CI/publish/Scanner product smoke 통과
+
+를 모두 만족해야 한다. 코드 미관만을 이유로 이 경계를 선제 변경하지 않는다.
