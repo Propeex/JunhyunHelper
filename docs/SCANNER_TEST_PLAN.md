@@ -63,33 +63,34 @@ v1.7.10 release gate는 build/test/publish/rendered Product UI/Scanner/Map/Facto
 34. v1.7.10 low-contrast gamma/rendering normalization
 35. v1.7.10 1080p/1440p/4K proportional title raster matrix
 36. v1.7.10 flat/no-contrast negative case
+37. Scanner support bundle excludes Ground Truth/source pixels, `user.db`/profile DB, game-account information and user-progress/account-identifying data
 
 ### Publish / product smoke
 
-37. Windows x64 self-contained single-file publish
-38. exact ProductVersion / FIRST_RUN identity
-39. publish-root / PDB / nested-archive / forbidden dependency audit
-40. actual published EXE startup
-41. Scanner normal surface smoke
-42. Mini Scanner rendered/Topmost/confirmed-item policy smoke
-43. Main Map / Factory / MiniMap smoke
-44. graceful close / process termination
-45. clean portable root
-46. release package creation
-47. stable `Junhyun-Helper.zip` exists
-48. every ZIP entry under `준현 헬퍼/`
-49. required EXE / FIRST_RUN / Tarkov data asset present
-50. release ZIP SHA-256 recorded
+38. Windows x64 self-contained single-file publish
+39. exact ProductVersion / FIRST_RUN identity
+40. publish-root / PDB / nested-archive / forbidden dependency audit
+41. actual published EXE startup
+42. Scanner normal surface smoke
+43. Mini Scanner rendered/Topmost/confirmed-item policy smoke
+44. Main Map / Factory / MiniMap smoke
+45. graceful close / process termination
+46. clean portable root
+47. release package creation
+48. stable `Junhyun-Helper.zip` exists
+49. every ZIP entry under `준현 헬퍼/`
+50. required EXE / FIRST_RUN / Tarkov data asset present
+51. release ZIP SHA-256 recorded
 
 ### Public release verification
 
-51. exact tag target points to chosen product release source
-52. stable/latest metadata points to exact source
-53. public asset name exactly `Junhyun-Helper.zip`
-54. checksum asset present/verified
-55. public hash/size readback
-56. ProductVersion/FIRST_RUN correspond to target version
-57. durable release record/status written after public readback
+52. exact tag target points to chosen product release source
+53. stable/latest metadata points to exact source
+54. public asset name exactly `Junhyun-Helper.zip`
+55. checksum asset present/verified
+56. public hash/size readback
+57. ProductVersion/FIRST_RUN correspond to target version
+58. durable release record/status written after public readback
 
 ## 3. Immutable threshold / candidate budget
 
@@ -283,7 +284,20 @@ Legacy auto cleanup negative cases must preserve:
 - state changed between scan and delete
 - recent write inside safety window
 
-## 10. Performance gate
+## 10. Support-bundle privacy regression
+
+`Scanner 성능 진단 자료 내보내기`가 만드는 support ZIP은 환경/성능 trace와 bounded diagnostic log만 포함한다.
+
+Release regression은 최소한 다음이 ZIP에 포함되지 않음을 검증한다.
+
+- Scanner Ground Truth image / source pixel dataset
+- `user.db` 또는 profile database
+- Tarkov/game account information
+- 사용자 진행도나 계정 식별에 해당하는 데이터
+
+Exporter 구현 변경 시 이 privacy exclusion을 유지하지 못하면 release blocker다.
+
+## 11. Performance gate
 
 v1.7.6 problem-PC baseline remains the reference.
 
@@ -303,7 +317,7 @@ v1.7.10 performance requirement:
 - same-cycle exact-pixel evidence reuse remains cycle-local
 - no cross-frame Item identity cache
 
-## 11. Maintenance incident procedure
+## 12. Maintenance incident procedure
 
 ```text
 capture runtime evidence
