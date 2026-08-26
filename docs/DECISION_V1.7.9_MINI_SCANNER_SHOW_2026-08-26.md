@@ -1,6 +1,6 @@
 # DECISION — v1.7.9 Mini Scanner confirmed-item presentation
 
-상태: `IMPLEMENTING`
+상태: `RELEASED / VERIFIED`
 
 기준일: 2026-08-26
 
@@ -16,7 +16,7 @@ v1.7.8 실사용에서 Scanner 사용자 로그에는 아이템 인식 성공이
 - 그러나 hidden Mini Scanner의 initial show에서 별도의 inventory/stash top-band OCR gate가 다시 실행된다.
 - 이 auxiliary OCR이 `장비`, `건강상태`, `스킬`, `지도`, `종합정보` 계열 중 2개 이상을 인식하지 못하면 이미 확정된 Item도 표시하지 않는다.
 
-따라서 사용자에게는 "인식 성공인데 Mini Scanner가 안 뜸"으로 보인다.
+따라서 사용자에게는 "인식 성공인데 Mini Scanner가 안 뜸"으로 보였다.
 
 ## 2. Root cause
 
@@ -105,9 +105,7 @@ one-shot candidate cap = 12
 
 ## 7. 회귀 검증
 
-Product smoke에 Mini Scanner confirmed-item initial visibility policy를 추가한다.
-
-반드시 만족해야 한다.
+Product smoke에 Mini Scanner confirmed-item initial visibility policy를 추가했다.
 
 - explicit preview는 foreground 여부와 무관하게 허용
 - display-test는 real Scanner enabled가 아니므로 허용
@@ -123,16 +121,38 @@ Product smoke에 Mini Scanner confirmed-item initial visibility policy를 추가
 - Item icon/name 표시
 - 가격/필요 개수 정보 순서 유지
 
-## 8. 릴리즈
+## 8. 릴리즈 검증
 
-릴리즈 후보: `v1.7.9`
+PR #190 final HEAD:
 
-릴리즈 조건:
+```text
+971c27a40566d01651cf14af0f519ceb68c3515a
+PR CI 32971624200: SUCCESS
+```
 
-1. final PR HEAD Desktop Release build 성공
-2. 전체 automated tests 성공
-3. Windows x64 publish 성공
-4. Product UI / Scanner / Map / MiniMap smoke 성공
-5. package verification 성공
-6. main merge 후 main CI 성공
-7. stable GitHub release 생성 및 `/releases/latest` readback 성공
+검증:
+
+- Desktop Release build SUCCESS
+- 380 passed / 0 failed / 0 skipped
+- Windows x64 self-contained publish SUCCESS
+- Product UI / Scanner / Map / Factory / MiniMap smoke SUCCESS
+- Mini Scanner initial visibility policy smoke SUCCESS
+- graceful shutdown SUCCESS
+- package verification SUCCESS
+- artifact upload SUCCESS
+
+Public release:
+
+```text
+version: v1.7.9
+exact release source/tag target: bbb04e02385026eba6c77ba0a9d66bad9868cc92
+main CI: 32971976531 — SUCCESS
+release workflow: 32972267012 — SUCCESS
+release id: 377149426
+asset: Junhyun-Helper.zip
+asset id: 530823055
+bytes: 80,468,715
+SHA-256: bd9285f7d8f819a1cf7f161f72baaae1c32a68f5db2e6f9a305053bbf3852946
+```
+
+`/releases/latest` readback에서 v1.7.9, draft=false, prerelease=false, exact tag target과 ZIP digest를 확인했다.
