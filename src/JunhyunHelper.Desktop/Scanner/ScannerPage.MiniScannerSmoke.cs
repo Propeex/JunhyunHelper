@@ -119,6 +119,27 @@ public partial class ScannerPage
                 "Mini Scanner defaults must show fixed identity header and trader information.");
         }
 
+        if (!MiniScannerOverlayService.CanOpenConfirmedItem(
+                preview: true,
+                scannerEnabled: true,
+                foregroundTarkov: false) ||
+            !MiniScannerOverlayService.CanOpenConfirmedItem(
+                preview: false,
+                scannerEnabled: false,
+                foregroundTarkov: false) ||
+            !MiniScannerOverlayService.CanOpenConfirmedItem(
+                preview: false,
+                scannerEnabled: true,
+                foregroundTarkov: true) ||
+            MiniScannerOverlayService.CanOpenConfirmedItem(
+                preview: false,
+                scannerEnabled: true,
+                foregroundTarkov: false))
+        {
+            throw new InvalidOperationException(
+                "Mini Scanner confirmed-item initial visibility guard contract failed.");
+        }
+
         var window = new MiniScannerWindow();
         try
         {
@@ -190,7 +211,7 @@ public partial class ScannerPage
                 ScannerDisplaySettings.FleaAveragePriceField,
                 ScannerDisplaySettings.TraderSellPriceField,
                 ScannerDisplaySettings.TraderPricePerSlotField,
-                ScannerDisplaySettings.FleaPricePerSlotField,
+                ScannerDisplaySettings.FleaSlotPriceField,
             ];
             window.Render(snapshot, settings, editMode: false);
             if (window.FindName("CurrentNeededText") is not TextBlock needed ||
