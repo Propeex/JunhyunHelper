@@ -117,16 +117,17 @@ internal sealed class SerializedScannerOcrEngine : IScannerDeepOcrEngine
                 ? await deepEngine.ReadDeepTextAsync(titleImage, cancellationToken)
                 : await _inner.ReadTextAsync(titleImage, cancellationToken)) ?? string.Empty;
 
-            if (TryCreateEnvironmentNormalizedImage(titleImage, out var normalizedImage, out var luminanceProfile) &&
-                (deep || string.IsNullOrWhiteSpace(result)))
+            // Normal OCR success is the most common production path. Preserve it with
+            // no luminance histogram/copy allocation at all. Adaptive work is only
+            // considered after a normal miss or during the already-bounded deep pass.
+            if ((deep || string.IsNullOrWhiteSpace(result)) &&
+                TryCreateEnvironmentNormalizedImage(titleImage, out var normalizedImage, out var luminanceProfile))
             {
                 var adaptiveStarted = Stopwatch.GetTimestamp();
                 var adaptiveText = await _inner.ReadTextAsync(normalizedImage, cancellationToken) ?? string.Empty;
                 result = deep
                     ? MergeOcrEvidence(result, adaptiveText)
-                    : string.IsNullOrWhiteSpace(result)
-                        ? adaptiveText
-                        : result;
+                    : adaptiveText;
 
                 ScannerPerformanceTrace.Mark(
                     "ocr-environment-normalization",
