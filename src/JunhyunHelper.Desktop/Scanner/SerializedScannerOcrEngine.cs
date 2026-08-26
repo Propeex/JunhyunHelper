@@ -172,8 +172,8 @@ internal sealed class SerializedScannerOcrEngine : IScannerDeepOcrEngine
         BitmapSource bgra = source.Format == PixelFormats.Bgra32
             ? source
             : new FormatConvertedBitmap(source, PixelFormats.Bgra32, null, 0);
-        if (!bgra.IsFrozen && bgra is Freezable freezable && freezable.CanFreeze)
-            freezable.Freeze();
+        if (!bgra.IsFrozen && bgra.CanFreeze)
+            bgra.Freeze();
 
         if (bgra.PixelWidth <= 0 || bgra.PixelHeight <= 0)
         {
@@ -225,7 +225,7 @@ internal sealed class SerializedScannerOcrEngine : IScannerDeepOcrEngine
     private static string MergeOcrEvidence(string primary, string adaptive)
     {
         if (string.IsNullOrWhiteSpace(primary))
-            return adaptive?.Trim() ?? string.Empty;
+            return adaptive.Trim();
         if (string.IsNullOrWhiteSpace(adaptive))
             return primary.Trim();
 
