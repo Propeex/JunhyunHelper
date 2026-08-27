@@ -4,7 +4,7 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 제품 상태
 
-현재 제품 상태는 **v1.7.10 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
+현재 제품 상태는 **v1.7.11 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
 
 현재 요구사항 범위의 제품과 Scanner는 완성 상태이며, 새로운 실제 회귀·호환성 변화 또는 사용자가 명시적으로 결정한 새 제품 요구사항이 없는 한 선제적 기능 추가나 인식 기준 변경을 시작하지 않습니다.
 
@@ -18,26 +18,26 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 ## 현재 공개 릴리즈
 
 ```text
-version: v1.7.10
-Desktop target version: 1.7.10
-exact product release source/tag target: a557daad5b37aca11a189524ecf256564d2b8ea4
-main CI: 32983155982 — SUCCESS
-Release workflow: 32983498402 — SUCCESS
-release id: 377231814
+version: v1.7.11
+Desktop target version: 1.7.11
+exact product release source/tag target: 0f97c6e5340ae91581a9242ec236bbd7885b34d5
+main CI: 33033282963 — SUCCESS
+Release workflow: 33033434877 — SUCCESS
+release id: 377531277
 stable asset: Junhyun-Helper.zip
-asset id: 530959212
-bytes: 80,471,678
-SHA-256: 6d4f3f8580318d05361cd4d62bf265c4590532722df22dc8b8d734fe8ec10eb9
-389 passed / 0 failed / 0 skipped
+asset id: 531635485
+bytes: 80,477,565
+SHA-256: f1ad15debc29b7a167a13448c8df65785f57139a91d8b5d246205a14f9a5800d
+392 passed / 0 failed / 0 skipped
 ```
 
-GitHub `/releases/latest` readback에서 v1.7.10이 draft=false, prerelease=false, latest stable이며 tag target이 위 exact product release source와 일치함을 확인했습니다.
+GitHub `/releases/latest` readback에서 v1.7.11이 draft=false, prerelease=false, latest stable이며 tag target이 위 exact product release source와 일치함을 확인했습니다. 공개 asset digest도 exact main CI에서 생성한 `Junhyun-Helper.zip`의 SHA-256과 일치합니다.
 
 공식 릴리즈 기록:
 
-- `docs/RELEASE_1.7.10.md`
-- `docs/RELEASE_NOTES_V1.7.10.md`
-- `docs/.release-v1.7.10-status.json`
+- `docs/RELEASE_1.7.11.md`
+- `docs/RELEASE_NOTES_V1.7.11.md`
+- `docs/.release-v1.7.11-status.json`
 
 ## 주요 기능
 
@@ -91,6 +91,22 @@ continuous observation target = 200 ms
 - Item ID가 확정되기 전 price/needed/slot metadata를 identity evidence로 사용하지 않습니다.
 - scan 순간 Item identity를 위해 network 요청을 시작하지 않습니다.
 - 새로운 reviewed evidence 없이 threshold/candidate cap/matcher/visual acceptance를 낮추지 않습니다.
+
+## v1.7.11 — 유지보수 패치
+
+v1.7.11은 Scanner identity recognition을 바꾸지 않고 기존 제품의 표시·입력·MiniMap 사용성 회귀를 수정했습니다.
+
+- Scanner/Mini Scanner의 `필요 개수`는 전체 요구량이 아니라 현재 Inventory와 FIR 조건을 반영한 canonical `RemainingTotal`을 표시합니다.
+- Configurable Map/Scanner hotkey는 등록하지 않은 Ctrl/Alt/Shift가 추가로 눌려도 동작하며, 같은 primary key에 여러 compatible binding이 있으면 더 구체적인 조합을 우선합니다.
+- Windows modifier는 지원하지 않으며 Map bare NumPad0~5 직접 층 선택 계약은 유지합니다.
+- MiniMap은 첫 표시 전에 현재 Main Map 선택을 동기화합니다.
+- MiniMap width/height는 `%LocalAppData%/JunhyunHelper/minimap-window-state.json`에 저장되어 재시작 뒤 복원됩니다.
+- 표준 WPF 설명 ToolTip은 제품 전역에서 표시하지 않으며 지도 marker detail 같은 기능성 custom Popup은 유지합니다.
+- Scanner recognition threshold, candidate cap, matcher, visual recovery acceptance와 200ms observation target은 변경하지 않았습니다.
+
+제품 결정:
+
+- `docs/DECISION_V1.7.11_MAINTENANCE.md`
 
 ## v1.7.10 — 공개 배포 환경 대응
 
@@ -194,7 +210,7 @@ runtime recognition
 Scanner ON/OFF: Ctrl+Shift+F12
 ```
 
-Configurable Scanner/Map gesture는 primary key + optional Ctrl/Alt/Shift를 사용합니다. Bare key도 허용하며 Windows modifier는 지원하지 않습니다.
+Configurable Scanner/Map gesture는 primary key + optional Ctrl/Alt/Shift를 사용합니다. 등록된 modifier는 모두 필요하지만 추가 Ctrl/Alt/Shift는 허용하며, 같은 primary key에서 여러 binding이 compatible하면 더 많은 modifier를 요구하는 binding을 우선합니다. Bare key도 허용하며 Windows modifier는 지원하지 않습니다.
 
 ## 업데이트 / 패키지
 
