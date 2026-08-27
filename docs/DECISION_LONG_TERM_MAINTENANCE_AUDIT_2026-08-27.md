@@ -36,7 +36,7 @@
 
 ### 결정
 
-Page-level infrastructure는 **product `MainWindow` lifetime**이 소유한다.
+Cross-page dependency wiring은 **product `MainWindow` lifetime**이 소유한다.
 
 `MainWindow.OnInitialized`에서 다음을 한 번 연결한다.
 
@@ -46,7 +46,7 @@ Ammo favorites store
 cross-page content navigation event wiring
 ```
 
-개별 page `Loaded` event는 이 infrastructure를 소유하지 않는다.
+Page 내부 presentation 준비는 해당 Page가 직접 소유한다. 특히 Ammo의 runtime search/detail presentation은 `AmmoPage.OnInitialized`가 `DispatcherPriority.Loaded` 작업으로 명시적으로 예약하며, 부모 XAML의 incidental `Loaded` subscription이나 class-level `Loaded` handler에 의존하지 않는다.
 
 사용자-visible 동작, Core/Application/Infrastructure data ownership, Scanner recognition, Map/MiniMap donor behavior는 변경하지 않는다.
 
@@ -56,13 +56,29 @@ cross-page content navigation event wiring
 
 | 후보 | 분류 | 처리 |
 |---|---|---|
-| `ItemsPage_Loaded` / `HideoutPage_Loaded` / `AmmoPage_Loaded` | startup ownership 이동 후 실제 dead event handlers | XAML 연결과 함께 제거 |
+| `ItemsPage_Loaded` / `HideoutPage_Loaded` / `AmmoPage_Loaded` | ownership 이동과 Ammo self-initialization 명시화 후 실제 dead event handlers | XAML 연결과 함께 제거 |
+| Ammo class-level `Loaded` presentation hook | parent Loaded subscription 존재 여부에 간접 의존하던 hidden lifecycle coupling | `OnInitialized` + dispatcher-owned explicit initialization으로 대체 |
 | `Legacy` Map host/adapter/runtime | active donor compatibility/integration | 유지 |
 | Factory/Map/MiniMap smoke 코드 | historical name을 가진 active regression evidence | 유지 |
 | Scanner diagnostic OCR reflection adapter | 의도적으로 유지하는 technical debt | 유지 |
 | original full-refresh mutation handlers + fast rebinding | duplicate/superseded-looking path지만 lifecycle rebinding에 아직 관여 | 이번 audit에서 삭제하지 않음 |
 
-마지막 항목은 `OnContentRendered`에서 `EnableFastMutationHandlers()`가 다시 실행되어 최종 handler state를 정리한다. 따라서 이름/중복만 보고 dead라고 판정하지 않는다. 별도 변경은 lifecycle 증거와 regression이 충분할 때만 한다.
+### Smoke가 증명한 WPF hidden dependency
+
+첫 정리안은 세 parent page `Loaded` handler의 body가 중복이라고 판단해 제거했다. 자동 테스트와 Desktop build/publish는 통과했지만 실제 published EXE Product UI smoke에서 Ammo detail toggle이 `▼ → ▲` 상태 전환을 수행하지 못했다.
+
+원인은 `AmmoPage.ProductSearchAndDetails.cs`가 `EventManager.RegisterClassHandler(... LoadedEvent ...)`로 presentation 준비를 시작하고 있었고, 부모 XAML의 instance `Loaded` subscription 제거가 WPF의 Loaded delivery 최적화와 결합해 해당 class handler 실행을 더 이상 신뢰할 수 없게 만든 것이었다.
+
+따라서 이 사건은 다음 dead-code 규칙의 실제 회귀 증거다.
+
+```text
+handler body가 중복처럼 보임
+≠ lifecycle에서 죽은 코드임
+```
+
+수정 후 Ammo presentation은 Page 자신의 `OnInitialized`에서 Loaded-priority dispatcher work로 예약된다. parent handler는 더 이상 다른 initialization을 우연히 깨우는 역할을 하지 않는다.
+
+마지막 mutation-handler 항목은 `OnContentRendered`에서 `EnableFastMutationHandlers()`가 다시 실행되어 최종 handler state를 정리한다. 따라서 이름/중복만 보고 dead라고 판정하지 않는다. 별도 변경은 lifecycle 증거와 regression이 충분할 때만 한다.
 
 ## 4. Performance audit classification
 
@@ -90,8 +106,10 @@ Scanner는 v1.7.6에서 실제 latency telemetry로 병목을 증명하고 same-
 
 - 네 page의 image-cache binding과 Ammo favorites store가 product initialization에 존재
 - cross-page navigation wiring이 product initialization에서 연결
-- XAML이 제거된 page `Loaded` handlers를 다시 참조하지 않음
+- XAML이 제거된 parent page `Loaded` handlers를 다시 참조하지 않음
 - 제거된 handlers가 `MainWindow.Images.cs`에 되살아나지 않음
+- Ammo presentation initialization이 `AmmoPage.OnInitialized`에서 명시적으로 예약됨
+- Ammo가 다시 class-level `Loaded` handler를 hidden initializer로 사용하지 않음
 
 이 source-level contract는 WPF Desktop을 일반 Core test assembly에 새로 참조시키지 않으면서 composition ownership 회귀를 탐지하기 위한 제한된 architecture regression이다.
 
