@@ -4,31 +4,31 @@
 
 기준일: 2026-08-27
 
-상태: **`v1.7.12 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE`**
+상태: **`v1.7.13 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE`**
 
 ## 공개 stable
 
-현재 공개 stable/latest는 **v1.7.12**다.
+현재 공개 stable/latest는 **v1.7.13**이다.
 
 ```text
-public stable/latest: v1.7.12
-exact product release source/tag target: d8d0f8eb1ffdd9b8c4ec890277a7b209b2458c2b
-main CI run: 33042307773 — SUCCESS
-release workflow run: 33042464642 — SUCCESS
-release id: 377581895
+public stable/latest: v1.7.13
+exact product release source/tag target: 16198c462a6be58d77dbe2dc27aa57eabfc7b9fd
+main CI run: 33051890329 — SUCCESS
+release workflow run: 33052109161 — SUCCESS
+release id: 377652938
 stable asset: Junhyun-Helper.zip
-stable asset id: 531791229
-stable bytes: 80,477,641
-stable SHA-256: 3f0d57f8a5dc92611bc8648a423c43d65917e63e0d73a771b559153803186fa1
-checksum asset id: 531791226
-checksum asset SHA-256: 97cf0d26c1d6c91c5876ee02f829225a23221e2bc893659d211055aa6af6a99d
-397 passed / 0 failed / 0 skipped
+stable asset id: 531953179
+stable bytes: 80,486,670
+stable SHA-256: d1cfcf1f606985485584f0e085e8821e0f62156a980f259a90144fd134a7eeb6
+checksum asset id: 531953171
+checksum asset SHA-256: 63ca63dd0e21d347a293a6fc45817d604bc4016d3338425a21b5ddc3e86a26f1
+400 passed / 0 failed / 0 skipped
 Product UI / Scanner / Map / Factory / MiniMap / graceful shutdown smoke: SUCCESS
 ```
 
 GitHub `/releases/latest` 및 tag-ref readback:
 
-- tag `v1.7.12`
+- tag `v1.7.13`
 - target/tag ref = exact product release source
 - draft = false
 - prerelease = false
@@ -38,16 +38,16 @@ GitHub `/releases/latest` 및 tag-ref readback:
 
 공개 증거:
 
-- `docs/RELEASE_1.7.12.md`
-- `docs/.release-v1.7.12-status.json`
-- `docs/RELEASE_NOTES_V1.7.12.md`
+- `docs/RELEASE_1.7.13.md`
+- `docs/.release-v1.7.13-status.json`
+- `docs/RELEASE_NOTES_V1.7.13.md`
 
-이 문서 동기화 이후의 commit은 **v1.7.12 product release source가 아니다**. 제품 릴리즈 소스는 항상 위 `d8d0f8eb...`로 고정한다.
+이 문서 동기화 이후의 commit은 **v1.7.13 product release source가 아니다**. 제품 릴리즈 소스는 항상 위 `16198c46...`로 고정한다.
 
 ## Schema / compatibility
 
 ```text
-Desktop target version: 1.7.12
+Desktop target version: 1.7.13
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
@@ -72,6 +72,32 @@ Scanner Ground Truth: explicit user-reviewed durable cases
 | Game Content Update | 구현 완료 |
 | Program Update | 구현 완료 / verified stable ZIP contract |
 | Scanner + Mini Scanner | **FEATURE COMPLETE / MAINTENANCE ONLY** |
+
+## v1.7.13 — UI simplification
+
+v1.7.13은 새 도메인 기능이나 Scanner 인식 완화를 추가하지 않고 기존 제품 surface를 정리한 PATCH다.
+
+- Items의 퀘스트용/은신처용 용도 필터를 제거하고 필요한 아이템 화면을 하나의 기준으로 단순화했다.
+- Ammo 상단 조작 순서를 정리하고 상세정보를 기본 접힘으로 변경했으며 중복 요약 문구를 제거했다.
+- Ammo published EXE smoke는 `초기 접힘 → 펼침 → 다시 접힘` 전체 왕복을 검증한다.
+- Map 지도 마커 선택은 기본 접힘이며 같은 launcher 재클릭으로 닫힌다. 설정도 같은 버튼 재클릭으로 닫힌다.
+- Map 경로 표시/경로 지우기와 단축키 안내 문구는 제품 surface에서 제거했다.
+- Scanner display 설정은 변경 즉시 기존 atomic settings store에 저장되며 취소/저장 버튼을 사용하지 않는다.
+- Scanner hotkey 편집은 display 설정과 분리해 기본 Scanner 화면에서 접근한다.
+- Scanner 검색에서 needed item이면 `ItemsWorkspace.Plan.NeededItems[itemId].Sources`를 그대로 presentation에 join해 관련 Quest/Hideout source를 표시하고 해당 화면으로 이동한다. 요구량/출처를 Scanner가 재계산하지 않는다.
+- Scanner `현재 결과 교정`은 기본 화면 우측 조작 영역에 둔다.
+- 프로필/Scanner 설정·편집 surface는 가능한 경우 MainWindow 내부 공통 overlay owner가 호스팅하고 X/backdrop/동일 launcher 재클릭으로 닫는다.
+- Map donor source는 수정하지 않고 JunhyunHelper first-party customization 경계에서만 제품 UI를 조정했다.
+
+Regression protection:
+
+- `V1713UiSimplificationContractTests` 3개
+- Ammo 기본 접힘 + 실제 smoke 왕복
+- Items 용도 필터 제거 계약
+- Scanner needed-source authority = existing `ItemsWorkspace.Plan.NeededItems`
+- actual published EXE Product UI / Map / Factory / MiniMap smoke
+
+공식 결정: `docs/DECISION_V1.7.13_UI_SIMPLIFICATION.md`.
 
 ## v1.7.12 — long-term maintenance hardening
 
