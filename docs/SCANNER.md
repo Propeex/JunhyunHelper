@@ -1,7 +1,7 @@
 # Scanner — 제품/기술 계약
 
-기준일: 2026-08-26
-상태: **v1.7.10 PUBLIC STABLE / FEATURE COMPLETE / MAINTENANCE ONLY**
+기준일: 2026-08-27
+상태: **v1.7.11 PUBLIC STABLE / FEATURE COMPLETE / MAINTENANCE ONLY**
 
 이 문서는 현재 Scanner 제품 동작과 기술 안전 계약의 canonical 전문 문서다. 역사적 근거는 버전별 결정/릴리즈 문서에 보존하고, 현재 구현 판단은 이 문서와 `STATE.md`, 실제 코드가 우선한다.
 
@@ -41,7 +41,7 @@ Scanner는 범용 OCR이 아니라 **현재 공식 한국어 Tarkov full-item ca
 - Item ID 확정 전 price/needed/slot metadata를 identity evidence로 사용 금지
 - 새로운 reviewed evidence 없이 semantic/OCR/matcher/visual acceptance 완화 금지
 
-## 2. Current v1.7.10 product state
+## 2. Current v1.7.11 product state
 
 Scanner는 기능 개발이 끝난 **maintenance-only** 상태다. 실제 사용자 evidence가 있는 회귀만 failure stage를 확인해 affected layer에 최소 수정한다.
 
@@ -54,10 +54,13 @@ Scanner는 기능 개발이 끝난 **maintenance-only** 상태다. 실제 사용
 - legacy `automatic_sample + unreviewed`만 fail-closed cleanup
 - full official item catalog가 identity authority
 - Item ID 확정 이후 metadata/market/needed는 동일-ID join
-- Scanner/Map hotkey는 primary key + optional Ctrl/Alt/Shift
+- Scanner `필요 개수`는 canonical `NeededItems[itemId].RemainingTotal`
+- Scanner/Map configurable hotkey는 primary key + optional Ctrl/Alt/Shift이며 extra modifier compatibility / most-specific-wins 정책 적용
 - verified main-CI artifact만 stable release 가능
 
-v1.7.10은 공개 배포 환경별 luminance 차이를 특정 PC별 threshold 분기로 처리하지 않고 item-title ROI의 실제 픽셀 분포를 조건부 정규화한다.
+v1.7.11은 Scanner identity recognition 기준을 변경하지 않았다. `필요 개수` presentation과 configurable hotkey modifier UX만 Scanner 관련 변경이다.
+
+v1.7.10의 공개 배포 환경별 luminance normalization은 그대로 유지한다.
 
 ## 3. 핵심 안전 불변식
 
@@ -176,7 +179,7 @@ remote Game Content fetch/build
 
 기본 OCR은 serialized Windows ko-KR boundary를 사용한다.
 
-Normal OCR이 성공하면 그 결과를 그대로 사용한다. v1.7.10은 정상 성공 경로에 luminance histogram/copy/추가 OCR 비용을 넣지 않는다.
+Normal OCR이 성공하면 그 결과를 그대로 사용한다. v1.7.10부터 정상 성공 경로에 luminance histogram/copy/추가 OCR 비용을 넣지 않는다.
 
 Normal OCR miss 또는 기존 bounded deep pass에서만 environment normalization 후보를 평가한다.
 
@@ -342,6 +345,8 @@ miss #3 → hide
 
 Progress-only state는 miss로 세지 않는다.
 
+Item ID 확정 뒤 `필요 개수`는 `ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal`을 표시한다. 이는 current Inventory와 FIR 조건이 반영된 canonical remaining requirement이며 `RequiredTotal`을 Scanner가 별도 표시하거나 재계산하지 않는다.
+
 ## 15. Ground Truth / durable data
 
 Ground Truth는 사용자가 직접 검토/교정하고 명시적으로 저장한 Case만 의미한다.
@@ -381,10 +386,19 @@ Private user pixel evidence를 CI 편의를 위해 public repository에 넣지 �
 
 Scanner와 configurable Map actions는 `primary key + optional Ctrl/Alt/Shift`를 공유한다.
 
+현재 matching 계약:
+
+- primary key 일치 필수
+- binding에 등록된 Ctrl/Alt/Shift는 모두 눌려 있어야 함
+- 등록하지 않은 Ctrl/Alt/Shift 추가 입력은 허용
+- 같은 primary key에 여러 compatible binding이 있으면 required modifier 수가 더 많은 더 구체적인 binding 우선
+- 동률은 기존 기능 우선순위/안정적인 등록 순서
 - bare key 허용
 - Windows modifier 미지원
 - Map bare NumPad0~5 direct floor 유지
 - modifier+NumPad configurable Map action 허용
+
+공식 결정: `docs/DECISION_V1.7.11_MAINTENANCE.md`.
 
 ## 18. CI / release contract
 
@@ -402,18 +416,18 @@ Release build
 
 Stable release는 main CI가 성공한 exact main commit의 artifact만 Release workflow가 게시한다.
 
-v1.7.10 proof:
+v1.7.11 proof:
 
 ```text
-PR #192 final head: 322c2e4e1dd641905411cc10fb9a81ba22816d33
-PR CI: 32981693237 — SUCCESS
-main release source: a557daad5b37aca11a189524ecf256564d2b8ea4
-main CI: 32983155982 — SUCCESS
-Release workflow: 32983498402 — SUCCESS
-release id: 377231814
-asset id: 530959212
-asset SHA-256: 6d4f3f8580318d05361cd4d62bf265c4590532722df22dc8b8d734fe8ec10eb9
-389 passed / 0 failed / 0 skipped
+PR #194 final head: 4351670d378fedf7000ada4d613bf1527e203a16
+PR CI: 33032104032 — SUCCESS
+main release source: 0f97c6e5340ae91581a9242ec236bbd7885b34d5
+main CI: 33033282963 — SUCCESS
+Release workflow: 33033434877 — SUCCESS
+release id: 377531277
+asset id: 531635485
+asset SHA-256: f1ad15debc29b7a167a13448c8df65785f57139a91d8b5d246205a14f9a5800d
+392 passed / 0 failed / 0 skipped
 ```
 
 ## 19. Maintenance workflow
