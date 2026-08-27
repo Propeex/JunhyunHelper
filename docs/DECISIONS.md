@@ -1,12 +1,30 @@
 # DECISIONS — 현재 유효한 장기 결정
 
-이 문서는 준현 헬퍼의 **현재 유효한 장기 결정과 supersession 관계**를 빠르게 복구하기 위한 active index입니다.
+이 문서는 준현 헬퍼의 **현재 유효한 장기 결정과 supersession 관계**를 빠르게 복구하기 위한 active index다.
 
-2026-08-09까지 DEC-001~DEC-029 원문은 다음 역사 파일에 보존합니다.
+2026-08-09까지 DEC-001~DEC-029 원문은 다음 역사 파일에 보존한다.
 
 - [`DECISIONS_HISTORY_THROUGH_2026-08-09.md`](DECISIONS_HISTORY_THROUGH_2026-08-09.md)
 
-사용자의 더 새로운 확정 요구와 더 새로운 결정이 과거 충돌 결정보다 우선합니다. 상세 제품/기술 의미는 `PRODUCT.md`, `STATE.md`, `ARCHITECTURE.md` 및 전문 문서를 함께 읽습니다.
+사용자의 더 새로운 확정 요구와 더 새로운 결정이 과거 충돌 결정보다 우선한다. 상세 제품/기술 의미는 `PRODUCT.md`, `STATE.md`, `ARCHITECTURE.md` 및 전문 문서를 함께 읽는다.
+
+## 현재 supersession 주의
+
+DEC-050/054/057/058/059에 남아 있는 과거 Scanner `RequiredTotal` 문구는 **역사적 당시 계약**이다. 현재 사용자-facing Scanner `필요 개수` 권위는 v1.7.11 결정에 따라 다음과 같다.
+
+```text
+ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal
+```
+
+v1.7.13 검색 상세의 Quest/Hideout source 권위는 같은 authoritative row의:
+
+```text
+ItemsWorkspace.Plan.NeededItems[itemId].Sources
+```
+
+Scanner가 둘 중 어느 것도 별도 재계산하거나 Item identity evidence로 사용하지 않는다.
+
+현재 제품 상태는 **v1.7.13 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**다. 최신 상태/릴리즈 증거는 `docs/STATE.md`가 권위다.
 
 ---
 
@@ -18,7 +36,7 @@
 - `DEC-004` — 사용자는 제품 판단에 집중하고 개발 절차는 개발자가 책임 — **CONFIRMED**
 - `DEC-005` — 초기 Phase 1에서는 구현보다 설계를 선행 — **PHASE-SPECIFIC / SUPERSEDED by DEC-030**
 - `DEC-006` — 공식 제품명은 준현 헬퍼 — **CONFIRMED**
-- `DEC-007` — 초기 상위 기능 영역 정의 — **CONFIRMED**, Scanner 의미는 DEC-050~059
+- `DEC-007` — 초기 상위 기능 영역 정의 — **CONFIRMED**, Scanner 의미는 이후 결정이 구체화
 - `DEC-008` — 구두 의도는 의미를 맞춘 뒤 공식 요구사항으로 확정 — **CONFIRMED**
 - `DEC-009` — Quest 원천은 json.tarkov.dev → 내부 canonical model — **CONFIRMED**
 - `DEC-010` — 받을 수 있는 Quest는 Helper에서 이미 수락한 것으로 간주 — **CONFIRMED**
@@ -35,355 +53,284 @@
 
 ---
 
-# 2. 현재 단계 결정
+# 2. DEC-030~059 장기 결정
 
 ## DEC-030 — 확정 기능 수정은 직접 진행하고 새 제품 의미는 설계를 먼저 맞춘다
 
 - 상태: `CONFIRMED`
-- 날짜: 2026-08-10
 - 이미 확정·구현된 기능의 버그 수정, 회귀 수정, 성능 개선, 릴리즈 하드닝은 개발자가 저장소/테스트를 조사해 직접 진행한다.
 - 새 기능이나 제품 의미 변경은 사용자 의도를 먼저 확정한다.
-- supersedes: DEC-005의 현재 단계 구현 금지 문장
+- supersedes DEC-005의 현재 단계 구현 금지 문장.
 
-## DEC-031 — Map/MiniMap은 사용자가 검증한 Tarkov-Helper 기준선을 제한적으로 채택한다
+## DEC-031 — Map/MiniMap은 검증된 donor 기준선을 제한적으로 채택한다
 
 - 상태: `CONFIRMED`
-- 날짜: 2026-08-10
-- 제품 pin: `d933792b6042a51cea38dc44b686a096fe30de67`
-- Map/MiniMap에 한해서 donor source를 기준선으로 사용한다.
-- old Tarkov-Helper updater/hidden command/기타 데이터 규칙은 승계하지 않는다.
+- 현재 product pin: `d933792b6042a51cea38dc44b686a096fe30de67`
+- Map/MiniMap에 한해서 pinned donor source를 사용한다.
+- donor updater/hidden command/기타 데이터 규칙은 승계하지 않는다.
 
 ## DEC-032 — Map subsystem은 독립이며 Quest만 JunhyunHelper 진행 데이터와 연결한다
 
 - 상태: `CONFIRMED`
-- 날짜: 2026-08-10
 - artwork/config/general marker/MiniMap/screenshot tracking은 독립 subsystem이다.
-- current Quest/Quest geometry만 제품 bridge로 연결한다.
+- current Quest/Quest geometry만 JunhyunHelper bridge로 연결한다.
 
 ## DEC-033 — 미구현 Scanner를 public UI에서 숨긴다
 
-- 상태: `SUPERSEDED by DEC-045`
-- 날짜: 2026-08-10
+- 상태: `SUPERSEDED by DEC-045 and later Scanner implementation decisions`
 
 ## DEC-034 — release/update와 product hotkey는 JunhyunHelper가 소유한다
 
 - 상태: `CONFIRMED / UPDATED by DEC-046`
-- 날짜: 2026-08-10
 - legacy updater/hidden command/easter egg/legacy hidden shortcut는 제품 동작이 아니다.
 
 ## DEC-035 — Windows x64 self-contained portable release를 유지한다
 
-- 상태: `CONFIRMED / UPDATED by DEC-046`
-- 날짜: 2026-08-10
-- installer 없는 Windows x64 self-contained portable ZIP, 별도 .NET/관리자 권한 불필요.
+- 상태: `CONFIRMED / UPDATED by DEC-046 and current deployment contract`
+- installer 없는 Windows x64 self-contained portable 제품을 유지한다.
 
 ## DEC-036 — Release artifact 공급망/오염 검사를 gate로 둔다
 
 - 상태: `CONFIRMED`
-- 날짜: 2026-08-10
-- PDB/legacy AutoUpdater/WebView2/GraphX/QuikGraph를 배포물에서 제외한다.
-- NuGet vulnerability warning은 release-blocking이다.
+- PDB/unused legacy dependency/nested archive 등 배포 오염을 차단한다.
+- 정확한 현재 package gate는 `docs/DEPLOYMENT.md`가 권위다.
 
 ## DEC-037 — Map bundle update는 같은 upstream revision의 원자적 bundle로 한다
 
 - 상태: `CONFIRMED`
-- 날짜: 2026-08-10
+- artwork/config/general-marker data를 다른 revision과 섞지 않는다.
 
 ## DEC-038 — 불완전한 Quest availability source는 추측하지 않는다
 
 - 상태: `CONFIRMED / PARTIALLY SUPERSEDED by DEC-039/043/044`
-- 날짜: 2026-08-15
 
 ## DEC-039 — 입증할 수 없는 Quest availability는 `확인 필요`로 분리한다
 
 - 상태: `CONFIRMED`
-- 날짜: 2026-08-15
 - Core `Indeterminate`를 optimistic Current로 바꾸지 않는다.
-- Future Needed Items는 잠재 필요 Item을 계속 보호한다.
+- Future Needed Items는 잠재 필요 Item을 보호한다.
 
 ## DEC-040 — Map floor 관계는 visibility가 아니라 presentation이다
 
 - 상태: `CONFIRMED / PARTIALLY SUPERSEDED by DEC-041`
-- 날짜: 2026-08-15
 
 ## DEC-041 — 서로 다른 floor의 일반 marker는 X/Z가 겹쳐도 숨기지 않는다
 
 - 상태: `CONFIRMED`
-- 날짜: 2026-08-15
 
 ## DEC-042 — 층 변경은 Main Map과 MiniMap의 현재 viewport를 보존한다
 
 - 상태: `CONFIRMED`
-- 날짜: 2026-08-15
 
 ## DEC-043 — 특수 상인 접근은 upstream 조건을 보존하고 recoverable access를 별도 모델링한다
 
 - 상태: `CONFIRMED`
-- 날짜: 2026-08-15
 
 ## DEC-044 — EFT profile-variable Quest gate는 exact read-side fact를 지원하고 미관측 값은 추측하지 않는다
 
 - 상태: `CONFIRMED`
-- 날짜: 2026-08-17
 - exact current `ProfileVariables`가 있으면 권위값으로 사용한다.
 - 없으면 제한된 audited compatibility 외에는 `Indeterminate`로 둔다.
 
 ## DEC-045 — Scanner placeholder 탭은 UI에 유지하되 실제 기능을 가장하지 않는다
 
-- 상태: `SUPERSEDED by DEC-050/051`
-- 날짜: 2026-08-18
-- supersedes: DEC-033
+- 상태: `SUPERSEDED by DEC-050/051 and completed Scanner product`
 
 ## DEC-046 — 일반 실행 시 사용자 동의형 프로그램 업데이트를 제공한다
 
 - 상태: `CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED`
-- 날짜: 2026-08-18
-- source of truth: `Propeex/JunhyunHelper` latest public stable GitHub Release
-- current보다 strictly newer stable만 대상
-- 사용자 동의 후 exact Windows ZIP + SHA256 검증
-- 검증 전 현재 app file 변경 금지
-- temporary self-copy updater가 program-owned files transaction 교체
-- 사용자 데이터 교체 금지
-- 정식 release는 Draft asset 검증 후 public/latest 전환
-- 상세: `docs/PROGRAM_UPDATE.md`, `docs/DEPLOYMENT.md`
+- source of truth = `Propeex/JunhyunHelper` latest public stable GitHub Release.
+- current보다 strictly newer stable만 대상.
+- 사용자 동의 후 exact package + SHA256 검증.
+- 검증 전 current program file 변경 금지.
+- temporary updater가 program-owned files만 transaction 교체.
+- User Progress/LocalAppData 교체 금지.
+- 현재 canonical package는 `Junhyun-Helper.zip`; versioned package는 legacy updater compatibility fallback.
+- 상세: `docs/PROGRAM_UPDATE.md`, `docs/DEPLOYMENT.md`.
 
 ## DEC-047 — v1.0.0은 기능 확장이 아닌 정식 안정판 승격이다
 
 - 상태: `CONFIRMED / PUBLIC VERIFIED`
-- 날짜: 2026-08-19
-- public release source: `3147ad1b48c3d30df529d95b148c5c444a77d649`
-- release workflow: `32219746319 — SUCCESS`
-- public ZIP SHA-256: `0e92787409add9dd9e1138277c3588586a04266b05ca56d7cf7fb6f79c88094c`
+- 역사적 v1.0.0 안정판 승격 결정.
 
 ## DEC-048 — v1 이후 새 기능=MINOR, 기존 기능 보완=PATCH
 
 - 상태: `CONFIRMED`
-- 날짜: 2026-08-19
-- 새 사용자 기능 → `MINOR + 1`, PATCH=0
-- 기존 기능 수정/보완/버그 수정/성능·안정성 개선 → `PATCH + 1`
-- 혼합 변경은 MINOR 우선
-- 1.0.0에서 Scanner 실제 기능 추가 → 1.1.0
-- 1.1.0 Scanner UI/사용성 보완 → 1.1.1
-- Scanner geometry/title ROI 회귀 보정 → 1.1.2
-- Scanner Lab v3.8 recognition architecture 복원 → 1.1.3
-- Scanner market/needed-data 신뢰성 및 diagnostics 보완 → 1.1.4
-- Scanner diagnostic image/one-shot high-precision scan 추가 → 1.2.0
-- Scanner deterministic 안정성/정확성 hardening → 1.2.1
-- Scanner catalog GameMode transition race 수정 → 1.2.2
-- 상세: `docs/VERSIONING.md`
+- 새 사용자 기능 → MINOR.
+- 기존 기능 수정/보완/버그 수정/성능·안정성 개선 → PATCH.
+- 혼합 변경은 MINOR 우선.
+- 상세: `docs/VERSIONING.md`.
 
 ## DEC-049 — Map donor는 source pin과 fetch origin을 분리한다
 
 - 상태: `CONFIRMED / IMPLEMENTED`
-- 날짜: 2026-08-19
-- Map/MiniMap 제품 source identity는 gitlink commit SHA로 고정한다.
-- fetch origin이 달라도 gitlink SHA가 같으면 Map source 변경으로 취급하지 않는다.
+- Map/MiniMap source identity는 gitlink commit SHA로 고정한다.
+- fetch origin이 달라도 gitlink SHA가 같으면 source 변경으로 취급하지 않는다.
 
-## DEC-050 — Scanner는 한국어 Tarkov 화면을 Item ID로 변환하는 독립 입력 subsystem이다
+## DEC-050 — Scanner는 Tarkov 화면을 Item ID로 변환하는 독립 입력 subsystem이다
 
-- 상태: `CONFIRMED / IMPLEMENTED / PARTIALLY SUPERSEDED by DEC-051/052/053/054/055/056/057/058/059`
-- 날짜: 2026-08-21
-- 자동 detail/title 인식 → current Korean official item name → Item ID
-- Item ID 이후 기존 JunhyunHelper 데이터 사용
-- false positive보다 miss 선호, confidence 부족 시 no identity
-- Mini Scanner는 MiniMap과 독립
-- 금지: game memory, DLL injection, packet interception, icon identity, scan-time network
-- full Tarkov Item identity catalog 사용
-- exact-first + conservative fuzzy + confidence/margin
-- `현재 필요한 수량` = `RequiredTotal`
-- Scanner 설정은 별도 atomic JSON
-- 실게임 구현/릴리즈 제한 부분은 DEC-051이 supersede
-- Mini Scanner click-through 부분은 DEC-052가 supersede
-- recognition candidate 확정 구조는 DEC-053이 구체화
-- market/needed-data 표시 계약은 DEC-054가 구체화
-- title-recognition/diagnostics/one-shot 구조는 DEC-055가 확장
-- deterministic recognition/runtime hardening 경계는 DEC-056이 구체화
-- catalog mode-transition operation ordering은 DEC-057이 구체화
-- inspect-header frame ownership은 DEC-058이 구체화
-- live structural/OCR/diagnostic hardening은 DEC-059가 구체화
-- 상세: `docs/SCANNER.md`
+- 상태: `CONFIRMED / IMPLEMENTED / PARTIALLY SUPERSEDED by later Scanner decisions`
+- detail/title recognition → current official Korean full-item catalog → Item ID.
+- Item ID 이후 기존 JunhyunHelper data 사용.
+- false positive보다 miss 선호.
+- confidence 부족/ambiguity → no identity.
+- 금지: game memory, DLL injection, packet interception, icon-only identity, scan-time network identity work.
+- 당시 `RequiredTotal` 문구는 현재 v1.7.11 `RemainingTotal` 결정에 의해 superseded.
+- 상세: `docs/SCANNER.md`.
 
-## DEC-051 — Scanner v1.1.0은 실제 구현을 공개하고 live Tarkov 검증은 로그 기반 후속으로 진행한다
-
-- 상태: `CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED / LIVE E2E POST-RELEASE`
-- 날짜: 2026-08-21
-- `스캐너`: `EscapeFromTarkov` Borderless client-area 실시간 감지
-- `PrintWindow` 우선, 필요 시 exact client rectangle screen capture fallback
-- `테스트`: 모든 연결 디스플레이, 동일 pipeline
-- real/test mutually exclusive, test session-only
-- production Windows `ko-KR` OCR
-- ON 상태 Mini Scanner standby → Item result
-- `%LocalAppData%/JunhyunHelper/logs/scanner.log`에 상태/candidate/OCR/matcher metadata
-- screenshot/raw pixel 미저장
-- Windows build/tests/publish/rendered UI/Map smoke/Draft+Public package 검증은 release blocker
-- 최신 Tarkov Borderless live E2E는 release blocker가 아님
-- 공개 후 문제는 scanner.log 기반 PATCH 보정
-- 상세: `docs/SCANNER.md`
-
-## DEC-052 — Scanner 탭은 운용 UI와 사용자용 인식 기록을 사용하고 Mini Scanner는 항상 직접 이동 가능하다
+## DEC-051 — Scanner v1.1.0은 실제 구현을 공개하고 live Tarkov 검증은 진단 evidence로 후속한다
 
 - 상태: `CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED`
-- 날짜: 2026-08-21
-- Scanner 탭의 상단 제목/상시 기능 설명문을 제거한다.
-- 상단 bar 왼쪽에 `스캐너`, `테스트`; 오른쪽에 `아이템 목록 최신화`를 둔다.
-- bar 아래에 표시 정보 checkbox를 둔다.
-- 하단에 최근 인식 기록을 둔다.
-- 최근 기록은 OCR text, nearest official Item, similarity/confidence, top1/top2 margin, 성공/보류, reason을 사용자 문장으로 표시한다.
-- 기존 bounded `scanner.log(.1)`에서 최근 판정을 복원해 재실행 뒤에도 확인 가능하게 한다.
-- Foundation Item ID → presentation 내부 preview 경로는 유지하되 product Scanner 탭에서 숨긴다.
-- 별도 위치 편집/초기화 controls는 제거한다.
-- Mini Scanner는 visible 상태에서 언제든 left-drag 가능하며 drag 완료 좌표를 저장한다.
-- always-drag 요구 때문에 Mini Scanner 자기 영역의 `WS_EX_TRANSPARENT` click-through는 제거한다.
-- Topmost, ShowActivated=false, `WS_EX_NOACTIVATE`, `WS_EX_TOOLWINDOW`는 유지한다.
-- Mini Scanner 영역은 mouse hit-test를 받지만 게임 keyboard focus는 가져가지 않는다.
-- 신규 기능이 아니라 v1.1.0 Scanner 사용성 보완이므로 DEC-048에 따라 **v1.1.1 PATCH**다.
-- partially supersedes: DEC-050/051의 Mini Scanner play-mode click-through 계약
-- 상세: `docs/SCANNER_UI_DECISION_2026-08-21.md`, `docs/SCANNER.md`, `docs/SCANNER_TEST_PLAN.md`
+- Tarkov client capture + Display Test + Windows ko-KR OCR + Mini Scanner pipeline을 실제 제품화했다.
+- runtime diagnostics와 실제 Tarkov evidence를 후속 PATCH 근거로 사용한다.
+- 현재 세부 capture/diagnostic 계약은 `docs/SCANNER.md`가 우선한다.
 
-## DEC-053 — Scanner 상세창 확정은 Scanner Lab v3.8식 multi-candidate semantic validation을 사용한다
+## DEC-052 — Scanner 탭은 운용 UI와 인식 기록을 사용하고 Mini Scanner는 직접 조작 가능한 overlay다
 
-- 상태: `CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED v1.1.3`
-- 날짜: 2026-08-21
-- 배경: v1.1.2 실사용에서 통합 과정의 단일/favored geometry candidate 확정 방식이 Scanner Lab v3.8보다 인식률을 크게 떨어뜨리는 회귀를 만들었다.
-- 사용자가 보존한 `TarkovHelper-ScannerLab-v3.8` 원본을 다시 확보해 실제 성공 구조를 기준으로 복원한다.
-- geometry/structural detection은 **후보 생성과 순위** 역할만 한다.
-- RED-X connected-component candidate와 rectangle/edge fallback candidate를 함께 사용한다.
-- IoU 중복 제거 후 최대 8개 candidate를 유지할 수 있다.
-- candidate별 title ROI를 Windows `ko-KR` OCR하고 current official Korean full-item catalog resolver에 전달한다.
-- title 높이에 따라 4x/6x/8x 확대를 사용한다.
-- 1차 semantic resolution 실패 시 상위 3개 candidate에 enlarged/high-contrast/binary/inverse deep OCR을 수행한다.
-- OCR 개별 line과 인접 두 line 결합 후보를 검사한다.
-- **current official item으로 안전하게 resolve된 candidate만 실제 inspect window로 확정한다.**
+- 상태: `CONFIRMED / IMPLEMENTED / PARTIALLY SUPERSEDED by later UI decisions`
+- 당시 Scanner normal surface와 Mini Scanner interaction을 확립했다.
+- 현재 v1.7.13 UI 배치/overlay/settings 계약은 최신 결정이 우선한다.
+
+## DEC-053 — Scanner 상세창 확정은 multi-candidate semantic validation을 사용한다
+
+- 상태: `CONFIRMED / IMPLEMENTED`
+- geometry는 후보 생성/순위 역할만 한다.
+- RED-X component + rectangle/edge fallback candidate를 사용한다.
+- current official item으로 안전하게 resolve된 candidate만 identity path를 통과한다.
 - matcher threshold/top1-top2 margin을 인식률 때문에 낮추지 않는다.
-- historical Scanner Lab alias를 production catalog에 추가하지 않는다.
-- structural score가 가장 높다는 이유만으로 하나의 rectangle을 즉시 inspect window로 확정하는 구현으로 되돌아가지 않는다.
-- 회귀 기준: cropped `Ophthalmoscope 검안경`, full Water screenshot geometry/title ROI, strong inner rectangle coexistence, no-RED-X fallback, uniform fail-closed.
-- v1.1.3 public release source: `8803f899341859887281ad50135911f4625a64f3`
-- release verification: `32470606548 — SUCCESS`, 245/245 tests, Draft/Public re-download + actual EXE smoke SUCCESS
-- 상세: `docs/SCANNER.md`, `docs/SCANNER_LAB_3_8_REFERENCE.md`, `docs/RELEASE_1.1.3.md`
 
-## DEC-054 — Scanner 시장/필요 수량 표시는 기존 권위 데이터의 명시적 계약으로 고정한다
+## DEC-054 — Scanner 시장/필요 수량 표시의 권위 데이터를 명시한다
 
-- 상태: `CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED v1.1.4`
-- 날짜: 2026-08-21
-- `최고 상점가`는 유효한 non-flea RUB 환산 판매가 중 최댓값이다.
-- `플리마켓 평균가`는 positive `avg24hPrice`이며 최저가와 혼동하지 않는다.
-- `필요 개수`/`current needed`는 `ItemsWorkspace.Plan.NeededItems[itemId].RequiredTotal`이다.
-- Inventory 차감 부족량을 Scanner의 필요 수량 의미로 사용하지 않는다.
-- market/dimension 정보가 누락되거나 잘못된 경우 Item identity 전체를 버리지 않고 해당 표시 필드만 fail closed한다.
-- Scanner 로그 삭제는 recent activity와 current/rotated scanner log를 사용자 조작으로 정리할 수 있어야 한다.
-- 상세: `docs/SCANNER.md`, `docs/RELEASE_1.1.4.md`
+- 상태: `CONFIRMED / PARTIALLY SUPERSEDED by v1.7.11 maintenance decision`
+- 최고 상점가 = trusted non-flea RUB-equivalent max.
+- flea 평균 = positive `avg24hPrice`.
+- market/dimension 오류는 affected field만 fail closed.
+- 당시 `RequiredTotal` current-needed 의미는 **superseded**.
+- 현재 사용자 표시값 = `NeededItems[itemId].RemainingTotal`.
 
-## DEC-055 — Scanner v1.2.0은 title recognition을 current-catalog anchor/visual recovery로 확장하고 사용자 진단/one-shot 기능을 제공한다
+## DEC-055 — Scanner v1.2.0은 title recognition을 anchor/visual recovery로 확장하고 진단/one-shot을 제공한다
 
-- 상태: `CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED`
-- 날짜: 2026-08-22
-- red close + magnifier + title-field 구조로 detail title ROI를 refine한다.
-- magnifier가 검출되면 OCR ROI에서 magnifier pixel을 제외한다.
-- anchor가 불확실하면 검증된 Scanner Lab geometry ROI로 fail-safe fallback한다.
-- Windows `ko-KR` OCR이 primary path이며 current official Korean item-name catalog가 허용 문자와 identity의 권위다.
-- OCR이 비거나 손상된 경우에만 locally available Tarkov-font rendering을 이용한 conservative full-catalog visual recovery를 허용한다.
-- visual recovery도 current catalog 밖의 Item을 생성하지 않으며 score/margin ambiguity는 fail closed한다.
-- `인식 이미지`는 최신 diagnostic frame 1개만 process memory에 유지하고 raw screenshot을 디스크에 저장하지 않는다.
-- `1회 고정밀 스캔`은 continuous Scanner OFF에서도 실행 가능하고 local healthy catalog만 사용하며 scan-time network를 시작하지 않는다.
-- 기본 global hotkey는 `Ctrl+Shift+F10`이며 변경/비활성화 가능하다.
-- 새 사용자 기능이 포함되므로 DEC-048에 따라 **v1.2.0 MINOR**다.
-- public release source: `a7601f8498e8d75e832962fb9dd60f4112d28dc6`
-- exact-source release run: `32514322439 — SUCCESS`, 255/255 tests
-- 상세: `docs/SCANNER.md`, `docs/RELEASE_1.2.0.md`
+- 상태: `CONFIRMED / IMPLEMENTED`
+- Windows ko-KR OCR primary.
+- OCR miss/damage에만 conservative current-catalog-bounded visual recovery.
+- current catalog 밖 Item 생성 금지.
+- latest diagnostic frame은 memory 중심.
+- one-shot은 local healthy catalog만 사용하고 scan-time network를 시작하지 않는다.
 
-## DEC-056 — Scanner v1.2.1은 관측되지 않은 live threshold를 추측하지 않고 deterministic reliability를 hardening한다
+## DEC-056 — Scanner는 live threshold를 추측하지 않고 deterministic reliability를 hardening한다
 
-- 상태: `CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED`
-- 날짜: 2026-08-22
-- v1.2.0의 사용자 기능/recognition threshold를 유지하는 PATCH hardening이다.
-- Tarkov title-font cache는 source generation과 실제 font SHA-256 generation에 결속하고 generation 변경 시 loaded/rendered cache를 무효화한다.
-- OCR-guided/full-catalog visual cache는 bounded이며 exact font generation을 key에 포함한다.
-- Mini Scanner inventory-context OCR probe는 최대 1개만 실행하고 반복 요청은 latest snapshot으로 coalesce한다.
-- one-shot/profile lifecycle은 최신 사용자 상태를 다시 읽어 stale mode/profile 부활을 막는다.
-- font-aware OCR resource disposal은 active-operation lease를 사용해 use-after-dispose race를 막는다.
-- `PrintWindow` visual validation은 sparse pixel 직접 검사로 불필요한 1440p/4K full-frame managed copy를 제거한다.
-- title-anchor diagnostics는 실제 detector score를 보존한다.
-- 실제 Tarkov live E2E에서 얻은 증거 없이 detector/OCR/visual acceptance threshold를 완화하거나 추측 조정하지 않는다.
-- 신규 기능 확장이 아닌 기존 Scanner의 안정성/정확성/효율 보완이므로 DEC-048에 따라 **v1.2.1 PATCH**다.
-- public release source: `8c0de649f18d7caa4f5669a06511c15e784dfd29`
-- final PR CI: `32540688111 — SUCCESS`
-- exact-source release run: `32542259521 — SUCCESS`, 255/255 tests
-- 상세: `docs/SCANNER.md`, `docs/RELEASE_1.2.1.md`
+- 상태: `CONFIRMED / IMPLEMENTED`
+- font/visual cache generation binding, bounded cache, lifecycle/race hardening.
+- 실제 evidence 없이 detector/OCR/visual acceptance threshold를 완화하지 않는다.
 
-## DEC-057 — Scanner catalog의 disk load와 network refresh는 하나의 mode-transition operation boundary를 사용한다
+## DEC-057 — Scanner catalog disk load와 network refresh는 하나의 mode-transition ordering boundary를 사용한다
 
-- 상태: `CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED`
-- 날짜: 2026-08-23
-- `ScannerCatalogService.RefreshAsync`와 `LoadCacheAsync`는 동일한 in-memory Item identity/market state를 교체할 수 있으므로 동일 `_refreshGate`로 직렬화한다.
-- cross-GameMode `ClearForMode`는 refresh가 gate를 획득한 뒤 수행한다.
-- 이전 profile/GameMode에서 이미 진행 중이던 network refresh가 새 profile/GameMode의 cache load 결과를 뒤늦게 덮어쓰는 상태 역전을 허용하지 않는다.
-- cache load는 Scanner catalog lifetime cancellation과 연결해 shutdown 중 gate 대기에서 빠져나올 수 있어야 한다.
-- 이 변경은 recognition threshold, OCR/visual matcher, market-price 계산식 또는 `RequiredTotal` 의미를 변경하지 않는다.
-- 실제 race ordering을 강제하는 regression test를 유지한다.
-- 기존 기능의 deterministic concurrency defect 수정이므로 DEC-048에 따라 **v1.2.2 PATCH**다.
-- public release source: `e3925cbc55215c7de0502c9b6b1ff1428d2f272b`
-- final PR CI: `32590303579 — SUCCESS`
-- exact-source release run: `32590701086 — SUCCESS`, 256/256 tests
-- independent public finalizer: `32607942093 — SUCCESS`
-- public ZIP SHA-256: `125d4a5b0e6db64f6772cc63c112f13cbcdac2fb7bc9ce501313ca2fc3645d7c`
-- 상세: `docs/SCANNER.md`, `docs/RELEASE_1.2.2.md`
+- 상태: `CONFIRMED / IMPLEMENTED`
+- `RefreshAsync`와 `LoadCacheAsync`가 동일 in-memory state를 교체하므로 writer ordering을 공유한다.
+- older GameMode writer가 newer final state를 덮어쓰지 못하게 한다.
+- 당시 `RequiredTotal` 비변경 문구는 역사적이며 current needed 의미는 v1.7.11이 supersede한다.
 
 ## DEC-058 — Scanner title ROI는 실제 inspect-header frame이 소유한다
 
-- 상태: `CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED v1.3.3`
-- 날짜: 2026-08-23
-- 실제 Tarkov 2048×1280 상세창 12개에서 재확인된 title-start/magnifier-anchor 회귀를 근거로 한다.
-- first title glyph connected component는 title ROI left edge를 결정하지 않는다.
-- red close/X + long neutral top frame + bounded frame-left search-icon lane + magnifier + dark title field/text evidence를 결합한 `HEADER_FRAME_LOCKED`가 title ROI의 권위 구조다.
-- runtime은 `HEADER_FRAME_LOCKED`와 anchor score 0.68 이상을 다시 요구하며 partial/failed lock은 OCR identity path에 진입하지 않는다.
-- raw Windows OCR과 current-catalog sanitation 후 matcher input을 diagnostics에서 분리한다.
-- 기존 confidence/top1-top2 margin과 bounded unique one-edit 안전 조건은 완화하지 않는다.
-- highest trader / flea `avg24hPrice` / `RequiredTotal` 의미와 schema는 변경하지 않는다.
-- 신규 기능이 아닌 live regression 수정이므로 DEC-048에 따라 v1.3.3 PATCH다.
-- release source/tag: `41bf5b8374ba774866aab4b60a25376d9b5548c2`
-- final PR CI: `32625223009 — SUCCESS`, 263/263 tests
-- release run: `32625403609 — SUCCESS`
-- public ZIP SHA-256: `0771d3c7dee5a8f19904d52eeedc7b9abbd6027a7b000255ebd33c296bc2186f`
-- 상세: `docs/DECISION_SCANNER_HEADER_LOCK_2026-08-23.md`, `docs/SCANNER_V1.3.3_HEADER_LOCK.md`, `docs/RELEASE_1.3.3.md`
+- 상태: `CONFIRMED / IMPLEMENTED`
+- `HEADER_FRAME_LOCKED >= 0.68`을 production OCR gate로 요구한다.
+- red close-X + neutral header/frame + bounded magnifier lane + dark title field/text evidence를 결합한다.
+- partial/failed lock은 Item identity path에 진입하지 않는다.
+- 당시 `RequiredTotal` 문구는 current needed 의미의 현행 권위가 아니다.
 
-## DEC-059 — Scanner v1.3.4는 실제 Tarkov evidence 기반 recognition/diagnostics hardening을 적용한다
+## DEC-059 — Scanner recognition/diagnostics는 actual Tarkov evidence 기반으로 hardening한다
 
-- 상태: `CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED v1.3.4`
-- 날짜: 2026-08-23
-- v1.3.3 공개 후 실제 Tarkov 사용에서 확인된 `Esma「ch` OCR glyph loss, title glyph의 magnifier 오인, structural detail bounds drift, 저장 PNG의 진단 rectangle 유실을 근거로 한다.
-- current official catalog 밖 embedded symbol을 `r` 같은 특정 문자로 고정 치환하지 않는다. 영숫자 사이 정확히 한 unknown glyph만 별도 pattern으로 보존하고 complete current catalog에서 exact-slot 후보가 유일하며 global runner-up과 10%p 이상 차이날 때만 복구한다.
-- magnifier는 long neutral header frame으로부터 계산한 fixed frame-left search-icon lane과 normalized ring/hollow/handle template가 소유한다. title lane glyph는 형태가 비슷해도 magnifier 후보가 될 수 없다.
-- close/X는 red dominance/geometry만이 아니라 normalized diagonal-X shape evidence를 함께 요구한다.
-- `HEADER_FRAME_LOCKED`, anchor score 0.68 이상, valid magnifier/close를 모두 만족한 candidate만 OCR identity path에 유지한다.
-- full header lock 이후 selected detail bounds의 top/left/right를 authoritative magnifier/X geometry로 다시 정렬하고 bottom은 item/stat pane 차이를 고려해 structural detector 값을 보수적으로 유지한다.
-- 사용자가 `이미지 저장`을 명시적으로 선택한 경우에만 export PNG를 만들며 selected detail/title ROI/magnifier/close rectangle을 실제 픽셀에 합성한다. 자동 screenshot persistence는 계속 금지한다.
-- ordinary confidence/top1-top2 margin, bounded unique one-edit safety, visual recovery safety는 완화하지 않는다.
-- highest trader / flea `avg24hPrice` / `RequiredTotal` 의미와 Content v7 / user.db v1 / Scanner display settings v4 / Scanner catalog v2 schema는 변경하지 않는다.
-- 신규 사용자 기능이 아닌 실전 recognition/diagnostics 결함 수정이므로 DEC-048에 따라 **v1.3.4 PATCH**다.
-- exact release source/tag: `a78ddbc649747f1320236556f17e6b908304674a`
-- final PR CI: `32636665202 — SUCCESS`, 267/267 tests
-- exact-source release run: `32636927134 — SUCCESS`
-- independent public verifier: `32637159066 — SUCCESS`
-- public ZIP SHA-256: `8c442fec81a0b993a9a6b080e59b656668a7a73d8fadd8434595545b08c82e8e`
-- 상세: `docs/DECISION_SCANNER_V1.3.4_LIVE_HARDENING_2026-08-23.md`, `docs/SCANNER_V1.3.4_LIVE_HARDENING.md`, `docs/RELEASE_1.3.4.md`
+- 상태: `CONFIRMED / IMPLEMENTED`
+- unknown glyph를 특정 문자로 product-wide 강제 치환하지 않는다.
+- magnifier/close morphology와 header ownership을 강화한다.
+- `HEADER_FRAME_LOCKED`, valid magnifier/close, conservative matcher/visual safety를 유지한다.
+- 사용자가 명시적으로 저장할 때만 diagnostic PNG를 export한다.
+- 당시 `RequiredTotal`/schema 문구는 historical v1.3.4 state이며 현재 계약은 최신 Scanner/STATE 문서가 우선한다.
 
 ---
 
-# 3. 현재 결정 확인 방법
+# 3. DEC-059 이후 standalone 결정 — 현재 우선순위
 
-- 제품 요구사항: `docs/PRODUCT.md`
-- 현재 구현/릴리즈 상태: `docs/STATE.md`, `docs/CURRENT_STATE.md`
-- 기술 경계: `docs/ARCHITECTURE.md`
-- 개발자 구현/참조 지도: `docs/DEVELOPER_REFERENCE.md`
-- Scanner 제품/기술 계약: `docs/SCANNER.md`
-- Scanner Lab v3.8 reference: `docs/SCANNER_LAB_3_8_REFERENCE.md`
-- Scanner UI 결정: `docs/SCANNER_UI_DECISION_2026-08-21.md`
-- Scanner 검증 gate: `docs/SCANNER_TEST_PLAN.md`
-- 버전 정책: `docs/VERSIONING.md`
-- Program Update: `docs/PROGRAM_UPDATE.md`
-- 배포: `docs/DEPLOYMENT.md`
-- Quest 선행조건/특수 상인 접근: `docs/QUEST_PREREQUISITE_SEMANTICS.md`
-- Map 세부 계약: `docs/MAP_PRODUCT_REQUIREMENTS.md`
-- 기존 구현 참고 정책: `docs/REFERENCE_POLICY.md`
-- DEC-001~029 원문: `docs/DECISIONS_HISTORY_THROUGH_2026-08-09.md`
+DEC 번호를 과거 순번에 억지로 이어 붙이지 않고, 저장소에 별도 결정 문서로 확정된 후속 결정을 current authority chain으로 관리한다.
+
+## Product complete / maintenance mode
+
+- `docs/DECISION_PRODUCT_COMPLETE_2026-08-26.md`
+- 현재 요구사항 범위 제품은 완성 상태이며 기본 방향은 maintenance.
+- 새 사용자 기능은 사용자가 명시적으로 새 제품 요구사항으로 결정할 때 시작.
+
+## Scanner durable data / hotkeys
+
+- `docs/DECISION_SCANNER_STORAGE_AND_HOTKEYS_2026-08-26.md`
+- normal monitoring은 durable automatic Ground Truth를 만들지 않음.
+- user-reviewed explicit save만 durable Ground Truth.
+- Scanner/Map configurable hotkey의 current storage/input 경계 확립.
+
+## v1.7.8 raid header ownership
+
+- `docs/DECISION_V1.7.8_RAID_HEADER_LOCK_2026-08-26.md`
+- raid inventory horizontal-line bleed recovery는 strong RED-X evidence 뒤에서만 진입하고 기존 semantic gate를 모두 다시 요구.
+
+## v1.7.9 Mini Scanner presentation authority
+
+- `docs/DECISION_V1.7.9_MINI_SCANNER_SHOW_2026-08-26.md`
+- Item ID 확정 뒤 auxiliary inventory-header OCR은 confirmed Item presentation을 veto하지 못함.
+
+## v1.7.10 cross-environment Scanner normalization
+
+- `docs/DECISION_SCANNER_CROSS_ENVIRONMENT_2026-08-26.md`
+- 특정 PC/GPU/HDR 분기 대신 measured title luminance profile 기반 bounded normalization.
+- normal OCR success path는 추가 normalization/OCR 비용 없음.
+- normalization은 identity proof가 아님.
+
+## v1.7.11 maintenance
+
+- `docs/DECISION_V1.7.11_MAINTENANCE.md`
+- Scanner current needed = `ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal`.
+- configurable Map/Scanner hotkey는 extra Ctrl/Alt/Shift compatibility + most-specific-wins.
+- MiniMap first-open sync / size persistence.
+- standard explanatory WPF ToolTip 전역 비표시.
+
+## Long-term maintenance audit / v1.7.12
+
+- `docs/DECISION_LONG_TERM_MAINTENANCE_AUDIT_2026-08-27.md`
+- `docs/DECISION_V1.7.12_MAINTENANCE.md`
+- shared Desktop presentation infrastructure owner = `MainWindow.OnInitialized`.
+- Ammo internal presentation initialization = `AmmoPage.OnInitialized` + Loaded-priority dispatcher.
+- evidence 없는 speculative performance/cache/reflection cleanup 금지.
+
+## v1.7.13 UI simplification
+
+- `docs/DECISION_V1.7.13_UI_SIMPLIFICATION.md`
+- 상태: **IMPLEMENTED / PUBLIC VERIFIED v1.7.13**.
+- Items Quest/Hideout purpose selector 제거.
+- Ammo controls 정리 + detail 기본 접힘.
+- Map marker/settings same-launcher toggle, trail surface 제거, hotkey explanation 제거.
+- Scanner display settings 즉시 저장; hotkey editing을 normal Scanner surface로 분리.
+- Scanner needed search source = existing `NeededItems[itemId].Sources`.
+- user-facing settings/edit surface는 가능한 경우 MainWindow internal overlay interaction 사용.
+- Scanner current correction 우측 command 영역.
+- Scanner recognition constants/matcher/visual/pacing, Map donor, Game Content/LKG 계약은 변경하지 않음.
+
+---
+
+# 4. 현재 결정 확인 방법
+
+현재 상태를 복구할 때 다음 순서로 읽는다.
+
+1. 제품 요구사항: `docs/PRODUCT.md`
+2. 현재 구현/릴리즈 상태: `docs/STATE.md`, `docs/CURRENT_STATE.md`
+3. 최신 UI 제품 결정: `docs/DECISION_V1.7.13_UI_SIMPLIFICATION.md`
+4. 기술 경계: `docs/ARCHITECTURE.md`
+5. 개발자 구현 지도: `docs/DEVELOPER_REFERENCE.md`
+6. 유지보수 안전 계약: `docs/MAINTENANCE_CONTRACTS.md`
+7. Scanner 제품/기술 계약: `docs/SCANNER.md`
+8. Scanner 검증 gate: `docs/SCANNER_TEST_PLAN.md`
+9. Program Update: `docs/PROGRAM_UPDATE.md`
+10. 배포: `docs/DEPLOYMENT.md`
+11. Quest prerequisite: `docs/QUEST_PREREQUISITE_SEMANTICS.md`
+12. Map 세부 계약: `docs/MAP_PRODUCT_REQUIREMENTS.md`
+13. 기존 구현 참고 정책: `docs/REFERENCE_POLICY.md`
+14. DEC-001~029 원문: `docs/DECISIONS_HISTORY_THROUGH_2026-08-09.md`
+
+과거 release/decision 문서의 당시 값은 역사적 evidence다. 현재 제품 의미와 충돌하면 최신 confirmed decision + current canonical docs가 우선한다.
