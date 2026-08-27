@@ -422,6 +422,7 @@ evidence
 - `docs/SCANNER.md`
 - `docs/SCANNER_GROUND_TRUTH.md`
 - `docs/SCANNER_TEST_PLAN.md`
+- `docs/MAINTENANCE_CONTRACTS.md`
 - `docs/DECISION_PRODUCT_COMPLETE_2026-08-26.md`
 - `docs/DECISION_SCANNER_STORAGE_AND_HOTKEYS_2026-08-26.md`
 - `docs/DECISION_V1.7.8_RAID_HEADER_LOCK_2026-08-26.md`
@@ -461,3 +462,40 @@ Exporter 변경 시 이 exclusion을 release regression으로 계속 검증한�
 - full Windows CI/publish/Scanner product smoke 통과
 
 를 모두 만족해야 한다. 코드 미관만을 이유로 이 경계를 선제 변경하지 않는다.
+
+## 19. 2026-08-27 유지보수 기반 정리 진행 상태
+
+제품 runtime/version/release를 변경하지 않고 앞으로의 유지보수 안전성을 높이는 작업을 PR #196에서 진행한다.
+
+현재 범위:
+
+- `docs/MAINTENANCE_CONTRACTS.md`를 유지보수 안전 계약으로 추가
+- 버전 종속 `v1.7.1` Live Data Probe를 장기 운영형 `.github/workflows/live-data-probe.yml`로 교체
+- Live Probe는 hermetic PR/main CI와 분리하고 daily schedule + manual dispatch로 운용
+- production Game Content build와 동일하게 json.tarkov.dev, edition source, Tarkov Wiki Ballistics source를 관찰
+- Wiki Ballistics failure/schema drift는 production과 동일하게 fail-soft warning으로 기록하고 기본 canonical content의 Fatal validation과 구분
+- `ContentUpdateCompletenessGuard`의 50% retained boundary와 no-baseline 의미를 회귀 테스트로 고정
+- collection schema가 array/object 밖으로 drift하면 fail closed하는 회귀 추가
+- `DATA_VALIDATION.md`, `ARCHITECTURE.md`, `DEVELOPER_REFERENCE.md`를 현재 runtime 계약과 일치시킴
+
+검증 상태:
+
+```text
+PR #196 initial reviewed head: 27154eb5082386f68a74421ebd2b677f4430c039
+CI run: 33037598749 — SUCCESS
+396 passed / 0 failed / 0 skipped
+Windows publish: SUCCESS
+Product UI / Map / Factory / MiniMap smoke: SUCCESS
+graceful shutdown / package verification: SUCCESS
+```
+
+위 CI 이후 review에서 Live Probe가 production Wiki Ballistics source를 포함해야 한다는 누락을 확인하여 probe composition을 수정했다. 따라서 **위 run은 최종 head 검증이 아니며**, 최종 PR head의 전체 Windows CI를 다시 통과해야 한다.
+
+완료 전 남은 작업:
+
+1. review 수정이 포함된 final PR head 전체 CI 재검증
+2. PR #196 병합
+3. `main`의 새 Live Data Probe를 수동 실행하여 current Regular/PvE + Wiki Ballistics source 계약 확인
+4. 실제 probe run ID, Regular/PvE 결과, warning/Fatal 상태를 이 문서에 후속 기록
+
+공개 v1.7.11의 exact release source/tag/assets는 이 유지보수 기반 작업과 무관하며 변경하지 않는다.
