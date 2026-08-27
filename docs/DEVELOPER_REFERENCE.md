@@ -1,6 +1,6 @@
 # DEVELOPER_REFERENCE — 준현 헬퍼 개발자용 시스템 설명서
 
-상태: **ACTIVE / v1.7.11 PUBLIC STABLE / MAINTENANCE MODE**  
+상태: **ACTIVE / v1.7.12 PUBLIC STABLE / MAINTENANCE MODE**  
 기준일: 2026-08-27
 
 이 문서는 다음 개발 세션이 대화 기억 없이 저장소만 보고 **현재 구현 위치·책임·데이터 흐름·변경 영향**을 빠르게 복구하기 위한 지도다.
