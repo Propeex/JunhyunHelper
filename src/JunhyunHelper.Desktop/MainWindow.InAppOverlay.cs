@@ -34,6 +34,10 @@ public partial class MainWindow
         if (dialog.Content is not UIElement content)
             throw new InvalidOperationException($"{dialog.GetType().Name} does not expose hostable UI content.");
 
+        _inAppOverlayCompletion = new TaskCompletionSource<bool?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (dialog is IInAppOverlayDialog adapter)
+            adapter.AttachInAppOverlay(CloseInAppOverlay);
+
         dialog.Content = null;
         _inAppHostedWindow = dialog;
         _inAppOverlayKey = key;
@@ -50,10 +54,6 @@ public partial class MainWindow
             : Math.Min(650, availableHeight);
         _inAppOverlayCard.MaxWidth = availableWidth;
         _inAppOverlayCard.MaxHeight = availableHeight;
-
-        _inAppOverlayCompletion = new TaskCompletionSource<bool?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        if (dialog is IInAppOverlayDialog adapter)
-            adapter.AttachInAppOverlay(CloseInAppOverlay);
 
         _inAppOverlayRoot!.Visibility = Visibility.Visible;
         _inAppOverlayRoot.Focus();
