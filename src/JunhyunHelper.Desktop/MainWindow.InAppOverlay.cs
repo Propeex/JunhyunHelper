@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -37,6 +38,18 @@ public partial class MainWindow
         _inAppOverlayCompletion = new TaskCompletionSource<bool?>(TaskCreationOptions.RunContinuationsAsynchronously);
         if (dialog is IInAppOverlayDialog adapter)
             adapter.AttachInAppOverlay(CloseInAppOverlay);
+
+        // Window-scoped resources stop participating after the content is re-parented.
+        // Copy them onto the hosted root before detaching so templates/styles keep the
+        // same lookup semantics inside the product-owned overlay.
+        if (content is FrameworkElement contentRoot && dialog.Resources.Count > 0)
+        {
+            foreach (DictionaryEntry entry in dialog.Resources)
+            {
+                if (!contentRoot.Resources.Contains(entry.Key))
+                    contentRoot.Resources[entry.Key] = entry.Value;
+            }
+        }
 
         dialog.Content = null;
         _inAppHostedWindow = dialog;
