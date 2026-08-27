@@ -34,7 +34,7 @@ public partial class ProfileModeWindow : Window, IInAppOverlayDialog
         if (ModeList.SelectedItem is not ModeChoice choice)
         {
             MessageBox.Show(
-                Window.GetWindow(ModeList) ?? Application.Current.MainWindow,
+                Window.GetWindow(ModeList) ?? System.Windows.Application.Current.MainWindow,
                 "생성할 게임 모드를 선택해주세요.",
                 "새 프로필",
                 MessageBoxButton.OK,
