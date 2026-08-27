@@ -1,7 +1,8 @@
 # DECISION — v1.7.15 UI refinements
 
 기록일: 2026-08-27  
-상태: **CONFIRMED / IMPLEMENTED IN RELEASE CANDIDATE**
+최종 검증: 2026-08-28 KST  
+상태: **CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED v1.7.15**
 
 ## 사용자 의도
 
@@ -41,7 +42,7 @@ v1.7.14 이후 새 기능을 추가하지 않고 기존 UI의 남은 불편을 �
 - visible Favorites selector만 standard ComboBox로 전환하고 저장/filter semantics는 기존 코드를 유지한다.
 - 두 ComboBox는 같은 item presentation template과 caliber별 animation index를 공유한다.
 - icon 후보는 해당 `RawCaliber`에 실제 속한 `AmmoRow.Icon`만 사용한다.
-- 현재 cadence는 1.4초이며, dropdown 둘 다 닫히면 timer를 중지한다.
+- cadence는 1.4초이며, dropdown 둘 다 닫히면 timer를 중지한다.
 - icon byte는 기존 Ammo icon loading/cache 결과를 재사용한다. 별도 source/network authority를 만들지 않는다.
 
 ## 변경하지 않는 계약
@@ -53,6 +54,22 @@ v1.7.14 이후 새 기능을 추가하지 않고 기존 UI의 남은 불편을 �
 - Map/MiniMap donor revision `d933792b6042a51cea38dc44b686a096fe30de67`
 - Program Update와 stable-release immutability
 
-## 검증
+## 공개 검증
 
-`V1715UiRefinementsContractTests`가 핵심 source contract를 고정한다. Release candidate는 full Windows release gate를 통과한 뒤에만 public stable로 게시한다.
+```text
+version: v1.7.15
+exact product release source/tag target: 4bf5e3a567d3ce9563657bbb3b90bec0871c06b4
+main CI: 33086901217 — SUCCESS
+Release workflow: 33087185178 — SUCCESS
+410 passed / 0 failed / 0 skipped
+ProductVersion: 1.7.15+4bf5e3a567d3ce9563657bbb3b90bec0871c06b4
+Product UI / Main Map / Factory / MiniMap smoke: SUCCESS
+graceful shutdown / clean portable root: SUCCESS
+public release id: 377926863
+public Junhyun-Helper.zip bytes: 80,492,565
+public Junhyun-Helper.zip SHA-256: 9ac3276a1a4a20905b0aa3d6452f50d5259f724ed8f960b7cfbad39f8c619f2f
+```
+
+`refs/tags/v1.7.15`과 GitHub `/releases/latest` 모두 exact product release source를 가리키며 공개 ZIP digest가 exact main-CI package SHA-256과 일치한다.
+
+`V1715UiRefinementsContractTests`가 핵심 source contract를 고정한다. 상세 배포 증거는 `docs/RELEASE_1.7.15.md`와 `docs/.release-v1.7.15-status.json`을 사용한다.
