@@ -61,6 +61,23 @@ public sealed class TarkovItemImporterTests
     }
 
     [Fact]
+    public void UnknownCollectionShapeIsFatalInsteadOfSilentlyBecomingEmpty()
+    {
+        var baseDocument = Document("""
+            {
+              "data": {
+                "items": "future-shape"
+              }
+            }
+            """);
+
+        var error = Assert.Throws<InvalidDataException>(
+            () => new TarkovItemImporter().Import(baseDocument, new TarkovLocalization()));
+
+        Assert.Contains("must be an array or object", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void MissingStableItemIdIsFatal()
     {
         var baseDocument = Document("""
