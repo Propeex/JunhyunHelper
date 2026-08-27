@@ -3,16 +3,16 @@
 이 문서는 준현 헬퍼의 현재 구현 구조와 장기적으로 지켜야 할 기술 경계를 기록한다.
 
 기준일: 2026-08-27  
-상태: **v1.7.12 PUBLIC STABLE / MAINTENANCE MODE**
+상태: **v1.7.13 PUBLIC STABLE / MAINTENANCE MODE**
 
-정확한 현재 릴리즈 SHA·CI·asset·schema 상태는 `docs/STATE.md`를 권위 있는 운영 인덱스로 사용한다. 유지보수 시 변경 원칙과 외부 Live Probe/성능 검증 경계는 `docs/MAINTENANCE_CONTRACTS.md`를 따른다.
+정확한 현재 릴리즈 SHA·CI·asset·schema 상태는 `docs/STATE.md`를 권위 있는 운영 인덱스로 사용한다. 유지보수 시 변경 원칙은 `docs/MAINTENANCE_CONTRACTS.md`를 따른다.
 
 ## 1. 기술 스택
 
 - .NET 10 / C#
 - WPF Desktop (`net10.0-windows10.0.19041.0`)
 - SQLite (`Microsoft.Data.Sqlite`)
-- SkiaSharp — external image decode 및 Scanner local-font rendering
+- SkiaSharp — image decode / Scanner local-font rendering
 - SharpVectors — SVG Map rendering
 - Windows x64 portable / self-contained single-file
 - 별도 backend 없음
@@ -42,10 +42,10 @@ JunhyunHelper.Core
 
 Canonical domain과 deterministic 계산:
 
-- Quest availability/future reachability
+- Quest availability / future reachability
 - Needed Items / cleanup safety
-- Item/Ammo canonical meaning
-- Scanner pure policies/signatures/matcher contracts
+- Item / Ammo canonical meaning
+- Scanner pure policy / signature / matcher contract
 
 ### Application
 
@@ -65,10 +65,10 @@ I/O boundary:
 
 WPF/presentation/system integration:
 
-- shell/pages/dialogs
-- image cache presentation
+- MainWindow shell / pages / user-facing editor overlay host
+- image-cache presentation
 - Scanner capture/OCR/runtime/search/diagnostics
-- Map product bridge
+- Map first-party product bridge/customization
 - startup/update UX
 
 Domain truth를 WPF event handler에 복제하지 않는다.
@@ -77,11 +77,12 @@ Domain truth를 WPF event handler에 복제하지 않는다.
 
 `vendor/Tarkov-Helper` 전체를 제품 사양으로 승계하지 않는다. Map/MiniMap만 pinned source compile-link 예외다.
 
-Pinned revision:
-
 ```text
+pinned revision:
 d933792b6042a51cea38dc44b686a096fe30de67
 ```
+
+v1.7.13의 Map UI 단순화는 donor source를 수정하지 않고 JunhyunHelper first-party partial/customization boundary에서 적용한다.
 
 ## 3. Data authority / lifecycle
 
@@ -91,25 +92,25 @@ d933792b6042a51cea38dc44b686a096fe30de67
 | User Progress | user-confirmed facts | `user.db` |
 | Inventory | user quantity + consumption ledger | `user.db` |
 | Presentation preferences | user settings | atomic JSON + `.bak` |
-| Image cache | validated/normalized presentation bytes | `image-cache/` |
+| Image cache | validated/normalized bytes | `image-cache/` |
 | Scanner identity/market catalog | current full-item source + official Korean identity | `scanner/catalog/` + memory |
 | Scanner settings | display/hotkey/order/OCR substitution | `scanner-settings.json(.bak)` |
 | Scanner title font cache | installed Tarkov assets read-only extraction | `scanner/fonts/` |
 | Scanner Cases / reviewed GT | runtime evidence + user truth | `scanner/diagnostics/` |
-| Scanner/startup logs | runtime diagnostics | `logs/*.log(.1)` |
+| Runtime logs | diagnostics | `logs/` |
 | Map artwork/config/general markers | pinned donor bundle | release `Assets/` |
 | Program files | exact GitHub stable Release | portable product folder |
 
-이 lifecycle들은 서로 분리한다. Program/Game Content update가 `user.db`나 reviewed GT를 덮어쓰지 않는다.
+이 lifecycle들은 서로 분리한다. Program/Game Content update가 `user.db`나 reviewed Ground Truth를 덮어쓰지 않는다.
 
-## 4. Startup / composition / shutdown
+## 4. Startup / composition / overlay / shutdown
 
 ```text
 App.OnStartup
 → fatal exception hooks
 → updater apply-mode
 → LocalAppData diagnostics/log setup
-→ Scanner retention service
+→ Scanner retention setup
 → MainWindow
 → startup Program Update check (non-smoke)
 
@@ -118,6 +119,7 @@ MainWindow.OnInitialized
 → Ammo favorite-store binding
 → cross-page content navigation wiring
 → Scanner global-command lifetime wiring
+→ user-facing edit/settings overlay lifetime
 
 MainWindow.Window_Loaded
 → profile/content/workspaces
@@ -125,9 +127,13 @@ MainWindow.Window_Loaded
 → Scanner context/catalog/runtime
 ```
 
-Shared page infrastructure는 product-window lifetime의 `MainWindow.OnInitialized`가 소유한다. 개별 Page의 internal presentation initialization은 해당 Page가 직접 소유하며 unrelated Page의 `Loaded` 순서를 implicit trigger로 사용하지 않는다. Ammo search/detail/grid presentation은 `AmmoPage.OnInitialized`에서 Loaded dispatcher priority로 초기화된다.
+Shared page infrastructure는 product-window lifetime의 `MainWindow.OnInitialized`가 소유한다. 개별 Page의 internal presentation initialization은 해당 Page가 직접 소유하며 unrelated Page의 `Loaded` 순서를 implicit trigger로 사용하지 않는다.
 
-Shutdown은 Scanner runtime/OCR/font/retention/background resource를 정상 종료해야 한다. CI graceful-shutdown smoke가 이 경계를 검증한다.
+Ammo search/detail/grid presentation은 `AmmoPage.OnInitialized`에서 Loaded dispatcher priority로 초기화된다.
+
+v1.7.13에서 profile/Scanner settings/edit 같은 사용자-facing editing surface는 가능한 경우 MainWindow 내부 공통 overlay owner가 호스팅한다. Overlay owner는 open/close/backdrop/same-launcher lifecycle을 책임지고 child editor의 validation/save/domain 의미는 재구현하지 않는다.
+
+Shutdown은 Scanner runtime/OCR/font/retention/background resource를 정상 종료해야 한다. actual published EXE graceful-shutdown smoke가 이 경계를 검증한다.
 
 ## 5. Game Content update architecture
 
@@ -136,7 +142,7 @@ remote source
 → parse/import
 → canonical/relational validation
 → candidate content
-→ last-known-good baseline completeness guard
+→ last-known-good completeness guard
 → candidate content.db
 → SQLite read-back/integrity
 → atomic active replacement
@@ -148,13 +154,13 @@ remote source
 - candidate 완성 전 active DB overwrite 금지
 - failed candidate 폐기
 - known-good active 유지
-- 기존 정상 snapshot이 있으면 핵심 entity/relationship/localization/resource coverage의 suspicious shrink를 `ContentUpdateCompletenessGuard`가 차단
-- 현재 retained floor는 baseline 대비 50%; 이는 Tarkov 절대 행 수 제한이 아니라 부분 payload 방어다
+- 기존 정상 snapshot이 있으면 핵심 coverage의 suspicious shrink를 `ContentUpdateCompletenessGuard`가 차단
+- retained floor 50%는 Tarkov 절대 행 수 제한이 아니라 baseline-relative partial-payload 방어
 - User Progress에 영향 없음
 
 Top-level Game Data update는 general content activation 이후 current GameMode Scanner catalog/market refresh까지 orchestration한다. Scanner-only partial failure는 general success를 rollback하지 않는다.
 
-외부 최신 계약 감시는 `.github/workflows/live-data-probe.yml`에서 일반 hermetic CI와 분리해 수행한다. Live Probe는 baseline-relative runtime guard를 대체하지 않는다.
+외부 최신 계약 감시는 `.github/workflows/live-data-probe.yml`에서 hermetic CI와 분리한다.
 
 ## 6. Profile / Quest / Needed Items
 
@@ -164,16 +170,45 @@ Profile facts
 → Hideout future requirements
 → NeededItemRequirementBuilder
 → NeededItemCalculator
+→ ItemsWorkspace.Plan.NeededItems
 → Needed Items / cleanup protection
 ```
 
 Unknown prerequisite는 optimistic current로 바꾸지 않는다. Flexible hand-in 실제 Item을 자동 추측하지 않는다.
 
+`ItemsWorkspace.Plan.NeededItems`는 Scanner의 current-needed/source presentation authority이기도 하다.
+
+```text
+NeededItems[itemId]
+├─ RemainingTotal → Scanner current needed
+└─ Sources        → Scanner searched-item Quest/Hideout source rows
+```
+
+Scanner가 Quest/Hideout requirement/source를 별도 재계산하지 않는다. 이 정보는 Item ID 확정 뒤 presentation에만 사용한다.
+
 ## 7. Map / MiniMap architecture
 
-Map artwork/config/general markers는 donor bundle, current Quest state/geometry는 JunhyunHelper bridge를 사용한다.
+Map artwork/config/general markers는 donor bundle을 사용하고 current Quest state/geometry는 JunhyunHelper bridge가 연결한다.
 
 Map은 독립 subsystem이고 Quest만 current JunhyunHelper data와 bridge한다.
+
+v1.7.13 first-party Map customization:
+
+- 지도 마커 selector 기본 접힘 / same-launcher toggle
+- settings same-launcher close
+- trail/path + clear-trail product surface 제거
+- long hotkey instruction copy 제거
+
+대표 boundary:
+
+- `Desktop/MainWindow.LegacyMapHost.cs`
+- `Desktop/Map/MapPage.JunhyunUiSimplification.cs`
+- `Desktop/Map/*`
+- `Desktop/Legacy/TarkovHelper/*`
+- `Desktop/Quests/QuestPage.MapBridge.cs`
+- `Desktop/Quests/QuestPage.MapNavigation.cs`
+
+이름에 `Legacy`가 있어도 현재 compatibility bridge일 수 있다. 실제 참조/실행 evidence 없이 dead code로 판단하지 않는다.
 
 검증된 donor code는 concrete defect/performance evidence 없이 broad refactor하지 않는다.
 
@@ -186,11 +221,21 @@ Canonical specialist document: `docs/SCANNER.md`.
 ### 8.1 Logical composition
 
 ```text
-ScannerPage / ScannerSettingsWindow / ScannerAdvancedWindow / MiniScannerWindow
-        │
-        ▼
+MainWindow product overlay host
+├─ profile editor
+└─ Scanner display/settings editor
+
+ScannerPage
+├─ ON/OFF
+├─ display settings launcher
+├─ hotkey settings entry
+├─ Advanced
+├─ current result correction
+├─ item search
+└─ recognition log
+
 ScannerCoordinator
-├─ settings schema v6 / hotkeys / OCR substitutions / Mini order
+├─ settings schema v6 / hotkeys / substitutions / Mini order
 ├─ local item search/details
 ├─ ScannerCatalogService
 ├─ ScannerRuntimeService
@@ -199,7 +244,6 @@ ScannerCoordinator
 │  ├─ SerializedScannerOcrEngine
 │  ├─ FontAwareScannerOcrEngine
 │  ├─ ScannerLatencyTelemetry
-│  ├─ verified title continuity
 │  └─ ScannerItemPresentationService
 ├─ ScannerRecognitionDebugStore
 ├─ Ground Truth correction / saved Case re-edit
@@ -214,14 +258,14 @@ Title OCR과 inventory-context OCR은 하나의 WinRT serialization boundary를 
 Tarkov client/display pixels
 → capture
 → structural proposals
-→ red close-X + magnifier + neutral header semantic validation
+→ close-X + magnifier + neutral header semantic validation
 → HEADER_FRAME_LOCKED
 → item-name ROI
 → Windows ko-KR OCR
 → optional user substitution
-→ current-catalog sanitation/normalization
-→ conservative official-name matching
-→ optional strict visual recovery
+→ conditional environment normalization where needed
+→ current-catalog sanitation/matching
+→ optional strict current-pixel visual recovery
 → Item ID or fail closed
 → local mapped presentation
 → Scanner Page / Mini Scanner
@@ -229,169 +273,92 @@ Tarkov client/display pixels
 
 Single evidence source만으로 Item identity를 확정하지 않는다.
 
-### 8.3 Structural / semantic contract
+### 8.3 Recognition safety contract
 
 ```text
 structural floor = 0.34
 HEADER_FRAME_LOCKED floor = 0.68
-continuous cap = 8
-one-shot cap = 12
+continuous candidate cap = 8
+one-shot candidate cap = 12
+continuous observation target = 200 ms
 ```
 
-Proposal policy:
+- geometry = proposal evidence, not identity
+- current official catalog = identity authority
+- exact-first conservative matcher
+- ambiguity = no Item ID
+- scan-time network identity work 금지
+- Item ID 확정 전 price/needed/slot/source metadata identity evidence 금지
+- cross-frame OCR/visual identity cache 금지
+- reviewed evidence 없이 threshold/candidate/matcher/visual acceptance 완화 금지
 
-- RED-X connected component + rectangle/edge fallback
-- aspect prior = weak ranking hint
-- high IoU alone ≠ duplicate
-- different real edges survive to semantic validation
-- near-identical jitter only deduped
-
-Semantic required evidence:
-
-- red close-X morphology
-- neutral inspect header/frame
-- bounded frame-left magnifier lane
-- magnifier ring/hollow/handle
-- dark title field
-- title text evidence
-
-### 8.4 OCR / matching
+### 8.4 OCR / matching / same-cycle reuse
 
 - Windows ko-KR primary
 - raw OCR preserved
 - normal + bounded deep variants
-- current catalog-derived character policy
-- exact-first
+- adaptive environment normalization은 normal miss/deep path에만 조건부 적용
+- user substitution single ordered pass
+- current-catalog character policy
 - conservative fuzzy + top1/top2 margin
-- bounded unique unknown/edit recovery
-- impossible glyph not globally forced to r/0/I/l
-- visual recovery restricted to current official item universe
-- cross-frame OCR cache prohibited
+- bounded unknown/edit recovery
+- strict current-catalog visual recovery
 
-### 8.5 User OCR substitutions / schema v6
+OCR reuse는 same active cycle + same pass class + same dimensions/BPP + exact pixel SHA-256을 요구한다. Title continuity signature는 detail continuity evidence이지 Item identity proof가 아니다.
 
-```text
-raw OCR
-→ enabled user substitutions (single ordered pass)
-→ sanitation / normalization
-→ matcher
-```
+### 8.5 Scanner settings / UI v1.7.13
 
-User substitutions remain default-empty, exact, non-recursive and preserve raw evidence.
+Scanner display settings schema는 **v6 그대로**다. v1.7.13은 schema migration release가 아니다.
 
-Settings schema v6 additionally owns Mini Scanner ordered fields.
+Display settings:
 
-### 8.6 Same-cycle reuse / continuity
+- Mini Scanner optional field visibility/order
+- OCR substitutions / display-owned preference
+- change-immediate persistence
+- Save/Cancel transaction 없음
+- icon/official item name은 fixed identity header이므로 별도 `항상 표시` 안내 row 없음
 
-OCR reuse requires same active cycle + same pass class + dimensions/BPP + exact pixel SHA-256.
+Hotkey editing:
 
-Title continuity signature is only trusted-detail continuity evidence, never Item identity proof.
+- display settings에서 분리
+- normal Scanner surface에서 entry 제공
+- same atomic Scanner settings store 사용
 
-### 8.7 Catalog writer ordering
+`현재 결과 교정`은 right-side command 영역에 두고 latest exact in-memory Scanner frame만 correction editor로 연다.
 
-`LoadCacheAsync(mode)` and `RefreshAsync(mode)` share ordering so an older GameMode writer cannot overwrite a newer final state.
-
-### 8.8 Item presentation / search
+### 8.6 Item presentation / search
 
 ```text
-Item ID
+confirmed Item ID
 → Scanner catalog official identity/market/dimensions
 → GameContent canonical item/Wiki
-→ ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal
-→ ScannerItemSnapshot
+→ ItemsWorkspace.Plan.NeededItems[itemId]
+   ├─ RemainingTotal
+   └─ Sources
+→ ScannerItemSnapshot / search presentation
 → Mini Scanner / Scanner search details
 ```
 
-Mapped values:
+- current needed = `RemainingTotal`
+- searched needed-item source rows = existing `Sources`
+- Scanner가 raw inventory를 다시 빼거나 `RequiredTotal`로 되돌리지 않음
+- Scanner가 Quest/Hideout source를 새 truth로 재구축하지 않음
+- source navigation은 existing cross-page content navigation boundary 사용
+- market/dimension failure는 affected field only
+- search-time network 금지
 
-- best non-flea trader RUB price
-- best trader name when trusted
-- flea positive avg24hPrice
-- positive width × height slots
-- trader/flea price per slot
-- **current needed = `NeededItemCalculator`가 계산한 보유량 차감 후 `RemainingTotal`**
-
-Scanner presentation에서 raw inventory를 별도로 빼거나 `RequiredTotal`로 되돌리지 않는다. FIR/일반 소비 의미는 기존 Needed Items 계산 결과를 그대로 재사용한다.
-
-Market/dimension failure clears affected field only.
-
-v1.6 이후 item search는 current local/memory full-item catalog와 local icon cache를 사용한다. Search-time network is forbidden.
-
-### 8.9 Scanner UI architecture
-
-Normal:
-
-- Scanner ON/OFF
-- Settings
-- Advanced
-- item search
-- recognition log
-
-Settings:
-
-- 3 global hotkeys
-- Mini Scanner field visibility/order
-
-Advanced:
-
-- Display Test
-- current result correction
-- correction dataset management
-
-One-shot remains via global hotkeys; visible normal-page one-shot button is no longer required.
-
-### 8.10 Mini Scanner schema v6
-
-Fixed identity header:
-
-- icon
-- official name
-
-Ordered/optional rows:
-
-- trader sell price
-- flea average
-- trader price/slot
-- flea price/slot
-- current needed
-
-Window remains Topmost, no-activate, no-taskbar, draggable, stale-result-safe.
-
-### 8.11 Ground Truth correction / re-edit
+### 8.7 Ground Truth / retention
 
 ```text
 full.png
 → auto-fit display
-→ candidate boxes direct click
+→ candidate direct selection
 → manual/none fallback
 → original-pixel-coordinate GT
 → reviewed save
 ```
 
-Display scale is not dataset coordinate authority.
-
-Saved Case re-edit:
-
-```text
-case.json + full.png + candidate_selection.json
-→ restore truth/selections
-→ same correction editor
-→ same Case ID reviewed update
-```
-
-Restore failure preserves original data.
-
-### 8.12 Regression / retention
-
-Replay:
-
-```text
-reviewed full.png
-→ current production pipeline
-→ STILL_CORRECT / SOLVED / STILL_FAILING / REGRESSION / ERROR
-```
-
-Existing correct Case failure = REGRESSION regardless of average.
+Display scale은 dataset coordinate authority가 아니다. Saved Case restore failure는 original GT를 보존한다.
 
 Automatic delete eligibility:
 
@@ -400,11 +367,11 @@ retention == automatic_sample
 AND review_status == unreviewed
 ```
 
-Bounds: 30 days / 300 cases / 512 MiB / 2h recent protection. Reviewed GT never auto-deleted. Corrupt metadata preserved fail closed.
+Reviewed GT는 자동 삭제하지 않는다. Corrupt/unknown state는 preserve fail closed한다.
 
-## 9. Program Update / release package
+`SerializedScannerOcrEngine`의 diagnostic reflection adapter는 현재 의도적으로 남은 technical debt이며 runtime evidence 없이 cleanup하지 않는다.
 
-Program Update:
+## 9. Program Update / release architecture
 
 ```text
 latest stable check
@@ -417,9 +384,7 @@ latest stable check
 → restart
 ```
 
-LocalAppData user data is untouched.
-
-Stable package layout:
+Canonical stable package:
 
 ```text
 Junhyun-Helper.zip
@@ -429,32 +394,32 @@ Junhyun-Helper.zip
    └─ Assets/...
 ```
 
-ZIP/folder names are stable product names, not version identity. Version comes from project/ProductVersion/tag/release metadata.
+LocalAppData user data is untouched.
 
-`packaging/New-ReleasePackage.ps1` owns archive construction and top-level path validation.
+Release workflow는 successful main CI의 exact artifact를 내려받아 게시한다. 이미 public stable로 게시된 같은 version은 immutable하게 취급하고 docs-only main artifact로 교체하지 않는다.
+
+상세는 `docs/PROGRAM_UPDATE.md`, `docs/DEPLOYMENT.md`를 사용한다.
 
 ## 10. Persistence / atomicity
 
-Important JSON preferences use same-directory temp + flush + atomic replacement + `.bak` recovery.
+Important JSON preferences는 same-directory temp + flush + atomic replacement + `.bak` recovery 원칙을 사용한다.
 
-Mutable runtime state/logs must not be written beside portable executable.
+Mutable runtime state/logs는 portable executable beside-root에 쓰지 않는다.
 
 ## 11. Performance principles
 
-- deterministic/canonical results only reused
-- image download bounded
-- Scanner verified detail avoids unnecessary OCR
-- same-cycle exact bitmap OCR reuse only
-- icon process-memory decode cache
-- font/visual caches bounded + generation-aware
-- Mini inventory OCR single-active/latest coalescing
-- Scanner catalog shared writer serialization
-- diagnostics/log bounded retention
-- Map donor no broad rewrite without evidence
+- deterministic/canonical result만 reuse
+- image work bounded
+- Scanner verified-detail fast path 유지
+- same-cycle exact bitmap reuse only
+- bounded/generation-aware font/visual cache
+- Scanner catalog writer serialization
+- bounded diagnostics/log retention
+- Map donor broad rewrite 금지 without evidence
 
-Performance cannot justify identity threshold relaxation or stale cross-frame reuse.
+Performance는 identity threshold 완화나 stale cross-frame reuse의 근거가 될 수 없다.
 
-Wall-clock benchmark를 일반 CI의 고정 합격선으로 사용하지 않는다. pacing/candidate/retry 같은 결정론적 policy contract + runtime latency/응답성 telemetry + 필요 시 Ground Truth replay를 성능 회귀 근거로 사용한다.
+Wall-clock benchmark를 일반 CI의 고정 합격선으로 사용하지 않는다. deterministic policy regression + runtime telemetry + 필요 시 reviewed Ground Truth replay를 사용한다.
 
 ## 12. Failure isolation
 
@@ -465,19 +430,17 @@ Wall-clock benchmark를 일반 CI의 고정 합격선으로 사용하지 않는�
 - unsupported Quest gate → Indeterminate/fail closed
 - Scanner low confidence/ambiguity → no Item ID
 - Scanner visual/font failure → primary OCR remains
-- missing market/icon → affected presentation only
-- catalog refresh failure → healthy same-mode cache may remain
+- missing market/icon/dimension → affected presentation only
+- Scanner catalog refresh failure → healthy same-mode cache may remain
 - saved Case restore failure → original GT preserved
 - corrupt retention metadata → preserve
 - updater validation failure → current program untouched
 
 ## 13. Verification architecture
 
-Domain/storage/update semantics use automated tests. WPF/Map/Scanner use actual published EXE smoke where applicable.
+Domain/storage/update semantics는 automated tests로 검증한다. WPF/Scanner/Map interaction은 actual published EXE smoke를 추가한다.
 
-현재 공개 릴리즈의 정확한 테스트 수와 proof run은 `docs/STATE.md`에만 고정한다. 이 아키텍처 문서에 과거 릴리즈의 테스트 수를 장기 계약처럼 복제하지 않는다.
-
-Release candidate는 최소 다음을 검증한다.
+Release candidate 최소 gate:
 
 - Release build
 - automated tests / no failures/skips
@@ -486,14 +449,14 @@ Release candidate는 최소 다음을 검증한다.
 - Product UI + Scanner/Mini Scanner smoke
 - Main Map/Factory/MiniMap smoke
 - graceful shutdown / clean portable root
-- stable `Junhyun-Helper.zip` generation
-- archive root `준현 헬퍼/` validation
+- `Junhyun-Helper.zip` generation + checksum/layout validation
 - exact tag/source
-- public latest release
-- independent public ZIP redownload/hash/layout
-- public-downloaded EXE smoke
+- public latest release metadata/assets readback
+- public asset digest/tag-ref = verified main-CI artifact/source
 
-구체적인 현재 release gate와 검증 run은 `docs/STATE.md` 및 해당 release 문서를 사용한다.
+가능한 환경에서는 independent public binary redownload/hash/layout/EXE smoke를 추가한다. 수행하지 않은 anonymous binary verification을 완료했다고 기록하지 않는다.
+
+현재 exact release proof는 `docs/STATE.md`, `docs/RELEASE_1.7.13.md`가 권위다.
 
 ## 14. Change-impact routes
 
@@ -503,53 +466,44 @@ Scanner recognition:
 capture/proposal
 → semantic header
 → ROI
-→ OCR/substitution/character policy/visual
+→ OCR/substitution/visual
 → catalog matcher
-→ verified state
 → Item ID
-→ mapped presentation/search
+→ presentation/search
 → Mini overlay
 → GT/diagnostics/replay/smoke
 ```
 
-Scanner market:
-
-```text
-source market fields
-→ ScannerCatalogService
-→ ScannerCatalogItem
-→ ScannerItemPresentationService
-→ Mini Scanner / item search
-```
-
-Needed count:
+Needed count/source:
 
 ```text
 Quest/Hideout/Profile
 → FutureNeededItemsPlanner
 → ItemsWorkspace.Plan.NeededItems
-→ NeededItemCalculator RemainingTotal
-→ Scanner presentation
+→ RemainingTotal + Sources
+→ Scanner presentation/search navigation
 ```
 
-Settings schema:
+Scanner settings:
 
 ```text
-ScannerDisplaySettings normalize/migration
-→ hotkeys / Mini display/order / substitutions
-→ Settings UI
-→ Mini rendering
-→ smoke/regression
+ScannerDisplaySettings v6 normalize/migration
+→ display/order/substitution state
+→ immediate-save display settings UI
+
+hotkey fields
+→ normal Scanner surface hotkey editor
+→ same atomic settings store
 ```
 
-Ground Truth UI:
+Ground Truth:
 
 ```text
 Case evidence
-→ image scale transform
+→ display transform
 → candidate/manual/none selection
 → original pixel ROI
-→ candidate_selection.json / case.json
+→ durable reviewed case
 → re-edit/replay
 ```
 
@@ -566,6 +520,7 @@ Case evidence
 - `docs/SCANNER_GROUND_TRUTH.md`
 - `docs/SCANNER_TEST_PLAN.md`
 - `docs/CURRENT_SCANNER_WORK.md`
-- `docs/QUEST_TASK_POOL_AUDIT_2026-08-24.md`
+- `docs/MAP_PRODUCT_REQUIREMENTS.md`
 - `docs/PROGRAM_UPDATE.md`
 - `docs/DEPLOYMENT.md`
+- `docs/DECISION_V1.7.13_UI_SIMPLIFICATION.md`
