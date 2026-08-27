@@ -87,9 +87,9 @@
             <quests:QuestPage x:Name="QuestPage"
                               SpecialTraderAccessRequested="QuestPage_SpecialTraderAccessRequested"
                               Visibility="Collapsed" />
-            <hideout:HideoutPage x:Name="HideoutPage" Loaded="HideoutPage_Loaded" Visibility="Collapsed" />
-            <items:ItemsPage x:Name="ItemsPage" Loaded="ItemsPage_Loaded" Visibility="Collapsed" />
-            <ammo:AmmoPage x:Name="AmmoPage" Loaded="AmmoPage_Loaded" Visibility="Collapsed" />
+            <hideout:HideoutPage x:Name="HideoutPage" Visibility="Collapsed" />
+            <items:ItemsPage x:Name="ItemsPage" Visibility="Collapsed" />
+            <ammo:AmmoPage x:Name="AmmoPage" Visibility="Collapsed" />
 
             <Grid x:Name="MapPlaceholder" Visibility="Collapsed">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="560">
