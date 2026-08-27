@@ -4,7 +4,7 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 제품 상태
 
-현재 제품 상태는 **v1.7.12 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
+현재 제품 상태는 **v1.7.13 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
 
 현재 요구사항 범위의 제품과 Scanner는 완성 상태이며, 새로운 실제 회귀·호환성 변화 또는 사용자가 명시적으로 결정한 새 제품 요구사항이 없는 한 선제적 기능 추가나 인식 기준 변경을 시작하지 않습니다.
 
@@ -18,28 +18,28 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 ## 현재 공개 릴리즈
 
 ```text
-version: v1.7.12
-Desktop target version: 1.7.12
-exact product release source/tag target: d8d0f8eb1ffdd9b8c4ec890277a7b209b2458c2b
-main CI: 33042307773 — SUCCESS
-Release workflow: 33042464642 — SUCCESS
-release id: 377581895
+version: v1.7.13
+Desktop target version: 1.7.13
+exact product release source/tag target: 16198c462a6be58d77dbe2dc27aa57eabfc7b9fd
+main CI: 33051890329 — SUCCESS
+Release workflow: 33052109161 — SUCCESS
+release id: 377652938
 stable asset: Junhyun-Helper.zip
-asset id: 531791229
-bytes: 80,477,641
-SHA-256: 3f0d57f8a5dc92611bc8648a423c43d65917e63e0d73a771b559153803186fa1
-397 passed / 0 failed / 0 skipped
+asset id: 531953179
+bytes: 80,486,670
+SHA-256: d1cfcf1f606985485584f0e085e8821e0f62156a980f259a90144fd134a7eeb6
+400 passed / 0 failed / 0 skipped
 ```
 
-GitHub `/releases/latest` 및 tag-ref readback에서 v1.7.12가 draft=false, prerelease=false, latest stable이며 tag와 target이 위 exact product release source와 일치함을 확인했습니다. 공개 asset digest도 exact main CI에서 생성한 `Junhyun-Helper.zip`의 SHA-256과 일치합니다.
+GitHub `/releases/latest` 및 tag-ref readback에서 v1.7.13이 draft=false, prerelease=false, latest stable이며 tag와 target이 위 exact product release source와 일치함을 확인했습니다. 공개 asset digest도 exact main CI에서 생성한 `Junhyun-Helper.zip`의 SHA-256과 일치합니다.
 
 공식 릴리즈 기록:
 
-- `docs/RELEASE_1.7.12.md`
-- `docs/RELEASE_NOTES_V1.7.12.md`
-- `docs/.release-v1.7.12-status.json`
+- `docs/RELEASE_1.7.13.md`
+- `docs/RELEASE_NOTES_V1.7.13.md`
+- `docs/.release-v1.7.13-status.json`
 
-이 문서와 이후 documentation-only commit은 v1.7.12 제품 릴리즈 소스가 아닙니다. v1.7.12 source/tag/assets는 위 `d8d0f8eb...` 기준으로 immutable하게 유지합니다.
+이 문서와 이후 documentation-only commit은 v1.7.13 제품 릴리즈 소스가 아닙니다. v1.7.13 source/tag/assets는 위 `16198c46...` 기준으로 immutable historical product release로 취급합니다.
 
 ## 주요 기능
 
@@ -93,6 +93,24 @@ continuous observation target = 200 ms
 - Item ID가 확정되기 전 price/needed/slot metadata를 identity evidence로 사용하지 않습니다.
 - scan 순간 Item identity를 위해 network 요청을 시작하지 않습니다.
 - 새로운 reviewed evidence 없이 threshold/candidate cap/matcher/visual acceptance를 낮추지 않습니다.
+
+## v1.7.13 — UI 정리 패치
+
+v1.7.13은 기존 도메인 의미와 Scanner 인식 정책을 유지하면서 반복 조작과 불필요한 UI를 줄였습니다.
+
+- Items의 퀘스트용/은신처용 용도 선택을 제거하고 필요한 아이템 화면을 하나의 기준으로 단순화했습니다.
+- Ammo 상단 조작 순서를 정리하고 상세정보를 기본 접힘으로 변경했으며 표 위 중복 요약을 제거했습니다.
+- Map 지도 마커 선택/설정은 같은 launcher 재클릭으로 닫히며, 지도 마커 선택은 기본 접힘입니다. 경로 표시/지우기와 단축키 안내 문구는 제거했습니다.
+- Scanner 설정은 변경 즉시 저장되며 단축키 설정은 기본 Scanner 화면으로 분리했습니다.
+- Scanner 검색에서 필요한 아이템은 기존 `ItemsWorkspace.Plan.NeededItems`의 source를 이용해 관련 Quest/Hideout을 표시하고 이동할 수 있습니다.
+- 프로필 편집과 Scanner 설정 등 사용자-facing 편집 화면을 MainWindow 내부 overlay interaction으로 통일했습니다.
+- `현재 결과 교정`은 기본 Scanner 화면의 우측 조작 영역에 유지합니다.
+- `V1713UiSimplificationContractTests`와 actual published EXE smoke가 Ammo 기본 접힘 왕복, Items 필터 제거, Scanner needed-source authority를 회귀 보호합니다.
+- Scanner recognition threshold/candidate/matcher/visual acceptance, 200 ms observation target, Map/MiniMap donor revision, Game Content validation/LKG 계약은 변경하지 않았습니다.
+
+제품 결정:
+
+- `docs/DECISION_V1.7.13_UI_SIMPLIFICATION.md`
 
 ## v1.7.12 — 장기 유지보수 패치
 
@@ -211,14 +229,7 @@ runtime recognition
 
 ## Scanner UI / hotkeys
 
-일반 Scanner 상단:
-
-```text
-스캐너 ON/OFF
-설정
-고급
-현재 결과 교정
-```
+일반 Scanner 화면은 ON/OFF, 표시 설정, 고급 기능, 단축키 설정, 현재 결과 교정, item search/log를 분리해 제공합니다. 표시 설정은 즉시 저장되며 `현재 결과 교정`은 우측 조작 영역에 둡니다.
 
 기본 hotkey:
 
