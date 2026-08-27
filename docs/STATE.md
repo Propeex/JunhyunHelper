@@ -3,7 +3,7 @@
 > 새 대화/새 개발자는 이 문서를 먼저 읽습니다. 대화 기억이 아니라 저장소의 공식 문서와 현재 GitHub 상태가 프로젝트의 기준입니다.
 
 기준일: 2026-08-27  
-상태: **v1.7.11 PUBLIC STABLE / v1.7.12 PATCH CANDIDATE / PRODUCT COMPLETE / MAINTENANCE MODE**
+상태: **v1.7.12 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 1. 제품
 
@@ -32,27 +32,28 @@ Runtime GPT/AI 의존성은 없다.
 ## 2. 현재 public stable
 
 ```text
-version: v1.7.11
-exact product release source/tag target: 0f97c6e5340ae91581a9242ec236bbd7885b34d5
-main CI run: 33033282963 — SUCCESS
-release workflow run: 33033434877 — SUCCESS
-release id: 377531277
+version: v1.7.12
+exact product release source/tag target: d8d0f8eb1ffdd9b8c4ec890277a7b209b2458c2b
+main CI run: 33042307773 — SUCCESS
+release workflow run: 33042464642 — SUCCESS
+release id: 377581895
 asset: Junhyun-Helper.zip
-asset id: 531635485
-asset bytes: 80,477,565
-asset SHA-256: f1ad15debc29b7a167a13448c8df65785f57139a91d8b5d246205a14f9a5800d
+asset id: 531791229
+asset bytes: 80,477,641
+asset SHA-256: 3f0d57f8a5dc92611bc8648a423c43d65917e63e0d73a771b559153803186fa1
 checksum asset: SHA256SUMS.txt
-checksum asset id: 531635486
+checksum asset id: 531791226
 checksum asset bytes: 86
-checksum asset SHA-256: ccf9adf714298341adf87caeafa3c082e571646c00a720e27f6bcffa32484b67
-392 passed / 0 failed / 0 skipped
-published UTC: 2026-08-27T02:30:01Z
+checksum asset SHA-256: 97cf0d26c1d6c91c5876ee02f829225a23221e2bc893659d211055aa6af6a99d
+397 passed / 0 failed / 0 skipped
+published UTC: 2026-08-27T05:26:26Z
 ```
 
-GitHub `/releases/latest` readback:
+GitHub `/releases/latest` 및 tag-ref readback:
 
-- tag `v1.7.11`
-- target = exact product release source
+- tag `v1.7.12`
+- release target = exact product release source
+- tag ref object = exact product release source
 - draft = false
 - prerelease = false
 - latest stable = true
@@ -61,11 +62,11 @@ GitHub `/releases/latest` readback:
 
 상세 공개 증거:
 
-- `docs/RELEASE_1.7.11.md`
-- `docs/.release-v1.7.11-status.json`
-- `docs/RELEASE_NOTES_V1.7.11.md`
+- `docs/RELEASE_1.7.12.md`
+- `docs/.release-v1.7.12-status.json`
+- `docs/RELEASE_NOTES_V1.7.12.md`
 
-이후 documentation-only commit은 v1.7.11 product release source가 아니다. 제품 release source/tag target은 위 `0f97c6e...`로 고정한다.
+이후 documentation-only commit은 v1.7.12 product release source가 아니다. 제품 release source/tag target은 위 `d8d0f8eb...`로 고정한다. 이미 공개된 v1.7.12 tag/source/assets는 immutable historical product release로 취급한다.
 
 ## 3. 아키텍처
 
@@ -85,11 +86,13 @@ JunhyunHelper.Desktop
 - **Desktop**: WPF UI, presentation, Scanner capture/OCR/runtime/diagnostics, Map bridge
 - **Map/MiniMap donor**: 제한적 compile-link 예외. donor updater/content ownership은 사용하지 않음
 
+Desktop shared presentation infrastructure는 `MainWindow.OnInitialized`가 product-window composition owner다. 개별 Page의 internal presentation initialization은 해당 Page가 직접 소유하며 unrelated Page의 `Loaded` 순서에 의존하지 않는다.
+
 ## 4. Schema / 사용자 데이터
 
 ```text
-Desktop target version: 1.7.12 candidate
-Current public stable executable: 1.7.11
+Desktop target version: 1.7.12
+Current public stable executable: 1.7.12
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
@@ -177,7 +180,56 @@ continuous observation target = 200 ms
 - current official catalog 밖 임의 Item 생성 금지
 - reviewed evidence 없이 recognition threshold/candidate cap/matcher/visual acceptance 완화 금지
 
-## 7. v1.7.11 — maintenance polish
+## 7. v1.7.12 — long-term maintenance hardening
+
+v1.7.12는 사용자-visible 기능 추가 없이 Desktop lifecycle ownership과 장기 유지보수성을 개선한 patch다.
+
+### Desktop page infrastructure ownership
+
+`MainWindow.OnInitialized`가 다음 shared presentation infrastructure를 product-window lifetime에 한 번 연결한다.
+
+```text
+Quest / Hideout / Items / Ammo image cache
+Ammo favorite store
+cross-page content navigation wiring
+Scanner global-command lifetime wiring
+```
+
+개별 MainWindow Page의 `Loaded` 순서가 unrelated Page의 준비 상태를 결정하지 않는다.
+
+### Ammo presentation lifecycle
+
+초기 dead-code audit에서 MainWindow의 page Loaded handlers를 제거한 뒤 actual published EXE smoke가 Ammo detail collapse/expand 초기화 회귀를 탐지했다.
+
+원인은 제거한 `AmmoPage_Loaded` 본문의 기능이 아니라 Ammo class-level `Loaded` handler가 부모의 Loaded subscription 존재 여부에 간접 의존하던 hidden WPF lifecycle coupling이었다.
+
+수정:
+
+```text
+AmmoPage.OnInitialized
+→ DispatcherPriority.Loaded
+→ Ammo search/detail presentation initialization
+→ Ammo grid presentation initialization
+```
+
+부모 handler를 복구하는 대신 Ammo가 자기 presentation initialization을 직접 소유한다.
+
+### Audit 판단
+
+- 제거된 MainWindow page Loaded handlers: ownership 이동과 Ammo self-owned initialization 이후 actual dead
+- `Legacy` Map/MiniMap bridge: active compatibility/integration, 유지
+- Factory/Map/MiniMap smoke: active regression evidence, 유지
+- Scanner diagnostic OCR reflection adapter: 의도적 technical debt, 유지
+- original full-refresh mutation handlers + fast rebinding: lifecycle 관여 증거가 있어 삭제 보류
+- Quest/Hideout/Items workspace의 반복 profile `LoadAsync`: `UserProfileStore` immutable in-process snapshot cache 때문에 현재 evidence만으로 DB 병목으로 판정하지 않음
+- one-read/multi-build, 추가 cache, 병렬화: 실제 runtime trace가 병목을 증명할 때까지 보류
+
+공식 결정:
+
+- `docs/DECISION_LONG_TERM_MAINTENANCE_AUDIT_2026-08-27.md`
+- `docs/DECISION_V1.7.12_MAINTENANCE.md`
+
+## 8. v1.7.11 — maintenance polish
 
 v1.7.11은 Scanner identity recognition이 아니라 표시·입력·MiniMap 사용성을 수정한 patch다.
 
@@ -220,7 +272,7 @@ Map / Scanner configurable hotkey의 현재 계약:
 
 공식 결정: `docs/DECISION_V1.7.11_MAINTENANCE.md`.
 
-## 8. Scanner v1.7.10 — cross-environment normalization
+## 9. Scanner v1.7.10 — cross-environment normalization
 
 사용자가 확정한 제품 방향은 특정 PC별 보정이 아니라 공개 배포 범용성이다.
 
@@ -257,7 +309,7 @@ Deterministic procedural regression:
 
 공식 결정: `docs/DECISION_SCANNER_CROSS_ENVIRONMENT_2026-08-26.md`.
 
-## 9. Scanner v1.7.9 — Mini Scanner presentation authority
+## 10. Scanner v1.7.9 — Mini Scanner presentation authority
 
 v1.7.9는 recognition success 뒤 Mini Scanner가 별도 inventory-header OCR 실패로 표시를 veto하던 presentation 회귀를 제거했다.
 
@@ -277,7 +329,7 @@ Scanner semantic success
 
 Sticky presentation은 성공 시 miss budget을 reset하고 실제 miss 3회째에 숨긴다.
 
-## 10. Scanner v1.7.8 — raid inspect-header ownership
+## 11. Scanner v1.7.8 — raid inspect-header ownership
 
 사용자 reviewed 8 Case에서 실패 6건은 OCR 오인식이 아니라 OCR 이전 `HEADER_CLOSE_NOT_LOCKED` / `TITLE_ANCHOR_INCOMPLETE`였다.
 
@@ -295,7 +347,7 @@ primary header lock
 
 raid recovery는 `RED_X_CANDIDATE >= 0.90`에서만 진입하고 기존 close-X, magnifier, neutral header, dark title field, text evidence와 최종 `HEADER_FRAME_LOCKED >= 0.68`을 모두 요구한다.
 
-## 11. Scanner v1.7.7 — data/log/hotkey contract
+## 12. Scanner v1.7.7 — data/log/hotkey contract
 
 당시 확립한 저장/교정 계약은 현재도 유지한다.
 
@@ -310,7 +362,7 @@ raid recovery는 `RED_X_CANDIDATE >= 0.90`에서만 진입하고 기존 close-X,
 
 modifier matching의 현재 동작은 v1.7.11 계약이 우선한다.
 
-## 12. Scanner v1.7.6 — performance baseline
+## 13. Scanner v1.7.6 — performance baseline
 
 문제 PC actual Tarkov `ReadingTitle → ShowingItem` 성공 12건:
 
@@ -330,7 +382,7 @@ USB 보안 플래시 드라이브: 12,686.278 ms → 1,354.775 ms
 
 root cause는 Windows OCR 자체가 아니라 같은 cycle의 exact current-pixel visual evidence 반복 계산이었다. 재사용은 동일 cycle/exact pixels에만 한정하며 cross-frame identity cache가 아니다.
 
-## 13. Scanner UI / hotkeys
+## 14. Scanner UI / hotkeys
 
 일반 Scanner 상단:
 
@@ -359,7 +411,7 @@ Scanner ON/OFF: Ctrl+Shift+F12
 
 Configurable hotkey는 v1.7.11 modifier compatibility/specificity 계약을 따른다.
 
-## 14. Ground Truth
+## 15. Ground Truth
 
 Ground Truth는 **사용자가 직접 검토/교정하고 명시적으로 저장한 Case**만 의미한다.
 
@@ -368,7 +420,7 @@ Ground Truth는 **사용자가 직접 검토/교정하고 명시적으로 저장
 - reviewed dataset이 runnable한 recognition 변경은 `REGRESSION=0`을 요구
 - procedural/synthetic matrix는 reviewed Ground Truth를 대체하지 않으며 환경 robustness regression용이다
 
-## 15. CI / release contract
+## 16. CI / release contract
 
 Release candidate gate:
 
@@ -384,20 +436,20 @@ Release build
 
 Stable release는 **main push CI가 성공한 exact main commit**의 artifact만 Release workflow가 게시한다.
 
-v1.7.11 proof:
+v1.7.12 proof:
 
 ```text
-PR #194 final head: 4351670d378fedf7000ada4d613bf1527e203a16
-PR CI: 33032104032 — SUCCESS
-main release source: 0f97c6e5340ae91581a9242ec236bbd7885b34d5
-main CI: 33033282963 — SUCCESS
-Release workflow: 33033434877 — SUCCESS
-392 tests passed
+PR #197 final head: 23e1784c25954f4900a57cfa4c1c9821d5d6d668
+final PR CI: 33042136686 — SUCCESS
+main release source: d8d0f8eb1ffdd9b8c4ec890277a7b209b2458c2b
+main CI: 33042307773 — SUCCESS
+Release workflow: 33042464642 — SUCCESS
+397 tests passed
 ```
 
-Public latest readback에서 target/source, stable flags, required assets를 확인했고 공개 `Junhyun-Helper.zip` digest가 main-CI package SHA-256과 일치한다. 이 세션에서는 binary asset 자체를 별도 anonymous client로 재다운로드하는 기능이 없었으므로 수행하지 않은 byte-level anonymous redownload를 완료했다고 기록하지 않는다.
+Public latest/tag-ref readback에서 target/source, stable flags, required assets를 확인했고 공개 `Junhyun-Helper.zip` digest가 main-CI package SHA-256과 일치한다. 이 세션에서는 binary asset 자체를 별도 anonymous client로 재다운로드하지 않았으므로 수행하지 않은 byte-level anonymous redownload를 완료했다고 기록하지 않는다.
 
-## 16. 유지보수 원칙
+## 17. 유지보수 원칙
 
 새 문제는 다음 순서로 처리한다.
 
@@ -416,7 +468,7 @@ evidence
 
 새 실제 evidence 없이 Scanner threshold/candidate cap/OCR/matcher/visual acceptance를 선제 조정하지 않는다.
 
-## 17. 공식 문서
+## 18. 공식 문서
 
 - `docs/CURRENT_STATE.md`
 - `docs/CURRENT_SCANNER_WORK.md`
@@ -424,6 +476,8 @@ evidence
 - `docs/SCANNER_GROUND_TRUTH.md`
 - `docs/SCANNER_TEST_PLAN.md`
 - `docs/MAINTENANCE_CONTRACTS.md`
+- `docs/DEVELOPER_REFERENCE.md`
+- `docs/ARCHITECTURE.md`
 - `docs/DECISION_PRODUCT_COMPLETE_2026-08-26.md`
 - `docs/DECISION_SCANNER_STORAGE_AND_HOTKEYS_2026-08-26.md`
 - `docs/DECISION_V1.7.8_RAID_HEADER_LOCK_2026-08-26.md`
@@ -433,10 +487,10 @@ evidence
 - `docs/DECISION_LONG_TERM_MAINTENANCE_AUDIT_2026-08-27.md`
 - `docs/DECISION_V1.7.12_MAINTENANCE.md`
 - `docs/RELEASE_NOTES_V1.7.12.md`
-- `docs/RELEASE_1.7.11.md`
-- `docs/.release-v1.7.11-status.json`
+- `docs/RELEASE_1.7.12.md`
+- `docs/.release-v1.7.12-status.json`
 
-## 18. 유지보수 안전 계약 및 알려진 기술 부채
+## 19. 유지보수 안전 계약 및 알려진 기술 부채
 
 ### Scanner support-bundle privacy
 
@@ -467,7 +521,7 @@ Exporter 변경 시 이 exclusion을 release regression으로 계속 검증한�
 
 를 모두 만족해야 한다. 코드 미관만을 이유로 이 경계를 선제 변경하지 않는다.
 
-## 19. 2026-08-27 유지보수 기반 정리
+## 20. 2026-08-27 유지보수 기반 정리
 
 제품 runtime/version/release를 변경하지 않고 앞으로의 유지보수 안전성을 높이는 작업을 PR #196에서 완료했다.
 
@@ -502,59 +556,39 @@ PR #196: MERGED
 main merge: bbb8b9b64116c71889cfc4fe3f208ef0e1d67bc6
 main CI: 33038777867 — SUCCESS
 396 passed / 0 failed / 0 skipped
-open PRs after merge: 0
 ```
 
 Live Probe의 `sourceWarnings=1`은 Regular/PvE 각각 Wiki Ballistics가 186/200종을 확인하고 186종을 안전하게 매칭했다는 enrichment 상태 메시지이며 Fatal validation은 0이다.
 
-두 review thread는 실제 수정과 검증 증거를 남긴 뒤 resolved 처리했다. 실제 외부 검증을 위해 사용한 branch-only 일회성 workflow는 검증 직후 제거했으며 장기 workflow에는 특정 유지보수 branch trigger를 남기지 않는다.
-
 main CI에서도 Windows publish, Product UI / Map / Factory / MiniMap smoke, graceful shutdown, package verification이 모두 성공했다. 앞으로 외부 source drift는 장기 `live-data-probe.yml`로 일반 제품 CI와 분리해 감시한다.
 
-공개 v1.7.11은 이 유지보수 기반 작업 후에도 tag `v1.7.11`, exact release source `0f97c6e5340ae91581a9242ec236bbd7885b34d5`, 기존 `Junhyun-Helper.zip` 및 checksum assets 그대로 유지된다. `bbb8b9b...`와 이후 문서 동기화 commit은 product release source가 아니다.
+## 21. 2026-08-27 장기 완성도 audit / v1.7.12 완료
 
-## 20. 2026-08-27 장기 완성도 audit / v1.7.12 후보
+PR #197에서 첫 장기 performance/dead-code/architecture audit와 Desktop lifecycle 경계 개선을 완료하고 v1.7.12로 공개했다.
 
-PR #197에서 새 기능 없이 첫 장기 performance/dead-code/architecture audit와 Desktop lifecycle 경계 개선을 진행했다.
-
-핵심 발견:
-
-- Quest/Hideout/Items/Ammo image cache, Ammo favorites, cross-page navigation wiring이 개별 page `Loaded` 순서에 분산되어 있었다.
-- 이를 `MainWindow.OnInitialized`의 product-window composition owner로 이동했다.
-- 처음에는 `ItemsPage_Loaded` / `HideoutPage_Loaded` / `AmmoPage_Loaded`가 모두 실제 dead handler로 보였으나, 실제 published EXE smoke에서 Ammo detail toggle 초기화 회귀를 탐지했다.
-- 원인은 `AmmoPage_Loaded` 본문의 기능이 아니라 Ammo의 class-level `Loaded` handler가 부모 Loaded subscription 존재 여부에 간접 의존하던 hidden WPF lifecycle coupling이었다.
-- 이를 부모 handler 복구로 우회하지 않고 Ammo search/detail/grid presentation을 `AmmoPage.OnInitialized` + Loaded dispatcher priority가 직접 소유하도록 수정했다.
-
-Dead-code 분류 결과:
-
-- 제거된 MainWindow page Loaded handlers: ownership 이동과 Ammo self-owned initialization 후 실제 dead
-- `Legacy` Map/MiniMap bridge: active compatibility/integration, 유지
-- Factory/Map/MiniMap smoke: active regression evidence, 유지
-- Scanner diagnostic OCR reflection adapter: 의도적 technical debt, 유지
-- original full-refresh mutation handlers + fast rebinding: lifecycle 관여 증거가 있어 삭제 보류
-
-Performance audit 결과:
-
-- Quest/Hideout/Items workspace가 profile을 각각 `LoadAsync`하는 표면적 중복은 확인했다.
-- `UserProfileStore`가 첫 authoritative read/save 뒤 동일 immutable snapshot을 in-process cache로 반환하므로 현재 증거만으로 SQLite 병목으로 판정하지 않았다.
-- one-read/multi-build 구조, 추가 cache, 병렬화는 실제 runtime trace가 병목을 증명할 때까지 보류한다.
-- Scanner recognition constants/threshold/candidate/matcher/visual/cross-frame policy는 전혀 변경하지 않았다.
-
-검증된 runtime candidate evidence:
+최종 검증/배포:
 
 ```text
-PR #197 validated runtime/document head: 16b73064631085030d506a1939dc2fa10c4d5501
-PR CI: 33041030233 — SUCCESS
+PR #197 final head: 23e1784c25954f4900a57cfa4c1c9821d5d6d668
+final PR CI: 33042136686 — SUCCESS
+397 passed / 0 failed / 0 skipped
+
+PR #197: MERGED
+exact product release source: d8d0f8eb1ffdd9b8c4ec890277a7b209b2458c2b
+main CI: 33042307773 — SUCCESS
 397 passed / 0 failed / 0 skipped
 Windows x64 publish: SUCCESS
-ProductVersion: 1.7.12
 Product UI / Scanner / Map / Factory / MiniMap smoke: SUCCESS
 graceful shutdown / clean portable root: SUCCESS
 release package verification: SUCCESS
-Junhyun-Helper.zip bytes: 80,477,526
-candidate SHA-256: 837b589db90d1e13a1cd541d05513d847443d19e66bfec267aa05fb026b716ef
+
+Release workflow: 33042464642 — SUCCESS
+public release: v1.7.12
+release id: 377581895
+Junhyun-Helper.zip: 80,477,641 bytes
+SHA-256: 3f0d57f8a5dc92611bc8648a423c43d65917e63e0d73a771b559153803186fa1
 ```
 
-이후 PR의 `STATE.md` / `DEVELOPER_REFERENCE.md` 동기화는 review에서 지적된 공식 handoff 문서 누락을 해소하는 documentation-only follow-up이다. 최종 merge 전 CI를 다시 통과시킨 뒤 main exact commit을 새 v1.7.12 release source 후보로 검증한다.
+Public `/releases/latest`와 tag ref 모두 v1.7.12 exact source `d8d0f8eb...`을 가리키고 공개 ZIP digest가 main-CI package와 일치한다.
 
-v1.7.11 public tag/source/assets는 v1.7.12 공개 전까지 immutable stable로 유지한다.
+이후 release record/STATE/README 같은 documentation-only commit은 v1.7.12 제품 릴리즈 소스가 아니다. Release workflow는 이미 공개된 stable version을 immutable하게 취급하고 required assets만 확인해야 한다.
