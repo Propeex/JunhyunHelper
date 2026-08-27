@@ -36,7 +36,7 @@ public partial class ScannerAdvancedWindow : Window, IInAppOverlayDialog
         {
             App.WriteDiagnostic("Scanner advanced test toggle failed", exception);
             MessageBox.Show(
-                Application.Current.MainWindow,
+                System.Windows.Application.Current.MainWindow,
                 "테스트 스캐너 상태를 변경하지 못했습니다.",
                 "Scanner",
                 MessageBoxButton.OK,
@@ -53,7 +53,7 @@ public partial class ScannerAdvancedWindow : Window, IInAppOverlayDialog
     {
         var window = new ScannerDiagnosticCasesWindow(_coordinator)
         {
-            Owner = Application.Current.MainWindow,
+            Owner = System.Windows.Application.Current.MainWindow,
         };
         window.ShowDialog();
     }
@@ -69,7 +69,7 @@ public partial class ScannerAdvancedWindow : Window, IInAppOverlayDialog
             OverwritePrompt = true,
             FileName = $"JunhyunHelper-Scanner-Diagnostics-{DateTime.Now:yyyyMMdd-HHmmss}.zip",
         };
-        if (dialog.ShowDialog(Application.Current.MainWindow) != true)
+        if (dialog.ShowDialog(System.Windows.Application.Current.MainWindow) != true)
             return;
 
         ExportDiagnosticsButton.IsEnabled = false;
@@ -79,7 +79,7 @@ public partial class ScannerAdvancedWindow : Window, IInAppOverlayDialog
             var destination = dialog.FileName;
             await Task.Run(() => ScannerSupportBundleExporter.Export(destination));
             MessageBox.Show(
-                Application.Current.MainWindow,
+                System.Windows.Application.Current.MainWindow,
                 "Scanner 성능 진단 자료를 저장했습니다. 이 ZIP 파일만 전달하면 세부 로그를 직접 찾아볼 필요가 없습니다.",
                 "Scanner 성능 진단",
                 MessageBoxButton.OK,
@@ -89,7 +89,7 @@ public partial class ScannerAdvancedWindow : Window, IInAppOverlayDialog
         {
             App.WriteDiagnostic("Scanner support bundle export failed", exception);
             MessageBox.Show(
-                Application.Current.MainWindow,
+                System.Windows.Application.Current.MainWindow,
                 "Scanner 성능 진단 자료를 저장하지 못했습니다.",
                 "Scanner 성능 진단",
                 MessageBoxButton.OK,
