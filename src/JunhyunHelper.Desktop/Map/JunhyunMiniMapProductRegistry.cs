@@ -12,10 +12,17 @@ public static class JunhyunMiniMapProductRegistry
     public static void Register(TarkovHelper.Windows.OverlayMiniMapWindow window)
     {
         ArgumentNullException.ThrowIfNull(window);
+
+        // OverlayMiniMapWindow registers here during SourceInitialized, before the donor
+        // Loaded handler reads MapTrackerService.CurrentMapKey. Force the visible Main Map
+        // into the tracker first so the very first MiniMap frame cannot show a stale map.
+        _ = LegacyMapSelectionConsistencyBridge.SynchronizeCurrentSelectionNow();
+
         lock (Gate)
             _active = new WeakReference<TarkovHelper.Windows.OverlayMiniMapWindow>(window);
 
         var store = JunhyunMapProductSettingsStore.Instance;
+        window.InitializeJunhyunWindowState();
         window.ApplyJunhyunInputPolicy();
         window.ApplyJunhyunBaseOpacity(store.MiniMapOpacity);
         window.ApplyJunhyunMarkerScale(store.MiniMapMarkerScale);
@@ -24,6 +31,7 @@ public static class JunhyunMiniMapProductRegistry
 
     public static void Unregister(TarkovHelper.Windows.OverlayMiniMapWindow window)
     {
+        window.DisposeJunhyunWindowState();
         window.DisposeQuestV2();
         lock (Gate)
         {
