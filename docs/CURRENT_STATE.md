@@ -4,32 +4,32 @@
 
 기준일: 2026-08-27
 
-상태: **`v1.7.11 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE`**
+상태: **`v1.7.12 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE`**
 
 ## 공개 stable
 
-현재 공개 stable/latest는 **v1.7.11**이다.
+현재 공개 stable/latest는 **v1.7.12**다.
 
 ```text
-public stable/latest: v1.7.11
-exact product release source/tag target: 0f97c6e5340ae91581a9242ec236bbd7885b34d5
-main CI run: 33033282963 — SUCCESS
-release workflow run: 33033434877 — SUCCESS
-release id: 377531277
+public stable/latest: v1.7.12
+exact product release source/tag target: d8d0f8eb1ffdd9b8c4ec890277a7b209b2458c2b
+main CI run: 33042307773 — SUCCESS
+release workflow run: 33042464642 — SUCCESS
+release id: 377581895
 stable asset: Junhyun-Helper.zip
-stable asset id: 531635485
-stable bytes: 80,477,565
-stable SHA-256: f1ad15debc29b7a167a13448c8df65785f57139a91d8b5d246205a14f9a5800d
-checksum asset id: 531635486
-checksum asset SHA-256: ccf9adf714298341adf87caeafa3c082e571646c00a720e27f6bcffa32484b67
-392 passed / 0 failed / 0 skipped
-Product UI / Map / Factory / MiniMap / graceful shutdown smoke: SUCCESS
+stable asset id: 531791229
+stable bytes: 80,477,641
+stable SHA-256: 3f0d57f8a5dc92611bc8648a423c43d65917e63e0d73a771b559153803186fa1
+checksum asset id: 531791226
+checksum asset SHA-256: 97cf0d26c1d6c91c5876ee02f829225a23221e2bc893659d211055aa6af6a99d
+397 passed / 0 failed / 0 skipped
+Product UI / Scanner / Map / Factory / MiniMap / graceful shutdown smoke: SUCCESS
 ```
 
-GitHub `/releases/latest` readback:
+GitHub `/releases/latest` 및 tag-ref readback:
 
-- tag `v1.7.11`
-- target = exact product release source
+- tag `v1.7.12`
+- target/tag ref = exact product release source
 - draft = false
 - prerelease = false
 - latest stable = true
@@ -38,16 +38,16 @@ GitHub `/releases/latest` readback:
 
 공개 증거:
 
-- `docs/RELEASE_1.7.11.md`
-- `docs/.release-v1.7.11-status.json`
-- `docs/RELEASE_NOTES_V1.7.11.md`
+- `docs/RELEASE_1.7.12.md`
+- `docs/.release-v1.7.12-status.json`
+- `docs/RELEASE_NOTES_V1.7.12.md`
 
-이 문서 동기화 이후의 commit은 **v1.7.11 product release source가 아니다**. 제품 릴리즈 소스는 항상 위 `0f97c6e...`로 고정한다.
+이 문서 동기화 이후의 commit은 **v1.7.12 product release source가 아니다**. 제품 릴리즈 소스는 항상 위 `d8d0f8eb...`로 고정한다.
 
 ## Schema / compatibility
 
 ```text
-Desktop target version: 1.7.11
+Desktop target version: 1.7.12
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
@@ -72,6 +72,30 @@ Scanner Ground Truth: explicit user-reviewed durable cases
 | Game Content Update | 구현 완료 |
 | Program Update | 구현 완료 / verified stable ZIP contract |
 | Scanner + Mini Scanner | **FEATURE COMPLETE / MAINTENANCE ONLY** |
+
+## v1.7.12 — long-term maintenance hardening
+
+v1.7.12는 새 사용자 기능 없이 장기 유지보수성을 높인 patch다.
+
+- Quest/Hideout/Items/Ammo 공통 image-cache binding, Ammo favorite store, cross-page navigation wiring의 owner를 `MainWindow.OnInitialized`로 명시했다.
+- 개별 Page가 우연히 `Loaded`되는 순서가 다른 Page infrastructure 준비 상태를 결정하지 않는다.
+- dead-code audit에서 MainWindow page Loaded handlers를 제거하는 과정에서 actual published EXE smoke가 Ammo detail collapse/expand 초기화 회귀를 탐지했다.
+- root cause는 Ammo class-level `Loaded` handler가 부모 Loaded subscription 존재 여부에 간접 의존하던 hidden WPF lifecycle coupling이었다.
+- Ammo search/detail/grid presentation을 `AmmoPage.OnInitialized` + Loaded dispatcher priority가 직접 소유하도록 수정해 부모 event handler 의존성을 제거했다.
+- `DesktopStartupWiringContractTests`와 actual published EXE smoke가 이 ownership 경계를 함께 보호한다.
+- Scanner recognition 기준, Map/MiniMap donor revision, Game Content validation/LKG 계약은 변경하지 않았다.
+
+Audit 판단:
+
+- workspace의 반복 profile `LoadAsync`는 `UserProfileStore` immutable in-process snapshot cache 때문에 현재 evidence만으로 SQLite 병목으로 판정하지 않음
+- additional global cache / 병렬화 / one-read-multi-build는 실제 runtime trace 전까지 보류
+- `Legacy` Map bridge, Map/Factory/MiniMap smoke, Scanner diagnostic reflection adapter는 현재 dead code가 아님
+- original full-refresh mutation handler + fast rebinding은 lifecycle 관여 증거가 있어 삭제 보류
+
+공식 결정:
+
+- `docs/DECISION_LONG_TERM_MAINTENANCE_AUDIT_2026-08-27.md`
+- `docs/DECISION_V1.7.12_MAINTENANCE.md`
 
 ## v1.7.11 — maintenance polish
 
