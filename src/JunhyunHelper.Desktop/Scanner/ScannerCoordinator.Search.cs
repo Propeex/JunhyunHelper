@@ -12,7 +12,10 @@ public sealed record ScannerItemSearchHit(
 
 public sealed record ScannerItemSearchDetails(
     ScannerItemSnapshot Snapshot,
-    string? WikiUrl);
+    string? WikiUrl,
+    int Width = 0,
+    int Height = 0,
+    ScannerItemRelationshipDetails? Relationships = null);
 
 public sealed partial class ScannerCoordinator
 {
@@ -32,10 +35,6 @@ public sealed partial class ScannerCoordinator
         if (context is null || _catalog.LoadedMode != context.GameMode || !_catalog.HasHealthyCatalog)
             return [];
 
-        // Search runs on every query edit. Build one canonical lookup for this search
-        // instead of routing each of the top-N hits through full mapped presentation,
-        // which would repeatedly scan Content.Items and NeededItems even though the
-        // result row only needs icon/name/wiki metadata.
         var contentById = context.Content.Items
             .Where(item => !string.IsNullOrWhiteSpace(item.Id))
             .GroupBy(item => item.Id, StringComparer.Ordinal)
@@ -61,14 +60,28 @@ public sealed partial class ScannerCoordinator
         if (context is null || _catalog.LoadedMode != context.GameMode || !_catalog.HasHealthyCatalog)
             return null;
 
-        var snapshot = Presentation.CreateSnapshot(itemId.Trim());
+        var normalizedItemId = itemId.Trim();
+        var snapshot = Presentation.CreateSnapshot(normalizedItemId);
         if (snapshot is null)
             return null;
 
         var wikiUrl = context.Content.Items
             .FirstOrDefault(item => string.Equals(item.Id, snapshot.ItemId, StringComparison.Ordinal))
             ?.WikiUrl;
-        return new ScannerItemSearchDetails(snapshot, wikiUrl);
+        var width = 0;
+        var height = 0;
+        if (_catalog.TryGetItem(snapshot.ItemId, out var catalogItem))
+        {
+            width = catalogItem.Width;
+            height = catalogItem.Height;
+        }
+
+        return new ScannerItemSearchDetails(
+            snapshot,
+            wikiUrl,
+            width,
+            height,
+            BuildItemRelationshipDetails(context, snapshot.ItemId));
     }
 
     private ScannerItemSearchHit CreateSearchHit(
