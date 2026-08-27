@@ -1,0 +1,58 @@
+{
+  "version": "1.7.15",
+  "status": "PUBLIC_STABLE_VERIFIED",
+  "productReleaseSource": "4bf5e3a567d3ce9563657bbb3b90bec0871c06b4",
+  "tag": "v1.7.15",
+  "productVersion": "1.7.15+4bf5e3a567d3ce9563657bbb3b90bec0871c06b4",
+  "mainCi": {
+    "runId": 33086901217,
+    "runNumber": 2066,
+    "result": "SUCCESS",
+    "tests": {
+      "passed": 410,
+      "failed": 0,
+      "skipped": 0
+    },
+    "artifact": {
+      "name": "JunhyunHelper-win-x64",
+      "id": 9652666398,
+      "archiveBytes": 241410930,
+      "archiveSha256": "cf3802eb6cba359e46eaa55bf48cc89bed33bf7902129e17f31b48065cf94e04"
+    },
+    "package": {
+      "name": "Junhyun-Helper.zip",
+      "bytes": 80492565,
+      "sha256": "9ac3276a1a4a20905b0aa3d6452f50d5259f724ed8f960b7cfbad39f8c619f2f"
+    },
+    "productSmoke": "SUCCESS",
+    "gracefulShutdown": "SUCCESS",
+    "cleanPortableRoot": "SUCCESS"
+  },
+  "releaseWorkflow": {
+    "runId": 33087185178,
+    "runNumber": 48,
+    "result": "SUCCESS"
+  },
+  "publicRelease": {
+    "id": 377926863,
+    "draft": false,
+    "prerelease": false,
+    "latestStable": true,
+    "publishedUtc": "2026-08-27T15:19:55Z",
+    "zipAsset": {
+      "id": 532481010,
+      "name": "Junhyun-Helper.zip",
+      "bytes": 80492565,
+      "sha256": "9ac3276a1a4a20905b0aa3d6452f50d5259f724ed8f960b7cfbad39f8c619f2f"
+    },
+    "checksumAsset": {
+      "id": 532481008,
+      "name": "SHA256SUMS.txt",
+      "bytes": 86,
+      "sha256": "84fbabe5ef2c41d28a00305c0cd7b8ee7575fbe3c1c64fa83f7ead1c75494580"
+    }
+  },
+  "tagRefTarget": "4bf5e3a567d3ce9563657bbb3b90bec0871c06b4",
+  "immutablePublicRelease": true,
+  "notes": "Documentation-only commits after publication are not v1.7.15 product release sources and must not replace published v1.7.15 assets."
+}
