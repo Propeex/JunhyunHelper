@@ -2,8 +2,8 @@
 
 > 새 대화/새 개발자는 이 문서를 먼저 읽습니다. 대화 기억이 아니라 저장소의 공식 문서와 현재 GitHub 상태가 프로젝트의 기준입니다.
 
-기준일: 2026-08-26  
-상태: **v1.7.10 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+기준일: 2026-08-27  
+상태: **v1.7.11 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 1. 제품
 
@@ -32,37 +32,40 @@ Runtime GPT/AI 의존성은 없다.
 ## 2. 현재 public stable
 
 ```text
-version: v1.7.10
-exact product release source/tag target: a557daad5b37aca11a189524ecf256564d2b8ea4
-main CI run: 32983155982 — SUCCESS
-release workflow run: 32983498402 — SUCCESS
-release id: 377231814
+version: v1.7.11
+exact product release source/tag target: 0f97c6e5340ae91581a9242ec236bbd7885b34d5
+main CI run: 33033282963 — SUCCESS
+release workflow run: 33033434877 — SUCCESS
+release id: 377531277
 asset: Junhyun-Helper.zip
-asset id: 530959212
-asset bytes: 80,471,678
-asset SHA-256: 6d4f3f8580318d05361cd4d62bf265c4590532722df22dc8b8d734fe8ec10eb9
+asset id: 531635485
+asset bytes: 80,477,565
+asset SHA-256: f1ad15debc29b7a167a13448c8df65785f57139a91d8b5d246205a14f9a5800d
 checksum asset: SHA256SUMS.txt
-checksum asset id: 530959213
-389 passed / 0 failed / 0 skipped
-published UTC: 2026-08-26T14:59:06Z
+checksum asset id: 531635486
+checksum asset bytes: 86
+checksum asset SHA-256: ccf9adf714298341adf87caeafa3c082e571646c00a720e27f6bcffa32484b67
+392 passed / 0 failed / 0 skipped
+published UTC: 2026-08-27T02:30:01Z
 ```
 
 GitHub `/releases/latest` readback:
 
-- tag `v1.7.10`
+- tag `v1.7.11`
 - target = exact product release source
 - draft = false
 - prerelease = false
 - latest stable = true
 - ZIP + checksum assets present
+- public `Junhyun-Helper.zip` digest = exact main-CI package SHA-256
 
 상세 공개 증거:
 
-- `docs/RELEASE_1.7.10.md`
-- `docs/.release-v1.7.10-status.json`
-- `docs/RELEASE_NOTES_V1.7.10.md`
+- `docs/RELEASE_1.7.11.md`
+- `docs/.release-v1.7.11-status.json`
+- `docs/RELEASE_NOTES_V1.7.11.md`
 
-이후 documentation-only commit은 v1.7.10 product release source가 아니다.
+이후 documentation-only commit은 v1.7.11 product release source가 아니다. 제품 release source/tag target은 위 `0f97c6e...`로 고정한다.
 
 ## 3. 아키텍처
 
@@ -85,7 +88,7 @@ JunhyunHelper.Desktop
 ## 4. Schema / 사용자 데이터
 
 ```text
-Desktop target version: 1.7.10
+Desktop target version: 1.7.11
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
@@ -100,6 +103,7 @@ Scanner catalog cache: v1~v3 readable, v3 written
 %LocalAppData%/JunhyunHelper/content/
 %LocalAppData%/JunhyunHelper/image-cache/
 %LocalAppData%/JunhyunHelper/map-product-settings.json(.bak)
+%LocalAppData%/JunhyunHelper/minimap-window-state.json
 %LocalAppData%/JunhyunHelper/ammo-settings.json(.bak)
 %LocalAppData%/JunhyunHelper/scanner/
 %LocalAppData%/JunhyunHelper/scanner/diagnostics/
@@ -109,7 +113,7 @@ Scanner catalog cache: v1~v3 readable, v3 written
 원칙:
 
 - portable executable 옆에 mutable user data/log 생성 금지
-- Program Update가 user.db, content/image cache, Map/Ammo/Scanner settings, Scanner logs/diagnostics/Ground Truth를 교체하지 않음
+- Program Update가 user.db, content/image cache, Map/MiniMap/Ammo/Scanner settings, Scanner logs/diagnostics/Ground Truth를 교체하지 않음
 - user-reviewed Scanner Ground Truth는 자동 삭제하지 않음
 - Scanner logs와 Ground Truth dataset lifetime 분리
 - 정상 Scanner monitoring은 durable automatic correction Case를 생성하지 않음
@@ -172,7 +176,50 @@ continuous observation target = 200 ms
 - current official catalog 밖 임의 Item 생성 금지
 - reviewed evidence 없이 recognition threshold/candidate cap/matcher/visual acceptance 완화 금지
 
-## 7. Scanner v1.7.10 — cross-environment normalization
+## 7. v1.7.11 — maintenance polish
+
+v1.7.11은 Scanner identity recognition이 아니라 표시·입력·MiniMap 사용성을 수정한 patch다.
+
+### Scanner 필요 개수
+
+Item ID가 확정된 뒤 Scanner / Mini Scanner의 `필요 개수`는 다음 canonical 값을 사용한다.
+
+```text
+ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal
+```
+
+- `RequiredTotal`은 전체 요구량이며 사용자 표시값이 아님
+- 현재 Inventory와 FIR 조건을 반영한 Needed Items 계산 결과를 그대로 사용
+- Scanner가 Quest/Hideout/Inventory 계산을 별도 재구현하지 않음
+- Item ID 확정 전에는 identity evidence로 사용하지 않음
+
+### configurable hotkey modifier matching
+
+Map / Scanner configurable hotkey의 현재 계약:
+
+- primary key 일치 필수
+- 등록된 Ctrl/Alt/Shift는 모두 눌려 있어야 함
+- 등록하지 않은 Ctrl/Alt/Shift 추가 입력은 허용
+- 같은 primary key에서 여러 binding이 compatible하면 required modifier 수가 더 많은 binding 우선
+- 동률은 기존 기능 우선순위/안정적인 등록 순서 사용
+- Windows modifier 미지원
+- Map bare NumPad0~5 direct floor 계약 유지
+
+### MiniMap first-open / size persistence
+
+- MiniMap 첫 표시 전에 현재 Main Map UI 선택을 shared `MapTrackerService`로 동기화
+- 이전 tracker key가 첫 frame의 잘못된 지도 source가 되지 않도록 함
+- MiniMap width/height는 `%LocalAppData%/JunhyunHelper/minimap-window-state.json`에 저장
+- 재시작 뒤 복원하고 donor min/max 범위로 clamp
+
+### standard ToolTip
+
+- 설명용 standard WPF ToolTip은 제품 전역에서 표시하지 않음
+- 지도 marker detail 등 기능 자체인 custom Popup/information surface는 유지
+
+공식 결정: `docs/DECISION_V1.7.11_MAINTENANCE.md`.
+
+## 8. Scanner v1.7.10 — cross-environment normalization
 
 사용자가 확정한 제품 방향은 특정 PC별 보정이 아니라 공개 배포 범용성이다.
 
@@ -209,7 +256,7 @@ Deterministic procedural regression:
 
 공식 결정: `docs/DECISION_SCANNER_CROSS_ENVIRONMENT_2026-08-26.md`.
 
-## 8. Scanner v1.7.9 — Mini Scanner presentation authority
+## 9. Scanner v1.7.9 — Mini Scanner presentation authority
 
 v1.7.9는 recognition success 뒤 Mini Scanner가 별도 inventory-header OCR 실패로 표시를 veto하던 presentation 회귀를 제거했다.
 
@@ -229,7 +276,7 @@ Scanner semantic success
 
 Sticky presentation은 성공 시 miss budget을 reset하고 실제 miss 3회째에 숨긴다.
 
-## 9. Scanner v1.7.8 — raid inspect-header ownership
+## 10. Scanner v1.7.8 — raid inspect-header ownership
 
 사용자 reviewed 8 Case에서 실패 6건은 OCR 오인식이 아니라 OCR 이전 `HEADER_CLOSE_NOT_LOCKED` / `TITLE_ANCHOR_INCOMPLETE`였다.
 
@@ -247,7 +294,9 @@ primary header lock
 
 raid recovery는 `RED_X_CANDIDATE >= 0.90`에서만 진입하고 기존 close-X, magnifier, neutral header, dark title field, text evidence와 최종 `HEADER_FRAME_LOCKED >= 0.68`을 모두 요구한다.
 
-## 10. Scanner v1.7.7 — data/log/hotkey contract
+## 11. Scanner v1.7.7 — data/log/hotkey contract
+
+당시 확립한 저장/교정 계약은 현재도 유지한다.
 
 - normal monitoring은 durable automatic Case를 만들지 않음
 - latest exact frame은 current correction용으로 메모리에만 유지
@@ -255,11 +304,12 @@ raid recovery는 `RED_X_CANDIDATE >= 0.90`에서만 진입하고 기존 close-X,
 - legacy `automatic_sample + unreviewed`만 5분 recent-write safety 및 pre-delete state 재확인 후 cleanup
 - reviewed/manual/corrupt/unknown/state-changed Case는 preserve fail closed
 - 동일 activity failure는 30초 collapse
-- Scanner/Map configurable gesture = primary key + optional Ctrl/Alt/Shift
-- bare key 허용, Windows modifier 미지원
+- primary key + optional Ctrl/Alt/Shift 구성, bare key 허용, Windows modifier 미지원
 - Map bare NumPad0~5 direct floor 유지
 
-## 11. Scanner v1.7.6 — performance baseline
+modifier matching의 현재 동작은 v1.7.11 계약이 우선한다.
+
+## 12. Scanner v1.7.6 — performance baseline
 
 문제 PC actual Tarkov `ReadingTitle → ShowingItem` 성공 12건:
 
@@ -279,7 +329,7 @@ USB 보안 플래시 드라이브: 12,686.278 ms → 1,354.775 ms
 
 root cause는 Windows OCR 자체가 아니라 같은 cycle의 exact current-pixel visual evidence 반복 계산이었다. 재사용은 동일 cycle/exact pixels에만 한정하며 cross-frame identity cache가 아니다.
 
-## 12. Scanner UI / hotkeys
+## 13. Scanner UI / hotkeys
 
 일반 Scanner 상단:
 
@@ -306,7 +356,9 @@ root cause는 Windows OCR 자체가 아니라 같은 cycle의 exact current-pixe
 Scanner ON/OFF: Ctrl+Shift+F12
 ```
 
-## 13. Ground Truth
+Configurable hotkey는 v1.7.11 modifier compatibility/specificity 계약을 따른다.
+
+## 14. Ground Truth
 
 Ground Truth는 **사용자가 직접 검토/교정하고 명시적으로 저장한 Case**만 의미한다.
 
@@ -315,7 +367,7 @@ Ground Truth는 **사용자가 직접 검토/교정하고 명시적으로 저장
 - reviewed dataset이 runnable한 recognition 변경은 `REGRESSION=0`을 요구
 - procedural/synthetic matrix는 reviewed Ground Truth를 대체하지 않으며 환경 robustness regression용이다
 
-## 14. CI / release contract
+## 15. CI / release contract
 
 Release candidate gate:
 
@@ -331,18 +383,20 @@ Release build
 
 Stable release는 **main push CI가 성공한 exact main commit**의 artifact만 Release workflow가 게시한다.
 
-v1.7.10 proof:
+v1.7.11 proof:
 
 ```text
-PR #192 final head: 322c2e4e1dd641905411cc10fb9a81ba22816d33
-PR CI: 32981693237 — SUCCESS
-main release source: a557daad5b37aca11a189524ecf256564d2b8ea4
-main CI: 32983155982 — SUCCESS
-Release workflow: 32983498402 — SUCCESS
-389 tests passed
+PR #194 final head: 4351670d378fedf7000ada4d613bf1527e203a16
+PR CI: 33032104032 — SUCCESS
+main release source: 0f97c6e5340ae91581a9242ec236bbd7885b34d5
+main CI: 33033282963 — SUCCESS
+Release workflow: 33033434877 — SUCCESS
+392 tests passed
 ```
 
-## 15. 유지보수 원칙
+Public latest readback에서 target/source, stable flags, required assets를 확인했고 공개 `Junhyun-Helper.zip` digest가 main-CI package SHA-256과 일치한다. 이 세션에서는 binary asset 자체를 별도 anonymous client로 재다운로드하는 기능이 없었으므로 수행하지 않은 byte-level anonymous redownload를 완료했다고 기록하지 않는다.
+
+## 16. 유지보수 원칙
 
 새 문제는 다음 순서로 처리한다.
 
@@ -361,7 +415,7 @@ evidence
 
 새 실제 evidence 없이 Scanner threshold/candidate cap/OCR/matcher/visual acceptance를 선제 조정하지 않는다.
 
-## 16. 공식 문서
+## 17. 공식 문서
 
 - `docs/CURRENT_STATE.md`
 - `docs/CURRENT_SCANNER_WORK.md`
@@ -373,10 +427,11 @@ evidence
 - `docs/DECISION_V1.7.8_RAID_HEADER_LOCK_2026-08-26.md`
 - `docs/DECISION_V1.7.9_MINI_SCANNER_SHOW_2026-08-26.md`
 - `docs/DECISION_SCANNER_CROSS_ENVIRONMENT_2026-08-26.md`
-- `docs/RELEASE_1.7.10.md`
-- `docs/.release-v1.7.10-status.json`
+- `docs/DECISION_V1.7.11_MAINTENANCE.md`
+- `docs/RELEASE_1.7.11.md`
+- `docs/.release-v1.7.11-status.json`
 
-## 17. 유지보수 안전 계약 및 알려진 기술 부채
+## 18. 유지보수 안전 계약 및 알려진 기술 부채
 
 ### Scanner support-bundle privacy
 
