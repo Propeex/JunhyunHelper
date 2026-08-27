@@ -1,7 +1,7 @@
 # v1.7.13 UI Simplification — 제품 결정
 
 기준일: 2026-08-27
-상태: `APPROVED PATCH CANDIDATE / PR #199`
+상태: `IMPLEMENTED / PUBLIC VERIFIED v1.7.13`
 
 ## 사용자 결정
 
@@ -31,6 +31,7 @@
 - Game Content / User Progress / Needed Items 계산 의미는 변경하지 않는다.
 - Scanner Item identity recognition pipeline과 structural/header/OCR/matcher/visual acceptance는 변경하지 않는다.
 - Scanner `필요 개수` authority는 `ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal`이다.
+- Scanner needed source authority는 같은 `ItemsWorkspace.Plan.NeededItems[itemId].Sources`이며 Scanner가 Quest/Hideout 요구를 재계산하지 않는다.
 - Map/MiniMap donor revision은 유지하고 JunhyunHelper first-party customization boundary에서 제품 요구사항을 적용한다.
 - public v1.7.12 tag/source/assets는 immutable historical release로 유지한다.
 
@@ -49,4 +50,61 @@
 2. 한 번 클릭하면 `▼` + detail host visible.
 3. 다시 클릭하면 `▲` + detail host hidden.
 
-`V1713UiSimplificationContractTests`가 이 smoke 계약과 Items/Scanner 핵심 authority를 소스 수준에서도 고정한다. 최종 공개 릴리즈는 최신 PR CI, merge 후 main CI, release workflow와 공개 자산 검증이 모두 성공한 경우에만 승인한다.
+`V1713UiSimplificationContractTests`가 이 smoke 계약과 Items/Scanner 핵심 authority를 소스 수준에서도 고정한다.
+
+## 최종 검증 / 공개 배포
+
+PR #199 final head:
+
+```text
+98da50022528d78a3c8f0448736b5785bf9de818
+```
+
+Final PR CI:
+
+```text
+run: 33051551273
+result: SUCCESS
+400 passed / 0 failed / 0 skipped
+Windows x64 publish: SUCCESS
+Product UI / Scanner / Map / Factory / MiniMap smoke: SUCCESS
+graceful shutdown / clean portable root: SUCCESS
+release package verification: SUCCESS
+```
+
+Exact product release source / tag target:
+
+```text
+16198c462a6be58d77dbe2dc27aa57eabfc7b9fd
+```
+
+Main CI / Release workflow:
+
+```text
+main CI: 33051890329 — SUCCESS
+Release workflow: 33052109161 — SUCCESS
+```
+
+Public release readback:
+
+```text
+release: v1.7.13
+release id: 377652938
+draft: false
+prerelease: false
+latest stable: true
+Junhyun-Helper.zip asset id: 531953179
+bytes: 80,486,670
+SHA-256: d1cfcf1f606985485584f0e085e8821e0f62156a980f259a90144fd134a7eeb6
+SHA256SUMS.txt asset id: 531953171
+```
+
+GitHub `/releases/latest`와 `refs/tags/v1.7.13` 모두 exact product release source를 가리키며 public ZIP digest가 exact main-CI package SHA-256과 일치한다.
+
+이후 documentation-only main commit은 v1.7.13 product release source가 아니다.
+
+관련 공개 기록:
+
+- `docs/RELEASE_NOTES_V1.7.13.md`
+- `docs/RELEASE_1.7.13.md`
+- `docs/.release-v1.7.13-status.json`
