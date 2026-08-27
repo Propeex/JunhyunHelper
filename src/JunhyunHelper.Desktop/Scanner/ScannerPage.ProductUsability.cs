@@ -26,6 +26,7 @@ public partial class ScannerPage
 
         RebuildToolbarLayout();
         BuildNeededSourcesPresentation();
+        BuildItemRelationshipPresentation();
         NormalizeSearchClearAffordance();
 
         SettingsButton.Click -= SettingsButton_Click;
@@ -52,8 +53,6 @@ public partial class ScannerPage
         while (toolbar.ColumnDefinitions.Count < 6)
             toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-        // Keep normal Scanner operations on the left and the correction action on the
-        // right. Hotkey editing is part of the unified Settings surface in v1.7.14.
         toolbar.ColumnDefinitions[3].Width = new GridLength(1, GridUnitType.Star);
         toolbar.ColumnDefinitions[4].Width = GridLength.Auto;
         toolbar.ColumnDefinitions[5].Width = GridLength.Auto;
@@ -67,9 +66,6 @@ public partial class ScannerPage
         if (ItemSearchBox.Parent is not Grid searchGrid)
             return;
 
-        // The original Scanner search used a separate button column. Collapse that
-        // legacy affordance and use the same in-field × behavior as every other
-        // product search box.
         foreach (var button in searchGrid.Children.OfType<Button>())
         {
             if (string.Equals(button.Content?.ToString(), "×", StringComparison.Ordinal))
@@ -136,8 +132,11 @@ public partial class ScannerPage
 
     private void ProductItemSearchBox_TextChanged(object sender, TextChangedEventArgs e)
     {
-        if (!_suppressSearchRefresh)
-            ClearNeededSources();
+        if (_suppressSearchRefresh)
+            return;
+
+        ClearNeededSources();
+        ClearItemRelationshipPresentation();
     }
 
     private void ProductItemSearchBox_PreviewKeyDown(object sender, KeyEventArgs e)
