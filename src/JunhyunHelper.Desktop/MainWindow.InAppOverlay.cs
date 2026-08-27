@@ -14,6 +14,7 @@ public partial class MainWindow
     private TextBlock? _inAppOverlayTitle;
     private string? _inAppOverlayKey;
     private Window? _inAppHostedWindow;
+    private IInAppOverlayDialog? _inAppOverlayAdapter;
     private TaskCompletionSource<bool?>? _inAppOverlayCompletion;
 
     internal Task<bool?> ToggleInAppWindowAsync(string key, Window dialog)
@@ -21,8 +22,7 @@ public partial class MainWindow
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         ArgumentNullException.ThrowIfNull(dialog);
 
-        if (_inAppOverlayRoot is { Visibility: Visibility.Visible } &&
-            string.Equals(_inAppOverlayKey, key, StringComparison.Ordinal))
+        if (IsInAppOverlayOpen(key))
         {
             RequestActiveInAppOverlayDismiss();
             return Task.FromResult<bool?>(false);
@@ -35,8 +35,8 @@ public partial class MainWindow
         if (dialog.Content is not UIElement content)
             throw new InvalidOperationException($"{dialog.GetType().Name} does not expose hostable UI content.");
 
-        _inAppOverlayCompletion = new TaskCompletionSource<bool?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        if (dialog is IInAppOverlayDialog adapter)
+        var adapter = dialog as IInAppOverlayDialog;
+        if (adapter is not null)
             adapter.AttachInAppOverlay(CloseInAppOverlay);
 
         // Window-scoped resources stop participating after the content is re-parented.
@@ -52,18 +52,87 @@ public partial class MainWindow
         }
 
         dialog.Content = null;
-        _inAppHostedWindow = dialog;
+        return ShowInAppOverlay(
+            key,
+            dialog.Title,
+            content,
+            dialog.Width,
+            dialog.Height,
+            dialog,
+            adapter);
+    }
+
+    /// <summary>
+    /// Hosts an existing product-owned UI element in the same MainWindow overlay shell
+    /// used by window-backed editors. The caller remains responsible for temporarily
+    /// detaching/re-attaching the element from its normal visual parent.
+    /// </summary>
+    internal Task<bool?> ShowInAppElementAsync(
+        string key,
+        string title,
+        UIElement content,
+        double preferredWidth,
+        double preferredHeight)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        ArgumentNullException.ThrowIfNull(content);
+
+        if (IsInAppOverlayOpen(key))
+        {
+            RequestActiveInAppOverlayDismiss();
+            return Task.FromResult<bool?>(false);
+        }
+
+        if (_inAppOverlayRoot is { Visibility: Visibility.Visible })
+            CloseInAppOverlay(false);
+
+        EnsureInAppOverlayHost();
+        return ShowInAppOverlay(
+            key,
+            title,
+            content,
+            preferredWidth,
+            preferredHeight,
+            hostedWindow: null,
+            adapter: null);
+    }
+
+    internal bool IsInAppOverlayOpen(string key) =>
+        _inAppOverlayRoot is { Visibility: Visibility.Visible } &&
+        string.Equals(_inAppOverlayKey, key, StringComparison.Ordinal);
+
+    internal bool DismissInAppOverlay(string key)
+    {
+        if (!IsInAppOverlayOpen(key))
+            return false;
+
+        RequestActiveInAppOverlayDismiss();
+        return true;
+    }
+
+    private Task<bool?> ShowInAppOverlay(
+        string key,
+        string title,
+        UIElement content,
+        double preferredWidth,
+        double preferredHeight,
+        Window? hostedWindow,
+        IInAppOverlayDialog? adapter)
+    {
+        _inAppOverlayCompletion = new TaskCompletionSource<bool?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _inAppHostedWindow = hostedWindow;
+        _inAppOverlayAdapter = adapter;
         _inAppOverlayKey = key;
-        _inAppOverlayTitle!.Text = dialog.Title;
+        _inAppOverlayTitle!.Text = title;
         _inAppOverlayContent!.Content = content;
 
         var availableWidth = ActualWidth > 0 ? Math.Max(420, ActualWidth - 80) : 900;
         var availableHeight = ActualHeight > 0 ? Math.Max(360, ActualHeight - 80) : 760;
-        _inAppOverlayCard!.Width = double.IsFinite(dialog.Width) && dialog.Width > 0
-            ? Math.Min(dialog.Width, availableWidth)
+        _inAppOverlayCard!.Width = double.IsFinite(preferredWidth) && preferredWidth > 0
+            ? Math.Min(preferredWidth, availableWidth)
             : Math.Min(680, availableWidth);
-        _inAppOverlayCard.Height = double.IsFinite(dialog.Height) && dialog.Height > 0
-            ? Math.Min(dialog.Height, availableHeight)
+        _inAppOverlayCard.Height = double.IsFinite(preferredHeight) && preferredHeight > 0
+            ? Math.Min(preferredHeight, availableHeight)
             : Math.Min(650, availableHeight);
         _inAppOverlayCard.MaxWidth = availableWidth;
         _inAppOverlayCard.MaxHeight = availableHeight;
@@ -72,10 +141,6 @@ public partial class MainWindow
         _inAppOverlayRoot.Focus();
         return _inAppOverlayCompletion.Task;
     }
-
-    internal bool IsInAppOverlayOpen(string key) =>
-        _inAppOverlayRoot is { Visibility: Visibility.Visible } &&
-        string.Equals(_inAppOverlayKey, key, StringComparison.Ordinal);
 
     private void EnsureInAppOverlayHost()
     {
@@ -169,9 +234,9 @@ public partial class MainWindow
 
     private void RequestActiveInAppOverlayDismiss()
     {
-        if (_inAppHostedWindow is IInAppOverlayDialog adapter)
+        if (_inAppOverlayAdapter is not null)
         {
-            if (!adapter.TryDismissInAppOverlay())
+            if (!_inAppOverlayAdapter.TryDismissInAppOverlay())
                 return;
             return;
         }
@@ -189,6 +254,7 @@ public partial class MainWindow
         _inAppOverlayRoot.Visibility = Visibility.Collapsed;
         _inAppOverlayKey = null;
         _inAppHostedWindow = null;
+        _inAppOverlayAdapter = null;
         _inAppOverlayCompletion = null;
         completion?.TrySetResult(result);
     }

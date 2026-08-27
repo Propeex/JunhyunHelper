@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
+using JunhyunHelper.Desktop.Controls;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
@@ -25,9 +26,12 @@ public partial class ScannerPage
 
         RebuildToolbarLayout();
         BuildNeededSourcesPresentation();
+        NormalizeSearchClearAffordance();
 
         SettingsButton.Click -= SettingsButton_Click;
         SettingsButton.Click += ProductSettingsButton_Click;
+        AdvancedButton.Click -= AdvancedButton_Click;
+        AdvancedButton.Click += ProductAdvancedButton_Click;
 
         ItemSearchBox.TextChanged += ProductItemSearchBox_TextChanged;
         ItemSearchBox.AddHandler(
@@ -48,18 +52,34 @@ public partial class ScannerPage
         while (toolbar.ColumnDefinitions.Count < 6)
             toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
+        // Keep normal Scanner operations on the left and the correction action on the
+        // right. Hotkey editing is part of the unified Settings surface in v1.7.14.
+        toolbar.ColumnDefinitions[3].Width = new GridLength(1, GridUnitType.Star);
+        toolbar.ColumnDefinitions[4].Width = GridLength.Auto;
+        toolbar.ColumnDefinitions[5].Width = GridLength.Auto;
+        Grid.SetColumn(RuntimeStatusText, 4);
         Grid.SetColumn(CurrentCorrectionButton, 5);
         CurrentCorrectionButton.Margin = new Thickness(8, 0, 0, 0);
+    }
 
-        var hotkeyButton = new Button
+    private void NormalizeSearchClearAffordance()
+    {
+        if (ItemSearchBox.Parent is not Grid searchGrid)
+            return;
+
+        // The original Scanner search used a separate button column. Collapse that
+        // legacy affordance and use the same in-field × behavior as every other
+        // product search box.
+        foreach (var button in searchGrid.Children.OfType<Button>())
         {
-            Content = "단축키",
-            MinWidth = 92,
-            Margin = new Thickness(0, 0, 8, 0),
-        };
-        hotkeyButton.Click += ProductHotkeyButton_Click;
-        Grid.SetColumn(hotkeyButton, 3);
-        toolbar.Children.Add(hotkeyButton);
+            if (string.Equals(button.Content?.ToString(), "×", StringComparison.Ordinal))
+                button.Visibility = Visibility.Collapsed;
+        }
+
+        if (searchGrid.ColumnDefinitions.Count > 1)
+            searchGrid.ColumnDefinitions[1].Width = new GridLength(0);
+
+        ProductSearchClearButtonBehavior.Attach(ItemSearchBox);
     }
 
     private void BuildNeededSourcesPresentation()
@@ -99,24 +119,17 @@ public partial class ScannerPage
 
         var settings = new ScannerSettingsWindow(_coordinator);
         await mainWindow.ToggleInAppWindowAsync("scanner-settings", settings);
+        UpdateToggleButton();
         UpdateStatus(_coordinator.Status);
     }
 
-    private async void ProductHotkeyButton_Click(object sender, RoutedEventArgs e)
+    private async void ProductAdvancedButton_Click(object sender, RoutedEventArgs e)
     {
         if (_coordinator is null || Window.GetWindow(this) is not MainWindow mainWindow)
             return;
 
-        var dialog = new ScannerHotkeySettingsWindow(
-            _coordinator.Settings.OneShotTarkovHotkey,
-            _coordinator.Settings.OneShotTestHotkey,
-            _coordinator.Settings.ScannerToggleHotkey);
-        if (await mainWindow.ToggleInAppWindowAsync("scanner-hotkeys", dialog) != true)
-            return;
-
-        _coordinator.SetOneShotTarkovHotkey(dialog.OneShotTarkovGesture);
-        _coordinator.SetOneShotTestHotkey(dialog.OneShotTestGesture);
-        _coordinator.SetScannerToggleHotkey(dialog.ScannerToggleGesture);
+        var advanced = new ScannerAdvancedWindow(_coordinator);
+        await mainWindow.ToggleInAppWindowAsync("scanner-advanced", advanced);
         UpdateToggleButton();
         UpdateStatus(_coordinator.Status);
     }

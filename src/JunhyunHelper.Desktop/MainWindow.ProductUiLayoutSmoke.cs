@@ -19,7 +19,7 @@ public partial class MainWindow
         VerifyFlexibleCandidateRenderedLayout();
         VerifyAmmoRenderedControls();
         VerifyScannerRenderedControls();
-        VerifyScannerAdvancedRenderedLayout();
+        await VerifyScannerAdvancedRenderedLayoutAsync();
         await VerifyQuestSidebarRenderedLayoutAsync();
     }
 
@@ -202,8 +202,6 @@ public partial class MainWindow
             throw new InvalidOperationException("Scanner recognition activity does not produce the required user-readable decision summary.");
         }
 
-        // Log clearing remains an internal bounded-retention operation. v1.6 intentionally
-        // removes the user-facing clear button from the normal Scanner page.
         if (!ScannerDiagnosticLog.Clear())
             throw new InvalidOperationException("Scanner smoke could not establish an empty diagnostic baseline.");
         ScannerDiagnosticLog.Write("ocr-result", ScannerCaptureMode.DisplayTest, ("text", "로그 보존 테스트"));
@@ -223,30 +221,33 @@ public partial class MainWindow
         VerifyScannerDiagnosticExportOverlay();
     }
 
-    private void VerifyScannerAdvancedRenderedLayout()
+    private async Task VerifyScannerAdvancedRenderedLayoutAsync()
     {
-        var window = new ScannerAdvancedWindow(ScannerCoordinator)
-        {
-            Owner = this,
-            ShowActivated = false,
-        };
+        const string overlayKey = "ui-smoke-scanner-advanced";
+        var window = new ScannerAdvancedWindow(ScannerCoordinator);
+        var completion = ToggleInAppWindowAsync(overlayKey, window);
+
+        await Dispatcher.InvokeAsync(UpdateLayout);
+        window.AdvancedContentBorder.UpdateLayout();
 
         try
         {
-            window.Show();
-            window.UpdateLayout();
-            window.AdvancedContentBorder.UpdateLayout();
+            if (!IsInAppOverlayOpen(overlayKey) ||
+                _inAppOverlayRoot is not { Visibility: Visibility.Visible } ||
+                _inAppOverlayContent?.Content is null)
+            {
+                throw new InvalidOperationException("Scanner advanced did not render inside the shared MainWindow overlay.");
+            }
 
             var controls = new[]
             {
                 window.TestToggleButton,
                 window.ManageCorrectionsButton,
                 window.ExportDiagnosticsButton,
-                window.AdvancedCloseButton,
             };
 
-            if (window.ActualHeight <= 0 || window.AdvancedContentBorder.ActualHeight <= 0)
-                throw new InvalidOperationException("Scanner advanced dialog did not receive a rendered height.");
+            if (window.AdvancedContentBorder.ActualHeight <= 0 || window.AdvancedContentBorder.ActualWidth <= 0)
+                throw new InvalidOperationException("Scanner advanced overlay content did not receive rendered geometry.");
 
             double previousBottom = double.NegativeInfinity;
             foreach (var control in controls)
@@ -278,11 +279,21 @@ public partial class MainWindow
 
                 previousBottom = bottom;
             }
+
+            if (FindVisualDescendants<Button>(window.AdvancedContentBorder)
+                .Any(button => string.Equals(button.Content?.ToString(), "닫기", StringComparison.Ordinal)))
+            {
+                throw new InvalidOperationException("Scanner advanced content still exposes a dedicated close button.");
+            }
         }
         finally
         {
-            window.Close();
+            DismissInAppOverlay(overlayKey);
+            await completion;
         }
+
+        if (IsInAppOverlayOpen(overlayKey))
+            throw new InvalidOperationException("Scanner advanced overlay did not close through the shared overlay owner.");
     }
 
     private static void VerifyScannerDiagnosticExportOverlay()
