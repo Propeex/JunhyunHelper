@@ -56,6 +56,41 @@ public sealed class ContentUpdateCompletenessGuardTests
         Assert.Contains(result.Issues, issue => issue.Code == "update.item-korean.suspicious-shrink");
     }
 
+    [Fact]
+    public void ExactlyHalfOfCriticalBaselineIsAccepted()
+    {
+        var baseline = EmptyCatalog() with { Items = CreateItems(count: 20, iconCount: 0, koreanCount: 0) };
+        var candidate = EmptyCatalog() with { Items = CreateItems(count: 10, iconCount: 0, koreanCount: 0) };
+
+        var result = new ContentUpdateCompletenessGuard().Validate(candidate, baseline);
+
+        Assert.True(result.IsValid);
+        Assert.DoesNotContain(result.Issues, issue => issue.Code == "update.items.suspicious-shrink");
+    }
+
+    [Fact]
+    public void BelowHalfOfCriticalBaselineIsRejected()
+    {
+        var baseline = EmptyCatalog() with { Items = CreateItems(count: 20, iconCount: 0, koreanCount: 0) };
+        var candidate = EmptyCatalog() with { Items = CreateItems(count: 9, iconCount: 0, koreanCount: 0) };
+
+        var result = new ContentUpdateCompletenessGuard().Validate(candidate, baseline);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Issues, issue => issue.Code == "update.items.suspicious-shrink");
+    }
+
+    [Fact]
+    public void MissingBaselineDoesNotRejectCandidateByRelativeCoverageAlone()
+    {
+        var candidate = EmptyCatalog() with { Items = CreateItems(count: 1, iconCount: 0, koreanCount: 0) };
+
+        var result = new ContentUpdateCompletenessGuard().Validate(candidate, baseline: null);
+
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Issues);
+    }
+
     private static GameContentCatalog EmptyCatalog() => new(
         Array.Empty<GameItem>(),
         [],
@@ -86,8 +121,11 @@ public sealed class ContentUpdateCompletenessGuardTests
                         .ToArray()),
             ]);
 
-    private static IReadOnlyList<GameItem> CreateItems(int iconCount, int koreanCount) =>
-        Enumerable.Range(0, 20)
+    private static IReadOnlyList<GameItem> CreateItems(
+        int iconCount,
+        int koreanCount,
+        int count = 20) =>
+        Enumerable.Range(0, count)
             .Select(index => new GameItem(
                 $"item-{index}",
                 index < koreanCount ? $"아이템 {index}" : null,
