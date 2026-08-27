@@ -18,12 +18,12 @@ public sealed record StoredContentSnapshot(
 
 public sealed class ContentSnapshotStore
 {
-    // v3-v6 remain readable as last-known-good offline snapshots. v7 preserves
-    // structured EFT profile-variable availability requirements instead of collapsing
-    // globalVariable into an opaque unsupported type. A successful data update writes v7;
-    // older readable snapshots remain usable while offline and simply lack that new data.
+    // v3-v7 remain readable as last-known-good offline snapshots. v8 adds canonical
+    // all-item craft/barter/trader/flea relationships for the Scanner item database.
+    // Older readable snapshots remain usable while offline; ItemRelationshipData stays
+    // null so presentation can distinguish "not collected yet" from a real empty graph.
     public const int MinimumReadableSchemaVersion = 3;
-    public const int CurrentSchemaVersion = 7;
+    public const int CurrentSchemaVersion = 8;
 
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
 
