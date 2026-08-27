@@ -32,10 +32,9 @@
                     Orientation="Horizontal"
                     HorizontalAlignment="Right">
             <Button Content="취소"
-                    IsCancel="True"
-                    Margin="0,0,8,0" />
+                    Margin="0,0,8,0"
+                    Click="CancelButton_Click" />
             <Button Content="다음"
-                    IsDefault="True"
                     Click="NextButton_Click" />
         </StackPanel>
     </Grid>

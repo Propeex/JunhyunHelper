@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Threading;
 using TarkovHelper.Services;
 
 namespace JunhyunHelper.Desktop;
@@ -30,6 +31,11 @@ public partial class MainWindow
         // available. This makes the shortcuts usable from any product section.
         ScannerCoordinator.AttachContextProvider(GetScannerDataContext);
         ScannerCoordinator.AttachHotkeyHost(this);
+
+        // The empty-state create button is XAML-owned and receives its legacy handler
+        // during InitializeComponent. Rebind it after the visual tree is complete so
+        // profile creation uses the same in-app overlay boundary as profile editing.
+        Dispatcher.BeginInvoke(AttachProfileOverlayLaunchers, DispatcherPriority.Loaded);
 
         // Replace the original full-refresh mutation handlers with dependency-aware
         // product handlers. This keeps the existing UI events while avoiding duplicate

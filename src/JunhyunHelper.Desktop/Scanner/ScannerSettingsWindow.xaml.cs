@@ -7,9 +7,6 @@ public partial class ScannerSettingsWindow : Window
 {
     private readonly ScannerCoordinator _coordinator;
     private readonly ObservableCollection<MiniInfoRow> _rows = [];
-    private ScannerHotkeyGesture? _oneShotTarkov;
-    private ScannerHotkeyGesture? _oneShotTest;
-    private ScannerHotkeyGesture? _scannerToggle;
 
     public ScannerSettingsWindow(ScannerCoordinator coordinator)
     {
@@ -18,10 +15,6 @@ public partial class ScannerSettingsWindow : Window
 
         var settings = coordinator.Settings.Clone();
         settings.Normalize();
-        _oneShotTarkov = Parse(settings.OneShotTarkovHotkey);
-        _oneShotTest = Parse(settings.OneShotTestHotkey);
-        _scannerToggle = Parse(settings.ScannerToggleHotkey);
-
         foreach (var key in settings.MiniScannerInfoOrder)
         {
             _rows.Add(new MiniInfoRow(
@@ -31,26 +24,9 @@ public partial class ScannerSettingsWindow : Window
         }
 
         InfoOrderList.ItemsSource = _rows;
-        UpdateHotkeySummary();
     }
 
-    private void HotkeySettingsButton_Click(object sender, RoutedEventArgs e)
-    {
-        var dialog = new ScannerHotkeySettingsWindow(
-            _oneShotTarkov?.ToString(),
-            _oneShotTest?.ToString(),
-            _scannerToggle?.ToString())
-        {
-            Owner = this,
-        };
-        if (dialog.ShowDialog() != true)
-            return;
-
-        _oneShotTarkov = dialog.OneShotTarkovGesture;
-        _oneShotTest = dialog.OneShotTestGesture;
-        _scannerToggle = dialog.ScannerToggleGesture;
-        UpdateHotkeySummary();
-    }
+    private void InfoVisibilityCheckBox_Click(object sender, RoutedEventArgs e) => SaveDisplaySettings();
 
     private void MoveUpButton_Click(object sender, RoutedEventArgs e)
     {
@@ -61,6 +37,7 @@ public partial class ScannerSettingsWindow : Window
             return;
         _rows.Move(index, index - 1);
         InfoOrderList.SelectedItem = row;
+        SaveDisplaySettings();
     }
 
     private void MoveDownButton_Click(object sender, RoutedEventArgs e)
@@ -72,43 +49,23 @@ public partial class ScannerSettingsWindow : Window
             return;
         _rows.Move(index, index + 1);
         InfoOrderList.SelectedItem = row;
+        SaveDisplaySettings();
     }
 
-    private void SaveButton_Click(object sender, RoutedEventArgs e)
+    private void SaveDisplaySettings()
     {
         var orderedRows = _rows.ToArray();
         _coordinator.UpdateDisplaySettings(settings =>
         {
+            // Identity is always present in Mini Scanner and is no longer exposed as
+            // configurable/fixed explanatory rows in this settings surface.
             settings.ShowItemName = true;
             settings.ShowItemIcon = true;
             settings.MiniScannerInfoOrder = orderedRows.Select(row => row.Key).ToList();
             foreach (var row in orderedRows)
                 settings.SetInfoVisible(row.Key, row.IsVisible);
         });
-
-        _coordinator.SetOneShotTarkovHotkey(_oneShotTarkov);
-        _coordinator.SetOneShotTestHotkey(_oneShotTest);
-        _coordinator.SetScannerToggleHotkey(_scannerToggle);
-        DialogResult = true;
-        Close();
     }
-
-    private void CancelButton_Click(object sender, RoutedEventArgs e)
-    {
-        DialogResult = false;
-        Close();
-    }
-
-    private void UpdateHotkeySummary()
-    {
-        HotkeySummaryText.Text =
-            $"1회 인게임: {Format(_oneShotTarkov)}   ·   1회 테스트: {Format(_oneShotTest)}   ·   ON/OFF: {Format(_scannerToggle)}";
-    }
-
-    private static ScannerHotkeyGesture? Parse(string? value) =>
-        ScannerHotkeyGesture.TryParse(value, out var gesture) ? gesture : null;
-
-    private static string Format(ScannerHotkeyGesture? gesture) => gesture?.ToString() ?? "사용 안 함";
 
     private static string LabelFor(string key) => key switch
     {

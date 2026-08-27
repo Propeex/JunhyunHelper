@@ -16,6 +16,7 @@ public partial class AmmoPage
         // unrelated parent XAML Loaded subscription.
         Dispatcher.BeginInvoke(InitializeProductSearchAndDetails, DispatcherPriority.Loaded);
         Dispatcher.BeginInvoke(ApplyProductGridFixes, DispatcherPriority.Loaded);
+        Dispatcher.BeginInvoke(ApplyProductUiSimplification, DispatcherPriority.Loaded);
     }
 
     private void ApplyProductGridFixes()
