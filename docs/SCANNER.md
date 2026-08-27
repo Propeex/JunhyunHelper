@@ -1,9 +1,9 @@
 # Scanner — 제품/기술 계약
 
 기준일: 2026-08-27
-상태: **v1.7.13 PUBLIC STABLE / FEATURE COMPLETE / MAINTENANCE ONLY**
+상태: **v1.7.14 PUBLIC STABLE / FEATURE COMPLETE / MAINTENANCE ONLY**
 
-이 문서는 현재 Scanner 제품 동작과 기술 안전 계약의 canonical 전문 문서다. 역사적 근거는 버전별 결정/릴리즈 문서에 보존하고, 현재 구현 판단은 이 문서와 `STATE.md`, 실제 코드가 우선한다.
+이 문서는 현재 Scanner 제품 동작과 기술 안전 계약의 canonical 전문 문서다. 역사적 근거는 버전별 결정/릴리즈 문서에 보존하고, 현재 구현 판단은 이 문서와 `docs/STATE.md`, 실제 코드가 우선한다.
 
 ## 1. 목적과 경계
 
@@ -25,7 +25,7 @@ Tarkov window pixels
 → Item ID or fail closed
 → local mapped presentation
 → Scanner Page / Mini Scanner
-→ optional correction / Ground Truth
+→ optional correction / reviewed Ground Truth
 ```
 
 Scanner는 범용 OCR이 아니라 **현재 공식 한국어 Tarkov full-item catalog를 identity authority로 사용하는 closed-domain recognizer**다.
@@ -38,29 +38,32 @@ Scanner는 범용 OCR이 아니라 **현재 공식 한국어 Tarkov full-item ca
 - geometry/environment normalization 단독 Item identity 확정 금지
 - scan 순간 HTTP/API를 Item identity proof에 사용 금지
 - stale/cross-frame OCR 또는 visual result를 현재 Item identity proof로 재사용 금지
-- Item ID 확정 전 price/needed/slot metadata를 identity evidence로 사용 금지
+- Item ID 확정 전 price/needed/slot/source/previous-frame metadata를 identity evidence로 사용 금지
+- icon/image-only identity 금지
+- game memory read / DLL injection / packet interception 금지
 - 새로운 reviewed evidence 없이 semantic/OCR/matcher/visual acceptance 완화 금지
 
-## 2. Current v1.7.13 product state
+## 2. Current v1.7.14 product state
 
 Scanner는 기능 개발이 끝난 **maintenance-only** 상태다. 실제 사용자 evidence가 있는 회귀만 failure stage를 확인해 affected layer에 최소 수정한다.
 
 현재 주요 계약:
 
-- recognition log → latest exact current in-memory frame quick-correction
+- recognition log → latest exact current in-memory frame quick correction
 - runtime log와 reviewed Ground Truth lifecycle 분리
 - 정상 monitoring은 durable automatic diagnostic Case를 생성하지 않음
 - user-explicit correction save만 reviewed durable Ground Truth
 - legacy `automatic_sample + unreviewed`만 fail-closed cleanup
-- full official item catalog가 identity authority
+- full official Korean item catalog가 identity authority
 - Item ID 확정 이후 metadata/market/needed는 동일-ID join
-- Scanner `필요 개수`는 canonical `NeededItems[itemId].RemainingTotal`
-- Scanner item search의 Quest/Hideout source는 canonical `NeededItems[itemId].Sources`
-- Scanner/Map configurable hotkey는 primary key + optional Ctrl/Alt/Shift이며 extra modifier compatibility / most-specific-wins 정책 적용
-- display settings는 change-immediate persistence
+- Scanner `필요 개수` = canonical `NeededItems[itemId].RemainingTotal`
+- Scanner item search Quest/Hideout source = canonical `NeededItems[itemId].Sources`
+- Scanner/Map configurable hotkey = primary key + optional Ctrl/Alt/Shift, extra-modifier compatible / most-specific-wins
+- Scanner Settings가 Mini display/order와 global Scanner hotkey 편집을 함께 소유
+- Scanner Advanced는 MainWindow shared in-app overlay에 host
 - verified main-CI artifact만 stable release 가능
 
-v1.7.13은 Scanner settings/search/UI를 단순화한 PATCH이며 Scanner identity recognition 기준을 변경하지 않았다. v1.7.11의 `필요 개수` presentation과 configurable hotkey modifier UX, v1.7.10의 공개 배포 환경별 luminance normalization을 그대로 유지한다.
+v1.7.14는 Scanner identity recognition 기준을 바꾸지 않았다. Settings/hotkey/Advanced overlay와 search interaction만 통일했다.
 
 ## 3. 핵심 안전 불변식
 
@@ -100,8 +103,8 @@ AND TitleAnchorScore >= 0.68
 EscapeFromTarkov process/window
 → client-area geometry
 → Borderless client capture
-→ existing proven capture path
-→ invalid/empty이면 existing exact-client fallback
+→ proven capture path
+→ invalid/empty이면 exact-client screen fallback
 ```
 
 최소화되었거나 유효한 client area가 없으면 인식하지 않는다.
@@ -111,7 +114,8 @@ EscapeFromTarkov process/window
 연결된 display에 실사용과 동일한 detector/OCR/catalog/presentation pipeline을 적용한다.
 
 - 실제 continuous Scanner와 Display Test continuous mode는 상호 배타적이다.
-- 일반 Scanner surface가 아니라 `고급` 영역에서 다룬다.
+- 일반 Scanner surface가 아니라 `고급`에서 다룬다.
+- v1.7.14 `고급`은 standalone product Window가 아니라 MainWindow shared overlay에 host된다.
 
 ### One-shot
 
@@ -131,7 +135,7 @@ Scanner ON/OFF: Ctrl+Shift+F12
 - scan-time network refresh 시작 금지
 - shared detector/OCR/presentation state와 직렬화
 - one-shot candidate cap 12
-- 동일 gesture 중복 지정 금지
+- 동일 Scanner gesture 중복 지정 금지
 
 ## 5. Full Item identity catalog
 
@@ -143,7 +147,7 @@ Identity health와 market/dimension coverage는 분리한다. 가격 정보가 �
 
 Catalog/cache lifecycle은 GameMode ordering을 지켜 과거 mode의 느린 load/refresh가 최신 mode state를 덮어쓰지 못하게 한다.
 
-## 6. Game Data update
+## 6. Game Data Update
 
 사용자는 일반 Tarkov 데이터와 Scanner catalog를 별도로 갱신할 필요가 없다.
 
@@ -155,48 +159,90 @@ remote Game Content fetch/build
 ```
 
 - Scanner refresh만 실패하면 healthy general Game Content를 rollback하지 않는다.
-- 기존 healthy Scanner cache가 있으면 유지한다.
+- 기존 healthy same-mode Scanner cache가 있으면 유지한다.
 - partial failure를 상태로 보고한다.
 
-## 7. Scanner UI — current
+## 7. Scanner UI — current v1.7.14
 
-일반 surface의 역할은 운용, 표시 설정, hotkey 설정, current correction, search/log를 분리해 제공하는 것이다.
-
-Primary/command 영역:
+Normal Scanner surface:
 
 - `스캐너 ON/OFF`
-- display/settings launcher
-- configurable hotkey editing entry point
+- `설정`
 - `고급`
-- `현재 결과 교정` — 우측 command 영역
+- `현재 결과 교정` — 우측 command lane
+- item search
+- recognition log
 
-Display/settings surface:
+### Scanner Settings
 
-- Mini Scanner optional field visibility/order
-- OCR substitutions/display-owned preferences
-- 변경 즉시 기존 atomic settings store에 저장
-- 별도 Save/Cancel transaction 없음
-- fixed identity header인 icon/official item name에 대한 `항상 표시` 안내 row 없음
+`ScannerSettingsWindow.xaml(.cs)`가 다음을 함께 소유한다.
 
-`현재 결과 교정`은 `ScannerRecognitionDebugStore`에 보존된 최신 exact in-memory frame만 correction editor로 연다. 다른 오래된 frame을 대체하지 않는다.
+Mini Scanner optional information:
 
-`고급`:
+- visibility
+- order
 
-- Display Test / 테스트 스캐너
+Global Scanner hotkeys:
+
+- 1회 인게임 스캔
+- 1회 테스트 스캔
+- Scanner ON/OFF
+
+Display/order 변경과 hotkey 변경은 기존 Scanner settings persistence authority에 즉시 반영한다. 별도 dedicated hotkey Window는 없다.
+
+**`ScannerHotkeySettingsWindow.xaml/.cs`는 v1.7.14에서 제거됐다.** 이 화면을 병렬 설정 authority로 복구하지 않는다.
+
+Hotkey capture 규칙:
+
+- modifier-only 입력 → capture preview
+- Delete/Backspace → 미지정
+- Esc → capture cancel
+- Windows modifier → 미지원
+- 다른 Scanner action과 동일 gesture → 거부
+- 실제 persistence는 existing `ScannerCoordinator.SetOneShotTarkovHotkey`, `SetOneShotTestHotkey`, `SetScannerToggleHotkey` path 사용
+
+Mini Scanner icon/official name은 fixed identity header이므로 `항상 표시` 설명 row를 두지 않는다.
+
+### Scanner Advanced
+
+`ScannerAdvancedWindow.xaml(.cs)`는:
+
+- Display Test / 테스트 Scanner
 - 교정 데이터 관리
-- Scanner 성능 진단 자료 내보내기
+- support/performance diagnostics
 
-Scanner settings/edit surface는 가능한 경우 MainWindow 내부 공통 overlay host를 사용하고 X/backdrop/동일 launcher 재클릭으로 닫는다. Overlay host가 Scanner settings의 domain/persistence 의미를 재구현하지 않는다.
+를 제공한다.
+
+v1.7.14 product path:
+
+```text
+Advanced launcher
+→ MainWindow.ToggleInAppWindowAsync("scanner-advanced", advanced)
+→ shared overlay card
+```
+
+- standalone `Show()` product path 사용 금지
+- 내용 자체의 별도 `닫기` button 없음
+- same launcher 재클릭 / backdrop / common overlay X로 dismiss
+- existing advanced action semantics는 child가 유지
+
+### Search
+
+Scanner item search는 local/memory catalog를 사용하고 입력창 오른쪽 내부 `×` clear affordance를 사용한다. Clear affordance는 filtering/identity logic을 소유하지 않는다.
+
+### Current correction
+
+`현재 결과 교정`은 `ScannerRecognitionDebugStore`에 보존된 **최신 exact in-memory frame**만 correction editor로 연다. 오래된 다른 frame이나 자동 sample을 현재 truth로 대체하지 않는다.
 
 ## 8. Item-title OCR
 
 기본 OCR은 serialized Windows ko-KR boundary를 사용한다.
 
-Normal OCR이 성공하면 그 결과를 그대로 사용한다. v1.7.10부터 정상 성공 경로에 luminance histogram/copy/추가 OCR 비용을 넣지 않는다.
+Normal OCR이 성공하면 그 결과를 그대로 사용한다. 정상 success path에 luminance histogram/copy/추가 OCR 비용을 넣지 않는다.
 
 Normal OCR miss 또는 기존 bounded deep pass에서만 environment normalization 후보를 평가한다.
 
-## 9. v1.7.10 environment normalization
+## 9. Cross-environment normalization
 
 제품 목표는 특정 PC별 tuning이 아니라 입력 canonicalization이다.
 
@@ -226,29 +272,23 @@ Luminance profile:
 
 - P60: dark title-field background estimate
 - P99.75: sparse bright glyph foreground estimate
-- contrast span이 최소 usable contrast 아래면 flat/no-contrast로 간주
+- contrast span이 minimum usable contrast 아래면 flat/no-contrast
 - flat/no-contrast는 adaptive normalization 금지
 - reference SDR-like profile은 historical preprocessing 유지
 - lifted/washed/compressed-contrast profile만 adaptive grayscale mapping 허용
 
 Normalization은 Item identity proof가 아니다. 출력 OCR evidence는 기존 catalog matcher/ambiguity 기준을 그대로 통과해야 한다.
 
-### Procedural environment regression
+Deterministic procedural matrix:
 
-Deterministic regression matrix:
-
-- reference SDR-like luminance
-- HDR→SDR-like lifted/washed luminance
+- reference SDR-like
+- HDR→SDR-like lifted/washed
 - lifted + compressed contrast
 - low-contrast gamma/rendering variation
-- 1080p proportional title raster
-- 1440p proportional title raster
-- 4K proportional title raster
-- flat/no-contrast negative case
+- 1080p / 1440p / 4K proportional title raster
+- flat/no-contrast negative
 
-Procedural matrix는 reviewed Ground Truth를 대체하지 않는다. 실제 reviewed Case가 있는 recognition change는 기존 정답을 유지한 replay에서 `REGRESSION=0`을 요구한다.
-
-공식 결정: `docs/DECISION_SCANNER_CROSS_ENVIRONMENT_2026-08-26.md`.
+Procedural matrix는 reviewed Ground Truth를 대체하지 않는다.
 
 ## 10. Detail rectangle proposal
 
@@ -266,6 +306,8 @@ capture
 계약:
 
 - structural floor `0.34`
+- continuous cap `8`
+- one-shot cap `12`
 - aspect ratio는 ordering hint일 뿐 hard reject가 아님
 - overlapping candidate라도 실질적 geometry가 다르면 semantic validation까지 보존
 - rough red-X proximity는 ranking hint이며 actual close-X proof가 아님
@@ -277,11 +319,9 @@ Required evidence는 close-X, magnifier, neutral header/frame, title field relat
 
 최종 production OCR gate는 `HEADER_FRAME_LOCKED >= 0.68`이다.
 
-### v1.7.8 raid ownership recovery
+### Raid ownership recovery
 
-레이드 inventory horizontal line이 inspect header와 이어져 기존 fallback이 header-left를 실제 상세창보다 47~132px 왼쪽으로 소유하던 회귀를 reviewed 8 Case로 확인했다.
-
-Recovery order:
+Raid inventory horizontal line이 inspect header와 이어져 header-left ownership이 실제 상세창보다 왼쪽으로 확장되는 회귀에 대한 recovery 순서:
 
 ```text
 primary header lock
@@ -304,17 +344,28 @@ Coarse proposal은 header-left ownership proposal일 뿐 Item identity proof가 
 
 OCR text는 current official catalog를 대상으로 sanitation/normalization 후 보수적으로 매칭한다.
 
-- ambiguous result는 fail closed
-- user substitution은 명시적 사용자 교정 범위에서만 적용
+- exact official name 우선
+- conservative confidence + top1/top2 margin
+- ambiguous result fail closed
+- bounded unknown/edit recovery only
+- user substitution은 명시적 사용자 correction 범위에서만 적용
 - automatic global forced substitution table을 제품 기본값으로 만들지 않음
 - optional visual corroboration은 current exact pixels에 한정
 - matcher/visual recovery acceptance를 new reviewed evidence 없이 완화하지 않음
 
-## 13. v1.7.6 performance contract
+## 13. Same-cycle performance / pacing contract
+
+Continuous observation target:
+
+```text
+200 ms
+```
+
+Pacing policy는 cycle overrun 뒤 missed tick을 back-to-back replay하지 않는다.
 
 과거 일부 PC의 5~13초 latency root cause는 Windows OCR 자체가 아니라 동일 current-frame visual evidence의 반복 계산이었다.
 
-문제 PC actual Tarkov `ReadingTitle → ShowingItem` 성공 12건:
+문제 PC actual Tarkov `ReadingTitle → ShowingItem` 성공 baseline:
 
 ```text
 minimum 38.07 ms
@@ -323,20 +374,15 @@ maximum 1.05 s
 mean    211.47 ms
 ```
 
-Display Test:
+Same active Scanner cycle에서 **exact current-pixel identity가 동일한 evidence만** 재사용한다. Cycle이 바뀌면 폐기한다. Cross-frame Item identity cache가 아니다.
 
-```text
-하프 마스크: 10,840.877 ms → 70.603 ms
-USB 보안 플래시 드라이브: 12,686.278 ms → 1,354.775 ms
-```
-
-같은 Scanner latency cycle에서 exact current-pixel identity가 동일한 visual evidence만 재사용한다. Cycle이 바뀌면 즉시 폐기한다. cross-frame Item identity cache가 아니다.
+Wall-clock benchmark를 normal CI의 고정 합격선으로 사용하지 않는다.
 
 ## 14. Mini Scanner / item-search presentation
 
 Confirmed Item identity가 presentation authority다.
 
-v1.7.9에서 Item ID 확정 후 Mini Scanner만 별도로 수행하던 auxiliary inventory-header OCR의 display veto 권한을 제거했다.
+Mini Scanner display contract:
 
 ```text
 confirmed Scanner Item
@@ -358,22 +404,41 @@ miss #3 → hide
 
 Progress-only state는 miss로 세지 않는다.
 
-Item ID 확정 뒤 `필요 개수`는 `ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal`을 표시한다. 이는 current Inventory와 FIR 조건이 반영된 canonical remaining requirement이며 `RequiredTotal`을 Scanner가 별도 표시하거나 재계산하지 않는다.
+### Needed quantity
 
-v1.7.13 item search의 source contract:
+Item ID 확정 뒤:
+
+```text
+ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal
+```
+
+이 값은 current Inventory/FIR 조건이 반영된 canonical remaining requirement다. Scanner가 raw inventory를 다시 빼거나 `RequiredTotal`을 사용자 표시값으로 사용하지 않는다.
+
+### Quest / Hideout source
+
+Searched confirmed needed item:
 
 ```text
 confirmed Item ID
-→ ItemsWorkspace.Plan.NeededItems[itemId]
-   ├─ RemainingTotal
-   └─ Sources
-→ current needed + related Quest/Hideout source rows
+→ ItemsWorkspace.Plan.NeededItems[itemId].Sources
+→ related Quest/Hideout source rows
 → existing content navigation
 ```
 
 - source list는 기존 Needed Items 계산 결과를 same-ID로 join한다.
 - Scanner가 Quest/Hideout requirement/source를 별도 재구성하지 않는다.
-- source/needed information은 Item ID 확정 전 identity evidence로 사용할 수 없다.
+- source/needed information은 Item ID 확정 전 identity evidence가 아니다.
+
+### Other mapped fields
+
+- official name
+- local cached icon
+- trusted best non-flea trader price/name
+- positive flea `avg24hPrice`
+- positive width/height slot count
+- price/slot where derivable
+
+Market/dimension failure는 affected presentation field만 비우고 Item identity를 소급 무효화하지 않는다.
 
 ## 15. Ground Truth / durable data
 
@@ -390,12 +455,26 @@ runtime capture / recognition
 → reviewed durable Ground Truth
 ```
 
+Correction coordinates는 original source pixels가 authority다. UI auto-fit/display scale 좌표를 durable truth로 저장하지 않는다.
+
+Candidate-first correction:
+
+1. detail rectangle
+2. close-X
+3. magnifier
+4. item-name ROI
+5. correct item/text
+
+Candidate가 정답을 포함하지 않으면 manual rectangle, 실제 semantic object가 없으면 explicit `없음`을 사용한다.
+
+Saved Case re-edit는 same Case ID와 existing reviewed data를 보존한다. Restore failure 시 existing Ground Truth를 overwrite/delete하지 않는다.
+
 Legacy automatic Case cleanup은 다음 모두를 증명할 때만 허용한다.
 
 ```text
 retention = automatic_sample
 review_status = unreviewed
-recent-write safety >= 5 minutes
+recent-write safety satisfied
 metadata/state re-read unchanged
 ```
 
@@ -403,12 +482,13 @@ reviewed/manual/corrupt/unknown/state-changed Case는 preserve fail closed한다
 
 Private user pixel evidence를 CI 편의를 위해 public repository에 넣지 않는다.
 
-## 16. Activity/log contract
+## 16. Activity/log/retention contract
 
-- 동일 Scanner activity failure는 30초 동안 collapse
-- bounded text log와 reviewed Ground Truth lifetime은 분리
+- 동일 Scanner activity failure는 bounded collapse 정책으로 반복 spam을 줄임
+- bounded text log와 reviewed Ground Truth lifetime 분리
 - runtime diagnostics는 failure stage 설명에 사용
 - durable user-reviewed evidence는 자동 삭제하지 않음
+- `SerializedScannerOcrEngine` reflection diagnostic adapter는 intentional technical debt
 
 ## 17. Hotkey contract
 
@@ -418,7 +498,7 @@ Scanner와 configurable Map actions는 `primary key + optional Ctrl/Alt/Shift`�
 
 - primary key 일치 필수
 - binding에 등록된 Ctrl/Alt/Shift는 모두 눌려 있어야 함
-- 등록하지 않은 Ctrl/Alt/Shift 추가 입력은 허용
+- 등록하지 않은 Ctrl/Alt/Shift 추가 입력 허용
 - 같은 primary key에 여러 compatible binding이 있으면 required modifier 수가 더 많은 더 구체적인 binding 우선
 - 동률은 기존 기능 우선순위/안정적인 등록 순서
 - bare key 허용
@@ -426,43 +506,63 @@ Scanner와 configurable Map actions는 `primary key + optional Ctrl/Alt/Shift`�
 - Map bare NumPad0~5 direct floor 유지
 - modifier+NumPad configurable Map action 허용
 
-v1.7.13은 hotkey matching 의미를 바꾸지 않고 편집 UI의 entry point만 display settings에서 normal Scanner surface로 분리했다.
+v1.7.14는 hotkey matching 의미를 바꾸지 않고 editor ownership을 Scanner Settings로 통합했다.
 
-공식 결정: `docs/DECISION_V1.7.11_MAINTENANCE.md` 및 `docs/DECISION_V1.7.13_UI_SIMPLIFICATION.md`.
+## 18. v1.7.14 shared overlay contract
 
-## 18. CI / release contract
+Scanner Settings와 Scanner Advanced는 MainWindow shared overlay owner를 사용한다.
+
+```text
+launcher
+→ MainWindow.ToggleInAppWindowAsync
+→ shared overlay
+→ same launcher / backdrop / common X → dismiss
+```
+
+- overlay는 표시/닫기 lifetime만 소유
+- child validation/persistence semantics를 MainWindow가 재구현하지 않음
+- Scanner Advanced standalone product Window 금지
+- old dedicated Scanner hotkey Window 금지
+
+Actual Product UI smoke는 Scanner Advanced를 실제 shared overlay에 host한 상태에서 rendering/clipping/dismiss contract를 검증한다.
+
+## 19. CI / release contract
 
 Release candidate gate:
 
 ```text
 Release build
-→ automated tests
+→ deterministic tests
 → Windows x64 self-contained single-file publish
-→ startup / rendered Product UI / Scanner / Map / Factory / MiniMap smoke
+→ ProductVersion / FIRST_RUN verification
+→ actual Product UI / Scanner / Map / Factory / MiniMap smoke
 → graceful shutdown / clean portable root
 → release package + SHA256 verification
-→ artifact upload
+→ exact main source CI
+→ exact artifact Release workflow
+→ public tag/release/asset readback
 ```
 
-Stable release는 main CI가 성공한 exact main commit의 artifact만 Release workflow가 게시한다.
-
-v1.7.13 proof:
+Current v1.7.14 proof:
 
 ```text
-PR #199 final head: 98da50022528d78a3c8f0448736b5785bf9de818
-final PR CI: 33051551273 — SUCCESS
-main release source: 16198c462a6be58d77dbe2dc27aa57eabfc7b9fd
-main CI: 33051890329 — SUCCESS
-Release workflow: 33052109161 — SUCCESS
-release id: 377652938
-asset id: 531953179
-asset SHA-256: d1cfcf1f606985485584f0e085e8821e0f62156a980f259a90144fd134a7eeb6
-400 passed / 0 failed / 0 skipped
+PR #200 final head: 1a2f0189c6a6f2a21dc70f50cb092217f0977c13
+final PR CI: 33060440860 — SUCCESS
+main release source: 0a51375de36cd13047216006c2c0311728b1bd89
+main CI: 33060827905 — SUCCESS
+Release workflow: 33061059154 — SUCCESS
+release id: 377720327
+asset id: 532104142
+asset bytes: 80,488,363
+asset SHA-256: 341ac502d2ace563ab2e7c8d7091a8e796cf87e7d1f5961edf869feab106e2fd
+407 passed / 0 failed / 0 skipped
 ```
 
-v1.7.13은 Scanner recognition policy를 변경하지 않았지만 release gate에서 Scanner/Mini Scanner actual published EXE smoke를 포함해 검증했다. 이후 documentation-only main commit은 v1.7.13 product release source가 아니다.
+Public tag/ref and `/releases/latest` point to exact product source and public ZIP digest matches main-CI package hash.
 
-## 19. Maintenance workflow
+이후 documentation-only commit은 v1.7.14 product release source가 아니다. Published stable assets are immutable.
+
+## 20. Maintenance workflow
 
 ```text
 evidence
@@ -479,15 +579,77 @@ evidence
 
 새 실제 evidence 없이 threshold/candidate cap/OCR/matcher/visual acceptance를 선제 변경하지 않는다.
 
-## 20. Support-bundle privacy contract
+Failure stage 예시:
 
-`Scanner > 고급 > Scanner 성능 진단 자료 내보내기`는 환경/성능 trace와 bounded diagnostic log만 지원 분석용 ZIP으로 내보낸다.
+- capture
+- structural proposal
+- inspect-header ownership/semantic lock
+- title ROI
+- OCR
+- substitution/sanitation
+- catalog match/ambiguity
+- visual corroboration
+- presentation join
+- Mini Scanner context
+- settings/overlay UI
+- Ground Truth persistence
 
-다음 사용자-private 또는 계정 관련 데이터는 support bundle에 포함하지 않는다.
+## 21. Support-bundle privacy contract
 
-- Scanner Ground Truth image / source pixel dataset
-- `user.db` 또는 profile database
-- Tarkov/game account information
-- 사용자 진행도나 계정 식별에 해당하는 데이터
+Scanner support/performance diagnostic export는 환경/성능 trace와 bounded diagnostic log만 지원 분석용으로 다룬다.
 
-이 exclusion은 진단 기능의 제품 안전 계약이다. 향후 exporter를 변경할 때도 유지해야 하며, release regression에서 금지 파일/데이터가 support ZIP에 들어가지 않음을 검증한다.
+다음 사용자 data를 자동 포함하지 않는다.
+
+- reviewed Ground Truth source pixels/dataset
+- `user.db`
+- profile database
+- game-account information
+- account-identifying user-progress data
+
+필요한 Ground Truth는 사용자가 명시적으로 전달한 reviewed evidence로 별도 처리한다.
+
+## 22. Current specialist file map
+
+Core:
+
+- `Core/Scanner/ScannerRecognition.cs`
+- `Core/Scanner/ScannerItemMatcher.cs`
+- `Core/Scanner/ScannerObservationPacingPolicy.cs`
+- `Core/Scanner/ScannerOcrCharacterPolicy.cs`
+- `Core/Scanner/ScannerOcrSubstitution.cs`
+- `Core/Scanner/ScannerPresentationJoin.cs`
+- `Core/Scanner/ScannerTitleIdentitySignature.cs`
+
+Infrastructure:
+
+- `Infrastructure/Scanner/ScannerCatalogService.cs`
+
+Desktop:
+
+- `Scanner/ScannerCoordinator*.cs`
+- `Scanner/ScannerRuntimeService*.cs`
+- `Scanner/ScannerLab38WindowsVision.cs`
+- `Scanner/FontAwareScannerOcrEngine.cs`
+- `Scanner/SerializedScannerOcrEngine.cs`
+- `Scanner/TarkovTitleFontProvider.cs`
+- `Scanner/ScannerFullCatalogVisualMatcher.cs`
+- `Scanner/ScannerItemPresentationService.cs`
+- `Scanner/ScannerRecognitionDebugStore.cs`
+- `Scanner/ScannerLatencyTelemetry.cs`
+- `Scanner/ScannerPage.xaml(.cs)`
+- `Scanner/ScannerPage.ProductUsability.cs`
+- `Scanner/ScannerSettingsWindow.xaml(.cs)`
+- `Scanner/ScannerAdvancedWindow.xaml(.cs)`
+- `Scanner/MiniScannerWindow.xaml(.cs)`
+- `MainWindow.ScannerItemSources.cs`
+- `MainWindow.InAppOverlay.cs`
+- `MainWindow.ProductUiLayoutSmoke.cs`
+
+Current regression references:
+
+- `tests/JunhyunHelper.Tests/Maintenance/V1714UiConsistencyContractTests.cs`
+- `docs/SCANNER_TEST_PLAN.md`
+- `docs/CURRENT_SCANNER_WORK.md`
+- `docs/SCANNER_GROUND_TRUTH.md`
+
+현재 v1.7.14 릴리즈 배치에 남은 Scanner 개발 작업은 없다.
