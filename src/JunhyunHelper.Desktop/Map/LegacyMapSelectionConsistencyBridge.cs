@@ -44,14 +44,14 @@ public sealed class LegacyMapSelectionConsistencyBridge : IDisposable
     /// </summary>
     public static bool SynchronizeCurrentSelectionNow()
     {
-        LegacyMapSelectionConsistencyBridge? bridge;
+        LegacyMapSelectionConsistencyBridge? bridge = null;
         lock (ActiveGate)
         {
             if (_active?.TryGetTarget(out bridge) != true)
                 return false;
         }
 
-        if (bridge._disposed)
+        if (bridge is null || bridge._disposed)
             return false;
 
         if (bridge._page.Dispatcher.CheckAccess())
