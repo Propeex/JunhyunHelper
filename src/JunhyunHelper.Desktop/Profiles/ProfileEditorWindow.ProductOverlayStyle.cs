@@ -14,7 +14,7 @@ public partial class ProfileEditorWindow
 
     private void ApplyProductOverlayStyle()
     {
-        if (Content is not Grid root || root.Parent is not null)
+        if (Content is not Grid root)
             return;
 
         Content = null;
