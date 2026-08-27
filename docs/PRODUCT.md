@@ -3,7 +3,7 @@
 이 문서는 **무엇을 만들고 왜 만드는지**를 정의하는 공식 제품 요구사항이다. 사용자의 최신 확정 의도가 과거 구현보다 우선하며, 현재 코드가 존재한다는 이유만으로 그 동작을 제품 요구사항으로 추정하지 않는다.
 
 기준일: 2026-08-27
-상태: **v1.7.12 PUBLIC STABLE / VERIFIED / PRODUCT COMPLETE / MAINTENANCE MODE**
+상태: **v1.7.13 PUBLIC STABLE / VERIFIED / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 1. 제품 정의
 
@@ -55,7 +55,7 @@ ZIP/folder 이름은 version과 분리한다. GitHub Release asset은 filename n
 
 Mutable user data는 `%LocalAppData%/JunhyunHelper`에 저장한다.
 
-현재 public stable/latest는 v1.7.12다. 제품 source의 권위는 tag `v1.7.12`의 exact SHA `d8d0f8eb1ffdd9b8c4ec890277a7b209b2458c2b`이며, main의 후속 documentation/housekeeping commit은 release source가 아니다. 정확한 현재 CI/release/asset proof는 `docs/STATE.md`와 `docs/RELEASE_1.7.12.md`를 사용한다.
+현재 public stable/latest는 v1.7.13이다. 제품 source의 권위는 tag `v1.7.13`의 exact SHA `16198c462a6be58d77dbe2dc27aa57eabfc7b9fd`이며, main의 후속 documentation/housekeeping commit은 release source가 아니다. 정확한 현재 CI/release/asset proof는 `docs/STATE.md`와 `docs/RELEASE_1.7.13.md`를 사용한다.
 
 ## 3. Game Content
 
@@ -136,6 +136,8 @@ GameMode별 독립 profile:
 
 `user.db` schema는 v1이다.
 
+프로필 편집은 사용자-facing editing surface이며 v1.7.13부터 가능한 경우 MainWindow 내부 공통 overlay host에서 표시한다. Overlay는 표시/닫기 ownership만 담당하고 기존 validation/save semantics를 바꾸지 않는다.
+
 ## 7. Quest
 
 사용자 상태:
@@ -192,7 +194,8 @@ Scanner `필요 개수`는 Item ID 확정 뒤 canonical `NeededItems[itemId].Rem
 
 ## 11. Items
 
-- category / 용도 / 필요 상태 filter
+- category / 필요 상태 filter
+- 퀘스트용/은신처용 용도 selector는 제품 surface에 두지 않고 필요한 아이템을 하나의 기준으로 표시
 - Inventory + Needed Items 결합
 - Quest / Hideout / Ammo cross-navigation
 - Item Wiki navigation
@@ -203,6 +206,10 @@ Scanner `필요 개수`는 Item ID 확정 뒤 canonical `NeededItems[itemId].Rem
 
 - read-only comparison
 - name / caliber 검색
+- 상단 조작은 `구경 → 즐겨찾기 토글 → 즐겨찾기 선택 → 검색` 순서로 좌측 정렬
+- 표시 열 control은 우측 정렬
+- 상세정보는 새 실행 세션에서 기본 접힘
+- 표 위 중복 요약 문구를 두지 않음
 - exact caliber / Ammo navigation
 - raw Ammo stats와 Wiki Ballistics fact 분리
 - membership과 Armor Class effectiveness 분리
@@ -221,6 +228,11 @@ d933792b6042a51cea38dc44b686a096fe30de67
 
 - Current Quest sidebar / marker identity
 - general marker / PMC·Scav·Transit extracts
+- 지도 마커 선택은 기본 접힘이며 `지도 마커` launcher 자체로 열고 닫음
+- 펼친 지도 마커 선택은 필요한 선택지를 한 번에 표시
+- 설정 surface는 같은 설정 launcher 재클릭으로 닫을 수 있음
+- 경로(trail) 표시와 `경로 지우기`는 제품 surface에서 제거
+- Map 단축키 안내 설명 문구는 제품 surface에서 제거
 - manual floor / hotkeys
 - screenshot 기반 Map/player tracking
 - floor = presentation relation, visibility filter 아님
@@ -241,7 +253,7 @@ Configurable Map hotkey:
 - Windows modifier 미지원
 - bare NumPad0~5 direct floor selection 유지
 
-Map은 독립 subsystem이고 Quest만 current JunhyunHelper content/profile과 bridge한다. 검증된 Map/MiniMap은 기능 요구 없이 불필요하게 재설계하지 않는다.
+Map은 독립 subsystem이고 Quest만 current JunhyunHelper content/profile과 bridge한다. 검증된 Map/MiniMap은 기능 요구 없이 불필요하게 재설계하지 않는다. v1.7.13 UI 단순화는 donor source 자체를 수정하지 않고 JunhyunHelper first-party customization boundary에서 적용한다.
 
 ## 14. Scanner / Mini Scanner
 
@@ -301,7 +313,7 @@ Continuous real Scanner는 EscapeFromTarkov Borderless client-area를 감지한�
 
 Display Test는 동일 recognition pipeline을 적용하며 real continuous mode와 상호 배타적이다.
 
-One-shot 기능은 유지하지만 일반 Scanner page에는 별도 one-shot 버튼을 두지 않는다.
+One-shot 기능은 유지하지만 일반 Scanner page에는 별도 one-shot 실행 버튼을 두지 않는다.
 
 ```text
 1회 인게임: Ctrl+Shift+F10
@@ -329,6 +341,10 @@ item search result:
 - flea 24h average
 - best non-flea trader price + trader name where trusted
 - `NeededItems[itemId].RemainingTotal`
+- 현재 needed item이면 기존 `NeededItems[itemId].Sources`의 Quest/Hideout source list
+- source 선택 시 해당 Quest/Hideout 화면으로 navigation
+
+Scanner 검색은 source/필요량을 자체 재계산하지 않고 기존 `ItemsWorkspace.Plan.NeededItems` 결과를 같은 Item ID로 join한다.
 
 ### 14.5 Scanner display settings schema v6
 
@@ -344,6 +360,10 @@ v6 fixed Mini Scanner identity header:
 - trader price/slot
 - flea price/slot
 - current needed
+
+아이콘/공식 이름은 fixed identity header이므로 별도 `항상 표시` 안내 row를 제품 설정에 두지 않는다.
+
+표시 설정은 변경 즉시 기존 atomic settings store에 저장하고 별도 저장/취소 버튼을 요구하지 않는다. Scanner global hotkey 편집은 display 설정에서 분리해 기본 Scanner surface에서 접근한다.
 
 v5 이하 설정은 자동 migration하고 enabled state/hotkeys/visibility/position/font size/user OCR substitutions를 가능한 한 보존한다.
 
@@ -427,17 +447,24 @@ Legacy/automatic unreviewed diagnostic cleanup은 retention/state/recent-write s
 일반 surface:
 
 - Scanner ON/OFF
-- 설정
+- 표시 설정
 - 고급
+- configurable hotkey 설정
 - 현재 결과 교정
 - item search
 - recognition log
 
-`설정`은 global hotkey + Mini Scanner display/order를 우선한다.
+`표시 설정`은 Mini Scanner display/order와 OCR substitution 같은 display-owned preference를 다루며 변경 즉시 저장한다.
+
+Global hotkey 편집은 display 설정에서 분리해 normal Scanner surface에서 접근한다.
+
+`현재 결과 교정`은 최신 exact in-memory frame을 대상으로 하며 우측 조작 영역에 둔다.
 
 `고급`은 Display Test + correction data management + support diagnostics를 우선한다.
 
-일반 surface에 catalog recovery/regression/export/log-delete 같은 developer action을 펼쳐 놓지 않는다.
+일반 surface에 catalog recovery/regression/export 같은 developer action을 펼쳐 놓지 않는다.
+
+Scanner 설정/편집 surface는 가능한 경우 MainWindow 내부 공통 overlay interaction을 사용하고 X/backdrop/동일 launcher 재클릭으로 닫는다.
 
 ## 15. Images / preference persistence
 
@@ -449,6 +476,7 @@ Map/Ammo/Scanner preference와 MiniMap window size는 사용자 mutable data이�
 
 - MainWindow minimum width는 실제 2-pane/header 요구를 만족하는 1180
 - normal vs settings vs advanced hierarchy를 명확히 유지
+- 사용자-facing 편집/설정 surface는 가능한 경우 MainWindow 내부 공통 overlay host를 사용하고 backdrop/동일 launcher 재클릭 close semantics를 일관되게 유지
 - clipping/scroll/status wording 회귀를 Product UI smoke로 검출
 - standard WPF 설명 ToolTip은 표시하지 않음
 - 지도 marker detail 같은 기능성 custom Popup/information surface는 유지
@@ -470,10 +498,11 @@ Release candidate는 최소 다음을 통과해야 한다.
 - archive top-level `준현 헬퍼/` + required file verification
 - exact public tag/source
 - public stable/latest publication
-- independent anonymous public redownload/hash/layout verification
-- public-downloaded EXE Product UI/Map/Scanner smoke
+- public asset metadata/digest/tag-ref readback
 
-v1.7.12는 exact main CI artifact, Release workflow 검증, public GitHub asset digest와 tag-ref readback의 일치를 검증했다. 현재 자동화 도구 세션이 public binary asset 자체의 독립 anonymous redownload를 제공하지 않는 경우 수행하지 않은 검증을 완료했다고 기록하지 않는다. 이 제한은 release quality gate 요구를 낮추지 않는다.
+가능한 검증 환경에서는 independent anonymous public redownload/hash/layout와 public-downloaded EXE smoke를 추가한다. 자동화 도구가 binary redownload를 제공하지 않는 경우 수행하지 않은 검증을 완료했다고 기록하지 않는다.
+
+v1.7.13은 exact main CI artifact, Release workflow 검증, public GitHub asset digest와 tag-ref readback의 일치를 검증했다.
 
 ## 18. 현재 개발 방향
 
@@ -491,4 +520,4 @@ real Tarkov usage
 
 Ground Truth evidence 없이 threshold/candidate cap을 완화하지 않는다.
 
-현재 public stable의 제품 결정 상세는 `docs/DECISION_V1.7.12_MAINTENANCE.md`와 `docs/DECISION_LONG_TERM_MAINTENANCE_AUDIT_2026-08-27.md`, 공개 릴리즈 증거는 `docs/RELEASE_1.7.12.md`를 권위 기록으로 사용한다.
+현재 public stable의 제품 결정 상세는 `docs/DECISION_V1.7.13_UI_SIMPLIFICATION.md`, 공개 릴리즈 증거는 `docs/RELEASE_1.7.13.md`를 권위 기록으로 사용한다. v1.7.12 장기 유지보수 결정은 historical foundation으로 유지한다.
