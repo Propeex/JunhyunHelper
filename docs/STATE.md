@@ -203,7 +203,7 @@ Map / Scanner configurable hotkey의 현재 계약:
 - 같은 primary key에서 여러 binding이 compatible하면 required modifier 수가 더 많은 binding 우선
 - 동률은 기존 기능 우선순위/안정적인 등록 순서 사용
 - Windows modifier 미지원
-- Map bare NumPad0~5 direct floor 계약 유지
+- Map bare NumPad0~5 direct floor 유지
 
 ### MiniMap first-open / size persistence
 
@@ -465,9 +465,9 @@ Exporter 변경 시 이 exclusion을 release regression으로 계속 검증한�
 
 ## 19. 2026-08-27 유지보수 기반 정리
 
-제품 runtime/version/release를 변경하지 않고 앞으로의 유지보수 안전성을 높이는 작업을 PR #196에서 진행한다.
+제품 runtime/version/release를 변경하지 않고 앞으로의 유지보수 안전성을 높이는 작업을 PR #196에서 완료했다.
 
-현재 범위:
+완료 범위:
 
 - `docs/MAINTENANCE_CONTRACTS.md`를 유지보수 안전 계약으로 추가
 - 버전 종속 `v1.7.1` Live Data Probe를 장기 운영형 `.github/workflows/live-data-probe.yml`로 교체
@@ -482,7 +482,8 @@ Exporter 변경 시 이 exclusion을 release regression으로 계속 검증한�
 검증:
 
 ```text
-review-adjusted PR head CI: 33038100860 — SUCCESS
+final PR head: f996d945f6c59548e8287ba930573c193fc522fc
+final PR CI: 33038571161 — SUCCESS
 396 passed / 0 failed / 0 skipped
 Windows publish: SUCCESS
 Product UI / Map / Factory / MiniMap smoke: SUCCESS
@@ -492,16 +493,18 @@ one-time live probe run: 33038439864 — SUCCESS
 Regular: items=5312 quests=517 objectives=1457 questItems=305 hideout=26 ammo=200 validationIssues=0 fatal=0
 PvE:     items=5312 quests=514 objectives=1434 questItems=293 hideout=26 ammo=200 validationIssues=0 fatal=0
 Wiki Ballistics: registered 186/200 ammo, safely matched effectiveness for 186
+
+PR #196: MERGED
+main merge: bbb8b9b64116c71889cfc4fe3f208ef0e1d67bc6
+main CI: 33038777867 — SUCCESS
+396 passed / 0 failed / 0 skipped
+open PRs after merge: 0
 ```
 
 Live Probe의 `sourceWarnings=1`은 Regular/PvE 각각 Wiki Ballistics가 186/200종을 확인하고 186종을 안전하게 매칭했다는 enrichment 상태 메시지이며 Fatal validation은 0이다.
 
-실제 외부 검증을 위해 사용한 branch-only 일회성 workflow는 검증 직후 제거했으며 장기 workflow에는 특정 유지보수 branch trigger를 남기지 않는다.
+두 review thread는 실제 수정과 검증 증거를 남긴 뒤 resolved 처리했다. 실제 외부 검증을 위해 사용한 branch-only 일회성 workflow는 검증 직후 제거했으며 장기 workflow에는 특정 유지보수 branch trigger를 남기지 않는다.
 
-완료 전 남은 작업:
+main CI에서도 Windows publish, Product UI / Map / Factory / MiniMap smoke, graceful shutdown, package verification이 모두 성공했다. 앞으로 외부 source drift는 장기 `live-data-probe.yml`로 일반 제품 CI와 분리해 감시한다.
 
-1. 일회성 workflow 제거와 이 상태 기록이 포함된 최종 PR head 전체 CI 통과 확인
-2. PR review thread 종료 및 최종 diff 확인
-3. PR #196 병합
-
-공개 v1.7.11의 exact release source/tag/assets는 이 유지보수 기반 작업과 무관하며 변경하지 않는다.
+공개 v1.7.11은 이 유지보수 기반 작업 후에도 tag `v1.7.11`, exact release source `0f97c6e5340ae91581a9242ec236bbd7885b34d5`, 기존 `Junhyun-Helper.zip` 및 checksum assets 그대로 유지된다. `bbb8b9b...`와 이후 문서 동기화 commit은 product release source가 아니다.
