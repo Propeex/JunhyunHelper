@@ -51,6 +51,7 @@ public sealed class TarkovItemRelationshipImporter
 
         return new ItemRelationshipCatalog(
             purchases
+                .DistinctBy(value => (value.ItemId, value.TraderId, value.RequiredLevel, value.TaskUnlockQuestId))
                 .OrderBy(value => value.ItemId, StringComparer.Ordinal)
                 .ThenBy(value => value.TraderId, StringComparer.Ordinal)
                 .ThenBy(value => value.RequiredLevel)
@@ -102,17 +103,13 @@ public sealed class TarkovItemRelationshipImporter
 
             var id = TarkovJsonReader.RequiredString(raw, "id", "Craft");
             var product = RequiredObject(raw, "productItem", $"Craft '{id}'");
-            var requirements = ReadRequirements(raw, "requiredItems", $"Craft '{id}'", allowTool: true);
-            if (requirements.Count == 0)
-                throw new InvalidDataException($"Craft '{id}' has no required items.");
-
             result.Add(new ItemCraft(
                 id,
                 RequiredReference(raw, "station", $"Craft '{id}'"),
                 RequiredNonNegativeInt(raw, "level", id),
                 RequiredReference(product, "item", $"Craft '{id}' product item"),
                 RequiredPositiveDecimal(product, "count", $"Craft '{id}' product item"),
-                requirements,
+                ReadRequirements(raw, "requiredItems", $"Craft '{id}'", allowTool: true),
                 OptionalReference(raw, "taskUnlock")));
         }
 
@@ -168,9 +165,6 @@ public sealed class TarkovItemRelationshipImporter
             }
         }
 
-        // Mirror upstream flea-market price construction: a tradable item is considered
-        // an actual acquisition source only when current market data exists. avg24hPrice
-        // is accepted as a compatibility signal for static feeds that omit lastLowPrice.
         return (TarkovJsonReader.OptionalInt(item, "lastLowPrice") ?? 0) > 0 ||
                (TarkovJsonReader.OptionalInt(item, "avg24hPrice") ?? 0) > 0;
     }
