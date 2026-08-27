@@ -44,7 +44,7 @@ public sealed class ItemRelationshipIntegrityValidator
             RequireItem(items, barter.ProductItemId, "item-relationship.barter.product.missing", $"Barter '{barter.Id}'", issues);
             RequirePositive(barter.ProductCount, "item-relationship.barter.product.nonpositive", $"Barter '{barter.Id}' product", issues);
             RequireQuest(quests, barter.TaskUnlockQuestId, "item-relationship.barter.quest.missing", $"Barter '{barter.Id}'", issues);
-            ValidateIngredients(items, barter.RequiredItems, $"Barter '{barter.Id}'", "barter", issues);
+            ValidateIngredients(items, barter.RequiredItems, $"Barter '{barter.Id}'", "barter", issues, requireAtLeastOne: true);
         }
 
         var craftIds = new HashSet<string>(StringComparer.Ordinal);
@@ -58,7 +58,7 @@ public sealed class ItemRelationshipIntegrityValidator
             RequireItem(items, craft.ProductItemId, "item-relationship.craft.product.missing", $"Craft '{craft.Id}'", issues);
             RequirePositive(craft.ProductCount, "item-relationship.craft.product.nonpositive", $"Craft '{craft.Id}' product", issues);
             RequireQuest(quests, craft.TaskUnlockQuestId, "item-relationship.craft.quest.missing", $"Craft '{craft.Id}'", issues);
-            ValidateIngredients(items, craft.RequiredItems, $"Craft '{craft.Id}'", "craft", issues);
+            ValidateIngredients(items, craft.RequiredItems, $"Craft '{craft.Id}'", "craft", issues, requireAtLeastOne: false);
         }
 
         var fleaIds = new HashSet<string>(StringComparer.Ordinal);
@@ -77,9 +77,10 @@ public sealed class ItemRelationshipIntegrityValidator
         IReadOnlyList<ItemIngredient> ingredients,
         string owner,
         string kind,
-        ICollection<ContentValidationIssue> issues)
+        ICollection<ContentValidationIssue> issues,
+        bool requireAtLeastOne)
     {
-        if (ingredients.Count == 0)
+        if (requireAtLeastOne && ingredients.Count == 0)
         {
             Fatal(issues, $"item-relationship.{kind}.requirements.empty", $"{owner} has no required items.");
             return;
