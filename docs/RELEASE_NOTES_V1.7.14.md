@@ -12,14 +12,15 @@ v1.7.14는 v1.7.13의 기능 의미를 유지하면서 설정·popup·검색 int
   - MiniMap launcher 주변의 donor padding/background와 숨긴 도움말 버튼 자리를 제거해 실제 버튼만 보이게 했습니다.
   - `지도 마커` launcher는 투명 텍스트 영역이 아니라 JunhyunHelper 기본 Button chrome을 사용합니다.
   - 접힌 지도 마커 panel은 빈 배경/최소 폭을 남기지 않습니다.
-  - 펼친 panel은 일반 데스크톱 viewport에서 현재 모든 마커 checkbox를 스크롤 없이 볼 수 있도록 세로 공간을 확보합니다.
+  - 펼친 panel은 일반 데스크톱 viewport에서 현재 marker checkbox를 가능한 한 스크롤 없이 볼 수 있도록 세로 공간을 확보합니다.
   - 지도/미니맵 제품 설정 surface는 오른쪽 drawer 대신 MainWindow 공통 in-app overlay에 표시합니다.
 
 - **Scanner**
   - `고급`은 별도 Windows 창을 띄우지 않고 Scanner 설정과 같은 MainWindow in-app overlay에 표시합니다.
   - 고급 화면 안의 별도 `닫기` 버튼을 제거했습니다. 같은 `고급` launcher 재클릭, 공통 overlay X, backdrop click으로 닫습니다.
   - Scanner 단축키 편집을 Scanner 설정 내부로 이동했습니다.
-  - 단축키 저장 authority와 중복 조합/Windows modifier/미지정 처리 규칙은 기존 동작을 유지합니다.
+  - 기존 별도 `ScannerHotkeySettingsWindow`를 제거했습니다.
+  - 단축키 저장 authority와 중복 조합/Windows modifier/미지정 처리 규칙은 기존 ScannerCoordinator 동작을 유지합니다.
 
 - **프로필 수정**
   - 기존 MainWindow overlay 동작과 저장/검증 authority는 유지하면서 내용 card의 배경·border·padding을 Scanner 설정과 같은 계열로 통일했습니다.
@@ -42,10 +43,86 @@ v1.7.14는 v1.7.13의 기능 의미를 유지하면서 설정·popup·검색 int
 
 ## 회귀 방지
 
-- `V1714UiConsistencyContractTests`가 Ammo true-toggle, shared overlay ownership, Scanner 설정/고급, Map launcher, Profile card, 공통 search clear 계약을 고정합니다.
-- deterministic test suite는 **407 passed / 0 failed / 0 skipped**까지 증가했습니다.
+- `V1714UiConsistencyContractTests`가 Ammo true-toggle, shared overlay ownership, Scanner 설정/고급, old hotkey Window removal, Map launcher, Profile card, 공통 search clear 계약을 고정합니다.
+- deterministic suite는 **407 passed / 0 failed / 0 skipped**입니다.
 - actual published Windows x64 EXE smoke는 Scanner Advanced를 실제 MainWindow shared overlay에 host한 상태에서 렌더링·clipping·닫기 계약을 검증합니다.
-- code-only PR CI #2045 / run `33059733240`에서 Release build, 407 tests, Windows x64 publish, Product UI + full Map/Factory/MiniMap smoke, graceful shutdown, package verification이 성공했습니다.
+- 기존 Main Map / Factory / MiniMap actual smoke도 그대로 유지합니다.
+
+## 검증 / 공개 배포
+
+PR #200 final head:
+
+```text
+1a2f0189c6a6f2a21dc70f50cb092217f0977c13
+```
+
+Final PR CI:
+
+```text
+run: 33060440860
+CI #2052
+result: SUCCESS
+407 passed / 0 failed / 0 skipped
+Windows x64 publish: SUCCESS
+Product UI / Scanner / Main Map / Factory / MiniMap smoke: SUCCESS
+graceful shutdown / clean portable root: SUCCESS
+release package verification: SUCCESS
+```
+
+Exact public product source/tag target:
+
+```text
+0a51375de36cd13047216006c2c0311728b1bd89
+```
+
+Main CI:
+
+```text
+run: 33060827905
+CI #2053
+result: SUCCESS
+ProductVersion: 1.7.14+0a51375de36cd13047216006c2c0311728b1bd89
+407 passed / 0 failed / 0 skipped
+Windows x64 publish: SUCCESS
+Product UI / Scanner / Main Map / Factory / MiniMap smoke: SUCCESS
+graceful shutdown / clean portable root: SUCCESS
+package verification: SUCCESS
+```
+
+Main-CI release package:
+
+```text
+Junhyun-Helper.zip
+bytes: 80,488,363
+SHA-256: 341ac502d2ace563ab2e7c8d7091a8e796cf87e7d1f5961edf869feab106e2fd
+```
+
+Release workflow:
+
+```text
+run: 33061059154
+Release #45
+result: SUCCESS
+```
+
+Public release readback:
+
+```text
+release id: 377720327
+tag: v1.7.14
+tag/release target: 0a51375de36cd13047216006c2c0311728b1bd89
+draft: false
+prerelease: false
+latest stable: true
+Junhyun-Helper.zip asset id: 532104142
+bytes: 80,488,363
+SHA-256: 341ac502d2ace563ab2e7c8d7091a8e796cf87e7d1f5961edf869feab106e2fd
+SHA256SUMS.txt asset id: 532104140
+```
+
+GitHub `/releases/latest`와 `refs/tags/v1.7.14` 모두 exact product release source를 가리키며 public ZIP digest가 exact main-CI package SHA-256과 일치합니다.
+
+상세 검증 기록은 `docs/RELEASE_1.7.14.md`를 사용합니다. 이후 documentation-only commit은 v1.7.14 product release source가 아니며 공개 v1.7.14 tag/source/assets는 immutable합니다.
 
 ## 변경하지 않은 것
 
@@ -64,4 +141,4 @@ one-shot candidate cap = 12
 continuous observation target = 200 ms
 ```
 
-가격/필요 개수/slot/이전 프레임을 Item identity 증거로 사용하지 않으며 cross-frame OCR/visual identity cache도 추가하지 않았습니다.
+가격/필요 개수/slot/source/이전 프레임을 Item identity 증거로 사용하지 않으며 cross-frame OCR/visual identity cache도 추가하지 않았습니다.
