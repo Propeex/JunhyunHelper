@@ -2,33 +2,33 @@
 
 > 최신 개발 상태의 짧은 인덱스입니다. 상세 설계와 이력은 `docs/STATE.md`, `docs/PRODUCT.md`, `docs/ARCHITECTURE.md`, `docs/DEVELOPER_REFERENCE.md`, 전문 결정/릴리즈 문서를 참조합니다.
 
-기준일: 2026-08-27
+기준일: 2026-08-28 KST
 
-상태: **`v1.7.14 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE`**
+상태: **`v1.7.15 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE`**
 
 ## 공개 stable
 
-현재 공개 stable/latest는 **v1.7.14**다.
+현재 공개 stable/latest는 **v1.7.15**다.
 
 ```text
-public stable/latest: v1.7.14
-exact product release source/tag target: 0a51375de36cd13047216006c2c0311728b1bd89
-main CI run: 33060827905 — SUCCESS
-release workflow run: 33061059154 — SUCCESS
-release id: 377720327
+public stable/latest: v1.7.15
+exact product release source/tag target: 4bf5e3a567d3ce9563657bbb3b90bec0871c06b4
+main CI run: 33086901217 — SUCCESS
+release workflow run: 33087185178 — SUCCESS
+release id: 377926863
 stable asset: Junhyun-Helper.zip
-stable asset id: 532104142
-stable bytes: 80,488,363
-stable SHA-256: 341ac502d2ace563ab2e7c8d7091a8e796cf87e7d1f5961edf869feab106e2fd
-checksum asset id: 532104140
-checksum asset SHA-256: 30e66cd988c85491d1a0f369dedec53ddb5afc430ce2bca65a47893ddc1d055d
-407 passed / 0 failed / 0 skipped
-Product UI / Scanner / Map / Factory / MiniMap / graceful shutdown smoke: SUCCESS
+stable asset id: 532481010
+stable bytes: 80,492,565
+stable SHA-256: 9ac3276a1a4a20905b0aa3d6452f50d5259f724ed8f960b7cfbad39f8c619f2f
+checksum asset id: 532481008
+checksum asset SHA-256: 84fbabe5ef2c41d28a00305c0cd7b8ee7575fbe3c1c64fa83f7ead1c75494580
+410 passed / 0 failed / 0 skipped
+Product UI / Main Map / Factory / MiniMap / graceful shutdown smoke: SUCCESS
 ```
 
-GitHub `/releases/latest` 및 tag-ref readback:
+GitHub `/releases/latest` 및 `refs/tags/v1.7.15` readback:
 
-- tag `v1.7.14`
+- tag `v1.7.15`
 - release target/tag ref = exact product release source
 - draft = false
 - prerelease = false
@@ -38,17 +38,17 @@ GitHub `/releases/latest` 및 tag-ref readback:
 
 공개 증거:
 
-- `docs/RELEASE_1.7.14.md`
-- `docs/.release-v1.7.14-status.json`
-- `docs/RELEASE_NOTES_V1.7.14.md`
-- `docs/DECISION_V1.7.14_UI_CONSISTENCY.md`
+- `docs/RELEASE_1.7.15.md`
+- `docs/.release-v1.7.15-status.json`
+- `docs/RELEASE_NOTES_V1.7.15.md`
+- `docs/DECISION_V1.7.15_UI_REFINEMENTS.md`
 
-이 문서 동기화 이후의 commit은 **v1.7.14 product release source가 아니다**. 제품 릴리즈 소스는 항상 위 `0a51375d...`로 고정한다. 이미 공개된 v1.7.14 tag/source/assets는 immutable historical product release로 취급한다.
+이 상태 문서 동기화 이후의 documentation-only commit은 **v1.7.15 product release source가 아니다**. 제품 릴리즈 소스는 항상 위 `4bf5e3a...`로 고정한다. 이미 공개된 v1.7.15 tag/source/assets는 immutable historical product release로 취급한다.
 
 ## Schema / compatibility
 
 ```text
-Desktop target version: 1.7.14
+Desktop target version: 1.7.15
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
@@ -74,51 +74,22 @@ Scanner Ground Truth: explicit user-reviewed durable cases
 | Program Update | 구현 완료 / verified stable ZIP contract |
 | Scanner + Mini Scanner | **FEATURE COMPLETE / MAINTENANCE ONLY** |
 
-## v1.7.14 — UI consistency patch
+## v1.7.15 — UI refinement patch
 
-v1.7.14는 도메인 계산이나 Scanner identity recognition을 바꾸지 않고 사용자-facing popup·overlay·검색 interaction을 한 제품 규칙으로 정리한 PATCH다.
-
-- Ammo `즐겨찾기 선택` / `표시 열` popup은 같은 launcher 재클릭으로 실제 닫힘을 유지한다.
-- MiniMap launcher 주변 donor 잔여 chrome과 숨긴 help-button 공간을 제거했다.
-- `지도 마커` launcher를 JunhyunHelper 일반 Button chrome으로 정리했다.
-- 지도 마커 panel은 접힌 상태에서 빈 panel chrome을 남기지 않고, 펼친 상태에서 일반 desktop viewport의 현재 checkbox를 가능한 한 한 화면에 보여줄 충분한 높이를 확보한다.
-- Map/MiniMap Settings, Scanner Settings, Scanner Advanced, Profile Edit는 MainWindow shared in-app overlay interaction을 사용한다.
-- 같은 launcher 재클릭, backdrop click, 공통 overlay X는 같은 dismiss path를 사용한다.
-- child editor의 validation/save semantics는 overlay host가 재구현하지 않는다.
-- Scanner hotkey 편집은 Scanner Settings 내부로 통합했다.
-- 기존 전용 `ScannerHotkeySettingsWindow`는 제거했다.
-- Quest / Hideout / Items / Ammo / Scanner 주요 검색창은 입력창 오른쪽 내부 `×` clear affordance를 사용한다.
-- Scanner Advanced는 standalone Window가 아니라 실제 shared overlay host 상태에서 published EXE smoke를 수행한다.
-
-Regression protection:
-
-- `V1714UiConsistencyContractTests`
-- 407 deterministic tests
-- actual published Windows x64 Product UI / Scanner / Main Map / Factory / MiniMap smoke
-- graceful shutdown / clean portable root
-- package/ProductVersion/FIRST_RUN verification
+- main header는 version-only presentation을 사용한다.
+- cleanup 대상이 있으면 Items 탭 우측 상단에 작은 orange dot을 표시한다.
+- Map marker checkbox list는 panel의 실제 available height를 사용한다.
+- marker list가 공간 안에 들어오면 scrollbar를 숨기고, 실제로 넘칠 때만 scrolling한다.
+- Map marker selector는 launcher 재클릭과 panel outside click으로 닫힌다.
+- outside dismiss click은 marker state를 변경하지 않고 가능한 한 원래 Map/control interaction을 유지한다.
+- Ammo `즐겨찾기 선택`은 standard dropdown이다.
+- caliber/Favorites dropdown은 같은 caliber별 animation state를 공유하며 해당 caliber에 실제 속한 ammo icon만 순환한다.
+- 특정 ammo 하나를 caliber 영구 대표 icon으로 고정하지 않는다.
+- icon cadence는 1.4초이며 dropdown 둘 다 닫히면 timer를 중지한다.
 
 ## Scanner 현재 기준선
 
 Scanner는 현재 **FEATURE COMPLETE / MAINTENANCE ONLY**다.
-
-```text
-Tarkov window pixels
-→ detail rectangle proposals
-→ inspect-header semantic validation
-→ HEADER_FRAME_LOCKED
-→ item-name ROI
-→ serialized Windows ko-KR OCR
-→ optional user substitution
-→ conditional environment-aware title normalization
-→ conservative official-catalog matching / bounded recovery
-→ optional current-pixel visual corroboration
-→ Item ID or fail closed
-→ local mapped presentation
-→ Scanner Page / Mini Scanner
-```
-
-불변 계약:
 
 ```text
 structural floor = 0.34
@@ -131,8 +102,8 @@ continuous observation target = 200 ms
 - false positive보다 miss 선호
 - current official Korean Tarkov full-item catalog가 identity authority
 - geometry/environment normalization은 identity proof가 아님
-- stale/cross-frame OCR 또는 visual result를 현재 Item identity proof로 사용하지 않음
-- Item ID 확정 전 price/needed/slot/previous-frame metadata를 identity evidence로 사용하지 않음
+- stale/cross-frame OCR 또는 visual result를 current Item identity proof로 사용하지 않음
+- Item ID 확정 전 price/needed/slot/source/previous-frame metadata를 identity evidence로 사용하지 않음
 - scan 순간 network identity work 없음
 - reviewed Ground Truth 없이 recognition threshold/candidate cap/matcher/visual acceptance 완화 금지
 - needed quantity authority = `ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal`
@@ -161,14 +132,12 @@ remote source
 ```
 
 - 실패 candidate는 last-known-good를 덮어쓰지 않음
-- normal snapshot shrink guard = baseline의 50%
+- normal snapshot shrink guard = healthy baseline의 50%
 - collection schema drift는 fail closed
 - Wiki Ballistics enrichment는 fail-soft
 - User Progress와 Game Content authority 분리
 
 ## 유지보수 원칙
-
-새 작업은 기본적으로 다음 evidence-driven 순서를 따른다.
 
 ```text
 실사용 오류 / Tarkov 변화 / reviewed Scanner evidence
@@ -195,4 +164,4 @@ remote source
 9. 작업 영역 전문 문서
 10. current code / current PR / current CI
 
-현재 이 v1.7.14 릴리즈 배치에 남은 제품 개발 작업은 없다. 이후 기본 모드는 유지보수다.
+현재 **v1.7.15 릴리즈 배치에 남은 제품 개발 작업은 없다.** 이후 기본 모드는 유지보수다.
