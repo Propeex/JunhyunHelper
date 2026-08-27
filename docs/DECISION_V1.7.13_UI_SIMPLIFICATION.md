@@ -1,7 +1,7 @@
 # v1.7.13 UI Simplification — 제품 결정
 
 기준일: 2026-08-27
-상태: `APPROVED REQUIREMENTS / IMPLEMENTATION IN PROGRESS`
+상태: `APPROVED PATCH CANDIDATE / PR #199`
 
 ## 사용자 결정
 
@@ -40,3 +40,13 @@
 - settings/edit overlay는 MainWindow의 한 공통 owner에서 열고, 같은 launcher 재클릭과 backdrop click으로 닫는다.
 - settings auto-save는 기존 atomic settings service를 재사용한다.
 - Scanner searched-item source list는 기존 ItemsWorkspace `NeededItems[].Sources`를 presentation에 join할 뿐 Quest/Hideout 요구량을 재계산하지 않는다.
+
+## 검증에서 확인된 회귀
+
+첫 published EXE Product UI smoke는 Ammo 상세정보가 과거처럼 기본 펼침이라고 가정해 실패했다. 실제 제품 구현은 확정 요구사항대로 기본 접힘이었다. 검사를 삭제하거나 약화하지 않고 다음 계약으로 갱신했다.
+
+1. 초기 상태는 `▲` + detail host hidden.
+2. 한 번 클릭하면 `▼` + detail host visible.
+3. 다시 클릭하면 `▲` + detail host hidden.
+
+`V1713UiSimplificationContractTests`가 이 smoke 계약과 Items/Scanner 핵심 authority를 소스 수준에서도 고정한다. 최종 공개 릴리즈는 최신 PR CI, merge 후 main CI, release workflow와 공개 자산 검증이 모두 성공한 경우에만 승인한다.
