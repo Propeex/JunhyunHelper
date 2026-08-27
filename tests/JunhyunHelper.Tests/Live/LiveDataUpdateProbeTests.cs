@@ -28,9 +28,14 @@ public sealed class LiveDataUpdateProbeTests
         using var httpClient = new HttpClient { Timeout = TimeSpan.FromMinutes(3) };
         httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("JunhyunHelper-live-data-probe/1.0");
 
+        // Keep this composition aligned with DesktopServices production content build.
+        // Wiki Ballistics is intentionally fail-soft in production: source/schema failures
+        // remain observable through build.Warnings while canonical Tarkov content can still
+        // validate and activate independently.
         var builder = new TarkovContentBuildService(
             new TarkovEndpointSourceLoader(new TarkovJsonClient(httpClient)),
-            new TarkovEditionCatalogClient(httpClient));
+            new TarkovEditionCatalogClient(httpClient),
+            effectivenessClient: new WikiBallisticsEffectivenessClient(httpClient));
 
         var failures = new List<string>();
         foreach (var mode in new[] { GameMode.Regular, GameMode.Pve })
