@@ -1,31 +1,31 @@
 # Scanner Current Test Plan
 
 기준일: 2026-08-27
-상태: **v1.7.12 PUBLIC STABLE / FEATURE COMPLETE / MAINTENANCE ONLY**
+상태: **v1.7.13 PUBLIC STABLE / FEATURE COMPLETE / MAINTENANCE ONLY**
 
 이 문서는 deterministic release gate와 실제 Tarkov reviewed Ground Truth calibration을 분리한다. Reviewed evidence 없이 geometry/OCR/matcher/visual confidence threshold나 candidate cap을 조정하지 않는다.
 
 ## 1. Current verified stable
 
 ```text
-Desktop target: 1.7.12
-automated suite at v1.7.12 release: 397 tests
+Desktop target: 1.7.13
+automated suite at v1.7.13 release: 400 tests
 Scanner display settings schema: v6
 Scanner catalog cache: v1~v3 readable, v3 written
 stable package: Junhyun-Helper.zip
-exact product release source: d8d0f8eb1ffdd9b8c4ec890277a7b209b2458c2b
-main CI: 33042307773 — SUCCESS
-Release workflow: 33042464642 — SUCCESS
-release id: 377581895
-public bytes: 80,477,641
-public SHA-256: 3f0d57f8a5dc92611bc8648a423c43d65917e63e0d73a771b559153803186fa1
+exact product release source: 16198c462a6be58d77dbe2dc27aa57eabfc7b9fd
+main CI: 33051890329 — SUCCESS
+Release workflow: 33052109161 — SUCCESS
+release id: 377652938
+public bytes: 80,486,670
+public SHA-256: d1cfcf1f606985485584f0e085e8821e0f62156a980f259a90144fd134a7eeb6
 ```
 
-v1.7.12 release gate는 build/test/publish/rendered Product UI/Scanner/Map/Factory/MiniMap smoke, graceful shutdown, package checksum/layout, exact source tag, stable release metadata와 public asset/tag-ref readback을 모두 통과했다.
+v1.7.13 release gate는 build/test/publish/rendered Product UI/Scanner/Map/Factory/MiniMap smoke, graceful shutdown, package checksum/layout, exact source tag, stable release metadata와 public asset/tag-ref readback을 모두 통과했다.
 
-v1.7.12는 Scanner recognition 정책을 변경하지 않은 Desktop lifecycle maintenance release다. Scanner threshold/candidate/matcher/visual acceptance와 v1.7.6~v1.7.10 성능/환경 기준은 그대로 유지한다.
+v1.7.13은 Scanner identity recognition 정책을 변경하지 않은 UI simplification PATCH다. Scanner threshold/candidate/matcher/visual acceptance와 v1.7.6~v1.7.10 성능/환경 기준은 그대로 유지한다.
 
-릴리즈 이후 maintenance-only main은 deterministic regression을 추가할 수 있으므로 현재 main의 test 수와 immutable v1.7.12 release source의 test 수를 혼동하지 않는다. 빠르게 변하는 현재 main/CI 상태는 `docs/STATE.md`를 기준으로 한다.
+릴리즈 이후 maintenance-only main은 documentation/regression을 추가할 수 있으므로 현재 main HEAD와 immutable v1.7.13 product release source를 혼동하지 않는다. 빠르게 변하는 현재 main/CI 상태는 `docs/STATE.md`를 기준으로 한다.
 
 ## 2. Release-blocking deterministic gate
 
@@ -68,6 +68,15 @@ v1.7.12는 Scanner recognition 정책을 변경하지 않은 Desktop lifecycle m
 35. v1.7.10 1080p/1440p/4K proportional title raster matrix
 36. v1.7.10 flat/no-contrast negative case
 37. Scanner support bundle excludes Ground Truth/source pixels, `user.db`/profile DB, game-account information and user-progress/account-identifying data
+
+### v1.7.13 product-contract regression
+
+- Ammo detail: initial collapsed → expand → collapse round-trip is preserved in actual published EXE smoke.
+- Items: Quest/Hideout purpose selector does not reappear as an active product filter.
+- Scanner: needed-item source presentation derives from the existing `ItemsWorkspace.Plan.NeededItems` authority rather than reconstructing Quest/Hideout requirements.
+- Scanner recognition thresholds/candidate budgets are not touched by these UI regressions.
+
+`V1713UiSimplificationContractTests`가 위 source-level 계약을 고정하고 actual Product UI smoke가 rendered interaction을 보완한다.
 
 ### Publish / product smoke
 
@@ -266,6 +275,12 @@ Sticky presentation:
 - miss #2 retains
 - miss #3 hides
 - progress-only states do not count as misses
+
+Needed presentation:
+
+- `RemainingTotal` is the displayed current-needed authority.
+- item-search Quest/Hideout source rows come from the same authoritative `NeededItems[itemId].Sources` result.
+- neither value may be used as pre-identity recognition evidence.
 
 ## 9. Ground Truth gate
 
