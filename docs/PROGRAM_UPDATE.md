@@ -1,118 +1,213 @@
 # PROGRAM UPDATE — 제품 업데이트 계약
 
-## 확정 요구사항
+기준일: 2026-08-27
+상태: **IMPLEMENTED / v1.7.13 PUBLIC STABLE**
 
-2026-08-18 사용자와 다음 동작을 제품 요구사항으로 확정했습니다.
+## 1. 확정 요구사항
 
-1. 준현 헬퍼는 일반 실행 시 최신 **정식** 프로그램 버전을 조회한다.
-2. 현재 버전보다 최신 정식 버전이 있으면 사용자에게 업데이트 동의 여부를 묻는다.
-3. 사용자가 동의하면 업데이트를 진행하고 완료 후 새 버전으로 자동 재시작한다.
+준현 헬퍼는 일반 실행 시 최신 **정식** 프로그램 버전을 조회한다.
 
-세부 구현과 실패 처리 정책은 JunhyunHelper가 소유합니다.
+1. 현재 버전보다 최신 정식 버전이 있으면 사용자에게 업데이트 동의 여부를 묻는다.
+2. 사용자가 동의하면 공개 package/checksum을 검증한다.
+3. 검증이 모두 성공한 뒤 program-owned files만 교체한다.
+4. 완료 후 새 버전으로 자동 재시작한다.
+5. 어떤 업데이트 실패도 User Progress나 기존 정상 프로그램을 선제적으로 파괴해서는 안 된다.
 
-이 결정은 `DEC-034`의 “program auto-update는 v0.1.0 범위가 아니다”라는 과거 범위 문장과 `DEC-035`의 “application auto-updater는 v0.1.0 blocker가 아니다”라는 초기 릴리즈 범위 문장을 현재 제품 상태에서 supersede합니다. old `Tarkov-Helper`의 UpdateService를 되살리는 것이 아니라 JunhyunHelper 자체 업데이트 시스템을 구현합니다.
+세부 구현과 실패 처리 정책은 JunhyunHelper가 소유한다. old `Tarkov-Helper` updater는 제품 권위가 아니다.
 
-## 최신 버전 판정
+## 2. 최신 버전 판정
 
-- source of truth: `Propeex/JunhyunHelper` GitHub의 latest public Release
-- 대상: `draft=false`, `prerelease=false`인 stable release
-- 버전 형식: `vMAJOR.MINOR.PATCH`
-- 현재 실행 버전보다 엄격히 높은 버전만 업데이트 대상으로 취급
-- 예상 Windows package: `Junhyun-Helper-v<version>-win-x64.zip`
-- checksum asset: `SHA256SUMS.txt`
-- release/package shape가 계약과 다르면 자동 추측하지 않고 업데이트를 중단
+Source of truth:
 
-## 실행 시 동작
+```text
+https://api.github.com/repos/Propeex/JunhyunHelper/releases/latest
+```
 
-업데이트 조회는 MainWindow가 표시된 뒤 startup flow에서 한 번 실행합니다.
+계약:
 
-- 최신 버전과 같거나 더 높으면 아무 UI도 띄우지 않음
-- GitHub/네트워크 조회 실패는 진단 로그에 남기고 일반 프로그램 사용을 계속함
-- 새 버전이 있으면 현재 버전 실행 중 한 번만 동의창 표시
-- 사용자가 거절하면 현재 실행은 그대로 계속하며 다음 프로그램 실행 때 다시 확인
+- `draft=false`, `prerelease=false` stable release만 대상
+- tag 형식은 exact `vMAJOR.MINOR.PATCH`
+- 현재 실행 버전보다 strictly newer인 release만 업데이트 대상으로 취급
+- current stable package name은 **`Junhyun-Helper.zip`**
+- checksum asset은 **`SHA256SUMS.txt`**
+- 현재 updater는 이전 릴리즈 호환을 위해 `Junhyun-Helper-v<version>-win-x64.zip`도 fallback으로 읽을 수 있으나, 신규 stable release의 canonical package contract는 `Junhyun-Helper.zip`이다.
+- stable package와 legacy package가 모두 있으면 canonical `Junhyun-Helper.zip`을 우선한다.
+- required release/package shape가 없거나 불명확하면 자동 추측하지 않고 업데이트를 중단한다.
+- asset URL은 `github.com/Propeex/JunhyunHelper/releases/download/...` HTTPS release URL만 허용한다.
 
-## 동의 후 준비 단계
+현재 구현 권위:
 
-사용자가 동의한 뒤에도 기존 프로그램 파일을 즉시 수정하지 않습니다.
+- `Infrastructure/Updates/GitHubProgramUpdateClient.cs`
+- `Infrastructure/Updates/ProgramUpdateApplier.cs`
 
-1. `%LocalAppData%\JunhyunHelper\updates\pending` 아래 임시 작업 디렉터리 생성
-2. `SHA256SUMS.txt` 다운로드
-3. exact Windows ZIP 다운로드
-4. ZIP SHA-256이 공개 checksum과 일치하는지 검증
-5. ZIP path traversal / symlink / duplicate / 예상 밖 root / PDB를 차단
-6. package root가 정확히 `준현 헬퍼.exe`, `FIRST_RUN_KO.txt`, `Assets/` 계약을 만족하는지 확인
-7. 전부 성공한 뒤에만 파일 교체 단계로 진입
+## 3. 실행 시 동작
 
-다운로드나 검증이 실패하면 현재 프로그램 파일은 변경하지 않고 MainWindow를 다시 사용할 수 있게 합니다.
+업데이트 조회는 일반 startup flow에서 실행한다.
 
-## 파일 교체와 재시작
+- latest가 current보다 새롭지 않으면 UI 없음
+- GitHub/네트워크 조회 실패 → 진단 로그 + 현재 프로그램 정상 사용
+- 새 stable이 있으면 현재 실행에서 사용자 동의 UI 표시
+- 사용자 거절 → 현재 실행 유지; 다음 실행에서 다시 확인 가능
 
-실행 중인 Windows EXE를 자기 자신이 직접 교체하지 않습니다.
+Program Update check는 Game Content update와 별도 lifecycle이다.
 
-- 현재 `준현 헬퍼.exe`를 `%TEMP%\JunhyunHelper\updater\<guid>`로 복사
-- 복사본을 updater mode로 실행
-- 원래 준현 헬퍼 정상 종료를 기다림
-- program-owned files만 transaction 형태로 교체
+## 4. 동의 후 준비 단계
+
+사용자가 동의한 뒤에도 기존 프로그램 파일을 즉시 수정하지 않는다.
+
+```text
+latest stable metadata
+→ exact package + SHA256SUMS.txt
+→ checksum entry selection
+→ package download
+→ SHA-256 verification
+→ archive safety validation
+→ staging validation
+→ updater handoff
+```
+
+Staging root:
+
+```text
+%LocalAppData%/JunhyunHelper/updates/pending/<version-guid>/
+```
+
+Archive 안전 검증:
+
+- absolute/path traversal 거부
+- `.` / `..` path segment 거부
+- duplicate relative entry 거부
+- symbolic link 거부
+- `.pdb` 거부
+- 예상 밖 product root 거부
+- zero/invalid required file 거부
+
+## 5. Stable ZIP / extracted package contract
+
+Canonical public asset:
+
+```text
+Junhyun-Helper.zip
+└─ 준현 헬퍼/
+   ├─ 준현 헬퍼.exe
+   ├─ FIRST_RUN_KO.txt
+   └─ Assets/...
+```
+
+Updater는 stable wrapper folder `준현 헬퍼/`를 검증한 뒤 staging에서 program-owned root를 다음 형태로 정규화한다.
+
+```text
+staging/
+├─ 준현 헬퍼.exe
+├─ FIRST_RUN_KO.txt
+└─ Assets/
+```
+
+호환용 legacy ZIP은 wrapper 없는 root를 가질 수 있으나 stable-wrapper entry와 legacy-root entry가 한 archive에 섞여 있으면 fail closed한다.
+
+Required staging facts:
+
+- non-empty `준현 헬퍼.exe`
+- non-empty `FIRST_RUN_KO.txt`
+- non-empty `Assets/` tree
+
+ZIP/folder 이름은 semantic version identity가 아니다. Version identity는 project version, EXE ProductVersion, FIRST_RUN, tag/release metadata에서 검증한다.
+
+## 6. 파일 교체와 재시작
+
+실행 중 EXE가 자기 파일을 직접 덮어쓰지 않는다.
+
+- 현재 `준현 헬퍼.exe`를 temporary updater runner로 복사
+- updater mode 실행
+- 원래 MainWindow/process 정상 종료 대기
+- 새 files를 target volume에 준비
+- 기존 program-owned files를 temporary previous 위치로 이동
+- program-owned files만 transaction 교체
   - `준현 헬퍼.exe`
   - `FIRST_RUN_KO.txt`
   - `Assets/`
-- 새 파일을 먼저 같은 target volume에 준비한 후 기존 파일을 temporary previous 경로로 이동
-- 교체 중 실패하면 가능한 범위에서 previous 파일을 원위치로 rollback
-- 성공하면 새 `준현 헬퍼.exe` 자동 실행
-- 실패하면 기존 실행 파일이 복구되어 있으면 기존 버전을 다시 실행
+- 교체 실패 시 previous files rollback 시도
+- 성공 시 새 `준현 헬퍼.exe` 실행
+- 실패 후 정상 previous EXE가 있으면 기존 버전 재실행 시도
 
-상시 `Updater.exe`는 공개 ZIP에 포함하지 않습니다.
+상시 `Updater.exe`는 공개 ZIP에 포함하지 않는다.
 
-## 사용자 데이터 경계
+## 7. 사용자 데이터 경계
 
-프로그램 업데이트는 다음 `%LocalAppData%\JunhyunHelper` 사용자/게임 데이터의 의미를 변경하거나 삭제하지 않습니다.
+Program Update는 `%LocalAppData%/JunhyunHelper`의 사용자/게임 상태를 교체하지 않는다.
 
-- `user.db`
-- `content/`
-- `image-cache/`
-- `map-product-settings.json` 및 `.bak`
-- `ammo-favorites.json` 및 `.bak`
-- `logs/`
+보존 대상 예:
 
-`updates/pending/`만 프로그램 업데이트의 임시 staging 용도로 추가됩니다.
+```text
+user.db
+content/
+image-cache/
+map-product-settings.json(.bak)
+minimap-window-state.json
+ammo-settings / favorites persistence
+scanner-settings.json(.bak)
+scanner/catalog/
+scanner/fonts/
+scanner/diagnostics/
+Scanner reviewed Ground Truth
+logs/
+```
 
-프로그램 업데이트와 Game Content 업데이트는 서로 다른 subsystem입니다.
+`updates/pending/`만 Program Update staging lifecycle에 사용한다.
 
-## 실패 정책
+Program Update와 Game Content update는 서로 다른 subsystem이다.
+
+## 8. 실패 정책
 
 - update check 실패 → 앱 정상 사용
 - 사용자 거절 → 앱 정상 사용
-- download/checksum/package validation 실패 → 현재 프로그램 파일 미변경, 앱 정상 사용
-- updater runner 시작 실패 → 현재 프로그램 파일 미변경, 앱 정상 사용
-- 파일 교체 실패 → transaction rollback 시도, 기존 EXE가 있으면 자동 재시작
-- 모든 실패는 `%LocalAppData%\JunhyunHelper\logs\startup.log`에 진단 기록
+- release metadata invalid → update 중단, 현재 프로그램 유지
+- package/checksum download 실패 → 현재 프로그램 미변경
+- checksum mismatch → 현재 프로그램 미변경
+- archive/staging validation 실패 → 현재 프로그램 미변경
+- updater runner 시작 실패 → 현재 프로그램 미변경
+- 파일 교체 실패 → transaction rollback 시도
+- 실패는 `%LocalAppData%/JunhyunHelper/logs/startup.log`에 진단 가능
 
-업데이트 실패를 일반 WPF global fatal로 확대하지 않는 것이 원칙입니다.
+업데이트 실패를 일반 WPF fatal로 확대하지 않는다.
 
-## 릴리즈 계약 영향
+## 9. Stable release 공급 계약
 
-v0.1.14부터 자동 업데이트가 정상 작동하려면 모든 정식 릴리즈가 다음 계약을 유지해야 합니다.
+신규 정식 release는 다음을 유지한다.
 
-- stable GitHub Release
-- exact semantic tag `vMAJOR.MINOR.PATCH`
-- exact Windows ZIP 이름
+- semantic stable tag `vMAJOR.MINOR.PATCH`
+- canonical `Junhyun-Helper.zip`
 - `SHA256SUMS.txt`
-- portable package root 계약 유지
-- public asset checksum 재검증
+- inner top-level product folder `준현 헬퍼/`
+- required EXE / FIRST_RUN / Assets
+- exact main-CI artifact verification
+- public release target/tag/source readback
+- public ZIP digest가 verified main-CI package SHA-256과 일치
 
-코드 서명/installer는 이 기능과 별개의 제품 범위이며 현재 자동 업데이트의 필수 조건이 아닙니다.
+이미 공개된 stable version은 immutable historical release로 취급한다. 이후 documentation-only main commit 때문에 동일 tag asset을 교체하지 않는다.
 
-## 검증 요구
+현재 v1.7.13 exact product source:
 
-최소 자동 검증:
+```text
+16198c462a6be58d77dbe2dc27aa57eabfc7b9fd
+```
 
-- stable version parsing
-- exact release asset selection
+현재 공개 proof는 `docs/STATE.md`, `docs/RELEASE_1.7.13.md`, `docs/.release-v1.7.13-status.json`을 사용한다.
+
+## 10. 검증 요구
+
+자동/릴리즈 regression은 최소 다음을 보호한다.
+
+- stable semantic version parsing
+- canonical package preference + legacy fallback compatibility
 - exact checksum selection
-- ZIP traversal 거부
-- portable root validation
-- owned file replacement
-- old Assets 전체 교체
-- unrelated target file 보존
-
-릴리즈 검증에서는 기존 Windows x64 self-contained publish와 실제 EXE smoke를 계속 통과해야 합니다.
+- approved GitHub release asset URL
+- ZIP traversal/symlink/duplicate/PDB 거부
+- stable wrapper root / legacy-root 혼합 거부
+- staging required content
+- owned-file transaction replacement
+- unrelated target/user file 보존
+- Windows x64 publish/ProductVersion/FIRST_RUN identity
+- actual published EXE Product UI/Scanner/Map smoke
+- graceful shutdown / clean portable root
+- exact release package SHA-256 verification
