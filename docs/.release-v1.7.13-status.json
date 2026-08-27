@@ -1,0 +1,26 @@
+{
+  "version": "v1.7.13",
+  "status": "PUBLIC_STABLE",
+  "release_source": "16198c462a6be58d77dbe2dc27aa57eabfc7b9fd",
+  "release_ci_run": 33051890329,
+  "release_workflow_run": 33052109161,
+  "release_id": 377652938,
+  "tag": "v1.7.13",
+  "draft": false,
+  "prerelease": false,
+  "latest_stable": true,
+  "asset": {
+    "name": "Junhyun-Helper.zip",
+    "id": 531953179,
+    "bytes": 80486670,
+    "sha256": "d1cfcf1f606985485584f0e085e8821e0f62156a980f259a90144fd134a7eeb6"
+  },
+  "checksum_asset": {
+    "name": "SHA256SUMS.txt",
+    "id": 531953171,
+    "bytes": 86,
+    "sha256": "63ca63dd0e21d347a293a6fc45817d604bc4016d3338425a21b5ddc3e86a26f1"
+  },
+  "published_at_utc": "2026-08-27T08:00:58Z",
+  "verified_at_kst_date": "2026-08-27"
+}
