@@ -1,29 +1,31 @@
 # Scanner Current Test Plan
 
 기준일: 2026-08-27
-상태: **v1.7.11 PUBLIC STABLE / FEATURE COMPLETE / MAINTENANCE ONLY**
+상태: **v1.7.12 PUBLIC STABLE / FEATURE COMPLETE / MAINTENANCE ONLY**
 
 이 문서는 deterministic release gate와 실제 Tarkov reviewed Ground Truth calibration을 분리한다. Reviewed evidence 없이 geometry/OCR/matcher/visual confidence threshold나 candidate cap을 조정하지 않는다.
 
 ## 1. Current verified stable
 
 ```text
-Desktop target: 1.7.11
-automated suite at v1.7.11 release: 392 tests
+Desktop target: 1.7.12
+automated suite at v1.7.12 release: 397 tests
 Scanner display settings schema: v6
 Scanner catalog cache: v1~v3 readable, v3 written
 stable package: Junhyun-Helper.zip
-exact product release source: 0f97c6e5340ae91581a9242ec236bbd7885b34d5
-main CI: 33033282963 — SUCCESS
-Release workflow: 33033434877 — SUCCESS
-release id: 377531277
-public bytes: 80,477,565
-public SHA-256: f1ad15debc29b7a167a13448c8df65785f57139a91d8b5d246205a14f9a5800d
+exact product release source: d8d0f8eb1ffdd9b8c4ec890277a7b209b2458c2b
+main CI: 33042307773 — SUCCESS
+Release workflow: 33042464642 — SUCCESS
+release id: 377581895
+public bytes: 80,477,641
+public SHA-256: 3f0d57f8a5dc92611bc8648a423c43d65917e63e0d73a771b559153803186fa1
 ```
 
-v1.7.11 release gate는 build/test/publish/rendered Product UI/Scanner/Map/Factory/MiniMap smoke, graceful shutdown, package checksum/layout, exact source tag, stable release metadata와 public asset readback을 모두 통과했다.
+v1.7.12 release gate는 build/test/publish/rendered Product UI/Scanner/Map/Factory/MiniMap smoke, graceful shutdown, package checksum/layout, exact source tag, stable release metadata와 public asset/tag-ref readback을 모두 통과했다.
 
-릴리즈 이후 maintenance-only main은 deterministic regression을 추가할 수 있으므로 현재 main의 test 수와 immutable v1.7.11 release source의 test 수를 혼동하지 않는다. 빠르게 변하는 현재 main/CI 상태는 `docs/STATE.md`를 기준으로 한다.
+v1.7.12는 Scanner recognition 정책을 변경하지 않은 Desktop lifecycle maintenance release다. Scanner threshold/candidate/matcher/visual acceptance와 v1.7.6~v1.7.10 성능/환경 기준은 그대로 유지한다.
+
+릴리즈 이후 maintenance-only main은 deterministic regression을 추가할 수 있으므로 현재 main의 test 수와 immutable v1.7.12 release source의 test 수를 혼동하지 않는다. 빠르게 변하는 현재 main/CI 상태는 `docs/STATE.md`를 기준으로 한다.
 
 ## 2. Release-blocking deterministic gate
 
@@ -43,7 +45,7 @@ v1.7.11 release gate는 build/test/publish/rendered Product UI/Scanner/Map/Facto
 12. bounded unknown/edit recovery safety
 13. visual corroboration fail-soft safety
 14. bounded same-cycle visual/OCR caches
-15. market/dimension/RequiredTotal same-ID mapping
+15. market/dimension/RemainingTotal same-ID presentation mapping
 16. catalog load/refresh GameMode ordering
 17. one-shot/profile/GameMode lifecycle
 18. Scanner/Map hotkey migration + duplicate prevention

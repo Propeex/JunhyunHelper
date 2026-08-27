@@ -3,7 +3,7 @@
 이 문서는 준현 헬퍼의 현재 구현 구조와 장기적으로 지켜야 할 기술 경계를 기록한다.
 
 기준일: 2026-08-27  
-상태: **v1.7.11 PUBLIC STABLE / MAINTENANCE MODE**
+상태: **v1.7.12 PUBLIC STABLE / MAINTENANCE MODE**
 
 정확한 현재 릴리즈 SHA·CI·asset·schema 상태는 `docs/STATE.md`를 권위 있는 운영 인덱스로 사용한다. 유지보수 시 변경 원칙과 외부 Live Probe/성능 검증 경계는 `docs/MAINTENANCE_CONTRACTS.md`를 따른다.
 
@@ -113,11 +113,19 @@ App.OnStartup
 → MainWindow
 → startup Program Update check (non-smoke)
 
+MainWindow.OnInitialized
+→ Quest / Hideout / Items / Ammo image-cache binding
+→ Ammo favorite-store binding
+→ cross-page content navigation wiring
+→ Scanner global-command lifetime wiring
+
 MainWindow.Window_Loaded
 → profile/content/workspaces
 → Map bridge
 → Scanner context/catalog/runtime
 ```
+
+Shared page infrastructure는 product-window lifetime의 `MainWindow.OnInitialized`가 소유한다. 개별 Page의 internal presentation initialization은 해당 Page가 직접 소유하며 unrelated Page의 `Loaded` 순서를 implicit trigger로 사용하지 않는다. Ammo search/detail/grid presentation은 `AmmoPage.OnInitialized`에서 Loaded dispatcher priority로 초기화된다.
 
 Shutdown은 Scanner runtime/OCR/font/retention/background resource를 정상 종료해야 한다. CI graceful-shutdown smoke가 이 경계를 검증한다.
 

@@ -3,7 +3,7 @@
 이 문서는 **무엇을 만들고 왜 만드는지**를 정의하는 공식 제품 요구사항이다. 사용자의 최신 확정 의도가 과거 구현보다 우선하며, 현재 코드가 존재한다는 이유만으로 그 동작을 제품 요구사항으로 추정하지 않는다.
 
 기준일: 2026-08-27
-상태: **v1.7.11 PUBLIC STABLE / VERIFIED / PRODUCT COMPLETE / MAINTENANCE MODE**
+상태: **v1.7.12 PUBLIC STABLE / VERIFIED / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 1. 제품 정의
 
@@ -55,7 +55,7 @@ ZIP/folder 이름은 version과 분리한다. GitHub Release asset은 filename n
 
 Mutable user data는 `%LocalAppData%/JunhyunHelper`에 저장한다.
 
-현재 public stable/latest는 v1.7.11이다. 제품 source의 권위는 tag `v1.7.11`의 exact SHA `0f97c6e5340ae91581a9242ec236bbd7885b34d5`이며, main의 후속 documentation/housekeeping commit은 release source가 아니다.
+현재 public stable/latest는 v1.7.12다. 제품 source의 권위는 tag `v1.7.12`의 exact SHA `d8d0f8eb1ffdd9b8c4ec890277a7b209b2458c2b`이며, main의 후속 documentation/housekeeping commit은 release source가 아니다. 정확한 현재 CI/release/asset proof는 `docs/STATE.md`와 `docs/RELEASE_1.7.12.md`를 사용한다.
 
 ## 3. Game Content
 
@@ -473,7 +473,7 @@ Release candidate는 최소 다음을 통과해야 한다.
 - independent anonymous public redownload/hash/layout verification
 - public-downloaded EXE Product UI/Map/Scanner smoke
 
-v1.7.11은 exact main CI artifact와 public GitHub asset digest의 일치를 검증했다. 현재 자동화 도구 세션이 public binary asset 자체의 독립 anonymous redownload를 제공하지 않는 경우 수행하지 않은 검증을 완료했다고 기록하지 않는다. 이 제한은 release quality gate 요구를 낮추지 않는다.
+v1.7.12는 exact main CI artifact, Release workflow 검증, public GitHub asset digest와 tag-ref readback의 일치를 검증했다. 현재 자동화 도구 세션이 public binary asset 자체의 독립 anonymous redownload를 제공하지 않는 경우 수행하지 않은 검증을 완료했다고 기록하지 않는다. 이 제한은 release quality gate 요구를 낮추지 않는다.
 
 ## 18. 현재 개발 방향
 
@@ -491,4 +491,4 @@ real Tarkov usage
 
 Ground Truth evidence 없이 threshold/candidate cap을 완화하지 않는다.
 
-v1.7.11의 현재 제품 결정 상세는 `docs/DECISION_V1.7.11_MAINTENANCE.md`, 공개 릴리즈 증거는 `docs/RELEASE_1.7.11.md`를 권위 기록으로 사용한다.
+현재 public stable의 제품 결정 상세는 `docs/DECISION_V1.7.12_MAINTENANCE.md`와 `docs/DECISION_LONG_TERM_MAINTENANCE_AUDIT_2026-08-27.md`, 공개 릴리즈 증거는 `docs/RELEASE_1.7.12.md`를 권위 기록으로 사용한다.
