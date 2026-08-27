@@ -29,14 +29,53 @@ v1.7.15는 기존 제품 기능의 의미를 바꾸지 않고 메인 상태 표�
   - animation timer는 두 dropdown이 모두 닫혀 있으면 중지합니다.
   - icon byte는 기존 Ammo `ImageCacheService` / `AmmoRow.Icon` 로딩 결과를 재사용하며 별도 네트워크/이미지 authority를 만들지 않습니다.
 
-## 회귀 방지
+## 회귀 방지 / 검증
 
 - `V1715UiRefinementsContractTests`가 다음 계약을 고정합니다.
   - header version-only + Items cleanup orange indicator
   - caliber/favorites shared animated member-ammo icon presentation
   - map marker content-height viewport + outside-click dismiss
-- 초기 구현 PR CI에서 Release build, **410 passed / 0 failed / 0 skipped**, win-x64 self-contained single-file publish, rendered Product UI/Main Map/Factory/MiniMap smoke, graceful shutdown, clean portable root, package verification을 통과했습니다.
-- 최종 v1.7.15 source는 버전 identity와 문서를 포함한 최종 PR/main/release gate를 다시 통과해야 하며, 공개 증거는 릴리즈 완료 후 `docs/STATE.md`와 release record에 기록합니다.
+- 최종 exact-main release gate:
+
+```text
+exact source: 4bf5e3a567d3ce9563657bbb3b90bec0871c06b4
+main CI: 33086901217 — SUCCESS
+410 passed / 0 failed / 0 skipped
+ProductVersion: 1.7.15+4bf5e3a567d3ce9563657bbb3b90bec0871c06b4
+win-x64 self-contained single-file publish: SUCCESS
+Product UI / Main Map / Factory / MiniMap smoke: SUCCESS
+graceful shutdown / clean portable root: SUCCESS
+package verification: SUCCESS
+```
+
+Release workflow:
+
+```text
+run: 33087185178
+Release #48
+result: SUCCESS
+```
+
+Public release readback:
+
+```text
+release id: 377926863
+tag: v1.7.15
+tag/release target: 4bf5e3a567d3ce9563657bbb3b90bec0871c06b4
+draft: false
+prerelease: false
+latest stable: true
+Junhyun-Helper.zip asset id: 532481010
+bytes: 80,492,565
+SHA-256: 9ac3276a1a4a20905b0aa3d6452f50d5259f724ed8f960b7cfbad39f8c619f2f
+SHA256SUMS.txt asset id: 532481008
+SHA256SUMS.txt bytes: 86
+SHA256SUMS.txt digest: 84fbabe5ef2c41d28a00305c0cd7b8ee7575fbe3c1c64fa83f7ead1c75494580
+```
+
+GitHub `/releases/latest`와 `refs/tags/v1.7.15` 모두 exact product release source를 가리키며 public ZIP digest가 exact main-CI package SHA-256과 일치합니다.
+
+상세 공개 증거는 `docs/RELEASE_1.7.15.md`, `docs/.release-v1.7.15-status.json`, `docs/DECISION_V1.7.15_UI_REFINEMENTS.md`를 사용합니다.
 
 ## 변경하지 않은 것
 

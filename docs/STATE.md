@@ -2,14 +2,14 @@
 
 > 새 대화/새 개발자는 이 문서를 먼저 읽습니다. 대화 기억이 아니라 저장소의 공식 문서와 현재 GitHub 상태가 프로젝트의 기준입니다.
 
-기준일: 2026-08-27  
-상태: **v1.7.14 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+기준일: 2026-08-28 KST  
+상태: **v1.7.15 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 1. 제품
 
 **준현 헬퍼**는 Escape from Tarkov 플레이를 지원하는 Windows x64 .NET 10 WPF 데스크톱 프로그램이다.
 
-현재 요구사항 범위의 제품은 완성 상태이며 기본 운영 모드는 **유지보수**다. 새 기능은 사용자가 새로운 제품 요구사항으로 명시적으로 결정할 때만 시작한다.
+현재 확정 요구사항 범위의 제품과 Scanner는 완성 상태이며 기본 운영 모드는 **유지보수**다. 새 기능은 사용자가 새로운 제품 요구사항으로 명시적으로 결정할 때만 시작한다.
 
 주요 기능:
 
@@ -27,46 +27,65 @@
 
 Runtime GPT/AI 의존성은 없다.
 
-기존 `Propeex/Tarkov-Helper`는 불완전한 프로토타입이며 새 제품 요구사항의 권위가 아니다. 검증된 Map/MiniMap donor source와 유용한 자산/아이디어만 제한적으로 사용한다.
+기존 `Propeex/Tarkov-Helper`는 불완전한 프로토타입이며 새 제품 요구사항의 권위가 아니다. Map/MiniMap은 사용자가 검증한 pinned donor source만 제한적으로 사용한다.
 
 ## 2. 현재 public stable
 
 ```text
-version: v1.7.14
-exact product release source/tag target: 0a51375de36cd13047216006c2c0311728b1bd89
-main CI run: 33060827905 — SUCCESS
-release workflow run: 33061059154 — SUCCESS
-release id: 377720327
-asset: Junhyun-Helper.zip
-asset id: 532104142
-asset bytes: 80,488,363
-asset SHA-256: 341ac502d2ace563ab2e7c8d7091a8e796cf87e7d1f5961edf869feab106e2fd
-checksum asset: SHA256SUMS.txt
-checksum asset id: 532104140
-checksum asset bytes: 86
-checksum asset SHA-256: 30e66cd988c85491d1a0f369dedec53ddb5afc430ce2bca65a47893ddc1d055d
-407 passed / 0 failed / 0 skipped
-published UTC: 2026-08-27T10:00:11Z
+version: v1.7.15
+exact product release source/tag target:
+4bf5e3a567d3ce9563657bbb3b90bec0871c06b4
+main CI run: 33086901217 — SUCCESS
+release workflow run: 33087185178 — SUCCESS
+release id: 377926863
+410 passed / 0 failed / 0 skipped
+published UTC: 2026-08-27T15:19:55Z
 ```
 
 Main-CI published ProductVersion:
 
 ```text
-1.7.14+0a51375de36cd13047216006c2c0311728b1bd89
+1.7.15+4bf5e3a567d3ce9563657bbb3b90bec0871c06b4
+```
+
+Main-CI release package:
+
+```text
+Junhyun-Helper.zip
+bytes: 80,492,565
+SHA-256:
+9ac3276a1a4a20905b0aa3d6452f50d5259f724ed8f960b7cfbad39f8c619f2f
 ```
 
 Main-CI GitHub Actions artifact:
 
 ```text
 name: JunhyunHelper-win-x64
-artifact id: 9641695152
-artifact archive bytes: 241,396,019
-artifact archive SHA-256: 43a0e4e68d578dfb458fdbd70764a34c21dc59bca4116c2a1ec63345f0aed3a7
+artifact id: 9652666398
+artifact archive bytes: 241,410,930
+artifact archive SHA-256:
+cf3802eb6cba359e46eaa55bf48cc89bed33bf7902129e17f31b48065cf94e04
+```
+
+Public assets:
+
+```text
+Junhyun-Helper.zip
+asset id: 532481010
+bytes: 80,492,565
+SHA-256:
+9ac3276a1a4a20905b0aa3d6452f50d5259f724ed8f960b7cfbad39f8c619f2f
+
+SHA256SUMS.txt
+asset id: 532481008
+bytes: 86
+SHA-256:
+84fbabe5ef2c41d28a00305c0cd7b8ee7575fbe3c1c64fa83f7ead1c75494580
 ```
 
 GitHub `/releases/latest` 및 tag-ref readback:
 
-- tag `v1.7.14`
+- tag `v1.7.15`
 - release target = exact product release source
 - tag ref object = exact product release source
 - draft = false
@@ -75,16 +94,54 @@ GitHub `/releases/latest` 및 tag-ref readback:
 - ZIP + checksum assets present
 - public `Junhyun-Helper.zip` digest = exact main-CI package SHA-256
 
-상세 공개 증거:
+공식 공개 증거:
 
-- `docs/RELEASE_1.7.14.md`
-- `docs/.release-v1.7.14-status.json`
-- `docs/RELEASE_NOTES_V1.7.14.md`
-- `docs/DECISION_V1.7.14_UI_CONSISTENCY.md`
+- `docs/RELEASE_1.7.15.md`
+- `docs/.release-v1.7.15-status.json`
+- `docs/RELEASE_NOTES_V1.7.15.md`
+- `docs/DECISION_V1.7.15_UI_REFINEMENTS.md`
 
-이후 documentation-only commit은 v1.7.14 product release source가 아니다. 제품 release source/tag target은 위 `0a51375d...`로 고정한다. 이미 공개된 stable tag/source/assets는 immutable historical product release로 취급한다.
+**중요:** 이 문서 갱신처럼 공개 이후 생성되는 documentation-only commit은 v1.7.15 product release source가 아니다. 공개 v1.7.15 source/tag/assets는 위 `4bf5e3a...` 기준으로 immutable historical product release다.
 
-## 3. 아키텍처
+## 3. v1.7.15 사용자-facing 변경
+
+### Main header / cleanup attention
+
+- main header의 version/status 영역은 사용자에게 **version만 표시**한다.
+- `정리 필요` 문자열은 표시하지 않는다.
+- 현재 `ItemsWorkspace.Plan.CleanupItems.Count > 0`이면 Items 탭 우측 상단에 작은 orange dot을 표시한다.
+- cleanup 대상이 없어지면 indicator도 즉시 사라진다.
+- Game Content update progress는 기존 전용 progress overlay가 담당하며 version 영역에 진행 문구를 노출하지 않는다.
+
+### Map marker selector
+
+- 바깥 panel뿐 아니라 내부 checkbox list viewport도 현재 Map viewport의 available height를 사용한다.
+- marker content가 available height 안에 들어오면 vertical scrollbar는 hidden이다.
+- 실제로 content가 넘칠 때만 scrolling을 허용한다.
+- 기존 `지도 마커` launcher 재클릭 toggle을 유지한다.
+- panel outside click으로도 닫힌다.
+- outside-click dismiss는 marker enable/check state를 변경하지 않는다.
+- dismiss click은 handled로 소비하지 않아 가능한 한 원래 Map/control interaction이 이어지게 한다.
+
+### Ammo caliber / Favorites
+
+- `즐겨찾기 선택`은 standard ComboBox dropdown을 사용한다.
+- 기존 Ammo favorites persistence와 caliber filtering authority는 그대로다.
+- caliber dropdown과 Favorites dropdown은 같은 item presentation과 caliber별 animation state를 공유한다.
+- 각 caliber 왼쪽 icon은 해당 `RawCaliber`에 실제 속한 `AmmoRow.Icon`만 순환한다.
+- 특정 ammo 하나를 caliber의 영구 대표 icon으로 고정하지 않는다.
+- cadence는 1.4초이며 두 dropdown이 모두 닫혀 있으면 timer를 중지한다.
+- icon byte는 기존 `ImageCacheService`/Ammo row icon loading 결과를 재사용한다.
+
+Regression:
+
+```text
+V1715UiRefinementsContractTests
+410 passed / 0 failed / 0 skipped
+actual published EXE Product UI / Main Map / Factory / MiniMap smoke
+```
+
+## 4. 아키텍처
 
 ```text
 JunhyunHelper.Desktop
@@ -96,40 +153,29 @@ JunhyunHelper.Desktop
 
 책임:
 
-- **Core**: canonical domain, deterministic calculation, Quest 규칙, Scanner structural/normalization/matcher/presentation 정책
-- **Application**: 사용자 use case, authoritative mutation, workspace orchestration
-- **Infrastructure**: HTTP/source parsing, SQLite/file persistence, content/update I/O
-- **Desktop**: WPF UI, presentation, Scanner capture/OCR/runtime/diagnostics, Map bridge
-- **Map/MiniMap donor**: 제한적 compile-link 예외. donor updater/content ownership은 사용하지 않음
+- **Core** — canonical domain, deterministic calculation, Quest/Needed Items/Scanner pure policy
+- **Application** — 사용자 use case, authoritative mutation, workspace orchestration
+- **Infrastructure** — HTTP/source parsing, SQLite/file persistence, content/update I/O
+- **Desktop** — WPF UI, presentation, Scanner capture/OCR/runtime/diagnostics, Map bridge
+- **Map/MiniMap donor** — 제한적 compile-link 예외. donor updater/content ownership은 사용하지 않음
 
 Domain truth를 WPF event handler에 복제하지 않는다.
 
-### Desktop startup/composition ownership
+### Desktop startup/composition
 
 `MainWindow.OnInitialized`가 product-window lifetime의 shared presentation composition owner다.
 
 ```text
 MainWindow.OnInitialized
-  → Quest / Hideout / Items / Ammo image cache
-  → Ammo favorite store
-  → cross-page content navigation
-  → Scanner global-command lifetime wiring
+→ Quest / Hideout / Items / Ammo image cache
+→ Ammo favorite store
+→ cross-page navigation
+→ Scanner global-command lifetime wiring
 ```
 
-개별 Page의 internal presentation initialization은 해당 Page가 직접 소유하며 unrelated Page의 `Loaded` 순서에 의존하지 않는다.
+개별 Page의 internal presentation initialization은 해당 Page가 직접 소유한다.
 
-Ammo search/detail/grid presentation은 `AmmoPage.OnInitialized` + Loaded-priority dispatcher로 초기화한다.
-
-### Shared in-app overlay ownership
-
-v1.7.14에서 사용자-facing 설정/편집 interaction은 MainWindow shared overlay를 공통 owner로 사용한다.
-
-```text
-launcher
-→ MainWindow shared overlay owner
-→ existing editor / existing UIElement surface
-→ existing validation/save semantics
-```
+### Shared in-app overlay
 
 현재 주요 surface:
 
@@ -144,15 +190,13 @@ launcher
 - backdrop click
 - common overlay X
 
-Window-backed editor는 `ToggleInAppWindowAsync`로 host한다. 기존 visual tree의 UIElement surface는 `ShowInAppElementAsync`로 host한다. child editor의 저장/검증 의미는 `IInAppOverlayDialog` 또는 기존 authority가 소유하며 MainWindow가 재구현하지 않는다.
+Child editor의 validation/save semantics를 MainWindow가 재구현하지 않는다.
 
-Map Settings처럼 기존 visual tree의 UIElement를 임시 re-parent하는 surface는 caller가 원래 parent/index로 복원한다.
-
-## 4. Schema / 사용자 데이터
+## 5. Schema / 사용자 데이터
 
 ```text
-Desktop target version: 1.7.14
-Current public stable executable: 1.7.14
+Desktop target version: 1.7.15
+Current public stable executable: 1.7.15
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
@@ -179,12 +223,9 @@ Scanner catalog cache: v1~v3 readable, v3 written
 - portable executable 옆에 mutable user data/log 생성 금지
 - Program Update가 user.db, content/image cache, Map/MiniMap/Ammo/Scanner settings, Scanner logs/diagnostics/Ground Truth를 교체하지 않음
 - user-reviewed Scanner Ground Truth는 자동 삭제하지 않음
-- Scanner logs와 Ground Truth dataset lifetime 분리
 - 정상 Scanner monitoring은 durable automatic correction Case를 생성하지 않음
 
-## 5. Game Content / Scanner catalog
-
-일반 Game Content와 Scanner catalog는 사용자에게 별도 관리 절차를 요구하지 않는다.
+## 6. Game Content / Scanner catalog
 
 ```text
 remote Game Content
@@ -196,19 +237,17 @@ remote Game Content
 → local last-known-good preservation on partial failure
 ```
 
-Scanner scan 순간에는 local/memory catalog만 사용하며 identity 결정을 위해 network 요청을 시작하지 않는다.
-
-공식 Korean Tarkov full-item catalog가 Scanner Item identity authority다. market/dimension coverage와 Item identity health는 분리한다.
-
 Game Content 안전 계약:
 
 - failed candidate는 last-known-good active content를 덮어쓰지 않음
-- normal snapshot shrink guard = baseline의 50%
+- normal snapshot shrink guard = healthy baseline의 50%
 - collection schema drift는 fail closed
 - Wiki Ballistics enrichment는 fail-soft
 - User Progress와 Game Content authority 분리
 
-## 6. Scanner — 현재 제품 계약
+Scanner scan 순간에는 local/memory catalog만 사용하며 identity 결정을 위해 network 요청을 시작하지 않는다.
+
+## 7. Scanner — 현재 제품 계약
 
 Scanner 상태: **FEATURE COMPLETE / MAINTENANCE ONLY**.
 
@@ -231,8 +270,6 @@ Tarkov window pixels
 → optional correction / Ground Truth
 ```
 
-Scanner는 범용 OCR이 아니라 closed-domain recognizer다. false positive는 miss보다 나쁘다.
-
 핵심 불변식:
 
 ```text
@@ -243,38 +280,17 @@ one-shot candidate cap = 12
 continuous observation target = 200 ms
 ```
 
+- false positive보다 miss 선호
 - geometry/environment normalization은 Item identity proof가 아님
 - stale/cross-frame OCR/visual result를 current identity proof로 사용하지 않음
-- Item ID 확정 전 price/needed/slot/previous-frame metadata를 identity evidence로 사용하지 않음
-- current official catalog 밖 임의 Item 생성 금지
+- Item ID 확정 전 price/needed/slot/source/previous-frame metadata를 identity evidence로 사용하지 않음
+- current official Korean full-item catalog 밖 임의 Item 생성 금지
 - reviewed evidence 없이 recognition threshold/candidate cap/matcher/visual acceptance 완화 금지
 - Needed quantity authority = `ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal`
 - Needed source authority = `ItemsWorkspace.Plan.NeededItems[itemId].Sources`
+- `SerializedScannerOcrEngine` diagnostic reflection adapter는 intentional technical debt
 
-Scanner settings v1.7.14 presentation:
-
-- Mini Scanner display configuration과 Scanner hotkey configuration은 Scanner Settings가 함께 소유
-- 설정 변경은 기존 persistence authority를 사용
-- Scanner Advanced는 shared overlay에 host
-- old dedicated `ScannerHotkeySettingsWindow`는 제거됨
-
-## 7. v1.7.14 — UI consistency
-
-v1.7.14는 domain/recognition 의미를 바꾸지 않고 popup·overlay·search interaction을 통일한 patch다.
-
-### Ammo
-
-- `즐겨찾기 선택`, `표시 열` popup launcher는 true toggle이다.
-- WPF `Popup.StaysOpen=False`의 자동 닫힘 뒤 기존 Button Click이 다시 여는 회귀를 Preview 단계에서 차단한다.
-
-### Map / MiniMap
-
-- MiniMap launcher 주변 donor 잔여 padding/background/help-button 공간 제거
-- `지도 마커` launcher에 제품 기본 Button chrome 적용
-- marker panel collapsed 상태에서 빈 min-width/padding/background/border 제거
-- expanded 상태에서 viewport 기반 충분한 세로 공간 확보
-- Map/MiniMap Settings를 MainWindow shared overlay에 표시
-- pinned donor source 자체는 수정하지 않고 first-party customization boundary에서 적용
+## 8. Map / MiniMap 기준선
 
 Pinned donor:
 
@@ -282,73 +298,26 @@ Pinned donor:
 d933792b6042a51cea38dc44b686a096fe30de67
 ```
 
-### Scanner / Profile
+Map/MiniMap은 donor source를 broad-edit하지 않고 JunhyunHelper first-party bridge/customization boundary에서 제품 delta를 적용한다.
 
-- Scanner Advanced standalone Window 표시 제거 → shared overlay host
-- Advanced 내용 내부 별도 close button 제거
-- Scanner hotkey editor를 Scanner Settings에 통합
-- Profile editor content card를 Scanner 설정과 같은 overlay/card 계열로 정리
+- floor는 visibility filter가 아니라 presentation relation
+- cross-floor enabled marker 유지
+- Main Map floor change 시 zoom + map-space center 보존
+- MiniMap floor change 시 transform 보존
+- current Quest만 JunhyunHelper progress/content와 cross-feature bridge
 
-### Search
+`Legacy` 이름이 붙은 Map/MiniMap bridge는 active integration이므로 이름만 보고 dead code로 삭제하지 않는다.
 
-Quest / Hideout / Items / Ammo / Scanner 주요 검색창은 입력창 우측 내부 `×` clear affordance를 사용한다. clear behavior는 presentation-only이며 기존 filtering logic을 변경하지 않는다.
-
-### Regression
-
-```text
-V1714UiConsistencyContractTests
-407 passed / 0 failed / 0 skipped
-actual published EXE Product UI + Scanner + Map + Factory + MiniMap smoke
-```
-
-공식 결정: `docs/DECISION_V1.7.14_UI_CONSISTENCY.md`.
-
-## 8. 현재 유지되는 이전 핵심 결정
-
-### v1.7.13 UI simplification
-
-- Items 용도 필터 제거 → canonical All
-- Ammo 상세 기본 접힘
-- Map marker selector 기본 접힘
-- Map trail/clear-trail/hotkey 안내 제거
-- Scanner searched needed-item source = existing `NeededItems[].Sources`
-- Scanner correction action 우측 배치
-
-### v1.7.12 lifecycle hardening
-
-- MainWindow shared composition ownership 명시
-- Ammo hidden WPF Loaded coupling 제거
-- speculative workspace DB optimization 보류: runtime bottleneck evidence 없음
-
-### v1.7.11 presentation/hotkey polish
-
-- Scanner 필요 개수 = `RemainingTotal`
-- configurable hotkey extra-modifier compatibility / most-specific-wins
-- MiniMap first-open current-map synchronization
-- MiniMap size persistence
-- standard explanatory WPF ToolTip 비표시
-
-### v1.7.10 cross-environment Scanner hardening
-
-- normal OCR success는 그대로 즉시 사용
-- miss/deep-pass에서만 environment-aware title normalization
-- lifted/washed/low-contrast input에만 bounded auxiliary OCR evidence
-- flat/no-contrast input은 fail closed
-
-역사적 상세는 버전별 `DECISION_*` / `RELEASE_*` 문서를 사용한다.
-
-## 9. Active technical debt / dead-code 판단
-
-이름이나 겉모양만으로 제거하지 않는다.
+## 9. Active technical debt / 유지 판단
 
 현재 유지:
 
-- `Legacy` Map/MiniMap bridge — active integration
-- Factory/Map/MiniMap smoke — active regression gate
-- Scanner diagnostic OCR reflection adapter — intentional technical debt
-- original full-refresh mutation handlers + fast rebinding — lifecycle 관여 evidence가 있어 유지
+- active `Legacy` Map/MiniMap bridge
+- Factory/Map/MiniMap actual smoke
+- Scanner diagnostic OCR reflection adapter
+- lifecycle-evidenced original full-refresh mutation handlers + fast rebinding
 
-현재 보류:
+현재 runtime evidence 없이 보류:
 
 - workspace one-read/multi-build
 - 추가 global cache
@@ -357,8 +326,6 @@ actual published EXE Product UI + Scanner + Map + Factory + MiniMap smoke
 `UserProfileStore.LoadAsync`는 첫 authoritative read/save 뒤 immutable in-process snapshot cache를 사용하므로 runtime trace 없이 반복 호출을 SQLite 병목으로 가정하지 않는다.
 
 ## 10. 릴리즈 계약
-
-Public stable release는 공개 후 immutable historical product artifact로 취급한다.
 
 Runtime 변경 PATCH의 full release gate:
 
@@ -371,16 +338,28 @@ Release build
 → graceful shutdown
 → portable root/dependency verification
 → release package checksum verification
-→ main CI exact-source rerun
+→ exact-main CI
 → Release workflow exact artifact verification
 → tag/release/public asset readback
 ```
 
-Documentation-only main commit은 같은 assembly version에서 ProductVersion commit metadata 때문에 다른 bytes를 만들 수 있다. 이미 공개된 stable release를 교체하지 않는다. Release workflow의 immutable-existing-release path는 required assets 존재를 확인하고 성공 종료해야 한다.
+Published stable release는 공개 후 immutable historical product artifact로 취급한다.
 
-## 11. 다음 작업
+`actions/download-artifact@v8`의 upstream Node `Buffer()` deprecation warning은 현재 release correctness와 무관한 monitor-only upstream warning이다.
 
-현재 v1.7.14 릴리즈 배치에는 남은 제품 개발 작업이 없다.
+## 11. 현재 유지되는 이전 핵심 결정
+
+- **v1.7.14** — popup true-toggle, shared overlay, search clear consistency
+- **v1.7.13** — Items purpose selector 제거, Ammo detail 기본 접힘, Map trail/hotkey copy 제거
+- **v1.7.12** — Desktop lifecycle/composition ownership hardening
+- **v1.7.11** — Scanner RemainingTotal, configurable hotkey compatibility, MiniMap sync/size persistence, standard ToolTip 비표시
+- **v1.7.10** — cross-environment Scanner title normalization hardening
+
+역사적 상세는 버전별 `DECISION_*` / `RELEASE_*` 문서를 사용한다.
+
+## 12. 다음 작업
+
+현재 **v1.7.15 릴리즈 배치에는 남은 제품 개발 작업이 없다.**
 
 기본 다음 작업은 다음 중 실제 evidence가 생길 때만 시작한다.
 
@@ -401,9 +380,9 @@ runtime evidence 확보
 → full release gate
 ```
 
-## 12. 다음 세션 복구 순서
+## 13. 다음 세션 복구 순서
 
-`AGENTS.md`의 작업 규약을 먼저 적용하고, 그 문서가 정한 필수 복구 순서를 그대로 따른다.
+`AGENTS.md`의 필수 복구 순서를 그대로 따른다.
 
 1. `README.md`
 2. `docs/STATE.md`
@@ -417,4 +396,4 @@ runtime evidence 확보
 10. `docs/REFERENCE_POLICY.md`
 11. 현재 작업과 관련된 전문 문서 / 코드 / 테스트 / 이슈 / PR / CI
 
-새 대화는 과거 대화 기억을 신뢰하지 않고 위 순서로 현재 저장소 상태를 확인한다.
+새 대화는 과거 대화 기억을 신뢰하지 않고 저장소의 현재 문서와 GitHub 상태를 확인한다.
