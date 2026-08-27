@@ -149,7 +149,7 @@ public partial class ScannerHotkeySettingsWindow : Window, IInAppOverlayDialog
         if (configured.Distinct().Count() != configured.Length)
         {
             MessageBox.Show(
-                Window.GetWindow(sender as DependencyObject) ?? Application.Current.MainWindow,
+                Window.GetWindow(sender as DependencyObject) ?? System.Windows.Application.Current.MainWindow,
                 "서로 다른 기능에 같은 단축키를 사용할 수 없습니다.",
                 "Scanner 단축키",
                 MessageBoxButton.OK,
