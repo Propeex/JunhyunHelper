@@ -2,23 +2,25 @@
 
 이 문서는 **무엇을 만들고 왜 만드는지**를 정의하는 공식 제품 요구사항이다. 사용자의 최신 확정 의도가 과거 구현보다 우선하며, 현재 코드가 존재한다는 이유만으로 그 동작을 제품 요구사항으로 추정하지 않는다.
 
-기준일: 2026-08-27
-상태: **v1.7.14 PUBLIC STABLE / VERIFIED / PRODUCT COMPLETE / MAINTENANCE MODE**
+기준일: 2026-08-28 KST  
+상태: **v1.7.15 PUBLIC STABLE / VERIFIED / PRODUCT COMPLETE / MAINTENANCE MODE**
+
+정확한 공개 release SHA, CI, asset hash는 `docs/STATE.md`와 `docs/RELEASE_1.7.15.md`가 권위다.
 
 ## 1. 제품 정의
 
-**준현 헬퍼**는 Escape from Tarkov의 공식 게임 데이터와 사용자 진행 상태를 결합해 Quest, Hideout, Needed Items, Inventory, Items, Ammo, Map/MiniMap, Scanner/Mini Scanner를 제공하는 Windows x64 데스크톱 헬퍼다.
+**준현 헬퍼**는 Escape from Tarkov의 현재 검증 가능한 Game Content와 사용자 진행 상태를 결합해 Quest, Hideout, Needed Items, Inventory, Items, Ammo, Map/MiniMap, Scanner/Mini Scanner를 제공하는 Windows x64 데스크톱 헬퍼다.
 
 제품 목표:
 
 - 플레이 중 필요한 진행/아이템 정보를 빠르게 확인
-- 사용자가 이미 알고 있는 진행 상태를 정확하게 저장
-- 공식 Tarkov 데이터가 바뀌어도 검증 가능한 범위에서 안전하게 갱신
+- 사용자가 알고 있는 진행 상태를 정확하게 저장
+- Tarkov 데이터가 바뀌어도 검증 가능한 범위에서 안전하게 갱신
 - 알 수 없는 상태를 추측하지 않고 fail closed
 - 게임 프로세스를 변조하거나 내부 메모리/패킷을 읽지 않는 외부 보조 프로그램 유지
 - 일상 사용 UI와 개발/진단 UI를 구분
 - 장시간 실행해도 사용자 데이터와 디스크 사용량을 안정적으로 관리
-- Scanner 실패를 실제 user-reviewed Ground Truth로 재현·교정할 수 있게 함
+- Scanner 실패를 user-reviewed Ground Truth로 재현·교정할 수 있게 함
 
 핵심 원칙:
 
@@ -51,22 +53,11 @@ Junhyun-Helper.zip
    └─ Assets/
 ```
 
-ZIP/folder 이름은 version과 분리한다. GitHub Release asset은 `Junhyun-Helper.zip` ASCII 이름을 사용하고 압축 내부 제품 폴더는 `준현 헬퍼/`를 유지한다. Version identity는 EXE ProductVersion, Git tag, GitHub Release metadata에 둔다.
+ZIP/folder 이름은 version과 분리한다. Version identity는 EXE ProductVersion, Git tag, GitHub Release metadata에 둔다.
 
 Mutable user data는 `%LocalAppData%/JunhyunHelper`에 저장한다. Portable executable 옆에 mutable profile/log/settings data를 만들지 않는다.
 
-현재 public stable/latest는 **v1.7.14**다.
-
-```text
-exact product release source/tag target: 0a51375de36cd13047216006c2c0311728b1bd89
-main CI: 33060827905 — SUCCESS
-Release workflow: 33061059154 — SUCCESS
-407 passed / 0 failed / 0 skipped
-public Junhyun-Helper.zip SHA-256:
-341ac502d2ace563ab2e7c8d7091a8e796cf87e7d1f5961edf869feab106e2fd
-```
-
-정확한 release/asset evidence는 `docs/STATE.md`와 `docs/RELEASE_1.7.14.md`를 사용한다. 이후 documentation-only main commit은 v1.7.14 product release source가 아니다.
+현재 public stable/latest는 **v1.7.15**다. 공개 product source는 `4bf5e3a567d3ce9563657bbb3b90bec0871c06b4`이며 공개 후 immutable release로 취급한다.
 
 ## 3. Game Content
 
@@ -91,8 +82,7 @@ online source
 - derived result를 별도 authoritative fact처럼 저장하지 않음
 - 개별 image 실패는 update 전체 fatal이 아님
 - collection schema drift를 이해할 수 없으면 fail closed
-- 기존 healthy snapshot이 있으면 정상 snapshot shrink guard를 적용
-- current guard는 핵심 coverage가 기존 baseline의 50% 미만으로 급감하는 suspicious partial payload를 차단
+- 기존 healthy snapshot이 있으면 핵심 coverage가 baseline의 50% 미만으로 급감하는 suspicious partial payload를 차단
 - Wiki Ballistics enrichment는 fail-soft
 
 현재 compatibility:
@@ -115,7 +105,7 @@ remote Game Content
 
 Scanner refresh만 실패하면 healthy general Game Content를 rollback하지 않는다. 기존 healthy same-mode Scanner cache가 있으면 유지한다.
 
-일반 사용자 surface에는 별도 catalog 강제 복구 절차를 필수 작업으로 노출하지 않는다.
+Game Content update progress는 전용 progress overlay를 사용한다. 메인 header의 version 영역에 transient update 문구를 표시하지 않는다.
 
 ## 5. Program Update
 
@@ -128,8 +118,7 @@ Scanner refresh만 실패하면 healthy general Game Content를 rollback하지 �
 - program-owned files만 transaction 교체
 - 실패 시 rollback/기존 실행 복구 시도
 - `%LocalAppData%/JunhyunHelper` user data는 update 대상 아님
-- 정식 release는 exact-source build/test/publish/smoke + public release verification을 통과해야 함
-- 이미 공개된 stable release는 immutable; 이후 docs-only build가 다른 bytes를 만들어도 동일 tag/version의 public asset을 교체하지 않음
+- 이미 공개된 stable release는 immutable
 
 ## 6. User Progress / Profile
 
@@ -175,8 +164,6 @@ Availability 원칙:
 - audited compatibility는 구조가 정확히 맞을 때만 사용
 - source drift / unsupported requirement는 fail closed
 
-상세 의미는 `docs/QUEST_PREREQUISITE_SEMANTICS.md`와 live task-pool audit 문서를 사용한다.
-
 ## 8. Quest Item / Consumption
 
 - mandatory fixed submit material은 Quest completion과 함께 ledger 기반 자동 소비 가능
@@ -204,13 +191,11 @@ Availability 원칙:
 - cleanup safety를 증명할 수 없으면 정리 가능 처리 금지
 - Inventory FIR / non-FIR 분리
 
-Scanner `필요 개수`는 Item ID 확정 뒤 다음 canonical 값을 표시한다.
+Scanner `필요 개수` authority:
 
 ```text
 ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal
 ```
-
-이 값은 현재 Inventory와 FIR 조건을 반영한 실제 남은 필요량이다. `RequiredTotal`은 전체 요구량이며 Scanner 사용자 표시값이 아니다.
 
 Scanner searched-needed source authority:
 
@@ -231,21 +216,37 @@ Scanner가 Quest/Hideout requirement를 별도로 재계산하지 않는다.
 - current content/profile 기반 presentation
 - 검색창 clear는 입력창 오른쪽 내부 `×` affordance 사용
 
+### Cleanup attention — v1.7.15
+
+- main header의 version/status 영역은 version만 표시한다.
+- `정리 필요` 문자열을 header에 표시하지 않는다.
+- `ItemsWorkspace.Plan.CleanupItems.Count > 0`이면 Items 탭 우측 상단에 작은 orange dot을 표시한다.
+- cleanup 대상이 없어지면 indicator도 사라진다.
+- indicator는 count/text를 추가하지 않는 compact attention signal이다.
+
 ## 12. Ammo
 
 - read-only comparison
 - name / caliber 검색
-- 상단 조작은 `구경 → 즐겨찾기 토글 → 즐겨찾기 선택 → 검색` 중심으로 좌측 배치
-- 표시 열 control은 우측 배치
+- 표시 열 control 유지
 - 상세정보는 새 실행 세션에서 기본 접힘
-- 표 위 중복 요약 문구 없음
 - exact caliber / Ammo navigation
 - raw Ammo stats와 Wiki Ballistics fact 분리
 - membership과 Armor Class effectiveness 분리
 - 자체 effectiveness heuristic 금지
 - caliber favorites
-- `즐겨찾기 선택`, `표시 열` popup은 same launcher 재클릭 시 닫힌 상태 유지
 - 검색창 clear는 입력창 오른쪽 내부 `×` affordance 사용
+
+### Caliber / Favorites selector — v1.7.15
+
+- visible `즐겨찾기 선택`은 standard dropdown을 사용한다.
+- favorites persistence와 caliber filtering 의미는 기존 authority를 유지한다.
+- caliber dropdown과 Favorites dropdown은 같은 icon+label presentation을 사용한다.
+- 각 caliber icon 후보는 해당 `RawCaliber`에 실제 속한 `AmmoRow.Icon`만 사용한다.
+- 특정 ammo 하나를 caliber의 영구 대표 icon으로 고정하지 않는다.
+- 두 dropdown은 같은 caliber별 animation state를 공유한다.
+- cadence는 1.4초이며 두 dropdown이 모두 닫히면 animation timer를 중지한다.
+- icon은 기존 Ammo `ImageCacheService`/row icon load 결과를 재사용하고 별도 network/source authority를 만들지 않는다.
 
 ## 13. Map / MiniMap
 
@@ -260,12 +261,9 @@ d933792b6042a51cea38dc44b686a096fe30de67
 - Current Quest sidebar / marker identity
 - general marker / PMC·Scav·Transit extracts
 - 지도 마커 선택은 기본 접힘이며 `지도 마커` launcher 자체로 열고 닫음
-- `지도 마커` launcher는 JunhyunHelper 일반 Button chrome 사용
+- launcher는 JunhyunHelper 일반 Button chrome 사용
 - collapsed marker panel은 빈 min-width/padding/background/border를 남기지 않음
-- expanded marker panel은 일반 desktop viewport에서 현재 선택 checkbox를 가능한 한 한 화면에 표시할 충분한 높이 확보
-- MiniMap launcher 주변 숨긴 help-button/donor 잔여 chrome 없음
 - Map/MiniMap Settings는 MainWindow shared in-app overlay에 표시
-- same settings launcher 재클릭 / backdrop / common overlay X로 dismiss
 - 경로(trail) 표시와 `경로 지우기`는 제품 surface에서 제거
 - Map 단축키 안내 설명 문구는 제품 surface에서 제거
 - manual floor / hotkeys
@@ -275,18 +273,18 @@ d933792b6042a51cea38dc44b686a096fe30de67
 - Main Map floor change 시 zoom + map-space center 보존
 - MiniMap floor change 시 exact Scale + Translate 보존
 - MiniMap click-through
-- MiniMap first-open 전에 현재 Main Map 선택을 shared `MapTrackerService`에 동기화
-- MiniMap width/height를 `%LocalAppData%/JunhyunHelper/minimap-window-state.json`에 저장·복원하고 안전 범위로 clamp
+- MiniMap first-open 전에 현재 Main Map 선택 동기화
+- MiniMap width/height user preference 저장·복원
 
-Configurable Map hotkey:
+### Marker selector — v1.7.15
 
-- primary key 일치 필수
-- 등록된 Ctrl/Alt/Shift 모두 필요
-- 등록하지 않은 Ctrl/Alt/Shift 추가 입력 허용
-- 같은 primary key의 compatible binding 중 required modifier 수가 많은 더 구체적인 binding 우선
-- 동률은 기존 기능 우선순위/안정적 등록 순서
-- Windows modifier 미지원
-- bare NumPad0~5 direct floor selection 유지
+- expanded panel의 내부 checkbox list도 current Map viewport의 실제 available height를 사용한다.
+- content가 available height에 들어오면 vertical scrollbar를 표시하지 않는다.
+- 실제 content가 넘칠 때만 scrolling을 허용한다.
+- existing launcher re-click toggle을 유지한다.
+- panel outside click으로 dismiss할 수 있다.
+- outside dismiss는 marker enable/check state를 변경하지 않는다.
+- dismiss click은 가능한 한 원래 Map/control interaction을 소비하지 않는다.
 
 Map은 독립 subsystem이고 Quest만 current JunhyunHelper content/profile과 bridge한다. Donor source 자체를 제품 요구사항에 맞추기 위해 broad-edit하지 않고 JunhyunHelper first-party customization boundary에서 제품 delta를 적용한다.
 
@@ -296,13 +294,13 @@ Scanner는 Tarkov 화면 픽셀을 Item ID로 변환해 기존 JunhyunHelper dat
 
 Canonical technical contract는 `docs/SCANNER.md`다.
 
-### 14.1 Recognition pipeline
+### Recognition pipeline
 
 ```text
 Tarkov window pixels
 → capture
 → detail rectangle proposals
-→ red close-X + magnifier + neutral inspect-header semantic validation
+→ red close-X + magnifier + inspect-header semantic validation
 → HEADER_FRAME_LOCKED
 → item-name ROI
 → serialized Windows ko-KR OCR
@@ -317,9 +315,7 @@ Tarkov window pixels
 → optional correction / Ground Truth
 ```
 
-정상 normal OCR success path는 환경 정규화 분석이나 추가 OCR을 수행하지 않는다. Normal OCR miss 또는 기존 bounded deep 단계에서만 title ROI luminance profile을 분석하고 lifted/washed/low-contrast 입력으로 판단될 때 auxiliary normalized OCR evidence를 추가한다. 정규화는 identity proof가 아니다.
-
-### 14.2 Scanner safety contract
+Scanner safety contract:
 
 ```text
 structural floor = 0.34
@@ -330,28 +326,20 @@ continuous observation target = 200 ms
 ```
 
 - false positive보다 miss 선호
-- geometry/structural score는 proposal evidence이며 Item identity가 아님
+- geometry/structural score는 Item identity가 아님
 - environment normalization은 Item identity가 아님
-- valid magnifier + red close-X 등 semantic header evidence 필요
 - current official Korean full-item catalog가 identity authority
-- exact-first conservative matcher
-- generic confidence/top1-top2 margin을 reviewed evidence 없이 완화하지 않음
 - ambiguity / low confidence → no Item ID
 - scan-time network 금지
 - icon-only identity 금지
 - game memory read / DLL injection / packet interception 금지
-- production OCR field는 item-name 하나
-- automatic product-wide forced OCR substitution table 금지
 - cross-frame OCR/visual identity cache 금지
-- Item ID 확정 전 price/needed/slot/previous-frame metadata identity evidence 사용 금지
+- Item ID 확정 전 price/needed/slot/source/previous-frame metadata identity evidence 사용 금지
+- reviewed evidence 없이 threshold/candidate/matcher/visual acceptance 완화 금지
 
-### 14.3 Capture / one-shot / hotkeys
+### Capture / one-shot / hotkeys
 
-Continuous real Scanner는 EscapeFromTarkov Borderless client-area를 대상으로 한다. `PrintWindow` 우선, invalid/empty이면 exact client screen rectangle fallback을 사용한다.
-
-Display Test는 동일 recognition pipeline을 적용하며 real continuous mode와 상호 배타적이다.
-
-One-shot 기능은 유지하지만 normal Scanner page에 별도 one-shot 실행 버튼을 요구하지 않는다.
+Continuous real Scanner는 EscapeFromTarkov client-area를 대상으로 한다. Display Test는 동일 recognition pipeline을 적용하며 real continuous mode와 상호 배타적이다.
 
 Default hotkeys:
 
@@ -361,15 +349,13 @@ Default hotkeys:
 Scanner ON/OFF: Ctrl+Shift+F12
 ```
 
-Scanner Settings에서 세 global hotkey를 편집한다. Configurable Scanner hotkey는 Map과 같은 modifier compatibility 계약을 따른다. 등록 modifier는 모두 필요하고 추가 Ctrl/Alt/Shift는 허용하며, 같은 primary key에서 여러 compatible binding이 있으면 더 구체적인 binding이 우선한다. Windows modifier는 지원하지 않는다.
+Windows modifier는 지원하지 않는다. Compatible binding 중 required modifier 수가 많은 더 구체적인 binding을 우선한다.
 
-### 14.4 Full Item catalog / item search
+### Full Item catalog / item search
 
-Scanner identity catalog는 Needed subset이 아니라 current GameMode 공식 전체 Item catalog다.
+Scanner identity catalog는 Needed subset이 아니라 current GameMode 공식 전체 Item catalog다. 실제 scan/search 중에는 local/memory data만 사용한다.
 
-실제 scan/search 중에는 local/memory data만 사용한다.
-
-Item search selection presentation:
+Item search presentation:
 
 - cached icon
 - official name
@@ -378,13 +364,8 @@ Item search selection presentation:
 - best trusted non-flea trader price + trader name
 - `NeededItems[itemId].RemainingTotal`
 - current needed item이면 `NeededItems[itemId].Sources` Quest/Hideout source list
-- source 선택 시 해당 Quest/Hideout 화면 navigation
 
-Source/필요량을 Scanner가 자체 재계산하지 않는다.
-
-검색창 clear는 입력창 오른쪽 내부 `×` affordance를 사용한다.
-
-### 14.5 Scanner display settings schema v6
+### Scanner display settings schema v6
 
 Mini Scanner fixed identity header:
 
@@ -399,78 +380,17 @@ Mini Scanner fixed identity header:
 - flea price/slot
 - current needed
 
-아이콘/공식 이름은 fixed identity header이므로 별도 `항상 표시` 안내 row를 두지 않는다.
+Scanner Settings가 Mini Scanner display 설정과 global Scanner hotkey 편집을 함께 소유한다.
 
-Display/order 설정은 변경 즉시 기존 atomic settings store에 저장한다. Scanner Settings가 Mini Scanner display 설정과 global Scanner hotkey 편집을 함께 소유한다. 별도 hotkey window는 제품 surface에 존재하지 않는다.
+### Ground Truth / correction
 
-v5 이하 설정은 자동 migration하고 enabled state/hotkeys/visibility/position/font size/user OCR substitutions를 가능한 한 보존한다.
+Automatic diagnostic Case는 정답이 아니다. User-reviewed Case만 Ground Truth다. 정상 monitoring은 durable automatic correction Case를 만들지 않는다.
 
-### 14.6 User OCR substitutions
+### Performance / retention
 
-User-owned exact substitution engine은 유지한다.
+Same active scan cycle의 exact-identical current-pixel evidence만 reuse할 수 있다. Cross-frame identity cache는 금지한다. Reviewed Ground Truth는 자동 삭제하지 않는다. Runtime logs는 bounded rotation한다.
 
-```text
-raw OCR
-→ enabled user substitutions (single ordered pass)
-→ catalog sanitation / normalization
-→ matching
-```
-
-- default empty
-- raw OCR evidence 보존
-- recursive/cyclic reprocessing 금지
-- user rule은 product-wide automatic table이 아님
-
-### 14.7 Mapped presentation
-
-Item ID 확정 뒤 local trusted data를 같은 Item ID로 join한다.
-
-- official item name
-- local cached icon
-- highest non-flea trader RUB-equivalent sell price
-- best trader name
-- flea positive `avg24hPrice`
-- positive `width × height` slots
-- trader/flea price per slot
-- `NeededItems[itemId].RemainingTotal`
-- `NeededItems[itemId].Sources`
-
-Market/dimension 일부 오류는 affected field만 fail closed하고 healthy Item ID를 버리지 않는다.
-
-### 14.8 Ground Truth / correction
-
-Correction image는 viewport에 auto-fit하되 saved ROI는 original pixel coordinate를 사용한다.
-
-Candidate-first fields:
-
-1. detail rectangle
-2. close-X
-3. magnifier
-4. item-name ROI
-5. correct item/text
-
-기본 UX는 image 위 candidate box 직접 선택이다.
-
-- candidate가 정답을 포함하지 않음 → manual rectangle
-- 실제 semantic object 없음 → explicit `없음`
-
-Saved Case는 correction dataset manager에서 다시 열어 같은 Case ID로 reviewed Ground Truth를 수정할 수 있다.
-
-Automatic diagnostic Case는 정답이 아니다. User-reviewed Case만 Ground Truth다.
-
-정상 monitoring은 durable automatic correction Case를 만들지 않는다. latest exact frame은 current correction용 memory evidence로만 유지한다.
-
-### 14.9 Performance / retention
-
-Stage telemetry는 capture / proposal / header / OCR / visual / match / presentation / end-to-end를 분리한다.
-
-Same active scan cycle의 exact-identical current-pixel evidence만 reuse할 수 있다. Cross-frame identity cache는 금지한다.
-
-Title continuity signature는 trusted detail continuity evidence이지 Item identity proof가 아니다.
-
-Reviewed Ground Truth는 자동 삭제하지 않는다. Legacy automatic/unreviewed diagnostic cleanup은 retention/state/recent-write safety를 증명할 때만 수행하며 unknown/corrupt metadata는 preserve fail closed한다. Runtime logs는 bounded rotation한다.
-
-### 14.10 Scanner UI
+### Scanner UI
 
 Normal Scanner surface:
 
@@ -481,27 +401,11 @@ Normal Scanner surface:
 - item search
 - recognition log
 
-`설정`:
-
-- Mini Scanner 추가 표시 정보 visibility/order
-- Scanner global hotkey 편집
-- 변경 즉시 기존 persistence authority에 저장
-
-`고급`:
-
-- Display Test
-- correction / Ground Truth data management
-- support diagnostics
-- MainWindow shared overlay host
-- 내용 자체의 별도 close button 없음
-
 일반 surface에 catalog recovery/regression/export 같은 developer action을 펼쳐 놓지 않는다.
-
-`현재 결과 교정`은 최신 exact in-memory frame authority를 사용하며 우측 command lane에 둔다.
 
 ## 15. Shared user-facing overlay contract
 
-v1.7.14의 주요 settings/editor surface:
+주요 settings/editor surface:
 
 - Profile Edit
 - Scanner Settings
@@ -516,9 +420,7 @@ launcher
 → same launcher / backdrop / common X → dismiss
 ```
 
-Window-backed editor는 `ToggleInAppWindowAsync`, existing UIElement surface는 `ShowInAppElementAsync`를 사용한다. Child editor의 validation/save semantics를 MainWindow가 재구현하지 않는다.
-
-Map Settings처럼 기존 visual tree의 UIElement를 임시 re-parent하는 surface는 caller가 원래 parent/index로 복원한다.
+Child editor의 validation/save semantics를 MainWindow가 재구현하지 않는다.
 
 ## 16. Images / preference persistence
 
@@ -531,9 +433,10 @@ Map/Ammo/Scanner preference와 MiniMap window size는 user mutable data이며 Pr
 - MainWindow minimum width는 실제 2-pane/header 요구를 만족하는 1180
 - normal vs settings vs advanced hierarchy 유지
 - user-facing editor/settings는 shared overlay interaction을 우선
-- popup launcher는 same-launcher true-toggle semantics 유지
 - 주요 검색창 clear affordance는 입력창 내부 오른쪽에 통일
-- clipping/scroll/status wording 회귀를 Product UI smoke로 검출
+- main header identity lane은 version-only
+- cleanup attention은 Items tab orange dot
+- clipping/scroll/status wording 회귀를 Product UI smoke와 deterministic contract로 검출
 - standard WPF 설명 ToolTip은 표시하지 않음
 - 지도 marker detail 같은 기능성 custom Popup/information surface는 유지
 - 검증된 Map/MiniMap을 제품 요구 없이 재설계하지 않음
@@ -551,17 +454,14 @@ Runtime release candidate는 최소 다음을 통과해야 한다.
 - graceful shutdown
 - clean portable root / forbidden dependency audit
 - `Junhyun-Helper.zip` 생성
-- archive top-level `준현 헬퍼/` + required file verification
 - package SHA-256 + checksum verification
-- exact main source CI rerun
+- exact main source CI
 - Release workflow exact artifact verification
 - exact public tag/source
 - public stable/latest publication
 - public asset metadata/digest/tag-ref readback
 
-가능한 검증 환경에서는 independent anonymous public redownload/hash/layout와 public-downloaded EXE smoke를 추가한다. 자동화 도구가 binary redownload를 제공하지 않는 경우 수행하지 않은 검증을 완료했다고 기록하지 않는다.
-
-v1.7.14는 exact main-CI artifact, Release workflow artifact/package 검증, public GitHub asset digest와 tag-ref readback의 일치를 검증했다.
+v1.7.15는 이 gate를 통과했다. exact proof는 `docs/RELEASE_1.7.15.md`를 사용한다.
 
 ## 19. 현재 개발 방향
 
@@ -578,4 +478,4 @@ real usage / Tarkov change / reviewed Ground Truth
 
 Ground Truth evidence 없이 Scanner threshold/candidate cap/matcher/visual policy를 완화하지 않는다.
 
-현재 public stable의 제품 결정 상세는 `docs/DECISION_V1.7.14_UI_CONSISTENCY.md`, 공개 릴리즈 증거는 `docs/RELEASE_1.7.14.md`를 권위 기록으로 사용한다. 이전 버전 결정은 historical foundation으로 유지한다.
+현재 public stable의 제품 결정 상세는 `docs/DECISION_V1.7.15_UI_REFINEMENTS.md`, 공개 릴리즈 증거는 `docs/RELEASE_1.7.15.md`를 권위 기록으로 사용한다. 이전 버전 결정은 historical foundation으로 유지한다.
