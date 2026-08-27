@@ -4,7 +4,7 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 제품 상태
 
-현재 제품 상태는 **v1.7.14 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
+현재 제품 상태는 **v1.7.15 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
 
 현재 확정 요구사항 범위의 제품과 Scanner는 완성 상태입니다. 새로운 실제 회귀·Tarkov 호환성 변화·사용자가 명시적으로 확정한 새 제품 요구사항이 없는 한 선제적 기능 추가나 Scanner 인식 기준 조정을 시작하지 않습니다.
 
@@ -27,29 +27,29 @@ Scanner 전문 문서:
 ## 현재 공개 릴리즈
 
 ```text
-version: v1.7.14
-Desktop target version: 1.7.14
-exact product release source/tag target: 0a51375de36cd13047216006c2c0311728b1bd89
-main CI: 33060827905 — SUCCESS
-Release workflow: 33061059154 — SUCCESS
-release id: 377720327
+version: v1.7.15
+Desktop target version: 1.7.15
+exact product release source/tag target: 4bf5e3a567d3ce9563657bbb3b90bec0871c06b4
+main CI: 33086901217 — SUCCESS
+Release workflow: 33087185178 — SUCCESS
+release id: 377926863
 stable asset: Junhyun-Helper.zip
-asset id: 532104142
-bytes: 80,488,363
-SHA-256: 341ac502d2ace563ab2e7c8d7091a8e796cf87e7d1f5961edf869feab106e2fd
-407 passed / 0 failed / 0 skipped
+asset id: 532481010
+bytes: 80,492,565
+SHA-256: 9ac3276a1a4a20905b0aa3d6452f50d5259f724ed8f960b7cfbad39f8c619f2f
+410 passed / 0 failed / 0 skipped
 ```
 
-GitHub `/releases/latest` 및 `refs/tags/v1.7.14` readback에서 v1.7.14가 `draft=false`, `prerelease=false`, latest stable이며 release target과 tag ref가 exact product release source와 일치함을 확인했습니다. 공개 ZIP digest도 exact main-CI package SHA-256과 일치합니다.
+GitHub `/releases/latest` 및 `refs/tags/v1.7.15` readback에서 v1.7.15가 `draft=false`, `prerelease=false`, latest stable이며 release target과 tag ref가 exact product release source와 일치함을 확인했습니다. 공개 ZIP digest도 exact main-CI package SHA-256과 일치합니다.
 
 공식 릴리즈 기록:
 
-- `docs/RELEASE_1.7.14.md`
-- `docs/RELEASE_NOTES_V1.7.14.md`
-- `docs/.release-v1.7.14-status.json`
-- `docs/DECISION_V1.7.14_UI_CONSISTENCY.md`
+- `docs/RELEASE_1.7.15.md`
+- `docs/RELEASE_NOTES_V1.7.15.md`
+- `docs/.release-v1.7.15-status.json`
+- `docs/DECISION_V1.7.15_UI_REFINEMENTS.md`
 
-이 README와 이후 documentation-only commit은 v1.7.14 제품 릴리즈 소스가 아닙니다. v1.7.14 product source/tag/assets는 위 `0a51375d...` 기준의 immutable historical release입니다.
+이 README와 이후 documentation-only commit은 v1.7.15 제품 릴리즈 소스가 아닙니다. v1.7.15 product source/tag/assets는 위 `4bf5e3a...` 기준의 immutable historical release입니다.
 
 ## 설치 / 실행
 
@@ -88,36 +88,36 @@ Junhyun-Helper.zip
 
 Runtime GPT/AI 의존성은 없습니다.
 
-## v1.7.14 — UI 일관성 패치
+## v1.7.15 — UI 마무리 패치
 
-v1.7.14는 기존 도메인 의미와 Scanner identity recognition을 유지하면서 popup·설정·검색 interaction을 한 제품 규칙으로 정리했습니다.
+v1.7.15는 기존 도메인 의미와 Scanner identity recognition을 유지하면서 남아 있던 UI 불편을 정리했습니다.
+
+### Main header / Items
+
+- 메인 상단의 status 영역은 버전 정보만 표시합니다.
+- `정리 필요` 텍스트는 표시하지 않습니다.
+- 정리 대상이 있으면 Items 탭 우측 상단의 작은 주황색 점으로 알려줍니다.
+- 데이터 업데이트 진행 상태는 기존 전용 progress overlay를 사용합니다.
+
+### Map
+
+- 지도 마커 선택 panel의 내부 checkbox 목록이 실제 가용 세로 공간을 사용합니다.
+- 목록이 공간 안에 들어오면 불필요한 세로 scrollbar를 표시하지 않습니다.
+- 실제로 목록이 넘칠 때만 scrolling합니다.
+- 기존 `지도 마커` 버튼 재클릭 toggle을 유지합니다.
+- panel 바깥의 지도/빈 영역을 클릭해도 marker selector가 닫힙니다.
+- dismiss click은 marker 상태를 바꾸지 않으며 가능한 한 원래 Map/control interaction을 유지합니다.
 
 ### Ammo
 
-- `즐겨찾기 선택`, `표시 열` popup은 열린 상태에서 같은 launcher를 다시 누르면 닫힌 상태를 유지합니다.
-- WPF `Popup.StaysOpen=False`의 자동 닫힘 뒤 기존 Click handler가 다시 popup을 여는 문제를 Preview 단계에서 차단했습니다.
+- `즐겨찾기 선택`은 일반 dropdown을 사용합니다.
+- 구경 dropdown과 즐겨찾기 dropdown은 같은 icon+label presentation을 사용합니다.
+- 각 구경 왼쪽에는 그 구경에 실제로 속한 탄약 아이콘을 순환 표시합니다.
+- 특정 탄약 하나를 구경의 영구 대표 아이콘으로 고정하지 않습니다.
+- 두 dropdown은 같은 구경에 대해 같은 animation state를 공유합니다.
+- 기존 즐겨찾기 저장과 구경 filtering 의미는 유지합니다.
 
-### Map / MiniMap
-
-- MiniMap 버튼 주변의 donor 잔여 padding/background와 숨긴 도움말 버튼 자리를 제거했습니다.
-- `지도 마커`는 투명 텍스트 영역이 아니라 JunhyunHelper 일반 Button chrome을 사용합니다.
-- 접힌 marker panel은 빈 배경/최소 폭을 남기지 않습니다.
-- 펼친 panel은 일반 데스크톱 viewport에서 현재 marker checkbox를 가능한 한 스크롤 없이 확인할 충분한 세로 공간을 확보합니다.
-- 지도/미니맵 설정은 기존 오른쪽 drawer 대신 MainWindow 공통 in-app overlay에 표시합니다.
-
-### Scanner / Profile
-
-- Scanner `고급`은 별도 Window로 표시하지 않고 MainWindow 공통 overlay에 표시합니다.
-- 고급 화면 내부의 별도 `닫기` 버튼을 제거했습니다.
-- Scanner hotkey 편집을 Scanner 설정 안으로 통합했고 기존 전용 hotkey window를 제거했습니다.
-- 프로필 수정 content card를 Scanner 설정과 같은 overlay/card 계열로 정리했습니다.
-- child editor의 기존 validation/save authority는 유지합니다.
-
-### 검색창
-
-Quest / Hideout / Items / Ammo / Scanner의 주요 검색창은 입력창 우측 내부에 `×` clear affordance를 사용합니다. 검색 filtering 의미는 바뀌지 않습니다.
-
-### 공통 overlay interaction
+## 공통 overlay interaction
 
 현재 주요 user-facing editor/settings surface는 다음 interaction을 공유합니다.
 
@@ -133,6 +133,8 @@ launcher
 - Scanner Settings
 - Scanner Advanced
 - Map / MiniMap Settings
+
+Child editor의 validation/save authority는 overlay host가 재구현하지 않습니다.
 
 ## Scanner
 
@@ -167,7 +169,7 @@ continuous observation target = 200 ms
 - false positive보다 miss를 선호합니다.
 - geometry/environment normalization은 Item identity proof가 아닙니다.
 - stale/cross-frame OCR 또는 visual result를 current Item identity proof로 사용하지 않습니다.
-- Item ID 확정 전 price/needed/slot/previous-frame metadata를 identity evidence로 사용하지 않습니다.
+- Item ID 확정 전 price/needed/slot/source/previous-frame metadata를 identity evidence로 사용하지 않습니다.
 - scan 순간 identity 결정을 위해 network 요청을 시작하지 않습니다.
 - reviewed evidence 없이 threshold/candidate/matcher/visual acceptance를 낮추지 않습니다.
 
@@ -224,4 +226,4 @@ d933792b6042a51cea38dc44b686a096fe30de67
 
 Published stable release는 공개 후 교체하지 않습니다. 같은 version에서 documentation-only main commit이 다른 ProductVersion metadata/bytes를 만들더라도 이미 공개된 ZIP/tag/source를 덮어쓰지 않습니다.
 
-현재 v1.7.14 릴리즈 배치에 남은 제품 개발 작업은 없습니다. 기본 운영 모드는 유지보수입니다.
+현재 v1.7.15 릴리즈 배치에 남은 제품 개발 작업은 없습니다. 기본 운영 모드는 유지보수입니다.
