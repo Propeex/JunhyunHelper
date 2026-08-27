@@ -135,11 +135,19 @@ App.OnStartup
 → MainWindow
 → startup Program Update check (non-smoke)
 
+MainWindow.OnInitialized
+→ Quest / Hideout / Items / Ammo image-cache binding
+→ Ammo favorite-store binding
+→ cross-page content navigation wiring
+→ Scanner global-command lifetime wiring
+
 MainWindow.Window_Loaded
 → profile/content/workspaces
 → Map bridge
 → Scanner context/catalog/runtime
 ```
+
+Page-level shared infrastructure는 `ItemsPage`/`HideoutPage`/`AmmoPage`가 우연히 `Loaded`되는 순서에 맡기지 않는다. `MainWindow.OnInitialized`가 product-window lifetime의 composition owner다. 화면 내부의 presentation 초기화는 해당 Page가 직접 소유한다. 예를 들어 Ammo search/detail/grid presentation은 `AmmoPage.OnInitialized`에서 Loaded dispatcher priority로 초기화되며, 부모 `MainWindow`의 page-loaded handler 존재 여부에 의존하지 않는다.
 
 `MainWindow`는 orchestration layer다. 새 domain truth를 여기서 만들지 않는다.
 
