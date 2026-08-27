@@ -118,10 +118,10 @@ public partial class MainWindow
 
         var toggle = AmmoPage.ProductDetailToggleButton;
         var initial = toggle.Content as string;
-        if (initial != "▼")
+        if (initial != "▲" || AmmoPage.ProductDetailHost.Visibility != Visibility.Collapsed)
         {
             throw new InvalidOperationException(
-                $"Expanded ammo detail handle must render ▼ only, but rendered '{initial ?? "<null>"}'.");
+                $"Ammo detail must initialize collapsed with ▲, but rendered '{initial ?? "<null>"}' / {AmmoPage.ProductDetailHost.Visibility}.");
         }
 
         if (toggle.Width > 50)
@@ -129,13 +129,13 @@ public partial class MainWindow
 
         toggle.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         AmmoPage.UpdateLayout();
-        if (toggle.Content as string != "▲" || AmmoPage.ProductDetailHost.Visibility != Visibility.Collapsed)
-            throw new InvalidOperationException("Collapsed ammo detail state did not render ▲ with the detail host hidden.");
+        if (toggle.Content as string != "▼" || AmmoPage.ProductDetailHost.Visibility != Visibility.Visible)
+            throw new InvalidOperationException("Expanded ammo detail state did not render ▼ with the detail host visible.");
 
         toggle.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         AmmoPage.UpdateLayout();
-        if (toggle.Content as string != "▼" || AmmoPage.ProductDetailHost.Visibility != Visibility.Visible)
-            throw new InvalidOperationException("Expanded ammo detail state did not restore ▼ with the detail host visible.");
+        if (toggle.Content as string != "▲" || AmmoPage.ProductDetailHost.Visibility != Visibility.Collapsed)
+            throw new InvalidOperationException("Collapsed ammo detail state did not restore ▲ with the detail host hidden.");
     }
 
     private void VerifyScannerRenderedControls()
