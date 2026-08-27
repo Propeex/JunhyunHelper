@@ -1,7 +1,7 @@
 # Scanner — 제품/기술 계약
 
 기준일: 2026-08-27
-상태: **v1.7.11 PUBLIC STABLE / FEATURE COMPLETE / MAINTENANCE ONLY**
+상태: **v1.7.12 PUBLIC STABLE / FEATURE COMPLETE / MAINTENANCE ONLY**
 
 이 문서는 현재 Scanner 제품 동작과 기술 안전 계약의 canonical 전문 문서다. 역사적 근거는 버전별 결정/릴리즈 문서에 보존하고, 현재 구현 판단은 이 문서와 `STATE.md`, 실제 코드가 우선한다.
 
@@ -41,7 +41,7 @@ Scanner는 범용 OCR이 아니라 **현재 공식 한국어 Tarkov full-item ca
 - Item ID 확정 전 price/needed/slot metadata를 identity evidence로 사용 금지
 - 새로운 reviewed evidence 없이 semantic/OCR/matcher/visual acceptance 완화 금지
 
-## 2. Current v1.7.11 product state
+## 2. Current v1.7.12 product state
 
 Scanner는 기능 개발이 끝난 **maintenance-only** 상태다. 실제 사용자 evidence가 있는 회귀만 failure stage를 확인해 affected layer에 최소 수정한다.
 
@@ -58,9 +58,7 @@ Scanner는 기능 개발이 끝난 **maintenance-only** 상태다. 실제 사용
 - Scanner/Map configurable hotkey는 primary key + optional Ctrl/Alt/Shift이며 extra modifier compatibility / most-specific-wins 정책 적용
 - verified main-CI artifact만 stable release 가능
 
-v1.7.11은 Scanner identity recognition 기준을 변경하지 않았다. `필요 개수` presentation과 configurable hotkey modifier UX만 Scanner 관련 변경이다.
-
-v1.7.10의 공개 배포 환경별 luminance normalization은 그대로 유지한다.
+v1.7.12는 Desktop page lifecycle/ownership 유지보수 릴리즈이며 Scanner identity recognition 기준을 변경하지 않았다. v1.7.11의 `필요 개수` presentation과 configurable hotkey modifier UX, v1.7.10의 공개 배포 환경별 luminance normalization을 그대로 유지한다.
 
 ## 3. 핵심 안전 불변식
 
@@ -416,19 +414,21 @@ Release build
 
 Stable release는 main CI가 성공한 exact main commit의 artifact만 Release workflow가 게시한다.
 
-v1.7.11 proof:
+v1.7.12 proof:
 
 ```text
-PR #194 final head: 4351670d378fedf7000ada4d613bf1527e203a16
-PR CI: 33032104032 — SUCCESS
-main release source: 0f97c6e5340ae91581a9242ec236bbd7885b34d5
-main CI: 33033282963 — SUCCESS
-Release workflow: 33033434877 — SUCCESS
-release id: 377531277
-asset id: 531635485
-asset SHA-256: f1ad15debc29b7a167a13448c8df65785f57139a91d8b5d246205a14f9a5800d
-392 passed / 0 failed / 0 skipped
+PR #197 final head: 23e1784c25954f4900a57cfa4c1c9821d5d6d668
+final PR CI: 33042136686 — SUCCESS
+main release source: d8d0f8eb1ffdd9b8c4ec890277a7b209b2458c2b
+main CI: 33042307773 — SUCCESS
+Release workflow: 33042464642 — SUCCESS
+release id: 377581895
+asset id: 531791229
+asset SHA-256: 3f0d57f8a5dc92611bc8648a423c43d65917e63e0d73a771b559153803186fa1
+397 passed / 0 failed / 0 skipped
 ```
+
+v1.7.12는 Scanner recognition policy를 변경하지 않았지만 release gate에서 Scanner/Mini Scanner actual published EXE smoke를 포함해 검증했다. 이후 documentation-only main commit은 v1.7.12 product release source가 아니다.
 
 ## 19. Maintenance workflow
 
