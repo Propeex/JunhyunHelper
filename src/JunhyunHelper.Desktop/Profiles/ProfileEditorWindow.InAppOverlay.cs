@@ -83,7 +83,7 @@ public partial class ProfileEditorWindow : IInAppOverlayDialog
         if (!_editingExistingProfile)
             return;
 
-        var owner = Window.GetWindow(DeleteProfileButton) ?? Application.Current.MainWindow;
+        var owner = Window.GetWindow(DeleteProfileButton) ?? System.Windows.Application.Current.MainWindow;
         var decision = MessageBox.Show(
             owner,
             "이 프로필의 퀘스트 진행, 은신처 레벨, 상인 진행, 보유 아이템 기록을 모두 삭제합니다. 다운로드된 게임 데이터와 다른 프로필은 유지됩니다.\n\n삭제하시겠습니까?",
