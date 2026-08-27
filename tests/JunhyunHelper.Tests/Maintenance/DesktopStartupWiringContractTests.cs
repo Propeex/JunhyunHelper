@@ -6,7 +6,7 @@ namespace JunhyunHelper.Tests.Maintenance;
 public sealed class DesktopStartupWiringContractTests
 {
     [Fact]
-    public void PageInfrastructure_IsOwnedByProductInitialization_NotPageLoadedOrder()
+    public void PageInfrastructure_IsOwnedExplicitly_NotByIncidentalPageLoadedHandlers()
     {
         var root = FindRepositoryRoot();
         var lifecycle = File.ReadAllText(Path.Combine(
@@ -24,6 +24,18 @@ public sealed class DesktopStartupWiringContractTests
             "src",
             "JunhyunHelper.Desktop",
             "MainWindow.xaml"));
+        var ammoInitialization = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "JunhyunHelper.Desktop",
+            "Ammo",
+            "AmmoPage.ProductGridFixes.cs"));
+        var ammoPresentation = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "JunhyunHelper.Desktop",
+            "Ammo",
+            "AmmoPage.ProductSearchAndDetails.cs"));
 
         Assert.Contains("QuestPage.SetImageCache(_services.Images);", lifecycle, StringComparison.Ordinal);
         Assert.Contains("HideoutPage.SetImageCache(_services.Images);", lifecycle, StringComparison.Ordinal);
@@ -39,6 +51,13 @@ public sealed class DesktopStartupWiringContractTests
         Assert.DoesNotContain("ItemsPage_Loaded", images, StringComparison.Ordinal);
         Assert.DoesNotContain("HideoutPage_Loaded", images, StringComparison.Ordinal);
         Assert.DoesNotContain("AmmoPage_Loaded", images, StringComparison.Ordinal);
+
+        Assert.Contains(
+            "Dispatcher.BeginInvoke(InitializeProductSearchAndDetails, DispatcherPriority.Loaded);",
+            ammoInitialization,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("RegisterClassHandler", ammoPresentation, StringComparison.Ordinal);
+        Assert.DoesNotContain("ProductLoaded", ammoPresentation, StringComparison.Ordinal);
     }
 
     private static string FindRepositoryRoot([CallerFilePath] string sourcePath = "")
