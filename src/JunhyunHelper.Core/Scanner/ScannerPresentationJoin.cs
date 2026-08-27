@@ -25,7 +25,7 @@ public static class ScannerPresentationJoin
     public static ScannerPresentationJoinResult Resolve(
         ScannerCatalogItem catalogItem,
         IEnumerable<GameItem> canonicalItems,
-        IEnumerable<(string ItemId, int RequiredTotal)> neededItems)
+        IEnumerable<(string ItemId, int RemainingTotal)> neededItems)
     {
         ArgumentNullException.ThrowIfNull(catalogItem);
         ArgumentNullException.ThrowIfNull(canonicalItems);
@@ -46,7 +46,7 @@ public static class ScannerPresentationJoin
             catalogItem.TraderPricePerSlot,
             catalogItem.FleaPricePerSlot,
             catalogItem.Slots,
-            needed.RequiredTotal,
+            needed.RemainingTotal,
             catalogItem.BestTraderName);
     }
 }

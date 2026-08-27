@@ -29,8 +29,8 @@ public sealed class ScannerPresentationJoinTests
         };
         var neededItems = new[]
         {
-            (ItemId: "item-b", RequiredTotal: 99),
-            (ItemId: "item-a", RequiredTotal: 7),
+            (ItemId: "item-b", RemainingTotal: 99),
+            (ItemId: "item-a", RemainingTotal: 7),
         };
 
         var result = ScannerPresentationJoin.Resolve(target, canonicalItems, neededItems);
@@ -49,6 +49,30 @@ public sealed class ScannerPresentationJoinTests
     }
 
     [Fact]
+    public void ResolveUsesRemainingNeedRatherThanOriginalRequirement()
+    {
+        var target = new ScannerCatalogItem(
+            "item-a",
+            "공식 A",
+            "A",
+            "https://scanner.test/a.png",
+            FleaAveragePrice: null,
+            BestTraderSellPrice: null,
+            Width: 1,
+            Height: 1);
+
+        // The presentation join receives the inventory-adjusted remaining amount from
+        // NeededItem. A total requirement of 10 with 6 already owned must therefore be
+        // represented by the remaining value 4, never by the original requirement 10.
+        var result = ScannerPresentationJoin.Resolve(
+            target,
+            [Item("item-a", "https://canonical.test/a.png", "https://wiki.test/a")],
+            [(ItemId: "item-a", RemainingTotal: 4)]);
+
+        Assert.Equal(4, result.CurrentNeeded);
+    }
+
+    [Fact]
     public void ResolveUsesCatalogIconAndZeroNeededWhenCanonicalOrPlanEntryIsAbsent()
     {
         var target = new ScannerCatalogItem(
@@ -64,7 +88,7 @@ public sealed class ScannerPresentationJoinTests
         var result = ScannerPresentationJoin.Resolve(
             target,
             [Item("item-b", "https://canonical.test/b.png", "https://wiki.test/b")],
-            [(ItemId: "item-b", RequiredTotal: 5)]);
+            [(ItemId: "item-b", RemainingTotal: 5)]);
 
         Assert.Equal("item-a", result.ItemId);
         Assert.Equal("https://scanner.test/a.png", result.IconUrl);

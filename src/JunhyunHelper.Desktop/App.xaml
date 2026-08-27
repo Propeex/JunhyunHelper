@@ -4,6 +4,11 @@
     <Application.Resources>
         <ResourceDictionary>
             <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+            <!-- Standard explanatory WPF ToolTips are intentionally disabled product-wide.
+                 Functional custom Popup surfaces such as Map marker details are unaffected. -->
+            <Style TargetType="ToolTip">
+                <Setter Property="Visibility" Value="Collapsed" />
+            </Style>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Themes/DarkControls.xaml" />
                 <ResourceDictionary Source="Themes/DarkScrollBars.xaml" />

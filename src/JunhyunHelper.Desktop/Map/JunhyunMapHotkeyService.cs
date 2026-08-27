@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using JunhyunHelper.Core.Hotkeys;
 using TarkovHelper.Models.Map;
 using TarkovHelper.Services;
 
@@ -10,6 +11,7 @@ namespace JunhyunHelper.Desktop.Map;
 /// JunhyunHelper-owned Map keyboard hook. Configured Map actions must work while
 /// Escape from Tarkov or 준현 헬퍼 has focus, regardless of whether MiniMap is
 /// currently visible. Product bindings use one primary key plus optional Ctrl/Alt/Shift.
+/// Extra Ctrl/Alt/Shift modifiers are allowed; the most specific compatible binding wins.
 /// The transplanted hook remains only for its direct bare-NumPad floor selection path.
 /// </summary>
 public sealed class JunhyunMapHotkeyService : IDisposable
@@ -105,48 +107,73 @@ public sealed class JunhyunMapHotkeyService : IDisposable
             return CallNextHookEx(_hook, code, wParam, lParam);
         }
 
-        var gesture = new JunhyunMapHotkeyGesture(virtualKey, GetPressedModifiers());
-        var productSettings = JunhyunMapProductSettingsStore.Instance;
-        if (gesture == productSettings.TemporaryHideGesture)
+        var match = ResolveProductHotkey(virtualKey, GetPressedModifiers());
+        if (match is null)
+            return CallNextHookEx(_hook, code, wParam, lParam);
+
+        if (match.Value.IsTemporaryHide)
         {
             if (firstPress)
             {
-                var seconds = productSettings.TemporaryHideSeconds;
+                var seconds = JunhyunMapProductSettingsStore.Instance.TemporaryHideSeconds;
                 System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
                     JunhyunMiniMapProductRegistry.TemporarilyHide(seconds));
             }
             return CallNextHookEx(_hook, code, wParam, lParam);
         }
 
-        var action = GetProductActionForHotkey(gesture);
-        if (action is null)
-            return CallNextHookEx(_hook, code, wParam, lParam);
-
+        var action = match.Value.Action!.Value;
         var repeatable = action is OverlayMiniMapHotkeyAction.ZoomIn or OverlayMiniMapHotkeyAction.ZoomOut;
         if (!firstPress && !repeatable)
             return CallNextHookEx(_hook, code, wParam, lParam);
 
         System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
-            _ = ExecuteSafelyAsync(action.Value));
+            _ = ExecuteSafelyAsync(action));
         return CallNextHookEx(_hook, code, wParam, lParam);
     }
 
-    private static OverlayMiniMapHotkeyAction? GetProductActionForHotkey(JunhyunMapHotkeyGesture gesture)
+    private static ProductHotkeyMatch? ResolveProductHotkey(
+        int virtualKey,
+        JunhyunMapHotkeyModifiers pressedModifiers)
     {
-        if (gesture.IsDisabled)
-            return null;
+        var pressed = ToPortableModifiers(pressedModifiers);
+        var productSettings = JunhyunMapProductSettingsStore.Instance;
+        ProductHotkeyMatch? best = null;
+
+        // Preserve the historical temporary-hide priority when two compatible bindings
+        // have the same specificity. More-specific bindings always take precedence.
+        var temporaryHide = productSettings.TemporaryHideGesture;
+        if (!temporaryHide.IsDisabled &&
+            temporaryHide.VirtualKey == virtualKey &&
+            HotkeyModifierMatchPolicy.IsCompatible(ToPortableModifiers(temporaryHide.Modifiers), pressed))
+        {
+            best = new ProductHotkeyMatch(
+                null,
+                IsTemporaryHide: true,
+                HotkeyModifierMatchPolicy.Specificity(ToPortableModifiers(temporaryHide.Modifiers)));
+        }
 
         var overlaySettings = OverlayMiniMapService.Instance.Settings;
-        var productSettings = JunhyunMapProductSettingsStore.Instance;
         foreach (var action in Enum.GetValues<OverlayMiniMapHotkeyAction>())
         {
             var configured = productSettings.GetHotkeyGesture(action, overlaySettings.GetHotkey(action));
-            if (configured == gesture)
-                return action;
+            if (configured.IsDisabled || configured.VirtualKey != virtualKey)
+                continue;
+
+            var required = ToPortableModifiers(configured.Modifiers);
+            if (!HotkeyModifierMatchPolicy.IsCompatible(required, pressed))
+                continue;
+
+            var specificity = HotkeyModifierMatchPolicy.Specificity(required);
+            if (best is null || specificity > best.Value.Specificity)
+                best = new ProductHotkeyMatch(action, IsTemporaryHide: false, specificity);
         }
 
-        return null;
+        return best;
     }
+
+    private static HotkeyModifierMask ToPortableModifiers(JunhyunMapHotkeyModifiers modifiers) =>
+        (HotkeyModifierMask)((int)modifiers & (int)HotkeyModifierMask.All);
 
     private JunhyunMapHotkeyModifiers GetPressedModifiers()
     {
@@ -284,4 +311,9 @@ public sealed class JunhyunMapHotkeyService : IDisposable
             _hook = IntPtr.Zero;
         }
     }
+
+    private readonly record struct ProductHotkeyMatch(
+        OverlayMiniMapHotkeyAction? Action,
+        bool IsTemporaryHide,
+        int Specificity);
 }
