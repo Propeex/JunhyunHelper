@@ -22,20 +22,20 @@ jobs:
       JUNHYUNHELPER_LIVE_DATA_PROBE: '1'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Checkout pinned public Map donor
         shell: pwsh
         run: |
-          git config --local --unset-all http.https://github.com/.extraheader
-          if ($LASTEXITCODE -notin @(0, 5)) { throw "Could not clear GitHub auth header." }
           git submodule sync --recursive
           if ($LASTEXITCODE -ne 0) { throw "Could not synchronize submodules." }
           git submodule update --init --force --depth=1 --recursive
           if ($LASTEXITCODE -ne 0) { throw "Could not checkout Map donor." }
 
       - name: Setup .NET 10
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
 

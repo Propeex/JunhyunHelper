@@ -18,12 +18,12 @@ jobs:
 
     steps:
       - name: Checkout verified main commit
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Download verified Windows x64 artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: JunhyunHelper-win-x64
           path: artifacts
