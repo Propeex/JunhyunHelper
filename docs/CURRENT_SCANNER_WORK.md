@@ -1,7 +1,7 @@
 # Current Scanner Work
 
 기준일: 2026-08-27
-상태: **FEATURE COMPLETE / MAINTENANCE ONLY / v1.7.11 PUBLIC STABLE**
+상태: **FEATURE COMPLETE / MAINTENANCE ONLY / v1.7.12 PUBLIC STABLE**
 
 ## 최종 결론
 
@@ -15,31 +15,34 @@ Scanner 기능 개발 단계는 종료됐다. 현재 기본 운영 모드는 **�
 - v1.7.9: recognition success 뒤 Mini Scanner 표시가 보조 OCR에 의해 veto되던 presentation 회귀 수정
 - v1.7.10: 특정 PC가 아닌 공개 배포 범용성을 위한 item-title OCR 입력 환경 정규화
 - v1.7.11: Scanner `필요 개수` presentation 및 configurable hotkey modifier UX 수정. Scanner identity recognition 기준은 변경하지 않음
+- v1.7.12: Desktop page lifecycle/ownership 유지보수. Scanner identity recognition, threshold, candidate, matcher, visual, pacing 정책은 변경하지 않음
 
 새 실제 회귀 증거가 없는 한 threshold, candidate cap, OCR/matcher/visual acceptance를 선제 조정하지 않는다.
 
 ## 현재 Public stable
 
 ```text
-version: v1.7.11
-exact product release source: 0f97c6e5340ae91581a9242ec236bbd7885b34d5
-main CI run: 33033282963 — SUCCESS
-release workflow run: 33033434877 — SUCCESS
-release id: 377531277
+version: v1.7.12
+exact product release source: d8d0f8eb1ffdd9b8c4ec890277a7b209b2458c2b
+main CI run: 33042307773 — SUCCESS
+release workflow run: 33042464642 — SUCCESS
+release id: 377581895
 asset: Junhyun-Helper.zip
-asset id: 531635485
-bytes: 80,477,565
-SHA-256: f1ad15debc29b7a167a13448c8df65785f57139a91d8b5d246205a14f9a5800d
-392 passed / 0 failed / 0 skipped
+asset id: 531791229
+bytes: 80,477,641
+SHA-256: 3f0d57f8a5dc92611bc8648a423c43d65917e63e0d73a771b559153803186fa1
+397 passed / 0 failed / 0 skipped
 ```
 
-GitHub `/releases/latest` readback에서 v1.7.11이 draft=false, prerelease=false, latest stable이며 tag target이 exact product release source와 일치함을 확인했다. 공개 ZIP digest도 exact main-CI package SHA-256과 일치한다.
+GitHub `/releases/latest`와 tag-ref readback에서 v1.7.12가 draft=false, prerelease=false, latest stable이며 release target과 tag ref가 exact product release source와 일치함을 확인했다. 공개 ZIP digest도 exact main-CI package SHA-256과 일치한다.
 
 상세 공개 증거:
 
-- `docs/RELEASE_1.7.11.md`
-- `docs/.release-v1.7.11-status.json`
-- `docs/RELEASE_NOTES_V1.7.11.md`
+- `docs/RELEASE_1.7.12.md`
+- `docs/.release-v1.7.12-status.json`
+- `docs/RELEASE_NOTES_V1.7.12.md`
+
+이 문서와 이후 documentation-only commit은 v1.7.12 product release source가 아니다. v1.7.12 tag/source/assets는 위 `d8d0f8eb...` 기준으로 immutable하게 유지한다.
 
 ## 현재 Scanner pipeline
 
@@ -61,6 +64,24 @@ Tarkov window pixels
 ```
 
 Scanner는 closed-domain recognizer이며 current official Korean Tarkov full-item catalog가 Item identity authority다.
+
+## v1.7.12 — Scanner 영향
+
+v1.7.12는 Scanner recognition 변경 릴리즈가 아니다.
+
+Desktop page infrastructure ownership과 Ammo presentation lifecycle만 정리했으며 다음 Scanner 계약은 그대로다.
+
+- structural floor `0.34`
+- `HEADER_FRAME_LOCKED` floor `0.68`
+- continuous candidate cap `8`
+- one-shot candidate cap `12`
+- continuous observation target `200 ms`
+- matcher / visual recovery acceptance 불변
+- cross-frame OCR/visual identity cache 없음
+- Item ID 확정 전 mapped metadata identity evidence 사용 금지
+- scan-time network identity work 없음
+
+실제 release gate에서는 Scanner normal surface와 Mini Scanner를 포함한 published EXE smoke도 성공했다.
 
 ## v1.7.11 — Scanner 관련 유지보수
 
@@ -287,15 +308,15 @@ continuous observation target = 200 ms
 - scan-time network identity work 없음
 - reviewed Ground Truth 없이 threshold/candidate cap 완화 금지
 
-## v1.7.11 CI / release proof
+## v1.7.12 CI / release proof
 
 ```text
-PR #194 final head: 4351670d378fedf7000ada4d613bf1527e203a16
-PR CI: 33032104032 — SUCCESS
-main source: 0f97c6e5340ae91581a9242ec236bbd7885b34d5
-main CI: 33033282963 — SUCCESS
-Release workflow: 33033434877 — SUCCESS
-392 passed / 0 failed / 0 skipped
+PR #197 final head: 23e1784c25954f4900a57cfa4c1c9821d5d6d668
+final PR CI: 33042136686 — SUCCESS
+main source: d8d0f8eb1ffdd9b8c4ec890277a7b209b2458c2b
+main CI: 33042307773 — SUCCESS
+Release workflow: 33042464642 — SUCCESS
+397 passed / 0 failed / 0 skipped
 ```
 
 ## Maintenance workflow
