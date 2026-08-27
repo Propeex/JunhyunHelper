@@ -463,7 +463,7 @@ Exporter 변경 시 이 exclusion을 release regression으로 계속 검증한�
 
 를 모두 만족해야 한다. 코드 미관만을 이유로 이 경계를 선제 변경하지 않는다.
 
-## 19. 2026-08-27 유지보수 기반 정리 진행 상태
+## 19. 2026-08-27 유지보수 기반 정리
 
 제품 runtime/version/release를 변경하지 않고 앞으로의 유지보수 안전성을 높이는 작업을 PR #196에서 진행한다.
 
@@ -474,28 +474,34 @@ Exporter 변경 시 이 exclusion을 release regression으로 계속 검증한�
 - Live Probe는 hermetic PR/main CI와 분리하고 daily schedule + manual dispatch로 운용
 - production Game Content build와 동일하게 json.tarkov.dev, edition source, Tarkov Wiki Ballistics source를 관찰
 - Wiki Ballistics failure/schema drift는 production과 동일하게 fail-soft warning으로 기록하고 기본 canonical content의 Fatal validation과 구분
+- Live Probe는 성공/경고/실패 모두 Actions log에 주요 entity 수량과 source warning을 명시적으로 남김
 - `ContentUpdateCompletenessGuard`의 50% retained boundary와 no-baseline 의미를 회귀 테스트로 고정
 - collection schema가 array/object 밖으로 drift하면 fail closed하는 회귀 추가
 - `DATA_VALIDATION.md`, `ARCHITECTURE.md`, `DEVELOPER_REFERENCE.md`를 현재 runtime 계약과 일치시킴
 
-검증 상태:
+검증:
 
 ```text
-PR #196 initial reviewed head: 27154eb5082386f68a74421ebd2b677f4430c039
-CI run: 33037598749 — SUCCESS
+review-adjusted PR head CI: 33038100860 — SUCCESS
 396 passed / 0 failed / 0 skipped
 Windows publish: SUCCESS
 Product UI / Map / Factory / MiniMap smoke: SUCCESS
 graceful shutdown / package verification: SUCCESS
+
+one-time live probe run: 33038439864 — SUCCESS
+Regular: items=5312 quests=517 objectives=1457 questItems=305 hideout=26 ammo=200 validationIssues=0 fatal=0
+PvE:     items=5312 quests=514 objectives=1434 questItems=293 hideout=26 ammo=200 validationIssues=0 fatal=0
+Wiki Ballistics: registered 186/200 ammo, safely matched effectiveness for 186
 ```
 
-위 CI 이후 review에서 Live Probe가 production Wiki Ballistics source를 포함해야 한다는 누락을 확인하여 probe composition을 수정했다. 따라서 **위 run은 최종 head 검증이 아니며**, 최종 PR head의 전체 Windows CI를 다시 통과해야 한다.
+Live Probe의 `sourceWarnings=1`은 Regular/PvE 각각 Wiki Ballistics가 186/200종을 확인하고 186종을 안전하게 매칭했다는 enrichment 상태 메시지이며 Fatal validation은 0이다.
+
+실제 외부 검증을 위해 사용한 branch-only 일회성 workflow는 검증 직후 제거했으며 장기 workflow에는 특정 유지보수 branch trigger를 남기지 않는다.
 
 완료 전 남은 작업:
 
-1. review 수정이 포함된 final PR head 전체 CI 재검증
-2. PR #196 병합
-3. `main`의 새 Live Data Probe를 수동 실행하여 current Regular/PvE + Wiki Ballistics source 계약 확인
-4. 실제 probe run ID, Regular/PvE 결과, warning/Fatal 상태를 이 문서에 후속 기록
+1. 일회성 workflow 제거와 이 상태 기록이 포함된 최종 PR head 전체 CI 통과 확인
+2. PR review thread 종료 및 최종 diff 확인
+3. PR #196 병합
 
 공개 v1.7.11의 exact release source/tag/assets는 이 유지보수 기반 작업과 무관하며 변경하지 않는다.
