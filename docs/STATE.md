@@ -3,7 +3,7 @@
 > 새 대화/새 개발자는 이 문서를 먼저 읽습니다. 대화 기억이 아니라 저장소의 공식 문서와 현재 GitHub 상태가 프로젝트의 기준입니다.
 
 기준일: 2026-08-27  
-상태: **v1.7.12 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+상태: **v1.7.13 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 1. 제품
 
@@ -32,26 +32,26 @@ Runtime GPT/AI 의존성은 없다.
 ## 2. 현재 public stable
 
 ```text
-version: v1.7.12
-exact product release source/tag target: d8d0f8eb1ffdd9b8c4ec890277a7b209b2458c2b
-main CI run: 33042307773 — SUCCESS
-release workflow run: 33042464642 — SUCCESS
-release id: 377581895
+version: v1.7.13
+exact product release source/tag target: 16198c462a6be58d77dbe2dc27aa57eabfc7b9fd
+main CI run: 33051890329 — SUCCESS
+release workflow run: 33052109161 — SUCCESS
+release id: 377652938
 asset: Junhyun-Helper.zip
-asset id: 531791229
-asset bytes: 80,477,641
-asset SHA-256: 3f0d57f8a5dc92611bc8648a423c43d65917e63e0d73a771b559153803186fa1
+asset id: 531953179
+asset bytes: 80,486,670
+asset SHA-256: d1cfcf1f606985485584f0e085e8821e0f62156a980f259a90144fd134a7eeb6
 checksum asset: SHA256SUMS.txt
-checksum asset id: 531791226
+checksum asset id: 531953171
 checksum asset bytes: 86
-checksum asset SHA-256: 97cf0d26c1d6c91c5876ee02f829225a23221e2bc893659d211055aa6af6a99d
-397 passed / 0 failed / 0 skipped
-published UTC: 2026-08-27T05:26:26Z
+checksum asset SHA-256: 63ca63dd0e21d347a293a6fc45817d604bc4016d3338425a21b5ddc3e86a26f1
+400 passed / 0 failed / 0 skipped
+published UTC: 2026-08-27T08:00:58Z
 ```
 
 GitHub `/releases/latest` 및 tag-ref readback:
 
-- tag `v1.7.12`
+- tag `v1.7.13`
 - release target = exact product release source
 - tag ref object = exact product release source
 - draft = false
@@ -62,11 +62,11 @@ GitHub `/releases/latest` 및 tag-ref readback:
 
 상세 공개 증거:
 
-- `docs/RELEASE_1.7.12.md`
-- `docs/.release-v1.7.12-status.json`
-- `docs/RELEASE_NOTES_V1.7.12.md`
+- `docs/RELEASE_1.7.13.md`
+- `docs/.release-v1.7.13-status.json`
+- `docs/RELEASE_NOTES_V1.7.13.md`
 
-이후 documentation-only commit은 v1.7.12 product release source가 아니다. 제품 release source/tag target은 위 `d8d0f8eb...`로 고정한다. 이미 공개된 v1.7.12 tag/source/assets는 immutable historical product release로 취급한다.
+이후 documentation-only commit은 v1.7.13 product release source가 아니다. 제품 release source/tag target은 위 `16198c46...`로 고정한다. 이미 공개된 v1.7.12 및 v1.7.13 tag/source/assets는 immutable historical product release로 취급한다.
 
 ## 3. 아키텍처
 
@@ -88,11 +88,13 @@ JunhyunHelper.Desktop
 
 Desktop shared presentation infrastructure는 `MainWindow.OnInitialized`가 product-window composition owner다. 개별 Page의 internal presentation initialization은 해당 Page가 직접 소유하며 unrelated Page의 `Loaded` 순서에 의존하지 않는다.
 
+v1.7.13부터 프로필/Scanner 설정·편집처럼 사용자-facing modal editing surface는 가능한 경우 MainWindow의 공통 in-app overlay owner가 호스팅한다. child editor의 기존 validation/save semantics와 resources는 보존하고, overlay는 표시/닫기 ownership만 담당한다.
+
 ## 4. Schema / 사용자 데이터
 
 ```text
-Desktop target version: 1.7.12
-Current public stable executable: 1.7.12
+Desktop target version: 1.7.13
+Current public stable executable: 1.7.13
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
@@ -179,6 +181,55 @@ continuous observation target = 200 ms
 - Item ID 확정 전 price/needed/slot metadata를 identity evidence로 사용하지 않음
 - current official catalog 밖 임의 Item 생성 금지
 - reviewed evidence 없이 recognition threshold/candidate cap/matcher/visual acceptance 완화 금지
+
+## 6A. v1.7.13 — UI simplification / in-app overlay
+
+v1.7.13은 domain/recognition 의미를 바꾸지 않고 현재 제품의 반복 조작과 불필요한 UI를 줄인 patch다.
+
+### Items / Ammo
+
+- Items의 퀘스트용/은신처용 용도 필터는 제거하고 canonical `All` 기준을 사용한다.
+- Ammo 상단은 `구경 → 즐겨찾기 토글 → 즐겨찾기 선택 → 검색` 중심으로 정리하고 표시 열 메뉴는 우측에 유지한다.
+- Ammo 상세정보는 새 실행 세션에서 기본 접힘이다.
+- 표 위 중복 요약 문구는 제거했다.
+- published EXE smoke는 Ammo를 `초기 접힘 → 펼침 → 다시 접힘`으로 실제 렌더링/토글 검증한다.
+
+### Map
+
+- 지도 marker selector는 기본 접힘이며 같은 launcher를 다시 누르면 닫힌다.
+- Map 설정 popup도 같은 launcher 재클릭으로 닫힌다.
+- trail/clear-trail UI와 hotkey 설명 문구를 제거했다.
+- pinned donor `d933792b6042a51cea38dc44b686a096fe30de67` 자체를 수정하지 않고 JunhyunHelper first-party `MapPage.JunhyunUiSimplification.cs`에서 제품 UI 요구사항을 적용한다.
+
+### Scanner
+
+- display 설정은 변경 즉시 기존 atomic settings store에 저장한다.
+- hotkey 설정 launcher는 기본 Scanner 화면으로 분리한다.
+- 검색한 item이 현재 needed item이면 `ItemsWorkspace.Plan.NeededItems`의 기존 `Sources`를 presentation에 join해 관련 Quest/Hideout을 보여주고 이동할 수 있다.
+- 이 source 표시를 위해 Quest/Hideout 요구량을 재계산하지 않는다.
+- needed/source/price는 Item ID 확정 뒤 presentation metadata일 뿐 Item identity evidence가 아니다.
+- `현재 결과 교정`은 상단 우측 action lane에 둔다.
+
+### In-app overlay
+
+프로필 편집과 Scanner 설정/hotkey 등 사용자-facing editor는 MainWindow 내부 공통 overlay에서 표시한다.
+
+```text
+launcher
+→ MainWindow overlay owner
+→ existing editor content/resources
+→ existing validation/save semantics
+```
+
+닫기 interaction:
+
+- X
+- backdrop click
+- 같은 launcher 재클릭
+
+overlay host는 child editor의 domain/persistence authority를 가져가지 않는다.
+
+공식 결정: `docs/DECISION_V1.7.13_UI_SIMPLIFICATION.md`.
 
 ## 7. v1.7.12 — long-term maintenance hardening
 
@@ -390,10 +441,14 @@ root cause는 Windows OCR 자체가 아니라 같은 cycle의 exact current-pixe
 스캐너 ON/OFF
 설정
 고급
-현재 결과 교정
+단축키
+(status / spacer)
+현재 결과 교정 — 우측 action lane
 ```
 
-`현재 결과 교정`은 최신 exact in-memory Scanner frame만 교정 창으로 연다.
+`현재 결과 교정`은 최신 exact in-memory Scanner frame만 교정 surface로 연다.
+
+`설정`과 `단축키`는 v1.7.13부터 MainWindow 내부 overlay에서 표시된다. Scanner display 설정은 변경 즉시 저장되며 별도 저장/취소 버튼을 사용하지 않는다.
 
 `고급`:
 
@@ -435,6 +490,19 @@ Release build
 ```
 
 Stable release는 **main push CI가 성공한 exact main commit**의 artifact만 Release workflow가 게시한다.
+
+v1.7.13 proof:
+
+```text
+PR #199 final head: 98da50022528d78a3c8f0448736b5785bf9de818
+final PR CI: 33051551273 — SUCCESS
+main release source: 16198c462a6be58d77dbe2dc27aa57eabfc7b9fd
+main CI: 33051890329 — SUCCESS
+Release workflow: 33052109161 — SUCCESS
+400 tests passed
+public ZIP bytes: 80,486,670
+public/main-CI SHA-256: d1cfcf1f606985485584f0e085e8821e0f62156a980f259a90144fd134a7eeb6
+```
 
 v1.7.12 proof:
 
@@ -486,9 +554,13 @@ evidence
 - `docs/DECISION_V1.7.11_MAINTENANCE.md`
 - `docs/DECISION_LONG_TERM_MAINTENANCE_AUDIT_2026-08-27.md`
 - `docs/DECISION_V1.7.12_MAINTENANCE.md`
+- `docs/DECISION_V1.7.13_UI_SIMPLIFICATION.md`
 - `docs/RELEASE_NOTES_V1.7.12.md`
 - `docs/RELEASE_1.7.12.md`
 - `docs/.release-v1.7.12-status.json`
+- `docs/RELEASE_NOTES_V1.7.13.md`
+- `docs/RELEASE_1.7.13.md`
+- `docs/.release-v1.7.13-status.json`
 
 ## 19. 유지보수 안전 계약 및 알려진 기술 부채
 
@@ -592,3 +664,38 @@ SHA-256: 3f0d57f8a5dc92611bc8648a423c43d65917e63e0d73a771b559153803186fa1
 Public `/releases/latest`와 tag ref 모두 v1.7.12 exact source `d8d0f8eb...`을 가리키고 공개 ZIP digest가 main-CI package와 일치한다.
 
 이후 release record/STATE/README 같은 documentation-only commit은 v1.7.12 제품 릴리즈 소스가 아니다. Release workflow는 이미 공개된 stable version을 immutable하게 취급하고 required assets만 확인해야 한다.
+
+## 22. 2026-08-27 v1.7.13 UI simplification / release
+
+PR #199에서 사용자 확정 UI 단순화와 in-app overlay 통일을 완료하고 v1.7.13으로 공개했다.
+
+최종 검증/배포:
+
+```text
+PR #199 final head: 98da50022528d78a3c8f0448736b5785bf9de818
+final PR CI: 33051551273 — SUCCESS
+400 passed / 0 failed / 0 skipped
+
+PR #199: MERGED
+exact product release source: 16198c462a6be58d77dbe2dc27aa57eabfc7b9fd
+main CI: 33051890329 — SUCCESS
+400 passed / 0 failed / 0 skipped
+Windows x64 publish: SUCCESS
+Product UI / Scanner / Map / Factory / MiniMap smoke: SUCCESS
+graceful shutdown / clean portable root: SUCCESS
+release package verification: SUCCESS
+
+Release workflow: 33052109161 — SUCCESS
+public release: v1.7.13
+release id: 377652938
+Junhyun-Helper.zip: 80,486,670 bytes
+SHA-256: d1cfcf1f606985485584f0e085e8821e0f62156a980f259a90144fd134a7eeb6
+```
+
+Public `/releases/latest`와 tag ref 모두 exact source `16198c46...`을 가리키고 공개 ZIP digest가 main-CI package와 일치한다.
+
+첫 v1.7.13 published EXE smoke는 과거 Ammo 기본 펼침을 가정한 stale assertion으로 실패했다. 검사를 제거하지 않고 제품 계약에 맞춰 `초기 접힘 → 펼침 → 다시 접힘` 전체 왕복을 검증하도록 수정했고 최종 PR/main CI에서 통과했다.
+
+v1.7.13은 Scanner recognition threshold/candidate cap/matcher/visual acceptance, Map donor revision, Needed Items 계산 authority, Game Content validation/LKG를 변경하지 않았다.
+
+이후 `RELEASE_1.7.13.md`, release status, STATE, DEVELOPER_REFERENCE, SCANNER_TEST_PLAN 같은 documentation-only commit은 v1.7.13 제품 릴리즈 소스가 아니다. exact product source/tag target은 `16198c462a6be58d77dbe2dc27aa57eabfc7b9fd`로 고정한다.
