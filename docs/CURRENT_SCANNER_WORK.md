@@ -1,7 +1,7 @@
 # Current Scanner Work
 
 기준일: 2026-08-27
-상태: **FEATURE COMPLETE / MAINTENANCE ONLY / v1.7.12 PUBLIC STABLE**
+상태: **FEATURE COMPLETE / MAINTENANCE ONLY / v1.7.13 PUBLIC STABLE**
 
 ## 최종 결론
 
@@ -16,33 +16,34 @@ Scanner 기능 개발 단계는 종료됐다. 현재 기본 운영 모드는 **�
 - v1.7.10: 특정 PC가 아닌 공개 배포 범용성을 위한 item-title OCR 입력 환경 정규화
 - v1.7.11: Scanner `필요 개수` presentation 및 configurable hotkey modifier UX 수정. Scanner identity recognition 기준은 변경하지 않음
 - v1.7.12: Desktop page lifecycle/ownership 유지보수. Scanner identity recognition, threshold, candidate, matcher, visual, pacing 정책은 변경하지 않음
+- v1.7.13: Scanner settings/search/UI 단순화. 표시 설정 즉시 저장, hotkey entry 분리, needed-item Quest/Hideout source 표시/이동, current correction 우측 정렬. Scanner identity recognition 기준은 변경하지 않음
 
 새 실제 회귀 증거가 없는 한 threshold, candidate cap, OCR/matcher/visual acceptance를 선제 조정하지 않는다.
 
 ## 현재 Public stable
 
 ```text
-version: v1.7.12
-exact product release source: d8d0f8eb1ffdd9b8c4ec890277a7b209b2458c2b
-main CI run: 33042307773 — SUCCESS
-release workflow run: 33042464642 — SUCCESS
-release id: 377581895
+version: v1.7.13
+exact product release source: 16198c462a6be58d77dbe2dc27aa57eabfc7b9fd
+main CI run: 33051890329 — SUCCESS
+release workflow run: 33052109161 — SUCCESS
+release id: 377652938
 asset: Junhyun-Helper.zip
-asset id: 531791229
-bytes: 80,477,641
-SHA-256: 3f0d57f8a5dc92611bc8648a423c43d65917e63e0d73a771b559153803186fa1
-397 passed / 0 failed / 0 skipped
+asset id: 531953179
+bytes: 80,486,670
+SHA-256: d1cfcf1f606985485584f0e085e8821e0f62156a980f259a90144fd134a7eeb6
+400 passed / 0 failed / 0 skipped
 ```
 
-GitHub `/releases/latest`와 tag-ref readback에서 v1.7.12가 draft=false, prerelease=false, latest stable이며 release target과 tag ref가 exact product release source와 일치함을 확인했다. 공개 ZIP digest도 exact main-CI package SHA-256과 일치한다.
+GitHub `/releases/latest`와 tag-ref readback에서 v1.7.13이 draft=false, prerelease=false, latest stable이며 release target과 tag ref가 exact product release source와 일치함을 확인했다. 공개 ZIP digest도 exact main-CI package SHA-256과 일치한다.
 
 상세 공개 증거:
 
-- `docs/RELEASE_1.7.12.md`
-- `docs/.release-v1.7.12-status.json`
-- `docs/RELEASE_NOTES_V1.7.12.md`
+- `docs/RELEASE_1.7.13.md`
+- `docs/.release-v1.7.13-status.json`
+- `docs/RELEASE_NOTES_V1.7.13.md`
 
-이 문서와 이후 documentation-only commit은 v1.7.12 product release source가 아니다. v1.7.12 tag/source/assets는 위 `d8d0f8eb...` 기준으로 immutable하게 유지한다.
+이 문서와 이후 documentation-only commit은 v1.7.13 product release source가 아니다. v1.7.13 tag/source/assets는 위 `16198c46...` 기준으로 immutable historical product release로 취급한다.
 
 ## 현재 Scanner pipeline
 
@@ -64,6 +65,36 @@ Tarkov window pixels
 ```
 
 Scanner는 closed-domain recognizer이며 current official Korean Tarkov full-item catalog가 Item identity authority다.
+
+## v1.7.13 — Scanner 영향
+
+v1.7.13은 Scanner identity recognition 변경 릴리즈가 아니다.
+
+UI/presentation 계약:
+
+- Scanner display 설정은 변경 즉시 기존 atomic settings store에 저장하고 Save/Cancel transaction을 사용하지 않음
+- icon/official item name은 Mini Scanner fixed identity header이므로 `항상 표시` 안내 row를 별도로 노출하지 않음
+- configurable Scanner hotkey 편집 entry point를 display settings에서 분리해 기본 Scanner 화면으로 이동
+- item search에서 current needed item이면 기존 `ItemsWorkspace.Plan.NeededItems[itemId].Sources`를 그대로 join해 Quest/Hideout source를 표시하고 해당 화면으로 이동
+- source/needed quantity를 Scanner가 별도 재계산하지 않음
+- `현재 결과 교정`은 기본 Scanner 화면 우측 command 영역에 위치
+- user-facing Scanner settings/edit surface는 가능한 경우 MainWindow 내부 공통 overlay interaction을 사용
+
+보존된 recognition 계약:
+
+- structural floor `0.34`
+- `HEADER_FRAME_LOCKED` floor `0.68`
+- continuous candidate cap `8`
+- one-shot candidate cap `12`
+- continuous observation target `200 ms`
+- matcher / visual recovery acceptance 불변
+- cross-frame OCR/visual identity cache 없음
+- Item ID 확정 전 mapped metadata identity evidence 사용 금지
+- scan-time network identity work 없음
+
+`V1713UiSimplificationContractTests`는 Scanner needed-source authority와 Items/Ammo UI contracts를 고정하고, actual published EXE smoke가 Scanner normal surface와 product rendering을 포함해 검증했다.
+
+공식 결정: `docs/DECISION_V1.7.13_UI_SIMPLIFICATION.md`.
 
 ## v1.7.12 — Scanner 영향
 
@@ -272,16 +303,18 @@ root cause는 Windows OCR이 아니라 같은 current frame visual evidence의 �
 
 ## Scanner UI — current
 
-일반 Scanner 화면 상단:
+일반 Scanner 화면:
 
 ```text
 스캐너 ON/OFF
-설정
+표시 설정
+configurable hotkey 설정
 고급
-현재 결과 교정
+현재 결과 교정 (우측 command 영역)
+item search / recognition log
 ```
 
-`현재 결과 교정`은 메모리에 보존된 최신 exact Scanner frame만 기존 correction window로 연다.
+표시 설정은 변경 즉시 저장되고 별도 Save/Cancel을 사용하지 않는다. `현재 결과 교정`은 메모리에 보존된 최신 exact Scanner frame만 correction editor로 연다.
 
 `고급`:
 
@@ -308,15 +341,16 @@ continuous observation target = 200 ms
 - scan-time network identity work 없음
 - reviewed Ground Truth 없이 threshold/candidate cap 완화 금지
 
-## v1.7.12 CI / release proof
+## v1.7.13 CI / release proof
 
 ```text
-PR #197 final head: 23e1784c25954f4900a57cfa4c1c9821d5d6d668
-final PR CI: 33042136686 — SUCCESS
-main source: d8d0f8eb1ffdd9b8c4ec890277a7b209b2458c2b
-main CI: 33042307773 — SUCCESS
-Release workflow: 33042464642 — SUCCESS
-397 passed / 0 failed / 0 skipped
+PR #199 final head: 98da50022528d78a3c8f0448736b5785bf9de818
+final PR CI: 33051551273 — SUCCESS
+main source: 16198c462a6be58d77dbe2dc27aa57eabfc7b9fd
+main CI: 33051890329 — SUCCESS
+Release workflow: 33052109161 — SUCCESS
+400 passed / 0 failed / 0 skipped
+public ZIP SHA-256: d1cfcf1f606985485584f0e085e8821e0f62156a980f259a90144fd134a7eeb6
 ```
 
 ## Maintenance workflow
