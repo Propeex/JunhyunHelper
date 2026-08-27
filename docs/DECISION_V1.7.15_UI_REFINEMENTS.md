@@ -45,6 +45,28 @@ v1.7.14 이후 새 기능을 추가하지 않고 기존 UI의 남은 불편을 �
 - cadence는 1.4초이며, dropdown 둘 다 닫히면 timer를 중지한다.
 - icon byte는 기존 Ammo icon loading/cache 결과를 재사용한다. 별도 source/network authority를 만들지 않는다.
 
+## 구현 경계
+
+```text
+src/JunhyunHelper.Desktop/MainWindow.HeaderStatusPolish.cs
+  → header version-only presentation
+  → Items cleanup orange indicator
+
+src/JunhyunHelper.Desktop/Map/MapPage.JunhyunMarkerPanelPolish.cs
+  → marker list measured viewport
+  → conditional scrollbar
+  → outside-click dismiss
+
+src/JunhyunHelper.Desktop/Ammo/AmmoPage.CaliberDropdownPolish.cs
+  → standard Favorites ComboBox
+  → shared caliber/member-ammo icon animation
+
+tests/JunhyunHelper.Tests/Maintenance/V1715UiRefinementsContractTests.cs
+  → deterministic maintenance contracts
+```
+
+이 구현들은 Desktop presentation boundary에 한정된다. Domain truth나 donor source revision을 이동시키지 않는다.
+
 ## 변경하지 않는 계약
 
 - Scanner recognition policy/constants/matcher/visual acceptance/pacing
