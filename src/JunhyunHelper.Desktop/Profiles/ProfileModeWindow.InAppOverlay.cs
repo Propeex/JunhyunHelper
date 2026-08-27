@@ -48,14 +48,19 @@ public partial class ProfileModeWindow : IInAppOverlayDialog
 
     private void InAppNextButton_Click(object sender, RoutedEventArgs e)
     {
-        if (ModeList.SelectedItem is not { } selected)
+        if (ModeList.SelectedItem is not ModeChoice choice)
+        {
+            MessageBox.Show(
+                Application.Current.MainWindow,
+                "생성할 게임 모드를 선택해주세요.",
+                "새 프로필",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
             return;
+        }
 
-        // Reuse the native handler's authoritative selection conversion, but avoid
-        // DialogResult on a Window whose content is hosted by MainWindow.
-        NextButton_Click(sender, e);
-        if (SelectedMode is not null)
-            _inAppCloseRequested?.Invoke(true);
+        SelectedMode = choice.Mode;
+        _inAppCloseRequested?.Invoke(true);
     }
 
     private void InAppCancelButton_Click(object sender, RoutedEventArgs e) =>
