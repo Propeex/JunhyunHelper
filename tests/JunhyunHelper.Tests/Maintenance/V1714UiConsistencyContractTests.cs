@@ -37,6 +37,7 @@ public sealed class V1714UiConsistencyContractTests
         var xaml = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerSettingsWindow.xaml");
         var code = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerSettingsWindow.xaml.cs");
         var page = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.ProductUsability.cs");
+        var scannerDirectory = Path.Combine(root, "src", "JunhyunHelper.Desktop", "Scanner");
 
         Assert.Contains("Scanner 단축키", xaml, StringComparison.Ordinal);
         Assert.Contains("OneShotTarkovText", xaml, StringComparison.Ordinal);
@@ -46,6 +47,8 @@ public sealed class V1714UiConsistencyContractTests
         Assert.Contains("SetOneShotTestHotkey", code, StringComparison.Ordinal);
         Assert.Contains("SetScannerToggleHotkey", code, StringComparison.Ordinal);
         Assert.Contains("ToggleInAppWindowAsync(\"scanner-settings\"", page, StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(scannerDirectory, "ScannerHotkeySettingsWindow.xaml")));
+        Assert.False(File.Exists(Path.Combine(scannerDirectory, "ScannerHotkeySettingsWindow.xaml.cs")));
     }
 
     [Fact]
