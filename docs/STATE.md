@@ -403,15 +403,18 @@ runtime evidence 확보
 
 ## 12. 다음 세션 복구 순서
 
-1. `AGENTS.md`
-2. `README.md`
-3. `docs/CURRENT_STATE.md`
-4. `docs/STATE.md`
-5. `docs/PRODUCT.md`
-6. `docs/DECISIONS.md`
-7. `docs/MAINTENANCE_CONTRACTS.md`
-8. `docs/DEVELOPER_REFERENCE.md`
-9. 작업 영역 전문 문서
-10. current code / current PR / current CI
+`AGENTS.md`의 작업 규약을 먼저 적용하고, 그 문서가 정한 필수 복구 순서를 그대로 따른다.
 
-새 대화는 과거 대화 기억을 신뢰하지 않고 이 순서로 현재 저장소 상태를 확인한다.
+1. `README.md`
+2. `docs/STATE.md`
+3. `docs/PRODUCT.md`
+4. `docs/DECISIONS.md`
+5. `docs/MAINTENANCE_CONTRACTS.md`
+6. `docs/DEVELOPER_REFERENCE.md`
+7. `docs/ARCHITECTURE.md`
+8. `docs/VERSIONING.md`
+9. `docs/DEVELOPMENT.md`
+10. `docs/REFERENCE_POLICY.md`
+11. 현재 작업과 관련된 전문 문서 / 코드 / 테스트 / 이슈 / PR / CI
+
+새 대화는 과거 대화 기억을 신뢰하지 않고 위 순서로 현재 저장소 상태를 확인한다.
