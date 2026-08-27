@@ -1,6 +1,6 @@
 # DEVELOPER_REFERENCE — 준현 헬퍼 개발자용 시스템 설명서
 
-상태: **ACTIVE / v1.7.12 PUBLIC STABLE / MAINTENANCE MODE**  
+상태: **ACTIVE / v1.7.13 PUBLIC STABLE / MAINTENANCE MODE**  
 기준일: 2026-08-27
 
 이 문서는 다음 개발 세션이 대화 기억 없이 저장소만 보고 **현재 구현 위치·책임·데이터 흐름·변경 영향**을 빠르게 복구하기 위한 지도다.
@@ -149,6 +149,8 @@ MainWindow.Window_Loaded
 
 Page-level shared infrastructure는 `ItemsPage`/`HideoutPage`/`AmmoPage`가 우연히 `Loaded`되는 순서에 맡기지 않는다. `MainWindow.OnInitialized`가 product-window lifetime의 composition owner다. 화면 내부의 presentation 초기화는 해당 Page가 직접 소유한다. 예를 들어 Ammo search/detail/grid presentation은 `AmmoPage.OnInitialized`에서 Loaded dispatcher priority로 초기화되며, 부모 `MainWindow`의 page-loaded handler 존재 여부에 의존하지 않는다.
 
+v1.7.13의 user-facing profile/Scanner editor는 `MainWindow.InAppOverlay.cs`의 공통 overlay owner가 표시/닫기 lifetime을 소유한다. 기존 Window/editor content를 overlay로 옮길 때 해당 editor의 `Resources`와 validation/save semantics를 보존한다. X, backdrop click, 같은 launcher 재클릭은 overlay dismissal interaction이며 domain persistence authority가 아니다.
+
 `MainWindow`는 orchestration layer다. 새 domain truth를 여기서 만들지 않는다.
 
 Shutdown에서는 Scanner runtime/OCR/font/retention/background-owned resource가 정상 종료돼야 한다. 실제 published EXE graceful-shutdown smoke가 이 경계를 검증한다.
@@ -291,10 +293,13 @@ Map artwork/config/general markers는 donor bundle을 사용하고 current Quest
 
 - `Desktop/MainWindow.LegacyMapHost.cs`
 - `Desktop/MainWindow.ProductLifecycle.cs`
+- `Desktop/Map/MapPage.JunhyunUiSimplification.cs` — v1.7.13 marker/settings launcher, trail/hotkey-description product UI simplification
 - `Desktop/Map/*`
 - `Desktop/Legacy/TarkovHelper/*`
 - `Desktop/Quests/QuestPage.MapBridge.cs`
 - `Desktop/Quests/QuestPage.MapNavigation.cs`
+
+v1.7.13의 Map UI 정리는 donor source를 직접 수정하지 않는다. donor XAML/control을 first-party partial/customization boundary에서 재구성하므로 donor revision을 바꾸거나 upstream cleanup으로 오해하지 않는다.
 
 이름에 `Legacy`가 있어도 compatibility bridge로 현재 실행 경로에 있을 수 있다. 이름만 보고 dead code로 판단하지 않는다.
 
@@ -373,10 +378,12 @@ screen pixels
 - `Scanner/ScannerItemPresentationService.cs` — confirmed Item ID → mapped presentation
 - `Scanner/ScannerRecognitionDebugStore.cs` — latest evidence
 - `Scanner/ScannerLatencyTelemetry.cs` — stage latency telemetry
-- `Scanner/ScannerPage.xaml(.cs)` — normal surface/search/log
-- `Scanner/ScannerSettingsWindow.xaml(.cs)` — hotkeys + Mini fields/order
+- `Scanner/ScannerPage.xaml(.cs)` — normal surface/search/log/hotkey launcher
+- `Scanner/ScannerSettingsWindow.xaml(.cs)` — Mini fields/order + display settings, immediate-save UI
+- `Scanner/ScannerHotkeySettingsWindow.xaml(.cs)` — Scanner hotkey editor
 - `Scanner/ScannerAdvancedWindow.xaml(.cs)` — Display Test/correction/dataset
 - `Scanner/MiniScannerWindow.xaml(.cs)` — no-activate Topmost overlay
+- `MainWindow.ScannerItemSources.cs` — searched confirmed item → authoritative NeededItems source presentation/navigation
 
 `SerializedScannerOcrEngine`의 reflection 기반 serialization boundary는 의도적으로 남은 기술 부채다. 단순 cleanup 대상으로 취급하지 않는다.
 
@@ -442,6 +449,8 @@ confirmed Item ID
 
 Scanner presentation이 raw inventory를 다시 빼거나 `RequiredTotal`을 표시하면 안 된다. FIR/일반 소비 의미는 `NeededItemCalculator` 결과를 그대로 재사용한다.
 
+v1.7.13 검색 상세의 Quest/Hideout source도 같은 authoritative `ItemsWorkspace.Plan.NeededItems` row의 `Sources`를 presentation에 join한다. Scanner가 Quest/Hideout requirement를 별도로 재계산하거나 source list를 새 truth로 만들면 안 된다. `RemainingTotal`/`Sources`는 Item ID 확정 뒤 표시 데이터이며 Item identity evidence가 아니다.
+
 Market/dimension failure는 해당 presentation field만 비우고 Item identity를 소급 무효화하지 않는다.
 
 ## 8.9 Ground Truth / diagnostics
@@ -505,23 +514,26 @@ source fields
 → Mini Scanner / search
 ```
 
-Needed count:
+Needed count / searched-item sources:
 
 ```text
 Quest/Hideout/Profile
 → FutureNeededItemsPlanner
 → ItemsWorkspace.Plan.NeededItems
-→ NeededItemCalculator.RemainingTotal
-→ Scanner presentation
+→ RemainingTotal + Sources
+→ Scanner presentation/search navigation
 ```
 
 Settings:
 
 ```text
 ScannerDisplaySettings migration/normalize
-→ hotkeys / Mini display/order / substitutions
-→ Settings UI
-→ Mini rendering
+→ Mini display/order / substitutions
+→ immediate-save Settings UI
+
+Scanner hotkey fields
+→ Hotkey Settings UI
+→ same atomic Scanner settings store
 ```
 
 ---
@@ -529,6 +541,8 @@ ScannerDisplaySettings migration/normalize
 # 9. Ammo / image / preferences
 
 Ammo는 read-only comparison/favorites를 담당한다. Raw stats와 external Wiki Ballistics effectiveness를 분리하고 자체 effectiveness heuristic을 만들지 않는다.
+
+v1.7.13에서 Ammo detail은 기본 접힘이며 published EXE smoke가 `collapsed → expanded → collapsed` 렌더링 왕복을 검증한다. 기본 상태 변경 때문에 smoke가 실패하면 검사를 삭제하지 말고 현재 확정 제품 계약과 실제 rendered state를 먼저 비교한다.
 
 `Desktop/Services/ImageCacheService.cs`는 image byte/dimension을 검증하고 decode 후 normalize한다. 개별 image 실패를 Game Content 전체 실패로 확대하지 않는다.
 
@@ -708,6 +722,8 @@ current code references
 + docs/history/recovery value
 ```
 
+WPF에서는 handler 본문이 중복처럼 보여도 routed/class handler 또는 `Loaded` delivery를 간접적으로 유지할 수 있다. v1.7.12 audit에서 부모 page Loaded subscription 제거가 Ammo class-level Loaded initialization 회귀를 드러냈다. 따라서 lifecycle 관련 dead-code 판단은 actual published EXE smoke까지 확인한다.
+
 현재 동작과 historical reproducibility에 가치가 있으면 참조가 적더라도 남길 수 있다.
 
 반대로 obsolete automation이 현재 목적을 수행하지 않고 새 generic path로 완전히 대체되면 제거할 수 있다. 예: version-bound live probe는 long-lived `live-data-probe.yml`로 대체한다.
@@ -728,6 +744,7 @@ current code references
 - Scanner threshold/candidate cap을 인식률 때문에 임의 완화
 - Scanner scan-time network/icon identity 추가
 - Scanner에서 Needed Items 의미 재계산
+- Scanner searched-item Quest/Hideout source를 별도 requirement 계산으로 재구현
 - Scanner catalog shared writer synchronization 분리
 - user substitution을 automatic global correction table로 승격
 - reviewed Ground Truth 자동 삭제
