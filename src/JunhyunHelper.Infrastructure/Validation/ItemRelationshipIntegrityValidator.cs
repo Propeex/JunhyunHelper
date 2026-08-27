@@ -1,4 +1,5 @@
 using JunhyunHelper.Core.Content;
+using JunhyunHelper.Core.Items;
 
 namespace JunhyunHelper.Infrastructure.Validation;
 
@@ -73,7 +74,7 @@ public sealed class ItemRelationshipIntegrityValidator
 
     private static void ValidateIngredients(
         IReadOnlySet<string> itemIds,
-        IReadOnlyList<Core.Items.ItemIngredient> ingredients,
+        IReadOnlyList<ItemIngredient> ingredients,
         string owner,
         string kind,
         ICollection<ContentValidationIssue> issues)
