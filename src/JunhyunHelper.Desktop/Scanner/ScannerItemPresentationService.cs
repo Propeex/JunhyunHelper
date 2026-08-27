@@ -5,8 +5,8 @@ namespace JunhyunHelper.Desktop.Scanner;
 
 /// <summary>
 /// Bridges a Scanner-confirmed Tarkov item ID to current JunhyunHelper derived state.
-/// It never reimplements Quest/Hideout requirement logic and never subtracts ownership
-/// from the displayed current-needed value.
+/// It never reimplements Quest/Hideout requirement or inventory accounting logic; the
+/// displayed current-needed value is the canonical remaining total from ItemsWorkspace.
 /// </summary>
 public sealed class ScannerItemPresentationService
 {
@@ -39,7 +39,7 @@ public sealed class ScannerItemPresentationService
             catalogItem,
             context.Content.Items,
             context.ItemsWorkspace.Plan.NeededItems
-                .Select(static item => (item.ItemId, item.RequiredTotal)));
+                .Select(static item => (item.ItemId, item.RemainingTotal)));
         var icon = _icons.Load($"item-{mapping.ItemId}", mapping.IconUrl);
 
         return new ScannerItemSnapshot(
