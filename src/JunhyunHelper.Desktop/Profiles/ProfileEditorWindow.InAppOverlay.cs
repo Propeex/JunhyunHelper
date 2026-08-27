@@ -1,6 +1,6 @@
-using System.Collections;
 using System.Windows;
 using System.Windows.Controls;
+using JunhyunHelper.Desktop;
 
 namespace JunhyunHelper.Desktop.Profiles;
 
@@ -50,6 +50,7 @@ public partial class ProfileEditorWindow : IInAppOverlayDialog
 
             if (string.Equals(label, "저장", StringComparison.Ordinal))
             {
+                button.IsDefault = false;
                 button.Click -= SaveButton_Click;
                 button.Click += InAppSaveButton_Click;
                 if (_editingExistingProfile)
