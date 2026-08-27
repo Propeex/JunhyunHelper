@@ -10,12 +10,13 @@
 2. `docs/STATE.md`
 3. `docs/PRODUCT.md`
 4. `docs/DECISIONS.md`
-5. `docs/DEVELOPER_REFERENCE.md`
-6. `docs/ARCHITECTURE.md`
-7. `docs/VERSIONING.md`
-8. `docs/DEVELOPMENT.md`
-9. `docs/REFERENCE_POLICY.md`
-10. 현재 작업과 관련된 전문 문서/코드/테스트/이슈/PR
+5. `docs/MAINTENANCE_CONTRACTS.md`
+6. `docs/DEVELOPER_REFERENCE.md`
+7. `docs/ARCHITECTURE.md`
+8. `docs/VERSIONING.md`
+9. `docs/DEVELOPMENT.md`
+10. `docs/REFERENCE_POLICY.md`
+11. 현재 작업과 관련된 전문 문서/코드/테스트/이슈/PR
 
 문서와 코드가 충돌하면 임의로 추측하지 말고 **사용자 의도와 확정 기록을 우선하여 원인을 조사**합니다.
 
@@ -33,7 +34,9 @@
 
 **기존 구현이 현재 새 제품의 요구사항을 결정해서는 안 됩니다.**
 
-`docs/DEVELOPER_REFERENCE.md`는 구현 위치와 참조 관계를 복구하는 지도이지 사용자 요구사항을 새로 정의하는 문서가 아닙니다.
+`docs/MAINTENANCE_CONTRACTS.md`는 위 우선순위를 바꾸는 제품 요구사항 문서가 아니라, 확정된 제품을 안전하게 유지·검증하는 개발 계약입니다.
+
+`docs/STATE.md`는 현재 릴리즈와 검증 상태를 복구하는 운영 인덱스입니다. `docs/DEVELOPER_REFERENCE.md`는 구현 위치와 참조 관계를 복구하는 지도이며, 두 문서 모두 사용자 요구사항을 새로 정의하지 않습니다.
 
 ## 3. 확정과 가설을 분리
 
@@ -72,7 +75,7 @@
 
 ## 5. 설계와 구현의 관계
 
-준현 헬퍼의 v1.0.0 기준 핵심 기능은 이미 구현되어 있으며 현재는 release/maintenance 단계입니다.
+준현 헬퍼의 핵심 제품 기능은 이미 구현되어 있으며 현재는 public stable / maintenance 단계입니다. 정확한 현재 공개 버전과 검증 상태는 `docs/STATE.md`를 확인합니다.
 
 따라서 다음을 구분합니다.
 
@@ -82,6 +85,7 @@
 - 기존 확정 동작을 바꾸지 않는 범위에서는 불필요한 재설계를 하지 않습니다.
 - 변경 후 관련 회귀 테스트와 실제 제품 경로를 검증합니다.
 - 새 기능이 아닌 수정/보완의 버전은 `docs/VERSIONING.md`에 따라 PATCH를 올립니다.
+- 구체적인 유지보수 안전 원칙은 `docs/MAINTENANCE_CONTRACTS.md`를 따릅니다.
 
 ### 새 기능 / 제품 의미가 바뀌는 변경
 
@@ -115,6 +119,7 @@
 - `docs/DECISIONS.md`: 장기적으로 의미 있는 확정 결정
 - `docs/ARCHITECTURE.md`: 기술 구조가 실제로 바뀐 경우
 - `docs/DEVELOPER_REFERENCE.md`: subsystem 책임/입출력/참조/변경 영향이 바뀐 경우
+- `docs/MAINTENANCE_CONTRACTS.md`: 유지보수 검증/안전 계약이 바뀐 경우
 - `docs/VERSIONING.md`: 사용자가 버전 정책을 변경한 경우
 
 단순 대화 요약을 남기는 것이 목적이 아닙니다. **다음 개발자가 저장소만 읽고 정확히 이어갈 수 있는 상태**를 만드는 것이 목적입니다.

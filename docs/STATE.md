@@ -422,6 +422,7 @@ evidence
 - `docs/SCANNER.md`
 - `docs/SCANNER_GROUND_TRUTH.md`
 - `docs/SCANNER_TEST_PLAN.md`
+- `docs/MAINTENANCE_CONTRACTS.md`
 - `docs/DECISION_PRODUCT_COMPLETE_2026-08-26.md`
 - `docs/DECISION_SCANNER_STORAGE_AND_HOTKEYS_2026-08-26.md`
 - `docs/DECISION_V1.7.8_RAID_HEADER_LOCK_2026-08-26.md`
@@ -461,3 +462,46 @@ Exporter 변경 시 이 exclusion을 release regression으로 계속 검증한�
 - full Windows CI/publish/Scanner product smoke 통과
 
 를 모두 만족해야 한다. 코드 미관만을 이유로 이 경계를 선제 변경하지 않는다.
+
+## 19. 2026-08-27 유지보수 기반 정리
+
+제품 runtime/version/release를 변경하지 않고 앞으로의 유지보수 안전성을 높이는 작업을 PR #196에서 진행한다.
+
+현재 범위:
+
+- `docs/MAINTENANCE_CONTRACTS.md`를 유지보수 안전 계약으로 추가
+- 버전 종속 `v1.7.1` Live Data Probe를 장기 운영형 `.github/workflows/live-data-probe.yml`로 교체
+- Live Probe는 hermetic PR/main CI와 분리하고 daily schedule + manual dispatch로 운용
+- production Game Content build와 동일하게 json.tarkov.dev, edition source, Tarkov Wiki Ballistics source를 관찰
+- Wiki Ballistics failure/schema drift는 production과 동일하게 fail-soft warning으로 기록하고 기본 canonical content의 Fatal validation과 구분
+- Live Probe는 성공/경고/실패 모두 Actions log에 주요 entity 수량과 source warning을 명시적으로 남김
+- `ContentUpdateCompletenessGuard`의 50% retained boundary와 no-baseline 의미를 회귀 테스트로 고정
+- collection schema가 array/object 밖으로 drift하면 fail closed하는 회귀 추가
+- `DATA_VALIDATION.md`, `ARCHITECTURE.md`, `DEVELOPER_REFERENCE.md`를 현재 runtime 계약과 일치시킴
+
+검증:
+
+```text
+review-adjusted PR head CI: 33038100860 — SUCCESS
+396 passed / 0 failed / 0 skipped
+Windows publish: SUCCESS
+Product UI / Map / Factory / MiniMap smoke: SUCCESS
+graceful shutdown / package verification: SUCCESS
+
+one-time live probe run: 33038439864 — SUCCESS
+Regular: items=5312 quests=517 objectives=1457 questItems=305 hideout=26 ammo=200 validationIssues=0 fatal=0
+PvE:     items=5312 quests=514 objectives=1434 questItems=293 hideout=26 ammo=200 validationIssues=0 fatal=0
+Wiki Ballistics: registered 186/200 ammo, safely matched effectiveness for 186
+```
+
+Live Probe의 `sourceWarnings=1`은 Regular/PvE 각각 Wiki Ballistics가 186/200종을 확인하고 186종을 안전하게 매칭했다는 enrichment 상태 메시지이며 Fatal validation은 0이다.
+
+실제 외부 검증을 위해 사용한 branch-only 일회성 workflow는 검증 직후 제거했으며 장기 workflow에는 특정 유지보수 branch trigger를 남기지 않는다.
+
+완료 전 남은 작업:
+
+1. 일회성 workflow 제거와 이 상태 기록이 포함된 최종 PR head 전체 CI 통과 확인
+2. PR review thread 종료 및 최종 diff 확인
+3. PR #196 병합
+
+공개 v1.7.11의 exact release source/tag/assets는 이 유지보수 기반 작업과 무관하며 변경하지 않는다.

@@ -1,22 +1,29 @@
-name: v1.7.1 live data probe
+name: Live data contract probe
 
 on:
-  push:
-    branches:
-      - fix/v1.7.1-data-update-validation-2026-08-25
+  workflow_dispatch:
+  schedule:
+    # Daily external-source health check. Keep this separate from hermetic PR/main CI
+    # so a transient network/upstream outage cannot block ordinary product builds.
+    - cron: '17 18 * * *'
 
 permissions:
   contents: read
+
+concurrency:
+  group: live-data-contract-probe
+  cancel-in-progress: false
 
 jobs:
   live-probe:
     runs-on: windows-latest
     timeout-minutes: 12
     env:
-      JUNHYUNHELPER_V171_LIVE_PROBE: '1'
+      JUNHYUNHELPER_LIVE_DATA_PROBE: '1'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Checkout pinned public Map donor
         shell: pwsh
         run: |
@@ -26,15 +33,30 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Could not synchronize submodules." }
           git submodule update --init --force --depth=1 --recursive
           if ($LASTEXITCODE -ne 0) { throw "Could not checkout Map donor." }
+
       - name: Setup .NET 10
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+
       - name: Probe current Regular and PvE live sources
         shell: pwsh
         run: |
+          $probeOutput = Join-Path $env:RUNNER_TEMP 'junhyun-live-data-probe.txt'
+          $env:JUNHYUNHELPER_LIVE_DATA_PROBE_OUTPUT = $probeOutput
+
           dotnet test tests/JunhyunHelper.Tests/JunhyunHelper.Tests.csproj `
             --configuration Release `
-            --filter FullyQualifiedName~LiveV171DataUpdateProbeTests `
+            --filter FullyQualifiedName~LiveDataUpdateProbeTests `
             --logger "console;verbosity=detailed"
-          if ($LASTEXITCODE -ne 0) { throw 'v1.7.1 live data probe reported Fatal validation issues.' }
+          $probeExitCode = $LASTEXITCODE
+
+          if (Test-Path $probeOutput) {
+            Write-Host 'Live data probe report:'
+            Get-Content $probeOutput | ForEach-Object { Write-Host $_ }
+          }
+          else {
+            throw 'Live data contract probe did not produce its diagnostic report.'
+          }
+
+          if ($probeExitCode -ne 0) { throw 'Live data contract probe reported an unsupported or invalid current source.' }

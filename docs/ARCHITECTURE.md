@@ -2,8 +2,10 @@
 
 이 문서는 준현 헬퍼의 현재 구현 구조와 장기적으로 지켜야 할 기술 경계를 기록한다.
 
-기준일: 2026-08-25
-상태: **v1.7.0 PUBLIC RELEASE / VERIFIED**
+기준일: 2026-08-27  
+상태: **v1.7.11 PUBLIC STABLE / MAINTENANCE MODE**
+
+정확한 현재 릴리즈 SHA·CI·asset·schema 상태는 `docs/STATE.md`를 권위 있는 운영 인덱스로 사용한다. 유지보수 시 변경 원칙과 외부 Live Probe/성능 검증 경계는 `docs/MAINTENANCE_CONTRACTS.md`를 따른다.
 
 ## 1. 기술 스택
 
@@ -98,7 +100,7 @@ d933792b6042a51cea38dc44b686a096fe30de67
 | Map artwork/config/general markers | pinned donor bundle | release `Assets/` |
 | Program files | exact GitHub stable Release | portable product folder |
 
-이 lifecycle들은 서로 분리한다. Program/Game Content update가 user.db나 reviewed GT를 덮어쓰지 않는다.
+이 lifecycle들은 서로 분리한다. Program/Game Content update가 `user.db`나 reviewed GT를 덮어쓰지 않는다.
 
 ## 4. Startup / composition / shutdown
 
@@ -124,7 +126,9 @@ Shutdown은 Scanner runtime/OCR/font/retention/background resource를 정상 종
 ```text
 remote source
 → parse/import
-→ canonical validation
+→ canonical/relational validation
+→ candidate content
+→ last-known-good baseline completeness guard
 → candidate content.db
 → SQLite read-back/integrity
 → atomic active replacement
@@ -136,9 +140,13 @@ remote source
 - candidate 완성 전 active DB overwrite 금지
 - failed candidate 폐기
 - known-good active 유지
+- 기존 정상 snapshot이 있으면 핵심 entity/relationship/localization/resource coverage의 suspicious shrink를 `ContentUpdateCompletenessGuard`가 차단
+- 현재 retained floor는 baseline 대비 50%; 이는 Tarkov 절대 행 수 제한이 아니라 부분 payload 방어다
 - User Progress에 영향 없음
 
 Top-level Game Data update는 general content activation 이후 current GameMode Scanner catalog/market refresh까지 orchestration한다. Scanner-only partial failure는 general success를 rollback하지 않는다.
+
+외부 최신 계약 감시는 `.github/workflows/live-data-probe.yml`에서 일반 hermetic CI와 분리해 수행한다. Live Probe는 baseline-relative runtime guard를 대체하지 않는다.
 
 ## 6. Profile / Quest / Needed Items
 
@@ -281,7 +289,7 @@ Title continuity signature is only trusted-detail continuity evidence, never Ite
 Item ID
 → Scanner catalog official identity/market/dimensions
 → GameContent canonical item/Wiki
-→ ItemsWorkspace RequiredTotal
+→ ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal
 → ScannerItemSnapshot
 → Mini Scanner / Scanner search details
 ```
@@ -293,13 +301,15 @@ Mapped values:
 - flea positive avg24hPrice
 - positive width × height slots
 - trader/flea price per slot
-- RequiredTotal
+- **current needed = `NeededItemCalculator`가 계산한 보유량 차감 후 `RemainingTotal`**
+
+Scanner presentation에서 raw inventory를 별도로 빼거나 `RequiredTotal`로 되돌리지 않는다. FIR/일반 소비 의미는 기존 Needed Items 계산 결과를 그대로 재사용한다.
 
 Market/dimension failure clears affected field only.
 
-v1.6 item search uses current local/memory full-item catalog and local icon cache. Search-time network is forbidden.
+v1.6 이후 item search는 current local/memory full-item catalog와 local icon cache를 사용한다. Search-time network is forbidden.
 
-### 8.9 Scanner UI architecture — v1.6
+### 8.9 Scanner UI architecture
 
 Normal:
 
@@ -401,7 +411,7 @@ latest stable check
 
 LocalAppData user data is untouched.
 
-v1.6 stable package:
+Stable package layout:
 
 ```text
 Junhyun-Helper.zip
@@ -436,12 +446,14 @@ Mutable runtime state/logs must not be written beside portable executable.
 
 Performance cannot justify identity threshold relaxation or stale cross-frame reuse.
 
+Wall-clock benchmark를 일반 CI의 고정 합격선으로 사용하지 않는다. pacing/candidate/retry 같은 결정론적 policy contract + runtime latency/응답성 telemetry + 필요 시 Ground Truth replay를 성능 회귀 근거로 사용한다.
+
 ## 12. Failure isolation
 
 - Program Update network failure → app continues
 - image failure → affected image only
 - preference save failure → diagnostic, app continues
-- invalid content candidate → known-good retained
+- invalid/incomplete content candidate → known-good retained
 - unsupported Quest gate → Indeterminate/fail closed
 - Scanner low confidence/ambiguity → no Item ID
 - Scanner visual/font failure → primary OCR remains
@@ -453,14 +465,14 @@ Performance cannot justify identity threshold relaxation or stale cross-frame re
 
 ## 13. Verification architecture
 
-Domain/storage/update semantics use automated tests. WPF/Map/Scanner use actual published EXE smoke.
+Domain/storage/update semantics use automated tests. WPF/Map/Scanner use actual published EXE smoke where applicable.
 
-Current automated suite: 296 tests.
+현재 공개 릴리즈의 정확한 테스트 수와 proof run은 `docs/STATE.md`에만 고정한다. 이 아키텍처 문서에 과거 릴리즈의 테스트 수를 장기 계약처럼 복제하지 않는다.
 
-v1.6 release candidate must verify:
+Release candidate는 최소 다음을 검증한다.
 
 - Release build
-- 296 tests / no failures/skips
+- automated tests / no failures/skips
 - win-x64 self-contained single-file publish
 - ProductVersion/FIRST_RUN identity
 - Product UI + Scanner/Mini Scanner smoke
@@ -473,7 +485,7 @@ v1.6 release candidate must verify:
 - independent public ZIP redownload/hash/layout
 - public-downloaded EXE smoke
 
-Intermediate CI `32700507526` passed build/tests/publish/Product UI/Scanner/Map/graceful shutdown before final version/package/docs commits. Latest HEAD requires final rerun.
+구체적인 현재 release gate와 검증 run은 `docs/STATE.md` 및 해당 release 문서를 사용한다.
 
 ## 14. Change-impact routes
 
@@ -508,7 +520,7 @@ Needed count:
 Quest/Hideout/Profile
 → FutureNeededItemsPlanner
 → ItemsWorkspace.Plan.NeededItems
-→ RequiredTotal
+→ NeededItemCalculator RemainingTotal
 → Scanner presentation
 ```
 
@@ -538,13 +550,14 @@ Case evidence
 - `docs/STATE.md`
 - `docs/CURRENT_STATE.md`
 - `docs/PRODUCT.md`
+- `docs/DECISIONS.md`
+- `docs/MAINTENANCE_CONTRACTS.md`
+- `docs/DATA_VALIDATION.md`
 - `docs/DEVELOPER_REFERENCE.md`
 - `docs/SCANNER.md`
 - `docs/SCANNER_GROUND_TRUTH.md`
 - `docs/SCANNER_TEST_PLAN.md`
 - `docs/CURRENT_SCANNER_WORK.md`
-- `docs/DECISION_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md`
-- `docs/STATUS_V1.6.0_SCANNER_PRODUCT_WORKFLOW_2026-08-24.md`
 - `docs/QUEST_TASK_POOL_AUDIT_2026-08-24.md`
 - `docs/PROGRAM_UPDATE.md`
 - `docs/DEPLOYMENT.md`
