@@ -38,6 +38,7 @@ public sealed class LiveDataUpdateProbeTests
             effectivenessClient: new WikiBallisticsEffectivenessClient(httpClient));
 
         var failures = new List<string>();
+        var report = new List<string>();
         foreach (var mode in new[] { GameMode.Regular, GameMode.Pve })
         {
             var build = await builder.BuildAsync(mode, TestContext.Current.CancellationToken);
@@ -45,22 +46,43 @@ public sealed class LiveDataUpdateProbeTests
                 .Where(static issue => issue.Severity == ContentValidationSeverity.Fatal)
                 .ToArray();
 
-            Console.WriteLine(
+            report.Add(
                 $"LIVE_DATA_PROBE {mode}: items={build.Content.Items.Count} quests={build.Content.Quests.Count} " +
                 $"objectives={build.Content.QuestObjectives.Count} questItems={build.Content.QuestItemRequirements.Count} " +
                 $"hideout={build.Content.HideoutStations.Count} ammo={build.Content.Ammunition.Count} " +
                 $"sourceWarnings={build.Warnings.Count} validationIssues={build.Validation.Issues.Count} fatal={fatals.Length}");
 
             foreach (var warning in build.Warnings.Take(20))
-                Console.WriteLine($"LIVE_DATA_PROBE_WARNING {mode}: {warning}");
+                report.Add($"LIVE_DATA_PROBE_WARNING {mode}: {warning}");
 
             if (build.Warnings.Count > 20)
-                Console.WriteLine($"LIVE_DATA_PROBE_WARNING {mode}: {build.Warnings.Count - 20} additional warning(s) omitted.");
+                report.Add($"LIVE_DATA_PROBE_WARNING {mode}: {build.Warnings.Count - 20} additional warning(s) omitted.");
 
             foreach (var fatal in fatals)
-                failures.Add($"{mode}: {fatal.Code}: {fatal.Message}");
+            {
+                var failure = $"{mode}: {fatal.Code}: {fatal.Message}";
+                failures.Add(failure);
+                report.Add($"LIVE_DATA_PROBE_FATAL {failure}");
+            }
         }
 
+        WriteReport(report);
         Assert.Empty(failures);
+    }
+
+    private static void WriteReport(IReadOnlyList<string> lines)
+    {
+        foreach (var line in lines)
+            Console.WriteLine(line);
+
+        var outputPath = Environment.GetEnvironmentVariable("JUNHYUNHELPER_LIVE_DATA_PROBE_OUTPUT");
+        if (string.IsNullOrWhiteSpace(outputPath))
+            return;
+
+        var directory = Path.GetDirectoryName(outputPath);
+        if (!string.IsNullOrWhiteSpace(directory))
+            Directory.CreateDirectory(directory);
+
+        File.WriteAllLines(outputPath, lines);
     }
 }

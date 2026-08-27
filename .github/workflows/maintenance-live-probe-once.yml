@@ -36,8 +36,21 @@ jobs:
       - name: Probe current Regular and PvE live sources
         shell: pwsh
         run: |
+          $probeOutput = Join-Path $env:RUNNER_TEMP 'junhyun-live-data-probe.txt'
+          $env:JUNHYUNHELPER_LIVE_DATA_PROBE_OUTPUT = $probeOutput
+
           dotnet test tests/JunhyunHelper.Tests/JunhyunHelper.Tests.csproj `
             --configuration Release `
             --filter FullyQualifiedName~LiveDataUpdateProbeTests `
             --logger "console;verbosity=detailed"
-          if ($LASTEXITCODE -ne 0) { throw 'Live data contract probe reported an unsupported or invalid current source.' }
+          $probeExitCode = $LASTEXITCODE
+
+          if (Test-Path $probeOutput) {
+            Write-Host 'Live data probe report:'
+            Get-Content $probeOutput | ForEach-Object { Write-Host $_ }
+          }
+          else {
+            throw 'Live data contract probe did not produce its diagnostic report.'
+          }
+
+          if ($probeExitCode -ne 0) { throw 'Live data contract probe reported an unsupported or invalid current source.' }
