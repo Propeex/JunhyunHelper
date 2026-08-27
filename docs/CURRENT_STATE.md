@@ -2,50 +2,52 @@
 
 > 최신 개발 상태의 짧은 인덱스입니다. 상세 설계와 이력은 `docs/STATE.md`, `docs/SCANNER.md`, 버전별 결정/릴리즈 문서를 참조합니다.
 
-기준일: 2026-08-26
+기준일: 2026-08-27
 
-상태: **`v1.7.10 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE`**
+상태: **`v1.7.11 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE`**
 
 ## 공개 stable
 
-현재 공개 stable/latest는 **v1.7.10**이다.
+현재 공개 stable/latest는 **v1.7.11**이다.
 
 ```text
-public stable/latest: v1.7.10
-exact product release source/tag target: a557daad5b37aca11a189524ecf256564d2b8ea4
-main CI run: 32983155982 — SUCCESS
-release workflow run: 32983498402 — SUCCESS
-release id: 377231814
+public stable/latest: v1.7.11
+exact product release source/tag target: 0f97c6e5340ae91581a9242ec236bbd7885b34d5
+main CI run: 33033282963 — SUCCESS
+release workflow run: 33033434877 — SUCCESS
+release id: 377531277
 stable asset: Junhyun-Helper.zip
-stable asset id: 530959212
-stable bytes: 80,471,678
-stable SHA-256: 6d4f3f8580318d05361cd4d62bf265c4590532722df22dc8b8d734fe8ec10eb9
-checksum asset id: 530959213
-389 passed / 0 failed / 0 skipped
-Product UI / Scanner / Map / Factory / MiniMap / graceful shutdown smoke: SUCCESS
+stable asset id: 531635485
+stable bytes: 80,477,565
+stable SHA-256: f1ad15debc29b7a167a13448c8df65785f57139a91d8b5d246205a14f9a5800d
+checksum asset id: 531635486
+checksum asset SHA-256: ccf9adf714298341adf87caeafa3c082e571646c00a720e27f6bcffa32484b67
+392 passed / 0 failed / 0 skipped
+Product UI / Map / Factory / MiniMap / graceful shutdown smoke: SUCCESS
 ```
 
 GitHub `/releases/latest` readback:
 
-- tag `v1.7.10`
+- tag `v1.7.11`
 - target = exact product release source
 - draft = false
 - prerelease = false
 - latest stable = true
 - `Junhyun-Helper.zip` + `SHA256SUMS.txt` present
+- public ZIP digest = exact main-CI package SHA-256
 
 공개 증거:
 
-- `docs/RELEASE_1.7.10.md`
-- `docs/.release-v1.7.10-status.json`
-- `docs/RELEASE_NOTES_V1.7.10.md`
+- `docs/RELEASE_1.7.11.md`
+- `docs/.release-v1.7.11-status.json`
+- `docs/RELEASE_NOTES_V1.7.11.md`
 
-이 문서 동기화 이후의 commit은 **v1.7.10 product release source가 아니다**. 제품 릴리즈 소스는 항상 위 `a557daad...`로 고정한다.
+이 문서 동기화 이후의 commit은 **v1.7.11 product release source가 아니다**. 제품 릴리즈 소스는 항상 위 `0f97c6e...`로 고정한다.
 
 ## Schema / compatibility
 
 ```text
-Desktop target version: 1.7.10
+Desktop target version: 1.7.11
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
@@ -54,7 +56,7 @@ Scanner catalog cache: v1~v3 readable, v3 written
 Scanner Ground Truth: explicit user-reviewed durable cases
 ```
 
-사용자 mutable data는 `%LocalAppData%/JunhyunHelper`에 둔다. Program Update는 user.db, content/image cache, Map/Ammo/Scanner 설정, Scanner logs/diagnostics/Ground Truth를 덮어쓰지 않는다.
+사용자 mutable data는 `%LocalAppData%/JunhyunHelper`에 둔다. Program Update는 user.db, content/image cache, Map/MiniMap/Ammo/Scanner 설정, Scanner logs/diagnostics/Ground Truth를 덮어쓰지 않는다.
 
 ## 기능 상태
 
@@ -70,6 +72,27 @@ Scanner Ground Truth: explicit user-reviewed durable cases
 | Game Content Update | 구현 완료 |
 | Program Update | 구현 완료 / verified stable ZIP contract |
 | Scanner + Mini Scanner | **FEATURE COMPLETE / MAINTENANCE ONLY** |
+
+## v1.7.11 — maintenance polish
+
+v1.7.11은 Scanner recognition 기준을 조정하지 않고 기존 제품의 표시·입력·MiniMap 사용성 문제를 수정했다.
+
+- Scanner / Mini Scanner `필요 개수` = canonical `NeededItems[itemId].RemainingTotal`
+  - 현재 Inventory와 FIR 조건 반영
+  - `RequiredTotal`은 전체 요구량이며 Scanner 표시값이 아님
+  - Item ID 확정 뒤에만 presentation에 사용
+- Configurable Map / Scanner hotkey
+  - 등록된 Ctrl/Alt/Shift는 모두 필요
+  - 추가 Ctrl/Alt/Shift 허용
+  - 같은 primary key에서 여러 compatible binding이 있으면 더 구체적인 binding 우선
+  - Windows modifier 미지원
+  - Map bare NumPad0~5 direct floor 유지
+- MiniMap 첫 표시 전에 현재 Main Map 선택을 `MapTrackerService`에 동기화
+- MiniMap width/height를 `%LocalAppData%/JunhyunHelper/minimap-window-state.json`에 저장·복원
+- standard WPF 설명 ToolTip은 전역에서 열지 않음
+- 기능성 custom Popup은 유지
+
+공식 결정: `docs/DECISION_V1.7.11_MAINTENANCE.md`.
 
 ## Scanner 현재 기준선
 
@@ -189,9 +212,11 @@ raid recovery는 강한 `RED_X_CANDIDATE >= 0.90`에서만 진입하며 close-X,
 - legacy `automatic_sample + unreviewed`만 recent-write safety 및 metadata/state 재확인 후 cleanup
 - reviewed/manual/corrupt/unknown/state-changed Case는 preserve fail closed
 - 동일 Scanner activity failure는 30초 동안 collapse
-- Scanner/Map configurable action은 primary key + optional Ctrl/Alt/Shift
+- primary key + optional Ctrl/Alt/Shift 구성
 - bare key 허용, Windows modifier 미지원
 - Map bare NumPad0~5 직접 층 선택 유지
+
+Modifier matching의 현재 동작은 v1.7.11의 extra-modifier compatibility / most-specific-wins 계약이 우선한다.
 
 ## v1.7.6 — performance baseline
 
