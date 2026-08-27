@@ -1,111 +1,33 @@
 # Scanner Current Test Plan
 
 기준일: 2026-08-27
-상태: **v1.7.13 PUBLIC STABLE / FEATURE COMPLETE / MAINTENANCE ONLY**
+상태: **v1.7.14 PUBLIC STABLE / FEATURE COMPLETE / MAINTENANCE ONLY**
 
-이 문서는 deterministic release gate와 실제 Tarkov reviewed Ground Truth calibration을 분리한다. Reviewed evidence 없이 geometry/OCR/matcher/visual confidence threshold나 candidate cap을 조정하지 않는다.
+이 문서는 Scanner의 현재 release-blocking deterministic gate와 실제 Tarkov reviewed Ground Truth calibration을 분리한다. Reviewed evidence 없이 geometry/OCR/matcher/visual confidence threshold, candidate cap 또는 pacing을 조정하지 않는다.
 
 ## 1. Current verified stable
 
 ```text
-Desktop target: 1.7.13
-automated suite at v1.7.13 release: 400 tests
+Desktop target: 1.7.14
+automated suite at v1.7.14 release: 407 tests
 Scanner display settings schema: v6
 Scanner catalog cache: v1~v3 readable, v3 written
 stable package: Junhyun-Helper.zip
-exact product release source: 16198c462a6be58d77dbe2dc27aa57eabfc7b9fd
-main CI: 33051890329 — SUCCESS
-Release workflow: 33052109161 — SUCCESS
-release id: 377652938
-public bytes: 80,486,670
-public SHA-256: d1cfcf1f606985485584f0e085e8821e0f62156a980f259a90144fd134a7eeb6
+exact product release source/tag target: 0a51375de36cd13047216006c2c0311728b1bd89
+main CI: 33060827905 — SUCCESS
+Release workflow: 33061059154 — SUCCESS
+release id: 377720327
+public bytes: 80,488,363
+public SHA-256: 341ac502d2ace563ab2e7c8d7091a8e796cf87e7d1f5961edf869feab106e2fd
 ```
 
-v1.7.13 release gate는 build/test/publish/rendered Product UI/Scanner/Map/Factory/MiniMap smoke, graceful shutdown, package checksum/layout, exact source tag, stable release metadata와 public asset/tag-ref readback을 모두 통과했다.
+v1.7.14 release gate는 Release build, 407 deterministic tests, Windows x64 publish, exact ProductVersion/FIRST_RUN, actual published EXE Product UI/Scanner/Map/Factory/MiniMap smoke, graceful shutdown, package layout/checksum, exact source tag 및 public asset/tag readback을 통과했다.
 
-v1.7.13은 Scanner identity recognition 정책을 변경하지 않은 UI simplification PATCH다. Scanner threshold/candidate/matcher/visual acceptance와 v1.7.6~v1.7.10 성능/환경 기준은 그대로 유지한다.
+v1.7.14는 Scanner identity recognition을 변경하지 않은 UI consistency PATCH다. 설정/hotkey/advanced overlay와 검색 clear interaction만 바뀌었으며 v1.7.6~v1.7.10의 performance/environment recognition 기준은 유지한다.
 
-릴리즈 이후 maintenance-only main은 documentation/regression을 추가할 수 있으므로 현재 main HEAD와 immutable v1.7.13 product release source를 혼동하지 않는다. 빠르게 변하는 현재 main/CI 상태는 `docs/STATE.md`를 기준으로 한다.
+현재 main 또는 이후 docs-only HEAD와 immutable v1.7.14 product source를 혼동하지 않는다. 정확한 현재 운영 상태는 `docs/STATE.md`를 사용한다.
 
-## 2. Release-blocking deterministic gate
-
-### Build / automated regression
-
-1. exact candidate source fixed
-2. Windows Release build
-3. full automated tests — 0 failed / 0 skipped
-4. Scanner structural proposal regression
-5. inspect-header semantic lock regression
-6. incomplete lock fail closed
-7. title ROI ownership regression
-8. v1.7.8 raid horizontal-bleed recovery positive/negative regression
-9. raw/substituted/normalized OCR evidence separation
-10. current-catalog character/symbol policy
-11. official catalog matcher and ambiguity fail closed
-12. bounded unknown/edit recovery safety
-13. visual corroboration fail-soft safety
-14. bounded same-cycle visual/OCR caches
-15. market/dimension/RemainingTotal same-ID presentation mapping
-16. catalog load/refresh GameMode ordering
-17. one-shot/profile/GameMode lifecycle
-18. Scanner/Map hotkey migration + duplicate prevention
-19. user OCR substitution single-pass/default-empty
-20. title continuity signature
-21. Ground Truth candidate/manual/none contracts
-22. reviewed-GT retention protection
-23. no durable automatic Case creation during normal monitoring
-24. legacy automatic Case cleanup fail-closed contract
-25. Scanner settings schema-v6 migration/order contract
-26. saved Case reopen/re-edit fail-closed contract
-27. item search local-data/no-network contract where testable
-28. Scanner main correction action exact-frame contract
-29. v1.7.9 Mini Scanner confirmed-item presentation authority
-30. v1.7.9 initial hidden real-overlay foreground-Tarkov guard
-31. v1.7.10 reference SDR normalization compatibility
-32. v1.7.10 lifted/washed HDR→SDR-like normalization
-33. v1.7.10 compressed-contrast normalization
-34. v1.7.10 low-contrast gamma/rendering normalization
-35. v1.7.10 1080p/1440p/4K proportional title raster matrix
-36. v1.7.10 flat/no-contrast negative case
-37. Scanner support bundle excludes Ground Truth/source pixels, `user.db`/profile DB, game-account information and user-progress/account-identifying data
-
-### v1.7.13 product-contract regression
-
-- Ammo detail: initial collapsed → expand → collapse round-trip is preserved in actual published EXE smoke.
-- Items: Quest/Hideout purpose selector does not reappear as an active product filter.
-- Scanner: needed-item source presentation derives from the existing `ItemsWorkspace.Plan.NeededItems` authority rather than reconstructing Quest/Hideout requirements.
-- Scanner recognition thresholds/candidate budgets are not touched by these UI regressions.
-
-`V1713UiSimplificationContractTests`가 위 source-level 계약을 고정하고 actual Product UI smoke가 rendered interaction을 보완한다.
-
-### Publish / product smoke
-
-38. Windows x64 self-contained single-file publish
-39. exact ProductVersion / FIRST_RUN identity
-40. publish-root / PDB / nested-archive / forbidden dependency audit
-41. actual published EXE startup
-42. Scanner normal surface smoke
-43. Mini Scanner rendered/Topmost/confirmed-item policy smoke
-44. Main Map / Factory / MiniMap smoke
-45. graceful close / process termination
-46. clean portable root
-47. release package creation
-48. stable `Junhyun-Helper.zip` exists
-49. every ZIP entry under `준현 헬퍼/`
-50. required EXE / FIRST_RUN / Tarkov data asset present
-51. release ZIP SHA-256 recorded
-
-### Public release verification
-
-52. exact tag target points to chosen product release source
-53. stable/latest metadata points to exact source
-54. public asset name exactly `Junhyun-Helper.zip`
-55. checksum asset present/verified
-56. public hash/size readback
-57. ProductVersion/FIRST_RUN correspond to target version
-58. durable release record/status written after public readback
-
-## 3. Immutable threshold / candidate budget
+## 2. Immutable threshold / candidate budget
 
 ```text
 structural floor = 0.34
@@ -121,10 +43,127 @@ continuous observation target = 200 ms
 - 한두 screenshot이 miss함
 - CPU를 더 줄이고 싶음
 - fuzzy matching을 쉽게 만들고 싶음
+- 한 사용자 환경에 더 잘 맞추고 싶음
 
-변경은 reviewed Ground Truth replay와 false-positive 영향 evidence를 요구한다.
+변경은 user-reviewed Ground Truth replay와 false-positive 영향 evidence를 요구한다.
 
-## 4. Structural proposal regression
+## 3. Release-blocking deterministic gate
+
+### 3.1 Build / core regression
+
+후보 release source를 먼저 고정한 뒤 다음을 모두 통과해야 한다.
+
+1. Windows Release build
+2. full automated tests — 0 failed / 0 skipped
+3. Scanner structural proposal regression
+4. inspect-header semantic lock regression
+5. incomplete semantic lock fail closed
+6. item-title ROI ownership regression
+7. v1.7.8 raid horizontal-bleed recovery positive/negative regression
+8. raw/substituted/normalized OCR evidence separation
+9. current-catalog character/symbol sanitation
+10. exact official name priority
+11. conservative matcher confidence + top1/top2 ambiguity fail closed
+12. bounded unknown/edit recovery safety
+13. optional visual corroboration fail-soft safety
+14. same-cycle exact-pixel OCR/visual reuse boundedness
+15. no cross-frame identity proof cache
+16. market/dimension/`RemainingTotal` same-ID presentation mapping
+17. needed-source same-ID presentation mapping
+18. catalog load/refresh GameMode ordering
+19. one-shot/profile/GameMode lifecycle
+20. Scanner/Map hotkey migration and duplicate prevention
+21. user OCR substitution single-pass/default-empty
+22. title continuity signature
+23. Ground Truth candidate/manual/none contracts
+24. reviewed Ground Truth retention protection
+25. no durable automatic Case during normal monitoring
+26. legacy automatic Case cleanup fail closed
+27. Scanner settings schema-v6 migration/order
+28. saved Case reopen/re-edit fail closed
+29. item search local-data/no-network contract where testable
+30. current correction exact-frame authority
+31. Mini Scanner confirmed-item presentation authority
+32. hidden real-overlay Tarkov foreground guard
+33. v1.7.10 reference SDR compatibility
+34. lifted/washed HDR→SDR-like normalization
+35. compressed-contrast normalization
+36. low-contrast gamma/rendering normalization
+37. 1080p/1440p/4K proportional title-raster matrix
+38. flat/no-contrast negative input
+39. support bundle privacy exclusions
+
+### 3.2 v1.7.13 presentation regressions retained
+
+- Ammo detail initial collapsed → expand → collapse round-trip remains in actual Product UI smoke.
+- Items Quest/Hideout purpose selector does not reappear as an active product filter.
+- Scanner searched needed-item source derives from existing `ItemsWorkspace.Plan.NeededItems[itemId].Sources` rather than reconstructing Quest/Hideout requirements.
+- Scanner recognition threshold/candidate/matcher/visual policy is untouched.
+
+### 3.3 v1.7.14 UI consistency regressions
+
+`V1714UiConsistencyContractTests` protects:
+
+- Ammo `즐겨찾기 선택` / `표시 열` true-toggle behavior
+- MainWindow shared overlay owner for Window-backed and existing UIElement surfaces
+- Scanner Settings owns hotkey configuration
+- Scanner Advanced uses shared overlay and has no content-local close button
+- old `ScannerHotkeySettingsWindow.xaml/.cs` does not reappear
+- Map MiniMap launcher chrome cleanup
+- Map marker launcher/collapsed/expanded panel product contract
+- Map/MiniMap Settings shared-overlay route
+- Profile editor product card presentation
+- Quest/Hideout/Items/Ammo/Scanner in-field search clear behavior
+
+Actual Product UI smoke complements source-level tests by constructing the real published WPF surface. Scanner Advanced is tested while hosted in the actual MainWindow shared overlay, not as a standalone Window.
+
+## 4. Publish / actual product smoke
+
+Release-blocking publish checks:
+
+1. Windows x64 self-contained single-file publish
+2. exact EXE ProductVersion matches project version
+3. FIRST_RUN first line matches target version exactly
+4. publish root contains only allowed product files/directories
+5. no unexpected root DLL clutter
+6. no PDB/debug symbols
+7. no nested archive
+8. forbidden legacy dependencies absent
+9. actual published EXE startup
+10. Scanner normal surface render
+11. Scanner Advanced shared-overlay render/dismiss contract
+12. Mini Scanner render / Topmost / confirmed-item presentation policy
+13. Main Map smoke
+14. Factory floor/marker regression smoke
+15. MiniMap smoke
+16. normal MainWindow close
+17. process terminates within graceful-shutdown budget
+18. no runtime `Logs` folder beside portable executable
+19. release package creation
+20. every ZIP entry lives under `준현 헬퍼/`
+21. required EXE / FIRST_RUN / Tarkov assets present
+22. ZIP SHA-256 recorded and checksum manifest matches
+
+## 5. Public release verification
+
+After exact main source passes the full gate:
+
+1. release workflow downloads the exact verified main-CI artifact
+2. artifact archive digest is verified by Actions
+3. ProductVersion is re-read from downloaded published EXE
+4. FIRST_RUN identity is re-read
+5. `Junhyun-Helper.zip` hash matches `SHA256SUMS.txt`
+6. stable release tag is created/used for the exact main SHA
+7. release is `draft=false`, `prerelease=false`
+8. required `Junhyun-Helper.zip` and `SHA256SUMS.txt` assets exist
+9. `/releases/latest` points to the intended version
+10. tag ref points to exact product source
+11. public asset size/digest matches the main-CI package
+12. durable `RELEASE_*` and status record is written after readback
+
+Published stable releases are immutable. Later docs-only main commits may produce different bytes due to ProductVersion commit metadata; Release workflow must not overwrite the already published version.
+
+## 6. Structural proposal regression
 
 Maintain:
 
@@ -133,7 +172,7 @@ Maintain:
 - structural floor 0.34
 - continuous 8 / one-shot 12
 - aspect prior only weak ranking hint
-- high IoU alone not sufficient for duplicate removal
+- high IoU alone is not sufficient for duplicate removal
 - different-edge overlapping proposals preserved
 - near-identical edge jitter deduped
 - geometry alone never establishes Item ID
@@ -148,12 +187,12 @@ Representative procedural cases:
 - no-RED-X fallback proposal
 - uniform-frame fail closed
 
-## 5. Inspect-header semantic lock regression
+## 7. Inspect-header semantic lock regression
 
-Required evidence:
+Required evidence includes:
 
 - right red close-X
-- neutral inspect-header/frame
+- neutral inspect header/frame
 - bounded magnifier/search lane
 - magnifier morphology
 - dark title field
@@ -163,11 +202,11 @@ Assertions:
 
 - no absolute screen-center dependency
 - non-`HEADER_FRAME_LOCKED` candidate cannot enter production OCR identity
-- runtime score >= 0.68 required
-- missing magnifier/close/title evidence → fail closed
-- contained-subpanel fallback re-runs same semantic gate
+- final runtime score >= 0.68 required
+- missing close-X/magnifier/title evidence → fail closed
+- contained-subpanel fallback re-runs the same semantic gate
 
-### v1.7.8 raid ownership
+### Raid ownership recovery
 
 Recovery priority:
 
@@ -179,34 +218,29 @@ primary header lock
 → fail closed
 ```
 
-Raid recovery entry:
+Raid recovery entry remains strongly gated:
 
 ```text
 candidate reason = RED_X_CANDIDATE
 structural score >= 0.90
 ```
 
-It must independently satisfy the existing close-X, relation, neutral-header, magnifier, dark-title and title-text evidence floors plus final `HEADER_FRAME_LOCKED >= 0.68`.
+It must independently re-satisfy close-X, relation, neutral-header, magnifier, dark-title, title-text evidence and final `HEADER_FRAME_LOCKED >= 0.68`.
 
-Procedural smoke:
+## 8. OCR / sanitation / matcher
 
-- positive: long external neutral line visually joins inspect header but valid close-X/magnifier/title exist → recovery can lock
-- negative: same geometry without valid red close-X → fail closed
-
-## 6. OCR / sanitation / matcher
-
-- Windows ko-KR primary
+- Windows ko-KR primary OCR
 - normal + bounded deep variants
-- raw OCR retained
+- raw OCR retained separately
 - optional user substitution applied once
 - current official catalog character/symbol policy
-- impossible glyph not globally forced to a specific character
+- impossible glyph is not globally forced to a guessed character
 - exact official name first
 - conservative fuzzy confidence + top1/top2 margin
 - ambiguity fail closed
 - bounded unique unknown/edit recovery only
 
-## 7. v1.7.10 cross-environment normalization regression
+## 9. Cross-environment normalization regression
 
 Normalization is input canonicalization, not identity proof.
 
@@ -214,139 +248,115 @@ Normalization is input canonicalization, not identity proof.
 
 Reference SDR-like title profile must keep historical behavior.
 
-- normal OCR success path performs no luminance histogram/copy/additional OCR
-- reference profile must not spuriously enable adaptive normalization
-- existing matcher/semantic gates unchanged
+- normal OCR success performs no unnecessary luminance histogram/copy/additional OCR
+- reference input does not spuriously enable adaptive normalization
+- matcher/semantic gates remain unchanged
 
 ### Adaptive cases
 
-Procedural luminance pairs cover:
+Procedural luminance cases cover:
 
 - lifted/washed background + bright glyphs
 - lifted + compressed contrast
-- lower-contrast gamma/rendering variation
+- low-contrast gamma/rendering variation
 
 Assertions:
 
 - adaptive threshold remains between measured background and foreground
-- binary foreground/background separation is preserved
-- normalized grayscale restores strong deterministic contrast
-- reference vs washed binary glyph structure remains effectively equivalent
+- foreground/background separation remains deterministic
+- normalized grayscale restores usable contrast
+- reference and transformed inputs preserve equivalent glyph structure for OCR evidence
 
 ### Resolution classes
 
-Same procedural title structure is generated at proportional 1080p/1440p/4K title-raster classes.
+Proportional title raster cases cover 1080p / 1440p / 4K.
 
-Assertions:
-
-- luminance profile classification remains stable
-- adaptive/reference behavior is not tied to one absolute raster size
-- no PC/GPU/HDR-specific branch is introduced
+- environment classification is not tied to one absolute raster size
+- no user-PC/GPU/HDR-specific branch is introduced
 
 ### Flat negative
 
 Effectively flat/no-contrast input:
 
-- `HasUsableContrast = false`
-- adaptive normalization disabled
-- no invented foreground/background separation
-- downstream remains fail closed
-
-## 8. Mini Scanner presentation regression
-
-Confirmed Scanner Item identity is presentation authority.
-
-Assertions:
-
 ```text
-preview → allowed
-Display Test / scannerEnabled=false → allowed
-real Scanner + Tarkov foreground → allowed
-real Scanner + Tarkov not foreground + overlay hidden → blocked
-already-visible overlay + new confirmed Item → immediate update
+HasUsableContrast = false
+adaptive normalization disabled
+no invented foreground/background separation
+downstream remains fail closed
 ```
 
-Auxiliary inventory-header OCR must not veto a confirmed Item.
+## 10. Presentation regression
 
-Sticky presentation:
+### Mini Scanner
 
-- success resets miss budget
-- miss #1 retains
-- miss #2 retains
-- miss #3 hides
-- progress-only states do not count as misses
-
-Needed presentation:
-
-- `RemainingTotal` is the displayed current-needed authority.
-- item-search Quest/Hideout source rows come from the same authoritative `NeededItems[itemId].Sources` result.
-- neither value may be used as pre-identity recognition evidence.
-
-## 9. Ground Truth gate
-
-Only user-reviewed/corrected explicit saves are Ground Truth.
-
-For recognition changes where runnable reviewed dataset exists:
+Confirmed Item ID is presentation authority.
 
 ```text
-REGRESSION = 0
+recognition success
+→ Item ID confirmed
+→ presentation snapshot
+→ Mini Scanner
 ```
 
-Procedural/synthetic environment matrix does not replace reviewed Ground Truth. Private user images are not committed to the public repository merely to satisfy CI.
+Auxiliary inventory-header OCR cannot veto an already confirmed Item.
 
-Legacy auto cleanup negative cases must preserve:
-
-- reviewed
-- manual
-- corrupt
-- unknown retention/review state
-- state changed between scan and delete
-- recent write inside safety window
-
-## 10. Support-bundle privacy regression
-
-`Scanner 성능 진단 자료 내보내기`가 만드는 support ZIP은 환경/성능 trace와 bounded diagnostic log만 포함한다.
-
-Release regression은 최소한 다음이 ZIP에 포함되지 않음을 검증한다.
-
-- Scanner Ground Truth image / source pixel dataset
-- `user.db` 또는 profile database
-- Tarkov/game account information
-- 사용자 진행도나 계정 식별에 해당하는 데이터
-
-Exporter 구현 변경 시 이 privacy exclusion을 유지하지 못하면 release blocker다.
-
-## 11. Performance gate
-
-v1.7.6 problem-PC baseline remains the reference.
-
-Actual Tarkov successful `ReadingTitle → ShowingItem`:
+Sticky display:
 
 ```text
-minimum 38.07 ms
-median  63.92 ms
-maximum 1.05 s
-mean    211.47 ms
+success → show/update + miss budget reset
+miss #1 → last good
+miss #2 → last good
+miss #3 → hide
 ```
 
-Current performance requirement (v1.7.10+):
+### Needed quantity / source
 
-- healthy normal OCR success must not pay normalization analysis or second OCR cost
-- environment-normalized extra work is bounded to normal miss / existing deep path and only adaptive profiles
-- same-cycle exact-pixel evidence reuse remains cycle-local
-- no cross-frame Item identity cache
-
-## 12. Maintenance incident procedure
+After Item ID confirmation only:
 
 ```text
-capture runtime evidence
-→ classify failure stage
-→ confirm root cause
+needed quantity = ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal
+source list = ItemsWorkspace.Plan.NeededItems[itemId].Sources
+```
+
+Scanner does not independently recalculate Quest/Hideout/Inventory demand.
+
+## 11. Ground Truth calibration
+
+Deterministic CI protects known contracts. Real Tarkov reviewed Ground Truth is required to change recognition policy.
+
+Evidence collection order:
+
+```text
+real failure frame
+→ classify proposal / header / OCR / match / visual / presentation stage
+→ preserve exact reviewed evidence
+→ replay current implementation
+→ identify root cause
+→ add minimal regression fixture
 → change affected layer only
-→ reviewed replay where runnable
-→ deterministic procedural regression
-→ full Windows CI/publish/product smoke/package
-→ PATCH release
-→ public release readback
-→ canonical docs sync
 ```
+
+Do not tune against unreviewed automatic samples.
+
+A change that improves one screenshot but weakens fail-closed behavior across the catalog is not acceptable.
+
+## 12. Performance acceptance
+
+Continuous mode target remains one observation every ~200 ms under normal conditions. This is a pacing target, not permission to overlap OCR or run unbounded work.
+
+Historical latency baseline from v1.7.6 actual successful Tarkov observations remains diagnostic context:
+
+```text
+minimum ≈ 38 ms
+median  ≈ 64 ms
+mean    ≈ 211 ms
+maximum ≈ 1.05 s
+```
+
+Do not optimize repeated profile loads speculatively: `UserProfileStore` already has an immutable in-process snapshot cache after authoritative load/save. Require runtime trace before architecture changes.
+
+## 13. Current release decision
+
+v1.7.14 passed the full gate with **407 passed / 0 failed / 0 skipped** and did not change Scanner recognition policy.
+
+The next Scanner code change requires actual runtime evidence or reviewed Ground Truth. Until then Scanner remains maintenance-only.
