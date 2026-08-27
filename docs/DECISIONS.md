@@ -8,11 +8,11 @@
 
 사용자의 더 새로운 확정 요구와 더 새로운 결정이 과거 충돌 결정보다 우선한다. 상세 제품/기술 의미는 `PRODUCT.md`, `STATE.md`, `ARCHITECTURE.md` 및 전문 문서를 함께 읽는다.
 
-현재 제품 상태는 **v1.7.15 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**다. 최신 릴리즈/asset/CI evidence는 `docs/STATE.md`와 `docs/RELEASE_1.7.15.md`가 권위다.
+현재 제품 상태는 **v1.7.14 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**다. 최신 릴리즈/asset/CI evidence는 `docs/STATE.md`가 권위다.
 
 ## 현재 supersession 주의
 
-DEC-050/054/057/058/059에 남아 있던 과거 Scanner `RequiredTotal` 문구는 역사적 당시 계약이다. 현재 사용자-facing Scanner `필요 개수` authority:
+DEC-050/054/057/058/059에 남아 있던 과거 Scanner `RequiredTotal` 문구는 **역사적 당시 계약**이다. 현재 사용자-facing Scanner `필요 개수` authority:
 
 ```text
 ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal
@@ -92,6 +92,7 @@ Scanner가 둘 중 어느 것도 별도 재계산하거나 Item identity evidenc
 
 - 상태: `CONFIRMED`
 - PDB/unused legacy dependency/nested archive 등 배포 오염을 차단한다.
+- exact current gate는 `docs/DEPLOYMENT.md`와 `docs/STATE.md` 참조.
 
 ## DEC-037 — Map bundle update는 같은 upstream revision의 원자적 bundle로 한다
 
@@ -127,8 +128,8 @@ Scanner가 둘 중 어느 것도 별도 재계산하거나 Item identity evidenc
 ## DEC-044 — EFT profile-variable Quest gate는 exact read-side fact를 지원하고 미관측 값은 추측하지 않는다
 
 - 상태: `CONFIRMED`
-- exact current `ProfileVariables`가 있으면 authority로 사용한다.
-- 없으면 limited audited compatibility 외에는 `Indeterminate`다.
+- exact current `ProfileVariables`가 있으면 authority로 사용.
+- 없으면 limited audited compatibility 외에는 `Indeterminate`.
 
 ## DEC-045 — Scanner placeholder 탭은 UI에 유지하되 실제 기능을 가장하지 않는다
 
@@ -153,7 +154,7 @@ Scanner가 둘 중 어느 것도 별도 재계산하거나 Item identity evidenc
 
 - 상태: `CONFIRMED`
 - 새 사용자 기능 → MINOR.
-- 기존 기능 수정/보완/버그/성능·안정성/UI 개선 → PATCH.
+- 기존 기능 수정/보완/버그/성능·안정성 개선 → PATCH.
 - 혼합 변경은 MINOR 우선.
 
 ## DEC-049 — Map donor는 source pin과 fetch origin을 분리한다
@@ -170,20 +171,25 @@ Scanner가 둘 중 어느 것도 별도 재계산하거나 Item identity evidenc
 - false positive보다 miss 선호.
 - confidence 부족/ambiguity → no identity.
 - 금지: game memory, DLL injection, packet interception, icon-only identity, scan-time network identity work.
+- historical `RequiredTotal` 문구는 v1.7.11 `RemainingTotal` 결정으로 superseded.
 
 ## DEC-051 — Scanner v1.1.0은 실제 구현을 공개하고 live Tarkov 검증은 진단 evidence로 후속한다
 
 - 상태: `CONFIRMED / IMPLEMENTED / PUBLIC VERIFIED`
+- Tarkov client capture + Display Test + Windows ko-KR OCR + Mini Scanner pipeline 제품화.
+- runtime diagnostics와 actual Tarkov evidence를 후속 PATCH 근거로 사용.
 
 ## DEC-052 — Scanner 탭은 운용 UI와 인식 기록을 사용하고 Mini Scanner는 직접 조작 가능한 overlay다
 
 - 상태: `CONFIRMED / IMPLEMENTED / PARTIALLY SUPERSEDED by later UI decisions`
+- current v1.7.14 settings/overlay ownership은 최신 결정이 우선.
 
 ## DEC-053 — Scanner 상세창 확정은 multi-candidate semantic validation을 사용한다
 
 - 상태: `CONFIRMED / IMPLEMENTED`
 - geometry는 후보 생성/순위 역할만 한다.
-- current official item으로 안전하게 resolve된 candidate만 identity path를 통과한다.
+- RED-X component + rectangle/edge fallback candidate.
+- current official item으로 안전하게 resolve된 candidate만 identity path 통과.
 - matcher threshold/top1-top2 margin을 인식률 때문에 낮추지 않는다.
 
 ## DEC-054 — Scanner 시장/필요 수량 표시 authority를 명시한다
@@ -200,10 +206,13 @@ Scanner가 둘 중 어느 것도 별도 재계산하거나 Item identity evidenc
 - Windows ko-KR OCR primary.
 - OCR miss/damage에만 conservative current-catalog-bounded visual recovery.
 - current catalog 밖 Item 생성 금지.
+- latest diagnostic frame memory 중심.
+- one-shot은 local healthy catalog만 사용하고 scan-time network 금지.
 
 ## DEC-056 — Scanner는 live threshold를 추측하지 않고 deterministic reliability를 hardening한다
 
 - 상태: `CONFIRMED / IMPLEMENTED`
+- font/visual cache generation binding, bounded cache, lifecycle/race hardening.
 - actual evidence 없이 detector/OCR/visual acceptance threshold 완화 금지.
 
 ## DEC-057 — Scanner catalog disk load와 network refresh는 하나의 mode-transition ordering boundary를 사용한다
@@ -215,18 +224,22 @@ Scanner가 둘 중 어느 것도 별도 재계산하거나 Item identity evidenc
 
 - 상태: `CONFIRMED / IMPLEMENTED`
 - `HEADER_FRAME_LOCKED >= 0.68`을 production OCR gate로 요구.
+- red close-X + neutral header/frame + bounded magnifier lane + dark title/text evidence 결합.
 - partial/failed lock은 Item identity path에 진입하지 않는다.
 
 ## DEC-059 — Scanner recognition/diagnostics는 actual Tarkov evidence 기반으로 hardening한다
 
 - 상태: `CONFIRMED / IMPLEMENTED`
 - unknown glyph product-wide forced correction 금지.
+- magnifier/close morphology와 header ownership 강화.
 - current conservative matcher/visual safety 유지.
 - 사용자 명시 저장만 durable reviewed evidence.
 
 ---
 
 # 3. DEC-059 이후 standalone 결정 — current authority chain
+
+후속 결정은 별도 `DECISION_*` 문서를 current authority chain으로 관리한다.
 
 ## Product complete / maintenance mode
 
@@ -283,42 +296,34 @@ Scanner가 둘 중 어느 것도 별도 재계산하거나 Item identity evidenc
 - Map marker/settings same-launcher toggle, trail/hotkey explanation 제거.
 - Scanner display settings 즉시 저장, searched-needed source = existing `NeededItems[].Sources`.
 - user-facing settings/edit surface에 MainWindow internal overlay 도입.
+- Scanner current correction 우측 command 영역.
+- Scanner recognition constants/matcher/visual/pacing, Map donor, Game Content/LKG 계약 불변.
 
 ## v1.7.14 UI consistency
 
 - `docs/DECISION_V1.7.14_UI_CONSISTENCY.md`
-- 상태: `IMPLEMENTED / PUBLIC VERIFIED v1.7.14`.
-- Ammo popup same-launcher true-toggle.
+- 상태: **IMPLEMENTED / PUBLIC VERIFIED v1.7.14**.
+- Ammo `즐겨찾기 선택` / `표시 열` popup same-launcher true-toggle.
 - MiniMap launcher donor residual chrome 제거.
 - `지도 마커` product Button chrome + collapsed empty panel 제거 + expanded vertical space 확보.
-- Map/MiniMap Settings와 Scanner Advanced를 shared in-app overlay에 host.
-- Scanner hotkey editor를 Scanner Settings에 통합.
-- 주요 검색창에 in-field right-side `×` clear affordance.
-
-## v1.7.15 UI refinements — current latest decision
-
-- `docs/DECISION_V1.7.15_UI_REFINEMENTS.md`
-- 상태: **IMPLEMENTED / PUBLIC VERIFIED v1.7.15**.
-- main header의 version/status 영역은 version-only.
-- cleanup attention은 Items 탭 우측 상단 orange dot.
-- marker checkbox list가 실제 available height를 사용하고 불필요한 scrollbar를 제거.
-- marker selector outside-click dismiss 추가, marker state와 원래 click 의미를 최대한 보존.
-- Ammo Favorites selector를 standard dropdown으로 변경.
-- caliber/Favorites dropdown은 해당 caliber member-ammo icon을 같은 animation state로 순환.
-- 특정 ammo 하나를 caliber 영구 대표 icon으로 고정하지 않음.
-- favorites persistence/filter, Scanner recognition, Game Content/User Progress, Map donor 계약 불변.
+- Map/MiniMap Settings를 MainWindow shared in-app overlay에 host.
+- Scanner Advanced를 same shared overlay에 host하고 content-local close 제거.
+- Scanner hotkey editor를 Scanner Settings에 통합하고 old dedicated hotkey Window 삭제.
+- Profile Edit content card를 Scanner Settings overlay 계열과 통일.
+- Quest/Hideout/Items/Ammo/Scanner 주요 검색창에 in-field right-side `×` clear affordance.
+- shared overlay dismiss = same launcher / backdrop / common X.
+- child editor validation/save authority 유지.
+- Scanner recognition constants/matcher/visual/pacing, Map donor, Game Content/LKG 계약 불변.
 
 Public proof:
 
 ```text
 exact product release source/tag target:
-4bf5e3a567d3ce9563657bbb3b90bec0871c06b4
+0a51375de36cd13047216006c2c0311728b1bd89
 
-main CI: 33086901217 — SUCCESS
-Release workflow: 33087185178 — SUCCESS
-410 passed / 0 failed / 0 skipped
-public ZIP SHA-256:
-9ac3276a1a4a20905b0aa3d6452f50d5259f724ed8f960b7cfbad39f8c619f2f
+main CI: 33060827905 — SUCCESS
+Release workflow: 33061059154 — SUCCESS
+407 passed / 0 failed / 0 skipped
 ```
 
 ---
@@ -329,7 +334,7 @@ public ZIP SHA-256:
 
 1. 제품 요구사항: `docs/PRODUCT.md`
 2. current release/implementation state: `docs/STATE.md`, `docs/CURRENT_STATE.md`
-3. latest UI product decision: `docs/DECISION_V1.7.15_UI_REFINEMENTS.md`
+3. latest UI product decision: `docs/DECISION_V1.7.14_UI_CONSISTENCY.md`
 4. 기술 경계: `docs/ARCHITECTURE.md`
 5. 개발자 구현 지도: `docs/DEVELOPER_REFERENCE.md`
 6. 유지보수 안전 계약: `docs/MAINTENANCE_CONTRACTS.md`
