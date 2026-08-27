@@ -1,17 +1,28 @@
 using Microsoft.Win32;
 using System.Windows;
+using JunhyunHelper.Desktop;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
-public partial class ScannerAdvancedWindow : Window
+public partial class ScannerAdvancedWindow : Window, IInAppOverlayDialog
 {
     private readonly ScannerCoordinator _coordinator;
+    private Action<bool?>? _inAppCloseRequested;
 
     public ScannerAdvancedWindow(ScannerCoordinator coordinator)
     {
         InitializeComponent();
         _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
         UpdateTestToggle();
+    }
+
+    void IInAppOverlayDialog.AttachInAppOverlay(Action<bool?> closeRequested) =>
+        _inAppCloseRequested = closeRequested ?? throw new ArgumentNullException(nameof(closeRequested));
+
+    bool IInAppOverlayDialog.TryDismissInAppOverlay()
+    {
+        _inAppCloseRequested?.Invoke(true);
+        return true;
     }
 
     private async void TestToggleButton_Click(object sender, RoutedEventArgs e)
@@ -24,7 +35,12 @@ public partial class ScannerAdvancedWindow : Window
         catch (Exception exception)
         {
             App.WriteDiagnostic("Scanner advanced test toggle failed", exception);
-            MessageBox.Show(this, "테스트 스캐너 상태를 변경하지 못했습니다.", "Scanner", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(
+                Application.Current.MainWindow,
+                "테스트 스캐너 상태를 변경하지 못했습니다.",
+                "Scanner",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
         }
         finally
         {
@@ -37,7 +53,7 @@ public partial class ScannerAdvancedWindow : Window
     {
         var window = new ScannerDiagnosticCasesWindow(_coordinator)
         {
-            Owner = this,
+            Owner = Application.Current.MainWindow,
         };
         window.ShowDialog();
     }
@@ -53,7 +69,7 @@ public partial class ScannerAdvancedWindow : Window
             OverwritePrompt = true,
             FileName = $"JunhyunHelper-Scanner-Diagnostics-{DateTime.Now:yyyyMMdd-HHmmss}.zip",
         };
-        if (dialog.ShowDialog(this) != true)
+        if (dialog.ShowDialog(Application.Current.MainWindow) != true)
             return;
 
         ExportDiagnosticsButton.IsEnabled = false;
@@ -63,7 +79,7 @@ public partial class ScannerAdvancedWindow : Window
             var destination = dialog.FileName;
             await Task.Run(() => ScannerSupportBundleExporter.Export(destination));
             MessageBox.Show(
-                this,
+                Application.Current.MainWindow,
                 "Scanner 성능 진단 자료를 저장했습니다. 이 ZIP 파일만 전달하면 세부 로그를 직접 찾아볼 필요가 없습니다.",
                 "Scanner 성능 진단",
                 MessageBoxButton.OK,
@@ -73,7 +89,7 @@ public partial class ScannerAdvancedWindow : Window
         {
             App.WriteDiagnostic("Scanner support bundle export failed", exception);
             MessageBox.Show(
-                this,
+                Application.Current.MainWindow,
                 "Scanner 성능 진단 자료를 저장하지 못했습니다.",
                 "Scanner 성능 진단",
                 MessageBoxButton.OK,
@@ -87,6 +103,4 @@ public partial class ScannerAdvancedWindow : Window
 
     private void UpdateTestToggle() =>
         TestToggleButton.Content = _coordinator.TestEnabled ? "테스트 스캐너 ON" : "테스트 스캐너 OFF";
-
-    private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
 }
