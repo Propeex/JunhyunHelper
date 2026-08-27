@@ -1,10 +1,16 @@
-준현 헬퍼 v1.7.11 — Windows x64
+준현 헬퍼 v1.7.12 — Windows x64
 
 실행 방법
 1. 받은 'Junhyun-Helper.zip'을 원하는 위치에 압축 해제합니다.
 2. 압축을 풀면 생성되는 '준현 헬퍼' 폴더 안의 '준현 헬퍼.exe'를 실행합니다.
 3. 처음 실행하면 프로필을 만들고 필요한 최신 게임 데이터를 온라인에서 내려받습니다.
 4. 프로그램 실행 시 GitHub의 최신 정식 준현 헬퍼 릴리즈를 확인합니다. 더 최신 버전이 있으면 업데이트 여부를 묻습니다.
+
+v1.7.12 장기 유지보수
+- Quest/Hideout/Items/Ammo의 공통 이미지 캐시와 화면 간 이동 연결을 개별 탭의 Loaded 순서가 아니라 준현 헬퍼 창의 명시적인 초기화 경계에서 설정하도록 정리했습니다.
+- Ammo의 검색·상세정보 UI 초기화가 부모 화면의 Loaded 이벤트 존재 여부에 간접 의존하던 WPF 생명주기 결합을 제거하고 Ammo 화면이 직접 초기화를 소유하도록 수정했습니다.
+- 사용자 기능과 화면 동작, Game Content/사용자 진행도 소유권, Map/MiniMap donor 동작, Scanner 인식 정책은 변경하지 않았습니다.
+- Scanner structural floor 0.34, HEADER_FRAME_LOCKED 0.68, candidate 수, matcher/visual acceptance, 200ms observation target은 그대로 유지합니다.
 
 v1.7.11 유지보수
 - Scanner의 '필요 개수'가 전체 요구량이 아니라 현재 보유량/FIR 반영 후 실제로 더 필요한 남은 수량을 표시하도록 수정했습니다.
