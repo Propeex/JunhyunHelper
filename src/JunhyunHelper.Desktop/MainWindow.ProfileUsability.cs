@@ -1,7 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
 using JunhyunHelper.Core.Profiles;
-using JunhyunHelper.Desktop.Profiles;
 
 namespace JunhyunHelper.Desktop;
 
@@ -56,66 +55,13 @@ public partial class MainWindow
                     string.Equals(choice.Profile.ProfileId, _activeProfile?.ProfileId, StringComparison.Ordinal));
             _initializing = false;
 
-            CreateProfileButton_Click(sender, new RoutedEventArgs());
+            _ = CreateProfileOverlayAsync();
             return;
         }
 
         ProfileComboBox_SelectionChanged(sender, e);
     }
 
-    private async void EditProfileCompactButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (_activeProfile is null || _activeContent is null)
-            return;
-
-        var profileId = _activeProfile.ProfileId;
-        var editor = new ProfileEditorWindow(
-            _activeProfile.GameMode,
-            _activeContent,
-            _activeProfile)
-        {
-            Owner = this,
-        };
-
-        if (editor.ShowDialog() != true)
-            return;
-
-        try
-        {
-            if (editor.DeleteRequested)
-            {
-                SetBusy(true, "프로필을 삭제하는 중...");
-                await _services.ProfileManagement.DeleteAsync(profileId);
-                _activeProfile = null;
-                _activeContent = null;
-                _activeItemsWorkspace = null;
-                await LoadProfilesAsync();
-                return;
-            }
-
-            if (editor.Result is not { } result)
-                return;
-
-            SetBusy(true, "프로필을 저장하는 중...");
-            var updated = await _services.ProfileManagement.UpdateSettingsAsync(
-                profileId,
-                result.Level,
-                result.Faction,
-                result.EditionId,
-                result.PrestigeLevel,
-                result.Traders);
-
-            await LoadProfilesAsync(updated.ProfileId);
-        }
-        catch (Exception exception)
-        {
-            ShowFailure(
-                editor.DeleteRequested ? "프로필을 삭제하지 못했습니다." : "프로필을 수정하지 못했습니다.",
-                exception);
-        }
-        finally
-        {
-            SetBusy(false, StatusText.Text);
-        }
-    }
+    private async void EditProfileCompactButton_Click(object sender, RoutedEventArgs e) =>
+        await EditActiveProfileOverlayAsync();
 }
