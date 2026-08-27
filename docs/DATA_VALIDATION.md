@@ -26,6 +26,8 @@
       ↓
 후보 DB 자체 검증
       ↓
+기존 정상 snapshot 대비 completeness 검증
+      ↓
 성공한 경우에만 활성 콘텐츠 교체
 ```
 
@@ -135,6 +137,7 @@
 - 필요 아이템 계산의 핵심 item reference가 해석 불가능
 - 내부 DB 무결성 실패
 - 필수 importer에서 알 수 없는 구조 때문에 의미를 보장할 수 없음
+- 기존 정상 snapshot 대비 핵심 영역이 안전 retained floor 아래로 급감
 
 Fatal 오류가 있으면 현재 정상 콘텐츠를 그대로 유지합니다.
 
@@ -226,21 +229,29 @@ FIR 아이템 하나를 FIR 요구량과 전체 요구량에서 이중 소비한
 
 ---
 
-# 6. 데이터 수량 변화에 대한 정책
+# 6. 데이터 수량 변화와 completeness 정책
 
-퀘스트/아이템/은신처 개수가 크게 변했다는 이유만으로 자동 실패시키지 않습니다.
+Tarkov 대형 패치에서는 실제로 데이터가 대량 추가/삭제될 수 있으므로 **절대 행 수나 특정 버전의 고정 개수**를 정상성 기준으로 사용하지 않습니다.
 
-Tarkov 대형 패치에서 실제로 대량 추가/삭제가 발생할 수 있기 때문입니다.
+다만 이미 검증된 active snapshot이 존재하는 설치에서는, 외부 원천의 부분 응답이 구조적으로는 읽히지만 내용 대부분이 빠진 작은 catalog로 변환될 수 있습니다. 이를 정상 패치로 오인해 활성화하지 않도록 `ContentUpdateCompletenessGuard`가 last-known-good baseline과 candidate를 비교합니다.
 
-대신:
+현재 런타임 계약은 다음과 같습니다.
+
+- 비교 가능한 핵심 entity/relationship 영역은 candidate가 baseline의 **50% 이상**을 유지해야 합니다.
+- 구현상 안전 floor는 `max(1, floor(baselineCount × 0.50))`이며, 그보다 작은 candidate는 `Fatal`입니다.
+- 보호 영역에는 item/trader/map/quest/objective/quest-item/hideout/ammo/edition뿐 아니라 quest prerequisite, map-location relation, hideout level/item relation, ammo acquisition/relation 등이 포함됩니다.
+- 한국어 번역 coverage와 item/quest Wiki·icon/image 같은 주요 표시 리소스도 충분히 큰 기존 baseline이 있을 때 같은 급감 방어를 적용합니다.
+- 선택/표시 coverage는 baseline 자체가 매우 작은 경우 변동성이 크므로 상대 급감 판정에서 제외할 수 있습니다.
+- 첫 설치처럼 정상 baseline이 없으면 상대 수량 비교만으로 candidate를 거부하지 않습니다.
+
+즉 활성화 판단은 다음을 함께 사용합니다.
 
 - 구조적 무결성
 - 필수 관계 해석 여부
 - 변환기 지원 여부
+- 기존 정상 데이터 대비 비정상적인 대량 소실 여부
 
-를 활성화 판단의 주 근거로 사용합니다.
-
-행 수의 비정상적 변화는 `Warning/Anomaly` 신호로 남겨 사람이 조사할 수 있게 할 수 있지만, 고정 임계치만으로 콘텐츠를 무조건 거부하지 않습니다.
+이 50% 기준은 "정상 Tarkov 데이터 개수"를 뜻하는 고정 사양이 아니라 **부분 payload/상류 장애로부터 기존 정상 데이터를 보호하는 상대적 안전장치**입니다. 실제 Tarkov의 정상적인 대규모 개편이 이 안전장치에 걸리면 임계치를 즉시 완화하지 않고 upstream payload와 제품 의미를 먼저 검토한 뒤, 검증된 변경만 반영합니다.
 
 ---
 
@@ -257,14 +268,15 @@ Tarkov 대형 패치에서 실제로 대량 추가/삭제가 발생할 수 있�
 순서:
 
 1. candidate를 별도 위치에서 완성
-2. 모든 검증 수행
-3. manifest 생성
-4. 검증 성공
-5. 한 번의 활성화 단계로 active 교체
+2. candidate 자체의 의미/참조 검증 수행
+3. 기존 정상 snapshot이 있으면 completeness 검증 수행
+4. manifest 생성
+5. 모든 검증 성공
+6. 한 번의 활성화 단계로 active 교체
 
-실패하면 candidate만 폐기합니다.
+실패하면 candidate만 폐기하고 active를 유지합니다.
 
-정확한 파일/DB 교체 기술은 기술 스택 결정 후 정합니다.
+정확한 저장/교체 구현은 현재 `TarkovContentUpdateService`와 snapshot store를 기준으로 확인하며, 이 개념 문구만 보고 별도 업데이트 경로를 새로 만들지 않습니다.
 
 ---
 
@@ -306,21 +318,25 @@ Tarkov 대형 패치에서 실제로 대량 추가/삭제가 발생할 수 있�
 - ammo item + 상인 판매/교환/제작 관계
 - 한국어 번역 + 영어 fallback
 - 중복 objective ID가 다른 quest에 존재하는 경우
+- 정상 baseline 대비 핵심 영역의 suspicious shrink 차단
 
-목적은 **준현 헬퍼의 변환 공식이 바뀌지 않았는지** 확인하는 것입니다.
+목적은 **준현 헬퍼의 변환 공식과 활성화 안전 계약이 바뀌지 않았는지** 확인하는 것입니다.
 
 ## 9.2 Live Source Contract Test
 
-실제 최신 `json.tarkov.dev`를 대상으로 수행합니다.
+실제 최신 외부 Tarkov 데이터 원천을 대상으로 수행합니다.
 
 확인:
 
 - 현재 endpoint 계약을 importer가 이해하는지
 - 새로운 requirement/objective/acquisition 종류가 나타났는지
 - 참조 무결성이 유지되는지
-- 각 mode별 콘텐츠를 만들 수 있는지
+- Regular/PvE 각각의 콘텐츠를 만들 수 있는지
+- source warning과 주요 entity 수량이 조사 가능한 형태로 남는지
 
-이 검사는 최신 게임 데이터가 바뀌었을 때 프로그램 코드를 고칠 필요가 있는지 조기에 알려주는 역할을 합니다.
+이 검사는 `.github/workflows/live-data-probe.yml`에서 일반 CI와 분리해 매일 예약 실행하고 필요할 때 수동 실행합니다. 외부 네트워크/상류 장애는 저장소 코드와 독립적으로 발생할 수 있으므로 PR/main의 결정론적 CI gate로 사용하지 않습니다.
+
+Live Probe는 current/baseline snapshot을 보유한 설치가 아니므로 `ContentUpdateCompletenessGuard`의 상대 급감 검증을 대체하지 않습니다. Probe는 **현재 외부 계약을 importer/validator가 이해하는지**, 런타임 guard는 **기존 정상 데이터를 부분 payload로 교체하지 않는지**를 각각 검증합니다.
 
 ## 9.3 Domain Regression Test
 
