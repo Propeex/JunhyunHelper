@@ -1,7 +1,7 @@
 # Scanner — 제품/기술 계약
 
 기준일: 2026-08-27
-상태: **v1.7.12 PUBLIC STABLE / FEATURE COMPLETE / MAINTENANCE ONLY**
+상태: **v1.7.13 PUBLIC STABLE / FEATURE COMPLETE / MAINTENANCE ONLY**
 
 이 문서는 현재 Scanner 제품 동작과 기술 안전 계약의 canonical 전문 문서다. 역사적 근거는 버전별 결정/릴리즈 문서에 보존하고, 현재 구현 판단은 이 문서와 `STATE.md`, 실제 코드가 우선한다.
 
@@ -41,7 +41,7 @@ Scanner는 범용 OCR이 아니라 **현재 공식 한국어 Tarkov full-item ca
 - Item ID 확정 전 price/needed/slot metadata를 identity evidence로 사용 금지
 - 새로운 reviewed evidence 없이 semantic/OCR/matcher/visual acceptance 완화 금지
 
-## 2. Current v1.7.12 product state
+## 2. Current v1.7.13 product state
 
 Scanner는 기능 개발이 끝난 **maintenance-only** 상태다. 실제 사용자 evidence가 있는 회귀만 failure stage를 확인해 affected layer에 최소 수정한다.
 
@@ -55,10 +55,12 @@ Scanner는 기능 개발이 끝난 **maintenance-only** 상태다. 실제 사용
 - full official item catalog가 identity authority
 - Item ID 확정 이후 metadata/market/needed는 동일-ID join
 - Scanner `필요 개수`는 canonical `NeededItems[itemId].RemainingTotal`
+- Scanner item search의 Quest/Hideout source는 canonical `NeededItems[itemId].Sources`
 - Scanner/Map configurable hotkey는 primary key + optional Ctrl/Alt/Shift이며 extra modifier compatibility / most-specific-wins 정책 적용
+- display settings는 change-immediate persistence
 - verified main-CI artifact만 stable release 가능
 
-v1.7.12는 Desktop page lifecycle/ownership 유지보수 릴리즈이며 Scanner identity recognition 기준을 변경하지 않았다. v1.7.11의 `필요 개수` presentation과 configurable hotkey modifier UX, v1.7.10의 공개 배포 환경별 luminance normalization을 그대로 유지한다.
+v1.7.13은 Scanner settings/search/UI를 단순화한 PATCH이며 Scanner identity recognition 기준을 변경하지 않았다. v1.7.11의 `필요 개수` presentation과 configurable hotkey modifier UX, v1.7.10의 공개 배포 환경별 luminance normalization을 그대로 유지한다.
 
 ## 3. 핵심 안전 불변식
 
@@ -158,20 +160,33 @@ remote Game Content fetch/build
 
 ## 7. Scanner UI — current
 
-상단 primary controls:
+일반 surface의 역할은 운용, 표시 설정, hotkey 설정, current correction, search/log를 분리해 제공하는 것이다.
+
+Primary/command 영역:
 
 - `스캐너 ON/OFF`
-- `설정`
+- display/settings launcher
+- configurable hotkey editing entry point
 - `고급`
-- `현재 결과 교정`
+- `현재 결과 교정` — 우측 command 영역
 
-`현재 결과 교정`은 `ScannerRecognitionDebugStore`에 보존된 최신 exact in-memory frame만 기존 correction window로 연다. 다른 오래된 frame을 대체하지 않는다.
+Display/settings surface:
+
+- Mini Scanner optional field visibility/order
+- OCR substitutions/display-owned preferences
+- 변경 즉시 기존 atomic settings store에 저장
+- 별도 Save/Cancel transaction 없음
+- fixed identity header인 icon/official item name에 대한 `항상 표시` 안내 row 없음
+
+`현재 결과 교정`은 `ScannerRecognitionDebugStore`에 보존된 최신 exact in-memory frame만 correction editor로 연다. 다른 오래된 frame을 대체하지 않는다.
 
 `고급`:
 
 - Display Test / 테스트 스캐너
 - 교정 데이터 관리
 - Scanner 성능 진단 자료 내보내기
+
+Scanner settings/edit surface는 가능한 경우 MainWindow 내부 공통 overlay host를 사용하고 X/backdrop/동일 launcher 재클릭으로 닫는다. Overlay host가 Scanner settings의 domain/persistence 의미를 재구현하지 않는다.
 
 ## 8. Item-title OCR
 
@@ -317,7 +332,7 @@ USB 보안 플래시 드라이브: 12,686.278 ms → 1,354.775 ms
 
 같은 Scanner latency cycle에서 exact current-pixel identity가 동일한 visual evidence만 재사용한다. Cycle이 바뀌면 즉시 폐기한다. cross-frame Item identity cache가 아니다.
 
-## 14. Mini Scanner presentation
+## 14. Mini Scanner / item-search presentation
 
 Confirmed Item identity가 presentation authority다.
 
@@ -344,6 +359,21 @@ miss #3 → hide
 Progress-only state는 miss로 세지 않는다.
 
 Item ID 확정 뒤 `필요 개수`는 `ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal`을 표시한다. 이는 current Inventory와 FIR 조건이 반영된 canonical remaining requirement이며 `RequiredTotal`을 Scanner가 별도 표시하거나 재계산하지 않는다.
+
+v1.7.13 item search의 source contract:
+
+```text
+confirmed Item ID
+→ ItemsWorkspace.Plan.NeededItems[itemId]
+   ├─ RemainingTotal
+   └─ Sources
+→ current needed + related Quest/Hideout source rows
+→ existing content navigation
+```
+
+- source list는 기존 Needed Items 계산 결과를 same-ID로 join한다.
+- Scanner가 Quest/Hideout requirement/source를 별도 재구성하지 않는다.
+- source/needed information은 Item ID 확정 전 identity evidence로 사용할 수 없다.
 
 ## 15. Ground Truth / durable data
 
@@ -396,7 +426,9 @@ Scanner와 configurable Map actions는 `primary key + optional Ctrl/Alt/Shift`�
 - Map bare NumPad0~5 direct floor 유지
 - modifier+NumPad configurable Map action 허용
 
-공식 결정: `docs/DECISION_V1.7.11_MAINTENANCE.md`.
+v1.7.13은 hotkey matching 의미를 바꾸지 않고 편집 UI의 entry point만 display settings에서 normal Scanner surface로 분리했다.
+
+공식 결정: `docs/DECISION_V1.7.11_MAINTENANCE.md` 및 `docs/DECISION_V1.7.13_UI_SIMPLIFICATION.md`.
 
 ## 18. CI / release contract
 
@@ -414,21 +446,21 @@ Release build
 
 Stable release는 main CI가 성공한 exact main commit의 artifact만 Release workflow가 게시한다.
 
-v1.7.12 proof:
+v1.7.13 proof:
 
 ```text
-PR #197 final head: 23e1784c25954f4900a57cfa4c1c9821d5d6d668
-final PR CI: 33042136686 — SUCCESS
-main release source: d8d0f8eb1ffdd9b8c4ec890277a7b209b2458c2b
-main CI: 33042307773 — SUCCESS
-Release workflow: 33042464642 — SUCCESS
-release id: 377581895
-asset id: 531791229
-asset SHA-256: 3f0d57f8a5dc92611bc8648a423c43d65917e63e0d73a771b559153803186fa1
-397 passed / 0 failed / 0 skipped
+PR #199 final head: 98da50022528d78a3c8f0448736b5785bf9de818
+final PR CI: 33051551273 — SUCCESS
+main release source: 16198c462a6be58d77dbe2dc27aa57eabfc7b9fd
+main CI: 33051890329 — SUCCESS
+Release workflow: 33052109161 — SUCCESS
+release id: 377652938
+asset id: 531953179
+asset SHA-256: d1cfcf1f606985485584f0e085e8821e0f62156a980f259a90144fd134a7eeb6
+400 passed / 0 failed / 0 skipped
 ```
 
-v1.7.12는 Scanner recognition policy를 변경하지 않았지만 release gate에서 Scanner/Mini Scanner actual published EXE smoke를 포함해 검증했다. 이후 documentation-only main commit은 v1.7.12 product release source가 아니다.
+v1.7.13은 Scanner recognition policy를 변경하지 않았지만 release gate에서 Scanner/Mini Scanner actual published EXE smoke를 포함해 검증했다. 이후 documentation-only main commit은 v1.7.13 product release source가 아니다.
 
 ## 19. Maintenance workflow
 
