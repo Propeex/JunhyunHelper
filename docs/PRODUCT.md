@@ -2,8 +2,8 @@
 
 이 문서는 **무엇을 만들고 왜 만드는지**를 정의하는 공식 제품 요구사항이다. 사용자의 최신 확정 의도가 과거 구현보다 우선하며, 현재 코드가 존재한다는 이유만으로 그 동작을 제품 요구사항으로 추정하지 않는다.
 
-기준일: 2026-08-25
-상태: **v1.7.0 PUBLIC RELEASE / VERIFIED**
+기준일: 2026-08-27
+상태: **v1.7.11 PUBLIC STABLE / VERIFIED / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 1. 제품 정의
 
@@ -12,7 +12,7 @@
 제품 목표:
 
 - 플레이 중 필요한 진행/아이템 정보를 빠르게 확인
-- 사용자가 이미 알고 있는 진행 상태를 정확히 저장
+- 사용자가 이미 알고 있는 진행 상태를 정확하게 저장
 - 공식 Tarkov 데이터가 바뀌어도 검증 가능한 범위에서 안전하게 갱신
 - 알 수 없는 상태를 추측하지 않고 fail closed
 - 게임 프로세스를 변조하거나 내부 데이터를 읽지 않는 외부 보조 프로그램 유지
@@ -55,7 +55,7 @@ ZIP/folder 이름은 version과 분리한다. GitHub Release asset은 filename n
 
 Mutable user data는 `%LocalAppData%/JunhyunHelper`에 저장한다.
 
-현재 public stable/latest는 v1.7.0이다. 제품 source의 권위는 tag `v1.7.0`의 exact SHA `56e12342e3490fd0defa5f327a03d20d4f32b3a6`이며, main의 후속 문서/housekeeping commit은 release source가 아니다.
+현재 public stable/latest는 v1.7.11이다. 제품 source의 권위는 tag `v1.7.11`의 exact SHA `0f97c6e5340ae91581a9242ec236bbd7885b34d5`이며, main의 후속 documentation/housekeeping commit은 release source가 아니다.
 
 ## 3. Game Content
 
@@ -100,7 +100,7 @@ remote Game Content
 
 Scanner refresh만 실패하면 healthy general Game Content를 rollback하지 않는다. 기존 healthy Scanner cache가 있으면 유지한다.
 
-v1.6.0 일반 Scanner surface에는 별도 catalog force-refresh를 필수 사용자 작업으로 노출하지 않는다.
+일반 Scanner surface에는 별도 catalog force-refresh를 필수 사용자 작업으로 노출하지 않는다.
 
 ## 5. Program Update
 
@@ -113,7 +113,7 @@ v1.6.0 일반 Scanner surface에는 별도 catalog force-refresh를 필수 사�
 - program-owned files만 transaction 교체
 - 실패 시 rollback/기존 실행 복구 시도
 - LocalAppData user data는 update 대상 아님
-- 정식 release는 exact-source build/test/publish/smoke + public redownload verification을 통과해야 함
+- 정식 release는 exact-source build/test/publish/smoke + public release verification을 통과해야 함
 
 ## 6. User Progress / Profile
 
@@ -188,7 +188,7 @@ Availability 원칙:
 - cleanup safety를 증명할 수 없으면 정리 가능 처리 금지
 - Inventory FIR / non-FIR 분리
 
-Scanner `필요 개수`는 Inventory 차감 shortage가 아니라 `NeededItems[itemId].RequiredTotal`이다.
+Scanner `필요 개수`는 Item ID 확정 뒤 canonical `NeededItems[itemId].RemainingTotal`을 표시한다. 이 값은 현재 Inventory와 FIR 조건을 반영한 실제 남은 필요량이다. `RequiredTotal`은 전체 요구량이며 Scanner 사용자 표시값이 아니다.
 
 ## 11. Items
 
@@ -228,6 +228,18 @@ d933792b6042a51cea38dc44b686a096fe30de67
 - Main Map floor change 시 zoom + map-space center 보존
 - MiniMap floor change 시 exact Scale + Translate 보존
 - MiniMap click-through
+- MiniMap first-open 전에 현재 Main Map 선택을 shared `MapTrackerService`에 동기화
+- MiniMap width/height를 `%LocalAppData%/JunhyunHelper/minimap-window-state.json`에 저장·복원하고 안전 범위로 clamp
+
+Configurable Map hotkey:
+
+- primary key는 일치해야 함
+- 등록된 Ctrl/Alt/Shift는 모두 눌려 있어야 함
+- 등록하지 않은 Ctrl/Alt/Shift가 추가로 눌린 것은 허용
+- 같은 primary key에 여러 compatible binding이 있으면 required modifier 수가 많은 더 구체적인 binding 우선
+- 동률은 기존 기능 우선순위/안정적 등록 순서
+- Windows modifier 미지원
+- bare NumPad0~5 direct floor selection 유지
 
 Map은 독립 subsystem이고 Quest만 current JunhyunHelper content/profile과 bridge한다. 검증된 Map/MiniMap은 기능 요구 없이 불필요하게 재설계하지 않는다.
 
@@ -246,26 +258,31 @@ Tarkov window pixels
 → red close-X + magnifier + neutral inspect-header semantic validation
 → HEADER_FRAME_LOCKED
 → item-name ROI
-→ Windows ko-KR OCR
+→ serialized Windows ko-KR OCR
 → optional user OCR substitution
+→ conditional environment-aware title normalization when needed
 → current-catalog sanitation / normalization
 → conservative official-catalog matching / bounded recovery
-→ optional Tarkov-font visual corroboration/recovery
+→ optional Tarkov-font/current-pixel visual corroboration/recovery
 → Item ID or fail closed
 → local mapped presentation
 → Scanner Page / Mini Scanner
 → optional correction / Ground Truth
 ```
 
+정상 normal OCR success path는 환경 정규화 분석이나 추가 OCR을 수행하지 않는다. Normal OCR miss 또는 기존 bounded deep OCR 단계에서만 title ROI luminance profile을 분석하고 lifted/washed/low-contrast 입력으로 판단될 때 auxiliary normalized OCR evidence를 추가한다. 정규화는 identity proof가 아니다.
+
 ### 14.2 Scanner safety contract
 
 - false positive보다 miss 선호
 - geometry/structural score는 proposal evidence이며 Item identity가 아님
+- environment normalization은 Item identity가 아님
 - `HEADER_FRAME_LOCKED >= 0.68`
 - valid magnifier + red close-X 필수
 - structural floor `0.34`
 - continuous max 8 candidates
 - one-shot max 12 candidates
+- continuous observation target `200 ms`
 - current official Korean full-item catalog가 identity authority
 - exact-first conservative matcher
 - generic confidence/top1-top2 margin을 evidence 없이 완화하지 않음
@@ -275,7 +292,8 @@ Tarkov window pixels
 - game memory read / DLL injection / packet interception 금지
 - production OCR field는 item-name 하나
 - automatic product-wide forced OCR substitution table 금지
-- cross-frame OCR cache 금지
+- cross-frame OCR/visual identity cache 금지
+- Item ID 확정 전 price/needed/slot metadata를 identity evidence로 사용하지 않음
 
 ### 14.3 Capture / one-shot
 
@@ -283,7 +301,7 @@ Continuous real Scanner는 EscapeFromTarkov Borderless client-area를 감지한�
 
 Display Test는 동일 recognition pipeline을 적용하며 real continuous mode와 상호 배타적이다.
 
-One-shot 기능은 유지하지만 v1.6.0 일반 Scanner page에는 별도 one-shot 버튼을 두지 않는다.
+One-shot 기능은 유지하지만 일반 Scanner page에는 별도 one-shot 버튼을 두지 않는다.
 
 ```text
 1회 인게임: Ctrl+Shift+F10
@@ -291,13 +309,15 @@ One-shot 기능은 유지하지만 v1.6.0 일반 Scanner page에는 별도 one-s
 Scanner ON/OFF: Ctrl+Shift+F12
 ```
 
+Configurable Scanner hotkey는 Map과 동일한 modifier compatibility 계약을 따른다. 등록 modifier는 모두 필요하고 추가 Ctrl/Alt/Shift는 허용하며, 같은 primary key에서 여러 compatible binding이 있으면 더 구체적인 binding이 우선한다. Windows modifier는 지원하지 않는다.
+
 ### 14.4 Full Item catalog / item search
 
 Scanner identity catalog는 Needed subset이 아니라 current GameMode 공식 전체 Item catalog다.
 
 실제 scan/search 중에는 local/memory data만 사용한다.
 
-v1.6.0 item search result:
+item search result:
 
 - cached icon
 - official name
@@ -308,7 +328,7 @@ v1.6.0 item search result:
 - Tarkov Wiki
 - flea 24h average
 - best non-flea trader price + trader name where trusted
-- `NeededItems[itemId].RequiredTotal`
+- `NeededItems[itemId].RemainingTotal`
 
 ### 14.5 Scanner display settings schema v6
 
@@ -354,11 +374,11 @@ Item ID 확정 뒤 local trusted data:
 - flea positive `avg24hPrice`
 - positive `width × height` slots
 - trader/flea price per slot
-- `NeededItems[itemId].RequiredTotal`
+- `NeededItems[itemId].RemainingTotal`
 
 Market/dimension 일부 오류는 affected field만 fail closed하고 healthy Item ID를 버리지 않는다.
 
-### 14.8 Ground Truth / correction — v1.6.0
+### 14.8 Ground Truth / correction
 
 교정 image는 viewport에 auto-fit하되 saved ROI는 original pixel coordinate를 사용한다.
 
@@ -379,6 +399,8 @@ Saved Case는 correction dataset manager에서 다시 열 수 있다. `case.json
 
 Automatic diagnostic Case는 정답이 아니다. User-reviewed Case만 Ground Truth다.
 
+정상 monitoring은 durable automatic correction Case를 만들지 않는다. latest exact frame은 current correction용 메모리 상태로만 유지한다.
+
 ### 14.9 Performance / stability / retention
 
 Stage telemetry:
@@ -392,34 +414,28 @@ Stage telemetry:
 - presentation
 - end-to-end
 
-Same active scan cycle의 exact-identical OCR bitmap만 reuse. Cross-frame OCR cache 없음.
+Same active scan cycle의 exact-identical OCR/current-pixel bitmap evidence만 reuse. Cross-frame identity cache 없음.
 
 Title continuity signature는 trusted detail continuity evidence이지 Item identity proof가 아니다.
 
 Reviewed Ground Truth는 자동 삭제하지 않는다.
 
-Automatic unreviewed diagnostic only:
+Legacy/automatic unreviewed diagnostic cleanup은 retention/state/recent-write safety를 증명할 때만 수행하며 unknown/corrupt metadata는 preserve fail closed한다. Logs는 bounded rotation한다.
 
-- max 30 days
-- max 300 cases
-- max 512 MiB
-- recent 2h protection
-
-Unknown/corrupt metadata는 preserve fail closed. Logs는 bounded rotation.
-
-### 14.10 Scanner UI — v1.6.0
+### 14.10 Scanner UI
 
 일반 surface:
 
 - Scanner ON/OFF
 - 설정
 - 고급
+- 현재 결과 교정
 - item search
 - recognition log
 
 `설정`은 global hotkey + Mini Scanner display/order를 우선한다.
 
-`고급`은 Display Test + current result correction + correction data management를 우선한다.
+`고급`은 Display Test + correction data management + support diagnostics를 우선한다.
 
 일반 surface에 catalog recovery/regression/export/log-delete 같은 developer action을 펼쳐 놓지 않는다.
 
@@ -427,18 +443,20 @@ Unknown/corrupt metadata는 preserve fail closed. Logs는 bounded rotation.
 
 Image cache는 remote bytes를 검증·정규화한 뒤 LocalAppData에 저장한다. Scanner scan/search path는 local cached icon만 사용한다.
 
-Map/Ammo/Scanner preference는 사용자 mutable data이며 Program Update가 덮어쓰지 않는다.
+Map/Ammo/Scanner preference와 MiniMap window size는 사용자 mutable data이며 Program Update가 덮어쓰지 않는다.
 
 ## 16. UI 품질
 
 - MainWindow minimum width는 실제 2-pane/header 요구를 만족하는 1180
 - normal vs settings vs advanced hierarchy를 명확히 유지
 - clipping/scroll/status wording 회귀를 Product UI smoke로 검출
+- standard WPF 설명 ToolTip은 표시하지 않음
+- 지도 marker detail 같은 기능성 custom Popup/information surface는 유지
 - 검증된 Map/MiniMap을 제품 요구 없이 재설계하지 않음
 
 ## 17. Release quality gate
 
-v1.6.0 release candidate는 최소 다음을 통과해야 한다.
+Release candidate는 최소 다음을 통과해야 한다.
 
 - Desktop Release build
 - full automated tests
@@ -455,9 +473,11 @@ v1.6.0 release candidate는 최소 다음을 통과해야 한다.
 - independent anonymous public redownload/hash/layout verification
 - public-downloaded EXE Product UI/Map/Scanner smoke
 
+v1.7.11은 exact main CI artifact와 public GitHub asset digest의 일치를 검증했다. 현재 자동화 도구 세션이 public binary asset 자체의 독립 anonymous redownload를 제공하지 않는 경우 수행하지 않은 검증을 완료했다고 기록하지 않는다. 이 제한은 release quality gate 요구를 낮추지 않는다.
+
 ## 18. 현재 개발 방향
 
-v1.6.0 공개 검증 후에는 새 Scanner 기능을 계속 추가하는 것이 기본 방향이 아니다.
+현재 제품과 Scanner는 **PRODUCT COMPLETE / MAINTENANCE MODE**다. 새 기능을 계속 추가하는 것이 기본 방향이 아니다.
 
 ```text
 real Tarkov usage
@@ -470,3 +490,5 @@ real Tarkov usage
 ```
 
 Ground Truth evidence 없이 threshold/candidate cap을 완화하지 않는다.
+
+v1.7.11의 현재 제품 결정 상세는 `docs/DECISION_V1.7.11_MAINTENANCE.md`, 공개 릴리즈 증거는 `docs/RELEASE_1.7.11.md`를 권위 기록으로 사용한다.
