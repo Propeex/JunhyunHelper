@@ -3,7 +3,7 @@
 > 새 대화/새 개발자는 이 문서를 먼저 읽습니다. 대화 기억이 아니라 저장소의 공식 문서와 현재 GitHub 상태가 프로젝트의 기준입니다.
 
 기준일: 2026-08-27  
-상태: **v1.7.11 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+상태: **v1.7.11 PUBLIC STABLE / v1.7.12 PATCH CANDIDATE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 1. 제품
 
@@ -88,7 +88,8 @@ JunhyunHelper.Desktop
 ## 4. Schema / 사용자 데이터
 
 ```text
-Desktop target version: 1.7.11
+Desktop target version: 1.7.12 candidate
+Current public stable executable: 1.7.11
 Content schema: v7
 Readable Content schemas: v3~v7
 user.db schema: v1
@@ -429,6 +430,9 @@ evidence
 - `docs/DECISION_V1.7.9_MINI_SCANNER_SHOW_2026-08-26.md`
 - `docs/DECISION_SCANNER_CROSS_ENVIRONMENT_2026-08-26.md`
 - `docs/DECISION_V1.7.11_MAINTENANCE.md`
+- `docs/DECISION_LONG_TERM_MAINTENANCE_AUDIT_2026-08-27.md`
+- `docs/DECISION_V1.7.12_MAINTENANCE.md`
+- `docs/RELEASE_NOTES_V1.7.12.md`
 - `docs/RELEASE_1.7.11.md`
 - `docs/.release-v1.7.11-status.json`
 
@@ -508,3 +512,49 @@ Live Probe의 `sourceWarnings=1`은 Regular/PvE 각각 Wiki Ballistics가 186/20
 main CI에서도 Windows publish, Product UI / Map / Factory / MiniMap smoke, graceful shutdown, package verification이 모두 성공했다. 앞으로 외부 source drift는 장기 `live-data-probe.yml`로 일반 제품 CI와 분리해 감시한다.
 
 공개 v1.7.11은 이 유지보수 기반 작업 후에도 tag `v1.7.11`, exact release source `0f97c6e5340ae91581a9242ec236bbd7885b34d5`, 기존 `Junhyun-Helper.zip` 및 checksum assets 그대로 유지된다. `bbb8b9b...`와 이후 문서 동기화 commit은 product release source가 아니다.
+
+## 20. 2026-08-27 장기 완성도 audit / v1.7.12 후보
+
+PR #197에서 새 기능 없이 첫 장기 performance/dead-code/architecture audit와 Desktop lifecycle 경계 개선을 진행했다.
+
+핵심 발견:
+
+- Quest/Hideout/Items/Ammo image cache, Ammo favorites, cross-page navigation wiring이 개별 page `Loaded` 순서에 분산되어 있었다.
+- 이를 `MainWindow.OnInitialized`의 product-window composition owner로 이동했다.
+- 처음에는 `ItemsPage_Loaded` / `HideoutPage_Loaded` / `AmmoPage_Loaded`가 모두 실제 dead handler로 보였으나, 실제 published EXE smoke에서 Ammo detail toggle 초기화 회귀를 탐지했다.
+- 원인은 `AmmoPage_Loaded` 본문의 기능이 아니라 Ammo의 class-level `Loaded` handler가 부모 Loaded subscription 존재 여부에 간접 의존하던 hidden WPF lifecycle coupling이었다.
+- 이를 부모 handler 복구로 우회하지 않고 Ammo search/detail/grid presentation을 `AmmoPage.OnInitialized` + Loaded dispatcher priority가 직접 소유하도록 수정했다.
+
+Dead-code 분류 결과:
+
+- 제거된 MainWindow page Loaded handlers: ownership 이동과 Ammo self-owned initialization 후 실제 dead
+- `Legacy` Map/MiniMap bridge: active compatibility/integration, 유지
+- Factory/Map/MiniMap smoke: active regression evidence, 유지
+- Scanner diagnostic OCR reflection adapter: 의도적 technical debt, 유지
+- original full-refresh mutation handlers + fast rebinding: lifecycle 관여 증거가 있어 삭제 보류
+
+Performance audit 결과:
+
+- Quest/Hideout/Items workspace가 profile을 각각 `LoadAsync`하는 표면적 중복은 확인했다.
+- `UserProfileStore`가 첫 authoritative read/save 뒤 동일 immutable snapshot을 in-process cache로 반환하므로 현재 증거만으로 SQLite 병목으로 판정하지 않았다.
+- one-read/multi-build 구조, 추가 cache, 병렬화는 실제 runtime trace가 병목을 증명할 때까지 보류한다.
+- Scanner recognition constants/threshold/candidate/matcher/visual/cross-frame policy는 전혀 변경하지 않았다.
+
+검증된 runtime candidate evidence:
+
+```text
+PR #197 validated runtime/document head: 16b73064631085030d506a1939dc2fa10c4d5501
+PR CI: 33041030233 — SUCCESS
+397 passed / 0 failed / 0 skipped
+Windows x64 publish: SUCCESS
+ProductVersion: 1.7.12
+Product UI / Scanner / Map / Factory / MiniMap smoke: SUCCESS
+graceful shutdown / clean portable root: SUCCESS
+release package verification: SUCCESS
+Junhyun-Helper.zip bytes: 80,477,526
+candidate SHA-256: 837b589db90d1e13a1cd541d05513d847443d19e66bfec267aa05fb026b716ef
+```
+
+이후 PR의 `STATE.md` / `DEVELOPER_REFERENCE.md` 동기화는 review에서 지적된 공식 handoff 문서 누락을 해소하는 documentation-only follow-up이다. 최종 merge 전 CI를 다시 통과시킨 뒤 main exact commit을 새 v1.7.12 release source 후보로 검증한다.
+
+v1.7.11 public tag/source/assets는 v1.7.12 공개 전까지 immutable stable로 유지한다.

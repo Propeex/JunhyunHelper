@@ -14,13 +14,15 @@ public partial class MainWindow
         if (System.Windows.Application.Current is not null)
             System.Windows.Application.Current.ShutdownMode = ShutdownMode.OnMainWindowClose;
 
-        // Pages previously received ImageCacheService only as a side-effect of the
-        // Data Update path. Bind it at process startup so existing content can resolve
-        // cached/downloadable icons immediately on a cold start.
+        // Page-level infrastructure belongs to the product window lifetime, not to
+        // whichever tab happens to raise Loaded first. Bind every page once during
+        // initialization so cold-start behavior is independent of visibility/order.
+        QuestPage.SetImageCache(_services.Images);
         HideoutPage.SetImageCache(_services.Images);
         ItemsPage.SetImageCache(_services.Images);
         AmmoPage.SetImageCache(_services.Images);
         AmmoPage.SetFavoriteStore(_services.AmmoFavorites);
+        AttachContentNavigation();
 
         // Scanner global commands belong to the product window lifetime, not the
         // Scanner tab lifetime. WindowInteropHandle may not exist yet here; the hotkey

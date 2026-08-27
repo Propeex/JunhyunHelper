@@ -21,20 +21,6 @@ public partial class AmmoPage
     private bool _productDetailsExpanded = true;
     private bool _productFavoriteHandlersAttached;
 
-    static AmmoPage()
-    {
-        EventManager.RegisterClassHandler(
-            typeof(AmmoPage),
-            LoadedEvent,
-            new RoutedEventHandler(ProductLoaded));
-    }
-
-    private static void ProductLoaded(object sender, RoutedEventArgs e)
-    {
-        if (sender is AmmoPage page)
-            page.InitializeProductSearchAndDetails();
-    }
-
     private void InitializeProductSearchAndDetails()
     {
         if (Content is not Grid root)

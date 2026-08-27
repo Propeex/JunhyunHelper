@@ -10,6 +10,11 @@ public partial class AmmoPage
     protected override void OnInitialized(EventArgs e)
     {
         base.OnInitialized(e);
+
+        // Ammo presentation setup is owned by AmmoPage itself. Schedule it explicitly
+        // instead of relying on a class-level Loaded handler being awakened by an
+        // unrelated parent XAML Loaded subscription.
+        Dispatcher.BeginInvoke(InitializeProductSearchAndDetails, DispatcherPriority.Loaded);
         Dispatcher.BeginInvoke(ApplyProductGridFixes, DispatcherPriority.Loaded);
     }
 

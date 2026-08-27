@@ -1,27 +1,29 @@
 # Scanner Current Test Plan
 
-기준일: 2026-08-26
-상태: **v1.7.10 PUBLIC STABLE / FEATURE COMPLETE / MAINTENANCE ONLY**
+기준일: 2026-08-27
+상태: **v1.7.11 PUBLIC STABLE / FEATURE COMPLETE / MAINTENANCE ONLY**
 
 이 문서는 deterministic release gate와 실제 Tarkov reviewed Ground Truth calibration을 분리한다. Reviewed evidence 없이 geometry/OCR/matcher/visual confidence threshold나 candidate cap을 조정하지 않는다.
 
 ## 1. Current verified stable
 
 ```text
-Desktop target: 1.7.10
-automated suite: 389 tests
+Desktop target: 1.7.11
+automated suite at v1.7.11 release: 392 tests
 Scanner display settings schema: v6
 Scanner catalog cache: v1~v3 readable, v3 written
 stable package: Junhyun-Helper.zip
-exact product release source: a557daad5b37aca11a189524ecf256564d2b8ea4
-main CI: 32983155982 — SUCCESS
-Release workflow: 32983498402 — SUCCESS
-release id: 377231814
-public bytes: 80,471,678
-public SHA-256: 6d4f3f8580318d05361cd4d62bf265c4590532722df22dc8b8d734fe8ec10eb9
+exact product release source: 0f97c6e5340ae91581a9242ec236bbd7885b34d5
+main CI: 33033282963 — SUCCESS
+Release workflow: 33033434877 — SUCCESS
+release id: 377531277
+public bytes: 80,477,565
+public SHA-256: f1ad15debc29b7a167a13448c8df65785f57139a91d8b5d246205a14f9a5800d
 ```
 
-v1.7.10 release gate는 build/test/publish/rendered Product UI/Scanner/Map/Factory/MiniMap smoke, graceful shutdown, package checksum/layout, exact source tag, stable release metadata와 public asset readback을 모두 통과했다.
+v1.7.11 release gate는 build/test/publish/rendered Product UI/Scanner/Map/Factory/MiniMap smoke, graceful shutdown, package checksum/layout, exact source tag, stable release metadata와 public asset readback을 모두 통과했다.
+
+릴리즈 이후 maintenance-only main은 deterministic regression을 추가할 수 있으므로 현재 main의 test 수와 immutable v1.7.11 release source의 test 수를 혼동하지 않는다. 빠르게 변하는 현재 main/CI 상태는 `docs/STATE.md`를 기준으로 한다.
 
 ## 2. Release-blocking deterministic gate
 
@@ -310,7 +312,7 @@ maximum 1.05 s
 mean    211.47 ms
 ```
 
-v1.7.10 performance requirement:
+Current performance requirement (v1.7.10+):
 
 - healthy normal OCR success must not pay normalization analysis or second OCR cost
 - environment-normalized extra work is bounded to normal miss / existing deep path and only adaptive profiles
