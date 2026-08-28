@@ -1,6 +1,5 @@
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
 using System.Windows.Threading;
 using JunhyunHelper.Desktop.Controls;
 
@@ -36,10 +35,6 @@ public partial class ScannerPage
         SettingsButton.Click += ProductSettingsButton_Click;
         AdvancedButton.Click -= AdvancedButton_Click;
         AdvancedButton.Click += ProductAdvancedButton_Click;
-
-        ItemSearchBox.TextChanged += ProductItemSearchBox_TextChanged;
-        ItemSearchBox.AddHandler(Keyboard.PreviewKeyDownEvent, new KeyEventHandler(ProductItemSearchBox_PreviewKeyDown), handledEventsToo: true);
-        SearchResultList.AddHandler(Mouse.PreviewMouseUpEvent, new MouseButtonEventHandler(ProductSearchResultList_PreviewMouseUp), handledEventsToo: true);
     }
 
     private void RebuildToolbarLayout()
@@ -119,24 +114,6 @@ public partial class ScannerPage
         await mainWindow.ToggleInAppWindowAsync("scanner-advanced", advanced);
         UpdateToggleButton();
         UpdateStatus(_coordinator.Status);
-    }
-
-    private void ProductItemSearchBox_TextChanged(object sender, TextChangedEventArgs e)
-    {
-        // Search text owns only the popup/results state. The currently opened item detail
-        // has an independent identity and remains visible until another item is opened.
-    }
-
-    private void ProductItemSearchBox_PreviewKeyDown(object sender, KeyEventArgs e)
-    {
-        if (e.Key == Key.Enter && SearchResultList.SelectedItem is ScannerItemSearchHit hit)
-            RefreshProductItemExtensions(hit.ItemId);
-    }
-
-    private void ProductSearchResultList_PreviewMouseUp(object sender, MouseButtonEventArgs e)
-    {
-        if (e.ChangedButton == MouseButton.Left && SearchResultList.SelectedItem is ScannerItemSearchHit hit)
-            RefreshProductItemExtensions(hit.ItemId);
     }
 
     private void RefreshNeededSources(string itemId)
