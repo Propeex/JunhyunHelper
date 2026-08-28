@@ -41,6 +41,7 @@ public partial class ScannerPage
     private void AttachScannerItemUiState(MainWindow mainWindow)
     {
         InitializeScannerUserItemCollections();
+        UpdateScannerPresentationContextMonitor();
         _scannerItemUiState ??= mainWindow.ScannerItemUiState;
         RefreshScannerUserItemLists();
     }
@@ -179,12 +180,8 @@ public partial class ScannerPage
         e.Handled = true;
     }
 
-    private void ScannerPresentationContext_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
-    {
+    private void ScannerPresentationContext_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e) =>
         UpdateScannerPresentationContextMonitor();
-        if (e.NewValue is true)
-            _ = SynchronizeScannerPresentationContextAsync();
-    }
 
     private void ScannerPresentationContext_Unloaded(object sender, RoutedEventArgs e) =>
         _scannerPresentationContextTimer?.Stop();
