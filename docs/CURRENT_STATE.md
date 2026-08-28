@@ -4,31 +4,31 @@
 
 기준일: 2026-08-28 KST
 
-상태: **`v1.8.0 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE`**
+상태: **`v1.8.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE`**
 
 ## 공개 stable
 
-현재 공개 stable/latest는 **v1.8.0**이다.
+현재 공개 stable/latest는 **v1.8.1**이다.
 
 ```text
-public stable/latest: v1.8.0
-exact product release source/tag target: 8042e4612a54a6ec395a69d1be0700d844a1b210
-main CI run: 33130057533 — SUCCESS
-release workflow run: 33130212711 — SUCCESS
-release id: 378197672
+public stable/latest: v1.8.1
+exact product release source/tag target: dade2ef4dadbf58659b75c80d421bd3738003ff8
+main CI run: 33132600931 — SUCCESS
+release workflow run: 33132798167 — SUCCESS
+release id: 378212009
 stable asset: Junhyun-Helper.zip
-stable asset id: 533051783
-stable bytes: 80,520,114
-stable SHA-256: 4ecaf65068153a38a7a8613cfe2ae673aec191563f999f1cfbd10cb93d9437e0
-checksum asset id: 533051782
-checksum asset SHA-256: 6432c08261b1ca6dd093ff9e1864619951162300585d5cb2db082731bff3d3a1
-413 passed / 0 failed / 0 skipped
-Product UI / Main Map / Factory / MiniMap / graceful shutdown smoke: SUCCESS
+stable asset id: 533094287
+stable bytes: 80,520,704
+stable SHA-256: b30cbb045cc089c90108e2d3394510ef6778019ea0a50f6ae16d14de7aaafe9a
+checksum asset id: 533094286
+checksum asset SHA-256: ff45756d4f90b5852a5e85b7ec648a98e4a33000cccaeb6ec13658e22892c6d6
+418 passed / 0 failed / 0 skipped
+Product UI / Scanner / Main Map / Factory / MiniMap / graceful shutdown smoke: SUCCESS
 ```
 
-GitHub `/releases/latest` 및 `refs/tags/v1.8.0` readback:
+GitHub `/releases/latest` 및 `refs/tags/v1.8.1` readback:
 
-- tag `v1.8.0`
+- tag `v1.8.1`
 - release target/tag ref = exact product release source
 - draft = false
 - prerelease = false
@@ -38,17 +38,19 @@ GitHub `/releases/latest` 및 `refs/tags/v1.8.0` readback:
 
 공개 증거:
 
-- `docs/RELEASE_1.8.0.md`
-- `docs/.release-v1.8.0-status.json`
-- `docs/RELEASE_NOTES_V1.8.0.md`
+- `docs/RELEASE_1.8.1.md`
+- `docs/.release-v1.8.1-status.json`
+- `docs/RELEASE_NOTES_V1.8.1.md`
+- `docs/DECISION_V1.8.1_ITEM_RELATIONSHIP_COMPLETENESS.md`
+- `docs/RELEASE_1.8.0.md` — 이전 Scanner 아이템 정보 DB 기능 릴리즈
 - `docs/DECISION_V1.8.0_SCANNER_ITEM_DATABASE.md`
 
-이 상태 문서 동기화 이후의 documentation-only commit은 **v1.8.0 product release source가 아니다**. 제품 릴리즈 소스는 항상 위 `8042e461...`로 고정한다. 이미 공개된 v1.8.0 tag/source/assets는 immutable historical product release로 취급한다.
+이 상태 문서 동기화 이후의 documentation-only commit은 **v1.8.1 product release source가 아니다**. 제품 릴리즈 소스는 항상 위 `dade2ef4...`로 고정한다. 이미 공개된 v1.8.1 tag/source/assets는 immutable historical product release로 취급한다.
 
 ## Schema / compatibility
 
 ```text
-Desktop target version: 1.8.0
+Desktop target version: 1.8.1
 Content schema: v8
 Readable Content schemas: v3~v8
 user.db schema: v1
@@ -72,10 +74,42 @@ v8 Content snapshot은 Scanner 아이템 정보 DB용 canonical trader purchase 
 | Items | 구현 완료 |
 | Ammo | 구현 완료 |
 | Map + MiniMap | 구현 완료 / stable smoke 유지 |
-| Game Content Update | 구현 완료 |
+| Game Content Update | 구현 완료 / relationship LKG hardening 포함 |
 | Program Update | 구현 완료 / verified stable ZIP contract |
 | Scanner + Mini Scanner | **FEATURE COMPLETE / MAINTENANCE ONLY** |
 | Scanner 아이템 정보 DB | **IMPLEMENTED / PUBLIC STABLE** |
+
+## v1.8.1 — Item Relationship Completeness Hardening
+
+v1.8.1은 v1.8.0에서 추가된 아이템 관계 DB를 기존 Game Content LKG 보호 수준에 맞춘 유지보수 PATCH다.
+
+정상 v8+ baseline이 있으면 다음 관계를 각각 독립적으로 50% retained-floor와 비교한다.
+
+- trader direct purchases
+- trader barters
+- hideout crafts
+- flea acquisition item IDs
+- barter required-item edges
+- craft required-item edges
+
+candidate가 특정 관계 도메인을 baseline의 절반 미만으로 잃으면 activation을 거부하고 기존 LKG를 유지한다. 새로 수집한 v8+ 관계 graph의 critical collection이 전면 empty인 경우도 fail closed한다.
+
+관계 검증은 in-memory build에서 끝나지 않는다.
+
+```text
+build
+→ base + item relationship integrity
+→ completeness vs LKG
+→ write candidate
+→ read candidate
+→ base + relationship integrity + completeness
+→ activation boundary validation
+→ active read/recovery validation
+```
+
+v3~v7 `ItemRelationshipData == null`은 `관계 없음`이 아니라 `구형 schema에서 아직 수집하지 않음`이라는 legacy 의미를 그대로 유지한다.
+
+Scanner recognition threshold/matcher/visual recovery는 v1.8.1에서 변경하지 않았다.
 
 ## v1.8.0 — Scanner 아이템 정보 DB
 
@@ -135,7 +169,7 @@ continuous observation target = 200 ms
 - scan 순간 network identity work 없음
 - reviewed Ground Truth 없이 recognition threshold/candidate cap/matcher/visual acceptance 완화 금지
 
-v1.8.0 아이템 DB는 **Item ID 확정 이후 presentation**에만 참여하며 recognition acceptance를 바꾸지 않는다.
+v1.8.x 아이템 DB는 **Item ID 확정 이후 presentation**에만 참여하며 recognition acceptance를 바꾸지 않는다.
 
 ## Map / MiniMap 기준선
 
@@ -161,10 +195,13 @@ remote source
 
 - 실패 candidate는 last-known-good를 덮어쓰지 않음
 - normal snapshot shrink guard = healthy baseline의 50%
+- v8+ item relationship top-level 및 barter/craft material edge도 각각 healthy baseline의 50% retained-floor로 보호
+- fresh v8+ critical relationship collection의 전면 empty는 fail closed
+- candidate write 후 read-back과 activation/active recovery에서도 relationship integrity 재검증
 - collection schema drift는 fail closed
 - Wiki Ballistics enrichment는 fail-soft
 - User Progress와 Game Content authority 분리
-- v8 item relationship reference / price / count 무결성도 active 교체 전에 검증
+- v8 item relationship reference / price / count / limit 무결성도 active 교체 전에 검증
 
 ## 유지보수 원칙
 
@@ -193,4 +230,4 @@ remote source
 9. 작업 영역 전문 문서
 10. current code / current PR / current CI
 
-현재 **v1.8.0 릴리즈 배치에 남은 제품 개발 작업은 없다.** 이후 기본 모드는 유지보수다.
+현재 **v1.8.1 릴리즈 배치에 남은 제품 개발 작업은 없다.** 이후 기본 모드는 유지보수다.
