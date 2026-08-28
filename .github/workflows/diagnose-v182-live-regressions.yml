@@ -44,7 +44,7 @@ jobs:
             }
 
             $itemsRoot = Invoke-RestMethod -Uri "https://json.tarkov.dev/$mode/items" -Headers $headers
-            $items = @($itemsRoot.data.items)
+            $items = @($itemsRoot.data.items.PSObject.Properties | ForEach-Object { $_.Value })
             Write-Host "MODE=$mode ITEMS=$($items.Count)"
             $product = $items | Where-Object { $_.id -eq $targetProductId } | Select-Object -First 1
             Write-Host "PRODUCT mode=$mode id=$targetProductId payload=$(($product | ConvertTo-Json -Depth 12 -Compress))"
