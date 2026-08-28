@@ -11,9 +11,12 @@ public partial class AmmoPage
     {
         base.OnInitialized(e);
 
-        // Ammo presentation setup is owned by AmmoPage itself. Schedule it explicitly
-        // instead of relying on a class-level Loaded handler being awakened by an
-        // unrelated parent XAML Loaded subscription.
+        // The selector surface is required product UI, not optional post-load polish.
+        // Initialize it from AmmoPage's existing lifecycle owner so a collapsed page does
+        // not depend on routed Loaded delivery before showing the correct controls.
+        EnsureProductVisibleDropdownInitialization();
+
+        // The remaining presentation setup can run once layout/resources are ready.
         Dispatcher.BeginInvoke(InitializeProductSearchAndDetails, DispatcherPriority.Loaded);
         Dispatcher.BeginInvoke(ApplyProductGridFixes, DispatcherPriority.Loaded);
         Dispatcher.BeginInvoke(ApplyProductUiSimplification, DispatcherPriority.Loaded);
