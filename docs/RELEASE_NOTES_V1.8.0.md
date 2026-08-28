@@ -31,4 +31,16 @@ Scanner 탭의 아이템 검색 상세를 확장했습니다.
 
 ## 릴리즈 검증
 
-공개 릴리즈 전 전체 deterministic tests, Release build, win-x64 single-file publish, 실제 EXE Product UI/Scanner/Map/Factory/MiniMap smoke, 패키지/checksum 및 public release readback을 완료해야 합니다.
+v1.8.0은 전체 공개 릴리즈 게이트를 통과했습니다.
+
+```text
+exact product source/tag: 8042e4612a54a6ec395a69d1be0700d844a1b210
+exact-main CI: 33130057533 — SUCCESS
+413 passed / 0 failed / 0 skipped
+Release workflow: 33130212711 — SUCCESS
+public release id: 378197672
+public Junhyun-Helper.zip bytes: 80,520,114
+public SHA-256: 4ecaf65068153a38a7a8613cfe2ae673aec191563f999f1cfbd10cb93d9437e0
+```
+
+실제 published EXE의 Product UI / Main Map / Factory / MiniMap smoke, graceful shutdown, clean portable root, package checksum, tag/release/latest/public asset readback도 모두 성공했습니다.
