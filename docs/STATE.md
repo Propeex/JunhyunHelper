@@ -3,7 +3,7 @@
 > 새 대화/새 개발자는 이 문서를 먼저 읽습니다. 대화 기억이 아니라 저장소의 공식 문서와 현재 GitHub 상태가 프로젝트의 기준입니다.
 
 기준일: 2026-08-28 KST  
-상태: **v1.8.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+상태: **v1.8.2 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 1. 제품
 
@@ -33,60 +33,60 @@ Runtime GPT/AI 의존성은 없다.
 ## 2. 현재 public stable
 
 ```text
-version: v1.8.1
+version: v1.8.2
 exact product release source/tag target:
-dade2ef4dadbf58659b75c80d421bd3738003ff8
-main CI run: 33132600931 — SUCCESS
-release workflow run: 33132798167 — SUCCESS
-release id: 378212009
-418 passed / 0 failed / 0 skipped
-published UTC: 2026-08-28T01:25:35Z
+a0a8390c7c863400a97d174e864c405c2e38f47f
+main CI run: 33138083383 — SUCCESS
+release workflow run: 33138226890 — SUCCESS
+release id: 378240417
+421 passed / 0 failed / 0 skipped
+published UTC: 2026-08-28T03:13:04Z
 ```
 
 Main-CI published ProductVersion:
 
 ```text
-1.8.1+dade2ef4dadbf58659b75c80d421bd3738003ff8
+1.8.2+a0a8390c7c863400a97d174e864c405c2e38f47f
 ```
 
 Main-CI release package:
 
 ```text
 Junhyun-Helper.zip
-bytes: 80,520,704
+bytes: 80,520,794
 SHA-256:
-b30cbb045cc089c90108e2d3394510ef6778019ea0a50f6ae16d14de7aaafe9a
+be83ec72d1678b2496e01ce4378708642e0bf0cc00cebeb407fa38756ecf1f0a
 ```
 
 Main-CI GitHub Actions artifact:
 
 ```text
 name: JunhyunHelper-win-x64
-artifact id: 9670880711
-artifact archive bytes: 241,492,261
+artifact id: 9672853577
+artifact archive bytes: 241,494,074
 artifact archive SHA-256:
-8fe5db31d3a728bb74049308319db6f2f7fba72a39c64eb0bd5d98c4433c93da
+9586f8a277b54bf64446c8348ff4958ed33f4ab94f16fc8c33fe3baf41c4b6fc
 ```
 
 Public assets:
 
 ```text
 Junhyun-Helper.zip
-asset id: 533094287
-bytes: 80,520,704
+asset id: 533189452
+bytes: 80,520,794
 SHA-256:
-b30cbb045cc089c90108e2d3394510ef6778019ea0a50f6ae16d14de7aaafe9a
+be83ec72d1678b2496e01ce4378708642e0bf0cc00cebeb407fa38756ecf1f0a
 
 SHA256SUMS.txt
-asset id: 533094286
+asset id: 533189451
 bytes: 86
 SHA-256:
-ff45756d4f90b5852a5e85b7ec648a98e4a33000cccaeb6ec13658e22892c6d6
+73ae27b7d11be8db2fd1119c78e1326ebdad7cd5a5c3982436620f463fa8e45e
 ```
 
 GitHub `/releases/latest` 및 tag-ref readback:
 
-- tag `v1.8.1`
+- tag `v1.8.2`
 - release target = exact product release source
 - tag ref object = exact product release source
 - draft = false
@@ -97,16 +97,93 @@ GitHub `/releases/latest` 및 tag-ref readback:
 
 공식 공개 증거:
 
-- `docs/RELEASE_1.8.1.md`
-- `docs/.release-v1.8.1-status.json`
-- `docs/RELEASE_NOTES_V1.8.1.md`
+- `docs/RELEASE_1.8.2.md`
+- `docs/.release-v1.8.2-status.json`
+- `docs/RELEASE_NOTES_V1.8.2.md`
+- `docs/DECISION_V1.8.2_RUNTIME_LIVE_REGRESSIONS.md`
+- `docs/RELEASE_1.8.1.md` — item relationship completeness hardening 릴리즈 증거
 - `docs/DECISION_V1.8.1_ITEM_RELATIONSHIP_COMPLETENESS.md`
 - `docs/RELEASE_1.8.0.md` — Scanner item database 기능 릴리즈 증거
 - `docs/DECISION_V1.8.0_SCANNER_ITEM_DATABASE.md`
 
-**중요:** 이 문서 갱신처럼 공개 이후 생성되는 documentation-only commit은 v1.8.1 product release source가 아니다. 공개 v1.8.1 source/tag/assets는 위 `dade2ef4...` 기준으로 immutable historical product release다. v1.8.0도 기존 exact source/assets를 그대로 유지한다.
+**중요:** 이 문서 갱신처럼 공개 이후 생성되는 documentation-only commit은 v1.8.2 product release source가 아니다. 공개 v1.8.2 source/tag/assets는 위 `a0a8390c...` 기준으로 immutable historical product release다. v1.8.1/v1.8.0도 각각 기존 exact source/assets를 그대로 유지한다.
 
-## 3. v1.8.1 Item Relationship Completeness Hardening
+## 3. v1.8.2 Runtime UI / Live Game Content Regression Repair
+
+### 배경
+
+v1.8.1 공개 뒤 두 종류의 실사용/실시간 source 회귀가 확인됐다.
+
+1. v1.7.15에서 추가한 Ammo 구경/즐겨찾기 드롭다운 아이콘 UI의 runtime polish 등록이 static-field side effect의 실행 시점에 의존했다. 명시적인 type initializer가 없으면 published executable에서 실제 `AmmoPage` 인스턴스 생성 전에 class handler가 등록된다는 보장이 없었다.
+2. 현재 json.tarkov.dev live relationship source가 Bitcoin Farm passive production을 `requiredItems = []`인 craft로 제공하고, 동일 item 아래 canonical 의미가 완전히 같은 `buyFromTrader` offer를 중복 제공했다.
+
+### Ammo runtime 결정
+
+`AmmoPage`의 runtime class-handler 등록을 명시적인 type initialization 경계에서 결정적으로 수행한다.
+
+runtime polish 및 published executable smoke는 다음 계약을 검증한다.
+
+- 구경 ComboBox에 runtime icon template이 설치됨
+- 즐겨찾기 ComboBox가 실제 생성됨
+- 두 selector가 동일한 icon template/state를 공유함
+- 실제 rendered `Image` / `Image.Source`가 존재함
+- shared timer에 따라 동일한 icon sequence가 순환함
+- legacy favorite menu는 비표시/비활성 상태임
+
+구경 filtering과 즐겨찾기 저장 의미는 변경하지 않는다.
+
+### Current live Game Content 결정
+
+Regular/PvE live source 검증 결과:
+
+```text
+functional source: 718a095cadebce1c50ff04caecfcccfa95e7bdb8
+live probe workflow: 33136464802 — SUCCESS
+Regular fatal validation issues: 0
+PvE fatal validation issues: 0
+
+craft count: 214
+empty-required craft count: 1
+Bitcoin passive production:
+  craft   5d5c205bd582a50d042a3c0e
+  station 5d494a445b56502f18c98a10
+  product 59faff1d86f7746c51718c9c
+
+item count: 5312
+canonical-identical direct-purchase duplicate keys: 4 per mode
+```
+
+Bitcoin Farm의 위 audited identity는 일반 재료 소비 craft가 아니라 GPU/station state 기반 passive production이므로 일반 craft relationship import에서 제외한다.
+
+다른 empty-required craft는 계속 fail closed한다. 즉 upstream source loss를 허용하기 위해 validator를 일반적으로 완화하지 않는다.
+
+`buyFromTrader`는 canonical model이 표현하는 모든 의미 필드가 완전히 동일한 direct-purchase record만 deduplicate한다. item/trader/LL/quest unlock/price/currency/buy limit/reset-time 등 의미가 하나라도 다르면 별도 offer로 유지한다.
+
+### 유지되는 계약
+
+- Game Content candidate/LKG 분리
+- relationship reference/price/count/limit integrity validation
+- relation 및 material-edge 50% completeness floor
+- critical relationship collection 전면 empty fail-closed
+- candidate read-back / activation / active recovery validation
+- v3~v7 legacy relationship-null compatibility
+- Scanner OCR threshold, candidate cap, matcher, visual recovery acceptance
+- Scanner recognition identity proof
+- Map/MiniMap donor revision 및 ownership boundary
+
+### 검증
+
+```text
+421 passed / 0 failed / 0 skipped
+exact-main CI 33138083383 — SUCCESS
+ProductVersion 1.8.2+a0a8390c7c863400a97d174e864c405c2e38f47f
+actual published EXE Product UI / Main Map / Factory / MiniMap smoke — SUCCESS
+Ammo rendered icon + shared timer-cycle smoke — SUCCESS
+Release workflow 33138226890 — SUCCESS
+public v1.8.2 tag/release/asset readback — SUCCESS
+```
+
+## 4. v1.8.1 Item Relationship Completeness Hardening
 
 ### 배경
 
@@ -160,7 +237,7 @@ public tag/release/asset readback — SUCCESS
 
 Scanner recognition threshold/candidate/matcher/visual acceptance는 변경하지 않았다.
 
-## 4. v1.8.0 Scanner 아이템 정보 DB
+## 5. v1.8.0 Scanner 아이템 정보 DB
 
 ### 목적
 
@@ -237,7 +314,7 @@ ItemsWorkspace.Plan.NeededItems[itemId].Sources
 
 v1.8.x item database는 Item ID가 확정된 뒤 presentation에만 참여하며 recognition evidence로 사용되지 않는다.
 
-## 5. 아키텍처
+## 6. 아키텍처
 
 ```text
 JunhyunHelper.Desktop
@@ -269,7 +346,7 @@ MainWindow.OnInitialized
 → Scanner global-command lifetime wiring
 ```
 
-개별 Page의 internal presentation initialization은 해당 Page가 직접 소유한다.
+개별 Page의 internal presentation initialization은 해당 Page가 직접 소유한다. Ammo runtime class-handler처럼 WPF type-level registration이 필요한 경우 해당 Page type initialization 경계에서 결정적으로 소유한다.
 
 ### Shared in-app overlay
 
@@ -288,11 +365,11 @@ MainWindow.OnInitialized
 
 Child editor의 validation/save semantics를 MainWindow가 재구현하지 않는다.
 
-## 6. Schema / 사용자 데이터
+## 7. Schema / 사용자 데이터
 
 ```text
-Desktop target version: 1.8.1
-Current public stable executable: 1.8.1
+Desktop target version: 1.8.2
+Current public stable executable: 1.8.2
 Content schema: v8
 Readable Content schemas: v3~v8
 user.db schema: v1
@@ -330,7 +407,7 @@ Content v8 delta:
 - user-reviewed Scanner Ground Truth는 자동 삭제하지 않음
 - 정상 Scanner monitoring은 durable automatic correction Case를 생성하지 않음
 
-## 7. Game Content / Scanner catalog
+## 8. Game Content / Scanner catalog
 
 ```text
 remote Game Content
@@ -355,10 +432,13 @@ Game Content 안전 계약:
 - candidate persistence read-back에서 relationship integrity + completeness를 반복 검증
 - activation/active recovery에서도 relationship integrity를 검증
 - v3~v7 null relationship graph는 legacy compatibility로 허용
+- audited Bitcoin passive production identity만 일반 craft relationship import에서 제외
+- canonical-identical direct-purchase record만 deduplicate
+- 그 외 empty-required craft 및 의미가 서로 다른 trader offer의 기존 보수적 의미는 유지
 
 Scanner scan/search 순간에는 local/memory data만 사용하며 identity 또는 item relationship 조회를 위해 network 요청을 시작하지 않는다.
 
-## 8. Scanner — 현재 제품 계약
+## 9. Scanner — 현재 제품 계약
 
 Scanner 상태: **FEATURE COMPLETE / MAINTENANCE ONLY**.
 
@@ -401,7 +481,7 @@ continuous observation target = 200 ms
 - Needed source authority = `ItemsWorkspace.Plan.NeededItems[itemId].Sources`
 - `SerializedScannerOcrEngine` diagnostic reflection adapter는 intentional technical debt
 
-## 9. Map / MiniMap 기준선
+## 10. Map / MiniMap 기준선
 
 Pinned donor:
 
@@ -419,7 +499,7 @@ Map/MiniMap은 donor source를 broad-edit하지 않고 JunhyunHelper first-party
 
 `Legacy` 이름이 붙은 Map/MiniMap bridge는 active integration이므로 이름만 보고 dead code로 삭제하지 않는다.
 
-## 10. Active technical debt / 유지 판단
+## 11. Active technical debt / 유지 판단
 
 현재 유지:
 
@@ -436,7 +516,7 @@ Map/MiniMap은 donor source를 broad-edit하지 않고 JunhyunHelper first-party
 
 `UserProfileStore.LoadAsync`는 첫 authoritative read/save 뒤 immutable in-process snapshot cache를 사용하므로 runtime trace 없이 반복 호출을 SQLite 병목으로 가정하지 않는다.
 
-## 11. 릴리즈 계약
+## 12. 릴리즈 계약
 
 Runtime 변경 release의 full release gate:
 
@@ -446,6 +526,7 @@ Release build
 → win-x64 self-contained single-file publish
 → ProductVersion / FIRST_RUN identity verification
 → actual published EXE Product UI / Scanner / Map / Factory / MiniMap smoke
+→ feature-specific published runtime smoke when regression requires it
 → graceful shutdown
 → portable root/dependency verification
 → release package checksum verification
@@ -458,8 +539,9 @@ Published stable release는 공개 후 immutable historical product artifact로 
 
 `actions/download-artifact@v8`의 upstream Node `Buffer()` deprecation warning은 현재 release correctness와 무관한 monitor-only upstream warning이다.
 
-## 12. 현재 유지되는 핵심 결정
+## 13. 현재 유지되는 핵심 결정
 
+- **v1.8.2** — published Ammo runtime initialization + rendered-icon/shared-cycle smoke + audited current live relationship normalization; fail-closed/LKG/Scanner recognition unchanged
 - **v1.8.1** — item relationship top-level/nested completeness LKG hardening + persisted/active relationship revalidation; Scanner recognition unchanged
 - **v1.8.0** — Scanner item search를 canonical local item database로 확장; recognition policy unchanged
 - **v1.7.15** — version-only header, Items cleanup dot, Map marker selector polish, Ammo caliber/Favorites icon cycling
@@ -471,9 +553,9 @@ Published stable release는 공개 후 immutable historical product artifact로 
 
 역사적 상세는 버전별 `DECISION_*` / `RELEASE_*` 문서를 사용한다.
 
-## 13. 다음 작업
+## 14. 다음 작업
 
-현재 **v1.8.1 릴리즈 배치에는 남은 제품 개발 작업이 없다.**
+현재 **v1.8.2 릴리즈 배치에는 남은 제품 개발 작업이 없다.**
 
 기본 다음 작업은 다음 중 실제 evidence가 생길 때만 시작한다.
 
@@ -495,7 +577,7 @@ runtime evidence 확보
 → full release gate
 ```
 
-## 14. 다음 세션 복구 순서
+## 15. 다음 세션 복구 순서
 
 `AGENTS.md`의 필수 복구 순서를 그대로 따른다.
 
