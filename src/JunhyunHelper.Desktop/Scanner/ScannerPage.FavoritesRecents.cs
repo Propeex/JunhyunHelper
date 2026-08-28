@@ -218,6 +218,32 @@ public partial class ScannerPage
             throw new InvalidOperationException("Scanner favorites/recents independent scroll contract drifted.");
         }
 
+        var favoriteSection = FindScannerAncestor<Border>(FavoriteItemsScrollViewer)
+            ?? throw new InvalidOperationException("Scanner Favorites section container was not present in the runtime tree.");
+        var recentSection = FindScannerAncestor<Border>(RecentItemsScrollViewer)
+            ?? throw new InvalidOperationException("Scanner Recents section container was not present in the runtime tree.");
+        if (LogicalTreeHelper.GetParent(favoriteSection) is not Grid rightPane ||
+            !ReferenceEquals(LogicalTreeHelper.GetParent(recentSection), rightPane) ||
+            rightPane.RowDefinitions.Count != 3 ||
+            rightPane.RowDefinitions[0].Height.GridUnitType != GridUnitType.Star ||
+            Math.Abs(rightPane.RowDefinitions[0].Height.Value - 2d) > 0.001 ||
+            rightPane.RowDefinitions[1].Height.GridUnitType != GridUnitType.Pixel ||
+            Math.Abs(rightPane.RowDefinitions[1].Height.Value - 10d) > 0.001 ||
+            rightPane.RowDefinitions[2].Height.GridUnitType != GridUnitType.Star ||
+            Math.Abs(rightPane.RowDefinitions[2].Height.Value - 1d) > 0.001 ||
+            Grid.GetRow(favoriteSection) != 0 ||
+            Grid.GetRow(recentSection) != 2)
+        {
+            throw new InvalidOperationException("Scanner right pane is not the approved Favorites 2/3 + Recents 1/3 layout.");
+        }
+
+        if (ActivityItems.Parent is not FrameworkElement diagnosticActivityHost ||
+            diagnosticActivityHost.Visibility != Visibility.Collapsed ||
+            diagnosticActivityHost.IsHitTestVisible)
+        {
+            throw new InvalidOperationException("Scanner diagnostic activity feed is still exposed as user-facing UI.");
+        }
+
         var itemId = details.Snapshot.ItemId;
         var itemName = details.Snapshot.OfficialName;
         var recent = _scannerItemUiState.Current.RecentItemIds;
@@ -261,6 +287,20 @@ public partial class ScannerPage
             "recent-open-persistence=ok\n" +
             "right-pane-two-to-one=ok\n" +
             "independent-scroll=ok\n" +
+            "user-log-pane-hidden=ok\n" +
             "canonical-item-id=ok\n");
+    }
+
+    private static T? FindScannerAncestor<T>(DependencyObject start)
+        where T : DependencyObject
+    {
+        for (DependencyObject? current = LogicalTreeHelper.GetParent(start);
+             current is not null;
+             current = LogicalTreeHelper.GetParent(current))
+        {
+            if (current is T typed)
+                return typed;
+        }
+        return null;
     }
 }
