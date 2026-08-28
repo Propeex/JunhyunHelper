@@ -6,33 +6,31 @@ namespace JunhyunHelper.Desktop.Ammo;
 
 public partial class AmmoPage
 {
-    private bool _productVisibleDropdownActivatedFromLoaded;
+    private bool _productVisibleDropdownActivatedFromInitialization;
 
-    internal static void RegisterProductVisibleDropdownActivation()
+    protected override void OnInitialized(EventArgs e)
     {
-        EventManager.RegisterClassHandler(
-            typeof(AmmoPage),
-            FrameworkElement.LoadedEvent,
-            new RoutedEventHandler(OnProductVisibleDropdownLoaded));
+        base.OnInitialized(e);
+        EnsureProductVisibleDropdownInitialization();
     }
 
-    private static void OnProductVisibleDropdownLoaded(object sender, RoutedEventArgs e)
+    private void EnsureProductVisibleDropdownInitialization()
     {
-        if (sender is not AmmoPage page)
+        if (_productVisibleDropdownActivatedFromInitialization)
             return;
 
-        // The Loaded routed event can originate from a descendant while the class-handler
-        // sender is the AmmoPage itself. Do not gate product activation on OriginalSource.
-        // Apply synchronously so the visible toolbar is correct before user interaction can
-        // observe the legacy XAML fallback.
-        page.ApplyProductCaliberDropdownPolish();
-        page._productVisibleDropdownActivatedFromLoaded = true;
+        // XAML initialization is complete when OnInitialized runs, so the actual toolbar
+        // controls already exist. Apply the product surface here instead of depending on a
+        // class-level Loaded handler whose delivery can differ for collapsed/nested WPF
+        // elements. This is the deterministic owner of the visible Ammo selector UI.
+        ApplyProductCaliberDropdownPolish();
+        _productVisibleDropdownActivatedFromInitialization = true;
     }
 
-    internal void VerifyProductVisibleDropdownLoadedActivation()
+    internal void VerifyProductVisibleDropdownInitialization()
     {
-        if (!_productVisibleDropdownActivatedFromLoaded || !_productCaliberDropdownApplied)
-            throw new InvalidOperationException("Ammo visible dropdown polish was not activated by the real Loaded route.");
+        if (!_productVisibleDropdownActivatedFromInitialization || !_productCaliberDropdownApplied)
+            throw new InvalidOperationException("Ammo visible dropdown polish was not activated during page initialization.");
         if (_productFavoriteCaliberComboBox is null)
             throw new InvalidOperationException("Ammo favorite caliber selector is not a ComboBox in the visible runtime toolbar.");
         if (FavoriteCaliberMenuButton.Visibility != Visibility.Collapsed || FavoriteCaliberMenuButton.IsHitTestVisible)
@@ -45,13 +43,7 @@ public partial class AmmoPage
     }
 }
 
-internal static class AmmoVisibleDropdownActivationModule
-{
-    [ModuleInitializer]
-    internal static void Initialize() => AmmoPage.RegisterProductVisibleDropdownActivation();
-}
-
-internal static class AmmoVisibleDropdownLoadedSmokeGate
+internal static class AmmoVisibleDropdownInitializationSmokeGate
 {
     [ModuleInitializer]
     internal static void Initialize()
@@ -71,23 +63,22 @@ internal static class AmmoVisibleDropdownLoadedSmokeGate
             return;
         }
 
-        // Wait until the complete child tree has emitted Loaded, then check the dedicated
-        // activation flag. The older published Ammo smoke may run before or after this
-        // callback, but its direct initializer cannot set this flag, so it cannot repair
-        // a missing real Loaded activation and hide the regression again.
+        // Inspect the product-owned initialization flag after the window has loaded. The
+        // older rendered Ammo smoke can still exercise icons later, but it cannot set this
+        // flag and therefore cannot hide a missing real product initialization again.
         window.Dispatcher.BeginInvoke(
             () =>
             {
                 try
                 {
-                    window.AmmoPage.VerifyProductVisibleDropdownLoadedActivation();
+                    window.AmmoPage.VerifyProductVisibleDropdownInitialization();
                 }
                 catch (Exception exception)
                 {
                     try
                     {
                         var diagnostic = Path.Combine(Path.GetTempPath(), "junhyun-map-smoke-error.txt");
-                        File.WriteAllText(diagnostic, "Ammo visible dropdown Loaded activation failed.\n" + exception);
+                        File.WriteAllText(diagnostic, "Ammo visible dropdown initialization failed.\n" + exception);
                     }
                     catch
                     {
