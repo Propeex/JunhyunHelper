@@ -1,0 +1,61 @@
+{
+  "version": "1.8.3",
+  "status": "PUBLIC_STABLE_VERIFIED",
+  "productReleaseSource": "b85ceb09b9fa71d86cca2d2137eea9cb5a44a7e3",
+  "tag": "v1.8.3",
+  "productVersion": "1.8.3+b85ceb09b9fa71d86cca2d2137eea9cb5a44a7e3",
+  "mainCi": {
+    "runId": 33143474294,
+    "runNumber": 2129,
+    "result": "SUCCESS",
+    "tests": {
+      "passed": 424,
+      "failed": 0,
+      "skipped": 0
+    },
+    "artifact": {
+      "name": "JunhyunHelper-win-x64",
+      "id": 9674902811,
+      "archiveBytes": 241504044,
+      "archiveSha256": "a55b38c1aa45f167da73248bb20b572d8598bf9d8ce9e348a89669902b909c7b"
+    },
+    "package": {
+      "name": "Junhyun-Helper.zip",
+      "bytes": 80522957,
+      "sha256": "3f89b63e6c9fceb5202708a6d2402865589591f896fb1ab333e4464d1afc7f35"
+    },
+    "ammoRealInitializationGate": "SUCCESS",
+    "ammoRenderedIconCycleSmoke": "SUCCESS",
+    "mapMarkerBodyOverflowSmoke": "SUCCESS",
+    "productMapFactoryMiniMapSmoke": "SUCCESS",
+    "gracefulShutdown": "SUCCESS",
+    "cleanPortableRoot": "SUCCESS"
+  },
+  "releaseWorkflow": {
+    "runId": 33143633498,
+    "runNumber": 55,
+    "result": "SUCCESS"
+  },
+  "publicRelease": {
+    "id": 378270224,
+    "draft": false,
+    "prerelease": false,
+    "latestStable": true,
+    "publishedUtc": "2026-08-28T05:04:35Z",
+    "zipAsset": {
+      "id": 533282842,
+      "name": "Junhyun-Helper.zip",
+      "bytes": 80522957,
+      "sha256": "3f89b63e6c9fceb5202708a6d2402865589591f896fb1ab333e4464d1afc7f35"
+    },
+    "checksumAsset": {
+      "id": 533282840,
+      "name": "SHA256SUMS.txt",
+      "bytes": 86,
+      "sha256": "b7493144e699e737fb9d93906737c554f05a7e4a5a6e925c6fb5c8f7a9e75d79"
+    }
+  },
+  "tagRefTarget": "b85ceb09b9fa71d86cca2d2137eea9cb5a44a7e3",
+  "immutablePublicRelease": true,
+  "notes": "Documentation-only commits after publication are not v1.8.3 product release sources and must not replace published v1.8.3 assets."
+}
