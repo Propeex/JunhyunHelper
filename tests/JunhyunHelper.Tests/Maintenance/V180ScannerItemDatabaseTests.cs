@@ -43,14 +43,14 @@ public sealed class V180ScannerItemDatabaseTests
             ]}}
             """);
         var barters = Parse("""
-            {"data":{"barters":[{"id":"b1","trader":{"id":"trader"},"minTraderLevel":3,"buyLimit":2,
+            {"data":[{"id":"b1","trader":{"id":"trader"},"minTraderLevel":3,"buyLimit":2,
               "offeredItem":{"item":{"id":"target"},"count":2},
-              "requiredItems":[{"item":{"id":"material"},"count":5}]}]}}
+              "requiredItems":[{"item":{"id":"material"},"count":5}]}]}
             """);
         var crafts = Parse("""
-            {"data":{"crafts":[{"id":"c1","station":{"id":"workbench"},"level":2,"duration":3660,
+            {"data":[{"id":"c1","station":{"id":"workbench"},"level":2,"duration":3660,
               "productItem":{"item":{"id":"crafted"},"count":3},
-              "requiredItems":[{"item":{"id":"target"},"count":2},{"item":{"id":"tool"},"count":1,"attributes":{"tool":true}}]}]}}
+              "requiredItems":[{"item":{"id":"target"},"count":2},{"item":{"id":"tool"},"count":1,"attributes":{"tool":true}}]}]}
             """);
 
         var result = new TarkovItemRelationshipImporter().Import(items, barters, crafts);
