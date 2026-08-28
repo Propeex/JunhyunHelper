@@ -3,6 +3,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Threading;
 using JunhyunHelper.Infrastructure.Storage;
 
 namespace JunhyunHelper.Desktop.Scanner;
@@ -11,11 +12,15 @@ public sealed record ScannerUserItemRow(string ItemId, string Name, ImageSource?
 
 public partial class ScannerPage
 {
+    private static readonly TimeSpan ScannerPresentationContextInterval = TimeSpan.FromMilliseconds(750);
+
     private readonly ObservableCollection<ScannerUserItemRow> _favoriteItemRows = [];
     private readonly ObservableCollection<ScannerUserItemRow> _recentItemRows = [];
     private ScannerItemUiStateStore? _scannerItemUiState;
+    private DispatcherTimer? _scannerPresentationContextTimer;
     private string? _selectedScannerItemId;
     private bool _scannerUserCollectionsBound;
+    private bool _scannerPresentationContextRefreshActive;
     private bool _scannerFavoritesRecentsSmokeRan;
 
     private void InitializeScannerUserItemCollections()
@@ -26,6 +31,10 @@ public partial class ScannerPage
         FavoriteItems.ItemsSource = _favoriteItemRows;
         RecentItems.ItemsSource = _recentItemRows;
         _scannerUserCollectionsBound = true;
+
+        IsVisibleChanged += ScannerPresentationContext_IsVisibleChanged;
+        Unloaded += ScannerPresentationContext_Unloaded;
+        UpdateScannerPresentationContextMonitor();
         UpdateScannerUserListEmptyStates();
     }
 
@@ -168,6 +177,103 @@ public partial class ScannerPage
         _scannerItemUiState.ClearRecents();
         RefreshScannerUserItemLists();
         e.Handled = true;
+    }
+
+    private void ScannerPresentationContext_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        UpdateScannerPresentationContextMonitor();
+        if (e.NewValue is true)
+            _ = SynchronizeScannerPresentationContextAsync();
+    }
+
+    private void ScannerPresentationContext_Unloaded(object sender, RoutedEventArgs e) =>
+        _scannerPresentationContextTimer?.Stop();
+
+    private void UpdateScannerPresentationContextMonitor()
+    {
+        _scannerPresentationContextTimer ??= CreateScannerPresentationContextTimer();
+        if (IsLoaded && IsVisible)
+            _scannerPresentationContextTimer.Start();
+        else
+            _scannerPresentationContextTimer.Stop();
+    }
+
+    private DispatcherTimer CreateScannerPresentationContextTimer()
+    {
+        var timer = new DispatcherTimer(DispatcherPriority.Background, Dispatcher)
+        {
+            Interval = ScannerPresentationContextInterval,
+        };
+        timer.Tick += ScannerPresentationContextTimer_Tick;
+        return timer;
+    }
+
+    private async void ScannerPresentationContextTimer_Tick(object? sender, EventArgs e) =>
+        await SynchronizeScannerPresentationContextAsync();
+
+    private async Task SynchronizeScannerPresentationContextAsync()
+    {
+        if (_scannerPresentationContextRefreshActive ||
+            !IsVisible ||
+            _coordinator is null ||
+            Window.GetWindow(this) is not MainWindow mainWindow)
+        {
+            return;
+        }
+
+        var context = mainWindow.GetScannerDataContext();
+        if (context is null || _coordinator.CatalogMode == context.GameMode)
+            return;
+
+        _scannerPresentationContextRefreshActive = true;
+        try
+        {
+            await _coordinator.RefreshContextAsync();
+            RefreshScannerUserItemLists();
+            RefreshOpenScannerItemForCurrentContext();
+        }
+        catch (Exception exception)
+        {
+            App.WriteDiagnostic("Scanner saved-item presentation context refresh failed", exception);
+        }
+        finally
+        {
+            _scannerPresentationContextRefreshActive = false;
+        }
+    }
+
+    private void RefreshOpenScannerItemForCurrentContext()
+    {
+        if (_coordinator is null || string.IsNullOrWhiteSpace(_selectedScannerItemId))
+            return;
+
+        var details = _coordinator.GetSearchItemDetails(_selectedScannerItemId);
+        if (details is null)
+        {
+            _selectedScannerItemId = null;
+            _selectedWikiUrl = null;
+            WikiButton.IsEnabled = false;
+            FavoriteItemButton.IsEnabled = false;
+            SelectedItemPanel.Visibility = Visibility.Collapsed;
+            EmptyItemText.Text = "현재 게임 모드에서 이 아이템 정보를 불러올 수 없습니다.";
+            EmptyItemText.Visibility = Visibility.Visible;
+            return;
+        }
+
+        _suppressSearchRefresh = true;
+        try
+        {
+            ItemSearchBox.Text = details.Snapshot.OfficialName;
+            ItemSearchBox.CaretIndex = ItemSearchBox.Text.Length;
+        }
+        finally
+        {
+            _suppressSearchRefresh = false;
+        }
+
+        RenderSearchDetails(details);
+        RenderProductItemExtensions(details);
+        UpdateDetailFavoriteAction();
     }
 
     private void ScheduleScannerFavoritesRecentsPublishedSmoke(ScannerItemSearchDetails details)
