@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
@@ -39,8 +40,8 @@ public sealed class LegacyMapSelectionConsistencyBridge : IDisposable
 
     /// <summary>
     /// Forces the active Main Map selection into MapTrackerService synchronously. The
-    /// MiniMap calls this during SourceInitialized, before its donor Loaded handler reads
-    /// CurrentMapKey, so the very first frame cannot inherit an older tracker selection.
+    /// MiniMap calls this during SourceInitialized and again after Loaded, so both the
+    /// first frame and later manual map selections use the same canonical product path.
     /// </summary>
     public static bool SynchronizeCurrentSelectionNow()
     {
@@ -100,7 +101,52 @@ public sealed class LegacyMapSelectionConsistencyBridge : IDisposable
         var canonicalKey = _tracker.ResolveMapKey(selectedKey) ?? selectedKey;
         if (!string.Equals(_tracker.CurrentMapKey, canonicalKey, StringComparison.OrdinalIgnoreCase))
             _tracker.SetCurrentMap(canonicalKey);
+
+        // SetCurrentMap remains the shared authoritative state. This direct product bridge
+        // additionally closes the visible timing gap while an OverlayMiniMapWindow is open.
+        JunhyunMiniMapProductRegistry.SynchronizeMapSelection(canonicalKey);
+        VerifyMiniMapSynchronizationIfRequested(canonicalKey);
         return true;
+    }
+
+    private void VerifyMiniMapSynchronizationIfRequested(string canonicalKey)
+    {
+        if (!string.Equals(
+                Environment.GetEnvironmentVariable("JUNHYUNHELPER_MAP_SMOKE"),
+                "1",
+                StringComparison.Ordinal) ||
+            !JunhyunMiniMapProductRegistry.HasLoadedActiveWindow)
+        {
+            return;
+        }
+
+        try
+        {
+            if (!JunhyunMiniMapProductRegistry.IsActiveMapSelectionSynchronized(canonicalKey))
+            {
+                throw new InvalidOperationException(
+                    $"MiniMap did not immediately synchronize to Main Map selection '{canonicalKey}'.");
+            }
+
+            File.WriteAllText(
+                Path.Combine(Path.GetTempPath(), "junhyun-minimap-selection-sync-smoke-success.txt"),
+                "main-map-selection-boundary=ok\n" +
+                "active-minimap-map-sync=ok\n");
+        }
+        catch (Exception exception)
+        {
+            try
+            {
+                File.WriteAllText(
+                    Path.Combine(Path.GetTempPath(), "junhyun-map-smoke-error.txt"),
+                    "Map/MiniMap selection synchronization smoke failed.\n" + exception);
+            }
+            catch
+            {
+            }
+
+            Environment.Exit(89);
+        }
     }
 
     private void NormalizeInterchangeLabel()

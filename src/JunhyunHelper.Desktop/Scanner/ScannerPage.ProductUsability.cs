@@ -30,6 +30,7 @@ public partial class ScannerPage
         EnsureSelectedItemScrolling();
         NormalizeSearchClearAffordance();
         InitializeScannerUserItemCollections();
+        ApplyV191DetailActionAlignment();
 
         SettingsButton.Click -= SettingsButton_Click;
         SettingsButton.Click += ProductSettingsButton_Click;
@@ -114,6 +115,7 @@ public partial class ScannerPage
         await mainWindow.ToggleInAppWindowAsync("scanner-advanced", advanced);
         UpdateToggleButton();
         UpdateStatus(_coordinator.Status);
+        RefreshActivityCorrectionAvailability();
     }
 
     private void RefreshNeededSources(string itemId)

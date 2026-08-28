@@ -1,3 +1,5 @@
+using System.Windows.Threading;
+
 namespace JunhyunHelper.Desktop.Map;
 
 /// <summary>
@@ -27,6 +29,13 @@ public static class JunhyunMiniMapProductRegistry
         window.ApplyJunhyunBaseOpacity(store.MiniMapOpacity);
         window.ApplyJunhyunMarkerScale(store.MiniMapMarkerScale);
         window.InitializeQuestV2();
+
+        // Registration happens before donor Loaded. Re-run the product selection boundary
+        // after Loaded so a newly opened MiniMap is guaranteed to consume the currently
+        // visible Main Map selection through the same immediate-sync path.
+        window.Dispatcher.BeginInvoke(
+            () => _ = LegacyMapSelectionConsistencyBridge.SynchronizeCurrentSelectionNow(),
+            DispatcherPriority.ContextIdle);
     }
 
     public static void Unregister(TarkovHelper.Windows.OverlayMiniMapWindow window)
@@ -72,6 +81,51 @@ public static class JunhyunMiniMapProductRegistry
 
     public static void TemporarilyHide(double seconds) =>
         WithActive(window => window.JunhyunTemporarilyHide(seconds));
+
+    /// <summary>
+    /// Pushes the canonical Main Map selection into an already-loaded MiniMap immediately.
+    /// The donor MapChanged subscription remains in place as the normal shared-state path.
+    /// </summary>
+    public static void SynchronizeMapSelection(string mapKey)
+    {
+        if (string.IsNullOrWhiteSpace(mapKey))
+            return;
+
+        WithActive(window => window.SynchronizeJunhyunMapSelection(mapKey));
+    }
+
+    public static bool IsActiveMapSelectionSynchronized(string mapKey)
+    {
+        if (string.IsNullOrWhiteSpace(mapKey))
+            return false;
+
+        var window = ActiveWindow();
+        if (window is null || !window.IsLoaded)
+            return false;
+
+        bool Read() => string.Equals(
+            window.JunhyunCurrentMapKey,
+            mapKey,
+            StringComparison.OrdinalIgnoreCase);
+
+        return window.Dispatcher.CheckAccess()
+            ? Read()
+            : window.Dispatcher.Invoke(Read);
+    }
+
+    public static bool HasLoadedActiveWindow
+    {
+        get
+        {
+            var window = ActiveWindow();
+            if (window is null)
+                return false;
+
+            return window.Dispatcher.CheckAccess()
+                ? window.IsLoaded
+                : window.Dispatcher.Invoke(() => window.IsLoaded);
+        }
+    }
 
     private static TarkovHelper.Windows.OverlayMiniMapWindow? ActiveWindow()
     {
