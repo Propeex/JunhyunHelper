@@ -137,6 +137,7 @@ public partial class MapPage
                 marker,
                 "real-donor-checkboxes=ok\n" +
                 "marker-panel-visible=ok\n" +
+                "master-filter-render-state=ok\n" +
                 "hidden-master-render-gate=ok\n" +
                 "approved-three-filter-layout=ok\n" +
                 "minimap-refresh-handler-preserved=ok\n" +
