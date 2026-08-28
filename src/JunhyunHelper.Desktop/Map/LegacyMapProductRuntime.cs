@@ -138,7 +138,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
                 MapSmokeSuccessFileName);
             await WaitForAsync(
                 () => System.IO.File.Exists(mainSmokeSuccess),
-                TimeSpan.FromSeconds(15));
+                TimeSpan.FromSeconds(60));
 
             if (_disposed)
                 return;
@@ -172,7 +172,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
             _overlay.ShowOverlay();
             await WaitForAsync(
                 () => _overlay.IsOverlayVisible && JunhyunMiniMapProductRegistry.HasLoadedActiveWindow,
-                TimeSpan.FromSeconds(4));
+                TimeSpan.FromSeconds(2));
 
             var window = Application.Current.Windows
                 .OfType<TarkovHelper.Windows.OverlayMiniMapWindow>()
@@ -184,7 +184,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
             await WaitForAsync(
                 () => string.Equals(window.JunhyunCurrentMapKey, mapA, StringComparison.OrdinalIgnoreCase) &&
                       mapSvg.Source is not null,
-                TimeSpan.FromSeconds(5));
+                TimeSpan.FromSeconds(3));
             var renderedSourceA = mapSvg.Source?.ToString()
                 ?? throw new InvalidOperationException("MiniMap map A produced no rendered SVG source.");
 
@@ -207,7 +207,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
                 () => string.Equals(window.JunhyunCurrentMapKey, mapB, StringComparison.OrdinalIgnoreCase) &&
                       mapSvg.Source is not null &&
                       !string.Equals(renderedSourceA, mapSvg.Source.ToString(), StringComparison.Ordinal),
-                TimeSpan.FromSeconds(5));
+                TimeSpan.FromSeconds(3));
 
             System.IO.File.WriteAllText(
                 System.IO.Path.Combine(System.IO.Path.GetTempPath(), MiniMapSelectionSmokeFileName),
