@@ -46,13 +46,15 @@ public sealed class V183VisibleUiActivationContractTests
         Assert.DoesNotContain("ReferenceEquals(e.OriginalSource, page)", loaded, StringComparison.Ordinal);
         Assert.Contains("page.ScheduleJunhyunMarkerPanelPolish(DispatcherPriority.Loaded);", loaded, StringComparison.Ordinal);
         Assert.Contains("DispatcherPriority.ContextIdle", loaded, StringComparison.Ordinal);
-        Assert.Contains("TryWrapJunhyunMarkerListViewport()", loaded, StringComparison.Ordinal);
-        Assert.Contains("MapMarkersContent.Parent is not Panel parent", loaded, StringComparison.Ordinal);
+        Assert.Contains("TryResolveOrWrapJunhyunMarkerListViewport()", loaded, StringComparison.Ordinal);
+        Assert.Contains("MapMarkersOverlay.Child is not Panel overlayContent", loaded, StringComparison.Ordinal);
+        Assert.Contains("ReferenceEquals(child.Content, MapMarkersContent)", loaded, StringComparison.Ordinal);
+        Assert.Contains("overlayContent.Children.IndexOf(MapMarkersContent)", loaded, StringComparison.Ordinal);
         Assert.Contains("FailJunhyunMarkerPanelActivationSmoke();", loaded, StringComparison.Ordinal);
         Assert.Contains("Environment.Exit(89)", loaded, StringComparison.Ordinal);
         Assert.Contains("ActivateProductMarkerPanelBodyLayout();", loaded, StringComparison.Ordinal);
 
-        var wrapGuard = loaded.IndexOf("if (!TryWrapJunhyunMarkerListViewport())", StringComparison.Ordinal);
+        var wrapGuard = loaded.IndexOf("if (!TryResolveOrWrapJunhyunMarkerListViewport())", StringComparison.Ordinal);
         var applied = loaded.IndexOf("_junhyunMarkerPanelPolishApplied = true;", StringComparison.Ordinal);
         var activate = loaded.IndexOf("ActivateProductMarkerPanelBodyLayout();", StringComparison.Ordinal);
         Assert.True(wrapGuard >= 0 && applied > wrapGuard && activate > applied,
