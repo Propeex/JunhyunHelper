@@ -25,10 +25,14 @@ public sealed class V1715UiRefinementsContractTests
         var root = FindRepositoryRoot();
         var source = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.CaliberDropdownPolish.cs");
 
+        Assert.Contains("static AmmoPage()", source, StringComparison.Ordinal);
+        Assert.Contains("ProductCaliberDropdownHandlerRegistered", source, StringComparison.Ordinal);
         Assert.Contains("CaliberComboBox.ItemTemplate = template", source, StringComparison.Ordinal);
         Assert.Contains("ItemTemplate = template", source, StringComparison.Ordinal);
         Assert.Contains("FavoriteCaliberMenuButton.Visibility = Visibility.Collapsed", source, StringComparison.Ordinal);
         Assert.Contains("_productFavoriteCaliberComboBox = new ComboBox", source, StringComparison.Ordinal);
+        Assert.Contains("VerifyProductCaliberDropdownRuntimeContract", source, StringComparison.Ordinal);
+        Assert.Contains("junhyun-ammo-ui-smoke-success.txt", source, StringComparison.Ordinal);
         Assert.Contains("Interval = TimeSpan.FromMilliseconds(1400)", source, StringComparison.Ordinal);
         Assert.Contains("GroupBy(row => row.RawCaliber", source, StringComparison.Ordinal);
         Assert.Contains("rows[index].Icon", source, StringComparison.Ordinal);

@@ -1,10 +1,18 @@
-준현 헬퍼 v1.8.1 — Windows x64
+준현 헬퍼 v1.8.2 — Windows x64
 
 실행 방법
 1. 받은 'Junhyun-Helper.zip'을 원하는 위치에 압축 해제합니다.
 2. 압축을 풀면 생성되는 '준현 헬퍼' 폴더 안의 '준현 헬퍼.exe'를 실행합니다.
 3. 처음 실행하면 프로필을 만들고 필요한 최신 게임 데이터를 온라인에서 내려받습니다.
 4. 프로그램 실행 시 GitHub의 최신 정식 준현 헬퍼 릴리즈를 확인합니다. 더 최신 버전이 있으면 업데이트 여부를 묻습니다.
+
+v1.8.2 런타임 UI / 실시간 Game Content 회귀 수정
+- 탄약 탭의 구경 및 즐겨찾기 드롭다운 초기화를 WPF 타입 초기화 순서에 의존하지 않도록 고정해, 공개 빌드에서도 구경별 탄약 아이콘과 동일한 순환 애니메이션이 실제로 표시되도록 수정했습니다.
+- 공개 실행 파일 smoke가 구경 드롭다운과 즐겨찾기 드롭다운의 실제 렌더링 Image, 동일 아이콘 상태, 타이머 순환까지 검증하도록 강화했습니다.
+- json.tarkov.dev가 Bitcoin Farm의 수동 재료 없는 생산 항목을 일반 craft처럼 제공하는 현재 형식을 명시적으로 구분해, 잘못된 제작 관계를 Scanner 아이템 DB에 만들지 않도록 수정했습니다.
+- json.tarkov.dev가 동일한 상인 구매 offer를 중복 제공하는 경우 canonical 관계 모델에서 완전히 동일한 record만 정규화해 중복 수급처 생성을 방지합니다.
+- 다른 빈 craft, 서로 다른 상인 offer, 관계 참조/가격/수량 무결성, 기존 LKG/completeness fail-closed 계약은 그대로 유지합니다.
+- Scanner OCR/아이템 인식 임계값, matcher, visual recovery 정책은 변경하지 않았습니다.
 
 v1.8.1 Game Content 관계 데이터 안전성 보강
 - v1.8.0에서 추가된 Scanner 아이템 정보 DB의 상인 구매·상인 교환·은신처 제작·플리마켓 관계도 기존 Game Content와 동일한 50% LKG shrink guard로 보호합니다.
@@ -13,7 +21,6 @@ v1.8.1 Game Content 관계 데이터 안전성 보강
 - v8+ 새 데이터에서 상인 구매·교환·제작·플리마켓 관계 집합이 통째로 비어 있으면 fail closed합니다.
 - 저장된 candidate를 다시 읽을 때와 실제 active snapshot을 검증할 때도 관계 무결성 검사를 반복합니다.
 - v3~v7 구형 snapshot은 관계 그래프가 없다는 사실을 정상적인 legacy 상태로 계속 읽을 수 있습니다.
-- Scanner OCR/아이템 인식 임계값, matcher, visual recovery 정책은 변경하지 않았습니다.
 
 v1.8.0 Scanner 아이템 정보 DB
 - Scanner 아이템 검색 상세에서 종류, 크기, 무게, 플리마켓 거래 가능 여부, 기본 가격을 확인할 수 있습니다.
@@ -23,83 +30,12 @@ v1.8.0 Scanner 아이템 정보 DB
 - 수급처는 상인 구매, 상인 교환, 은신처 제작, 플리마켓, 레이드 획득을 구분합니다.
 - 제작·교환 재료와 결과 아이템을 클릭하면 같은 Scanner 아이템 상세로 이동할 수 있습니다.
 - 관계 데이터는 게임 데이터 업데이트 때 검증·저장되며 Scanner 검색 중 별도 네트워크 요청을 하지 않습니다.
-- 기존 Scanner OCR/아이템 인식 임계값, matcher, visual recovery 정책은 변경하지 않았습니다.
 
 v1.7.15 UI 마무리
 - 메인 상단 상태 영역은 버전 정보만 표시합니다. 정리가 필요한 아이템이 있으면 아이템 탭 우측 상단의 작은 주황색 점으로 알려줍니다.
-- 지도 마커 선택 창의 체크박스 목록이 실제 가용 세로 공간을 사용하도록 수정했습니다. 목록이 화면 안에 들어오면 불필요한 세로 스크롤바를 표시하지 않습니다.
-- 지도 마커 선택 창은 기존 버튼 재클릭뿐 아니라 창 바깥의 지도/빈 영역을 클릭해도 닫히며, 그 클릭의 원래 지도/컨트롤 동작은 유지합니다.
+- 지도 마커 선택 창의 체크박스 목록이 실제 가용 세로 공간을 사용하도록 수정했습니다.
+- 지도 마커 선택 창은 창 바깥의 지도/빈 영역을 클릭해도 닫히며 원래 지도/컨트롤 동작은 유지합니다.
 - 탄약 탭의 즐겨찾기 선택을 일반 드롭다운으로 변경했습니다.
-- 구경 및 즐겨찾기 드롭다운은 각 구경에 속한 탄약 아이콘을 같은 순서와 타이밍으로 순환 표시합니다. 특정 탄약 하나를 고정 대표 아이콘으로 사용하지 않습니다.
-- 기존 즐겨찾기 저장/필터 의미, Scanner 인식 정책, Map/MiniMap donor revision, Game Content 검증/LKG 계약은 변경하지 않았습니다.
+- 구경 및 즐겨찾기 드롭다운은 각 구경에 속한 탄약 아이콘을 같은 순서와 타이밍으로 순환 표시합니다.
 
-v1.7.14 UI 일관성 정리
-- 탄약 탭의 '즐겨찾기 선택'과 '표시 열' 메뉴는 열린 상태에서 같은 버튼을 다시 누르면 정상적으로 닫히도록 수정했습니다.
-- 지도 탭의 미니맵 버튼 주변 잔여 공간을 제거하고 '지도 마커'를 일반 버튼 형태로 정리했습니다.
-- 지도 마커 선택 창의 세로 공간을 넓혀 일반적인 데스크톱 화면에서는 마커 체크박스를 스크롤 없이 확인할 수 있게 했습니다.
-- 지도/미니맵 설정, Scanner 설정, Scanner 고급, 프로필 수정은 메인 프로그램 내부의 동일한 overlay 방식으로 표시합니다. 같은 실행 버튼을 다시 누르거나 배경을 누르면 닫을 수 있습니다.
-- Scanner 단축키 설정을 별도 화면에서 제거하고 Scanner 설정 안으로 통합했습니다.
-- Scanner 고급 화면의 별도 닫기 버튼을 제거하고 공통 overlay 닫기 동작을 사용합니다.
-- 퀘스트·은신처·아이템·탄약·Scanner의 주요 검색창은 입력창 우측 내부의 × 버튼으로 검색어를 지우는 동일한 형식을 사용합니다.
-- Scanner structural floor 0.34, HEADER_FRAME_LOCKED 0.68, candidate 수, matcher/visual acceptance, 200ms observation target은 변경하지 않았습니다.
-- Map/MiniMap donor revision과 Game Content 검증/LKG 계약은 변경하지 않았습니다.
-
-v1.7.13 UI 정리
-- Items의 퀘스트용/은신처용 용도 선택을 제거하고 필요한 아이템 화면을 하나의 기준으로 단순화했습니다.
-- Ammo 상단 조작 순서를 정리하고 상세정보를 기본 접힘으로 변경했으며 중복 요약 문구를 제거했습니다.
-- Map의 지도 마커 선택과 설정은 같은 버튼으로 열고 닫을 수 있게 정리했고, 경로 표시/경로 지우기와 단축키 안내 문구를 제거했습니다.
-- Scanner 설정은 변경 즉시 저장되며 단축키 설정을 기본 Scanner 화면으로 분리했습니다.
-- Scanner 검색에서 필요한 아이템은 기존 Items 계산 결과를 기준으로 관련 퀘스트/은신처 출처를 표시하고 해당 화면으로 이동할 수 있습니다.
-- 프로필 편집과 Scanner 설정 등 사용자 설정 화면을 메인 프로그램 내부 overlay로 표시하도록 통일했습니다.
-- Scanner structural floor 0.34, HEADER_FRAME_LOCKED 0.68, candidate 수, matcher/visual acceptance, 200ms observation target은 변경하지 않았습니다.
-- Map/MiniMap donor revision과 Game Content 검증/LKG 계약은 변경하지 않았습니다.
-
-v1.7.12 장기 유지보수
-- Quest/Hideout/Items/Ammo의 공통 이미지 캐시와 화면 간 이동 연결을 개별 탭의 Loaded 순서가 아니라 준현 헬퍼 창의 명시적인 초기화 경계에서 설정하도록 정리했습니다.
-- Ammo의 검색·상세정보 UI 초기화가 부모 화면의 Loaded 이벤트 존재 여부에 간접 의존하던 WPF 생명주기 결합을 제거하고 Ammo 화면이 직접 초기화를 소유하도록 수정했습니다.
-- 사용자 기능과 화면 동작, Game Content/사용자 진행도 소유권, Map/MiniMap donor 동작, Scanner 인식 정책은 변경하지 않았습니다.
-- Scanner structural floor 0.34, HEADER_FRAME_LOCKED 0.68, candidate 수, matcher/visual acceptance, 200ms observation target은 그대로 유지합니다.
-
-v1.7.11 유지보수
-- Scanner의 '필요 개수'가 전체 요구량이 아니라 현재 보유량/FIR 반영 후 실제로 더 필요한 남은 수량을 표시하도록 수정했습니다.
-- Map/Scanner 단축키는 등록한 조합에 Ctrl/Alt/Shift가 추가로 눌린 상태에서도 동작하며, 같은 키에서 여러 조합이 겹치면 더 구체적인 등록 조합을 우선합니다. Windows 키 modifier는 지원하지 않습니다.
-- MiniMap을 처음 열 때 현재 Main Map에서 선택한 지도를 즉시 따라가도록 초기 동기화를 보강했습니다.
-- MiniMap 창의 가로/세로 크기를 사용자 데이터에 저장해 프로그램을 다시 실행해도 복원합니다.
-- 프로그램의 일반 WPF 설명 Tooltip 표시를 전역에서 제거했습니다. 지도 마커 정보처럼 기능 자체인 커스텀 팝업은 유지합니다.
-- Scanner 인식 임계값, candidate 수, matcher, visual recovery와 200ms observation target은 변경하지 않았습니다.
-
-v1.7.10 Scanner 범용 환경 대응
-- 공개 배포 Scanner가 특정 PC의 밝기·감마·HDR/SDR 렌더링에 과도하게 의존하지 않도록 아이템명 OCR 입력의 환경 정규화 계층을 추가했습니다.
-- 기존 정상 OCR 결과가 나오면 그대로 사용하며 정규화 분석/추가 OCR도 수행하지 않습니다.
-- 일반 OCR이 비었거나 기존 bounded deep OCR 단계에 들어간 경우에만 아이템명 ROI의 실제 배경·글자 밝기 분포를 분석합니다.
-- 밝게 들뜬 HDR→SDR 유사 캡처나 낮은 대비 입력으로 판단되는 경우에만 배경/글자 대비를 canonical grayscale 범위로 정규화한 보조 OCR evidence를 추가합니다.
-- 1080p/1440p/4K 비례 title raster와 lifted/washed/low-contrast 환경 변형에 대한 deterministic regression matrix를 추가했습니다.
-- 대비가 사실상 없는 입력은 임의로 복구하지 않고 기존처럼 fail closed합니다.
-- Scanner structural/header/candidate/OCR matcher/visual acceptance 기준은 낮추지 않았습니다.
-
-v1.7.9 유지보수
-- Scanner 로그에는 아이템 인식 성공이 기록되는데 Mini Scanner가 열리지 않던 표시 회귀를 수정했습니다.
-- Item ID가 이미 확정된 뒤 Mini Scanner만 별도로 수행하던 상단 인벤토리 OCR을 표시 허가 조건에서 제거했습니다.
-- 실제 Scanner에서는 Tarkov 클라이언트가 foreground인지 여부만 초기 표시 안전 조건으로 유지합니다.
-- 이미 표시 중인 Mini Scanner는 기존처럼 확정된 Scanner Item 결과로 즉시 갱신되고, 연속 실제 miss 3회 전까지 마지막 정상 결과를 유지합니다.
-- Scanner 인식 임계값, candidate 수, OCR/matcher/visual acceptance는 변경하지 않았습니다.
-
-v1.7.8 유지보수
-- 레이드 인벤토리 화면에서 주변 수평선이 상세보기 header와 이어져 보일 때 빨간 X/돋보기 위치를 잘못 소유하던 Scanner header lock을 수정했습니다.
-- 상세보기 창과 아이템명 영역이 이미 강하게 검출된 경우에도 빨간 X, 돋보기, 중립 header, 어두운 제목 필드, 실제 텍스트 evidence를 모두 다시 확인한 뒤에만 OCR 단계로 진입합니다.
-- Scanner 인식 임계값이나 candidate 수를 낮추지 않았으며 기존 HEADER_FRAME_LOCKED 최종 기준 0.68을 유지합니다.
-- Scanner 메인 상단에 '현재 결과 교정' 버튼을 배치했습니다. 이제 '스캐너 ON/OFF / 설정 / 고급 / 현재 결과 교정' 순서로 바로 접근할 수 있습니다.
-- v1.7.7의 사용자 선택형 교정 저장, legacy 자동 Case 안전 정리, 반복 로그 억제, Scanner/Map 단축키 규칙은 그대로 유지합니다.
-
-Scanner 인식 안전 계약
-- structural floor 0.34, HEADER_FRAME_LOCKED floor 0.68, continuous candidate cap 8, one-shot candidate cap 12는 그대로 유지합니다.
-- v1.7.6에서 검증된 matcher, visual recovery acceptance와 200ms observation target을 변경하지 않습니다.
-- 환경 정규화는 Item identity proof가 아니며 공식 Tarkov Korean item catalog의 기존 보수적 검증을 그대로 통과해야 합니다.
-- false positive보다 miss를 선호하며, 이전 Item ID나 OCR 결과를 새 Item identity 증거로 사용하지 않습니다.
-- cross-frame OCR/visual 결과를 Item identity proof로 사용하지 않습니다.
-- Item ID가 확정되기 전에는 가격·필요 개수 같은 mapped data를 identity 증거로 사용하지 않습니다.
-- Scanner 인식 중 네트워크 요청, 게임 메모리 읽기, DLL injection, packet interception을 사용하지 않습니다.
-
-사용자 데이터
-- 프로필, 진행도, Scanner 설정, 교정 데이터, 로그 등 변경 가능한 사용자 데이터는 프로그램 폴더가 아니라 %LocalAppData%\JunhyunHelper 아래에 보관됩니다.
-- 프로그램 업데이트로 기존 사용자 진행도와 사용자가 검토한 Scanner Ground Truth를 덮어쓰지 않습니다.
+이전 버전의 상세 변경 내역과 검증 기록은 GitHub Releases 및 저장소의 docs 릴리즈 문서를 기준으로 확인합니다.

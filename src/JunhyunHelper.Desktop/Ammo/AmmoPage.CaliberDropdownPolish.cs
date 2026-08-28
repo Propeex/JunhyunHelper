@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Globalization;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -21,6 +22,17 @@ public partial class AmmoPage
     private Dictionary<string, AmmoRow[]> _productCaliberRows = new(StringComparer.Ordinal);
     private readonly Dictionary<string, int> _productCaliberIconIndices = new(StringComparer.Ordinal);
     private bool _productSyncingFavoriteSelection;
+
+    // This explicit type initializer is intentional. The v1.7.15 implementation registered
+    // the Loaded class handler only through a static-field side effect. Without an explicit
+    // static constructor the CLR may mark the type beforefieldinit, so an AmmoPage instance
+    // can be constructed before that side effect runs and the published UI remains the
+    // text-only XAML fallback. An explicit type initializer makes registration deterministic
+    // before the first instance constructor executes.
+    static AmmoPage()
+    {
+        _ = ProductCaliberDropdownHandlerRegistered;
+    }
 
     private static bool RegisterProductCaliberDropdownHandler()
     {
@@ -90,6 +102,25 @@ public partial class AmmoPage
         RefreshProductFavoriteChoices();
         SyncProductFavoriteSelection();
         ScheduleProductCaliberIconRefresh();
+        VerifyProductCaliberDropdownRuntimeContract();
+    }
+
+    private void VerifyProductCaliberDropdownRuntimeContract()
+    {
+        if (CaliberComboBox.ItemTemplate is null)
+            throw new InvalidOperationException("Ammo caliber runtime icon template was not installed.");
+        if (_productFavoriteCaliberComboBox is null)
+            throw new InvalidOperationException("Ammo favorite-caliber runtime ComboBox was not created.");
+        if (!ReferenceEquals(CaliberComboBox.ItemTemplate, _productFavoriteCaliberComboBox.ItemTemplate))
+            throw new InvalidOperationException("Ammo caliber and favorite selectors do not share one icon template.");
+        if (FavoriteCaliberMenuButton.Visibility != Visibility.Collapsed || FavoriteCaliberMenuButton.IsHitTestVisible)
+            throw new InvalidOperationException("Legacy favorite-caliber menu remained active after runtime polish.");
+
+        if (string.Equals(Environment.GetEnvironmentVariable("JUNHYUNHELPER_MAP_SMOKE"), "1", StringComparison.Ordinal))
+        {
+            var marker = Path.Combine(Path.GetTempPath(), "junhyun-ammo-ui-smoke-success.txt");
+            File.WriteAllText(marker, "ammo-caliber-runtime-template=ok\nfavorites-shared-template=ok\n");
+        }
     }
 
     private static DataTemplate CreateProductCaliberChoiceTemplate()

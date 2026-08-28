@@ -70,6 +70,74 @@ public sealed class V180ScannerItemDatabaseTests
     }
 
     [Fact]
+    public void RelationshipImporter_DeduplicatesOnlyExactTraderPurchaseRecords()
+    {
+        var items = Parse("""
+            {"data":{"items":{
+              "target":{"id":"target","types":[],"buyFromTrader":[
+                {"trader":"trader","currencyItem":"rub","currency":"RUB","price":5371,"minTraderLevel":1,"taskUnlock":null,"buyLimit":5},
+                {"trader":"trader","currencyItem":"rub","currency":"RUB","price":5371,"minTraderLevel":1,"taskUnlock":null,"buyLimit":5},
+                {"trader":"trader","currencyItem":"rub","currency":"RUB","price":5371,"minTraderLevel":1,"taskUnlock":null,"buyLimit":7}
+              ]},
+              "rub":{"id":"rub","types":[]}
+            }}}
+            """);
+        var barters = Parse("""{"data":[]}""");
+        var crafts = Parse("""{"data":[]}""");
+
+        var result = new TarkovItemRelationshipImporter().Import(items, barters, crafts);
+
+        Assert.Equal(2, result.TraderPurchases.Count);
+        Assert.Contains(result.TraderPurchases, purchase => purchase.BuyLimit == 5);
+        Assert.Contains(result.TraderPurchases, purchase => purchase.BuyLimit == 7);
+    }
+
+    [Fact]
+    public void RelationshipImporter_ExcludesAuditedPassiveBitcoinFarmProduction()
+    {
+        var items = Parse("""{"data":{"items":[]}}""");
+        var barters = Parse("""{"data":[]}""");
+        var crafts = Parse("""
+            {"data":[{
+              "id":"5d5c205bd582a50d042a3c0e",
+              "requiredItems":[],
+              "requiredQuestItems":[],
+              "station":"5d494a445b56502f18c98a10",
+              "duration":300000,
+              "level":1,
+              "productItem":{"item":"59faff1d86f7746c51718c9c","count":1,"attributes":{}}
+            }]}
+            """);
+
+        var result = new TarkovItemRelationshipImporter().Import(items, barters, crafts);
+
+        Assert.Empty(result.Crafts);
+    }
+
+    [Fact]
+    public void RelationshipImporter_StillRejectsUnknownZeroInputCraft()
+    {
+        var items = Parse("""{"data":{"items":[]}}""");
+        var barters = Parse("""{"data":[]}""");
+        var crafts = Parse("""
+            {"data":[{
+              "id":"unexpected-zero-input-craft",
+              "requiredItems":[],
+              "requiredQuestItems":[],
+              "station":"workbench",
+              "duration":60,
+              "level":1,
+              "productItem":{"item":"product","count":1}
+            }]}
+            """);
+
+        var error = Assert.Throws<InvalidDataException>(() =>
+            new TarkovItemRelationshipImporter().Import(items, barters, crafts));
+
+        Assert.Contains("has no required items", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ScannerItemDatabase_UiAndStorageContractsRemainLocalAndComplete()
     {
         var root = FindRepositoryRoot();
