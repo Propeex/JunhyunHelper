@@ -353,6 +353,17 @@ Release workflow: 33061059154 — SUCCESS
 - canonical-identical trader direct-purchase record만 deduplicate.
 - 다른 empty craft와 의미가 다른 offer는 fail-closed/별도 의미 유지.
 
+## v1.8.3 visible UI runtime activation
+
+- `docs/DECISION_V1.8.3_VISIBLE_UI_RUNTIME_ACTIVATION.md`
+- 상태: **IMPLEMENTED / PUBLIC VERIFIED v1.8.3 / STILL ACTIVE**.
+- source/template/class-handler 존재만으로 사용자에게 보이는 runtime activation을 증명했다고 간주하지 않는다. 실제 displayed WPF runtime tree가 authority다.
+- Ammo page-local activation은 유지하되 top-level MainWindow Loaded fallback을 함께 두고, 검증은 repair/reinitialization보다 먼저 수행해 숨은 초기화 누락을 포착한다.
+- Ammo runtime activation은 idempotent해야 하며 duplicate timer/handler를 만들지 않는다.
+- Map marker panel은 transient parent 관계나 routed `Loaded` 세부 발생 방식에 의존하지 않고 stable owned root/lifecycle에서 초기화한다.
+- marker 목록 세로 스크롤은 `Auto`: 내용이 들어가면 불필요한 scrollbar를 보이지 않고 실제 overflow에서만 표시한다.
+- 이 lifecycle/runtime activation 계약은 v1.8.4에서도 계속 유효하다.
+
 ## v1.8.4 Ammo toolbar / Scanner item detail / runtime evidence
 
 - `docs/DECISION_V1.8.4_AMMO_SCANNER_ITEM_DETAIL.md`
