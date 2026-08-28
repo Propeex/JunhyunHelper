@@ -18,8 +18,28 @@ v1.8.0에서 추가된 Scanner 아이템 정보 DB의 관계 데이터 보호를
 - `structural floor 0.34`, `HEADER_FRAME_LOCKED 0.68`, continuous 8 / one-shot 12, 200ms observation target을 유지합니다.
 - 관계 정보는 Item ID가 확정된 뒤 presentation에만 사용하며 identity proof로 사용하지 않습니다.
 - Map/MiniMap donor revision은 변경하지 않았습니다.
-- 공개 v1.8.0 ZIP/tag/source는 immutable historical release로 유지하며 교체하지 않습니다.
+- 공개 v1.8.0 ZIP/tag/source는 immutable historical release로 유지하며 교체하지 않았습니다.
 
-## 릴리즈 검증
+## 릴리즈 검증 완료
 
-공개 전 deterministic regression, Release build, win-x64 self-contained single-file publish, 실제 published EXE Product UI / Scanner / Main Map / Factory / MiniMap smoke, graceful shutdown, clean portable root, package checksum, exact-main CI, Release workflow, public tag/release/asset readback을 모두 완료해야 합니다.
+v1.8.1은 전체 PATCH release gate를 통과해 공개 stable로 검증되었습니다.
+
+```text
+exact product source/tag target:
+dade2ef4dadbf58659b75c80d421bd3738003ff8
+
+exact-main CI: 33132600931 — SUCCESS
+Release workflow: 33132798167 — SUCCESS
+418 passed / 0 failed / 0 skipped
+Product UI / Scanner / Main Map / Factory / MiniMap smoke: SUCCESS
+graceful shutdown / clean portable root: SUCCESS
+
+Junhyun-Helper.zip
+bytes: 80,520,704
+SHA-256:
+b30cbb045cc089c90108e2d3394510ef6778019ea0a50f6ae16d14de7aaafe9a
+```
+
+GitHub `/releases/latest`, `v1.8.1` release target, tag ref, 공개 ZIP asset digest를 readback했으며 모두 exact-main source/package와 일치합니다.
+
+상세 증거는 `docs/RELEASE_1.8.1.md`와 `docs/.release-v1.8.1-status.json`을 따릅니다.
