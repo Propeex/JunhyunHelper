@@ -22,7 +22,10 @@ public sealed record ScannerItemSnapshot(
     int? FleaPricePerSlot,
     int Slots,
     int CurrentNeeded,
-    string? BestTraderName = null);
+    string? BestTraderName = null)
+{
+    public int? FleaMinimumPrice { get; init; }
+}
 
 public sealed record ScannerInspectCandidate(
     Rect Bounds,
