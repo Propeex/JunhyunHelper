@@ -101,11 +101,10 @@ public partial class ScannerPage
                         []),
                 ]));
 
-        // Exercise the same product-owned item-open boundary that real search and every
-        // related-item navigation path use. v1.9.0 favorites/recents smoke is scheduled
-        // from this boundary without calling any initialization method itself.
-        RenderSearchDetails(details);
-        RenderProductItemExtensions(details);
+        // Exercise the exact product-owned item-open boundary used by direct search and
+        // every related/favorite/recent navigation route. The smoke does not initialize
+        // any feature itself; it only opens an item after lifecycle activation was proven.
+        OpenScannerItemDetails(details);
         SelectedItemPanel.Measure(new Size(460, 2000));
         SelectedItemPanel.Arrange(new Rect(0, 0, 460, Math.Max(1200, SelectedItemPanel.DesiredSize.Height)));
         SelectedItemPanel.UpdateLayout();
@@ -162,7 +161,7 @@ public partial class ScannerPage
             !acquisitionText.Any(text => text.Contains("65,432₽", StringComparison.Ordinal)))
         {
             throw new InvalidOperationException(
-                "Scanner purchase/raid runtime text did not match the v1.8.4 contract: " +
+                "Scanner purchase/raid runtime text did not match the v1.9.0 contract: " +
                 string.Join(" | ", acquisitionText));
         }
 
@@ -212,6 +211,7 @@ public partial class ScannerPage
         File.WriteAllText(
             marker,
             "product-lifecycle=ok\n" +
+            "canonical-open-boundary=ok\n" +
             "basic-four-fields=ok\n" +
             "empty-sections-hidden=ok\n" +
             "recipe-wrap=ok\n" +
