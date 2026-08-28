@@ -3,7 +3,7 @@
 > 새 대화/새 개발자는 이 문서를 먼저 읽습니다. 대화 기억이 아니라 저장소의 공식 문서와 현재 GitHub 상태가 프로젝트의 기준입니다.
 
 기준일: 2026-08-28 KST  
-상태: **v1.8.4 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+상태: **v1.9.0 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 1. 제품
 
@@ -25,6 +25,7 @@
 - Scanner + Mini Scanner
 - Scanner Ground Truth 교정 / diagnostic dataset / regression
 - Scanner 아이템 정보 DB
+- Scanner item Favorites / Recents
 
 Runtime GPT/AI 의존성은 없다.
 
@@ -33,61 +34,61 @@ Runtime GPT/AI 의존성은 없다.
 ## 2. 현재 public stable
 
 ```text
-version: v1.8.4
+version: v1.9.0
 exact product release source/tag target:
-13af4e3a452139dedc32b2db9aa51266e2a01d2a
-main CI run: 33153043430 — SUCCESS
-release workflow run: 33153234911 — SUCCESS
-release id: 378333813
-424 passed / 0 failed / 0 skipped
-published UTC: 2026-08-28T07:55:12Z
+e0b0d303141563af564cd71cf00d8c1bfeafe44d
+main CI run: 33165706386 — SUCCESS
+release workflow run: 33165905504 — SUCCESS
+release id: 378431058
+432 passed / 0 failed / 0 skipped
+published UTC: 2026-08-28T11:08:59Z
 ```
 
 Main-CI published ProductVersion:
 
 ```text
-1.8.4+13af4e3a452139dedc32b2db9aa51266e2a01d2a
+1.9.0+e0b0d303141563af564cd71cf00d8c1bfeafe44d
 ```
 
 Main-CI release package:
 
 ```text
 Junhyun-Helper.zip
-bytes: 80,528,868
+bytes: 80,538,029
 SHA-256:
-9e06c16e20a346ad7691dccfee9a2caebcdb6c0cd9a6a35859bcb97d8e03fa42
+9ee63042746aee27ddff4407e8240d65b3740696576fe7514b4f92fe8f1e1d44
 ```
 
 Main-CI GitHub Actions artifact:
 
 ```text
 name: JunhyunHelper-win-x64
-artifact id: 9678543773
-artifact archive bytes: 241,519,179
+artifact id: 9683545225
+artifact archive bytes: 241,545,444
 artifact archive SHA-256:
-e966c849652f7408bba868e920ffd45a622bf195309385ea04aad6f1f8758bf0
+098c74a99dc6d57c7a01b0e70c860c0d2925e6bbf4835ac2eacabf1f3e5d1bd8
 ```
 
 Public assets:
 
 ```text
 Junhyun-Helper.zip
-asset id: 533461834
-bytes: 80,528,868
+asset id: 533681571
+bytes: 80,538,029
 SHA-256:
-9e06c16e20a346ad7691dccfee9a2caebcdb6c0cd9a6a35859bcb97d8e03fa42
+9ee63042746aee27ddff4407e8240d65b3740696576fe7514b4f92fe8f1e1d44
 
 SHA256SUMS.txt
-asset id: 533461832
+asset id: 533681572
 bytes: 86
 SHA-256:
-535514fb48f23e1fe7834ba0cd5be54235f15922d036f5ad071c829ff80b4aad
+2cd7157b4ebeaaa86fa73ee1eccbd1dedac8112089ad04994bd04228fcdcce32
 ```
 
 GitHub `/releases/latest` 및 tag-ref readback:
 
-- tag `v1.8.4`
-- release target = `13af4e3a452139dedc32b2db9aa51266e2a01d2a`
+- tag `v1.9.0`
+- release target = `e0b0d303141563af564cd71cf00d8c1bfeafe44d`
 - tag ref object = same exact product release source
 - draft = false
 - prerelease = false
@@ -97,10 +98,11 @@ GitHub `/releases/latest` 및 tag-ref readback:
 
 공식 공개 증거:
 
-- `docs/RELEASE_1.8.4.md`
-- `docs/.release-v1.8.4-status.json`
-- `docs/RELEASE_NOTES_V1.8.4.md`
-- `docs/DECISION_V1.8.4_AMMO_SCANNER_ITEM_DETAIL.md`
+- `docs/RELEASE_1.9.0.md`
+- `docs/.release-v1.9.0-status.json`
+- `docs/RELEASE_NOTES_V1.9.0.md`
+- `docs/DECISION_V1.9.0_SCANNER_FAVORITES_RECENTS_AND_UI_FIXES.md`
+- `docs/RELEASE_1.8.4.md` — 이전 Ammo toolbar / Scanner item detail
 - `docs/RELEASE_1.8.2.md` — Ammo runtime / current live relationship 회귀 수정
 - `docs/DECISION_V1.8.2_RUNTIME_LIVE_REGRESSIONS.md`
 - `docs/RELEASE_1.8.1.md` — item relationship completeness hardening
@@ -108,47 +110,75 @@ GitHub `/releases/latest` 및 tag-ref readback:
 - `docs/RELEASE_1.8.0.md` — Scanner item database 기능 릴리즈
 - `docs/DECISION_V1.8.0_SCANNER_ITEM_DATABASE.md`
 
-**중요:** 이 문서 갱신처럼 공개 이후 생성되는 documentation-only commit은 v1.8.4 product release source가 아니다. 공개 v1.8.4 source/tag/assets는 위 `13af4e3a...` 기준의 immutable historical product release다.
+**중요:** 이 문서 갱신처럼 공개 이후 생성되는 documentation-only commit은 v1.9.0 product release source가 아니다. 공개 v1.9.0 source/tag/assets는 위 `e0b0d303...` 기준의 immutable historical product release다.
 
-## 3. v1.8.4 Ammo Toolbar / Scanner Item Detail
+## 3. v1.9.0 Scanner Favorites / Recents + UI regression fixes
 
-### Ammo
+### Favorites / Recents
 
-- `즐겨찾기 선택`은 탄약 탭 왼쪽 선택 영역에 둔다.
-- `표시 열` 버튼은 툴바 오른쪽 끝에 둔다.
-- 구경과 즐겨찾기 ComboBox는 동일한 runtime icon template/state를 공유한다.
-- 같은 구경 탄약 아이콘의 기존 순환 애니메이션/timing을 유지한다.
-- filtering/favorite persistence 의미는 변경하지 않았다.
+- Scanner detail header에서 별 버튼으로 favorite 등록/해제한다.
+- 오른쪽 사용자 영역은 Favorites 약 2/3 + Recents 약 1/3이다.
+- 두 목록은 각각 독립 vertical scroll을 사용하고 horizontal scroll은 사용하지 않는다.
+- 긴 이름은 ellipsis 처리한다.
+- favorites/recents persistence는 canonical Item ID와 order만 저장한다.
+- item name/icon/price/needed/relationship presentation은 현재 GameMode catalog/context에서 다시 resolve한다.
+- recent는 실제 item detail open 시에만 기록한다.
+- recent order = newest-first, duplicate reopen = move-to-top, max = 50.
+- recent 개별 삭제와 전체 삭제는 favorite state와 독립적이다.
+- 재시작 후 유지한다.
 
-### Scanner item detail
+### Canonical Scanner item-open boundary
 
-상세 presentation은 하나의 세로 흐름으로 정리한다.
+모든 실제 item detail navigation은 하나의 제품 경계로 수렴한다.
 
 ```text
-기본 정보
-→ 사용하는 곳
-→ 수급처
+direct search
+related recipe/barter item
+favorite row
+recent row
+→ OpenScannerItemDetails(details)
+→ base detail render
+→ relationship presentation
+→ favorite state
+→ recent record
 ```
 
-기본 정보는 다음 네 항목만 표시한다.
+GameMode 전환에 따른 자동 detail re-render는 history event가 아니므로 recent order를 다시 올리지 않는다.
 
-- 크기
-- 플리마켓 평균가
-- 최고 상인 판매가
-- 현재 필요한 개수
+Saved-list row resolve는 최대 50개에 대해 full relationship graph를 재구성하지 않고 current-mode catalog에서 이름/아이콘만 경량 resolve한다.
 
-Quest/Hideout 사용처는 기존 navigation authority를 유지한다.
+### Search / detail state separation
 
-제작/교환 관계는 result item + complete materials를 recipe card로 표시한다. 좁은 폭에서는 materials가 다음 줄로 자연스럽게 wrapping된다. 관련 item button은 같은 Scanner item detail로 이동한다.
+- search text/results/popup은 navigation surface다.
+- open detail은 독립 selection state다.
+- search text를 clear하거나 popup이 닫혀도 이미 열린 detail은 유지한다.
 
-수급처는 canonical relation에 따라 다음 그룹으로만 표시한다.
+### GameMode transition
 
-- 제작
-- 교환
-- 구매
-- 레이드 획득
+Favorites/Recents identity는 Regular/PvE 공통 canonical Item ID로 저장한다. 사용자가 Scanner 화면을 보고 있는 동안 active profile GameMode와 Scanner catalog mode가 다르면 current context로 refresh하고 saved lists 및 open detail을 current-mode presentation으로 다시 resolve한다.
 
-실제 row가 없는 그룹은 empty shell을 표시하지 않는다.
+Scanner runtime의 기존 context monitor와 catalog refresh gate/runtime start idempotence를 유지한다. UI guard는 visible presentation stale-state를 제거하는 역할이며 recognition authority를 바꾸지 않는다.
+
+### 사용자용 Scanner 로그
+
+기존 오른쪽 `로그` 영역은 user-facing UI에서 제거했다. 내부 diagnostic activity, correction, Ground Truth pipeline은 유지한다. 숨겨진 diagnostic host는 사용자 입력 surface가 아니다.
+
+### Map extract filters
+
+지도 marker 선택 패널에서 다음 donor controls를 실제 instance 그대로 사용한다.
+
+- extract master
+- PMC extracts
+- SCAV extracts
+- Transit extracts
+
+별도 복제 checkbox를 만들지 않는다. donor의 기존 Checked/Unchecked handler, settings persistence, marker rendering, MiniMap refresh를 보존한다.
+
+### Ammo dropdown cycle
+
+- caliber ComboBox와 favorite-caliber ComboBox는 같은 runtime item template/icon state를 공유한다.
+- shared icon cycle interval = **700 ms**.
+- filtering/favorite persistence 의미는 변경하지 않았다.
 
 ### Published runtime evidence
 
@@ -156,26 +186,51 @@ Exact-main self-contained Windows executable에서 다음 evidence를 직접 확
 
 ```text
 Ammo animated dropdown:
+product-lifecycle=ok
+ammo-caliber-runtime-template=ok
+favorites-shared-template=ok
 rendered-caliber-image=ok
 rendered-favorite-image=ok
 shared-timer-cycle=ok
+shared-cycle-ms=700
 
 Ammo toolbar:
 favorite-selector-left=ok
 displayed-columns-visible=ok
 displayed-columns-right-edge=ok
 
+Map extract filters:
+real-donor-checkboxes=ok
+marker-panel-visible=ok
+master-filter-render-state=ok
+minimap-refresh-handler-preserved=ok
+
 Scanner item detail:
+product-lifecycle=ok
+canonical-open-boundary=ok
 basic-four-fields=ok
 empty-sections-hidden=ok
 recipe-wrap=ok
 related-item-buttons=ok
 acquisition-groups=ok
+
+Scanner Favorites / Recents:
+search-clear-detail=ok
+favorite-toggle-persistence=ok
+recent-open-persistence=ok
+right-pane-two-to-one=ok
+independent-scroll=ok
+user-log-pane-hidden=ok
+canonical-item-id=ok
 ```
 
 동일 실행에서 Product UI / Main Map / Factory / MiniMap / graceful shutdown / clean portable root도 성공했다.
 
-### Current live Game Content release-readiness
+## 4. Current live Game Content release-readiness
+
+v1.9.0은 external Game Content importer/schema/validator 의미를 변경하지 않았기 때문에 새 live network probe를 release blocker로 요구하지 않았다.
+
+마지막 schema-affecting 공개 검증은 다음과 같다.
 
 ```text
 live probe run: 33151060959 — SUCCESS
@@ -183,23 +238,9 @@ Regular: items=5312 quests=517 objectives=1457 questItems=305 hideout=26 ammo=20
 PvE:     items=5312 quests=514 objectives=1434 questItems=293 hideout=26 ammo=200 validationIssues=0 fatal=0
 ```
 
-각 mode의 `sourceWarnings=1`은 현재 Tarkov Wiki Ballistics coverage warning이며 canonical validation failure가 아니다.
+각 mode의 `sourceWarnings=1`은 당시 Tarkov Wiki Ballistics coverage warning이며 canonical validation failure가 아니다.
 
-### 유지되는 계약
-
-- Scanner recognition identity proof
-- OCR threshold / matcher / candidate cap / visual recovery acceptance
-- Needed quantity authority = `ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal`
-- Needed source authority = `ItemsWorkspace.Plan.NeededItems[itemId].Sources`
-- Game Content candidate/LKG separation
-- relationship reference/price/count/limit integrity
-- normal 및 v8 relationship 50% completeness retained-floor
-- critical relationship collection 전면 empty fail-closed
-- candidate read-back / activation / active recovery revalidation
-- v3~v7 relationship-null legacy compatibility
-- Map/MiniMap donor revision 및 ownership boundary
-
-## 4. 아키텍처
+## 5. 아키텍처
 
 ```text
 JunhyunHelper.Desktop
@@ -213,7 +254,7 @@ JunhyunHelper.Desktop
 
 - **Core** — canonical domain, deterministic calculation, Quest/Needed Items/Scanner pure policy, item relationship canonical model/query
 - **Application** — 사용자 use case, authoritative mutation, workspace orchestration
-- **Infrastructure** — HTTP/source parsing, SQLite/file persistence, content/update I/O, relationship import/validation/snapshot
+- **Infrastructure** — HTTP/source parsing, SQLite/file persistence, content/update I/O, relationship import/validation/snapshot, Scanner presentation-state persistence
 - **Desktop** — WPF UI, presentation, Scanner capture/OCR/runtime/diagnostics, item database projection, Map bridge
 - **Map/MiniMap donor** — 제한적 compile-link 예외. donor updater/content ownership은 사용하지 않음
 
@@ -250,16 +291,17 @@ MainWindow.OnInitialized
 
 Child editor의 validation/save semantics를 MainWindow가 재구현하지 않는다.
 
-## 5. Schema / 사용자 데이터
+## 6. Schema / 사용자 데이터
 
 ```text
-Desktop target version: 1.8.4
-Current public stable executable: 1.8.4
+Desktop target version: 1.9.0
+Current public stable executable: 1.9.0
 Content schema: v8
 Readable Content schemas: v3~v8
 user.db schema: v1
 Scanner display settings schema: v6
 Scanner catalog cache: v1~v3 readable, v3 written
+Scanner item UI state: JSON / canonical Item ID + order
 ```
 
 Content v8 delta:
@@ -281,6 +323,7 @@ Content v8 delta:
 %LocalAppData%/JunhyunHelper/minimap-window-state.json
 %LocalAppData%/JunhyunHelper/ammo-settings.json(.bak)
 %LocalAppData%/JunhyunHelper/scanner/
+%LocalAppData%/JunhyunHelper/scanner-item-ui-state.json(.bak)
 %LocalAppData%/JunhyunHelper/scanner/diagnostics/
 %LocalAppData%/JunhyunHelper/logs/
 ```
@@ -288,11 +331,11 @@ Content v8 delta:
 원칙:
 
 - portable executable 옆에 mutable user data/log 생성 금지
-- Program Update가 user.db, content/image cache, Map/MiniMap/Ammo/Scanner settings, Scanner logs/diagnostics/Ground Truth를 교체하지 않음
+- Program Update가 user.db, content/image cache, Map/MiniMap/Ammo/Scanner settings, Scanner item UI state, logs/diagnostics/Ground Truth를 교체하지 않음
 - user-reviewed Scanner Ground Truth는 자동 삭제하지 않음
 - 정상 Scanner monitoring은 durable automatic correction Case를 생성하지 않음
 
-## 6. Game Content / Scanner catalog
+## 7. Game Content / Scanner catalog
 
 ```text
 remote Game Content
@@ -323,7 +366,7 @@ Game Content 안전 계약:
 
 Scanner scan/search 순간에는 local/memory data만 사용하며 identity 또는 item relationship 조회를 위해 network 요청을 시작하지 않는다.
 
-## 7. Scanner — 현재 제품 계약
+## 8. Scanner — 현재 제품 계약
 
 Scanner 상태: **FEATURE COMPLETE / MAINTENANCE ONLY**.
 
@@ -366,7 +409,9 @@ continuous observation target = 200 ms
 - Needed source authority = `ItemsWorkspace.Plan.NeededItems[itemId].Sources`
 - `SerializedScannerOcrEngine` diagnostic reflection adapter는 intentional technical debt
 
-## 8. Map / MiniMap 기준선
+Scanner Favorites/Recents는 presentation/navigation state이며 recognition identity proof에 참여하지 않는다.
+
+## 9. Map / MiniMap 기준선
 
 Pinned donor:
 
@@ -381,10 +426,11 @@ Map/MiniMap은 donor source를 broad-edit하지 않고 JunhyunHelper first-party
 - Main Map floor change 시 zoom + map-space center 보존
 - MiniMap floor change 시 transform 보존
 - current Quest만 JunhyunHelper progress/content와 cross-feature bridge
+- extract filter UI는 donor의 실제 checkbox instances/handlers를 재사용
 
 `Legacy` 이름이 붙은 Map/MiniMap bridge는 active integration이므로 이름만 보고 dead code로 삭제하지 않는다.
 
-## 9. Active technical debt / 유지 판단
+## 10. Active technical debt / 유지 판단
 
 현재 유지:
 
@@ -401,7 +447,7 @@ Map/MiniMap은 donor source를 broad-edit하지 않고 JunhyunHelper first-party
 
 `UserProfileStore.LoadAsync`는 첫 authoritative read/save 뒤 immutable in-process snapshot cache를 사용하므로 runtime trace 없이 반복 호출을 SQLite 병목으로 가정하지 않는다.
 
-## 10. 릴리즈 / 유지보수 검증 계약
+## 11. 릴리즈 / 유지보수 검증 계약
 
 Runtime 변경 release의 full release gate:
 
@@ -431,8 +477,9 @@ Published stable release는 공개 후 immutable historical product artifact로 
 
 `actions/download-artifact@v8`의 upstream Node `Buffer()` deprecation warning은 현재 release correctness와 무관한 monitor-only upstream warning이다.
 
-## 11. 현재 유지되는 핵심 결정
+## 12. 현재 유지되는 핵심 결정
 
+- **v1.9.0** — Scanner Favorites/Recents canonical Item ID persistence, search/detail separation, unified item-open boundary, current-GameMode re-resolution, user log UI removal, real Map extract filters, Ammo 700 ms shared icon cycle, strengthened published-runtime gate
 - **v1.8.4** — Ammo toolbar placement + Scanner item detail vertical recipe/acquisition presentation + published executable runtime evidence gate
 - **v1.8.2** — Ammo runtime initialization + rendered-icon/shared-cycle smoke + audited current live relationship normalization; fail-closed/LKG/Scanner recognition unchanged
 - **v1.8.1** — item relationship top-level/nested completeness LKG hardening + persisted/active relationship revalidation
@@ -446,9 +493,9 @@ Published stable release는 공개 후 immutable historical product artifact로 
 
 역사적 상세는 버전별 `DECISION_*` / `RELEASE_*` 문서를 사용한다.
 
-## 12. 다음 작업
+## 13. 다음 작업
 
-현재 **v1.8.4 릴리즈 배치에는 남은 제품 개발 작업이 없다.**
+현재 **v1.9.0 릴리즈 배치에는 남은 제품 개발 작업이 없다.**
 
 기본 다음 작업은 다음 중 실제 evidence가 생길 때만 시작한다.
 
@@ -456,7 +503,7 @@ Published stable release는 공개 후 immutable historical product artifact로 
 - Tarkov 데이터/schema 변화
 - Program Update/배포 회귀
 - Scanner reviewed Ground Truth가 입증한 회귀
-- v1.8.x item relationship source/schema/completeness 또는 presentation 회귀
+- item relationship source/schema/completeness 또는 presentation 회귀
 - 사용자가 명시적으로 확정한 새 제품 요구사항
 
 새 Scanner 문제는 다음 순서로 처리한다.
@@ -471,7 +518,7 @@ runtime evidence 확보
 → full release gate
 ```
 
-## 13. 다음 세션 복구 순서
+## 14. 다음 세션 복구 순서
 
 `AGENTS.md`의 필수 복구 순서를 그대로 따른다.
 

@@ -4,7 +4,7 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 제품 상태
 
-현재 제품 상태는 **v1.8.4 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
+현재 제품 상태는 **v1.9.0 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
 
 현재 확정 요구사항 범위의 제품과 Scanner는 완성 상태입니다. 새로운 실제 회귀·Tarkov 호환성 변화·사용자가 명시적으로 확정한 새 제품 요구사항이 없는 한 선제적 기능 추가나 Scanner 인식 기준 조정을 시작하지 않습니다.
 
@@ -27,24 +27,28 @@ Scanner 전문 문서:
 ## 현재 공개 릴리즈
 
 ```text
-version: v1.8.4
-Desktop target version: 1.8.4
-exact product release source/tag target: 13af4e3a452139dedc32b2db9aa51266e2a01d2a
-main CI: 33153043430 — SUCCESS
-Release workflow: 33153234911 — SUCCESS
-release id: 378333813
+version: v1.9.0
+Desktop target version: 1.9.0
+exact product release source/tag target: e0b0d303141563af564cd71cf00d8c1bfeafe44d
+main CI: 33165706386 — SUCCESS
+Release workflow: 33165905504 — SUCCESS
+release id: 378431058
 stable asset: Junhyun-Helper.zip
-asset id: 533461834
-bytes: 80,528,868
-SHA-256: 9e06c16e20a346ad7691dccfee9a2caebcdb6c0cd9a6a35859bcb97d8e03fa42
-424 passed / 0 failed / 0 skipped
+asset id: 533681571
+bytes: 80,538,029
+SHA-256: 9ee63042746aee27ddff4407e8240d65b3740696576fe7514b4f92fe8f1e1d44
+432 passed / 0 failed / 0 skipped
 ```
 
-GitHub `/releases/latest` 및 `refs/tags/v1.8.4` readback에서 v1.8.4가 `draft=false`, `prerelease=false`, latest stable이며 release target과 tag ref가 exact product release source와 일치함을 확인했습니다. 공개 ZIP의 byte size와 digest도 exact main-CI package와 일치합니다.
+GitHub `/releases/latest` 및 `refs/tags/v1.9.0` readback에서 v1.9.0이 `draft=false`, `prerelease=false`, latest stable이며 release target과 tag ref가 exact product release source와 일치함을 확인했습니다. 공개 ZIP의 byte size와 digest도 exact main-CI package와 일치합니다.
 
 공식 릴리즈 기록:
 
-- `docs/RELEASE_1.8.4.md`
+- `docs/RELEASE_1.9.0.md`
+- `docs/RELEASE_NOTES_V1.9.0.md`
+- `docs/.release-v1.9.0-status.json`
+- `docs/DECISION_V1.9.0_SCANNER_FAVORITES_RECENTS_AND_UI_FIXES.md`
+- `docs/RELEASE_1.8.4.md` — 이전 Ammo toolbar / Scanner item-detail 릴리즈
 - `docs/RELEASE_NOTES_V1.8.4.md`
 - `docs/.release-v1.8.4-status.json`
 - `docs/DECISION_V1.8.4_AMMO_SCANNER_ITEM_DETAIL.md`
@@ -55,7 +59,7 @@ GitHub `/releases/latest` 및 `refs/tags/v1.8.4` readback에서 v1.8.4가 `draft
 - `docs/RELEASE_1.8.0.md` — Scanner 아이템 정보 DB 기능 릴리즈
 - `docs/DECISION_V1.8.0_SCANNER_ITEM_DATABASE.md`
 
-이 README와 이후 documentation-only commit은 v1.8.4 제품 릴리즈 소스가 아닙니다. v1.8.4 product source/tag/assets는 위 `13af4e3a...` 기준의 immutable historical release입니다.
+이 README와 이후 documentation-only commit은 v1.9.0 제품 릴리즈 소스가 아닙니다. v1.9.0 product source/tag/assets는 위 `e0b0d303...` 기준의 immutable historical release입니다.
 
 ## 설치 / 실행
 
@@ -91,9 +95,77 @@ Junhyun-Helper.zip
 - Scanner + Mini Scanner
 - Scanner Ground Truth 교정 / diagnostics / regression dataset
 - Scanner 아이템 정보 DB
+- Scanner 아이템 Favorites / Recents
 - 사용자 동의형 Program Update
 
 Runtime GPT/AI 의존성은 없습니다.
+
+## v1.9.0 — Scanner 즐겨찾기 / 최근 본 아이템 + UI 회귀 수정
+
+v1.9.0은 Scanner 아이템 정보 활용성을 확장하는 MINOR 릴리즈이며, v1.8.x 실사용에서 확인된 Map/Ammo UI 회귀를 함께 수정합니다.
+
+### Scanner Favorites / Recents
+
+- 아이템 상세의 별 버튼으로 즐겨찾기를 등록/해제합니다.
+- 오른쪽 사용자 영역은 즐겨찾기 약 2/3 + 최근 본 아이템 약 1/3으로 구성합니다.
+- 두 목록은 독립적으로 세로 스크롤하며 가로 스크롤은 사용하지 않습니다.
+- Favorites/Recents persistence는 canonical Item ID와 순서만 저장합니다.
+- 이름·아이콘·가격·필요 개수·관계 정보는 현재 GameMode catalog에서 다시 해석합니다.
+- Recents는 실제 상세 open 시에만 최신순으로 기록하고, Item ID 기준 중복을 제거하며 재열람 시 맨 위로 이동합니다.
+- Recents는 최대 50개를 유지하고 개별 삭제/전체 삭제를 지원합니다.
+- 검색어를 지워도 현재 열려 있는 상세는 유지합니다.
+- 직접 검색, 제작/교환 관련 아이템, Favorites, Recents는 하나의 product-owned Scanner item-open 경계를 사용합니다.
+- PvP/PvE 전환 시 visible Favorites/Recents와 열린 상세를 current-mode catalog로 다시 해석하며 자동 재렌더링은 recent 순서를 변경하지 않습니다.
+- 기존 사용자용 Scanner 로그 pane은 제거하지만 내부 diagnostic/correction pipeline은 유지합니다.
+
+### Map / Ammo
+
+- 지도 마커 선택 창에 donor의 실제 탈출구 master, PMC, SCAV, Transit 필터를 복원했습니다.
+- 기존 donor handler, settings persistence, marker rendering, MiniMap refresh 의미를 유지합니다.
+- Ammo 구경/즐겨찾기 ComboBox는 같은 runtime icon template/state를 공유하며 icon cycle을 **700 ms**로 조정했습니다.
+
+### Published executable 검증
+
+Exact-main CI run `33165706386`은 실제 self-contained Windows EXE를 실행해 다음 evidence를 확인했습니다.
+
+```text
+Ammo:
+product-lifecycle=ok
+ammo-caliber-runtime-template=ok
+favorites-shared-template=ok
+rendered-caliber-image=ok
+rendered-favorite-image=ok
+shared-timer-cycle=ok
+shared-cycle-ms=700
+
+Map:
+real-donor-checkboxes=ok
+marker-panel-visible=ok
+master-filter-render-state=ok
+minimap-refresh-handler-preserved=ok
+
+Scanner detail:
+product-lifecycle=ok
+canonical-open-boundary=ok
+basic-four-fields=ok
+empty-sections-hidden=ok
+recipe-wrap=ok
+related-item-buttons=ok
+acquisition-groups=ok
+
+Scanner Favorites / Recents:
+search-clear-detail=ok
+favorite-toggle-persistence=ok
+recent-open-persistence=ok
+right-pane-two-to-one=ok
+independent-scroll=ok
+user-log-pane-hidden=ok
+canonical-item-id=ok
+```
+
+같은 실행에서 Product UI, Main Map, Factory, MiniMap, graceful shutdown, clean portable root도 성공했습니다.
+
+Scanner OCR threshold/matcher/candidate cap/visual recovery acceptance와 Game Content LKG/completeness/fail-closed 계약은 변경하지 않았습니다.
 
 ## v1.8.4 — Ammo 툴바 / Scanner 아이템 상세
 
@@ -288,7 +360,7 @@ needed quantity = ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal
 needed source   = ItemsWorkspace.Plan.NeededItems[itemId].Sources
 ```
 
-두 값 모두 Item ID 확정 뒤 presentation에만 사용합니다. v1.8.x 관계 DB도 동일하게 Item ID 확정 뒤 presentation에서만 사용됩니다.
+두 값 모두 Item ID 확정 뒤 presentation에만 사용합니다. v1.9.0에서도 관계 DB와 Favorites/Recents는 Item identity proof가 아니라 Item ID 확정 뒤 presentation/navigation에만 사용됩니다.
 
 ## Game Content 안전 업데이트
 
@@ -342,4 +414,4 @@ d933792b6042a51cea38dc44b686a096fe30de67
 
 Published stable release는 공개 후 교체하지 않습니다. 같은 version에서 documentation-only main commit이 다른 ProductVersion metadata/bytes를 만들더라도 이미 공개된 ZIP/tag/source를 덮어쓰지 않습니다.
 
-현재 v1.8.4 릴리즈 배치에 남은 제품 개발 작업은 없습니다. 기본 운영 모드는 유지보수입니다.
+현재 v1.9.0 릴리즈 배치에 남은 제품 개발 작업은 없습니다. 기본 운영 모드는 유지보수입니다.

@@ -1,0 +1,42 @@
+{
+  "version": "1.9.0",
+  "branch": "main",
+  "productReleaseSourceCommit": "e0b0d303141563af564cd71cf00d8c1bfeafe44d",
+  "mainCiRunId": 33165706386,
+  "releaseWorkflowRunId": 33165905504,
+  "testCount": 432,
+  "productVersion": "1.9.0+e0b0d303141563af564cd71cf00d8c1bfeafe44d",
+  "ciArtifact": {
+    "id": 9683545225,
+    "name": "JunhyunHelper-win-x64",
+    "archiveBytes": 241545444,
+    "archiveSha256": "098c74a99dc6d57c7a01b0e70c860c0d2925e6bbf4835ac2eacabf1f3e5d1bd8"
+  },
+  "package": {
+    "name": "Junhyun-Helper.zip",
+    "bytes": 80538029,
+    "sha256": "9ee63042746aee27ddff4407e8240d65b3740696576fe7514b4f92fe8f1e1d44"
+  },
+  "release": {
+    "id": 378431058,
+    "tag": "v1.9.0",
+    "targetCommit": "e0b0d303141563af564cd71cf00d8c1bfeafe44d",
+    "publishedAtUtc": "2026-08-28T11:08:59Z",
+    "draft": false,
+    "prerelease": false,
+    "latestStable": true,
+    "zipAssetId": 533681571,
+    "checksumAssetId": 533681572
+  },
+  "checksumAsset": {
+    "bytes": 86,
+    "sha256": "2cd7157b4ebeaaa86fa73ee1eccbd1dedac8112089ad04994bd04228fcdcce32"
+  },
+  "externalLiveProbe": {
+    "requiredForThisRelease": false,
+    "reason": "v1.9.0 changes Scanner presentation/persistence/navigation and Map/Ammo UI behavior without changing the external Game Content importer, schema, validator, or recognition acceptance policy.",
+    "lastSchemaAffectingProbeRunId": 33151060959,
+    "lastSchemaAffectingProbeFatalRegular": 0,
+    "lastSchemaAffectingProbeFatalPve": 0
+  }
+}
