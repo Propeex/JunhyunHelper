@@ -4,31 +4,31 @@
 
 기준일: 2026-08-28 KST
 
-상태: **`v1.7.15 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE`**
+상태: **`v1.8.0 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE`**
 
 ## 공개 stable
 
-현재 공개 stable/latest는 **v1.7.15**다.
+현재 공개 stable/latest는 **v1.8.0**이다.
 
 ```text
-public stable/latest: v1.7.15
-exact product release source/tag target: 4bf5e3a567d3ce9563657bbb3b90bec0871c06b4
-main CI run: 33086901217 — SUCCESS
-release workflow run: 33087185178 — SUCCESS
-release id: 377926863
+public stable/latest: v1.8.0
+exact product release source/tag target: 8042e4612a54a6ec395a69d1be0700d844a1b210
+main CI run: 33130057533 — SUCCESS
+release workflow run: 33130212711 — SUCCESS
+release id: 378197672
 stable asset: Junhyun-Helper.zip
-stable asset id: 532481010
-stable bytes: 80,492,565
-stable SHA-256: 9ac3276a1a4a20905b0aa3d6452f50d5259f724ed8f960b7cfbad39f8c619f2f
-checksum asset id: 532481008
-checksum asset SHA-256: 84fbabe5ef2c41d28a00305c0cd7b8ee7575fbe3c1c64fa83f7ead1c75494580
-410 passed / 0 failed / 0 skipped
+stable asset id: 533051783
+stable bytes: 80,520,114
+stable SHA-256: 4ecaf65068153a38a7a8613cfe2ae673aec191563f999f1cfbd10cb93d9437e0
+checksum asset id: 533051782
+checksum asset SHA-256: 6432c08261b1ca6dd093ff9e1864619951162300585d5cb2db082731bff3d3a1
+413 passed / 0 failed / 0 skipped
 Product UI / Main Map / Factory / MiniMap / graceful shutdown smoke: SUCCESS
 ```
 
-GitHub `/releases/latest` 및 `refs/tags/v1.7.15` readback:
+GitHub `/releases/latest` 및 `refs/tags/v1.8.0` readback:
 
-- tag `v1.7.15`
+- tag `v1.8.0`
 - release target/tag ref = exact product release source
 - draft = false
 - prerelease = false
@@ -38,24 +38,26 @@ GitHub `/releases/latest` 및 `refs/tags/v1.7.15` readback:
 
 공개 증거:
 
-- `docs/RELEASE_1.7.15.md`
-- `docs/.release-v1.7.15-status.json`
-- `docs/RELEASE_NOTES_V1.7.15.md`
-- `docs/DECISION_V1.7.15_UI_REFINEMENTS.md`
+- `docs/RELEASE_1.8.0.md`
+- `docs/.release-v1.8.0-status.json`
+- `docs/RELEASE_NOTES_V1.8.0.md`
+- `docs/DECISION_V1.8.0_SCANNER_ITEM_DATABASE.md`
 
-이 상태 문서 동기화 이후의 documentation-only commit은 **v1.7.15 product release source가 아니다**. 제품 릴리즈 소스는 항상 위 `4bf5e3a...`로 고정한다. 이미 공개된 v1.7.15 tag/source/assets는 immutable historical product release로 취급한다.
+이 상태 문서 동기화 이후의 documentation-only commit은 **v1.8.0 product release source가 아니다**. 제품 릴리즈 소스는 항상 위 `8042e461...`로 고정한다. 이미 공개된 v1.8.0 tag/source/assets는 immutable historical product release로 취급한다.
 
 ## Schema / compatibility
 
 ```text
-Desktop target version: 1.7.15
-Content schema: v7
-Readable Content schemas: v3~v7
+Desktop target version: 1.8.0
+Content schema: v8
+Readable Content schemas: v3~v8
 user.db schema: v1
 Scanner display settings schema: v6
 Scanner catalog cache: v1~v3 readable, v3 written
 Scanner Ground Truth: explicit user-reviewed durable cases
 ```
+
+v8 Content snapshot은 Scanner 아이템 정보 DB용 canonical trader purchase / barter / craft / flea relationship graph를 저장한다. v3~v7 snapshot은 계속 읽을 수 있으며, 관계 데이터가 없는 구형 snapshot과 실제 관계가 없는 아이템을 구분한다.
 
 사용자 mutable data는 `%LocalAppData%/JunhyunHelper`에 둔다. Program Update는 user.db, content/image cache, Map/MiniMap/Ammo/Scanner 설정, Scanner logs/diagnostics/Ground Truth를 덮어쓰지 않는다.
 
@@ -73,19 +75,45 @@ Scanner Ground Truth: explicit user-reviewed durable cases
 | Game Content Update | 구현 완료 |
 | Program Update | 구현 완료 / verified stable ZIP contract |
 | Scanner + Mini Scanner | **FEATURE COMPLETE / MAINTENANCE ONLY** |
+| Scanner 아이템 정보 DB | **IMPLEMENTED / PUBLIC STABLE** |
 
-## v1.7.15 — UI refinement patch
+## v1.8.0 — Scanner 아이템 정보 DB
 
-- main header는 version-only presentation을 사용한다.
-- cleanup 대상이 있으면 Items 탭 우측 상단에 작은 orange dot을 표시한다.
-- Map marker checkbox list는 panel의 실제 available height를 사용한다.
-- marker list가 공간 안에 들어오면 scrollbar를 숨기고, 실제로 넘칠 때만 scrolling한다.
-- Map marker selector는 launcher 재클릭과 panel outside click으로 닫힌다.
-- outside dismiss click은 marker state를 변경하지 않고 가능한 한 원래 Map/control interaction을 유지한다.
-- Ammo `즐겨찾기 선택`은 standard dropdown이다.
-- caliber/Favorites dropdown은 같은 caliber별 animation state를 공유하며 해당 caliber에 실제 속한 ammo icon만 순환한다.
-- 특정 ammo 하나를 caliber 영구 대표 icon으로 고정하지 않는다.
-- icon cadence는 1.4초이며 dropdown 둘 다 닫히면 timer를 중지한다.
+Scanner 탭의 item search는 Item ID 기준의 로컬 관계 DB/detail view다.
+
+선택 아이템에서 확인 가능한 정보:
+
+- 기본 정보: 종류, 크기, 무게, 플리마켓 거래 가능 여부, 기본 가격
+- 기존 표시 정보: 아이콘/공식 이름, flea 평균가, 최고 상인 판매가, 현재 필요 개수
+- 퀘스트 사용처: 퀘스트명, 요구 수량, FIR
+- 은신처 업그레이드 사용처: 시설, 목표 레벨, 요구 수량, FIR
+- 제작 재료 사용처: 시설/레벨, 결과 아이템/수량, 전체 재료/도구
+- 상인 교환 재료 사용처: 상인/LL, 결과 아이템/수량, 전체 재료
+- 수급처: 상인 현금 구매, 상인 교환, 은신처 제작, 플리마켓, canonical 수급 관계가 없을 때 레이드 획득
+- 상인 구매 가격/화폐/LL/구매 제한/upstream 재고 갱신 시각
+- 제작 시간, 결과 수량, 비소모 도구
+- 관련 아이템 클릭 시 같은 Scanner 상세 이동
+- Quest/Hideout 사용처 클릭 시 기존 제품 화면 이동
+
+관계 데이터 authority:
+
+```text
+normal Game Content update
+→ Items / Barters / Crafts / Traders / Tasks / Hideout parse
+→ canonical relationship graph
+→ integrity/completeness validation
+→ v8 snapshot activation
+→ Scanner search presentation
+```
+
+Scanner 검색 중 관계 정보 때문에 별도 network I/O를 시작하지 않는다.
+
+기존 `필요 개수` / `필요한 곳` authority는 그대로다.
+
+```text
+needed quantity = ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal
+needed source   = ItemsWorkspace.Plan.NeededItems[itemId].Sources
+```
 
 ## Scanner 현재 기준선
 
@@ -103,11 +131,11 @@ continuous observation target = 200 ms
 - current official Korean Tarkov full-item catalog가 identity authority
 - geometry/environment normalization은 identity proof가 아님
 - stale/cross-frame OCR 또는 visual result를 current Item identity proof로 사용하지 않음
-- Item ID 확정 전 price/needed/slot/source/previous-frame metadata를 identity evidence로 사용하지 않음
+- Item ID 확정 전 price/needed/slot/source/relationship/previous-frame metadata를 identity evidence로 사용하지 않음
 - scan 순간 network identity work 없음
 - reviewed Ground Truth 없이 recognition threshold/candidate cap/matcher/visual acceptance 완화 금지
-- needed quantity authority = `ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal`
-- needed source authority = `ItemsWorkspace.Plan.NeededItems[itemId].Sources`
+
+v1.8.0 아이템 DB는 **Item ID 확정 이후 presentation**에만 참여하며 recognition acceptance를 바꾸지 않는다.
 
 ## Map / MiniMap 기준선
 
@@ -136,6 +164,7 @@ remote source
 - collection schema drift는 fail closed
 - Wiki Ballistics enrichment는 fail-soft
 - User Progress와 Game Content authority 분리
+- v8 item relationship reference / price / count 무결성도 active 교체 전에 검증
 
 ## 유지보수 원칙
 
@@ -164,4 +193,4 @@ remote source
 9. 작업 영역 전문 문서
 10. current code / current PR / current CI
 
-현재 **v1.7.15 릴리즈 배치에 남은 제품 개발 작업은 없다.** 이후 기본 모드는 유지보수다.
+현재 **v1.8.0 릴리즈 배치에 남은 제품 개발 작업은 없다.** 이후 기본 모드는 유지보수다.
