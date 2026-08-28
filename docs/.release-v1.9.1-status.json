@@ -1,0 +1,42 @@
+{
+  "version": "1.9.1",
+  "branch": "main",
+  "productReleaseSourceCommit": "723760910ff250a515ed8db456d3f045656ecacb",
+  "mainCiRunId": 33184811972,
+  "releaseWorkflowRunId": 33185056113,
+  "testCount": 435,
+  "productVersion": "1.9.1+723760910ff250a515ed8db456d3f045656ecacb",
+  "ciArtifact": {
+    "id": 9691310332,
+    "name": "JunhyunHelper-win-x64",
+    "archiveBytes": 241554536,
+    "archiveSha256": "e4ac36ef6968f10b8a5b03c1f8e73a95e308e96f19b65d40d7144c87bcee51b7"
+  },
+  "package": {
+    "name": "Junhyun-Helper.zip",
+    "bytes": 80540488,
+    "sha256": "7a282f58d6cf2e4916c55daddf828a70643b35669bc71fbeaca1e7a4e8176f54"
+  },
+  "release": {
+    "id": 378579142,
+    "tag": "v1.9.1",
+    "targetCommit": "723760910ff250a515ed8db456d3f045656ecacb",
+    "publishedAtUtc": "2026-08-28T15:26:04Z",
+    "draft": false,
+    "prerelease": false,
+    "latestStable": true,
+    "zipAssetId": 533982952,
+    "checksumAssetId": 533982951
+  },
+  "checksumAsset": {
+    "bytes": 86,
+    "sha256": "1a98310d28f954c36f400a69f9b6c546bc22137ebbef95bb52991bfff02de431"
+  },
+  "externalLiveProbe": {
+    "requiredForThisRelease": false,
+    "reason": "v1.9.1 changes Scanner/Map/MiniMap presentation and synchronization without changing the external Game Content importer, schema, validator, or Scanner recognition acceptance policy.",
+    "lastSchemaAffectingProbeRunId": 33151060959,
+    "lastSchemaAffectingProbeFatalRegular": 0,
+    "lastSchemaAffectingProbeFatalPve": 0
+  }
+}
