@@ -3,7 +3,7 @@
 > 새 대화/새 개발자는 이 문서를 먼저 읽습니다. 대화 기억이 아니라 저장소의 공식 문서와 현재 GitHub 상태가 프로젝트의 기준입니다.
 
 기준일: 2026-08-28 KST  
-상태: **v1.7.15 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+상태: **v1.8.0 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 1. 제품
 
@@ -24,6 +24,7 @@
 - 사용자 동의형 Program Update
 - Scanner + Mini Scanner
 - Scanner Ground Truth 교정 / diagnostic dataset / regression
+- Scanner 아이템 정보 DB
 
 Runtime GPT/AI 의존성은 없다.
 
@@ -32,60 +33,60 @@ Runtime GPT/AI 의존성은 없다.
 ## 2. 현재 public stable
 
 ```text
-version: v1.7.15
+version: v1.8.0
 exact product release source/tag target:
-4bf5e3a567d3ce9563657bbb3b90bec0871c06b4
-main CI run: 33086901217 — SUCCESS
-release workflow run: 33087185178 — SUCCESS
-release id: 377926863
-410 passed / 0 failed / 0 skipped
-published UTC: 2026-08-27T15:19:55Z
+8042e4612a54a6ec395a69d1be0700d844a1b210
+main CI run: 33130057533 — SUCCESS
+release workflow run: 33130212711 — SUCCESS
+release id: 378197672
+413 passed / 0 failed / 0 skipped
+published UTC: 2026-08-28T00:36:14Z
 ```
 
 Main-CI published ProductVersion:
 
 ```text
-1.7.15+4bf5e3a567d3ce9563657bbb3b90bec0871c06b4
+1.8.0+8042e4612a54a6ec395a69d1be0700d844a1b210
 ```
 
 Main-CI release package:
 
 ```text
 Junhyun-Helper.zip
-bytes: 80,492,565
+bytes: 80,520,114
 SHA-256:
-9ac3276a1a4a20905b0aa3d6452f50d5259f724ed8f960b7cfbad39f8c619f2f
+4ecaf65068153a38a7a8613cfe2ae673aec191563f999f1cfbd10cb93d9437e0
 ```
 
 Main-CI GitHub Actions artifact:
 
 ```text
 name: JunhyunHelper-win-x64
-artifact id: 9652666398
-artifact archive bytes: 241,410,930
+artifact id: 9669936143
+artifact archive bytes: 241,489,980
 artifact archive SHA-256:
-cf3802eb6cba359e46eaa55bf48cc89bed33bf7902129e17f31b48065cf94e04
+42021da59b8486511b1a3f6d0fd5b2b601185c4e4ce4e714818b987a68ef7545
 ```
 
 Public assets:
 
 ```text
 Junhyun-Helper.zip
-asset id: 532481010
-bytes: 80,492,565
+asset id: 533051783
+bytes: 80,520,114
 SHA-256:
-9ac3276a1a4a20905b0aa3d6452f50d5259f724ed8f960b7cfbad39f8c619f2f
+4ecaf65068153a38a7a8613cfe2ae673aec191563f999f1cfbd10cb93d9437e0
 
 SHA256SUMS.txt
-asset id: 532481008
+asset id: 533051782
 bytes: 86
 SHA-256:
-84fbabe5ef2c41d28a00305c0cd7b8ee7575fbe3c1c64fa83f7ead1c75494580
+6432c08261b1ca6dd093ff9e1864619951162300585d5cb2db082731bff3d3a1
 ```
 
 GitHub `/releases/latest` 및 tag-ref readback:
 
-- tag `v1.7.15`
+- tag `v1.8.0`
 - release target = exact product release source
 - tag ref object = exact product release source
 - draft = false
@@ -96,48 +97,95 @@ GitHub `/releases/latest` 및 tag-ref readback:
 
 공식 공개 증거:
 
-- `docs/RELEASE_1.7.15.md`
-- `docs/.release-v1.7.15-status.json`
-- `docs/RELEASE_NOTES_V1.7.15.md`
-- `docs/DECISION_V1.7.15_UI_REFINEMENTS.md`
+- `docs/RELEASE_1.8.0.md`
+- `docs/.release-v1.8.0-status.json`
+- `docs/RELEASE_NOTES_V1.8.0.md`
+- `docs/DECISION_V1.8.0_SCANNER_ITEM_DATABASE.md`
 
-**중요:** 이 문서 갱신처럼 공개 이후 생성되는 documentation-only commit은 v1.7.15 product release source가 아니다. 공개 v1.7.15 source/tag/assets는 위 `4bf5e3a...` 기준으로 immutable historical product release다.
+**중요:** 이 문서 갱신처럼 공개 이후 생성되는 documentation-only commit은 v1.8.0 product release source가 아니다. 공개 v1.8.0 source/tag/assets는 위 `8042e461...` 기준으로 immutable historical product release다.
 
-## 3. v1.7.15 사용자-facing 변경
+## 3. v1.8.0 Scanner 아이템 정보 DB
 
-### Main header / cleanup attention
+### 목적
 
-- main header의 version/status 영역은 사용자에게 **version만 표시**한다.
-- `정리 필요` 문자열은 표시하지 않는다.
-- 현재 `ItemsWorkspace.Plan.CleanupItems.Count > 0`이면 Items 탭 우측 상단에 작은 orange dot을 표시한다.
-- cleanup 대상이 없어지면 indicator도 즉시 사라진다.
-- Game Content update progress는 기존 전용 progress overlay가 담당하며 version 영역에 진행 문구를 노출하지 않는다.
+Scanner 탭의 item search는 단순 가격/필요량 조회가 아니라, Item ID를 중심으로 다음 질문을 한 화면에서 답하는 로컬 item detail database다.
 
-### Map marker selector
+```text
+이 아이템이 무엇인가
+→ 현재 나에게 필요한가
+→ 어디서 얻는가
+→ 어디에 쓰는가
+→ 얼마짜리인가
+```
 
-- 바깥 panel뿐 아니라 내부 checkbox list viewport도 현재 Map viewport의 available height를 사용한다.
-- marker content가 available height 안에 들어오면 vertical scrollbar는 hidden이다.
-- 실제로 content가 넘칠 때만 scrolling을 허용한다.
-- 기존 `지도 마커` launcher 재클릭 toggle을 유지한다.
-- panel outside click으로도 닫힌다.
-- outside-click dismiss는 marker enable/check state를 변경하지 않는다.
-- dismiss click은 handled로 소비하지 않아 가능한 한 원래 Map/control interaction이 이어지게 한다.
+### 기본 정보
 
-### Ammo caliber / Favorites
+- item icon / official name
+- 종류
+- 크기
+- 무게
+- 플리마켓 거래 가능 여부
+- 기본 가격
+- 기존 flea 24h average
+- 기존 highest trusted non-flea trader sell price
+- 현재 프로필 기준 남은 필요 개수
 
-- `즐겨찾기 선택`은 standard ComboBox dropdown을 사용한다.
-- 기존 Ammo favorites persistence와 caliber filtering authority는 그대로다.
-- caliber dropdown과 Favorites dropdown은 같은 item presentation과 caliber별 animation state를 공유한다.
-- 각 caliber 왼쪽 icon은 해당 `RawCaliber`에 실제 속한 `AmmoRow.Icon`만 순환한다.
-- 특정 ammo 하나를 caliber의 영구 대표 icon으로 고정하지 않는다.
-- cadence는 1.4초이며 두 dropdown이 모두 닫혀 있으면 timer를 중지한다.
-- icon byte는 기존 `ImageCacheService`/Ammo row icon loading 결과를 재사용한다.
+### 사용처
+
+- Quest: quest name, required count, FIR requirement
+- Hideout upgrade: station, target level, count, FIR
+- Craft material: station/level, result item/count, complete material/tool list
+- Trader barter material: trader/LL, result item/count, complete material list
+
+Quest/Hideout 사용처는 기존 제품 화면으로 이동할 수 있다.
+
+### 수급처
+
+- trader direct purchase: trader, LL, price/currency, buy limit, upstream-provided reset time
+- trader barter: trader, LL, required materials/counts, result count, buy limit
+- hideout craft: station, level, materials/counts, non-consumed tool, result count, duration
+- flea market: available relation + existing flea average when healthy
+- 다른 canonical acquisition relation이 없을 때 raid acquisition fallback
+
+관련 craft/barter material/result item은 같은 Scanner item detail로 이동할 수 있다.
+
+### authority / data flow
+
+관계 데이터는 별도 Scanner API나 검색 시 네트워크 요청으로 만들지 않는다.
+
+```text
+normal Game Content Update
+→ Items / Barters / Crafts / Traders / Tasks / Hideout
+→ canonical relationship import
+→ integrity/completeness validation
+→ Content schema v8 snapshot activation
+→ Scanner item relationship projection
+→ UI presentation
+```
+
+구형 v3~v7 snapshot은 계속 읽을 수 있다. 해당 snapshot에는 relationship graph가 없다는 사실을 `null/not collected`로 유지해 실제 관계가 없는 item과 구분한다. 따라서 구형 LKG만 있는 상태에서 잘못된 `레이드 획득` fallback을 만들지 않는다.
+
+관계 데이터의 item/trader/station/quest/currency reference와 price/count/limit가 유효하지 않은 candidate는 activation 전에 차단한다.
+
+### 기존 Needed authority 유지
+
+Scanner가 현재 프로필의 필요량/필요처를 새로 계산하지 않는다.
+
+```text
+Needed quantity authority:
+ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal
+
+Needed source authority:
+ItemsWorkspace.Plan.NeededItems[itemId].Sources
+```
+
+v1.8.0 item database는 Item ID가 확정된 뒤 presentation에만 참여하며 recognition evidence로 사용되지 않는다.
 
 Regression:
 
 ```text
-V1715UiRefinementsContractTests
-410 passed / 0 failed / 0 skipped
+V180ScannerItemDatabaseTests
+413 passed / 0 failed / 0 skipped
 actual published EXE Product UI / Main Map / Factory / MiniMap smoke
 ```
 
@@ -153,10 +201,10 @@ JunhyunHelper.Desktop
 
 책임:
 
-- **Core** — canonical domain, deterministic calculation, Quest/Needed Items/Scanner pure policy
+- **Core** — canonical domain, deterministic calculation, Quest/Needed Items/Scanner pure policy, item relationship canonical model/query
 - **Application** — 사용자 use case, authoritative mutation, workspace orchestration
-- **Infrastructure** — HTTP/source parsing, SQLite/file persistence, content/update I/O
-- **Desktop** — WPF UI, presentation, Scanner capture/OCR/runtime/diagnostics, Map bridge
+- **Infrastructure** — HTTP/source parsing, SQLite/file persistence, content/update I/O, relationship import/validation/snapshot
+- **Desktop** — WPF UI, presentation, Scanner capture/OCR/runtime/diagnostics, item database projection, Map bridge
 - **Map/MiniMap donor** — 제한적 compile-link 예외. donor updater/content ownership은 사용하지 않음
 
 Domain truth를 WPF event handler에 복제하지 않는다.
@@ -195,14 +243,23 @@ Child editor의 validation/save semantics를 MainWindow가 재구현하지 않�
 ## 5. Schema / 사용자 데이터
 
 ```text
-Desktop target version: 1.7.15
-Current public stable executable: 1.7.15
-Content schema: v7
-Readable Content schemas: v3~v7
+Desktop target version: 1.8.0
+Current public stable executable: 1.8.0
+Content schema: v8
+Readable Content schemas: v3~v8
 user.db schema: v1
 Scanner display settings schema: v6
 Scanner catalog cache: v1~v3 readable, v3 written
 ```
+
+Content v8 delta:
+
+- canonical trader direct-purchase relationships
+- trader barter relationships
+- hideout craft relationships
+- flea acquisition item set
+- item type/category/width/height/weight/base price/flea-tradable presentation fields
+- trader reset-time presentation field
 
 대표 저장 위치:
 
@@ -244,8 +301,9 @@ Game Content 안전 계약:
 - collection schema drift는 fail closed
 - Wiki Ballistics enrichment는 fail-soft
 - User Progress와 Game Content authority 분리
+- v8 relationship graph reference/price/count/limit integrity도 activation 전 검증
 
-Scanner scan 순간에는 local/memory catalog만 사용하며 identity 결정을 위해 network 요청을 시작하지 않는다.
+Scanner scan/search 순간에는 local/memory data만 사용하며 identity 또는 item relationship 조회를 위해 network 요청을 시작하지 않는다.
 
 ## 7. Scanner — 현재 제품 계약
 
@@ -283,7 +341,7 @@ continuous observation target = 200 ms
 - false positive보다 miss 선호
 - geometry/environment normalization은 Item identity proof가 아님
 - stale/cross-frame OCR/visual result를 current identity proof로 사용하지 않음
-- Item ID 확정 전 price/needed/slot/source/previous-frame metadata를 identity evidence로 사용하지 않음
+- Item ID 확정 전 price/needed/slot/source/relationship/previous-frame metadata를 identity evidence로 사용하지 않음
 - current official Korean full-item catalog 밖 임의 Item 생성 금지
 - reviewed evidence 없이 recognition threshold/candidate cap/matcher/visual acceptance 완화 금지
 - Needed quantity authority = `ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal`
@@ -327,7 +385,7 @@ Map/MiniMap은 donor source를 broad-edit하지 않고 JunhyunHelper first-party
 
 ## 10. 릴리즈 계약
 
-Runtime 변경 PATCH의 full release gate:
+Runtime 변경 release의 full release gate:
 
 ```text
 Release build
@@ -347,8 +405,10 @@ Published stable release는 공개 후 immutable historical product artifact로 
 
 `actions/download-artifact@v8`의 upstream Node `Buffer()` deprecation warning은 현재 release correctness와 무관한 monitor-only upstream warning이다.
 
-## 11. 현재 유지되는 이전 핵심 결정
+## 11. 현재 유지되는 핵심 결정
 
+- **v1.8.0** — Scanner item search를 canonical local item database로 확장; recognition policy unchanged
+- **v1.7.15** — version-only header, Items cleanup dot, Map marker selector polish, Ammo caliber/Favorites icon cycling
 - **v1.7.14** — popup true-toggle, shared overlay, search clear consistency
 - **v1.7.13** — Items purpose selector 제거, Ammo detail 기본 접힘, Map trail/hotkey copy 제거
 - **v1.7.12** — Desktop lifecycle/composition ownership hardening
@@ -359,7 +419,7 @@ Published stable release는 공개 후 immutable historical product artifact로 
 
 ## 12. 다음 작업
 
-현재 **v1.7.15 릴리즈 배치에는 남은 제품 개발 작업이 없다.**
+현재 **v1.8.0 릴리즈 배치에는 남은 제품 개발 작업이 없다.**
 
 기본 다음 작업은 다음 중 실제 evidence가 생길 때만 시작한다.
 
@@ -367,6 +427,7 @@ Published stable release는 공개 후 immutable historical product artifact로 
 - Tarkov 데이터/schema 변화
 - Program Update/배포 회귀
 - Scanner reviewed Ground Truth가 입증한 회귀
+- v1.8.0 item relationship source/schema 변화 또는 표시 오류
 - 사용자가 명시적으로 확정한 새 제품 요구사항
 
 새 Scanner 문제는 다음 순서로 처리한다.
