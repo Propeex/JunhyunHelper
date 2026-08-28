@@ -8,17 +8,19 @@ namespace JunhyunHelper.Desktop.Scanner;
 public partial class ScannerPage
 {
     private const double V191DetailActionHeight = 34d;
-    private static readonly bool V191DetailActionHandlerRegistered = RegisterV191DetailActionHandler();
     private bool _v191DetailActionSmokeArmed;
     private bool _v191DetailActionSmokeCompleted;
 
-    private static bool RegisterV191DetailActionHandler()
+    static ScannerPage()
     {
+        // A type initializer is the reliable WPF boundary for a class handler. Do not
+        // rely on an otherwise-unused static field initializer: ScannerPage is eligible
+        // for beforefieldinit in that shape, so the CLR is not required to run the field
+        // initializer before the first instance receives Loaded.
         EventManager.RegisterClassHandler(
             typeof(ScannerPage),
             LoadedEvent,
             new RoutedEventHandler(ScannerPage_V191DetailActionLoaded));
-        return true;
     }
 
     private static void ScannerPage_V191DetailActionLoaded(object sender, RoutedEventArgs e)
