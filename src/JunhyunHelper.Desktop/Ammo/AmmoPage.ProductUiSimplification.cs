@@ -34,8 +34,24 @@ public partial class AmmoPage
         Grid.SetColumn(FavoriteCaliberButton, 1);
         Grid.SetColumn(FavoriteCaliberMenuButton, 2);
         Grid.SetColumn(FavoriteCaliberPopup, 2);
+
+        // The visible favorites selector is created at runtime. Keep it in the same
+        // product slot as the legacy selector instead of leaving it in the column it
+        // occupied before the search toolbar was rebuilt. Otherwise it can overlap
+        // and hide the displayed-columns button at the right edge.
+        if (_productFavoriteCaliberComboBox is not null)
+        {
+            Grid.SetRow(_productFavoriteCaliberComboBox, 0);
+            Grid.SetColumn(_productFavoriteCaliberComboBox, 2);
+            Grid.SetColumnSpan(_productFavoriteCaliberComboBox, 1);
+            _productFavoriteCaliberComboBox.Margin = new Thickness(0);
+            _productFavoriteCaliberComboBox.HorizontalAlignment = HorizontalAlignment.Stretch;
+        }
+
         Grid.SetColumn(ColumnMenuButton, 6);
         Grid.SetColumn(ColumnMenuPopup, 6);
+        ColumnMenuButton.Visibility = Visibility.Visible;
+        ColumnMenuButton.IsHitTestVisible = true;
 
         FavoriteCaliberButton.Margin = new Thickness(8, 0, 8, 0);
         FavoriteCaliberMenuButton.Margin = new Thickness(0);

@@ -155,10 +155,13 @@ jobs:
           $exe = (Resolve-Path 'artifacts/publish/준현 헬퍼.exe').Path
           $diagnostic = Join-Path $env:TEMP 'junhyun-map-smoke-error.txt'
           $success = Join-Path $env:TEMP 'junhyun-map-smoke-success.txt'
+          $ammoIcons = Join-Path $env:TEMP 'junhyun-ammo-ui-smoke-success.txt'
+          $ammoToolbar = Join-Path $env:TEMP 'junhyun-ammo-toolbar-smoke-success.txt'
+          $scannerDetail = Join-Path $env:TEMP 'junhyun-scanner-item-detail-smoke-success.txt'
           $startupLog = Join-Path $env:LOCALAPPDATA 'JunhyunHelper/logs/startup.log'
-          Remove-Item $diagnostic -Force -ErrorAction SilentlyContinue
-          Remove-Item $success -Force -ErrorAction SilentlyContinue
-          Remove-Item $startupLog -Force -ErrorAction SilentlyContinue
+          foreach ($path in @($diagnostic, $success, $ammoIcons, $ammoToolbar, $scannerDetail, $startupLog)) {
+            Remove-Item $path -Force -ErrorAction SilentlyContinue
+          }
 
           function Write-SmokeFailureContext {
             param([System.Diagnostics.Process]$Process)
@@ -207,6 +210,20 @@ jobs:
             if (-not $smokeCompleted) {
               Write-SmokeFailureContext -Process $process
               throw 'Product smoke did not publish an explicit success signal within 75 seconds.'
+            }
+
+            $requiredRuntimeMarkers = @(
+              @{ Name = 'Ammo animated dropdown'; Path = $ammoIcons },
+              @{ Name = 'Ammo toolbar layout'; Path = $ammoToolbar },
+              @{ Name = 'Scanner item detail'; Path = $scannerDetail }
+            )
+            foreach ($marker in $requiredRuntimeMarkers) {
+              if (-not (Test-Path $marker.Path)) {
+                Write-SmokeFailureContext -Process $process
+                throw "Published runtime smoke did not produce required evidence: $($marker.Name)."
+              }
+              Write-Host "$($marker.Name) runtime evidence:"
+              Get-Content $marker.Path | ForEach-Object { Write-Host $_ }
             }
 
             Write-Host "Startup + rendered Product UI + full Map/Factory/MiniMap smoke passed. Requesting normal Main Window close..."

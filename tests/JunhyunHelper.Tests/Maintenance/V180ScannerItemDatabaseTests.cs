@@ -147,18 +147,31 @@ public sealed class V180ScannerItemDatabaseTests
         var usability = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.ProductUsability.cs");
         var search = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerCoordinator.Search.cs");
 
+        // Storage keeps the complete canonical item facts even when the v1.8.4 Scanner
+        // presentation intentionally exposes only the four user-approved basic fields.
         Assert.Contains("TypeKeys", item, StringComparison.Ordinal);
         Assert.Contains("WeightKg", item, StringComparison.Ordinal);
         Assert.Contains("BasePrice", item, StringComparison.Ordinal);
         Assert.Contains("FleaTradable", item, StringComparison.Ordinal);
         Assert.Contains("TarkovItemRelationshipImporter", build, StringComparison.Ordinal);
         Assert.DoesNotContain("HttpClient", search, StringComparison.Ordinal);
+
+        Assert.Contains("기본 정보", page, StringComparison.Ordinal);
         Assert.Contains("퀘스트 사용처", page, StringComparison.Ordinal);
         Assert.Contains("은신처 업그레이드 사용처", page, StringComparison.Ordinal);
         Assert.Contains("제작 재료 사용처", page, StringComparison.Ordinal);
-        Assert.Contains("교환 재료 사용처", page, StringComparison.Ordinal);
+        Assert.DoesNotContain("교환 재료 사용처", page, StringComparison.Ordinal);
         Assert.Contains("수급처", page, StringComparison.Ordinal);
+        Assert.Contains("AddAcquisitionSubsection(\"제작\")", page, StringComparison.Ordinal);
+        Assert.Contains("AddAcquisitionSubsection(\"교환\")", page, StringComparison.Ordinal);
+        Assert.Contains("AddAcquisitionSubsection(\"구매\")", page, StringComparison.Ordinal);
+        Assert.Contains("AddAcquisitionSubsection(\"레이드 획득\")", page, StringComparison.Ordinal);
+        Assert.Contains("레이드 획득 가능", page, StringComparison.Ordinal);
+        Assert.Contains("레이드에서만 획득 가능", page, StringComparison.Ordinal);
+        Assert.Contains("WrapPanel", page, StringComparison.Ordinal);
+        Assert.Contains("RelationshipItemButton_Click", page, StringComparison.Ordinal);
         Assert.Contains("SelectSearchItemById", page, StringComparison.Ordinal);
+        Assert.Contains(" ₽", page, StringComparison.Ordinal);
         Assert.Contains("VerticalScrollBarVisibility = ScrollBarVisibility.Auto", usability, StringComparison.Ordinal);
     }
 

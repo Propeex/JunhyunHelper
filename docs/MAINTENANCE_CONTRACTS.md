@@ -190,3 +190,22 @@ CI에서 호스트 부하에 민감한 wall-clock 숫자를 제품 합격선으�
 - 릴리즈 후 문서-only merge commit과 실제 product source commit을 혼동하지 않습니다.
 
 유지보수 완료 조건은 "코드를 바꿈"이 아니라 **필요한 근거가 저장소에 남고, 관련 자동 검증이 통과하고, 공식 문서가 실제 상태와 일치하는 것**입니다.
+
+---
+
+## 10. 사용자-visible UI는 published executable runtime evidence로 검증한다
+
+소스에 코드가 존재하거나 문자열 기반 contract test가 통과했다는 사실만으로 사용자에게 UI가 실제 표시된다고 판정하지 않습니다.
+
+특히 다음과 같이 WPF lifecycle/runtime에 의존하는 변경은 **실제 release 후보로 publish한 Windows 실행 파일**을 실행해 검증합니다.
+
+- `Loaded` / `OnInitialized` / class-handler / static initializer에 의존하는 초기화
+- runtime에서 생성하는 `DataTemplate`, `ComboBox`, popup, overlay, 동적 control tree
+- 실제 Image/Image.Source, visibility, 위치, wrapping, click navigation
+- 같은 상태를 공유하는 animation/timer-driven presentation
+
+가능하면 제품이 사용하는 실제 control tree에서 deterministic smoke를 실행하고, CI는 그 검증이 실제 실행되었다는 명시적 marker/evidence를 요구합니다. smoke가 검증 대상 UI를 뒤늦게 생성하거나 수정해 원래 초기화 누락을 가려서는 안 됩니다.
+
+문서·source assertion·unit test와 실제 published runtime evidence가 충돌하면 먼저 runtime 회귀로 취급해 원인을 조사합니다. 문서가 녹색이라고 기록되어 있다는 이유로 사용자가 보는 동작을 정상으로 간주하지 않습니다.
+
+Game Content importer/schema/validator 의미를 변경하는 릴리즈는 hermetic fixture 회귀 테스트와 별개로, 공개 직전 현재 `json.tarkov.dev` Regular/PvE를 canonical pipeline으로 각각 통과시키는 live release evidence도 확보합니다. 이 release-readiness 확인은 외부 네트워크를 일반 PR CI의 상시 필수 gate로 바꾸는 것을 의미하지 않습니다.
