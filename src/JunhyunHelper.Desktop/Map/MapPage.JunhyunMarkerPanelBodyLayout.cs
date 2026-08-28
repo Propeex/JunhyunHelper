@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
@@ -11,23 +10,24 @@ public partial class MapPage
     private bool _productMarkerPanelBodyLayoutSyncing;
     private bool _productMarkerPanelBodySmokeCompleted;
 
-    internal static void RegisterProductMarkerPanelBodyLayoutActivation()
+    protected override void OnInitialized(EventArgs e)
     {
-        EventManager.RegisterClassHandler(
-            typeof(MapPage),
-            FrameworkElement.LoadedEvent,
-            new RoutedEventHandler(OnProductMarkerPanelBodyLayoutLoaded));
+        base.OnInitialized(e);
+        EnsureProductMarkerPanelBodyLayoutActivation();
     }
 
-    private static void OnProductMarkerPanelBodyLayoutLoaded(object sender, RoutedEventArgs e)
+    internal void EnsureProductMarkerPanelBodyLayoutActivation()
     {
-        if (sender is not MapPage page)
+        if (_productMarkerPanelBodyLayoutActivated)
             return;
 
-        // Loaded is routed. The class-handler sender is the MapPage even when a child is
-        // the OriginalSource, so the product polish must not require OriginalSource == page.
-        page.ApplyJunhyunMarkerPanelPolish();
-        page.ActivateProductMarkerPanelBodyLayout();
+        // The JunhyunHelper Map surface is a product-owned delta over the pinned donor.
+        // Apply it immediately after XAML initialization instead of relying on a class-level
+        // Loaded handler. This guarantees the marker launcher, viewport wrapper and body
+        // sizing exist before the page can be shown or interacted with.
+        ApplyJunhyunUiSimplification();
+        ApplyJunhyunMarkerPanelPolish();
+        ActivateProductMarkerPanelBodyLayout();
     }
 
     private void ActivateProductMarkerPanelBodyLayout()
@@ -198,10 +198,4 @@ public partial class MapPage
             SyncProductMarkerPanelBodyLayout();
         }
     }
-}
-
-internal static class MapMarkerPanelBodyLayoutActivationModule
-{
-    [ModuleInitializer]
-    internal static void Initialize() => MapPage.RegisterProductMarkerPanelBodyLayoutActivation();
 }
