@@ -20,11 +20,13 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+          $targetCraftId = '5d5c205bd582a50d042a3c0e'
+          $targetStationId = '5d494a445b56502f18c98a10'
+          $targetProductId = '59faff1d86f7746c51718c9c'
           foreach ($mode in @('regular', 'pve')) {
-            $uri = "https://json.tarkov.dev/$mode/crafts"
-            Write-Host "GET $uri"
-            $root = Invoke-RestMethod -Uri $uri -Headers @{ 'User-Agent' = 'JunhyunHelper-v1.8.2-diagnostic/1.0' }
-            $crafts = @($root.data)
+            $headers = @{ 'User-Agent' = 'JunhyunHelper-v1.8.2-diagnostic/1.0' }
+            $craftRoot = Invoke-RestMethod -Uri "https://json.tarkov.dev/$mode/crafts" -Headers $headers
+            $crafts = @($craftRoot.data)
             Write-Host "MODE=$mode CRAFTS=$($crafts.Count)"
             $empty = @($crafts | Where-Object { @($_.requiredItems).Count -eq 0 })
             Write-Host "MODE=$mode EMPTY_REQUIRED=$($empty.Count)"
@@ -32,6 +34,17 @@ jobs:
               $json = $craft | ConvertTo-Json -Depth 12 -Compress
               Write-Host "EMPTY_CRAFT mode=$mode id=$($craft.id) payload=$json"
             }
+
+            $itemsRoot = Invoke-RestMethod -Uri "https://json.tarkov.dev/$mode/items" -Headers $headers
+            $product = @($itemsRoot.data) | Where-Object { $_.id -eq $targetProductId } | Select-Object -First 1
+            Write-Host "PRODUCT mode=$mode id=$targetProductId payload=$(($product | ConvertTo-Json -Depth 12 -Compress))"
+
+            $hideoutRoot = Invoke-RestMethod -Uri "https://json.tarkov.dev/$mode/hideout" -Headers $headers
+            $station = @($hideoutRoot.data) | Where-Object { $_.id -eq $targetStationId } | Select-Object -First 1
+            if (-not $station) {
+              $station = @($hideoutRoot.data.stations) | Where-Object { $_.id -eq $targetStationId } | Select-Object -First 1
+            }
+            Write-Host "STATION mode=$mode id=$targetStationId payload=$(($station | ConvertTo-Json -Depth 12 -Compress))"
           }
 
       - name: Reproduce production live data build
@@ -53,6 +66,7 @@ jobs:
           dotnet-version: 10.0.x
 
       - name: Run current production live probe
+        continue-on-error: true
         shell: pwsh
         env:
           JUNHYUNHELPER_LIVE_DATA_PROBE: '1'
