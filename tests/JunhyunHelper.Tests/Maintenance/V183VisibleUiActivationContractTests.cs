@@ -44,8 +44,19 @@ public sealed class V183VisibleUiActivationContractTests
         Assert.Contains("FrameworkElement.LoadedEvent", loaded, StringComparison.Ordinal);
         Assert.Contains("if (sender is not MapPage page)", loaded, StringComparison.Ordinal);
         Assert.DoesNotContain("ReferenceEquals(e.OriginalSource, page)", loaded, StringComparison.Ordinal);
-        Assert.Contains("page.Dispatcher.BeginInvoke(page.ApplyJunhyunMarkerPanelPolish", loaded, StringComparison.Ordinal);
+        Assert.Contains("page.ScheduleJunhyunMarkerPanelPolish(DispatcherPriority.Loaded);", loaded, StringComparison.Ordinal);
+        Assert.Contains("DispatcherPriority.ContextIdle", loaded, StringComparison.Ordinal);
+        Assert.Contains("TryWrapJunhyunMarkerListViewport()", loaded, StringComparison.Ordinal);
+        Assert.Contains("MapMarkersContent.Parent is not Panel parent", loaded, StringComparison.Ordinal);
+        Assert.Contains("FailJunhyunMarkerPanelActivationSmoke();", loaded, StringComparison.Ordinal);
+        Assert.Contains("Environment.Exit(89)", loaded, StringComparison.Ordinal);
         Assert.Contains("ActivateProductMarkerPanelBodyLayout();", loaded, StringComparison.Ordinal);
+
+        var wrapGuard = loaded.IndexOf("if (!TryWrapJunhyunMarkerListViewport())", StringComparison.Ordinal);
+        var applied = loaded.IndexOf("_junhyunMarkerPanelPolishApplied = true;", StringComparison.Ordinal);
+        var activate = loaded.IndexOf("ActivateProductMarkerPanelBodyLayout();", StringComparison.Ordinal);
+        Assert.True(wrapGuard >= 0 && applied > wrapGuard && activate > applied,
+            "Map marker polish must not mark activation complete or activate body layout before viewport insertion succeeds.");
 
         Assert.DoesNotContain("protected override void OnInitialized", body, StringComparison.Ordinal);
         Assert.DoesNotContain("ApplyJunhyunUiSimplification();", body, StringComparison.Ordinal);
