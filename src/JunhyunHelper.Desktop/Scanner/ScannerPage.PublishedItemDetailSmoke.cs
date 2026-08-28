@@ -122,11 +122,13 @@ public partial class ScannerPage
         var basicValues = basicRows
             .Select(row => row.Children.OfType<TextBlock>().FirstOrDefault(text => Grid.GetColumn(text) == 1)?.Text ?? string.Empty)
             .ToArray();
-        if (!basicValues.Any(value => value.Contains("65,432 ₽", StringComparison.Ordinal)) ||
-            !basicValues.Any(value => value.Contains("54,321 ₽", StringComparison.Ordinal)) ||
+        if (!basicValues.Any(value => value.Contains("65,432₽", StringComparison.Ordinal)) ||
+            !basicValues.Any(value => value.Contains("54,321₽", StringComparison.Ordinal)) ||
             !basicValues.Any(value => value.Contains("7개", StringComparison.Ordinal)))
         {
-            throw new InvalidOperationException("Scanner basic-info price/needed values did not use the approved runtime presentation.");
+            throw new InvalidOperationException(
+                "Scanner basic-info price/needed values did not use the approved runtime presentation: " +
+                string.Join(" | ", basicValues));
         }
 
         if (_questUsageHost.Visibility != Visibility.Collapsed || _hideoutUsageHost.Visibility != Visibility.Collapsed)
