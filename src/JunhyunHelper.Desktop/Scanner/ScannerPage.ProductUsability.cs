@@ -30,6 +30,7 @@ public partial class ScannerPage
         BuildItemRelationshipPresentation();
         EnsureSelectedItemScrolling();
         NormalizeSearchClearAffordance();
+        InitializeScannerUserItemCollections();
 
         SettingsButton.Click -= SettingsButton_Click;
         SettingsButton.Click += ProductSettingsButton_Click;
@@ -122,11 +123,8 @@ public partial class ScannerPage
 
     private void ProductItemSearchBox_TextChanged(object sender, TextChangedEventArgs e)
     {
-        if (_suppressSearchRefresh) return;
-        ClearNeededSources();
-        ClearItemRelationshipPresentation();
-        if (_basicInfoItems is not null) _basicInfoItems.Children.Clear();
-        if (_basicInfoHost is not null) _basicInfoHost.Visibility = Visibility.Collapsed;
+        // Search text owns only the popup/results state. The currently opened item detail
+        // has an independent identity and remains visible until another item is opened.
     }
 
     private void ProductItemSearchBox_PreviewKeyDown(object sender, KeyEventArgs e)
