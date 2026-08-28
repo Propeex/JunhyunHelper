@@ -1,0 +1,62 @@
+{
+  "version": "1.10.0",
+  "tag": "v1.10.0",
+  "status": "public-stable-verified",
+  "product_source_sha": "a99540c4ae450f9f1995e5378919ae57f41ba930",
+  "main_ci": {
+    "run_id": 33201929209,
+    "job_id": 98953240853,
+    "conclusion": "success",
+    "tests_passed": 439,
+    "tests_failed": 0,
+    "tests_skipped": 0,
+    "product_version": "1.10.0+a99540c4ae450f9f1995e5378919ae57f41ba930",
+    "exe_bytes": 84118613,
+    "release_zip_bytes": 80543064,
+    "release_zip_sha256": "65dd990e3c8b1c6faa7122ab1d809fae260c88cd10022eb7399ca6a2a3717639",
+    "actions_artifact": {
+      "name": "JunhyunHelper-win-x64",
+      "id": 9698177979,
+      "archive_bytes": 241564056,
+      "archive_sha256": "72f42c6b507105ae5fb1dd20c597996d906a47a50c149a9ad3d197178e52d0c6"
+    },
+    "minimap_runtime_evidence": [
+      "main-map-selection-boundary=ok",
+      "active-minimap-map-sync=ok",
+      "reused-minimap-show-boundary=ok",
+      "rendered-minimap-map-sync=ok"
+    ]
+  },
+  "release": {
+    "workflow_run_id": 33202187186,
+    "job_id": 98954112113,
+    "conclusion": "success",
+    "release_id": 378705187,
+    "published_at_utc": "2026-08-28T19:04:46Z",
+    "target_commitish": "a99540c4ae450f9f1995e5378919ae57f41ba930",
+    "tag_ref_sha": "a99540c4ae450f9f1995e5378919ae57f41ba930",
+    "draft": false,
+    "prerelease": false,
+    "latest_stable": true,
+    "assets": {
+      "Junhyun-Helper.zip": {
+        "id": 534229631,
+        "bytes": 80543064,
+        "sha256": "65dd990e3c8b1c6faa7122ab1d809fae260c88cd10022eb7399ca6a2a3717639"
+      },
+      "SHA256SUMS.txt": {
+        "id": 534229630,
+        "bytes": 86,
+        "sha256": "1c6fc4e5ecf9009d2eef3891f92748dd2d91ebdace2e4fc1f0c9876e4c00a832"
+      }
+    }
+  },
+  "schemas": {
+    "desktop": "1.10.0",
+    "content": 8,
+    "scanner_display_settings": 7,
+    "scanner_catalog_written": 4,
+    "scanner_catalog_readable": [1, 2, 3, 4]
+  },
+  "note": "Documentation-only commits after publication are not the v1.10.0 product release source and must not move or mutate the immutable product tag/assets."
+}

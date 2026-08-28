@@ -4,7 +4,7 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 제품 상태
 
-현재 제품 상태는 **v1.9.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
+현재 제품 상태는 **v1.10.0 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
 
 현재 확정 요구사항 범위의 제품과 Scanner는 완성 상태입니다. 새로운 실제 회귀·Tarkov 호환성 변화·사용자가 명시적으로 확정한 새 제품 요구사항이 없는 한 선제적 기능 추가나 Scanner 인식 기준 조정을 시작하지 않습니다.
 
@@ -21,30 +21,29 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 ## 현재 공개 릴리즈
 
 ```text
-version: v1.9.1
-Desktop target version: 1.9.1
-exact product release source/tag target: 723760910ff250a515ed8db456d3f045656ecacb
-main CI: 33184811972 — SUCCESS
-Release workflow: 33185056113 — SUCCESS
-release id: 378579142
+version: v1.10.0
+Desktop target version: 1.10.0
+exact product release source/tag target: a99540c4ae450f9f1995e5378919ae57f41ba930
+main CI: 33201929209 — SUCCESS
+Release workflow: 33202187186 — SUCCESS
+release id: 378705187
 stable asset: Junhyun-Helper.zip
-asset id: 533982952
-bytes: 80,540,488
-SHA-256: 7a282f58d6cf2e4916c55daddf828a70643b35669bc71fbeaca1e7a4e8176f54
-435 passed / 0 failed / 0 skipped
+asset id: 534229631
+bytes: 80,543,064
+SHA-256: 65dd990e3c8b1c6faa7122ab1d809fae260c88cd10022eb7399ca6a2a3717639
+439 passed / 0 failed / 0 skipped
 ```
 
-GitHub `/releases/latest` 및 `refs/tags/v1.9.1` readback에서 v1.9.1이 `draft=false`, `prerelease=false`, latest stable이며 release target과 tag ref가 exact product release source와 일치함을 확인했습니다. 공개 ZIP의 byte size와 digest도 exact-main CI package와 일치합니다.
+GitHub `/releases/latest` 및 `refs/tags/v1.10.0` readback에서 v1.10.0이 `draft=false`, `prerelease=false`, latest stable이며 release target과 tag ref가 exact product release source와 일치함을 확인했습니다. 공개 ZIP의 byte size와 digest도 exact-main CI package와 일치합니다.
 
 공식 릴리즈 기록:
 
-- `docs/RELEASE_1.9.1.md`
-- `docs/RELEASE_NOTES_V1.9.1.md`
-- `docs/.release-v1.9.1-status.json`
-- `docs/DECISION_V1.9.1_FINAL_UI_MINIMAP.md`
-- `docs/RELEASE_1.9.0.md` — 이전 Scanner Favorites / Recents 릴리즈
+- `docs/RELEASE_1.10.0.md`
+- `docs/RELEASE_NOTES_V1.10.0.md`
+- `docs/.release-v1.10.0-status.json`
+- `docs/DECISION_V1.10.0_MINIMAP_REOPEN_MINISCANNER_FLEA_MINIMUM.md`
 
-이 README와 이후 documentation-only commit은 v1.9.1 제품 릴리즈 소스가 아닙니다. v1.9.1 product source/tag/assets는 위 `723760910...` 기준의 immutable historical release입니다.
+이 README와 이후 documentation-only commit은 v1.10.0 제품 릴리즈 소스가 아닙니다. v1.10.0 product source/tag/assets는 위 `a99540c4...` 기준의 immutable historical release입니다.
 
 ## 설치 / 실행
 
@@ -84,36 +83,26 @@ Junhyun-Helper.zip
 
 Runtime GPT/AI 의존성은 없습니다.
 
-## v1.9.1 — 최종 UI / MiniMap 동기화 수정
+## v1.10.0 — MiniMap 재표시 동기화 / Mini Scanner 플리마켓 최저가
 
-- Scanner 상세의 즐겨찾기 별 버튼과 Wiki 버튼을 34px로 맞추고 별 글리프를 중앙 정렬했습니다.
-- 지도 `탈출구` 그룹은 실제 donor PMC / Scav / Transit 체크박스 세 개만 표시합니다. visible master/중복 행은 제거하고 hidden master render gate와 실제 handler/persistence 의미는 유지합니다.
-- Main Map에서 현재 선택한 지도를 MiniMap 초기화 전에 shared tracker에 동기화해 저장된 이전 지도 대신 현재 visible selection으로 MiniMap이 열립니다. 이미 열린 MiniMap도 이후 변경을 즉시 반영합니다.
+- Main Map을 A에서 B로 바꾼 직후 MiniMap을 처음 열거나, 이미 로드되어 숨겨져 있던 같은 MiniMap 창을 다시 표시해도 첫 visible frame부터 B를 사용하도록 수정했습니다.
+- v1.9.1에서 놓친 donor `Hide()` → same loaded Window `Show()` 재사용 경로를 별도 동기화 경계로 보강했습니다.
+- exact-main published EXE smoke는 실제 MiniMap에서 A SVG를 렌더한 뒤 hide → Main Map B 선택 → same Window show → 실제 `MapSvg.Source`가 B로 바뀌는 것까지 검증합니다.
+- Mini Scanner에 `플리마켓 최저가` 표시 항목을 추가했습니다.
+- 다른 Mini Scanner 정보와 동일하게 설정에서 표시/숨김과 순서 변경을 지원하고 재실행 후 유지합니다.
+- 기존 사용자 설정은 기존 행의 상대 순서를 유지하고 새 항목을 정확히 한 번 추가합니다.
+- 플리 최저가는 Scanner catalog의 `lastLowPrice`를 Item ID 확정 뒤 presentation-only 데이터로 사용합니다. Scanner 인식 기준과 scan-time network I/O는 변경하지 않았습니다.
 
-Exact-main published EXE evidence:
+Exact-main runtime evidence:
 
 ```text
-Scanner actions:
-favorite-wiki-height=34
-favorite-symbol-font=ok
-favorite-content-centered=ok
-wiki-content-centered=ok
-
-Map:
-real-donor-checkboxes=ok
-hidden-master-render-gate=ok
-approved-three-filter-layout=ok
-minimap-refresh-handler-preserved=ok
-pmc-filter-render-state=ok
-scav-filter-render-state=ok
-transit-filter-render-state=ok
-
-MiniMap sync:
 main-map-selection-boundary=ok
 active-minimap-map-sync=ok
+reused-minimap-show-boundary=ok
+rendered-minimap-map-sync=ok
 ```
 
-같은 실행에서 435개 테스트, Product UI, Ammo, Scanner detail/Favorites/Recents, Main Map, Factory, MiniMap, graceful shutdown, clean portable root가 모두 성공했습니다.
+같은 exact-main 실행에서 439개 테스트, Product UI, Ammo, Map/Factory/MiniMap, Scanner detail/Favorites/Recents, 정상 종료와 portable root가 모두 성공했습니다.
 
 Scanner OCR threshold/matcher/candidate cap/visual recovery acceptance, Game Content LKG/completeness/fail-closed, Factory floor/Map marker 의미는 변경하지 않았습니다.
 
