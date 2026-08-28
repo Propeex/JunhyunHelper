@@ -10,6 +10,15 @@ namespace JunhyunHelper.Infrastructure.TarkovJson.Items;
 /// </summary>
 public sealed class TarkovItemRelationshipImporter
 {
+    // json.tarkov.dev exposes Bitcoin Farm output through the crafts endpoint even though
+    // it is passive hideout production driven by GPU/station state rather than consumable
+    // recipe ingredients. Modelling it as a normal zero-cost craft would produce false
+    // Scanner relationship information, so only this audited upstream identity is excluded.
+    // Every other empty craft remains fail-closed below.
+    private const string PassiveBitcoinProductionId = "5d5c205bd582a50d042a3c0e";
+    private const string BitcoinFarmStationId = "5d494a445b56502f18c98a10";
+    private const string PhysicalBitcoinItemId = "59faff1d86f7746c51718c9c";
+
     public ItemRelationshipCatalog Import(
         TarkovJsonDocument itemsDocument,
         TarkovJsonDocument bartersDocument,
@@ -103,7 +112,12 @@ public sealed class TarkovItemRelationshipImporter
             var product = RequiredObject(raw, "productItem", $"Craft '{id}'");
             var requirements = ReadRequirements(raw, "requiredItems", $"Craft '{id}'", allowTool: true);
             if (requirements.Count == 0)
+            {
+                if (IsKnownPassiveBitcoinProduction(raw, id, product))
+                    continue;
+
                 throw new InvalidDataException($"Craft '{id}' has no required items.");
+            }
 
             result.Add(new ItemCraft(
                 id,
@@ -120,6 +134,31 @@ public sealed class TarkovItemRelationshipImporter
             .ThenBy(value => value.RequiredLevel)
             .ThenBy(value => value.ProductItemId, StringComparer.Ordinal)
             .ThenBy(value => value.Id, StringComparer.Ordinal).ToArray();
+    }
+
+    private static bool IsKnownPassiveBitcoinProduction(JsonElement raw, string id, JsonElement product)
+    {
+        if (!string.Equals(id, PassiveBitcoinProductionId, StringComparison.Ordinal))
+            return false;
+
+        var stationId = RequiredReference(raw, "station", $"Craft '{id}'");
+        var productItemId = RequiredReference(product, "item", $"Craft '{id}' product item");
+        var productCount = RequiredPositiveDecimal(product, "count", $"Craft '{id}' product item");
+        var level = RequiredNonNegativeInt(raw, "level", id);
+        var duration = RequiredNonNegativeInt(raw, "duration", id);
+
+        if (!raw.TryGetProperty("requiredQuestItems", out var questRequirements) ||
+            questRequirements.ValueKind != JsonValueKind.Array ||
+            questRequirements.GetArrayLength() != 0)
+        {
+            return false;
+        }
+
+        return string.Equals(stationId, BitcoinFarmStationId, StringComparison.Ordinal) &&
+               string.Equals(productItemId, PhysicalBitcoinItemId, StringComparison.Ordinal) &&
+               productCount == 1m &&
+               level == 1 &&
+               duration > 0;
     }
 
     private static IReadOnlyList<ItemIngredient> ReadRequirements(
