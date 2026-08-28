@@ -87,6 +87,13 @@ public partial class MiniScannerWindow : Window
             snapshot.FleaAveragePrice is { } flea ? $"플리 평균  {FormatRoubles(flea)}" : string.Empty,
             settings.FontSize);
         ConfigureLine(
+            FleaMinimumPriceText,
+            settings.ShowFleaMinimumPrice && snapshot.FleaMinimumPrice.HasValue,
+            snapshot.FleaMinimumPrice is { } fleaMinimum
+                ? $"플리 최저  {FormatRoubles(fleaMinimum)}"
+                : string.Empty,
+            settings.FontSize);
+        ConfigureLine(
             TraderSlotPriceText,
             settings.ShowTraderPricePerSlot && snapshot.TraderPricePerSlot.HasValue,
             snapshot.TraderPricePerSlot is { } traderSlot ? $"상인/칸  {FormatRoubles(traderSlot)}" : string.Empty,
@@ -111,6 +118,7 @@ public partial class MiniScannerWindow : Window
         {
             [ScannerDisplaySettings.TraderSellPriceField] = TraderPriceText,
             [ScannerDisplaySettings.FleaAveragePriceField] = FleaPriceText,
+            [ScannerDisplaySettings.FleaMinimumPriceField] = FleaMinimumPriceText,
             [ScannerDisplaySettings.TraderPricePerSlotField] = TraderSlotPriceText,
             [ScannerDisplaySettings.FleaPricePerSlotField] = FleaSlotPriceText,
             [ScannerDisplaySettings.CurrentNeededField] = CurrentNeededText,
