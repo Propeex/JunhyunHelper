@@ -11,24 +11,6 @@ public partial class ScannerPage
     private bool _v191DetailActionSmokeArmed;
     private bool _v191DetailActionSmokeCompleted;
 
-    static ScannerPage()
-    {
-        // A type initializer is the reliable WPF boundary for a class handler. Do not
-        // rely on an otherwise-unused static field initializer: ScannerPage is eligible
-        // for beforefieldinit in that shape, so the CLR is not required to run the field
-        // initializer before the first instance receives Loaded.
-        EventManager.RegisterClassHandler(
-            typeof(ScannerPage),
-            LoadedEvent,
-            new RoutedEventHandler(ScannerPage_V191DetailActionLoaded));
-    }
-
-    private static void ScannerPage_V191DetailActionLoaded(object sender, RoutedEventArgs e)
-    {
-        if (sender is ScannerPage page)
-            page.ApplyV191DetailActionAlignment();
-    }
-
     private void ApplyV191DetailActionAlignment()
     {
         // Match the favorite action to the adjacent Wiki action exactly. The explicit
