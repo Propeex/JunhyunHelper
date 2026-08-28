@@ -51,6 +51,7 @@ public partial class ScannerPage : UserControl
         }
 
         UpdateStatus(_coordinator.Status);
+        AttachScannerItemUiState(mainWindow);
     }
 
     private void ScannerPage_Unloaded(object sender, RoutedEventArgs e)
@@ -76,6 +77,7 @@ public partial class ScannerPage : UserControl
         UpdateStatus(_coordinator.Status);
         RefreshSearchResults();
         RefreshActivityCorrectionAvailability();
+        RefreshScannerUserItemLists();
     }
 
     private async void ScannerToggleButton_Click(object sender, RoutedEventArgs e)
@@ -291,6 +293,7 @@ public partial class ScannerPage : UserControl
         WikiButton.IsEnabled = _selectedWikiUrl is not null;
         EmptyItemText.Visibility = Visibility.Collapsed;
         SelectedItemPanel.Visibility = Visibility.Visible;
+        OnScannerItemOpened(details);
     }
 
     private void WikiButton_Click(object sender, RoutedEventArgs e)
