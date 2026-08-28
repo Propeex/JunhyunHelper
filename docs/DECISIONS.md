@@ -3,7 +3,8 @@
 이 문서는 준현 헬퍼의 **현재 유효한 장기 결정과 supersession 관계를 빠르게 복구하기 위한 active index**다. 상세 현재 제품 상태와 release evidence는 `docs/STATE.md`가 권위다.
 
 기준일: 2026-08-29 KST  
-현재 제품 상태: **v1.9.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+현재 공개 제품: **v1.9.1 PUBLIC STABLE**  
+현재 개발: **v1.10.0 IN DEVELOPMENT — MiniMap reopen sync + Mini Scanner flea minimum**
 
 ## 1. 장기 기본 결정
 
@@ -39,7 +40,7 @@ Scanner identity proof에 price/needed/source/relationship metadata를 사용하
 ### Product complete / maintenance mode
 
 - `docs/DECISION_PRODUCT_COMPLETE_2026-08-26.md`
-- 현재 요구사항 범위 제품은 complete이며 기본 방향은 maintenance.
+- 현재 요구사항 범위 제품은 complete를 기본 상태로 유지하되, 확인된 실사용 회귀와 사용자가 확정한 신규 요구사항은 maintenance/new-minor 작업으로 처리한다.
 
 ### Scanner storage / hotkeys / evidence
 
@@ -75,14 +76,12 @@ Scanner identity proof에 price/needed/source/relationship metadata를 사용하
 ### v1.9.1 Final UI / MiniMap synchronization
 
 - `docs/DECISION_V1.9.1_FINAL_UI_MINIMAP.md`
-- 상태: **IMPLEMENTED / PUBLIC VERIFIED v1.9.1**.
-- Scanner favorite/Wiki action은 34px 및 centered symbol layout.
-- Map `탈출구` visible group은 donor의 실제 PMC / Scav / Transit 체크박스 정확히 세 개만 표시.
-- donor master extract checkbox는 hidden internal render gate로 유지.
-- visible Main Map selection을 MiniMap registration 전에 shared `MapTrackerService`에 동기화하고 이미 열린 MiniMap에도 즉시 반영.
-- Scanner action Render와 MiniMap selection-sync evidence는 CI에서 required fail-closed published-EXE marker다.
+- Scanner favorite/Wiki action과 Map 탈출구 UI는 **IMPLEMENTED / PUBLIC VERIFIED v1.9.1**.
+- v1.9.1의 MiniMap selection-sync 구현/검증은 **실사용 회귀로 불완전함이 확인됨**. `SourceInitialized`/`Loaded`와 active-window state만 검증해 donor의 hidden loaded Window 재사용 경로를 놓쳤다.
+- 따라서 v1.9.1 문서의 “A→B 후 MiniMap 첫 표시가 B” 성공 주장은 historical release evidence일 뿐 현재 correctness authority가 아니다.
+- MiniMap 이 항목은 아래 v1.10.0 결정으로 superseded된다.
 
-Public proof:
+v1.9.1 historical public proof:
 
 ```text
 exact product release source/tag target:
@@ -94,6 +93,18 @@ public ZIP SHA-256:
 7a282f58d6cf2e4916c55daddf828a70643b35669bc71fbeaca1e7a4e8176f54
 ```
 
+### v1.10.0 MiniMap reopen sync / Mini Scanner flea minimum
+
+- `docs/DECISION_V1.10.0_MINIMAP_REOPEN_MINISCANNER_FLEA_MINIMUM.md`
+- 상태: **CONFIRMED / IMPLEMENTATION IN PROGRESS**.
+- donor `Hide()` → same loaded Window `Show()` 재사용 경로를 별도 제품 경계로 인정한다.
+- `OverlayVisibilityChanged(true)`에서 visible Main Map selector를 synchronous하게 tracker/active MiniMap에 반영한다.
+- published EXE smoke는 실제 A render → hide → visible selector B → same Window show → actual `MapSvg.Source` B render를 검증한 뒤에만 MiniMap 성공 marker를 기록한다.
+- Mini Scanner에는 Scanner catalog `lastLowPrice` 기반 플리 최저가를 presentation-only 필드로 추가한다.
+- Scanner catalog cache는 v1~v4 readable / v4 written, Scanner display settings는 v7 written으로 확장한다.
+- v6 Mini Scanner 사용자 행 순서는 보존하고 새 필드를 정확히 한 번 추가한다.
+- price는 Item ID proof에 사용하지 않고 scan-time network I/O도 추가하지 않는다.
+
 ## 4. 현재 비변경 안전 계약
 
 - Scanner OCR threshold / matcher / candidate cap / visual recovery acceptance
@@ -102,7 +113,7 @@ public ZIP SHA-256:
 - Game Content LKG / relationship completeness / fail-closed
 - Scanner Favorites / Recents semantic contract
 - Ammo filtering / favorite persistence
-- Map/Factory/MiniMap 기존 기능 의미
+- Map/Factory 기존 기능 의미
 - Map donor pin `d933792b6042a51cea38dc44b686a096fe30de67`
 
 ## 5. 현재 결정 확인 순서
