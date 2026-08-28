@@ -23,6 +23,10 @@ public sealed class V191FinalUiContractTests
         Assert.Contains("FavoriteItemButton.HorizontalContentAlignment = HorizontalAlignment.Center", source, StringComparison.Ordinal);
         Assert.Contains("FavoriteItemButton.VerticalContentAlignment = VerticalAlignment.Center", source, StringComparison.Ordinal);
         Assert.Contains("SelectedItemPanel.IsVisibleChanged += SelectedItemPanel_V191SmokeIsVisibleChanged", source, StringComparison.Ordinal);
+        Assert.Contains("SelectedItemPanel.Visibility != Visibility.Visible", source, StringComparison.Ordinal);
+        Assert.Contains("new DispatcherTimer(", source, StringComparison.Ordinal);
+        Assert.Contains("Visibility = Visibility.Visible", source, StringComparison.Ordinal);
+        Assert.Contains("RestoreV191DetailActionSmokePageVisibility();", source, StringComparison.Ordinal);
         Assert.Contains("DispatcherPriority.Render", source, StringComparison.Ordinal);
         Assert.DoesNotContain("DispatcherPriority.ContextIdle", source, StringComparison.Ordinal);
     }
