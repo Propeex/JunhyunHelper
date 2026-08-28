@@ -49,7 +49,9 @@ public sealed class V183VisibleUiActivationContractTests
         Assert.Contains("requestedPanelHeight", source, StringComparison.Ordinal);
         Assert.Contains("panelHeight - headerHeight - verticalChrome", source, StringComparison.Ordinal);
         Assert.Contains("_junhyunMarkerListViewport.Height = listHeight", source, StringComparison.Ordinal);
-        Assert.Contains("contentHeight <= listHeight + 0.5", source, StringComparison.Ordinal);
+        Assert.Contains("VerticalScrollBarVisibility = ScrollBarVisibility.Auto", source, StringComparison.Ordinal);
+        Assert.Contains("ScrollableHeight > 0.5", source, StringComparison.Ordinal);
+        Assert.Contains("ComputedVerticalScrollBarVisibility", source, StringComparison.Ordinal);
         Assert.Contains("marker-list-fills-panel-body=ok", source, StringComparison.Ordinal);
         Assert.Contains("Environment.Exit(89)", source, StringComparison.Ordinal);
     }
