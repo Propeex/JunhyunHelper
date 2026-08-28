@@ -5,10 +5,11 @@ namespace JunhyunHelper.Desktop.Scanner;
 
 public sealed class ScannerDisplaySettings
 {
-    public const int CurrentSchemaVersion = 6;
+    public const int CurrentSchemaVersion = 7;
 
     public const string TraderSellPriceField = "trader_sell_price";
     public const string FleaAveragePriceField = "flea_average_price";
+    public const string FleaMinimumPriceField = "flea_minimum_price";
     public const string TraderPricePerSlotField = "trader_price_per_slot";
     public const string FleaPricePerSlotField = "flea_price_per_slot";
     public const string CurrentNeededField = "current_needed";
@@ -17,6 +18,7 @@ public sealed class ScannerDisplaySettings
     [
         TraderSellPriceField,
         FleaAveragePriceField,
+        FleaMinimumPriceField,
         TraderPricePerSlotField,
         FleaPricePerSlotField,
         CurrentNeededField,
@@ -28,6 +30,7 @@ public sealed class ScannerDisplaySettings
     public bool ShowItemIcon { get; set; } = true;
     public bool ShowTraderSellPrice { get; set; } = true;
     public bool ShowFleaAveragePrice { get; set; } = true;
+    public bool ShowFleaMinimumPrice { get; set; } = true;
     public bool ShowTraderPricePerSlot { get; set; } = true;
     public bool ShowFleaPricePerSlot { get; set; }
     public bool ShowCurrentNeeded { get; set; } = true;
@@ -60,6 +63,7 @@ public sealed class ScannerDisplaySettings
         ShowItemIcon = ShowItemIcon,
         ShowTraderSellPrice = ShowTraderSellPrice,
         ShowFleaAveragePrice = ShowFleaAveragePrice,
+        ShowFleaMinimumPrice = ShowFleaMinimumPrice,
         ShowTraderPricePerSlot = ShowTraderPricePerSlot,
         ShowFleaPricePerSlot = ShowFleaPricePerSlot,
         ShowCurrentNeeded = ShowCurrentNeeded,
@@ -111,7 +115,15 @@ public sealed class ScannerDisplaySettings
         // old files, but never allow those two identity fields to be hidden.
         ShowItemName = true;
         ShowItemIcon = true;
-        MiniScannerInfoOrder = NormalizeInfoOrder(MiniScannerInfoOrder);
+
+        // v7 adds the flea minimum row without disturbing a user's existing row order.
+        // Old files do not carry this visibility flag, so the newly introduced product
+        // field is visible by default after migration.
+        if (SchemaVersion < 7)
+            ShowFleaMinimumPrice = true;
+        MiniScannerInfoOrder = ScannerInfoOrderPolicy.Normalize(
+            MiniScannerInfoOrder,
+            DefaultMiniScannerInfoOrder);
 
         OneShotTarkovHotkey = NormalizeHotkey(
             OneShotTarkovHotkey,
@@ -169,6 +181,7 @@ public sealed class ScannerDisplaySettings
     {
         TraderSellPriceField => ShowTraderSellPrice,
         FleaAveragePriceField => ShowFleaAveragePrice,
+        FleaMinimumPriceField => ShowFleaMinimumPrice,
         TraderPricePerSlotField => ShowTraderPricePerSlot,
         FleaPricePerSlotField => ShowFleaPricePerSlot,
         CurrentNeededField => ShowCurrentNeeded,
@@ -185,6 +198,9 @@ public sealed class ScannerDisplaySettings
             case FleaAveragePriceField:
                 ShowFleaAveragePrice = visible;
                 break;
+            case FleaMinimumPriceField:
+                ShowFleaMinimumPrice = visible;
+                break;
             case TraderPricePerSlotField:
                 ShowTraderPricePerSlot = visible;
                 break;
@@ -195,24 +211,6 @@ public sealed class ScannerDisplaySettings
                 ShowCurrentNeeded = visible;
                 break;
         }
-    }
-
-    private static List<string> NormalizeInfoOrder(IEnumerable<string>? values)
-    {
-        var known = new HashSet<string>(DefaultMiniScannerInfoOrder, StringComparer.Ordinal);
-        var result = new List<string>(DefaultMiniScannerInfoOrder.Length);
-        foreach (var value in values ?? [])
-        {
-            if (known.Contains(value) && !result.Contains(value, StringComparer.Ordinal))
-                result.Add(value);
-        }
-
-        foreach (var value in DefaultMiniScannerInfoOrder)
-        {
-            if (!result.Contains(value, StringComparer.Ordinal))
-                result.Add(value);
-        }
-        return result;
     }
 
     private static string NormalizeHotkey(string? value, ScannerHotkeyGesture fallback)
