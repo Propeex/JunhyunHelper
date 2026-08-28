@@ -118,9 +118,34 @@
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest"
              ExcludeFromSingleFile="true" />
+    <Content Include="../../vendor/Tarkov-Helper/TarkovHelper/Assets/DB/Maps/*.svg"
+             Link="Assets/DB/Maps/%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true" />
+    <Content Include="../../vendor/Tarkov-Helper/TarkovHelper/Assets/DB/Icons/*.svg"
+             Link="Assets/DB/Icons/%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true" />
+    <Content Include="../../vendor/Tarkov-Helper/TarkovHelper/Assets/DB/Icons/Markers/*.svg"
+             Link="Assets/DB/Icons/Markers/%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true" />
   </ItemGroup>
 
-  <Target Name="GenerateJunhyunHelperIcon" BeforeTargets="CoreCompile" Condition="'$(DesignTimeBuild)' != 'true'">
-    <Exec Command="dotnet run --project &quot;$(MSBuildProjectDirectory)\Build\IconBuilder\JunhyunHelper.IconBuilder.csproj&quot; -- &quot;$(MSBuildProjectDirectory)\Assets\AppIcon.png&quot; &quot;$(ApplicationIcon)&quot;" />
+  <Target Name="GenerateJunhyunHelperApplicationIcon" BeforeTargets="CoreCompile">
+    <Exec Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\Build\GenerateApplicationIcon.ps1&quot; -Source &quot;$(MSBuildProjectDirectory)\Assets/AppIcon.png&quot; -Destination &quot;$(ApplicationIcon)&quot;" />
+  </Target>
+
+  <!-- Native NuGet packages can contribute PDBs even when DebugType=None. They are
+       useful to developers but not to users and previously added ~89 MB uncompressed
+       to the Windows package. Keep release ZIPs free of all debug symbol files. -->
+  <Target Name="RemovePublishDebugSymbols" AfterTargets="Publish">
+    <ItemGroup>
+      <PublishDebugSymbols Include="$(PublishDir)**\*.pdb" />
+    </ItemGroup>
+    <Delete Files="@(PublishDebugSymbols)" />
   </Target>
 </Project>
