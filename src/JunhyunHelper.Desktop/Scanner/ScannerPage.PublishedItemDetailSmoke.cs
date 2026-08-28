@@ -154,9 +154,11 @@ public partial class ScannerPage
             .ToArray();
         if (!acquisitionText.Contains("레이드 획득 가능", StringComparer.Ordinal) ||
             !acquisitionText.Any(text => text.Contains("12,345 ₽", StringComparison.Ordinal)) ||
-            !acquisitionText.Any(text => text.Contains("65,432 ₽", StringComparison.Ordinal)))
+            !acquisitionText.Any(text => text.Contains("65,432₽", StringComparison.Ordinal)))
         {
-            throw new InvalidOperationException("Scanner purchase/raid runtime text did not match the v1.8.4 contract.");
+            throw new InvalidOperationException(
+                "Scanner purchase/raid runtime text did not match the v1.8.4 contract: " +
+                string.Join(" | ", acquisitionText));
         }
 
         var relationshipButtons = EnumerateSmokeDescendants<Button>(_craftUsageItems)
