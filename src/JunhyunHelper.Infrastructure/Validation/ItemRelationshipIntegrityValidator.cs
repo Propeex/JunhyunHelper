@@ -9,12 +9,23 @@ public sealed class ItemRelationshipIntegrityValidator
     {
         ArgumentNullException.ThrowIfNull(content);
 
+        // v3-v7 snapshots are intentionally readable and contain no relationship graph.
+        // Fresh v8+ builds always provide ItemRelationshipData, so null means legacy data
+        // rather than a valid newly collected empty graph.
+        if (content.ItemRelationshipData is null)
+            return new ContentValidationResult(Array.Empty<ContentValidationIssue>());
+
         var issues = new List<ContentValidationIssue>();
         var items = content.Items.Select(item => item.Id).ToHashSet(StringComparer.Ordinal);
         var traders = content.Traders.Select(trader => trader.Id).ToHashSet(StringComparer.Ordinal);
         var stations = content.HideoutStations.Select(station => station.Id).ToHashSet(StringComparer.Ordinal);
         var quests = content.Quests.Select(quest => quest.Id).ToHashSet(StringComparer.Ordinal);
-        var relationships = content.ItemRelationships;
+        var relationships = content.ItemRelationshipData;
+
+        RequireNonEmpty(relationships.TraderPurchases, "item-relationship.purchases.empty", "Trader purchase relationship catalog is empty.", issues);
+        RequireNonEmpty(relationships.Barters, "item-relationship.barters.empty", "Trader barter relationship catalog is empty.", issues);
+        RequireNonEmpty(relationships.Crafts, "item-relationship.crafts.empty", "Hideout craft relationship catalog is empty.", issues);
+        RequireNonEmpty(relationships.FleaMarketItemIds, "item-relationship.flea.empty", "Flea market relationship catalog is empty.", issues);
 
         var purchaseKeys = new HashSet<string>(StringComparer.Ordinal);
         foreach (var purchase in relationships.TraderPurchases)
@@ -87,6 +98,10 @@ public sealed class ItemRelationshipIntegrityValidator
         }
     }
 
+    private static void RequireNonEmpty<T>(IReadOnlyCollection<T> values, string code, string message, ICollection<ContentValidationIssue> issues)
+    {
+        if (values.Count == 0) Fatal(issues, code, message);
+    }
     private static void RequireItem(IReadOnlySet<string> ids, string itemId, string code, string owner, ICollection<ContentValidationIssue> issues)
     {
         if (string.IsNullOrWhiteSpace(itemId) || !ids.Contains(itemId)) Fatal(issues, code, $"{owner} references missing item '{itemId}'.");
