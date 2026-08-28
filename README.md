@@ -4,7 +4,7 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 제품 상태
 
-현재 제품 상태는 **v1.8.2 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
+현재 제품 상태는 **v1.8.4 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
 
 현재 확정 요구사항 범위의 제품과 Scanner는 완성 상태입니다. 새로운 실제 회귀·Tarkov 호환성 변화·사용자가 명시적으로 확정한 새 제품 요구사항이 없는 한 선제적 기능 추가나 Scanner 인식 기준 조정을 시작하지 않습니다.
 
@@ -27,33 +27,35 @@ Scanner 전문 문서:
 ## 현재 공개 릴리즈
 
 ```text
-version: v1.8.2
-Desktop target version: 1.8.2
-exact product release source/tag target: a0a8390c7c863400a97d174e864c405c2e38f47f
-main CI: 33138083383 — SUCCESS
-Release workflow: 33138226890 — SUCCESS
-release id: 378240417
+version: v1.8.4
+Desktop target version: 1.8.4
+exact product release source/tag target: 13af4e3a452139dedc32b2db9aa51266e2a01d2a
+main CI: 33153043430 — SUCCESS
+Release workflow: 33153234911 — SUCCESS
+release id: 378333813
 stable asset: Junhyun-Helper.zip
-asset id: 533189452
-bytes: 80,520,794
-SHA-256: be83ec72d1678b2496e01ce4378708642e0bf0cc00cebeb407fa38756ecf1f0a
-421 passed / 0 failed / 0 skipped
+asset id: 533461834
+bytes: 80,528,868
+SHA-256: 9e06c16e20a346ad7691dccfee9a2caebcdb6c0cd9a6a35859bcb97d8e03fa42
+424 passed / 0 failed / 0 skipped
 ```
 
-GitHub `/releases/latest` 및 `refs/tags/v1.8.2` readback에서 v1.8.2가 `draft=false`, `prerelease=false`, latest stable이며 release target과 tag ref가 exact product release source와 일치함을 확인했습니다. 공개 ZIP digest도 exact main-CI package SHA-256과 일치합니다.
+GitHub `/releases/latest` 및 `refs/tags/v1.8.4` readback에서 v1.8.4가 `draft=false`, `prerelease=false`, latest stable이며 release target과 tag ref가 exact product release source와 일치함을 확인했습니다. 공개 ZIP의 byte size와 digest도 exact main-CI package와 일치합니다.
 
 공식 릴리즈 기록:
 
-- `docs/RELEASE_1.8.2.md`
-- `docs/RELEASE_NOTES_V1.8.2.md`
-- `docs/.release-v1.8.2-status.json`
+- `docs/RELEASE_1.8.4.md`
+- `docs/RELEASE_NOTES_V1.8.4.md`
+- `docs/.release-v1.8.4-status.json`
+- `docs/DECISION_V1.8.4_AMMO_SCANNER_ITEM_DETAIL.md`
+- `docs/RELEASE_1.8.2.md` — 런타임 UI / live Game Content 회귀 수정
 - `docs/DECISION_V1.8.2_RUNTIME_LIVE_REGRESSIONS.md`
 - `docs/RELEASE_1.8.1.md` — 관계 데이터 completeness hardening 릴리즈
 - `docs/DECISION_V1.8.1_ITEM_RELATIONSHIP_COMPLETENESS.md`
 - `docs/RELEASE_1.8.0.md` — Scanner 아이템 정보 DB 기능 릴리즈
 - `docs/DECISION_V1.8.0_SCANNER_ITEM_DATABASE.md`
 
-이 README와 이후 documentation-only commit은 v1.8.2 제품 릴리즈 소스가 아닙니다. v1.8.2 product source/tag/assets는 위 `a0a8390c...` 기준의 immutable historical release입니다.
+이 README와 이후 documentation-only commit은 v1.8.4 제품 릴리즈 소스가 아닙니다. v1.8.4 product source/tag/assets는 위 `13af4e3a...` 기준의 immutable historical release입니다.
 
 ## 설치 / 실행
 
@@ -92,6 +94,55 @@ Junhyun-Helper.zip
 - 사용자 동의형 Program Update
 
 Runtime GPT/AI 의존성은 없습니다.
+
+## v1.8.4 — Ammo 툴바 / Scanner 아이템 상세
+
+v1.8.4는 새 Scanner recognition 기능을 추가하지 않고 기존 Ammo UI와 Scanner 아이템 정보 DB의 표시 구조를 다듬는 PATCH입니다.
+
+### Ammo
+
+- `즐겨찾기 선택`을 의도한 왼쪽 선택 영역에 유지합니다.
+- `표시 열` 버튼을 툴바 오른쪽 끝에 유지합니다.
+- 구경/즐겨찾기 ComboBox는 기존 shared animated caliber icon state와 timer를 그대로 사용합니다.
+
+### Scanner 아이템 상세
+
+- 상세는 기본 정보 → 사용처 → 수급처의 단일 세로 흐름입니다.
+- 기본 정보는 크기, 플리마켓 평균가, 최고 상인 판매가, 현재 필요한 개수 네 항목만 표시합니다.
+- Quest/Hideout 사용처는 기존 navigation을 유지합니다.
+- craft/barter는 결과 아이템과 전체 재료를 함께 보여주는 recipe card로 표시합니다.
+- 좁은 폭에서는 재료가 자연스럽게 다음 줄로 넘어갑니다.
+- 관련 재료/교환 아이템을 클릭하면 같은 Scanner 상세로 이동합니다.
+- 수급처는 제작, 교환, 구매, 레이드 획득으로 구분하고 빈 그룹은 표시하지 않습니다.
+
+### Published executable 검증
+
+source assertion만으로 UI 성공을 선언하지 않습니다. exact-main CI가 실제 self-contained Windows EXE를 실행해 다음 evidence를 확인했습니다.
+
+```text
+Ammo animated dropdown:
+rendered-caliber-image=ok
+rendered-favorite-image=ok
+shared-timer-cycle=ok
+
+Ammo toolbar:
+favorite-selector-left=ok
+displayed-columns-visible=ok
+displayed-columns-right-edge=ok
+
+Scanner item detail:
+basic-four-fields=ok
+empty-sections-hidden=ok
+recipe-wrap=ok
+related-item-buttons=ok
+acquisition-groups=ok
+```
+
+같은 실행에서 Product UI, Main Map, Factory, MiniMap, graceful shutdown도 성공했습니다.
+
+공개 직전 current `json.tarkov.dev` Regular/PvE production canonical probe도 양쪽 모두 fatal 0으로 통과했습니다.
+
+Scanner OCR threshold/matcher/candidate cap/visual recovery acceptance와 Game Content LKG/completeness/fail-closed 계약은 변경하지 않았습니다.
 
 ## v1.8.2 — 런타임 UI / 실시간 Game Content 회귀 수정
 
@@ -283,10 +334,12 @@ d933792b6042a51cea38dc44b686a096fe30de67
 → root cause와 영향 범위 확인
 → 최소한의 일관된 수정
 → deterministic regression
+→ published executable runtime evidence when user-visible WPF changes
+→ current live source probe when external schema/meaning changes
 → full Windows release gate
 → 필요한 경우 PATCH release
 ```
 
 Published stable release는 공개 후 교체하지 않습니다. 같은 version에서 documentation-only main commit이 다른 ProductVersion metadata/bytes를 만들더라도 이미 공개된 ZIP/tag/source를 덮어쓰지 않습니다.
 
-현재 v1.8.2 릴리즈 배치에 남은 제품 개발 작업은 없습니다. 기본 운영 모드는 유지보수입니다.
+현재 v1.8.4 릴리즈 배치에 남은 제품 개발 작업은 없습니다. 기본 운영 모드는 유지보수입니다.
