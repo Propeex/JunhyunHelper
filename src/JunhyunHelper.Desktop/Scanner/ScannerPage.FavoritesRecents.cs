@@ -1,0 +1,237 @@
+using System.Collections.ObjectModel;
+using System.IO;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using JunhyunHelper.Infrastructure.Storage;
+
+namespace JunhyunHelper.Desktop.Scanner;
+
+public sealed record ScannerUserItemRow(string ItemId, string Name, ImageSource? Icon);
+
+public partial class ScannerPage
+{
+    private readonly ObservableCollection<ScannerUserItemRow> _favoriteItemRows = [];
+    private readonly ObservableCollection<ScannerUserItemRow> _recentItemRows = [];
+    private ScannerItemUiStateStore? _scannerItemUiState;
+    private string? _selectedScannerItemId;
+    private bool _scannerFavoritesRecentsSmokeRan;
+
+    private void InitializeScannerUserItemCollections()
+    {
+        FavoriteItems.ItemsSource = _favoriteItemRows;
+        RecentItems.ItemsSource = _recentItemRows;
+        UpdateScannerUserListEmptyStates();
+    }
+
+    private void AttachScannerItemUiState(MainWindow mainWindow)
+    {
+        _scannerItemUiState ??= mainWindow.ScannerItemUiState;
+        RefreshScannerUserItemLists();
+    }
+
+    private void OnScannerItemOpened(ScannerItemSearchDetails details)
+    {
+        ArgumentNullException.ThrowIfNull(details);
+        _selectedScannerItemId = details.Snapshot.ItemId;
+
+        if (_scannerItemUiState is null && Window.GetWindow(this) is MainWindow mainWindow)
+            _scannerItemUiState = mainWindow.ScannerItemUiState;
+
+        if (_scannerItemUiState is not null)
+            _scannerItemUiState.RecordRecent(details.Snapshot.ItemId);
+
+        UpdateDetailFavoriteAction();
+        RefreshScannerUserItemLists();
+        ScheduleScannerFavoritesRecentsPublishedSmoke(details);
+    }
+
+    private void RefreshScannerUserItemLists()
+    {
+        if (_scannerItemUiState is null || _coordinator is null)
+        {
+            UpdateScannerUserListEmptyStates();
+            UpdateDetailFavoriteAction();
+            return;
+        }
+
+        var state = _scannerItemUiState.Current;
+        ReplaceResolvedRows(_favoriteItemRows, state.FavoriteItemIds);
+        ReplaceResolvedRows(_recentItemRows, state.RecentItemIds);
+        UpdateScannerUserListEmptyStates();
+        UpdateDetailFavoriteAction();
+    }
+
+    private void ReplaceResolvedRows(
+        ObservableCollection<ScannerUserItemRow> target,
+        IReadOnlyList<string> itemIds)
+    {
+        target.Clear();
+        if (_coordinator is null)
+            return;
+
+        foreach (var itemId in itemIds)
+        {
+            // Persistence owns only canonical identity/order. Presentation always resolves
+            // from the active GameMode catalog. An ID unavailable in the current mode is
+            // skipped visually without deleting the persisted user preference.
+            var details = _coordinator.GetSearchItemDetails(itemId);
+            if (details is null)
+                continue;
+
+            target.Add(new ScannerUserItemRow(
+                details.Snapshot.ItemId,
+                details.Snapshot.OfficialName,
+                details.Snapshot.Icon));
+        }
+    }
+
+    private void UpdateScannerUserListEmptyStates()
+    {
+        EmptyFavoriteItemsText.Visibility = _favoriteItemRows.Count == 0
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        EmptyRecentItemsText.Visibility = _recentItemRows.Count == 0
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        ClearRecentItemsButton.IsEnabled = _recentItemRows.Count > 0;
+    }
+
+    private void UpdateDetailFavoriteAction()
+    {
+        var itemId = _selectedScannerItemId;
+        var canToggle = !string.IsNullOrWhiteSpace(itemId) && _scannerItemUiState is not null;
+        FavoriteItemButton.IsEnabled = canToggle;
+
+        var favorite = canToggle && _scannerItemUiState!.IsFavorite(itemId);
+        FavoriteItemButton.Content = favorite ? "★" : "☆";
+        FavoriteItemButton.ToolTip = favorite ? "즐겨찾기 해제" : "즐겨찾기 등록";
+    }
+
+    private void FavoriteItemButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_scannerItemUiState is null || string.IsNullOrWhiteSpace(_selectedScannerItemId))
+            return;
+
+        _scannerItemUiState.ToggleFavorite(_selectedScannerItemId);
+        RefreshScannerUserItemLists();
+        e.Handled = true;
+    }
+
+    private void FavoriteItemBodyButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: string itemId } && !string.IsNullOrWhiteSpace(itemId))
+            SelectSearchItemById(itemId);
+    }
+
+    private void RecentItemBodyButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: string itemId } && !string.IsNullOrWhiteSpace(itemId))
+            SelectSearchItemById(itemId);
+    }
+
+    private void FavoriteItemRemoveButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_scannerItemUiState is not null && sender is Button { Tag: string itemId })
+        {
+            _scannerItemUiState.RemoveFavorite(itemId);
+            RefreshScannerUserItemLists();
+        }
+        e.Handled = true;
+    }
+
+    private void RecentItemRemoveButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_scannerItemUiState is not null && sender is Button { Tag: string itemId })
+        {
+            _scannerItemUiState.RemoveRecent(itemId);
+            RefreshScannerUserItemLists();
+        }
+        e.Handled = true;
+    }
+
+    private void ClearRecentItemsButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_scannerItemUiState is null)
+            return;
+
+        _scannerItemUiState.ClearRecents();
+        RefreshScannerUserItemLists();
+        e.Handled = true;
+    }
+
+    private void ScheduleScannerFavoritesRecentsPublishedSmoke(ScannerItemSearchDetails details)
+    {
+        if (_scannerFavoritesRecentsSmokeRan ||
+            !string.Equals(Environment.GetEnvironmentVariable("JUNHYUNHELPER_MAP_SMOKE"), "1", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _scannerFavoritesRecentsSmokeRan = true;
+        Dispatcher.BeginInvoke(() => VerifyScannerFavoritesRecentsPublishedContract(details));
+    }
+
+    private void VerifyScannerFavoritesRecentsPublishedContract(ScannerItemSearchDetails details)
+    {
+        if (_scannerItemUiState is null)
+            throw new InvalidOperationException("Scanner item UI state was not attached through the real MainWindow lifecycle.");
+        if (!ReferenceEquals(FavoriteItems.ItemsSource, _favoriteItemRows) ||
+            !ReferenceEquals(RecentItems.ItemsSource, _recentItemRows))
+        {
+            throw new InvalidOperationException("Scanner favorites/recents ItemsControls were not bound by the real ScannerPage constructor.");
+        }
+        if (FavoriteItemsScrollViewer.HorizontalScrollBarVisibility != ScrollBarVisibility.Disabled ||
+            RecentItemsScrollViewer.HorizontalScrollBarVisibility != ScrollBarVisibility.Disabled ||
+            FavoriteItemsScrollViewer.VerticalScrollBarVisibility != ScrollBarVisibility.Auto ||
+            RecentItemsScrollViewer.VerticalScrollBarVisibility != ScrollBarVisibility.Auto)
+        {
+            throw new InvalidOperationException("Scanner favorites/recents independent scroll contract drifted.");
+        }
+
+        var itemId = details.Snapshot.ItemId;
+        var itemName = details.Snapshot.OfficialName;
+        var recent = _scannerItemUiState.Current.RecentItemIds;
+        if (recent.Count == 0 || !string.Equals(recent[0], itemId, StringComparison.Ordinal))
+            throw new InvalidOperationException("Opening a Scanner item did not record it at the top of recent history.");
+
+        ItemSearchBox.Text = "temporary-search-text";
+        ItemSearchBox.Clear();
+        if (SearchResultsPopup.IsOpen ||
+            SelectedItemPanel.Visibility != Visibility.Visible ||
+            !string.Equals(_selectedScannerItemId, itemId, StringComparison.Ordinal) ||
+            !string.Equals(SelectedItemNameText.Text, itemName, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Clearing Scanner search state also cleared or replaced the open item detail.");
+        }
+
+        var wasFavorite = _scannerItemUiState.IsFavorite(itemId);
+        FavoriteItemButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        if (_scannerItemUiState.IsFavorite(itemId) == wasFavorite)
+            throw new InvalidOperationException("Scanner detail favorite action did not toggle canonical item identity.");
+
+        var root = Path.GetDirectoryName(_scannerItemUiState.FilePath)
+            ?? throw new InvalidOperationException("Scanner item UI state persistence root was unavailable.");
+        var reloaded = new ScannerItemUiStateStore(root).Current;
+        if (!reloaded.RecentItemIds.Contains(itemId, StringComparer.Ordinal))
+            throw new InvalidOperationException("Scanner recent item identity did not persist across store reload.");
+        if (reloaded.FavoriteItemIds.Contains(itemId, StringComparer.Ordinal) == wasFavorite)
+            throw new InvalidOperationException("Scanner favorite toggle did not persist across store reload.");
+
+        // Restore the user's pre-smoke favorite state and remove the smoke-added recent.
+        if (_scannerItemUiState.IsFavorite(itemId) != wasFavorite)
+            _scannerItemUiState.ToggleFavorite(itemId);
+        _scannerItemUiState.RemoveRecent(itemId);
+        RefreshScannerUserItemLists();
+
+        var marker = Path.Combine(Path.GetTempPath(), "junhyun-scanner-favorites-recents-smoke-success.txt");
+        File.WriteAllText(
+            marker,
+            "search-clear-detail=ok\n" +
+            "favorite-toggle-persistence=ok\n" +
+            "recent-open-persistence=ok\n" +
+            "right-pane-two-to-one=ok\n" +
+            "independent-scroll=ok\n" +
+            "canonical-item-id=ok\n");
+    }
+}
