@@ -6,43 +6,44 @@ namespace JunhyunHelper.Tests.Maintenance;
 public sealed class V183VisibleUiActivationContractTests
 {
     [Fact]
-    public void AmmoVisibleDropdowns_ActivateFromRoutedLoadedWithoutOriginalSourceGate()
+    public void AmmoVisibleDropdowns_ActivateDuringPageInitialization()
     {
         var root = FindRepositoryRoot();
         var source = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.VisibleDropdownActivation.cs");
 
-        Assert.Contains("[ModuleInitializer]", source, StringComparison.Ordinal);
-        Assert.Contains("FrameworkElement.LoadedEvent", source, StringComparison.Ordinal);
-        Assert.Contains("if (sender is not AmmoPage page)", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("ReferenceEquals(e.OriginalSource, page)", source, StringComparison.Ordinal);
-        Assert.Contains("page.ApplyProductCaliberDropdownPolish();", source, StringComparison.Ordinal);
-        Assert.Contains("VerifyProductVisibleDropdownLoadedActivation", source, StringComparison.Ordinal);
+        Assert.Contains("protected override void OnInitialized(EventArgs e)", source, StringComparison.Ordinal);
+        Assert.Contains("EnsureProductVisibleDropdownInitialization();", source, StringComparison.Ordinal);
+        Assert.Contains("ApplyProductCaliberDropdownPolish();", source, StringComparison.Ordinal);
+        Assert.Contains("_productVisibleDropdownActivatedFromInitialization = true", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("RegisterProductVisibleDropdownActivation", source, StringComparison.Ordinal);
+        Assert.Contains("VerifyProductVisibleDropdownInitialization", source, StringComparison.Ordinal);
         Assert.Contains("FavoriteCaliberMenuButton.Visibility != Visibility.Collapsed", source, StringComparison.Ordinal);
         Assert.Contains("ReferenceEquals(CaliberComboBox.ItemTemplate, _productFavoriteCaliberComboBox.ItemTemplate)", source, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void AmmoPublishedSmoke_ChecksLoadedActivationBeforeLegacySmokeCanRepairIt()
+    public void AmmoPublishedSmoke_CannotRepairMissingProductInitialization()
     {
         var root = FindRepositoryRoot();
         var source = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.VisibleDropdownActivation.cs");
 
         Assert.Contains("typeof(MainWindow)", source, StringComparison.Ordinal);
-        Assert.Contains("window.AmmoPage.VerifyProductVisibleDropdownLoadedActivation();", source, StringComparison.Ordinal);
-        Assert.Contains("older published Ammo smoke", source, StringComparison.Ordinal);
-        Assert.Contains("direct initializer cannot set this flag", source, StringComparison.Ordinal);
+        Assert.Contains("window.AmmoPage.VerifyProductVisibleDropdownInitialization();", source, StringComparison.Ordinal);
+        Assert.Contains("cannot hide a missing real product initialization", source, StringComparison.Ordinal);
         Assert.Contains("Environment.Exit(88)", source, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void MapMarkerCheckboxViewport_UsesTheWholeAvailablePanelBody()
+    public void MapMarkerCheckboxViewport_ActivatesDuringPageInitializationAndUsesWholeBody()
     {
         var root = FindRepositoryRoot();
         var source = Read(root, "src", "JunhyunHelper.Desktop", "Map", "MapPage.JunhyunMarkerPanelBodyLayout.cs");
 
-        Assert.Contains("[ModuleInitializer]", source, StringComparison.Ordinal);
-        Assert.Contains("if (sender is not MapPage page)", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("ReferenceEquals(e.OriginalSource, page)", source, StringComparison.Ordinal);
+        Assert.Contains("protected override void OnInitialized(EventArgs e)", source, StringComparison.Ordinal);
+        Assert.Contains("EnsureProductMarkerPanelBodyLayoutActivation();", source, StringComparison.Ordinal);
+        Assert.Contains("ApplyJunhyunUiSimplification();", source, StringComparison.Ordinal);
+        Assert.Contains("ApplyJunhyunMarkerPanelPolish();", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("RegisterProductMarkerPanelBodyLayoutActivation", source, StringComparison.Ordinal);
         Assert.Contains("VerticalAlignment = VerticalAlignment.Stretch", source, StringComparison.Ordinal);
         Assert.Contains("requestedPanelHeight", source, StringComparison.Ordinal);
         Assert.Contains("panelHeight - headerHeight - verticalChrome", source, StringComparison.Ordinal);
