@@ -45,6 +45,26 @@ public sealed class V190ScannerNavigationContractTests
     }
 
     [Fact]
+    public void Visible_scanner_repairs_catalog_mode_drift_without_reordering_recent_history()
+    {
+        var root = FindRepositoryRoot();
+        var favorites = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.FavoritesRecents.cs");
+        var normalized = Normalize(favorites);
+
+        Assert.Contains("ScannerPresentationContextInterval = TimeSpan.FromMilliseconds(750)", favorites, StringComparison.Ordinal);
+        Assert.Contains("if (IsLoaded && IsVisible)", favorites, StringComparison.Ordinal);
+        Assert.Contains("_coordinator.CatalogMode == context.GameMode", favorites, StringComparison.Ordinal);
+        Assert.Contains("await _coordinator.RefreshContextAsync();", favorites, StringComparison.Ordinal);
+        Assert.Contains("RefreshScannerUserItemLists();\n            RefreshOpenScannerItemForCurrentContext();", normalized, StringComparison.Ordinal);
+
+        var refreshMethod = normalized.Split("private void RefreshOpenScannerItemForCurrentContext()", StringSplitOptions.None)[1]
+            .Split("private void ScheduleScannerFavoritesRecentsPublishedSmoke", StringSplitOptions.None)[0];
+        Assert.Contains("RenderSearchDetails(details);", refreshMethod, StringComparison.Ordinal);
+        Assert.Contains("RenderProductItemExtensions(details);", refreshMethod, StringComparison.Ordinal);
+        Assert.DoesNotContain("OnScannerItemOpened", refreshMethod, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Published_ammo_smoke_verifies_real_lifecycle_instead_of_initializing_the_feature()
     {
         var root = FindRepositoryRoot();
