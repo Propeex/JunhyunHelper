@@ -33,9 +33,7 @@ public sealed partial class ScannerCoordinator
         if (context is null || _catalog.LoadedMode != context.GameMode || !_catalog.HasHealthyCatalog)
             return [];
 
-        var contentById = context.Content.Items.Where(item => !string.IsNullOrWhiteSpace(item.Id))
-            .GroupBy(item => item.Id, StringComparer.Ordinal)
-            .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+        var contentById = CreateContentById(context.Content.Items);
 
         return _catalog.GetItemsSnapshot()
             .Select(item => new { Item = item, Rank = SearchRank(item.OfficialName, item.ShortName, text) })
@@ -44,6 +42,30 @@ public sealed partial class ScannerCoordinator
             .ThenBy(entry => entry.Item.OfficialName, StringComparer.CurrentCultureIgnoreCase)
             .Take(Math.Clamp(maximumResults, 1, 50))
             .Select(entry => CreateSearchHit(entry.Item, contentById)).ToArray();
+    }
+
+    /// <summary>
+    /// Resolves current-mode presentation for a canonical saved item ID without building
+    /// expensive quest/hideout/craft relationship details. Favorites and recent-history
+    /// lists use this path because their persisted authority is identity/order only.
+    /// </summary>
+    public ScannerItemSearchHit? GetSearchItemHit(string? itemId)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (string.IsNullOrWhiteSpace(itemId))
+            return null;
+
+        var context = GetContext();
+        if (context is null || _catalog.LoadedMode != context.GameMode || !_catalog.HasHealthyCatalog)
+            return null;
+
+        var normalizedItemId = itemId.Trim();
+        var catalogItem = _catalog.GetItemsSnapshot().FirstOrDefault(item =>
+            string.Equals(item.Id, normalizedItemId, StringComparison.Ordinal));
+        if (catalogItem is null)
+            return null;
+
+        return CreateSearchHit(catalogItem, CreateContentById(context.Content.Items));
     }
 
     public ScannerItemSearchDetails? GetSearchItemDetails(string? itemId)
@@ -80,6 +102,11 @@ public sealed partial class ScannerCoordinator
             basic,
             BuildItemRelationshipDetails(context, snapshot.ItemId));
     }
+
+    private static IReadOnlyDictionary<string, GameItem> CreateContentById(IEnumerable<GameItem> items) =>
+        items.Where(item => !string.IsNullOrWhiteSpace(item.Id))
+            .GroupBy(item => item.Id, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
 
     private ScannerItemSearchHit CreateSearchHit(ScannerCatalogItem item, IReadOnlyDictionary<string, GameItem> contentById)
     {
