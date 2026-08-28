@@ -34,6 +34,7 @@ public sealed class TarkovItemImporter
                 .Select(categoryId => categoryKeysById[categoryId])
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
+            var typeKeys = ReadStringArray(raw, "types");
 
             result.Add(new GameItem(
                 id,
@@ -44,7 +45,15 @@ public sealed class TarkovItemImporter
                 TarkovJsonReader.OptionalString(raw, "iconLink"),
                 TarkovJsonReader.OptionalString(raw, "wikiLink"),
                 categoryIds,
-                categoryKeys));
+                categoryKeys,
+                typeKeys,
+                TarkovJsonReader.OptionalInt(raw, "width"),
+                TarkovJsonReader.OptionalInt(raw, "height"),
+                OptionalDecimal(raw, "weight"),
+                TarkovJsonReader.OptionalInt(raw, "basePrice"),
+                typeKeys.Length == 0
+                    ? null
+                    : !typeKeys.Contains("noFlea", StringComparer.OrdinalIgnoreCase)));
         }
 
         return result;
@@ -104,5 +113,38 @@ public sealed class TarkovItemImporter
             .Cast<string>()
             .Distinct(StringComparer.Ordinal)
             .ToArray();
+    }
+
+    private static string[] ReadStringArray(JsonElement parent, string propertyName)
+    {
+        if (!parent.TryGetProperty(propertyName, out var values) ||
+            values.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            return [];
+        }
+
+        if (values.ValueKind != JsonValueKind.Array)
+            throw new InvalidDataException($"Item '{propertyName}' must be an array when present.");
+
+        return values.EnumerateArray()
+            .Where(static value => value.ValueKind == JsonValueKind.String)
+            .Select(static value => value.GetString())
+            .Where(static value => !string.IsNullOrWhiteSpace(value))
+            .Cast<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static decimal? OptionalDecimal(JsonElement parent, string propertyName)
+    {
+        if (!parent.TryGetProperty(propertyName, out var value) ||
+            value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            return null;
+        }
+
+        return value.ValueKind == JsonValueKind.Number && value.TryGetDecimal(out var number)
+            ? number
+            : null;
     }
 }

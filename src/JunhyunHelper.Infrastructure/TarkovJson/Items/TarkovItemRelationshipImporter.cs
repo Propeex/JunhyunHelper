@@ -37,25 +37,24 @@ public sealed class TarkovItemRelationshipImporter
                 continue;
             }
 
-            foreach (var rawOffer in TarkovJsonReader.ReadCollectionValue(
-                         rawOffers,
-                         $"item {itemId} trader purchases"))
+            foreach (var rawOffer in TarkovJsonReader.ReadCollectionValue(rawOffers, $"item {itemId} trader purchases"))
             {
                 purchases.Add(new ItemTraderPurchase(
                     itemId,
                     RequiredReference(rawOffer, "trader", $"Item '{itemId}' trader purchase"),
                     RequiredNonNegativeInt(rawOffer, "minTraderLevel", itemId),
-                    OptionalReference(rawOffer, "taskUnlock")));
+                    OptionalReference(rawOffer, "taskUnlock"),
+                    RequiredPositiveDecimal(rawOffer, "price", $"Item '{itemId}' trader purchase"),
+                    RequiredReference(rawOffer, "currencyItem", $"Item '{itemId}' trader purchase"),
+                    TarkovJsonReader.OptionalString(rawOffer, "currency"),
+                    OptionalNonNegativeInt(rawOffer, "buyLimit", $"Item '{itemId}' trader purchase")));
             }
         }
 
         return new ItemRelationshipCatalog(
-            purchases
-                .DistinctBy(value => (value.ItemId, value.TraderId, value.RequiredLevel, value.TaskUnlockQuestId))
-                .OrderBy(value => value.ItemId, StringComparer.Ordinal)
+            purchases.OrderBy(value => value.ItemId, StringComparer.Ordinal)
                 .ThenBy(value => value.TraderId, StringComparer.Ordinal)
-                .ThenBy(value => value.RequiredLevel)
-                .ToArray(),
+                .ThenBy(value => value.RequiredLevel).ToArray(),
             ReadBarters(bartersDocument.Data),
             ReadCrafts(craftsDocument.Data),
             fleaItems.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray());
@@ -82,15 +81,14 @@ public sealed class TarkovItemRelationshipImporter
                 RequiredReference(offered, "item", $"Barter '{id}' offered item"),
                 RequiredPositiveDecimal(offered, "count", $"Barter '{id}' offered item"),
                 requirements,
-                OptionalReference(raw, "taskUnlock")));
+                OptionalReference(raw, "taskUnlock"),
+                OptionalNonNegativeInt(raw, "buyLimit", $"Barter '{id}'")));
         }
 
-        return result
-            .OrderBy(value => value.TraderId, StringComparer.Ordinal)
+        return result.OrderBy(value => value.TraderId, StringComparer.Ordinal)
             .ThenBy(value => value.RequiredLevel)
             .ThenBy(value => value.ProductItemId, StringComparer.Ordinal)
-            .ThenBy(value => value.Id, StringComparer.Ordinal)
-            .ToArray();
+            .ThenBy(value => value.Id, StringComparer.Ordinal).ToArray();
     }
 
     private static IReadOnlyList<ItemCraft> ReadCrafts(JsonElement data)
@@ -103,29 +101,29 @@ public sealed class TarkovItemRelationshipImporter
 
             var id = TarkovJsonReader.RequiredString(raw, "id", "Craft");
             var product = RequiredObject(raw, "productItem", $"Craft '{id}'");
+            var requirements = ReadRequirements(raw, "requiredItems", $"Craft '{id}'", allowTool: true);
+            if (requirements.Count == 0)
+                throw new InvalidDataException($"Craft '{id}' has no required items.");
+
             result.Add(new ItemCraft(
                 id,
                 RequiredReference(raw, "station", $"Craft '{id}'"),
                 RequiredNonNegativeInt(raw, "level", id),
                 RequiredReference(product, "item", $"Craft '{id}' product item"),
                 RequiredPositiveDecimal(product, "count", $"Craft '{id}' product item"),
-                ReadRequirements(raw, "requiredItems", $"Craft '{id}'", allowTool: true),
-                OptionalReference(raw, "taskUnlock")));
+                requirements,
+                OptionalReference(raw, "taskUnlock"),
+                RequiredNonNegativeInt(raw, "duration", id)));
         }
 
-        return result
-            .OrderBy(value => value.StationId, StringComparer.Ordinal)
+        return result.OrderBy(value => value.StationId, StringComparer.Ordinal)
             .ThenBy(value => value.RequiredLevel)
             .ThenBy(value => value.ProductItemId, StringComparer.Ordinal)
-            .ThenBy(value => value.Id, StringComparer.Ordinal)
-            .ToArray();
+            .ThenBy(value => value.Id, StringComparer.Ordinal).ToArray();
     }
 
     private static IReadOnlyList<ItemIngredient> ReadRequirements(
-        JsonElement parent,
-        string propertyName,
-        string entityName,
-        bool allowTool)
+        JsonElement parent, string propertyName, string entityName, bool allowTool)
     {
         if (!parent.TryGetProperty(propertyName, out var rawRequirements) ||
             rawRequirements.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
@@ -147,8 +145,7 @@ public sealed class TarkovItemRelationshipImporter
                     RequiredReference(raw, "item", entityName),
                     RequiredPositiveDecimal(raw, "count", entityName),
                     isTool);
-            })
-            .ToArray();
+            }).ToArray();
     }
 
     private static bool IsFleaMarketAvailable(JsonElement item)
@@ -159,9 +156,7 @@ public sealed class TarkovItemRelationshipImporter
             {
                 if (type.ValueKind == JsonValueKind.String &&
                     string.Equals(type.GetString(), "noFlea", StringComparison.OrdinalIgnoreCase))
-                {
                     return false;
-                }
             }
         }
 
@@ -171,13 +166,9 @@ public sealed class TarkovItemRelationshipImporter
 
     private static JsonElement RequiredObject(JsonElement parent, string propertyName, string entityName)
     {
-        if (parent.ValueKind == JsonValueKind.Object &&
-            parent.TryGetProperty(propertyName, out var value) &&
+        if (parent.ValueKind == JsonValueKind.Object && parent.TryGetProperty(propertyName, out var value) &&
             value.ValueKind == JsonValueKind.Object)
-        {
             return value;
-        }
-
         throw new InvalidDataException($"{entityName} is missing object '{propertyName}'.");
     }
 
@@ -185,7 +176,6 @@ public sealed class TarkovItemRelationshipImporter
     {
         if (!parent.TryGetProperty(propertyName, out var raw))
             throw new InvalidDataException($"{entityName} is missing reference '{propertyName}'.");
-
         var id = TarkovJsonReader.ReferenceId(raw);
         if (string.IsNullOrWhiteSpace(id))
             throw new InvalidDataException($"{entityName} has invalid reference '{propertyName}'.");
@@ -194,12 +184,8 @@ public sealed class TarkovItemRelationshipImporter
 
     private static string? OptionalReference(JsonElement parent, string propertyName)
     {
-        if (!parent.TryGetProperty(propertyName, out var raw) ||
-            raw.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
-        {
+        if (!parent.TryGetProperty(propertyName, out var raw) || raw.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
             return null;
-        }
-
         var id = TarkovJsonReader.ReferenceId(raw);
         if (string.IsNullOrWhiteSpace(id))
             throw new InvalidDataException($"Invalid optional reference '{propertyName}'.");
@@ -209,6 +195,14 @@ public sealed class TarkovItemRelationshipImporter
     private static int RequiredNonNegativeInt(JsonElement parent, string propertyName, string entityName)
     {
         var value = TarkovJsonReader.RequiredInt(parent, propertyName, entityName);
+        if (value < 0)
+            throw new InvalidDataException($"{entityName} has negative '{propertyName}'.");
+        return value;
+    }
+
+    private static int? OptionalNonNegativeInt(JsonElement parent, string propertyName, string entityName)
+    {
+        var value = TarkovJsonReader.OptionalInt(parent, propertyName);
         if (value < 0)
             throw new InvalidDataException($"{entityName} has negative '{propertyName}'.");
         return value;
