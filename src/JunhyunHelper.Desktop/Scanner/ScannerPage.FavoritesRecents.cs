@@ -83,15 +83,16 @@ public partial class ScannerPage
         {
             // Persistence owns only canonical identity/order. Presentation always resolves
             // from the active GameMode catalog. An ID unavailable in the current mode is
-            // skipped visually without deleting the persisted user preference.
-            var details = _coordinator.GetSearchItemDetails(itemId);
-            if (details is null)
+            // skipped visually without deleting the persisted user preference. This list
+            // path deliberately avoids full relationship construction for up to 50 rows.
+            var hit = _coordinator.GetSearchItemHit(itemId);
+            if (hit is null)
                 continue;
 
             target.Add(new ScannerUserItemRow(
-                details.Snapshot.ItemId,
-                details.Snapshot.OfficialName,
-                details.Snapshot.Icon));
+                hit.ItemId,
+                hit.OfficialName,
+                hit.Icon));
         }
     }
 
