@@ -4,31 +4,32 @@
 
 기준일: 2026-08-28 KST
 
-상태: **`v1.8.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE`**
+상태: **`v1.8.2 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE`**
 
 ## 공개 stable
 
-현재 공개 stable/latest는 **v1.8.1**이다.
+현재 공개 stable/latest는 **v1.8.2**다.
 
 ```text
-public stable/latest: v1.8.1
-exact product release source/tag target: dade2ef4dadbf58659b75c80d421bd3738003ff8
-main CI run: 33132600931 — SUCCESS
-release workflow run: 33132798167 — SUCCESS
-release id: 378212009
+public stable/latest: v1.8.2
+exact product release source/tag target: a0a8390c7c863400a97d174e864c405c2e38f47f
+main CI run: 33138083383 — SUCCESS
+release workflow run: 33138226890 — SUCCESS
+release id: 378240417
 stable asset: Junhyun-Helper.zip
-stable asset id: 533094287
-stable bytes: 80,520,704
-stable SHA-256: b30cbb045cc089c90108e2d3394510ef6778019ea0a50f6ae16d14de7aaafe9a
-checksum asset id: 533094286
-checksum asset SHA-256: ff45756d4f90b5852a5e85b7ec648a98e4a33000cccaeb6ec13658e22892c6d6
-418 passed / 0 failed / 0 skipped
-Product UI / Scanner / Main Map / Factory / MiniMap / graceful shutdown smoke: SUCCESS
+stable asset id: 533189452
+stable bytes: 80,520,794
+stable SHA-256: be83ec72d1678b2496e01ce4378708642e0bf0cc00cebeb407fa38756ecf1f0a
+checksum asset id: 533189451
+checksum asset SHA-256: 73ae27b7d11be8db2fd1119c78e1326ebdad7cd5a5c3982436620f463fa8e45e
+421 passed / 0 failed / 0 skipped
+Product UI / Ammo rendered icons / Main Map / Factory / MiniMap / graceful shutdown smoke: SUCCESS
+Regular/PvE live-data fatal validation: 0 / 0
 ```
 
-GitHub `/releases/latest` 및 `refs/tags/v1.8.1` readback:
+GitHub `/releases/latest` 및 `refs/tags/v1.8.2` readback:
 
-- tag `v1.8.1`
+- tag `v1.8.2`
 - release target/tag ref = exact product release source
 - draft = false
 - prerelease = false
@@ -38,19 +39,21 @@ GitHub `/releases/latest` 및 `refs/tags/v1.8.1` readback:
 
 공개 증거:
 
-- `docs/RELEASE_1.8.1.md`
-- `docs/.release-v1.8.1-status.json`
-- `docs/RELEASE_NOTES_V1.8.1.md`
+- `docs/RELEASE_1.8.2.md`
+- `docs/.release-v1.8.2-status.json`
+- `docs/RELEASE_NOTES_V1.8.2.md`
+- `docs/DECISION_V1.8.2_RUNTIME_LIVE_REGRESSIONS.md`
+- `docs/RELEASE_1.8.1.md` — 이전 relationship completeness hardening 릴리즈
 - `docs/DECISION_V1.8.1_ITEM_RELATIONSHIP_COMPLETENESS.md`
-- `docs/RELEASE_1.8.0.md` — 이전 Scanner 아이템 정보 DB 기능 릴리즈
+- `docs/RELEASE_1.8.0.md` — Scanner 아이템 정보 DB 기능 릴리즈
 - `docs/DECISION_V1.8.0_SCANNER_ITEM_DATABASE.md`
 
-이 상태 문서 동기화 이후의 documentation-only commit은 **v1.8.1 product release source가 아니다**. 제품 릴리즈 소스는 항상 위 `dade2ef4...`로 고정한다. 이미 공개된 v1.8.1 tag/source/assets는 immutable historical product release로 취급한다.
+이 상태 문서 동기화 이후의 documentation-only commit은 **v1.8.2 product release source가 아니다**. 제품 릴리즈 소스는 항상 위 `a0a8390c...`로 고정한다. 이미 공개된 v1.8.2 tag/source/assets는 immutable historical product release로 취급한다.
 
 ## Schema / compatibility
 
 ```text
-Desktop target version: 1.8.1
+Desktop target version: 1.8.2
 Content schema: v8
 Readable Content schemas: v3~v8
 user.db schema: v1
@@ -72,12 +75,55 @@ v8 Content snapshot은 Scanner 아이템 정보 DB용 canonical trader purchase 
 | Hideout | 구현 완료 |
 | Needed Items / Inventory | 구현 완료 |
 | Items | 구현 완료 |
-| Ammo | 구현 완료 |
+| Ammo | 구현 완료 / published runtime rendered-icon smoke 유지 |
 | Map + MiniMap | 구현 완료 / stable smoke 유지 |
-| Game Content Update | 구현 완료 / relationship LKG hardening 포함 |
+| Game Content Update | 구현 완료 / relationship LKG hardening + current live normalization 포함 |
 | Program Update | 구현 완료 / verified stable ZIP contract |
 | Scanner + Mini Scanner | **FEATURE COMPLETE / MAINTENANCE ONLY** |
 | Scanner 아이템 정보 DB | **IMPLEMENTED / PUBLIC STABLE** |
+
+## v1.8.2 — Runtime UI / Live Game Content Regression Repair
+
+v1.8.2는 v1.8.1 공개 뒤 실사용/실시간 source 검증에서 확인된 두 회귀를 닫는 PATCH다.
+
+### Ammo published runtime UI
+
+`AmmoPage`의 구경/즐겨찾기 드롭다운 runtime polish 등록을 static-field side effect의 비결정적 실행 시점에 맡기지 않는다. 명시적인 type initialization 경계에서 class handler가 먼저 등록되도록 고정했다.
+
+published executable smoke는 다음을 실제 렌더링 기준으로 검증한다.
+
+- 구경 ComboBox의 runtime icon template
+- 즐겨찾기 ComboBox의 runtime icon template
+- 실제 `Image` / `Image.Source` 생성
+- 두 selector의 동일 icon state
+- shared timer에 따른 icon cycle
+- legacy favorite menu 비표시/비활성
+
+구경 filtering과 즐겨찾기 저장 의미는 변경하지 않았다.
+
+### 현재 json.tarkov.dev 관계 shape
+
+Regular/PvE live probe에서 다음 현재 source shape를 확인했다.
+
+```text
+crafts: 214
+empty-required craft: 1
+Bitcoin passive production:
+  craft   5d5c205bd582a50d042a3c0e
+  station 5d494a445b56502f18c98a10
+  product 59faff1d86f7746c51718c9c
+
+items: 5312
+canonical-identical direct-purchase duplicate keys: 4 per mode
+Regular fatal validation issues: 0
+PvE fatal validation issues: 0
+```
+
+Bitcoin Farm의 위 audited identity는 GPU/station state 기반 passive production이므로 일반 재료 소비 craft relationship으로 만들지 않는다. 다른 empty-required craft는 계속 fail closed한다.
+
+trader `buyFromTrader`는 canonical model의 모든 의미 필드가 완전히 동일한 record만 deduplicate한다. 가격/화폐/trader/LL/quest unlock/buy limit 등 하나라도 다르면 별도 offer로 유지한다.
+
+Game Content LKG/completeness와 Scanner recognition 정책은 완화하지 않았다.
 
 ## v1.8.1 — Item Relationship Completeness Hardening
 
@@ -109,7 +155,7 @@ build
 
 v3~v7 `ItemRelationshipData == null`은 `관계 없음`이 아니라 `구형 schema에서 아직 수집하지 않음`이라는 legacy 의미를 그대로 유지한다.
 
-Scanner recognition threshold/matcher/visual recovery는 v1.8.1에서 변경하지 않았다.
+Scanner recognition threshold/matcher/visual recovery는 v1.8.1에서도 변경하지 않았다.
 
 ## v1.8.0 — Scanner 아이템 정보 DB
 
@@ -202,6 +248,9 @@ remote source
 - Wiki Ballistics enrichment는 fail-soft
 - User Progress와 Game Content authority 분리
 - v8 item relationship reference / price / count / limit 무결성도 active 교체 전에 검증
+- audited Bitcoin passive production identity만 일반 craft relationship import에서 제외
+- canonical-identical trader direct-purchase record만 deduplicate
+- 다른 empty-required craft와 의미가 다른 trader offer는 기존 보수적 의미 유지
 
 ## 유지보수 원칙
 
@@ -230,4 +279,4 @@ remote source
 9. 작업 영역 전문 문서
 10. current code / current PR / current CI
 
-현재 **v1.8.1 릴리즈 배치에 남은 제품 개발 작업은 없다.** 이후 기본 모드는 유지보수다.
+현재 **v1.8.2 릴리즈 배치에 남은 제품 개발 작업은 없다.** 이후 기본 모드는 유지보수다.
