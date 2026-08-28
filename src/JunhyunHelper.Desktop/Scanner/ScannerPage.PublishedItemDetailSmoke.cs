@@ -19,7 +19,16 @@ public partial class ScannerPage
             return;
         }
 
-        BuildItemRelationshipPresentation();
+        // Do not initialize product UI from the smoke. A published executable is valid
+        // only when the real ScannerPage lifecycle already activated these hosts.
+        if (!_productUsabilityInitialized ||
+            _basicInfoHost is null || _basicInfoItems is null ||
+            _questUsageHost is null || _hideoutUsageHost is null ||
+            _craftUsageHost is null || _craftUsageItems is null ||
+            _acquisitionHost is null || _acquisitionItems is null)
+        {
+            throw new InvalidOperationException("Scanner product item-detail lifecycle was not active before runtime verification.");
+        }
 
         var materials = new[]
         {
@@ -92,18 +101,14 @@ public partial class ScannerPage
                         []),
                 ]));
 
+        // Exercise the same product-owned item-open boundary that real search and every
+        // related-item navigation path use. v1.9.0 favorites/recents smoke is scheduled
+        // from this boundary without calling any initialization method itself.
+        RenderSearchDetails(details);
         RenderProductItemExtensions(details);
         SelectedItemPanel.Measure(new Size(460, 2000));
         SelectedItemPanel.Arrange(new Rect(0, 0, 460, Math.Max(1200, SelectedItemPanel.DesiredSize.Height)));
         SelectedItemPanel.UpdateLayout();
-
-        if (_basicInfoHost is null || _basicInfoItems is null ||
-            _questUsageHost is null || _hideoutUsageHost is null ||
-            _craftUsageHost is null || _craftUsageItems is null ||
-            _acquisitionHost is null || _acquisitionItems is null)
-        {
-            throw new InvalidOperationException("Scanner v1.8.4 item-detail runtime hosts were not created.");
-        }
 
         if (_basicInfoHost.Visibility != Visibility.Visible || _basicInfoItems.Children.Count != 4)
             throw new InvalidOperationException("Scanner basic-info runtime block did not render exactly four rows.");
@@ -206,7 +211,12 @@ public partial class ScannerPage
         var marker = Path.Combine(Path.GetTempPath(), "junhyun-scanner-item-detail-smoke-success.txt");
         File.WriteAllText(
             marker,
-            "basic-four-fields=ok\nempty-sections-hidden=ok\nrecipe-wrap=ok\nrelated-item-buttons=ok\nacquisition-groups=ok\n");
+            "product-lifecycle=ok\n" +
+            "basic-four-fields=ok\n" +
+            "empty-sections-hidden=ok\n" +
+            "recipe-wrap=ok\n" +
+            "related-item-buttons=ok\n" +
+            "acquisition-groups=ok\n");
     }
 
     private static IEnumerable<T> EnumerateSmokeDescendants<T>(DependencyObject root)
@@ -275,7 +285,7 @@ internal static class ScannerItemDetailPublishedSmokeGate
                     try
                     {
                         var diagnostic = Path.Combine(Path.GetTempPath(), "junhyun-map-smoke-error.txt");
-                        File.WriteAllText(diagnostic, "Scanner v1.8.4 published item-detail smoke failed.\n" + exception);
+                        File.WriteAllText(diagnostic, "Scanner v1.9.0 published item-detail smoke failed.\n" + exception);
                     }
                     catch
                     {
