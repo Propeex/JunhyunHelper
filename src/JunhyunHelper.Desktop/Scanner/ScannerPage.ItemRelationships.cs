@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using JunhyunHelper.Core.Scanner;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
@@ -15,8 +16,6 @@ public partial class ScannerPage
     private StackPanel? _hideoutUsageItems;
     private Border? _craftUsageHost;
     private StackPanel? _craftUsageItems;
-    private Border? _barterUsageHost;
-    private StackPanel? _barterUsageItems;
     private Border? _acquisitionHost;
     private StackPanel? _acquisitionItems;
 
@@ -31,27 +30,37 @@ public partial class ScannerPage
         (_questUsageHost, _questUsageItems) = CreateRelationshipSection("퀘스트 사용처");
         (_hideoutUsageHost, _hideoutUsageItems) = CreateRelationshipSection("은신처 업그레이드 사용처");
         (_craftUsageHost, _craftUsageItems) = CreateRelationshipSection("제작 재료 사용처");
-        (_barterUsageHost, _barterUsageItems) = CreateRelationshipSection("교환 재료 사용처");
         (_acquisitionHost, _acquisitionItems) = CreateRelationshipSection("수급처");
 
-        var neededIndex = _neededSourcesHost is null ? SelectedItemPanel.Children.Count : SelectedItemPanel.Children.IndexOf(_neededSourcesHost);
-        if (neededIndex < 0) neededIndex = SelectedItemPanel.Children.Count;
-        SelectedItemPanel.Children.Insert(neededIndex, _questUsageHost);
-        SelectedItemPanel.Children.Insert(neededIndex + 1, _hideoutUsageHost);
-        SelectedItemPanel.Children.Insert(neededIndex + 2, _craftUsageHost);
-        SelectedItemPanel.Children.Insert(neededIndex + 3, _barterUsageHost);
-
-        var acquisitionIndex = _neededSourcesHost is null
+        var insertIndex = _neededSourcesHost is null
             ? SelectedItemPanel.Children.Count
-            : SelectedItemPanel.Children.IndexOf(_neededSourcesHost) + 1;
-        SelectedItemPanel.Children.Insert(acquisitionIndex, _acquisitionHost);
+            : SelectedItemPanel.Children.IndexOf(_neededSourcesHost);
+        if (insertIndex < 0)
+            insertIndex = SelectedItemPanel.Children.Count;
+
+        SelectedItemPanel.Children.Insert(insertIndex, _questUsageHost);
+        SelectedItemPanel.Children.Insert(insertIndex + 1, _hideoutUsageHost);
+        SelectedItemPanel.Children.Insert(insertIndex + 2, _craftUsageHost);
+        SelectedItemPanel.Children.Insert(insertIndex + 3, _acquisitionHost);
+
+        // v1.8.4 item detail replaces the older separate "필요한 곳" block with the
+        // canonical quest/hideout usage sections above. Keep the old host out of the
+        // visible detail so the one-column presentation has no duplicate information.
+        if (_neededSourcesHost is not null)
+            _neededSourcesHost.Visibility = Visibility.Collapsed;
     }
 
     private (Border Host, StackPanel Items) CreateRelationshipSection(string title, double topMargin = 12)
     {
         var items = new StackPanel();
         var stack = new StackPanel();
-        stack.Children.Add(new TextBlock { Text = title, FontSize = 15, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 8) });
+        stack.Children.Add(new TextBlock
+        {
+            Text = title,
+            FontSize = 15,
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 0, 0, 8),
+        });
         stack.Children.Add(items);
         return (new Border
         {
@@ -68,9 +77,16 @@ public partial class ScannerPage
 
     private void RenderProductItemExtensions(ScannerItemSearchDetails details)
     {
-        RenderBasicInfo(details.Basic);
-        RenderItemRelationships(details.Relationships);
-        RefreshNeededSources(details.Snapshot.ItemId);
+        // The legacy three-row summary is replaced by the exact four-field basic-info
+        // section below. Collapsing its actual parent keeps XAML compatibility without
+        // carrying duplicate flea/trader/needed rows in the visible detail.
+        if (FleaAverageText.Parent is FrameworkElement legacySummary)
+            legacySummary.Visibility = Visibility.Collapsed;
+        if (_neededSourcesHost is not null)
+            _neededSourcesHost.Visibility = Visibility.Collapsed;
+
+        RenderBasicInfo(details.Basic, details.Snapshot);
+        RenderItemRelationships(details.Relationships, details.Snapshot);
     }
 
     private void SelectSearchItemById(string itemId)
@@ -87,7 +103,10 @@ public partial class ScannerPage
             ItemSearchBox.Text = details.Snapshot.OfficialName;
             ItemSearchBox.CaretIndex = ItemSearchBox.Text.Length;
         }
-        finally { _suppressSearchRefresh = false; }
+        finally
+        {
+            _suppressSearchRefresh = false;
+        }
 
         SearchResultsPopup.IsOpen = false;
         RenderSearchDetails(details);
@@ -101,62 +120,78 @@ public partial class ScannerPage
             RenderProductItemExtensions(details);
     }
 
-    private void RenderBasicInfo(ScannerItemBasicDetails basic)
+    private void RenderBasicInfo(ScannerItemBasicDetails basic, ScannerItemSnapshot snapshot)
     {
         if (_basicInfoHost is null || _basicInfoItems is null)
             return;
+
         _basicInfoItems.Children.Clear();
-        AddBasicRow("종류", basic.TypeName);
-        AddBasicRow("크기", basic.Width > 0 && basic.Height > 0 ? $"{basic.Width} × {basic.Height}" : "정보 없음");
-        AddBasicRow("무게", basic.WeightKg is { } weight ? $"{weight:0.###} kg" : "정보 없음");
-        AddBasicRow("플리마켓 거래", basic.FleaTradable switch { true => "가능", false => "불가", _ => "정보 없음" });
-        AddBasicRow("기본 가격", basic.BasePrice is > 0 ? FormatRoubles(basic.BasePrice.Value) : "정보 없음");
+        AddBasicRow("크기", basic.Width > 0 && basic.Height > 0 ? $"{basic.Width}×{basic.Height}" : "-");
+        AddBasicRow("플리마켓 평균가", snapshot.FleaAveragePrice is > 0 ? FormatRoubles(snapshot.FleaAveragePrice.Value) : "-");
+        AddBasicRow(
+            "최고 상인 판매가",
+            snapshot.TraderSellPrice is > 0
+                ? $"{(string.IsNullOrWhiteSpace(snapshot.BestTraderName) ? "상인" : snapshot.BestTraderName)} {FormatRoubles(snapshot.TraderSellPrice.Value)}"
+                : "-");
+        AddBasicRow("필요 개수", $"{Math.Max(0, snapshot.CurrentNeeded):N0}개");
         _basicInfoHost.Visibility = Visibility.Visible;
     }
 
     private void AddBasicRow(string label, string value)
     {
-        if (_basicInfoItems is null) return;
+        if (_basicInfoItems is null)
+            return;
+
         var grid = new Grid { Margin = new Thickness(0, 0, 0, 5) };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        grid.Children.Add(new TextBlock { Text = label, Foreground = TryFindResource("TextSecondaryBrush") as Brush });
-        var valueText = new TextBlock { Text = value, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap };
+        grid.Children.Add(new TextBlock
+        {
+            Text = label,
+            Foreground = TryFindResource("TextSecondaryBrush") as Brush,
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        var valueText = new TextBlock
+        {
+            Text = value,
+            FontWeight = FontWeights.SemiBold,
+            TextWrapping = TextWrapping.Wrap,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
         Grid.SetColumn(valueText, 1);
         grid.Children.Add(valueText);
         _basicInfoItems.Children.Add(grid);
     }
 
-    private void RenderItemRelationships(ScannerItemRelationshipDetails? relationships)
+    private void RenderItemRelationships(ScannerItemRelationshipDetails? relationships, ScannerItemSnapshot snapshot)
     {
-        if (_questUsageHost is null || _questUsageItems is null || _hideoutUsageHost is null || _hideoutUsageItems is null ||
-            _craftUsageHost is null || _craftUsageItems is null || _barterUsageHost is null || _barterUsageItems is null ||
-            _acquisitionHost is null || _acquisitionItems is null) return;
+        if (_questUsageHost is null || _questUsageItems is null ||
+            _hideoutUsageHost is null || _hideoutUsageItems is null ||
+            _craftUsageHost is null || _craftUsageItems is null ||
+            _acquisitionHost is null || _acquisitionItems is null)
+            return;
 
         ClearItemRelationshipPresentation();
         if (relationships is null)
         {
-            _acquisitionItems.Children.Add(new TextBlock
-            {
-                Text = "게임 데이터를 업데이트하면 수급처와 제작·교환 관계가 표시됩니다.",
-                Foreground = TryFindResource("TextSecondaryBrush") as Brush,
-                TextWrapping = TextWrapping.Wrap,
-            });
-            _acquisitionHost.Visibility = Visibility.Visible;
+            // Legacy snapshots do not have relationship data. Do not render empty category
+            // shells; the detail remains useful through the basic-info block.
             return;
         }
 
-        foreach (var usage in relationships.QuestUsages) _questUsageItems.Children.Add(CreateRequirementUsageRow(usage));
-        foreach (var usage in relationships.HideoutUsages) _hideoutUsageItems.Children.Add(CreateRequirementUsageRow(usage));
-        foreach (var usage in relationships.CraftUsages) _craftUsageItems.Children.Add(CreateUsageRow(usage));
-        foreach (var usage in relationships.BarterUsages) _barterUsageItems.Children.Add(CreateUsageRow(usage));
-        foreach (var acquisition in relationships.Acquisitions) _acquisitionItems.Children.Add(CreateAcquisitionRow(acquisition));
+        foreach (var usage in relationships.QuestUsages)
+            _questUsageItems.Children.Add(CreateRequirementUsageRow(usage));
+        foreach (var usage in relationships.HideoutUsages)
+            _hideoutUsageItems.Children.Add(CreateRequirementUsageRow(usage));
+        foreach (var usage in relationships.CraftUsages)
+            _craftUsageItems.Children.Add(CreateRecipeUsageCard(usage));
+
+        RenderAcquisitionGroups(relationships.Acquisitions, snapshot);
 
         _questUsageHost.Visibility = relationships.QuestUsages.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         _hideoutUsageHost.Visibility = relationships.HideoutUsages.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         _craftUsageHost.Visibility = relationships.CraftUsages.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        _barterUsageHost.Visibility = relationships.BarterUsages.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        _acquisitionHost.Visibility = relationships.Acquisitions.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        _acquisitionHost.Visibility = _acquisitionItems.Children.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private UIElement CreateRequirementUsageRow(ScannerItemRequirementUsageRow usage)
@@ -164,106 +199,288 @@ public partial class ScannerPage
         var detail = usage.Kind == ScannerItemRequirementUsageKind.Hideout && usage.TargetLevel is { } level
             ? $"Lv.{level} 업그레이드 · {usage.Count:N0}개"
             : $"{usage.Count:N0}개";
-        if (usage.FoundInRaid) detail += " · FIR 필요";
+        if (usage.FoundInRaid)
+            detail += " · FIR 필요";
+
         var stack = new StackPanel();
-        stack.Children.Add(new TextBlock { Text = usage.SourceName, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap });
-        stack.Children.Add(new TextBlock { Text = detail, FontSize = 11, Foreground = TryFindResource("TextSecondaryBrush") as Brush, Margin = new Thickness(0, 2, 0, 0) });
-        var button = new Button { Tag = usage, Content = stack, HorizontalContentAlignment = HorizontalAlignment.Left, Padding = new Thickness(9, 7, 9, 7), Margin = new Thickness(0, 0, 0, 6) };
+        stack.Children.Add(new TextBlock
+        {
+            Text = usage.SourceName,
+            FontWeight = FontWeights.SemiBold,
+            TextWrapping = TextWrapping.Wrap,
+        });
+        stack.Children.Add(new TextBlock
+        {
+            Text = detail,
+            FontSize = 11,
+            Foreground = TryFindResource("TextSecondaryBrush") as Brush,
+            Margin = new Thickness(0, 2, 0, 0),
+        });
+        var button = new Button
+        {
+            Tag = usage,
+            Content = stack,
+            HorizontalContentAlignment = HorizontalAlignment.Left,
+            Padding = new Thickness(9, 7, 9, 7),
+            Margin = new Thickness(0, 0, 0, 6),
+        };
         button.Click += RequirementUsageButton_Click;
         return button;
     }
 
     private void RequirementUsageButton_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button { Tag: ScannerItemRequirementUsageRow usage } || Window.GetWindow(this) is not MainWindow mainWindow) return;
-        var kind = usage.Kind == ScannerItemRequirementUsageKind.Quest ? ScannerNeededSourceKind.Quest : ScannerNeededSourceKind.Hideout;
-        mainWindow.NavigateFromScannerNeededSource(new ScannerNeededSourceRow(kind, usage.TargetId, usage.SourceName,
+        if (sender is not Button { Tag: ScannerItemRequirementUsageRow usage } || Window.GetWindow(this) is not MainWindow mainWindow)
+            return;
+        var kind = usage.Kind == ScannerItemRequirementUsageKind.Quest
+            ? ScannerNeededSourceKind.Quest
+            : ScannerNeededSourceKind.Hideout;
+        mainWindow.NavigateFromScannerNeededSource(new ScannerNeededSourceRow(
+            kind,
+            usage.TargetId,
+            usage.SourceName,
             usage.TargetLevel is { } level ? $"Lv.{level} 업그레이드" : "아이템 요구사항"));
     }
 
-    private UIElement CreateUsageRow(ScannerItemUsageRow usage)
+    private UIElement CreateRecipeUsageCard(ScannerItemUsageRow usage)
     {
-        var row = new StackPanel { Margin = new Thickness(0, 0, 0, 9) };
-        var top = new WrapPanel { VerticalAlignment = VerticalAlignment.Center };
-        top.Children.Add(new TextBlock { Text = $"{usage.SourceName} {usage.RequiredLevel}레벨  →  ", VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeights.SemiBold });
-        top.Children.Add(CreateItemLinkButton(usage.Product, usage.ProductCount));
-        row.Children.Add(top);
-        AddMaterialsRow(row, usage.Materials);
-        return row;
-    }
-
-    private UIElement CreateAcquisitionRow(ScannerItemAcquisitionRow acquisition)
-    {
-        var row = new StackPanel { Margin = new Thickness(0, 0, 0, 10) };
-        row.Children.Add(new TextBlock
+        var body = new StackPanel();
+        var header = new WrapPanel { VerticalAlignment = VerticalAlignment.Center };
+        header.Children.Add(CreateItemLinkButton(usage.Product, usage.ProductCount, showCount: false, prominent: true));
+        header.Children.Add(new TextBlock
         {
-            Text = acquisition.RequiredLevel is { } level ? $"{acquisition.SourceName} {level}레벨" : acquisition.SourceName,
-            FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap,
+            Text = $" ({usage.SourceName} {usage.RequiredLevel}레벨)",
+            FontWeight = FontWeights.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
         });
-        var detail = BuildAcquisitionDetail(acquisition);
-        if (!string.IsNullOrWhiteSpace(detail))
-            row.Children.Add(new TextBlock { Text = detail, Foreground = TryFindResource("TextSecondaryBrush") as Brush, FontSize = 11, Margin = new Thickness(0, 3, 0, 0), TextWrapping = TextWrapping.Wrap });
-        AddMaterialsRow(row, acquisition.Materials);
-        return row;
+        body.Children.Add(header);
+        AddMaterialsRecipeRow(body, usage.Materials);
+        return CreateRecipeCard(body);
     }
 
-    private string BuildAcquisitionDetail(ScannerItemAcquisitionRow acquisition)
+    private void RenderAcquisitionGroups(IReadOnlyList<ScannerItemAcquisitionRow> acquisitions, ScannerItemSnapshot snapshot)
     {
-        var parts = new List<string>();
-        if (acquisition.Price is { } price) parts.Add($"가격 {FormatCurrency(price, acquisition.CurrencyCode)}");
-        if (acquisition.ProductCount != 1m) parts.Add($"결과 ×{FormatCount(acquisition.ProductCount)}");
-        if (acquisition.BuyLimit is { } limit) parts.Add($"구매 제한 {limit:N0}개");
-        if (!string.IsNullOrWhiteSpace(acquisition.RefreshTime)) parts.Add($"재고 갱신 {FormatRefreshTime(acquisition.RefreshTime)}");
-        if (acquisition.DurationSeconds is { } duration) parts.Add($"제작 시간 {FormatDuration(duration)}");
-        if (acquisition.FleaAveragePrice is { } flea) parts.Add($"평균가 {FormatRoubles(flea)}");
-        return string.Join(" · ", parts);
+        if (_acquisitionItems is null)
+            return;
+
+        var current = new ScannerItemLink(snapshot.ItemId, snapshot.OfficialName, snapshot.Icon);
+        var crafts = acquisitions.Where(row => row.Kind == ScannerItemAcquisitionKind.HideoutCraft).ToArray();
+        var barters = acquisitions.Where(row => row.Kind == ScannerItemAcquisitionKind.TraderBarter).ToArray();
+        var purchases = acquisitions.Where(row => row.Kind is ScannerItemAcquisitionKind.TraderPurchase or ScannerItemAcquisitionKind.FleaMarket).ToArray();
+        var raid = acquisitions.Any(row => row.Kind == ScannerItemAcquisitionKind.Raid);
+
+        if (crafts.Length > 0)
+        {
+            var items = AddAcquisitionSubsection("제작");
+            foreach (var craft in crafts)
+                items.Children.Add(CreateAcquisitionRecipeCard(craft, current));
+        }
+
+        if (barters.Length > 0)
+        {
+            var items = AddAcquisitionSubsection("교환");
+            foreach (var barter in barters)
+                items.Children.Add(CreateAcquisitionRecipeCard(barter, current));
+        }
+
+        if (purchases.Length > 0)
+        {
+            var items = AddAcquisitionSubsection("구매");
+            foreach (var purchase in purchases)
+                items.Children.Add(CreatePurchaseRow(purchase));
+        }
+
+        if (raid)
+        {
+            var items = AddAcquisitionSubsection("레이드 획득");
+            var hasOtherSource = crafts.Length > 0 || barters.Length > 0 || purchases.Length > 0;
+            items.Children.Add(new TextBlock
+            {
+                Text = hasOtherSource ? "레이드 획득 가능" : "레이드에서만 획득 가능",
+                FontWeight = FontWeights.SemiBold,
+                TextWrapping = TextWrapping.Wrap,
+            });
+        }
     }
 
-    private void AddMaterialsRow(StackPanel owner, IReadOnlyList<ScannerItemMaterialRow> materials)
+    private StackPanel AddAcquisitionSubsection(string title)
     {
-        if (materials.Count == 0) return;
-        var materialRow = new WrapPanel { Margin = new Thickness(0, 5, 0, 0) };
-        materialRow.Children.Add(new TextBlock { Text = "재료  ", Foreground = TryFindResource("TextSecondaryBrush") as Brush, VerticalAlignment = VerticalAlignment.Center, FontSize = 11 });
-        foreach (var material in materials) materialRow.Children.Add(CreateItemLinkButton(material.Item, material.Count, material.IsTool));
-        owner.Children.Add(materialRow);
+        var items = new StackPanel();
+        var container = new StackPanel { Margin = new Thickness(0, _acquisitionItems!.Children.Count == 0 ? 0 : 10, 0, 0) };
+        container.Children.Add(new TextBlock
+        {
+            Text = title,
+            FontSize = 13,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = TryFindResource("TextSecondaryBrush") as Brush,
+            Margin = new Thickness(0, 0, 0, 6),
+        });
+        container.Children.Add(items);
+        _acquisitionItems.Children.Add(container);
+        return items;
     }
 
-    private Button CreateItemLinkButton(ScannerItemLink item, decimal count, bool isTool = false)
+    private UIElement CreateAcquisitionRecipeCard(ScannerItemAcquisitionRow acquisition, ScannerItemLink current)
     {
-        var suffix = count == 1m ? string.Empty : $" ×{FormatCount(count)}";
-        if (isTool) suffix += " · 도구";
-        var button = new Button { Tag = item.ItemId, Content = item.OfficialName + suffix, Padding = new Thickness(7, 3, 7, 3), Margin = new Thickness(0, 0, 5, 4), FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
+        var body = new StackPanel();
+        var header = new WrapPanel { VerticalAlignment = VerticalAlignment.Center };
+        header.Children.Add(CreateItemLinkButton(current, acquisition.ProductCount, showCount: false, prominent: true));
+        header.Children.Add(new TextBlock
+        {
+            Text = acquisition.RequiredLevel is { } level
+                ? $" ({acquisition.SourceName} {level}레벨)"
+                : $" ({acquisition.SourceName})",
+            FontWeight = FontWeights.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+        });
+        body.Children.Add(header);
+        AddMaterialsRecipeRow(body, acquisition.Materials);
+        return CreateRecipeCard(body);
+    }
+
+    private UIElement CreatePurchaseRow(ScannerItemAcquisitionRow acquisition)
+    {
+        string text;
+        if (acquisition.Kind == ScannerItemAcquisitionKind.FleaMarket)
+        {
+            text = acquisition.FleaAveragePrice is > 0
+                ? $"플리마켓 : {FormatRoubles(acquisition.FleaAveragePrice.Value)}"
+                : "플리마켓 : -";
+        }
+        else
+        {
+            var source = acquisition.RequiredLevel is { } level
+                ? $"{acquisition.SourceName} {level}레벨"
+                : acquisition.SourceName;
+            text = acquisition.Price is { } price
+                ? $"{source} : {FormatCurrency(price, acquisition.CurrencyCode)}"
+                : $"{source} : -";
+        }
+
+        return new TextBlock
+        {
+            Text = text,
+            FontWeight = FontWeights.SemiBold,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 5),
+        };
+    }
+
+    private Border CreateRecipeCard(UIElement body) => new()
+    {
+        Background = TryFindResource("BackgroundMediumBrush") as Brush,
+        BorderBrush = TryFindResource("BorderBrush") as Brush,
+        BorderThickness = new Thickness(1),
+        CornerRadius = new CornerRadius(6),
+        Padding = new Thickness(8),
+        Margin = new Thickness(0, 0, 0, 7),
+        Child = body,
+    };
+
+    private void AddMaterialsRecipeRow(StackPanel owner, IReadOnlyList<ScannerItemMaterialRow> materials)
+    {
+        if (materials.Count == 0)
+            return;
+
+        var outer = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
+        outer.Children.Add(new TextBlock
+        {
+            Text = "→",
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 0, 0, 4),
+        });
+        var wrap = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Left };
+        for (var index = 0; index < materials.Count; index++)
+        {
+            if (index > 0)
+            {
+                wrap.Children.Add(new TextBlock
+                {
+                    Text = "+",
+                    Margin = new Thickness(3, 0, 3, 4),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    FontWeight = FontWeights.SemiBold,
+                });
+            }
+            var material = materials[index];
+            wrap.Children.Add(CreateItemLinkButton(material.Item, material.Count, showCount: true));
+        }
+        outer.Children.Add(wrap);
+        owner.Children.Add(outer);
+    }
+
+    private Button CreateItemLinkButton(
+        ScannerItemLink item,
+        decimal count,
+        bool showCount = true,
+        bool prominent = false)
+    {
+        var content = new StackPanel { Orientation = Orientation.Horizontal };
+        if (item.Icon is not null)
+        {
+            content.Children.Add(new Image
+            {
+                Source = item.Icon,
+                Width = prominent ? 30 : 24,
+                Height = prominent ? 30 : 24,
+                Stretch = Stretch.Uniform,
+                Margin = new Thickness(0, 0, 6, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+        }
+
+        var suffix = showCount ? $" × {FormatCount(count)}" : string.Empty;
+        content.Children.Add(new TextBlock
+        {
+            Text = item.OfficialName + suffix,
+            FontWeight = prominent ? FontWeights.SemiBold : FontWeights.Normal,
+            TextWrapping = TextWrapping.Wrap,
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+
+        var button = new Button
+        {
+            Tag = item.ItemId,
+            Content = content,
+            Padding = prominent ? new Thickness(5, 3, 5, 3) : new Thickness(5, 2, 5, 2),
+            Margin = new Thickness(0, 0, 0, 4),
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalContentAlignment = HorizontalAlignment.Left,
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            Cursor = System.Windows.Input.Cursors.Hand,
+        };
         button.Click += RelationshipItemButton_Click;
         return button;
     }
 
     private void RelationshipItemButton_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button { Tag: string itemId } && !string.IsNullOrWhiteSpace(itemId)) SelectSearchItemById(itemId);
+        if (sender is Button { Tag: string itemId } && !string.IsNullOrWhiteSpace(itemId))
+            SelectSearchItemById(itemId);
     }
 
     private void ClearItemRelationshipPresentation()
     {
-        foreach (var items in new[] { _questUsageItems, _hideoutUsageItems, _craftUsageItems, _barterUsageItems, _acquisitionItems }) items?.Children.Clear();
-        foreach (var host in new[] { _questUsageHost, _hideoutUsageHost, _craftUsageHost, _barterUsageHost, _acquisitionHost }) if (host is not null) host.Visibility = Visibility.Collapsed;
+        foreach (var items in new[] { _questUsageItems, _hideoutUsageItems, _craftUsageItems, _acquisitionItems })
+            items?.Children.Clear();
+        foreach (var host in new[] { _questUsageHost, _hideoutUsageHost, _craftUsageHost, _acquisitionHost })
+        {
+            if (host is not null)
+                host.Visibility = Visibility.Collapsed;
+        }
     }
 
-    private static string FormatCount(decimal value) => value.ToString(value == decimal.Truncate(value) ? "0" : "0.##", CultureInfo.InvariantCulture);
+    private static string FormatCount(decimal value) =>
+        value.ToString(value == decimal.Truncate(value) ? "0" : "0.##", CultureInfo.InvariantCulture);
+
     private static string FormatCurrency(decimal value, string? code) => (code ?? string.Empty).ToUpperInvariant() switch
     {
-        "RUB" => value.ToString("N0", CultureInfo.InvariantCulture) + "₽",
+        "RUB" => value.ToString("N0", CultureInfo.InvariantCulture) + " ₽",
         "USD" => "$" + value.ToString("N0", CultureInfo.InvariantCulture),
         "EUR" => "€" + value.ToString("N0", CultureInfo.InvariantCulture),
         _ => value.ToString("N0", CultureInfo.InvariantCulture) + (string.IsNullOrWhiteSpace(code) ? string.Empty : $" {code}"),
     };
-    private static string FormatRefreshTime(string value) => DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var timestamp)
-        ? timestamp.ToLocalTime().ToString("MM-dd HH:mm", CultureInfo.CurrentCulture)
-        : value;
-    private static string FormatDuration(int seconds)
-    {
-        var duration = TimeSpan.FromSeconds(Math.Max(0, seconds));
-        if (duration.TotalHours >= 1) return $"{(int)duration.TotalHours}시간 {duration.Minutes}분";
-        if (duration.TotalMinutes >= 1) return $"{duration.Minutes}분 {duration.Seconds}초";
-        return $"{duration.Seconds}초";
-    }
 }
