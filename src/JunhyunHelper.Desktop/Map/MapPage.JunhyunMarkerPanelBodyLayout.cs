@@ -10,39 +10,19 @@ public partial class MapPage
     private bool _productMarkerPanelBodyLayoutSyncing;
     private bool _productMarkerPanelBodySmokeCompleted;
 
-    protected override void OnInitialized(EventArgs e)
-    {
-        base.OnInitialized(e);
-        EnsureProductMarkerPanelBodyLayoutActivation();
-    }
-
-    internal void EnsureProductMarkerPanelBodyLayoutActivation()
-    {
-        if (_productMarkerPanelBodyLayoutActivated)
-            return;
-
-        // The JunhyunHelper Map surface is a product-owned delta over the pinned donor.
-        // Apply it immediately after XAML initialization instead of relying on a class-level
-        // Loaded handler. This guarantees the marker launcher, viewport wrapper and body
-        // sizing exist before the page can be shown or interacted with.
-        ApplyJunhyunUiSimplification();
-        ApplyJunhyunMarkerPanelPolish();
-        ActivateProductMarkerPanelBodyLayout();
-    }
-
     private void ActivateProductMarkerPanelBodyLayout()
     {
         if (_productMarkerPanelBodyLayoutActivated)
             return;
-        _productMarkerPanelBodyLayoutActivated = true;
 
         if (_junhyunMarkerListViewport is null)
-            throw new InvalidOperationException("Map marker checkbox viewport was not created during product activation.");
+            throw new InvalidOperationException("Map marker checkbox viewport was not created before product body activation.");
 
-        // Replace the v1.7.15 content-sized synchronization handlers. The panel itself is
-        // intentionally tall enough for the marker groups; the checkbox viewport must own
-        // the entire remaining body instead of shrinking to its content and leaving unused
-        // space below a separately scrolling list.
+        _productMarkerPanelBodyLayoutActivated = true;
+
+        // Replace the v1.7.15 content-sized synchronization handlers. Activation happens
+        // from ApplyJunhyunMarkerPanelPolish after the real Map Loaded event, so none of
+        // this runs while the pinned donor constructor is still preparing map/floor state.
         SizeChanged -= JunhyunMarkerPanel_SizeChanged;
         MapMarkersContent.SizeChanged -= JunhyunMarkerContent_SizeChanged;
         BtnToggleMapMarkersPanel.Click -= JunhyunMarkerPanelToggleButton_Click;
