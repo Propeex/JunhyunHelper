@@ -70,6 +70,8 @@ public sealed class ContentUpdateCompletenessGuard
                 ammo.Acquisitions.Sum(static acquisition => acquisition.Requirements.Count)),
             issues);
 
+        ProtectItemRelationshipCoverage(candidate, baseline, issues);
+
         // Translation endpoints are deliberately fail-soft in the source loader. That is
         // useful on a first install, but an established installation must not replace a
         // healthy Korean catalog with raw translation keys after a partial localization
@@ -131,6 +133,53 @@ public sealed class ContentUpdateCompletenessGuard
             issues);
 
         return new ContentValidationResult(issues);
+    }
+
+    private static void ProtectItemRelationshipCoverage(
+        GameContentCatalog candidate,
+        GameContentCatalog baseline,
+        ICollection<ContentValidationIssue> issues)
+    {
+        // v3-v7 snapshots intentionally have no item relationship graph. They remain
+        // readable and cannot provide a trustworthy relative baseline for the first v8+
+        // refresh. Once a healthy relationship graph exists, protect every acquisition
+        // domain and its nested material coverage with the same 50% LKG rule.
+        if (baseline.ItemRelationshipData is null)
+            return;
+
+        var candidateRelationships = candidate.ItemRelationships;
+        var baselineRelationships = baseline.ItemRelationshipData;
+
+        Check(
+            "item-trader-purchases",
+            candidateRelationships.TraderPurchases.Count,
+            baselineRelationships.TraderPurchases.Count,
+            issues);
+        Check(
+            "item-barters",
+            candidateRelationships.Barters.Count,
+            baselineRelationships.Barters.Count,
+            issues);
+        Check(
+            "item-crafts",
+            candidateRelationships.Crafts.Count,
+            baselineRelationships.Crafts.Count,
+            issues);
+        Check(
+            "item-flea-acquisitions",
+            candidateRelationships.FleaMarketItemIds.Count,
+            baselineRelationships.FleaMarketItemIds.Count,
+            issues);
+        Check(
+            "item-barter-requirements",
+            candidateRelationships.Barters.Sum(static barter => barter.RequiredItems.Count),
+            baselineRelationships.Barters.Sum(static barter => barter.RequiredItems.Count),
+            issues);
+        Check(
+            "item-craft-requirements",
+            candidateRelationships.Crafts.Sum(static craft => craft.RequiredItems.Count),
+            baselineRelationships.Crafts.Sum(static craft => craft.RequiredItems.Count),
+            issues);
     }
 
     private static void Check(
