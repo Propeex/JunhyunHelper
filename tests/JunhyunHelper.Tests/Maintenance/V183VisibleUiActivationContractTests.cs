@@ -35,25 +35,29 @@ public sealed class V183VisibleUiActivationContractTests
     }
 
     [Fact]
-    public void MapMarkerCheckboxViewport_ActivatesDuringPageInitializationAndUsesWholeBody()
+    public void MapMarkerCheckboxViewport_ActivatesFromRealLoadedWithoutAdvancingDonorConstruction()
     {
         var root = FindRepositoryRoot();
-        var source = Read(root, "src", "JunhyunHelper.Desktop", "Map", "MapPage.JunhyunMarkerPanelBodyLayout.cs");
+        var loaded = Read(root, "src", "JunhyunHelper.Desktop", "Map", "MapPage.JunhyunMarkerPanelPolish.cs");
+        var body = Read(root, "src", "JunhyunHelper.Desktop", "Map", "MapPage.JunhyunMarkerPanelBodyLayout.cs");
 
-        Assert.Contains("protected override void OnInitialized(EventArgs e)", source, StringComparison.Ordinal);
-        Assert.Contains("EnsureProductMarkerPanelBodyLayoutActivation();", source, StringComparison.Ordinal);
-        Assert.Contains("ApplyJunhyunUiSimplification();", source, StringComparison.Ordinal);
-        Assert.Contains("ApplyJunhyunMarkerPanelPolish();", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("RegisterProductMarkerPanelBodyLayoutActivation", source, StringComparison.Ordinal);
-        Assert.Contains("VerticalAlignment = VerticalAlignment.Stretch", source, StringComparison.Ordinal);
-        Assert.Contains("requestedPanelHeight", source, StringComparison.Ordinal);
-        Assert.Contains("panelHeight - headerHeight - verticalChrome", source, StringComparison.Ordinal);
-        Assert.Contains("_junhyunMarkerListViewport.Height = listHeight", source, StringComparison.Ordinal);
-        Assert.Contains("VerticalScrollBarVisibility = ScrollBarVisibility.Auto", source, StringComparison.Ordinal);
-        Assert.Contains("ScrollableHeight > 0.5", source, StringComparison.Ordinal);
-        Assert.Contains("ComputedVerticalScrollBarVisibility", source, StringComparison.Ordinal);
-        Assert.Contains("marker-list-fills-panel-body=ok", source, StringComparison.Ordinal);
-        Assert.Contains("Environment.Exit(89)", source, StringComparison.Ordinal);
+        Assert.Contains("FrameworkElement.LoadedEvent", loaded, StringComparison.Ordinal);
+        Assert.Contains("if (sender is not MapPage page)", loaded, StringComparison.Ordinal);
+        Assert.DoesNotContain("ReferenceEquals(e.OriginalSource, page)", loaded, StringComparison.Ordinal);
+        Assert.Contains("page.Dispatcher.BeginInvoke(page.ApplyJunhyunMarkerPanelPolish", loaded, StringComparison.Ordinal);
+        Assert.Contains("ActivateProductMarkerPanelBodyLayout();", loaded, StringComparison.Ordinal);
+
+        Assert.DoesNotContain("protected override void OnInitialized", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("ApplyJunhyunUiSimplification();", body, StringComparison.Ordinal);
+        Assert.Contains("VerticalAlignment = VerticalAlignment.Stretch", body, StringComparison.Ordinal);
+        Assert.Contains("requestedPanelHeight", body, StringComparison.Ordinal);
+        Assert.Contains("panelHeight - headerHeight - verticalChrome", body, StringComparison.Ordinal);
+        Assert.Contains("_junhyunMarkerListViewport.Height = listHeight", body, StringComparison.Ordinal);
+        Assert.Contains("VerticalScrollBarVisibility = ScrollBarVisibility.Auto", body, StringComparison.Ordinal);
+        Assert.Contains("ScrollableHeight > 0.5", body, StringComparison.Ordinal);
+        Assert.Contains("ComputedVerticalScrollBarVisibility", body, StringComparison.Ordinal);
+        Assert.Contains("marker-list-fills-panel-body=ok", body, StringComparison.Ordinal);
+        Assert.Contains("Environment.Exit(89)", body, StringComparison.Ordinal);
     }
 
     private static string Read(string root, params string[] path) =>
