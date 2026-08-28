@@ -72,6 +72,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
         }
 
         _overlay.SettingsChanged += Overlay_SettingsChanged;
+        _overlay.OverlayVisibilityChanged += Overlay_VisibilityChanged;
         _page.Loaded += Page_Loaded;
     }
 
@@ -100,6 +101,20 @@ public sealed class LegacyMapProductRuntime : IDisposable
     {
         if (_playerMarkerSlider is not null)
             ApplyMainPlayerMarkerSizeToMiniMap(_playerMarkerSlider.Value);
+    }
+
+    private void Overlay_VisibilityChanged(bool visible)
+    {
+        if (_disposed || !visible)
+            return;
+
+        // Donor HideOverlay intentionally keeps the already-loaded window alive. Showing
+        // that same window does not rerun SourceInitialized/Loaded, so the v1.9.1 creation
+        // boundary alone cannot guarantee that a newly selected Main Map reaches the first
+        // visible frame. OverlayVisibilityChanged is raised synchronously from ShowOverlayCore
+        // before WPF yields to rendering; force the visible selector through the canonical
+        // product boundary here for both newly-created and reused MiniMap windows.
+        _ = LegacyMapSelectionConsistencyBridge.SynchronizeCurrentSelectionNow();
     }
 
     private void PlayerMarkerSlider_ValueChanged(
@@ -174,6 +189,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
         _questSettingsBridge.Dispose();
         _hotkeys.Dispose();
         _overlay.SettingsChanged -= Overlay_SettingsChanged;
+        _overlay.OverlayVisibilityChanged -= Overlay_VisibilityChanged;
         _page.Loaded -= Page_Loaded;
         if (_playerMarkerSlider is not null)
             _playerMarkerSlider.ValueChanged -= PlayerMarkerSlider_ValueChanged;
