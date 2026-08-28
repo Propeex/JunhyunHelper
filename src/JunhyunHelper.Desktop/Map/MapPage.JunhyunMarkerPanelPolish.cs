@@ -35,7 +35,7 @@ public partial class MapPage
         // the MapPage. The old OriginalSource == page guard therefore skipped the product
         // marker viewport on real runs. Do not advance donor construction; queue one
         // lifecycle-safe attempt and let the instance retry at ContextIdle if its XAML
-        // parent relationship has not settled yet.
+        // overlay content has not settled yet.
         page.ScheduleJunhyunMarkerPanelPolish(DispatcherPriority.Loaded);
     }
 
@@ -59,11 +59,11 @@ public partial class MapPage
         if (_junhyunMarkerPanelPolishApplied)
             return;
 
-        // A descendant Loaded event can reach the MapPage class handler before the
-        // MapMarkersContent logical parent is attached. Never mark activation complete
-        // until the viewport has actually been inserted. This is what prevents a later
-        // ActivateProductMarkerPanelBodyLayout call from observing a null viewport.
-        if (!TryWrapJunhyunMarkerListViewport())
+        // Do not use FrameworkElement.Parent as the activation authority. The transplanted
+        // WPF tree can report a transient/non-Panel logical parent while the product-owned
+        // MapMarkersOverlay already has the stable child collection we need. Resolve the
+        // viewport from that known overlay surface instead.
+        if (!TryResolveOrWrapJunhyunMarkerListViewport())
         {
             _junhyunMarkerPanelPolishRetryCount++;
             if (_junhyunMarkerPanelPolishRetryCount <= JunhyunMarkerPanelPolishMaxImmediateRetries)
@@ -96,49 +96,81 @@ public partial class MapPage
 
         // v1.8.3 replaces the content-sized viewport synchronization below with the
         // full-panel-body implementation. Activate it here, after the actual Map Loaded
-        // lifecycle and only after the viewport insertion succeeded.
+        // lifecycle and only after the viewport insertion/resolution succeeded.
         ActivateProductMarkerPanelBodyLayout();
         Dispatcher.BeginInvoke(SyncProductMarkerPanelBodyLayout, DispatcherPriority.ContextIdle);
     }
 
-    private bool TryWrapJunhyunMarkerListViewport()
+    private bool TryResolveOrWrapJunhyunMarkerListViewport()
     {
         if (_junhyunMarkerListViewport is not null)
             return true;
 
-        if (MapMarkersContent.Parent is not Panel parent)
+        if (MapMarkersOverlay.Child is not Panel overlayContent)
             return false;
 
-        var index = parent.Children.IndexOf(MapMarkersContent);
+        // If another product layer already supplied the ScrollViewer, adopt it rather
+        // than nesting another viewport or relying on MapMarkersContent.Parent.
+        foreach (var child in overlayContent.Children.OfType<ScrollViewer>())
+        {
+            if (!ReferenceEquals(child.Content, MapMarkersContent))
+                continue;
+
+            _junhyunMarkerListViewport = child;
+            ConfigureJunhyunMarkerListViewport(child);
+            return true;
+        }
+
+        var index = overlayContent.Children.IndexOf(MapMarkersContent);
         if (index < 0)
             return false;
 
         var margin = MapMarkersContent.Margin;
-        parent.Children.Remove(MapMarkersContent);
+        overlayContent.Children.Remove(MapMarkersContent);
         MapMarkersContent.Margin = new Thickness(0);
 
-        _junhyunMarkerListViewport = new ScrollViewer
+        var viewport = new ScrollViewer
         {
             Content = MapMarkersContent,
             Margin = margin,
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Hidden,
-            CanContentScroll = false,
-            Visibility = MapMarkersContent.Visibility,
         };
-        parent.Children.Insert(index, _junhyunMarkerListViewport);
+        ConfigureJunhyunMarkerListViewport(viewport);
+        _junhyunMarkerListViewport = viewport;
+        overlayContent.Children.Insert(index, viewport);
         return true;
     }
 
-    private static void FailJunhyunMarkerPanelActivationSmoke()
+    private static void ConfigureJunhyunMarkerListViewport(ScrollViewer viewport)
+    {
+        viewport.HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
+        viewport.VerticalScrollBarVisibility = ScrollBarVisibility.Hidden;
+        viewport.CanContentScroll = false;
+    }
+
+    private void FailJunhyunMarkerPanelActivationSmoke()
     {
         try
         {
             var diagnostic = Path.Combine(Path.GetTempPath(), "junhyun-map-smoke-error.txt");
+            var logicalParent = MapMarkersContent.Parent?.GetType().FullName ?? "<null>";
+            var overlayChild = MapMarkersOverlay.Child?.GetType().FullName ?? "<null>";
+            var overlayChildren = MapMarkersOverlay.Child is Panel panel
+                ? string.Join(
+                    ", ",
+                    panel.Children.Cast<UIElement>().Select(child =>
+                        child.GetType().FullName +
+                        (child is ScrollViewer viewer
+                            ? $"(content={viewer.Content?.GetType().FullName ?? "<null>"})"
+                            : string.Empty)))
+                : "<not-panel>";
+
             File.WriteAllText(
                 diagnostic,
                 "Map marker panel activation smoke failed.\n" +
-                "MapMarkersContent never acquired a usable Panel parent before the bounded Loaded/ContextIdle retries completed.");
+                "The product could not resolve or create the marker checkbox viewport from MapMarkersOverlay.\n" +
+                $"MapMarkersContent.Parent={logicalParent}\n" +
+                $"MapMarkersOverlay.Child={overlayChild}\n" +
+                $"Overlay children={overlayChildren}\n");
         }
         catch
         {
