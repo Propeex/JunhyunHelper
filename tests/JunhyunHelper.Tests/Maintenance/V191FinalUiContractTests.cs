@@ -11,6 +11,9 @@ public sealed class V191FinalUiContractTests
         var root = FindRepositoryRoot();
         var source = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.V191FinalUiPolish.cs");
 
+        Assert.Contains("static ScannerPage()", source, StringComparison.Ordinal);
+        Assert.Contains("EventManager.RegisterClassHandler", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("V191DetailActionHandlerRegistered", source, StringComparison.Ordinal);
         Assert.Contains("private const double V191DetailActionHeight = 34d", source, StringComparison.Ordinal);
         Assert.Contains("FavoriteItemButton.Height = V191DetailActionHeight", source, StringComparison.Ordinal);
         Assert.Contains("WikiButton.Height = V191DetailActionHeight", source, StringComparison.Ordinal);
