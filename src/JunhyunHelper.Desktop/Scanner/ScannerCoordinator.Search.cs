@@ -4,23 +4,24 @@ using JunhyunHelper.Core.Scanner;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
-public sealed record ScannerItemSearchHit(
-    string ItemId,
-    string OfficialName,
-    ImageSource? Icon,
-    string? WikiUrl);
+public sealed record ScannerItemSearchHit(string ItemId, string OfficialName, ImageSource? Icon, string? WikiUrl);
+
+public sealed record ScannerItemBasicDetails(
+    string TypeName,
+    int Width,
+    int Height,
+    decimal? WeightKg,
+    bool? FleaTradable,
+    int? BasePrice);
 
 public sealed record ScannerItemSearchDetails(
     ScannerItemSnapshot Snapshot,
-    string? WikiUrl);
+    string? WikiUrl,
+    ScannerItemBasicDetails Basic,
+    ScannerItemRelationshipDetails? Relationships = null);
 
 public sealed partial class ScannerCoordinator
 {
-    /// <summary>
-    /// Searches the already-loaded Scanner catalog. This path never refreshes data or
-    /// performs network I/O; the normal Game Data update remains the only user-facing
-    /// catalog refresh path.
-    /// </summary>
     public IReadOnlyList<ScannerItemSearchHit> SearchItems(string? query, int maximumResults = 20)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -32,12 +33,7 @@ public sealed partial class ScannerCoordinator
         if (context is null || _catalog.LoadedMode != context.GameMode || !_catalog.HasHealthyCatalog)
             return [];
 
-        // Search runs on every query edit. Build one canonical lookup for this search
-        // instead of routing each of the top-N hits through full mapped presentation,
-        // which would repeatedly scan Content.Items and NeededItems even though the
-        // result row only needs icon/name/wiki metadata.
-        var contentById = context.Content.Items
-            .Where(item => !string.IsNullOrWhiteSpace(item.Id))
+        var contentById = context.Content.Items.Where(item => !string.IsNullOrWhiteSpace(item.Id))
             .GroupBy(item => item.Id, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
 
@@ -47,8 +43,7 @@ public sealed partial class ScannerCoordinator
             .OrderBy(entry => entry.Rank)
             .ThenBy(entry => entry.Item.OfficialName, StringComparer.CurrentCultureIgnoreCase)
             .Take(Math.Clamp(maximumResults, 1, 50))
-            .Select(entry => CreateSearchHit(entry.Item, contentById))
-            .ToArray();
+            .Select(entry => CreateSearchHit(entry.Item, contentById)).ToArray();
     }
 
     public ScannerItemSearchDetails? GetSearchItemDetails(string? itemId)
@@ -61,47 +56,80 @@ public sealed partial class ScannerCoordinator
         if (context is null || _catalog.LoadedMode != context.GameMode || !_catalog.HasHealthyCatalog)
             return null;
 
-        var snapshot = Presentation.CreateSnapshot(itemId.Trim());
+        var normalizedItemId = itemId.Trim();
+        var snapshot = Presentation.CreateSnapshot(normalizedItemId);
         if (snapshot is null)
             return null;
 
-        var wikiUrl = context.Content.Items
-            .FirstOrDefault(item => string.Equals(item.Id, snapshot.ItemId, StringComparison.Ordinal))
-            ?.WikiUrl;
-        return new ScannerItemSearchDetails(snapshot, wikiUrl);
+        var canonical = context.Content.Items.FirstOrDefault(item =>
+            string.Equals(item.Id, snapshot.ItemId, StringComparison.Ordinal));
+        _catalog.TryGetItem(snapshot.ItemId, out var catalogItem);
+        var width = canonical?.Width ?? catalogItem?.Width ?? 0;
+        var height = canonical?.Height ?? catalogItem?.Height ?? 0;
+        var basic = new ScannerItemBasicDetails(
+            ResolveItemType(canonical),
+            width,
+            height,
+            canonical?.WeightKg,
+            canonical?.FleaTradable,
+            canonical?.BasePrice);
+
+        return new ScannerItemSearchDetails(
+            snapshot,
+            canonical?.WikiUrl,
+            basic,
+            BuildItemRelationshipDetails(context, snapshot.ItemId));
     }
 
-    private ScannerItemSearchHit CreateSearchHit(
-        ScannerCatalogItem item,
-        IReadOnlyDictionary<string, GameItem> contentById)
+    private ScannerItemSearchHit CreateSearchHit(ScannerCatalogItem item, IReadOnlyDictionary<string, GameItem> contentById)
     {
         contentById.TryGetValue(item.Id, out var canonicalItem);
-        var iconUrl = canonicalItem?.IconUrl ?? item.IconUrl;
         return new ScannerItemSearchHit(
             item.Id,
             item.OfficialName,
-            _icons.Load($"item-{item.Id}", iconUrl),
+            _icons.Load($"item-{item.Id}", canonicalItem?.IconUrl ?? item.IconUrl),
             canonicalItem?.WikiUrl);
+    }
+
+    private static string ResolveItemType(GameItem? item)
+    {
+        if (item is null)
+            return "정보 없음";
+        var type = item.Types.FirstOrDefault(value =>
+            !string.Equals(value, "any", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(value, "noFlea", StringComparison.OrdinalIgnoreCase));
+        if (type is null)
+            return item.Categories.FirstOrDefault() ?? "정보 없음";
+        return type.ToLowerInvariant() switch
+        {
+            "ammo" => "탄약",
+            "ammobox" => "탄약 상자",
+            "armor" => "방어구",
+            "armorplate" => "방탄판",
+            "backpack" => "백팩",
+            "barter" => "교환품",
+            "container" => "보관함",
+            "food" => "식품",
+            "grenade" => "투척물",
+            "headphones" => "헤드셋",
+            "helmet" => "헬멧",
+            "key" => "열쇠",
+            "medical" => "의료품",
+            "mods" => "무기 부품",
+            "money" => "화폐",
+            "rig" => "전술 조끼",
+            "weapon" => "무기",
+            _ => type,
+        };
     }
 
     private static int SearchRank(string officialName, string shortName, string query)
     {
-        if (string.Equals(officialName, query, StringComparison.CurrentCultureIgnoreCase))
-            return 0;
-        if (officialName.StartsWith(query, StringComparison.CurrentCultureIgnoreCase))
-            return 1;
-        if (!string.IsNullOrWhiteSpace(shortName) &&
-            shortName.StartsWith(query, StringComparison.CurrentCultureIgnoreCase))
-        {
-            return 2;
-        }
-        if (officialName.Contains(query, StringComparison.CurrentCultureIgnoreCase))
-            return 3;
-        if (!string.IsNullOrWhiteSpace(shortName) &&
-            shortName.Contains(query, StringComparison.CurrentCultureIgnoreCase))
-        {
-            return 4;
-        }
+        if (string.Equals(officialName, query, StringComparison.CurrentCultureIgnoreCase)) return 0;
+        if (officialName.StartsWith(query, StringComparison.CurrentCultureIgnoreCase)) return 1;
+        if (!string.IsNullOrWhiteSpace(shortName) && shortName.StartsWith(query, StringComparison.CurrentCultureIgnoreCase)) return 2;
+        if (officialName.Contains(query, StringComparison.CurrentCultureIgnoreCase)) return 3;
+        if (!string.IsNullOrWhiteSpace(shortName) && shortName.Contains(query, StringComparison.CurrentCultureIgnoreCase)) return 4;
         return int.MaxValue;
     }
 }

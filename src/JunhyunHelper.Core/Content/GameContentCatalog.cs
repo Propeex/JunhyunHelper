@@ -17,11 +17,16 @@ public sealed record GameContentCatalog(
     IReadOnlyList<QuestItemRequirement> QuestItemRequirements,
     IReadOnlyList<HideoutStation> HideoutStations,
     IReadOnlyList<AmmoDefinition>? Ammo = null,
-    IReadOnlyList<EditionDefinition>? EditionData = null)
+    IReadOnlyList<EditionDefinition>? EditionData = null,
+    ItemRelationshipCatalog? ItemRelationshipData = null)
 {
     [JsonIgnore]
     public IReadOnlyList<AmmoDefinition> Ammunition => Ammo ?? Array.Empty<AmmoDefinition>();
 
     [JsonIgnore]
     public IReadOnlyList<EditionDefinition> Editions => EditionData ?? Array.Empty<EditionDefinition>();
+
+    [JsonIgnore]
+    public ItemRelationshipCatalog ItemRelationships =>
+        ItemRelationshipData ?? ItemRelationshipCatalog.Empty;
 }

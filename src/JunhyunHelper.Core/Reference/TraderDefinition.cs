@@ -3,4 +3,5 @@ namespace JunhyunHelper.Core.Reference;
 public sealed record TraderDefinition(
     string Id,
     string? NameKo,
-    string? NameEn);
+    string? NameEn,
+    string? ResetTime = null);

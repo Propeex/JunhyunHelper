@@ -26,7 +26,11 @@ public sealed class TarkovTraderImporter
                 throw new InvalidDataException($"Duplicate trader id '{id}'.");
 
             var name = localization.Resolve(TarkovJsonReader.OptionalString(raw, "name"));
-            result.Add(new TraderDefinition(id, name.Korean, name.English));
+            result.Add(new TraderDefinition(
+                id,
+                name.Korean,
+                name.English,
+                TarkovJsonReader.OptionalString(raw, "resetTime")));
         }
 
         return result;

@@ -2,6 +2,7 @@ using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.Profiles;
 using JunhyunHelper.Infrastructure.EditionData;
 using JunhyunHelper.Infrastructure.TarkovJson;
+using JunhyunHelper.Infrastructure.TarkovJson.Items;
 using JunhyunHelper.Infrastructure.TarkovJson.Quests;
 using JunhyunHelper.Infrastructure.Validation;
 
@@ -35,7 +36,9 @@ public sealed class TarkovContentBuildService : ITarkovContentBuildService
     private readonly TarkovEndpointSourceLoader _sourceLoader;
     private readonly TarkovEditionCatalogClient _editionClient;
     private readonly TarkovGameContentImporter _importer;
+    private readonly TarkovItemRelationshipImporter _itemRelationshipImporter;
     private readonly GameContentIntegrityValidator _validator;
+    private readonly ItemRelationshipIntegrityValidator _itemRelationshipValidator;
     private readonly WikiBallisticsEffectivenessClient? _effectivenessClient;
 
     public TarkovContentBuildService(
@@ -48,7 +51,9 @@ public sealed class TarkovContentBuildService : ITarkovContentBuildService
         _sourceLoader = sourceLoader ?? throw new ArgumentNullException(nameof(sourceLoader));
         _editionClient = editionClient ?? throw new ArgumentNullException(nameof(editionClient));
         _importer = importer ?? new TarkovGameContentImporter();
+        _itemRelationshipImporter = new TarkovItemRelationshipImporter();
         _validator = new GameContentIntegrityValidator(validator);
+        _itemRelationshipValidator = new ItemRelationshipIntegrityValidator();
         _effectivenessClient = effectivenessClient;
     }
 
@@ -146,6 +151,11 @@ public sealed class TarkovContentBuildService : ITarkovContentBuildService
             editions,
             gameMode);
 
+        var itemRelationships = _itemRelationshipImporter.Import(
+            items.Source.BaseDocument,
+            barters.Source.BaseDocument,
+            crafts.Source.BaseDocument);
+
         // json.tarkov.dev currently exposes a small legacy/introductory quest set only
         // through opaque dialogue gates. Apply the narrow audited compatibility mapping
         // before validation so both live builds and persisted snapshots share the exact
@@ -153,6 +163,7 @@ public sealed class TarkovContentBuildService : ITarkovContentBuildService
         content = content with
         {
             Quests = TarkovDialogueAvailabilityCompatibility.Apply(content.Quests),
+            ItemRelationshipData = itemRelationships,
         };
 
         var warnings = new[]
@@ -177,12 +188,17 @@ public sealed class TarkovContentBuildService : ITarkovContentBuildService
 
         progress?.Report(new ContentUpdateProgress(
             ContentUpdateStage.Validating,
-            "아이템·퀘스트·상인·지도·은신처·탄약과 상호 참조를 검증하는 중...",
+            "아이템·퀘스트·상인·지도·은신처·탄약·제작·교환 관계를 검증하는 중...",
             80));
+
+        var baseValidation = _validator.Validate(content);
+        var relationshipValidation = _itemRelationshipValidator.Validate(content);
+        var validation = new ContentValidationResult(
+            baseValidation.Issues.Concat(relationshipValidation.Issues).ToArray());
 
         return new TarkovContentBuildResult(
             content,
-            _validator.Validate(content),
+            validation,
             warnings.ToArray());
     }
 }
