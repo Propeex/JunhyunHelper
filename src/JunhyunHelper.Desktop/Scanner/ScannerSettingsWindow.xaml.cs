@@ -232,6 +232,7 @@ public partial class ScannerSettingsWindow : Window
     {
         ScannerDisplaySettings.TraderSellPriceField => "상인 판매가",
         ScannerDisplaySettings.FleaAveragePriceField => "플리마켓 평균가",
+        ScannerDisplaySettings.FleaMinimumPriceField => "플리마켓 최저가",
         ScannerDisplaySettings.TraderPricePerSlotField => "상점가 / 칸",
         ScannerDisplaySettings.FleaPricePerSlotField => "플리 평균가 / 칸",
         ScannerDisplaySettings.CurrentNeededField => "필요 개수",

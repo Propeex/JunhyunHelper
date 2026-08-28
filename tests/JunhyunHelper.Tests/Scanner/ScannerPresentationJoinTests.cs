@@ -21,6 +21,7 @@ public sealed class ScannerPresentationJoinTests
         {
             BestTraderId = "trader-a",
             BestTraderName = "상인 A",
+            FleaMinimumPrice = 111_000,
         };
         var canonicalItems = new[]
         {
@@ -41,6 +42,7 @@ public sealed class ScannerPresentationJoinTests
         Assert.Equal("https://wiki.test/a", result.WikiUrl);
         Assert.Equal(80_000, result.TraderSellPrice);
         Assert.Equal(123_456, result.FleaAveragePrice);
+        Assert.Equal(111_000, result.FleaMinimumPrice);
         Assert.Equal(13_333, result.TraderPricePerSlot);
         Assert.Equal(20_576, result.FleaPricePerSlot);
         Assert.Equal(6, result.Slots);
@@ -96,6 +98,7 @@ public sealed class ScannerPresentationJoinTests
         Assert.Equal(0, result.CurrentNeeded);
         Assert.Null(result.TraderSellPrice);
         Assert.Null(result.FleaAveragePrice);
+        Assert.Null(result.FleaMinimumPrice);
     }
 
     private static GameItem Item(string id, string iconUrl, string wikiUrl) =>

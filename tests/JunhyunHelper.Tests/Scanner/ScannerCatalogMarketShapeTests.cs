@@ -26,6 +26,7 @@ public sealed class ScannerCatalogMarketShapeTests
             Assert.Equal("메카닉", item.BestTraderName);
             Assert.Equal(379, item.TraderPricePerSlot);
             Assert.Equal(3017, item.FleaAveragePrice);
+            Assert.Equal(2517, item.FleaMinimumPrice);
             Assert.Equal(754, item.FleaPricePerSlot);
             Assert.Equal("success", service.LastDiagnostics.Outcome);
             Assert.Equal(4000, service.LastDiagnostics.ItemCount);
@@ -54,6 +55,7 @@ public sealed class ScannerCatalogMarketShapeTests
             Assert.Equal("mechanic-id", item.BestTraderId);
             Assert.Equal("메카닉", item.BestTraderName);
             Assert.Equal(379, item.TraderPricePerSlot);
+            Assert.Equal(2517, item.FleaMinimumPrice);
         }
         finally
         {
@@ -81,6 +83,7 @@ public sealed class ScannerCatalogMarketShapeTests
             Assert.Null(item.BestTraderName);
             Assert.Null(item.TraderPricePerSlot);
             Assert.Equal(3017, item.FleaAveragePrice);
+            Assert.Equal(2517, item.FleaMinimumPrice);
             Assert.Equal(754, item.FleaPricePerSlot);
 
             Assert.Equal("success", service.LastDiagnostics.Outcome);
@@ -197,6 +200,7 @@ public sealed class ScannerCatalogMarketShapeTests
                 shortName = $"raw-short-{index}",
                 iconLink = $"https://example.test/icons/raw-{index}.png",
                 avg24hPrice = 3000 + index,
+                lastLowPrice = 2500 + index,
                 width = 2,
                 height = 2,
             };
@@ -210,6 +214,7 @@ public sealed class ScannerCatalogMarketShapeTests
                     common.shortName,
                     common.iconLink,
                     common.avg24hPrice,
+                    common.lastLowPrice,
                     common.width,
                     common.height,
                     sellToTrader = new[]
@@ -225,6 +230,7 @@ public sealed class ScannerCatalogMarketShapeTests
                     common.shortName,
                     common.iconLink,
                     common.avg24hPrice,
+                    common.lastLowPrice,
                     common.width,
                     common.height,
                     traderPrices = new[]

@@ -29,10 +29,11 @@ public partial class ScannerPage
         var settings = new ScannerDisplaySettings();
         settings.Normalize();
         if (settings.SchemaVersion != ScannerDisplaySettings.CurrentSchemaVersion ||
-            settings.SchemaVersion != 6 ||
+            settings.SchemaVersion != 7 ||
             settings.OcrSubstitutions.Count != 0 ||
             !settings.ShowItemName ||
             !settings.ShowItemIcon ||
+            !settings.ShowFleaMinimumPrice ||
             !settings.MiniScannerInfoOrder.SequenceEqual(ScannerDisplaySettings.DefaultInfoOrder) ||
             !ScannerHotkeyGesture.TryParse(settings.OneShotTarkovHotkey, out var tarkovGesture) ||
             !ScannerHotkeyGesture.TryParse(settings.OneShotTestHotkey, out var testGesture) ||
@@ -63,6 +64,30 @@ public partial class ScannerPage
         {
             throw new InvalidOperationException(
                 "Scanner v1.6 migration must force Mini Scanner icon/name visible.");
+        }
+
+        var migratedInfo = new ScannerDisplaySettings
+        {
+            SchemaVersion = 6,
+            ShowFleaMinimumPrice = false,
+            MiniScannerInfoOrder =
+            [
+                ScannerDisplaySettings.CurrentNeededField,
+                ScannerDisplaySettings.FleaAveragePriceField,
+                ScannerDisplaySettings.TraderSellPriceField,
+                ScannerDisplaySettings.TraderPricePerSlotField,
+                ScannerDisplaySettings.FleaPricePerSlotField,
+            ],
+        };
+        migratedInfo.Normalize();
+        if (!migratedInfo.ShowFleaMinimumPrice ||
+            migratedInfo.MiniScannerInfoOrder.Count != ScannerDisplaySettings.DefaultInfoOrder.Count ||
+            migratedInfo.MiniScannerInfoOrder[^1] != ScannerDisplaySettings.FleaMinimumPriceField ||
+            migratedInfo.MiniScannerInfoOrder.Count(key =>
+                string.Equals(key, ScannerDisplaySettings.FleaMinimumPriceField, StringComparison.Ordinal)) != 1)
+        {
+            throw new InvalidOperationException(
+                "Scanner schema-v6 Mini Scanner order migration did not append the flea minimum field exactly once.");
         }
 
         var migrated = new ScannerDisplaySettings
@@ -113,10 +138,11 @@ public partial class ScannerPage
         if (!settings.ShowItemIcon ||
             !settings.ShowItemName ||
             !settings.ShowTraderSellPrice ||
+            !settings.ShowFleaMinimumPrice ||
             !settings.ShowTraderPricePerSlot)
         {
             throw new InvalidOperationException(
-                "Mini Scanner defaults must show fixed identity header and trader information.");
+                "Mini Scanner defaults must show fixed identity header and approved market information.");
         }
 
         if (!MiniScannerOverlayService.CanOpenConfirmedItem(
@@ -176,7 +202,10 @@ public partial class ScannerPage
                 28500,
                 2,
                 3,
-                "Therapist");
+                "Therapist")
+            {
+                FleaMinimumPrice = 51000,
+            };
             window.Render(snapshot, settings, editMode: false);
             window.UpdateLayout();
 
@@ -197,12 +226,22 @@ public partial class ScannerPage
                     "Mini Scanner trader row did not use the approved trader-name + price form.");
             }
 
-            if (window.FindName("InfoStackPanel") is not StackPanel infoStack ||
-                infoStack.Children.Count != ScannerDisplaySettings.DefaultInfoOrder.Count ||
-                !ReferenceEquals(infoStack.Children[0], trader))
+            if (window.FindName("FleaMinimumPriceText") is not TextBlock fleaMinimum ||
+                fleaMinimum.Visibility != Visibility.Visible ||
+                !fleaMinimum.Text.Contains("플리 최저", StringComparison.Ordinal) ||
+                !fleaMinimum.Text.Contains("51,000", StringComparison.Ordinal))
             {
                 throw new InvalidOperationException(
-                    "Mini Scanner information rows did not follow persisted order.");
+                    "Mini Scanner flea minimum row did not render the cached current low price.");
+            }
+
+            if (window.FindName("InfoStackPanel") is not StackPanel infoStack ||
+                infoStack.Children.Count != ScannerDisplaySettings.DefaultInfoOrder.Count ||
+                !ReferenceEquals(infoStack.Children[0], trader) ||
+                !ReferenceEquals(infoStack.Children[2], fleaMinimum))
+            {
+                throw new InvalidOperationException(
+                    "Mini Scanner information rows did not follow the schema-v7 default order.");
             }
 
             settings.MiniScannerInfoOrder =
@@ -212,14 +251,16 @@ public partial class ScannerPage
                 ScannerDisplaySettings.TraderSellPriceField,
                 ScannerDisplaySettings.TraderPricePerSlotField,
                 ScannerDisplaySettings.FleaPricePerSlotField,
+                ScannerDisplaySettings.FleaMinimumPriceField,
             ];
             window.Render(snapshot, settings, editMode: false);
             if (window.FindName("CurrentNeededText") is not TextBlock needed ||
                 window.FindName("InfoStackPanel") is not StackPanel reordered ||
-                !ReferenceEquals(reordered.Children[0], needed))
+                !ReferenceEquals(reordered.Children[0], needed) ||
+                !ReferenceEquals(reordered.Children[^1], fleaMinimum))
             {
                 throw new InvalidOperationException(
-                    "Mini Scanner did not apply user information order.");
+                    "Mini Scanner did not apply user information order including flea minimum price.");
             }
 
             if (!window.IsVisible || !window.Topmost)

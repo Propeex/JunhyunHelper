@@ -18,7 +18,10 @@ public sealed record ScannerPresentationJoinResult(
     int? FleaPricePerSlot,
     int Slots,
     int CurrentNeeded,
-    string? BestTraderName);
+    string? BestTraderName)
+{
+    public int? FleaMinimumPrice { get; init; }
+}
 
 public static class ScannerPresentationJoin
 {
@@ -47,6 +50,9 @@ public static class ScannerPresentationJoin
             catalogItem.FleaPricePerSlot,
             catalogItem.Slots,
             needed.RemainingTotal,
-            catalogItem.BestTraderName);
+            catalogItem.BestTraderName)
+        {
+            FleaMinimumPrice = catalogItem.FleaMinimumPrice,
+        };
     }
 }
