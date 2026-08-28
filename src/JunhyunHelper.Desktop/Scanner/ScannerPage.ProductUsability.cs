@@ -1,6 +1,5 @@
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
 using System.Windows.Threading;
 using JunhyunHelper.Desktop.Controls;
 
@@ -30,15 +29,12 @@ public partial class ScannerPage
         BuildItemRelationshipPresentation();
         EnsureSelectedItemScrolling();
         NormalizeSearchClearAffordance();
+        InitializeScannerUserItemCollections();
 
         SettingsButton.Click -= SettingsButton_Click;
         SettingsButton.Click += ProductSettingsButton_Click;
         AdvancedButton.Click -= AdvancedButton_Click;
         AdvancedButton.Click += ProductAdvancedButton_Click;
-
-        ItemSearchBox.TextChanged += ProductItemSearchBox_TextChanged;
-        ItemSearchBox.AddHandler(Keyboard.PreviewKeyDownEvent, new KeyEventHandler(ProductItemSearchBox_PreviewKeyDown), handledEventsToo: true);
-        SearchResultList.AddHandler(Mouse.PreviewMouseUpEvent, new MouseButtonEventHandler(ProductSearchResultList_PreviewMouseUp), handledEventsToo: true);
     }
 
     private void RebuildToolbarLayout()
@@ -118,27 +114,6 @@ public partial class ScannerPage
         await mainWindow.ToggleInAppWindowAsync("scanner-advanced", advanced);
         UpdateToggleButton();
         UpdateStatus(_coordinator.Status);
-    }
-
-    private void ProductItemSearchBox_TextChanged(object sender, TextChangedEventArgs e)
-    {
-        if (_suppressSearchRefresh) return;
-        ClearNeededSources();
-        ClearItemRelationshipPresentation();
-        if (_basicInfoItems is not null) _basicInfoItems.Children.Clear();
-        if (_basicInfoHost is not null) _basicInfoHost.Visibility = Visibility.Collapsed;
-    }
-
-    private void ProductItemSearchBox_PreviewKeyDown(object sender, KeyEventArgs e)
-    {
-        if (e.Key == Key.Enter && SearchResultList.SelectedItem is ScannerItemSearchHit hit)
-            RefreshProductItemExtensions(hit.ItemId);
-    }
-
-    private void ProductSearchResultList_PreviewMouseUp(object sender, MouseButtonEventArgs e)
-    {
-        if (e.ChangedButton == MouseButton.Left && SearchResultList.SelectedItem is ScannerItemSearchHit hit)
-            RefreshProductItemExtensions(hit.ItemId);
     }
 
     private void RefreshNeededSources(string itemId)

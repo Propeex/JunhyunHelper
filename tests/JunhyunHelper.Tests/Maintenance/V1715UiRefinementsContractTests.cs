@@ -33,7 +33,9 @@ public sealed class V1715UiRefinementsContractTests
         Assert.Contains("_productFavoriteCaliberComboBox = new ComboBox", source, StringComparison.Ordinal);
         Assert.Contains("VerifyProductCaliberDropdownRuntimeContract", source, StringComparison.Ordinal);
         Assert.Contains("junhyun-ammo-ui-smoke-success.txt", source, StringComparison.Ordinal);
-        Assert.Contains("Interval = TimeSpan.FromMilliseconds(1400)", source, StringComparison.Ordinal);
+        Assert.Contains("ProductCaliberIconCycleInterval = TimeSpan.FromMilliseconds(700)", source, StringComparison.Ordinal);
+        Assert.Contains("Interval = ProductCaliberIconCycleInterval", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("TimeSpan.FromMilliseconds(1400)", source, StringComparison.Ordinal);
         Assert.Contains("GroupBy(row => row.RawCaliber", source, StringComparison.Ordinal);
         Assert.Contains("rows[index].Icon", source, StringComparison.Ordinal);
         Assert.Contains("AdvanceProductCaliberIcons", source, StringComparison.Ordinal);

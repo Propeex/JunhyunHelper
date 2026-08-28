@@ -109,15 +109,7 @@ public partial class ScannerPage
         }
 
         SearchResultsPopup.IsOpen = false;
-        RenderSearchDetails(details);
-        RenderProductItemExtensions(details);
-    }
-
-    private void RefreshProductItemExtensions(string itemId)
-    {
-        var details = _coordinator?.GetSearchItemDetails(itemId);
-        if (details is not null)
-            RenderProductItemExtensions(details);
+        OpenScannerItemDetails(details);
     }
 
     private void RenderBasicInfo(ScannerItemBasicDetails basic, ScannerItemSnapshot snapshot)

@@ -157,9 +157,11 @@ jobs:
           $success = Join-Path $env:TEMP 'junhyun-map-smoke-success.txt'
           $ammoIcons = Join-Path $env:TEMP 'junhyun-ammo-ui-smoke-success.txt'
           $ammoToolbar = Join-Path $env:TEMP 'junhyun-ammo-toolbar-smoke-success.txt'
+          $mapExtract = Join-Path $env:TEMP 'junhyun-map-extract-filter-smoke-success.txt'
           $scannerDetail = Join-Path $env:TEMP 'junhyun-scanner-item-detail-smoke-success.txt'
+          $scannerFavorites = Join-Path $env:TEMP 'junhyun-scanner-favorites-recents-smoke-success.txt'
           $startupLog = Join-Path $env:LOCALAPPDATA 'JunhyunHelper/logs/startup.log'
-          foreach ($path in @($diagnostic, $success, $ammoIcons, $ammoToolbar, $scannerDetail, $startupLog)) {
+          foreach ($path in @($diagnostic, $success, $ammoIcons, $ammoToolbar, $mapExtract, $scannerDetail, $scannerFavorites, $startupLog)) {
             Remove-Item $path -Force -ErrorAction SilentlyContinue
           }
 
@@ -179,6 +181,20 @@ jobs:
             if (Test-Path $startupLog) {
               Write-Host 'Application startup/dispatcher diagnostic:'
               Get-Content $startupLog | ForEach-Object { Write-Host $_ }
+            }
+          }
+
+          function Assert-MarkerContains {
+            param(
+              [string]$Path,
+              [string[]]$ExpectedLines,
+              [string]$Name
+            )
+            $content = @(Get-Content $Path)
+            foreach ($expected in $ExpectedLines) {
+              if ($content -notcontains $expected) {
+                throw "Published runtime evidence '$Name' is missing contract line '$expected'."
+              }
             }
           }
 
@@ -215,8 +231,34 @@ jobs:
             $requiredRuntimeMarkers = @(
               @{ Name = 'Ammo animated dropdown'; Path = $ammoIcons },
               @{ Name = 'Ammo toolbar layout'; Path = $ammoToolbar },
-              @{ Name = 'Scanner item detail'; Path = $scannerDetail }
+              @{ Name = 'Map extract filters'; Path = $mapExtract },
+              @{ Name = 'Scanner item detail'; Path = $scannerDetail },
+              @{ Name = 'Scanner favorites/recents'; Path = $scannerFavorites }
             )
+
+            # Some feature probes are scheduled at Dispatcher.ContextIdle after the main
+            # smoke completion marker. Give those real lifecycle callbacks a bounded chance
+            # to publish evidence instead of making marker order itself part of the product contract.
+            $evidenceDeadline = (Get-Date).AddSeconds(10)
+            while ((Get-Date) -lt $evidenceDeadline) {
+              if (Test-Path $diagnostic) {
+                Write-SmokeFailureContext -Process $process
+                throw 'Published 준현 헬퍼 reported a feature smoke failure while collecting runtime evidence.'
+              }
+
+              $missing = @($requiredRuntimeMarkers | Where-Object { -not (Test-Path $_.Path) })
+              if ($missing.Count -eq 0) {
+                break
+              }
+
+              $process.Refresh()
+              if ($process.HasExited) {
+                Write-SmokeFailureContext -Process $process
+                throw "Published 준현 헬퍼 exited before all runtime evidence was produced with code $($process.ExitCode)."
+              }
+              Start-Sleep -Milliseconds 200
+            }
+
             foreach ($marker in $requiredRuntimeMarkers) {
               if (-not (Test-Path $marker.Path)) {
                 Write-SmokeFailureContext -Process $process
@@ -226,7 +268,34 @@ jobs:
               Get-Content $marker.Path | ForEach-Object { Write-Host $_ }
             }
 
-            Write-Host "Startup + rendered Product UI + full Map/Factory/MiniMap smoke passed. Requesting normal Main Window close..."
+            Assert-MarkerContains -Path $ammoIcons -Name 'Ammo animated dropdown' -ExpectedLines @(
+              'ammo-caliber-runtime-template=ok',
+              'favorites-shared-template=ok',
+              'shared-cycle-ms=700'
+            )
+            Assert-MarkerContains -Path $mapExtract -Name 'Map extract filters' -ExpectedLines @(
+              'real-donor-checkboxes=ok',
+              'marker-panel-visible=ok',
+              'master-filter-render-state=ok',
+              'minimap-refresh-handler-preserved=ok'
+            )
+            Assert-MarkerContains -Path $scannerDetail -Name 'Scanner item detail' -ExpectedLines @(
+              'product-lifecycle=ok',
+              'canonical-open-boundary=ok',
+              'basic-four-fields=ok',
+              'related-item-buttons=ok'
+            )
+            Assert-MarkerContains -Path $scannerFavorites -Name 'Scanner favorites/recents' -ExpectedLines @(
+              'search-clear-detail=ok',
+              'favorite-toggle-persistence=ok',
+              'recent-open-persistence=ok',
+              'right-pane-two-to-one=ok',
+              'independent-scroll=ok',
+              'user-log-pane-hidden=ok',
+              'canonical-item-id=ok'
+            )
+
+            Write-Host "Startup + rendered Product UI + full Map/Factory/MiniMap + v1.9 Scanner smoke passed. Requesting normal Main Window close..."
 
             $closeRequested = $false
             for ($attempt = 1; $attempt -le 10; $attempt++) {

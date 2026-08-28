@@ -103,6 +103,11 @@ public partial class MapPage
         BtnToggleMapMarkersPanel.ClearValue(Button.BorderThicknessProperty);
         BtnToggleMapMarkersPanel.ClearValue(Button.ForegroundProperty);
 
+        // v1.9.0 restores the donor's actual extract controls to the product marker panel.
+        // This happens in the same real Loaded lifecycle as the launcher itself so runtime
+        // verification cannot repair a missing activation path.
+        RestoreJunhyunExtractMarkerFiltersToMarkerPanel();
+
         _isMapMarkersPanelCollapsed = true;
         MapMarkersContent.Visibility = Visibility.Collapsed;
         MapMarkersOverlay.MaxHeight = double.PositiveInfinity;

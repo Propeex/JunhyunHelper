@@ -22,14 +22,28 @@ public partial class AmmoPage
             return;
         }
 
-        // Do not trust the Loaded hook itself as proof. The regression being guarded was
-        // precisely that the hook could fail to run in the published executable. Invoke
-        // the product initializer directly if needed, then inspect the rendered controls.
-        if (!_productCaliberDropdownApplied)
-            ApplyProductCaliberDropdownPolish();
-
-        if (_productFavoriteCaliberComboBox is null || _productCaliberIconTimer is null)
-            throw new InvalidOperationException("Ammo runtime selectors were not initialized for published visual smoke.");
+        // Runtime verification must never repair a missed product lifecycle. The
+        // published executable is valid only when the real AmmoPage Loaded path already
+        // installed the shared template, favorite selector and timer.
+        if (!_productCaliberDropdownApplied ||
+            _productFavoriteCaliberComboBox is null ||
+            _productCaliberIconTimer is null)
+        {
+            throw new InvalidOperationException(
+                "Ammo caliber dropdown product lifecycle was not active before published visual smoke.");
+        }
+        if (CaliberComboBox.ItemTemplate is null ||
+            !ReferenceEquals(CaliberComboBox.ItemTemplate, _productFavoriteCaliberComboBox.ItemTemplate))
+        {
+            throw new InvalidOperationException(
+                "Ammo caliber and favorite selectors are not using the same runtime icon template.");
+        }
+        if (_productCaliberIconTimer.Interval != ProductCaliberIconCycleInterval ||
+            ProductCaliberIconCycleInterval != TimeSpan.FromMilliseconds(700))
+        {
+            throw new InvalidOperationException(
+                $"Ammo published selectors are not using the approved 700ms shared cycle: {_productCaliberIconTimer.Interval.TotalMilliseconds:0}ms.");
+        }
 
         var originalVisibility = Visibility;
         var originalRows = _allRows;
@@ -88,7 +102,13 @@ public partial class AmmoPage
             var marker = Path.Combine(Path.GetTempPath(), "junhyun-ammo-ui-smoke-success.txt");
             File.WriteAllText(
                 marker,
-                "rendered-caliber-image=ok\nrendered-favorite-image=ok\nshared-timer-cycle=ok\n");
+                "product-lifecycle=ok\n" +
+                "ammo-caliber-runtime-template=ok\n" +
+                "favorites-shared-template=ok\n" +
+                "rendered-caliber-image=ok\n" +
+                "rendered-favorite-image=ok\n" +
+                "shared-timer-cycle=ok\n" +
+                "shared-cycle-ms=700\n");
         }
         finally
         {

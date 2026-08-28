@@ -156,11 +156,23 @@ public partial class MainWindow
         }
 
         if (ScannerPlaceholder.ItemSearchBox.MinHeight < 30 ||
-            ScannerPlaceholder.ActivityItems.ItemsSource is null ||
-            ScannerPlaceholder.EmptyActivityText.Text != "아직 인식 기록이 없습니다.")
+            ScannerPlaceholder.FavoriteItems.ItemsSource is null ||
+            ScannerPlaceholder.RecentItems.ItemsSource is null ||
+            ScannerPlaceholder.FavoriteItemsScrollViewer.VerticalScrollBarVisibility != ScrollBarVisibility.Auto ||
+            ScannerPlaceholder.RecentItemsScrollViewer.VerticalScrollBarVisibility != ScrollBarVisibility.Auto ||
+            ScannerPlaceholder.FavoriteItemsScrollViewer.HorizontalScrollBarVisibility != ScrollBarVisibility.Disabled ||
+            ScannerPlaceholder.RecentItemsScrollViewer.HorizontalScrollBarVisibility != ScrollBarVisibility.Disabled)
         {
             throw new InvalidOperationException(
-                "Scanner search/log split surface did not render its product contract.");
+                "Scanner search/Favorites/Recents surface did not render its v1.9.0 product contract.");
+        }
+
+        if (ScannerPlaceholder.ActivityItems.Parent is not FrameworkElement diagnosticActivityHost ||
+            diagnosticActivityHost.Visibility != Visibility.Collapsed ||
+            diagnosticActivityHost.IsHitTestVisible)
+        {
+            throw new InvalidOperationException(
+                "Scanner diagnostic activity feed is exposed on the v1.9.0 user-facing surface.");
         }
 
         var forbiddenLabels = new HashSet<string>(StringComparer.Ordinal)
