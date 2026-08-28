@@ -8,9 +8,13 @@ namespace TarkovHelper.Pages.Map;
 
 public partial class MapPage
 {
+    private const int JunhyunMarkerPanelPolishMaxImmediateRetries = 4;
+
     private static readonly bool JunhyunMarkerPanelPolishHandlerRegistered = RegisterJunhyunMarkerPanelPolishHandler();
 
     private bool _junhyunMarkerPanelPolishApplied;
+    private bool _junhyunMarkerPanelPolishScheduled;
+    private int _junhyunMarkerPanelPolishRetryCount;
     private ScrollViewer? _junhyunMarkerListViewport;
 
     private static bool RegisterJunhyunMarkerPanelPolishHandler()
@@ -29,18 +33,62 @@ public partial class MapPage
 
         // Loaded can be routed from a descendant while the class-handler sender is still
         // the MapPage. The old OriginalSource == page guard therefore skipped the product
-        // marker viewport on real runs. Keep donor construction order intact and only
-        // remove that invalid routed-event assumption.
-        page.Dispatcher.BeginInvoke(page.ApplyJunhyunMarkerPanelPolish, DispatcherPriority.Loaded);
+        // marker viewport on real runs. Do not advance donor construction; queue one
+        // lifecycle-safe attempt and let the instance retry at ContextIdle if its XAML
+        // parent relationship has not settled yet.
+        page.ScheduleJunhyunMarkerPanelPolish(DispatcherPriority.Loaded);
+    }
+
+    private void ScheduleJunhyunMarkerPanelPolish(DispatcherPriority priority)
+    {
+        if (_junhyunMarkerPanelPolishApplied || _junhyunMarkerPanelPolishScheduled)
+            return;
+
+        _junhyunMarkerPanelPolishScheduled = true;
+        Dispatcher.BeginInvoke(
+            new Action(() =>
+            {
+                _junhyunMarkerPanelPolishScheduled = false;
+                ApplyJunhyunMarkerPanelPolish();
+            }),
+            priority);
     }
 
     private void ApplyJunhyunMarkerPanelPolish()
     {
         if (_junhyunMarkerPanelPolishApplied)
             return;
+
+        // A descendant Loaded event can reach the MapPage class handler before the
+        // MapMarkersContent logical parent is attached. Never mark activation complete
+        // until the viewport has actually been inserted. This is what prevents a later
+        // ActivateProductMarkerPanelBodyLayout call from observing a null viewport.
+        if (!TryWrapJunhyunMarkerListViewport())
+        {
+            _junhyunMarkerPanelPolishRetryCount++;
+            if (_junhyunMarkerPanelPolishRetryCount <= JunhyunMarkerPanelPolishMaxImmediateRetries)
+            {
+                ScheduleJunhyunMarkerPanelPolish(DispatcherPriority.ContextIdle);
+                return;
+            }
+
+            _junhyunMarkerPanelPolishRetryCount = 0;
+            if (string.Equals(
+                    Environment.GetEnvironmentVariable("JUNHYUNHELPER_MAP_SMOKE"),
+                    "1",
+                    StringComparison.Ordinal))
+            {
+                FailJunhyunMarkerPanelActivationSmoke();
+            }
+
+            // Production stays usable if a future donor changes this local XAML shape.
+            // A later real Loaded event can start another bounded activation attempt.
+            return;
+        }
+
+        _junhyunMarkerPanelPolishRetryCount = 0;
         _junhyunMarkerPanelPolishApplied = true;
 
-        WrapJunhyunMarkerListViewport();
         PreviewMouseLeftButtonDown += JunhyunMarkerPanel_PreviewMouseLeftButtonDown;
         SizeChanged += JunhyunMarkerPanel_SizeChanged;
         MapMarkersContent.SizeChanged += JunhyunMarkerContent_SizeChanged;
@@ -48,20 +96,22 @@ public partial class MapPage
 
         // v1.8.3 replaces the content-sized viewport synchronization below with the
         // full-panel-body implementation. Activate it here, after the actual Map Loaded
-        // lifecycle, rather than from OnInitialized where the donor constructor has not
-        // yet finished preparing map/floor state.
+        // lifecycle and only after the viewport insertion succeeded.
         ActivateProductMarkerPanelBodyLayout();
         Dispatcher.BeginInvoke(SyncProductMarkerPanelBodyLayout, DispatcherPriority.ContextIdle);
     }
 
-    private void WrapJunhyunMarkerListViewport()
+    private bool TryWrapJunhyunMarkerListViewport()
     {
-        if (_junhyunMarkerListViewport is not null || MapMarkersContent.Parent is not StackPanel parent)
-            return;
+        if (_junhyunMarkerListViewport is not null)
+            return true;
+
+        if (MapMarkersContent.Parent is not Panel parent)
+            return false;
 
         var index = parent.Children.IndexOf(MapMarkersContent);
         if (index < 0)
-            return;
+            return false;
 
         var margin = MapMarkersContent.Margin;
         parent.Children.Remove(MapMarkersContent);
@@ -77,6 +127,24 @@ public partial class MapPage
             Visibility = MapMarkersContent.Visibility,
         };
         parent.Children.Insert(index, _junhyunMarkerListViewport);
+        return true;
+    }
+
+    private static void FailJunhyunMarkerPanelActivationSmoke()
+    {
+        try
+        {
+            var diagnostic = Path.Combine(Path.GetTempPath(), "junhyun-map-smoke-error.txt");
+            File.WriteAllText(
+                diagnostic,
+                "Map marker panel activation smoke failed.\n" +
+                "MapMarkersContent never acquired a usable Panel parent before the bounded Loaded/ContextIdle retries completed.");
+        }
+        catch
+        {
+        }
+
+        Environment.Exit(89);
     }
 
     private void JunhyunMarkerPanelToggleButton_Click(object sender, RoutedEventArgs e) =>
