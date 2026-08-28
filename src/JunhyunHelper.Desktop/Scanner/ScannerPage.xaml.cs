@@ -271,7 +271,20 @@ public partial class ScannerPage : UserControl
             _suppressSearchRefresh = false;
         }
         SearchResultsPopup.IsOpen = false;
+        OpenScannerItemDetails(details);
+    }
+
+    /// <summary>
+    /// Canonical product-owned Scanner item-open boundary. Every route that actually
+    /// changes the open item must pass through here so base details, relationships,
+    /// favorites state and recent-history recording cannot drift apart.
+    /// </summary>
+    private void OpenScannerItemDetails(ScannerItemSearchDetails details)
+    {
+        ArgumentNullException.ThrowIfNull(details);
         RenderSearchDetails(details);
+        RenderProductItemExtensions(details);
+        OnScannerItemOpened(details);
     }
 
     private void RenderSearchDetails(ScannerItemSearchDetails details)
@@ -293,7 +306,6 @@ public partial class ScannerPage : UserControl
         WikiButton.IsEnabled = _selectedWikiUrl is not null;
         EmptyItemText.Visibility = Visibility.Collapsed;
         SelectedItemPanel.Visibility = Visibility.Visible;
-        OnScannerItemOpened(details);
     }
 
     private void WikiButton_Click(object sender, RoutedEventArgs e)
