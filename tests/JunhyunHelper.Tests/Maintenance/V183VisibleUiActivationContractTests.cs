@@ -29,7 +29,8 @@ public sealed class V183VisibleUiActivationContractTests
 
         Assert.Contains("typeof(MainWindow)", source, StringComparison.Ordinal);
         Assert.Contains("window.AmmoPage.VerifyProductVisibleDropdownLoadedActivation();", source, StringComparison.Ordinal);
-        Assert.Contains("before the older published", source, StringComparison.Ordinal);
+        Assert.Contains("older published Ammo smoke", source, StringComparison.Ordinal);
+        Assert.Contains("direct initializer cannot set this flag", source, StringComparison.Ordinal);
         Assert.Contains("Environment.Exit(88)", source, StringComparison.Ordinal);
     }
 
