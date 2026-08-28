@@ -7,14 +7,16 @@ namespace JunhyunHelper.Desktop.Scanner;
 public partial class ScannerPage
 {
     private const double V191DetailActionHeight = 34d;
+    private static readonly bool V191DetailActionHandlerRegistered = RegisterV191DetailActionHandler();
     private bool _v191DetailActionSmokeCompleted;
 
-    static ScannerPage()
+    private static bool RegisterV191DetailActionHandler()
     {
         EventManager.RegisterClassHandler(
             typeof(ScannerPage),
             LoadedEvent,
             new RoutedEventHandler(ScannerPage_V191DetailActionLoaded));
+        return true;
     }
 
     private static void ScannerPage_V191DetailActionLoaded(object sender, RoutedEventArgs e)
