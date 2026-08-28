@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Windows;
+using System.Windows.Threading;
 
 namespace JunhyunHelper.Desktop.Ammo;
 
@@ -22,8 +23,8 @@ public partial class AmmoPage
 
         // The Loaded routed event can originate from a descendant while the class-handler
         // sender is the AmmoPage itself. Do not gate product activation on OriginalSource.
-        // Apply synchronously so the visible toolbar is correct before parent-window smoke
-        // or user interaction can observe the legacy XAML fallback.
+        // Apply synchronously so the visible toolbar is correct before user interaction can
+        // observe the legacy XAML fallback.
         page.ApplyProductCaliberDropdownPolish();
         page._productVisibleDropdownActivatedFromLoaded = true;
     }
@@ -70,25 +71,31 @@ internal static class AmmoVisibleDropdownLoadedSmokeGate
             return;
         }
 
-        // This check runs synchronously in MainWindow.Loaded, before the older published
-        // Ammo smoke schedules its deferred callback. Therefore that smoke cannot repair
-        // a missing product Loaded activation and accidentally hide the regression again.
-        try
-        {
-            window.AmmoPage.VerifyProductVisibleDropdownLoadedActivation();
-        }
-        catch (Exception exception)
-        {
-            try
+        // Wait until the complete child tree has emitted Loaded, then check the dedicated
+        // activation flag. The older published Ammo smoke may run before or after this
+        // callback, but its direct initializer cannot set this flag, so it cannot repair
+        // a missing real Loaded activation and hide the regression again.
+        window.Dispatcher.BeginInvoke(
+            () =>
             {
-                var diagnostic = Path.Combine(Path.GetTempPath(), "junhyun-map-smoke-error.txt");
-                File.WriteAllText(diagnostic, "Ammo visible dropdown Loaded activation failed.\n" + exception);
-            }
-            catch
-            {
-            }
+                try
+                {
+                    window.AmmoPage.VerifyProductVisibleDropdownLoadedActivation();
+                }
+                catch (Exception exception)
+                {
+                    try
+                    {
+                        var diagnostic = Path.Combine(Path.GetTempPath(), "junhyun-map-smoke-error.txt");
+                        File.WriteAllText(diagnostic, "Ammo visible dropdown Loaded activation failed.\n" + exception);
+                    }
+                    catch
+                    {
+                    }
 
-            Environment.Exit(88);
-        }
+                    Environment.Exit(88);
+                }
+            },
+            DispatcherPriority.Loaded);
     }
 }
