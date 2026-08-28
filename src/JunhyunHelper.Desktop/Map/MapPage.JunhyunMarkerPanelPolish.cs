@@ -24,9 +24,13 @@ public partial class MapPage
 
     private static void OnJunhyunMarkerPanelPolishLoaded(object sender, RoutedEventArgs e)
     {
-        if (sender is not MapPage page || !ReferenceEquals(e.OriginalSource, page))
+        if (sender is not MapPage page)
             return;
 
+        // Loaded can be routed from a descendant while the class-handler sender is still
+        // the MapPage. The old OriginalSource == page guard therefore skipped the product
+        // marker viewport on real runs. Keep donor construction order intact and only
+        // remove that invalid routed-event assumption.
         page.Dispatcher.BeginInvoke(page.ApplyJunhyunMarkerPanelPolish, DispatcherPriority.Loaded);
     }
 
@@ -41,7 +45,13 @@ public partial class MapPage
         SizeChanged += JunhyunMarkerPanel_SizeChanged;
         MapMarkersContent.SizeChanged += JunhyunMarkerContent_SizeChanged;
         BtnToggleMapMarkersPanel.Click += JunhyunMarkerPanelToggleButton_Click;
-        Dispatcher.BeginInvoke(SyncJunhyunMarkerPanelViewport, DispatcherPriority.Loaded);
+
+        // v1.8.3 replaces the content-sized viewport synchronization below with the
+        // full-panel-body implementation. Activate it here, after the actual Map Loaded
+        // lifecycle, rather than from OnInitialized where the donor constructor has not
+        // yet finished preparing map/floor state.
+        ActivateProductMarkerPanelBodyLayout();
+        Dispatcher.BeginInvoke(SyncProductMarkerPanelBodyLayout, DispatcherPriority.ContextIdle);
     }
 
     private void WrapJunhyunMarkerListViewport()
@@ -144,7 +154,7 @@ public partial class MapPage
         _isMapMarkersPanelCollapsed = true;
         MapMarkersContent.Visibility = Visibility.Collapsed;
         ApplyMapMarkerPanelChrome(expanded: false);
-        SyncJunhyunMarkerPanelViewport();
+        SyncProductMarkerPanelBodyLayout();
         // Do not mark the event handled. The click that dismisses the panel must still
         // behave as the user's normal map/control click.
     }
