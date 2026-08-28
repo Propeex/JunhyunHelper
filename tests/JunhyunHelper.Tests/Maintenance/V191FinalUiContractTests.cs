@@ -52,9 +52,23 @@ public sealed class V191FinalUiContractTests
         Assert.Contains("_tracker.SetCurrentMap(canonicalKey)", bridge, StringComparison.Ordinal);
         Assert.Contains("JunhyunMiniMapProductRegistry.SynchronizeMapSelection(canonicalKey)", bridge, StringComparison.Ordinal);
 
-        var synchronizeIndex = registry.IndexOf("LegacyMapSelectionConsistencyBridge.SynchronizeCurrentSelectionNow();", StringComparison.Ordinal);
-        var registerIndex = registry.IndexOf("_activeWindow = new WeakReference<OverlayMiniMapWindow>(window);", StringComparison.Ordinal);
-        Assert.True(synchronizeIndex >= 0 && registerIndex >= 0 && synchronizeIndex < registerIndex,
+        var registerStart = registry.IndexOf(
+            "public static void Register(TarkovHelper.Windows.OverlayMiniMapWindow window)",
+            StringComparison.Ordinal);
+        var unregisterStart = registry.IndexOf(
+            "public static void Unregister(TarkovHelper.Windows.OverlayMiniMapWindow window)",
+            StringComparison.Ordinal);
+        Assert.True(registerStart >= 0 && unregisterStart > registerStart,
+            "Could not isolate the MiniMap product registration boundary.");
+
+        var registerBody = registry[registerStart..unregisterStart];
+        var synchronizeIndex = registerBody.IndexOf(
+            "_ = LegacyMapSelectionConsistencyBridge.SynchronizeCurrentSelectionNow();",
+            StringComparison.Ordinal);
+        var activeRegistrationIndex = registerBody.IndexOf(
+            "_active = new WeakReference<TarkovHelper.Windows.OverlayMiniMapWindow>(window);",
+            StringComparison.Ordinal);
+        Assert.True(synchronizeIndex >= 0 && activeRegistrationIndex >= 0 && synchronizeIndex < activeRegistrationIndex,
             "The visible Main Map selection must reach MapTrackerService before the MiniMap becomes the active product window.");
 
         Assert.Contains("internal void SynchronizeJunhyunMapSelection(string mapKey)", window, StringComparison.Ordinal);
