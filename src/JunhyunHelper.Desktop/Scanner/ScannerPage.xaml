@@ -71,6 +71,84 @@
                            TextTrimming="CharacterEllipsis" />
             </Grid>
         </DataTemplate>
+
+        <DataTemplate x:Key="ScannerFavoriteItemTemplate">
+            <Grid Margin="8,3">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Button Tag="{Binding ItemId}"
+                        HorizontalContentAlignment="Stretch"
+                        Padding="7,5"
+                        Click="FavoriteItemBodyButton_Click">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="38" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Image Source="{Binding Icon}"
+                               Width="32"
+                               Height="32"
+                               Stretch="Uniform"
+                               VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding Name}"
+                                   Margin="7,0,4,0"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   TextWrapping="NoWrap" />
+                    </Grid>
+                </Button>
+                <Button Grid.Column="1"
+                        Tag="{Binding ItemId}"
+                        Content="★"
+                        Width="36"
+                        MinHeight="34"
+                        Margin="5,0,0,0"
+                        ToolTip="즐겨찾기 해제"
+                        Click="FavoriteItemRemoveButton_Click" />
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="ScannerRecentItemTemplate">
+            <Grid Margin="8,3">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Button Tag="{Binding ItemId}"
+                        HorizontalContentAlignment="Stretch"
+                        Padding="7,5"
+                        Click="RecentItemBodyButton_Click">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="38" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Image Source="{Binding Icon}"
+                               Width="32"
+                               Height="32"
+                               Stretch="Uniform"
+                               VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding Name}"
+                                   Margin="7,0,4,0"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   TextWrapping="NoWrap" />
+                    </Grid>
+                </Button>
+                <Button Grid.Column="1"
+                        Tag="{Binding ItemId}"
+                        Content="×"
+                        Width="36"
+                        MinHeight="34"
+                        Margin="5,0,0,0"
+                        ToolTip="최근 본 아이템에서 제거"
+                        Click="RecentItemRemoveButton_Click" />
+            </Grid>
+        </DataTemplate>
     </UserControl.Resources>
 
     <Grid Margin="16">
@@ -203,6 +281,7 @@
                                     <ColumnDefinition Width="84" />
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <Image x:Name="SelectedItemIcon"
                                        Width="72"
@@ -216,8 +295,19 @@
                                            TextWrapping="Wrap"
                                            VerticalAlignment="Center"
                                            Margin="8,0,12,0" />
-                                <Button x:Name="WikiButton"
+                                <Button x:Name="FavoriteItemButton"
                                         Grid.Column="2"
+                                        Content="☆"
+                                        Width="40"
+                                        MinHeight="34"
+                                        Margin="0,0,6,0"
+                                        FontSize="19"
+                                        IsEnabled="False"
+                                        ToolTip="즐겨찾기 등록"
+                                        VerticalAlignment="Center"
+                                        Click="FavoriteItemButton_Click" />
+                                <Button x:Name="WikiButton"
+                                        Grid.Column="3"
                                         Content="위키"
                                         MinWidth="72"
                                         VerticalAlignment="Center"
@@ -246,35 +336,97 @@
                 </Grid>
             </Border>
 
-            <Border Grid.Column="2"
-                    Background="{StaticResource BackgroundMediumBrush}"
-                    BorderBrush="{StaticResource BorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    ClipToBounds="True">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-                    <TextBlock Text="로그"
-                               FontSize="17"
-                               FontWeight="SemiBold"
-                               Margin="12,10" />
-                    <Grid Grid.Row="1" Background="{StaticResource BackgroundDarkBrush}">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                      HorizontalScrollBarVisibility="Disabled">
-                            <ItemsControl x:Name="ActivityItems"
-                                          ItemTemplate="{StaticResource ScannerActivityTemplate}" />
-                        </ScrollViewer>
-                        <TextBlock x:Name="EmptyActivityText"
-                                   Text="아직 인식 기록이 없습니다."
-                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center" />
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="2*" />
+                    <RowDefinition Height="10" />
+                    <RowDefinition Height="1*" />
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0"
+                        Background="{StaticResource BackgroundMediumBrush}"
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        ClipToBounds="True">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="즐겨찾기"
+                                   FontSize="17"
+                                   FontWeight="SemiBold"
+                                   Margin="12,10" />
+                        <Grid Grid.Row="1" Background="{StaticResource BackgroundDarkBrush}">
+                            <ScrollViewer x:Name="FavoriteItemsScrollViewer"
+                                          VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled">
+                                <ItemsControl x:Name="FavoriteItems"
+                                              ItemTemplate="{StaticResource ScannerFavoriteItemTemplate}" />
+                            </ScrollViewer>
+                            <TextBlock x:Name="EmptyFavoriteItemsText"
+                                       Text="즐겨찾기한 아이템이 없습니다."
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       IsHitTestVisible="False" />
+                        </Grid>
                     </Grid>
-                </Grid>
-            </Border>
+                </Border>
+
+                <Border Grid.Row="2"
+                        Background="{StaticResource BackgroundMediumBrush}"
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        ClipToBounds="True">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Grid Margin="12,7,8,7">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="최근 본 아이템"
+                                       FontSize="17"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center" />
+                            <Button x:Name="ClearRecentItemsButton"
+                                    Grid.Column="1"
+                                    Content="전부 삭제"
+                                    Padding="8,3"
+                                    MinWidth="72"
+                                    Click="ClearRecentItemsButton_Click" />
+                        </Grid>
+                        <Grid Grid.Row="1" Background="{StaticResource BackgroundDarkBrush}">
+                            <ScrollViewer x:Name="RecentItemsScrollViewer"
+                                          VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled">
+                                <ItemsControl x:Name="RecentItems"
+                                              ItemTemplate="{StaticResource ScannerRecentItemTemplate}" />
+                            </ScrollViewer>
+                            <TextBlock x:Name="EmptyRecentItemsText"
+                                       Text="최근 본 아이템이 없습니다."
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       IsHitTestVisible="False" />
+                        </Grid>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- The diagnostic activity feed remains alive for support/correction data but is
+             intentionally not part of the v1.9.0 user-facing Scanner surface. -->
+        <Grid Visibility="Collapsed" IsHitTestVisible="False">
+            <ItemsControl x:Name="ActivityItems"
+                          ItemTemplate="{StaticResource ScannerActivityTemplate}" />
+            <TextBlock x:Name="EmptyActivityText" />
         </Grid>
     </Grid>
 </UserControl>
