@@ -26,7 +26,7 @@ public sealed record ScannerCatalogDiagnostics(
 public sealed class ScannerCatalogService : IDisposable
 {
     public const int MinimumHealthyItemCount = 4000;
-    private const int CurrentCacheSchemaVersion = 3;
+    private const int CurrentCacheSchemaVersion = 4;
     private const int RequiredDownloadAttempts = 3;
     private const int OptionalDownloadAttempts = 2;
     private static readonly TimeSpan DefaultRefreshAge = TimeSpan.FromHours(12);
@@ -108,8 +108,8 @@ public sealed class ScannerCatalogService : IDisposable
 
     public bool IsStale(TimeSpan? maximumAge = null)
     {
-        // v1/v2 caches remain readable so an offline upgrade can still recognize items,
-        // but they predate the static-API sellToTrader mapping and must be refreshed at
+        // Older caches remain readable so an offline upgrade can still recognize items,
+        // but they predate the current market-presentation fields and must be refreshed at
         // the next online opportunity instead of being trusted as a fresh market cache.
         if (LoadedCacheSchemaVersion < CurrentCacheSchemaVersion)
             return true;
@@ -747,6 +747,7 @@ public sealed class ScannerCatalogService : IDisposable
             {
                 BestTraderId = bestTrader?.TraderId,
                 BestTraderName = ResolveTraderDisplayName(bestTrader, traderNames),
+                FleaMinimumPrice = PositiveOrNull(GetInt(raw, "lastLowPrice")),
             });
         }
 
