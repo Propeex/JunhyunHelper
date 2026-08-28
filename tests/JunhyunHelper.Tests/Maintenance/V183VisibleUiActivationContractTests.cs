@@ -9,16 +9,17 @@ public sealed class V183VisibleUiActivationContractTests
     public void AmmoVisibleDropdowns_ActivateDuringPageInitialization()
     {
         var root = FindRepositoryRoot();
-        var source = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.VisibleDropdownActivation.cs");
+        var lifecycle = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.ProductGridFixes.cs");
+        var activation = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.VisibleDropdownActivation.cs");
 
-        Assert.Contains("protected override void OnInitialized(EventArgs e)", source, StringComparison.Ordinal);
-        Assert.Contains("EnsureProductVisibleDropdownInitialization();", source, StringComparison.Ordinal);
-        Assert.Contains("ApplyProductCaliberDropdownPolish();", source, StringComparison.Ordinal);
-        Assert.Contains("_productVisibleDropdownActivatedFromInitialization = true", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("RegisterProductVisibleDropdownActivation", source, StringComparison.Ordinal);
-        Assert.Contains("VerifyProductVisibleDropdownInitialization", source, StringComparison.Ordinal);
-        Assert.Contains("FavoriteCaliberMenuButton.Visibility != Visibility.Collapsed", source, StringComparison.Ordinal);
-        Assert.Contains("ReferenceEquals(CaliberComboBox.ItemTemplate, _productFavoriteCaliberComboBox.ItemTemplate)", source, StringComparison.Ordinal);
+        Assert.Contains("protected override void OnInitialized(EventArgs e)", lifecycle, StringComparison.Ordinal);
+        Assert.Contains("EnsureProductVisibleDropdownInitialization();", lifecycle, StringComparison.Ordinal);
+        Assert.Contains("ApplyProductCaliberDropdownPolish();", activation, StringComparison.Ordinal);
+        Assert.Contains("_productVisibleDropdownActivatedFromInitialization = true", activation, StringComparison.Ordinal);
+        Assert.DoesNotContain("RegisterProductVisibleDropdownActivation", activation, StringComparison.Ordinal);
+        Assert.Contains("VerifyProductVisibleDropdownInitialization", activation, StringComparison.Ordinal);
+        Assert.Contains("FavoriteCaliberMenuButton.Visibility != Visibility.Collapsed", activation, StringComparison.Ordinal);
+        Assert.Contains("ReferenceEquals(CaliberComboBox.ItemTemplate, _productFavoriteCaliberComboBox.ItemTemplate)", activation, StringComparison.Ordinal);
     }
 
     [Fact]
