@@ -60,10 +60,20 @@ public sealed class TarkovItemRelationshipImporter
             }
         }
 
+        // Current json.tarkov.dev can repeat the exact same buyFromTrader offer two or
+        // three times for an item. Those rows are byte-for-byte equivalent in all fields
+        // represented by the canonical model, so retaining them would fabricate duplicate
+        // acquisition paths and trip the canonical uniqueness validator. Normalize only
+        // exact record equality here; materially different offers remain separate.
+        var canonicalPurchases = purchases
+            .Distinct()
+            .OrderBy(value => value.ItemId, StringComparer.Ordinal)
+            .ThenBy(value => value.TraderId, StringComparer.Ordinal)
+            .ThenBy(value => value.RequiredLevel)
+            .ToArray();
+
         return new ItemRelationshipCatalog(
-            purchases.OrderBy(value => value.ItemId, StringComparer.Ordinal)
-                .ThenBy(value => value.TraderId, StringComparer.Ordinal)
-                .ThenBy(value => value.RequiredLevel).ToArray(),
+            canonicalPurchases,
             ReadBarters(bartersDocument.Data),
             ReadCrafts(craftsDocument.Data),
             fleaItems.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray());
