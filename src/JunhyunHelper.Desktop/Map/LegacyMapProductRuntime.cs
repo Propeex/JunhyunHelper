@@ -174,7 +174,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
                 () => _overlay.IsOverlayVisible && JunhyunMiniMapProductRegistry.HasLoadedActiveWindow,
                 TimeSpan.FromSeconds(2));
 
-            var window = Application.Current.Windows
+            var window = System.Windows.Application.Current.Windows
                 .OfType<TarkovHelper.Windows.OverlayMiniMapWindow>()
                 .FirstOrDefault(candidate => candidate.IsVisible)
                 ?? throw new InvalidOperationException("Visible MiniMap window was not found for reopen smoke.");
