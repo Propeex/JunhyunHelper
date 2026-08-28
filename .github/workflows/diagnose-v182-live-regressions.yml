@@ -16,13 +16,21 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 10
     steps:
-      - name: Inspect current json.tarkov.dev craft shapes
+      - name: Inspect current json.tarkov.dev relationship shapes
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $targetCraftId = '5d5c205bd582a50d042a3c0e'
           $targetStationId = '5d494a445b56502f18c98a10'
           $targetProductId = '59faff1d86f7746c51718c9c'
+
+          function Get-ReferenceId($value) {
+            if ($null -eq $value) { return '' }
+            if ($value -is [string]) { return [string]$value }
+            if ($null -ne $value.id) { return [string]$value.id }
+            return ''
+          }
+
           foreach ($mode in @('regular', 'pve')) {
             $headers = @{ 'User-Agent' = 'JunhyunHelper-v1.8.2-diagnostic/1.0' }
             $craftRoot = Invoke-RestMethod -Uri "https://json.tarkov.dev/$mode/crafts" -Headers $headers
@@ -36,8 +44,32 @@ jobs:
             }
 
             $itemsRoot = Invoke-RestMethod -Uri "https://json.tarkov.dev/$mode/items" -Headers $headers
-            $product = @($itemsRoot.data) | Where-Object { $_.id -eq $targetProductId } | Select-Object -First 1
+            $items = @($itemsRoot.data)
+            $product = $items | Where-Object { $_.id -eq $targetProductId } | Select-Object -First 1
             Write-Host "PRODUCT mode=$mode id=$targetProductId payload=$(($product | ConvertTo-Json -Depth 12 -Compress))"
+
+            $purchaseRows = foreach ($item in $items) {
+              foreach ($offer in @($item.buyFromTrader)) {
+                if ($null -eq $offer) { continue }
+                $traderId = Get-ReferenceId $offer.trader
+                $questId = Get-ReferenceId $offer.taskUnlock
+                $currencyItemId = Get-ReferenceId $offer.currencyItem
+                $key = "$($item.id)|$traderId|$($offer.minTraderLevel)|$questId|$($offer.price)|$currencyItemId"
+                [pscustomobject]@{
+                  Key = $key
+                  ItemId = [string]$item.id
+                  Offer = $offer
+                }
+              }
+            }
+            $duplicateGroups = @($purchaseRows | Group-Object Key | Where-Object Count -gt 1)
+            Write-Host "MODE=$mode DUPLICATE_PURCHASE_KEYS=$($duplicateGroups.Count)"
+            foreach ($group in $duplicateGroups) {
+              Write-Host "DUPLICATE_PURCHASE mode=$mode key=$($group.Name) count=$($group.Count)"
+              foreach ($entry in $group.Group) {
+                Write-Host "DUPLICATE_OFFER mode=$mode item=$($entry.ItemId) payload=$(($entry.Offer | ConvertTo-Json -Depth 12 -Compress))"
+              }
+            }
 
             $hideoutRoot = Invoke-RestMethod -Uri "https://json.tarkov.dev/$mode/hideout" -Headers $headers
             $station = @($hideoutRoot.data) | Where-Object { $_.id -eq $targetStationId } | Select-Object -First 1
