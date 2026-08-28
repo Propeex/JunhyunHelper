@@ -1,8 +1,9 @@
+using System.Windows.Media;
 using JunhyunHelper.Core.Items;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
-public sealed record ScannerItemLink(string ItemId, string OfficialName);
+public sealed record ScannerItemLink(string ItemId, string OfficialName, ImageSource? Icon);
 public sealed record ScannerItemMaterialRow(ScannerItemLink Item, decimal Count, bool IsTool);
 
 public sealed record ScannerItemUsageRow(
@@ -142,8 +143,13 @@ public sealed partial class ScannerCoordinator
                 ScannerItemAcquisitionKind.FleaMarket, "플리마켓", null, [],
                 FleaAveragePrice: catalogItem?.FleaAveragePrice));
         }
-        if (acquisitions.Count == 0)
-            acquisitions.Add(new ScannerItemAcquisitionRow(ScannerItemAcquisitionKind.Raid, "레이드에서 획득", null, []));
+
+        // The current relationship schema has no authoritative per-item "cannot spawn in raid"
+        // field. Preserve the established product meaning: raid acquisition is the fallback
+        // source when no canonical purchase/barter/craft/flea source exists. Presentation can
+        // therefore distinguish "raid only" from "raid available alongside other sources"
+        // without inventing a false negative.
+        acquisitions.Add(new ScannerItemAcquisitionRow(ScannerItemAcquisitionKind.Raid, "레이드", null, []));
 
         return new ScannerItemRelationshipDetails(
             questUsages,
@@ -157,10 +163,13 @@ public sealed partial class ScannerCoordinator
 
     private ScannerItemLink ResolveItemLink(ScannerDataContext context, string itemId)
     {
-        if (_catalog.TryGetItem(itemId, out var scannerItem) && !string.IsNullOrWhiteSpace(scannerItem.OfficialName))
-            return new ScannerItemLink(itemId, scannerItem.OfficialName);
+        _catalog.TryGetItem(itemId, out var scannerItem);
         var canonical = context.Content.Items.FirstOrDefault(item => string.Equals(item.Id, itemId, StringComparison.Ordinal));
-        return new ScannerItemLink(itemId, FirstNonBlank(canonical?.NameKo, canonical?.NameEn, itemId));
+        var name = !string.IsNullOrWhiteSpace(scannerItem?.OfficialName)
+            ? scannerItem.OfficialName
+            : FirstNonBlank(canonical?.NameKo, canonical?.NameEn, itemId);
+        var iconUrl = canonical?.IconUrl ?? scannerItem?.IconUrl;
+        return new ScannerItemLink(itemId, name, _icons.Load($"item-{itemId}", iconUrl));
     }
 
     private IReadOnlyList<ScannerItemMaterialRow> ResolveMaterials(ScannerDataContext context, IReadOnlyList<ItemIngredient> materials) =>
@@ -186,9 +195,9 @@ public sealed partial class ScannerCoordinator
 
     private static int AcquisitionRank(ScannerItemAcquisitionKind kind) => kind switch
     {
-        ScannerItemAcquisitionKind.TraderPurchase => 0,
+        ScannerItemAcquisitionKind.HideoutCraft => 0,
         ScannerItemAcquisitionKind.TraderBarter => 1,
-        ScannerItemAcquisitionKind.HideoutCraft => 2,
+        ScannerItemAcquisitionKind.TraderPurchase => 2,
         ScannerItemAcquisitionKind.FleaMarket => 3,
         ScannerItemAcquisitionKind.Raid => 4,
         _ => 9,
