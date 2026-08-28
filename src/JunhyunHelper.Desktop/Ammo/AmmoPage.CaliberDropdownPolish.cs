@@ -14,6 +14,7 @@ public partial class AmmoPage
 {
     private static readonly bool ProductCaliberDropdownHandlerRegistered = RegisterProductCaliberDropdownHandler();
     private static readonly IValueConverter ProductCaliberIconVisibilityConverter = new CaliberIconVisibilityConverter();
+    private static readonly TimeSpan ProductCaliberIconCycleInterval = TimeSpan.FromMilliseconds(700);
 
     private bool _productCaliberDropdownApplied;
     private ComboBox? _productFavoriteCaliberComboBox;
@@ -94,7 +95,7 @@ public partial class AmmoPage
 
         _productCaliberIconTimer = new DispatcherTimer(DispatcherPriority.Background, Dispatcher)
         {
-            Interval = TimeSpan.FromMilliseconds(1400),
+            Interval = ProductCaliberIconCycleInterval,
         };
         _productCaliberIconTimer.Tick += ProductCaliberIconTimer_Tick;
 
@@ -113,13 +114,19 @@ public partial class AmmoPage
             throw new InvalidOperationException("Ammo favorite-caliber runtime ComboBox was not created.");
         if (!ReferenceEquals(CaliberComboBox.ItemTemplate, _productFavoriteCaliberComboBox.ItemTemplate))
             throw new InvalidOperationException("Ammo caliber and favorite selectors do not share one icon template.");
+        if (_productCaliberIconTimer is null || _productCaliberIconTimer.Interval != ProductCaliberIconCycleInterval)
+            throw new InvalidOperationException("Ammo caliber selectors are not using the v1.9.0 700ms shared icon cycle.");
         if (FavoriteCaliberMenuButton.Visibility != Visibility.Collapsed || FavoriteCaliberMenuButton.IsHitTestVisible)
             throw new InvalidOperationException("Legacy favorite-caliber menu remained active after runtime polish.");
 
         if (string.Equals(Environment.GetEnvironmentVariable("JUNHYUNHELPER_MAP_SMOKE"), "1", StringComparison.Ordinal))
         {
             var marker = Path.Combine(Path.GetTempPath(), "junhyun-ammo-ui-smoke-success.txt");
-            File.WriteAllText(marker, "ammo-caliber-runtime-template=ok\nfavorites-shared-template=ok\n");
+            File.WriteAllText(
+                marker,
+                "ammo-caliber-runtime-template=ok\n" +
+                "favorites-shared-template=ok\n" +
+                "shared-cycle-ms=700\n");
         }
     }
 
