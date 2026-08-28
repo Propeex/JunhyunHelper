@@ -8,21 +8,14 @@ public partial class AmmoPage
 {
     private bool _productVisibleDropdownActivatedFromInitialization;
 
-    protected override void OnInitialized(EventArgs e)
-    {
-        base.OnInitialized(e);
-        EnsureProductVisibleDropdownInitialization();
-    }
-
-    private void EnsureProductVisibleDropdownInitialization()
+    internal void EnsureProductVisibleDropdownInitialization()
     {
         if (_productVisibleDropdownActivatedFromInitialization)
             return;
 
-        // XAML initialization is complete when OnInitialized runs, so the actual toolbar
-        // controls already exist. Apply the product surface here instead of depending on a
-        // class-level Loaded handler whose delivery can differ for collapsed/nested WPF
-        // elements. This is the deterministic owner of the visible Ammo selector UI.
+        // AmmoPage.ProductGridFixes owns OnInitialized and calls this method after the
+        // XAML control tree has been initialized. Keep this method idempotent so any later
+        // verification/render pass cannot duplicate the runtime ComboBox or event hooks.
         ApplyProductCaliberDropdownPolish();
         _productVisibleDropdownActivatedFromInitialization = true;
     }
