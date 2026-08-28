@@ -1,5 +1,9 @@
 # 준현 헬퍼 v1.8.2
 
+상태: **PUBLIC STABLE / VERIFIED**
+
+v1.8.2는 공개 실행 파일의 Ammo 드롭다운 아이콘 초기화 회귀와 현재 json.tarkov.dev 관계 데이터 형식 변화에 대응하는 유지보수 PATCH입니다.
+
 ## 공개 실행 파일 Ammo 드롭다운 회귀 수정
 
 v1.7.15에서 추가한 구경/즐겨찾기 드롭다운 아이콘 UI가 published executable에서도 항상 초기화되도록 WPF 타입 초기화 경계를 수정했습니다.
@@ -30,7 +34,7 @@ product: 59faff1d86f7746c51718c9c
 
 ### 중복 trader direct-purchase offer
 
-현재 live items payload에는 동일 item 아래 canonical record 기준으로 완전히 같은 `buyFromTrader` offer가 두세 번 반복되는 사례가 있습니다.
+현재 live items payload에는 동일 item 아래 canonical record 기준으로 완전히 같은 `buyFromTrader` offer가 반복되는 사례가 있습니다.
 
 - 완전히 동일한 direct-purchase record만 하나로 정규화합니다.
 - 가격, 화폐, trader, LL, quest unlock, buy limit 등 의미 필드가 다른 offer는 합치지 않습니다.
@@ -47,16 +51,34 @@ product: 59faff1d86f7746c51718c9c
 - `structural floor 0.34`, `HEADER_FRAME_LOCKED 0.68`, continuous 8 / one-shot 12, 200ms observation target을 유지합니다.
 - Map/MiniMap donor revision과 ownership boundary는 변경하지 않았습니다.
 
-## 릴리즈 검증 기준
+## 공개 릴리즈 검증
 
-v1.8.2는 다음 gate를 모두 통과한 exact main source만 stable로 공개합니다.
+```text
+exact product source/tag:
+a0a8390c7c863400a97d174e864c405c2e38f47f
 
-- 전체 Release test suite
-- Windows x64 publish/package 검증
-- published Product UI + Main Map/Factory/MiniMap smoke
-- published Ammo rendered icon + shared timer-cycle smoke
-- 현재 Regular/PvE live-data probe
-- exact-main CI
-- public tag/release/ZIP/checksum readback
+exact-main CI: 33138083383 — SUCCESS
+421 passed / 0 failed / 0 skipped
+ProductVersion: 1.8.2+a0a8390c7c863400a97d174e864c405c2e38f47f
+published Product UI / Main Map / Factory / MiniMap smoke: SUCCESS
+Ammo rendered icon + shared timer-cycle smoke: SUCCESS
+Regular/PvE live-data fatal validation: 0 / 0
+Release workflow: 33138226890 — SUCCESS
+public release id: 378240417
+latest stable: true
+```
 
-기술적 원인과 설계 결정은 `docs/DECISION_V1.8.2_RUNTIME_LIVE_REGRESSIONS.md`를 기준으로 합니다.
+공개 ZIP:
+
+```text
+Junhyun-Helper.zip
+bytes: 80,520,794
+SHA-256:
+be83ec72d1678b2496e01ce4378708642e0bf0cc00cebeb407fa38756ecf1f0a
+```
+
+GitHub의 공개 ZIP digest는 exact-main CI package SHA-256과 일치합니다.
+
+상세 검증 증거는 `docs/RELEASE_1.8.2.md`, 기계 판독 상태는 `docs/.release-v1.8.2-status.json`, 기술적 원인과 설계 결정은 `docs/DECISION_V1.8.2_RUNTIME_LIVE_REGRESSIONS.md`를 기준으로 합니다.
+
+이 문서와 이후 documentation-only commit은 v1.8.2 제품 릴리즈 소스가 아닙니다. 공개 source/tag/assets는 위 exact product source 기준으로 고정합니다.

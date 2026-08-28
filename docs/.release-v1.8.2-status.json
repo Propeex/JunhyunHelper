@@ -1,0 +1,66 @@
+{
+  "version": "1.8.2",
+  "status": "PUBLIC_STABLE_VERIFIED",
+  "productReleaseSource": "a0a8390c7c863400a97d174e864c405c2e38f47f",
+  "tag": "v1.8.2",
+  "productVersion": "1.8.2+a0a8390c7c863400a97d174e864c405c2e38f47f",
+  "liveProbe": {
+    "functionalSource": "718a095cadebce1c50ff04caecfcccfa95e7bdb8",
+    "runId": 33136464802,
+    "result": "SUCCESS",
+    "regularFatalIssues": 0,
+    "pveFatalIssues": 0
+  },
+  "mainCi": {
+    "runId": 33138083383,
+    "runNumber": 2103,
+    "result": "SUCCESS",
+    "tests": {
+      "passed": 421,
+      "failed": 0,
+      "skipped": 0
+    },
+    "artifact": {
+      "name": "JunhyunHelper-win-x64",
+      "id": 9672853577,
+      "archiveBytes": 241494074,
+      "archiveSha256": "9586f8a277b54bf64446c8348ff4958ed33f4ab94f16fc8c33fe3baf41c4b6fc"
+    },
+    "package": {
+      "name": "Junhyun-Helper.zip",
+      "bytes": 80520794,
+      "sha256": "be83ec72d1678b2496e01ce4378708642e0bf0cc00cebeb407fa38756ecf1f0a"
+    },
+    "productSmoke": "SUCCESS",
+    "ammoRenderedIconCycleSmoke": "SUCCESS",
+    "gracefulShutdown": "SUCCESS",
+    "cleanPortableRoot": "SUCCESS"
+  },
+  "releaseWorkflow": {
+    "runId": 33138226890,
+    "runNumber": 53,
+    "result": "SUCCESS"
+  },
+  "publicRelease": {
+    "id": 378240417,
+    "draft": false,
+    "prerelease": false,
+    "latestStable": true,
+    "publishedUtc": "2026-08-28T03:13:04Z",
+    "zipAsset": {
+      "id": 533189452,
+      "name": "Junhyun-Helper.zip",
+      "bytes": 80520794,
+      "sha256": "be83ec72d1678b2496e01ce4378708642e0bf0cc00cebeb407fa38756ecf1f0a"
+    },
+    "checksumAsset": {
+      "id": 533189451,
+      "name": "SHA256SUMS.txt",
+      "bytes": 86,
+      "sha256": "73ae27b7d11be8db2fd1119c78e1326ebdad7cd5a5c3982436620f463fa8e45e"
+    }
+  },
+  "tagRefTarget": "a0a8390c7c863400a97d174e864c405c2e38f47f",
+  "immutablePublicRelease": true,
+  "notes": "Documentation-only commits after publication are not v1.8.2 product release sources and must not replace published v1.8.2 assets."
+}

@@ -4,7 +4,7 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 제품 상태
 
-현재 제품 상태는 **v1.8.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
+현재 제품 상태는 **v1.8.2 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
 
 현재 확정 요구사항 범위의 제품과 Scanner는 완성 상태입니다. 새로운 실제 회귀·Tarkov 호환성 변화·사용자가 명시적으로 확정한 새 제품 요구사항이 없는 한 선제적 기능 추가나 Scanner 인식 기준 조정을 시작하지 않습니다.
 
@@ -27,31 +27,33 @@ Scanner 전문 문서:
 ## 현재 공개 릴리즈
 
 ```text
-version: v1.8.1
-Desktop target version: 1.8.1
-exact product release source/tag target: dade2ef4dadbf58659b75c80d421bd3738003ff8
-main CI: 33132600931 — SUCCESS
-Release workflow: 33132798167 — SUCCESS
-release id: 378212009
+version: v1.8.2
+Desktop target version: 1.8.2
+exact product release source/tag target: a0a8390c7c863400a97d174e864c405c2e38f47f
+main CI: 33138083383 — SUCCESS
+Release workflow: 33138226890 — SUCCESS
+release id: 378240417
 stable asset: Junhyun-Helper.zip
-asset id: 533094287
-bytes: 80,520,704
-SHA-256: b30cbb045cc089c90108e2d3394510ef6778019ea0a50f6ae16d14de7aaafe9a
-418 passed / 0 failed / 0 skipped
+asset id: 533189452
+bytes: 80,520,794
+SHA-256: be83ec72d1678b2496e01ce4378708642e0bf0cc00cebeb407fa38756ecf1f0a
+421 passed / 0 failed / 0 skipped
 ```
 
-GitHub `/releases/latest` 및 `refs/tags/v1.8.1` readback에서 v1.8.1이 `draft=false`, `prerelease=false`, latest stable이며 release target과 tag ref가 exact product release source와 일치함을 확인했습니다. 공개 ZIP digest도 exact main-CI package SHA-256과 일치합니다.
+GitHub `/releases/latest` 및 `refs/tags/v1.8.2` readback에서 v1.8.2가 `draft=false`, `prerelease=false`, latest stable이며 release target과 tag ref가 exact product release source와 일치함을 확인했습니다. 공개 ZIP digest도 exact main-CI package SHA-256과 일치합니다.
 
 공식 릴리즈 기록:
 
-- `docs/RELEASE_1.8.1.md`
-- `docs/RELEASE_NOTES_V1.8.1.md`
-- `docs/.release-v1.8.1-status.json`
+- `docs/RELEASE_1.8.2.md`
+- `docs/RELEASE_NOTES_V1.8.2.md`
+- `docs/.release-v1.8.2-status.json`
+- `docs/DECISION_V1.8.2_RUNTIME_LIVE_REGRESSIONS.md`
+- `docs/RELEASE_1.8.1.md` — 관계 데이터 completeness hardening 릴리즈
 - `docs/DECISION_V1.8.1_ITEM_RELATIONSHIP_COMPLETENESS.md`
 - `docs/RELEASE_1.8.0.md` — Scanner 아이템 정보 DB 기능 릴리즈
 - `docs/DECISION_V1.8.0_SCANNER_ITEM_DATABASE.md`
 
-이 README와 이후 documentation-only commit은 v1.8.1 제품 릴리즈 소스가 아닙니다. v1.8.1 product source/tag/assets는 위 `dade2ef4...` 기준의 immutable historical release입니다.
+이 README와 이후 documentation-only commit은 v1.8.2 제품 릴리즈 소스가 아닙니다. v1.8.2 product source/tag/assets는 위 `a0a8390c...` 기준의 immutable historical release입니다.
 
 ## 설치 / 실행
 
@@ -90,6 +92,35 @@ Junhyun-Helper.zip
 - 사용자 동의형 Program Update
 
 Runtime GPT/AI 의존성은 없습니다.
+
+## v1.8.2 — 런타임 UI / 실시간 Game Content 회귀 수정
+
+v1.8.2는 v1.8.1 공개 뒤 확인된 두 가지 회귀를 수정했습니다.
+
+### Ammo 구경 / 즐겨찾기 드롭다운
+
+- WPF 타입 초기화 순서에 따라 runtime polish가 적용되지 않을 수 있던 경계를 명시적인 type initialization으로 고정했습니다.
+- 구경과 즐겨찾기 드롭다운은 동일한 구경별 탄약 아이콘 상태와 순환 타이밍을 공유합니다.
+- published executable smoke가 실제 렌더링된 `Image`/`Image.Source`와 shared timer-cycle까지 확인합니다.
+- 구경 filtering과 즐겨찾기 저장 의미는 변경하지 않았습니다.
+
+### 현재 json.tarkov.dev relationship source
+
+Regular/PvE live source에서 Bitcoin Farm passive production이 `requiredItems = []`인 일반 craft shape로 제공되는 현재 형식을 audited identity로 구분합니다.
+
+```text
+craft:   5d5c205bd582a50d042a3c0e
+station: 5d494a445b56502f18c98a10
+product: 59faff1d86f7746c51718c9c
+```
+
+위 passive production만 일반 craft relationship import에서 제외하고 다른 empty-required craft는 계속 fail closed합니다.
+
+또한 canonical model의 모든 의미 필드가 완전히 같은 trader direct-purchase offer만 deduplicate합니다. 가격/화폐/trader/LL/quest unlock/buy limit 등 의미가 다른 offer는 별도 관계로 유지합니다.
+
+현재 Regular/PvE live probe는 양쪽 모두 fatal validation issue 0으로 통과했습니다.
+
+Scanner OCR/아이템 인식 임계값, matcher, visual recovery acceptance와 기존 Game Content LKG/completeness 계약은 변경하지 않았습니다.
 
 ## v1.8.1 — Game Content 관계 데이터 안전성 보강
 
@@ -228,6 +259,8 @@ remote source
 - collection schema drift는 fail closed합니다.
 - Wiki Ballistics enrichment는 fail-soft입니다.
 - v8 item relationship 참조/가격/수량/limit 무결성도 activation 전에 검증합니다.
+- audited Bitcoin Farm passive production identity만 일반 craft 관계 import에서 제외합니다.
+- canonical-identical trader direct-purchase record만 중복 제거합니다.
 - update failure가 `user.db`를 변경하지 않습니다.
 
 ## Map / MiniMap donor
@@ -256,4 +289,4 @@ d933792b6042a51cea38dc44b686a096fe30de67
 
 Published stable release는 공개 후 교체하지 않습니다. 같은 version에서 documentation-only main commit이 다른 ProductVersion metadata/bytes를 만들더라도 이미 공개된 ZIP/tag/source를 덮어쓰지 않습니다.
 
-현재 v1.8.1 릴리즈 배치에 남은 제품 개발 작업은 없습니다. 기본 운영 모드는 유지보수입니다.
+현재 v1.8.2 릴리즈 배치에 남은 제품 개발 작업은 없습니다. 기본 운영 모드는 유지보수입니다.
