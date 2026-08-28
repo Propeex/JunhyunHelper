@@ -10,6 +10,8 @@ public partial class ScannerPage
     private const double V191DetailActionHeight = 34d;
     private bool _v191DetailActionSmokeArmed;
     private bool _v191DetailActionSmokeCompleted;
+    private DispatcherTimer? _v191DetailActionSmokeVisibilityTimer;
+    private Visibility? _v191DetailActionSmokeOriginalPageVisibility;
 
     private void ApplyV191DetailActionAlignment()
     {
@@ -44,9 +46,10 @@ public partial class ScannerPage
             return;
         }
 
-        // SelectedItemPanel is intentionally Collapsed until the product smoke opens an
-        // actual item. ActualHeight is therefore 0 during ScannerPage.Loaded. Verify only
-        // after the real item-detail lifecycle makes the action row visible.
+        // SelectedItemPanel starts Collapsed, and the normal CI smoke may open its item
+        // while the Scanner tab itself is still Collapsed. Watch the local Visibility as
+        // well as effective IsVisible so the published executable can briefly put the real
+        // ScannerPage into the visible visual tree and verify the action row at Render.
         if (SelectedItemPanel.IsVisible)
         {
             Dispatcher.BeginInvoke(
@@ -60,6 +63,41 @@ public partial class ScannerPage
 
         _v191DetailActionSmokeArmed = true;
         SelectedItemPanel.IsVisibleChanged += SelectedItemPanel_V191SmokeIsVisibleChanged;
+
+        _v191DetailActionSmokeVisibilityTimer ??= new DispatcherTimer(
+            TimeSpan.FromMilliseconds(50),
+            DispatcherPriority.Background,
+            V191DetailActionSmokeVisibilityTimer_Tick,
+            Dispatcher);
+        _v191DetailActionSmokeVisibilityTimer.Start();
+    }
+
+    private void V191DetailActionSmokeVisibilityTimer_Tick(object? sender, EventArgs e)
+    {
+        if (_v191DetailActionSmokeCompleted)
+        {
+            StopV191DetailActionSmokeVisibilityTimer();
+            return;
+        }
+
+        if (SelectedItemPanel.Visibility != Visibility.Visible)
+            return;
+
+        // Smoke-only visibility promotion. Normal product execution never enters this path.
+        // This is required because the Scanner page is initially Collapsed in MainWindow,
+        // while the existing published item-detail probe intentionally opens its test item
+        // without navigating tabs. We must verify ActualHeight on a genuinely visible tree.
+        if (!IsVisible)
+        {
+            _v191DetailActionSmokeOriginalPageVisibility ??= Visibility;
+            Visibility = Visibility.Visible;
+            UpdateLayout();
+        }
+
+        StopV191DetailActionSmokeVisibilityTimer();
+        Dispatcher.BeginInvoke(
+            VerifyV191DetailActionAlignmentSmoke,
+            DispatcherPriority.Render);
     }
 
     private void SelectedItemPanel_V191SmokeIsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
@@ -69,6 +107,7 @@ public partial class ScannerPage
 
         SelectedItemPanel.IsVisibleChanged -= SelectedItemPanel_V191SmokeIsVisibleChanged;
         _v191DetailActionSmokeArmed = false;
+        StopV191DetailActionSmokeVisibilityTimer();
         Dispatcher.BeginInvoke(
             VerifyV191DetailActionAlignmentSmoke,
             DispatcherPriority.Render);
@@ -113,6 +152,7 @@ public partial class ScannerPage
                 "favorite-symbol-font=ok\n" +
                 "favorite-content-centered=ok\n" +
                 "wiki-content-centered=ok\n");
+            RestoreV191DetailActionSmokePageVisibility();
         }
         catch (Exception exception)
         {
@@ -128,5 +168,23 @@ public partial class ScannerPage
 
             Environment.Exit(89);
         }
+    }
+
+    private void StopV191DetailActionSmokeVisibilityTimer()
+    {
+        _v191DetailActionSmokeVisibilityTimer?.Stop();
+    }
+
+    private void RestoreV191DetailActionSmokePageVisibility()
+    {
+        StopV191DetailActionSmokeVisibilityTimer();
+        SelectedItemPanel.IsVisibleChanged -= SelectedItemPanel_V191SmokeIsVisibleChanged;
+        _v191DetailActionSmokeArmed = false;
+
+        if (_v191DetailActionSmokeOriginalPageVisibility is not { } originalVisibility)
+            return;
+
+        _v191DetailActionSmokeOriginalPageVisibility = null;
+        Visibility = originalVisibility;
     }
 }
