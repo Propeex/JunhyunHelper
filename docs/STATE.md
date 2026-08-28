@@ -323,7 +323,7 @@ Content v8 delta:
 %LocalAppData%/JunhyunHelper/minimap-window-state.json
 %LocalAppData%/JunhyunHelper/ammo-settings.json(.bak)
 %LocalAppData%/JunhyunHelper/scanner/
-%LocalAppData%/JunhyunHelper/scanner/scanner-item-ui-state.json(.bak)
+%LocalAppData%/JunhyunHelper/scanner-item-ui-state.json(.bak)
 %LocalAppData%/JunhyunHelper/scanner/diagnostics/
 %LocalAppData%/JunhyunHelper/logs/
 ```
