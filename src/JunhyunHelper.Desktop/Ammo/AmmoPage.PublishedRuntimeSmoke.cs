@@ -32,6 +32,12 @@ public partial class AmmoPage
             throw new InvalidOperationException(
                 "Ammo caliber dropdown product lifecycle was not active before published visual smoke.");
         }
+        if (CaliberComboBox.ItemTemplate is null ||
+            !ReferenceEquals(CaliberComboBox.ItemTemplate, _productFavoriteCaliberComboBox.ItemTemplate))
+        {
+            throw new InvalidOperationException(
+                "Ammo caliber and favorite selectors are not using the same runtime icon template.");
+        }
         if (_productCaliberIconTimer.Interval != ProductCaliberIconCycleInterval ||
             ProductCaliberIconCycleInterval != TimeSpan.FromMilliseconds(700))
         {
@@ -97,6 +103,8 @@ public partial class AmmoPage
             File.WriteAllText(
                 marker,
                 "product-lifecycle=ok\n" +
+                "ammo-caliber-runtime-template=ok\n" +
+                "favorites-shared-template=ok\n" +
                 "rendered-caliber-image=ok\n" +
                 "rendered-favorite-image=ok\n" +
                 "shared-timer-cycle=ok\n" +
