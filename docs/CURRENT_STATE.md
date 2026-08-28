@@ -4,56 +4,60 @@
 
 기준일: 2026-08-28 KST
 
-상태: **`v1.8.2 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE`**
+상태: **`v1.8.4 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE`**
 
 ## 공개 stable
 
-현재 공개 stable/latest는 **v1.8.2**다.
+현재 공개 stable/latest는 **v1.8.4**다.
 
 ```text
-public stable/latest: v1.8.2
-exact product release source/tag target: a0a8390c7c863400a97d174e864c405c2e38f47f
-main CI run: 33138083383 — SUCCESS
-release workflow run: 33138226890 — SUCCESS
-release id: 378240417
+public stable/latest: v1.8.4
+exact product release source/tag target: 13af4e3a452139dedc32b2db9aa51266e2a01d2a
+main CI run: 33153043430 — SUCCESS
+release workflow run: 33153234911 — SUCCESS
+release id: 378333813
 stable asset: Junhyun-Helper.zip
-stable asset id: 533189452
-stable bytes: 80,520,794
-stable SHA-256: be83ec72d1678b2496e01ce4378708642e0bf0cc00cebeb407fa38756ecf1f0a
-checksum asset id: 533189451
-checksum asset SHA-256: 73ae27b7d11be8db2fd1119c78e1326ebdad7cd5a5c3982436620f463fa8e45e
-421 passed / 0 failed / 0 skipped
-Product UI / Ammo rendered icons / Main Map / Factory / MiniMap / graceful shutdown smoke: SUCCESS
+stable asset id: 533461834
+stable bytes: 80,528,868
+stable SHA-256: 9e06c16e20a346ad7691dccfee9a2caebcdb6c0cd9a6a35859bcb97d8e03fa42
+checksum asset id: 533461832
+checksum asset SHA-256: 535514fb48f23e1fe7834ba0cd5be54235f15922d036f5ad071c829ff80b4aad
+424 passed / 0 failed / 0 skipped
+Product UI / Ammo runtime markers / Scanner item-detail runtime / Main Map / Factory / MiniMap / graceful shutdown: SUCCESS
 Regular/PvE live-data fatal validation: 0 / 0
 ```
 
-GitHub `/releases/latest` 및 `refs/tags/v1.8.2` readback:
+Main-CI ProductVersion:
 
-- tag `v1.8.2`
+```text
+1.8.4+13af4e3a452139dedc32b2db9aa51266e2a01d2a
+```
+
+GitHub `/releases/latest` 및 `refs/tags/v1.8.4` readback:
+
 - release target/tag ref = exact product release source
 - draft = false
 - prerelease = false
 - latest stable = true
 - `Junhyun-Helper.zip` + `SHA256SUMS.txt` present
-- public ZIP digest = exact main-CI package SHA-256
+- public ZIP bytes/digest = exact main-CI package bytes/SHA-256
 
 공개 증거:
 
-- `docs/RELEASE_1.8.2.md`
-- `docs/.release-v1.8.2-status.json`
-- `docs/RELEASE_NOTES_V1.8.2.md`
-- `docs/DECISION_V1.8.2_RUNTIME_LIVE_REGRESSIONS.md`
-- `docs/RELEASE_1.8.1.md` — 이전 relationship completeness hardening 릴리즈
-- `docs/DECISION_V1.8.1_ITEM_RELATIONSHIP_COMPLETENESS.md`
-- `docs/RELEASE_1.8.0.md` — Scanner 아이템 정보 DB 기능 릴리즈
-- `docs/DECISION_V1.8.0_SCANNER_ITEM_DATABASE.md`
+- `docs/RELEASE_1.8.4.md`
+- `docs/.release-v1.8.4-status.json`
+- `docs/RELEASE_NOTES_V1.8.4.md`
+- `docs/DECISION_V1.8.4_AMMO_SCANNER_ITEM_DETAIL.md`
+- `docs/RELEASE_1.8.2.md` — runtime UI/live Game Content 회귀 수정
+- `docs/RELEASE_1.8.1.md` — relationship completeness hardening
+- `docs/RELEASE_1.8.0.md` — Scanner 아이템 정보 DB
 
-이 상태 문서 동기화 이후의 documentation-only commit은 **v1.8.2 product release source가 아니다**. 제품 릴리즈 소스는 항상 위 `a0a8390c...`로 고정한다. 이미 공개된 v1.8.2 tag/source/assets는 immutable historical product release로 취급한다.
+이 상태 문서 동기화 이후의 documentation-only commit은 **v1.8.4 product release source가 아니다**. 제품 릴리즈 source/tag/assets는 위 `13af4e3...`로 고정하며 이미 공개된 release는 immutable historical product artifact로 취급한다.
 
 ## Schema / compatibility
 
 ```text
-Desktop target version: 1.8.2
+Desktop target version: 1.8.4
 Content schema: v8
 Readable Content schemas: v3~v8
 user.db schema: v1
@@ -62,9 +66,7 @@ Scanner catalog cache: v1~v3 readable, v3 written
 Scanner Ground Truth: explicit user-reviewed durable cases
 ```
 
-v8 Content snapshot은 Scanner 아이템 정보 DB용 canonical trader purchase / barter / craft / flea relationship graph를 저장한다. v3~v7 snapshot은 계속 읽을 수 있으며, 관계 데이터가 없는 구형 snapshot과 실제 관계가 없는 아이템을 구분한다.
-
-사용자 mutable data는 `%LocalAppData%/JunhyunHelper`에 둔다. Program Update는 user.db, content/image cache, Map/MiniMap/Ammo/Scanner 설정, Scanner logs/diagnostics/Ground Truth를 덮어쓰지 않는다.
+사용자 mutable data는 `%LocalAppData%/JunhyunHelper`에 둔다. Program Update는 `user.db`, content/image cache, Map/MiniMap/Ammo/Scanner 설정, Scanner logs/diagnostics/Ground Truth를 덮어쓰지 않는다.
 
 ## 기능 상태
 
@@ -75,129 +77,81 @@ v8 Content snapshot은 Scanner 아이템 정보 DB용 canonical trader purchase 
 | Hideout | 구현 완료 |
 | Needed Items / Inventory | 구현 완료 |
 | Items | 구현 완료 |
-| Ammo | 구현 완료 / published runtime rendered-icon smoke 유지 |
-| Map + MiniMap | 구현 완료 / stable smoke 유지 |
-| Game Content Update | 구현 완료 / relationship LKG hardening + current live normalization 포함 |
+| Ammo | 구현 완료 / published rendered-icon + toolbar runtime smoke 유지 |
+| Map + MiniMap | 구현 완료 / stable runtime smoke 유지 |
+| Game Content Update | 구현 완료 / relationship LKG + live contract probe 유지 |
 | Program Update | 구현 완료 / verified stable ZIP contract |
 | Scanner + Mini Scanner | **FEATURE COMPLETE / MAINTENANCE ONLY** |
 | Scanner 아이템 정보 DB | **IMPLEMENTED / PUBLIC STABLE** |
 
-## v1.8.2 — Runtime UI / Live Game Content Regression Repair
+## v1.8.4 — Ammo toolbar / Scanner item detail
 
-v1.8.2는 v1.8.1 공개 뒤 실사용/실시간 source 검증에서 확인된 두 회귀를 닫는 PATCH다.
+v1.8.4는 새 Scanner recognition 기능이 아니라 기존 UI와 presentation을 다듬는 PATCH다.
 
-### Ammo published runtime UI
+Ammo:
 
-`AmmoPage`의 구경/즐겨찾기 드롭다운 runtime polish 등록을 static-field side effect의 비결정적 실행 시점에 맡기지 않는다. 명시적인 type initialization 경계에서 class handler가 먼저 등록되도록 고정했다.
+- 즐겨찾기 선택을 왼쪽 선택 영역에 유지.
+- `표시 열` 버튼을 툴바 오른쪽 끝에 유지.
+- 구경/즐겨찾기는 기존 shared animated icon state와 timer를 유지.
 
-published executable smoke는 다음을 실제 렌더링 기준으로 검증한다.
+Scanner item detail:
 
-- 구경 ComboBox의 runtime icon template
-- 즐겨찾기 ComboBox의 runtime icon template
-- 실제 `Image` / `Image.Source` 생성
-- 두 selector의 동일 icon state
-- shared timer에 따른 icon cycle
-- legacy favorite menu 비표시/비활성
+- 한 줄기 세로 흐름: 기본 정보 → 사용처 → 수급처.
+- 기본 정보는 크기 / 플리 평균가 / 최고 상인 판매가 / 현재 필요한 개수 네 항목.
+- Quest/Hideout 기존 navigation 유지.
+- craft/barter는 result + complete materials recipe card.
+- 좁은 폭에서는 material row wrapping.
+- 관련 item click → 같은 Scanner item detail.
+- 수급처 = 제작 / 교환 / 구매 / 레이드 획득.
+- empty relation group은 표시하지 않음.
 
-구경 filtering과 즐겨찾기 저장 의미는 변경하지 않았다.
-
-### 현재 json.tarkov.dev 관계 shape
-
-Regular/PvE live probe에서 다음 현재 source shape를 확인했다.
-
-```text
-crafts: 214
-empty-required craft: 1
-Bitcoin passive production:
-  craft   5d5c205bd582a50d042a3c0e
-  station 5d494a445b56502f18c98a10
-  product 59faff1d86f7746c51718c9c
-
-items: 5312
-canonical-identical direct-purchase duplicate keys: 4 per mode
-Regular fatal validation issues: 0
-PvE fatal validation issues: 0
-```
-
-Bitcoin Farm의 위 audited identity는 GPU/station state 기반 passive production이므로 일반 재료 소비 craft relationship으로 만들지 않는다. 다른 empty-required craft는 계속 fail closed한다.
-
-trader `buyFromTrader`는 canonical model의 모든 의미 필드가 완전히 동일한 record만 deduplicate한다. 가격/화폐/trader/LL/quest unlock/buy limit 등 하나라도 다르면 별도 offer로 유지한다.
-
-Game Content LKG/completeness와 Scanner recognition 정책은 완화하지 않았다.
-
-## v1.8.1 — Item Relationship Completeness Hardening
-
-v1.8.1은 v1.8.0에서 추가된 아이템 관계 DB를 기존 Game Content LKG 보호 수준에 맞춘 유지보수 PATCH다.
-
-정상 v8+ baseline이 있으면 다음 관계를 각각 독립적으로 50% retained-floor와 비교한다.
-
-- trader direct purchases
-- trader barters
-- hideout crafts
-- flea acquisition item IDs
-- barter required-item edges
-- craft required-item edges
-
-candidate가 특정 관계 도메인을 baseline의 절반 미만으로 잃으면 activation을 거부하고 기존 LKG를 유지한다. 새로 수집한 v8+ 관계 graph의 critical collection이 전면 empty인 경우도 fail closed한다.
-
-관계 검증은 in-memory build에서 끝나지 않는다.
+Published executable CI는 다음 marker를 직접 요구한다.
 
 ```text
-build
-→ base + item relationship integrity
-→ completeness vs LKG
-→ write candidate
-→ read candidate
-→ base + relationship integrity + completeness
-→ activation boundary validation
-→ active read/recovery validation
+Ammo animated dropdown:
+rendered-caliber-image=ok
+rendered-favorite-image=ok
+shared-timer-cycle=ok
+
+Ammo toolbar:
+favorite-selector-left=ok
+displayed-columns-visible=ok
+displayed-columns-right-edge=ok
+
+Scanner item detail:
+basic-four-fields=ok
+empty-sections-hidden=ok
+recipe-wrap=ok
+related-item-buttons=ok
+acquisition-groups=ok
 ```
 
-v3~v7 `ItemRelationshipData == null`은 `관계 없음`이 아니라 `구형 schema에서 아직 수집하지 않음`이라는 legacy 의미를 그대로 유지한다.
+## Current live Game Content
 
-Scanner recognition threshold/matcher/visual recovery는 v1.8.1에서도 변경하지 않았다.
-
-## v1.8.0 — Scanner 아이템 정보 DB
-
-Scanner 탭의 item search는 Item ID 기준의 로컬 관계 DB/detail view다.
-
-선택 아이템에서 확인 가능한 정보:
-
-- 기본 정보: 종류, 크기, 무게, 플리마켓 거래 가능 여부, 기본 가격
-- 기존 표시 정보: 아이콘/공식 이름, flea 평균가, 최고 상인 판매가, 현재 필요 개수
-- 퀘스트 사용처: 퀘스트명, 요구 수량, FIR
-- 은신처 업그레이드 사용처: 시설, 목표 레벨, 요구 수량, FIR
-- 제작 재료 사용처: 시설/레벨, 결과 아이템/수량, 전체 재료/도구
-- 상인 교환 재료 사용처: 상인/LL, 결과 아이템/수량, 전체 재료
-- 수급처: 상인 현금 구매, 상인 교환, 은신처 제작, 플리마켓, canonical 수급 관계가 없을 때 레이드 획득
-- 상인 구매 가격/화폐/LL/구매 제한/upstream 재고 갱신 시각
-- 제작 시간, 결과 수량, 비소모 도구
-- 관련 아이템 클릭 시 같은 Scanner 상세 이동
-- Quest/Hideout 사용처 클릭 시 기존 제품 화면 이동
-
-관계 데이터 authority:
+공개 직전 production canonical pipeline으로 현재 `json.tarkov.dev`를 확인했다.
 
 ```text
-normal Game Content update
-→ Items / Barters / Crafts / Traders / Tasks / Hideout parse
-→ canonical relationship graph
-→ integrity/completeness validation
-→ v8 snapshot activation
-→ Scanner search presentation
+live probe run: 33151060959 — SUCCESS
+Regular: items=5312 quests=517 objectives=1457 questItems=305 hideout=26 ammo=200 fatal=0
+PvE:     items=5312 quests=514 objectives=1434 questItems=293 hideout=26 ammo=200 fatal=0
 ```
 
-Scanner 검색 중 관계 정보 때문에 별도 network I/O를 시작하지 않는다.
+각 mode의 warning 1건은 Tarkov Wiki Ballistics coverage warning이며 validation failure가 아니다.
 
-기존 `필요 개수` / `필요한 곳` authority는 그대로다.
+기존 안전 계약은 유지한다.
 
-```text
-needed quantity = ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal
-needed source   = ItemsWorkspace.Plan.NeededItems[itemId].Sources
-```
+- failed candidate는 last-known-good를 덮어쓰지 않음
+- normal snapshot + v8 relationship retained-floor = healthy baseline의 50%
+- critical v8+ relationship collection 전면 empty = fail closed
+- candidate read-back / activation / active recovery 관계 재검증
+- v3~v7 relationship-null legacy compatibility
+- audited Bitcoin passive production만 ordinary craft relationship에서 제외
+- canonical-identical trader direct-purchase만 deduplicate
+- Scanner scan/search 순간 identity/relationship network I/O 없음
 
 ## Scanner 현재 기준선
 
-Scanner는 현재 **FEATURE COMPLETE / MAINTENANCE ONLY**다.
+Scanner는 **FEATURE COMPLETE / MAINTENANCE ONLY**다.
 
 ```text
 structural floor = 0.34
@@ -208,14 +162,17 @@ continuous observation target = 200 ms
 ```
 
 - false positive보다 miss 선호
-- current official Korean Tarkov full-item catalog가 identity authority
-- geometry/environment normalization은 identity proof가 아님
-- stale/cross-frame OCR 또는 visual result를 current Item identity proof로 사용하지 않음
-- Item ID 확정 전 price/needed/slot/source/relationship/previous-frame metadata를 identity evidence로 사용하지 않음
-- scan 순간 network identity work 없음
-- reviewed Ground Truth 없이 recognition threshold/candidate cap/matcher/visual acceptance 완화 금지
+- current official Korean full-item catalog가 identity authority
+- stale/cross-frame evidence 금지
+- Item ID 확정 전 price/needed/source/relationship metadata를 identity evidence로 사용하지 않음
+- reviewed evidence 없이 recognition threshold/candidate cap/matcher/visual acceptance 완화 금지
 
-v1.8.x 아이템 DB는 **Item ID 확정 이후 presentation**에만 참여하며 recognition acceptance를 바꾸지 않는다.
+Scanner 표시 authority:
+
+```text
+needed quantity = ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal
+needed source   = ItemsWorkspace.Plan.NeededItems[itemId].Sources
+```
 
 ## Map / MiniMap 기준선
 
@@ -225,46 +182,24 @@ Pinned donor:
 d933792b6042a51cea38dc44b686a096fe30de67
 ```
 
-기존 `Propeex/Tarkov-Helper`를 제품 요구사항 권위로 사용하지 않는다. 검증된 donor Map/MiniMap source만 pinned compile-link 예외로 사용하고, JunhyunHelper 제품 변경은 first-party bridge/customization boundary에서 적용한다.
+Map/MiniMap은 검증된 donor source만 제한적으로 사용하며 JunhyunHelper 제품 의미는 first-party bridge/customization 경계가 소유한다. `Legacy` 이름이 붙은 active bridge를 이름만 보고 삭제하지 않는다.
 
-`Legacy` 이름이 붙은 Map/MiniMap bridge는 현재 active integration이므로 이름만 보고 dead code로 삭제하지 않는다.
-
-## Game Content 기준선
-
-```text
-remote source
-→ download / parse
-→ canonical build
-→ integrity/completeness validation
-→ activate
-```
-
-- 실패 candidate는 last-known-good를 덮어쓰지 않음
-- normal snapshot shrink guard = healthy baseline의 50%
-- v8+ item relationship top-level 및 barter/craft material edge도 각각 healthy baseline의 50% retained-floor로 보호
-- fresh v8+ critical relationship collection의 전면 empty는 fail closed
-- candidate write 후 read-back과 activation/active recovery에서도 relationship integrity 재검증
-- collection schema drift는 fail closed
-- Wiki Ballistics enrichment는 fail-soft
-- User Progress와 Game Content authority 분리
-- v8 item relationship reference / price / count / limit 무결성도 active 교체 전에 검증
-- audited Bitcoin passive production identity만 일반 craft relationship import에서 제외
-- canonical-identical trader direct-purchase record만 deduplicate
-- 다른 empty-required craft와 의미가 다른 trader offer는 기존 보수적 의미 유지
-
-## 유지보수 원칙
+## 유지보수 / 검증 원칙
 
 ```text
 실사용 오류 / Tarkov 변화 / reviewed Scanner evidence
 → 실제 source/log/runtime state 확인
 → failure stage와 영향 범위 분류
-→ 최소한의 일관된 수정
+→ 최소 수정
 → deterministic regression
-→ full Windows release gate
-→ 필요 시 PATCH release
+→ published executable runtime smoke
+→ 필요 시 current Regular/PvE live release-readiness probe
+→ exact-main release gate
 ```
 
-새 기능은 사용자가 제품 요구사항으로 명시적으로 결정할 때만 시작한다. Scanner threshold/candidate/matcher/visual policy는 reviewed evidence 없이 선제적으로 조정하지 않는다.
+사용자-visible WPF 변경은 source assertion만으로 완료 선언하지 않는다. lifecycle/runtime control을 건드린 경우 actual published executable의 control tree/runtime evidence를 확보한다.
+
+새 기능은 사용자가 제품 요구사항으로 명시적으로 결정할 때만 시작한다.
 
 ## 다음 세션 복구 순서
 
@@ -279,4 +214,4 @@ remote source
 9. 작업 영역 전문 문서
 10. current code / current PR / current CI
 
-현재 **v1.8.2 릴리즈 배치에 남은 제품 개발 작업은 없다.** 이후 기본 모드는 유지보수다.
+현재 **v1.8.4 릴리즈 배치에 남은 제품 개발 작업은 없다.** 이후 기본 모드는 유지보수다.

@@ -1,0 +1,59 @@
+{
+  "version": "1.8.4",
+  "branch": "main",
+  "productReleaseSourceCommit": "13af4e3a452139dedc32b2db9aa51266e2a01d2a",
+  "mainCiRunId": 33153043430,
+  "releaseWorkflowRunId": 33153234911,
+  "testCount": 424,
+  "productVersion": "1.8.4+13af4e3a452139dedc32b2db9aa51266e2a01d2a",
+  "ciArtifact": {
+    "id": 9678543773,
+    "name": "JunhyunHelper-win-x64",
+    "archiveBytes": 241519179,
+    "archiveSha256": "e966c849652f7408bba868e920ffd45a622bf195309385ea04aad6f1f8758bf0"
+  },
+  "package": {
+    "name": "Junhyun-Helper.zip",
+    "bytes": 80528868,
+    "sha256": "9e06c16e20a346ad7691dccfee9a2caebcdb6c0cd9a6a35859bcb97d8e03fa42"
+  },
+  "release": {
+    "id": 378333813,
+    "tag": "v1.8.4",
+    "targetCommit": "13af4e3a452139dedc32b2db9aa51266e2a01d2a",
+    "publishedAtUtc": "2026-08-28T07:55:12Z",
+    "draft": false,
+    "prerelease": false,
+    "zipAssetId": 533461834,
+    "checksumAssetId": 533461832
+  },
+  "checksumAsset": {
+    "bytes": 86,
+    "sha256": "535514fb48f23e1fe7834ba0cd5be54235f15922d036f5ad071c829ff80b4aad"
+  },
+  "liveProbe": {
+    "runId": 33151060959,
+    "regular": {
+      "items": 5312,
+      "quests": 517,
+      "objectives": 1457,
+      "questItems": 305,
+      "hideout": 26,
+      "ammo": 200,
+      "sourceWarnings": 1,
+      "validationIssues": 0,
+      "fatal": 0
+    },
+    "pve": {
+      "items": 5312,
+      "quests": 514,
+      "objectives": 1434,
+      "questItems": 293,
+      "hideout": 26,
+      "ammo": 200,
+      "sourceWarnings": 1,
+      "validationIssues": 0,
+      "fatal": 0
+    }
+  }
+}
