@@ -70,6 +70,29 @@ public sealed class V180ScannerItemDatabaseTests
     }
 
     [Fact]
+    public void RelationshipImporter_DeduplicatesOnlyExactTraderPurchaseRecords()
+    {
+        var items = Parse("""
+            {"data":{"items":{
+              "target":{"id":"target","types":[],"buyFromTrader":[
+                {"trader":"trader","currencyItem":"rub","currency":"RUB","price":5371,"minTraderLevel":1,"taskUnlock":null,"buyLimit":5},
+                {"trader":"trader","currencyItem":"rub","currency":"RUB","price":5371,"minTraderLevel":1,"taskUnlock":null,"buyLimit":5},
+                {"trader":"trader","currencyItem":"rub","currency":"RUB","price":5371,"minTraderLevel":1,"taskUnlock":null,"buyLimit":7}
+              ]},
+              "rub":{"id":"rub","types":[]}
+            }}}
+            """);
+        var barters = Parse("""{"data":[]}""");
+        var crafts = Parse("""{"data":[]}""");
+
+        var result = new TarkovItemRelationshipImporter().Import(items, barters, crafts);
+
+        Assert.Equal(2, result.TraderPurchases.Count);
+        Assert.Contains(result.TraderPurchases, purchase => purchase.BuyLimit == 5);
+        Assert.Contains(result.TraderPurchases, purchase => purchase.BuyLimit == 7);
+    }
+
+    [Fact]
     public void RelationshipImporter_ExcludesAuditedPassiveBitcoinFarmProduction()
     {
         var items = Parse("""{"data":{"items":[]}}""");
