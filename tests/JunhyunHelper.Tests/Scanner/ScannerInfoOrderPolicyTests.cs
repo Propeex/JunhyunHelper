@@ -39,7 +39,7 @@ public sealed class ScannerInfoOrderPolicyTests
             "flea_price_per_slot",
             "flea_minimum_price",
         ], migrated);
-        Assert.Single(migrated.Where(value => value == "flea_minimum_price"));
+        Assert.Single(migrated, value => value == "flea_minimum_price");
     }
 
     [Fact]
