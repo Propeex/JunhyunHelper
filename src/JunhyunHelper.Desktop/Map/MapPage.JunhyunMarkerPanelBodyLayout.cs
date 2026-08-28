@@ -52,6 +52,7 @@ public partial class MapPage
         BtnToggleMapMarkersPanel.Click += ProductMarkerPanelBodyToggleButton_Click;
 
         _junhyunMarkerListViewport.VerticalAlignment = VerticalAlignment.Stretch;
+        _junhyunMarkerListViewport.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
         Dispatcher.BeginInvoke(SyncProductMarkerPanelBodyLayout, DispatcherPriority.ContextIdle);
 
         if (string.Equals(Environment.GetEnvironmentVariable("JUNHYUNHELPER_MAP_SMOKE"), "1", StringComparison.Ordinal))
@@ -117,10 +118,11 @@ public partial class MapPage
 
             _junhyunMarkerListViewport.Height = listHeight;
             _junhyunMarkerListViewport.MaxHeight = listHeight;
-            _junhyunMarkerListViewport.VerticalScrollBarVisibility =
-                contentHeight <= listHeight + 0.5
-                    ? ScrollBarVisibility.Hidden
-                    : ScrollBarVisibility.Auto;
+
+            // Give the list the whole body and let ScrollViewer decide from its rendered
+            // ExtentHeight/ViewportHeight whether a scrollbar is actually necessary. A
+            // pre-layout DesiredSize comparison can be stale once the real width is known.
+            _junhyunMarkerListViewport.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
 
             MapMarkersOverlay.MinHeight = 0;
             MapMarkersOverlay.Height = panelHeight;
@@ -163,19 +165,28 @@ public partial class MapPage
                     $"Map marker checkbox viewport does not fill the panel body. viewport={_junhyunMarkerListViewport.Height:0.##}, expected={expectedBodyHeight:0.##}.");
             }
 
-            MapMarkersContent.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            var contentHeight = MapMarkersContent.DesiredSize.Height;
-            var expectedScroll = contentHeight <= _junhyunMarkerListViewport.Height + 0.5
-                ? ScrollBarVisibility.Hidden
-                : ScrollBarVisibility.Auto;
-            if (_junhyunMarkerListViewport.VerticalScrollBarVisibility != expectedScroll)
+            if (_junhyunMarkerListViewport.VerticalScrollBarVisibility != ScrollBarVisibility.Auto)
+                throw new InvalidOperationException("Map marker viewport is not using automatic rendered overflow handling.");
+
+            // Verify the scrollbar that WPF actually rendered, not an earlier content-size
+            // estimate. If all marker rows fit in the now-expanded body there must be no
+            // visible scrollbar; if they genuinely overflow, Auto must expose one.
+            var hasRenderedOverflow = _junhyunMarkerListViewport.ScrollableHeight > 0.5;
+            var scrollbarIsVisible =
+                _junhyunMarkerListViewport.ComputedVerticalScrollBarVisibility == Visibility.Visible;
+            if (hasRenderedOverflow != scrollbarIsVisible)
             {
                 throw new InvalidOperationException(
-                    "Map marker checkbox viewport scrollbar does not reflect the full available body height.");
+                    $"Map marker rendered scrollbar state is inconsistent. scrollable={_junhyunMarkerListViewport.ScrollableHeight:0.##}, " +
+                    $"viewport={_junhyunMarkerListViewport.ViewportHeight:0.##}, extent={_junhyunMarkerListViewport.ExtentHeight:0.##}, " +
+                    $"computed={_junhyunMarkerListViewport.ComputedVerticalScrollBarVisibility}.");
             }
 
             var marker = Path.Combine(Path.GetTempPath(), "junhyun-map-marker-body-smoke-success.txt");
-            File.WriteAllText(marker, "marker-list-fills-panel-body=ok\nscrollbar-only-on-real-overflow=ok\n");
+            File.WriteAllText(
+                marker,
+                $"marker-list-fills-panel-body=ok\nscrollbar-only-on-real-overflow=ok\n" +
+                $"viewport={_junhyunMarkerListViewport.ViewportHeight:0.##}\nextent={_junhyunMarkerListViewport.ExtentHeight:0.##}\n");
         }
         catch (Exception exception)
         {
