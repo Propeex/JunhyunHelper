@@ -1,86 +1,71 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using System.Windows.Threading;
 
 namespace TarkovHelper.Pages.Map;
 
 public partial class MapPage
 {
-    private StackPanel? _junhyunExtractMarkerFilterGroup;
-    private StackPanel? _junhyunExtractMarkerChildGroup;
     private bool _junhyunExtractMarkerFilterSmokeCompleted;
 
     private void RestoreJunhyunExtractMarkerFiltersToMarkerPanel()
     {
-        if (_junhyunExtractMarkerFilterGroup is not null)
-            return;
+        // The product marker-settings bridge already owns the visible marker grouping and
+        // moves the donor's real PMC / Scav / Transit controls into the same card rows used
+        // by the other marker groups. v1.9.0 incorrectly reparented those controls a second
+        // time, leaving three empty wrapper rows behind and adding a duplicate extract UI.
+        // Keep the donor master only as an internal render gate and leave the three faction
+        // controls with the single product grouping authority.
+        ChkShowExtractMarkers.Visibility = Visibility.Collapsed;
+        ChkShowExtractMarkers.IsHitTestVisible = false;
+        if (ChkShowExtractMarkers.IsChecked != true)
+            ChkShowExtractMarkers.IsChecked = true;
 
-        var group = new StackPanel { Margin = new Thickness(0, 8, 0, 0) };
-        group.Children.Add(new Border
-        {
-            Height = 1,
-            Background = TryFindResource("BorderBrush") as System.Windows.Media.Brush ?? System.Windows.Media.Brushes.DimGray,
-            Margin = new Thickness(0, 0, 0, 8),
-        });
+        Dispatcher.BeginInvoke(
+            NormalizeApprovedExtractMarkerLayout,
+            DispatcherPriority.ContextIdle);
+    }
 
-        // Keep the donor's real master checkbox as the parent row. Its original
-        // Checked/Unchecked handlers still own the actual extract render state.
-        ChkShowExtractMarkers.Content = "탈출구";
-        ChkShowExtractMarkers.FontWeight = FontWeights.SemiBold;
-        MoveExistingExtractFilter(ChkShowExtractMarkers, group, leftIndent: 0);
+    private void NormalizeApprovedExtractMarkerLayout()
+    {
+        // LegacyMapMarkerSettingsV2Bridge intentionally owns the section/card presentation.
+        // Rename only the product section and normalize the three real donor controls so the
+        // visible contract is exactly: 탈출구 -> PMC / Scav / 트랜짓 탈출구.
+        var oldHeaders = EnumerateJunhyunDescendants<TextBlock>(MapMarkersContent)
+            .Where(text => string.Equals(text.Text, "탈출 / 이동", StringComparison.Ordinal))
+            .ToArray();
+        foreach (var header in oldHeaders)
+            header.Text = "탈출구";
 
-        var children = new StackPanel
-        {
-            Margin = new Thickness(18, 0, 0, 0),
-        };
+        NormalizeApprovedExtractCheckBox(ChkShowPmcExtracts, "PMC 탈출구");
+        NormalizeApprovedExtractCheckBox(ChkShowScavExtracts, "Scav 탈출구");
+        NormalizeApprovedExtractCheckBox(ChkShowTransitExtracts, "트랜짓 탈출구");
 
-        // These are the donor's real faction filters, not cosmetic copies. Reparenting
-        // preserves SettingsService persistence, MapExtractMarkerManager filtering and
-        // OverlayMiniMapService refresh semantics.
-        ChkShowPmcExtracts.Content = "PMC";
-        ChkShowScavExtracts.Content = "Scav";
-        ChkShowTransitExtracts.Content = "Transit";
-        MoveExistingExtractFilter(ChkShowPmcExtracts, children, leftIndent: 0);
-        MoveExistingExtractFilter(ChkShowScavExtracts, children, leftIndent: 0);
-        MoveExistingExtractFilter(ChkShowTransitExtracts, children, leftIndent: 0);
-        group.Children.Add(children);
-
-        ChkShowExtractMarkers.Checked += JunhyunExtractMasterFilter_Changed;
-        ChkShowExtractMarkers.Unchecked += JunhyunExtractMasterFilter_Changed;
-
-        MapMarkersContent.Children.Add(group);
-        _junhyunExtractMarkerFilterGroup = group;
-        _junhyunExtractMarkerChildGroup = children;
-        UpdateJunhyunExtractChildFilterAvailability();
+        // The master must remain an invisible implementation detail. Reassert the gate after
+        // donor Loaded/state restoration so a historical saved master=false cannot make the
+        // three visible faction controls appear enabled while rendering no extracts.
+        ChkShowExtractMarkers.Visibility = Visibility.Collapsed;
+        ChkShowExtractMarkers.IsHitTestVisible = false;
+        if (ChkShowExtractMarkers.IsChecked != true)
+            ChkShowExtractMarkers.IsChecked = true;
 
         if (string.Equals(Environment.GetEnvironmentVariable("JUNHYUNHELPER_MAP_SMOKE"), "1", StringComparison.Ordinal))
-            Dispatcher.BeginInvoke(VerifyJunhyunExtractMarkerFilterSmoke, DispatcherPriority.ContextIdle);
+            VerifyJunhyunExtractMarkerFilterSmoke();
     }
 
-    private void JunhyunExtractMasterFilter_Changed(object sender, RoutedEventArgs e) =>
-        UpdateJunhyunExtractChildFilterAvailability();
-
-    private void UpdateJunhyunExtractChildFilterAvailability()
+    private void NormalizeApprovedExtractCheckBox(CheckBox checkBox, string label)
     {
-        if (_junhyunExtractMarkerChildGroup is not null)
-            _junhyunExtractMarkerChildGroup.IsEnabled = ChkShowExtractMarkers.IsChecked == true;
-    }
-
-    private static void MoveExistingExtractFilter(CheckBox checkBox, Panel destination, double leftIndent)
-    {
-        if (checkBox.Parent is Panel parent)
-            parent.Children.Remove(checkBox);
-        else if (checkBox.Parent is ContentControl content && ReferenceEquals(content.Content, checkBox))
-            content.Content = null;
-        else if (checkBox.Parent is Decorator decorator && ReferenceEquals(decorator.Child, checkBox))
-            decorator.Child = null;
-
+        checkBox.Content = label;
         checkBox.Visibility = Visibility.Visible;
         checkBox.IsHitTestVisible = true;
-        checkBox.Margin = new Thickness(leftIndent, 2, 0, 3);
         checkBox.HorizontalAlignment = HorizontalAlignment.Left;
-        destination.Children.Add(checkBox);
+        checkBox.VerticalAlignment = VerticalAlignment.Center;
+        checkBox.Margin = new Thickness(2);
+        checkBox.FontSize = 11;
+        checkBox.FontWeight = FontWeights.Normal;
+        checkBox.Foreground = TryFindResource("TextSecondaryBrush") as Brush ?? Brushes.Gainsboro;
     }
 
     private void VerifyJunhyunExtractMarkerFilterSmoke()
@@ -91,36 +76,31 @@ public partial class MapPage
 
         try
         {
-            if (!_junhyunUiSimplificationApplied ||
-                _junhyunExtractMarkerFilterGroup is null ||
-                _junhyunExtractMarkerChildGroup is null)
+            if (!_junhyunUiSimplificationApplied)
+                throw new InvalidOperationException("Map extract filters were not normalized by the real product Loaded lifecycle.");
+
+            if (ChkShowExtractMarkers.Visibility != Visibility.Collapsed ||
+                ChkShowExtractMarkers.IsHitTestVisible ||
+                IsWithinProductMarkerContent(ChkShowExtractMarkers))
             {
-                throw new InvalidOperationException("Map extract filters were not restored by the real product Loaded lifecycle.");
+                throw new InvalidOperationException("The donor extract master checkbox leaked into the product marker list.");
             }
 
-            if (!ReferenceEquals(ChkShowExtractMarkers.Parent, _junhyunExtractMarkerFilterGroup) ||
-                !ReferenceEquals(ChkShowPmcExtracts.Parent, _junhyunExtractMarkerChildGroup) ||
-                !ReferenceEquals(ChkShowScavExtracts.Parent, _junhyunExtractMarkerChildGroup) ||
-                !ReferenceEquals(ChkShowTransitExtracts.Parent, _junhyunExtractMarkerChildGroup))
+            if (ChkShowExtractMarkers.IsChecked != true ||
+                !_showExtractMarkers ||
+                ExtractMarkersContainer.Visibility != Visibility.Visible)
             {
-                throw new InvalidOperationException("Map extract filters are not arranged as parent plus faction children.");
+                throw new InvalidOperationException("The hidden donor extract master is not preserving the real render gate.");
             }
 
-            if (!string.Equals(ChkShowExtractMarkers.Content?.ToString(), "탈출구", StringComparison.Ordinal) ||
-                !string.Equals(ChkShowPmcExtracts.Content?.ToString(), "PMC", StringComparison.Ordinal) ||
-                !string.Equals(ChkShowScavExtracts.Content?.ToString(), "Scav", StringComparison.Ordinal) ||
-                !string.Equals(ChkShowTransitExtracts.Content?.ToString(), "Transit", StringComparison.Ordinal))
+            if (!string.Equals(ChkShowPmcExtracts.Content?.ToString(), "PMC 탈출구", StringComparison.Ordinal) ||
+                !string.Equals(ChkShowScavExtracts.Content?.ToString(), "Scav 탈출구", StringComparison.Ordinal) ||
+                !string.Equals(ChkShowTransitExtracts.Content?.ToString(), "트랜짓 탈출구", StringComparison.Ordinal))
             {
-                throw new InvalidOperationException("Map extract filter labels drifted from the approved hierarchy.");
+                throw new InvalidOperationException("Map extract filter labels drifted from the approved three-row layout.");
             }
 
-            foreach (var filter in new[]
-                     {
-                         ChkShowExtractMarkers,
-                         ChkShowPmcExtracts,
-                         ChkShowScavExtracts,
-                         ChkShowTransitExtracts,
-                     })
+            foreach (var filter in new[] { ChkShowPmcExtracts, ChkShowScavExtracts, ChkShowTransitExtracts })
             {
                 if (!IsWithinProductMarkerContent(filter))
                     throw new InvalidOperationException($"Map extract filter is outside the product marker panel: {filter.Name}.");
@@ -128,21 +108,26 @@ public partial class MapPage
                     throw new InvalidOperationException($"Map extract filter is not user-interactive: {filter.Name}.");
             }
 
-            // Master filter: prove the reparented control still changes the donor's real
-            // render state and controls child availability, then restore the user state.
-            var originalMaster = ChkShowExtractMarkers.IsChecked ?? true;
-            var toggledMaster = !originalMaster;
-            ChkShowExtractMarkers.IsChecked = toggledMaster;
-            if (_showExtractMarkers != toggledMaster ||
-                ExtractMarkersContainer.Visibility != (toggledMaster ? Visibility.Visible : Visibility.Collapsed) ||
-                _junhyunExtractMarkerChildGroup.IsEnabled != toggledMaster)
-            {
-                throw new InvalidOperationException("Visible Map extract parent is not connected to the real marker filter state.");
-            }
-            ChkShowExtractMarkers.IsChecked = originalMaster;
+            var extractHeader = EnumerateJunhyunDescendants<TextBlock>(MapMarkersContent)
+                .SingleOrDefault(text => string.Equals(text.Text, "탈출구", StringComparison.Ordinal));
+            if (extractHeader?.Parent is not StackPanel extractSection)
+                throw new InvalidOperationException("The approved 탈출구 marker section was not found.");
 
-            // Faction filters: their donor handlers update the concrete render-policy fields
-            // synchronously before any asynchronous marker refresh. Verify each real path.
+            if (EnumerateJunhyunDescendants<TextBlock>(MapMarkersContent)
+                .Any(text => string.Equals(text.Text, "탈출 / 이동", StringComparison.Ordinal)))
+            {
+                throw new InvalidOperationException("The obsolete 탈출 / 이동 section title is still visible.");
+            }
+
+            var sectionFilters = EnumerateJunhyunDescendants<CheckBox>(extractSection)
+                .Where(filter => filter.Visibility == Visibility.Visible)
+                .ToArray();
+            var approvedFilters = new[] { ChkShowPmcExtracts, ChkShowScavExtracts, ChkShowTransitExtracts };
+            if (sectionFilters.Length != 3 || approvedFilters.Any(filter => !sectionFilters.Contains(filter)))
+                throw new InvalidOperationException("The 탈출구 section does not contain exactly the approved three donor filters.");
+
+            // Prove that each visible control is still the donor behavior endpoint rather
+            // than a cosmetic proxy, then restore the user's state immediately.
             VerifyFactionFilterControl(ChkShowPmcExtracts, () => _showPmcExtracts, "PMC");
             VerifyFactionFilterControl(ChkShowScavExtracts, () => _showScavExtracts, "Scav");
             VerifyFactionFilterControl(ChkShowTransitExtracts, () => _showTransitExtracts, "Transit");
@@ -152,9 +137,9 @@ public partial class MapPage
                 marker,
                 "real-donor-checkboxes=ok\n" +
                 "marker-panel-visible=ok\n" +
-                "master-filter-render-state=ok\n" +
+                "hidden-master-render-gate=ok\n" +
+                "approved-three-filter-layout=ok\n" +
                 "minimap-refresh-handler-preserved=ok\n" +
-                "extract-parent-child-hierarchy=ok\n" +
                 "pmc-filter-render-state=ok\n" +
                 "scav-filter-render-state=ok\n" +
                 "transit-filter-render-state=ok\n");
