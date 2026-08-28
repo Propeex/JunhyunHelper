@@ -52,7 +52,10 @@ public sealed class ScannerItemPresentationService
             mapping.FleaPricePerSlot,
             mapping.Slots,
             mapping.CurrentNeeded,
-            mapping.BestTraderName);
+            mapping.BestTraderName)
+        {
+            FleaMinimumPrice = mapping.FleaMinimumPrice,
+        };
     }
 
     public ScannerItemSnapshot? CreateDefaultPreviewSnapshot()
