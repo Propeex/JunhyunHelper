@@ -1,6 +1,6 @@
 # v1.8.0 Scanner 아이템 정보 DB 결정
 
-상태: **CONFIRMED / IMPLEMENTED / RELEASE VALIDATION PENDING**
+상태: **CONFIRMED / IMPLEMENTED / PUBLIC STABLE VERIFIED**
 
 ## 목적
 
@@ -28,7 +28,7 @@ Scanner 탭의 아이템 검색을 단순 가격/필요 개수 조회가 아니�
 - 상인 교환: 상인, 충성도 레벨, 요구 재료/수량, 결과 수량, 구매 제한
 - 은신처 제작: 시설, 레벨, 재료/수량, 비소모 도구 구분, 결과 수량, 제작 시간
 - 플리마켓: 현재 획득 소스로 확인 가능한 경우 평균가와 함께 표시
-- 다른 수급 관계가 없는 경우 레이드 획득으로 표시
+- 다른 canonical 수급 관계가 없는 경우 레이드 획득으로 표시
 
 ### 사용처
 - 퀘스트 요구 아이템: 퀘스트명, 요구 수량, FIR 요구 여부
@@ -82,15 +82,22 @@ Snapshot schema는 v8이며 v3-v7은 계속 읽을 수 있다. 구형 snapshot�
 
 아이템 DB 데이터는 item identity가 확정된 이후에만 표시 계층에서 사용한다.
 
-## 검증
+## 검증 결과
 
-v1.8.0 릴리즈 전 다음이 모두 필요하다.
-- 관계 importer/query 전용 deterministic regression tests
-- 저장/소스 계약 검증
-- 전체 deterministic suite
-- Desktop Release build
-- win-x64 self-contained single-file publish
-- 실제 published EXE Product UI / Scanner / Main Map / Factory / MiniMap smoke
-- graceful shutdown / portable root / package checksum 검증
-- exact-main CI와 Release workflow
-- public tag/release/asset digest readback
+v1.8.0은 요구한 전체 release gate를 통과했다.
+
+```text
+exact product source/tag: 8042e4612a54a6ec395a69d1be0700d844a1b210
+exact-main CI: 33130057533 — SUCCESS
+413 passed / 0 failed / 0 skipped
+Release build: SUCCESS
+win-x64 self-contained single-file publish: SUCCESS
+actual published EXE Product UI / Main Map / Factory / MiniMap smoke: SUCCESS
+graceful shutdown / portable root / package checksum: SUCCESS
+Release workflow: 33130212711 — SUCCESS
+public release: v1.8.0 / id 378197672
+public ZIP SHA-256: 4ecaf65068153a38a7a8613cfe2ae673aec191563f999f1cfbd10cb93d9437e0
+tag/ref/release/latest/public asset readback: SUCCESS
+```
+
+정확한 공개 릴리즈 증거는 `docs/RELEASE_1.8.0.md`와 `docs/.release-v1.8.0-status.json`에 기록한다.

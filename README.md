@@ -4,7 +4,7 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 제품 상태
 
-현재 제품 상태는 **v1.7.15 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
+현재 제품 상태는 **v1.8.0 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
 
 현재 확정 요구사항 범위의 제품과 Scanner는 완성 상태입니다. 새로운 실제 회귀·Tarkov 호환성 변화·사용자가 명시적으로 확정한 새 제품 요구사항이 없는 한 선제적 기능 추가나 Scanner 인식 기준 조정을 시작하지 않습니다.
 
@@ -27,29 +27,29 @@ Scanner 전문 문서:
 ## 현재 공개 릴리즈
 
 ```text
-version: v1.7.15
-Desktop target version: 1.7.15
-exact product release source/tag target: 4bf5e3a567d3ce9563657bbb3b90bec0871c06b4
-main CI: 33086901217 — SUCCESS
-Release workflow: 33087185178 — SUCCESS
-release id: 377926863
+version: v1.8.0
+Desktop target version: 1.8.0
+exact product release source/tag target: 8042e4612a54a6ec395a69d1be0700d844a1b210
+main CI: 33130057533 — SUCCESS
+Release workflow: 33130212711 — SUCCESS
+release id: 378197672
 stable asset: Junhyun-Helper.zip
-asset id: 532481010
-bytes: 80,492,565
-SHA-256: 9ac3276a1a4a20905b0aa3d6452f50d5259f724ed8f960b7cfbad39f8c619f2f
-410 passed / 0 failed / 0 skipped
+asset id: 533051783
+bytes: 80,520,114
+SHA-256: 4ecaf65068153a38a7a8613cfe2ae673aec191563f999f1cfbd10cb93d9437e0
+413 passed / 0 failed / 0 skipped
 ```
 
-GitHub `/releases/latest` 및 `refs/tags/v1.7.15` readback에서 v1.7.15가 `draft=false`, `prerelease=false`, latest stable이며 release target과 tag ref가 exact product release source와 일치함을 확인했습니다. 공개 ZIP digest도 exact main-CI package SHA-256과 일치합니다.
+GitHub `/releases/latest` 및 `refs/tags/v1.8.0` readback에서 v1.8.0이 `draft=false`, `prerelease=false`, latest stable이며 release target과 tag ref가 exact product release source와 일치함을 확인했습니다. 공개 ZIP digest도 exact main-CI package SHA-256과 일치합니다.
 
 공식 릴리즈 기록:
 
-- `docs/RELEASE_1.7.15.md`
-- `docs/RELEASE_NOTES_V1.7.15.md`
-- `docs/.release-v1.7.15-status.json`
-- `docs/DECISION_V1.7.15_UI_REFINEMENTS.md`
+- `docs/RELEASE_1.8.0.md`
+- `docs/RELEASE_NOTES_V1.8.0.md`
+- `docs/.release-v1.8.0-status.json`
+- `docs/DECISION_V1.8.0_SCANNER_ITEM_DATABASE.md`
 
-이 README와 이후 documentation-only commit은 v1.7.15 제품 릴리즈 소스가 아닙니다. v1.7.15 product source/tag/assets는 위 `4bf5e3a...` 기준의 immutable historical release입니다.
+이 README와 이후 documentation-only commit은 v1.8.0 제품 릴리즈 소스가 아닙니다. v1.8.0 product source/tag/assets는 위 `8042e461...` 기준의 immutable historical release입니다.
 
 ## 설치 / 실행
 
@@ -84,38 +84,43 @@ Junhyun-Helper.zip
 - Map + MiniMap
 - Scanner + Mini Scanner
 - Scanner Ground Truth 교정 / diagnostics / regression dataset
+- Scanner 아이템 정보 DB
 - 사용자 동의형 Program Update
 
 Runtime GPT/AI 의존성은 없습니다.
 
-## v1.7.15 — UI 마무리 패치
+## v1.8.0 — Scanner 아이템 정보 DB
 
-v1.7.15는 기존 도메인 의미와 Scanner identity recognition을 유지하면서 남아 있던 UI 불편을 정리했습니다.
+Scanner 탭의 기존 아이템 검색을 Item ID 중심의 로컬 정보 DB로 확장했습니다.
 
-### Main header / Items
+선택한 아이템에서 다음을 확인할 수 있습니다.
 
-- 메인 상단의 status 영역은 버전 정보만 표시합니다.
-- `정리 필요` 텍스트는 표시하지 않습니다.
-- 정리 대상이 있으면 Items 탭 우측 상단의 작은 주황색 점으로 알려줍니다.
-- 데이터 업데이트 진행 상태는 기존 전용 progress overlay를 사용합니다.
+- 종류, 크기, 무게, 플리마켓 거래 가능 여부, 기본 가격
+- 기존 flea 평균가, 최고 상인 판매가, 현재 필요 개수
+- 퀘스트 요구 수량/FIR
+- 은신처 업그레이드 요구 수량/FIR
+- 제작 재료 사용처와 전체 재료·도구·결과 수량
+- 상인 교환 재료 사용처와 전체 재료·결과 수량
+- 상인 현금 구매 가격/화폐/충성도 레벨/구매 제한/제공되는 재고 갱신 시각
+- 상인 교환과 은신처 제작 수급처
+- 제작 시간과 비소모 도구
+- 플리마켓 수급
+- 다른 canonical 수급처가 없는 아이템의 레이드 획득 표시
 
-### Map
+제작·교환 관계에 표시된 아이템은 클릭해 같은 Scanner 상세로 이동할 수 있으며, 퀘스트/은신처 사용처는 기존 제품 화면으로 이동할 수 있습니다.
 
-- 지도 마커 선택 panel의 내부 checkbox 목록이 실제 가용 세로 공간을 사용합니다.
-- 목록이 공간 안에 들어오면 불필요한 세로 scrollbar를 표시하지 않습니다.
-- 실제로 목록이 넘칠 때만 scrolling합니다.
-- 기존 `지도 마커` 버튼 재클릭 toggle을 유지합니다.
-- panel 바깥의 지도/빈 영역을 클릭해도 marker selector가 닫힙니다.
-- dismiss click은 marker 상태를 바꾸지 않으며 가능한 한 원래 Map/control interaction을 유지합니다.
+관계 데이터는 검색 순간 외부 API를 호출해 만들지 않습니다.
 
-### Ammo
+```text
+Game Content Update
+→ Items / Barters / Crafts / Traders / Tasks / Hideout
+→ canonical relationship graph
+→ integrity/completeness validation
+→ local v8 snapshot
+→ Scanner item detail
+```
 
-- `즐겨찾기 선택`은 일반 dropdown을 사용합니다.
-- 구경 dropdown과 즐겨찾기 dropdown은 같은 icon+label presentation을 사용합니다.
-- 각 구경 왼쪽에는 그 구경에 실제로 속한 탄약 아이콘을 순환 표시합니다.
-- 특정 탄약 하나를 구경의 영구 대표 아이콘으로 고정하지 않습니다.
-- 두 dropdown은 같은 구경에 대해 같은 animation state를 공유합니다.
-- 기존 즐겨찾기 저장과 구경 filtering 의미는 유지합니다.
+Content schema는 v8이며 v3~v8을 읽을 수 있습니다. 구형 snapshot에 관계 데이터가 없다는 사실과 실제 관계가 없는 아이템을 구분합니다.
 
 ## 공통 overlay interaction
 
@@ -169,7 +174,7 @@ continuous observation target = 200 ms
 - false positive보다 miss를 선호합니다.
 - geometry/environment normalization은 Item identity proof가 아닙니다.
 - stale/cross-frame OCR 또는 visual result를 current Item identity proof로 사용하지 않습니다.
-- Item ID 확정 전 price/needed/slot/source/previous-frame metadata를 identity evidence로 사용하지 않습니다.
+- Item ID 확정 전 price/needed/slot/source/relationship/previous-frame metadata를 identity evidence로 사용하지 않습니다.
 - scan 순간 identity 결정을 위해 network 요청을 시작하지 않습니다.
 - reviewed evidence 없이 threshold/candidate/matcher/visual acceptance를 낮추지 않습니다.
 
@@ -180,7 +185,7 @@ needed quantity = ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal
 needed source   = ItemsWorkspace.Plan.NeededItems[itemId].Sources
 ```
 
-두 값 모두 Item ID 확정 뒤 presentation에만 사용합니다.
+두 값 모두 Item ID 확정 뒤 presentation에만 사용합니다. v1.8.0 관계 DB도 동일하게 Item ID 확정 뒤 presentation에서만 사용됩니다.
 
 ## Game Content 안전 업데이트
 
@@ -198,6 +203,7 @@ remote source
 - normal snapshot shrink guard는 기존 healthy baseline의 50%입니다.
 - collection schema drift는 fail closed합니다.
 - Wiki Ballistics enrichment는 fail-soft입니다.
+- v8 item relationship 참조/가격/수량 무결성도 activation 전에 검증합니다.
 - update failure가 `user.db`를 변경하지 않습니다.
 
 ## Map / MiniMap donor
@@ -226,4 +232,4 @@ d933792b6042a51cea38dc44b686a096fe30de67
 
 Published stable release는 공개 후 교체하지 않습니다. 같은 version에서 documentation-only main commit이 다른 ProductVersion metadata/bytes를 만들더라도 이미 공개된 ZIP/tag/source를 덮어쓰지 않습니다.
 
-현재 v1.7.15 릴리즈 배치에 남은 제품 개발 작업은 없습니다. 기본 운영 모드는 유지보수입니다.
+현재 v1.8.0 릴리즈 배치에 남은 제품 개발 작업은 없습니다. 기본 운영 모드는 유지보수입니다.

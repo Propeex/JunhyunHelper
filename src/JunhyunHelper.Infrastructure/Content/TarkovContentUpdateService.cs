@@ -17,6 +17,7 @@ public sealed class TarkovContentUpdateService
     private readonly ContentActivationService _activationService;
     private readonly ContentUpdateCompletenessGuard _completenessGuard;
     private readonly GameContentIntegrityValidator _integrityValidator;
+    private readonly ItemRelationshipIntegrityValidator _itemRelationshipValidator;
     private readonly SemaphoreSlim _updateGate = new(1, 1);
 
     public TarkovContentUpdateService(
@@ -31,6 +32,7 @@ public sealed class TarkovContentUpdateService
         _snapshotStore = snapshotStore ?? new ContentSnapshotStore();
         _completenessGuard = completenessGuard ?? new ContentUpdateCompletenessGuard();
         _integrityValidator = integrityValidator ?? new GameContentIntegrityValidator();
+        _itemRelationshipValidator = new ItemRelationshipIntegrityValidator();
     }
 
     public async Task<ContentUpdateResult> UpdateAsync(
@@ -94,13 +96,16 @@ public sealed class TarkovContentUpdateService
 
             // Verify the bytes we actually persisted, not only the in-memory import.
             // This catches storage/serialization regressions before the active snapshot
-            // is touched and repeats the baseline partial-payload guard on read-back.
+            // is touched and repeats both semantic relationship validation and the
+            // baseline partial-payload guard on read-back.
             var persistedCandidate = await _snapshotStore.ReadAsync(paths.CandidatePath, cancellationToken);
             if (persistedCandidate.GameMode != gameMode)
                 throw new InvalidDataException("Persisted candidate belongs to a different game mode.");
 
             var persistedValidation = MergeValidation(
-                _integrityValidator.Validate(persistedCandidate.Content),
+                MergeValidation(
+                    _integrityValidator.Validate(persistedCandidate.Content),
+                    _itemRelationshipValidator.Validate(persistedCandidate.Content)),
                 _completenessGuard.Validate(persistedCandidate.Content, baseline?.Content));
             if (!persistedValidation.IsValid)
                 throw new InvalidDataException("Persisted content candidate failed integrity validation.");
