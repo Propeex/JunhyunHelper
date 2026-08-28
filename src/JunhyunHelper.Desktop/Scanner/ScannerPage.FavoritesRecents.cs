@@ -15,17 +15,23 @@ public partial class ScannerPage
     private readonly ObservableCollection<ScannerUserItemRow> _recentItemRows = [];
     private ScannerItemUiStateStore? _scannerItemUiState;
     private string? _selectedScannerItemId;
+    private bool _scannerUserCollectionsBound;
     private bool _scannerFavoritesRecentsSmokeRan;
 
     private void InitializeScannerUserItemCollections()
     {
+        if (_scannerUserCollectionsBound)
+            return;
+
         FavoriteItems.ItemsSource = _favoriteItemRows;
         RecentItems.ItemsSource = _recentItemRows;
+        _scannerUserCollectionsBound = true;
         UpdateScannerUserListEmptyStates();
     }
 
     private void AttachScannerItemUiState(MainWindow mainWindow)
     {
+        InitializeScannerUserItemCollections();
         _scannerItemUiState ??= mainWindow.ScannerItemUiState;
         RefreshScannerUserItemLists();
     }
@@ -36,7 +42,7 @@ public partial class ScannerPage
         _selectedScannerItemId = details.Snapshot.ItemId;
 
         if (_scannerItemUiState is null && Window.GetWindow(this) is MainWindow mainWindow)
-            _scannerItemUiState = mainWindow.ScannerItemUiState;
+            AttachScannerItemUiState(mainWindow);
 
         if (_scannerItemUiState is not null)
             _scannerItemUiState.RecordRecent(details.Snapshot.ItemId);
@@ -48,6 +54,9 @@ public partial class ScannerPage
 
     private void RefreshScannerUserItemLists()
     {
+        if (!_scannerUserCollectionsBound)
+            InitializeScannerUserItemCollections();
+
         if (_scannerItemUiState is null || _coordinator is null)
         {
             UpdateScannerUserListEmptyStates();
@@ -169,17 +178,37 @@ public partial class ScannerPage
         }
 
         _scannerFavoritesRecentsSmokeRan = true;
-        Dispatcher.BeginInvoke(() => VerifyScannerFavoritesRecentsPublishedContract(details));
+        Dispatcher.BeginInvoke(() =>
+        {
+            try
+            {
+                VerifyScannerFavoritesRecentsPublishedContract(details);
+            }
+            catch (Exception exception)
+            {
+                try
+                {
+                    var diagnostic = Path.Combine(Path.GetTempPath(), "junhyun-map-smoke-error.txt");
+                    File.WriteAllText(diagnostic, "Scanner v1.9.0 favorites/recents published smoke failed.\n" + exception);
+                }
+                catch
+                {
+                }
+
+                Environment.Exit(89);
+            }
+        });
     }
 
     private void VerifyScannerFavoritesRecentsPublishedContract(ScannerItemSearchDetails details)
     {
         if (_scannerItemUiState is null)
             throw new InvalidOperationException("Scanner item UI state was not attached through the real MainWindow lifecycle.");
-        if (!ReferenceEquals(FavoriteItems.ItemsSource, _favoriteItemRows) ||
+        if (!_scannerUserCollectionsBound ||
+            !ReferenceEquals(FavoriteItems.ItemsSource, _favoriteItemRows) ||
             !ReferenceEquals(RecentItems.ItemsSource, _recentItemRows))
         {
-            throw new InvalidOperationException("Scanner favorites/recents ItemsControls were not bound by the real ScannerPage constructor.");
+            throw new InvalidOperationException("Scanner favorites/recents ItemsControls were not bound by the real ScannerPage lifecycle.");
         }
         if (FavoriteItemsScrollViewer.HorizontalScrollBarVisibility != ScrollBarVisibility.Disabled ||
             RecentItemsScrollViewer.HorizontalScrollBarVisibility != ScrollBarVisibility.Disabled ||
@@ -218,7 +247,7 @@ public partial class ScannerPage
         if (reloaded.FavoriteItemIds.Contains(itemId, StringComparer.Ordinal) == wasFavorite)
             throw new InvalidOperationException("Scanner favorite toggle did not persist across store reload.");
 
-        // Restore the user's pre-smoke favorite state and remove the smoke-added recent.
+        // Restore the pre-smoke favorite state and remove only the smoke-added recent.
         if (_scannerItemUiState.IsFavorite(itemId) != wasFavorite)
             _scannerItemUiState.ToggleFavorite(itemId);
         _scannerItemUiState.RemoveRecent(itemId);
