@@ -1,6 +1,6 @@
 # v1.8.1 Item Relationship Completeness Hardening
 
-상태: **CONFIRMED / IMPLEMENTED / RELEASE VALIDATION PENDING**
+상태: **CONFIRMED / IMPLEMENTED / PUBLIC STABLE VERIFIED**
 
 ## 배경
 
@@ -18,7 +18,7 @@ v1.8.0은 다음을 이미 검증했다.
 
 또한 in-memory build 뒤 관계 validator는 실행되었지만 persisted candidate read-back과 active snapshot validation boundary에서는 같은 item-relationship integrity validator가 반복되지 않았다.
 
-공개 v1.8.0 asset은 immutable이므로 같은 version을 교체하지 않고 v1.8.1 PATCH로 수정한다.
+공개 v1.8.0 asset은 immutable이므로 같은 version을 교체하지 않고 v1.8.1 PATCH로 수정했다.
 
 ## 결정
 
@@ -86,18 +86,37 @@ v1.8.1은 Game Content validation/LKG patch다.
 - OCR matcher / visual recovery acceptance
 - mapped relationship data를 Item identity proof로 사용하지 않는 규칙
 
-## 검증 요구사항
+## 검증 완료
 
-- relationship top-level shrink regression
-- barter/craft nested material shrink regression
-- legacy v3~v7 no-relationship baseline compatibility regression
-- present-but-empty v8 graph fail-closed regression
-- legacy null graph validator compatibility regression
-- existing full deterministic suite
-- Release build
-- win-x64 single-file publish
-- actual published EXE Product UI / Scanner / Main Map / Factory / MiniMap smoke
-- graceful shutdown / clean portable root / package checksum
-- exact-main CI
-- Release workflow exact artifact
-- public v1.8.1 tag/release/assets readback
+전용 deterministic regression 5건을 추가했고 전체 suite는 다음과 같이 통과했다.
+
+```text
+418 passed / 0 failed / 0 skipped
+```
+
+전체 PATCH release gate:
+
+- Release build — SUCCESS
+- win-x64 self-contained single-file publish — SUCCESS
+- actual published EXE Product UI / Scanner / Main Map / Factory / MiniMap smoke — SUCCESS
+- graceful shutdown / clean portable root — SUCCESS
+- package/checksum verification — SUCCESS
+- exact-main CI `33132600931` — SUCCESS
+- Release workflow `33132798167` — SUCCESS
+- public `v1.8.1` tag/release/assets readback — SUCCESS
+
+Exact product release source:
+
+```text
+dade2ef4dadbf58659b75c80d421bd3738003ff8
+```
+
+Public ZIP:
+
+```text
+bytes: 80,520,704
+SHA-256:
+b30cbb045cc089c90108e2d3394510ef6778019ea0a50f6ae16d14de7aaafe9a
+```
+
+상세 공개 증거는 `docs/RELEASE_1.8.1.md`와 `docs/.release-v1.8.1-status.json`을 따른다.
