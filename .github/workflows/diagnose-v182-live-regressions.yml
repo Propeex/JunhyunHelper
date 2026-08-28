@@ -1,0 +1,57 @@
+name: Diagnose v1.8.2 live regressions
+
+on:
+  push:
+    branches:
+      - fix/v1.8.2-runtime-live-regressions-2026-08-28
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose-live-crafts:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Inspect current json.tarkov.dev craft shapes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($mode in @('regular', 'pve')) {
+            $uri = "https://json.tarkov.dev/$mode/crafts"
+            Write-Host "GET $uri"
+            $root = Invoke-RestMethod -Uri $uri -Headers @{ 'User-Agent' = 'JunhyunHelper-v1.8.2-diagnostic/1.0' }
+            $crafts = @($root.data)
+            Write-Host "MODE=$mode CRAFTS=$($crafts.Count)"
+            $empty = @($crafts | Where-Object { @($_.requiredItems).Count -eq 0 })
+            Write-Host "MODE=$mode EMPTY_REQUIRED=$($empty.Count)"
+            foreach ($craft in $empty) {
+              $json = $craft | ConvertTo-Json -Depth 12 -Compress
+              Write-Host "EMPTY_CRAFT mode=$mode id=$($craft.id) payload=$json"
+            }
+          }
+
+      - name: Reproduce production live data build
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Checkout pinned public Map donor
+        shell: pwsh
+        run: |
+          git submodule sync --recursive
+          if ($LASTEXITCODE -ne 0) { throw 'Could not synchronize submodules.' }
+          git submodule update --init --force --depth=1 --recursive
+          if ($LASTEXITCODE -ne 0) { throw 'Could not checkout Map donor.' }
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Run current production live probe
+        shell: pwsh
+        env:
+          JUNHYUNHELPER_LIVE_DATA_PROBE: '1'
+        run: |
+          dotnet test tests/JunhyunHelper.Tests/JunhyunHelper.Tests.csproj --configuration Release --filter FullyQualifiedName~LiveDataUpdateProbeTests --logger "console;verbosity=detailed"
