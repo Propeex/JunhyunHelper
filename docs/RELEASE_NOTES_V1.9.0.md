@@ -51,14 +51,23 @@ Scanner의 Item ID 판정, OCR threshold, matcher, candidate cap, visual recover
 - 같은 구경의 탄약 아이콘 순환 간격을 700ms로 조정한다.
 - filtering과 favorite persistence 의미는 변경하지 않는다.
 
-## 검증
+## 최종 검증 및 공개 증거
 
-기능 후보 단계에서 Windows CI run `33164629780`이 다음을 통과했다.
+최종 version-bump branch gate는 CI run `33165405209`, squash-merge 후 exact-main gate는 CI run `33165706386`에서 각각 성공했다.
+
+Exact-main 제품 릴리즈 소스는 다음으로 고정한다.
+
+```text
+e0b0d303141563af564cd71cf00d8c1bfeafe44d
+```
+
+Exact-main CI 결과:
 
 ```text
 432 passed / 0 failed / 0 skipped
 Release build: SUCCESS
 win-x64 self-contained single-file publish: SUCCESS
+ProductVersion: 1.9.0+e0b0d303141563af564cd71cf00d8c1bfeafe44d
 published EXE runtime smoke: SUCCESS
 release package/checksum verification: SUCCESS
 ```
@@ -102,4 +111,38 @@ canonical-item-id=ok
 
 동일 실행에서 Product UI, Main Map, Factory, MiniMap, graceful shutdown, clean portable root도 성공했다.
 
-위 run은 기능 구현 상태를 검증한 pre-version-bump gate다. 최종 v1.9.0 공개 source, exact-main CI, release workflow, 공개 ZIP SHA-256와 release/asset ID는 공개 완료 후 `docs/RELEASE_1.9.0.md`, `docs/.release-v1.9.0-status.json`, `docs/STATE.md`에 immutable evidence로 기록한다.
+Main-CI Actions artifact:
+
+```text
+name: JunhyunHelper-win-x64
+artifact id: 9683545225
+archive bytes: 241,545,444
+archive SHA-256:
+098c74a99dc6d57c7a01b0e70c860c0d2925e6bbf4835ac2eacabf1f3e5d1bd8
+```
+
+공개 release workflow run `33165905504`는 위 exact-main artifact를 다시 다운로드해 digest, ProductVersion, FIRST_RUN 및 package checksum을 검증한 뒤 v1.9.0을 stable/latest로 게시했다.
+
+```text
+release id: 378431058
+tag: v1.9.0
+target: e0b0d303141563af564cd71cf00d8c1bfeafe44d
+draft: false
+prerelease: false
+
+Junhyun-Helper.zip
+asset id: 533681571
+bytes: 80,538,029
+SHA-256: 9ee63042746aee27ddff4407e8240d65b3740696576fe7514b4f92fe8f1e1d44
+
+SHA256SUMS.txt
+asset id: 533681572
+bytes: 86
+SHA-256: 2cd7157b4ebeaaa86fa73ee1eccbd1dedac8112089ad04994bd04228fcdcce32
+```
+
+공개 ZIP의 byte size와 digest는 exact-main CI package와 정확히 일치하며 `refs/tags/v1.9.0`과 GitHub latest release target도 동일한 product release source를 가리킨다.
+
+v1.9.0은 external Game Content importer/schema/validator 의미를 변경하지 않았으므로 새 network live release-readiness probe는 필요하지 않았다. 마지막 schema-affecting 공개 검증은 run `33151060959`이며 당시 Regular/PvE 모두 fatal 0이었다.
+
+공개 증거는 `docs/RELEASE_1.9.0.md`, `docs/.release-v1.9.0-status.json`, `docs/CURRENT_STATE.md`, `docs/STATE.md`에 기록한다. 이들 문서를 공개 뒤 동기화하는 documentation-only commit은 v1.9.0 제품 릴리즈 소스가 아니며, 이미 공개된 tag/release/assets는 immutable historical product artifact로 취급한다.
