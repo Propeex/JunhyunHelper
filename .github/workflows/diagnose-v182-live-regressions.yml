@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - fix/v1.8.2-runtime-live-regressions-2026-08-28
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
