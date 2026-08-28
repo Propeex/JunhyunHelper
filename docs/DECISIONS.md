@@ -8,7 +8,7 @@
 
 사용자의 더 새로운 확정 요구와 더 새로운 결정이 과거 충돌 결정보다 우선한다. 상세 제품/기술 의미는 `PRODUCT.md`, `STATE.md`, `ARCHITECTURE.md` 및 전문 문서를 함께 읽는다.
 
-현재 제품 상태는 **v1.7.14 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**다. 최신 릴리즈/asset/CI evidence는 `docs/STATE.md`가 권위다.
+현재 제품 상태는 **v1.8.4 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**다. 최신 릴리즈/asset/CI evidence는 `docs/STATE.md`가 권위다.
 
 ## 현재 supersession 주의
 
@@ -182,7 +182,7 @@ Scanner가 둘 중 어느 것도 별도 재계산하거나 Item identity evidenc
 ## DEC-052 — Scanner 탭은 운용 UI와 인식 기록을 사용하고 Mini Scanner는 직접 조작 가능한 overlay다
 
 - 상태: `CONFIRMED / IMPLEMENTED / PARTIALLY SUPERSEDED by later UI decisions`
-- current v1.7.14 settings/overlay ownership은 최신 결정이 우선.
+- current settings/overlay ownership은 최신 standalone 결정이 우선.
 
 ## DEC-053 — Scanner 상세창 확정은 multi-candidate semantic validation을 사용한다
 
@@ -326,6 +326,62 @@ Release workflow: 33061059154 — SUCCESS
 407 passed / 0 failed / 0 skipped
 ```
 
+## v1.8.0 Scanner item database
+
+- `docs/DECISION_V1.8.0_SCANNER_ITEM_DATABASE.md`
+- 상태: **IMPLEMENTED / PUBLIC VERIFIED**.
+- Game Content v8 canonical relationship graph를 Scanner Item ID 확정 이후 local presentation에 사용.
+- search 순간 relation 때문에 network I/O를 시작하지 않음.
+- v3~v7 relationship-null legacy snapshot과 실제 empty relationship item을 구분.
+- recognition acceptance policy는 변경하지 않음.
+
+## v1.8.1 item relationship completeness
+
+- `docs/DECISION_V1.8.1_ITEM_RELATIONSHIP_COMPLETENESS.md`
+- 상태: **IMPLEMENTED / PUBLIC VERIFIED**.
+- purchase/barter/craft/flea 및 barter/craft material edge를 healthy baseline의 50% retained-floor로 각각 보호.
+- fresh v8+ critical relation 전면 empty fail closed.
+- persisted candidate / activation / active recovery에서 relationship integrity 재검증.
+
+## v1.8.2 runtime/live regressions
+
+- `docs/DECISION_V1.8.2_RUNTIME_LIVE_REGRESSIONS.md`
+- 상태: **IMPLEMENTED / PUBLIC VERIFIED**.
+- Ammo runtime class-handler registration을 명시적 type initialization 경계로 고정.
+- published executable에서 rendered icon/shared timer cycle을 검증.
+- audited Bitcoin Farm passive production만 ordinary craft import에서 제외.
+- canonical-identical trader direct-purchase record만 deduplicate.
+- 다른 empty craft와 의미가 다른 offer는 fail-closed/별도 의미 유지.
+
+## v1.8.4 Ammo toolbar / Scanner item detail / runtime evidence
+
+- `docs/DECISION_V1.8.4_AMMO_SCANNER_ITEM_DETAIL.md`
+- 상태: **IMPLEMENTED / PUBLIC VERIFIED v1.8.4**.
+- Ammo favorites selector = left-side selection area, `표시 열` = toolbar right edge.
+- existing caliber/favorites shared animated icon state/timing 유지.
+- Scanner item detail = 기본 정보 → 사용처 → 수급처의 단일 세로 presentation.
+- basic info는 크기 / flea average / best trader sell / current needed 네 항목.
+- craft/barter = result + complete materials recipe card, narrow-width wrapping.
+- related item click = same Scanner item detail.
+- empty relationship group은 숨김.
+- user-visible WPF lifecycle/runtime 변경은 source assertion이 아니라 actual published EXE control-tree/runtime marker evidence로 검증.
+- external Game Content schema/meaning 변경 release는 hermetic regression과 별개로 current Regular/PvE release-readiness evidence를 확보.
+- Scanner recognition threshold/matcher/visual acceptance 및 Game Content LKG/fail-closed 계약은 유지.
+
+Public proof:
+
+```text
+exact product release source/tag target:
+13af4e3a452139dedc32b2db9aa51266e2a01d2a
+
+main CI: 33153043430 — SUCCESS
+Release workflow: 33153234911 — SUCCESS
+424 passed / 0 failed / 0 skipped
+public ZIP SHA-256:
+9e06c16e20a346ad7691dccfee9a2caebcdb6c0cd9a6a35859bcb97d8e03fa42
+Regular/PvE live fatal: 0 / 0
+```
+
 ---
 
 # 4. 현재 결정 확인 방법
@@ -334,17 +390,18 @@ Release workflow: 33061059154 — SUCCESS
 
 1. 제품 요구사항: `docs/PRODUCT.md`
 2. current release/implementation state: `docs/STATE.md`, `docs/CURRENT_STATE.md`
-3. latest UI product decision: `docs/DECISION_V1.7.14_UI_CONSISTENCY.md`
-4. 기술 경계: `docs/ARCHITECTURE.md`
-5. 개발자 구현 지도: `docs/DEVELOPER_REFERENCE.md`
-6. 유지보수 안전 계약: `docs/MAINTENANCE_CONTRACTS.md`
-7. Scanner 제품/기술 계약: `docs/SCANNER.md`
-8. Scanner 검증 gate: `docs/SCANNER_TEST_PLAN.md`
-9. Program Update: `docs/PROGRAM_UPDATE.md`
-10. 배포: `docs/DEPLOYMENT.md`
-11. Quest prerequisite: `docs/QUEST_PREREQUISITE_SEMANTICS.md`
-12. Map 세부 계약: `docs/MAP_PRODUCT_REQUIREMENTS.md`
-13. 기존 구현 참고 정책: `docs/REFERENCE_POLICY.md`
-14. DEC-001~029 원문: `docs/DECISIONS_HISTORY_THROUGH_2026-08-09.md`
+3. latest product maintenance decision: `docs/DECISION_V1.8.4_AMMO_SCANNER_ITEM_DETAIL.md`
+4. v1.8.x relationship authority: `docs/DECISION_V1.8.0_SCANNER_ITEM_DATABASE.md`, `docs/DECISION_V1.8.1_ITEM_RELATIONSHIP_COMPLETENESS.md`, `docs/DECISION_V1.8.2_RUNTIME_LIVE_REGRESSIONS.md`
+5. 기술 경계: `docs/ARCHITECTURE.md`
+6. 개발자 구현 지도: `docs/DEVELOPER_REFERENCE.md`
+7. 유지보수 안전 계약: `docs/MAINTENANCE_CONTRACTS.md`
+8. Scanner 제품/기술 계약: `docs/SCANNER.md`
+9. Scanner 검증 gate: `docs/SCANNER_TEST_PLAN.md`
+10. Program Update: `docs/PROGRAM_UPDATE.md`
+11. 배포: `docs/DEPLOYMENT.md`
+12. Quest prerequisite: `docs/QUEST_PREREQUISITE_SEMANTICS.md`
+13. Map 세부 계약: `docs/MAP_PRODUCT_REQUIREMENTS.md`
+14. 기존 구현 참고 정책: `docs/REFERENCE_POLICY.md`
+15. DEC-001~029 원문: `docs/DECISIONS_HISTORY_THROUGH_2026-08-09.md`
 
 과거 release/decision 문서의 당시 값은 historical evidence다. 현재 제품 의미와 충돌하면 최신 confirmed decision + current canonical docs가 우선한다.
