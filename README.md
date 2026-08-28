@@ -4,7 +4,7 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 제품 상태
 
-현재 제품 상태는 **v1.8.0 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
+현재 제품 상태는 **v1.8.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
 
 현재 확정 요구사항 범위의 제품과 Scanner는 완성 상태입니다. 새로운 실제 회귀·Tarkov 호환성 변화·사용자가 명시적으로 확정한 새 제품 요구사항이 없는 한 선제적 기능 추가나 Scanner 인식 기준 조정을 시작하지 않습니다.
 
@@ -27,29 +27,31 @@ Scanner 전문 문서:
 ## 현재 공개 릴리즈
 
 ```text
-version: v1.8.0
-Desktop target version: 1.8.0
-exact product release source/tag target: 8042e4612a54a6ec395a69d1be0700d844a1b210
-main CI: 33130057533 — SUCCESS
-Release workflow: 33130212711 — SUCCESS
-release id: 378197672
+version: v1.8.1
+Desktop target version: 1.8.1
+exact product release source/tag target: dade2ef4dadbf58659b75c80d421bd3738003ff8
+main CI: 33132600931 — SUCCESS
+Release workflow: 33132798167 — SUCCESS
+release id: 378212009
 stable asset: Junhyun-Helper.zip
-asset id: 533051783
-bytes: 80,520,114
-SHA-256: 4ecaf65068153a38a7a8613cfe2ae673aec191563f999f1cfbd10cb93d9437e0
-413 passed / 0 failed / 0 skipped
+asset id: 533094287
+bytes: 80,520,704
+SHA-256: b30cbb045cc089c90108e2d3394510ef6778019ea0a50f6ae16d14de7aaafe9a
+418 passed / 0 failed / 0 skipped
 ```
 
-GitHub `/releases/latest` 및 `refs/tags/v1.8.0` readback에서 v1.8.0이 `draft=false`, `prerelease=false`, latest stable이며 release target과 tag ref가 exact product release source와 일치함을 확인했습니다. 공개 ZIP digest도 exact main-CI package SHA-256과 일치합니다.
+GitHub `/releases/latest` 및 `refs/tags/v1.8.1` readback에서 v1.8.1이 `draft=false`, `prerelease=false`, latest stable이며 release target과 tag ref가 exact product release source와 일치함을 확인했습니다. 공개 ZIP digest도 exact main-CI package SHA-256과 일치합니다.
 
 공식 릴리즈 기록:
 
-- `docs/RELEASE_1.8.0.md`
-- `docs/RELEASE_NOTES_V1.8.0.md`
-- `docs/.release-v1.8.0-status.json`
+- `docs/RELEASE_1.8.1.md`
+- `docs/RELEASE_NOTES_V1.8.1.md`
+- `docs/.release-v1.8.1-status.json`
+- `docs/DECISION_V1.8.1_ITEM_RELATIONSHIP_COMPLETENESS.md`
+- `docs/RELEASE_1.8.0.md` — Scanner 아이템 정보 DB 기능 릴리즈
 - `docs/DECISION_V1.8.0_SCANNER_ITEM_DATABASE.md`
 
-이 README와 이후 documentation-only commit은 v1.8.0 제품 릴리즈 소스가 아닙니다. v1.8.0 product source/tag/assets는 위 `8042e461...` 기준의 immutable historical release입니다.
+이 README와 이후 documentation-only commit은 v1.8.1 제품 릴리즈 소스가 아닙니다. v1.8.1 product source/tag/assets는 위 `dade2ef4...` 기준의 immutable historical release입니다.
 
 ## 설치 / 실행
 
@@ -88,6 +90,25 @@ Junhyun-Helper.zip
 - 사용자 동의형 Program Update
 
 Runtime GPT/AI 의존성은 없습니다.
+
+## v1.8.1 — Game Content 관계 데이터 안전성 보강
+
+v1.8.0에서 추가된 Scanner 아이템 정보 DB의 관계 데이터도 기존 Game Content LKG 계약과 같은 방식으로 보호합니다.
+
+정상 v8+ baseline이 있으면 다음 관계를 각각 독립적으로 비교합니다.
+
+- 상인 현금 구매
+- 상인 교환
+- 은신처 제작
+- 플리마켓 획득 가능 item set
+- 상인 교환 required-item edges
+- 은신처 제작 required-item edges
+
+각 candidate가 기존 정상 관계의 50% 미만으로 급감하면 활성화하지 않고 기존 LKG를 유지합니다. fresh v8+ 관계 graph에서 critical 관계 collection이 전면 비어 있는 경우도 fail closed합니다.
+
+관계 graph는 in-memory build뿐 아니라 저장 후 read-back, activation, active snapshot recovery에서도 다시 무결성을 검증합니다. v3~v7 구형 snapshot의 `관계 데이터 없음` 상태는 legacy compatibility로 계속 유지합니다.
+
+Scanner OCR/아이템 인식 임계값, matcher, visual recovery acceptance는 변경하지 않았습니다.
 
 ## v1.8.0 — Scanner 아이템 정보 DB
 
@@ -185,7 +206,7 @@ needed quantity = ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal
 needed source   = ItemsWorkspace.Plan.NeededItems[itemId].Sources
 ```
 
-두 값 모두 Item ID 확정 뒤 presentation에만 사용합니다. v1.8.0 관계 DB도 동일하게 Item ID 확정 뒤 presentation에서만 사용됩니다.
+두 값 모두 Item ID 확정 뒤 presentation에만 사용합니다. v1.8.x 관계 DB도 동일하게 Item ID 확정 뒤 presentation에서만 사용됩니다.
 
 ## Game Content 안전 업데이트
 
@@ -201,9 +222,12 @@ remote source
 
 - failed candidate가 last-known-good content를 덮어쓰지 않습니다.
 - normal snapshot shrink guard는 기존 healthy baseline의 50%입니다.
+- v8+ item relationship의 purchase/barter/craft/flea와 barter/craft material edge도 각각 healthy baseline의 50% retained-floor로 보호합니다.
+- fresh v8+ critical relationship collection의 전면 empty는 fail closed합니다.
+- 저장된 candidate read-back과 activation/active recovery에서도 relationship integrity를 다시 검증합니다.
 - collection schema drift는 fail closed합니다.
 - Wiki Ballistics enrichment는 fail-soft입니다.
-- v8 item relationship 참조/가격/수량 무결성도 activation 전에 검증합니다.
+- v8 item relationship 참조/가격/수량/limit 무결성도 activation 전에 검증합니다.
 - update failure가 `user.db`를 변경하지 않습니다.
 
 ## Map / MiniMap donor
@@ -232,4 +256,4 @@ d933792b6042a51cea38dc44b686a096fe30de67
 
 Published stable release는 공개 후 교체하지 않습니다. 같은 version에서 documentation-only main commit이 다른 ProductVersion metadata/bytes를 만들더라도 이미 공개된 ZIP/tag/source를 덮어쓰지 않습니다.
 
-현재 v1.8.0 릴리즈 배치에 남은 제품 개발 작업은 없습니다. 기본 운영 모드는 유지보수입니다.
+현재 v1.8.1 릴리즈 배치에 남은 제품 개발 작업은 없습니다. 기본 운영 모드는 유지보수입니다.
