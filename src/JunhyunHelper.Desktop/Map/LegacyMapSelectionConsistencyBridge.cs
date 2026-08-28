@@ -40,8 +40,9 @@ public sealed class LegacyMapSelectionConsistencyBridge : IDisposable
 
     /// <summary>
     /// Forces the active Main Map selection into MapTrackerService synchronously. The
-    /// MiniMap calls this during SourceInitialized and again after Loaded, so both the
-    /// first frame and later manual map selections use the same canonical product path.
+    /// MiniMap calls this during SourceInitialized, after Loaded, and whenever a hidden
+    /// donor MiniMap window is shown again, so all entry paths share the same canonical
+    /// visible-selection boundary.
     /// </summary>
     public static bool SynchronizeCurrentSelectionNow()
     {
@@ -128,10 +129,10 @@ public sealed class LegacyMapSelectionConsistencyBridge : IDisposable
                     $"MiniMap did not immediately synchronize to Main Map selection '{canonicalKey}'.");
             }
 
-            File.WriteAllText(
-                Path.Combine(Path.GetTempPath(), "junhyun-minimap-selection-sync-smoke-success.txt"),
-                "main-map-selection-boundary=ok\n" +
-                "active-minimap-map-sync=ok\n");
+            // Do not publish success evidence here. v1.9.1 proved that checking only
+            // current service/window state can miss the real A -> B -> reopen rendering
+            // regression. LegacyMapProductRuntime writes the CI marker only after the
+            // reused Window has been shown and MapSvg has actually changed to map B.
         }
         catch (Exception exception)
         {
