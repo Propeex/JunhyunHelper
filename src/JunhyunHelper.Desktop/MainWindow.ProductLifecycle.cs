@@ -25,6 +25,11 @@ public partial class MainWindow
         AmmoPage.SetFavoriteStore(_services.AmmoFavorites);
         AttachContentNavigation();
 
+        // Header presentation is likewise product-window infrastructure. Schedule it
+        // explicitly after the visual tree is loaded rather than relying on a static
+        // class-level Loaded handler whose activation depends on type/event ordering.
+        ScheduleHeaderStatusPolish();
+
         // Scanner global commands belong to the product window lifetime, not the
         // Scanner tab lifetime. WindowInteropHandle may not exist yet here; the hotkey
         // service listens for SourceInitialized and registers as soon as the HWND is
@@ -45,6 +50,11 @@ public partial class MainWindow
 
     protected override void OnClosed(EventArgs e)
     {
+        // Release descriptor-backed event subscriptions before the product visual tree
+        // is torn down. This keeps lifecycle ownership symmetric and avoids retaining a
+        // closed MainWindow through component-model event infrastructure.
+        DetachHeaderStatusPolish();
+
         // Dispose product-owned hooks/timers before WPF tears down remaining windows.
         try { _legacyMapProductRuntime?.Dispose(); } catch { }
         try { _legacyAdditionalMapMarkers?.Dispose(); } catch { }

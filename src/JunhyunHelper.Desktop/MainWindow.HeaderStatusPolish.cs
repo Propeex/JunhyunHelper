@@ -9,27 +9,13 @@ namespace JunhyunHelper.Desktop;
 
 public partial class MainWindow
 {
-    private static readonly bool HeaderStatusPolishHandlerRegistered = RegisterHeaderStatusPolishHandler();
-
     private bool _headerStatusPolishApplied;
     private Ellipse? _itemsCleanupIndicator;
     private DependencyPropertyDescriptor? _statusTextDescriptor;
 
-    private static bool RegisterHeaderStatusPolishHandler()
+    private void ScheduleHeaderStatusPolish()
     {
-        EventManager.RegisterClassHandler(
-            typeof(MainWindow),
-            FrameworkElement.LoadedEvent,
-            new RoutedEventHandler(OnHeaderStatusPolishLoaded));
-        return true;
-    }
-
-    private static void OnHeaderStatusPolishLoaded(object sender, RoutedEventArgs e)
-    {
-        if (sender is not MainWindow window || !ReferenceEquals(e.OriginalSource, window))
-            return;
-
-        window.Dispatcher.BeginInvoke(window.ApplyHeaderStatusPolish, DispatcherPriority.Loaded);
+        Dispatcher.BeginInvoke(ApplyHeaderStatusPolish, DispatcherPriority.Loaded);
     }
 
     private void ApplyHeaderStatusPolish()
@@ -53,6 +39,15 @@ public partial class MainWindow
             typeof(TextBlock));
         _statusTextDescriptor?.AddValueChanged(StatusText, StatusText_ValueChanged);
         RefreshItemsCleanupIndicator();
+    }
+
+    private void DetachHeaderStatusPolish()
+    {
+        if (_statusTextDescriptor is null)
+            return;
+
+        _statusTextDescriptor.RemoveValueChanged(StatusText, StatusText_ValueChanged);
+        _statusTextDescriptor = null;
     }
 
     private void CreateItemsCleanupIndicator()
