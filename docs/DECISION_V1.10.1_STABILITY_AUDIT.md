@@ -2,7 +2,7 @@
 
 기준일: 2026-08-29 KST
 
-상태: **IMPLEMENTED / RELEASE CANDIDATE**
+상태: **IMPLEMENTED / PUBLIC VERIFIED v1.10.1**
 
 ## 목적
 
@@ -34,7 +34,7 @@ v1.10.0 공개 제품을 새 기능 추가 없이 다시 감사하고, 실제 �
 
 `MainWindow.HeaderStatusPolish.cs`가 메인 헤더의 제품 UI 보강을 위해 정적 `EventManager.RegisterClassHandler(... Loaded ...)`에 의존하고 있었다. 이는 이전 장기 유지보수 감사에서 제거한 incidental Loaded ownership과 같은 종류의 숨은 초기화 결합이다.
 
-v1.10.1은 다음으로 변경한다.
+v1.10.1은 다음으로 변경했다.
 
 - `MainWindow.OnInitialized`에서 `ScheduleHeaderStatusPolish()`를 명시적으로 호출한다.
 - 실제 visual-tree 변경은 기존처럼 `DispatcherPriority.Loaded`에서 한 번 수행한다.
@@ -49,9 +49,9 @@ v1.10.1은 다음으로 변경한다.
 
 ### 제거 — obsolete v1.2.1 finalization helper
 
-`.github/scripts/finalize-v121.py`는 v1.2.1 공개 당시 문서에 고정된 SHA/run/asset 값을 기록하기 위한 일회성 스크립트다. 현재 CI, Release workflow, source build, test, package, current docs 어느 실행 경로에서도 사용되지 않는다.
+`.github/scripts/finalize-v121.py`는 v1.2.1 공개 당시 문서에 고정된 SHA/run/asset 값을 기록하기 위한 일회성 스크립트였다. 현재 CI, Release workflow, source build, test, package, current docs 어느 실행 경로에서도 사용되지 않아 제거했다.
 
-역사적 v1.2.1 릴리즈 증거는 해당 release/docs에 보존되어 있으므로 이 실행 잔재는 제거한다.
+역사적 v1.2.1 릴리즈 증거는 해당 release/docs에 보존한다.
 
 ### 정리 — packaged release notes
 
@@ -66,19 +66,25 @@ v1.10.1은 다음으로 변경한다.
 - header `DependencyPropertyDescriptor` subscription이 종료 시 해제됨
 - 기존 page infrastructure explicit ownership 계약 유지
 
-## 버전
+## 공개 검증
 
-기존 사용자 기능의 의미를 바꾸지 않는 안정성/유지보수 변경이므로 PATCH release **v1.10.1**로 처리한다.
+```text
+exact product release source/tag target:
+c444a1e26793e15c075875159f6605d8a99cf7f9
+PR CI: 33253141127 — SUCCESS
+exact-main CI: 33253293015 — SUCCESS
+Release workflow: 33253438908 — SUCCESS
+439 passed / 0 failed / 0 skipped
+release id: 378982127
+public ZIP bytes: 80,540,164
+public ZIP SHA-256:
+c37c00a5e5ecdc431d6b26775d73682cabf17e4310533065c88e2d58d8f14922
+```
 
-## 릴리즈 전 검증
+PR와 exact-main에서 Release build, self-contained publish, actual published EXE Product UI / Ammo / Map / Factory / MiniMap / Scanner smoke, graceful shutdown, clean portable root, package audit가 모두 통과했다. `/releases/latest`와 `refs/tags/v1.10.1` readback에서 stable release와 tag가 exact product source를 가리키는 것도 확인했다.
 
-- Release build
-- 전체 automated tests
-- Windows x64 self-contained publish
-- published EXE Product UI / Ammo / Map / Factory / MiniMap / Scanner smoke
-- graceful shutdown / clean portable root
-- PR CI
-- main merge 후 exact-main CI
-- stable release/tag/assets/checksum readback
+## 버전 판단
 
-릴리즈 증거는 `docs/RELEASE_1.10.1.md`와 canonical state docs에 기록한다.
+기존 사용자 기능의 의미를 바꾸지 않는 안정성/유지보수 변경이므로 PATCH release **v1.10.1**로 공개했다.
+
+사용자 실제 PC/Tarkov 환경에서의 실사용 검증은 자동 검증과 별도로 아직 확인 전이다.
