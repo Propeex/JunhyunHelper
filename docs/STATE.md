@@ -70,7 +70,7 @@ GitHub `/releases/latest` 및 tag-ref readback:
 - `docs/RELEASE_NOTES_V1.10.1.md`
 - `docs/DECISION_V1.10.1_STABILITY_AUDIT.md`
 
-**중요:** 공개 뒤 생성되는 documentation-only commit은 v1.10.1 product release source가 아니다. 공개 source/tag/assets는 `c444a1e26793e15c075875159f6605d8a99cf7f9` 기준의 immutable historical product release다.
+**중요:** 공개 뒤 생성되는 documentation/test/workflow-only commit은 v1.10.1 product release source가 아니다. 공개 source/tag/assets는 `c444a1e26793e15c075875159f6605d8a99cf7f9` 기준의 immutable historical product release다.
 
 ## 3. v1.10.1 안정성 감사 결과
 
@@ -110,6 +110,43 @@ v1.10.1은 다음으로 정리했다.
 - Scanner recognition acceptance 정책
 - Game Content relationship LKG/completeness/fail-closed
 - Map/MiniMap donor semantics
+
+### post-release disposal / shutdown verification
+
+공개 뒤 장기 수명주기와 종료 경계를 추가 감사했다.
+
+`DesktopStartupWiringContractTests.ProductLifetime_DisposesOwnedLongLivedServices`가 MainWindow → DesktopServices → Scanner/shared HTTP, App → Program Update/Scanner diagnostic retention의 정상 disposal ownership을 고정한다.
+
+또한 `.github/workflows/shutdown-race-ci.yml`이 실제 Release publish EXE를 대상으로 다음 상황을 재현한다.
+
+```text
+async Product/Map smoke 진행 중
+→ full smoke success marker가 아직 없음 확인
+→ 정상 Main Window CloseMainWindow 요청
+→ 7초 이내 process 종료
+→ exit code 0
+→ Map smoke/startup unhandled diagnostic 없음
+```
+
+현재 구조가 이 테스트를 통과했으므로, 결함 증거 없는 global lifetime CTS/cancellation 전파 리팩터링은 하지 않는다. 정상 경계를 더 복잡하게 바꾸기보다 현 ownership을 테스트와 실제 runtime evidence로 고정한다.
+
+Post-release maintenance evidence:
+
+```text
+PR #220 CI: 33254932421 — SUCCESS
+#220 exact-main CI: 33255074971 — SUCCESS
+#220 Release verification: 33255208324 — SUCCESS
+PR #221 CI: 33255650930 — SUCCESS
+PR #221 Shutdown Race CI: 33255651032 — SUCCESS
+latest non-documentation maintenance head:
+22701e5419bca2995d442599fad646abcd484007
+exact-main CI: 33258220788 — SUCCESS
+exact-main Shutdown Race CI: 33258220786 — SUCCESS
+Release immutable verification: 33258352426 — SUCCESS
+current deterministic tests: 440 passed / 0 failed / 0 skipped
+```
+
+`/releases/latest`와 `refs/tags/v1.10.1`을 다시 읽어 공개 release ID, target/tag, asset IDs, ZIP bytes/digest가 원래 v1.10.1 공개 값과 동일함을 확인했다.
 
 ## 4. Scanner / Game Content 유지 계약
 
@@ -190,9 +227,11 @@ d933792b6042a51cea38dc44b686a096fe30de67
 → exact-main release gate
 ```
 
-사용자-visible WPF 변경은 source assertion만으로 완료 선언하지 않는다. 실제 published executable control tree/runtime evidence를 확보한다.
+사용자-visible WPF 변경은 source assertion만으로 완료 선언하지 않는다. 실제 published executable control tree/runtime evidence를 확보한다. 장기 async/lifecycle 종료 경계도 관련 변경 시 정상 Main Window close를 실제 published EXE에서 가능한 범위까지 검증한다.
 
-v1.10.1은 PR CI `33253141127`과 exact-main CI `33253293015`에서 439/439 tests, Release publish, actual Product UI/Ammo/Map/Factory/MiniMap/Scanner smoke, graceful shutdown, clean portable root, package audit를 모두 통과했다. Release workflow `33253438908`도 성공했다.
+v1.10.1 제품 릴리즈는 PR CI `33253141127`과 exact-main CI `33253293015`에서 439/439 tests, Release publish, actual Product UI/Ammo/Map/Factory/MiniMap/Scanner smoke, graceful shutdown, clean portable root, package audit를 모두 통과했다. Release workflow `33253438908`도 성공했다.
+
+그 뒤 tests/workflow-only maintenance까지 반영한 current main 검증에서는 440/440 deterministic tests, 기존 full published-EXE smoke, 별도 active-async shutdown-race smoke가 모두 성공했다. 제품 source/tag/assets는 재발행하지 않았다.
 
 ## 8. 사용자 실사용 상태
 
