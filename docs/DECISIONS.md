@@ -58,8 +58,10 @@ Scanner identity proof에 price/needed/source/relationship metadata를 사용하
 - `docs/DECISION_V1.7.13_UI_SIMPLIFICATION.md`
 - `docs/DECISION_V1.7.14_UI_CONSISTENCY.md`
 - `docs/DECISION_V1.8.3_VISIBLE_UI_RUNTIME_ACTIVATION.md`
+- `docs/DECISION_V1.10.1_POST_RELEASE_STABILITY_SWEEP.md`
 - incidental page/class-level `Loaded` ownership보다 product-window/page explicit lifecycle ownership을 우선한다.
 - descriptor/event/timer/hook subscription은 제품 수명주기 종료 시 가능한 범위에서 대칭적으로 해제한다.
+- 정상인 explicit lifecycle/disposal 경로는 미관상 리팩터링하지 않고, 중요한 ownership chain은 deterministic regression contract로 고정한다.
 - user-visible WPF lifecycle/runtime 변경은 actual published EXE runtime evidence로 검증한다.
 
 ### Scanner item database / Game Content relationships
@@ -127,6 +129,15 @@ release id: 378982127
 public ZIP SHA-256:
 c37c00a5e5ecdc431d6b26775d73682cabf17e4310533065c88e2d58d8f14922
 ```
+
+### v1.10.1 post-release stability sweep
+
+- `docs/DECISION_V1.10.1_POST_RELEASE_STABILITY_SWEEP.md`
+- 상태: **MAINTENANCE VERIFIED / TEST-CONTRACT ONLY**.
+- Program Update startup fire-and-forget 경계, MainWindow/DesktopServices shutdown ownership, Scanner monitor/hotkey/runtime/OCR/overlay/catalog cleanup, Scanner diagnostic retention timer를 재점검했다.
+- 확인된 런타임 결함은 없어 제품 코드는 변경하지 않았다.
+- `DesktopStartupWiringContractTests.ProductLifetime_DisposesOwnedLongLivedServices`를 추가해 현재의 정상 disposal chain이 향후 리팩터링에서 누락되지 않도록 고정한다.
+- 이 작업은 tests/docs-only이며 v1.10.1 public product source/tag/assets를 변경하지 않는다.
 
 ## 4. 현재 비변경 안전 계약
 
