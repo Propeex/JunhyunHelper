@@ -21,6 +21,7 @@ DEC-001~DEC-029 원문은 `docs/DECISIONS_HISTORY_THROUGH_2026-08-09.md`에 보�
 - Scanner는 current official Korean full-item catalog를 Item ID authority로 사용하고 false positive보다 miss를 선호한다.
 - Scanner recognition acceptance는 reviewed actual Tarkov evidence 없이 완화하지 않는다.
 - user-visible WPF lifecycle 변경은 source assertion이 아니라 actual published EXE runtime evidence로 검증한다.
+- 장기 async/lifecycle 종료 경계는 가능한 경우 actual published EXE의 정상 Main Window close로 직접 검증한다.
 
 ## 2. 현재 Scanner authority
 
@@ -63,6 +64,7 @@ Scanner identity proof에 price/needed/source/relationship metadata를 사용하
 - descriptor/event/timer/hook subscription은 제품 수명주기 종료 시 가능한 범위에서 대칭적으로 해제한다.
 - 정상인 explicit lifecycle/disposal 경로는 미관상 리팩터링하지 않고, 중요한 ownership chain은 deterministic regression contract로 고정한다.
 - user-visible WPF lifecycle/runtime 변경은 actual published EXE runtime evidence로 검증한다.
+- active async work 중 Main Window 종료도 별도 published-EXE regression gate로 고정한다.
 
 ### Scanner item database / Game Content relationships
 
@@ -133,11 +135,31 @@ c37c00a5e5ecdc431d6b26775d73682cabf17e4310533065c88e2d58d8f14922
 ### v1.10.1 post-release stability sweep
 
 - `docs/DECISION_V1.10.1_POST_RELEASE_STABILITY_SWEEP.md`
-- 상태: **MAINTENANCE VERIFIED / TEST-CONTRACT ONLY**.
+- 상태: **MAINTENANCE VERIFIED / TEST + PUBLISHED-EXE CONTRACT**.
 - Program Update startup fire-and-forget 경계, MainWindow/DesktopServices shutdown ownership, Scanner monitor/hotkey/runtime/OCR/overlay/catalog cleanup, Scanner diagnostic retention timer를 재점검했다.
 - 확인된 런타임 결함은 없어 제품 코드는 변경하지 않았다.
 - `DesktopStartupWiringContractTests.ProductLifetime_DisposesOwnedLongLivedServices`를 추가해 현재의 정상 disposal chain이 향후 리팩터링에서 누락되지 않도록 고정한다.
-- 이 작업은 tests/docs-only이며 v1.10.1 public product source/tag/assets를 변경하지 않는다.
+- `.github/workflows/shutdown-race-ci.yml`은 actual Windows x64 Release publish EXE에서 full async Product/Map smoke가 끝나기 전에 정상 Main Window close를 요청하고, 7초 이내 exit 0 및 diagnostic 부재를 요구한다.
+- 현재 코드가 이 runtime gate를 통과했으므로 global lifetime CTS/cancellation 구조를 근거 없이 추가하지 않는다.
+- 이 작업은 tests/workflow/docs-only이며 v1.10.1 public product source/tag/assets를 변경하지 않는다.
+
+Post-release proof:
+
+```text
+PR #220 CI: 33254932421 — SUCCESS
+#220 exact-main CI: 33255074971 — SUCCESS
+#220 Release verification: 33255208324 — SUCCESS
+PR #221 CI: 33255650930 — SUCCESS
+PR #221 Shutdown Race CI: 33255651032 — SUCCESS
+latest non-documentation maintenance head:
+22701e5419bca2995d442599fad646abcd484007
+exact-main CI: 33258220788 — SUCCESS
+exact-main Shutdown Race CI: 33258220786 — SUCCESS
+Release immutable verification: 33258352426 — SUCCESS
+current deterministic tests: 440 passed / 0 failed / 0 skipped
+```
+
+Public readback after the maintenance workflow still returns release `378982127`, tag target `c444a1e26793e15c075875159f6605d8a99cf7f9`, ZIP asset `535210900` / 80,540,164 bytes / SHA-256 `c37c00a5e5ecdc431d6b26775d73682cabf17e4310533065c88e2d58d8f14922`.
 
 ## 4. 현재 비변경 안전 계약
 
