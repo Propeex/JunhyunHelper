@@ -1,0 +1,178 @@
+name: Shutdown Race CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  close-during-active-async-smoke:
+    runs-on: windows-latest
+    timeout-minutes: 8
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Checkout pinned public Map donor
+        shell: pwsh
+        run: |
+          git submodule sync --recursive
+          if ($LASTEXITCODE -ne 0) {
+            throw "Could not synchronize submodule metadata."
+          }
+
+          git submodule update --init --force --depth=1 --recursive
+          if ($LASTEXITCODE -ne 0) {
+            throw "Could not checkout the pinned public Map donor."
+          }
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Publish Windows x64 shutdown-race candidate
+        shell: pwsh
+        run: |
+          dotnet publish src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            --output artifacts/publish `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true `
+            -p:PublishTrimmed=false `
+            -p:PublishReadyToRun=false `
+            -p:DebugType=None `
+            -p:DebugSymbols=false
+
+          Copy-Item packaging/FIRST_RUN_KO.txt artifacts/publish/FIRST_RUN_KO.txt
+
+          if (-not (Test-Path 'artifacts/publish/준현 헬퍼.exe')) {
+            throw 'Published executable was not produced.'
+          }
+
+      - name: Close Main Window during active async product smoke
+        shell: pwsh
+        env:
+          JUNHYUNHELPER_MAP_SMOKE: "1"
+        run: |
+          $exe = (Resolve-Path 'artifacts/publish/준현 헬퍼.exe').Path
+          $diagnostic = Join-Path $env:TEMP 'junhyun-map-smoke-error.txt'
+          $success = Join-Path $env:TEMP 'junhyun-map-smoke-success.txt'
+          $startupLog = Join-Path $env:LOCALAPPDATA 'JunhyunHelper/logs/startup.log'
+          foreach ($path in @($diagnostic, $success, $startupLog)) {
+            Remove-Item $path -Force -ErrorAction SilentlyContinue
+          }
+
+          function Write-ProcessContext {
+            param([System.Diagnostics.Process]$Process)
+            try {
+              $Process.Refresh()
+              Write-Host "Process: id=$($Process.Id) exited=$($Process.HasExited) responding=$($Process.Responding) title='$($Process.MainWindowTitle)' handle=$($Process.MainWindowHandle) cpu=$($Process.TotalProcessorTime)"
+            }
+            catch {
+              Write-Host "Could not read process state: $($_.Exception.Message)"
+            }
+            if (Test-Path $diagnostic) {
+              Write-Host 'Map smoke diagnostic:'
+              Get-Content $diagnostic | ForEach-Object { Write-Host $_ }
+            }
+            if (Test-Path $startupLog) {
+              Write-Host 'Application startup/dispatcher diagnostic:'
+              Get-Content $startupLog | ForEach-Object { Write-Host $_ }
+            }
+          }
+
+          $process = Start-Process -FilePath $exe -WorkingDirectory artifacts/publish -PassThru
+          try {
+            $windowDeadline = (Get-Date).AddSeconds(20)
+            $windowReady = $false
+            while ((Get-Date) -lt $windowDeadline) {
+              $process.Refresh()
+              if ($process.HasExited) {
+                Write-ProcessContext -Process $process
+                throw "Published 준현 헬퍼 exited before a Main Window became available with code $($process.ExitCode)."
+              }
+              if (Test-Path $diagnostic) {
+                Write-ProcessContext -Process $process
+                throw 'Published 준현 헬퍼 reported a smoke failure before the shutdown-race probe.'
+              }
+              if ($process.MainWindowHandle -ne 0) {
+                $windowReady = $true
+                break
+              }
+              Start-Sleep -Milliseconds 100
+            }
+
+            if (-not $windowReady) {
+              Write-ProcessContext -Process $process
+              throw 'Published 준현 헬퍼 did not expose a Main Window within 20 seconds.'
+            }
+
+            # MapSmoke_PageLoaded is an async-void product smoke that performs multiple
+            # awaited rendered Map/Factory/MiniMap/UI checks. Let it enter that lifecycle,
+            # but require that the full smoke has not completed before requesting close.
+            Start-Sleep -Milliseconds 1200
+            $process.Refresh()
+            if ($process.HasExited) {
+              Write-ProcessContext -Process $process
+              throw "Published 준현 헬퍼 exited unexpectedly before the close request with code $($process.ExitCode)."
+            }
+            if (Test-Path $diagnostic) {
+              Write-ProcessContext -Process $process
+              throw 'Published 준현 헬퍼 reported a smoke failure before the close request.'
+            }
+            if (Test-Path $success) {
+              Write-ProcessContext -Process $process
+              throw 'The full async product smoke completed before the shutdown-race close could be exercised.'
+            }
+
+            Write-Host 'Requesting normal Main Window close while the async product smoke is still incomplete...'
+            $closeRequested = $false
+            for ($attempt = 1; $attempt -le 10; $attempt++) {
+              $process.Refresh()
+              if ($process.HasExited) {
+                $closeRequested = $true
+                break
+              }
+              if ($process.CloseMainWindow()) {
+                $closeRequested = $true
+                break
+              }
+              Start-Sleep -Milliseconds 200
+            }
+
+            if (-not $closeRequested) {
+              Write-ProcessContext -Process $process
+              throw 'Could not send a normal close request to the active Main Window.'
+            }
+
+            $process.Refresh()
+            if (-not $process.HasExited -and -not $process.WaitForExit(7000)) {
+              Write-ProcessContext -Process $process
+              throw 'Main Window close during active async work did not terminate the process within 7 seconds.'
+            }
+
+            if (Test-Path $diagnostic) {
+              Write-ProcessContext -Process $process
+              throw 'Closing during active async work produced a product smoke diagnostic.'
+            }
+
+            if ($process.ExitCode -ne 0) {
+              Write-ProcessContext -Process $process
+              throw "Closing during active async work exited with non-zero code $($process.ExitCode)."
+            }
+
+            Write-Host 'Active-async Main Window close terminated cleanly with exit code 0 and no smoke diagnostic.'
+          }
+          finally {
+            $process.Refresh()
+            if (-not $process.HasExited) {
+              Stop-Process -Id $process.Id -Force
+            }
+          }
