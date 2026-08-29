@@ -75,6 +75,50 @@ archive SHA-256: 17fa98916dac423dd304ca59a5769f2fc61851d391ff3c4df89ceaaa25d3b66
 - Game Content LKG/completeness/fail-closed
 - Map/Factory/MiniMap semantics
 
+## v1.10.1 post-release 안정성 검증
+
+공개 뒤 제품 동작을 바꾸지 않는 maintenance sweep을 추가로 수행했다.
+
+### deterministic disposal ownership
+
+`DesktopStartupWiringContractTests.ProductLifetime_DisposesOwnedLongLivedServices`가 다음 종료 소유권을 고정한다.
+
+- MainWindow `Closed` → `DesktopServices.Dispose()`
+- Scanner coordinator monitor/hotkey/runtime/OCR/overlay/catalog cleanup
+- shared `HttpClient.Dispose()`
+- `App.OnExit` → Program Update coordinator / Scanner diagnostic retention dispose
+
+확인된 런타임 결함은 없어 speculative lifetime/cancellation 리팩터링은 하지 않았다.
+
+### active-async close published EXE gate
+
+`.github/workflows/shutdown-race-ci.yml`은 실제 Windows x64 Release publish EXE를 실행한 뒤 기존 async Product/Map smoke가 아직 완료되지 않은 상태에서 정상 Main Window close를 요청한다.
+
+합격 조건:
+
+- full async smoke success marker가 close 전에 존재하지 않을 것
+- 정상 `CloseMainWindow()` 요청이 수락될 것
+- 7초 안에 프로세스가 종료될 것
+- exit code = 0
+- Map smoke diagnostic / unhandled startup diagnostic 없음
+
+PR #221과 exact-main 모두 이 경계를 통과했다.
+
+```text
+post-release test-contract PR #220 CI: 33254932421 — SUCCESS
+post-release test-contract exact-main CI: 33255074971 — SUCCESS
+post-release test-contract Release workflow: 33255208324 — SUCCESS
+shutdown-race PR #221 CI: 33255650930 — SUCCESS
+shutdown-race PR #221 dedicated CI: 33255651032 — SUCCESS
+shutdown-race exact-main CI: 33258220788 — SUCCESS
+shutdown-race exact-main dedicated CI: 33258220786 — SUCCESS
+post-merge immutable Release verification: 33258352426 — SUCCESS
+current deterministic test suite: 440 passed / 0 failed / 0 skipped
+latest non-documentation maintenance head: 22701e5419bca2995d442599fad646abcd484007
+```
+
+후속 Release workflow와 공개 readback에서 v1.10.1 release/tag/assets는 변경되지 않았다.
+
 ## 기능 상태
 
 | 영역 | 상태 |
@@ -114,6 +158,7 @@ v1.10.0 → v1.10.1 user.db migration: none
 - Map/MiniMap donor pin은 `d933792b6042a51cea38dc44b686a096fe30de67`이다.
 - Factory floor/marker/viewport 의미는 변경하지 않는다.
 - user-visible WPF lifecycle 변경은 source assertion이 아니라 actual published EXE runtime evidence로 검증한다.
+- 장기 async/lifecycle 종료 경계는 가능한 경우 published EXE의 정상 Main Window close로 직접 검증한다.
 
 ## 사용자 실사용 상태
 
