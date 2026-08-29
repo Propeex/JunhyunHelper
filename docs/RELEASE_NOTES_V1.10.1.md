@@ -78,8 +78,23 @@ Scanner catalog cache: v1~v4 readable, v4 written
 
 v1.10.0 → v1.10.1에서 Game Content 또는 user.db 강제 마이그레이션은 없다.
 
-## 릴리즈 검증
+## 공개 검증
 
-Release build, 전체 automated tests, Windows x64 self-contained publish, actual published EXE Product UI / Ammo / Map / Factory / MiniMap / Scanner smoke, graceful shutdown, clean portable root, exact-main CI, stable release/tag/assets/checksum readback을 모두 통과한 뒤 공개한다.
+```text
+exact product release source/tag target:
+c444a1e26793e15c075875159f6605d8a99cf7f9
+PR CI: 33253141127 — SUCCESS
+exact-main CI: 33253293015 — SUCCESS
+Release workflow: 33253438908 — SUCCESS
+439 passed / 0 failed / 0 skipped
+release id: 378982127
+public asset: Junhyun-Helper.zip
+bytes: 80,540,164
+SHA-256: c37c00a5e5ecdc431d6b26775d73682cabf17e4310533065c88e2d58d8f14922
+```
 
-최종 exact source, CI run, 테스트 수, ProductVersion, package byte size/SHA-256, GitHub Release/tag/asset 정보는 공개 후 `docs/RELEASE_1.10.1.md`와 canonical state docs에 기록한다.
+PR CI와 exact-main CI에서 Release build, Windows x64 self-contained publish, actual published EXE Product UI / Ammo / Map / Factory / MiniMap / Scanner smoke, graceful shutdown, clean portable root와 release package audit가 모두 성공했다.
+
+GitHub `/releases/latest`에서 v1.10.1이 `draft=false`, `prerelease=false`, latest stable임을 확인했고 release target은 exact product release source와 일치한다. `refs/tags/v1.10.1`도 같은 source commit을 직접 가리킨다.
+
+사용자의 실제 PC/Tarkov 플레이 환경 실사용은 자동 검증과 별도로 아직 확인 전이다.
