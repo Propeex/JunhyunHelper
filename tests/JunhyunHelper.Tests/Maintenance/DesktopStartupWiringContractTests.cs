@@ -78,6 +78,73 @@ public sealed class DesktopStartupWiringContractTests
         Assert.DoesNotContain("HeaderStatusPolishHandlerRegistered", headerPresentation, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ProductLifetime_DisposesOwnedLongLivedServices()
+    {
+        var root = FindRepositoryRoot();
+        var app = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "JunhyunHelper.Desktop",
+            "App.xaml.cs"));
+        var lifecycle = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "JunhyunHelper.Desktop",
+            "MainWindow.ProductLifecycle.cs"));
+        var mainWindow = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "JunhyunHelper.Desktop",
+            "MainWindow.xaml.cs"));
+        var xaml = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "JunhyunHelper.Desktop",
+            "MainWindow.xaml"));
+        var desktopServices = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "JunhyunHelper.Desktop",
+            "Services",
+            "DesktopServices.cs"));
+        var scannerCoordinator = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "JunhyunHelper.Desktop",
+            "Scanner",
+            "ScannerCoordinator.cs"));
+        var retentionService = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "JunhyunHelper.Desktop",
+            "Scanner",
+            "ScannerDiagnosticRetentionService.cs"));
+
+        // MainWindow owns DesktopServices for exactly the product-window lifetime.
+        Assert.Contains("Closed=\"Window_Closed\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("_services.Dispose();", mainWindow, StringComparison.Ordinal);
+        Assert.Contains("base.OnClosed(e);", lifecycle, StringComparison.Ordinal);
+
+        // DesktopServices owns Scanner and the shared network client.
+        Assert.Contains("Scanner.Dispose();", desktopServices, StringComparison.Ordinal);
+        Assert.Contains("_httpClient.Dispose();", desktopServices, StringComparison.Ordinal);
+
+        // Scanner owns its monitor/hotkey/runtime/OCR/overlay/catalog resources.
+        Assert.Contains("StopContextMonitor();", scannerCoordinator, StringComparison.Ordinal);
+        Assert.Contains("_hotkeyService.Dispose();", scannerCoordinator, StringComparison.Ordinal);
+        Assert.Contains("_runtime.StatusChanged -= OnRuntimeStatusChanged;", scannerCoordinator, StringComparison.Ordinal);
+        Assert.Contains("_runtime.Dispose();", scannerCoordinator, StringComparison.Ordinal);
+        Assert.Contains("disposableOcr.Dispose();", scannerCoordinator, StringComparison.Ordinal);
+        Assert.Contains("_overlay.Dispose();", scannerCoordinator, StringComparison.Ordinal);
+        Assert.Contains("_catalog.Dispose();", scannerCoordinator, StringComparison.Ordinal);
+
+        // App-level services outlive MainWindow but are still released during application exit.
+        Assert.Contains("_scannerDiagnosticRetentionService?.Dispose();", app, StringComparison.Ordinal);
+        Assert.Contains("_programUpdateCoordinator?.Dispose();", app, StringComparison.Ordinal);
+        Assert.Contains("_timer.Dispose();", retentionService, StringComparison.Ordinal);
+    }
+
     private static string FindRepositoryRoot([CallerFilePath] string sourcePath = "")
     {
         var directory = new DirectoryInfo(Path.GetDirectoryName(sourcePath)
