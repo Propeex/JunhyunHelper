@@ -13,7 +13,10 @@ namespace JunhyunHelper.Desktop.Scanner;
 public static class ScannerRecognitionDebugStore
 {
     private static readonly object Gate = new();
+    private static readonly TimeSpan CorrectionSemanticCarryWindow = TimeSpan.FromSeconds(3);
+
     private static ScannerRecognitionDebugFrame? _frame;
+    private static ScannerRecognitionDebugFrame? _lastAnalyzedFrame;
     private static DateTimeOffset _lastCaptureUtc = DateTimeOffset.MinValue;
     private static string _lastSignature = string.Empty;
     private static long _caseSequence;
@@ -187,6 +190,13 @@ public static class ScannerRecognitionDebugStore
                 UpdatedAt = now,
                 Timestamp = now,
             };
+
+            // Correction capture is user-delayed by nature. Keep the latest analyzed
+            // semantic evidence separately so a following geometry-only capture cannot
+            // erase OCR/matcher diagnostics before the user presses the correction hotkey.
+            // This snapshot is never used to change live recognition decisions.
+            if (HasCompletedAnalysis(_frame))
+                _lastAnalyzedFrame = _frame;
         }
         Changed?.Invoke();
     }
@@ -197,16 +207,81 @@ public static class ScannerRecognitionDebugStore
             return _frame;
     }
 
+    /// <summary>
+    /// Returns the newest exact image/geometry for user correction, enriched only with a
+    /// very recent analyzed semantic result when the current frame has not run semantics
+    /// yet and both frames prove the same non-empty title signature. This prevents capture
+    /// cadence from turning useful OCR/matcher failures into durable NOT_RUN cases without
+    /// ever borrowing evidence across different item titles.
+    /// </summary>
+    public static ScannerRecognitionDebugFrame? GetCorrectionSnapshot()
+    {
+        lock (Gate)
+        {
+            if (_frame is null || HasCompletedAnalysis(_frame))
+                return _frame;
+
+            var analyzed = _lastAnalyzedFrame;
+            if (analyzed is null || !CanCarrySemanticEvidence(_frame, analyzed))
+                return _frame;
+
+            return _frame with
+            {
+                Pass = analyzed.Pass,
+                OcrText = analyzed.OcrText,
+                UserSubstitutedOcrText = analyzed.UserSubstitutedOcrText,
+                MatcherText = analyzed.MatcherText,
+                ItemId = analyzed.ItemId,
+                CandidateName = analyzed.CandidateName,
+                RecognitionReason = analyzed.RecognitionReason,
+                Confidence = analyzed.Confidence,
+                SecondScore = analyzed.SecondScore,
+                TopCandidates = analyzed.TopCandidates,
+                UpdatedAt = analyzed.UpdatedAt,
+            };
+        }
+    }
+
     public static void Clear()
     {
         lock (Gate)
         {
             _frame = null;
+            _lastAnalyzedFrame = null;
             _lastSignature = string.Empty;
             _lastCaptureUtc = DateTimeOffset.MinValue;
         }
         Changed?.Invoke();
     }
+
+    private static bool CanCarrySemanticEvidence(
+        ScannerRecognitionDebugFrame current,
+        ScannerRecognitionDebugFrame analyzed)
+    {
+        if (!HasCompletedAnalysis(analyzed) ||
+            string.IsNullOrWhiteSpace(current.TitleSignature) ||
+            string.IsNullOrWhiteSpace(analyzed.TitleSignature) ||
+            !string.Equals(current.TitleSignature, analyzed.TitleSignature, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (current.CaptureMode is { } currentMode &&
+            analyzed.CaptureMode is { } analyzedMode &&
+            currentMode != analyzedMode)
+        {
+            return false;
+        }
+
+        var analyzedTime = analyzed.UpdatedAt ?? analyzed.Timestamp;
+        var currentTime = current.Timestamp;
+        var age = currentTime - analyzedTime;
+        return age >= TimeSpan.Zero && age <= CorrectionSemanticCarryWindow;
+    }
+
+    private static bool HasCompletedAnalysis(ScannerRecognitionDebugFrame frame) =>
+        !string.IsNullOrWhiteSpace(frame.RecognitionReason) &&
+        !string.Equals(frame.RecognitionReason, "NOT_RUN", StringComparison.Ordinal);
 
     private static Rect ToLocal(Rect absolute, int originX, int originY) =>
         new(absolute.X - originX, absolute.Y - originY, absolute.Width, absolute.Height);
