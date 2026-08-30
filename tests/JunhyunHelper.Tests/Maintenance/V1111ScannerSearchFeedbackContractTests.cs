@@ -27,19 +27,23 @@ public sealed class V1111ScannerSearchFeedbackContractTests
     }
 
     [Fact]
-    public void Items_and_hideout_search_boxes_share_the_clear_button_contract()
+    public void Items_and_hideout_share_the_quest_conditional_clear_button_contract()
     {
         var root = FindRepositoryRoot();
-        var helper = Read(root, "src", "JunhyunHelper.Desktop", "Controls", "SearchClearButtonInstaller.cs");
-        var items = Read(root, "src", "JunhyunHelper.Desktop", "Items", "ItemsPage.SearchClear.cs");
-        var hideout = Read(root, "src", "JunhyunHelper.Desktop", "Hideout", "HideoutPage.SearchClear.cs");
+        var behavior = Read(root, "src", "JunhyunHelper.Desktop", "Controls", "ProductSearchClearButtonBehavior.cs");
 
-        Assert.Contains("Content = \"×\"", helper, StringComparison.Ordinal);
-        Assert.Contains("ToolTip = \"검색어 지우기\"", helper, StringComparison.Ordinal);
-        Assert.Contains("searchBox.Clear();", helper, StringComparison.Ordinal);
-        Assert.Contains("Keyboard.Focus(searchBox);", helper, StringComparison.Ordinal);
-        Assert.Contains("SearchClearButtonInstaller.Install(SearchBox)", items, StringComparison.Ordinal);
-        Assert.Contains("SearchClearButtonInstaller.Install(SearchBox)", hideout, StringComparison.Ordinal);
+        Assert.Contains("typeof(QuestPage)", behavior, StringComparison.Ordinal);
+        Assert.Contains("typeof(HideoutPage)", behavior, StringComparison.Ordinal);
+        Assert.Contains("typeof(ItemsPage)", behavior, StringComparison.Ordinal);
+        Assert.Contains("Content = \"×\"", behavior, StringComparison.Ordinal);
+        Assert.Contains("Visibility = string.IsNullOrEmpty(searchBox.Text) ? Visibility.Collapsed : Visibility.Visible", behavior, StringComparison.Ordinal);
+        Assert.Contains("clearButton.Visibility = string.IsNullOrEmpty(searchBox.Text)", behavior, StringComparison.Ordinal);
+        Assert.Contains("searchBox.Clear();", behavior, StringComparison.Ordinal);
+        Assert.Contains("searchBox.Focus();", behavior, StringComparison.Ordinal);
+
+        Assert.False(File.Exists(Path.Combine(root, "src", "JunhyunHelper.Desktop", "Controls", "SearchClearButtonInstaller.cs")));
+        Assert.False(File.Exists(Path.Combine(root, "src", "JunhyunHelper.Desktop", "Items", "ItemsPage.SearchClear.cs")));
+        Assert.False(File.Exists(Path.Combine(root, "src", "JunhyunHelper.Desktop", "Hideout", "HideoutPage.SearchClear.cs")));
     }
 
     [Fact]
@@ -58,6 +62,10 @@ public sealed class V1111ScannerSearchFeedbackContractTests
         Assert.Contains("_snapshot is not null", overlay, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"TransientStatusBadge\"", windowXaml, StringComparison.Ordinal);
         Assert.Contains("TimeSpan.FromSeconds(2)", windowCode, StringComparison.Ordinal);
+
+        Assert.DoesNotContain("ScannerDiagnosticCasesWindow", capture, StringComparison.Ordinal);
+        Assert.DoesNotContain("ShowDialog()", capture, StringComparison.Ordinal);
+        Assert.DoesNotContain("FocusScannerSectionAfterCorrectionCapture", capture, StringComparison.Ordinal);
 
         Assert.Contains("internal const string NoEvidenceStatus = \"저장할 스캔 결과가 없습니다.\";", policy, StringComparison.Ordinal);
         Assert.Contains("GroundTruthItemName: null", policy, StringComparison.Ordinal);

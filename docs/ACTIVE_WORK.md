@@ -1,52 +1,90 @@
 # ACTIVE WORK — 현재 진행 중 작업 체크포인트
 
-Status: **NONE**  
+Status: **ACTIVE**  
 Updated: **2026-08-30 KST**
 
-v1.11.1 Scanner 설정 / 검색 / 교정 저장 UX 유지보수 배치는 구현, 회귀 검증, Windows published EXE smoke, main 병합, exact-main CI, 자동 stable release, 공개 tag/release/assets readback까지 완료됐다.
+## Goal
 
-공개 stable:
+v1.11.2 유지보수 배치에서 사용자 실사용으로 확인된 Scanner 교정 저장 UX, Items/Hideout 검색창 clear UI 회귀, Map player marker 위치/방향 정확도를 수정·검증한다.
 
-```text
-version: v1.11.1
-exact product release source/tag target:
-6314eaf866539747eadd69f8da4450bd8d5939e1
-PR: #229 — MERGED
-PR validated exact-head CI: 33302240850 — SUCCESS
-exact-main CI: 33302387606 — SUCCESS
-exact-main Shutdown Race CI: 33302387623 — SUCCESS
-exact-main Documentation Consistency: 33302387611 — SUCCESS
-release workflow: 33302514984 — SUCCESS
-release id: 379226665
-460 passed / 0 failed / 0 skipped
-```
-
-공개 package:
+## Base / Working State
 
 ```text
-Junhyun-Helper.zip
-asset id: 536370979
-bytes: 80,553,167
-SHA-256:
-0480dca11f93472cee1396d5faae9362a8b04398a6c18bfd163dc84b9aef4e1b
-
-SHA256SUMS.txt
-asset id: 536370978
-bytes: 86
-asset SHA-256:
-233dfca51bc7d280093da728cb76374e0f10b310e127f43139a5177d55a85b20
+base main: 20a0ccab22bb5717bdbbf98102ab01702f0d5f70
+public stable: v1.11.1
+exact v1.11.1 product source: 6314eaf866539747eadd69f8da4450bd8d5939e1
+working branch: fix/v1.11.2-runtime-ui-map-2026-08-30
+target version: v1.11.2 (PATCH maintenance)
+ready PR: #232
+superseded draft PR: #231 (closed, not merged)
+validated deterministic count: 470 / 470 PASS at d4e4cea8d963eb075b01e3bb2ada316faf64e1f5
 ```
 
-공식 현재 상태는 다음 문서에서 복구한다.
+## Confirmed scope
 
-- `docs/PROJECT_STATE.json`
-- `README.md`
-- `docs/CURRENT_STATE.md`
-- `docs/STATE.md`
-- `docs/RELEASE_1.11.1.md`
-- `docs/RELEASE_NOTES_V1.11.1.md`
-- `docs/.release-v1.11.1-status.json`
+1. `교정 데이터 추가` global hotkey
+   - 레이드 중 단축키 사용 시 교정 데이터 창을 자동으로 열지 않는다.
+   - 저장 성공 시 기존 의도대로 Mini Scanner의 짧은 `저장 완료` 피드백만 제공한다.
+   - Saved Case/evidence-only/no automatic Ground Truth/duplicate explicit save 계약은 유지한다.
 
-현재 남은 제품 개발 작업은 없다. 다음 작업은 사용자가 새 요구사항을 전달하거나 실제 실사용 회귀/Tarkov 변화가 확인될 때 현재 stable 상태에서 시작한다.
+2. Items / Hideout 검색창 clear UI
+   - v1.11.1에서 추가한 항상 보이는 별도 `×` 버튼 형태를 제거한다.
+   - Quest/Ammo/Scanner 검색창과 동일하게 query가 비어 있을 때는 clear glyph가 보이지 않고, 텍스트가 있을 때만 같은 방식의 `×` clear control이 나타나도록 맞춘다.
+   - clear 시 기존 검색/필터 계약 및 focus 복구를 유지한다.
+   - 사용자가 Quest 검색창 입력 전/후와 현재 Hideout 화면 캡처를 실사용 기준으로 제공했다.
 
-사용자의 실제 PC/Tarkov 플레이 환경 v1.11.1 실사용 검증은 자동 release verification과 별개이며 현재 `PENDING`이다.
+3. Map player marker 위치/방향 정확도 audit
+   - Factory에서 screenshot 기반 player marker가 실제 바라보는 방향보다 약 90° 반시계 방향으로 틀어진 것 같다는 사용자 실사용 보고가 있다.
+   - Factory를 포함한 전체 map projection/heading 변환을 점검한다.
+   - 위치와 방향이 원본 screenshot/player pose 의미를 정확히 반영하는지 donor transform, map-specific transform, floor/rotation path를 추적한다.
+   - 공통 변환 오류가 확인되면 전체 map에 일관되게 수정하고, map-specific 차이가 필요하면 근거 있는 최소 범위로 처리한다.
+
+## Root Cause / Design Findings
+
+### Scanner correction hotkey
+
+`ScannerCoordinator.CorrectionCapture.cs`의 hotkey 성공 경로가 evidence 저장과 `저장 완료` transient feedback 후 `ScannerDiagnosticCasesWindow.ShowDialog()`를 직접 호출하고 MainWindow의 Scanner section으로 focus를 이동한다. 이 창 표시/focus 이동은 hotkey 저장 계약에 불필요하며 레이드 중 사용자 입력을 방해한다. 저장 semantics는 그대로 두고 hotkey 성공 경로에서 자동 창 표시/focus 이동만 제거한다.
+
+### Items / Hideout search clear
+
+제품에는 이미 `ProductSearchClearButtonBehavior`가 Quest/Hideout/Items에 공통 적용되어 query가 비었을 때 clear glyph를 숨기고 query가 있을 때만 inline `×`를 표시한다. v1.11.1에서 Hideout/Items에 별도의 `SearchClearButtonInstaller`와 page partial을 추가하면서 항상 보이는 표준 Button `×`가 중복 삽입됐다. 중복 installer/partial만 제거하고 기존 공통 behavior를 canonical 구현으로 유지한다.
+
+### Map player position / heading
+
+Pinned donor의 screenshot 위치 경로는 `ScreenshotCoordinateParser → MapTrackerService → MapCoordinateTransformer.TryTransformPlayerPosition`이며, player 위치에는 맵별 `playerMarkerTransform [a,b,c,d,tx,ty]` affine transform을 적용한다. 이 위치 경로 자체는 현재 map config와 일치한다.
+
+방향은 screenshot quaternion에서 얻은 raw yaw를 `ScreenPosition.Angle`에 그대로 전달한다. Main Map은 Factory `+90°`, Labs `-90°`만 이름 하드코딩으로 보정하고 MiniMap은 보정 없이 raw angle을 그대로 사용한다. 따라서 Factory MiniMap의 약 90° 오차는 실제 코드 경로로 재현되며, Labs도 같은 종류의 오차가 있고 Reserve/Labyrinth처럼 회전된 affine transform을 쓰는 맵도 방향 변환이 완전하지 않다.
+
+수정 원칙은 맵 이름별 예외를 늘리는 것이 아니라 player 위치에 사용하는 affine transform의 선형부 `[a,b;c,d]`를 raw heading vector에도 동일하게 적용하는 것이다. 이 방식은 기존 Factory `+90°`/Labs `-90°` 의미를 자동으로 재현하면서 Reserve/Labyrinth 등 전체 현재 map config를 같은 좌표계 계약으로 처리한다. Main Map과 MiniMap 모두 donor render 이후 같은 projected heading을 최종 적용한다.
+
+## Completed
+
+- 공식 v1.11.1 stable / main / release source / maintenance contracts 복구.
+- 작업 branch 생성.
+- 사용자 요구사항 3건을 maintenance scope로 checkpoint에 기록.
+- Scanner hotkey 자동 correction-window open root cause 확인 및 자동 window/focus 제거 구현.
+- Scanner evidence-only / `저장 완료` feedback / no-modal regression contract 추가.
+- Items/Hideout duplicate clear-button root cause 확인 및 `SearchClearButtonInstaller` + 두 page partial 제거.
+- Quest/Hideout/Items가 `ProductSearchClearButtonBehavior`의 conditional inline clear를 공유한다는 회귀 계약 추가.
+- Factory를 포함한 Map/MiniMap player heading 변환 audit 완료; position affine와 heading 좌표계 불일치 및 MiniMap 90° 오차 경로 확인.
+- pure `PlayerHeadingProjection` 추가: player position affine의 선형부를 heading vector에 동일 적용.
+- Main Map/MiniMap donor render 뒤 projected heading을 최종 적용하는 product bridge 연결.
+- Factory/Labs/Reserve/Labyrinth known orientation 및 현재 모든 `playerMarkerTransform` 대상 deterministic regression coverage 추가.
+- 첫 published EXE smoke에서 `Items search clear button was not rendered`를 발견. 제품 결함이 아니라 Scanner 탭에서 smoke가 실행될 때 초기 `Collapsed`인 Items/Hideout의 normal `Loaded` attachment가 아직 발생하지 않은 테스트 lifecycle 가정 문제로 확인했다. smoke가 canonical `ProductSearchClearButtonBehavior.Attach`를 직접 사용해 empty→typed→clear 상태와 단일 inline glyph를 검증하도록 교정했다.
+- Documentation Consistency의 초기 ACTIVE_WORK heading case mismatch 수정.
+- v1.11.2 project version / FIRST_RUN_KO / PROJECT_STATE candidate identity / RELEASE_NOTES 정리.
+- branch head `d4e4cea8...`에서 CI `33307791901`, Shutdown Race `33307791899`, Documentation Consistency `33307791896` 모두 SUCCESS.
+- CI에서 **470 / 470 deterministic tests**, Windows Release build, self-contained publish, actual published EXE Product UI / Map / Factory / MiniMap / Scanner smoke, package audit 및 artifact upload까지 PASS.
+- connector의 ready-for-review GraphQL mutation이 GitHub schema `Repository.fullDatabaseId` 오류로 실패하여 제품 diff/head를 바꾸지 않고 draft #231을 닫고 동일 branch/head로 ready PR #232를 생성했다.
+
+## Current step
+
+ready PR #232의 현재 documentation-only checkpoint head에서 exact-head CI 3종을 다시 확인한 뒤 main에 병합한다.
+
+## Remaining
+
+- PR #232 exact-head CI 최종 확인.
+- main 병합 / exact-main CI + Shutdown Race + Documentation Consistency 검증.
+- automatic v1.11.2 Release workflow 확인.
+- public v1.11.2 tag/release/assets/checksum/latest readback.
+- 공식 상태 문서 finalization 후 `ACTIVE_WORK` 종료.

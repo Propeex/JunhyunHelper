@@ -31,6 +31,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
     private readonly LegacyMapSettingsPersistenceBridge _settingsPersistenceBridge;
     private readonly LegacyMapViewportPolishBridge _viewportPolishBridge;
     private readonly LegacyMapSelectionConsistencyBridge _selectionConsistencyBridge;
+    private readonly LegacyPlayerHeadingBridge _playerHeadingBridge;
     private readonly Slider? _playerMarkerSlider;
     private bool _syncingPlayerMarker;
     private bool _miniMapReopenSmokeStarted;
@@ -61,6 +62,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
         _settingsPersistenceBridge = new LegacyMapSettingsPersistenceBridge(page);
         _viewportPolishBridge = new LegacyMapViewportPolishBridge(page);
         _selectionConsistencyBridge = new LegacyMapSelectionConsistencyBridge(page);
+        _playerHeadingBridge = new LegacyPlayerHeadingBridge(page);
         _hotkeys = new JunhyunMapHotkeyService(page);
         _playerMarkerSlider = _page.FindName("SliderPlayerMarkerSize") as Slider;
 
@@ -312,6 +314,7 @@ public sealed class LegacyMapProductRuntime : IDisposable
         _disposed = true;
 
         GlobalKeyboardHookService.Instance.DirectFloorSelectionPressed -= DirectFloorSelectionPressed;
+        _playerHeadingBridge.Dispose();
         _selectionConsistencyBridge.Dispose();
         _viewportPolishBridge.Dispose();
         _settingsPersistenceBridge.Dispose();
