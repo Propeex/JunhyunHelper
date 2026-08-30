@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
+using JunhyunHelper.Desktop.Controls;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
@@ -114,6 +115,12 @@ public partial class ScannerPage
     {
         if (searchBox.Parent is not Grid parent)
             throw new InvalidOperationException($"{owner} search box parent is not the expected Grid.");
+
+        // Items/Hideout are collapsed while this Scanner-hosted smoke runs. Their normal
+        // page Loaded boundary has therefore not necessarily attached the shared behavior
+        // yet. Invoke the same canonical behavior directly so the published control path
+        // can be inspected without reintroducing a second page-specific button.
+        _ = ProductSearchClearButtonBehavior.Attach(searchBox);
 
         var clearButtons = parent.Children
             .OfType<Button>()
