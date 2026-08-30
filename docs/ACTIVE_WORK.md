@@ -15,6 +15,7 @@ exact v1.11.2 product source: 5822757f6490ec82aab33793752e48de14490628
 base main: f20ac2f797a7ea69999180173b849cf7ed958624
 branch: fix/v1.11.3-ui-calibration-2026-08-30
 target: v1.11.3 PATCH maintenance
+PR: #233
 ```
 
 ## Confirmed scope
@@ -66,27 +67,39 @@ v1.11.2 body layout은 expanded panel의 높이를 현재 `MapMarkersContent.Des
 
 - v1.11.2 stable / main / product source 복구.
 - 사용자 실사용 화면 3장 및 diagnostics bundle 접수/분석.
-- v1.11.3 maintenance branch 생성.
+- v1.11.3 maintenance branch 및 PR #233 생성.
 - Items/Hideout real page lifecycle에 shared `ProductSearchClearButtonBehavior`를 직접 attach하는 Loaded + `OnApplyTemplate` boundary 구현.
 - published search smoke가 behavior를 직접 만들어내던 false-positive 검증 경로 제거; 실제 page lifecycle 결과만 검사하도록 변경.
 - Map marker expanded panel을 content-sized popup에서 available-height viewport로 변경. 큰 창에서는 전체 available height를 사용하고 실제 overflow에서만 ScrollViewer가 scrollbar를 렌더하도록 변경.
 - Map published smoke에 expanded panel full-height 및 rendered scrollbar 상태 검증 추가.
 - Scanner correction screenshot을 source-pixel canvas + ScrollViewer + display-only LayoutTransform 구조로 변경. mouse wheel 1.15x step, fit~8x zoom, pan/scroll 및 pointer anchor 보존 구현.
 - correction zoom published smoke 추가; 확대/축소와 source-pixel coordinate contract를 실제 WPF window에서 검사.
+- 첫 correction zoom runtime smoke에서 Auto scrollbar 상태에 따라 fit scale이 0.573 → 0.596으로 달라지는 문제를 검출하고, stable arranged control bounds 기준으로 fit 계산을 수정.
 - `ScannerRecognitionDebugStore`에 최근 analyzed evidence retention 추가. 동일 title signature/capture mode/3초 이내일 때만 correction snapshot에 semantic evidence를 carry하고 current image/geometry는 그대로 유지.
 - correction hotkey와 수동 최신 교정 모두 `GetCorrectionSnapshot()`을 사용하도록 연결.
 - v1.11.3 source-contract regression tests 추가.
+- stale v1.8.3 marker-panel source-string test를 현재 available-height 제품 계약으로 갱신.
+- pre-release exact-head candidate `b34335f5e89047b83550b8faf290eb6a1e3986bc` 검증 완료:
+  - Documentation Consistency run `33318820812` SUCCESS
+  - CI run `33318820804` SUCCESS
+  - 474 passed / 0 failed / 0 skipped
+  - Windows Release build SUCCESS
+  - Windows x64 self-contained publish SUCCESS
+  - actual published EXE Product UI / Map / Scanner smoke SUCCESS
+  - correction zoom stable fit + source-pixel contract SUCCESS
+  - release package build/audit + artifact upload SUCCESS
+  - Shutdown Race run `33318820799` SUCCESS
 
 ## Current step
 
-현재 branch를 draft PR로 열어 Windows compile / deterministic tests / published EXE runtime smoke에서 실제 WPF lifecycle과 zoom/layout 구현을 검증한다. 실패가 있으면 해당 증거를 기준으로 수정한다.
+v1.11.3 release identity를 확정한다. Desktop version / FIRST_RUN / PROJECT_STATE desktopVersion / RELEASE_NOTES를 한 commit으로 맞춘 뒤 그 exact-head에서 final CI, published EXE smoke, package, Shutdown Race를 다시 통과시킨다.
 
 ## Remaining
 
-- Draft PR exact-head CI 1차 검증 및 compile/runtime failure 수정.
-- v1.11.3 version/release identity 문서 정리.
-- final deterministic tests / Release build / published EXE UI-runtime smoke / Shutdown Race.
-- PR ready / exact-head CI.
-- main merge / exact-main validation.
-- v1.11.3 release/tag/assets public readback.
-- 공식 상태 문서 갱신 후 `ACTIVE_WORK` 종료.
+- v1.11.3 release identity commit 생성.
+- final PR exact-head Documentation Consistency / CI / Shutdown Race 성공 확인.
+- PR ready / merge.
+- exact-main Documentation Consistency / CI / Shutdown Race 성공 확인.
+- v1.11.3 release workflow 실행 및 tag/release/assets/checksum public readback.
+- PROJECT_STATE publicStable / README / CURRENT_STATE / STATE / RELEASE_1.11.3 최종 기록.
+- 공식 상태 문서 정리 후 `ACTIVE_WORK`를 `NONE`으로 종료.
