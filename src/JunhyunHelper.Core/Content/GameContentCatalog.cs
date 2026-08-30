@@ -20,8 +20,18 @@ public sealed record GameContentCatalog(
     IReadOnlyList<EditionDefinition>? EditionData = null,
     ItemRelationshipCatalog? ItemRelationshipData = null)
 {
+    /// <summary>
+    /// Optional persisted package mapping. Kept as an init property instead of a new
+    /// positional constructor argument so existing snapshots and call sites remain
+    /// source/data compatible; older snapshots simply deserialize with no mappings.
+    /// </summary>
+    public IReadOnlyList<AmmoPackDefinition>? AmmoPackData { get; init; }
+
     [JsonIgnore]
     public IReadOnlyList<AmmoDefinition> Ammunition => Ammo ?? Array.Empty<AmmoDefinition>();
+
+    [JsonIgnore]
+    public IReadOnlyList<AmmoPackDefinition> AmmoPacks => AmmoPackData ?? Array.Empty<AmmoPackDefinition>();
 
     [JsonIgnore]
     public IReadOnlyList<EditionDefinition> Editions => EditionData ?? Array.Empty<EditionDefinition>();
