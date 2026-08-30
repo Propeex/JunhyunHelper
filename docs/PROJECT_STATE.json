@@ -5,7 +5,7 @@
     "name": "준현 헬퍼",
     "repository": "Propeex/JunhyunHelper",
     "lifecycle": "PUBLIC_STABLE_PRODUCT_COMPLETE_MAINTENANCE",
-    "desktopVersion": "1.10.1"
+    "desktopVersion": "1.11.0"
   },
   "publicStable": {
     "version": "1.10.1",
@@ -34,7 +34,7 @@
     "contentWrite": 8,
     "contentReadable": [3, 4, 5, 6, 7, 8],
     "userDb": 1,
-    "scannerDisplaySettings": 7,
+    "scannerDisplaySettings": 8,
     "scannerCatalogWrite": 4,
     "scannerCatalogReadable": [1, 2, 3, 4]
   },
