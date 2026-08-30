@@ -16,10 +16,7 @@ exact v1.11.1 product source: 6314eaf866539747eadd69f8da4450bd8d5939e1
 working branch: fix/v1.11.2-runtime-ui-map-2026-08-30
 target version: v1.11.2 (PATCH maintenance)
 PR: #231 (DRAFT)
-initial implementation head: 94920edffe6625ca45895ba8d20fd287eb4dd057
-initial PR CI: 33307222341
-initial Shutdown Race CI: 33307222304
-initial Documentation Consistency: 33307222365
+validated deterministic count so far: 470 passed / 0 failed / 0 skipped
 ```
 
 ## Confirmed scope
@@ -72,18 +69,19 @@ Pinned donor의 screenshot 위치 경로는 `ScreenshotCoordinateParser → MapT
 - pure `PlayerHeadingProjection` 추가: player position affine의 선형부를 heading vector에 동일 적용.
 - Main Map/MiniMap donor render 뒤 projected heading을 최종 적용하는 product bridge 연결.
 - Factory/Labs/Reserve/Labyrinth known orientation 및 현재 모든 `playerMarkerTransform` 대상 deterministic regression coverage 추가.
-- Draft PR #231 생성; initial PR CI 3종 queued.
-- Documentation Consistency initial failure 원인 확인: ACTIVE_WORK required heading case mismatch (`Confirmed scope`, `Current step`); checkpoint format 수정.
+- deterministic tests **470 / 470 PASS** 및 Windows Release build/PUBLISH까지 통과한 branch CI 확인.
+- 첫 published EXE smoke에서 `Items search clear button was not rendered`를 발견. 제품 결함이 아니라 Scanner 탭에서 smoke가 실행될 때 초기 `Collapsed`인 Items/Hideout의 normal `Loaded` attachment가 아직 발생하지 않은 테스트 lifecycle 가정 문제로 확인했다. smoke가 별도 버튼을 요구하지 않고 canonical `ProductSearchClearButtonBehavior.Attach`를 직접 사용해 empty→typed→clear 상태와 단일 inline glyph를 검증하도록 교정했다.
+- Documentation Consistency의 초기 ACTIVE_WORK heading case mismatch도 수정했고 이후 해당 gate는 성공했다.
 
 ## Current step
 
-PR #231 current-head CI에서 compile/test/documentation 결과를 확인하고 실패가 있으면 branch에서 수정한다.
+교정된 published EXE search clear smoke를 포함한 PR #231 current-head CI를 재검증하고, 통과하면 v1.11.2 release identity/notes를 정리한다.
 
 ## Remaining
 
 - PR #231 current-head CI 확인 및 필요한 수정.
 - 버전/릴리즈 문서 v1.11.2 정리.
-- deterministic tests / Release build / published EXE UI-runtime smoke / map-specific smoke 검증.
+- final deterministic tests / Release build / published EXE UI-runtime smoke / map-specific smoke 검증.
 - PR ready 전환 및 final exact-head CI 확인.
 - main 병합 / exact-main 검증.
 - v1.11.2 release/tag/assets 검증.
