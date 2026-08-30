@@ -30,7 +30,9 @@ public sealed partial class ScannerCoordinator
 
         if (!result.Success)
         {
-            App.WriteDiagnostic($"Scanner correction hotkey save failed: {result.Message}");
+            App.WriteDiagnostic(
+                "Scanner correction hotkey save failed",
+                new InvalidOperationException(result.Message));
             PublishCorrectionCaptureStatus("교정 데이터를 저장하지 못했습니다.");
             return;
         }
@@ -43,7 +45,7 @@ public sealed partial class ScannerCoordinator
 
         // Use the existing Saved Case manager as the only deferred-review surface. The
         // hotkey itself never invents Ground Truth or marks the Case reviewed.
-        var mainWindow = Application.Current?.MainWindow;
+        var mainWindow = System.Windows.Application.Current?.MainWindow;
         if (mainWindow is null || !mainWindow.IsLoaded)
             return;
 
