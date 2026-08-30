@@ -1,0 +1,40 @@
+{
+  "version": "v1.11.2",
+  "status": "public-verified",
+  "productReleaseSource": "5822757f6490ec82aab33793752e48de14490628",
+  "tagTarget": "5822757f6490ec82aab33793752e48de14490628",
+  "prCiRun": 33307979144,
+  "exactMainCiRun": 33308162829,
+  "releaseWorkflowRun": 33308291656,
+  "releaseId": 379257951,
+  "publishedAtUtc": "2026-08-30T11:11:52Z",
+  "tests": {
+    "passed": 470,
+    "failed": 0,
+    "skipped": 0
+  },
+  "artifact": {
+    "name": "JunhyunHelper-win-x64",
+    "id": 9731167378,
+    "archiveBytes": 241597223,
+    "archiveSha256": "5eef3f620d46f3ac3c7990ec18fdcf46877741fc2c1647a856b3accb2fa26c8b"
+  },
+  "publicAssets": {
+    "package": {
+      "name": "Junhyun-Helper.zip",
+      "id": 536514791,
+      "bytes": 80554866,
+      "sha256": "d013ac2d423d2a83c49e1e6483dcad038a3792a5b865c1400085fd56e25592a9"
+    },
+    "checksums": {
+      "name": "SHA256SUMS.txt",
+      "id": 536514792,
+      "bytes": 86,
+      "sha256": "4860aceab06843707951dcd50951a62843d40ef7a2ea2a9d8efa7972847aa657"
+    }
+  },
+  "latestStable": true,
+  "draft": false,
+  "prerelease": false,
+  "userRealPcPlayValidation": "pending"
+}
