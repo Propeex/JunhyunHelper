@@ -41,8 +41,6 @@ public sealed partial class TarkovAmmoPackImporter
             }
 
             var packItemId = TarkovJsonReader.RequiredString(rawItem, "id", "Ammo pack item");
-            itemsWithContainedRelationship.Add(packItemId);
-
             IReadOnlyList<JsonElement> entries;
             try
             {
@@ -50,11 +48,19 @@ public sealed partial class TarkovAmmoPackImporter
             }
             catch (InvalidDataException)
             {
-                // containsItems is optional Scanner enrichment. A future unrelated shape
-                // must not make the entire Game Content update unusable, but the presence
-                // of that authoritative field still blocks name-based reinterpretation.
+                // A malformed, non-empty/unknown relationship must fail closed for the
+                // Scanner mapping: do not guess a different contained item from the name.
+                itemsWithContainedRelationship.Add(packItemId);
                 continue;
             }
+
+            // json.tarkov.dev consumers preserve an explicit empty containsItems array.
+            // Empty means there is no authoritative contained-item relationship, so the
+            // narrow name fallback remains eligible for that item.
+            if (entries.Count == 0)
+                continue;
+
+            itemsWithContainedRelationship.Add(packItemId);
 
             var contained = entries
                 .Select(TryReadContainedItem)
