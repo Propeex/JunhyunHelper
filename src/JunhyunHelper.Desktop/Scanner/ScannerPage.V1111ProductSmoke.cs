@@ -115,18 +115,47 @@ public partial class ScannerPage
         if (searchBox.Parent is not Grid parent)
             throw new InvalidOperationException($"{owner} search box parent is not the expected Grid.");
 
-        var clearButton = parent.Children
+        var clearButtons = parent.Children
             .OfType<Button>()
-            .FirstOrDefault(button =>
-                string.Equals(button.Content as string, "×", StringComparison.Ordinal) &&
-                string.Equals(button.ToolTip as string, "검색어 지우기", StringComparison.Ordinal));
-        if (clearButton is null)
-            throw new InvalidOperationException($"{owner} search clear button was not rendered.");
+            .Where(button => string.Equals(button.Content as string, "×", StringComparison.Ordinal))
+            .ToArray();
+        if (clearButtons.Length != 1)
+        {
+            throw new InvalidOperationException(
+                $"{owner} search must have exactly one inline clear glyph, found {clearButtons.Length}.");
+        }
 
-        searchBox.Text = "v1111-smoke";
+        var clearButton = clearButtons[0];
+        if (!string.Equals(clearButton.ToolTip as string, "검색어 지우기", StringComparison.Ordinal) ||
+            clearButton.BorderThickness != new Thickness(0) ||
+            clearButton.Background != System.Windows.Media.Brushes.Transparent)
+        {
+            throw new InvalidOperationException(
+                $"{owner} search clear glyph did not use the shared product inline presentation.");
+        }
+
+        searchBox.Clear();
+        searchBox.UpdateLayout();
+        if (clearButton.Visibility != Visibility.Collapsed)
+        {
+            throw new InvalidOperationException(
+                $"{owner} search clear glyph remained visible while the query was empty.");
+        }
+
+        searchBox.Text = "v112-smoke";
+        searchBox.UpdateLayout();
+        if (clearButton.Visibility != Visibility.Visible)
+        {
+            throw new InvalidOperationException(
+                $"{owner} search clear glyph was not shown after text entry.");
+        }
+
         clearButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        if (searchBox.Text.Length != 0)
-            throw new InvalidOperationException($"{owner} search clear button did not clear the query.");
+        if (searchBox.Text.Length != 0 || clearButton.Visibility != Visibility.Collapsed)
+        {
+            throw new InvalidOperationException(
+                $"{owner} search clear glyph did not clear the query and return to the empty state.");
+        }
     }
 
     private void VerifyMiniScannerSaveFeedback()
