@@ -15,7 +15,11 @@ public stable: v1.11.1
 exact v1.11.1 product source: 6314eaf866539747eadd69f8da4450bd8d5939e1
 working branch: fix/v1.11.2-runtime-ui-map-2026-08-30
 target version: v1.11.2 (PATCH maintenance)
-PR: not created yet
+PR: #231 (DRAFT)
+initial implementation head: 94920edffe6625ca45895ba8d20fd287eb4dd057
+initial PR CI: 33307222341
+initial Shutdown Race CI: 33307222304
+initial Documentation Consistency: 33307222365
 ```
 
 ## Confirmed Scope
@@ -60,21 +64,26 @@ Pinned donor의 screenshot 위치 경로는 `ScreenshotCoordinateParser → MapT
 - 공식 v1.11.1 stable / main / release source / maintenance contracts 복구.
 - 작업 branch 생성.
 - 사용자 요구사항 3건을 maintenance scope로 checkpoint에 기록.
-- Scanner hotkey 자동 correction-window open root cause 확인.
-- Items/Hideout duplicate clear-button root cause 확인.
+- Scanner hotkey 자동 correction-window open root cause 확인 및 자동 window/focus 제거 구현.
+- Scanner evidence-only / `저장 완료` feedback / no-modal regression contract 추가.
+- Items/Hideout duplicate clear-button root cause 확인 및 `SearchClearButtonInstaller` + 두 page partial 제거.
+- Quest/Hideout/Items가 `ProductSearchClearButtonBehavior`의 conditional inline clear를 공유한다는 회귀 계약 추가.
 - Factory를 포함한 Map/MiniMap player heading 변환 audit 완료; position affine와 heading 좌표계 불일치 및 MiniMap 90° 오차 경로 확인.
+- pure `PlayerHeadingProjection` 추가: player position affine의 선형부를 heading vector에 동일 적용.
+- Main Map/MiniMap donor render 뒤 projected heading을 최종 적용하는 product bridge 연결.
+- Factory/Labs/Reserve/Labyrinth known orientation 및 현재 모든 `playerMarkerTransform` 대상 deterministic regression coverage 추가.
+- Draft PR #231 생성; initial PR CI 3종 queued.
 
 ## Current Step
 
-확정된 root cause에 대한 최소 수정과 회귀 테스트를 구현한다.
+PR #231 initial CI에서 compile/test/documentation 결과를 확인하고 실패가 있으면 branch에서 수정한다.
 
 ## Remaining
 
-- Scanner correction hotkey 자동 window/focus 제거 + 회귀 테스트.
-- Items/Hideout duplicate clear installer 제거 + Quest와 동일한 conditional clear contract 회귀 테스트.
-- player affine transform 기반 generic heading projection 구현 + Main Map/MiniMap 적용 + 전체 map transform 회귀 검증.
+- PR #231 initial CI 확인 및 필요한 수정.
+- 버전/릴리즈 문서 v1.11.2 정리.
 - deterministic tests / Release build / published EXE UI-runtime smoke / map-specific smoke 검증.
-- PR 생성 및 CI 처리.
+- PR ready 전환 및 final exact-head CI 확인.
 - main 병합 / exact-main 검증.
 - v1.11.2 release/tag/assets 검증.
 - 공식 상태 문서 갱신 후 `ACTIVE_WORK` 종료.
