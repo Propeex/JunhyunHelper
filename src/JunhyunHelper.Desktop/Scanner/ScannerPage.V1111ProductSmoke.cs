@@ -1,10 +1,24 @@
 using System.IO;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
 
 namespace JunhyunHelper.Desktop.Scanner;
+
+internal static class ScannerPageV1111ProductSmokeRegistration
+{
+    [ModuleInitializer]
+    internal static void Initialize()
+    {
+        EventManager.RegisterClassHandler(
+            typeof(ScannerPage),
+            FrameworkElement.LoadedEvent,
+            new RoutedEventHandler(ScannerPage.HandleV1111ProductSmokeLoaded),
+            handledEventsToo: true);
+    }
+}
 
 public partial class ScannerPage
 {
@@ -12,16 +26,7 @@ public partial class ScannerPage
     private const string ProductSmokeDiagnosticFileName = "junhyun-map-smoke-error.txt";
     private bool _v1111ProductSmokeScheduled;
 
-    static ScannerPage()
-    {
-        EventManager.RegisterClassHandler(
-            typeof(ScannerPage),
-            LoadedEvent,
-            new RoutedEventHandler(ScannerPage_V1111ProductSmokeLoaded),
-            handledEventsToo: true);
-    }
-
-    private static void ScannerPage_V1111ProductSmokeLoaded(object sender, RoutedEventArgs e)
+    internal static void HandleV1111ProductSmokeLoaded(object sender, RoutedEventArgs e)
     {
         if (sender is not ScannerPage page ||
             page._v1111ProductSmokeScheduled ||
