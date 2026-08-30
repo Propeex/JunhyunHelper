@@ -65,9 +65,7 @@ public sealed class LegacyMapMarkerSettingsV2Bridge : IDisposable
         MoveExistingRow("ChkShowBosses", _combatRows);
         MoveExistingRow("ChkShowLeversMarker", _mapRows);
 
-        MoveCheckBox("ChkShowPmcExtracts", _extractRows);
-        MoveCheckBox("ChkShowScavExtracts", _extractRows);
-        MoveCheckBox("ChkShowTransitExtracts", _extractRows);
+        TryMoveExtractRows();
 
         CollapseLegacyDividers();
         TryMoveRaiderRow();
@@ -186,6 +184,7 @@ public sealed class LegacyMapMarkerSettingsV2Bridge : IDisposable
     private void MoveExistingRow(string checkBoxName, StackPanel destination)
     {
         if (_page.FindName(checkBoxName) is not CheckBox checkBox ||
+            IsDescendantOf(checkBox, destination) ||
             checkBox.Parent is not FrameworkElement row)
         {
             return;
@@ -202,14 +201,25 @@ public sealed class LegacyMapMarkerSettingsV2Bridge : IDisposable
         MoveCheckBox(checkBoxName, destination);
     }
 
-    private void MoveCheckBox(string name, StackPanel destination)
+    private bool MoveCheckBox(string name, StackPanel destination)
     {
         if (_page.FindName(name) is not CheckBox checkBox)
-            return;
+            return false;
+        if (IsDescendantOf(checkBox, destination))
+            return true;
 
         Detach(checkBox);
         checkBox.Margin = new Thickness(2);
         destination.Children.Add(Wrap(checkBox));
+        return true;
+    }
+
+    private bool TryMoveExtractRows()
+    {
+        var pmc = MoveCheckBox("ChkShowPmcExtracts", _extractRows);
+        var scav = MoveCheckBox("ChkShowScavExtracts", _extractRows);
+        var transit = MoveCheckBox("ChkShowTransitExtracts", _extractRows);
+        return pmc && scav && transit;
     }
 
     private Border Wrap(UIElement child) => new()
@@ -226,9 +236,10 @@ public sealed class LegacyMapMarkerSettingsV2Bridge : IDisposable
     {
         _retries++;
         TryMoveRaiderRow();
+        var extractsReady = TryMoveExtractRows();
         CollapseLegacyDividers();
         ApplyPersistedQuestToggle();
-        if (_retries >= 24)
+        if (extractsReady || _retries >= 24)
             _retryTimer.Stop();
     }
 
@@ -257,6 +268,24 @@ public sealed class LegacyMapMarkerSettingsV2Bridge : IDisposable
 
         foreach (var divider in _content.Children.OfType<Border>().Where(border => border.Height == 1))
             divider.Visibility = Visibility.Collapsed;
+    }
+
+    private static bool IsDescendantOf(FrameworkElement element, DependencyObject ancestor)
+    {
+        DependencyObject? current = element;
+        while (current is not null)
+        {
+            if (ReferenceEquals(current, ancestor))
+                return true;
+            current = current switch
+            {
+                FrameworkElement framework => framework.Parent,
+                FrameworkContentElement content => content.Parent,
+                _ => null,
+            };
+        }
+
+        return false;
     }
 
     private static void Detach(UIElement element)

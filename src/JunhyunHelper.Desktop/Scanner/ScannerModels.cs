@@ -10,7 +10,8 @@ namespace JunhyunHelper.Desktop.Scanner;
 public sealed record ScannerDataContext(
     GameMode GameMode,
     GameContentCatalog Content,
-    ItemsWorkspace ItemsWorkspace);
+    ItemsWorkspace ItemsWorkspace,
+    GameProfileSnapshot? Profile = null);
 
 public sealed record ScannerItemSnapshot(
     string ItemId,
@@ -25,6 +26,14 @@ public sealed record ScannerItemSnapshot(
     string? BestTraderName = null)
 {
     public int? FleaMinimumPrice { get; init; }
+
+    /// <summary>
+    /// Null for non-ammunition items or when the current profile/content cannot produce a
+    /// deterministic decision. Ammo packs carry the decision for their contained ammo.
+    /// </summary>
+    public bool? AmmoShouldPickUp { get; init; }
+
+    public string? EvaluatedAmmoName { get; init; }
 }
 
 public sealed record ScannerInspectCandidate(

@@ -5,7 +5,7 @@ namespace JunhyunHelper.Desktop.Scanner;
 
 public sealed class ScannerDisplaySettings
 {
-    public const int CurrentSchemaVersion = 7;
+    public const int CurrentSchemaVersion = 8;
 
     public const string TraderSellPriceField = "trader_sell_price";
     public const string FleaAveragePriceField = "flea_average_price";
@@ -24,6 +24,9 @@ public sealed class ScannerDisplaySettings
         CurrentNeededField,
     ];
 
+    private static readonly ScannerHotkeyGesture DefaultAddCorrectionData =
+        new(true, false, true, System.Windows.Input.Key.F9);
+
     public int SchemaVersion { get; set; }
     public bool Enabled { get; set; }
     public bool ShowItemName { get; set; } = true;
@@ -41,6 +44,7 @@ public sealed class ScannerDisplaySettings
     public string OneShotTarkovHotkey { get; set; } = ScannerHotkeyGesture.DefaultOneShotTarkov.ToString();
     public string OneShotTestHotkey { get; set; } = ScannerHotkeyGesture.DefaultOneShotTest.ToString();
     public string ScannerToggleHotkey { get; set; } = ScannerHotkeyGesture.DefaultScannerToggle.ToString();
+    public string AddCorrectionDataHotkey { get; set; } = DefaultAddCorrectionData.ToString();
 
     /// <summary>
     /// Optional user-owned exact OCR corrections. The default is deliberately empty;
@@ -74,6 +78,7 @@ public sealed class ScannerDisplaySettings
         OneShotTarkovHotkey = OneShotTarkovHotkey,
         OneShotTestHotkey = OneShotTestHotkey,
         ScannerToggleHotkey = ScannerToggleHotkey,
+        AddCorrectionDataHotkey = AddCorrectionDataHotkey,
         OcrSubstitutions = OcrSubstitutions?.Select(rule => rule.Clone()).ToList() ?? [],
         OneShotHotkey = OneShotHotkey,
     };
@@ -116,9 +121,9 @@ public sealed class ScannerDisplaySettings
         ShowItemName = true;
         ShowItemIcon = true;
 
-        // v7 adds the flea minimum row without disturbing a user's existing row order.
-        // Old files do not carry this visibility flag, so the newly introduced product
-        // field is visible by default after migration.
+        // v7 introduced flea minimum as a data/display compatibility field. v1.11 no
+        // longer presents it, but retaining the persisted value avoids destructive
+        // migration and keeps the underlying Scanner snapshot contract unchanged.
         if (SchemaVersion < 7)
             ShowFleaMinimumPrice = true;
         MiniScannerInfoOrder = ScannerInfoOrderPolicy.Normalize(
@@ -134,11 +139,13 @@ public sealed class ScannerDisplaySettings
         ScannerToggleHotkey = NormalizeHotkey(
             ScannerToggleHotkey,
             ScannerHotkeyGesture.DefaultScannerToggle);
+        AddCorrectionDataHotkey = NormalizeHotkey(
+            AddCorrectionDataHotkey,
+            DefaultAddCorrectionData);
 
-        // RegisterHotKey cannot safely give two product commands the same gesture.
-        // Give the long-lived in-game one-shot setting priority, then keep the test and
-        // toggle gestures if they are distinct. On schema migration only the newly
-        // introduced commands are moved to nearby Ctrl+Shift function keys as needed.
+        // Existing Scanner commands have migration priority: adding the v8 correction
+        // command must not move a user's established gestures. The new command takes the
+        // first free nearby Ctrl+Shift function key when its default collides.
         var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         AddIfConfigured(used, OneShotTarkovHotkey);
         OneShotTestHotkey = EnsureUnique(
@@ -157,6 +164,12 @@ public sealed class ScannerDisplaySettings
             ScannerHotkeyGesture.DefaultOneShotTarkov,
             new ScannerHotkeyGesture(true, false, true, System.Windows.Input.Key.F9),
             new ScannerHotkeyGesture(true, false, true, System.Windows.Input.Key.F8));
+        AddCorrectionDataHotkey = EnsureUnique(
+            AddCorrectionDataHotkey,
+            used,
+            DefaultAddCorrectionData,
+            new ScannerHotkeyGesture(true, false, true, System.Windows.Input.Key.F8),
+            new ScannerHotkeyGesture(true, false, true, System.Windows.Input.Key.F7));
 
         OcrSubstitutions = ScannerOcrSubstitutionEngine
             .NormalizeRules(OcrSubstitutions)

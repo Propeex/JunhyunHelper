@@ -87,13 +87,6 @@ public partial class MiniScannerWindow : Window
             snapshot.FleaAveragePrice is { } flea ? $"플리 평균  {FormatRoubles(flea)}" : string.Empty,
             settings.FontSize);
         ConfigureLine(
-            FleaMinimumPriceText,
-            settings.ShowFleaMinimumPrice && snapshot.FleaMinimumPrice.HasValue,
-            snapshot.FleaMinimumPrice is { } fleaMinimum
-                ? $"플리 최저  {FormatRoubles(fleaMinimum)}"
-                : string.Empty,
-            settings.FontSize);
-        ConfigureLine(
             TraderSlotPriceText,
             settings.ShowTraderPricePerSlot && snapshot.TraderPricePerSlot.HasValue,
             snapshot.TraderPricePerSlot is { } traderSlot ? $"상인/칸  {FormatRoubles(traderSlot)}" : string.Empty,
@@ -108,8 +101,16 @@ public partial class MiniScannerWindow : Window
             settings.ShowCurrentNeeded,
             $"필요  {snapshot.CurrentNeeded.ToString("N0", CultureInfo.InvariantCulture)}",
             settings.FontSize);
+        ConfigureLine(
+            AmmoPickupText,
+            snapshot.AmmoShouldPickUp.HasValue,
+            FormatAmmoPickup(snapshot),
+            settings.FontSize);
 
         ApplyInformationOrder(settings);
+        // The tactical ammo decision is product logic rather than a configurable price/info
+        // field, so it remains a fixed final line without changing the user's saved order.
+        InfoStackPanel.Children.Add(AmmoPickupText);
     }
 
     private void ApplyInformationOrder(ScannerDisplaySettings settings)
@@ -118,7 +119,6 @@ public partial class MiniScannerWindow : Window
         {
             [ScannerDisplaySettings.TraderSellPriceField] = TraderPriceText,
             [ScannerDisplaySettings.FleaAveragePriceField] = FleaPriceText,
-            [ScannerDisplaySettings.FleaMinimumPriceField] = FleaMinimumPriceText,
             [ScannerDisplaySettings.TraderPricePerSlotField] = TraderSlotPriceText,
             [ScannerDisplaySettings.FleaPricePerSlotField] = FleaSlotPriceText,
             [ScannerDisplaySettings.CurrentNeededField] = CurrentNeededText,
@@ -132,7 +132,7 @@ public partial class MiniScannerWindow : Window
         }
 
         // Defensive compatibility for malformed/older settings passed directly to the
-        // window without normalization. Every known row still remains reachable.
+        // window without normalization. Every currently displayed row remains reachable.
         foreach (var key in ScannerDisplaySettings.DefaultInfoOrder)
         {
             if (controls.Remove(key, out var control))
@@ -144,6 +144,17 @@ public partial class MiniScannerWindow : Window
         string.IsNullOrWhiteSpace(snapshot.BestTraderName)
             ? "상인"
             : snapshot.BestTraderName.Trim();
+
+    private static string FormatAmmoPickup(ScannerItemSnapshot snapshot)
+    {
+        if (snapshot.AmmoShouldPickUp is not { } shouldPickUp)
+            return string.Empty;
+
+        var decision = shouldPickUp ? "주워야 함" : "안 주워도 됨";
+        return string.IsNullOrWhiteSpace(snapshot.EvaluatedAmmoName)
+            ? $"탄약  {decision}"
+            : $"탄약  {decision} · {snapshot.EvaluatedAmmoName} 기준";
+    }
 
     private void ShowAndPosition(ScannerDisplaySettings settings)
     {

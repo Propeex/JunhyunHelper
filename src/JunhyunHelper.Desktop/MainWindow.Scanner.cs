@@ -17,6 +17,18 @@ public partial class MainWindow
         return new ScannerDataContext(
             _activeProfile.GameMode,
             _activeContent,
-            _activeItemsWorkspace);
+            _activeItemsWorkspace,
+            _activeProfile);
+    }
+
+    internal void FocusScannerSectionAfterCorrectionCapture()
+    {
+        if (_activeProfile is null || _activeContent is null)
+            return;
+
+        _activeSection = DesktopSection.Scanner;
+        ShowActiveSection();
+        Activate();
+        ScannerPlaceholder.Focus();
     }
 }

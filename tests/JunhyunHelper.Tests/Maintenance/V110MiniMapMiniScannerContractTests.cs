@@ -27,7 +27,7 @@ public sealed class V110MiniMapMiniScannerContractTests
     }
 
     [Fact]
-    public void MiniScanner_flea_minimum_is_presentation_only_and_configurable()
+    public void MiniScanner_flea_minimum_remains_compatibility_data_but_is_not_presented()
     {
         var root = FindRepositoryRoot();
         var catalogItem = Read(root, "src", "JunhyunHelper.Core", "Scanner", "ScannerCatalogItem.cs");
@@ -39,13 +39,17 @@ public sealed class V110MiniMapMiniScannerContractTests
         Assert.Contains("public int? FleaMinimumPrice { get; init; }", catalogItem, StringComparison.Ordinal);
         Assert.Contains("CurrentCacheSchemaVersion = 4", catalogService, StringComparison.Ordinal);
         Assert.Contains("GetInt(raw, \"lastLowPrice\")", catalogService, StringComparison.Ordinal);
-        Assert.Contains("CurrentSchemaVersion = 7", displaySettings, StringComparison.Ordinal);
+        Assert.Contains("CurrentSchemaVersion = 8", displaySettings, StringComparison.Ordinal);
         Assert.Contains("FleaMinimumPriceField = \"flea_minimum_price\"", displaySettings, StringComparison.Ordinal);
         Assert.Contains("ScannerInfoOrderPolicy.Normalize", displaySettings, StringComparison.Ordinal);
         Assert.Contains("ShowFleaMinimumPrice", displaySettings, StringComparison.Ordinal);
-        Assert.Contains("x:Name=\"FleaMinimumPriceText\"", xaml, StringComparison.Ordinal);
-        Assert.Contains("$\"플리 최저  {FormatRoubles(fleaMinimum)}\"", window, StringComparison.Ordinal);
-        Assert.Contains("[ScannerDisplaySettings.FleaMinimumPriceField] = FleaMinimumPriceText", window, StringComparison.Ordinal);
+
+        // v1.11 removes only the product presentation. The compatibility field remains in
+        // persisted settings and Scanner catalog data so old settings/data can migrate
+        // without destructive schema churn.
+        Assert.DoesNotContain("x:Name=\"FleaMinimumPriceText\"", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("플리 최저", window, StringComparison.Ordinal);
+        Assert.DoesNotContain("[ScannerDisplaySettings.FleaMinimumPriceField]", window, StringComparison.Ordinal);
     }
 
     private static string Read(string root, params string[] path) =>

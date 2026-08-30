@@ -25,7 +25,9 @@ public sealed class TarkovHideoutImporterTests
                         {
                           "item": "item-wire",
                           "count": 3,
-                          "foundInRaid": false
+                          "attributes": {
+                            "foundInRaid": true
+                          }
                         }
                       ]
                     },
@@ -34,7 +36,8 @@ public sealed class TarkovHideoutImporterTests
                       "itemRequirements": [
                         {
                           "item": { "id": "item-bolts" },
-                          "quantity": 5
+                          "quantity": 5,
+                          "foundInRaid": false
                         }
                       ]
                     }
@@ -52,8 +55,48 @@ public sealed class TarkovHideoutImporterTests
         Assert.Equal("station-workbench", station.Id);
         Assert.Equal("작업대", station.NameKo);
         Assert.Equal(2, station.Levels.Count);
-        Assert.Equal("item-wire", Assert.Single(station.Levels[0].ItemRequirements).ItemId);
-        Assert.Equal(5, Assert.Single(station.Levels[1].ItemRequirements).Count);
+
+        var levelOneRequirement = Assert.Single(station.Levels[0].ItemRequirements);
+        Assert.Equal("item-wire", levelOneRequirement.ItemId);
+        Assert.True(levelOneRequirement.FoundInRaid);
+
+        var levelTwoRequirement = Assert.Single(station.Levels[1].ItemRequirements);
+        Assert.Equal(5, levelTwoRequirement.Count);
+        Assert.False(levelTwoRequirement.FoundInRaid);
+    }
+
+    [Fact]
+    public void NestedFoundInRaidMetadataTakesPrecedenceOverLegacyRootField()
+    {
+        var baseDocument = Document("""
+            {
+              "data": [
+                {
+                  "id": "station-a",
+                  "levels": [
+                    {
+                      "level": 2,
+                      "itemRequirements": [
+                        {
+                          "item": "item-tape",
+                          "count": 1,
+                          "foundInRaid": false,
+                          "attributes": {
+                            "foundInRaid": true
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+            """);
+
+        var station = Assert.Single(new TarkovHideoutImporter().Import(baseDocument, new TarkovLocalization()));
+        var requirement = Assert.Single(Assert.Single(station.Levels).ItemRequirements);
+
+        Assert.True(requirement.FoundInRaid);
     }
 
     [Fact]

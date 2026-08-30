@@ -1,3 +1,4 @@
+using JunhyunHelper.Core.Ammo;
 using JunhyunHelper.Core.Scanner;
 using JunhyunHelper.Infrastructure.Scanner;
 
@@ -42,6 +43,22 @@ public sealed class ScannerItemPresentationService
                 .Select(static item => (item.ItemId, item.RemainingTotal)));
         var icon = _icons.Load($"item-{mapping.ItemId}", mapping.IconUrl);
 
+        var evaluationItemId = mapping.ItemId;
+        var pack = context.Content.AmmoPacks.FirstOrDefault(candidate =>
+            string.Equals(candidate.PackItemId, mapping.ItemId, StringComparison.Ordinal));
+        if (pack is not null)
+            evaluationItemId = pack.AmmoItemId;
+
+        var pickupDecision = context.Profile is null
+            ? null
+            : AmmoPickupEvaluator.Evaluate(
+                evaluationItemId,
+                context.Content.Ammunition,
+                context.Profile);
+        var evaluatedAmmoName = pickupDecision is null
+            ? null
+            : DisplayName(context, pickupDecision.AmmoItemId);
+
         return new ScannerItemSnapshot(
             mapping.ItemId,
             mapping.OfficialName,
@@ -55,6 +72,8 @@ public sealed class ScannerItemPresentationService
             mapping.BestTraderName)
         {
             FleaMinimumPrice = mapping.FleaMinimumPrice,
+            AmmoShouldPickUp = pickupDecision?.ShouldPickUp,
+            EvaluatedAmmoName = pack is null ? null : evaluatedAmmoName,
         };
     }
 
@@ -74,5 +93,16 @@ public sealed class ScannerItemPresentationService
 
         var fallback = _catalog.GetItemsSnapshot().FirstOrDefault();
         return fallback is null ? null : CreateSnapshot(fallback.Id);
+    }
+
+    private static string? DisplayName(ScannerDataContext context, string itemId)
+    {
+        var item = context.Content.Items.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, itemId, StringComparison.Ordinal));
+        return item is null
+            ? null
+            : !string.IsNullOrWhiteSpace(item.NameKo)
+                ? item.NameKo
+                : item.NameEn;
     }
 }

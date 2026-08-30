@@ -2,6 +2,7 @@ using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.Profiles;
 using JunhyunHelper.Infrastructure.EditionData;
 using JunhyunHelper.Infrastructure.TarkovJson;
+using JunhyunHelper.Infrastructure.TarkovJson.Ammo;
 using JunhyunHelper.Infrastructure.TarkovJson.Items;
 using JunhyunHelper.Infrastructure.TarkovJson.Quests;
 using JunhyunHelper.Infrastructure.Validation;
@@ -37,6 +38,7 @@ public sealed class TarkovContentBuildService : ITarkovContentBuildService
     private readonly TarkovEditionCatalogClient _editionClient;
     private readonly TarkovGameContentImporter _importer;
     private readonly TarkovItemRelationshipImporter _itemRelationshipImporter;
+    private readonly TarkovAmmoPackImporter _ammoPackImporter;
     private readonly GameContentIntegrityValidator _validator;
     private readonly ItemRelationshipIntegrityValidator _itemRelationshipValidator;
     private readonly WikiBallisticsEffectivenessClient? _effectivenessClient;
@@ -52,6 +54,7 @@ public sealed class TarkovContentBuildService : ITarkovContentBuildService
         _editionClient = editionClient ?? throw new ArgumentNullException(nameof(editionClient));
         _importer = importer ?? new TarkovGameContentImporter();
         _itemRelationshipImporter = new TarkovItemRelationshipImporter();
+        _ammoPackImporter = new TarkovAmmoPackImporter();
         _validator = new GameContentIntegrityValidator(validator);
         _itemRelationshipValidator = new ItemRelationshipIntegrityValidator();
         _effectivenessClient = effectivenessClient;
@@ -155,6 +158,10 @@ public sealed class TarkovContentBuildService : ITarkovContentBuildService
             items.Source.BaseDocument,
             barters.Source.BaseDocument,
             crafts.Source.BaseDocument);
+        var ammoPacks = _ammoPackImporter.Import(
+            items.Source.BaseDocument,
+            content.Items,
+            content.Ammunition);
 
         // json.tarkov.dev currently exposes a small legacy/introductory quest set only
         // through opaque dialogue gates. Apply the narrow audited compatibility mapping
@@ -164,6 +171,7 @@ public sealed class TarkovContentBuildService : ITarkovContentBuildService
         {
             Quests = TarkovDialogueAvailabilityCompatibility.Apply(content.Quests),
             ItemRelationshipData = itemRelationships,
+            AmmoPackData = ammoPacks,
         };
 
         var warnings = new[]

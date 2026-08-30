@@ -10,18 +10,23 @@ public static class JunhyunMiniMapProductRegistry
 {
     private static readonly object Gate = new();
     private static WeakReference<TarkovHelper.Windows.OverlayMiniMapWindow>? _active;
+    private static string? _latestMapKey;
 
     public static void Register(TarkovHelper.Windows.OverlayMiniMapWindow window)
     {
         ArgumentNullException.ThrowIfNull(window);
 
-        // OverlayMiniMapWindow registers here during SourceInitialized, before the donor
-        // Loaded handler reads MapTrackerService.CurrentMapKey. Force the visible Main Map
-        // into the tracker first so the very first MiniMap frame cannot show a stale map.
+        // Capture the visible Main Map before registration. SynchronizeMapSelection retains
+        // the selection even while no MiniMap window exists, so first-show state cannot be
+        // lost between the Main Map combo and the donor overlay lifecycle.
         _ = LegacyMapSelectionConsistencyBridge.SynchronizeCurrentSelectionNow();
 
+        string? latestMapKey;
         lock (Gate)
+        {
             _active = new WeakReference<TarkovHelper.Windows.OverlayMiniMapWindow>(window);
+            latestMapKey = _latestMapKey;
+        }
 
         var store = JunhyunMapProductSettingsStore.Instance;
         window.InitializeJunhyunWindowState();
@@ -29,10 +34,15 @@ public static class JunhyunMiniMapProductRegistry
         window.ApplyJunhyunBaseOpacity(store.MiniMapOpacity);
         window.ApplyJunhyunMarkerScale(store.MiniMapMarkerScale);
         window.InitializeQuestV2();
+        window.InitializeJunhyunMarkerRefreshRecovery();
 
-        // Registration happens before donor Loaded. Re-run the product selection boundary
-        // after Loaded so a newly opened MiniMap is guaranteed to consume the currently
-        // visible Main Map selection through the same immediate-sync path.
+        // SourceInitialized occurs before donor Loaded. The window-side synchronization
+        // bridge retains this replay until Loaded, after the donor tracker has initialized.
+        if (!string.IsNullOrWhiteSpace(latestMapKey))
+            window.SynchronizeJunhyunMapSelection(latestMapKey);
+
+        // Re-read once the Loaded queue settles as a final consistency boundary in case
+        // the Main Map changed while the overlay was being created.
         window.Dispatcher.BeginInvoke(
             () => _ = LegacyMapSelectionConsistencyBridge.SynchronizeCurrentSelectionNow(),
             DispatcherPriority.ContextIdle);
@@ -40,6 +50,7 @@ public static class JunhyunMiniMapProductRegistry
 
     public static void Unregister(TarkovHelper.Windows.OverlayMiniMapWindow window)
     {
+        window.DisposeJunhyunMarkerRefreshRecovery();
         window.DisposeJunhyunWindowState();
         window.DisposeQuestV2();
         lock (Gate)
@@ -71,7 +82,11 @@ public static class JunhyunMiniMapProductRegistry
     public static void DecreaseSize() => WithActive(window => window.DecreaseAnchoredSize());
 
     public static void ApplyPlayerMarkerSize(double mapPixelSize) =>
-        WithActive(window => window.ApplySharedPlayerMarkerSize(mapPixelSize));
+        WithActive(window =>
+        {
+            window.ApplySharedPlayerMarkerSize(mapPixelSize);
+            window.ReapplyJunhyunMarkerPresentationAfterDonorMapView();
+        });
 
     public static void ApplyBaseOpacity(double opacity) =>
         WithActive(window => window.ApplyJunhyunBaseOpacity(opacity));
@@ -83,13 +98,17 @@ public static class JunhyunMiniMapProductRegistry
         WithActive(window => window.JunhyunTemporarilyHide(seconds));
 
     /// <summary>
-    /// Pushes the canonical Main Map selection into an already-loaded MiniMap immediately.
-    /// The donor MapChanged subscription remains in place as the normal shared-state path.
+    /// Retains the canonical Main Map selection even when no MiniMap exists and pushes it
+    /// into the active window when one is present. This makes first-show synchronization
+    /// stateful rather than dependent on WPF lifecycle timing.
     /// </summary>
     public static void SynchronizeMapSelection(string mapKey)
     {
         if (string.IsNullOrWhiteSpace(mapKey))
             return;
+
+        lock (Gate)
+            _latestMapKey = mapKey;
 
         WithActive(window => window.SynchronizeJunhyunMapSelection(mapKey));
     }
