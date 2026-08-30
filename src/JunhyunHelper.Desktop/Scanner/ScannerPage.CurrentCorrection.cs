@@ -10,7 +10,7 @@ public partial class ScannerPage
         if (_coordinator is null)
             return;
 
-        var frame = ScannerRecognitionDebugStore.GetSnapshot();
+        var frame = ScannerRecognitionDebugStore.GetCorrectionSnapshot();
         if (frame is null)
         {
             MessageBox.Show(
