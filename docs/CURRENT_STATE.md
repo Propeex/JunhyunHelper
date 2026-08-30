@@ -1,171 +1,154 @@
 # CURRENT STATE
 
-> 최신 개발 상태의 짧은 인덱스입니다. 상세 설계와 이력은 `docs/STATE.md`, `docs/PRODUCT.md`, `docs/ARCHITECTURE.md`, `docs/DEVELOPER_REFERENCE.md`, 전문 결정/릴리즈 문서를 참조합니다.
+> 최신 개발 상태의 짧은 인덱스입니다. 기계 판독 가능한 현재 사실값은 `docs/PROJECT_STATE.json`, 상세 설계와 이력은 `docs/STATE.md`, `docs/PRODUCT.md`, `docs/DECISIONS.md`, 전문 결정/릴리즈 문서를 참조합니다.
 
-기준일: 2026-08-29 KST
+기준일: **2026-08-30 KST**
 
-상태: **`v1.10.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE`**
+상태: **`v1.11.0 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE`**
 
 ## 공개 stable
 
 ```text
-public stable/latest: v1.10.1
-exact product release source/tag target: c444a1e26793e15c075875159f6605d8a99cf7f9
-PR CI run: 33253141127 — SUCCESS
-exact-main CI run: 33253293015 — SUCCESS
-release workflow run: 33253438908 — SUCCESS
-release id: 378982127
-published UTC: 2026-08-29T12:49:03Z
-stable asset: Junhyun-Helper.zip
-stable asset id: 535210900
-stable bytes: 80,540,164
-stable SHA-256: c37c00a5e5ecdc431d6b26775d73682cabf17e4310533065c88e2d58d8f14922
-checksum asset id: 535210901
-checksum asset SHA-256: d32a6d50b60b512fa446d708d5d8ba75addad854c1e63c51378b318fbd6116c3
-439 passed / 0 failed / 0 skipped
+public stable/latest: v1.11.0
+exact product release source/tag target:
+e0a8dd8acc86f8c5675efd0b24cb3006c19ccb1d
+PR validated exact-head CI: 33298972004 — SUCCESS
+exact-main CI: 33299138580 — SUCCESS
+exact-main Shutdown Race CI: 33299138567 — SUCCESS
+exact-main Documentation Consistency: 33299138569 — SUCCESS
+release workflow: 33299258838 — SUCCESS
+release id: 379210317
+published UTC: 2026-08-30T07:28:08Z
+457 passed / 0 failed / 0 skipped
+```
+
+Public package:
+
+```text
+Junhyun-Helper.zip
+asset id: 536298335
+bytes: 80,550,542
+SHA-256:
+fb1d2f38ab26420d069fa8f0aab899c5e9776ffb072c83312e447289ef6f7c87
+
+SHA256SUMS.txt
+asset id: 536298334
+bytes: 86
+asset SHA-256:
+277a5763796e0fc30f71ef959cb8a8ee18402a201c6042565a910368e70d89e8
 ```
 
 Exact-main Actions artifact:
 
 ```text
 name: JunhyunHelper-win-x64
-artifact id: 9715065803
-archive bytes: 241,555,171
-archive SHA-256: 17fa98916dac423dd304ca59a5769f2fc61851d391ff3c4df89ceaaa25d3b663
+artifact id: 9728381122
+archive bytes: 241,586,113
+archive SHA-256:
+e9f8ac2e6d0349f9b6b7a9856d7d5bae6f6af9f03a91934dacf8a5c8ad77623f
 ```
 
-`/releases/latest`와 `refs/tags/v1.10.1` readback에서 release target/tag ref가 exact product release source와 일치하고 `draft=false`, `prerelease=false`, latest stable임을 확인했다.
+`/releases/latest`와 `refs/tags/v1.11.0` readback에서 release target/tag ref가 exact product source와 일치하고 `draft=false`, `prerelease=false`, latest stable임을 확인했다.
 
 공개 증거:
 
-- `docs/RELEASE_1.10.1.md`
-- `docs/.release-v1.10.1-status.json`
-- `docs/RELEASE_NOTES_V1.10.1.md`
-- `docs/DECISION_V1.10.1_STABILITY_AUDIT.md`
+- `docs/RELEASE_1.11.0.md`
+- `docs/.release-v1.11.0-status.json`
+- `docs/RELEASE_NOTES_V1.11.0.md`
 
-## v1.10.1 안정성 감사
+## v1.11.0 핵심 변경
 
-### WPF header lifecycle ownership
+### Map / MiniMap
 
-기존 메인 헤더 보강은 static class-level `Loaded` handler에 의존했다. v1.10.1은 이를 `MainWindow.OnInitialized`가 명시적으로 소유하도록 바꾸고, 실제 visual-tree 변경은 `DispatcherPriority.Loaded`에서 한 번 수행한다.
+- MiniMap window가 아직 없더라도 최신 Main Map selection을 product registry에 보존하고 first register 시 replay한다.
+- donor Extract checkbox가 product settings bridge보다 늦게 생성되는 경우에도 retry하여 marker 설정 목록에 반영한다.
+- Player Marker Size 변경으로 donor가 marker visual tree를 갱신한 뒤 Junhyun marker/name/visibility/category/edge-label presentation 전체를 다시 projection한다.
+- donor marker refresh가 container clear 뒤 취소될 수 있는 lifecycle race를 확인했고, 같은 map/floor에서 직전에 정상 marker가 있었는데 standard marker layer가 지속적으로 0개인 경우에만 bounded one-shot refresh recovery를 수행한다.
 
-`DependencyPropertyDescriptor.AddValueChanged`로 등록한 header status watcher도 `MainWindow.OnClosed`에서 명시 해제한다.
+### Scanner
 
-사용자-visible 결과는 유지한다.
+- `플리마켓 최저가` 사용자 표시를 제거했다. source/model/cache 호환 데이터는 유지한다.
+- Scanner display settings schema는 v8이다.
+- 설정 가능한 `교정 데이터 추가` global hotkey를 추가했다. 기본값은 `Ctrl+Alt+F9`이다.
+- 최신 evidence가 없으면 `저장할 스캔 결과가 없습니다.`를 표시하고 Case를 만들지 않는다.
+- 완전/불완전/미인식 evidence를 Saved Case로 저장할 수 있지만 hotkey는 Ground Truth를 생성·추측하지 않는다.
+- 같은 최신 결과를 연속 저장해도 explicit save마다 별도 Case ID를 사용한다.
 
-- 헤더에는 버전 정보만 표시
-- 정리 가능한 아이템이 있으면 아이템 탭 우측 상단의 작은 오렌지 점 표시
-- update progress는 전용 overlay 사용
+### Hideout FIR / Needed Items
 
-### repository/package maintenance
+- Hideout requirement의 FIR 의미를 requirement `attributes.foundInRaid`에서 canonical content로 보존한다.
+- FIR requirement에는 non-FIR inventory가 충당되지 않는다.
+- cleanup 판정도 현재 canonical FIR/non-FIR requirement를 기준으로 계산한다.
 
-- 현재 CI/Release 실행 경로에서 사용되지 않는 `.github/scripts/finalize-v121.py`를 제거했다.
-- v1.2.1 역사적 릴리즈 증거는 기존 공식 docs/Release에 보존한다.
-- `FIRST_RUN_KO.txt`는 설치 안내 + 현재/직전 핵심 변경만 유지하며 전체 역사 authority는 GitHub Releases와 `docs/`로 일원화했다.
+### Ammo pickup / Ammo Pack
 
-### 의도적으로 유지한 영역
-
-감사 결과 실제 오류 증거 없이 추가 변경할 근거가 부족한 다음 영역은 유지했다.
-
-- 사용자 진행 저장/busy serialization
-- atomic JSON durability/backup promotion
-- Program Update checksum/immutable stable/recovery
-- Scanner runtime/context monitor lifecycle
-- Scanner OCR/matcher/candidate/recovery acceptance
-- Game Content LKG/completeness/fail-closed
-- Map/Factory/MiniMap semantics
-
-## v1.10.1 post-release 안정성 검증
-
-공개 뒤 제품 동작을 바꾸지 않는 maintenance sweep을 추가로 수행했다.
-
-### deterministic disposal ownership
-
-`DesktopStartupWiringContractTests.ProductLifetime_DisposesOwnedLongLivedServices`가 다음 종료 소유권을 고정한다.
-
-- MainWindow `Closed` → `DesktopServices.Dispose()`
-- Scanner coordinator monitor/hotkey/runtime/OCR/overlay/catalog cleanup
-- shared `HttpClient.Dispose()`
-- `App.OnExit` → Program Update coordinator / Scanner diagnostic retention dispose
-
-확인된 런타임 결함은 없어 speculative lifetime/cancellation 리팩터링은 하지 않았다.
-
-### active-async close published EXE gate
-
-`.github/workflows/shutdown-race-ci.yml`은 실제 Windows x64 Release publish EXE를 실행한 뒤 기존 async Product/Map smoke가 아직 완료되지 않은 상태에서 정상 Main Window close를 요청한다.
-
-합격 조건:
-
-- full async smoke success marker가 close 전에 존재하지 않을 것
-- 정상 `CloseMainWindow()` 요청이 수락될 것
-- 7초 안에 프로세스가 종료될 것
-- exit code = 0
-- Map smoke diagnostic / unhandled startup diagnostic 없음
-
-PR #221과 exact-main 모두 이 경계를 통과했다.
-
-```text
-post-release test-contract PR #220 CI: 33254932421 — SUCCESS
-post-release test-contract exact-main CI: 33255074971 — SUCCESS
-post-release test-contract Release workflow: 33255208324 — SUCCESS
-shutdown-race PR #221 CI: 33255650930 — SUCCESS
-shutdown-race PR #221 dedicated CI: 33255651032 — SUCCESS
-shutdown-race exact-main CI: 33258220788 — SUCCESS
-shutdown-race exact-main dedicated CI: 33258220786 — SUCCESS
-post-merge immutable Release verification: 33258352426 — SUCCESS
-current deterministic test suite: 440 passed / 0 failed / 0 skipped
-latest non-documentation maintenance head: 22701e5419bca2995d442599fad646abcd484007
-```
-
-후속 Release workflow와 공개 readback에서 v1.10.1 release/tag/assets는 변경되지 않았다.
+- same-caliber penetration ranking과 현재 Trader LL을 사용해 Scanner/Mini Scanner에 pickup 판단을 제공한다.
+- 현재 LL의 direct-money purchase만 구매 가능으로 인정한다.
+- barter/craft/flea/higher-LL offer는 제외한다.
+- quest-unlocked direct purchase는 현재 profile에서 해당 quest 완료가 확인된 경우에만 구매 가능으로 인정한다.
+- Ammo Pack은 authoritative `containsItems` relation을 우선해 contained canonical ammo로 resolve한다.
+- authoritative relation이 빈 경우에만 제한적인 name fallback을 허용한다.
 
 ## 기능 상태
 
 | 영역 | 상태 |
 |---|---|
 | Profile / Quest / Hideout / Needed Items | 구현 완료 / maintenance |
-| Items / Ammo | 구현 완료 / maintenance |
-| Map + MiniMap | 구현 완료 / v1.10.0 reopen rendered sync 유지 |
-| Game Content Update | 구현 완료 / relationship LKG + fail-closed 유지 |
+| Items / Ammo | 구현 완료 / v1.11 pickup evaluator 포함 |
+| Map + MiniMap | 구현 완료 / v1.11 lifecycle repairs 포함 |
+| Game Content Update | 구현 완료 / relationship LKG + FIR semantics + fail-closed |
 | Program Update | 구현 완료 / stable ZIP checksum 계약 |
-| Scanner + Mini Scanner | **FEATURE COMPLETE / MAINTENANCE ONLY** |
+| Scanner + Mini Scanner | **FEATURE COMPLETE / MAINTENANCE** |
+| Scanner Saved Case / Ground Truth | **IMPLEMENTED / PUBLIC STABLE** |
 | Scanner 아이템 정보 DB | **IMPLEMENTED / PUBLIC STABLE** |
 | Scanner Favorites / Recents | **IMPLEMENTED / PUBLIC STABLE** |
 
 ## Schema / compatibility
 
 ```text
-Desktop target version: 1.10.1
+Desktop target version: 1.11.0
 Content schema: v8
 Readable Content schemas: v3~v8
 user.db schema: v1
-Scanner display settings schema: v7
+Scanner display settings schema: v8
 Scanner catalog cache: v1~v4 readable, v4 written
 Scanner item UI state: scanner-item-ui-state.json / canonical Item ID persistence
 ```
 
-v1.10.0 → v1.10.1 mandatory Game Content migration: none  
-v1.10.0 → v1.10.1 user.db migration: none
+v1.10.1 → v1.11.0 mandatory Game Content schema migration: none  
+v1.10.1 → v1.11.0 user.db migration: none
 
 ## 유지되는 핵심 계약
 
-- Scanner false positive보다 miss 선호.
+- Scanner false positive보다 miss를 선호한다.
 - OCR/matcher/candidate cap/visual recovery acceptance는 reviewed actual Tarkov evidence 없이 완화하지 않는다.
+- Scanner recognition은 외부 화면 pixels + OCR만 사용한다.
+- game process memory read / injection / hook / kernel / input automation / network manipulation / anti-cheat bypass를 사용하지 않는다.
 - Scanner current needed = `ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal`.
 - Scanner source = `ItemsWorkspace.Plan.NeededItems[itemId].Sources`.
 - price/needed/source/relationship metadata는 Item ID proof에 사용하지 않는다.
 - Game Content candidate/LKG/completeness/fail-closed를 유지한다.
 - Map/MiniMap donor pin은 `d933792b6042a51cea38dc44b686a096fe30de67`이다.
-- Factory floor/marker/viewport 의미는 변경하지 않는다.
-- user-visible WPF lifecycle 변경은 source assertion이 아니라 actual published EXE runtime evidence로 검증한다.
-- 장기 async/lifecycle 종료 경계는 가능한 경우 published EXE의 정상 Main Window close로 직접 검증한다.
+- user-visible WPF lifecycle 변경은 source assertion만으로 완료 선언하지 않고 actual published EXE runtime evidence로 검증한다.
 
-## 사용자 실사용 상태
+## 검증 상태
 
-v1.10.1은 CI와 published EXE 자동 검증까지 완료됐다. 사용자의 실제 PC/Tarkov 플레이 환경에서의 실사용 검증은 아직 별도 확인 전이다.
+v1.11.0 product release source는 다음을 모두 통과했다.
+
+- 457 automated tests
+- Windows Release build
+- Windows x64 self-contained publish
+- actual published EXE Product UI / Ammo / Map / Factory / MiniMap / Scanner smoke
+- graceful shutdown
+- active-async shutdown race
+- release package root/dependency/checksum audit
+- exact-main CI
+- tag/release/assets public readback
+
+사용자의 실제 PC/Tarkov 플레이 환경 실사용 검증은 자동화 검증과 별개이며 현재 **PENDING**이다.
 
 ## 다음 작업
 
-v1.10.1 릴리즈 배치에 남은 제품 개발 작업은 없다. 기본 운영 모드는 유지보수이며, 새 기능은 사용자가 명시적으로 새 제품 요구사항으로 결정할 때만 시작한다.
+v1.11.0 릴리즈 배치에 남은 제품 개발 작업은 없다. 기본 운영 모드는 유지보수다. 새 기능은 사용자가 명시적으로 제품 요구사항으로 확정할 때 시작한다.
 
-이 문서와 이후 documentation-only commit은 v1.10.1 product release source가 아니다. v1.10.1 product source/tag/assets는 `c444a1e26793e15c075875159f6605d8a99cf7f9`에 고정한다.
+이 문서와 이후 documentation-only commit은 v1.11.0 product release source가 아니다. v1.11.0 product source/tag/assets는 `e0a8dd8acc86f8c5675efd0b24cb3006c19ccb1d`에 고정한다.

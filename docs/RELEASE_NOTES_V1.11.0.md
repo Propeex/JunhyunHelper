@@ -114,9 +114,24 @@ Scanner catalog cache: v1~v4 readable, v4 written
 
 v1.10.1 → v1.11.0에서 mandatory Game Content schema migration 또는 user.db migration은 없다. Scanner display settings는 기존 값을 읽어 v8 기본 hotkey/표시 계약을 보완한다.
 
-## 검증 계약
+## 공개 검증 결과
 
-v1.11.0 release candidate는 다음을 모두 통과해야 공개한다.
+v1.11.0은 아래 release gate를 모두 통과한 뒤 공개됐다.
+
+```text
+exact product release source/tag target:
+e0a8dd8acc86f8c5675efd0b24cb3006c19ccb1d
+PR validated exact-head CI: 33298972004 — SUCCESS
+exact-main CI: 33299138580 — SUCCESS
+exact-main Shutdown Race CI: 33299138567 — SUCCESS
+exact-main Documentation Consistency: 33299138569 — SUCCESS
+Release workflow: 33299258838 — SUCCESS
+Release ID: 379210317
+published UTC: 2026-08-30T07:28:08Z
+457 passed / 0 failed / 0 skipped
+```
+
+검증 범위:
 
 - deterministic Core/Maintenance tests
 - Windows Release desktop build
@@ -124,7 +139,20 @@ v1.11.0 release candidate는 다음을 모두 통과해야 공개한다.
 - actual published EXE Product UI / Ammo / Map / Factory / MiniMap / Scanner smoke
 - active-async graceful shutdown race
 - release package root/dependency/checksum audit
-- exact-main CI
-- Release workflow의 tag/release/asset readback
+- exact-main artifact upload
+- Release workflow에서 exact-main artifact 재사용
+- public release/tag/assets readback
 
-사용자의 실제 PC/Tarkov 플레이 환경 실사용은 자동 검증과 별도로 관리한다.
+Public package:
+
+```text
+Junhyun-Helper.zip
+asset id: 536298335
+bytes: 80,550,542
+SHA-256:
+fb1d2f38ab26420d069fa8f0aab899c5e9776ffb072c83312e447289ef6f7c87
+```
+
+Tag `v1.11.0`과 GitHub Release target은 모두 exact product release source `e0a8dd8...`를 직접 가리킨다. Release는 `draft=false`, `prerelease=false`, latest stable로 확인됐다.
+
+사용자의 실제 PC/Tarkov 플레이 환경 실사용은 자동 검증과 별도로 관리하며 현재 **PENDING**이다.
