@@ -16,7 +16,7 @@ ChatGPT 대화나 장문의 시작 메시지에 프로젝트 기억을 의존하
 ```text
 base main: e10140d2f2756eb3ab51d4c3e140556ce0c0a927
 branch: maintenance/project-memory-consistency-2026-08-30
-PR: pending
+PR: #223
 ```
 
 ## Confirmed scope
@@ -34,19 +34,24 @@ PR: pending
 - 기존 `AGENTS.md`, `CURRENT_STATE.md`, `STATE.md`, `ARCHITECTURE.md`, `DEVELOPER_REFERENCE.md`, CI 구조 확인
 - `docs/PROJECT_STATE.json` 추가
 - `docs/ACTIVE_WORK.md` 추가
+- `docs/DOCUMENTATION_POLICY.md` 추가
+- `AGENTS.md` 새 세션 복구/체크포인트/사용자 인수인계 비의존 규칙 보강
+- documentation consistency PowerShell validator 추가
+- Documentation Consistency GitHub Actions workflow 추가
+- PR #223 생성
 
 ## Current step
 
-개발 규칙/문서 정책/CI consistency gate 구현 중.
+PR #223의 Documentation Consistency / 기존 CI / Shutdown Race CI 검증.
 
 ## Remaining
 
-1. `AGENTS.md` 복구/체크포인트 규칙 보강
-2. Documentation policy 문서 추가
-3. consistency 검사 스크립트 + workflow 추가
-4. PR 생성 및 전체 검증
-5. 병합 후 exact-main consistency/기존 CI 확인
-6. `ACTIVE_WORK`를 `NONE`으로 닫고 공식 상태 문서에 개발 프로세스 변경 기록
+1. PR #223 전체 workflow 성공 확인
+2. 실패 시 consistency contract 수정 후 재검증
+3. 검증 완료 시 `ACTIVE_WORK`를 최종 `NONE`으로 닫는 commit 반영
+4. PR 병합
+5. exact-main Documentation Consistency / 기존 CI / Shutdown Race CI / Release immutable 검증
+6. public v1.10.1 tag/release/assets 불변 readback
 
 ## User decisions required
 
