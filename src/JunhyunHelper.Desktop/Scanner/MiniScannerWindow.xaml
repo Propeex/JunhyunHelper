@@ -24,37 +24,53 @@
             </ContextMenu>
         </Border.ContextMenu>
 
-        <StackPanel x:Name="ItemContentPanel" MinWidth="150">
-            <Grid Margin="0,0,0,5">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-                <Image x:Name="ItemIcon"
-                       Width="48"
-                       Height="48"
-                       Stretch="Uniform"
-                       Margin="0,0,9,0"
-                       VerticalAlignment="Top" />
-                <TextBlock x:Name="ItemNameText"
-                           Grid.Column="1"
-                           Foreground="White"
-                           FontWeight="SemiBold"
-                           TextWrapping="Wrap"
-                           MaxWidth="420"
-                           VerticalAlignment="Center" />
-            </Grid>
-
-            <StackPanel x:Name="InfoStackPanel"
-                        HorizontalAlignment="Left">
-                <TextBlock x:Name="TraderPriceText" Foreground="White" />
-                <TextBlock x:Name="FleaPriceText" Foreground="White" />
-                <TextBlock x:Name="TraderSlotPriceText" Foreground="White" />
-                <TextBlock x:Name="FleaSlotPriceText" Foreground="White" />
-                <TextBlock x:Name="CurrentNeededText" Foreground="White" />
-                <TextBlock x:Name="AmmoPickupText"
-                           Foreground="White"
+        <StackPanel MinWidth="150">
+            <Border x:Name="TransientStatusBadge"
+                    Visibility="Collapsed"
+                    Background="{StaticResource BackgroundMediumBrush}"
+                    BorderBrush="{StaticResource AccentBrush}"
+                    BorderThickness="1"
+                    CornerRadius="7"
+                    Padding="10,5"
+                    Margin="0,0,0,5"
+                    HorizontalAlignment="Left">
+                <TextBlock x:Name="TransientStatusText"
+                           Foreground="{StaticResource AccentBrush}"
                            FontWeight="SemiBold" />
+            </Border>
+
+            <StackPanel x:Name="ItemContentPanel">
+                <Grid Margin="0,0,0,5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Image x:Name="ItemIcon"
+                           Width="48"
+                           Height="48"
+                           Stretch="Uniform"
+                           Margin="0,0,9,0"
+                           VerticalAlignment="Top" />
+                    <TextBlock x:Name="ItemNameText"
+                               Grid.Column="1"
+                               Foreground="White"
+                               FontWeight="SemiBold"
+                               TextWrapping="Wrap"
+                               MaxWidth="420"
+                               VerticalAlignment="Center" />
+                </Grid>
+
+                <StackPanel x:Name="InfoStackPanel"
+                            HorizontalAlignment="Left">
+                    <TextBlock x:Name="TraderPriceText" Foreground="White" />
+                    <TextBlock x:Name="FleaPriceText" Foreground="White" />
+                    <TextBlock x:Name="TraderSlotPriceText" Foreground="White" />
+                    <TextBlock x:Name="FleaSlotPriceText" Foreground="White" />
+                    <TextBlock x:Name="CurrentNeededText" Foreground="White" />
+                    <TextBlock x:Name="AmmoPickupText"
+                               Foreground="White"
+                               FontWeight="SemiBold" />
+                </StackPanel>
             </StackPanel>
         </StackPanel>
     </Border>
