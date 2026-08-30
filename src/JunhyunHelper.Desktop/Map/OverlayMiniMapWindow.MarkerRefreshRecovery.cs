@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Threading;
+using JunhyunHelper.Desktop.Map;
 using TarkovHelper.Models.Map;
 using TarkovHelper.Services.Map;
 using TarkovHelper.Services.Settings;
