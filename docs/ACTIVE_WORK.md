@@ -14,7 +14,7 @@ base main: fdbf321964035ed4b7eb5c793fc2418031d9f518
 public stable: v1.10.1
 working branch: feature/v1.11.0-scanner-ammo-map-maintenance-2026-08-30
 PR: #225 (draft)
-latest checkpoint commit: 64bd4189f27b62a29a6b7256cea1b8337924e3de
+latest code checkpoint commit: 64bd4189f27b62a29a6b7256cea1b8337924e3de
 ```
 
 새 사용자 기능이 포함되므로 `docs/VERSIONING.md`에 따라 목표 버전은 **v1.11.0**이다.
@@ -50,7 +50,7 @@ latest checkpoint commit: 64bd4189f27b62a29a6b7256cea1b8337924e3de
 - **Hideout FIR**: Tarkov hideout item requirement FIR 의미는 requirement `attributes.foundInRaid`에 존재하며 top-level만 읽으면 유실된다. importer가 attribute 값을 canonical requirement로 보존하도록 수정했다.
 - **Ammo pack**: current Tarkov item schema가 `containsItems` relation을 제공하므로 이를 authoritative mapping으로 사용하고, 비어 있는 relation에서만 좁은 naming fallback을 허용한다.
 
-## Implemented
+## Completed
 
 - MiniMap latest Main Map selection snapshot/replay 및 first-open lifecycle repair
 - Extract checkbox late-load retry + empty extract presentation recovery
