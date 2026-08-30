@@ -6,26 +6,19 @@ public sealed partial class ScannerCoordinator
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        var latest = ScannerRecognitionDebugStore.GetSnapshot();
-        if (latest is null)
+        var plan = ScannerCorrectionCapturePolicy.Create(
+            ScannerRecognitionDebugStore.GetSnapshot(),
+            CreateDeferredCaseId);
+        if (!plan.HasEvidence || plan.Submission is null)
         {
-            PublishCorrectionCaptureStatus("저장할 스캔 결과가 없습니다.");
+            PublishCorrectionCaptureStatus(plan.Status);
             return;
         }
 
-        // A diagnostic frame's runtime Case ID identifies that recognition attempt. A user
-        // may intentionally press the save hotkey more than once for the same latest result,
-        // so every explicit save gets a distinct durable Case ID while all evidence remains
-        // byte-for-byte/logically tied to the same captured frame.
-        var savedFrame = latest with { CaseId = CreateDeferredCaseId() };
-        var result = await ScannerDiagnosticDataset.SaveCorrectionAsync(
-            new ScannerCorrectionSubmission(
-                savedFrame,
-                CorrectedDetailBounds: null,
-                CorrectedTitleBounds: null,
-                GroundTruthItemName: null,
-                UserConfirmed: false));
-
+        // Every explicit hotkey press receives a distinct durable Case ID while the
+        // submission keeps the latest captured evidence unchanged. The policy deliberately
+        // leaves Ground Truth empty and the Case unconfirmed for deferred review.
+        var result = await ScannerDiagnosticDataset.SaveCorrectionAsync(plan.Submission);
         if (!result.Success)
         {
             App.WriteDiagnostic(
@@ -35,11 +28,7 @@ public sealed partial class ScannerCoordinator
             return;
         }
 
-        var savedLabel = string.IsNullOrWhiteSpace(latest.CandidateName)
-            ? "인식되지 않은 결과"
-            : latest.CandidateName.Trim();
-        var status = $"교정 데이터를 저장했습니다: {savedLabel}";
-        PublishCorrectionCaptureStatus(status);
+        PublishCorrectionCaptureStatus(plan.Status);
 
         // Use the existing Saved Case manager as the only deferred-review surface. The
         // hotkey itself never invents Ground Truth or marks the Case reviewed.
@@ -53,10 +42,9 @@ public sealed partial class ScannerCoordinator
         manager.ShowDialog();
 
         // Deferred review must return the product to Scanner regardless of which tab was
-        // visible before the global hotkey fired. Ground Truth remains exclusively owned by
-        // the Saved Case manager; the capture command only records evidence.
+        // visible before the global hotkey fired.
         mainWindow.FocusScannerSectionAfterCorrectionCapture();
-        PublishCorrectionCaptureStatus(status);
+        PublishCorrectionCaptureStatus(plan.Status);
     }
 
     private void PublishCorrectionCaptureStatus(string text) => HotkeyStatusChanged?.Invoke(text);
