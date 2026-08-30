@@ -13,7 +13,7 @@ v1.11.0 실사용 직후 확인된 UI/사용성 회귀 3건을 수정하고, 직
 base main: cbb7ed9c998bde8ece0eceaf4197c6811e2da5ce
 public stable: v1.11.0
 working branch: fix/v1.11.1-scanner-search-correction-feedback-2026-08-30
-PR: #228 (draft)
+PR: #229 (ready; supersedes closed draft #228)
 target version: v1.11.1
 validated non-documentation RC commit: 805d5cdfa0b19791fe4d15b02d3cfddd645c3628
 ```
@@ -38,7 +38,8 @@ validated non-documentation RC commit: 805d5cdfa0b19791fe4d15b02d3cfddd645c3628
 ## Completed
 
 - v1.11.0 public stable 및 canonical project memory 복구
-- v1.11.1 maintenance branch / Draft PR #228 생성
+- v1.11.1 maintenance branch 생성
+- closed draft PR #228을 동일 branch/head의 ready PR #229로 승계 (connected ready-for-review mutation의 GitHub GraphQL schema 호환 오류 우회; 제품 diff 변화 없음)
 - Scanner display settings schema v9 + ammo pickup visibility/order 구현
 - Scanner 설정 화면 `탄약 줍기 판단` 항목 연결
 - Mini Scanner ammo 판단이 settings visibility/order를 실제 렌더에 적용하도록 수정
@@ -85,12 +86,12 @@ Validated non-documentation RC: `805d5cdfa0b19791fe4d15b02d3cfddd645c3628`
 
 ## Current step
 
-- 이 체크포인트 docs-only HEAD의 consistency/CI 확인
-- PR #228 ready + main merge
+- ready PR #229의 final HEAD consistency/CI 확인
+- main merge
 
 ## Remaining
 
-- PR #228 ready + main merge
+- PR #229 main merge
 - exact-main Windows CI + published EXE smoke
 - automatic v1.11.1 release workflow 성공 확인
 - v1.11.1 tag/release/assets/checksum public readback
