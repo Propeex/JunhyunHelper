@@ -49,7 +49,6 @@
                         HorizontalAlignment="Left">
                 <TextBlock x:Name="TraderPriceText" Foreground="White" />
                 <TextBlock x:Name="FleaPriceText" Foreground="White" />
-                <TextBlock x:Name="FleaMinimumPriceText" Foreground="White" />
                 <TextBlock x:Name="TraderSlotPriceText" Foreground="White" />
                 <TextBlock x:Name="FleaSlotPriceText" Foreground="White" />
                 <TextBlock x:Name="CurrentNeededText" Foreground="White" />
