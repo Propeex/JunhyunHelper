@@ -4,98 +4,115 @@
 
 기준일: **2026-08-30 KST**
 
-상태: **`v1.11.0 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE`**
+상태: **`v1.11.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE`**
 
 ## 공개 stable
 
 ```text
-public stable/latest: v1.11.0
+public stable/latest: v1.11.1
 exact product release source/tag target:
-e0a8dd8acc86f8c5675efd0b24cb3006c19ccb1d
-PR validated exact-head CI: 33298972004 — SUCCESS
-exact-main CI: 33299138580 — SUCCESS
-exact-main Shutdown Race CI: 33299138567 — SUCCESS
-exact-main Documentation Consistency: 33299138569 — SUCCESS
-release workflow: 33299258838 — SUCCESS
-release id: 379210317
-published UTC: 2026-08-30T07:28:08Z
-457 passed / 0 failed / 0 skipped
+6314eaf866539747eadd69f8da4450bd8d5939e1
+PR: #229 — MERGED
+PR validated exact-head CI: 33302240850 — SUCCESS
+exact-main CI: 33302387606 — SUCCESS
+exact-main Shutdown Race CI: 33302387623 — SUCCESS
+exact-main Documentation Consistency: 33302387611 — SUCCESS
+release workflow: 33302514984 — SUCCESS
+release id: 379226665
+published UTC: 2026-08-30T08:49:26Z
+460 passed / 0 failed / 0 skipped
 ```
 
 Public package:
 
 ```text
 Junhyun-Helper.zip
-asset id: 536298335
-bytes: 80,550,542
+asset id: 536370979
+bytes: 80,553,167
 SHA-256:
-fb1d2f38ab26420d069fa8f0aab899c5e9776ffb072c83312e447289ef6f7c87
+0480dca11f93472cee1396d5faae9362a8b04398a6c18bfd163dc84b9aef4e1b
 
 SHA256SUMS.txt
-asset id: 536298334
+asset id: 536370978
 bytes: 86
 asset SHA-256:
-277a5763796e0fc30f71ef959cb8a8ee18402a201c6042565a910368e70d89e8
+233dfca51bc7d280093da728cb76374e0f10b310e127f43139a5177d55a85b20
 ```
 
 Exact-main Actions artifact:
 
 ```text
 name: JunhyunHelper-win-x64
-artifact id: 9728381122
-archive bytes: 241,586,113
+artifact id: 9729389953
+archive bytes: 241,592,817
 archive SHA-256:
-e9f8ac2e6d0349f9b6b7a9856d7d5bae6f6af9f03a91934dacf8a5c8ad77623f
+770d89c56f39e379438702dbfb3f15ff0b681a1cd6794503fa1d45eece5061da
 ```
 
-`/releases/latest`와 `refs/tags/v1.11.0` readback에서 release target/tag ref가 exact product source와 일치하고 `draft=false`, `prerelease=false`, latest stable임을 확인했다.
+GitHub `/releases/latest`와 `refs/tags/v1.11.1` readback에서 release target/tag ref가 exact product source와 일치하고 `draft=false`, `prerelease=false`, latest stable임을 확인했다. Release workflow는 exact-main CI artifact의 EXE ProductVersion, `FIRST_RUN_KO.txt`, ZIP checksum manifest를 검증한 뒤 공개했다.
 
 공개 증거:
 
-- `docs/RELEASE_1.11.0.md`
-- `docs/.release-v1.11.0-status.json`
-- `docs/RELEASE_NOTES_V1.11.0.md`
+- `docs/RELEASE_1.11.1.md`
+- `docs/.release-v1.11.1-status.json`
+- `docs/RELEASE_NOTES_V1.11.1.md`
 
-## v1.11.0 핵심 변경
+## v1.11.1 핵심 변경
+
+### Scanner 탄약 판단 설정
+
+- v1.11.0의 기존 ammo pickup 결과를 Scanner 설정의 `탄약 줍기 판단` 항목으로 승격했다.
+- Mini Scanner에서 표시/숨김 및 정보 순서를 사용자 설정으로 관리한다.
+- Scanner display settings schema는 **v9**이다.
+- 기존 v8 설정은 ammo pickup을 visible 상태로 유지하며 v9로 normalize된다.
+
+### Items / Hideout 검색 clear
+
+- Items와 Hideout 검색창에 `×` clear 버튼을 추가했다.
+- 기존 TextBox `TextChanged` 검색/필터 계약을 그대로 사용한다.
+- clear 후 검색창 focus를 복구한다.
+
+### 교정 데이터 저장 성공 피드백
+
+- `교정 데이터 추가` hotkey Saved Case 저장 성공 시 Mini Scanner에 정확히 `저장 완료`를 약 2초간 표시한다.
+- 현재 Mini Scanner item snapshot은 교체하지 않는다.
+- Mini Scanner가 닫힌 상태에서도 짧은 status-only card로 성공 여부를 확인할 수 있다.
+- evidence-only Saved Case / no automatic Ground Truth / duplicate explicit save 계약은 변경하지 않았다.
+
+### 회귀 gate 강화
+
+- actual published EXE smoke가 Scanner settings `탄약 줍기 판단` row를 직접 검사한다.
+- Items / Hideout `×` 버튼이 실제 query를 clear하는지 검사한다.
+- Mini Scanner `저장 완료` status-only render를 검사한다.
+- startup product contract가 schema v9와 ammo pickup의 실제 order/visibility를 직접 검사한다.
+
+RC 중 오래된 startup smoke가 schema v8을 hard-code하고 있어 EXE startup/Shutdown Race를 차단한 사실을 확인했다. 제품 settings 구현 문제가 아니라 stale gate였으며 v9로 갱신하고 ammo pickup order/visibility 검증을 추가한 뒤 PR 및 exact-main 전체 gate가 통과했다.
+
+## v1.11.0에서 유지되는 기반 변경
 
 ### Map / MiniMap
 
-- MiniMap window가 아직 없더라도 최신 Main Map selection을 product registry에 보존하고 first register 시 replay한다.
-- donor Extract checkbox가 product settings bridge보다 늦게 생성되는 경우에도 retry하여 marker 설정 목록에 반영한다.
-- Player Marker Size 변경으로 donor가 marker visual tree를 갱신한 뒤 Junhyun marker/name/visibility/category/edge-label presentation 전체를 다시 projection한다.
-- donor marker refresh가 container clear 뒤 취소될 수 있는 lifecycle race를 확인했고, 같은 map/floor에서 직전에 정상 marker가 있었는데 standard marker layer가 지속적으로 0개인 경우에만 bounded one-shot refresh recovery를 수행한다.
+- MiniMap window가 아직 없어도 최신 Main Map selection을 registry에 보존하고 first register 시 replay한다.
+- 늦게 생성되는 donor Extract checkbox를 bounded retry해 marker 설정 UI에 반영한다.
+- Player Marker Size 등 donor visual rebuild 후 현재 MiniMap marker/name/category/visibility/edge-label presentation을 다시 projection한다.
+- confirmed donor marker refresh empty-layer race에는 same-map/floor stable history를 전제로 bounded one-shot recovery를 수행한다.
 
-### Scanner
+### Scanner / Hideout / Ammo
 
-- `플리마켓 최저가` 사용자 표시를 제거했다. source/model/cache 호환 데이터는 유지한다.
-- Scanner display settings schema는 v8이다.
-- 설정 가능한 `교정 데이터 추가` global hotkey를 추가했다. 기본값은 `Ctrl+Alt+F9`이다.
-- 최신 evidence가 없으면 `저장할 스캔 결과가 없습니다.`를 표시하고 Case를 만들지 않는다.
-- 완전/불완전/미인식 evidence를 Saved Case로 저장할 수 있지만 hotkey는 Ground Truth를 생성·추측하지 않는다.
-- 같은 최신 결과를 연속 저장해도 explicit save마다 별도 Case ID를 사용한다.
-
-### Hideout FIR / Needed Items
-
-- Hideout requirement의 FIR 의미를 requirement `attributes.foundInRaid`에서 canonical content로 보존한다.
-- FIR requirement에는 non-FIR inventory가 충당되지 않는다.
-- cleanup 판정도 현재 canonical FIR/non-FIR requirement를 기준으로 계산한다.
-
-### Ammo pickup / Ammo Pack
-
-- same-caliber penetration ranking과 현재 Trader LL을 사용해 Scanner/Mini Scanner에 pickup 판단을 제공한다.
-- 현재 LL의 direct-money purchase만 구매 가능으로 인정한다.
-- barter/craft/flea/higher-LL offer는 제외한다.
-- quest-unlocked direct purchase는 현재 profile에서 해당 quest 완료가 확인된 경우에만 구매 가능으로 인정한다.
-- Ammo Pack은 authoritative `containsItems` relation을 우선해 contained canonical ammo로 resolve한다.
-- authoritative relation이 빈 경우에만 제한적인 name fallback을 허용한다.
+- `플리마켓 최저가`는 presentation에서 제거했지만 compatibility data/model은 유지한다.
+- `교정 데이터 추가` global hotkey 기본값은 `Ctrl+Alt+F9`이며 no-evidence exact status는 `저장할 스캔 결과가 없습니다.`이다.
+- Hideout requirement의 `attributes.foundInRaid` 의미를 canonical requirement에 보존한다.
+- ammo pickup evaluator는 same-caliber penetration과 현재 profile Trader LL/완료 quest를 사용한다.
+- 현금 direct purchase만 현재 구매 가능으로 인정하며 barter/craft/flea/higher-LL은 제외한다.
+- Ammo Pack은 authoritative `containsItems`를 우선해 contained canonical ammo로 resolve한다.
 
 ## 기능 상태
 
 | 영역 | 상태 |
 |---|---|
 | Profile / Quest / Hideout / Needed Items | 구현 완료 / maintenance |
-| Items / Ammo | 구현 완료 / v1.11 pickup evaluator 포함 |
-| Map + MiniMap | 구현 완료 / v1.11 lifecycle repairs 포함 |
+| Items / Ammo | 구현 완료 / profile-aware pickup evaluator 포함 |
+| Map + MiniMap | 구현 완료 / lifecycle repair 포함 |
 | Game Content Update | 구현 완료 / relationship LKG + FIR semantics + fail-closed |
 | Program Update | 구현 완료 / stable ZIP checksum 계약 |
 | Scanner + Mini Scanner | **FEATURE COMPLETE / MAINTENANCE** |
@@ -106,17 +123,20 @@ e9f8ac2e6d0349f9b6b7a9856d7d5bae6f6af9f03a91934dacf8a5c8ad77623f
 ## Schema / compatibility
 
 ```text
-Desktop target version: 1.11.0
+Desktop target version: 1.11.1
 Content schema: v8
 Readable Content schemas: v3~v8
 user.db schema: v1
-Scanner display settings schema: v8
+Scanner display settings schema: v9
 Scanner catalog cache: v1~v4 readable, v4 written
 Scanner item UI state: scanner-item-ui-state.json / canonical Item ID persistence
 ```
 
-v1.10.1 → v1.11.0 mandatory Game Content schema migration: none  
-v1.10.1 → v1.11.0 user.db migration: none
+```text
+v1.11.0 → v1.11.1 mandatory Game Content schema migration: none
+v1.11.0 → v1.11.1 user.db migration: none
+v1.11.0 → v1.11.1 Scanner display settings: v8 → v9 automatic normalize
+```
 
 ## 유지되는 핵심 계약
 
@@ -127,28 +147,32 @@ v1.10.1 → v1.11.0 user.db migration: none
 - Scanner current needed = `ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal`.
 - Scanner source = `ItemsWorkspace.Plan.NeededItems[itemId].Sources`.
 - price/needed/source/relationship metadata는 Item ID proof에 사용하지 않는다.
+- correction hotkey는 Ground Truth를 생성·추측하지 않는다.
 - Game Content candidate/LKG/completeness/fail-closed를 유지한다.
 - Map/MiniMap donor pin은 `d933792b6042a51cea38dc44b686a096fe30de67`이다.
 - user-visible WPF lifecycle 변경은 source assertion만으로 완료 선언하지 않고 actual published EXE runtime evidence로 검증한다.
 
 ## 검증 상태
 
-v1.11.0 product release source는 다음을 모두 통과했다.
+v1.11.1 product release source `6314eaf866539747eadd69f8da4450bd8d5939e1`은 다음을 모두 통과했다.
 
-- 457 automated tests
+- 460 automated tests
 - Windows Release build
 - Windows x64 self-contained publish
 - actual published EXE Product UI / Ammo / Map / Factory / MiniMap / Scanner smoke
+- v1.11.1 Scanner settings/search/save-feedback runtime smoke
 - graceful shutdown
-- active-async shutdown race
+- active-async Shutdown Race
 - release package root/dependency/checksum audit
-- exact-main CI
-- tag/release/assets public readback
+- exact-main Documentation Consistency
+- exact-main artifact upload
+- automatic verified release workflow
+- tag/release/assets/latest-stable public readback
 
 사용자의 실제 PC/Tarkov 플레이 환경 실사용 검증은 자동화 검증과 별개이며 현재 **PENDING**이다.
 
 ## 다음 작업
 
-v1.11.0 릴리즈 배치에 남은 제품 개발 작업은 없다. 기본 운영 모드는 유지보수다. 새 기능은 사용자가 명시적으로 제품 요구사항으로 확정할 때 시작한다.
+v1.11.1 릴리즈 배치에 남은 제품 개발 작업은 없다. 기본 운영 모드는 유지보수다. 새 기능은 사용자가 명시적으로 제품 요구사항으로 확정할 때 시작하고, 실사용 회귀 또는 Tarkov 변화가 확인되면 현재 stable에서 최소 범위로 수정한다.
 
-이 문서와 이후 documentation-only commit은 v1.11.0 product release source가 아니다. v1.11.0 product source/tag/assets는 `e0a8dd8acc86f8c5675efd0b24cb3006c19ccb1d`에 고정한다.
+이 문서와 이후 documentation-only commit은 v1.11.1 product release source가 아니다. v1.11.1 product source/tag/assets는 `6314eaf866539747eadd69f8da4450bd8d5939e1`에 고정한다.
