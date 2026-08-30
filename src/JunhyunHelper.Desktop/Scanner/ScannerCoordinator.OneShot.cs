@@ -7,14 +7,16 @@ public sealed partial class ScannerCoordinator
     private const int OneShotTarkovHotkeyId = 0x4A53;
     private const int OneShotTestHotkeyId = 0x4A54;
     private const int ScannerToggleHotkeyId = 0x4A55;
+    private const int AddCorrectionDataHotkeyId = 0x4A56;
 
     private readonly SemaphoreSlim _oneShotCoordinatorGate = new(1, 1);
     // Keep the original field name for the in-game hotkey because ScannerCoordinator.Dispose
-    // already owns its explicit disposal path. Its Disposed callback closes the two new
-    // registrations as part of the same lifetime boundary.
+    // already owns its explicit disposal path. Its Disposed callback closes all additional
+    // Scanner registrations as part of the same lifetime boundary.
     private ScannerGlobalHotkeyService? _hotkeyService;
     private ScannerGlobalHotkeyService? _testHotkeyService;
     private ScannerGlobalHotkeyService? _scannerToggleHotkeyService;
+    private ScannerGlobalHotkeyService? _addCorrectionDataHotkeyService;
     private bool _hotkeySubscribed;
     private bool _extraHotkeysSubscribed;
 
@@ -24,18 +26,21 @@ public sealed partial class ScannerCoordinator
     public string OneShotTarkovHotkeyText => _settings.Current.OneShotTarkovHotkey;
     public string OneShotTestHotkeyText => _settings.Current.OneShotTestHotkey;
     public string ScannerToggleHotkeyText => _settings.Current.ScannerToggleHotkey;
+    public string AddCorrectionDataHotkeyText => _settings.Current.AddCorrectionDataHotkey;
 
     public string HotkeyStatusText
     {
         get
         {
-            var statuses = new List<string>(3);
+            var statuses = new List<string>(4);
             if (_hotkeyService is not null)
                 statuses.Add(_hotkeyService.StatusText);
             if (_testHotkeyService is not null)
                 statuses.Add(_testHotkeyService.StatusText);
             if (_scannerToggleHotkeyService is not null)
                 statuses.Add(_scannerToggleHotkeyService.StatusText);
+            if (_addCorrectionDataHotkeyService is not null)
+                statuses.Add(_addCorrectionDataHotkeyService.StatusText);
             return statuses.Count == 0
                 ? "Scanner 단축키가 아직 초기화되지 않았습니다."
                 : string.Join(" · ", statuses);
@@ -50,6 +55,7 @@ public sealed partial class ScannerCoordinator
         _hotkeyService ??= new ScannerGlobalHotkeyService(OneShotTarkovHotkeyId, "1회 인게임 스캔");
         _testHotkeyService ??= new ScannerGlobalHotkeyService(OneShotTestHotkeyId, "1회 테스트 스캔");
         _scannerToggleHotkeyService ??= new ScannerGlobalHotkeyService(ScannerToggleHotkeyId, "스캐너 ON/OFF");
+        _addCorrectionDataHotkeyService ??= new ScannerGlobalHotkeyService(AddCorrectionDataHotkeyId, "교정 데이터 추가");
 
         if (!_hotkeySubscribed)
         {
@@ -61,6 +67,7 @@ public sealed partial class ScannerCoordinator
         {
             _testHotkeyService.RegistrationChanged += OnHotkeyRegistrationChanged;
             _scannerToggleHotkeyService.RegistrationChanged += OnHotkeyRegistrationChanged;
+            _addCorrectionDataHotkeyService.RegistrationChanged += OnHotkeyRegistrationChanged;
             _extraHotkeysSubscribed = true;
         }
 
@@ -76,6 +83,10 @@ public sealed partial class ScannerCoordinator
             window,
             ParseHotkey(_settings.Current.ScannerToggleHotkey),
             ToggleScannerFromHotkeyAsync);
+        _addCorrectionDataHotkeyService.Attach(
+            window,
+            ParseHotkey(_settings.Current.AddCorrectionDataHotkey),
+            CaptureCorrectionDataFromHotkeyAsync);
     }
 
     public void SetOneShotHotkey(ScannerHotkeyGesture? gesture) => SetOneShotTarkovHotkey(gesture);
@@ -105,6 +116,15 @@ public sealed partial class ScannerCoordinator
         _settings.Update(settings => settings.ScannerToggleHotkey = text);
         _scannerToggleHotkeyService?.UpdateGesture(gesture);
         HotkeyStatusChanged?.Invoke(_scannerToggleHotkeyService?.StatusText ?? "스캐너 ON/OFF 단축키 설정을 저장했습니다.");
+    }
+
+    public void SetAddCorrectionDataHotkey(ScannerHotkeyGesture? gesture)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        var text = gesture?.ToString() ?? string.Empty;
+        _settings.Update(settings => settings.AddCorrectionDataHotkey = text);
+        _addCorrectionDataHotkeyService?.UpdateGesture(gesture);
+        HotkeyStatusChanged?.Invoke(_addCorrectionDataHotkeyService?.StatusText ?? "교정 데이터 추가 단축키 설정을 저장했습니다.");
     }
 
     public Task<bool> TriggerOneShotAsync(CancellationToken cancellationToken = default) =>
@@ -159,13 +179,6 @@ public sealed partial class ScannerCoordinator
                     await Runtime.PauseForOneShotAsync(cancellationToken);
                 }
 
-                // Global-hotkey callbacks enter through the WPF window message pump.
-                // Several Scanner APIs can complete their first awaits synchronously
-                // (capture gate, detector Task.FromResult, local catalog), so invoking
-                // ScanOnceAsync directly here can run capture/detection/OCR setup on the
-                // UI dispatcher before an asynchronous boundary exists. Execute the scan
-                // worker explicitly on the thread pool; Runtime status subscribers and
-                // Mini Scanner window access already marshal to the dispatcher.
                 ScannerPerformanceTrace.Mark(
                     "one-shot-worker-dispatch",
                     ("mode", requestedMode));
@@ -240,6 +253,13 @@ public sealed partial class ScannerCoordinator
                 _scannerToggleHotkeyService.RegistrationChanged -= OnHotkeyRegistrationChanged;
             _scannerToggleHotkeyService.Dispose();
             _scannerToggleHotkeyService = null;
+        }
+        if (_addCorrectionDataHotkeyService is not null)
+        {
+            if (_extraHotkeysSubscribed)
+                _addCorrectionDataHotkeyService.RegistrationChanged -= OnHotkeyRegistrationChanged;
+            _addCorrectionDataHotkeyService.Dispose();
+            _addCorrectionDataHotkeyService = null;
         }
         _extraHotkeysSubscribed = false;
     }
