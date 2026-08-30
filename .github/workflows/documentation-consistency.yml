@@ -1,0 +1,21 @@
+name: Documentation Consistency
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  documentation-consistency:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Validate repository project memory
+        shell: pwsh
+        run: ./.github/scripts/Test-DocumentationConsistency.ps1

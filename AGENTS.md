@@ -1,22 +1,30 @@
 # AGENTS.md — 준현 헬퍼 개발자 작업 규약
 
-이 파일은 새 대화, 새 세션, 새 개발자가 이 저장소를 이어서 작업할 때 따라야 하는 최상위 개발 규약입니다.
+이 파일은 새 대화, 새 세션, 새 개발자가 이 저장소를 이어서 작업할 때 따라야 하는 **최상위 개발 규약**입니다.
+
+프로젝트 기억은 ChatGPT 대화나 모델 내부 기억이 아니라 **GitHub 저장소의 공식 문서, 코드, 테스트, PR/CI/release 상태**에 둡니다.
 
 ## 1. 시작 시 필수 복구 절차
 
-작업을 시작하기 전에 반드시 아래 순서로 읽습니다.
+새 대화에서 사용자가 `준현 헬퍼 작업 이어가자`, `이전 작업 계속해`처럼 프로젝트 연속 의도를 보이면 **장문의 시작 메시지나 기술 인수인계를 사용자에게 요구하지 않습니다.** 먼저 저장소를 복구합니다.
 
-1. `README.md`
-2. `docs/STATE.md`
-3. `docs/PRODUCT.md`
-4. `docs/DECISIONS.md`
-5. `docs/MAINTENANCE_CONTRACTS.md`
-6. `docs/DEVELOPER_REFERENCE.md`
-7. `docs/ARCHITECTURE.md`
-8. `docs/VERSIONING.md`
-9. `docs/DEVELOPMENT.md`
-10. `docs/REFERENCE_POLICY.md`
-11. 현재 작업과 관련된 전문 문서/코드/테스트/이슈/PR
+기본 순서:
+
+1. `docs/PROJECT_STATE.json` — 기계 판독 가능한 현재 사실값
+2. `docs/ACTIVE_WORK.md` — 진행 중 작업과 정확한 중단 지점
+3. `README.md`
+4. `docs/CURRENT_STATE.md`
+5. `docs/STATE.md`
+6. `docs/PRODUCT.md`
+7. `docs/DECISIONS.md`
+8. `docs/MAINTENANCE_CONTRACTS.md`
+9. `docs/DOCUMENTATION_POLICY.md`
+10. 현재 작업과 관련된 전문 문서 / `docs/DEVELOPER_REFERENCE.md` / `docs/ARCHITECTURE.md`
+11. 관련 code/tests/current issue/PR/CI/release state
+
+`ACTIVE_WORK`가 `ACTIVE`이면 해당 branch/PR/결정/코드를 우선 복구합니다. `NONE`이면 `CURRENT_STATE`/`STATE`를 기준으로 현재 maintenance 상태에서 시작합니다.
+
+공식 문서가 충분하면 저장소 전체를 매번 처음부터 재분석하지 않습니다. **incremental context recovery**를 사용해 현재 작업에 필요한 subsystem만 다시 확인합니다.
 
 문서와 코드가 충돌하면 임의로 추측하지 말고 **사용자 의도와 확정 기록을 우선하여 원인을 조사**합니다.
 
@@ -34,9 +42,13 @@
 
 **기존 구현이 현재 새 제품의 요구사항을 결정해서는 안 됩니다.**
 
+`docs/PROJECT_STATE.json`은 제품 요구사항을 정의하지 않습니다. 버전, exact release source, schema, donor pin처럼 여러 문서에 중복되기 쉬운 **현재 사실값의 canonical machine-readable source**입니다.
+
 `docs/MAINTENANCE_CONTRACTS.md`는 위 우선순위를 바꾸는 제품 요구사항 문서가 아니라, 확정된 제품을 안전하게 유지·검증하는 개발 계약입니다.
 
-`docs/STATE.md`는 현재 릴리즈와 검증 상태를 복구하는 운영 인덱스입니다. `docs/DEVELOPER_REFERENCE.md`는 구현 위치와 참조 관계를 복구하는 지도이며, 두 문서 모두 사용자 요구사항을 새로 정의하지 않습니다.
+`docs/STATE.md`와 `docs/CURRENT_STATE.md`는 현재 릴리즈와 검증 상태를 복구하는 운영 인덱스입니다. `docs/DEVELOPER_REFERENCE.md`는 구현 위치와 참조 관계를 복구하는 지도이며, 이 문서들은 사용자 요구사항을 새로 정의하지 않습니다.
+
+현재 release/status는 `PROJECT_STATE` / `CURRENT_STATE` / `STATE`를 권위로 사용합니다. Architecture/reference 같은 evergreen 문서의 과거 버전 헤더를 현재 릴리즈 authority로 사용하지 않습니다.
 
 ## 3. 확정과 가설을 분리
 
@@ -75,9 +87,7 @@
 
 ## 5. 설계와 구현의 관계
 
-준현 헬퍼의 핵심 제품 기능은 이미 구현되어 있으며 현재는 public stable / maintenance 단계입니다. 정확한 현재 공개 버전과 검증 상태는 `docs/STATE.md`를 확인합니다.
-
-따라서 다음을 구분합니다.
+준현 헬퍼의 핵심 제품 기능은 이미 구현되어 있으며 현재는 public stable / maintenance 단계입니다. 정확한 현재 공개 버전과 검증 상태는 `docs/PROJECT_STATE.json`, `docs/CURRENT_STATE.md`, `docs/STATE.md`를 확인합니다.
 
 ### 이미 확정된 기능의 버그 수정 / 회귀 수정 / 성능 개선 / 릴리즈 하드닝
 
@@ -110,11 +120,46 @@
 
 구현 위치, 입력/출력, 참조 관계와 변경 영향은 `docs/DEVELOPER_REFERENCE.md`에 지속적으로 반영합니다. 새 subsystem이나 중요한 data flow를 추가했는데 reference 문서가 이전 구조를 가리키도록 방치하면 작업이 끝난 것이 아닙니다.
 
-## 7. 대화 종료/작업 종료 시 인수인계
+## 7. 진행 중 작업 체크포인트 / 대화 단절 대응
 
-의미 있는 작업이 끝날 때 반드시 필요한 문서를 갱신합니다.
+`docs/ACTIVE_WORK.md`는 대화가 갑자기 끝나도 작업을 이어가기 위한 **공식 현재 작업 체크포인트**입니다.
 
-- `docs/STATE.md`: 현재 상태, 이번에 바뀐 것, 다음 행동, 막힌 점
+- 작업 없음: `Status: **NONE**`
+- 복구해야 할 작업 존재: `Status: **ACTIVE**`
+
+의미 있는 작업을 시작하면 즉시 ACTIVE로 만들고, 최소한 다음을 유지합니다.
+
+- Goal
+- Base main / working branch / PR
+- Confirmed scope
+- Completed
+- Current step
+- Remaining
+- 필요한 경우 사용자 미확정 사항
+
+중요한 결정은 대화가 끝날 때 몰아서 기록하지 않습니다. 다음 경계에서 필요한 내용을 바로 갱신합니다.
+
+- 사용자 의도/제품 동작 확정
+- root cause 또는 설계 결정 확정
+- 중요한 구현 단위 완료
+- PR 생성
+- CI 결과 확정
+- main 병합
+- release/tag/asset 검증
+
+개발자는 대화가 정확히 언제 한계에 도달할지 신뢰성 있게 예측할 수 있다고 가정하지 않습니다. **사전 종료 경고에 의존하지 않고 언제 끊겨도 repository checkpoint에서 복구 가능하게 유지**합니다.
+
+사용자에게는 의미 있는 repository checkpoint가 확보됐을 때 필요하면 간단히 현재 복구 가능 상태를 알려줄 수 있지만, 기술적 인수인계 책임을 사용자에게 넘기지 않습니다.
+
+작업이 완전히 병합·검증·문서화되면 `ACTIVE_WORK`를 `NONE`으로 닫습니다.
+
+## 8. 작업 종료 시 공식 문서 갱신
+
+의미 있는 작업이 끝날 때 필요한 문서를 갱신합니다.
+
+- `docs/PROJECT_STATE.json`: 버전/schema/release/donor 등 canonical current fact가 실제로 바뀐 경우
+- `docs/ACTIVE_WORK.md`: 진행 상태 및 최종 `NONE`
+- `docs/CURRENT_STATE.md` / `docs/STATE.md`: 현재 상태, 변경, 검증, 다음 행동
 - `docs/PRODUCT.md`: 새로 확정/변경된 제품 요구사항 및 아직 정렬 중인 사용자 의도
 - `docs/DECISIONS.md`: 장기적으로 의미 있는 확정 결정
 - `docs/ARCHITECTURE.md`: 기술 구조가 실제로 바뀐 경우
@@ -124,7 +169,11 @@
 
 단순 대화 요약을 남기는 것이 목적이 아닙니다. **다음 개발자가 저장소만 읽고 정확히 이어갈 수 있는 상태**를 만드는 것이 목적입니다.
 
-## 8. 기존 Tarkov-Helper 취급
+`.github/workflows/documentation-consistency.yml`이 문서/프로젝트 상태의 최소 일관성 계약을 자동 검사합니다. Gate가 실패한 상태를 정상 완료로 선언하지 않습니다.
+
+세부 문서 운영 규칙은 `docs/DOCUMENTATION_POLICY.md`를 따릅니다.
+
+## 9. 기존 Tarkov-Helper 취급
 
 기존 `Propeex/Tarkov-Helper`는 다음 용도로만 봅니다.
 
@@ -144,7 +193,7 @@ Map/MiniMap은 사용자가 검증한 특정 Tarkov-Helper revision을 **명시�
 
 세부 규칙은 `docs/REFERENCE_POLICY.md`와 `docs/MAP_PRODUCT_REQUIREMENTS.md`를 따릅니다.
 
-## 9. 사용자와 개발자의 역할
+## 10. 사용자와 개발자의 역할
 
 사용자는 **의도, 우선순위, 사용 경험, 피드백, 최종 판단**을 제공합니다.
 
@@ -160,9 +209,9 @@ Map/MiniMap은 사용자가 검증한 특정 Tarkov-Helper revision을 **명시�
 - 다음 대화로 이어질 프로젝트 기억 유지
 - release packaging / CI / GitHub 운영
 
-사용자에게 Git, 브랜치, PR, CI 등의 세부 개발 절차를 관리 책임으로 넘기지 않습니다. 필요한 개발 절차는 개발자가 내부적으로 처리하고, 사용자에게는 제품 경험과 결과에 영향을 주는 판단만 명확하게 설명합니다.
+사용자에게 Git, 브랜치, PR, CI, SHA, 이전 세션 요약 등의 개발 인수인계를 관리 책임으로 넘기지 않습니다. 필요한 개발 절차와 상태 복구는 개발자가 저장소에서 처리하고, 사용자에게는 제품 경험과 결과에 영향을 주는 판단만 명확하게 설명합니다.
 
-## 10. 릴리즈 원칙
+## 11. 릴리즈 원칙
 
 릴리즈는 "빌드가 된다"만으로 완료하지 않습니다.
 
