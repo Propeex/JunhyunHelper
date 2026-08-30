@@ -74,6 +74,35 @@ public sealed class TarkovAmmoPackImporterTests
     }
 
     [Fact]
+    public void EmptyContainsItemsAlsoAllowsNarrowNameFallback()
+    {
+        var document = Document("""
+            {
+              "data": {
+                "items": {
+                  "ammo": { "id": "ammo", "containsItems": [] },
+                  "pack": { "id": "pack", "containsItems": [] }
+                }
+              }
+            }
+            """);
+        var items = new[]
+        {
+            Item("ammo", "5.56x45mm M855 ammo"),
+            Item("pack", "5.56x45mm M855 ammo pack (50 pcs)"),
+        };
+
+        var mapping = Assert.Single(new TarkovAmmoPackImporter().Import(
+            document,
+            items,
+            [Ammo("ammo")]));
+
+        Assert.Equal("ammo", mapping.AmmoItemId);
+        Assert.Equal(50m, mapping.Count);
+        Assert.True(mapping.IsNameFallback);
+    }
+
+    [Fact]
     public void ExistingMixedContainsItemsNeverFallsBackByName()
     {
         var document = Document("""
