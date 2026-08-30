@@ -34,6 +34,7 @@ public static class JunhyunMiniMapProductRegistry
         window.ApplyJunhyunBaseOpacity(store.MiniMapOpacity);
         window.ApplyJunhyunMarkerScale(store.MiniMapMarkerScale);
         window.InitializeQuestV2();
+        window.InitializeJunhyunMarkerRefreshRecovery();
 
         // SourceInitialized occurs before donor Loaded. The window-side synchronization
         // bridge retains this replay until Loaded, after the donor tracker has initialized.
@@ -49,6 +50,7 @@ public static class JunhyunMiniMapProductRegistry
 
     public static void Unregister(TarkovHelper.Windows.OverlayMiniMapWindow window)
     {
+        window.DisposeJunhyunMarkerRefreshRecovery();
         window.DisposeJunhyunWindowState();
         window.DisposeQuestV2();
         lock (Gate)
