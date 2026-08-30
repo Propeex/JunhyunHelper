@@ -123,7 +123,25 @@ public sealed class TarkovHideoutImporter
                 targetLevel,
                 itemId,
                 count,
-                TarkovJsonReader.OptionalBool(raw, "foundInRaid") ?? false);
+                ReadFoundInRaid(raw));
         }).ToArray();
+    }
+
+    private static bool ReadFoundInRaid(JsonElement requirement)
+    {
+        // json.tarkov.dev represents hideout item requirement metadata under
+        // attributes (for example attributes.foundInRaid). Older fixtures and
+        // compatible mirrors may expose foundInRaid at the requirement root,
+        // so retain that shape as a fallback rather than flattening every
+        // hideout material to non-FIR.
+        if (requirement.TryGetProperty("attributes", out var attributes) &&
+            attributes.ValueKind == JsonValueKind.Object)
+        {
+            var nested = TarkovJsonReader.OptionalBool(attributes, "foundInRaid");
+            if (nested.HasValue)
+                return nested.Value;
+        }
+
+        return TarkovJsonReader.OptionalBool(requirement, "foundInRaid") ?? false;
     }
 }
