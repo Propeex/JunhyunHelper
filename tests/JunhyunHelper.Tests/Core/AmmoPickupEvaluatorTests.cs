@@ -104,7 +104,9 @@ public sealed class AmmoPickupEvaluatorTests
     public void CompletedQuestUnlockCountsAsDirectPurchase()
     {
         var ammo = Ammo("quest", 40, Purchase("trader", 2, "unlock"));
-        var profile = Profile(loyaltyLevel: 2, completedQuestIds: ["unlock"]);
+        var profile = Profile(
+            loyaltyLevel: 2,
+            completedQuestIds: new HashSet<string>(["unlock"], StringComparer.Ordinal));
 
         var decision = AmmoPickupEvaluator.Evaluate("quest", [ammo], profile)!;
 
