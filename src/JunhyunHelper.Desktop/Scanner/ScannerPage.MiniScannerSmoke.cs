@@ -33,10 +33,11 @@ public partial class ScannerPage
         };
 
         if (settings.SchemaVersion != ScannerDisplaySettings.CurrentSchemaVersion ||
-            settings.SchemaVersion != 8 ||
+            settings.SchemaVersion != 9 ||
             settings.OcrSubstitutions.Count != 0 ||
             !settings.ShowItemName ||
             !settings.ShowItemIcon ||
+            !settings.ShowAmmoPickup ||
             !settings.MiniScannerInfoOrder.SequenceEqual(ScannerDisplaySettings.DefaultInfoOrder) ||
             gestures[0] != ScannerHotkeyGesture.DefaultOneShotTarkov ||
             gestures[1] != ScannerHotkeyGesture.DefaultOneShotTest ||
@@ -44,7 +45,7 @@ public partial class ScannerPage
             gestures[3] != new ScannerHotkeyGesture(true, false, true, Key.F9) ||
             gestures.Distinct().Count() != 4)
         {
-            throw new InvalidOperationException("Scanner v1.11 settings/hotkey contract failed.");
+            throw new InvalidOperationException("Scanner v1.11.1 settings/hotkey contract failed.");
         }
 
         var hiddenIdentity = new ScannerDisplaySettings
@@ -148,11 +149,12 @@ public partial class ScannerPage
                 !ReferenceEquals(infoStack.Children[0], trader) ||
                 !ReferenceEquals(infoStack.Children[^1], ammoPickup))
             {
-                throw new InvalidOperationException("Mini Scanner ordered rows/fixed ammo row contract failed.");
+                throw new InvalidOperationException("Mini Scanner default information-order contract failed.");
             }
 
             settings.MiniScannerInfoOrder =
             [
+                ScannerDisplaySettings.AmmoPickupField,
                 ScannerDisplaySettings.CurrentNeededField,
                 ScannerDisplaySettings.FleaAveragePriceField,
                 ScannerDisplaySettings.TraderSellPriceField,
@@ -163,11 +165,16 @@ public partial class ScannerPage
             window.Render(snapshot, settings, editMode: false);
             if (window.FindName("CurrentNeededText") is not TextBlock needed ||
                 window.FindName("InfoStackPanel") is not StackPanel reordered ||
-                !ReferenceEquals(reordered.Children[0], needed) ||
-                !ReferenceEquals(reordered.Children[^1], ammoPickup))
+                !ReferenceEquals(reordered.Children[0], ammoPickup) ||
+                !ReferenceEquals(reordered.Children[1], needed))
             {
-                throw new InvalidOperationException("Mini Scanner hidden compatibility data leaked into ordering.");
+                throw new InvalidOperationException("Mini Scanner ammo pickup row did not follow the configured information order.");
             }
+
+            settings.ShowAmmoPickup = false;
+            window.Render(snapshot, settings, editMode: false);
+            if (ammoPickup.Visibility != Visibility.Collapsed)
+                throw new InvalidOperationException("Mini Scanner ammo pickup visibility setting was not applied.");
         }
         finally
         {

@@ -124,6 +124,24 @@ public sealed class MiniScannerOverlayService : IDisposable
     }
 
     /// <summary>
+    /// Shows a short user-facing confirmation without replacing Scanner evidence or the
+    /// current item snapshot. When no item is currently visible, the Mini Scanner opens as
+    /// a status-only card and closes itself after the transient message expires.
+    /// </summary>
+    public void ShowTransientStatus(string message)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentException.ThrowIfNullOrWhiteSpace(message);
+
+        Invoke(() =>
+        {
+            if (_disposed)
+                return;
+            EnsureWindow().ShowTransientStatus(message, _settings.Current, _snapshot is not null);
+        });
+    }
+
+    /// <summary>
     /// Records one completed continuous-recognition miss. The last confirmed item remains
     /// visible through two misses and is hidden on the third consecutive miss. Any later
     /// successful Show call resets this budget, including an immediate switch to a new item.

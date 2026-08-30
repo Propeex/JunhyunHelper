@@ -5,7 +5,7 @@ namespace JunhyunHelper.Desktop.Scanner;
 
 public sealed class ScannerDisplaySettings
 {
-    public const int CurrentSchemaVersion = 8;
+    public const int CurrentSchemaVersion = 9;
 
     public const string TraderSellPriceField = "trader_sell_price";
     public const string FleaAveragePriceField = "flea_average_price";
@@ -13,6 +13,7 @@ public sealed class ScannerDisplaySettings
     public const string TraderPricePerSlotField = "trader_price_per_slot";
     public const string FleaPricePerSlotField = "flea_price_per_slot";
     public const string CurrentNeededField = "current_needed";
+    public const string AmmoPickupField = "ammo_pickup";
 
     private static readonly string[] DefaultMiniScannerInfoOrder =
     [
@@ -22,6 +23,7 @@ public sealed class ScannerDisplaySettings
         TraderPricePerSlotField,
         FleaPricePerSlotField,
         CurrentNeededField,
+        AmmoPickupField,
     ];
 
     private static readonly ScannerHotkeyGesture DefaultAddCorrectionData =
@@ -37,6 +39,7 @@ public sealed class ScannerDisplaySettings
     public bool ShowTraderPricePerSlot { get; set; } = true;
     public bool ShowFleaPricePerSlot { get; set; }
     public bool ShowCurrentNeeded { get; set; } = true;
+    public bool ShowAmmoPickup { get; set; } = true;
     public List<string> MiniScannerInfoOrder { get; set; } = [.. DefaultMiniScannerInfoOrder];
     public double? PositionX { get; set; }
     public double? PositionY { get; set; }
@@ -71,6 +74,7 @@ public sealed class ScannerDisplaySettings
         ShowTraderPricePerSlot = ShowTraderPricePerSlot,
         ShowFleaPricePerSlot = ShowFleaPricePerSlot,
         ShowCurrentNeeded = ShowCurrentNeeded,
+        ShowAmmoPickup = ShowAmmoPickup,
         MiniScannerInfoOrder = MiniScannerInfoOrder?.ToList() ?? [],
         PositionX = PositionX,
         PositionY = PositionY,
@@ -126,6 +130,13 @@ public sealed class ScannerDisplaySettings
         // migration and keeps the underlying Scanner snapshot contract unchanged.
         if (SchemaVersion < 7)
             ShowFleaMinimumPrice = true;
+
+        // v9 promotes the v1.11 ammo pickup decision from an unconditional fixed line to
+        // the same user-controlled visibility/order contract as other Mini Scanner info.
+        // Existing v8 users therefore receive the already-visible behavior by default.
+        if (SchemaVersion < 9)
+            ShowAmmoPickup = true;
+
         MiniScannerInfoOrder = ScannerInfoOrderPolicy.Normalize(
             MiniScannerInfoOrder,
             DefaultMiniScannerInfoOrder);
@@ -198,6 +209,7 @@ public sealed class ScannerDisplaySettings
         TraderPricePerSlotField => ShowTraderPricePerSlot,
         FleaPricePerSlotField => ShowFleaPricePerSlot,
         CurrentNeededField => ShowCurrentNeeded,
+        AmmoPickupField => ShowAmmoPickup,
         _ => false,
     };
 
@@ -222,6 +234,9 @@ public sealed class ScannerDisplaySettings
                 break;
             case CurrentNeededField:
                 ShowCurrentNeeded = visible;
+                break;
+            case AmmoPickupField:
+                ShowAmmoPickup = visible;
                 break;
         }
     }

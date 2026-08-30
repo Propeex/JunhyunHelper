@@ -2,6 +2,8 @@ namespace JunhyunHelper.Desktop.Scanner;
 
 public sealed partial class ScannerCoordinator
 {
+    internal const string CorrectionSaveCompletedStatus = "저장 완료";
+
     private async Task CaptureCorrectionDataFromHotkeyAsync()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -29,6 +31,7 @@ public sealed partial class ScannerCoordinator
         }
 
         PublishCorrectionCaptureStatus(plan.Status);
+        _overlay.ShowTransientStatus(CorrectionSaveCompletedStatus);
 
         // Use the existing Saved Case manager as the only deferred-review surface. The
         // hotkey itself never invents Ground Truth or marks the Case reviewed.
