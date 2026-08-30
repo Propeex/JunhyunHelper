@@ -93,12 +93,21 @@ public partial class ScannerCorrectionWindow
         var sourceWidth = Math.Max(1, _frame.Image.PixelWidth);
         var sourceHeight = Math.Max(1, _frame.Image.PixelHeight);
 
-        var viewportWidth = ImageScrollViewer.ViewportWidth;
-        var viewportHeight = ImageScrollViewer.ViewportHeight;
-        if (!double.IsFinite(viewportWidth) || viewportWidth <= 1)
-            viewportWidth = ImageScrollViewer.ActualWidth;
-        if (!double.IsFinite(viewportHeight) || viewportHeight <= 1)
-            viewportHeight = ImageScrollViewer.ActualHeight;
+        // Use the ScrollViewer control's stable arranged size rather than ViewportWidth /
+        // ViewportHeight. The viewport shrinks when Auto scrollbars appear during zoom,
+        // which made the nominal fit scale depend on the previous zoom state. Basing fit
+        // on the stable control bounds keeps one deterministic fit scale while window
+        // resizing still updates it through SizeChanged.
+        var viewportWidth = ImageScrollViewer.ActualWidth
+            - ImageScrollViewer.Padding.Left
+            - ImageScrollViewer.Padding.Right
+            - ImageScrollViewer.BorderThickness.Left
+            - ImageScrollViewer.BorderThickness.Right;
+        var viewportHeight = ImageScrollViewer.ActualHeight
+            - ImageScrollViewer.Padding.Top
+            - ImageScrollViewer.Padding.Bottom
+            - ImageScrollViewer.BorderThickness.Top
+            - ImageScrollViewer.BorderThickness.Bottom;
 
         var fitScale = 1.0;
         if (double.IsFinite(viewportWidth) && viewportWidth > 1 &&
