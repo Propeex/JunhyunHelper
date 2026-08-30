@@ -17,6 +17,7 @@ public partial class MainWindow
         return new ScannerDataContext(
             _activeProfile.GameMode,
             _activeContent,
-            _activeItemsWorkspace);
+            _activeItemsWorkspace,
+            _activeProfile);
     }
 }
