@@ -1,48 +1,65 @@
 # ACTIVE WORK — 현재 진행 중 작업 체크포인트
 
-Status: **NONE**  
+Status: **ACTIVE**  
 Updated: **2026-08-31 KST**
 
-현재 진행 중인 개발 작업은 없습니다.
+## Goal
 
-## Last completed batch
+v1.11.4 PATCH 유지보수 배치에서 v1.11.3 실사용으로 확인된 MiniMap lifecycle/marker presentation 회귀와 Mini Scanner 우클릭 메뉴를 수정하고, 실제 published EXE 경로까지 검증한 뒤 stable release한다.
 
-`v1.11.3` PATCH 유지보수 배치를 완료했습니다.
+## Base / Working State
 
 ```text
+base main: f60096d6a404e17cdf9ace3f1bc9c5cf98c2ed62
 public stable: v1.11.3
-exact product source/tag target:
-043abad38f4c3ebc9101463a162614ef67df7536
-merged PR: #234
-superseded draft PR: #233 — CLOSED / NOT MERGED
-PR exact-head CI: 33319386444 — SUCCESS
-PR exact-head Shutdown Race: 33319386465 — SUCCESS
-PR exact-head Documentation Consistency: 33319386455 — SUCCESS
-exact-main CI: 33319592093 — SUCCESS
-exact-main Shutdown Race: 33319592115 — SUCCESS
-exact-main Documentation Consistency: 33319592111 — SUCCESS
-Release workflow: 33319769016 — SUCCESS
-release id: 379321405
-474 passed / 0 failed / 0 skipped
+exact v1.11.3 product source: 043abad38f4c3ebc9101463a162614ef67df7536
+working branch: fix/v1.11.4-minimap-lifecycle-miniscanner-2026-08-31
+target version: v1.11.4 (PATCH maintenance)
+baseline deterministic suite: 474 tests
 ```
 
-완료된 제품 수정:
+## Confirmed scope
 
-- Items / Hideout 검색창의 canonical inline `×`가 실제 page lifecycle에서 안정적으로 연결되도록 수정했습니다.
-- published smoke가 search clear UI를 스스로 만들어 회귀를 숨기던 false-positive 검증 경로를 제거했습니다.
-- Map 지도 마커 패널이 큰 창의 가용 세로 공간을 사용하도록 수정해 하단 탈출구 항목 클리핑을 제거했습니다. 실제 overflow에서만 내부 scrollbar를 사용합니다.
-- Scanner 교정 스크린샷에 마우스 휠 확대/축소와 스크롤/pan을 추가하면서 Ground Truth 및 직접 지정 좌표는 원본 pixel 좌표를 유지합니다.
-- correction zoom 최초 runtime smoke에서 Auto scrollbar 때문에 fit scale이 달라지는 문제를 검출했고 stable arranged bounds 기준으로 수정했습니다.
-- 사용자 diagnostics/calibration evidence에서 분석 완료 OCR/matcher frame이 이후 geometry-only frame에 덮여 `NOT_RUN`으로 저장되는 timing defect를 확인했습니다.
-- 동일 non-empty title signature, 동일 capture mode, 3초 이내에서만 최근 analyzed semantics를 correction snapshot에 보존하도록 수정했습니다. live recognition 판정과 threshold는 완화하지 않았습니다.
+1. MiniMap 최초 표시 map synchronization
+   - Main Map에서 A → B로 바꾼 뒤 MiniMap을 처음 켰을 때 이전 A가 아니라 현재 B를 첫 visible frame부터 표시한다.
+   - 이미 열린/reused MiniMap뿐 아니라 아직 MiniMap window가 한 번도 생성되지 않은 first-create path를 검증한다.
 
-공개 릴리즈와 상세 근거는 다음 문서를 기준으로 합니다.
+2. Player Marker Size 변경 시 다른 Map/MiniMap presentation 보존
+   - Player Marker Size를 바꿔도 사용자가 설정한 Name Size와 MiniMap Marker Size의 실제 렌더링이 초기값처럼 되돌아가지 않는다.
+   - UI 값만 남고 실제 표시만 달라지는 상태를 허용하지 않는다.
 
-- `docs/PROJECT_STATE.json`
-- `docs/CURRENT_STATE.md`
-- `docs/STATE.md`
-- `docs/RELEASE_1.11.3.md`
-- `docs/RELEASE_NOTES_V1.11.3.md`
-- `docs/.release-v1.11.3-status.json`
+3. MiniMap marker blink/disappear 회귀
+   - marker가 잠깐 나타난 뒤 전부 사라지는 lifecycle/refresh race의 root cause를 수정한다.
+   - MiniMap 재열기 또는 marker toggle을 사용자가 수동 복구할 필요가 없어야 한다.
 
-사용자의 실제 PC/Tarkov 환경에서 v1.11.3 최종 실사용 확인은 자동화 검증과 별개이며 `PENDING`입니다. 새 사용자 요구사항, 실제 회귀, 또는 Tarkov 변화가 확인되면 `main`의 현재 stable 상태에서 새 `ACTIVE` 작업을 시작합니다.
+4. Mini Scanner right-click menu 제거
+   - Mini Scanner 우클릭 시 현재 표시되는 `현재 결과 교정` context menu를 더 이상 표시하지 않는다.
+   - Mini Scanner의 left-drag, topmost, 결과 표시 및 교정 데이터 단축키 계약은 유지한다.
+
+## Current findings
+
+- Mini Scanner menu는 `MiniScannerWindow.xaml`의 `DragSurface`에 직접 선언된 `Border.ContextMenu`이며 `MiniScannerWindow.Correction.cs`의 modal correction handler를 호출한다. 제품 요구사항상 해당 context menu 전체를 제거할 수 있다.
+- MiniMap에는 v1.11.3에서 map selection bridge와 reused-window A→B smoke가 이미 존재하지만, 사용자가 보고한 exact first-create path는 runtime smoke가 직접 검증하지 않는다.
+- donor MiniMap marker refresh는 refresh 시작 시 visible marker containers를 먼저 clear한 뒤 async load를 수행한다. 이후 refresh cancellation/reentry가 발생하면 빈 layer가 남을 수 있는 구조이며 현재 product recovery timer는 사후 복구 방식이다. 실제 trigger/cancellation 경로를 추가 추적해 root cause 수준에서 수정한다.
+- Player Marker Size 변경은 donor `UpdateMapView()`를 호출하며 product reapply bridge가 존재하지만 실사용에서 Name/marker presentation reset이 남아 있어 비동기 후속 render/event 순서를 추가 감사한다.
+
+## Completed
+
+- v1.11.3 stable / exact product source / main / 474-test baseline 복구.
+- 사용자 요구사항 4건을 v1.11.4 maintenance scope로 확정.
+- 작업 branch 생성.
+- Mini Scanner context-menu root cause 확인.
+- existing MiniMap first-create/reuse synchronization, player-marker reapply, marker-recovery 경로 1차 audit.
+
+## Current step
+
+MiniMap first-create lifecycle, marker async refresh cancellation path, Player Marker Size 후속 render 순서를 끝까지 추적하고 deterministic/runtime regression을 설계한 뒤 구현한다.
+
+## Remaining
+
+- root cause audit 완료 및 구현.
+- deterministic regression + published EXE smoke 보강.
+- v1.11.4 release identity/release notes 갱신.
+- PR / Windows Release build / tests / publish / Product UI + Map + MiniMap + Scanner smoke / shutdown / package 검증.
+- main 병합 / exact-main 검증 / automatic stable release / public tag/assets readback.
+- release-state docs finalization 및 ACTIVE_WORK 종료.
