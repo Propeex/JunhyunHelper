@@ -1,5 +1,3 @@
-using System.Windows;
-
 namespace JunhyunHelper.Desktop.Scanner;
 
 public sealed partial class ScannerCoordinator
@@ -45,8 +43,7 @@ public sealed partial class ScannerCoordinator
 
         // Use the existing Saved Case manager as the only deferred-review surface. The
         // hotkey itself never invents Ground Truth or marks the Case reviewed.
-        var mainWindow = System.Windows.Application.Current?.MainWindow;
-        if (mainWindow is null || !mainWindow.IsLoaded)
+        if (System.Windows.Application.Current?.MainWindow is not MainWindow mainWindow || !mainWindow.IsLoaded)
             return;
 
         var manager = new ScannerDiagnosticCasesWindow(this)
@@ -55,10 +52,10 @@ public sealed partial class ScannerCoordinator
         };
         manager.ShowDialog();
 
-        // Closing the manager returns focus to the product window. When the Scanner page
-        // was the active product page, this preserves that exact working context.
-        mainWindow.Activate();
-        mainWindow.Focus();
+        // Deferred review must return the product to Scanner regardless of which tab was
+        // visible before the global hotkey fired. Ground Truth remains exclusively owned by
+        // the Saved Case manager; the capture command only records evidence.
+        mainWindow.FocusScannerSectionAfterCorrectionCapture();
         PublishCorrectionCaptureStatus(status);
     }
 
