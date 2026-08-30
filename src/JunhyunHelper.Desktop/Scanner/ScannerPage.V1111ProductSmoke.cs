@@ -4,7 +4,6 @@ using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
-using JunhyunHelper.Desktop.Controls;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
@@ -107,6 +106,14 @@ public partial class ScannerPage
         if (mainWindow is null)
             throw new InvalidOperationException("MainWindow was unavailable for search clear smoke.");
 
+        // Exercise the real page lifecycle. The previous smoke called the shared Attach
+        // helper itself, which could manufacture a passing clear glyph even when the
+        // actual Items/Hideout page never attached it for the user.
+        mainWindow.ItemsPage.ApplyTemplate();
+        mainWindow.HideoutPage.ApplyTemplate();
+        mainWindow.ItemsPage.UpdateLayout();
+        mainWindow.HideoutPage.UpdateLayout();
+
         VerifySearchClearButton(mainWindow.ItemsPage.SearchBox, "Items");
         VerifySearchClearButton(mainWindow.HideoutPage.SearchBox, "Hideout");
     }
@@ -116,12 +123,6 @@ public partial class ScannerPage
         if (searchBox.Parent is not Grid parent)
             throw new InvalidOperationException($"{owner} search box parent is not the expected Grid.");
 
-        // Items/Hideout are collapsed while this Scanner-hosted smoke runs. Their normal
-        // page Loaded boundary has therefore not necessarily attached the shared behavior
-        // yet. Invoke the same canonical behavior directly so the published control path
-        // can be inspected without reintroducing a second page-specific button.
-        _ = ProductSearchClearButtonBehavior.Attach(searchBox);
-
         var clearButtons = parent.Children
             .OfType<Button>()
             .Where(button => string.Equals(button.Content as string, "×", StringComparison.Ordinal))
@@ -129,7 +130,7 @@ public partial class ScannerPage
         if (clearButtons.Length != 1)
         {
             throw new InvalidOperationException(
-                $"{owner} search must have exactly one inline clear glyph, found {clearButtons.Length}.");
+                $"{owner} search must have exactly one lifecycle-attached inline clear glyph, found {clearButtons.Length}.");
         }
 
         var clearButton = clearButtons[0];
@@ -149,7 +150,7 @@ public partial class ScannerPage
                 $"{owner} search clear glyph remained visible while the query was empty.");
         }
 
-        searchBox.Text = "v112-smoke";
+        searchBox.Text = "v113-smoke";
         searchBox.UpdateLayout();
         if (clearButton.Visibility != Visibility.Visible)
         {
