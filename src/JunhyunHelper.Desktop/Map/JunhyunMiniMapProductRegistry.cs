@@ -88,6 +88,19 @@ public static class JunhyunMiniMapProductRegistry
             window.ReapplyJunhyunMarkerPresentationAfterDonorMapView();
         });
 
+    public static void ApplyPlayerHeadingAfterDonor(double angle)
+    {
+        var window = ActiveWindow();
+        if (window is null)
+            return;
+
+        // Donor UpdatePlayerMarker queues raw ScreenPosition.Angle on this dispatcher.
+        // ContextIdle makes the product affine projection the final rotation for the frame.
+        window.Dispatcher.BeginInvoke(
+            () => window.ApplyJunhyunPlayerHeading(angle),
+            DispatcherPriority.ContextIdle);
+    }
+
     public static void ApplyBaseOpacity(double opacity) =>
         WithActive(window => window.ApplyJunhyunBaseOpacity(opacity));
 
