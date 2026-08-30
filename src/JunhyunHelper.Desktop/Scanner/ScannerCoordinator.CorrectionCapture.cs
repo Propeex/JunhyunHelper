@@ -30,24 +30,11 @@ public sealed partial class ScannerCoordinator
             return;
         }
 
+        // A raid-time global hotkey is capture-only. Keep the durable evidence and the
+        // short Mini Scanner confirmation, but never steal focus or open a review window.
+        // Saved Cases remain available for explicit deferred review from the Scanner UI.
         PublishCorrectionCaptureStatus(plan.Status);
         _overlay.ShowTransientStatus(CorrectionSaveCompletedStatus);
-
-        // Use the existing Saved Case manager as the only deferred-review surface. The
-        // hotkey itself never invents Ground Truth or marks the Case reviewed.
-        if (System.Windows.Application.Current?.MainWindow is not MainWindow mainWindow || !mainWindow.IsLoaded)
-            return;
-
-        var manager = new ScannerDiagnosticCasesWindow(this)
-        {
-            Owner = mainWindow,
-        };
-        manager.ShowDialog();
-
-        // Deferred review must return the product to Scanner regardless of which tab was
-        // visible before the global hotkey fired.
-        mainWindow.FocusScannerSectionAfterCorrectionCapture();
-        PublishCorrectionCaptureStatus(plan.Status);
     }
 
     private void PublishCorrectionCaptureStatus(string text) => HotkeyStatusChanged?.Invoke(text);
