@@ -22,7 +22,7 @@ initial Shutdown Race CI: 33307222304
 initial Documentation Consistency: 33307222365
 ```
 
-## Confirmed Scope
+## Confirmed scope
 
 1. `교정 데이터 추가` global hotkey
    - 레이드 중 단축키 사용 시 교정 데이터 창을 자동으로 열지 않는다.
@@ -73,14 +73,15 @@ Pinned donor의 screenshot 위치 경로는 `ScreenshotCoordinateParser → MapT
 - Main Map/MiniMap donor render 뒤 projected heading을 최종 적용하는 product bridge 연결.
 - Factory/Labs/Reserve/Labyrinth known orientation 및 현재 모든 `playerMarkerTransform` 대상 deterministic regression coverage 추가.
 - Draft PR #231 생성; initial PR CI 3종 queued.
+- Documentation Consistency initial failure 원인 확인: ACTIVE_WORK required heading case mismatch (`Confirmed scope`, `Current step`); checkpoint format 수정.
 
-## Current Step
+## Current step
 
-PR #231 initial CI에서 compile/test/documentation 결과를 확인하고 실패가 있으면 branch에서 수정한다.
+PR #231 current-head CI에서 compile/test/documentation 결과를 확인하고 실패가 있으면 branch에서 수정한다.
 
 ## Remaining
 
-- PR #231 initial CI 확인 및 필요한 수정.
+- PR #231 current-head CI 확인 및 필요한 수정.
 - 버전/릴리즈 문서 v1.11.2 정리.
 - deterministic tests / Release build / published EXE UI-runtime smoke / map-specific smoke 검증.
 - PR ready 전환 및 final exact-head CI 확인.
