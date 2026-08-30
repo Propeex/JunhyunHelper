@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedDateKst": "2026-08-30",
+  "updatedDateKst": "2026-08-31",
   "product": {
     "name": "준현 헬퍼",
     "repository": "Propeex/JunhyunHelper",
@@ -8,25 +8,25 @@
     "desktopVersion": "1.11.3"
   },
   "publicStable": {
-    "version": "1.11.2",
-    "tag": "v1.11.2",
-    "exactProductSource": "5822757f6490ec82aab33793752e48de14490628",
-    "releaseId": 379257951,
+    "version": "1.11.3",
+    "tag": "v1.11.3",
+    "exactProductSource": "043abad38f4c3ebc9101463a162614ef67df7536",
+    "releaseId": 379321405,
     "asset": {
       "name": "Junhyun-Helper.zip",
-      "id": 536514791,
-      "bytes": 80554866,
-      "sha256": "d013ac2d423d2a83c49e1e6483dcad038a3792a5b865c1400085fd56e25592a9"
+      "id": 536758239,
+      "bytes": 80558970,
+      "sha256": "e43892ecafc9920a7e3b7295f94b8a5324865977028b3573437d8ff7de4f327e"
     },
     "checksumAsset": {
       "name": "SHA256SUMS.txt",
-      "id": 536514792,
+      "id": 536758240,
       "bytes": 86,
-      "sha256": "4860aceab06843707951dcd50951a62843d40ef7a2ea2a9d8efa7972847aa657"
+      "sha256": "5b3cc0468ad6a11076b547883fbd16d1276c74bc51779251c0c3421a070d63c3"
     }
   },
   "maintenance": {
-    "latestNonDocumentationHead": "b34335f5e89047b83550b8faf290eb6a1e3986bc",
+    "latestNonDocumentationHead": "043abad38f4c3ebc9101463a162614ef67df7536",
     "deterministicTestCount": 474,
     "userRealPcTarkovValidation": "PENDING"
   },
