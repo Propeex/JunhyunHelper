@@ -29,6 +29,7 @@ public sealed partial class TarkovAmmoPackImporter
         if (ammoIds.Count == 0)
             return [];
 
+        var itemsWithContainedRelationship = new HashSet<string>(StringComparer.Ordinal);
         var authoritative = new Dictionary<string, AmmoPackDefinition>(StringComparer.Ordinal);
         foreach (var rawItem in TarkovJsonReader.ReadCollection(itemsDocument.Data, "items"))
         {
@@ -40,6 +41,8 @@ public sealed partial class TarkovAmmoPackImporter
             }
 
             var packItemId = TarkovJsonReader.RequiredString(rawItem, "id", "Ammo pack item");
+            itemsWithContainedRelationship.Add(packItemId);
+
             IReadOnlyList<JsonElement> entries;
             try
             {
@@ -48,7 +51,8 @@ public sealed partial class TarkovAmmoPackImporter
             catch (InvalidDataException)
             {
                 // containsItems is optional Scanner enrichment. A future unrelated shape
-                // must not make the entire Game Content update unusable.
+                // must not make the entire Game Content update unusable, but the presence
+                // of that authoritative field still blocks name-based reinterpretation.
                 continue;
             }
 
@@ -95,8 +99,12 @@ public sealed partial class TarkovAmmoPackImporter
         var result = new Dictionary<string, AmmoPackDefinition>(authoritative, StringComparer.Ordinal);
         foreach (var item in items)
         {
-            if (result.ContainsKey(item.Id) || !TryGetPackStem(item.NameEn, out var packStem))
+            if (result.ContainsKey(item.Id) ||
+                itemsWithContainedRelationship.Contains(item.Id) ||
+                !TryGetPackStem(item.NameEn, out var packStem))
+            {
                 continue;
+            }
 
             if (!ammoNameCandidates.TryGetValue(packStem, out var ammoItemId))
                 continue;
