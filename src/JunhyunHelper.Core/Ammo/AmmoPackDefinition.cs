@@ -8,5 +8,5 @@ namespace JunhyunHelper.Core.Ammo;
 public sealed record AmmoPackDefinition(
     string PackItemId,
     string AmmoItemId,
-    decimal Count,
+    decimal? Count,
     bool IsNameFallback = false);
