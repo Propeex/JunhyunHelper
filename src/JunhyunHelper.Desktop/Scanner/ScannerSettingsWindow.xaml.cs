@@ -251,6 +251,7 @@ public partial class ScannerSettingsWindow : Window
         ScannerDisplaySettings.TraderPricePerSlotField => "상점가 / 칸",
         ScannerDisplaySettings.FleaPricePerSlotField => "플리 평균가 / 칸",
         ScannerDisplaySettings.CurrentNeededField => "필요 개수",
+        ScannerDisplaySettings.AmmoPickupField => "탄약 줍기 판단",
         _ => key,
     };
 
