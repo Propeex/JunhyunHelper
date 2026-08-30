@@ -63,13 +63,17 @@ public sealed class V183VisibleUiActivationContractTests
         Assert.DoesNotContain("protected override void OnInitialized", body, StringComparison.Ordinal);
         Assert.DoesNotContain("ApplyJunhyunUiSimplification();", body, StringComparison.Ordinal);
         Assert.Contains("VerticalAlignment = VerticalAlignment.Stretch", body, StringComparison.Ordinal);
-        Assert.Contains("requestedPanelHeight", body, StringComparison.Ordinal);
+        Assert.Contains("var maximumPanelHeight = Math.Max(120, mapHeight - 16);", body, StringComparison.Ordinal);
+        Assert.Contains("var panelHeight = maximumPanelHeight;", body, StringComparison.Ordinal);
         Assert.Contains("panelHeight - headerHeight - verticalChrome", body, StringComparison.Ordinal);
         Assert.Contains("_junhyunMarkerListViewport.Height = listHeight", body, StringComparison.Ordinal);
         Assert.Contains("VerticalScrollBarVisibility = ScrollBarVisibility.Auto", body, StringComparison.Ordinal);
+        Assert.Contains("var expectedPanelHeight = Math.Max(120, mapHeight - 16);", body, StringComparison.Ordinal);
         Assert.Contains("ScrollableHeight > 0.5", body, StringComparison.Ordinal);
         Assert.Contains("ComputedVerticalScrollBarVisibility", body, StringComparison.Ordinal);
+        Assert.Contains("marker-panel-uses-available-height=ok", body, StringComparison.Ordinal);
         Assert.Contains("marker-list-fills-panel-body=ok", body, StringComparison.Ordinal);
+        Assert.Contains("scrollbar-only-on-real-overflow=ok", body, StringComparison.Ordinal);
         Assert.Contains("Environment.Exit(89)", body, StringComparison.Ordinal);
     }
 

@@ -14,15 +14,24 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- The child keeps original pixel coordinates while Viewbox performs display-only
-             scaling. Ground Truth rectangles therefore remain in source-image coordinates. -->
+        <!-- The source canvas always keeps original pixel coordinates. LayoutTransform
+             changes display scale only, so Ground Truth rectangles and manual selection
+             continue to use source-image coordinates at every zoom level. -->
         <Border Grid.Row="0"
                 Background="Black"
                 BorderBrush="{StaticResource BorderBrush}"
                 BorderThickness="1"
                 CornerRadius="8"
                 ClipToBounds="True">
-            <Viewbox Stretch="Uniform" StretchDirection="DownOnly">
+            <ScrollViewer x:Name="ImageScrollViewer"
+                          HorizontalScrollBarVisibility="Auto"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalContentAlignment="Center"
+                          VerticalContentAlignment="Center"
+                          CanContentScroll="False"
+                          PanningMode="Both"
+                          PreviewMouseWheel="ImageScrollViewer_PreviewMouseWheel"
+                          SizeChanged="ImageScrollViewer_SizeChanged">
                 <Grid x:Name="ImageCanvasHost">
                     <Image x:Name="CaptureImage" Stretch="None" />
                     <Canvas x:Name="OverlayCanvas"
@@ -31,7 +40,7 @@
                             MouseMove="OverlayCanvas_MouseMove"
                             MouseLeftButtonUp="OverlayCanvas_MouseLeftButtonUp" />
                 </Grid>
-            </Viewbox>
+            </ScrollViewer>
         </Border>
 
         <Border Grid.Row="1"
@@ -47,7 +56,7 @@
                            TextWrapping="Wrap"
                            Margin="0,0,0,8" />
                 <TextBlock x:Name="InstructionText"
-                           Text="교정할 항목을 선택한 뒤 이미지에 표시된 후보 사각형을 마우스로 클릭하세요. 후보가 없으면 직접 지정하거나 ‘없음’을 선택할 수 있습니다."
+                           Text="교정할 항목을 선택한 뒤 이미지에 표시된 후보 사각형을 마우스로 클릭하세요. 후보가 없으면 직접 지정하거나 ‘없음’을 선택할 수 있습니다. 이미지 위에서는 마우스 휠로 확대/축소할 수 있습니다."
                            TextWrapping="Wrap"
                            Margin="0,0,0,10" />
 

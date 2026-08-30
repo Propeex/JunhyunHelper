@@ -20,9 +20,9 @@ public partial class MapPage
 
         _productMarkerPanelBodyLayoutActivated = true;
 
-        // Replace the v1.7.15 content-sized synchronization handlers. Activation happens
-        // from ApplyJunhyunMarkerPanelPolish after the real Map Loaded event, so none of
-        // this runs while the pinned donor constructor is still preparing map/floor state.
+        // Replace the old content-sized synchronization handlers. Activation happens
+        // after the real Map Loaded event, so none of this runs while the pinned donor
+        // constructor is still preparing map/floor state.
         SizeChanged -= JunhyunMarkerPanel_SizeChanged;
         MapMarkersContent.SizeChanged -= JunhyunMarkerContent_SizeChanged;
         BtnToggleMapMarkersPanel.Click -= JunhyunMarkerPanelToggleButton_Click;
@@ -69,6 +69,7 @@ public partial class MapPage
                 _junhyunMarkerListViewport.ClearValue(HeightProperty);
                 _junhyunMarkerListViewport.ClearValue(MaxHeightProperty);
                 MapMarkersOverlay.ClearValue(HeightProperty);
+                MapMarkersOverlay.ClearValue(MaxHeightProperty);
                 return;
             }
 
@@ -78,33 +79,30 @@ public partial class MapPage
             if (!double.IsFinite(mapHeight) || mapHeight <= 0)
                 mapHeight = 590;
 
-            var maximumPanelHeight = Math.Max(220, mapHeight - 32);
-            MapMarkersContent.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            var contentHeight = Math.Max(1, MapMarkersContent.DesiredSize.Height);
+            // The expanded panel is a viewport, not a content-sized popup. v1.11.2
+            // measured a temporarily incomplete DesiredSize and could freeze a tall
+            // window to a short panel, clipping the late/reparented extraction rows.
+            // Always consume the available map height; ScrollViewer alone decides whether
+            // the complete marker content genuinely needs vertical scrolling.
+            var maximumPanelHeight = Math.Max(120, mapHeight - 16);
 
             var headerHeight = 0d;
             if (BtnToggleMapMarkersPanel.Parent is FrameworkElement header)
             {
                 header.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-                headerHeight = header.DesiredSize.Height;
+                headerHeight = Math.Max(header.ActualHeight, header.DesiredSize.Height);
             }
 
             var verticalChrome = MapMarkersOverlay.Padding.Top + MapMarkersOverlay.Padding.Bottom + 8;
-            var availableListHeight = Math.Max(120, maximumPanelHeight - headerHeight - verticalChrome);
-            var requestedPanelHeight = Math.Max(0, MapMarkersOverlay.MinHeight);
-            var desiredPanelHeight = headerHeight + Math.Min(contentHeight, availableListHeight) + verticalChrome;
-            var panelHeight = Math.Min(maximumPanelHeight, Math.Max(requestedPanelHeight, desiredPanelHeight));
-            var listHeight = Math.Max(120, panelHeight - headerHeight - verticalChrome);
+            var panelHeight = maximumPanelHeight;
+            var listHeight = Math.Max(1, panelHeight - headerHeight - verticalChrome);
 
             _junhyunMarkerListViewport.Height = listHeight;
             _junhyunMarkerListViewport.MaxHeight = listHeight;
-
-            // Give the list the whole body and let ScrollViewer decide from its rendered
-            // ExtentHeight/ViewportHeight whether a scrollbar is actually necessary. A
-            // pre-layout DesiredSize comparison can be stale once the real width is known.
             _junhyunMarkerListViewport.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
 
             MapMarkersOverlay.MinHeight = 0;
+            MapMarkersOverlay.MaxHeight = maximumPanelHeight;
             MapMarkersOverlay.Height = panelHeight;
         }
         finally
@@ -132,11 +130,26 @@ public partial class MapPage
             if (_junhyunMarkerListViewport is null || !_productMarkerPanelBodyLayoutActivated)
                 throw new InvalidOperationException("Map marker body layout was not activated in the published UI.");
 
+            var mapHeight = MapViewerGrid.ActualHeight;
+            if (!double.IsFinite(mapHeight) || mapHeight <= 0)
+                mapHeight = ActualHeight;
+            if (!double.IsFinite(mapHeight) || mapHeight <= 0)
+                mapHeight = 590;
+            var expectedPanelHeight = Math.Max(120, mapHeight - 16);
+
+            if (!double.IsFinite(MapMarkersOverlay.Height) ||
+                Math.Abs(MapMarkersOverlay.Height - expectedPanelHeight) > 1.0)
+            {
+                throw new InvalidOperationException(
+                    $"Expanded map marker panel is not using the available map height. " +
+                    $"panel={MapMarkersOverlay.Height:0.##}, expected={expectedPanelHeight:0.##}.");
+            }
+
             var headerHeight = BtnToggleMapMarkersPanel.Parent is FrameworkElement header
-                ? header.DesiredSize.Height
+                ? Math.Max(header.ActualHeight, header.DesiredSize.Height)
                 : 0d;
             var verticalChrome = MapMarkersOverlay.Padding.Top + MapMarkersOverlay.Padding.Bottom + 8;
-            var expectedBodyHeight = Math.Max(120, MapMarkersOverlay.Height - headerHeight - verticalChrome);
+            var expectedBodyHeight = Math.Max(1, MapMarkersOverlay.Height - headerHeight - verticalChrome);
 
             if (!double.IsFinite(_junhyunMarkerListViewport.Height) ||
                 Math.Abs(_junhyunMarkerListViewport.Height - expectedBodyHeight) > 1.0)
@@ -149,7 +162,7 @@ public partial class MapPage
                 throw new InvalidOperationException("Map marker viewport is not using automatic rendered overflow handling.");
 
             // Verify the scrollbar that WPF actually rendered, not an earlier content-size
-            // estimate. If all marker rows fit in the now-expanded body there must be no
+            // estimate. If all marker rows fit in the full-height body there must be no
             // visible scrollbar; if they genuinely overflow, Auto must expose one.
             var hasRenderedOverflow = _junhyunMarkerListViewport.ScrollableHeight > 0.5;
             var scrollbarIsVisible =
@@ -165,8 +178,8 @@ public partial class MapPage
             var marker = Path.Combine(Path.GetTempPath(), "junhyun-map-marker-body-smoke-success.txt");
             File.WriteAllText(
                 marker,
-                $"marker-list-fills-panel-body=ok\nscrollbar-only-on-real-overflow=ok\n" +
-                $"viewport={_junhyunMarkerListViewport.ViewportHeight:0.##}\nextent={_junhyunMarkerListViewport.ExtentHeight:0.##}\n");
+                $"marker-panel-uses-available-height=ok\nmarker-list-fills-panel-body=ok\nscrollbar-only-on-real-overflow=ok\n" +
+                $"panel={MapMarkersOverlay.Height:0.##}\nviewport={_junhyunMarkerListViewport.ViewportHeight:0.##}\nextent={_junhyunMarkerListViewport.ExtentHeight:0.##}\n");
         }
         catch (Exception exception)
         {
