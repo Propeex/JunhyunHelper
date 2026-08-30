@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Threading;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
@@ -19,7 +20,10 @@ public partial class MiniScannerWindow : Window
     private const uint SwpNoActivate = 0x0010;
     private const uint SwpShowWindow = 0x0040;
     private static readonly IntPtr HwndTopmost = new(-1);
+    private static readonly TimeSpan TransientStatusDuration = TimeSpan.FromSeconds(2);
 
+    private DispatcherTimer? _transientStatusTimer;
+    private bool _hideWhenTransientStatusEnds;
     private bool _positionInitialized;
 
     public MiniScannerWindow()
@@ -30,6 +34,7 @@ public partial class MiniScannerWindow : Window
             ApplyExtendedStyles();
             EnforceTopmost();
         };
+        Closed += (_, _) => _transientStatusTimer?.Stop();
     }
 
     public event Action<double, double>? PositionCommitted;
@@ -40,8 +45,28 @@ public partial class MiniScannerWindow : Window
         ArgumentNullException.ThrowIfNull(settings);
         _ = editMode;
 
+        _hideWhenTransientStatusEnds = false;
+        ItemContentPanel.Visibility = Visibility.Visible;
         ApplySnapshot(snapshot, settings);
         ShowAndPosition(settings);
+    }
+
+    public void ShowTransientStatus(string text, ScannerDisplaySettings settings, bool hasItemContent)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(text);
+        ArgumentNullException.ThrowIfNull(settings);
+
+        _hideWhenTransientStatusEnds = !hasItemContent;
+        ItemContentPanel.Visibility = hasItemContent ? Visibility.Visible : Visibility.Collapsed;
+        TransientStatusText.Text = text;
+        TransientStatusText.FontSize = settings.FontSize;
+        TransientStatusBadge.Visibility = Visibility.Visible;
+
+        ShowAndPosition(settings);
+
+        _transientStatusTimer ??= CreateTransientStatusTimer();
+        _transientStatusTimer.Stop();
+        _transientStatusTimer.Start();
     }
 
     public void ApplySettings(ScannerDisplaySettings settings)
@@ -65,6 +90,30 @@ public partial class MiniScannerWindow : Window
     }
 
     public (double X, double Y) GetPosition() => (Left, Top);
+
+    private DispatcherTimer CreateTransientStatusTimer()
+    {
+        var timer = new DispatcherTimer(DispatcherPriority.Normal)
+        {
+            Interval = TransientStatusDuration,
+        };
+        timer.Tick += (_, _) => CompleteTransientStatus();
+        return timer;
+    }
+
+    private void CompleteTransientStatus()
+    {
+        _transientStatusTimer?.Stop();
+        TransientStatusBadge.Visibility = Visibility.Collapsed;
+        TransientStatusText.Text = string.Empty;
+
+        if (!_hideWhenTransientStatusEnds)
+            return;
+
+        _hideWhenTransientStatusEnds = false;
+        ItemContentPanel.Visibility = Visibility.Visible;
+        Hide();
+    }
 
     private void ApplySnapshot(ScannerItemSnapshot snapshot, ScannerDisplaySettings settings)
     {
@@ -103,14 +152,11 @@ public partial class MiniScannerWindow : Window
             settings.FontSize);
         ConfigureLine(
             AmmoPickupText,
-            snapshot.AmmoShouldPickUp.HasValue,
+            settings.ShowAmmoPickup && snapshot.AmmoShouldPickUp.HasValue,
             FormatAmmoPickup(snapshot),
             settings.FontSize);
 
         ApplyInformationOrder(settings);
-        // The tactical ammo decision is product logic rather than a configurable price/info
-        // field, so it remains a fixed final line without changing the user's saved order.
-        InfoStackPanel.Children.Add(AmmoPickupText);
     }
 
     private void ApplyInformationOrder(ScannerDisplaySettings settings)
@@ -122,6 +168,7 @@ public partial class MiniScannerWindow : Window
             [ScannerDisplaySettings.TraderPricePerSlotField] = TraderSlotPriceText,
             [ScannerDisplaySettings.FleaPricePerSlotField] = FleaSlotPriceText,
             [ScannerDisplaySettings.CurrentNeededField] = CurrentNeededText,
+            [ScannerDisplaySettings.AmmoPickupField] = AmmoPickupText,
         };
 
         InfoStackPanel.Children.Clear();
