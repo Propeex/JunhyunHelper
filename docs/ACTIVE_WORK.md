@@ -37,27 +37,56 @@ target: v1.11.3 PATCH maintenance
 
 4. 최신 Scanner diagnostics/calibration bundle
    - user-provided `JunhyunHelper-Scanner-Diagnostics-20260830-232854.zip`을 분석한다.
-   - bundle summary 기준 reviewed case 5개, program-correct 0개, Ground Truth correction 5개, OCR_RECOGNITION 5개이며 pipeline stage는 모두 `NOT_RUN`으로 기록되어 있다.
+   - bundle summary 기준 reviewed case 5개, program-correct 0개, Ground Truth correction 5개, OCR_RECOGNITION 5개이며 저장된 pipeline stage는 모두 `NOT_RUN`이다.
    - Ground Truth: `Wrench 렌치`, `Nails 못 상자`, `ELCAN Specter HCO holographic sight`, `Corrugated hose 주름진 호스`, `7.62x25mm TT P gl ammo pack (25 pcs)`.
-   - 원본 사용자 diagnostic bundle을 저장소에 임의 커밋하지 않는다. 현재 regression/dataset 계약에 맞는 최소 재현 evidence만 필요 시 별도로 반영한다.
+   - 원본 사용자 diagnostic bundle과 screenshots는 private evidence로 유지하며 public repository에 커밋하지 않는다.
+
+## Root Cause / Evidence Findings
+
+### Items / Hideout search clear
+
+공유 구현 `ProductSearchClearButtonBehavior` 자체의 inline `×` 동작은 요청한 동작과 일치한다. 문제는 Items/Hideout가 실제 visible page lifecycle에서 이 behavior를 안정적으로 attach하지 못하는 데 있었다. 더 중요한 검증 결함으로 v1.11.2 published smoke는 실제 페이지가 `×`를 만들었는지 확인하지 않고 smoke 코드가 직접 `ProductSearchClearButtonBehavior.Attach(searchBox)`를 호출한 뒤 결과를 검사했다. 따라서 실사용 회귀가 있어도 smoke가 스스로 UI를 만들어 성공할 수 있었다.
+
+### Map marker panel
+
+v1.11.2 body layout은 expanded panel의 높이를 현재 `MapMarkersContent.DesiredSize`에 맞추는 content-sized popup 방식이었다. 탈출구 행 이동/생성 등 content tree가 아직 완전히 정착하지 않은 시점의 작은 DesiredSize를 기준으로 tall window의 panel height를 고정할 수 있어 이후 하단 탈출구 영역이 panel 밖에서 잘렸다. 기존 smoke도 이미 선택된 짧은 panel 내부를 viewport가 채우는지만 검사해 이 결함을 놓쳤다.
+
+### Scanner correction evidence bundle
+
+5건 모두 저장 JSON에는 `RecognitionReason=NOT_RUN`, `OcrText=""`가 남아 있으나 bundled runtime log에서 적어도 마지막 두 case는 저장 직전 실제 OCR/matcher가 실행된 것이 확인된다.
+
+- `Corrugated hose 주름진 호스`: WinRT OCR이 선두 Latin glyph 일부를 Han/CJK glyph로 오인해 `OCR_INVALID_CHARACTERS`로 보수적 reject했다.
+- `7.62x25mm TT P gl ammo pack (25 pcs)`: nearest official candidate는 Ground Truth와 동일했지만 약 0.846 confidence / 약 0.038 margin으로 `LOW_CONFIDENCE` fail-closed 됐다.
+
+즉 geometry/title ROI 자체는 두 case에서 정상적으로 접근됐으며, 저장된 `NOT_RUN`은 인식이 실행되지 않았다는 뜻이 아니다. `ScannerRecognitionDebugStore`가 단일 최신 frame만 유지하기 때문에 분석 완료 frame 뒤의 빠른 새 capture가 geometry-only `NOT_RUN` frame으로 덮어쓰고, 사용자가 이후 교정 hotkey를 누르면 의미 있는 OCR/matcher evidence가 유실되는 diagnostic timing defect가 확인됐다.
+
+이 batch에서는 false-positive 우선 안전 계약을 깨는 threshold/character-policy 완화를 하지 않는다. 대신 동일한 non-empty `TitleSignature`, 동일 capture mode, 3초 이내라는 fail-closed 조건에서만 최신 exact screenshot/geometry에 직전 analyzed semantics를 보존해 교정 데이터 품질을 바로잡는다. 이 retained evidence는 live recognition 결정에는 사용하지 않는다.
 
 ## Completed
 
 - v1.11.2 stable / main / product source 복구.
-- 사용자 실사용 화면 3장 및 diagnostics bundle 접수.
+- 사용자 실사용 화면 3장 및 diagnostics bundle 접수/분석.
 - v1.11.3 maintenance branch 생성.
-- diagnostics bundle 구조/summary/environment/dataset 5건 1차 분석.
-- 현재 search clear 구현이 `ProductSearchClearButtonBehavior`의 module-initializer class handler에 의존하고 있음을 확인.
+- Items/Hideout real page lifecycle에 shared `ProductSearchClearButtonBehavior`를 직접 attach하는 Loaded + `OnApplyTemplate` boundary 구현.
+- published search smoke가 behavior를 직접 만들어내던 false-positive 검증 경로 제거; 실제 page lifecycle 결과만 검사하도록 변경.
+- Map marker expanded panel을 content-sized popup에서 available-height viewport로 변경. 큰 창에서는 전체 available height를 사용하고 실제 overflow에서만 ScrollViewer가 scrollbar를 렌더하도록 변경.
+- Map published smoke에 expanded panel full-height 및 rendered scrollbar 상태 검증 추가.
+- Scanner correction screenshot을 source-pixel canvas + ScrollViewer + display-only LayoutTransform 구조로 변경. mouse wheel 1.15x step, fit~8x zoom, pan/scroll 및 pointer anchor 보존 구현.
+- correction zoom published smoke 추가; 확대/축소와 source-pixel coordinate contract를 실제 WPF window에서 검사.
+- `ScannerRecognitionDebugStore`에 최근 analyzed evidence retention 추가. 동일 title signature/capture mode/3초 이내일 때만 correction snapshot에 semantic evidence를 carry하고 current image/geometry는 그대로 유지.
+- correction hotkey와 수동 최신 교정 모두 `GetCorrectionSnapshot()`을 사용하도록 연결.
+- v1.11.3 source-contract regression tests 추가.
 
 ## Current step
 
-Quest/Ammo/Scanner의 실제 정상 search clear 구현과 Items/Hideout lifecycle 차이를 비교하고, Map marker panel height/scroll 측정 경로 및 ScannerCorrectionWindow image viewport/coordinate mapping을 추적한다.
+현재 branch를 draft PR로 열어 Windows compile / deterministic tests / published EXE runtime smoke에서 실제 WPF lifecycle과 zoom/layout 구현을 검증한다. 실패가 있으면 해당 증거를 기준으로 수정한다.
 
 ## Remaining
 
-- 세 UI 요구사항 root cause 확정 및 최소 범위 구현.
-- 전달된 5 reviewed cases를 Scanner pipeline 관점에서 분석하고 개선 필요 여부 결정.
-- deterministic regression coverage 추가.
-- Windows Release build / publish / actual published EXE UI-runtime smoke.
-- PR / exact-head CI / main merge / exact-main validation.
-- v1.11.3 release/tag/assets 검증 및 공식 상태 문서 마감.
+- Draft PR exact-head CI 1차 검증 및 compile/runtime failure 수정.
+- v1.11.3 version/release identity 문서 정리.
+- final deterministic tests / Release build / published EXE UI-runtime smoke / Shutdown Race.
+- PR ready / exact-head CI.
+- main merge / exact-main validation.
+- v1.11.3 release/tag/assets public readback.
+- 공식 상태 문서 갱신 후 `ACTIVE_WORK` 종료.
