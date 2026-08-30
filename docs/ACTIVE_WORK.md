@@ -15,8 +15,9 @@ public stable: v1.11.1
 exact v1.11.1 product source: 6314eaf866539747eadd69f8da4450bd8d5939e1
 working branch: fix/v1.11.2-runtime-ui-map-2026-08-30
 target version: v1.11.2 (PATCH maintenance)
-PR: #231 (DRAFT)
-validated deterministic count so far: 470 tests in suite
+ready PR: #232
+superseded draft PR: #231 (closed, not merged)
+validated deterministic count: 470 / 470 PASS at d4e4cea8d963eb075b01e3bb2ada316faf64e1f5
 ```
 
 ## Confirmed scope
@@ -69,21 +70,20 @@ Pinned donor의 screenshot 위치 경로는 `ScreenshotCoordinateParser → MapT
 - pure `PlayerHeadingProjection` 추가: player position affine의 선형부를 heading vector에 동일 적용.
 - Main Map/MiniMap donor render 뒤 projected heading을 최종 적용하는 product bridge 연결.
 - Factory/Labs/Reserve/Labyrinth known orientation 및 현재 모든 `playerMarkerTransform` 대상 deterministic regression coverage 추가.
-- deterministic suite를 470 tests로 확대했고 Windows Release build가 성공함을 확인.
-- 첫 published EXE smoke에서 `Items search clear button was not rendered`를 발견. 제품 결함이 아니라 Scanner 탭에서 smoke가 실행될 때 초기 `Collapsed`인 Items/Hideout의 normal `Loaded` attachment가 아직 발생하지 않은 테스트 lifecycle 가정 문제로 확인했다. smoke가 별도 버튼을 요구하지 않고 canonical `ProductSearchClearButtonBehavior.Attach`를 직접 사용해 empty→typed→clear 상태와 단일 inline glyph를 검증하도록 교정했다.
-- Documentation Consistency의 초기 ACTIVE_WORK heading case mismatch도 수정했고 이후 해당 gate는 성공했다.
-- v1.11.2 project version / FIRST_RUN_KO / PROJECT_STATE candidate identity를 정리했다.
-- PR head `22f5670e...`에서 Documentation Consistency와 Shutdown Race는 성공했고 Release build도 성공했다. CI는 제품 코드가 아니라 `docs/RELEASE_NOTES_V1.11.2.md` 누락 때문에 ReleaseIdentityTests 1건만 실패(469 pass / 1 fail)했다.
-- `docs/RELEASE_NOTES_V1.11.2.md`를 추가해 release identity contract를 완성했다.
+- 첫 published EXE smoke에서 `Items search clear button was not rendered`를 발견. 제품 결함이 아니라 Scanner 탭에서 smoke가 실행될 때 초기 `Collapsed`인 Items/Hideout의 normal `Loaded` attachment가 아직 발생하지 않은 테스트 lifecycle 가정 문제로 확인했다. smoke가 canonical `ProductSearchClearButtonBehavior.Attach`를 직접 사용해 empty→typed→clear 상태와 단일 inline glyph를 검증하도록 교정했다.
+- Documentation Consistency의 초기 ACTIVE_WORK heading case mismatch 수정.
+- v1.11.2 project version / FIRST_RUN_KO / PROJECT_STATE candidate identity / RELEASE_NOTES 정리.
+- branch head `d4e4cea8...`에서 CI `33307791901`, Shutdown Race `33307791899`, Documentation Consistency `33307791896` 모두 SUCCESS.
+- CI에서 **470 / 470 deterministic tests**, Windows Release build, self-contained publish, actual published EXE Product UI / Map / Factory / MiniMap / Scanner smoke, package audit 및 artifact upload까지 PASS.
+- connector의 ready-for-review GraphQL mutation이 GitHub schema `Repository.fullDatabaseId` 오류로 실패하여 제품 diff/head를 바꾸지 않고 draft #231을 닫고 동일 branch/head로 ready PR #232를 생성했다.
 
 ## Current step
 
-릴리즈 노트 추가 후 PR #231 current-head CI를 재실행해 470/470 tests, published EXE smoke, package audit까지 최종 검증한다.
+ready PR #232의 현재 documentation-only checkpoint head에서 exact-head CI 3종을 다시 확인한 뒤 main에 병합한다.
 
 ## Remaining
 
-- PR #231 current-head CI 최종 확인 및 필요한 수정.
-- PR ready 전환 및 final exact-head CI 확인.
+- PR #232 exact-head CI 최종 확인.
 - main 병합 / exact-main CI + Shutdown Race + Documentation Consistency 검증.
 - automatic v1.11.2 Release workflow 확인.
 - public v1.11.2 tag/release/assets/checksum/latest readback.
