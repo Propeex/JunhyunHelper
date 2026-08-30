@@ -9,7 +9,7 @@ public sealed partial class ScannerCoordinator
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         var plan = ScannerCorrectionCapturePolicy.Create(
-            ScannerRecognitionDebugStore.GetSnapshot(),
+            ScannerRecognitionDebugStore.GetCorrectionSnapshot(),
             CreateDeferredCaseId);
         if (!plan.HasEvidence || plan.Submission is null)
         {
