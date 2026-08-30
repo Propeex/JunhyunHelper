@@ -3,9 +3,9 @@ namespace TarkovHelper.Windows;
 public partial class OverlayMiniMapWindow
 {
     /// <summary>
-    /// Updates only the MiniMap player marker. The donor UpdateMapView() also rewrites
+    /// Updates only the MiniMap player marker. The donor whole-view refresh also rewrites
     /// unrelated marker transforms, so a Player Marker Size change must not use that
-    /// whole-view path or it can visually reset Name Size / MiniMap Marker Size.
+    /// broad path or it can visually reset Name Size / MiniMap Marker Size.
     /// </summary>
     internal void ApplyJunhyunPlayerMarkerSizeOnly(double mapPixelSize)
     {
