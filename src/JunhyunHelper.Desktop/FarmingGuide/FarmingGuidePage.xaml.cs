@@ -103,35 +103,18 @@ public partial class FarmingGuidePage : UserControl
 
     private void ApplySnapshot(FarmingGuideLoadoutSnapshot snapshot)
     {
-        _equipment.Clear();
-        foreach (var entry in snapshot.Equipment)
-        {
-            if (entry.Key is FarmingGuideEquipmentSlot.Melee or FarmingGuideEquipmentSlot.Dogtag)
-                continue;
-            if (_itemsById.ContainsKey(entry.Value.ItemId))
-                _equipment[entry.Key] = entry.Value;
-        }
+        var sanitized = FarmingGuideLoadoutPolicy.SanitizeSnapshot(snapshot, _itemsById);
 
-        _rig = ValidateSavedCarrier(snapshot.Rig, FarmingGuideStorageKind.Rig);
-        _backpack = ValidateSavedCarrier(snapshot.Backpack, FarmingGuideStorageKind.Backpack);
-        _secureContainer = ValidateSavedCarrier(snapshot.SecureContainer, FarmingGuideStorageKind.SecureContainer);
+        _equipment.Clear();
+        foreach (var entry in sanitized.Equipment)
+            _equipment[entry.Key] = entry.Value;
+
+        _rig = sanitized.Rig;
+        _backpack = sanitized.Backpack;
+        _secureContainer = sanitized.SecureContainer;
 
         _storedItems.Clear();
-        foreach (var stored in snapshot.StoredItems)
-        {
-            if (!_itemsById.ContainsKey(stored.Item.ItemId))
-                continue;
-            _storedItems.Add(stored);
-        }
-    }
-
-    private FarmingGuideItemState? ValidateSavedCarrier(
-        FarmingGuideItemState? state,
-        FarmingGuideStorageKind storage)
-    {
-        if (state is null || !_itemsById.TryGetValue(state.ItemId, out var item))
-            return null;
-        return FarmingGuideCompatibility.IsStorageCarrierCompatible(storage, item) ? state : null;
+        _storedItems.AddRange(sanitized.StoredItems);
     }
 
     internal FarmingGuideLoadoutSnapshot BuildSnapshot()
