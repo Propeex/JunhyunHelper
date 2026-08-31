@@ -61,6 +61,7 @@ public static class FarmingGuideCompatibility
                 propertyType.Equals("ItemPropertiesBackpack", StringComparison.OrdinalIgnoreCase) ||
                 ContainsAny(keys, "backpack", "backpacks"),
             FarmingGuideStorageKind.SecureContainer =>
+                propertyType.Equals("ItemPropertiesContainer", StringComparison.OrdinalIgnoreCase) ||
                 ContainsAny(keys, "securecontainer", "securecontainers", "securedcontainer", "securedcontainers", "pouch", "pouches"),
             _ => false,
         };
