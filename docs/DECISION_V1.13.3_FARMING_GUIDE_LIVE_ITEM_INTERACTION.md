@@ -12,7 +12,7 @@ v1.13.2 실사용에서 Farming Guide의 장비/수납 편집이 실제 Tarkov i
 동시에 다음 data/model 문제가 확인됐다.
 
 - nested bag/rig placement가 부모 container instance를 저장하지 않아 `가방 안 가방 안 아이템` 상태를 표현할 수 없었다.
-- current Tarkov secure container는 `ItemPropertiesContainer`로 제공되지만 v1.13.2 compatibility가 이를 인정하지 않았다.
+- current Tarkov Secure Container와 일반 stash case가 모두 `ItemPropertiesContainer`를 사용할 수 있어 property type만으로는 player secure-container slot 호환성을 판정할 수 없었다.
 - upstream item collection에는 `ItemPropertiesPreset` / `preset` weapon preset records가 실제 base weapon과 함께 존재한다. 이를 모두 draggable item으로 노출해 같은 총기가 다수 보였고, preset record에는 base weapon의 실제 mod slot 구조가 없을 수 있다.
 
 ## Decision
@@ -59,7 +59,16 @@ Nested container 자체를 이동하면 descendants는 같은 parent chain을 �
 
 ### 4. Secure Container current-data contract
 
-`FarmingGuideStorageKind.SecureContainer`는 current Tarkov `ItemPropertiesContainer`를 정상 carrier로 인정한다. 기존 category/type fallback도 compatibility 용도로 유지한다.
+Secure Container 판정은 current source의 명시적 secure-container/pouch category/type semantics를 우선한다.
+
+current Tarkov source에서는 Epsilon 같은 player Secure Container와 Medicine Case 같은 ordinary stash case가 모두 `ItemPropertiesContainer`를 사용할 수 있으므로 이 property type 자체를 장착 근거로 사용하지 않는다.
+
+명시적 secure category가 없는 current compatibility 경로는 다음처럼 제한한다.
+
+- `PropertiesType == ItemPropertiesContainer`
+- 동시에 generic `container` / `case` classification이 없어야 함
+
+따라서 current Epsilon 형태는 수용하면서 Medicine Case 같은 일반 container/case는 Secure Container 장비 슬롯에서 거부한다. 향후 source가 더 명확한 secure-container semantic을 제공하면 그 값을 우선하고 fallback을 확대 추측하지 않는다.
 
 ### 5. Weapon preset은 Farming Guide 검색 item이 아니다
 
@@ -86,7 +95,7 @@ Storage summary의 total capacity는 top-level carrier grids뿐 아니라 현재
 
 완료 선언 전 다음을 확인한다.
 
-- deterministic tests: secure container compatibility, nested sanitize, nested persistence, preset filtering
+- deterministic tests: secure container compatibility, ordinary case rejection, nested sanitize, nested persistence, preset filtering
 - Desktop source contract: in-page workbench + obsolete configuration Window absence
 - Windows Release build
 - published EXE startup/product UI/graceful shutdown smoke
