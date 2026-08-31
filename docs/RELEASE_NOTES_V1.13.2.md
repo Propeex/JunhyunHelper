@@ -1,4 +1,4 @@
-# 준현 헬퍼 v1.13.2 Release Notes
+# 준현 헬퍼 v1.13.2
 
 Date: **2026-08-31 KST**  
 Status: **RELEASE CANDIDATE**
