@@ -1,0 +1,44 @@
+{
+  "version": "v1.13.3",
+  "status": "public-verified",
+  "productReleaseSource": "9a0064d81dca4c2cffcb01c55742d46298d235de",
+  "tagTarget": "9a0064d81dca4c2cffcb01c55742d46298d235de",
+  "prCiRun": 33382678094,
+  "prShutdownRaceRun": 33382678096,
+  "prDocumentationConsistencyRun": 33382678065,
+  "exactMainCiRun": 33382979766,
+  "exactMainShutdownRaceRun": 33382979902,
+  "exactMainDocumentationConsistencyRun": 33382979845,
+  "releaseWorkflowRun": 33383407835,
+  "releaseId": 379676479,
+  "publishedAtUtc": "2026-08-31T10:40:13Z",
+  "tests": {
+    "passed": 513,
+    "failed": 0,
+    "skipped": 0
+  },
+  "artifact": {
+    "name": "JunhyunHelper-win-x64",
+    "id": 9754610879,
+    "archiveBytes": 241795611,
+    "archiveSha256": "ae3fb9857920ab61e79c46da01d030fbded4a90eca27ec306e7f5661beb0cc3a"
+  },
+  "publicAssets": {
+    "package": {
+      "name": "Junhyun-Helper.zip",
+      "id": 537835859,
+      "bytes": 80620064,
+      "sha256": "704afb5e376f9087dd57c1795d8b95397c06a020acd9545fe80c5fc1b546b7b7"
+    },
+    "checksums": {
+      "name": "SHA256SUMS.txt",
+      "id": 537835858,
+      "bytes": 86,
+      "sha256": "2c74d9c4e4f096c35eb3b4e45deb734af5b9df31306c9961d66c9aa7cd4e5b4d"
+    }
+  },
+  "latestStable": true,
+  "draft": false,
+  "prerelease": false,
+  "userRealPcPlayValidation": "pending"
+}
