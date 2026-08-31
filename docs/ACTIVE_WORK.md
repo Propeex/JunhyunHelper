@@ -16,7 +16,7 @@ base main: c578b074a36fb6703191e17cc46f17e188816010
 branch: fix/v1.13.1-farming-guide-ui-regressions-2026-08-31
 PR: #243
 public stable: v1.13.0
-status: IMPLEMENTING / VERIFYING
+status: FINAL VERIFYING
 ```
 
 ## Confirmed scope
@@ -38,20 +38,22 @@ status: IMPLEMENTING / VERIFYING
 - drag 중 WPF mouse capture에 의존하지 않는 geometry-backed target probing을 추가해 equipment/carrier target hit 판정을 보강.
 - transient success/danger border를 probe 변경/end 시 기본 border로 되돌리는 cleanup 추가.
 - save emoji를 WPF vector icon으로 교체하고 search TextBox vertical layout 보정.
-- PR 최초 Documentation Consistency 실패 원인(`ACTIVE_WORK` 필수 heading 누락)을 확인함. 제품 코드 문제가 아니라 작업 체크포인트 형식 문제이며 이 문서에서 바로잡음.
+- PR 최초 Documentation Consistency 실패 원인(`ACTIVE_WORK` 필수 heading 누락)을 확인하고 canonical checkpoint 형식으로 수정.
+- v1.13.1 Desktop version / `PROJECT_STATE.product.desktopVersion`을 정렬하고 `FIRST_RUN_KO.txt` 및 `RELEASE_NOTES_V1.13.1.md` release identity를 준비.
+- 최종 UI 검토에서 90도 회전한 직사각형 item image가 `RenderTransform` 때문에 footprint 내부에서 잘릴 수 있는 경로를 확인하고 layout-aware `LayoutTransform`으로 수정.
 
 ## Current step
 
-PR #243 exact-head Windows CI / Shutdown Race CI 결과를 확인하고 compile/runtime smoke 실패가 있으면 수정한다. 이후 Farming Guide regression 검증을 보강한다.
+PR #243 최신 exact-head에서 Windows CI / Shutdown Race CI / Documentation Consistency를 다시 통과시키고 published EXE smoke 및 release package gate를 확인한다. 모든 gate가 통과하면 main 병합과 v1.13.1 공개 릴리즈로 진행한다.
 
 ## Remaining
 
-- exact-head CI / Shutdown Race CI / Documentation Consistency 전부 통과.
-- 필요 시 deterministic regression test 또는 published EXE smoke assertion 보강.
-- Windows Release publish artifact의 Farming Guide 실제 렌더/interaction smoke 확인.
-- 사용자 요구사항과 실제 UI 결과가 맞는지 최종 검토.
-- 상태/릴리즈 문서 갱신, v1.13.1 patch release 준비 및 검증.
-- main 병합 후 exact-main CI / release/tag/asset 검증.
+- 최신 exact-head CI / Shutdown Race CI / Documentation Consistency 전부 통과.
+- Windows Release publish artifact의 Product UI / Farming Guide / Map smoke, 정상 종료, 패키지 검증 확인.
+- PR 변경 범위 최종 review에서 release blocker가 없는지 확인.
+- main 병합 후 exact-main CI / Shutdown Race / Documentation Consistency 확인.
+- 자동 Release workflow 성공, public v1.13.1 tag / release / asset / checksum / exact source 검증.
+- canonical release/state 문서에 실제 release identity 반영.
 - 완전 종료 후 `ACTIVE_WORK`를 `NONE`으로 닫기.
 
 ## Last completed work
