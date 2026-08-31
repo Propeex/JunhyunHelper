@@ -34,10 +34,14 @@ public sealed class FarmingGuidePlacementEngineTests
     [Fact]
     public void FindsFirstContiguousFitInsteadOfOnlyCountingFreeCells()
     {
+        // Three cells are free, but they are separated so no vertical 1x2 item fits.
+        // This locks the future packing contract to real contiguous geometry rather
+        // than treating the inventory as a simple free-cell counter.
         var occupied = new[]
         {
-            new FarmingGuideGridPlacement("left", 0, 0, 1, 2),
-            new FarmingGuideGridPlacement("middle", 2, 0, 1, 2),
+            new FarmingGuideGridPlacement("top-left", 0, 0, 1, 1),
+            new FarmingGuideGridPlacement("top-right", 2, 0, 1, 1),
+            new FarmingGuideGridPlacement("bottom-middle", 1, 1, 1, 1),
         };
 
         Assert.Null(FarmingGuidePlacementEngine.FindFirstFit(3, 2, 1, 2, false, occupied));
