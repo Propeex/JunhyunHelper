@@ -30,13 +30,30 @@ public sealed class FarmingGuideCompatibilityTests
     }
 
     [Fact]
-    public void SecureContainerAcceptsCurrentContainerPropertyType()
+    public void SecureContainerAcceptsCurrentContainerPropertyFallbackWithoutGenericContainerType()
     {
-        var container = Item("epsilon", propertiesType: "ItemPropertiesContainer");
+        var epsilon = Item(
+            "epsilon",
+            types: ["noFlea"],
+            propertiesType: "ItemPropertiesContainer");
 
         Assert.True(FarmingGuideCompatibility.IsStorageCarrierCompatible(
             FarmingGuideStorageKind.SecureContainer,
-            container));
+            epsilon));
+    }
+
+    [Fact]
+    public void SecureContainerRejectsOrdinaryContainerWithSamePropertyType()
+    {
+        var medicineCase = Item(
+            "medicine-case",
+            categories: ["Medicine"],
+            types: ["container", "markedOnly", "noFlea"],
+            propertiesType: "ItemPropertiesContainer");
+
+        Assert.False(FarmingGuideCompatibility.IsStorageCarrierCompatible(
+            FarmingGuideStorageKind.SecureContainer,
+            medicineCase));
     }
 
     [Fact]
