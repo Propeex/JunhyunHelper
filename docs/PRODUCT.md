@@ -289,7 +289,7 @@ Canonical specialist document는 `docs/SCANNER.md`다.
 
 ## 14. Farming Guide
 
-v1.13.0에서 Scanner 오른쪽에 `파밍 가이드` first-class section을 추가했다. v1.13.1에서 실사용 UI 회귀를 수정해 presentation 계약을 명확히 고정했다.
+v1.13.0에서 Scanner 오른쪽에 `파밍 가이드` first-class section을 추가했다. v1.13.1에서 실사용 UI/drag-drop 회귀를 수정했고, v1.13.2에서 장착·주머니·프리셋·내부 정보 interaction 계약을 보완한다.
 
 제품 의미:
 
@@ -297,7 +297,7 @@ v1.13.0에서 Scanner 오른쪽에 `파밍 가이드` first-class section을 추
 
 ### 포함 기능
 
-- 헤드셋, 헬멧/headwear, face/eyewear, armor/armored rig, armband, weapon, sidearm 등 장비 구성
+- 헤드셋, 헬멧/headwear, face/eyewear, armor/armored rig, armband, primary weapon, sidearm/Holster 등 장비 구성
 - Pocket / Rig / Backpack / Secure Container / Special Slot 표현
 - current Tarkov `width × height` footprint
 - 검색 결과 기반 drag-and-drop
@@ -306,20 +306,37 @@ v1.13.0에서 Scanner 오른쪽에 `파밍 가이드` first-class section을 추
 - bounds / overlap / contiguous-space / current filter 검증
 - storage grid / equipment slot / attachment slot / armor plate slot / conflict 구조를 current validated Game Content에서 사용
 - attachment / 교체형 armor plate 설정
-- 전체 raid-start state preset save/load
+- 전체 raid-start state preset save/load/delete
 - melee / PMC dogtag는 per-profile preset과 분리된 fixed setting
 - 총 무게 / 사용 storage cell / 전체 storage cell 요약
 - filled carrier destructive replacement fail-closed
-- old preset이 current Tarkov grid/filter와 충돌하면 impossible placement를 복원하지 않음
+- old preset이 current Tarkov grid/filter/profile pocket geometry와 충돌하면 impossible placement를 복원하지 않음
+
+### 장착 / 주머니 계약
+
+- pistol / revolver / handgun 계열은 **Holster 전용**으로 취급하며 Primary Weapon 1/2에 넣지 않는다.
+- body armor / rig / backpack / secure container는 current item `propertiesType`과 canonical type/category 의미를 함께 사용해 호환성을 판정한다.
+- Rig / Backpack / Secure Container는 equipment slot과 별도 carrier aggregate지만 동일 drag/drop surface에서 장착한다.
+- Pocket geometry는 활성 profile의 edition과 Old Patterns 완료 사실을 사용한다.
+  - standard: `1×1 / 1×1 / 1×1 / 1×1`
+  - expanded: `1×1 / 1×2 / 1×2 / 1×1`
+- resolved pocket geometry는 화면과 persisted placement validation에서 동일한 authority다.
 
 ### Presentation / interaction 계약
 
 - 장비/수납 surface는 text list가 아니라 **아이콘 중심 Tarkov 인벤토리 유사 layout**을 사용한다.
 - equipped item, carrier, storage placement, drag ghost는 실제 item icon으로 표현한다.
 - 회전 상태는 footprint뿐 아니라 icon presentation에도 일관되게 반영한다.
+- 수납 영역은 `Rig → Pockets + Special Slots → Backpack → Secure Container` 순서를 사용한다.
+- Pockets와 Special Slots는 같은 행에서 각각 왼쪽/오른쪽에 표시한다.
+- 장착 장비/수납 아이템을 더블클릭하면 current storage grid / attachment / armor slot 구조를 확인한다.
+- 검색 결과도 더블클릭하면 장착 전에 같은 내부 구조를 read-only로 확인할 수 있다.
+- editable attachment/armor slot이 있는 장비는 기존 설정 기능을 유지한다.
+- preset 삭제는 preset identity를 제거하되 current working loadout을 폐기하지 않는다.
+- melee / PMC dogtag fixed lifecycle은 유지하지만 UI에 `고정` 문구를 붙이지 않는다.
 - 화면 밖으로 clip된 drop target을 geometry fallback으로 선택하지 않는다.
 - valid/invalid hover presentation은 transient하며 pointer가 벗어나면 원복한다.
-- save/search 기본 control은 정상 WPF layout에서 text/icon clipping이 없어야 한다.
+- save/search/preset-name 기본 control은 정상 WPF/DPI layout에서 text/icon/button clipping이 없어야 한다.
 
 ### 현재 비포함
 
@@ -356,7 +373,7 @@ Content write schema: v9
 Readable Content schemas: v3~v9
 ```
 
-v1.13.0 → v1.13.1 mandatory user data migration은 없다. Old readable Content snapshot에 Farming Guide 구조가 없으면 그 구조를 추측해 만들지 않는다.
+v1.13.0 → v1.13.1 → v1.13.2 mandatory user data migration은 없다. Old readable Content snapshot에 Farming Guide 구조가 없으면 그 구조를 추측해 만들지 않는다.
 
 ## 16. 진단 / 지원
 
@@ -418,5 +435,3 @@ v1.13.0 → v1.13.1 mandatory user data migration은 없다. Old readable Conten
 6. 유지보수성/기술 부채 정리
 
 새 기능이나 사용자 경험 변경은 사용자의 명시적인 제품 요구사항이 있을 때만 설계한다. 정상 동작하는 subsystem을 미관상 이유나 추측성 최적화를 위해 대규모 재작성하지 않는다.
-
-현재 공개 제품의 정확한 historical identity는 `docs/PROJECT_STATE.json`과 `docs/RELEASE_1.13.1.md`를 사용한다.

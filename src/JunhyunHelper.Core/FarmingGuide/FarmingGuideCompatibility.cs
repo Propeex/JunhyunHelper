@@ -13,6 +13,9 @@ public static class FarmingGuideCompatibility
             .Select(Normalize)
             .Where(static value => value.Length > 0)
             .ToHashSet(StringComparer.Ordinal);
+        var isPistol = ContainsAny(keys, "pistol", "pistols", "revolver", "revolvers", "handgun", "handguns");
+        var isWeapon = propertyType.Equals("ItemPropertiesWeapon", StringComparison.OrdinalIgnoreCase) ||
+                       ContainsAny(keys, "weapon", "weapons");
 
         return slot switch
         {
@@ -26,16 +29,13 @@ public static class FarmingGuideCompatibility
             FarmingGuideEquipmentSlot.Armband => ContainsAny(keys, "armband", "armbands"),
             FarmingGuideEquipmentSlot.BodyArmor =>
                 propertyType.Equals("ItemPropertiesArmor", StringComparison.OrdinalIgnoreCase) ||
-                ContainsAny(keys, "bodyarmor", "armorvest", "armorvests"),
+                ContainsAny(keys, "bodyarmor", "bodyarmors", "armorvest", "armorvests"),
             FarmingGuideEquipmentSlot.Eyewear =>
                 propertyType.Equals("ItemPropertiesGlasses", StringComparison.OrdinalIgnoreCase) ||
                 ContainsAny(keys, "eyewear", "glasses"),
             FarmingGuideEquipmentSlot.PrimaryWeapon1 or FarmingGuideEquipmentSlot.PrimaryWeapon2 =>
-                propertyType.Equals("ItemPropertiesWeapon", StringComparison.OrdinalIgnoreCase) ||
-                ContainsAny(keys, "weapon", "weapons"),
-            FarmingGuideEquipmentSlot.Holster =>
-                propertyType.Equals("ItemPropertiesWeapon", StringComparison.OrdinalIgnoreCase) &&
-                ContainsAny(keys, "pistol", "pistols", "revolver", "revolvers", "handgun"),
+                isWeapon && !isPistol,
+            FarmingGuideEquipmentSlot.Holster => isPistol,
             FarmingGuideEquipmentSlot.Melee => ContainsAny(keys, "melee", "meleeweapon", "knife", "knives"),
             FarmingGuideEquipmentSlot.Dogtag => ContainsAny(keys, "dogtag", "dogtags"),
             _ => false,
@@ -46,17 +46,22 @@ public static class FarmingGuideCompatibility
     {
         ArgumentNullException.ThrowIfNull(item);
         var propertyType = item.FarmingGuideData?.PropertiesType ?? string.Empty;
-        var keys = item.Types.Concat(item.Categories).Select(Normalize).ToHashSet(StringComparer.Ordinal);
+        var keys = item.Types
+            .Concat(item.Categories)
+            .Select(Normalize)
+            .Where(static value => value.Length > 0)
+            .ToHashSet(StringComparer.Ordinal);
 
         return storage switch
         {
             FarmingGuideStorageKind.Rig =>
-                propertyType.Equals("ItemPropertiesChestRig", StringComparison.OrdinalIgnoreCase),
+                propertyType.Equals("ItemPropertiesChestRig", StringComparison.OrdinalIgnoreCase) ||
+                ContainsAny(keys, "rig", "rigs", "chestRig", "chestRigs", "tacticalRig", "tacticalRigs"),
             FarmingGuideStorageKind.Backpack =>
-                propertyType.Equals("ItemPropertiesBackpack", StringComparison.OrdinalIgnoreCase),
+                propertyType.Equals("ItemPropertiesBackpack", StringComparison.OrdinalIgnoreCase) ||
+                ContainsAny(keys, "backpack", "backpacks"),
             FarmingGuideStorageKind.SecureContainer =>
-                propertyType.Equals("ItemPropertiesContainer", StringComparison.OrdinalIgnoreCase) &&
-                ContainsAny(keys, "securecontainer", "securedcontainer", "pouch", "pouches"),
+                ContainsAny(keys, "securecontainer", "securecontainers", "securedcontainer", "securedcontainers", "pouch", "pouches"),
             _ => false,
         };
     }

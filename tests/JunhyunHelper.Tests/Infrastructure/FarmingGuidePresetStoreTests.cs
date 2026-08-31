@@ -121,6 +121,51 @@ public sealed class FarmingGuidePresetStoreTests
         }
     }
 
+    [Fact]
+    public void DeletePreset_RemovesPresetWithoutDiscardingCurrentWorkingState()
+    {
+        var root = CreateTempDirectory();
+        try
+        {
+            var store = new FarmingGuidePresetStore(root);
+            var first = SnapshotWithHelmet("helmet-a");
+            var current = SnapshotWithHelmet("helmet-b");
+            store.SavePreset("profile-a", "first", first);
+            store.SavePreset("profile-a", "current", current);
+
+            var deleted = store.DeletePreset("profile-a", "CURRENT");
+
+            Assert.Null(deleted.SelectedPresetName);
+            var remaining = Assert.Single(deleted.Presets);
+            Assert.Equal("first", remaining.Name);
+            Assert.Equal(
+                "helmet-b",
+                deleted.WorkingSnapshot.Equipment[FarmingGuideEquipmentSlot.Helmet].ItemId);
+
+            var reloaded = new FarmingGuidePresetStore(root).LoadProfile("profile-a");
+            Assert.Null(reloaded.SelectedPresetName);
+            Assert.Single(reloaded.Presets);
+            Assert.Equal(
+                "helmet-b",
+                reloaded.WorkingSnapshot.Equipment[FarmingGuideEquipmentSlot.Helmet].ItemId);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static FarmingGuideLoadoutSnapshot SnapshotWithHelmet(string itemId) =>
+        new(
+            new Dictionary<FarmingGuideEquipmentSlot, FarmingGuideItemState>
+            {
+                [FarmingGuideEquipmentSlot.Helmet] = FarmingGuideItemState.Create(itemId),
+            },
+            null,
+            null,
+            null,
+            []);
+
     private static string CreateTempDirectory()
     {
         var path = Path.Combine(Path.GetTempPath(), "JunhyunHelper.Tests", Guid.NewGuid().ToString("N"));

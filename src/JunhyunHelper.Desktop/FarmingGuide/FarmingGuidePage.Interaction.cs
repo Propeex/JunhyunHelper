@@ -33,6 +33,10 @@ public partial class FarmingGuidePage
                         EditCarrierTarget(carrier);
                         e.Handled = true;
                         return;
+                    case SearchItemViewModel searchItem:
+                        InspectSearchItem(searchItem.Item);
+                        e.Handled = true;
+                        return;
                 }
             }
             current = VisualTreeHelper.GetParent(current);

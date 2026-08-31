@@ -11,7 +11,8 @@ public sealed class FarmingGuidePresetNameWindow : Window
     {
         Title = "파밍 가이드 프리셋 저장";
         Width = 390;
-        Height = 170;
+        MinHeight = 190;
+        SizeToContent = SizeToContent.Height;
         ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         ShowInTaskbar = false;
@@ -28,7 +29,7 @@ public sealed class FarmingGuidePresetNameWindow : Window
             FontWeight = FontWeights.SemiBold,
         });
 
-        _nameBox = new TextBox { MinHeight = 34 };
+        _nameBox = new TextBox { MinHeight = 36 };
         _nameBox.KeyDown += (_, e) =>
         {
             if (e.Key != System.Windows.Input.Key.Enter)
@@ -43,11 +44,24 @@ public sealed class FarmingGuidePresetNameWindow : Window
         {
             Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Right,
-            Margin = new Thickness(0, 12, 0, 0),
+            Margin = new Thickness(0, 14, 0, 0),
         };
-        var cancel = new Button { Content = "취소", MinWidth = 80, Margin = new Thickness(0, 0, 8, 0) };
-        cancel.Click += (_, _) => { DialogResult = false; };
-        var save = new Button { Content = "저장", MinWidth = 80, IsDefault = true };
+        var cancel = new Button
+        {
+            Content = "취소",
+            MinWidth = 80,
+            MinHeight = 34,
+            Margin = new Thickness(0, 0, 8, 0),
+            IsCancel = true,
+        };
+        cancel.Click += (_, _) => DialogResult = false;
+        var save = new Button
+        {
+            Content = "저장",
+            MinWidth = 80,
+            MinHeight = 34,
+            IsDefault = true,
+        };
         save.Click += (_, _) => Accept();
         buttons.Children.Add(cancel);
         buttons.Children.Add(save);

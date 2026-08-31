@@ -6,6 +6,7 @@ using System.Windows.Media;
 using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.FarmingGuide;
 using JunhyunHelper.Core.Items;
+using JunhyunHelper.Core.Profiles;
 using JunhyunHelper.Desktop.Services;
 using JunhyunHelper.Infrastructure.Storage;
 
@@ -27,8 +28,8 @@ public partial class FarmingGuidePage : UserControl
         (FarmingGuideEquipmentSlot.PrimaryWeapon1, "무기 1", false),
         (FarmingGuideEquipmentSlot.PrimaryWeapon2, "무기 2", false),
         (FarmingGuideEquipmentSlot.Holster, "권총", false),
-        (FarmingGuideEquipmentSlot.Melee, "칼 · 고정", true),
-        (FarmingGuideEquipmentSlot.Dogtag, "인식표 · 고정", true),
+        (FarmingGuideEquipmentSlot.Melee, "칼", true),
+        (FarmingGuideEquipmentSlot.Dogtag, "인식표", true),
     ];
 
     private readonly ObservableCollection<SearchItemViewModel> _searchResults = [];
@@ -39,11 +40,13 @@ public partial class FarmingGuidePage : UserControl
     private GameContentCatalog? _content;
     private ImageCacheService? _images;
     private FarmingGuidePresetStore? _presetStore;
+    private Func<GameProfileSnapshot?>? _profileProvider;
     private string? _profileId;
     private FarmingGuideItemState? _rig;
     private FarmingGuideItemState? _backpack;
     private FarmingGuideItemState? _secureContainer;
     private FarmingGuideFixedEquipmentState _fixedEquipment = FarmingGuideFixedEquipmentState.Empty;
+    private IReadOnlyList<FarmingGuideStorageGridDefinition> _pocketGrids = FarmingGuidePocketLayoutPolicy.StandardGrids;
     private string? _selectedPresetName;
     private bool _updatingPresetCombo;
     private int _searchGeneration;
@@ -59,10 +62,14 @@ public partial class FarmingGuidePage : UserControl
         Loaded += (_, _) => RefreshAll();
     }
 
-    public void Configure(ImageCacheService images, FarmingGuidePresetStore presetStore)
+    public void Configure(
+        ImageCacheService images,
+        FarmingGuidePresetStore presetStore,
+        Func<GameProfileSnapshot?>? profileProvider = null)
     {
         _images = images ?? throw new ArgumentNullException(nameof(images));
         _presetStore = presetStore ?? throw new ArgumentNullException(nameof(presetStore));
+        _profileProvider = profileProvider;
     }
 
     public void SetData(GameContentCatalog content, string profileId)
@@ -72,6 +79,15 @@ public partial class FarmingGuidePage : UserControl
 
         _content = content;
         _profileId = profileId;
+        var activeProfile = _profileProvider?.Invoke();
+        _pocketGrids = activeProfile is not null &&
+                       string.Equals(activeProfile.ProfileId, profileId, StringComparison.Ordinal)
+            ? FarmingGuidePocketLayoutPolicy.Resolve(
+                activeProfile.EditionId,
+                activeProfile.CompletedQuestIds,
+                content.EditionData)
+            : FarmingGuidePocketLayoutPolicy.StandardGrids;
+
         _itemsById.Clear();
         foreach (var item in content.Items)
             _itemsById[item.Id] = item;
@@ -103,7 +119,7 @@ public partial class FarmingGuidePage : UserControl
 
     private void ApplySnapshot(FarmingGuideLoadoutSnapshot snapshot)
     {
-        var sanitized = FarmingGuideLoadoutPolicy.SanitizeSnapshot(snapshot, _itemsById);
+        var sanitized = FarmingGuideLoadoutPolicy.SanitizeSnapshot(snapshot, _itemsById, _pocketGrids);
 
         _equipment.Clear();
         foreach (var entry in sanitized.Equipment)
@@ -172,6 +188,7 @@ public partial class FarmingGuidePage : UserControl
             ? _selectedPresetName
             : PresetPlaceholder;
         _updatingPresetCombo = false;
+        DeletePresetButton.IsEnabled = !string.IsNullOrWhiteSpace(_selectedPresetName);
     }
 
     private void PresetComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -205,6 +222,30 @@ public partial class FarmingGuidePage : UserControl
             return;
 
         var state = _presetStore.SavePreset(_profileId, dialog.PresetName, BuildSnapshot());
+        _selectedPresetName = state.SelectedPresetName;
+        RefreshPresetChoices();
+    }
+
+    private void DeletePresetButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_presetStore is null ||
+            string.IsNullOrWhiteSpace(_profileId) ||
+            string.IsNullOrWhiteSpace(_selectedPresetName))
+        {
+            return;
+        }
+
+        var presetName = _selectedPresetName;
+        var confirmation = MessageBox.Show(
+            $"프리셋 '{presetName}'을 삭제하시겠습니까?",
+            "파밍 가이드 프리셋 삭제",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question,
+            MessageBoxResult.No);
+        if (confirmation != MessageBoxResult.Yes)
+            return;
+
+        var state = _presetStore.DeletePreset(_profileId, presetName);
         _selectedPresetName = state.SelectedPresetName;
         RefreshPresetChoices();
     }
@@ -387,8 +428,8 @@ public partial class FarmingGuidePage : UserControl
 
         return
         [
-            new StorageDefinition(FarmingGuideStorageKind.Pockets, "포켓", FixedGrids(4), null),
             StorageCarrierDefinition(FarmingGuideStorageKind.Rig, "리그", _rig),
+            new StorageDefinition(FarmingGuideStorageKind.Pockets, "주머니", _pocketGrids, null),
             new StorageDefinition(FarmingGuideStorageKind.SpecialSlots, "특수 슬롯", FixedGrids(3), null),
             StorageCarrierDefinition(FarmingGuideStorageKind.Backpack, "가방", _backpack),
             StorageCarrierDefinition(FarmingGuideStorageKind.SecureContainer, "컨테이너", _secureContainer),

@@ -20,6 +20,7 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <ComboBox x:Name="PresetComboBox"
                                   Grid.Column="0"
@@ -51,6 +52,26 @@
                                             BorderBrush="{StaticResource TextSecondaryBrush}"
                                             BorderThickness="1.2" />
                                 </Grid>
+                            </Viewbox>
+                        </Button>
+                        <Button x:Name="DeletePresetButton"
+                                Grid.Column="2"
+                                Width="40"
+                                Height="36"
+                                Margin="7,0,0,0"
+                                Padding="8"
+                                IsEnabled="False"
+                                ToolTip="선택한 프리셋 삭제"
+                                Click="DeletePresetButton_Click">
+                            <Viewbox Width="18" Height="18" Stretch="Uniform">
+                                <Canvas Width="18" Height="18">
+                                    <Path Stroke="{StaticResource TextSecondaryBrush}"
+                                          StrokeThickness="1.5"
+                                          StrokeStartLineCap="Round"
+                                          StrokeEndLineCap="Round"
+                                          StrokeLineJoin="Round"
+                                          Data="M 4,5 L 14,5 M 7,3 L 11,3 L 12,5 M 5.5,5 L 6.2,15 L 11.8,15 L 12.5,5 M 8,8 L 8.3,12.5 M 10,8 L 9.7,12.5" />
+                                </Canvas>
                             </Viewbox>
                         </Button>
                     </Grid>
@@ -110,6 +131,7 @@
                                     CornerRadius="5"
                                     Background="{StaticResource BackgroundDarkBrush}"
                                     Cursor="Hand"
+                                    Tag="{Binding}"
                                     MouseLeftButtonDown="SearchResult_MouseLeftButtonDown">
                                 <Grid>
                                     <Grid.ColumnDefinitions>

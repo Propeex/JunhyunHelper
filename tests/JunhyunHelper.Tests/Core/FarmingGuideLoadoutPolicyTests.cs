@@ -97,6 +97,33 @@ public sealed class FarmingGuideLoadoutPolicyTests
         Assert.Equal("allowed", kept.InstanceId);
     }
 
+    [Fact]
+    public void SanitizeSnapshotUsesResolvedExpandedPocketGeometry()
+    {
+        var tall = Item("tall", null, [], width: 1, height: 2);
+        var catalog = new Dictionary<string, GameItem>(StringComparer.Ordinal)
+        {
+            [tall.Id] = tall,
+        };
+        var snapshot = new FarmingGuideLoadoutSnapshot(
+            new Dictionary<FarmingGuideEquipmentSlot, FarmingGuideItemState>(),
+            null,
+            null,
+            null,
+            [Stored("pocket-item", tall.Id, FarmingGuideStorageKind.Pockets, 1, 0, 0)]);
+
+        var standard = FarmingGuideLoadoutPolicy.SanitizeSnapshot(snapshot, catalog);
+        var expanded = FarmingGuideLoadoutPolicy.SanitizeSnapshot(
+            snapshot,
+            catalog,
+            FarmingGuidePocketLayoutPolicy.ExpandedGrids);
+
+        Assert.Empty(standard.StoredItems);
+        var kept = Assert.Single(expanded.StoredItems);
+        Assert.Equal("pocket-item", kept.InstanceId);
+        Assert.Equal(1, kept.GridIndex);
+    }
+
     private static FarmingGuideStoredItemState Stored(
         string instanceId,
         string itemId,
