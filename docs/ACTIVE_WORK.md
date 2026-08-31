@@ -34,7 +34,7 @@ PR: #247 (draft)
 - current Tarkov secure container(Epsilon 등)는 `propertiesType = ItemPropertiesContainer`로 제공되는데 v1.13.2 secure compatibility는 이 property type을 인정하지 않아 실제 데이터에서 장착이 실패할 수 있었다.
 - current Tarkov item schema에는 `ItemPropertiesPreset` / `preset` 타입의 완성 weapon preset이 일반 item collection에 함께 존재한다. Farming Guide가 이를 실제 물리 아이템처럼 전부 검색 노출해 같은 총이 다수 보였고, preset에는 base weapon의 `slots`가 없어 Glock 같은 총의 attachment UI가 비어 보일 수 있었다.
 
-## Implemented on branch
+## Completed
 
 - Secure Container compatibility에 `ItemPropertiesContainer` 추가.
 - `FarmingGuideStoredItemState.ParentInstanceId` nullable field 추가. 기존 schema-v1 JSON은 null root placement로 그대로 호환.
@@ -50,6 +50,7 @@ PR: #247 (draft)
 - nested storage를 총 수납 칸 요약에도 반영.
 - nested sanitize / secure property type / preset filter / nested persistence regression tests 추가.
 - Draft PR #247 생성 및 CI 시작.
+- Documentation Consistency 실패 원인이 필수 `## Completed` 섹션명 누락임을 확인하고 체크포인트 형식을 복구.
 
 ## Current step
 
