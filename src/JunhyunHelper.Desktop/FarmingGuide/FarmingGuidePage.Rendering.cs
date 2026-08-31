@@ -19,8 +19,6 @@ public partial class FarmingGuidePage
         FarmingGuideItemFilter Filter,
         Canvas Canvas);
     internal sealed record PlacedItemSource(FarmingGuideStoredItemState Placement);
-    internal sealed record EquipmentItemSource(FarmingGuideEquipmentSlot Slot, bool Fixed);
-    internal sealed record CarrierItemSource(FarmingGuideStorageKind Kind);
 
     private void RenderEquipment()
     {
@@ -41,23 +39,20 @@ public partial class FarmingGuidePage
                 BorderThickness = new Thickness(1),
                 BorderBrush = (Brush)FindResource("BorderBrush"),
                 Background = (Brush)FindResource("BackgroundMediumBrush"),
-                Tag = null,
             };
             var target = new EquipmentDropTarget(definition.Slot, definition.Fixed, border);
             border.Tag = target;
             border.MouseLeftButtonDown += Equipment_MouseLeftButtonDown;
-            border.MouseDoubleClick += Equipment_MouseDoubleClick;
 
             var grid = new Grid();
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(86) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            var label = new TextBlock
+            grid.Children.Add(new TextBlock
             {
                 Text = definition.Label,
                 Foreground = (Brush)FindResource("TextSecondaryBrush"),
                 VerticalAlignment = VerticalAlignment.Center,
-            };
-            grid.Children.Add(label);
+            });
             var value = new TextBlock
             {
                 Text = item is null ? "비어 있음" : DisplayName(item),
@@ -95,7 +90,6 @@ public partial class FarmingGuidePage
                 var target = new CarrierDropTarget(storage.Kind, header);
                 header.Tag = target;
                 header.MouseLeftButtonDown += Carrier_MouseLeftButtonDown;
-                header.MouseDoubleClick += Carrier_MouseDoubleClick;
                 header.Child = new TextBlock
                 {
                     Text = carrierItem is null ? $"{storage.Label} · 장비를 여기에 놓으세요" : $"{storage.Label} · {DisplayName(carrierItem)}",
@@ -135,8 +129,7 @@ public partial class FarmingGuidePage
             for (var index = 0; index < storage.Grids.Count; index++)
             {
                 var definition = storage.Grids[index];
-                var canvas = CreateGridCanvas(storage.Kind, index, definition);
-                gridsPanel.Children.Add(canvas);
+                gridsPanel.Children.Add(CreateGridCanvas(storage.Kind, index, definition));
             }
             section.Children.Add(gridsPanel);
             StoragePanel.Children.Add(section);
@@ -194,12 +187,10 @@ public partial class FarmingGuidePage
                 BorderThickness = new Thickness(1),
                 BorderBrush = (Brush)FindResource("AccentBrush"),
                 Background = (Brush)FindResource("BackgroundLightBrush"),
-                ToolTip = DisplayName(item),
                 Cursor = Cursors.Hand,
                 Tag = new PlacedItemSource(placement),
             };
             card.MouseLeftButtonDown += PlacedItem_MouseLeftButtonDown;
-            card.MouseDoubleClick += PlacedItem_MouseDoubleClick;
             card.Child = new TextBlock
             {
                 Text = item.ShortNameKo ?? item.ShortNameEn ?? DisplayName(item),
@@ -218,10 +209,8 @@ public partial class FarmingGuidePage
         return canvas;
     }
 
-    private void Equipment_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    internal void EditEquipmentTarget(EquipmentDropTarget target)
     {
-        if (sender is not Border { Tag: EquipmentDropTarget target })
-            return;
         var state = target.Fixed ? GetFixed(target.Slot) : Equipment.GetValueOrDefault(target.Slot);
         if (state is null)
             return;
@@ -233,13 +222,10 @@ public partial class FarmingGuidePage
                 Equipment[target.Slot] = updated;
             MarkChanged(target.Fixed);
         });
-        e.Handled = true;
     }
 
-    private void Carrier_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    internal void EditCarrierTarget(CarrierDropTarget target)
     {
-        if (sender is not Border { Tag: CarrierDropTarget target })
-            return;
         var state = GetCarrier(target.Kind);
         if (state is null)
             return;
@@ -248,13 +234,10 @@ public partial class FarmingGuidePage
             SetCarrier(target.Kind, updated);
             MarkChanged();
         });
-        e.Handled = true;
     }
 
-    private void PlacedItem_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    internal void EditPlacedItem(PlacedItemSource source)
     {
-        if (sender is not Border { Tag: PlacedItemSource source })
-            return;
         EditItemConfiguration(source.Placement.Item, updated =>
         {
             var index = StoredItems.FindIndex(item => item.InstanceId == source.Placement.InstanceId);
@@ -262,7 +245,6 @@ public partial class FarmingGuidePage
                 StoredItems[index] = StoredItems[index] with { Item = updated };
             MarkChanged();
         });
-        e.Handled = true;
     }
 
     private void EditItemConfiguration(FarmingGuideItemState state, Action<FarmingGuideItemState> apply)
