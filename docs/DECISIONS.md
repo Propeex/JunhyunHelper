@@ -1,191 +1,201 @@
 # DECISIONS — 현재 유효한 장기 결정 인덱스
 
-이 문서는 준현 헬퍼의 **현재 유효한 장기 결정과 supersession 관계를 빠르게 복구하기 위한 active index**다. 상세 현재 제품 상태와 release evidence는 `docs/STATE.md`가 권위다.
+이 문서는 준현 헬퍼의 **현재 유효한 장기 결정과 supersession 관계를 빠르게 복구하기 위한 active index**다. 현재 사실값은 `docs/PROJECT_STATE.json`, 현재 제품 상태와 release evidence는 `docs/CURRENT_STATE.md` / `docs/STATE.md`가 권위다.
 
-기준일: 2026-08-29 KST  
-현재 공개 제품: **v1.10.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+기준일: **2026-08-31 KST**  
+현재 공개 제품: **v1.12.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+
+과거 결정 원문과 당시 release-specific 사실은 historical evidence다. 현재 제품 의미와 충돌하면 최신 confirmed decision, canonical current-state 문서, 실제 코드/테스트가 우선한다.
 
 ## 1. 장기 기본 결정
 
-DEC-001~DEC-029 원문은 `docs/DECISIONS_HISTORY_THROUGH_2026-08-09.md`에 보존한다. 이후 DEC-030~059와 standalone 결정은 아래 current authority chain 및 각 전문 문서가 권위다.
+DEC-001~DEC-029 원문은 `docs/DECISIONS_HISTORY_THROUGH_2026-08-09.md`에 보존한다. 이후 numbered/standalone 결정도 각 전문 문서에 보존한다.
 
-현재도 유지되는 핵심 장기 결정:
+현재도 유지되는 핵심 원칙:
 
-- 새 제품 요구사항이 현재 구현보다 우선하며 기존 프로토타입 코드를 사양으로 추정하지 않는다.
-- GitHub 저장소의 공식 문서와 현재 코드/CI를 프로젝트 기억의 기준으로 사용한다.
-- 사용자는 제품 판단에 집중하고 개발 절차는 개발자가 책임진다.
-- Map/MiniMap은 pinned donor source만 제한적으로 사용하며 JunhyunHelper first-party bridge가 제품 의미를 소유한다.
-- Windows x64 self-contained portable release와 checksum/오염 gate를 유지한다.
-- 새 사용자 기능은 MINOR, 기존 기능 수정/보완은 PATCH를 기본으로 한다.
-- Program Update는 latest stable release와 checksum을 검증한 뒤 사용자 동의로만 적용하며 사용자 mutable data를 덮어쓰지 않는다.
-- Scanner는 current official Korean full-item catalog를 Item ID authority로 사용하고 false positive보다 miss를 선호한다.
-- Scanner recognition acceptance는 reviewed actual Tarkov evidence 없이 완화하지 않는다.
-- user-visible WPF lifecycle 변경은 source assertion이 아니라 actual published EXE runtime evidence로 검증한다.
-- 장기 async/lifecycle 종료 경계는 가능한 경우 actual published EXE의 정상 Main Window close로 직접 검증한다.
+- 새로 확정된 사용자 제품 요구사항이 현재 구현보다 우선한다. 기존 `Propeex/Tarkov-Helper` 프로토타입은 제품 사양 권위가 아니다.
+- GitHub 저장소의 공식 문서, 현재 코드, 테스트, CI/release 상태가 프로젝트 기억의 기준이다.
+- 사용자는 제품 판단에 집중하고 구현/Git/PR/CI/배포는 개발자가 책임진다.
+- 새 사용자 기능은 MINOR, 기존 기능의 수정·보완은 PATCH를 기본으로 한다.
+- 사용자에게 보이는 WPF 변경은 source assertion만으로 완료 선언하지 않고 actual published EXE runtime smoke까지 검증한다.
+- 장기 async/lifecycle 종료 경계는 active async work 중 정상 Main Window close를 포함해 회귀 검증한다.
+- 공개 stable release의 tag/source/assets는 immutable historical identity로 취급하며 후속 documentation-only commit을 제품 source로 재정의하지 않는다.
 
-## 2. 현재 Scanner authority
+## 2. Scanner current authority
 
-현재 사용자-facing Scanner 필요 수량/출처 authority:
+현재 사용자-facing 필요 수량/출처 authority:
 
 ```text
 needed quantity = ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal
 needed source   = ItemsWorkspace.Plan.NeededItems[itemId].Sources
 ```
 
-과거 DEC-050/054/057/058/059 등의 `RequiredTotal` 문구는 역사적 당시 계약이며 위 current authority로 superseded됐다.
+Scanner identity proof에는 price/needed/source/relationship metadata를 사용하지 않는다. OCR threshold, matcher, candidate cap, visual corroboration/recovery acceptance는 reviewed actual Tarkov evidence 없이 완화하지 않는다.
 
-Scanner identity proof에 price/needed/source/relationship metadata를 사용하지 않는다. OCR threshold, matcher, candidate cap, visual corroboration/recovery acceptance는 reviewed evidence 없이 조정하지 않는다.
+Scanner는 external screen pixels + OCR만 사용한다. 다음은 사용하지 않는다.
 
-## 3. 현재 standalone decision chain
+- game process memory read
+- code/DLL injection
+- game/process hook
+- kernel/driver 접근
+- input automation
+- game network manipulation
+- anti-cheat bypass
 
-### Product complete / maintenance mode
+Ground Truth는 explicit user-reviewed save만 authoritative하다. correction hotkey는 evidence-only Saved Case를 저장하며 Ground Truth를 자동 생성·추측하지 않는다.
 
-- `docs/DECISION_PRODUCT_COMPLETE_2026-08-26.md`
-- 현재 요구사항 범위 제품은 complete를 기본 상태로 유지하되, 확인된 실사용 회귀와 사용자가 확정한 신규 요구사항은 maintenance/new-minor 작업으로 처리한다.
-
-### Scanner storage / hotkeys / evidence
+관련 결정:
 
 - `docs/DECISION_SCANNER_STORAGE_AND_HOTKEYS_2026-08-26.md`
-- `docs/DECISION_V1.7.8_RAID_HEADER_LOCK_2026-08-26.md`
-- `docs/DECISION_V1.7.9_MINI_SCANNER_SHOW_2026-08-26.md`
 - `docs/DECISION_SCANNER_CROSS_ENVIRONMENT_2026-08-26.md`
-- `docs/DECISION_V1.7.11_MAINTENANCE.md`
-- durable Ground Truth는 explicit user-reviewed save만 사용하고 Scanner recognition은 actual Tarkov evidence 기반으로 유지한다.
+- `docs/DECISION_V1.8.0_SCANNER_ITEM_DATABASE.md`
+- `docs/DECISION_V1.8.1_ITEM_RELATIONSHIP_COMPLETENESS.md`
+- `docs/DECISION_V1.8.2_RUNTIME_LIVE_REGRESSIONS.md`
+- `docs/DECISION_V1.8.4_AMMO_SCANNER_ITEM_DETAIL.md`
+- `docs/DECISION_V1.9.0_SCANNER_FAVORITES_RECENTS_AND_UI_FIXES.md`
 
-### Long-term maintenance / UI lifecycle
+## 3. Quest staged task-pool compatibility
 
+현재 authority:
+
+- `docs/DECISION_TASK_POOL_RUNTIME_COMPATIBILITY_2026-08-17.md`
+
+v1.12.0에서 정제된 계약을 유지한다.
+
+- exact ProfileVariable 값이 있으면 항상 최우선 권위값이다.
+- audited current-version staged pool과 구조가 완전히 일치할 때만 제한적 compatibility를 허용한다.
+- 현재 trader LL이 audited stage보다 낮으면 잠금 의미를 유지한다.
+- current stage에서는 기존 보수적 reconstruction/fail-closed를 유지한다.
+- 현재 trader LL이 audited stage보다 높으면 과거 stage threshold가 충족됐다는 runtime-only effective floor를 사용할 수 있다.
+- 이 floor는 숨은 server counter의 exact fact로 저장하거나 주장하지 않는다.
+- structural drift는 `Indeterminate / 확인 필요`로 fail closed한다.
+- Future Needed Items / cleanup에는 current Quest UI compatibility를 낙관적으로 전파하지 않는다.
+
+## 4. 김태영 PC 진단
+
+현재 authority:
+
+- `docs/DECISION_V1.12.0_KIM_TAEYOUNG_PC_DIAGNOSTIC.md`
+
+상태: **CONFIRMED / PUBLIC VERIFIED v1.12.1**.
+
+정상 성공 UX:
+
+```text
+프로필 이미지 클릭
+→ “혹시 김태영 본인?”
+→ 예
+→ indeterminate progress bar
+→ Desktop diagnostic ZIP 생성
+→ “진단 완료.\n파일을 hyune4784@naver.com 으로 보내주세요.”
+→ 기본 브라우저에서 https://mail.naver.com/v2/new 열기
+```
+
+- ZIP은 자동 업로드하지 않는다.
+- 웹메일 DOM/UI를 자동 조작하지 않는다.
+- 파일을 자동 첨부하거나 이메일을 자동 발송하지 않는다.
+- 사용자명, 컴퓨터명, IP/MAC, 네트워크 목록, credential, 전체 환경변수, 임의 전체 process inventory, 설치 경로는 진단 수집에서 제외한다.
+- 화면 캡처 자체에는 실행 당시 실제 화면 내용이 포함될 수 있다.
+- optional probe는 fail-soft이며 핵심 ZIP 작성 실패만 전체 실패로 처리한다.
+- 사용자 노트북의 실제 v1.12.0 diagnostic ZIP에서 exporter 정상 동작을 확인했다. 김태영 PC 원인 판정은 김태영 실제 PC에서 생성된 evidence로 수행한다.
+
+## 5. Map / MiniMap
+
+Map/MiniMap donor pin:
+
+```text
+SIGDrone/Tarkov-Helper@d933792b6042a51cea38dc44b686a096fe30de67
+```
+
+JunhyunHelper first-party bridge가 제품 의미와 lifecycle/presentation ownership을 가진다.
+
+현재 유지되는 핵심 계약:
+
+- Main Map selection은 fresh/reused MiniMap에 동기화된다.
+- player heading은 position과 동일한 map별 affine transform 좌표계를 사용한다.
+- PMC / Scav / Transit extract filter와 실제 rendered marker를 검증한다.
+- loaded marker data는 있는데 standard layer만 비는 bounded empty-layer race는 another refresh race 없이 직접 복구한다.
+- Player Marker Size 변경은 player marker만 변경하며 Name Size / MiniMap Marker Size 등 unrelated presentation을 재초기화하지 않는다.
+- Mini Scanner 우클릭 correction context menu는 제거 상태를 유지한다.
+
+관련 결정/역사:
+
+- `docs/DECISION_V1.9.1_FINAL_UI_MINIMAP.md` — historical; first-create/reuse 검증이 이후 강화됨
+- `docs/DECISION_V1.10.0_MINIMAP_REOPEN_MINISCANNER_FLEA_MINIMUM.md`
+- 최신 실제 계약과 v1.11.x 수정은 `docs/STATE.md` 및 각 release record가 권위다.
+
+## 6. Hideout / Ammo / Game Content
+
+Hideout FIR:
+
+- source `attributes.foundInRaid` 의미를 canonical requirement에 보존한다.
+- FIR requirement에는 non-FIR inventory가 충당되지 않는다.
+
+Ammo:
+
+- pickup 판단은 same-caliber penetration과 현재 profile에서 증명된 direct purchase 상태를 기준으로 한다.
+- flea/barter/craft/higher trader LL/unproven quest unlock은 현재 직접 구매 가능으로 취급하지 않는다.
+- Ammo Pack은 authoritative `containsItems` 관계를 우선한다.
+
+Game Content:
+
+- candidate download/build → schema/completeness/integrity validation → validated active 승격
+- Last Known Good 보존
+- 검증 실패 시 기존 정상 데이터 유지
+- current source 의미가 불명확하거나 구조 drift가 있으면 fail closed
+
+## 7. Program Update / Release
+
+- GitHub latest public stable release를 사용한다.
+- 사용자 동의 없이 프로그램을 자동 교체하지 않는다.
+- stable ZIP + checksum을 검증한다.
+- Release workflow는 exact-main CI artifact를 사용한다.
+- 공개 asset과 exact product source/tag target이 일치해야 한다.
+- documentation-only main commit이 같은 assembly version의 다른 bytes를 만들 수 있어도 이미 공개된 asset을 교체하거나 historical product source를 변경하지 않는다.
+
+현재 v1.12.1 public identity:
+
+```text
+exact product source/tag target:
+07a808f187e59f1b2b4b62ca6a947ccbed9baeaa
+release id: 379473487
+483 passed / 0 failed / 0 skipped
+```
+
+상세 evidence:
+
+- `docs/RELEASE_1.12.1.md`
+- `docs/.release-v1.12.1-status.json`
+- `docs/RELEASE_NOTES_V1.12.1.md`
+
+## 8. Product complete / maintenance / lifecycle
+
+관련 결정:
+
+- `docs/DECISION_PRODUCT_COMPLETE_2026-08-26.md`
 - `docs/DECISION_LONG_TERM_MAINTENANCE_AUDIT_2026-08-27.md`
 - `docs/DECISION_V1.7.12_MAINTENANCE.md`
 - `docs/DECISION_V1.7.13_UI_SIMPLIFICATION.md`
 - `docs/DECISION_V1.7.14_UI_CONSISTENCY.md`
 - `docs/DECISION_V1.8.3_VISIBLE_UI_RUNTIME_ACTIVATION.md`
-- `docs/DECISION_V1.10.1_POST_RELEASE_STABILITY_SWEEP.md`
-- incidental page/class-level `Loaded` ownership보다 product-window/page explicit lifecycle ownership을 우선한다.
-- descriptor/event/timer/hook subscription은 제품 수명주기 종료 시 가능한 범위에서 대칭적으로 해제한다.
-- 정상인 explicit lifecycle/disposal 경로는 미관상 리팩터링하지 않고, 중요한 ownership chain은 deterministic regression contract로 고정한다.
-- user-visible WPF lifecycle/runtime 변경은 actual published EXE runtime evidence로 검증한다.
-- active async work 중 Main Window 종료도 별도 published-EXE regression gate로 고정한다.
-
-### Scanner item database / Game Content relationships
-
-- `docs/DECISION_V1.8.0_SCANNER_ITEM_DATABASE.md`
-- `docs/DECISION_V1.8.1_ITEM_RELATIONSHIP_COMPLETENESS.md`
-- `docs/DECISION_V1.8.2_RUNTIME_LIVE_REGRESSIONS.md`
-- `docs/DECISION_V1.8.4_AMMO_SCANNER_ITEM_DETAIL.md`
-- Game Content v8 relationship graph, retained-floor/LKG/fail-closed, current live relationship compatibility와 Scanner item-detail presentation 계약을 유지한다.
-
-### v1.9.0 Scanner Favorites / Recents
-
-- `docs/DECISION_V1.9.0_SCANNER_FAVORITES_RECENTS_AND_UI_FIXES.md`
-- canonical Item ID 기반 Favorites/Recents persistence, canonical item-open boundary, search/detail separation, current GameMode re-resolution을 유지한다.
-
-### v1.9.1 Final UI / MiniMap synchronization
-
-- `docs/DECISION_V1.9.1_FINAL_UI_MINIMAP.md`
-- Scanner favorite/Wiki action과 Map 탈출구 UI는 **IMPLEMENTED / PUBLIC VERIFIED v1.9.1**.
-- v1.9.1의 MiniMap selection-sync 구현/검증은 실사용 회귀로 불완전함이 확인됐다. `SourceInitialized`/`Loaded`와 active-window state만 검증해 donor의 hidden loaded Window 재사용 경로를 놓쳤다.
-- 따라서 v1.9.1 문서의 “A→B 후 MiniMap 첫 표시가 B” 성공 주장은 historical release evidence이며 현재 MiniMap correctness authority는 v1.10.0 결정이다.
-
-### v1.10.0 MiniMap reopen sync / Mini Scanner flea minimum
-
-- `docs/DECISION_V1.10.0_MINIMAP_REOPEN_MINISCANNER_FLEA_MINIMUM.md`
-- 상태: **IMPLEMENTED / PUBLIC VERIFIED v1.10.0**.
-- donor `Hide()` → same loaded Window `Show()` 재사용 경로를 별도 제품 경계로 인정한다.
-- `OverlayVisibilityChanged(true)`에서 visible Main Map selector를 synchronous하게 tracker/active MiniMap에 반영한다.
-- published EXE smoke는 actual A render → hide → visible selector B → same Window show → actual `MapSvg.Source` B render를 검증한다.
-- Mini Scanner의 `플리마켓 최저가`는 Scanner catalog `lastLowPrice` 기반 presentation-only 필드다.
-- Scanner catalog cache는 v1~v4 readable / v4 written, Scanner display settings는 v7이다.
-- price는 Item ID proof에 사용하지 않고 scan-time network I/O도 추가하지 않는다.
-
-MiniMap runtime proof:
-
-```text
-main-map-selection-boundary=ok
-active-minimap-map-sync=ok
-reused-minimap-show-boundary=ok
-rendered-minimap-map-sync=ok
-```
-
-### v1.10.1 stability audit / lifecycle hardening
-
 - `docs/DECISION_V1.10.1_STABILITY_AUDIT.md`
-- 상태: **IMPLEMENTED / PUBLIC VERIFIED v1.10.1**.
-- MainWindow header polish의 static class-level `Loaded` handler를 제거하고 `MainWindow.OnInitialized`가 explicit initialization을 소유한다.
-- `DependencyPropertyDescriptor` status watcher는 `MainWindow.OnClosed`에서 명시 해제한다.
-- header의 version-only 표시와 Items cleanup 오렌지 점 사용자 의미는 변경하지 않는다.
-- `DesktopStartupWiringContractTests`가 class-level handler 재유입 금지와 explicit init/cleanup ownership을 고정한다.
-- 현재 실행 경로에서 사용되지 않는 v1.2.1 one-off finalization helper를 제거하되 역사적 release evidence는 보존한다.
-- packaged `FIRST_RUN_KO.txt`는 현재/직전 핵심 변경만 유지하고 전체 역사 authority는 GitHub Releases/docs로 둔다.
-- 저장/Program Update/Scanner/Game Content/Map의 기존 방어 계약은 실제 회귀 증거가 없어 변경하지 않았다.
-
-Public proof:
-
-```text
-exact product release source/tag target:
-c444a1e26793e15c075875159f6605d8a99cf7f9
-PR CI: 33253141127 — SUCCESS
-exact-main CI: 33253293015 — SUCCESS
-Release workflow: 33253438908 — SUCCESS
-439 passed / 0 failed / 0 skipped
-release id: 378982127
-public ZIP SHA-256:
-c37c00a5e5ecdc431d6b26775d73682cabf17e4310533065c88e2d58d8f14922
-```
-
-### v1.10.1 post-release stability sweep
-
 - `docs/DECISION_V1.10.1_POST_RELEASE_STABILITY_SWEEP.md`
-- 상태: **MAINTENANCE VERIFIED / TEST + PUBLISHED-EXE CONTRACT**.
-- Program Update startup fire-and-forget 경계, MainWindow/DesktopServices shutdown ownership, Scanner monitor/hotkey/runtime/OCR/overlay/catalog cleanup, Scanner diagnostic retention timer를 재점검했다.
-- 확인된 런타임 결함은 없어 제품 코드는 변경하지 않았다.
-- `DesktopStartupWiringContractTests.ProductLifetime_DisposesOwnedLongLivedServices`를 추가해 현재의 정상 disposal chain이 향후 리팩터링에서 누락되지 않도록 고정한다.
-- `.github/workflows/shutdown-race-ci.yml`은 actual Windows x64 Release publish EXE에서 full async Product/Map smoke가 끝나기 전에 정상 Main Window close를 요청하고, 7초 이내 exit 0 및 diagnostic 부재를 요구한다.
-- 현재 코드가 이 runtime gate를 통과했으므로 global lifetime CTS/cancellation 구조를 근거 없이 추가하지 않는다.
-- 이 작업은 tests/workflow/docs-only이며 v1.10.1 public product source/tag/assets를 변경하지 않는다.
 
-Post-release proof:
+현재 제품은 feature-complete maintenance mode다. 실제 회귀, Tarkov 변화, 또는 사용자가 명시적으로 확정한 새 제품 요구사항이 있을 때 필요한 범위만 수정한다. 정상 동작하는 lifecycle/disposal 경로를 미관상 이유로 전면 리팩터링하지 않는다.
 
-```text
-PR #220 CI: 33254932421 — SUCCESS
-#220 exact-main CI: 33255074971 — SUCCESS
-#220 Release verification: 33255208324 — SUCCESS
-PR #221 CI: 33255650930 — SUCCESS
-PR #221 Shutdown Race CI: 33255651032 — SUCCESS
-latest non-documentation maintenance head:
-22701e5419bca2995d442599fad646abcd484007
-exact-main CI: 33258220788 — SUCCESS
-exact-main Shutdown Race CI: 33258220786 — SUCCESS
-Release immutable verification: 33258352426 — SUCCESS
-current deterministic tests: 440 passed / 0 failed / 0 skipped
-```
+## 9. 현재 결정 확인 순서
 
-Public readback after the maintenance workflow still returns release `378982127`, tag target `c444a1e26793e15c075875159f6605d8a99cf7f9`, ZIP asset `535210900` / 80,540,164 bytes / SHA-256 `c37c00a5e5ecdc431d6b26775d73682cabf17e4310533065c88e2d58d8f14922`.
-
-## 4. 현재 비변경 안전 계약
-
-- Scanner OCR threshold / matcher / candidate cap / visual recovery acceptance
-- Scanner capture geometry / Ground Truth ownership
-- Scanner canonical Item ID identity policy
-- Game Content LKG / relationship completeness / fail-closed
-- Scanner Favorites / Recents semantic contract
-- Ammo filtering / favorite persistence
-- Map/Factory/MiniMap 기존 기능 의미
-- Map donor pin `d933792b6042a51cea38dc44b686a096fe30de67`
-- Program Update stable checksum / user-consent / mutable-data preservation
-- user.db schema v1 / Content v3~v8 readable compatibility
-
-## 5. 현재 결정 확인 순서
-
-1. `docs/PRODUCT.md`
-2. `docs/CURRENT_STATE.md`
-3. `docs/STATE.md`
-4. `docs/DECISIONS.md`
-5. 최신 작업의 `docs/DECISION_*` 문서
-6. `docs/ARCHITECTURE.md`
-7. `docs/DEVELOPER_REFERENCE.md`
-8. `docs/MAINTENANCE_CONTRACTS.md`
-9. Scanner 전문 문서
-10. Map 전문 문서
-11. current code / PR / CI / release state
+1. `docs/PROJECT_STATE.json`
+2. `docs/ACTIVE_WORK.md`
+3. `docs/PRODUCT.md`
+4. `docs/CURRENT_STATE.md`
+5. `docs/STATE.md`
+6. `docs/DECISIONS.md`
+7. 관련 최신 `docs/DECISION_*`
+8. `docs/ARCHITECTURE.md`
+9. `docs/DEVELOPER_REFERENCE.md`
+10. `docs/MAINTENANCE_CONTRACTS.md`
+11. Scanner / Map 전문 문서
+12. current code / tests / PR / CI / release state
 
 과거 release/decision 문서의 당시 값은 historical evidence다. 현재 제품 의미와 충돌하면 최신 confirmed decision과 current canonical docs가 우선한다.
