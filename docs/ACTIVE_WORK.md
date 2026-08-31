@@ -5,17 +5,18 @@ Updated: **2026-08-31 KST**
 
 ## Goal
 
-Farming Guide의 loadout/storage/preset/inspect 실사용 회귀를 수정하고, 사용자 확정 동작을 deterministic tests와 Windows published-runtime 검증으로 고정한다.
+Farming Guide의 loadout/storage/preset/inspect 실사용 회귀를 수정하고, 사용자 확정 동작을 deterministic tests와 Windows published-runtime 검증으로 고정한 뒤 **v1.13.2 PATCH**로 안전하게 공개한다.
 
 ## Base
 
 ```text
 public stable: v1.13.1
+public stable exact product source:
+302f83e88cc65b5fae9b86b5cae294b2586c85a0
 base main: 8efad3360efbccce504c94669ae1aeb54288fdca
 branch: fix/farming-guide-loadout-storage-inspect-2026-08-31
 PR: #245
-implementation/test checkpoint before documentation updates:
-d5352534742baf1aa340ba12554cbb0fe89b770f
+release target: v1.13.2
 ```
 
 ## Confirmed scope
@@ -66,26 +67,40 @@ d5352534742baf1aa340ba12554cbb0fe89b770f
   - standard / expanded pocket resolution.
   - expanded 1×2 pocket persisted placement validation.
   - preset deletion persistence / working-state preservation.
-- PR #245 생성 및 CI 시작.
+- 구현 검증 exact PR head `ea73fff8f97eddf6e4411d6b4a85482b59c08344`:
+  - CI `33371954983` — SUCCESS.
+  - Shutdown Race CI `33371954999` — SUCCESS.
+  - Documentation Consistency `33371954991` — SUCCESS.
+  - **504 passed / 0 failed / 0 skipped**.
+  - Windows Release build / XAML compile — SUCCESS.
+  - Windows x64 self-contained publish — SUCCESS.
+  - actual published EXE Product UI / Farming Guide / Map smoke — SUCCESS.
+  - graceful shutdown / clean portable root / package checksum audit — SUCCESS.
+- v1.13.2 release-candidate metadata 준비:
+  - Desktop `<Version>` = `1.13.2`.
+  - `PROJECT_STATE.product.desktopVersion` = `1.13.2`; publicStable은 실제 공개 전까지 v1.13.1 유지.
+  - `FIRST_RUN_KO.txt` v1.13.2 변경 내역 추가.
+  - `docs/RELEASE_NOTES_V1.13.2.md` 추가.
+  - release metadata 편집 중 발견한 donor `CustomMarkerEditorWindow.xaml` link path는 즉시 기존 exact path로 원복하여 donor 계약을 보존.
 
 ## Current step
 
-PR exact-head 검증 중이다.
+**v1.13.2 최종 release-candidate PR HEAD exact 검증 단계**다.
 
-- 최초 PR head `ca931a989dff7b8536d442c7b42f272560a627f9`에서 CI / Shutdown Race CI가 실행 중이었다.
-- Documentation Consistency는 ACTIVE_WORK required headings 형식 불일치로 실패했으며 제품 코드 실패가 아니다.
-- `.github/scripts/Test-DocumentationConsistency.ps1` 계약에 맞춰 현재 문서를 `Goal / Base / Confirmed scope / Completed / Current step / Remaining` canonical ACTIVE 형식으로 교정했다.
-- 현재 런타임의 외부 DNS 제한으로 로컬 clone/build는 시작되지 못했다. 제품 또는 test failure 증거는 아니며 Windows compile/runtime 검증은 repository CI가 담당한다.
+제품 구현 자체는 `ea73fff8f97eddf6e4411d6b4a85482b59c08344`에서 full Windows gate를 통과했다. 이후 변경은 v1.13.2 버전/첫 실행 문서/프로젝트 상태/릴리즈 노트와 ACTIVE_WORK 체크포인트이며, 최종 병합 전 현재 HEAD 자체에 대해 CI / Shutdown Race CI / Documentation Consistency를 다시 모두 통과시킨다.
+
+현재 런타임의 외부 DNS 제한으로 로컬 clone/build는 시작되지 못했다. 제품 또는 test failure 증거는 아니며 Windows compile/runtime 검증은 repository CI가 authority다.
 
 ## Remaining
 
-1. 문서 교정 이후 새 exact PR head의 Documentation Consistency가 통과하는지 확인한다.
-2. exact-head CI / Shutdown Race CI의 C#/XAML compile, deterministic tests, Release publish, Product UI/Farming Guide smoke 결과를 확인한다.
-3. 실패가 있으면 로그 기준으로 코드 또는 테스트를 수정하고 exact-head 검증을 반복한다.
-4. 검증된 동작을 `docs/PRODUCT.md`, `docs/CURRENT_STATE.md`, `docs/STATE.md`, Farming Guide architecture/decision 문서에 반영한다.
-5. 모든 required exact-head checks가 green인 동일 HEAD만 merge한다.
-6. exact-main CI를 다시 확인하고 현재 release policy에 따라 PATCH release 필요 여부/버전을 확정한다.
-7. release를 수행하는 경우 public tag/release/asset digest까지 검증한 뒤 ACTIVE_WORK를 NONE으로 닫는다.
+1. 현재 v1.13.2 final candidate exact PR head의 CI / Shutdown Race CI / Documentation Consistency를 모두 green으로 확인한다.
+2. final exact-head CI 로그에서 504 tests, ProductVersion `1.13.2+...`, FIRST_RUN v1.13.2 identity, published EXE smoke, package/checksum audit를 확인한다.
+3. 검증된 동작을 `docs/PRODUCT.md`와 `docs/ARCHITECTURE_FARMING_GUIDE.md`의 장기 계약에 반영한다. release authority가 필요한 CURRENT_STATE/STATE/README/publicStable은 실제 public v1.13.2 identity가 확정된 뒤 exact source와 함께 갱신한다.
+4. 모든 required exact-head checks가 green인 동일 HEAD만 PR #245로 main에 병합한다.
+5. exact-main CI / Shutdown Race / Documentation Consistency를 확인한다.
+6. main CI 성공으로 자동 Release workflow가 만든 `v1.13.2` tag/release/assets를 검증한다.
+7. public release ID, exact product source, asset bytes/digest가 확정되면 `PROJECT_STATE`, README, CURRENT_STATE, STATE, `RELEASE_1.13.2.md` 등 canonical release memory를 갱신한다.
+8. 후속 documentation-only exact-main consistency/release immutability 검증 후 `ACTIVE_WORK`를 `NONE`으로 닫는다.
 
 ## Last completed work
 
