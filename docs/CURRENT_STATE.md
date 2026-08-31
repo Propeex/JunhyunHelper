@@ -4,95 +4,88 @@
 
 기준일: **2026-08-31 KST**
 
-상태: **`v1.11.3 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE`**
+상태: **`v1.11.4 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE`**
 
 ## 공개 stable
 
 ```text
-public stable/latest: v1.11.3
+public stable/latest: v1.11.4
 exact product release source/tag target:
-043abad38f4c3ebc9101463a162614ef67df7536
-PR: #234 — MERGED
-superseded draft PR: #233 — CLOSED / NOT MERGED
-PR exact-head CI: 33319386444 — SUCCESS
-PR exact-head Shutdown Race CI: 33319386465 — SUCCESS
-PR exact-head Documentation Consistency: 33319386455 — SUCCESS
-exact-main CI: 33319592093 — SUCCESS
-exact-main Shutdown Race CI: 33319592115 — SUCCESS
-exact-main Documentation Consistency: 33319592111 — SUCCESS
-release workflow: 33319769016 — SUCCESS
-release id: 379321405
-published UTC: 2026-08-30T15:29:47Z
-474 passed / 0 failed / 0 skipped
+f9d3497004241ea80193e5a0d242e7219cf04f2a
+PR: #236 — MERGED
+superseded draft PR: #235 — CLOSED / NOT MERGED
+final feature head: 84b56e81171543e289ed417d822c40c9d607d4d3
+PR exact-head CI: 33345630940 — SUCCESS
+PR exact-head Shutdown Race CI: 33345630896 — SUCCESS
+PR exact-head Documentation Consistency: 33345630871 — SUCCESS
+exact-main CI: 33345851673 — SUCCESS
+exact-main Shutdown Race CI: 33345851704 — SUCCESS
+exact-main Documentation Consistency: 33345851658 — SUCCESS
+release workflow: 33346020525 — SUCCESS
+release id: 379449740
+published UTC: 2026-08-31T00:56:10Z
+478 passed / 0 failed / 0 skipped
 ```
 
 Public package:
 
 ```text
 Junhyun-Helper.zip
-asset id: 536758239
-bytes: 80,558,970
+asset id: 537252429
+bytes: 80,564,330
 SHA-256:
-e43892ecafc9920a7e3b7295f94b8a5324865977028b3573437d8ff7de4f327e
+99ad5d7ce75bc5211edf79a6e80c93b666489bb4a47f4358b2ece70c183f2643
 
 SHA256SUMS.txt
-asset id: 536758240
+asset id: 537252430
 bytes: 86
 asset SHA-256:
-5b3cc0468ad6a11076b547883fbd16d1276c74bc51779251c0c3421a070d63c3
+6b81b3816b63b49999e225244214f3d2a3eeabc67fa88da2dd38542c0969f092
 ```
 
 Exact-main Actions artifact:
 
 ```text
 name: JunhyunHelper-win-x64
-artifact id: 9734538554
-archive bytes: 241,607,396
+artifact id: 9741999225
+archive bytes: 241,626,166
 archive SHA-256:
-cf10ab86f31c44dff00414b9f4e47ff9bf5a64df18210084bd2b41c42e3ac2a7
+0af92581d315e2e69d7ff319f1c9968e52fa0093d8635db0eec894e954e2a450
 ```
 
-GitHub `/releases/latest`, release target, `refs/tags/v1.11.3`, exact-main product source가 모두 `043abad38f4c3ebc9101463a162614ef67df7536`로 일치한다. 공개 release는 `draft=false`, `prerelease=false`이며 Release workflow는 exact-main CI artifact를 다운로드해 검증한 뒤 공개했다.
+GitHub `/releases/latest`, release `target_commitish`, `refs/tags/v1.11.4`, exact-main product source가 모두 `f9d3497004241ea80193e5a0d242e7219cf04f2a`로 일치한다. 공개 release는 `draft=false`, `prerelease=false`이며 Release workflow는 exact-main CI artifact를 다운로드해 package manifest/actual ZIP hash를 검증한 뒤 공개했다. 공개 ZIP의 GitHub asset digest도 같은 `99ad5d7ce75bc5211edf79a6e80c93b666489bb4a47f4358b2ece70c183f2643`이다.
 
 공개 증거:
 
-- `docs/RELEASE_1.11.3.md`
-- `docs/.release-v1.11.3-status.json`
-- `docs/RELEASE_NOTES_V1.11.3.md`
+- `docs/RELEASE_1.11.4.md`
+- `docs/.release-v1.11.4-status.json`
+- `docs/RELEASE_NOTES_V1.11.4.md`
 
-## v1.11.3 핵심 변경
+## v1.11.4 핵심 변경
 
-### Items / Hideout 검색 clear lifecycle
+### MiniMap 최초 표시 지도 동기화
 
-- canonical `ProductSearchClearButtonBehavior`는 실제 Items/Hideout page lifecycle에서 attach된다.
-- empty query → `×` hidden, typed query → inline `×` visible, click → clear + focus restore 계약을 유지한다.
-- v1.11.2 published smoke가 behavior를 직접 attach해 실사용 회귀를 숨길 수 있던 false-positive 경로를 제거했다.
+- Main Map 실제 selection 변경 시 product tracker/registry를 동기적으로 먼저 갱신한다.
+- 같은 input turn에 MiniMap을 처음 만들어도 이전 map을 first visible frame에 표시하지 않는다.
+- queued reconciliation도 유지해 이후 donor state를 다시 맞춘다.
+- fresh first-create와 reused MiniMap 모두 runtime smoke에서 검증한다.
 
-### Map 지도 마커 패널
+### MiniMap extract / standard marker lifecycle
 
-- expanded panel은 content-sized popup이 아니라 available-height viewport로 동작한다.
-- 정상적인 큰 창에서 하단 탈출구 항목이 잘리지 않는다.
-- 실제 content overflow가 있을 때만 inner `ScrollViewer`가 vertical scrollbar를 표시한다.
-- actual published EXE smoke가 panel height, viewport body fill, rendered overflow와 computed scrollbar state를 검증한다.
+- PMC / Scav / Transit extract filter와 실제 rendered marker를 검증한다.
+- Transit은 packaged data의 예상 grouped extract 수와 실제 MiniMap Transit visual 수를 비교한다.
+- donor async refresh cancellation으로 표시 대상 data는 있는데 standard layer만 비는 경우 another refresh를 시작하지 않고 loaded marker DB에서 layer를 직접 복구한다.
+- deliberate all-hidden state나 무한 retry는 만들지 않는다.
 
-### Scanner 교정 이미지 zoom
+### Player Marker Size 격리
 
-- 교정 screenshot/ROI에서 마우스 휠 확대/축소를 지원한다.
-- 확대된 이미지는 scroll/pan으로 확인할 수 있다.
-- source image/canvas 크기는 원본 pixel coordinate를 유지하므로 Ground Truth 및 직접 지정 좌표의 저장 의미가 바뀌지 않는다.
-- 최초 runtime smoke에서 Auto scrollbar로 fit scale이 0.573 → 0.596으로 달라지는 상태 의존성을 검출했고 stable arranged control bounds 기준으로 수정했다.
+- Player Marker Size는 MiniMap player marker `PlayerMarkerScale`만 변경한다.
+- Name Size / MiniMap Marker Size / 일반·퀘스트·탈출구 marker presentation을 whole-view refresh로 다시 덮지 않는다.
 
-### Scanner correction evidence timing
+### Mini Scanner
 
-사용자 diagnostics/calibration batch에서 저장된 case는 `NOT_RUN`이었지만 runtime log상 실제 OCR/matcher가 수행된 case가 확인됐다. 분석 완료 frame 뒤의 geometry-only capture가 single latest debug frame을 덮어써 correction save에 의미 있는 semantics가 유실되는 timing defect였다.
-
-v1.11.3은 correction snapshot에 한해서 다음 조건에서만 직전 analyzed semantics를 보존한다.
-
-- 동일 non-empty title signature
-- 동일 capture mode
-- 3초 이내
-
-최신 screenshot/geometry는 그대로 유지하며, 이 carry는 live recognition 결정에 사용하지 않는다. OCR/matcher/candidate acceptance threshold는 완화하지 않았다.
+- 우클릭 `현재 결과 교정` context menu를 제거했다.
+- left-drag, topmost, recognition/result display, `교정 데이터 추가` 전역 hotkey evidence 저장 계약은 유지한다.
 
 ## 유지되는 주요 계약
 
@@ -115,7 +108,7 @@ v1.11.3은 correction snapshot에 한해서 다음 조건에서만 직전 analyz
 |---|---|
 | Profile / Quest / Hideout / Needed Items | 구현 완료 / maintenance |
 | Items / Ammo | 구현 완료 / profile-aware pickup 포함 |
-| Map + MiniMap | 구현 완료 / lifecycle repair + marker panel + heading projection |
+| Map + MiniMap | 구현 완료 / first-create sync + marker lifecycle repair |
 | Game Content Update | 구현 완료 / LKG + FIR + fail-closed |
 | Program Update | 구현 완료 / stable ZIP checksum 계약 |
 | Scanner + Mini Scanner | **FEATURE COMPLETE / MAINTENANCE** |
@@ -127,7 +120,7 @@ v1.11.3은 correction snapshot에 한해서 다음 조건에서만 직전 analyz
 ## Schema / compatibility
 
 ```text
-Desktop target version: 1.11.3
+Desktop target version: 1.11.4
 Content schema write: v8
 Readable Content schemas: v3~v8
 user.db schema: v1
@@ -138,23 +131,25 @@ Scanner item UI state: scanner-item-ui-state.json / canonical Item ID persistenc
 ```
 
 ```text
-v1.11.2 → v1.11.3 mandatory Game Content migration: none
-v1.11.2 → v1.11.3 user.db migration: none
-v1.11.2 → v1.11.3 Scanner display settings migration: none
+v1.11.3 → v1.11.4 mandatory Game Content migration: none
+v1.11.3 → v1.11.4 user.db migration: none
+v1.11.3 → v1.11.4 Scanner display settings migration: none
 ```
 
 ## 검증 상태
 
-v1.11.3 exact product source `043abad38f4c3ebc9101463a162614ef67df7536`은 다음을 모두 통과했다.
+v1.11.4 exact product source `f9d3497004241ea80193e5a0d242e7219cf04f2a`은 다음을 모두 통과했다.
 
-- 474 deterministic automated tests
+- 478 deterministic automated tests
 - Windows Release desktop build
 - Windows x64 self-contained publish
 - actual published EXE startup
 - Product UI / Ammo / Map / Factory / MiniMap / Scanner smoke
-- Items / Hideout lifecycle-attached inline search clear runtime validation
-- Map marker panel available-height + real-overflow scrollbar runtime validation
-- Scanner correction zoom + stable fit + source-pixel coordinate runtime validation
+- first MiniMap creation synchronization
+- actual Transit marker rendering
+- standard marker direct recovery
+- Player Marker Size isolation
+- Mini Scanner context-menu absence
 - graceful shutdown
 - active-async Shutdown Race
 - release package root/dependency/checksum audit
@@ -162,11 +157,12 @@ v1.11.3 exact product source `043abad38f4c3ebc9101463a162614ef67df7536`은 다�
 - exact-main artifact upload
 - automatic verified Release workflow
 - public tag/release/assets/latest-stable readback
+- public ZIP digest = verified exact-main package hash
 
-사용자의 실제 PC/Tarkov 플레이 환경에서 v1.11.3 최종 실사용 검증은 자동화 검증과 별개이며 현재 **PENDING**이다.
+사용자의 실제 PC/Tarkov 플레이 환경에서 v1.11.4 최종 실사용 검증은 자동화 검증과 별개이며 현재 **PENDING**이다.
 
 ## 다음 작업
 
-현재 `docs/ACTIVE_WORK.md`는 `NONE`이다. v1.11.3 릴리즈 배치에 남은 제품 개발 작업은 없다. 새 사용자 요구사항, 실사용 회귀, 또는 Tarkov 변화가 확인되면 현재 stable 기준으로 필요한 범위만 수정한다.
+현재 `docs/ACTIVE_WORK.md`는 `NONE`이다. v1.11.4 릴리즈 배치에 남은 제품 개발 작업은 없다. 새 사용자 요구사항, 실사용 회귀, 또는 Tarkov 변화가 확인되면 현재 stable 기준으로 필요한 범위만 수정한다.
 
-이 문서와 이후 documentation-only commit은 v1.11.3 product release source가 아니다. v1.11.3 product source/tag/assets는 `043abad38f4c3ebc9101463a162614ef67df7536`에 고정한다.
+이 문서와 이후 documentation-only commit은 v1.11.4 product release source가 아니다. v1.11.4 product source/tag/assets는 `f9d3497004241ea80193e5a0d242e7219cf04f2a`에 고정한다.

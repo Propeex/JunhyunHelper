@@ -8,25 +8,25 @@
     "desktopVersion": "1.11.4"
   },
   "publicStable": {
-    "version": "1.11.3",
-    "tag": "v1.11.3",
-    "exactProductSource": "043abad38f4c3ebc9101463a162614ef67df7536",
-    "releaseId": 379321405,
+    "version": "1.11.4",
+    "tag": "v1.11.4",
+    "exactProductSource": "f9d3497004241ea80193e5a0d242e7219cf04f2a",
+    "releaseId": 379449740,
     "asset": {
       "name": "Junhyun-Helper.zip",
-      "id": 536758239,
-      "bytes": 80558970,
-      "sha256": "e43892ecafc9920a7e3b7295f94b8a5324865977028b3573437d8ff7de4f327e"
+      "id": 537252429,
+      "bytes": 80564330,
+      "sha256": "99ad5d7ce75bc5211edf79a6e80c93b666489bb4a47f4358b2ece70c183f2643"
     },
     "checksumAsset": {
       "name": "SHA256SUMS.txt",
-      "id": 536758240,
+      "id": 537252430,
       "bytes": 86,
-      "sha256": "5b3cc0468ad6a11076b547883fbd16d1276c74bc51779251c0c3421a070d63c3"
+      "sha256": "6b81b3816b63b49999e225244214f3d2a3eeabc67fa88da2dd38542c0969f092"
     }
   },
   "maintenance": {
-    "latestNonDocumentationHead": "043abad38f4c3ebc9101463a162614ef67df7536",
+    "latestNonDocumentationHead": "f9d3497004241ea80193e5a0d242e7219cf04f2a",
     "deterministicTestCount": 478,
     "userRealPcTarkovValidation": "PENDING"
   },
