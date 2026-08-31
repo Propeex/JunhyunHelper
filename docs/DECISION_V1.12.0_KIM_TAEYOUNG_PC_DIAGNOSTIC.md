@@ -1,7 +1,7 @@
 # Decision — 김태영 PC 진단
 
 날짜: 2026-08-31  
-상태: **CONFIRMED / v1.12.0 IMPLEMENTED / v1.12.1 UX AMENDMENT IN PROGRESS**
+상태: **CONFIRMED / v1.12.1 PUBLIC VERIFIED**
 
 ## 사용자 문제
 
@@ -150,6 +150,7 @@ ZIP은 로컬 Desktop에만 생성한다.
 
 사용자가 v1.12.0에서 생성한 실제 진단 ZIP을 검토했다.
 
+- ZIP CRC 정상
 - expected top-level evidence 11개 생성
 - `probe-errors.txt = none`
 - display capture / luminance stats 정상
@@ -159,6 +160,25 @@ ZIP은 로컬 Desktop에만 생성한다.
 - allowlist 대상 관련 프로세스가 실행 중이지 않아 관련 프로세스 목록이 비어 있었음
 
 따라서 exporter 자체는 실제 사용자 노트북에서 정상 동작했다. 이 샘플은 김태영 실제 PC의 밝기 문제 원인 증거는 아니다.
+
+## v1.12.1 public verification
+
+```text
+exact product source/tag target:
+07a808f187e59f1b2b4b62ca6a947ccbed9baeaa
+PR: #239 — MERGED
+PR exact-head CI: 33350561623 — SUCCESS
+PR exact-head Shutdown Race: 33350561588 — SUCCESS
+PR exact-head Documentation Consistency: 33350561628 — SUCCESS
+exact-main CI: 33350742745 — SUCCESS
+exact-main Shutdown Race: 33350742733 — SUCCESS
+exact-main Documentation Consistency: 33350742720 — SUCCESS
+Release workflow: 33350893047 — SUCCESS
+release id: 379473487
+483 passed / 0 failed / 0 skipped
+```
+
+GitHub latest release, `v1.12.1` tag, release target, exact product source가 일치하며 공개 ZIP/checksum asset의 digest도 release workflow 검증값과 일치한다.
 
 ## 구현 authority
 
