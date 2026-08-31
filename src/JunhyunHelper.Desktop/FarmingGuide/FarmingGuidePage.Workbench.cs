@@ -66,8 +66,6 @@ public partial class FarmingGuidePage
         if (state is null)
             return;
 
-        // Top-level rig storage is already visible. Its workbench therefore exposes
-        // armor/mod slots. Backpack/secure-container workbench exposes storage cells.
         var mode = target.Kind == FarmingGuideStorageKind.Rig
             ? WorkbenchMode.Slots
             : WorkbenchMode.Storage;
@@ -261,7 +259,7 @@ public partial class FarmingGuidePage
         };
         header.Children.Add(imageHost);
 
-        var details = new StackPanel { Grid.Column = 1, VerticalAlignment = VerticalAlignment.Center };
+        var details = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         if (_workbenchOwnerPath.Length > 0)
         {
             var back = new Button
@@ -410,8 +408,7 @@ public partial class FarmingGuidePage
             DragOriginKind.WorkbenchSlot,
             e,
             workbenchSlotKind: target.Kind,
-            workbenchSlotId: target.SlotId,
-            workbenchOwnerPath: target.OwnerPath);
+            workbenchSlotId: target.SlotId);
     }
 
     private FrameworkElement CreateCompatiblePicker(WorkbenchSlotDropTarget target)
@@ -489,7 +486,6 @@ public partial class FarmingGuidePage
             content.Children.Add(CreateItemImage(candidate, margin: new Thickness(2)));
             var name = new TextBlock
             {
-                Grid.Row = 1,
                 Text = DisplayName(candidate),
                 FontSize = 10,
                 TextAlignment = TextAlignment.Center,
@@ -591,6 +587,12 @@ public partial class FarmingGuidePage
             _ => null,
         };
     }
+
+    internal void SetWorkbenchSlotState(
+        WorkbenchSlotKind kind,
+        string slotId,
+        FarmingGuideItemState? value) =>
+        SetWorkbenchSlotState(kind, _workbenchOwnerPath, slotId, value);
 
     internal void SetWorkbenchSlotState(
         WorkbenchSlotKind kind,
