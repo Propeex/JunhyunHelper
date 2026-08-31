@@ -18,8 +18,7 @@ public partial class FarmingGuidePage
             Stretch = Stretch.Uniform,
             Margin = margin ?? new Thickness(3),
             IsHitTestVisible = false,
-            RenderTransformOrigin = new Point(0.5, 0.5),
-            RenderTransform = rotated ? new RotateTransform(90) : Transform.Identity,
+            LayoutTransform = rotated ? new RotateTransform(90) : Transform.Identity,
         };
 
         if (_farmingGuideItemImages.TryGetValue(item.Id, out var cached))
@@ -37,8 +36,7 @@ public partial class FarmingGuidePage
     internal void ApplyItemImageRotation(Image image, bool rotated)
     {
         ArgumentNullException.ThrowIfNull(image);
-        image.RenderTransformOrigin = new Point(0.5, 0.5);
-        image.RenderTransform = rotated ? new RotateTransform(90) : Transform.Identity;
+        image.LayoutTransform = rotated ? new RotateTransform(90) : Transform.Identity;
     }
 
     private async Task LoadItemImageIntoAsync(GameItem item, Image target)
