@@ -137,6 +137,7 @@ public sealed class TarkovItemImporter
 
         var propertiesType = TarkovJsonReader.OptionalString(properties, "propertiesType")
                              ?? TarkovJsonReader.OptionalString(properties, "__typename");
+        var storageLayoutName = ReadStorageLayoutName(properties);
         var grids = ReadStorageGrids(properties);
         var slots = ReadAttachmentSlots(properties);
         var armorSlots = ReadArmorSlots(properties);
@@ -148,6 +149,7 @@ public sealed class TarkovItemImporter
         var isArmoredRig = isChestRig && (armorSlots.Count > 0 || armorClass > 0);
 
         if (string.IsNullOrWhiteSpace(propertiesType) &&
+            string.IsNullOrWhiteSpace(storageLayoutName) &&
             grids.Count == 0 &&
             slots.Count == 0 &&
             armorSlots.Count == 0 &&
@@ -166,8 +168,17 @@ public sealed class TarkovItemImporter
             conflictingItems,
             conflictingSlotIds,
             blocksHeadphones,
-            isArmoredRig);
+            isArmoredRig)
+        {
+            StorageLayoutName = storageLayoutName,
+        };
     }
+
+    private static string? ReadStorageLayoutName(JsonElement properties) =>
+        TarkovJsonReader.OptionalString(properties, "gridLayoutName")
+        ?? TarkovJsonReader.OptionalString(properties, "GridLayoutName")
+        ?? TarkovJsonReader.OptionalString(properties, "rigLayoutName")
+        ?? TarkovJsonReader.OptionalString(properties, "RigLayoutName");
 
     private static IReadOnlyList<FarmingGuideStorageGridDefinition> ReadStorageGrids(JsonElement properties)
     {
