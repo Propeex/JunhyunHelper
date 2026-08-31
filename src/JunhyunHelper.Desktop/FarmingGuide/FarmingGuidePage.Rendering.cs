@@ -265,11 +265,38 @@ public partial class FarmingGuidePage
         return section;
     }
 
-    private WrapPanel CreateCompactGridHost(
+    private FrameworkElement CreateCompactGridHost(
         FarmingGuideStorageKind kind,
         IReadOnlyList<FarmingGuideStorageGridDefinition> grids,
         string? parentInstanceId)
     {
+        var ownerItem = ResolveStorageSurfaceOwner(kind, parentInstanceId);
+        if (ownerItem is not null &&
+            FarmingGuideStorageVisualLayoutResolver.TryResolve(
+                ownerItem.Id,
+                ownerItem.FarmingGuideData?.StorageLayoutName,
+                grids,
+                CellSize,
+                out var exact))
+        {
+            var exactHost = new Canvas
+            {
+                Width = exact.Width,
+                Height = exact.Height,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                ClipToBounds = false,
+            };
+            foreach (var placement in exact.Grids)
+            {
+                var grid = CreateGridCanvas(kind, placement.GridIndex, grids[placement.GridIndex], parentInstanceId);
+                grid.Margin = new Thickness(0);
+                Canvas.SetLeft(grid, placement.Left);
+                Canvas.SetTop(grid, placement.Top);
+                exactHost.Children.Add(grid);
+            }
+            return exactHost;
+        }
+
         var host = new WrapPanel
         {
             Orientation = Orientation.Horizontal,
@@ -278,6 +305,18 @@ public partial class FarmingGuidePage
         for (var index = 0; index < grids.Count; index++)
             host.Children.Add(CreateGridCanvas(kind, index, grids[index], parentInstanceId));
         return host;
+    }
+
+    private GameItem? ResolveStorageSurfaceOwner(FarmingGuideStorageKind kind, string? parentInstanceId)
+    {
+        if (!string.IsNullOrWhiteSpace(parentInstanceId))
+        {
+            var stored = StoredItems.FirstOrDefault(item =>
+                string.Equals(item.InstanceId, parentInstanceId, StringComparison.Ordinal));
+            return stored is null ? null : ResolveItem(stored.Item);
+        }
+
+        return ResolveItem(GetCarrier(kind));
     }
 
     private Canvas CreateGridCanvas(

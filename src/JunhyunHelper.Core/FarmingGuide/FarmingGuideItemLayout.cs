@@ -43,5 +43,11 @@ public sealed record FarmingGuideItemLayout(
     bool BlocksHeadphones,
     bool IsArmoredRig)
 {
+    /// <summary>
+    /// Optional raw Tarkov GridLayoutName/RigLayoutName. It is visual metadata only;
+    /// missing values are valid for older/current normalized content snapshots.
+    /// </summary>
+    public string? StorageLayoutName { get; init; }
+
     public int StorageCapacity => StorageGrids.Sum(grid => grid.Width * grid.Height);
 }
