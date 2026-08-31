@@ -1,0 +1,156 @@
+# Decision — v1.12.0 김태영 PC 진단
+
+날짜: 2026-08-31  
+상태: **CONFIRMED / IMPLEMENTED PENDING RELEASE VERIFICATION**
+
+## 사용자 문제
+
+사용자가 함께 Tarkov를 플레이하는 김태영의 PC에서는 본인이 직접 보는 게임 화면은 정상인데 Discord 화면 송출/스크린샷 계열 결과가 비정상적으로 밝아 내용을 보기 어려운 현상이 있다. 준현 헬퍼 Scanner도 이 환경에서 정상적으로 작동하지 않을 가능성이 있다.
+
+사용자는 자신의 노트북과 데스크탑 두 환경에서 Scanner를 검증했으며, 먼저 Scanner 일반 알고리즘을 해당 한 PC에 맞춰 바꾸기보다 **김태영 PC의 display/capture 환경을 진단해서 원인을 판단**하기를 원한다.
+
+김태영은 PC 설정을 직접 조사하기 어려우므로 진단은 사용자 입력을 최소화하고 자동 수집해야 한다.
+
+## 사용자 확정 Flow
+
+```text
+메인 헤더 좌측 프로필 이미지 클릭
+→ “김태영 본인이 맞습니까?” 확인
+→ 예
+→ 로컬 PC/Scanner/capture 진단
+→ Desktop ZIP 생성
+→ hyune4784@naver.com 으로 ZIP 전송 요청 메시지
+→ 종료
+```
+
+- `아니오`는 아무 작업도 하지 않는다.
+- 자동 업로드/자동 이메일 전송은 하지 않는다.
+- 사용자는 생성된 ZIP을 직접 전달한다.
+
+## 진단 목표
+
+진단 ZIP만 보고 다음을 구분할 수 있어야 한다.
+
+1. Windows/HDR/GPU/driver/display/color/capture 환경 자체 문제
+2. Discord/OBS/GPU overlay 등 capture 경로와의 상호작용
+3. Tarkov window/capture 방식 특이점
+4. JunhyunHelper Scanner capture/OCR/runtime 문제
+5. 증거 부족으로 추가 진단이 필요한 경우
+
+Scanner를 바꾸기 위한 근거가 아니라 **PC 환경 문제인지 Scanner 호환성 문제인지 먼저 분리하는 evidence bundle**이다.
+
+## 수집 범위
+
+Scanner/capture 결과에 영향을 줄 가능성이 있는 정보를 가능한 한 폭넓게 남긴다.
+
+### System / display
+
+- Windows version/build/architecture
+- .NET/process architecture
+- logical processor count
+- display count
+- 각 display bounds / working area / primary / bits-per-pixel
+- virtual screen bounds
+- system DPI
+- remote-session 여부
+- monitor model/status/resolution
+
+### GPU / HDR / color
+
+- GPU model/manufacturer
+- driver version/date/model/status
+- current resolution/refresh/bpp
+- dxdiag의 HDR Support
+- Display Color Space
+- Color Primaries
+- Display Luminance
+- monitor/native mode/output type
+- DirectX/graphics capability 관련 진단 필드
+
+### Capture interaction candidates
+
+전체 process inventory를 덤프하지 않고 Scanner/capture에 실제로 영향을 줄 수 있는 allowlist만 확인한다.
+
+예:
+
+- Discord
+- OBS
+- NVIDIA Share / Overlay / container
+- AMD Radeon software / capture service
+- RTSS / MSI Afterburner
+- Xbox/Game Bar
+- SteelSeries capture/overlay
+- Medal
+- Overwolf
+- Lossless Scaling
+- EscapeFromTarkov
+
+존재 여부와 가능한 범위의 version만 기록하고 설치 경로는 기록하지 않는다.
+
+### Scanner
+
+- Scanner display settings snapshot
+- runtime status / active capture mode
+- catalog count/mode/timestamp
+- 기존 Scanner support bundle
+- Scanner performance/log evidence
+
+### Visual evidence
+
+진단 실행 확인창에서 화면 캡처가 포함될 수 있음을 명시한 뒤:
+
+- 각 Windows display screen copy
+- Tarkov window가 있으면 exact client screen-copy
+- 같은 Tarkov client에 대한 PrintWindow 결과
+- 각 이미지의 dimensions
+- mean RGB
+- mean/min/max luminance
+- highlight clipping 비율
+- near-black 비율
+
+이 비교는 “사용자가 보는 화면은 정상인데 capture만 과도하게 밝음” 증상을 capture path별로 분리하기 위한 핵심 evidence다.
+
+## Privacy / security boundary
+
+진단 목적과 무관한 식별/secret 정보는 수집하지 않는다.
+
+명시적 제외:
+
+- Windows 사용자 이름
+- 컴퓨터 이름
+- IP 주소
+- MAC 주소
+- 네트워크 목록
+- 환경변수 전체 dump
+- token / password / credential
+- 임의의 전체 process 목록
+- application install path
+
+단, **화면 캡처 자체에는 진단 시 실제 화면에 보이는 내용이 포함될 수 있다.** 이 점을 실행 전 확인창과 ZIP README에서 알린다.
+
+ZIP은 로컬 Desktop에만 생성하고 자동 전송하지 않는다.
+
+## Failure contract
+
+한 probe가 실패했다고 전체 진단을 버리지 않는다.
+
+- 각 optional probe는 fail-soft
+- 실패한 probe 이름/예외 종류/비민감 메시지는 `probe-errors.txt`에 기록
+- 핵심 ZIP 작성 자체가 실패할 때만 진단 전체 실패로 처리
+- partial evidence도 가능한 한 보존
+
+## 구현 authority
+
+- `src/JunhyunHelper.Desktop/MainWindow.xaml`
+- `src/JunhyunHelper.Desktop/MainWindow.KimTaeyoungDiagnostic.cs`
+- `src/JunhyunHelper.Desktop/Scanner/KimTaeyoungPcDiagnosticExporter.cs`
+- `src/JunhyunHelper.Desktop/Scanner/ScannerSupportBundleExporter.cs`
+- `tests/JunhyunHelper.Tests/Maintenance/V120QuestDiagnosticsUiContractTests.cs`
+
+## 향후 판단
+
+김태영의 실제 ZIP을 받은 뒤 결과를 분석한다.
+
+- 정상적인 사용자 환경에서 재현 가능한 capture 차이라면 Scanner compatibility 개선 후보로 취급한다.
+- 해당 PC의 비정상 설정/driver/HDR/capture 환경 문제라면 Scanner 전체 동작을 왜곡하지 않고 PC 수정 방법을 사용자에게 안내한다.
+- 한 사람의 샘플만으로 Scanner global threshold/normalization을 완화하지 않는다.
