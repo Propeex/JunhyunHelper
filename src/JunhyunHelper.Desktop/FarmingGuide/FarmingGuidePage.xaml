@@ -193,6 +193,44 @@
             </Border>
         </Grid>
 
+        <Border x:Name="WorkbenchHost"
+                Grid.Column="1"
+                Margin="12"
+                Padding="14"
+                Visibility="Collapsed"
+                Panel.ZIndex="40"
+                BorderBrush="{StaticResource AccentBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Background="{StaticResource BackgroundDarkBrush}">
+            <DockPanel LastChildFill="True">
+                <Grid DockPanel.Dock="Top" Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="WorkbenchTitleText"
+                               FontSize="19"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" />
+                    <Button Grid.Column="1"
+                            Width="34"
+                            Height="34"
+                            Margin="10,0,0,0"
+                            Padding="0"
+                            Content="×"
+                            FontSize="18"
+                            ToolTip="내부 보기 닫기"
+                            Click="CloseWorkbenchButton_Click" />
+                </Grid>
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="WorkbenchPanel" />
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
         <Canvas x:Name="DragOverlay"
                 Grid.ColumnSpan="3"
                 Panel.ZIndex="100"

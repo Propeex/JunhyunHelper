@@ -30,6 +30,33 @@ public sealed class FarmingGuideCompatibilityTests
     }
 
     [Fact]
+    public void SecureContainerAcceptsCurrentContainerPropertyFallbackWithoutGenericContainerType()
+    {
+        var epsilon = Item(
+            "epsilon",
+            types: ["noFlea"],
+            propertiesType: "ItemPropertiesContainer");
+
+        Assert.True(FarmingGuideCompatibility.IsStorageCarrierCompatible(
+            FarmingGuideStorageKind.SecureContainer,
+            epsilon));
+    }
+
+    [Fact]
+    public void SecureContainerRejectsOrdinaryContainerWithSamePropertyType()
+    {
+        var medicineCase = Item(
+            "medicine-case",
+            categories: ["Medicine"],
+            types: ["container", "markedOnly", "noFlea"],
+            propertiesType: "ItemPropertiesContainer");
+
+        Assert.False(FarmingGuideCompatibility.IsStorageCarrierCompatible(
+            FarmingGuideStorageKind.SecureContainer,
+            medicineCase));
+    }
+
+    [Fact]
     public void BodyArmorAcceptsCanonicalBodyArmorCategory()
     {
         var armor = Item("armor", categories: ["Body armor"]);
@@ -40,7 +67,8 @@ public sealed class FarmingGuideCompatibilityTests
     private static GameItem Item(
         string id,
         IReadOnlyList<string>? categories = null,
-        IReadOnlyList<string>? types = null) =>
+        IReadOnlyList<string>? types = null,
+        string? propertiesType = null) =>
         new(
             id,
             id,
@@ -53,5 +81,18 @@ public sealed class FarmingGuideCompatibilityTests
             categories ?? [],
             types ?? [],
             1,
-            1);
+            1)
+        {
+            FarmingGuideData = propertiesType is null
+                ? null
+                : new FarmingGuideItemLayout(
+                    propertiesType,
+                    [],
+                    [],
+                    [],
+                    [],
+                    [],
+                    false,
+                    false),
+        };
 }

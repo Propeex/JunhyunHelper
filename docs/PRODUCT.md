@@ -3,7 +3,7 @@
 이 문서는 준현 헬퍼의 **무엇을 만들고 왜 만드는지**를 정의하는 canonical 제품 요구사항이다. 사용자가 현재 대화에서 새로 확정한 제품 의도가 기존 구현보다 우선한다. 현재 코드가 존재한다는 이유만으로 그 동작을 제품 요구사항으로 추정하지 않는다.
 
 기준일: **2026-08-31 KST**  
-상태: **v1.13.2 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+상태: **v1.13.3 TARGET / v1.13.2 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 정확한 release SHA, asset, CI와 현재 schema 사실값은 `docs/PROJECT_STATE.json`, `docs/CURRENT_STATE.md`, `docs/STATE.md`를 사용한다.
 
@@ -289,7 +289,7 @@ Canonical specialist document는 `docs/SCANNER.md`다.
 
 ## 14. Farming Guide
 
-v1.13.0에서 Scanner 오른쪽에 `파밍 가이드` first-class section을 추가했다. v1.13.1에서 아이콘 중심 UI와 drag/drop 실사용 회귀를 수정했고, v1.13.2에서 장비 호환성·프로필별 주머니·프리셋 삭제·내부 구조 확인 UX를 보완했다.
+v1.13.0에서 Scanner 오른쪽에 `파밍 가이드` first-class section을 추가했다. v1.13.1에서 아이콘 중심 UI와 drag/drop 실사용 회귀를 수정했고, v1.13.2에서 장비 호환성·프로필별 주머니·프리셋 삭제를 보완했다. v1.13.3은 v1.13.2 실사용 검증에서 확인된 내부 상호작용을 실제 raid-start inventory editor 의미에 맞게 교정한다.
 
 제품 의미:
 
@@ -305,18 +305,21 @@ v1.13.0에서 Scanner 오른쪽에 `파밍 가이드` first-class section을 추
 - bounded grid snap
 - bounds / overlap / contiguous-space / current filter 검증
 - storage grid / equipment slot / attachment slot / armor plate slot / conflict 구조를 current validated Game Content에서 사용
-- attachment / 교체형 armor plate 설정
+- attachment / 교체형 armor plate 실제 drag/drop 설정
 - 전체 raid-start state preset save/load/delete
 - melee / PMC dogtag는 per-profile preset과 분리된 fixed setting
 - 총 무게 / 사용 storage cell / 전체 storage cell 요약
 - filled carrier destructive replacement fail-closed
 - old preset이 current Tarkov grid/filter/profile pocket geometry와 충돌하면 impossible placement를 복원하지 않음
+- 가방 안 가방 / 가방 안 리그 등 nested storage state
 
-### v1.13.2 equipment / pocket 계약
+### Equipment / pocket 계약
 
 - pistol / revolver / handgun 계열은 Holster target이다.
 - pistol 계열을 PrimaryWeapon1/2 generic weapon으로 받아들이지 않는다.
-- body armor / rig / backpack / secure container 판정은 current `propertiesType`과 canonical type/category 의미를 함께 사용한다.
+- body armor / rig / backpack 판정은 current `propertiesType`과 canonical type/category 의미를 함께 사용한다.
+- Secure Container는 explicit secure-container/pouch semantics를 우선하며 일반 `container/case`를 장착 가능한 Secure Container로 오인하지 않는다.
+- current `ItemPropertiesContainer` fallback은 generic container/case classification이 없는 경우로 제한한다.
 - pocket geometry는 active profile edition 및 current product가 증명한 Old Patterns 완료 상태로 resolve한다.
 
 ```text
@@ -342,14 +345,57 @@ Secure Container
 - 삭제한 preset이 selected 상태였다면 selected preset identity만 해제한다.
 - melee / PMC dogtag fixed lifecycle은 preset과 분리한다.
 - fixed behavior를 UI의 별도 `고정` 텍스트로 반복 표시하지 않는다.
+- nested placement의 parent relationship도 working state/preset에 보존한다.
 
-### Internal structure inspect 계약
+### Double-click / 내부 작업면 계약
 
-- equipped item double-click은 current structure를 연다.
-- editable attachment / replaceable armor structure는 기존 설정 기능을 유지한다.
-- locked armor structure도 읽기 전용으로 표시한다.
-- rig/backpack/secure container는 actual storage grids를 표시한다.
-- search result double-click은 동일 structure를 read-only로 확인할 수 있다.
+Double-click은 정보 조회 Window가 아니라 **실제 아이템 내부 조작을 여는 행위**다.
+
+별도 `장비 정보/장비 설정` OS Window와 읽기 전용 storage preview / ComboBox 기반 attachment 선택은 제품 계약에서 폐기한다.
+
+Farming Guide 가운데에 in-page workbench를 사용한다. 오른쪽 item search는 계속 사용할 수 있어 검색한 아이템을 열린 실제 grid/slot으로 drag/drop할 수 있다.
+
+아이템 유형과 현재 위치에 필요한 구조만 표시한다.
+
+- stored backpack: 실제 내부 storage grid
+- stored rig: 실제 내부 storage grid
+- worn/top-level rig: main에 수납 grid가 이미 있으므로 actionable armor/mod slots
+- backpack / Secure Container carrier: 실제 storage grid
+- weapon: actual attachment/mod slots
+- helmet / body armor: actionable attachment / replaceable armor plate slots
+
+내부 grid가 몇 칸이라는 설명이나 read-only 구조 목록 자체를 사용자 목적물로 표시하지 않는다.
+
+### Attachment / armor slot 계약
+
+- 실제 한 슬롯을 하나의 icon drop target으로 표시한다.
+- current attachment filter / allowed plate IDs / conflicts를 검증한다.
+- occupied slot을 새 drop으로 묵시적으로 overwrite하지 않는다.
+- 기존 부품을 drag-out한 뒤 새 부품을 넣는다.
+- locked/non-actionable armor structure를 불필요한 정보 UI로 반복 표시하지 않는다.
+
+### Nested storage 계약
+
+`FarmingGuideStoredItemState.ParentInstanceId`로 특정 stored container 내부 placement를 표현한다.
+
+- root placement: parent 없음
+- nested placement: 실제 parent stored instance ID
+- parent가 없는 child / duplicate instance / self-parent / cycle은 fail closed
+- nested grid의 current bounds/filter/overlap을 실제 parent item layout으로 검증
+- container 이동 시 descendants의 parent chain 보존
+- destructive remove 시 descendant subtree 함께 제거
+- 자신/자기 descendant 안으로 container 이동 금지
+
+### 동일 총기 반복 검색 계약
+
+current upstream item feed에는 실제 base weapon과 assembled weapon preset records가 함께 있을 수 있다.
+
+Canonical Game Content는 이를 임의 병합하지 않는다. Farming Guide의 draggable search surface만 다음 records를 제외한다.
+
+- `ItemPropertiesPreset`
+- `preset` type
+
+실제 base weapon과 실제로 서로 다른 Tarkov item variant는 보존한다. 따라서 Glock 등 base weapon의 actual mod slots가 workbench의 authority가 된다.
 
 ### Presentation / interaction 계약
 
@@ -374,6 +420,7 @@ Farming Guide는 향후 recommendation engine의 입력 기반이 될 수 있지
 제품 결정:
 
 - `docs/DECISION_V1.13.0_FARMING_GUIDE_LOADOUT_EDITOR.md`
+- `docs/DECISION_V1.13.3_FARMING_GUIDE_LIVE_ITEM_INTERACTION.md`
 
 기술 계약:
 
@@ -395,7 +442,9 @@ Content write schema: v9
 Readable Content schemas: v3~v9
 ```
 
-v1.13.0 → v1.13.1 → v1.13.2 mandatory user data migration은 없다. Old readable Content snapshot에 Farming Guide 구조가 없으면 그 구조를 추측해 만들지 않는다.
+v1.13.3의 `ParentInstanceId`는 nullable additive field다. 이전 schema-v1 JSON에서는 missing field가 null root placement로 deserialize되므로 mandatory user-data migration 없이 기존 저장 데이터를 유지한다.
+
+Old readable Content snapshot에 Farming Guide 구조가 없으면 그 구조를 추측해 만들지 않는다.
 
 ## 16. 진단 / 지원
 
@@ -417,6 +466,7 @@ v1.13.0 → v1.13.1 → v1.13.2 mandatory user data migration은 없다. Old rea
 
 - 사용자-facing settings/editor는 제품 전체와 일관된 WPF interaction을 사용한다.
 - shared MainWindow overlay는 presentation lifetime만 소유하고 child domain/save semantics를 재구현하지 않는다.
+- Farming Guide item-internal editing은 별도 OS information Window가 아니라 해당 page의 in-page workbench를 사용한다.
 - search clear 등 공통 affordance는 presentation-only behavior를 재사용한다.
 - user-visible 동작은 source/XAML만 보고 완료 선언하지 않는다.
 - 기존 verified behavior를 새 기능 때문에 무관하게 변경하지 않는다.

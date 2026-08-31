@@ -98,6 +98,7 @@ public partial class FarmingGuidePage : UserControl
         _backpack = null;
         _secureContainer = null;
         _selectedPresetName = null;
+        CloseWorkbench();
 
         if (_presetStore is not null)
         {
@@ -205,6 +206,7 @@ public partial class FarmingGuidePage : UserControl
         var state = _presetStore.SelectPreset(_profileId, name);
         _selectedPresetName = state.SelectedPresetName;
         ApplySnapshot(state.WorkingSnapshot);
+        CloseWorkbench();
         RefreshPresetChoices();
         RefreshAll();
     }
@@ -264,6 +266,7 @@ public partial class FarmingGuidePage : UserControl
             return;
 
         var matches = _content.Items
+            .Where(FarmingGuideSearchPolicy.IsDraggableInventoryItem)
             .Where(item => Matches(item, query))
             .OrderBy(item => DisplayName(item), StringComparer.CurrentCultureIgnoreCase)
             .Take(80)
@@ -370,9 +373,15 @@ public partial class FarmingGuidePage : UserControl
             .Where(static item => item is not null)
             .Sum(item => item!.WeightKg ?? 0m);
 
-        var totalCells = StorageDefinitions()
+        var rootCells = StorageDefinitions()
             .SelectMany(entry => entry.Grids)
             .Sum(grid => grid.Width * grid.Height);
+        var nestedCells = _storedItems
+            .Select(stored => ResolveItem(stored.Item)?.FarmingGuideData?.StorageGrids)
+            .Where(static grids => grids is not null)
+            .SelectMany(static grids => grids!)
+            .Sum(grid => grid.Width * grid.Height);
+        var totalCells = rootCells + nestedCells;
         var usedCells = _storedItems.Sum(stored =>
         {
             var item = ResolveItem(stored.Item);

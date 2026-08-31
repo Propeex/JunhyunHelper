@@ -40,7 +40,8 @@ public sealed record FarmingGuideStoredItemState(
     int GridIndex,
     int X,
     int Y,
-    bool Rotated);
+    bool Rotated,
+    string? ParentInstanceId = null);
 
 public sealed record FarmingGuideLoadoutSnapshot(
     IReadOnlyDictionary<FarmingGuideEquipmentSlot, FarmingGuideItemState> Equipment,

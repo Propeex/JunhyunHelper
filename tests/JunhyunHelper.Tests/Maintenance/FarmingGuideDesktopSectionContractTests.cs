@@ -48,6 +48,32 @@ public sealed class FarmingGuideDesktopSectionContractTests
         Assert.DoesNotContain("ProfileComboBox.SelectionChanged +=", farmingGuide, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void FarmingGuide_DoubleClickUsesLiveInPageInventorySurfaces()
+    {
+        var root = FindRepositoryRoot();
+        var directory = Path.Combine(
+            root,
+            "src",
+            "JunhyunHelper.Desktop",
+            "FarmingGuide");
+        var xaml = File.ReadAllText(Path.Combine(directory, "FarmingGuidePage.xaml"));
+        var rendering = File.ReadAllText(Path.Combine(directory, "FarmingGuidePage.Rendering.cs"));
+        var workbench = File.ReadAllText(Path.Combine(directory, "FarmingGuidePage.Workbench.cs"));
+        var drag = File.ReadAllText(Path.Combine(directory, "FarmingGuidePage.Drag.cs"));
+        var page = File.ReadAllText(Path.Combine(directory, "FarmingGuidePage.xaml.cs"));
+
+        Assert.Contains("x:Name=\"WorkbenchHost\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("OpenEquipmentWorkbench(target)", rendering, StringComparison.Ordinal);
+        Assert.Contains("OpenCarrierWorkbench(target)", rendering, StringComparison.Ordinal);
+        Assert.Contains("OpenStoredWorkbench(source)", rendering, StringComparison.Ordinal);
+        Assert.Contains("ParentInstanceId", drag, StringComparison.Ordinal);
+        Assert.Contains("WorkbenchSlotDropTarget", drag, StringComparison.Ordinal);
+        Assert.Contains("StoragePanel.Visibility = Visibility.Collapsed", workbench, StringComparison.Ordinal);
+        Assert.Contains("FarmingGuideSearchPolicy.IsDraggableInventoryItem", page, StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(directory, "FarmingGuideItemConfigurationWindow.cs")));
+    }
+
     private static string FindRepositoryRoot([CallerFilePath] string sourcePath = "")
     {
         var directory = new DirectoryInfo(Path.GetDirectoryName(sourcePath)

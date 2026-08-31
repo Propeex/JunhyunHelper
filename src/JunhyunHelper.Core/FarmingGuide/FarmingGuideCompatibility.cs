@@ -60,10 +60,35 @@ public static class FarmingGuideCompatibility
             FarmingGuideStorageKind.Backpack =>
                 propertyType.Equals("ItemPropertiesBackpack", StringComparison.OrdinalIgnoreCase) ||
                 ContainsAny(keys, "backpack", "backpacks"),
-            FarmingGuideStorageKind.SecureContainer =>
-                ContainsAny(keys, "securecontainer", "securecontainers", "securedcontainer", "securedcontainers", "pouch", "pouches"),
+            FarmingGuideStorageKind.SecureContainer => IsSecureContainer(propertyType, keys),
             _ => false,
         };
+    }
+
+    private static bool IsSecureContainer(string propertyType, HashSet<string> keys)
+    {
+        if (ContainsAny(
+                keys,
+                "securecontainer",
+                "securecontainers",
+                "securedcontainer",
+                "securedcontainers",
+                "pouch",
+                "pouches"))
+        {
+            return true;
+        }
+
+        if (!propertyType.Equals("ItemPropertiesContainer", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        // Current tarkov.dev represents both player secure containers and ordinary stash
+        // cases as ItemPropertiesContainer. Ordinary cases (for example Medicine case)
+        // carry the generic `container` classification, while current secure-container
+        // records such as Epsilon do not. Keep this compatibility fallback narrow so a
+        // generic case can never be equipped into the PMC secure-container slot merely
+        // because it has an internal grid.
+        return !ContainsAny(keys, "container", "containers", "case", "cases");
     }
 
     public static bool FilterAllows(GameItem item, FarmingGuideItemFilter filter)

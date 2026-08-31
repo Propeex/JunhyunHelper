@@ -15,6 +15,7 @@ public partial class FarmingGuidePage
         Equipment,
         Carrier,
         StoredItem,
+        WorkbenchSlot,
     }
 
     internal sealed class DragSession
@@ -26,6 +27,8 @@ public partial class FarmingGuidePage
         public bool FixedEquipment { get; init; }
         public FarmingGuideStorageKind? CarrierKind { get; init; }
         public string? StoredInstanceId { get; init; }
+        public WorkbenchSlotKind? WorkbenchSlotKind { get; init; }
+        public string? WorkbenchSlotId { get; init; }
         public Point MouseDown { get; init; }
         public bool Started { get; set; }
         public bool Rotated { get; set; }
@@ -101,7 +104,9 @@ public partial class FarmingGuidePage
         bool fixedEquipment = false,
         FarmingGuideStorageKind? carrierKind = null,
         string? storedInstanceId = null,
-        bool initialRotation = false)
+        bool initialRotation = false,
+        WorkbenchSlotKind? workbenchSlotKind = null,
+        string? workbenchSlotId = null)
     {
         ActiveDrag = new DragSession
         {
@@ -112,6 +117,8 @@ public partial class FarmingGuidePage
             FixedEquipment = fixedEquipment,
             CarrierKind = carrierKind,
             StoredInstanceId = storedInstanceId,
+            WorkbenchSlotKind = workbenchSlotKind,
+            WorkbenchSlotId = workbenchSlotId,
             MouseDown = e.GetPosition(RootGrid),
             Rotated = initialRotation,
         };
@@ -168,13 +175,13 @@ public partial class FarmingGuidePage
         {
             var fixedOnlyChange = session.FixedEquipment ||
                                   probe.Target is EquipmentDropTarget { Fixed: true };
-            RemoveOrigin(session, destructiveCarrierRemoval: false);
+            RemoveOrigin(session, destructiveCarrierRemoval: false, destructiveStoredRemoval: false);
             ApplyDrop(session, probe);
             MarkChanged(fixedOnlyChange);
         }
         else if (session.Origin != DragOriginKind.Search && IsClearlyOutsideDropArea(releasePoint))
         {
-            RemoveOrigin(session, destructiveCarrierRemoval: true);
+            RemoveOrigin(session, destructiveCarrierRemoval: true, destructiveStoredRemoval: true);
             MarkChanged(session.FixedEquipment);
         }
 
@@ -261,6 +268,16 @@ public partial class FarmingGuidePage
 
         if (tagged is GridDropTarget grid)
             return ProbeGrid(grid, session, PointInGrid(rootPoint, grid.Canvas));
+
+        var movingStoredAggregate = session.Origin == DragOriginKind.StoredItem &&
+                                    session.StoredInstanceId is { } movingId &&
+                                    StoredItems.Any(item =>
+                                        string.Equals(item.ParentInstanceId, movingId, StringComparison.Ordinal));
+        if (movingStoredAggregate)
+            return tagged is null ? null : new DropProbe(tagged, false);
+
+        if (tagged is WorkbenchSlotDropTarget workbenchSlot)
+            return new DropProbe(workbenchSlot, CanDropIntoWorkbenchSlot(workbenchSlot, session.Item));
         if (tagged is EquipmentDropTarget equipment)
             return new DropProbe(equipment, CanEquip(equipment, session.Item));
         if (tagged is CarrierDropTarget carrier)
@@ -275,7 +292,9 @@ public partial class FarmingGuidePage
         var x = Math.Clamp((int)Math.Floor(point.X / CellSize), 0, Math.Max(0, target.Width - 1));
         var y = Math.Clamp((int)Math.Floor(point.Y / CellSize), 0, Math.Max(0, target.Height - 1));
         var existing = StoredItems
-            .Where(item => item.Storage == target.Kind && item.GridIndex == target.GridIndex)
+            .Where(item =>
+                item.GridIndex == target.GridIndex &&
+                IsOnStorageSurface(item, target.Kind, target.ParentInstanceId))
             .Select(item =>
             {
                 var current = ResolveItem(item.Item);
@@ -289,8 +308,13 @@ public partial class FarmingGuidePage
 
         var movingPopulatedCarrier = session.Origin == DragOriginKind.Carrier &&
                                      session.CarrierKind is { } originKind &&
-                                     StoredItems.Any(item => item.Storage == originKind);
+                                     StoredItems.Any(item =>
+                                         item.ParentInstanceId is null && item.Storage == originKind);
+        var createsCycle = session.Origin == DragOriginKind.StoredItem &&
+                           session.StoredInstanceId is { } movingId &&
+                           WouldCreateNestedCycle(movingId, target.ParentInstanceId);
         var valid = !movingPopulatedCarrier &&
+                    !createsCycle &&
                     FarmingGuideCompatibility.FilterAllows(session.Item, target.Filter) &&
                     FarmingGuidePlacementEngine.CanPlace(
                         target.Width,
@@ -303,6 +327,20 @@ public partial class FarmingGuidePage
                         existing,
                         session.StoredInstanceId);
         return new DropProbe(target, valid, x, y);
+    }
+
+    private bool WouldCreateNestedCycle(string movingInstanceId, string? targetParentInstanceId)
+    {
+        var current = targetParentInstanceId;
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+        while (current is not null && visited.Add(current))
+        {
+            if (string.Equals(current, movingInstanceId, StringComparison.Ordinal))
+                return true;
+            current = StoredItems.FirstOrDefault(item =>
+                string.Equals(item.InstanceId, current, StringComparison.Ordinal))?.ParentInstanceId;
+        }
+        return false;
     }
 
     private bool CanEquip(EquipmentDropTarget target, GameItem item)
@@ -357,7 +395,8 @@ public partial class FarmingGuidePage
 
         var movingSameCarrier = session.Origin == DragOriginKind.Carrier &&
                                 session.CarrierKind == kind;
-        var targetContainsItems = StoredItems.Any(stored => stored.Storage == kind);
+        var targetContainsItems = StoredItems.Any(stored =>
+            stored.ParentInstanceId is null && stored.Storage == kind);
         if (!FarmingGuideLoadoutPolicy.CanReplaceCarrier(movingSameCarrier, targetContainsItems))
             return false;
 
@@ -386,7 +425,7 @@ public partial class FarmingGuidePage
                 var movingSameCarrier = session.Origin == DragOriginKind.Carrier &&
                                         session.CarrierKind == carrier.Kind;
                 if (!movingSameCarrier && GetCarrier(carrier.Kind)?.ItemId != session.State.ItemId)
-                    StoredItems.RemoveAll(item => item.Storage == carrier.Kind);
+                    RemoveCarrierContents(carrier.Kind);
                 SetCarrier(carrier.Kind, session.State);
                 break;
             }
@@ -398,12 +437,19 @@ public partial class FarmingGuidePage
                     grid.GridIndex,
                     probe.X,
                     probe.Y,
-                    session.Rotated));
+                    session.Rotated,
+                    grid.ParentInstanceId));
+                break;
+            case WorkbenchSlotDropTarget slot:
+                SetWorkbenchSlotState(slot.Kind, slot.SlotId, session.State);
                 break;
         }
     }
 
-    private void RemoveOrigin(DragSession session, bool destructiveCarrierRemoval)
+    private void RemoveOrigin(
+        DragSession session,
+        bool destructiveCarrierRemoval,
+        bool destructiveStoredRemoval)
     {
         switch (session.Origin)
         {
@@ -418,11 +464,47 @@ public partial class FarmingGuidePage
             case DragOriginKind.Carrier when session.CarrierKind is { } kind:
                 SetCarrier(kind, null);
                 if (destructiveCarrierRemoval)
-                    StoredItems.RemoveAll(item => item.Storage == kind);
+                    RemoveCarrierContents(kind);
                 return;
             case DragOriginKind.StoredItem when session.StoredInstanceId is { } instanceId:
-                StoredItems.RemoveAll(item => item.InstanceId == instanceId);
+                if (destructiveStoredRemoval)
+                    RemoveStoredTree(instanceId);
+                else
+                    StoredItems.RemoveAll(item => item.InstanceId == instanceId);
                 return;
+            case DragOriginKind.WorkbenchSlot when
+                session.WorkbenchSlotKind is { } workbenchKind &&
+                session.WorkbenchSlotId is { } workbenchSlotId:
+                SetWorkbenchSlotState(workbenchKind, workbenchSlotId, null);
+                return;
+        }
+    }
+
+    private void RemoveCarrierContents(FarmingGuideStorageKind kind)
+    {
+        var rootIds = StoredItems
+            .Where(item => item.ParentInstanceId is null && item.Storage == kind)
+            .Select(item => item.InstanceId)
+            .ToArray();
+        foreach (var instanceId in rootIds)
+            RemoveStoredTree(instanceId);
+    }
+
+    private void RemoveStoredTree(string instanceId)
+    {
+        var pending = new Stack<string>();
+        pending.Push(instanceId);
+        while (pending.Count > 0)
+        {
+            var current = pending.Pop();
+            foreach (var child in StoredItems
+                         .Where(item => string.Equals(item.ParentInstanceId, current, StringComparison.Ordinal))
+                         .Select(item => item.InstanceId)
+                         .ToArray())
+            {
+                pending.Push(child);
+            }
+            StoredItems.RemoveAll(item => string.Equals(item.InstanceId, current, StringComparison.Ordinal));
         }
     }
 
@@ -438,15 +520,17 @@ public partial class FarmingGuidePage
         if (probe?.Target is not GridDropTarget grid)
         {
             _dropHighlight.Visibility = Visibility.Collapsed;
-            if (probe?.Target is EquipmentDropTarget equipment)
+            switch (probe?.Target)
             {
-                _transientDropTarget = equipment.Border;
-                equipment.Border.BorderBrush = (Brush)FindResource(probe.Valid ? "SuccessBrush" : "DangerBrush");
-            }
-            else if (probe?.Target is CarrierDropTarget carrier)
-            {
-                _transientDropTarget = carrier.Border;
-                carrier.Border.BorderBrush = (Brush)FindResource(probe.Valid ? "SuccessBrush" : "DangerBrush");
+                case EquipmentDropTarget equipment:
+                    SetTransientDropTarget(equipment.Border, probe.Valid);
+                    break;
+                case CarrierDropTarget carrier:
+                    SetTransientDropTarget(carrier.Border, probe.Valid);
+                    break;
+                case WorkbenchSlotDropTarget workbenchSlot:
+                    SetTransientDropTarget(workbenchSlot.Border, probe.Valid);
+                    break;
             }
             return;
         }
@@ -464,6 +548,12 @@ public partial class FarmingGuidePage
         Canvas.SetLeft(_dropHighlight, origin.X + probe.X * CellSize);
         Canvas.SetTop(_dropHighlight, origin.Y + probe.Y * CellSize);
         _dropHighlight.Visibility = Visibility.Visible;
+    }
+
+    private void SetTransientDropTarget(Border border, bool valid)
+    {
+        _transientDropTarget = border;
+        border.BorderBrush = (Brush)FindResource(valid ? "SuccessBrush" : "DangerBrush");
     }
 
     private void ResetTransientDropTarget()
@@ -489,6 +579,7 @@ public partial class FarmingGuidePage
         _dropHighlight = null;
         RenderEquipment();
         RenderStorage();
+        RenderWorkbench();
     }
 
     private object? FindDropTargetAt(Point rootPoint)
@@ -496,7 +587,7 @@ public partial class FarmingGuidePage
         object? candidate = null;
         foreach (var element in FindVisualChildren<FrameworkElement>(RootGrid))
         {
-            if (element.Tag is not (EquipmentDropTarget or CarrierDropTarget or GridDropTarget) ||
+            if (element.Tag is not (EquipmentDropTarget or CarrierDropTarget or GridDropTarget or WorkbenchSlotDropTarget) ||
                 !IsPointWithinVisibleBounds(element, rootPoint))
             {
                 continue;
@@ -556,8 +647,13 @@ public partial class FarmingGuidePage
     {
         while (current is not null && !ReferenceEquals(current, RootGrid))
         {
-            if (current is FrameworkElement { Tag: EquipmentDropTarget or CarrierDropTarget or GridDropTarget } element)
+            if (current is FrameworkElement
+                {
+                    Tag: EquipmentDropTarget or CarrierDropTarget or GridDropTarget or WorkbenchSlotDropTarget
+                } element)
+            {
                 return element.Tag;
+            }
             current = VisualTreeHelper.GetParent(current);
         }
         return null;
@@ -565,7 +661,7 @@ public partial class FarmingGuidePage
 
     private GridDropTarget? FindNearbyGrid(Point rootPoint, double tolerance)
     {
-        foreach (var canvas in FindVisualChildren<Canvas>(StoragePanel))
+        foreach (var canvas in FindVisualChildren<Canvas>(RootGrid))
         {
             if (canvas.Tag is not GridDropTarget target ||
                 !IsPointWithinVisibleBounds(canvas, rootPoint, requireElementBounds: false))

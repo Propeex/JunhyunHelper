@@ -3,7 +3,8 @@
 이 문서는 준현 헬퍼의 **현재 유효한 장기 결정과 supersession 관계를 빠르게 복구하기 위한 active index**다. 현재 사실값은 `docs/PROJECT_STATE.json`, 현재 제품 상태와 release evidence는 `docs/CURRENT_STATE.md` / `docs/STATE.md`가 권위다.
 
 기준일: **2026-08-31 KST**  
-현재 공개 제품: **v1.13.0 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+현재 공개 제품: **v1.13.2 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**  
+현재 검증 중 제품: **v1.13.3 TARGET**
 
 과거 결정 원문과 당시 release-specific 사실은 historical evidence다. 현재 제품 의미와 충돌하면 최신 confirmed decision, canonical current-state 문서, 실제 코드/테스트가 우선한다.
 
@@ -21,38 +22,48 @@ DEC-001~DEC-029 원문은 `docs/DECISIONS_HISTORY_THROUGH_2026-08-09.md`에 보�
 - 장기 async/lifecycle 종료 경계는 active async work 중 정상 Main Window close를 포함해 회귀 검증한다.
 - 공개 stable release의 tag/source/assets는 immutable historical identity로 취급하며 후속 documentation-only commit을 제품 source로 재정의하지 않는다.
 
-## 2. v1.13.0 Farming Guide
+## 2. Farming Guide current authority
 
 현재 authority:
 
 - `docs/DECISION_V1.13.0_FARMING_GUIDE_LOADOUT_EDITOR.md`
+- `docs/DECISION_V1.13.3_FARMING_GUIDE_LIVE_ITEM_INTERACTION.md`
 - `docs/ARCHITECTURE_FARMING_GUIDE.md`
 
-상태: **CONFIRMED / PUBLIC VERIFIED v1.13.0**.
+상태:
 
-핵심 계약:
+- v1.13.0 기본 Loadout / Inventory Editor: **CONFIRMED / PUBLIC VERIFIED**
+- v1.13.3 live item interaction correction: **CONFIRMED / IMPLEMENTATION IN VALIDATION**
+
+유지되는 기본 계약:
 
 - Scanner 오른쪽에 `파밍 가이드` first-class section을 둔다.
-- 첫 slice는 raid-start Loadout / Inventory Editor이며 실시간 인게임 inventory mirror가 아니다.
+- raid-start Loadout / Inventory Editor이며 실시간 인게임 inventory mirror가 아니다.
 - 실제 Tarkov item width/height, carrier grids, grid filters, equipment/attachment slots, armor slots, conflicts를 current validated Game Content에서 사용한다.
 - drag/drop은 `R` 회전, grid snap, bounds/overlap/연속 공간/current filter 검증과 valid-invalid feedback을 제공한다.
-- 내용물이 든 carrier를 다른 carrier로 묵시적으로 교체해 contents를 유실시키지 않는다.
-- 과거 preset이 current Tarkov grid/filter와 충돌하면 impossible placement를 복원하지 않고 fail closed한다.
 - 근접무기와 PMC 인식표는 per-profile preset과 분리된 user-level fixed setting이다.
-- preset은 장비, 부품, 방탄판, carrier, stored item, 위치/회전을 보존한다.
 - Farming Guide 사용자 상태는 `%LocalAppData%/JunhyunHelper/farming-guide.json` schema v1에 Game Content와 분리해 저장한다.
-- Farming Guide용 item structure 추가로 Content write schema는 v9이며 v3~v9를 읽는다.
-- v1.13.0에는 가치 판단, 획득/폐기/교체 추천, Scanner 실시간 추천 연동, 지속적인 실제 inventory 좌표 1:1 동기화를 포함하지 않는다.
+- Content write schema는 v9이며 v3~v9를 읽는다.
+- 가치 판단, 획득/폐기/교체 추천, Scanner 실시간 추천 연동, 지속적인 실제 inventory 좌표 1:1 동기화는 별도 제품 결정 없이 추가하지 않는다.
 
-공개 제품 identity:
+v1.13.3에서 확정된 교정:
+
+- double-click은 generic `장비 정보/장비 설정` Window가 아니라 해당 item의 **실제 조작 가능한 내부 작업면**을 연다.
+- stored backpack/rig는 actual internal grid, worn rig는 actionable plate/mod slots, weapon은 mod slots, helmet/body armor는 actionable attachment/replaceable plate slots를 보여준다.
+- attachment/armor plate는 ComboBox가 아니라 실제 one-item drag/drop slot이다. occupied slot을 묵시적으로 overwrite하지 않는다.
+- `FarmingGuideStoredItemState.ParentInstanceId`로 bag-in-bag / bag-in-rig nested storage를 표현한다. orphan/duplicate/self-parent/cycle/impossible placement는 fail closed한다.
+- nested parent container 이동은 same instance identity로 descendants를 보존하며 destructive remove 시 descendant subtree도 함께 제거한다.
+- Secure Container는 explicit secure-container/pouch semantics를 우선한다. current `ItemPropertiesContainer` fallback은 generic `container/case` classification이 없는 경우로 제한해 Medicine Case 같은 일반 case의 오장착을 막는다.
+- upstream `ItemPropertiesPreset` / `preset` weapon records는 canonical Game Content에는 보존하지만 Farming Guide draggable search에서 제외한다. 실제 base weapon과 실제 Tarkov item variant는 유지한다.
+- v1.13.0~v1.13.2의 generic configuration Window/read-only internal-preview 구현은 위 계약으로 supersede한다.
+
+현재 공개 stable identity는 `docs/PROJECT_STATE.json`이 권위이며 v1.13.2 exact product source는:
 
 ```text
-v1.13.0
-exact source/tag target:
-103ade0c5d54ffb59a6844330d19a930899c12fb
-release id: 379519928
-494 passed / 0 failed / 0 skipped
+207cb948affc091c4ad67f18d7e4e4382b2f8125
 ```
+
+v1.13.3은 exact-main / public release 검증이 끝나기 전 public stable로 기록하지 않는다.
 
 ## 3. Scanner current authority
 
@@ -188,20 +199,21 @@ Game Content:
 - 공개 asset과 exact product source/tag target이 일치해야 한다.
 - documentation-only main commit이 같은 assembly version의 다른 bytes를 만들 수 있어도 이미 공개된 asset을 교체하거나 historical product source를 변경하지 않는다.
 
-현재 v1.13.0 public identity:
+현재 public stable identity:
 
 ```text
+v1.13.2
 exact product source/tag target:
-103ade0c5d54ffb59a6844330d19a930899c12fb
-release id: 379519928
-494 passed / 0 failed / 0 skipped
+207cb948affc091c4ad67f18d7e4e4382b2f8125
+release id: 379612102
+504 passed / 0 failed / 0 skipped
 ```
 
 상세 evidence:
 
-- `docs/RELEASE_1.13.0.md`
-- `docs/.release-v1.13.0-status.json`
-- `docs/RELEASE_NOTES_V1.13.0.md`
+- `docs/RELEASE_1.13.2.md`
+- `docs/.release-v1.13.2-status.json`
+- `docs/RELEASE_NOTES_V1.13.2.md`
 
 ## 9. Product complete / maintenance / lifecycle
 
@@ -216,7 +228,7 @@ release id: 379519928
 - `docs/DECISION_V1.10.1_STABILITY_AUDIT.md`
 - `docs/DECISION_V1.10.1_POST_RELEASE_STABILITY_SWEEP.md`
 
-현재 공개 stable은 product-complete maintenance mode다. v1.13.0 Farming Guide는 사용자가 명시적으로 확정한 새 MINOR 기능으로 예외적으로 추가되었고 첫 slice 공개가 완료됐다. 이후 실제 회귀, Tarkov 변화, 또는 사용자가 다시 명시적으로 확정한 새 제품 요구사항이 있을 때 필요한 범위만 수정한다. 정상 동작하는 unrelated lifecycle/disposal 경로를 미관상 이유로 전면 리팩터링하지 않는다.
+현재 공개 stable은 product-complete maintenance mode다. Farming Guide는 사용자가 명시적으로 확정한 v1.13.0 MINOR 기능이며, v1.13.3은 그 기존 기능의 실사용 회귀/UX 의미를 바로잡는 PATCH다. 이후 실제 회귀, Tarkov 변화, 또는 사용자가 다시 명시적으로 확정한 새 제품 요구사항이 있을 때 필요한 범위만 수정한다. 정상 동작하는 unrelated lifecycle/disposal 경로를 미관상 이유로 전면 리팩터링하지 않는다.
 
 ## 10. 현재 결정 확인 순서
 

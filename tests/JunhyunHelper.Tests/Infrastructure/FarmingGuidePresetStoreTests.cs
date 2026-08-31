@@ -34,13 +34,22 @@ public sealed class FarmingGuidePresetStoreTests
                 FarmingGuideItemState.Create("secure"),
                 [
                     new FarmingGuideStoredItemState(
+                        "container-instance",
+                        FarmingGuideItemState.Create("nested-bag"),
+                        FarmingGuideStorageKind.Backpack,
+                        GridIndex: 0,
+                        X: 0,
+                        Y: 0,
+                        Rotated: false),
+                    new FarmingGuideStoredItemState(
                         "instance-1",
                         FarmingGuideItemState.Create("loot"),
                         FarmingGuideStorageKind.Backpack,
                         GridIndex: 1,
                         X: 2,
                         Y: 3,
-                        Rotated: true),
+                        Rotated: true,
+                        ParentInstanceId: "container-instance"),
                 ]);
 
             var saved = store.SavePreset("profile-a", "start", snapshot);
@@ -61,13 +70,16 @@ public sealed class FarmingGuidePresetStoreTests
             Assert.Equal("rig", reloaded.WorkingSnapshot.Rig?.ItemId);
             Assert.Equal("backpack", reloaded.WorkingSnapshot.Backpack?.ItemId);
             Assert.Equal("secure", reloaded.WorkingSnapshot.SecureContainer?.ItemId);
-            var stored = Assert.Single(reloaded.WorkingSnapshot.StoredItems);
-            Assert.Equal("instance-1", stored.InstanceId);
+            Assert.Equal(2, reloaded.WorkingSnapshot.StoredItems.Count);
+            var stored = Assert.Single(
+                reloaded.WorkingSnapshot.StoredItems,
+                item => item.InstanceId == "instance-1");
             Assert.Equal(FarmingGuideStorageKind.Backpack, stored.Storage);
             Assert.Equal(1, stored.GridIndex);
             Assert.Equal(2, stored.X);
             Assert.Equal(3, stored.Y);
             Assert.True(stored.Rotated);
+            Assert.Equal("container-instance", stored.ParentInstanceId);
         }
         finally
         {

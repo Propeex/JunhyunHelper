@@ -13,6 +13,7 @@ public partial class FarmingGuidePage
     internal sealed record CarrierDropTarget(FarmingGuideStorageKind Kind, Border Border);
     internal sealed record GridDropTarget(
         FarmingGuideStorageKind Kind,
+        string? ParentInstanceId,
         int GridIndex,
         int Width,
         int Height,
@@ -273,7 +274,8 @@ public partial class FarmingGuidePage
     private Canvas CreateGridCanvas(
         FarmingGuideStorageKind kind,
         int gridIndex,
-        FarmingGuideStorageGridDefinition definition)
+        FarmingGuideStorageGridDefinition definition,
+        string? parentInstanceId = null)
     {
         var canvas = new Canvas
         {
@@ -283,7 +285,14 @@ public partial class FarmingGuidePage
             Background = (Brush)FindResource("BackgroundDarkBrush"),
             ClipToBounds = true,
         };
-        canvas.Tag = new GridDropTarget(kind, gridIndex, definition.Width, definition.Height, definition.Filters, canvas);
+        canvas.Tag = new GridDropTarget(
+            kind,
+            parentInstanceId,
+            gridIndex,
+            definition.Width,
+            definition.Height,
+            definition.Filters,
+            canvas);
 
         for (var y = 0; y < definition.Height; y++)
         {
@@ -304,7 +313,9 @@ public partial class FarmingGuidePage
             }
         }
 
-        foreach (var placement in StoredItems.Where(item => item.Storage == kind && item.GridIndex == gridIndex))
+        foreach (var placement in StoredItems.Where(item =>
+                     item.GridIndex == gridIndex &&
+                     IsOnStorageSurface(item, kind, parentInstanceId)))
         {
             var item = ResolveItem(placement.Item);
             if (item is null)
@@ -336,72 +347,25 @@ public partial class FarmingGuidePage
         return canvas;
     }
 
-    internal void EditEquipmentTarget(EquipmentDropTarget target)
+    internal static bool IsOnStorageSurface(
+        FarmingGuideStoredItemState placement,
+        FarmingGuideStorageKind kind,
+        string? parentInstanceId)
     {
-        var state = target.Fixed ? GetFixed(target.Slot) : Equipment.GetValueOrDefault(target.Slot);
-        if (state is null)
-            return;
-        EditItemConfiguration(state, updated =>
+        if (parentInstanceId is not null)
         {
-            if (target.Fixed)
-                SetFixed(target.Slot, updated);
-            else
-                Equipment[target.Slot] = updated;
-            MarkChanged(target.Fixed);
-        });
+            return string.Equals(
+                placement.ParentInstanceId,
+                parentInstanceId,
+                StringComparison.Ordinal);
+        }
+
+        return placement.ParentInstanceId is null && placement.Storage == kind;
     }
 
-    internal void EditCarrierTarget(CarrierDropTarget target)
-    {
-        var state = GetCarrier(target.Kind);
-        if (state is null)
-            return;
-        EditItemConfiguration(state, updated =>
-        {
-            SetCarrier(target.Kind, updated);
-            MarkChanged();
-        });
-    }
+    internal void EditEquipmentTarget(EquipmentDropTarget target) => OpenEquipmentWorkbench(target);
 
-    internal void EditPlacedItem(PlacedItemSource source)
-    {
-        EditItemConfiguration(source.Placement.Item, updated =>
-        {
-            var index = StoredItems.FindIndex(item => item.InstanceId == source.Placement.InstanceId);
-            if (index >= 0)
-                StoredItems[index] = StoredItems[index] with { Item = updated };
-            MarkChanged();
-        });
-    }
+    internal void EditCarrierTarget(CarrierDropTarget target) => OpenCarrierWorkbench(target);
 
-    internal void InspectSearchItem(GameItem item)
-    {
-        ArgumentNullException.ThrowIfNull(item);
-        var window = new FarmingGuideItemConfigurationWindow(
-            item,
-            FarmingGuideItemState.Create(item.Id),
-            ItemCatalog,
-            readOnly: true)
-        {
-            Owner = Window.GetWindow(this),
-        };
-        window.ShowDialog();
-    }
-
-    private void EditItemConfiguration(FarmingGuideItemState state, Action<FarmingGuideItemState> apply)
-    {
-        var item = ResolveItem(state);
-        if (item is null)
-            return;
-
-        var layout = item.FarmingGuideData;
-        var editable = layout is not null &&
-                       (layout.AttachmentSlots.Count > 0 || layout.ArmorSlots.Any(slot => !slot.Locked));
-        var window = new FarmingGuideItemConfigurationWindow(item, state, ItemCatalog, readOnly: !editable)
-        {
-            Owner = Window.GetWindow(this),
-        };
-        if (window.ShowDialog() == true && window.Result is not null)
-            apply(window.Result);
-    }
+    internal void EditPlacedItem(PlacedItemSource source) => OpenStoredWorkbench(source);
 }

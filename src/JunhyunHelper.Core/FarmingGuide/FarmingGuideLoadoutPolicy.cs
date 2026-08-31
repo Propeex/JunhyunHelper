@@ -55,56 +55,63 @@ public static class FarmingGuideLoadoutPolicy
             [FarmingGuideStorageKind.SecureContainer] = secureContainer,
         };
         var accepted = new List<FarmingGuideStoredItemState>();
-        var instanceIds = new HashSet<string>(StringComparer.Ordinal);
+        var acceptedByInstance = new Dictionary<string, FarmingGuideStoredItemState>(StringComparer.Ordinal);
+        var duplicateInstanceIds = snapshot.StoredItems
+            .Where(static stored => !string.IsNullOrWhiteSpace(stored.InstanceId))
+            .GroupBy(static stored => stored.InstanceId, StringComparer.Ordinal)
+            .Where(static group => group.Skip(1).Any())
+            .Select(static group => group.Key)
+            .ToHashSet(StringComparer.Ordinal);
 
-        foreach (var stored in snapshot.StoredItems)
+        // Root placements must be accepted before their nested children. This also keeps
+        // older schema-v1 files (which have no ParentInstanceId field) fully compatible.
+        foreach (var stored in snapshot.StoredItems.Where(static value => value.ParentInstanceId is null))
         {
-            if (string.IsNullOrWhiteSpace(stored.InstanceId) ||
-                !instanceIds.Add(stored.InstanceId) ||
-                !itemCatalog.TryGetValue(stored.Item.ItemId, out var item))
+            TryAcceptStored(
+                stored,
+                carriers,
+                accepted,
+                acceptedByInstance,
+                duplicateInstanceIds,
+                itemCatalog,
+                pocketGrids);
+        }
+
+        // Nested containers can themselves contain nested containers. Iterate until no
+        // additional parent can be proven. Missing parents and cycles therefore fail closed.
+        var pending = snapshot.StoredItems
+            .Where(static value => value.ParentInstanceId is not null)
+            .ToList();
+        while (pending.Count > 0)
+        {
+            var progressed = false;
+            for (var index = pending.Count - 1; index >= 0; index--)
             {
-                continue;
-            }
-
-            var grids = ResolveGrids(stored.Storage, carriers, itemCatalog, pocketGrids);
-            if (stored.GridIndex < 0 || stored.GridIndex >= grids.Count)
-                continue;
-
-            var grid = grids[stored.GridIndex];
-            if (!FarmingGuideCompatibility.FilterAllows(item, grid.Filters))
-                continue;
-
-            var existing = accepted
-                .Where(value => value.Storage == stored.Storage && value.GridIndex == stored.GridIndex)
-                .Select(value =>
+                var stored = pending[index];
+                if (string.IsNullOrWhiteSpace(stored.ParentInstanceId) ||
+                    duplicateInstanceIds.Contains(stored.InstanceId))
                 {
-                    var existingItem = itemCatalog[value.Item.ItemId];
-                    var footprint = FarmingGuidePlacementEngine.Footprint(
-                        existingItem.Width ?? 1,
-                        existingItem.Height ?? 1,
-                        value.Rotated);
-                    return new FarmingGuideGridPlacement(
-                        value.InstanceId,
-                        value.X,
-                        value.Y,
-                        footprint.Width,
-                        footprint.Height);
-                });
+                    pending.RemoveAt(index);
+                    continue;
+                }
 
-            if (!FarmingGuidePlacementEngine.CanPlace(
-                    grid.Width,
-                    grid.Height,
-                    stored.X,
-                    stored.Y,
-                    item.Width ?? 1,
-                    item.Height ?? 1,
-                    stored.Rotated,
-                    existing))
-            {
-                continue;
+                if (!acceptedByInstance.ContainsKey(stored.ParentInstanceId))
+                    continue;
+
+                TryAcceptStored(
+                    stored,
+                    carriers,
+                    accepted,
+                    acceptedByInstance,
+                    duplicateInstanceIds,
+                    itemCatalog,
+                    pocketGrids);
+                pending.RemoveAt(index);
+                progressed = true;
             }
 
-            accepted.Add(stored);
+            if (!progressed)
+                break;
         }
 
         return new FarmingGuideLoadoutSnapshot(
@@ -113,6 +120,90 @@ public static class FarmingGuideLoadoutPolicy
             backpack,
             secureContainer,
             accepted);
+    }
+
+    private static bool TryAcceptStored(
+        FarmingGuideStoredItemState stored,
+        IReadOnlyDictionary<FarmingGuideStorageKind, FarmingGuideItemState?> carriers,
+        List<FarmingGuideStoredItemState> accepted,
+        Dictionary<string, FarmingGuideStoredItemState> acceptedByInstance,
+        IReadOnlySet<string> duplicateInstanceIds,
+        IReadOnlyDictionary<string, GameItem> itemCatalog,
+        IReadOnlyList<FarmingGuideStorageGridDefinition> pocketGrids)
+    {
+        if (string.IsNullOrWhiteSpace(stored.InstanceId) ||
+            duplicateInstanceIds.Contains(stored.InstanceId) ||
+            acceptedByInstance.ContainsKey(stored.InstanceId) ||
+            string.Equals(stored.InstanceId, stored.ParentInstanceId, StringComparison.Ordinal) ||
+            !itemCatalog.TryGetValue(stored.Item.ItemId, out var item))
+        {
+            return false;
+        }
+
+        var grids = ResolveGrids(
+            stored.Storage,
+            stored.ParentInstanceId,
+            carriers,
+            acceptedByInstance,
+            itemCatalog,
+            pocketGrids);
+        if (stored.GridIndex < 0 || stored.GridIndex >= grids.Count)
+            return false;
+
+        var grid = grids[stored.GridIndex];
+        if (!FarmingGuideCompatibility.FilterAllows(item, grid.Filters))
+            return false;
+
+        var existing = accepted
+            .Where(value =>
+                value.GridIndex == stored.GridIndex &&
+                SameStorageSurface(value, stored))
+            .Select(value =>
+            {
+                var existingItem = itemCatalog[value.Item.ItemId];
+                var footprint = FarmingGuidePlacementEngine.Footprint(
+                    existingItem.Width ?? 1,
+                    existingItem.Height ?? 1,
+                    value.Rotated);
+                return new FarmingGuideGridPlacement(
+                    value.InstanceId,
+                    value.X,
+                    value.Y,
+                    footprint.Width,
+                    footprint.Height);
+            });
+
+        if (!FarmingGuidePlacementEngine.CanPlace(
+                grid.Width,
+                grid.Height,
+                stored.X,
+                stored.Y,
+                item.Width ?? 1,
+                item.Height ?? 1,
+                stored.Rotated,
+                existing))
+        {
+            return false;
+        }
+
+        accepted.Add(stored);
+        acceptedByInstance[stored.InstanceId] = stored;
+        return true;
+    }
+
+    private static bool SameStorageSurface(
+        FarmingGuideStoredItemState left,
+        FarmingGuideStoredItemState right)
+    {
+        if (left.ParentInstanceId is not null || right.ParentInstanceId is not null)
+        {
+            return string.Equals(
+                left.ParentInstanceId,
+                right.ParentInstanceId,
+                StringComparison.Ordinal);
+        }
+
+        return left.Storage == right.Storage;
     }
 
     private static FarmingGuideItemState? ValidCarrier(
@@ -127,7 +218,9 @@ public static class FarmingGuideLoadoutPolicy
 
     private static IReadOnlyList<FarmingGuideStorageGridDefinition> ResolveGrids(
         FarmingGuideStorageKind kind,
+        string? parentInstanceId,
         IReadOnlyDictionary<FarmingGuideStorageKind, FarmingGuideItemState?> carriers,
+        IReadOnlyDictionary<string, FarmingGuideStoredItemState> acceptedByInstance,
         IReadOnlyDictionary<string, GameItem> itemCatalog,
         IReadOnlyList<FarmingGuideStorageGridDefinition> pocketGrids)
     {
@@ -135,6 +228,17 @@ public static class FarmingGuideLoadoutPolicy
             Enumerable.Range(0, count)
                 .Select(_ => new FarmingGuideStorageGridDefinition(1, 1, FarmingGuideItemFilter.Empty))
                 .ToArray();
+
+        if (parentInstanceId is not null)
+        {
+            if (!acceptedByInstance.TryGetValue(parentInstanceId, out var parent) ||
+                !itemCatalog.TryGetValue(parent.Item.ItemId, out var parentItem))
+            {
+                return [];
+            }
+
+            return parentItem.FarmingGuideData?.StorageGrids ?? [];
+        }
 
         if (kind == FarmingGuideStorageKind.Pockets)
             return pocketGrids;
