@@ -15,10 +15,12 @@ public static class FarmingGuideLoadoutPolicy
 
     public static FarmingGuideLoadoutSnapshot SanitizeSnapshot(
         FarmingGuideLoadoutSnapshot snapshot,
-        IReadOnlyDictionary<string, GameItem> itemCatalog)
+        IReadOnlyDictionary<string, GameItem> itemCatalog,
+        IReadOnlyList<FarmingGuideStorageGridDefinition>? pocketGrids = null)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(itemCatalog);
+        pocketGrids ??= FarmingGuidePocketLayoutPolicy.StandardGrids;
 
         var equipment = snapshot.Equipment
             .Where(entry =>
@@ -64,7 +66,7 @@ public static class FarmingGuideLoadoutPolicy
                 continue;
             }
 
-            var grids = ResolveGrids(stored.Storage, carriers, itemCatalog);
+            var grids = ResolveGrids(stored.Storage, carriers, itemCatalog, pocketGrids);
             if (stored.GridIndex < 0 || stored.GridIndex >= grids.Count)
                 continue;
 
@@ -126,7 +128,8 @@ public static class FarmingGuideLoadoutPolicy
     private static IReadOnlyList<FarmingGuideStorageGridDefinition> ResolveGrids(
         FarmingGuideStorageKind kind,
         IReadOnlyDictionary<FarmingGuideStorageKind, FarmingGuideItemState?> carriers,
-        IReadOnlyDictionary<string, GameItem> itemCatalog)
+        IReadOnlyDictionary<string, GameItem> itemCatalog,
+        IReadOnlyList<FarmingGuideStorageGridDefinition> pocketGrids)
     {
         static FarmingGuideStorageGridDefinition[] FixedGrids(int count) =>
             Enumerable.Range(0, count)
@@ -134,7 +137,7 @@ public static class FarmingGuideLoadoutPolicy
                 .ToArray();
 
         if (kind == FarmingGuideStorageKind.Pockets)
-            return FixedGrids(4);
+            return pocketGrids;
         if (kind == FarmingGuideStorageKind.SpecialSlots)
             return FixedGrids(3);
         if (!carriers.TryGetValue(kind, out var carrier) ||
