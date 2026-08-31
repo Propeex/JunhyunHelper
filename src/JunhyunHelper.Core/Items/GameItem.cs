@@ -26,6 +26,13 @@ public sealed record GameItem(
     /// </summary>
     public FarmingGuideItemLayout? FarmingGuideData { get; init; }
 
+    /// <summary>
+    /// Optional source-backed preset/composed-image metadata used by the recursive
+    /// Farming Guide assembly editor. Content snapshots predating v1.14 legitimately
+    /// deserialize with no assembly source data.
+    /// </summary>
+    public FarmingGuideAssemblySource? FarmingGuideAssembly { get; init; }
+
     [JsonIgnore]
     public IReadOnlyList<string> Categories => CategoryKeys ?? Array.Empty<string>();
 
