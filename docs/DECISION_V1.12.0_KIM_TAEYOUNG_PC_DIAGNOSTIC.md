@@ -1,7 +1,7 @@
-# Decision — v1.12.0 김태영 PC 진단
+# Decision — 김태영 PC 진단
 
 날짜: 2026-08-31  
-상태: **CONFIRMED / IMPLEMENTED PENDING RELEASE VERIFICATION**
+상태: **CONFIRMED / v1.12.0 IMPLEMENTED / v1.12.1 UX AMENDMENT IN PROGRESS**
 
 ## 사용자 문제
 
@@ -13,19 +13,27 @@
 
 ## 사용자 확정 Flow
 
+v1.12.1부터 정상 성공 경로는 다음으로 고정한다.
+
 ```text
 메인 헤더 좌측 프로필 이미지 클릭
-→ “김태영 본인이 맞습니까?” 확인
+→ “혹시 김태영 본인?”
 → 예
+→ 별도 indeterminate progress bar 표시
 → 로컬 PC/Scanner/capture 진단
 → Desktop ZIP 생성
-→ hyune4784@naver.com 으로 ZIP 전송 요청 메시지
+→ “진단 완료.\n파일을 hyune4784@naver.com 으로 보내주세요.”
+→ 기본 브라우저에서 https://mail.naver.com/v2/new 열기
 → 종료
 ```
 
 - `아니오`는 아무 작업도 하지 않는다.
-- 자동 업로드/자동 이메일 전송은 하지 않는다.
-- 사용자는 생성된 ZIP을 직접 전달한다.
+- 정상 시작 확인창에는 사용자 지정 문구 외의 설명을 추가하지 않는다.
+- 정상 완료창에도 사용자 지정 두 문장 외의 파일명/경로/설명을 추가하지 않는다.
+- ZIP은 자동 업로드하지 않는다.
+- 네이버 웹메일에 파일을 자동 첨부하거나 이메일을 자동 발송하지 않는다.
+- 기본 브라우저의 네이버 메일 쓰기 페이지만 연다. 웹메일 DOM/UI를 자동 조작하지 않는다.
+- 사용자는 생성된 ZIP을 직접 첨부하고 발송한다.
 
 ## 진단 목표
 
@@ -97,8 +105,6 @@ Scanner/capture 결과에 영향을 줄 가능성이 있는 정보를 가능한 
 
 ### Visual evidence
 
-진단 실행 확인창에서 화면 캡처가 포함될 수 있음을 명시한 뒤:
-
 - 각 Windows display screen copy
 - Tarkov window가 있으면 exact client screen-copy
 - 같은 Tarkov client에 대한 PrintWindow 결과
@@ -126,9 +132,9 @@ Scanner/capture 결과에 영향을 줄 가능성이 있는 정보를 가능한 
 - 임의의 전체 process 목록
 - application install path
 
-단, **화면 캡처 자체에는 진단 시 실제 화면에 보이는 내용이 포함될 수 있다.** 이 점을 실행 전 확인창과 ZIP README에서 알린다.
+단, **화면 캡처 자체에는 진단 시 실제 화면에 보이는 내용이 포함될 수 있다.** 이 사실은 ZIP README에 유지한다.
 
-ZIP은 로컬 Desktop에만 생성하고 자동 전송하지 않는다.
+ZIP은 로컬 Desktop에만 생성한다.
 
 ## Failure contract
 
@@ -138,6 +144,21 @@ ZIP은 로컬 Desktop에만 생성하고 자동 전송하지 않는다.
 - 실패한 probe 이름/예외 종류/비민감 메시지는 `probe-errors.txt`에 기록
 - 핵심 ZIP 작성 자체가 실패할 때만 진단 전체 실패로 처리
 - partial evidence도 가능한 한 보존
+- 정상 성공 UX의 고정 문구 계약을 깨지 않도록 browser compose launch 실패는 내부 diagnostic log에만 기록한다.
+
+## 2026-08-31 사용자 노트북 smoke evidence
+
+사용자가 v1.12.0에서 생성한 실제 진단 ZIP을 검토했다.
+
+- expected top-level evidence 11개 생성
+- `probe-errors.txt = none`
+- display capture / luminance stats 정상
+- nested Scanner support bundle 정상
+- Scanner/catalog snapshot 정상
+- 실행 당시 Tarkov가 없어 `EscapeFromTarkov window not found.`가 기록됨
+- allowlist 대상 관련 프로세스가 실행 중이지 않아 관련 프로세스 목록이 비어 있었음
+
+따라서 exporter 자체는 실제 사용자 노트북에서 정상 동작했다. 이 샘플은 김태영 실제 PC의 밝기 문제 원인 증거는 아니다.
 
 ## 구현 authority
 
