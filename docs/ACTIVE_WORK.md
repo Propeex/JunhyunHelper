@@ -81,21 +81,29 @@ PR: #237 (draft)
 - 사용자명, 컴퓨터명, IP/MAC, 네트워크 목록, secret/token, 임의 전체 프로세스 목록, 설치 경로는 수집하지 않음
 - 화면 캡처가 포함될 수 있다는 점을 실행 확인창과 README에서 명시
 
+## Completed
+
+- Quest task-pool root cause 규명 및 past-stage availability 수정 구현
+- LL1→LL2 / LL2→LL3 / exact-value / structural-drift 회귀 테스트 추가
+- Hideout 검색창 clear `×` alignment 수정 및 source-contract test 추가
+- 메인 헤더 이미지 entry point와 김태영 확인/완료 UX 구현
+- 로컬 PC diagnostic ZIP exporter 구현
+- v1.12.0 Desktop/FIRST_RUN 버전 정렬
+- task-pool compatibility 결정 문서 정제
+- 김태영 PC 진단 결정 문서와 v1.12.0 release notes 작성
+- Draft PR #237 생성
+- 최초 implementation head Windows CI에서 build/test/publish/product UI/Map/graceful-shutdown smoke 성공 확인
+
 ## Current step
 
-- 세 기능의 1차 구현 및 회귀/source-contract 테스트 작성 완료.
-- Draft PR #237 생성 완료.
-- Windows PR CI 진행 중.
-- v1.12.0 버전/공식 결정·상태 문서 정렬과 CI 피드백 수정을 이어간다.
+- 최신 v1.12.0 documentation/version head에 대한 PR CI, Shutdown Race CI, Documentation Consistency를 최종 확인한다.
+- 성공 후 PR을 ready로 전환해 main 병합과 exact-main release pipeline을 진행한다.
 
 ## Remaining
 
-- Desktop version v1.12.0 및 packaging version text 정렬
-- Quest past-stage unlock 결정 문서화
-- 김태영 PC 진단 지원 계약 문서화
-- PR CI 피드백 수정 및 전체 테스트
-- Windows published EXE 실제 UI/runtime smoke
-- PR ready / main 병합 / exact-main CI
-- PROJECT_STATE / CURRENT_STATE / STATE 최종 정렬
-- v1.12.0 공개 릴리즈 및 asset/tag/checksum 검증
+- 최신 PR head 전체 gate 성공 확인 및 실패 시 수정
+- PR ready / main 병합
+- exact-main CI / Shutdown Race CI / Documentation Consistency 확인
+- automatic v1.12.0 Release workflow 및 public tag/assets/checksum 검증
+- PROJECT_STATE / CURRENT_STATE / STATE / README / decision index 최종 release evidence 정렬
 - ACTIVE_WORK 완료 처리
