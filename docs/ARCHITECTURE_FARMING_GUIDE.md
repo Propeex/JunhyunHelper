@@ -1,7 +1,7 @@
 # ARCHITECTURE — Farming Guide
 
 기준일: **2026-08-31 KST**  
-대상 제품: **v1.13.1+**
+대상 제품: **v1.13.2+**
 
 이 문서는 `파밍 가이드` subsystem의 책임, 데이터 흐름, persistence, Tarkov 변화 대응, 유지보수 경계를 정의한다. 제품 의미는 `docs/DECISION_V1.13.0_FARMING_GUIDE_LOADOUT_EDITOR.md`, 현재 사실값은 `docs/PROJECT_STATE.json`, 실제 구현/검증 상태는 `docs/STATE.md`가 우선한다.
 
@@ -32,12 +32,14 @@ JunhyunHelper.Desktop
   ├─ Farming Guide page / interaction / drag-drop presentation
   ├─ item icon presentation/cache binding
   ├─ geometry-backed drop-target probing
+  ├─ profile-aware pocket presentation
   ├─ section lifecycle integration
-  └─ configuration dialogs / runtime smoke hooks
+  └─ configuration / inspection dialogs / runtime smoke hooks
 
 JunhyunHelper.Application / Core
   ├─ deterministic editor state
   ├─ placement / packing / compatibility rules
+  ├─ profile/edition-aware pocket geometry policy
   └─ preset/fixed-state semantics
 
 JunhyunHelper.Infrastructure
@@ -72,6 +74,7 @@ Farming Guide가 사용하는 구조:
 - attachment slots
 - armor plate slots
 - item conflicts
+- current canonical type/category classification
 - 현재 editor compatibility에 필요한 기타 optional structure
 
 외부 source field가 없거나 importer가 의미를 증명할 수 없으면 값을 추측하지 않는다.
@@ -98,6 +101,29 @@ schema v1
 
 Program Update와 Game Content Update는 이 사용자 상태를 덮어쓰지 않는다.
 
+### 3.3 Profile facts used by Farming Guide
+
+Pocket geometry는 item Game Content가 아니라 **현재 profile의 raid-start capability**에 속한다.
+
+Authority:
+
+- active profile `EditionId`
+- active profile `CompletedQuestIds`
+- canonical edition rules in current Game Content
+
+현재 policy:
+
+```text
+Old Patterns 완료
+OR current edition이 Old Patterns 보상을 기본 보유
+→ expanded pockets: 1×1 / 1×2 / 1×2 / 1×1
+
+otherwise
+→ standard pockets: 1×1 / 1×1 / 1×1 / 1×1
+```
+
+이 resolved geometry는 presentation과 persisted-placement sanitization에 같은 값으로 전달한다. UI와 저장 검증이 서로 다른 pocket truth를 만들지 않는다.
+
 ## 4. Editor state model
 
 대표 상태 관계:
@@ -118,6 +144,13 @@ user-level fixed settings
 
 Preset을 불러온 뒤 사용자가 state를 수정하면 원본 preset 선택 상태를 해제한다. Fixed melee/dogtag는 raid preset과 의미가 다르므로 preset payload와 lifecycle을 분리한다.
 
+Preset 삭제 계약:
+
+- 선택한 preset identity만 제거한다.
+- 삭제 시 현재 working raid-start state를 폐기하지 않는다.
+- 삭제된 preset이 selected state였다면 selector는 미선택 상태로 돌아간다.
+- 동일 이름 비교는 persistence boundary에서 case-insensitive로 처리한다.
+
 ## 5. Equipment / carrier presentation
 
 Equipment는 current product design에 필요한 Tarkov 장착 위치를 spatial slot board로 표현한다.
@@ -130,26 +163,36 @@ Equipment는 current product design에 필요한 Tarkov 장착 위치를 spatial
 - armor / armored rig
 - armband
 - primary/secondary weapon
-- sidearm
+- sidearm / Holster
 - melee
 
-Storage/carrier 영역:
+장착 의미:
 
-- Pocket
-- Rig
-- Backpack
-- Secure Container
-- Special Slot
+- pistol / revolver / handgun 계열은 Holster target이다.
+- pistol 계열을 PrimaryWeapon1/2의 generic weapon으로 받아들이지 않는다.
+- body armor / rig / backpack / secure container는 current `propertiesType`과 canonical type/category 의미를 함께 사용해 판정한다.
+- carrier는 equipment dictionary와 별도 aggregate지만 사용자 interaction에서는 동일 drag/drop loadout surface로 동작한다.
 
-Carrier 내부 grid는 하드코딩된 시각 템플릿이 아니라 current validated item structure에서 생성한다.
+Storage/carrier 영역의 canonical presentation 순서:
 
-v1.13.1 presentation contract:
+```text
+Rig
+Pockets (left) + Special Slots (right)
+Backpack
+Secure Container
+```
+
+Carrier 내부 grid는 하드코딩된 시각 템플릿이 아니라 current validated item structure에서 생성한다. Pockets만 profile-aware fixed geometry policy를 사용하고 Special Slots는 product-owned fixed three-slot structure를 유지한다.
+
+Presentation contract:
 
 - 장비와 수납 item은 text-only row가 아니라 실제 item icon을 주 presentation으로 사용한다.
 - Rig / Backpack / Secure Container는 carrier icon target과 해당 item의 actual storage grids를 함께 표현한다.
 - storage placement와 drag ghost도 같은 item image presentation을 공유한다.
 - 회전된 비정사각형 image는 WPF layout measure/arrange가 rotated footprint를 반영하도록 layout-aware transform을 사용한다.
 - icon loading/cache는 presentation concern이며 Item ID / compatibility / placement truth를 변경하지 않는다.
+- melee / PMC dogtag는 fixed lifecycle을 유지하지만 UI label에 별도 `고정` 문구를 붙이지 않는다.
+- preset-name dialog는 fixed client height에 의존하지 않고 content-sized layout으로 DPI/theme 변화에서도 하단 control을 clip하지 않는다.
 
 ## 6. Drag / placement 파이프라인
 
@@ -200,7 +243,7 @@ Carrier는 내부 stored placement를 소유하는 aggregate다.
 
 ## 8. Persisted state sanitization
 
-저장 당시 정상인 preset이 이후 Tarkov 데이터 변경으로 불가능해질 수 있다.
+저장 당시 정상인 preset이 이후 Tarkov 데이터 변경 또는 profile capability 변화로 불가능해질 수 있다.
 
 예:
 
@@ -209,12 +252,14 @@ Carrier는 내부 stored placement를 소유하는 aggregate다.
 - item dimension 변경
 - filter 변경
 - 여러 placement가 overlap 상태가 됨
+- profile/edition pocket geometry가 변경됨
 
-Load 시 current Game Content를 authority로 사용한다.
+Load 시 current Game Content와 current resolved pocket geometry를 authority로 사용한다.
 
 ```text
 persisted placement
 → current item/grid existence
+→ current profile pocket geometry when Pockets
 → current bounds
 → current overlap
 → current filter
@@ -222,9 +267,28 @@ persisted placement
 → invalid/unknown: do not restore impossible placement
 ```
 
-즉 과거 JSON이 current Tarkov truth보다 우선하지 않는다. Invalid persisted state 때문에 editor 전체를 비정상 상태로 만들지 않는다.
+즉 과거 JSON이 current Tarkov/profile truth보다 우선하지 않는다. Invalid persisted state 때문에 editor 전체를 비정상 상태로 만들지 않는다.
 
-## 9. Attachment / armor plate
+## 9. Internal structure inspection / configuration
+
+Double-click은 item 내부 구조를 확인하는 공통 interaction이다.
+
+```text
+equipped / carrier / stored item
+→ editable structure가 있으면 configuration window
+→ storage-only 또는 edit할 구조가 없으면 read-only inspection
+
+search result
+→ read-only inspection
+```
+
+표시 대상:
+
+- actual storage grid width / height preview
+- attachment slots
+- armor plate slots
+- locked/internal armor slots
+- 현재 nested configuration
 
 Attachment와 교체형 armor plate는 장착 item의 nested configuration이다.
 
@@ -232,6 +296,7 @@ Attachment와 교체형 armor plate는 장착 item의 nested configuration이다
 - slot allow/block/conflict 의미를 current validated content에 맞춰 검증한다.
 - preset round-trip 시 nested configuration을 보존한다.
 - unknown slot/item relationship을 임의 호환으로 처리하지 않는다.
+- search result inspection은 read-only이며 working loadout을 수정하지 않는다.
 
 ## 10. Content schema compatibility
 
@@ -244,7 +309,7 @@ Readable schemas: v3, v4, v5, v6, v7, v8, v9
 
 Old readable snapshot에는 Farming Guide용 구조가 없을 수 있다. 없는 구조를 fabricate하지 않는다. 일반 기존 기능이 읽을 수 있는 snapshot compatibility와 Farming Guide가 실제 editor structure를 제공할 수 있는지는 구분한다.
 
-v1.13.0 → v1.13.1에는 Game Content schema 변경이 없다.
+v1.13.0 → v1.13.1 → v1.13.2에는 Game Content schema 변경이 없다.
 
 ## 11. Lifecycle / MainWindow integration
 
@@ -256,6 +321,7 @@ MainWindow lifecycle에서 다음을 기존 section들과 일관되게 처리한
 - section visibility
 - busy state
 - navigation/button state
+- active profile context for pocket geometry
 - shutdown/disposal
 
 Farming Guide 추가로 Scanner/Map/Quest 등 unrelated subsystem의 initialization ordering을 새 implicit dependency로 만들지 않는다.
@@ -276,7 +342,7 @@ Release 후보에서 최소 다음을 검증한다.
 - active async shutdown-race smoke
 - clean portable root/package audit
 
-v1.13.1 exact product source `302f83e88cc65b5fae9b86b5cae294b2586c85a0`은 이 gate를 통과했다. 현재 release evidence는 `docs/RELEASE_1.13.1.md`에 기록한다.
+v1.13.1 exact product source `302f83e88cc65b5fae9b86b5cae294b2586c85a0`은 이 gate를 통과했다. v1.13.2의 최종 release evidence는 공개 완료 후 `docs/RELEASE_1.13.2.md`에 기록한다.
 
 ## 13. Security / Tarkov interaction boundary
 
@@ -301,9 +367,10 @@ Tarkov 변화 시 우선순위:
 1. live source structure 변화 여부 확인
 2. importer/canonical model이 새 의미를 이해하는지 확인
 3. Content v9 validation 및 old readable compatibility 확인
-4. existing Farming Guide preset을 current content로 sanitize
-5. deterministic regression 추가
-6. published EXE smoke
+4. active profile edition/quest facts로 pocket geometry를 resolve
+5. existing Farming Guide preset을 current content/profile geometry로 sanitize
+6. deterministic regression 추가
+7. published EXE smoke
 
 추측성 대규모 editor rewrite보다 실제 source drift/실사용 회귀에 필요한 범위만 수정한다.
 
