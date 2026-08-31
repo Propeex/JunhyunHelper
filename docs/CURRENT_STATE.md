@@ -3,68 +3,71 @@
 > 최신 제품 상태의 짧은 인덱스입니다. 기계 판독 가능한 사실값은 `docs/PROJECT_STATE.json`, 상세 계약은 `docs/STATE.md`, 진행 중 작업은 `docs/ACTIVE_WORK.md`를 기준으로 합니다.
 
 기준일: **2026-08-31 KST**  
-상태: **v1.13.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+상태: **v1.13.2 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 공개 stable
 
 ```text
-public stable/latest: v1.13.1
+public stable/latest: v1.13.2
 exact product release source/tag target:
-302f83e88cc65b5fae9b86b5cae294b2586c85a0
-PR: #243 — MERGED
-validated PR head: 314ce0501c0f680aacb13d2b3c61b20487c4eb15
-PR exact-head CI: 33364597514 — SUCCESS
-PR exact-head Shutdown Race CI: 33364597501 — SUCCESS
-PR exact-head Documentation Consistency: 33364597497 — SUCCESS
-exact-main CI: 33364865109 — SUCCESS
-exact-main Shutdown Race CI: 33364865123 — SUCCESS
-exact-main Documentation Consistency: 33364865134 — SUCCESS
-release workflow: 33365070880 — SUCCESS
-release id: 379553485
-published UTC: 2026-08-31T06:39:45Z
-494 passed / 0 failed / 0 skipped
+207cb948affc091c4ad67f18d7e4e4382b2f8125
+PR: #245 — MERGED
+validated PR head: ef4522880218b5e5ec8d8c0a8a3211e0f0c51020
+PR exact-head CI: 33373322410 — SUCCESS
+PR exact-head Shutdown Race CI: 33373322440 — SUCCESS
+PR exact-head Documentation Consistency: 33373322395 — SUCCESS
+exact-main CI: 33373612303 — SUCCESS
+exact-main Shutdown Race CI: 33373612281 — SUCCESS
+exact-main Documentation Consistency: 33373612283 — SUCCESS
+release workflow: 33373940475 — SUCCESS
+release id: 379612102
+published UTC: 2026-08-31T08:40:02Z
+504 passed / 0 failed / 0 skipped
 ```
 
 Public package:
 
 ```text
 Junhyun-Helper.zip
-asset id: 537579591
-bytes: 80,614,695
+asset id: 537701878
+bytes: 80,617,300
 SHA-256:
-d81b6bbcdb02712cb27a549e62cfb8c0d48a8c83f95d7798922474a56e99a737
+659071659531259a61d0996e277bf9643ee9fc4cfa8a0a437b4686994bd38bed
 
 SHA256SUMS.txt
-asset id: 537579593
+asset id: 537701880
 bytes: 86
 asset SHA-256:
-14c38f75b70a27d3d6d0ec956404e363dd7d134a6111da3a4b11538a97864e8c
+0ebdc1240c721bf0192b703c77cfd944665f870edb7d79444dfd6181a2a43a19
 ```
 
 Exact-main Actions artifact:
 
 ```text
 name: JunhyunHelper-win-x64
-artifact id: 9747973218
-archive bytes: 241,778,025
+artifact id: 9751114832
+archive bytes: 241,785,937
 archive SHA-256:
-58b38558b33095ddb20ec2e3cdd1ebeea7abb4e9c9c4614ce5d8747927b8e3f6
+c4d146d46856f91f3dd489fe9a5d5eab7906cbcb05fe40dfd3966052872aba84
 ```
 
-GitHub `/releases/latest`, release target, `refs/tags/v1.13.1`, exact-main product source가 모두 `302f83e88cc65b5fae9b86b5cae294b2586c85a0`에 일치한다. 공개 release는 `draft=false`, `prerelease=false`이다.
+GitHub `/releases/latest`, release target, `refs/tags/v1.13.2`, exact-main product source가 모두 `207cb948affc091c4ad67f18d7e4e4382b2f8125`에 일치한다. 공개 release는 `draft=false`, `prerelease=false`이다.
 
-## v1.13.1 핵심 변경 — Farming Guide UI / drag-drop 회귀 수정
+## v1.13.2 핵심 변경 — Farming Guide 장비·수납·프리셋 보완
 
-v1.13.1은 v1.13.0 Farming Guide의 제품 의미와 데이터 계약을 유지하는 PATCH 릴리즈다.
+v1.13.2는 v1.13.0/v1.13.1 Farming Guide의 제품 의미와 데이터 계약을 유지하는 PATCH 릴리즈다.
 
-- 장비 영역을 텍스트 목록형에서 아이콘 중심의 Tarkov 인벤토리 유사 slot board로 재구성했다.
-- equipped item, Rig / Backpack / Secure Container, storage grid placement, drag ghost에 실제 item icon을 사용한다.
-- `R` 회전 시 비정사각형 icon도 회전된 footprint에 맞게 layout된다.
-- WPF mouse capture 중 equipment/carrier target을 놓치던 drag/drop 판정을 geometry-backed probing으로 보강했다.
-- geometry fallback은 ScrollViewer / ScrollContentPresenter / clipping ancestor의 visible bounds를 존중한다.
-- mouse-up 실제 좌표에서 drop probe를 다시 계산한다.
-- valid/invalid 초록·빨강 target border가 pointer 이동/end 뒤 남지 않게 cleanup한다.
-- 프리셋 저장 아이콘과 검색창 텍스트 clipping을 수정했다.
+- pistol / revolver / handgun 계열은 Holster 전용이며 Primary Weapon 1/2에서 제외한다.
+- body armor / rig / backpack / secure container compatibility를 canonical type/category 의미로 보강했다.
+- 활성 profile의 edition과 Old Patterns 완료 여부에 따라 pocket geometry를 결정한다.
+  - standard: `1×1 / 1×1 / 1×1 / 1×1`
+  - expanded: `1×1 / 1×2 / 1×2 / 1×1`
+- resolved pocket geometry를 UI, placement, persisted-state sanitization에 공통 사용한다.
+- storage presentation 순서는 `Rig → Pockets + Special Slots → Backpack → Secure Container`이며 Pockets는 좌측, Special Slots는 우측이다.
+- equipped item 및 search result double-click으로 actual storage grid / attachment / armor structure를 확인할 수 있다.
+- preset delete를 추가했으며 삭제해도 current working loadout은 유지한다.
+- preset name dialog의 DPI/theme clipping을 수정했다.
+- melee / PMC dogtag fixed lifecycle은 유지하고 `고정` 문구만 제거했다.
 
 ## Farming Guide 유지 계약
 
@@ -107,7 +110,7 @@ Architecture/maintenance contract:
 ## Schema / compatibility
 
 ```text
-Desktop target version: 1.13.1
+Desktop target version: 1.13.2
 Content schema write: v9
 Readable Content schemas: v3~v9
 user.db schema: v1
@@ -117,20 +120,19 @@ Scanner catalog cache write: v4
 Scanner catalog readable: v1~v4
 ```
 
-Farming Guide 상태는 `%LocalAppData%/JunhyunHelper/farming-guide.json`에 Game Content와 분리해 저장한다. v1.13.0 → v1.13.1 mandatory user data migration은 없다.
+Farming Guide 상태는 `%LocalAppData%/JunhyunHelper/farming-guide.json`에 Game Content와 분리해 저장한다. v1.13.1 → v1.13.2 mandatory user data migration은 없다.
 
 ## 검증 상태
 
-Exact product source `302f83e88cc65b5fae9b86b5cae294b2586c85a0`은 다음을 통과했다.
+Exact product source `207cb948affc091c4ad67f18d7e4e4382b2f8125`은 다음을 통과했다.
 
-- 494 deterministic tests
-- Windows Release build
+- 504 deterministic tests
+- Windows Release build / XAML compile
 - Windows x64 self-contained publish
-- ProductVersion `1.13.1+302f83e...` identity 확인
 - actual published EXE Product UI / Farming Guide / Map smoke
 - graceful shutdown + clean portable root
 - active-async Shutdown Race
-- clean portable root / forbidden dependency audit
+- package root / forbidden dependency audit
 - release package + checksum audit
 - exact-main Documentation Consistency
 - exact-main artifact upload
@@ -141,14 +143,14 @@ Exact product source `302f83e88cc65b5fae9b86b5cae294b2586c85a0`은 다음을 통
 
 자동화 release verification과 별개로 다음은 `PENDING`이다.
 
-- 사용자의 실제 PC/Tarkov에서 v1.13.1 최종 실사용 확인
+- 사용자의 실제 PC/Tarkov에서 v1.13.2 최종 실사용 확인
 - 김태영 실제 PC에서 diagnostic ZIP 수집/분석
 
 공개 증거:
 
-- `docs/RELEASE_1.13.1.md`
-- `docs/.release-v1.13.1-status.json`
-- `docs/RELEASE_NOTES_V1.13.1.md`
+- `docs/RELEASE_1.13.2.md`
+- `docs/.release-v1.13.2-status.json`
+- `docs/RELEASE_NOTES_V1.13.2.md`
 - `docs/DECISION_V1.13.0_FARMING_GUIDE_LOADOUT_EDITOR.md`
 
-후속 documentation-only commit은 v1.13.1 product release source가 아니다. historical identity는 `302f83e88cc65b5fae9b86b5cae294b2586c85a0`에 고정한다.
+후속 documentation-only commit은 v1.13.2 product release source가 아니다. historical identity는 `207cb948affc091c4ad67f18d7e4e4382b2f8125`에 고정한다.
