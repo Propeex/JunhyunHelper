@@ -1,88 +1,42 @@
 # ACTIVE WORK — 현재 진행 중 작업 체크포인트
 
-Status: **NONE**  
+Status: **ACTIVE**  
 Updated: **2026-08-31 KST**
 
-현재 진행 중인 개발 작업은 없습니다.
+## Current work
 
-## Last completed work
-
-**v1.13.1 Farming Guide — 실사용 UI / drag-drop 회귀 수정**
+**Farming Guide — 실사용 장착/수납/프리셋/검사 UX 보완**
 
 ```text
-public stable: v1.13.1
-exact product release source/tag target:
-302f83e88cc65b5fae9b86b5cae294b2586c85a0
-fix branch: fix/v1.13.1-farming-guide-ui-regressions-2026-08-31
-PR: #243 — MERGED
-validated PR head:
-314ce0501c0f680aacb13d2b3c61b20487c4eb15
-PR exact-head CI: 33364597514 — SUCCESS
-PR exact-head Shutdown Race CI: 33364597501 — SUCCESS
-PR exact-head Documentation Consistency: 33364597497 — SUCCESS
-exact-main CI: 33364865109 — SUCCESS
-exact-main Shutdown Race CI: 33364865123 — SUCCESS
-exact-main Documentation Consistency: 33364865134 — SUCCESS
-release workflow: 33365070880 — SUCCESS
-release id: 379553485
-494 passed / 0 failed / 0 skipped
+base public stable: v1.13.1
+base main: 8efad3360efbccce504c94669ae1aeb54288fdca
+branch: fix/farming-guide-equipment-inspection-2026-08-31
+phase: requirement recovery + root-cause analysis
 ```
 
-### Completed product scope
+### User-confirmed product requirements
 
-- Farming Guide 장비 영역을 텍스트 목록형에서 아이콘 중심의 Tarkov 인벤토리 유사 slot board로 재구성.
-- equipped item, carrier, storage grid placement, drag ghost에 실제 item icon 적용.
-- `R` 회전 시 비정사각형 icon도 실제 rotated footprint에 맞게 layout.
-- WPF mouse capture 중 equipment / Rig / Backpack / Secure Container drop target을 놓치던 판정 보강.
-- geometry fallback에서 ScrollViewer/clip ancestor visible bounds를 검증해 화면 밖 target 선택 차단.
-- mouse-up actual coordinate에서 drop probe 재계산.
-- valid/invalid 초록·빨강 target highlight cleanup.
-- preset save icon / search input clipping 수정.
-- v1.13.0 placement / compatibility / persistence / preset / fixed melee·dogtag / carrier safety 계약 보존.
+1. 프리셋 저장 버튼 우측에 휴지통 아이콘의 프리셋 삭제 버튼 추가.
+2. 프리셋 이름 입력 창의 하단/버튼이 잘리는 레이아웃 수정.
+3. 권총은 `무기 1/2`이 아니라 권총(holster) 슬롯에 장착되도록 장착 호환성 수정.
+4. 방탄복·리그·가방·보안 컨테이너가 각 장비 슬롯에 정상 장착되도록 회귀 수정.
+5. 수납 공간 표시 순서를 위에서부터 `리그` → `주머니(좌)+특수 슬롯(우)` → `가방` → `컨테이너`로 구성.
+6. 프로필/에디션에 따라 달라지는 주머니 grid를 실제 데이터에서 판별하며 `1,2,2,1` 형태를 포함해 그대로 표현.
+7. 장비를 더블클릭하면 내부 정보 창을 연다. 총은 부착물, 헬멧/방탄복은 방탄판·야투경 등 장착 구성, 리그/가방 등 수납 장비는 내부 grid 정보를 보여준다.
+8. 인식표와 칼 슬롯에서 `고정` 문구를 제거하되 preset과 독립된 fixed-state 의미 자체는 유지.
 
-### Release verification
+### Contracts to preserve
 
-Exact product source `302f83e88cc65b5fae9b86b5cae294b2586c85a0`은 다음을 통과했습니다.
+- v1.13.1 item-icon 중심 Tarkov 유사 slot board.
+- 실제 Tarkov item footprint / 회전 / 장비 호환성 / storage grid placement.
+- preset dirty-state (`프리셋 선택`) 계약.
+- 칼·인식표는 preset과 독립된 사용자 고정 설정.
+- unrelated Quest/Hideout/Items/Ammo/Map/Scanner 동작.
 
-- 494 deterministic tests
-- Windows Release build / XAML compile
-- Windows x64 self-contained publish
-- actual published EXE Product UI / Farming Guide / Map smoke
-- graceful shutdown + clean portable root
-- active-async Shutdown Race
-- package / forbidden dependency / checksum audit
-- exact-main Documentation Consistency
-- automatic verified Release workflow
-- public `v1.13.1` tag / release / latest / asset digest readback
+### Current checkpoint
 
-Public package:
+- v1.13.1 공식 Farming Guide architecture / decision 계약 확인 완료.
+- Farming Guide UI 소스 위치 확인 완료 (`src/JunhyunHelper.Desktop/FarmingGuide`).
+- 다음 단계: equipment-slot compatibility, carrier grid, pocket/profile source, preset persistence, existing item configuration/inspection window를 실제 코드 기준으로 대조한 뒤 구현.
 
-```text
-Junhyun-Helper.zip
-80,614,695 bytes
-SHA-256:
-d81b6bbcdb02712cb27a549e62cfb8c0d48a8c83f95d7798922474a56e99a737
-```
-
-## Canonical records
-
-- `docs/PROJECT_STATE.json`
-- `docs/CURRENT_STATE.md`
-- `docs/STATE.md`
-- `docs/PRODUCT.md`
-- `docs/RELEASE_1.13.1.md`
-- `docs/RELEASE_NOTES_V1.13.1.md`
-- `docs/.release-v1.13.1-status.json`
-- `docs/DECISION_V1.13.0_FARMING_GUIDE_LOADOUT_EDITOR.md`
-- `docs/ARCHITECTURE_FARMING_GUIDE.md`
-
-## External real-world evidence still pending
-
-자동화 release verification과 별개로 다음은 후속 실사용 evidence입니다.
-
-- 사용자의 실제 PC/Tarkov에서 v1.13.1 최종 실사용 확인
-- 김태영 실제 PC diagnostic ZIP 수집/분석
-
-새 사용자 요구사항, 실사용 회귀, Tarkov 변화, reviewed Scanner Ground Truth 또는 실제 diagnostic evidence가 들어오면 v1.13.1 public stable에서 새 `ACTIVE_WORK`를 엽니다.
-
-후속 documentation-only commit은 v1.13.1 product release source가 아닙니다. historical product identity는 `302f83e88cc65b5fae9b86b5cae294b2586c85a0`에 고정합니다.
+완전한 구현·회귀 테스트·published EXE 검증·PR/CI/main 병합·릴리즈/문서화가 끝날 때까지 이 작업을 닫지 않습니다.
