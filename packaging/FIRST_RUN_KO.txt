@@ -1,10 +1,17 @@
-준현 헬퍼 v1.11.3 — Windows x64
+준현 헬퍼 v1.11.4 — Windows x64
 
 실행 방법
 1. 받은 'Junhyun-Helper.zip'을 원하는 위치에 압축 해제합니다.
 2. 압축을 풀면 생성되는 '준현 헬퍼' 폴더 안의 '준현 헬퍼.exe'를 실행합니다.
 3. 처음 실행하면 프로필을 만들고 필요한 최신 게임 데이터를 온라인에서 내려받습니다.
 4. 프로그램 실행 시 GitHub의 최신 정식 준현 헬퍼 릴리즈를 확인합니다. 더 최신 버전이 있으면 업데이트 여부를 묻습니다.
+
+v1.11.4 MiniMap 마커 lifecycle / Mini Scanner 우클릭 수정
+- Main Map에서 지도를 바꾼 뒤 MiniMap을 처음 켜도 이전 지도가 잠깐 보이지 않고 현재 선택한 지도를 첫 생성부터 사용합니다.
+- MiniMap의 Transit 탈출구를 포함한 실제 extract marker 렌더링 경로를 재점검하고, published EXE에서 실제 Transit 마커가 생성되는지 직접 검증합니다.
+- MiniMap 일반 마커가 비동기 refresh 취소 타이밍 때문에 잠깐 보였다가 모두 사라질 수 있던 경로를 보강했습니다. 표시 대상 데이터가 있는데 레이어만 비면 이미 로드된 데이터에서 표준 마커 레이어를 직접 복구합니다.
+- Player Marker Size 변경은 플레이어 마커만 수정하며 Name Size와 MiniMap Marker Size 등 다른 표시 설정을 다시 적용하거나 초기화하지 않습니다.
+- Mini Scanner를 우클릭해도 `현재 결과 교정` 컨텍스트 메뉴가 더 이상 표시되지 않습니다. 좌클릭 드래그와 교정 데이터 단축키는 그대로 유지됩니다.
 
 v1.11.3 검색창 / 지도 마커 / Scanner 교정 UX 및 evidence 수정
 - 아이템과 은신처 검색창은 실제 페이지 lifecycle에서 공통 inline `×`를 안정적으로 연결합니다. 검색어가 없을 때는 숨기고, 입력 중에만 표시되며 클릭하면 검색어를 지우고 포커스를 유지합니다.
@@ -36,4 +43,4 @@ v1.11.0 Scanner / Map 유지보수 및 탄약 판단
 - docs/CURRENT_STATE.md
 - docs/STATE.md
 - docs/DECISIONS.md
-- docs/RELEASE_NOTES_V1.11.3.md
+- docs/RELEASE_NOTES_V1.11.4.md
