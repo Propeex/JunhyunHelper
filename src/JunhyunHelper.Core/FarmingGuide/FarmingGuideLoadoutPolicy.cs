@@ -5,8 +5,8 @@ namespace JunhyunHelper.Core.FarmingGuide;
 /// <summary>
 /// Product-owned safety policy for persisted and edited Farming Guide state.
 /// Saved state is advisory user input: when current Tarkov structure no longer proves
-/// that a placement is valid, discard that placement instead of rendering or persisting
-/// an impossible inventory state.
+/// that a placement or nested assembly is valid, discard that impossible state instead
+/// of rendering or persisting it.
 /// </summary>
 public static class FarmingGuideLoadoutPolicy
 {
@@ -22,12 +22,20 @@ public static class FarmingGuideLoadoutPolicy
         ArgumentNullException.ThrowIfNull(itemCatalog);
         pocketGrids ??= FarmingGuidePocketLayoutPolicy.StandardGrids;
 
-        var equipment = snapshot.Equipment
-            .Where(entry =>
-                entry.Key is not (FarmingGuideEquipmentSlot.Melee or FarmingGuideEquipmentSlot.Dogtag) &&
-                itemCatalog.TryGetValue(entry.Value.ItemId, out var item) &&
-                FarmingGuideCompatibility.IsEquipmentSlotCompatible(entry.Key, item))
-            .ToDictionary(entry => entry.Key, entry => entry.Value);
+        var equipment = new Dictionary<FarmingGuideEquipmentSlot, FarmingGuideItemState>();
+        foreach (var entry in snapshot.Equipment)
+        {
+            if (entry.Key is FarmingGuideEquipmentSlot.Melee or FarmingGuideEquipmentSlot.Dogtag ||
+                !itemCatalog.TryGetValue(entry.Value.ItemId, out var item) ||
+                !FarmingGuideCompatibility.IsEquipmentSlotCompatible(entry.Key, item))
+            {
+                continue;
+            }
+
+            var sanitized = FarmingGuideAssemblyPolicy.Sanitize(entry.Value, itemCatalog);
+            if (sanitized is not null)
+                equipment[entry.Key] = sanitized;
+        }
 
         var rig = ValidCarrier(snapshot.Rig, FarmingGuideStorageKind.Rig, itemCatalog);
         var backpack = ValidCarrier(snapshot.Backpack, FarmingGuideStorageKind.Backpack, itemCatalog);
@@ -140,6 +148,12 @@ public static class FarmingGuideLoadoutPolicy
             return false;
         }
 
+        var sanitizedAssembly = FarmingGuideAssemblyPolicy.Sanitize(stored.Item, itemCatalog);
+        if (sanitizedAssembly is null)
+            return false;
+        stored = stored with { Item = sanitizedAssembly };
+        item = itemCatalog[sanitizedAssembly.ItemId];
+
         var grids = ResolveGrids(
             stored.Storage,
             stored.ParentInstanceId,
@@ -211,9 +225,13 @@ public static class FarmingGuideLoadoutPolicy
         FarmingGuideStorageKind kind,
         IReadOnlyDictionary<string, GameItem> itemCatalog)
     {
-        if (state is null || !itemCatalog.TryGetValue(state.ItemId, out var item))
+        if (state is null || !itemCatalog.TryGetValue(state.ItemId, out var item) ||
+            !FarmingGuideCompatibility.IsStorageCarrierCompatible(kind, item))
+        {
             return null;
-        return FarmingGuideCompatibility.IsStorageCarrierCompatible(kind, item) ? state : null;
+        }
+
+        return FarmingGuideAssemblyPolicy.Sanitize(state, itemCatalog);
     }
 
     private static IReadOnlyList<FarmingGuideStorageGridDefinition> ResolveGrids(
