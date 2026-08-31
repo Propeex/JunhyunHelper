@@ -103,7 +103,8 @@ public sealed class TarkovItemImporterTests
 
         var item = Assert.Single(
             new TarkovItemImporter().Import(baseDocument, new TarkovLocalization()));
-        var layout = Assert.NotNull(item.FarmingGuideData);
+        Assert.NotNull(item.FarmingGuideData);
+        var layout = item.FarmingGuideData!;
 
         Assert.Equal("ItemPropertiesChestRig", layout.PropertiesType);
         Assert.True(layout.IsArmoredRig);
