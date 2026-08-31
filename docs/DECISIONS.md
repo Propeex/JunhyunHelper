@@ -3,8 +3,7 @@
 이 문서는 준현 헬퍼의 **현재 유효한 장기 결정과 supersession 관계를 빠르게 복구하기 위한 active index**다. 현재 사실값은 `docs/PROJECT_STATE.json`, 현재 제품 상태와 release evidence는 `docs/CURRENT_STATE.md` / `docs/STATE.md`가 권위다.
 
 기준일: **2026-08-31 KST**  
-현재 공개 제품: **v1.13.2 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**  
-현재 검증 중 제품: **v1.13.3 TARGET**
+현재 공개 제품: **v1.13.3 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 과거 결정 원문과 당시 release-specific 사실은 historical evidence다. 현재 제품 의미와 충돌하면 최신 confirmed decision, canonical current-state 문서, 실제 코드/테스트가 우선한다.
 
@@ -30,40 +29,42 @@ DEC-001~DEC-029 원문은 `docs/DECISIONS_HISTORY_THROUGH_2026-08-09.md`에 보�
 - `docs/DECISION_V1.13.3_FARMING_GUIDE_LIVE_ITEM_INTERACTION.md`
 - `docs/ARCHITECTURE_FARMING_GUIDE.md`
 
-상태:
+상태: **CONFIRMED / PUBLIC VERIFIED v1.13.3**.
 
-- v1.13.0 기본 Loadout / Inventory Editor: **CONFIRMED / PUBLIC VERIFIED**
-- v1.13.3 live item interaction correction: **CONFIRMED / IMPLEMENTATION IN VALIDATION**
-
-유지되는 기본 계약:
+핵심 제품 계약:
 
 - Scanner 오른쪽에 `파밍 가이드` first-class section을 둔다.
-- raid-start Loadout / Inventory Editor이며 실시간 인게임 inventory mirror가 아니다.
-- 실제 Tarkov item width/height, carrier grids, grid filters, equipment/attachment slots, armor slots, conflicts를 current validated Game Content에서 사용한다.
-- drag/drop은 `R` 회전, grid snap, bounds/overlap/연속 공간/current filter 검증과 valid-invalid feedback을 제공한다.
+- 제품 의미는 raid-start Loadout / Inventory Editor이며 실시간 인게임 inventory mirror가 아니다.
+- actual Tarkov item width/height, carrier grids, filters, equipment/attachment/armor slots, conflicts를 current validated Game Content에서 사용한다.
+- drag/drop은 `R` 회전, bounded grid snap, bounds/overlap/contiguous-space/current filter 검증과 valid-invalid feedback을 제공한다.
 - 근접무기와 PMC 인식표는 per-profile preset과 분리된 user-level fixed setting이다.
-- Farming Guide 사용자 상태는 `%LocalAppData%/JunhyunHelper/farming-guide.json` schema v1에 Game Content와 분리해 저장한다.
-- Content write schema는 v9이며 v3~v9를 읽는다.
-- 가치 판단, 획득/폐기/교체 추천, Scanner 실시간 추천 연동, 지속적인 실제 inventory 좌표 1:1 동기화는 별도 제품 결정 없이 추가하지 않는다.
+- profile edition / Old Patterns state에 따라 standard/expanded pocket geometry를 사용하고 UI와 persisted-state sanitization이 같은 resolved geometry를 소비한다.
+- contents가 있는 carrier를 다른 carrier로 묵시적으로 교체해 contents를 유실시키지 않는다.
+- persisted state가 current Tarkov structure와 충돌하면 impossible placement를 fail closed한다.
 
-v1.13.3에서 확정된 교정:
+v1.13.3 supersession:
 
-- double-click은 generic `장비 정보/장비 설정` Window가 아니라 해당 item의 **실제 조작 가능한 내부 작업면**을 연다.
-- stored backpack/rig는 actual internal grid, worn rig는 actionable plate/mod slots, weapon은 mod slots, helmet/body armor는 actionable attachment/replaceable plate slots를 보여준다.
-- attachment/armor plate는 ComboBox가 아니라 실제 one-item drag/drop slot이다. occupied slot을 묵시적으로 overwrite하지 않는다.
-- `FarmingGuideStoredItemState.ParentInstanceId`로 bag-in-bag / bag-in-rig nested storage를 표현한다. orphan/duplicate/self-parent/cycle/impossible placement는 fail closed한다.
-- nested parent container 이동은 same instance identity로 descendants를 보존하며 destructive remove 시 descendant subtree도 함께 제거한다.
-- Secure Container는 explicit secure-container/pouch semantics를 우선한다. current `ItemPropertiesContainer` fallback은 generic `container/case` classification이 없는 경우로 제한해 Medicine Case 같은 일반 case의 오장착을 막는다.
-- upstream `ItemPropertiesPreset` / `preset` weapon records는 canonical Game Content에는 보존하지만 Farming Guide draggable search에서 제외한다. 실제 base weapon과 실제 Tarkov item variant는 유지한다.
-- v1.13.0~v1.13.2의 generic configuration Window/read-only internal-preview 구현은 위 계약으로 supersede한다.
+- 별도 generic `장비 정보/장비 설정` Window와 read-only storage preview 중심 UX를 폐기한다.
+- double-click은 가운데 in-page workbench에서 실제 actionable structure를 연다.
+- stored bag/rig는 실제 내부 grid를 직접 drag/drop한다.
+- weapon/helmet/armor는 current attachment/mod/replaceable armor plate slot을 one-item drop target으로 직접 조작한다.
+- occupied one-item slot을 묵시적으로 overwrite하지 않는다.
+- nested storage는 `ParentInstanceId`로 parent container instance를 보존한다.
+- nested sanitize는 root → accepted parent tree 순으로 진행하고 orphan/duplicate/self-cycle/unresolved cycle/invalid grid/filter/bounds/overlap을 fail closed한다.
+- nested container 이동은 descendants를 유지하고 destructive delete/replacement는 subtree를 함께 제거한다.
+- current Secure Container fallback은 generic case/container와 구분해 Medicine Case 같은 일반 storage case를 오장착하지 않는다.
+- Farming Guide 검색에서는 upstream `ItemPropertiesPreset` / `preset` assembled weapon record만 제외하고 canonical base weapon의 actual mod slots를 사용한다.
+- 열린 workbench owner item 이동 시작 시 workbench를 닫아 stale write-back을 방지한다.
 
-현재 공개 stable identity는 `docs/PROJECT_STATE.json`이 권위이며 v1.13.2 exact product source는:
+현재 product identity:
 
 ```text
-207cb948affc091c4ad67f18d7e4e4382b2f8125
+v1.13.3
+exact source/tag target:
+9a0064d81dca4c2cffcb01c55742d46298d235de
+release id: 379676479
+513 passed / 0 failed / 0 skipped
 ```
-
-v1.13.3은 exact-main / public release 검증이 끝나기 전 public stable로 기록하지 않는다.
 
 ## 3. Scanner current authority
 
@@ -132,16 +133,15 @@ Ground Truth는 explicit user-reviewed save만 authoritative하다. correction h
 → indeterminate progress bar
 → Desktop diagnostic ZIP 생성
 → “진단 완료.\n파일을 hyune4784@naver.com 으로 보내주세요.”
-→ 기본 브라우저에서 https://mail.naver.com/v2/new 열기
+→ 기본 브라우저에서 네이버 메일 쓰기 열기
 ```
 
 - ZIP은 자동 업로드하지 않는다.
 - 웹메일 DOM/UI를 자동 조작하지 않는다.
 - 파일을 자동 첨부하거나 이메일을 자동 발송하지 않는다.
-- 사용자명, 컴퓨터명, IP/MAC, 네트워크 목록, credential, 전체 환경변수, 임의 전체 process inventory, 설치 경로는 진단 수집에서 제외한다.
-- 화면 캡처 자체에는 실행 당시 실제 화면 내용이 포함될 수 있다.
+- 민감하거나 불필요한 시스템 식별 정보는 진단 수집에서 제외한다.
 - optional probe는 fail-soft이며 핵심 ZIP 작성 실패만 전체 실패로 처리한다.
-- 사용자 노트북 실제 diagnostic ZIP에서 exporter 정상 동작을 확인했다. 김태영 PC 원인 판정은 김태영 실제 PC evidence로 수행한다.
+- 김태영 PC 원인 판정은 김태영 실제 PC evidence로 수행한다.
 
 ## 6. Map / MiniMap
 
@@ -159,14 +159,8 @@ JunhyunHelper first-party bridge가 제품 의미와 lifecycle/presentation owne
 - player heading은 position과 동일한 map별 affine transform 좌표계를 사용한다.
 - PMC / Scav / Transit extract filter와 실제 rendered marker를 검증한다.
 - loaded marker data는 있는데 standard layer만 비는 bounded empty-layer race는 another refresh race 없이 직접 복구한다.
-- Player Marker Size 변경은 player marker만 변경하며 Name Size / MiniMap Marker Size 등 unrelated presentation을 재초기화하지 않는다.
+- Player Marker Size 변경은 unrelated presentation을 재초기화하지 않는다.
 - Mini Scanner 우클릭 correction context menu는 제거 상태를 유지한다.
-
-관련 결정/역사:
-
-- `docs/DECISION_V1.9.1_FINAL_UI_MINIMAP.md`
-- `docs/DECISION_V1.10.0_MINIMAP_REOPEN_MINISCANNER_FLEA_MINIMUM.md`
-- 최신 실제 계약과 v1.11.x 수정은 `docs/STATE.md`가 권위다.
 
 ## 7. Hideout / Ammo / Game Content
 
@@ -187,7 +181,7 @@ Game Content:
 - Last Known Good 보존
 - 검증 실패 시 기존 정상 데이터 유지
 - current source 의미가 불명확하거나 structure drift가 있으면 fail closed
-- v1.13.0부터 Farming Guide item structure를 Content v9에 보존한다.
+- Farming Guide item structure는 Content v9에 보존한다.
 - Farming Guide user state와 Game Content lifecycle을 분리한다.
 
 ## 8. Program Update / Release
@@ -199,21 +193,20 @@ Game Content:
 - 공개 asset과 exact product source/tag target이 일치해야 한다.
 - documentation-only main commit이 같은 assembly version의 다른 bytes를 만들 수 있어도 이미 공개된 asset을 교체하거나 historical product source를 변경하지 않는다.
 
-현재 public stable identity:
+현재 v1.13.3 public identity:
 
 ```text
-v1.13.2
 exact product source/tag target:
-207cb948affc091c4ad67f18d7e4e4382b2f8125
-release id: 379612102
-504 passed / 0 failed / 0 skipped
+9a0064d81dca4c2cffcb01c55742d46298d235de
+release id: 379676479
+513 passed / 0 failed / 0 skipped
 ```
 
 상세 evidence:
 
-- `docs/RELEASE_1.13.2.md`
-- `docs/.release-v1.13.2-status.json`
-- `docs/RELEASE_NOTES_V1.13.2.md`
+- `docs/RELEASE_1.13.3.md`
+- `docs/.release-v1.13.3-status.json`
+- `docs/RELEASE_NOTES_V1.13.3.md`
 
 ## 9. Product complete / maintenance / lifecycle
 
@@ -228,7 +221,7 @@ release id: 379612102
 - `docs/DECISION_V1.10.1_STABILITY_AUDIT.md`
 - `docs/DECISION_V1.10.1_POST_RELEASE_STABILITY_SWEEP.md`
 
-현재 공개 stable은 product-complete maintenance mode다. Farming Guide는 사용자가 명시적으로 확정한 v1.13.0 MINOR 기능이며, v1.13.3은 그 기존 기능의 실사용 회귀/UX 의미를 바로잡는 PATCH다. 이후 실제 회귀, Tarkov 변화, 또는 사용자가 다시 명시적으로 확정한 새 제품 요구사항이 있을 때 필요한 범위만 수정한다. 정상 동작하는 unrelated lifecycle/disposal 경로를 미관상 이유로 전면 리팩터링하지 않는다.
+현재 공개 stable은 product-complete maintenance mode다. Farming Guide는 사용자가 명시적으로 확정한 기능으로 v1.13.0에 추가됐고, v1.13.1~v1.13.3은 실사용 회귀와 UX/compatibility를 필요한 범위에서 수정했다. 이후 실제 runtime error, Tarkov 변화, reviewed Scanner evidence 또는 사용자가 새로 확정한 제품 요구사항이 있을 때 필요한 범위만 수정한다.
 
 ## 10. 현재 결정 확인 순서
 

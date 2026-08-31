@@ -4,9 +4,9 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 제품 상태
 
-현재 제품 상태는 **v1.13.2 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
+현재 제품 상태는 **v1.13.3 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
 
-v1.13.2는 Farming Guide의 장비·수납·프리셋·내부 정보 UX를 실사용 기준으로 보완한 PATCH 릴리즈입니다. 기존 raid-start Loadout / Inventory Editor의 제품 의미와 안전 계약은 유지합니다.
+v1.13.3은 v1.13.2 실사용에서 확인된 Farming Guide 장비·수납 interaction 회귀를 수정한 PATCH 릴리즈입니다. 보안 컨테이너 판정, nested storage, 실제 attachment/armor-plate drop slot, weapon preset 중복 검색을 바로잡았습니다.
 
 공식 프로젝트 기억은 대화가 아니라 저장소 문서와 코드입니다.
 
@@ -20,78 +20,76 @@ v1.13.2는 Farming Guide의 장비·수납·프리셋·내부 정보 UX를 실�
 ## 현재 공개 릴리즈
 
 ```text
-version: v1.13.2
-Desktop target version: 1.13.2
+version: v1.13.3
+Desktop target version: 1.13.3
 exact product release source/tag target:
-207cb948affc091c4ad67f18d7e4e4382b2f8125
-PR: #245 — MERGED
-validated PR head: ef4522880218b5e5ec8d8c0a8a3211e0f0c51020
-PR exact-head CI: 33373322410 — SUCCESS
-PR exact-head Shutdown Race CI: 33373322440 — SUCCESS
-PR exact-head Documentation Consistency: 33373322395 — SUCCESS
-exact-main CI: 33373612303 — SUCCESS
-exact-main Shutdown Race CI: 33373612281 — SUCCESS
-exact-main Documentation Consistency: 33373612283 — SUCCESS
-Release workflow: 33373940475 — SUCCESS
-release id: 379612102
-504 passed / 0 failed / 0 skipped
-published UTC: 2026-08-31T08:40:02Z
+9a0064d81dca4c2cffcb01c55742d46298d235de
+PR: #248 — MERGED
+validated PR head: b39f7156f458fd6fd513b5eca551e522d5a12343
+PR exact-head CI: 33382678094 — SUCCESS
+PR exact-head Shutdown Race CI: 33382678096 — SUCCESS
+PR exact-head Documentation Consistency: 33382678065 — SUCCESS
+exact-main CI: 33382979766 — SUCCESS
+exact-main Shutdown Race CI: 33382979902 — SUCCESS
+exact-main Documentation Consistency: 33382979845 — SUCCESS
+Release workflow: 33383407835 — SUCCESS
+release id: 379676479
+513 passed / 0 failed / 0 skipped
+published UTC: 2026-08-31T10:40:13Z
 ```
 
 Public package:
 
 ```text
 Junhyun-Helper.zip
-asset id: 537701878
-bytes: 80,617,300
+asset id: 537835859
+bytes: 80,620,064
 SHA-256:
-659071659531259a61d0996e277bf9643ee9fc4cfa8a0a437b4686994bd38bed
+704afb5e376f9087dd57c1795d8b95397c06a020acd9545fe80c5fc1b546b7b7
 ```
 
 Checksum asset:
 
 ```text
 SHA256SUMS.txt
-asset id: 537701880
+asset id: 537835858
 bytes: 86
 asset SHA-256:
-0ebdc1240c721bf0192b703c77cfd944665f870edb7d79444dfd6181a2a43a19
+2c74d9c4e4f096c35eb3b4e45deb734af5b9df31306c9961d66c9aa7cd4e5b4d
 ```
 
 Exact-main CI artifact:
 
 ```text
 JunhyunHelper-win-x64
-artifact id: 9751114832
-archive bytes: 241,785,937
+artifact id: 9754610879
+archive bytes: 241,795,611
 archive SHA-256:
-c4d146d46856f91f3dd489fe9a5d5eab7906cbcb05fe40dfd3966052872aba84
+ae3fb9857920ab61e79c46da01d030fbded4a90eca27ec306e7f5661beb0cc3a
 ```
 
-GitHub `/releases/latest`, release target, `refs/tags/v1.13.2`, exact-main product source가 모두 `207cb948affc091c4ad67f18d7e4e4382b2f8125`에 일치합니다. 공개 release는 `draft=false`, `prerelease=false`입니다.
+GitHub `/releases/latest`, release target, `refs/tags/v1.13.3`, exact-main product source가 모두 `9a0064d81dca4c2cffcb01c55742d46298d235de`에 일치합니다. 공개 release는 `draft=false`, `prerelease=false`입니다.
 
-공식 v1.13.2 공개 기록:
+공식 v1.13.3 공개 기록:
 
-- `docs/RELEASE_1.13.2.md`
-- `docs/RELEASE_NOTES_V1.13.2.md`
-- `docs/.release-v1.13.2-status.json`
-- `docs/DECISION_V1.13.0_FARMING_GUIDE_LOADOUT_EDITOR.md`
+- `docs/RELEASE_1.13.3.md`
+- `docs/RELEASE_NOTES_V1.13.3.md`
+- `docs/.release-v1.13.3-status.json`
+- `docs/DECISION_V1.13.3_FARMING_GUIDE_LIVE_ITEM_INTERACTION.md`
 - `docs/ARCHITECTURE_FARMING_GUIDE.md`
 
-후속 documentation-only commit은 v1.13.2 제품 릴리즈 소스가 아닙니다. product source/tag/assets는 위 exact source에 고정된 historical identity입니다.
+후속 documentation-only commit은 v1.13.3 제품 릴리즈 소스가 아닙니다. product source/tag/assets는 위 exact source에 고정된 historical identity입니다.
 
-## v1.13.2 — Farming Guide 장비·수납·프리셋 보완
+## v1.13.3 — Farming Guide 인게임식 장비·수납 interaction 수정
 
-- 권총/리볼버/handgun 계열은 전용 Holster 슬롯에 장착하고 Primary Weapon 1/2에서는 제외합니다.
-- 방탄복, 리그, 가방, 보안 컨테이너 장착 판정을 current Tarkov canonical type/category 의미로 보강했습니다.
-- 활성 프로필의 edition 및 Old Patterns 완료 상태를 사용해 실제 주머니 구조를 결정합니다.
-  - 일반: `1×1 / 1×1 / 1×1 / 1×1`
-  - 확장: `1×1 / 1×2 / 1×2 / 1×1`
-- 수납 순서는 `Rig → Pockets + Special Slots → Backpack → Secure Container`이며 Pockets와 Special Slots는 좌우로 배치됩니다.
-- 장착 장비와 검색 결과를 더블클릭하면 current Tarkov data의 storage grid, attachment slot, armor plate 구조를 확인할 수 있습니다.
-- 선택한 프리셋 삭제 기능을 추가했습니다. 삭제해도 현재 working loadout은 유지합니다.
-- 프리셋 이름 입력 창의 DPI/theme 하단 clipping을 수정했습니다.
-- 근접무기와 PMC 인식표의 fixed-setting lifecycle은 유지하면서 화면의 `고정` 문구만 제거했습니다.
+- Epsilon/Gamma/Kappa 등 실제 Secure Container를 current Tarkov data에서 정상 장착하며 Medicine Case 같은 일반 container/case는 오인하지 않습니다.
+- `ParentInstanceId` 기반 nested storage를 사용해 가방 안 가방·가방 안 리그와 내부 아이템을 실제 상태로 저장·복원합니다.
+- 별도 `장비 정보/장비 설정` Window를 제거하고 가운데 in-page workbench에서 실제 내부 구조를 직접 조작합니다.
+- stored bag/rig는 실제 storage grid를, weapon/helmet/armor는 actionable attachment/mod/replaceable armor plate slot을 표시합니다.
+- attachment/plate slot은 한 슬롯 한 아이템 계약이며 기존 아이템을 묵시적으로 덮어쓰지 않습니다.
+- nested container 이동/삭제 시 descendants를 보존하거나 subtree로 제거하며 cycle/orphan을 fail closed합니다.
+- upstream assembled weapon preset은 Farming Guide 검색에서 제외해 동일 총기 중복을 제거하고 canonical base weapon의 실제 mod slots를 사용합니다.
+- 열린 workbench owner를 이동하기 시작하면 workbench를 먼저 닫아 stale write-back을 방지합니다.
 
 ## 파밍 가이드 제품 의미
 
@@ -105,7 +103,8 @@ Scanner 오른쪽의 `파밍 가이드`는 실제 레이드 중 inventory grid�
 - drag 중 `R` 키로 90도 회전
 - grid snap / bounds / overlap / contiguous-space / current filter 검증
 - current Tarkov data의 storage grid / equipment slot / attachment slot / armor plate slot / conflict 사용
-- attachment와 교체형 방탄판 설정
+- nested bag/rig 내부 grid 직접 drag/drop
+- weapon/helmet/armor의 actual attachment/plate slot 직접 drag/drop
 - 전체 raid-start 상태 preset 저장/복원
 - 근접무기와 PMC 인식표는 preset과 분리된 fixed setting
 - 총 무게와 사용/전체 storage cell 요약
@@ -169,7 +168,7 @@ Runtime GPT/AI 의존성은 없습니다.
 - Future Needed Items / cleanup은 current Quest UI compatibility와 분리해 보수적으로 계산합니다.
 - Hideout FIR은 source `attributes.foundInRaid` 의미를 보존합니다.
 - Ammo pickup은 same-caliber penetration과 현재 profile에서 증명된 direct purchase 상태를 기준으로 합니다.
-- Farming Guide는 current validated Tarkov item structure를 사용하고 불가능한 persisted placement는 fail closed합니다.
+- Farming Guide는 current validated Tarkov item structure를 사용하고 불가능한 persisted placement/nested relationship은 fail closed합니다.
 - 내용물이 든 carrier를 묵시적으로 교체해 contents를 유실시키지 않습니다.
 - Map/MiniMap donor는 pinned revision `d933792b6042a51cea38dc44b686a096fe30de67`입니다.
 - user-visible WPF 변경은 source assertion만으로 완료 선언하지 않고 actual published EXE smoke까지 검증합니다.
@@ -177,7 +176,7 @@ Runtime GPT/AI 의존성은 없습니다.
 ## Schema / compatibility
 
 ```text
-Desktop target version: 1.13.2
+Desktop target version: 1.13.3
 Content schema write: v9
 Readable Content schemas: v3~v9
 user.db schema: v1
@@ -187,10 +186,10 @@ Scanner catalog cache write: v4
 Scanner catalog readable: v1~v4
 ```
 
-v1.13.1 → v1.13.2에는 mandatory user data migration이 없습니다.
+v1.13.2 → v1.13.3에는 mandatory user data migration이 없습니다. 과거 Farming Guide schema-v1 저장 파일에는 `ParentInstanceId`가 없으므로 null root placement로 호환됩니다.
 
 ## 검증
 
-v1.13.2 exact product source `207cb948affc091c4ad67f18d7e4e4382b2f8125`은 504 deterministic tests, Windows Release build, Windows x64 self-contained publish, actual published EXE Product UI / Farming Guide / Map smoke, graceful shutdown, active-async Shutdown Race, package/checksum audit, exact-main Documentation Consistency, artifact upload, verified Release workflow, public tag/release/assets/latest-stable readback을 통과했습니다.
+v1.13.3 exact product source `9a0064d81dca4c2cffcb01c55742d46298d235de`은 513 deterministic tests, Windows Release build, Windows x64 self-contained publish, actual published EXE Product UI / Farming Guide / Map smoke, Farming Guide live nested-storage/attachment interaction smoke, graceful shutdown, active-async Shutdown Race, package/checksum audit, exact-main Documentation Consistency, artifact upload, verified Release workflow, public tag/release/assets/latest-stable readback을 통과했습니다.
 
-사용자의 실제 PC/Tarkov v1.13.2 최종 실사용 확인과 김태영 실제 PC diagnostic ZIP의 수집·분석은 자동화 검증과 별개이며 현재 `PENDING`입니다.
+사용자의 실제 PC/Tarkov v1.13.3 최종 실사용 확인과 김태영 실제 PC diagnostic ZIP의 수집·분석은 자동화 검증과 별개이며 현재 `PENDING`입니다.
