@@ -18,6 +18,10 @@ base main: b97556bfe162bd6d6507500eb1633adf4607efb6
 public stable: v1.11.4
 working branch: feature/v1.12.0-quest-diagnostics-search-ui-2026-08-31
 PR: #237 (draft)
+latest verified feature head: 6d289265d40fbabd68906952075d07f5f3f30e96
+PR CI: 33348464596 — SUCCESS
+PR Shutdown Race CI: 33348464611 — SUCCESS
+PR Documentation Consistency: 33348464606 — SUCCESS
 ```
 
 ## Confirmed scope and implementation
@@ -92,18 +96,18 @@ PR: #237 (draft)
 - task-pool compatibility 결정 문서 정제
 - 김태영 PC 진단 결정 문서와 v1.12.0 release notes 작성
 - Draft PR #237 생성
-- 최초 implementation head Windows CI에서 build/test/publish/product UI/Map/graceful-shutdown smoke 성공 확인
+- final feature head `6d289265d40fbabd68906952075d07f5f3f30e96`에서 Windows Release build/test/publish/Product UI+Map+graceful-shutdown/package 검증 성공
+- final feature head에서 Shutdown Race CI와 Documentation Consistency 성공
 
 ## Current step
 
-- 최신 v1.12.0 documentation/version head에 대한 PR CI, Shutdown Race CI, Documentation Consistency를 최종 확인한다.
-- 성공 후 PR을 ready로 전환해 main 병합과 exact-main release pipeline을 진행한다.
+- PR #237을 ready로 전환하고 검증된 feature head를 main에 병합한다.
+- 병합 후 exact-main CI / Shutdown Race / Documentation Consistency와 자동 stable release를 검증한다.
 
 ## Remaining
 
-- 최신 PR head 전체 gate 성공 확인 및 실패 시 수정
 - PR ready / main 병합
 - exact-main CI / Shutdown Race CI / Documentation Consistency 확인
 - automatic v1.12.0 Release workflow 및 public tag/assets/checksum 검증
-- PROJECT_STATE / CURRENT_STATE / STATE / README / decision index 최종 release evidence 정렬
+- PROJECT_STATE / CURRENT_STATE / STATE / README / PRODUCT / DECISIONS / DEVELOPER_REFERENCE 최종 release evidence 정렬
 - ACTIVE_WORK 완료 처리
