@@ -38,6 +38,7 @@ public sealed class DesktopServices : IDisposable
         Images = new ImageCacheService(_httpClient, RootDirectory);
         AmmoFavorites = new AmmoFavoriteStore(RootDirectory);
         ScannerItemUiState = new ScannerItemUiStateStore(RootDirectory);
+        FarmingGuide = new FarmingGuidePresetStore(RootDirectory);
         Scanner = new ScannerCoordinator(_httpClient, RootDirectory);
 
         var sourceLoader = new TarkovEndpointSourceLoader(new TarkovJsonClient(_httpClient));
@@ -66,6 +67,8 @@ public sealed class DesktopServices : IDisposable
     public AmmoFavoriteStore AmmoFavorites { get; }
 
     public ScannerItemUiStateStore ScannerItemUiState { get; }
+
+    public FarmingGuidePresetStore FarmingGuide { get; }
 
     public ScannerCoordinator Scanner { get; }
 
