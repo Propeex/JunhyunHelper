@@ -67,7 +67,7 @@ public sealed class TarkovItemImporterStorageLayoutTests
         Assert.Empty(item.FarmingGuideData.StorageGrids);
     }
 
-    private static Core.Items.GameItem ImportSingle(string json)
+    private static JunhyunHelper.Core.Items.GameItem ImportSingle(string json)
     {
         using var document = JsonDocument.Parse(json);
         var source = new TarkovJsonDocument(document.RootElement.Clone(), []);
