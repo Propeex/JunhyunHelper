@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "updatedDateKst": "2026-08-31",
+  "updatedDateKst": "2026-09-01",
   "product": {
     "name": "준현 헬퍼",
     "repository": "Propeex/JunhyunHelper",
     "lifecycle": "PUBLIC_STABLE_PRODUCT_COMPLETE_MAINTENANCE",
-    "desktopVersion": "1.13.3"
+    "desktopVersion": "1.14.0"
   },
   "publicStable": {
     "version": "1.13.3",
@@ -27,7 +27,7 @@
   },
   "maintenance": {
     "latestNonDocumentationHead": "9a0064d81dca4c2cffcb01c55742d46298d235de",
-    "deterministicTestCount": 513,
+    "deterministicTestCount": 527,
     "userRealPcTarkovValidation": "PENDING"
   },
   "schemas": {
