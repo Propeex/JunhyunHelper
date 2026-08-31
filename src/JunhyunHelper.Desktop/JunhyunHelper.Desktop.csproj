@@ -23,7 +23,7 @@
     <Product>준현 헬퍼</Product>
     <Title>준현 헬퍼</Title>
     <Description>Escape from Tarkov 진행도·아이템·탄약·지도·스캐너 도우미</Description>
-    <Version>1.11.4</Version>
+    <Version>1.12.0</Version>
     <ApplicationIcon>$(MSBuildProjectDirectory)\obj\JunhyunHelper.AppIcon.ico</ApplicationIcon>
     <!-- The product UI is Korean-only. Let the .NET SDK filter framework/package
          satellite assemblies at publish time instead of deleting files afterward. -->
@@ -98,11 +98,11 @@
     <Page Include="../../vendor/Tarkov-Helper/TarkovHelper/Pages/Map/MapPage.xaml"
           Link="Legacy/TarkovHelper/Pages/Map/MapPage.xaml" />
     <Page Include="../../vendor/Tarkov-Helper/TarkovHelper/Windows/OverlayMiniMapWindow.xaml"
-          Link="Legacy/TarkovHelper/Windows/OverlayMiniMapWindow.xaml" />
+          Link="Legacy/TarkovHelper/Windows/%(Filename)%(Extension)" />
     <Page Include="../../vendor/Tarkov-Helper/TarkovHelper/Windows/Dialogs/OverlaySettingsWindow.xaml"
-          Link="Legacy/TarkovHelper/Windows/Dialogs/OverlaySettingsWindow.xaml" />
+          Link="Legacy/TarkovHelper/Windows/Dialogs/%(Filename)%(Extension)" />
     <Page Include="../../vendor/Tarkov-Helper/TarkovHelper/Windows/Dialogs/CustomMarkerEditorWindow.xaml"
-          Link="Legacy/TarkovHelper/Windows/Dialogs/CustomMarkerEditorWindow.xaml" />
+          Link="Legacy/TarkovHelper/Windows/Dialogs/%(Filename)%(Extension)" />
   </ItemGroup>
 
   <!-- Map/MiniMap read these files directly by path. Keep them outside the single-file
