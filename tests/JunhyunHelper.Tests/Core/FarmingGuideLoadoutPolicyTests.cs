@@ -159,7 +159,7 @@ public sealed class FarmingGuideLoadoutPolicyTests
         var sanitized = FarmingGuideLoadoutPolicy.SanitizeSnapshot(snapshot, catalog);
 
         Assert.Equal(2, sanitized.StoredItems.Count);
-        var nested = Assert.Single(sanitized.StoredItems.Where(item => item.ParentInstanceId is not null));
+        var nested = Assert.Single(sanitized.StoredItems, item => item.ParentInstanceId is not null);
         Assert.Equal("inner-instance", nested.ParentInstanceId);
         Assert.Equal("loot-instance", nested.InstanceId);
     }
