@@ -1,13 +1,13 @@
 # ARCHITECTURE — Farming Guide
 
 기준일: **2026-08-31 KST**  
-대상 제품: **v1.13.0+**
+대상 제품: **v1.13.1+**
 
 이 문서는 `파밍 가이드` subsystem의 책임, 데이터 흐름, persistence, Tarkov 변화 대응, 유지보수 경계를 정의한다. 제품 의미는 `docs/DECISION_V1.13.0_FARMING_GUIDE_LOADOUT_EDITOR.md`, 현재 사실값은 `docs/PROJECT_STATE.json`, 실제 구현/검증 상태는 `docs/STATE.md`가 우선한다.
 
 ## 1. 목적과 비목표
 
-v1.13.0 Farming Guide는 **raid-start Loadout / Inventory Editor**다.
+Farming Guide는 **raid-start Loadout / Inventory Editor**다.
 
 목적:
 
@@ -15,7 +15,7 @@ v1.13.0 Farming Guide는 **raid-start Loadout / Inventory Editor**다.
 - 제품이 current loadout, occupied space, stored items, available carrier structure를 deterministic state로 이해하게 한다.
 - 향후 loot 판단/recommendation이 필요할 경우 사용할 수 있는 신뢰 가능한 입력 기반을 만든다.
 
-v1.13.0 비목표:
+현재 비목표:
 
 - 실제 Tarkov inventory grid 좌표의 지속적 1:1 실시간 mirror
 - loot 가치 판단
@@ -30,6 +30,8 @@ v1.13.0 비목표:
 ```text
 JunhyunHelper.Desktop
   ├─ Farming Guide page / interaction / drag-drop presentation
+  ├─ item icon presentation/cache binding
+  ├─ geometry-backed drop-target probing
   ├─ section lifecycle integration
   └─ configuration dialogs / runtime smoke hooks
 
@@ -116,9 +118,9 @@ user-level fixed settings
 
 Preset을 불러온 뒤 사용자가 state를 수정하면 원본 preset 선택 상태를 해제한다. Fixed melee/dogtag는 raid preset과 의미가 다르므로 preset payload와 lifecycle을 분리한다.
 
-## 5. Equipment / carrier 구조
+## 5. Equipment / carrier presentation
 
-Equipment는 current product design에 필요한 Tarkov 장착 위치를 표현한다.
+Equipment는 current product design에 필요한 Tarkov 장착 위치를 spatial slot board로 표현한다.
 
 예:
 
@@ -141,20 +143,31 @@ Storage/carrier 영역:
 
 Carrier 내부 grid는 하드코딩된 시각 템플릿이 아니라 current validated item structure에서 생성한다.
 
+v1.13.1 presentation contract:
+
+- 장비와 수납 item은 text-only row가 아니라 실제 item icon을 주 presentation으로 사용한다.
+- Rig / Backpack / Secure Container는 carrier icon target과 해당 item의 actual storage grids를 함께 표현한다.
+- storage placement와 drag ghost도 같은 item image presentation을 공유한다.
+- 회전된 비정사각형 image는 WPF layout measure/arrange가 rotated footprint를 반영하도록 layout-aware transform을 사용한다.
+- icon loading/cache는 presentation concern이며 Item ID / compatibility / placement truth를 변경하지 않는다.
+
 ## 6. Drag / placement 파이프라인
 
 ```text
 search result item
 → drag payload with canonical item id + footprint
 → optional R rotation
-→ pointer → candidate grid/snap target
+→ root-coordinate pointer
+→ geometry / visible-bounds drop target probe
+→ candidate grid/snap target
 → placement legality evaluation
    ├─ target exists
    ├─ bounds
    ├─ overlap
    ├─ contiguous footprint
    └─ current grid filter/compatibility
-→ valid/invalid presentation
+→ valid/invalid transient presentation
+→ mouse-up actual-coordinate reprobe
 → accepted state mutation or fail closed
 ```
 
@@ -164,6 +177,12 @@ search result item
 - rotation은 footprint orientation만 바꾸며 canonical base dimension을 손상시키지 않는다.
 - snap tolerance는 UX 보조이며 불법 배치를 합법으로 바꾸는 규칙이 아니다.
 - storage cell 총량은 참고 요약값이다. 실제 item 수납 가능 여부는 contiguous placement와 filter 검증으로 판단한다.
+- WPF mouse capture로 `InputHitTest`가 drag source를 반환할 수 있으므로 equipment/carrier hit 판정은 capture-sensitive hit test에만 의존하지 않는다.
+- geometry fallback은 target과 ScrollViewer / ScrollContentPresenter / clipping ancestor의 visible bounds를 확인한다.
+- offscreen/clipped target은 drop candidate가 아니다.
+- grid 인접 snap은 target rectangle 밖의 bounded tolerance를 허용할 수 있지만 ancestor viewport를 벗어나지는 못한다.
+- mouse-up에서 cached last-move target을 사용하지 않고 release point를 다시 probe한다.
+- transient success/danger border는 target 변경과 drag 종료에서 원복한다.
 
 ## 7. Carrier contents 안전 계약
 
@@ -171,7 +190,7 @@ Carrier는 내부 stored placement를 소유하는 aggregate다.
 
 따라서 contents가 있는 carrier를 다른 carrier로 단순 덮어쓰기하면 내부 state가 고아가 되거나 소실될 수 있다.
 
-현재 v1.13.0 계약:
+현재 계약:
 
 - populated carrier의 destructive replacement를 묵시적으로 허용하지 않는다.
 - 안전한 contents 이동/재배치를 증명하지 못하는 operation은 fail closed한다.
@@ -216,7 +235,7 @@ Attachment와 교체형 armor plate는 장착 item의 nested configuration이다
 
 ## 10. Content schema compatibility
 
-v1.13.0에서 Farming Guide용 optional item structure를 보존하기 위해:
+Farming Guide용 optional item structure를 보존하기 위해:
 
 ```text
 Content write schema: v9
@@ -224,6 +243,8 @@ Readable schemas: v3, v4, v5, v6, v7, v8, v9
 ```
 
 Old readable snapshot에는 Farming Guide용 구조가 없을 수 있다. 없는 구조를 fabricate하지 않는다. 일반 기존 기능이 읽을 수 있는 snapshot compatibility와 Farming Guide가 실제 editor structure를 제공할 수 있는지는 구분한다.
+
+v1.13.0 → v1.13.1에는 Game Content schema 변경이 없다.
 
 ## 11. Lifecycle / MainWindow integration
 
@@ -255,7 +276,7 @@ Release 후보에서 최소 다음을 검증한다.
 - active async shutdown-race smoke
 - clean portable root/package audit
 
-v1.13.0 exact product source는 이 gate를 통과했다. 현재 release evidence는 `docs/RELEASE_1.13.0.md`에 기록한다.
+v1.13.1 exact product source `302f83e88cc65b5fae9b86b5cae294b2586c85a0`은 이 gate를 통과했다. 현재 release evidence는 `docs/RELEASE_1.13.1.md`에 기록한다.
 
 ## 13. Security / Tarkov interaction boundary
 
