@@ -14,103 +14,86 @@ base main: 1e5e687f0f9fdc76db7a083078209222c7cb4ade
 public stable: v1.12.1
 working branch: feature/v1.13.0-farming-guide-loadout-editor-2026-08-31
 Draft PR: #240
-validated work head before this checkpoint: 6f76b06a169690c20a4413d8f19cd25c8c6a5f06
+latest validated code checkpoint: f225f781bd58ef5de8ee99738dc6139c419ef2f8
 ```
 
 ## Confirmed scope
 
-### 탭 / 화면 구조
+Canonical product decision:
 
-- 기존 Scanner 탭의 오른쪽에 `파밍 가이드` 탭을 추가한다.
-- 파밍 가이드 화면은 크게 착용 장비 / 수납 공간 / 검색·요약 영역으로 구성한다.
-- 이번 단계에서는 파밍 가치 판단, 획득/폐기/교체 추천, Scanner 실시간 추천 연동은 구현하지 않는다.
+- `docs/DECISION_V1.13.0_FARMING_GUIDE_LOADOUT_EDITOR.md`
 
-### 착용 장비
+핵심 계약:
 
-- 사용자가 검색 결과에서 아이템을 드래그하여 장비 슬롯에 장착한다.
-- 대상에는 헤드셋, 헬멧, 얼굴/페이스커버, 완장, 방탄복/아머드 리그, 안경, 무기 1/2, 권총, 근접무기 등 현재 제품 설계에 필요한 착용 장비가 포함된다.
-- 칼과 PMC 인식표는 레이드마다 교체하는 대상이 아니므로 사용자 고정 설정으로 취급한다.
-- 장비 내부 개조/교체형 방탄판은 장착된 장비의 별도 설정 UI에서 편집한다.
-
-### 수납 공간
-
-- Pocket / Rig / Backpack / Secure Container / Special Slot 등 Tarkov 수납 구조를 표현한다.
-- 그리드 한 칸의 화면 크기는 전역적으로 동일하다.
-- 장비별 실제 grid 구성은 current validated item source에서 가져온다.
-- 아이템은 실제 Tarkov `width × height`에 맞는 크기로 표시한다.
-
-### 검색 / drag-and-drop
-
-- 모든 신규 장비/아이템 추가는 오른쪽 검색 결과에서 시작한다.
-- drag preview는 실제 아이템 footprint를 사용한다.
-- drag 중 `R` 키로 90도 회전한다.
-- 유효/불가 배치는 각각 초록/빨강으로 표시한다.
-- grid 주변에는 snap 허용 오차를 적용한다.
-- 명백한 빈 영역 drop은 기존 배치 아이템 제거로 처리한다.
-- carrier 내부 아이템을 잃지 않도록, 내부가 채워진 carrier를 일반 수납 아이템처럼 옮기는 동작은 현재 모델에서 허용하지 않는다.
-
-### 프리셋
-
-- selector는 현재 프리셋 이름 또는 `프리셋 선택`을 표시한다.
-- 저장된 프리셋 선택 시 전체 출발 상태를 복원한다.
-- 저장 UI에서 이름을 입력해 현재 출발 상태를 새 프리셋으로 저장한다.
-- 프리셋에는 착용 장비, 내부 개조, 방탄판, 수납 아이템, grid 위치/회전 등이 포함된다.
-- 불러온 상태를 수정하면 원본 프리셋 선택 상태를 해제한다.
-- 근접무기와 PMC 인식표 고정 설정은 per-profile preset과 분리한다.
-
-### 요약 정보
-
-오른쪽 하단에는 현재 Loadout / Inventory 요약을 표시한다.
-
-- 파밍한 가치: 이번 slice에서는 `—`
-- 총 무게
-- 수납 공간 사용량 / 총량
-
-cell 수는 참고값이며 실제 대형 아이템 수납 가능 여부는 연속 공간/packing 문제로 별도 판단한다.
-
-### 레이드 중 상태 의미
-
-- 이 UI는 실제 인게임 grid 좌표를 실시간 1:1 동기화하는 화면이 아니다.
-- 주 목적은 출발 장비, 점유 공간, 보유 아이템, 수납 가능 공간을 제품이 알 수 있게 하는 것이다.
-- 향후 판단 엔진은 자체 packing 계산으로 어느 공간에 넣을지를 안내한다.
-- 레이드 session 상태와 재사용 가능한 출발 preset은 분리한다.
+- Scanner 오른쪽에 `파밍 가이드` 탭을 추가한다.
+- 화면은 착용 장비 / 수납 공간 / 검색·요약의 3개 영역으로 구성한다.
+- 검색 결과에서 실제 Tarkov `width × height` footprint로 drag한다.
+- drag 중 `R`로 90도 회전한다.
+- grid snap, bounds/overlap/연속 공간 검증, 초록/빨강 valid-invalid 표시를 사용한다.
+- Pocket / Rig / Special Slot / Backpack / Secure Container를 표현한다.
+- Rig / Backpack / Secure Container grid와 attachment/armor plate/filter/conflict 구조는 current validated Tarkov item source를 사용한다.
+- 근접무기와 PMC 인식표는 per-profile preset과 분리된 사용자 고정 설정이다.
+- preset은 장비, attachment, armor plate, carrier, stored item, grid 위치/회전을 포함한 전체 출발 상태를 보존한다.
+- 오른쪽 요약은 총 무게 / storage cell 사용량을 표시하며 `파밍한 가치`는 이번 slice에서 `—`이다.
+- 실제 Tarkov inventory 좌표의 지속적인 1:1 동기화는 하지 않는다.
+- v1.13.0에는 가치 판단, 획득/폐기/교체 추천, Scanner 실시간 추천 연동을 포함하지 않는다.
 
 ## Completed
 
-- 제품 요구사항 확정 및 feature branch / Draft PR #240 생성
+- 제품 요구사항 확정 및 canonical decision 기록
+- feature branch / Draft PR #240 생성
 - Scanner 오른쪽 `파밍 가이드` 탭과 3열 editor UI 구현
-- Farming Guide를 MainWindow의 first-class section lifecycle에 통합
-  - profile 없음 / section visibility / busy / button state 포함
+- Farming Guide를 MainWindow first-class section lifecycle에 통합
 - equipment / carrier / pockets / special slot / grid rendering 구현
 - 검색 결과 기반 drag-and-drop 구현
 - `R` 회전 / footprint / overlap / bounds / snap / valid-invalid feedback 구현
-- carrier 이동 시 내부 배치 보존 및 destructive removal 계약 정리
-- 고정 근접무기/인식표의 별도 persistence 구현
-- 전체 출발 상태 preset 저장/선택/working-state persistence 구현
-- 장비 attachment / armor plate 설정 UI 구현
-- current Tarkov item source importer에 storage grids / filters / slots / armor slots / conflicts / blocks-headphones 데이터 추가
-- content schema를 v9로 확장하고 v3-v8 offline snapshot read compatibility 유지
-- 결정적 테스트 추가
-  - placement / rotation / overlap / contiguous packing
+- 장비 attachment / armor plate nested 설정 UI 구현
+- fixed melee / dogtag 별도 persistence 구현
+- 전체 출발 상태 preset save/select/working-state persistence 구현
+- `%LocalAppData%/JunhyunHelper/farming-guide.json` schema v1 추가
+- current Tarkov item importer에 storage grids / filters / slots / armor slots / conflicts / blocks-headphones 구조 추가
+- Content snapshot write schema를 v9로 확장하고 v3-v8 read compatibility 유지
+- Desktop target/package version을 `1.13.0`으로 반영
+- `FIRST_RUN_KO.txt`와 `RELEASE_NOTES_V1.13.0.md` 추가
+- published EXE Product UI smoke에 Farming Guide 실제 render/section activation 검증 추가
+- 결정적 회귀 테스트 추가
+  - placement / rotation / overlap / fragmented contiguous-space
   - MainWindow section lifecycle
-  - preset round-trip / mods / armor plates / position / rotation / fixed equipment separation
-- Desktop build/XAML compile 성공 확인
-- 잘못 구성된 fragmented-space test fixture 수정
+  - preset full-state round-trip / fixed equipment separation
+  - Tarkov item structure importer
+  - Content v9 round-trip
+- 추가 코드 감사에서 carrier/state data-loss 경로 수정
+  - 내용물이 든 carrier를 다른 carrier로 덮어쓰는 drop을 fail closed
+  - 오래된 preset의 없는 grid / out-of-bounds / overlap / current filter 위반 placement를 current content 기준으로 제거
+  - 위 동작의 deterministic tests 추가
+- `f225f781...` 기준 Desktop Release build 성공
+- `f225f781...` 기준 deterministic tests 성공
+- `f225f781...` 기준 Shutdown Race CI `33358155538` 성공
+- Documentation Consistency 정상화 완료
+- current public Tarkov API/schema에서 Farming Guide가 사용하는 width/height/properties/storage grids/slot filters/armor slots/conflict 필드 존재 확인
 
 ## Current step
 
-최신 기능 HEAD의 PR CI / Shutdown Race CI가 실행 중입니다. Documentation Consistency는 성공했습니다.
+`f225f781bd58ef5de8ee99738dc6139c419ef2f8`에서 main CI `33358155536`가 진행 중입니다.
 
-CI가 성공하면 published Windows x64 runtime에서 새 Farming Guide 탭을 직접 여는 UI smoke coverage를 확인·보강하고, 제품 문서/버전 갱신 후 merge/release 검증으로 진행합니다.
+현재까지 같은 run에서:
+
+- Desktop Release build: SUCCESS
+- deterministic tests: SUCCESS
+- Windows x64 publish: 진행 중
+
+다음 gate는 actual published EXE Product UI + Map smoke와 package/artifact 검증입니다.
+
+이 checkpoint 문서 커밋 이후에는 동일 코드 + 최신 문서를 대상으로 새 exact-head PR CI를 다시 통과시켜야 합니다.
 
 ## Remaining
 
-1. 최신 PR CI / Shutdown Race CI 완료 확인 및 잔여 실패 수정
-2. published EXE Farming Guide UI/runtime smoke 확인·보강
-3. v1.13.0 제품/아키텍처/상태/릴리즈 문서 갱신
-4. assembly/package version `1.13.0` 반영
-5. final exact-head PR CI
-6. PR ready / main merge
-7. exact-main CI / Shutdown Race / Documentation Consistency
-8. v1.13.0 release 생성 및 public tag/release/asset/checksum 검증
-9. canonical project state 갱신 및 ACTIVE_WORK 종료
+1. published EXE Farming Guide UI/runtime smoke 및 package/artifact gate 확인
+2. v1.13.0 current-state / architecture / decision index 문서 마감
+3. final exact-head PR CI / Shutdown Race / Documentation Consistency
+4. PR ready / main merge
+5. exact-main CI / Shutdown Race / Documentation Consistency
+6. v1.13.0 release workflow 실행
+7. public tag / latest release / asset / checksum / exact-source identity 검증
+8. PROJECT_STATE / CURRENT_STATE / STATE / README / release evidence를 public v1.13.0으로 확정
+9. ACTIVE_WORK `NONE`으로 종료
