@@ -75,7 +75,7 @@ public sealed class QuestTaskPoolVariableCompatibilityTests
     }
 
     [Fact]
-    public void Ll1PoolAfterAnySameTraderCompletionRemainsUnknownWithoutExactValue()
+    public void Ll1PoolAfterAnySameTraderCompletionRemainsUnknownWhileStillLl1()
     {
         var quests = BuildPraporLl1Shape(includeOrdinaryQuest: true);
         var profile = CreateProfile(loyalty: 1, completed: new HashSet<string> { "ordinary-ll1" });
@@ -86,14 +86,25 @@ public sealed class QuestTaskPoolVariableCompatibilityTests
     }
 
     [Fact]
-    public void HigherLoyaltyProfileDoesNotBackfillLl1ZeroFromIncompleteHelperHistory()
+    public void HigherLoyaltySatisfiesPastLl1PoolInsteadOfCreatingFortyEightUnknownQuests()
     {
         var quests = BuildPraporLl1Shape(includeOrdinaryQuest: false);
-        var profile = CreateProfile(loyalty: 4, completed: new HashSet<string>(StringComparer.Ordinal));
+        var profile = CreateProfile(loyalty: 2, completed: new HashSet<string>(StringComparer.Ordinal));
 
         var enriched = QuestTaskPoolVariableCompatibility.ApplyInferredProfileValues(quests, profile);
 
-        Assert.False(enriched.ProfileVariables.ContainsKey(PraporLl1Pool));
+        Assert.Equal(5, enriched.ProfileVariables[PraporLl1Pool]);
+    }
+
+    [Fact]
+    public void HigherLoyaltySatisfiesPastLl2PoolWithoutInventingCompletionHistory()
+    {
+        var quests = BuildPraporLl2Shape();
+        var profile = CreateProfile(loyalty: 3, completed: new HashSet<string>(StringComparer.Ordinal));
+
+        var enriched = QuestTaskPoolVariableCompatibility.ApplyInferredProfileValues(quests, profile);
+
+        Assert.Equal(5, enriched.ProfileVariables[PraporLl2Pool]);
     }
 
     [Fact]
