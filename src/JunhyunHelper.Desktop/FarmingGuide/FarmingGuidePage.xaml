@@ -7,47 +7,69 @@
              PreviewKeyDown="Root_PreviewKeyDown">
     <Grid x:Name="RootGrid" Background="{StaticResource BackgroundDarkBrush}">
         <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="390" />
+            <ColumnDefinition Width="*" MinWidth="400" />
             <ColumnDefinition Width="350" />
-            <ColumnDefinition Width="*" MinWidth="450" />
-            <ColumnDefinition Width="360" />
         </Grid.ColumnDefinitions>
 
-        <Border Grid.Column="0" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0" Padding="16">
+        <Border Grid.Column="0" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0" Padding="14">
             <DockPanel LastChildFill="True">
                 <StackPanel DockPanel.Dock="Top">
-                    <TextBlock Text="장비" FontSize="21" FontWeight="SemiBold" Margin="0,0,0,12" />
-                    <Grid Margin="0,0,0,16">
+                    <TextBlock Text="장비" FontSize="21" FontWeight="SemiBold" Margin="0,0,0,10" />
+                    <Grid Margin="0,0,0,12">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <ComboBox x:Name="PresetComboBox"
                                   Grid.Column="0"
-                                  MinHeight="34"
+                                  MinHeight="36"
+                                  VerticalContentAlignment="Center"
                                   SelectionChanged="PresetComboBox_SelectionChanged" />
                         <Button Grid.Column="1"
-                                Width="38"
-                                Height="34"
+                                Width="40"
+                                Height="36"
                                 Margin="7,0,0,0"
-                                Content="💾"
+                                Padding="8"
                                 ToolTip="현재 상태를 새 프리셋으로 저장"
-                                Click="SavePresetButton_Click" />
+                                Click="SavePresetButton_Click">
+                            <Viewbox Width="18" Height="18" Stretch="Uniform">
+                                <Grid Width="18" Height="18">
+                                    <Border BorderBrush="{StaticResource TextSecondaryBrush}"
+                                            BorderThickness="1.5"
+                                            CornerRadius="1" />
+                                    <Border Width="9" Height="5"
+                                            Margin="0,2,0,0"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Top"
+                                            BorderBrush="{StaticResource TextSecondaryBrush}"
+                                            BorderThickness="1.2" />
+                                    <Border Width="10" Height="6"
+                                            Margin="0,0,0,2"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Bottom"
+                                            BorderBrush="{StaticResource TextSecondaryBrush}"
+                                            BorderThickness="1.2" />
+                                </Grid>
+                            </Viewbox>
+                        </Button>
                     </Grid>
                 </StackPanel>
 
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
                     <StackPanel x:Name="EquipmentPanel" />
                 </ScrollViewer>
             </DockPanel>
         </Border>
 
-        <Border Grid.Column="1" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0" Padding="16">
+        <Border Grid.Column="1" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0" Padding="14">
             <DockPanel LastChildFill="True">
                 <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
                     <TextBlock Text="수납 공간" FontSize="21" FontWeight="SemiBold" />
                     <TextBlock Text="아이템을 끌어 놓으세요. 드래그 중 R로 회전할 수 있습니다."
                                Foreground="{StaticResource TextSecondaryBrush}"
-                               Margin="0,4,0,0" />
+                               Margin="0,3,0,0" />
                 </StackPanel>
                 <ScrollViewer VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Auto">
@@ -56,7 +78,7 @@
             </DockPanel>
         </Border>
 
-        <Grid Grid.Column="2" Margin="14">
+        <Grid Grid.Column="2" Margin="12">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
@@ -65,8 +87,8 @@
 
             <TextBox x:Name="SearchTextBox"
                      Grid.Row="0"
-                     Height="36"
-                     Padding="10,6"
+                     MinHeight="40"
+                     Padding="10,2"
                      VerticalContentAlignment="Center"
                      TextChanged="SearchTextBox_TextChanged"
                      ToolTip="한글/영문 이름으로 아이템 검색" />
@@ -83,7 +105,7 @@
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <Border Padding="8"
+                            <Border Padding="7"
                                     Margin="2"
                                     CornerRadius="5"
                                     Background="{StaticResource BackgroundDarkBrush}"
@@ -91,15 +113,16 @@
                                     MouseLeftButtonDown="SearchResult_MouseLeftButtonDown">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="48" />
+                                        <ColumnDefinition Width="54" />
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <Border Width="42" Height="42"
+                                    <Border Width="48" Height="48"
                                             BorderBrush="{StaticResource BorderBrush}"
                                             BorderThickness="1"
-                                            CornerRadius="4">
-                                        <Image Source="{Binding Image}" Stretch="Uniform" />
+                                            CornerRadius="4"
+                                            Background="{StaticResource BackgroundMediumBrush}">
+                                        <Image Source="{Binding Image}" Stretch="Uniform" Margin="2" />
                                     </Border>
                                     <StackPanel Grid.Column="1" Margin="8,0,6,0" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />

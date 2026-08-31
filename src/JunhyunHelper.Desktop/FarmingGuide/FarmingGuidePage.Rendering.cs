@@ -23,117 +23,223 @@ public partial class FarmingGuidePage
     private void RenderEquipment()
     {
         EquipmentPanel.Children.Clear();
+
+        var board = new Grid
+        {
+            Margin = new Thickness(-4, 0, -4, 8),
+        };
+        board.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        board.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        board.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        board.RowDefinitions.Add(new RowDefinition { Height = new GridLength(98) });
+        board.RowDefinitions.Add(new RowDefinition { Height = new GridLength(88) });
+        board.RowDefinitions.Add(new RowDefinition { Height = new GridLength(88) });
+        board.RowDefinitions.Add(new RowDefinition { Height = new GridLength(108) });
+        board.RowDefinitions.Add(new RowDefinition { Height = new GridLength(108) });
+
         foreach (var definition in EquipmentSlots)
         {
             var state = definition.Fixed
                 ? GetFixed(definition.Slot)
                 : Equipment.TryGetValue(definition.Slot, out var equipped) ? equipped : null;
             var item = ResolveItem(state);
+            var slot = CreateEquipmentSlot(definition.Slot, definition.Label, definition.Fixed, item);
+            var placement = EquipmentBoardPlacement(definition.Slot);
 
-            var border = new Border
-            {
-                MinHeight = definition.Slot is FarmingGuideEquipmentSlot.PrimaryWeapon1 or FarmingGuideEquipmentSlot.PrimaryWeapon2 ? 68 : 52,
-                Margin = new Thickness(0, 0, 0, 7),
-                Padding = new Thickness(9),
-                CornerRadius = new CornerRadius(6),
-                BorderThickness = new Thickness(1),
-                BorderBrush = (Brush)FindResource("BorderBrush"),
-                Background = (Brush)FindResource("BackgroundMediumBrush"),
-            };
-            var target = new EquipmentDropTarget(definition.Slot, definition.Fixed, border);
-            border.Tag = target;
-            border.MouseLeftButtonDown += Equipment_MouseLeftButtonDown;
-
-            var grid = new Grid();
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(86) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grid.Children.Add(new TextBlock
-            {
-                Text = definition.Label,
-                Foreground = (Brush)FindResource("TextSecondaryBrush"),
-                VerticalAlignment = VerticalAlignment.Center,
-            });
-            var value = new TextBlock
-            {
-                Text = item is null ? "비어 있음" : DisplayName(item),
-                FontWeight = item is null ? FontWeights.Normal : FontWeights.SemiBold,
-                VerticalAlignment = VerticalAlignment.Center,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-            };
-            Grid.SetColumn(value, 1);
-            grid.Children.Add(value);
-            border.Child = grid;
-            EquipmentPanel.Children.Add(border);
+            Grid.SetRow(slot, placement.Row);
+            Grid.SetColumn(slot, placement.Column);
+            Grid.SetRowSpan(slot, placement.RowSpan);
+            Grid.SetColumnSpan(slot, placement.ColumnSpan);
+            board.Children.Add(slot);
         }
+
+        EquipmentPanel.Children.Add(board);
     }
+
+    private Border CreateEquipmentSlot(
+        FarmingGuideEquipmentSlot slot,
+        string label,
+        bool fixedSlot,
+        GameItem? item)
+    {
+        var border = new Border
+        {
+            Margin = new Thickness(4),
+            CornerRadius = new CornerRadius(5),
+            BorderThickness = new Thickness(1),
+            BorderBrush = (Brush)FindResource("BorderBrush"),
+            Background = (Brush)FindResource("BackgroundMediumBrush"),
+            ClipToBounds = true,
+            Cursor = Cursors.Hand,
+            ToolTip = item is null ? $"{label} 슬롯" : DisplayName(item),
+        };
+        var target = new EquipmentDropTarget(slot, fixedSlot, border);
+        border.Tag = target;
+        border.MouseLeftButtonDown += Equipment_MouseLeftButtonDown;
+
+        var content = new Grid();
+        if (item is not null)
+        {
+            content.Children.Add(CreateItemImage(item, margin: new Thickness(8, 24, 8, 6)));
+        }
+        else
+        {
+            content.Children.Add(new TextBlock
+            {
+                Text = "비어 있음",
+                FontSize = 11,
+                Foreground = (Brush)FindResource("TextSecondaryBrush"),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(5, 20, 5, 4),
+                IsHitTestVisible = false,
+            });
+        }
+
+        var labelHost = new Border
+        {
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Top,
+            Background = (Brush)FindResource("BackgroundDarkBrush"),
+            Padding = new Thickness(6, 3, 6, 3),
+            IsHitTestVisible = false,
+            Child = new TextBlock
+            {
+                Text = label,
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            },
+        };
+        Panel.SetZIndex(labelHost, 2);
+        content.Children.Add(labelHost);
+        border.Child = content;
+        return border;
+    }
+
+    private static (int Row, int Column, int RowSpan, int ColumnSpan) EquipmentBoardPlacement(
+        FarmingGuideEquipmentSlot slot) => slot switch
+    {
+        FarmingGuideEquipmentSlot.Headset => (0, 0, 1, 1),
+        FarmingGuideEquipmentSlot.Helmet => (0, 1, 1, 1),
+        FarmingGuideEquipmentSlot.FaceCover => (0, 2, 1, 1),
+        FarmingGuideEquipmentSlot.Armband => (1, 0, 1, 1),
+        FarmingGuideEquipmentSlot.BodyArmor => (1, 1, 2, 1),
+        FarmingGuideEquipmentSlot.Eyewear => (1, 2, 1, 1),
+        FarmingGuideEquipmentSlot.Dogtag => (2, 0, 1, 1),
+        FarmingGuideEquipmentSlot.Holster => (2, 2, 1, 1),
+        FarmingGuideEquipmentSlot.PrimaryWeapon1 => (3, 0, 1, 2),
+        FarmingGuideEquipmentSlot.Melee => (3, 2, 1, 1),
+        FarmingGuideEquipmentSlot.PrimaryWeapon2 => (4, 0, 1, 2),
+        _ => (4, 2, 1, 1),
+    };
 
     private void RenderStorage()
     {
         StoragePanel.Children.Clear();
         foreach (var storage in StorageDefinitions())
         {
-            var section = new StackPanel { Margin = new Thickness(0, 0, 0, 18) };
-            var carrierItem = ResolveItem(storage.Carrier);
-            var header = new Border
-            {
-                MinHeight = 38,
-                Padding = new Thickness(9, 6, 9, 6),
-                Margin = new Thickness(0, 0, 0, 8),
-                CornerRadius = new CornerRadius(6),
-                BorderThickness = new Thickness(1),
-                BorderBrush = (Brush)FindResource("BorderBrush"),
-                Background = (Brush)FindResource("BackgroundMediumBrush"),
-            };
-
             if (storage.Kind is FarmingGuideStorageKind.Rig or FarmingGuideStorageKind.Backpack or FarmingGuideStorageKind.SecureContainer)
-            {
-                var target = new CarrierDropTarget(storage.Kind, header);
-                header.Tag = target;
-                header.MouseLeftButtonDown += Carrier_MouseLeftButtonDown;
-                header.Child = new TextBlock
-                {
-                    Text = carrierItem is null ? $"{storage.Label} · 장비를 여기에 놓으세요" : $"{storage.Label} · {DisplayName(carrierItem)}",
-                    FontWeight = FontWeights.SemiBold,
-                    VerticalAlignment = VerticalAlignment.Center,
-                };
-            }
+                StoragePanel.Children.Add(CreateCarrierStorageSection(storage));
             else
-            {
-                header.Child = new TextBlock
-                {
-                    Text = storage.Label,
-                    FontWeight = FontWeights.SemiBold,
-                    VerticalAlignment = VerticalAlignment.Center,
-                };
-            }
-            section.Children.Add(header);
+                StoragePanel.Children.Add(CreateFixedStorageSection(storage));
+        }
+    }
 
-            if (storage.Grids.Count == 0)
-            {
-                if (storage.Kind is FarmingGuideStorageKind.Rig or FarmingGuideStorageKind.Backpack or FarmingGuideStorageKind.SecureContainer)
-                {
-                    section.Children.Add(new TextBlock
-                    {
-                        Text = carrierItem is null
-                            ? "장비를 선택하면 실제 내부 그리드가 표시됩니다."
-                            : "이 장비의 수납 구조가 현재 데이터에 없습니다. 게임 데이터를 업데이트해 주세요.",
-                        Foreground = (Brush)FindResource("TextSecondaryBrush"),
-                        Margin = new Thickness(4, 2, 4, 4),
-                    });
-                }
-                StoragePanel.Children.Add(section);
-                continue;
-            }
+    private FrameworkElement CreateFixedStorageSection(StorageDefinition storage)
+    {
+        var section = new StackPanel { Margin = new Thickness(0, 0, 0, 15) };
+        section.Children.Add(new TextBlock
+        {
+            Text = storage.Label,
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(2, 0, 0, 6),
+        });
 
+        var gridsPanel = new WrapPanel { Orientation = Orientation.Horizontal };
+        for (var index = 0; index < storage.Grids.Count; index++)
+            gridsPanel.Children.Add(CreateGridCanvas(storage.Kind, index, storage.Grids[index]));
+        section.Children.Add(gridsPanel);
+        return section;
+    }
+
+    private FrameworkElement CreateCarrierStorageSection(StorageDefinition storage)
+    {
+        var section = new StackPanel { Margin = new Thickness(0, 0, 0, 17) };
+        section.Children.Add(new TextBlock
+        {
+            Text = storage.Label,
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(2, 0, 0, 6),
+        });
+
+        var body = new Grid();
+        body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(112) });
+        body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var carrierItem = ResolveItem(storage.Carrier);
+        var carrier = new Border
+        {
+            Width = 104,
+            Height = 104,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 0, 8, 8),
+            BorderBrush = (Brush)FindResource("BorderBrush"),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(5),
+            Background = (Brush)FindResource("BackgroundMediumBrush"),
+            ClipToBounds = true,
+            Cursor = Cursors.Hand,
+            ToolTip = carrierItem is null ? $"{storage.Label} 장비 슬롯" : DisplayName(carrierItem),
+        };
+        var target = new CarrierDropTarget(storage.Kind, carrier);
+        carrier.Tag = target;
+        carrier.MouseLeftButtonDown += Carrier_MouseLeftButtonDown;
+
+        if (carrierItem is not null)
+        {
+            carrier.Child = CreateItemImage(carrierItem, margin: new Thickness(5));
+        }
+        else
+        {
+            carrier.Child = new TextBlock
+            {
+                Text = "장비를\n놓으세요",
+                FontSize = 11,
+                TextAlignment = TextAlignment.Center,
+                Foreground = (Brush)FindResource("TextSecondaryBrush"),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                IsHitTestVisible = false,
+            };
+        }
+        body.Children.Add(carrier);
+
+        var content = new StackPanel { VerticalAlignment = VerticalAlignment.Top };
+        Grid.SetColumn(content, 1);
+        if (storage.Grids.Count > 0)
+        {
             var gridsPanel = new WrapPanel { Orientation = Orientation.Horizontal };
             for (var index = 0; index < storage.Grids.Count; index++)
-            {
-                var definition = storage.Grids[index];
-                gridsPanel.Children.Add(CreateGridCanvas(storage.Kind, index, definition));
-            }
-            section.Children.Add(gridsPanel);
-            StoragePanel.Children.Add(section);
+                gridsPanel.Children.Add(CreateGridCanvas(storage.Kind, index, storage.Grids[index]));
+            content.Children.Add(gridsPanel);
         }
+        else
+        {
+            content.Children.Add(new TextBlock
+            {
+                Text = carrierItem is null
+                    ? "장비를 장착하면 내부 칸이 표시됩니다."
+                    : "현재 데이터에 수납 구조가 없습니다.",
+                Foreground = (Brush)FindResource("TextSecondaryBrush"),
+                Margin = new Thickness(4, 8, 4, 4),
+                TextWrapping = TextWrapping.Wrap,
+            });
+        }
+        body.Children.Add(content);
+        section.Children.Add(body);
+        return section;
     }
 
     private Canvas CreateGridCanvas(
@@ -145,7 +251,7 @@ public partial class FarmingGuidePage
         {
             Width = definition.Width * CellSize,
             Height = definition.Height * CellSize,
-            Margin = new Thickness(0, 0, 8, 8),
+            Margin = new Thickness(0, 0, 7, 7),
             Background = (Brush)FindResource("BackgroundDarkBrush"),
             ClipToBounds = true,
         };
@@ -183,24 +289,17 @@ public partial class FarmingGuidePage
             {
                 Width = width * CellSize - 2,
                 Height = height * CellSize - 2,
-                CornerRadius = new CornerRadius(3),
+                CornerRadius = new CornerRadius(2),
                 BorderThickness = new Thickness(1),
                 BorderBrush = (Brush)FindResource("AccentBrush"),
-                Background = (Brush)FindResource("BackgroundLightBrush"),
+                Background = (Brush)FindResource("BackgroundMediumBrush"),
                 Cursor = Cursors.Hand,
                 Tag = new PlacedItemSource(placement),
+                ToolTip = DisplayName(item),
+                ClipToBounds = true,
             };
             card.MouseLeftButtonDown += PlacedItem_MouseLeftButtonDown;
-            card.Child = new TextBlock
-            {
-                Text = item.ShortNameKo ?? item.ShortNameEn ?? DisplayName(item),
-                FontSize = 11,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                TextAlignment = TextAlignment.Center,
-                IsHitTestVisible = false,
-            };
+            card.Child = CreateItemImage(item, placement.Rotated, new Thickness(2));
             Canvas.SetLeft(card, placement.X * CellSize + 1);
             Canvas.SetTop(card, placement.Y * CellSize + 1);
             canvas.Children.Add(card);

@@ -38,6 +38,8 @@ public partial class FarmingGuidePage
         int Y = 0);
 
     private Border? _dropHighlight;
+    private Border? _transientDropTarget;
+    private Image? _dragGhostImage;
 
     private void SearchResult_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
@@ -160,7 +162,8 @@ public partial class FarmingGuidePage
         }
 
         var session = ActiveDrag;
-        var probe = CurrentDropProbe;
+        var releasePoint = e.GetPosition(RootGrid);
+        var probe = ProbeDrop(releasePoint, session);
         if (probe?.Valid == true)
         {
             var fixedOnlyChange = session.FixedEquipment ||
@@ -169,7 +172,7 @@ public partial class FarmingGuidePage
             ApplyDrop(session, probe);
             MarkChanged(fixedOnlyChange);
         }
-        else if (session.Origin != DragOriginKind.Search && IsClearlyOutsideDropArea(e.GetPosition(RootGrid)))
+        else if (session.Origin != DragOriginKind.Search && IsClearlyOutsideDropArea(releasePoint))
         {
             RemoveOrigin(session, destructiveCarrierRemoval: true);
             MarkChanged(session.FixedEquipment);
@@ -186,24 +189,17 @@ public partial class FarmingGuidePage
         ActiveDrag.Started = true;
         Mouse.Capture(this, CaptureMode.SubTree);
 
+        _dragGhostImage = CreateItemImage(ActiveDrag.Item, ActiveDrag.Rotated, new Thickness(2));
         DragGhost = new Border
         {
-            CornerRadius = new CornerRadius(4),
+            CornerRadius = new CornerRadius(3),
             BorderThickness = new Thickness(2),
             BorderBrush = (Brush)FindResource("AccentBrush"),
-            Background = new SolidColorBrush(Color.FromArgb(225, 48, 48, 48)),
-            Opacity = 0.94,
-            Child = new TextBlock
-            {
-                Text = ActiveDrag.Item.ShortNameKo ?? ActiveDrag.Item.ShortNameEn ?? DisplayName(ActiveDrag.Item),
-                TextAlignment = TextAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                FontWeight = FontWeights.SemiBold,
-                FontSize = 11,
-                Margin = new Thickness(3),
-                IsHitTestVisible = false,
-            },
+            Background = (Brush)FindResource("BackgroundMediumBrush"),
+            Opacity = 0.92,
+            ClipToBounds = true,
+            IsHitTestVisible = false,
+            Child = _dragGhostImage,
         };
         DragOverlay.Children.Add(DragGhost);
         UpdateGhostSize();
@@ -228,6 +224,8 @@ public partial class FarmingGuidePage
             ActiveDrag.Rotated);
         DragGhost.Width = width * CellSize;
         DragGhost.Height = height * CellSize;
+        if (_dragGhostImage is not null)
+            ApplyItemImageRotation(_dragGhostImage, ActiveDrag.Rotated);
     }
 
     private void UpdateDragVisual(Point point)
@@ -243,8 +241,12 @@ public partial class FarmingGuidePage
 
     private DropProbe? ProbeDrop(Point rootPoint, DragSession session)
     {
-        var hit = RootGrid.InputHitTest(rootPoint) as DependencyObject;
-        var tagged = FindTaggedAncestor(hit);
+        var tagged = FindDropTargetAt(rootPoint);
+        if (tagged is null)
+        {
+            var hit = RootGrid.InputHitTest(rootPoint) as DependencyObject;
+            tagged = FindTaggedAncestor(hit);
+        }
 
         if (session.FixedEquipment)
         {
@@ -258,7 +260,7 @@ public partial class FarmingGuidePage
         }
 
         if (tagged is GridDropTarget grid)
-            return ProbeGrid(grid, session, Mouse.GetPosition(grid.Canvas));
+            return ProbeGrid(grid, session, PointInGrid(rootPoint, grid.Canvas));
         if (tagged is EquipmentDropTarget equipment)
             return new DropProbe(equipment, CanEquip(equipment, session.Item));
         if (tagged is CarrierDropTarget carrier)
@@ -424,23 +426,28 @@ public partial class FarmingGuidePage
         }
     }
 
-    private bool IsClearlyOutsideDropArea(Point point)
-    {
-        var hit = RootGrid.InputHitTest(point) as DependencyObject;
-        return FindTaggedAncestor(hit) is null && FindNearbyGrid(point, 11d) is null;
-    }
+    private bool IsClearlyOutsideDropArea(Point point) =>
+        FindDropTargetAt(point) is null && FindNearbyGrid(point, 11d) is null;
 
     private void ShowDropHighlight(DropProbe? probe)
     {
         if (_dropHighlight is null || ActiveDrag is null)
             return;
+
+        ResetTransientDropTarget();
         if (probe?.Target is not GridDropTarget grid)
         {
             _dropHighlight.Visibility = Visibility.Collapsed;
             if (probe?.Target is EquipmentDropTarget equipment)
+            {
+                _transientDropTarget = equipment.Border;
                 equipment.Border.BorderBrush = (Brush)FindResource(probe.Valid ? "SuccessBrush" : "DangerBrush");
-            if (probe?.Target is CarrierDropTarget carrier)
+            }
+            else if (probe?.Target is CarrierDropTarget carrier)
+            {
+                _transientDropTarget = carrier.Border;
                 carrier.Border.BorderBrush = (Brush)FindResource(probe.Valid ? "SuccessBrush" : "DangerBrush");
+            }
             return;
         }
 
@@ -459,9 +466,18 @@ public partial class FarmingGuidePage
         _dropHighlight.Visibility = Visibility.Visible;
     }
 
+    private void ResetTransientDropTarget()
+    {
+        if (_transientDropTarget is null)
+            return;
+        _transientDropTarget.BorderBrush = (Brush)FindResource("BorderBrush");
+        _transientDropTarget = null;
+    }
+
     private void EndDragVisual()
     {
         Mouse.Capture(null);
+        ResetTransientDropTarget();
         ActiveDrag = null;
         CurrentDropProbe = null;
         if (DragGhost is not null)
@@ -469,9 +485,71 @@ public partial class FarmingGuidePage
         if (_dropHighlight is not null)
             DragOverlay.Children.Remove(_dropHighlight);
         DragGhost = null;
+        _dragGhostImage = null;
         _dropHighlight = null;
         RenderEquipment();
         RenderStorage();
+    }
+
+    private object? FindDropTargetAt(Point rootPoint)
+    {
+        object? candidate = null;
+        foreach (var element in FindVisualChildren<FrameworkElement>(RootGrid))
+        {
+            if (element.Tag is not (EquipmentDropTarget or CarrierDropTarget or GridDropTarget) ||
+                !IsPointWithinVisibleBounds(element, rootPoint))
+            {
+                continue;
+            }
+
+            if (element.Tag is GridDropTarget)
+                return element.Tag;
+            candidate ??= element.Tag;
+        }
+        return candidate;
+    }
+
+    private bool IsPointWithinVisibleBounds(
+        FrameworkElement element,
+        Point rootPoint,
+        bool requireElementBounds = true)
+    {
+        DependencyObject? current = element;
+        while (current is not null && !ReferenceEquals(current, RootGrid))
+        {
+            if (current is FrameworkElement framework)
+            {
+                if (!framework.IsVisible || framework.ActualWidth <= 0 || framework.ActualHeight <= 0)
+                    return false;
+
+                var isElement = ReferenceEquals(framework, element);
+                var clipsPoint = isElement
+                    ? requireElementBounds
+                    : framework.ClipToBounds || framework is ScrollViewer or ScrollContentPresenter;
+                if (clipsPoint)
+                {
+                    Point origin;
+                    try
+                    {
+                        origin = framework.TranslatePoint(new Point(0, 0), RootGrid);
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        return false;
+                    }
+
+                    var visibleBounds = new Rect(
+                        origin,
+                        new Size(framework.ActualWidth, framework.ActualHeight));
+                    if (!visibleBounds.Contains(rootPoint))
+                        return false;
+                }
+            }
+
+            current = VisualTreeHelper.GetParent(current);
+        }
+
+        return current is not null;
     }
 
     private object? FindTaggedAncestor(DependencyObject? current)
@@ -487,18 +565,19 @@ public partial class FarmingGuidePage
 
     private GridDropTarget? FindNearbyGrid(Point rootPoint, double tolerance)
     {
-        foreach (var storage in StoragePanel.Children.OfType<StackPanel>())
+        foreach (var canvas in FindVisualChildren<Canvas>(StoragePanel))
         {
-            foreach (var canvas in FindVisualChildren<Canvas>(storage))
+            if (canvas.Tag is not GridDropTarget target ||
+                !IsPointWithinVisibleBounds(canvas, rootPoint, requireElementBounds: false))
             {
-                if (canvas.Tag is not GridDropTarget target || !canvas.IsVisible)
-                    continue;
-                var origin = canvas.TranslatePoint(new Point(0, 0), RootGrid);
-                var bounds = new Rect(origin, new Size(canvas.ActualWidth, canvas.ActualHeight));
-                bounds.Inflate(tolerance, tolerance);
-                if (bounds.Contains(rootPoint))
-                    return target;
+                continue;
             }
+
+            var origin = canvas.TranslatePoint(new Point(0, 0), RootGrid);
+            var bounds = new Rect(origin, new Size(canvas.ActualWidth, canvas.ActualHeight));
+            bounds.Inflate(tolerance, tolerance);
+            if (bounds.Contains(rootPoint))
+                return target;
         }
         return null;
     }

@@ -1,9 +1,60 @@
 # ACTIVE WORK — 현재 진행 중 작업 체크포인트
 
-Status: **NONE**  
+Status: **ACTIVE**  
 Updated: **2026-08-31 KST**
 
-현재 진행 중인 개발 작업은 없습니다.
+## Goal
+
+**v1.13.1 Farming Guide — 실사용 UI/drag-drop 회귀 수정**
+
+사용자 실사용 캡처와 원래 스케치를 기준으로 v1.13.0 파밍 가이드의 UI/interaction 불일치를 수정한다. 최우선 목표는 텍스트 리스트형 화면을 **아이콘 중심의 Tarkov 인게임 인벤토리 유사 UI**로 바로잡는 것이다.
+
+## Base
+
+```text
+base main: c578b074a36fb6703191e17cc46f17e188816010
+branch: fix/v1.13.1-farming-guide-ui-regressions-2026-08-31
+PR: #243
+public stable: v1.13.0
+status: FINAL VERIFYING
+```
+
+## Confirmed scope
+
+- 전체 화면이 텍스트 리스트형으로 구현되어 원래 의도인 아이콘 중심 인게임 인벤토리형 UI와 크게 다른 문제 수정.
+- 저장 아이콘 및 검색창 입력 텍스트 clipping 수정.
+- 방탄복 / 리그 / 가방 / 보안 컨테이너 drag-drop 장착 실패 수정.
+- drag 유효/무효 초록/빨강 target 강조가 커서를 치운 뒤 남는 문제 수정.
+- drag ghost를 item 이름 텍스트 박스가 아닌 실제 item icon으로 변경.
+- 장착 아이템 및 storage grid 배치 아이템을 text가 아닌 실제 item icon으로 렌더링.
+- 기존 placement / compatibility / persistence / preset / fixed melee·dogtag / rotation / populated-carrier safety 계약은 보존.
+
+## Completed
+
+- 작업 branch와 PR #243 생성.
+- 장비 영역을 vertical text list에서 spatial inventory slot board로 재구성.
+- 리그/가방/보안 컨테이너를 item icon 장착 target + 실제 내부 grid 조합으로 재구성.
+- storage placement와 drag ghost를 공통 item image presentation으로 변경.
+- drag 중 WPF mouse capture에 의존하지 않는 geometry-backed target probing을 추가해 equipment/carrier target hit 판정을 보강.
+- transient success/danger border를 probe 변경/end 시 기본 border로 되돌리는 cleanup 추가.
+- save emoji를 WPF vector icon으로 교체하고 search TextBox vertical layout 보정.
+- PR 최초 Documentation Consistency 실패 원인(`ACTIVE_WORK` 필수 heading 누락)을 확인하고 canonical checkpoint 형식으로 수정.
+- v1.13.1 Desktop version / `PROJECT_STATE.product.desktopVersion`을 정렬하고 `FIRST_RUN_KO.txt` 및 `RELEASE_NOTES_V1.13.1.md` release identity를 준비.
+- 최종 UI 검토에서 90도 회전한 직사각형 item image가 `RenderTransform` 때문에 footprint 내부에서 잘릴 수 있는 경로를 확인하고 layout-aware `LayoutTransform`으로 수정.
+
+## Current step
+
+PR #243 최신 exact-head에서 Windows CI / Shutdown Race CI / Documentation Consistency를 다시 통과시키고 published EXE smoke 및 release package gate를 확인한다. 모든 gate가 통과하면 main 병합과 v1.13.1 공개 릴리즈로 진행한다.
+
+## Remaining
+
+- 최신 exact-head CI / Shutdown Race CI / Documentation Consistency 전부 통과.
+- Windows Release publish artifact의 Product UI / Farming Guide / Map smoke, 정상 종료, 패키지 검증 확인.
+- PR 변경 범위 최종 review에서 release blocker가 없는지 확인.
+- main 병합 후 exact-main CI / Shutdown Race / Documentation Consistency 확인.
+- 자동 Release workflow 성공, public v1.13.1 tag / release / asset / checksum / exact source 검증.
+- canonical release/state 문서에 실제 release identity 반영.
+- 완전 종료 후 `ACTIVE_WORK`를 `NONE`으로 닫기.
 
 ## Last completed work
 
@@ -26,53 +77,6 @@ release id: 379519928
 494 passed / 0 failed / 0 skipped
 ```
 
-Draft PR #240은 제품/코드 문제가 아니라 connected GitHub draft→ready GraphQL mutation의 schema mismatch 때문에 ready 전환이 불가능해 닫았다. 동일 source branch와 검증 완료 HEAD로 non-draft PR #241을 만들고 exact-head CI를 다시 통과시킨 뒤 merge했다.
-
-## Completed product scope
-
-- Scanner 오른쪽 `파밍 가이드` first-class section
-- raid-start equipment / storage / search-summary editor
-- current Tarkov `width × height` item footprint
-- drag-and-drop + `R` 90도 회전
-- grid snap / bounds / overlap / contiguous-space / current filter 검증
-- Pocket / Rig / Backpack / Secure Container / Special Slot
-- current validated Tarkov storage grid / slot / attachment / armor plate / conflict structure 사용
-- attachment / armor plate configuration
-- full raid-start preset save/load
-- fixed melee / PMC dogtag와 per-profile preset 분리
-- total weight / storage cell summary
-- populated carrier destructive replacement fail-closed
-- old persisted preset의 impossible placement current-content sanitization
-- Farming Guide state `%LocalAppData%/JunhyunHelper/farming-guide.json` schema v1
-- Content write schema v9 / readable v3~v9
-
-v1.13.0에는 loot 가치 판단, pickup/discard/replace 추천, Scanner 실시간 추천 연동, 실제 raid inventory 좌표의 지속적인 1:1 sync를 포함하지 않는다.
-
-## Release verification
-
-Exact product source `103ade0c5d54ffb59a6844330d19a930899c12fb`은 다음을 통과했다.
-
-- 494 deterministic tests
-- Windows Release build / XAML compile
-- Windows x64 self-contained publish
-- actual published EXE Product UI / Farming Guide / Map smoke
-- graceful shutdown
-- active-async Shutdown Race
-- clean portable root / package audit
-- ZIP/checksum equality
-- exact-main CI / Documentation Consistency
-- verified automatic Release workflow
-- public `v1.13.0` tag / latest release / assets / digest readback
-
-Public package:
-
-```text
-Junhyun-Helper.zip
-80,613,758 bytes
-SHA-256:
-cbd8bafbf31ae65ecc659b15fc90a17408b87ecacdd9545c7b78de81c1835326
-```
-
 ## Canonical records
 
 - `docs/PROJECT_STATE.json`
@@ -81,27 +85,4 @@ cbd8bafbf31ae65ecc659b15fc90a17408b87ecacdd9545c7b78de81c1835326
 - `docs/PRODUCT.md`
 - `docs/DECISIONS.md`
 - `docs/DECISION_V1.13.0_FARMING_GUIDE_LOADOUT_EDITOR.md`
-- `docs/ARCHITECTURE.md`
 - `docs/ARCHITECTURE_FARMING_GUIDE.md`
-- `docs/RELEASE_1.13.0.md`
-- `docs/.release-v1.13.0-status.json`
-- `docs/RELEASE_NOTES_V1.13.0.md`
-
-## External real-world evidence still pending
-
-이 항목들은 v1.13.0 release 완료 조건과 별개이며 새 evidence가 들어오면 후속 유지보수 작업으로 시작한다.
-
-- 사용자의 실제 PC/Tarkov v1.13.0 최종 실사용 확인
-- 김태영 실제 PC diagnostic ZIP 수집/분석
-
-## Next start condition
-
-다음 중 하나가 생기면 현재 v1.13.0 public stable을 기준으로 새 `ACTIVE_WORK`를 연다.
-
-- 사용자의 새 제품 요구사항
-- 실사용 오류/회귀 보고
-- Tarkov source/semantics 변화
-- reviewed Scanner Ground Truth에 따른 개선 작업
-- 김태영 실제 PC diagnostic evidence 분석
-
-후속 documentation-only main commit은 v1.13.0 product release source가 아니다. v1.13.0 historical product identity는 `103ade0c5d54ffb59a6844330d19a930899c12fb`에 고정한다.
