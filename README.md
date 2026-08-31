@@ -4,9 +4,9 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 제품 상태
 
-현재 제품 상태는 **v1.12.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
+현재 제품 상태는 **v1.13.0 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
 
-현재 확정 요구사항 범위의 제품과 Scanner는 완성 상태입니다. 새로운 실제 회귀, Tarkov 호환성 변화, 또는 사용자가 명시적으로 확정한 새 제품 요구사항이 없는 한 선제적 기능 추가나 추측성 대규모 구조 변경을 시작하지 않습니다.
+v1.13.0에는 사용자가 명시적으로 확정한 새 MINOR 기능인 **파밍 가이드 Loadout / Inventory Editor**의 첫 제품 버전이 포함됐습니다. 해당 기능까지 구현·검증·공개가 완료되었으며, 새로운 실제 회귀, Tarkov 호환성 변화, 또는 사용자가 새 요구사항을 확정하지 않는 한 기본 방향은 유지보수입니다.
 
 공식 프로젝트 기억은 대화가 아니라 저장소 문서와 코드입니다.
 
@@ -20,87 +20,95 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 ## 현재 공개 릴리즈
 
 ```text
-version: v1.12.1
-Desktop target version: 1.12.1
+version: v1.13.0
+Desktop target version: 1.13.0
 exact product release source/tag target:
-07a808f187e59f1b2b4b62ca6a947ccbed9baeaa
-PR: #239 — MERGED
-validated feature head: 7e418c7d32c945260b471d19ac43c411f15bef1b
-PR exact-head CI: 33350561623 — SUCCESS
-PR exact-head Shutdown Race CI: 33350561588 — SUCCESS
-PR exact-head Documentation Consistency: 33350561628 — SUCCESS
-exact-main CI: 33350742745 — SUCCESS
-exact-main Shutdown Race CI: 33350742733 — SUCCESS
-exact-main Documentation Consistency: 33350742720 — SUCCESS
-Release workflow: 33350893047 — SUCCESS
-release id: 379473487
-483 passed / 0 failed / 0 skipped
-published UTC: 2026-08-31T02:31:04Z
+103ade0c5d54ffb59a6844330d19a930899c12fb
+PR: #241 — MERGED
+validated feature head: 30424d0cc401a62b415dd772c52e5de4f6c931ee
+PR exact-head CI: 33358670772 — SUCCESS
+PR exact-head Shutdown Race CI: 33358670694 — SUCCESS
+PR exact-head Documentation Consistency: 33358670722 — SUCCESS
+exact-main CI: 33358877907 — SUCCESS
+exact-main Shutdown Race CI: 33358877912 — SUCCESS
+exact-main Documentation Consistency: 33358877946 — SUCCESS
+Release workflow: 33359054856 — SUCCESS
+release id: 379519928
+494 passed / 0 failed / 0 skipped
+published UTC: 2026-08-31T05:01:47Z
 ```
 
 Public package:
 
 ```text
 Junhyun-Helper.zip
-asset id: 537336876
-bytes: 80,572,885
+asset id: 537475557
+bytes: 80,613,758
 SHA-256:
-fbbaa41bbb41843a54ccbdd16721c138d93ddea34092fd7e468bbb3d99ed9212
+cbd8bafbf31ae65ecc659b15fc90a17408b87ecacdd9545c7b78de81c1835326
 ```
 
 Checksum asset:
 
 ```text
 SHA256SUMS.txt
-asset id: 537336877
+asset id: 537475554
 bytes: 86
 asset SHA-256:
-aa63dffbea42d2b624b74b96c6acc38dbe34906186c9ea43727abac7fc8c0619
+c3f174348668c0dfe9fc7b0ebcf5c1c2846b802b60a78f205833f6ffcb9f6a71
 ```
 
 Exact-main CI artifact:
 
 ```text
 JunhyunHelper-win-x64
-artifact id: 9743552872
-archive bytes: 241,651,204
+artifact id: 9746074189
+archive bytes: 241,774,204
 archive SHA-256:
-f65de2b7a1da8f27302cdff815b6978d4ae291fe81964e2d131ec57fbb40050a
+d1119a9931695016085e71bd84514f15c0bd5b051734deddce6dfb43053cf94e
 ```
 
-GitHub `/releases/latest`, release target, `refs/tags/v1.12.1`, exact-main product source가 모두 `07a808f187e59f1b2b4b62ca6a947ccbed9baeaa`에 일치합니다. 공개 release는 `draft=false`, `prerelease=false`입니다.
+GitHub `/releases/latest`, release target, `refs/tags/v1.13.0`, exact-main product source가 모두 `103ade0c5d54ffb59a6844330d19a930899c12fb`에 일치합니다. 공개 release는 `draft=false`, `prerelease=false`입니다.
 
-공식 v1.12.1 공개 기록:
+공식 v1.13.0 공개 기록:
 
-- `docs/RELEASE_1.12.1.md`
-- `docs/RELEASE_NOTES_V1.12.1.md`
-- `docs/.release-v1.12.1-status.json`
-- `docs/DECISION_V1.12.0_KIM_TAEYOUNG_PC_DIAGNOSTIC.md`
+- `docs/RELEASE_1.13.0.md`
+- `docs/RELEASE_NOTES_V1.13.0.md`
+- `docs/.release-v1.13.0-status.json`
+- `docs/DECISION_V1.13.0_FARMING_GUIDE_LOADOUT_EDITOR.md`
+- `docs/ARCHITECTURE_FARMING_GUIDE.md`
 
-후속 documentation-only commit은 v1.12.1 제품 릴리즈 소스가 아닙니다. product source/tag/assets는 위 exact source에 고정된 historical identity입니다.
+후속 documentation-only commit은 v1.13.0 제품 릴리즈 소스가 아닙니다. product source/tag/assets는 위 exact source에 고정된 historical identity입니다.
 
-## v1.12.1 — 김태영 PC 진단 UX
+## v1.13.0 — 파밍 가이드
 
-메인 헤더 좌측 프로필 이미지를 클릭하면 김태영 PC 진단을 실행할 수 있습니다.
+Scanner 오른쪽에 `파밍 가이드` 탭이 추가됐습니다.
 
-```text
-프로필 이미지 클릭
-→ “혹시 김태영 본인?”
-→ 예
-→ indeterminate progress bar 표시
-→ 진단 ZIP 생성
-→ “진단 완료.”
-   “파일을 hyune4784@naver.com 으로 보내주세요.”
-→ 기본 브라우저에서 https://mail.naver.com/v2/new 열기
-```
+이 기능은 실제 레이드 중 inventory grid를 계속 추적하는 기능이 아니라, **레이드 출발 장비와 수납 상태를 구성하는 Loadout / Inventory Editor**입니다.
 
-- ZIP은 Desktop에 로컬 생성합니다.
-- 자동 업로드하지 않습니다.
-- 웹메일 화면을 자동 조작하지 않습니다.
-- ZIP을 자동 첨부하거나 메일을 자동 발송하지 않습니다.
-- browser compose launch 실패는 진단 결과를 실패로 바꾸지 않고 diagnostic log에만 남깁니다.
+주요 동작:
 
-사용자가 v1.12.0에서 자신의 노트북으로 생성한 실제 diagnostic ZIP은 CRC, expected evidence 11개, `probe-errors.txt = none`, display capture/stats, nested Scanner support bundle이 모두 정상임을 확인했습니다. 당시 Tarkov가 실행되지 않아 Tarkov dual-capture evidence만 생성되지 않았습니다.
+- 헤드셋, 헬멧, 얼굴/안경, 방탄복/아머드 리그, 무기, 권총 등 출발 장비 구성
+- Pocket / Rig / Backpack / Secure Container / Special Slot 표현
+- 검색 결과 item을 실제 Tarkov `width × height` 크기로 drag
+- drag 중 `R` 키로 90도 회전
+- grid snap / bounds / overlap / contiguous-space / current filter 검증
+- current Tarkov data의 storage grid / equipment slot / attachment slot / armor plate slot / conflict 사용
+- attachment와 교체형 방탄판 설정
+- 전체 raid-start 상태 preset 저장/복원
+- 근접무기와 PMC 인식표는 preset과 분리된 fixed setting
+- 총 무게와 사용/전체 storage cell 요약
+- 내용물이 든 carrier의 destructive replacement 방지
+- Tarkov 변화로 오래된 preset이 불가능해지면 invalid placement를 fail closed
+
+v1.13.0에는 다음을 포함하지 않습니다.
+
+- loot 가치 판단
+- 획득/폐기/교체 추천
+- Scanner 실시간 추천 연동
+- 실제 raid inventory 좌표의 지속적인 1:1 동기화
+
+Farming Guide 사용자 상태는 `%LocalAppData%/JunhyunHelper/farming-guide.json` schema v1에 저장됩니다.
 
 ## 설치 / 실행
 
@@ -135,6 +143,7 @@ Junhyun-Helper.zip
 - Scanner + Mini Scanner
 - Scanner Ground Truth / diagnostics / Saved Case / regression dataset
 - Scanner 아이템 정보 DB / Favorites / Recents
+- Farming Guide raid-start Loadout / Inventory Editor
 - opt-in PC capture/Scanner 지원 진단
 - 사용자 동의형 Program Update
 
@@ -149,25 +158,28 @@ Runtime GPT/AI 의존성은 없습니다.
 - Future Needed Items / cleanup은 current Quest UI compatibility와 분리해 보수적으로 계산합니다.
 - Hideout FIR은 source `attributes.foundInRaid` 의미를 보존합니다.
 - Ammo pickup은 same-caliber penetration과 현재 profile에서 증명된 direct purchase 상태를 기준으로 합니다.
+- Farming Guide는 current validated Tarkov item structure를 사용하고 불가능한 persisted placement는 fail closed합니다.
+- 내용물이 든 carrier를 묵시적으로 교체해 contents를 유실시키지 않습니다.
 - Map/MiniMap donor는 pinned revision `d933792b6042a51cea38dc44b686a096fe30de67`입니다.
 - user-visible WPF 변경은 source assertion만으로 완료 선언하지 않고 actual published EXE smoke까지 검증합니다.
 
 ## Schema / compatibility
 
 ```text
-Desktop target version: 1.12.1
-Content schema write: v8
-Readable Content schemas: v3~v8
+Desktop target version: 1.13.0
+Content schema write: v9
+Readable Content schemas: v3~v9
 user.db schema: v1
+Farming Guide state schema: v1
 Scanner display settings schema: v9
 Scanner catalog cache write: v4
 Scanner catalog readable: v1~v4
 ```
 
-v1.12.0 → v1.12.1 mandatory data/schema migration은 없습니다.
+기존 v1.12.x user.db/Scanner 설정에 대한 mandatory migration은 없습니다.
 
 ## 검증
 
-v1.12.1 exact product source `07a808f187e59f1b2b4b62ca6a947ccbed9baeaa`은 483 deterministic tests, Windows Release build, Windows x64 self-contained publish, actual published EXE Product UI / Map smoke, graceful shutdown, active-async Shutdown Race, package/checksum audit, exact-main Documentation Consistency, artifact upload, verified Release workflow, public tag/release/assets/latest-stable readback을 통과했습니다.
+v1.13.0 exact product source `103ade0c5d54ffb59a6844330d19a930899c12fb`은 494 deterministic tests, Windows Release build, Windows x64 self-contained publish, actual published EXE Product UI / Farming Guide / Map smoke, graceful shutdown, active-async Shutdown Race, package/checksum audit, exact-main Documentation Consistency, artifact upload, verified Release workflow, public tag/release/assets/latest-stable readback을 통과했습니다.
 
 사용자의 실제 PC/Tarkov 최종 실사용 확인과 김태영 실제 PC diagnostic ZIP의 수집·분석은 자동화 검증과 별개이며 현재 `PENDING`입니다.
