@@ -1,80 +1,63 @@
 # ACTIVE WORK — 현재 진행 중 작업 체크포인트
 
-Status: **NONE**  
+Status: **ACTIVE**  
 Updated: **2026-08-31 KST**
 
-현재 진행 중인 개발 작업은 없다.
+## Goal
 
-## Last completed work
+**v1.13.3 Farming Guide — 인게임식 장비/수납 상호작용 회귀 수정**
 
-**v1.13.2 Farming Guide — 장비·수납·프리셋·내부 정보 실사용 보완**
+사용자의 v1.13.2 실사용 검증에서 확인된 장비/수납 편집 문제를 수정한다. 핵심 원칙은 더블클릭을 일반 정보 창으로 취급하지 않고, 실제 Tarkov처럼 해당 아이템이 가진 **실제 수납 공간·부착 슬롯·방탄판 슬롯을 직접 조작하는 작업면**으로 제공하는 것이다.
+
+## Base / branch
 
 ```text
+base main: 0aab5c29c675aff0300458a4ff8352c260519863
 public stable: v1.13.2
-exact product release source/tag target:
-207cb948affc091c4ad67f18d7e4e4382b2f8125
-PR: #245 — MERGED
-validated PR head:
-ef4522880218b5e5ec8d8c0a8a3211e0f0c51020
-PR exact-head CI: 33373322410 — SUCCESS
-PR exact-head Shutdown Race CI: 33373322440 — SUCCESS
-PR exact-head Documentation Consistency: 33373322395 — SUCCESS
-exact-main CI: 33373612303 — SUCCESS
-exact-main Shutdown Race CI: 33373612281 — SUCCESS
-exact-main Documentation Consistency: 33373612283 — SUCCESS
-release workflow: 33373940475 — SUCCESS
-release id: 379612102
-504 passed / 0 failed / 0 skipped
+working branch: fix/v1.13.3-farming-guide-interaction-2026-08-31
+PR: not created yet
 ```
 
-### Completed product scope
+## Confirmed scope
 
-- pistol / revolver / handgun을 Holster 전용으로 판정하고 Primary Weapon 1/2에서 제외
-- body armor / rig / backpack / secure container compatibility 보강
-- active profile edition / Old Patterns 기반 standard·expanded pocket geometry
-- `Rig → Pockets + Special Slots → Backpack → Secure Container` 수납 순서
-- Pockets 좌측 / Special Slots 우측 배치
-- equipped/search-result double-click internal structure inspect
-- preset delete + current working loadout 보존
-- preset-name dialog DPI/theme clipping 수정
-- melee / PMC dogtag fixed lifecycle 유지 + `고정` 표시 제거
-- current content/profile geometry 기준 persisted-state sanitization
+1. Secure Container(사망해도 내부 아이템이 보존되는 보안 컨테이너)를 파밍 가이드의 컨테이너 장비 슬롯에 정상 장착할 수 있어야 한다.
+2. Glock 등 총기 더블클릭 시 실제 부착물/mod 슬롯을 표시하고 직접 드래그/드롭으로 장착·교체할 수 있어야 한다.
+3. 가방 안 가방, 가방 안 리그처럼 수납공간을 가진 아이템을 더블클릭하면 내부 그리드가 실제 작업 가능한 빈 칸으로 열려야 하고, 아이템을 그 안으로 드래그해 넣고 다시 꺼낼 수 있어야 한다.
+4. Altyn 같은 헬멧/방어구의 부착물·교체형 방탄판은 설명/선택 콤보가 아니라 실제 드롭 슬롯으로 표시한다.
+5. 기존 `장비 정보/장비 설정` 별도 Window 및 읽기 전용 그리드 미리보기 중심 UX를 폐기하고, 아이템 유형/상황에 필요한 실제 내부 구조만 보여준다. 가방은 수납 그리드, 중첩 리그는 수납 그리드, 방탄 장비는 필요한 plate/attachment 슬롯, 총기는 mod 슬롯을 보여주는 식으로 동작한다.
+6. 검색 결과에서 동일한 총기가 다수 노출되는 원인을 조사해, 의미가 같은 upstream 변형/중복이면 사용자 검색 목록에서 canonical item 하나로 정규화하되 실제로 다른 Tarkov 아이템 변형은 보존한다.
 
-### Public release evidence
+## Root cause confirmed so far
 
-```text
-Junhyun-Helper.zip
-asset id: 537701878
-bytes: 80,617,300
-SHA-256:
-659071659531259a61d0996e277bf9643ee9fc4cfa8a0a437b4686994bd38bed
+- `FarmingGuideStoredItemState`는 `FarmingGuideStorageKind`만 저장하고 **부모 컨테이너 instance를 식별할 수 없어 nested storage를 표현할 수 없다.** 따라서 현재 중첩 가방/리그 내부는 읽기 전용 구조 미리보기밖에 만들 수 없는 상태다.
+- 현재 double-click은 `FarmingGuideItemConfigurationWindow`라는 별도 WPF `Window`를 열며, storage는 미리보기, attachments/armor plates는 ComboBox 선택으로 구현되어 있어 사용자 의도와 불일치한다.
+- Secure Container는 top-level `FarmingGuideStorageKind.SecureContainer` carrier로 별도 모델링되어 있으므로 compatibility와 drag/drop target 경로를 함께 점검한다.
+- `TarkovItemImporter`는 upstream item id 단위로 모든 items를 그대로 canonical catalog에 넣으므로 검색 UI가 이름만 기준으로 보면 동일 총기처럼 보이는 항목을 다수 노출할 수 있다. 실제 source semantics를 확인한 뒤 UI용 dedupe 정책을 결정한다.
 
-SHA256SUMS.txt
-asset id: 537701880
-bytes: 86
-asset SHA-256:
-0ebdc1240c721bf0192b703c77cfd944665f870edb7d79444dfd6181a2a43a19
-```
+## Completed
 
-GitHub `/releases/latest`, `refs/tags/v1.13.2`, release target가 모두 exact product source `207cb948affc091c4ad67f18d7e4e4382b2f8125`에 일치한다.
+- repository/current stable 상태 복구
+- v1.13.2 Farming Guide architecture/decision 및 관련 Core/Desktop 구현 분석
+- nested-storage state 모델 결손 확인
+- generic configuration Window/ComboBox 기반 interaction mismatch 확인
+- item importer의 id 단위 catalog 보존 방식 확인
+- 작업 브랜치 생성
 
-## Canonical records
+## Current step
 
-- `docs/PROJECT_STATE.json`
-- `docs/CURRENT_STATE.md`
-- `docs/STATE.md`
-- `docs/PRODUCT.md`
-- `docs/RELEASE_1.13.2.md`
-- `docs/RELEASE_NOTES_V1.13.2.md`
-- `docs/.release-v1.13.2-status.json`
-- `docs/DECISION_V1.13.0_FARMING_GUIDE_LOADOUT_EDITOR.md`
-- `docs/ARCHITECTURE_FARMING_GUIDE.md`
+- 실제 item data 구조와 현재 regression tests를 확인해 secure container / Glock attachment / Altyn slot / duplicate weapon의 정확한 data-path를 확정한다.
+- 이후 nested storage address/state 모델과 reusable live inventory surface를 구현한다.
 
-## External real-world evidence still pending
+## Remaining
 
-자동화 release verification과 별개로 다음은 후속 실사용 evidence다.
-
-- 사용자의 실제 PC/Tarkov에서 v1.13.2 최종 실사용 확인
-- 김태영 실제 PC diagnostic ZIP 수집/분석
-
-후속 documentation-only commit은 v1.13.2 product release source가 아니다. historical product identity는 `207cb948affc091c4ad67f18d7e4e4382b2f8125`에 고정한다.
+- secure container compatibility/data-path 수정
+- nested container address/state + sanitize/persistence/move/remove 로직 구현
+- reusable interactive internal inventory surface 구현
+- attachment / armor plate live drop targets 구현
+- item-type/context-aware double-click routing 구현
+- weapon search duplicate normalization
+- regression tests
+- product/decision/architecture/reference/state docs 갱신
+- test / Release build / published EXE smoke
+- PR / CI / main merge / exact-main validation
+- v1.13.3 release / tag / public asset verification
