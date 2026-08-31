@@ -125,6 +125,7 @@ public partial class FarmingGuidePage
         _workbenchStorageKind = storageKind;
         _workbenchParentInstanceId = parentInstanceId;
         _workbenchApply = apply;
+        StoragePanel.Visibility = Visibility.Collapsed;
         WorkbenchHost.Visibility = Visibility.Visible;
         RenderWorkbench();
     }
@@ -134,6 +135,7 @@ public partial class FarmingGuidePage
     private void CloseWorkbench()
     {
         WorkbenchHost.Visibility = Visibility.Collapsed;
+        StoragePanel.Visibility = Visibility.Visible;
         WorkbenchPanel.Children.Clear();
         _workbenchState = null;
         _workbenchItem = null;
@@ -295,6 +297,11 @@ public partial class FarmingGuidePage
     internal bool CanDropIntoWorkbenchSlot(WorkbenchSlotDropTarget target, GameItem item)
     {
         if (_workbenchItem is null || _workbenchState is null)
+            return false;
+
+        // Never overwrite an occupied one-item Tarkov slot implicitly. The current
+        // attachment/plate must be dragged out first so inventory state is never lost.
+        if (GetWorkbenchSlotState(target) is not null)
             return false;
 
         var allowed = target.Kind switch
