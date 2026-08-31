@@ -137,13 +137,41 @@ public partial class FarmingGuidePage
     private void RenderStorage()
     {
         StoragePanel.Children.Clear();
-        foreach (var storage in StorageDefinitions())
+        var definitions = StorageDefinitions().ToDictionary(storage => storage.Kind);
+
+        if (definitions.TryGetValue(FarmingGuideStorageKind.Rig, out var rig))
+            StoragePanel.Children.Add(CreateCarrierStorageSection(rig));
+
+        if (definitions.TryGetValue(FarmingGuideStorageKind.Pockets, out var pockets) &&
+            definitions.TryGetValue(FarmingGuideStorageKind.SpecialSlots, out var specialSlots))
         {
-            if (storage.Kind is FarmingGuideStorageKind.Rig or FarmingGuideStorageKind.Backpack or FarmingGuideStorageKind.SecureContainer)
-                StoragePanel.Children.Add(CreateCarrierStorageSection(storage));
-            else
-                StoragePanel.Children.Add(CreateFixedStorageSection(storage));
+            StoragePanel.Children.Add(CreatePocketAndSpecialSection(pockets, specialSlots));
         }
+
+        if (definitions.TryGetValue(FarmingGuideStorageKind.Backpack, out var backpack))
+            StoragePanel.Children.Add(CreateCarrierStorageSection(backpack));
+
+        if (definitions.TryGetValue(FarmingGuideStorageKind.SecureContainer, out var secureContainer))
+            StoragePanel.Children.Add(CreateCarrierStorageSection(secureContainer));
+    }
+
+    private FrameworkElement CreatePocketAndSpecialSection(
+        StorageDefinition pockets,
+        StorageDefinition specialSlots)
+    {
+        var row = new Grid { Margin = new Thickness(0, 0, 0, 2) };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var pocketSection = CreateFixedStorageSection(pockets);
+        pocketSection.Margin = new Thickness(0, 0, 10, 0);
+        row.Children.Add(pocketSection);
+
+        var specialSection = CreateFixedStorageSection(specialSlots);
+        specialSection.Margin = new Thickness(10, 0, 0, 0);
+        Grid.SetColumn(specialSection, 1);
+        row.Children.Add(specialSection);
+        return row;
     }
 
     private FrameworkElement CreateFixedStorageSection(StorageDefinition storage)
@@ -346,16 +374,30 @@ public partial class FarmingGuidePage
         });
     }
 
+    internal void InspectSearchItem(GameItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        var window = new FarmingGuideItemConfigurationWindow(
+            item,
+            FarmingGuideItemState.Create(item.Id),
+            ItemCatalog,
+            readOnly: true)
+        {
+            Owner = Window.GetWindow(this),
+        };
+        window.ShowDialog();
+    }
+
     private void EditItemConfiguration(FarmingGuideItemState state, Action<FarmingGuideItemState> apply)
     {
         var item = ResolveItem(state);
-        if (item?.FarmingGuideData is null ||
-            (item.FarmingGuideData.AttachmentSlots.Count == 0 && item.FarmingGuideData.ArmorSlots.All(slot => slot.Locked)))
-        {
+        if (item is null)
             return;
-        }
 
-        var window = new FarmingGuideItemConfigurationWindow(item, state, ItemCatalog)
+        var layout = item.FarmingGuideData;
+        var editable = layout is not null &&
+                       (layout.AttachmentSlots.Count > 0 || layout.ArmorSlots.Any(slot => !slot.Locked));
+        var window = new FarmingGuideItemConfigurationWindow(item, state, ItemCatalog, readOnly: !editable)
         {
             Owner = Window.GetWindow(this),
         };
