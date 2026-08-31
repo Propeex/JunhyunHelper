@@ -3,25 +3,25 @@
 > 최신 제품 상태의 짧은 인덱스입니다. 기계 판독 가능한 사실값은 `docs/PROJECT_STATE.json`, 상세 계약은 `docs/STATE.md`, 진행 중 작업은 `docs/ACTIVE_WORK.md`를 기준으로 합니다.
 
 기준일: **2026-08-31 KST**  
-상태: **v1.13.0 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+상태: **v1.13.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 공개 stable
 
 ```text
-public stable/latest: v1.13.0
+public stable/latest: v1.13.1
 exact product release source/tag target:
-103ade0c5d54ffb59a6844330d19a930899c12fb
-PR: #241 — MERGED
-validated feature head: 30424d0cc401a62b415dd772c52e5de4f6c931ee
-PR exact-head CI: 33358670772 — SUCCESS
-PR exact-head Shutdown Race CI: 33358670694 — SUCCESS
-PR exact-head Documentation Consistency: 33358670722 — SUCCESS
-exact-main CI: 33358877907 — SUCCESS
-exact-main Shutdown Race CI: 33358877912 — SUCCESS
-exact-main Documentation Consistency: 33358877946 — SUCCESS
-release workflow: 33359054856 — SUCCESS
-release id: 379519928
-published UTC: 2026-08-31T05:01:47Z
+302f83e88cc65b5fae9b86b5cae294b2586c85a0
+PR: #243 — MERGED
+validated PR head: 314ce0501c0f680aacb13d2b3c61b20487c4eb15
+PR exact-head CI: 33364597514 — SUCCESS
+PR exact-head Shutdown Race CI: 33364597501 — SUCCESS
+PR exact-head Documentation Consistency: 33364597497 — SUCCESS
+exact-main CI: 33364865109 — SUCCESS
+exact-main Shutdown Race CI: 33364865123 — SUCCESS
+exact-main Documentation Consistency: 33364865134 — SUCCESS
+release workflow: 33365070880 — SUCCESS
+release id: 379553485
+published UTC: 2026-08-31T06:39:45Z
 494 passed / 0 failed / 0 skipped
 ```
 
@@ -29,47 +29,60 @@ Public package:
 
 ```text
 Junhyun-Helper.zip
-asset id: 537475557
-bytes: 80,613,758
+asset id: 537579591
+bytes: 80,614,695
 SHA-256:
-cbd8bafbf31ae65ecc659b15fc90a17408b87ecacdd9545c7b78de81c1835326
+d81b6bbcdb02712cb27a549e62cfb8c0d48a8c83f95d7798922474a56e99a737
 
 SHA256SUMS.txt
-asset id: 537475554
+asset id: 537579593
 bytes: 86
 asset SHA-256:
-c3f174348668c0dfe9fc7b0ebcf5c1c2846b802b60a78f205833f6ffcb9f6a71
+14c38f75b70a27d3d6d0ec956404e363dd7d134a6111da3a4b11538a97864e8c
 ```
 
 Exact-main Actions artifact:
 
 ```text
 name: JunhyunHelper-win-x64
-artifact id: 9746074189
-archive bytes: 241,774,204
+artifact id: 9747973218
+archive bytes: 241,778,025
 archive SHA-256:
-d1119a9931695016085e71bd84514f15c0bd5b051734deddce6dfb43053cf94e
+58b38558b33095ddb20ec2e3cdd1ebeea7abb4e9c9c4614ce5d8747927b8e3f6
 ```
 
-GitHub `/releases/latest`, release target, `refs/tags/v1.13.0`, exact-main product source가 모두 `103ade0c5d54ffb59a6844330d19a930899c12fb`에 일치한다. 공개 release는 `draft=false`, `prerelease=false`이다.
+GitHub `/releases/latest`, release target, `refs/tags/v1.13.1`, exact-main product source가 모두 `302f83e88cc65b5fae9b86b5cae294b2586c85a0`에 일치한다. 공개 release는 `draft=false`, `prerelease=false`이다.
 
-## v1.13.0 핵심 변경 — 파밍 가이드
+## v1.13.1 핵심 변경 — Farming Guide UI / drag-drop 회귀 수정
 
-Scanner 오른쪽에 raid-start Loadout / Inventory Editor인 `파밍 가이드` 탭이 추가됐다.
+v1.13.1은 v1.13.0 Farming Guide의 제품 의미와 데이터 계약을 유지하는 PATCH 릴리즈다.
 
-- 착용 장비와 Pocket / Rig / Backpack / Secure Container / Special Slot 상태를 구성한다.
-- 검색 결과 item을 current Tarkov `width × height` footprint로 drag한다.
-- drag 중 `R`로 90도 회전한다.
-- grid snap / bounds / overlap / contiguous-space / current filter를 검증한다.
-- current validated Game Content의 storage grids, equipment/attachment/armor slots, conflicts를 사용한다.
-- attachment와 교체형 armor plate를 별도 설정 UI에서 편집한다.
-- 전체 출발 상태를 preset으로 저장/복원한다.
-- 근접무기와 PMC 인식표는 per-profile preset과 분리된 fixed setting이다.
-- 총 무게와 사용/전체 storage cell을 표시한다.
-- 내용물이 든 carrier를 묵시적으로 교체해 contents를 유실시키지 않는다.
-- 오래된 preset이 current Tarkov grid/filter와 충돌하면 impossible placement를 fail closed한다.
+- 장비 영역을 텍스트 목록형에서 아이콘 중심의 Tarkov 인벤토리 유사 slot board로 재구성했다.
+- equipped item, Rig / Backpack / Secure Container, storage grid placement, drag ghost에 실제 item icon을 사용한다.
+- `R` 회전 시 비정사각형 icon도 회전된 footprint에 맞게 layout된다.
+- WPF mouse capture 중 equipment/carrier target을 놓치던 drag/drop 판정을 geometry-backed probing으로 보강했다.
+- geometry fallback은 ScrollViewer / ScrollContentPresenter / clipping ancestor의 visible bounds를 존중한다.
+- mouse-up 실제 좌표에서 drop probe를 다시 계산한다.
+- valid/invalid 초록·빨강 target border가 pointer 이동/end 뒤 남지 않게 cleanup한다.
+- 프리셋 저장 아이콘과 검색창 텍스트 clipping을 수정했다.
 
-이번 v1.13.0에는 loot 가치 판단, 획득/폐기/교체 추천, Scanner 실시간 추천 연동, 실제 raid inventory grid 좌표의 지속적인 1:1 동기화를 포함하지 않는다.
+## Farming Guide 유지 계약
+
+Farming Guide는 Scanner 오른쪽의 raid-start Loadout / Inventory Editor다.
+
+- current Tarkov `width × height` footprint
+- drag 중 `R` 90도 회전
+- bounded grid snap
+- bounds / overlap / contiguous-space / current filter 검증
+- current validated Game Content의 storage grids, equipment/attachment/armor slots, conflicts 사용
+- attachment / 교체형 armor plate 설정
+- 전체 출발 상태 preset save/load
+- melee / PMC dogtag fixed setting 분리
+- 총 무게 / 사용·전체 storage cell 표시
+- filled carrier destructive replacement fail-closed
+- old preset impossible placement current-content sanitization
+
+Loot 가치 판단, 획득/폐기/교체 추천, Scanner 실시간 recommendation, 실제 raid inventory grid 좌표의 지속적인 1:1 동기화는 현재 범위가 아니다.
 
 Canonical product decision:
 
@@ -94,7 +107,7 @@ Architecture/maintenance contract:
 ## Schema / compatibility
 
 ```text
-Desktop target version: 1.13.0
+Desktop target version: 1.13.1
 Content schema write: v9
 Readable Content schemas: v3~v9
 user.db schema: v1
@@ -104,17 +117,18 @@ Scanner catalog cache write: v4
 Scanner catalog readable: v1~v4
 ```
 
-Farming Guide 상태는 `%LocalAppData%/JunhyunHelper/farming-guide.json`에 Game Content와 분리해 저장한다. 기존 v1.12.x user.db/Scanner 설정에 대한 mandatory migration은 없다.
+Farming Guide 상태는 `%LocalAppData%/JunhyunHelper/farming-guide.json`에 Game Content와 분리해 저장한다. v1.13.0 → v1.13.1 mandatory user data migration은 없다.
 
 ## 검증 상태
 
-Exact product source `103ade0c5d54ffb59a6844330d19a930899c12fb`은 다음을 통과했다.
+Exact product source `302f83e88cc65b5fae9b86b5cae294b2586c85a0`은 다음을 통과했다.
 
 - 494 deterministic tests
 - Windows Release build
 - Windows x64 self-contained publish
+- ProductVersion `1.13.1+302f83e...` identity 확인
 - actual published EXE Product UI / Farming Guide / Map smoke
-- graceful shutdown
+- graceful shutdown + clean portable root
 - active-async Shutdown Race
 - clean portable root / forbidden dependency audit
 - release package + checksum audit
@@ -127,14 +141,14 @@ Exact product source `103ade0c5d54ffb59a6844330d19a930899c12fb`은 다음을 통
 
 자동화 release verification과 별개로 다음은 `PENDING`이다.
 
-- 사용자의 실제 PC/Tarkov에서 v1.13.0 최종 실사용 확인
+- 사용자의 실제 PC/Tarkov에서 v1.13.1 최종 실사용 확인
 - 김태영 실제 PC에서 diagnostic ZIP 수집/분석
 
 공개 증거:
 
-- `docs/RELEASE_1.13.0.md`
-- `docs/.release-v1.13.0-status.json`
-- `docs/RELEASE_NOTES_V1.13.0.md`
+- `docs/RELEASE_1.13.1.md`
+- `docs/.release-v1.13.1-status.json`
+- `docs/RELEASE_NOTES_V1.13.1.md`
 - `docs/DECISION_V1.13.0_FARMING_GUIDE_LOADOUT_EDITOR.md`
 
-후속 documentation-only commit은 v1.13.0 product release source가 아니다. historical identity는 `103ade0c5d54ffb59a6844330d19a930899c12fb`에 고정한다.
+후속 documentation-only commit은 v1.13.1 product release source가 아니다. historical identity는 `302f83e88cc65b5fae9b86b5cae294b2586c85a0`에 고정한다.
