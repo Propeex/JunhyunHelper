@@ -476,9 +476,7 @@ public partial class FarmingGuidePage
 
     private static Point PointInGrid(Point rootPoint, Canvas canvas)
     {
-        var transform = canvas.TransformToAncestor((Visual)Application.Current.MainWindow);
         var rootTransform = RootPointTransform(canvas);
-        _ = transform;
         return rootTransform(rootPoint);
     }
 
