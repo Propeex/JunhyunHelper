@@ -1,48 +1,98 @@
 # ACTIVE WORK — 현재 진행 중 작업 체크포인트
 
-Status: **NONE**  
+Status: **ACTIVE**  
 Updated: **2026-08-31 KST**
 
-현재 진행 중인 개발 작업은 없습니다.
+## Goal
 
-## Last completed batch
+v1.11.4 PATCH 유지보수 배치에서 v1.11.3 실사용으로 확인된 MiniMap lifecycle/marker presentation 회귀와 Mini Scanner 우클릭 메뉴를 수정하고, 실제 published EXE 경로까지 검증한 뒤 stable release한다.
 
-`v1.11.3` PATCH 유지보수 배치를 완료했습니다.
+## Base / Working State
 
 ```text
+base main: f60096d6a404e17cdf9ace3f1bc9c5cf98c2ed62
 public stable: v1.11.3
-exact product source/tag target:
-043abad38f4c3ebc9101463a162614ef67df7536
-merged PR: #234
-superseded draft PR: #233 — CLOSED / NOT MERGED
-PR exact-head CI: 33319386444 — SUCCESS
-PR exact-head Shutdown Race: 33319386465 — SUCCESS
-PR exact-head Documentation Consistency: 33319386455 — SUCCESS
-exact-main CI: 33319592093 — SUCCESS
-exact-main Shutdown Race: 33319592115 — SUCCESS
-exact-main Documentation Consistency: 33319592111 — SUCCESS
-Release workflow: 33319769016 — SUCCESS
-release id: 379321405
-474 passed / 0 failed / 0 skipped
+exact v1.11.3 product source: 043abad38f4c3ebc9101463a162614ef67df7536
+working branch: fix/v1.11.4-minimap-lifecycle-miniscanner-2026-08-31
+target version: v1.11.4 (PATCH maintenance)
+current deterministic suite: 478 tests
+draft PR: #235
 ```
 
-완료된 제품 수정:
+## Confirmed scope
 
-- Items / Hideout 검색창의 canonical inline `×`가 실제 page lifecycle에서 안정적으로 연결되도록 수정했습니다.
-- published smoke가 search clear UI를 스스로 만들어 회귀를 숨기던 false-positive 검증 경로를 제거했습니다.
-- Map 지도 마커 패널이 큰 창의 가용 세로 공간을 사용하도록 수정해 하단 탈출구 항목 클리핑을 제거했습니다. 실제 overflow에서만 내부 scrollbar를 사용합니다.
-- Scanner 교정 스크린샷에 마우스 휠 확대/축소와 스크롤/pan을 추가하면서 Ground Truth 및 직접 지정 좌표는 원본 pixel 좌표를 유지합니다.
-- correction zoom 최초 runtime smoke에서 Auto scrollbar 때문에 fit scale이 달라지는 문제를 검출했고 stable arranged bounds 기준으로 수정했습니다.
-- 사용자 diagnostics/calibration evidence에서 분석 완료 OCR/matcher frame이 이후 geometry-only frame에 덮여 `NOT_RUN`으로 저장되는 timing defect를 확인했습니다.
-- 동일 non-empty title signature, 동일 capture mode, 3초 이내에서만 최근 analyzed semantics를 correction snapshot에 보존하도록 수정했습니다. live recognition 판정과 threshold는 완화하지 않았습니다.
+1. MiniMap 최초 표시 map synchronization
+   - Main Map에서 A → B로 바꾼 뒤 MiniMap을 처음 켰을 때 이전 A가 아니라 현재 B를 첫 visible frame부터 표시한다.
+   - 이미 열린/reused MiniMap뿐 아니라 아직 MiniMap window가 한 번도 생성되지 않은 first-create path를 검증한다.
 
-공개 릴리즈와 상세 근거는 다음 문서를 기준으로 합니다.
+2. MiniMap extract / general marker 전체 점검
+   - PMC / Scav / Transit extract marker filter와 실제 rendered marker를 검증한다.
+   - Transit은 checkbox state만 보지 않고 packaged data의 실제 Transit grouped extract 수와 MiniMap rendered Transit marker 수가 일치해야 한다.
+   - standard marker layer가 async refresh cancellation timing으로 비어도 사용자 재열기/toggle 없이 자동 복구한다.
 
-- `docs/PROJECT_STATE.json`
-- `docs/CURRENT_STATE.md`
-- `docs/STATE.md`
-- `docs/RELEASE_1.11.3.md`
-- `docs/RELEASE_NOTES_V1.11.3.md`
-- `docs/.release-v1.11.3-status.json`
+3. Player Marker Size 변경 시 다른 presentation 보존
+   - Player Marker Size를 바꿔도 사용자가 설정한 Name Size와 MiniMap Marker Size의 실제 렌더링이 초기값처럼 되돌아가지 않는다.
+   - player marker 변경은 MiniMap 전체 view refresh를 거치지 않고 player marker scale에만 적용한다.
 
-사용자의 실제 PC/Tarkov 환경에서 v1.11.3 최종 실사용 확인은 자동화 검증과 별개이며 `PENDING`입니다. 새 사용자 요구사항, 실제 회귀, 또는 Tarkov 변화가 확인되면 `main`의 현재 stable 상태에서 새 `ACTIVE` 작업을 시작합니다.
+4. Mini Scanner right-click menu 제거
+   - Mini Scanner 우클릭 시 `현재 결과 교정` context menu를 더 이상 표시하지 않는다.
+   - Mini Scanner의 left-drag, topmost, 결과 표시 및 교정 데이터 단축키 계약은 유지한다.
+
+## Root cause / implementation
+
+- Main Map selection handler가 `ContextIdle` sync만 예약해 fresh MiniMap creation이 같은 input turn에 stale tracker map을 읽을 수 있었다. SelectionChanged에서 synchronous `SynchronizeCore()`를 먼저 실행하고 queued reconciliation도 유지했다.
+- donor standard marker refresh는 live layer를 먼저 clear한 뒤 async work를 수행한다. 후속 refresh가 해당 work를 cancel하면 empty layer가 남을 수 있다. 표시 대상 marker가 이미 로드되어 있는데 layer만 일정 시간 비면 another refresh를 시작하지 않고 loaded `MapMarkerDbService` data에서 standard layer를 직접 재구성한다.
+- Player Marker Size는 donor whole-view update를 사용하지 않고 `PlayerMarkerScale`만 직접 변경하는 product-owned isolated path로 분리했다.
+- Mini Scanner의 XAML `Border.ContextMenu`와 전용 modal correction partial을 제거했다.
+
+## Completed verification
+
+Strong runtime candidate head before release identity bump:
+
+```text
+2b75579411c8c8aeab804213342206e3c913a9be
+CI: 33344938066 SUCCESS
+Shutdown Race CI: 33344938060 SUCCESS
+Documentation Consistency: 33344938059 SUCCESS
+478/478 deterministic tests PASS
+Release build PASS
+Windows x64 self-contained publish PASS
+actual published EXE smoke PASS
+graceful shutdown PASS
+release package audit PASS
+artifact upload PASS
+```
+
+Actual published EXE smoke evidence included:
+
+```text
+first-minimap-creation-boundary=ok
+actual-transit-marker-render=ok
+player-marker-size-isolated=ok
+standard-marker-direct-recovery=ok
+mini-scanner-context-menu=none
+main-map-selection-boundary=ok
+active-minimap-map-sync=ok
+reused-minimap-show-boundary=ok
+rendered-minimap-map-sync=ok
+```
+
+## Release identity progress
+
+- Desktop version bumped to **1.11.4**.
+- `packaging/FIRST_RUN_KO.txt` first line and maintenance summary updated to v1.11.4.
+- `docs/RELEASE_NOTES_V1.11.4.md` created.
+- schemas and pinned Map donor remain unchanged from v1.11.3.
+
+## Current step
+
+Run the complete gate again on the final v1.11.4 exact PR head containing release identity and release notes, then convert/recreate the PR as Ready if necessary.
+
+## Remaining
+
+- final exact-head CI / Shutdown Race / Documentation Consistency and actual published EXE smoke.
+- ready PR / main merge.
+- exact-main validation and exact-main release artifact verification.
+- automatic v1.11.4 stable release.
+- public latest release / tag / `Junhyun-Helper.zip` / `SHA256SUMS.txt` readback and digest verification.
+- release-state docs finalization, documentation-only main validation, and `ACTIVE_WORK: NONE` closure.

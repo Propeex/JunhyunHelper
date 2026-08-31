@@ -64,8 +64,16 @@ public sealed class LegacyMapSelectionConsistencyBridge : IDisposable
 
     private void Page_Loaded(object sender, RoutedEventArgs e) => QueueSynchronize();
 
-    private void MapSelector_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
+    private void MapSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        // The donor overlay reads MapTrackerService.CurrentMapKey during its first Loaded
+        // pass. Publish the newly visible Main Map selection synchronously so an overlay
+        // created in the same input turn cannot observe the previous map. Keep the queued
+        // reconciliation as a second boundary for any donor handlers that mutate state
+        // later in the same dispatcher cycle.
+        _ = SynchronizeCore();
         QueueSynchronize();
+    }
 
     private void Tracker_MapChanged(string mapKey) =>
         _page.Dispatcher.BeginInvoke(QueueSynchronize, DispatcherPriority.Loaded);

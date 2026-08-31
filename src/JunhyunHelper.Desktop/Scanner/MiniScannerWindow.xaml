@@ -17,13 +17,6 @@
             Cursor="Arrow"
             ForceCursor="True"
             PreviewMouseLeftButtonDown="DragSurface_PreviewMouseLeftButtonDown">
-        <Border.ContextMenu>
-            <ContextMenu>
-                <MenuItem Header="현재 결과 교정"
-                          Click="CurrentCorrectionMenuItem_Click" />
-            </ContextMenu>
-        </Border.ContextMenu>
-
         <StackPanel MinWidth="150">
             <Border x:Name="TransientStatusBadge"
                     Visibility="Collapsed"

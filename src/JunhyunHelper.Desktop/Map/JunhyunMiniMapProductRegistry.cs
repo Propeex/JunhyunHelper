@@ -82,11 +82,7 @@ public static class JunhyunMiniMapProductRegistry
     public static void DecreaseSize() => WithActive(window => window.DecreaseAnchoredSize());
 
     public static void ApplyPlayerMarkerSize(double mapPixelSize) =>
-        WithActive(window =>
-        {
-            window.ApplySharedPlayerMarkerSize(mapPixelSize);
-            window.ReapplyJunhyunMarkerPresentationAfterDonorMapView();
-        });
+        WithActive(window => window.ApplyJunhyunPlayerMarkerSizeOnly(mapPixelSize));
 
     public static void ApplyPlayerHeadingAfterDonor(double angle)
     {

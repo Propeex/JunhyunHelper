@@ -40,23 +40,22 @@ public sealed class V111MapMaintenanceContractTests
     }
 
     [Fact]
-    public void Player_marker_resize_reapplies_minimap_presentation_and_empty_marker_layer_recovers_once()
+    public void Player_marker_resize_is_isolated_and_empty_marker_layer_repairs_from_loaded_data()
     {
         var root = FindRepositoryRoot();
         var registry = Read(root, "src", "JunhyunHelper.Desktop", "Map", "JunhyunMiniMapProductRegistry.cs");
-        var repair = Read(root, "src", "JunhyunHelper.Desktop", "Map", "OverlayMiniMapWindow.MarkerPresentationRepair.cs");
+        var isolation = Read(root, "src", "JunhyunHelper.Desktop", "Map", "OverlayMiniMapWindow.PlayerMarkerSizeIsolation.cs");
         var recovery = Read(root, "src", "JunhyunHelper.Desktop", "Map", "OverlayMiniMapWindow.MarkerRefreshRecovery.cs");
 
-        Assert.Contains("window.ApplySharedPlayerMarkerSize(mapPixelSize);", registry, StringComparison.Ordinal);
-        Assert.Contains("window.ReapplyJunhyunMarkerPresentationAfterDonorMapView();", registry, StringComparison.Ordinal);
-        Assert.Contains("SynchronizeGeneralMarkerScale(force: true);", repair, StringComparison.Ordinal);
-        Assert.Contains("ApplyJunhyunAdditionalMarkerScale(child);", repair, StringComparison.Ordinal);
-        Assert.Contains("ApplyJunhyunMarkerVisualScale(child);", repair, StringComparison.Ordinal);
+        Assert.Contains("window.ApplyJunhyunPlayerMarkerSizeOnly(mapPixelSize)", registry, StringComparison.Ordinal);
+        Assert.Contains("PlayerMarkerScale.ScaleX = markerSize;", isolation, StringComparison.Ordinal);
+        Assert.Contains("PlayerMarkerScale.ScaleY = markerSize;", isolation, StringComparison.Ordinal);
+        Assert.DoesNotContain("UpdateMapView", isolation, StringComparison.Ordinal);
 
-        Assert.Contains("_junhyunLastStableStandardMarkerCount", recovery, StringComparison.Ordinal);
-        Assert.Contains("if (_junhyunEmptyStandardMarkerTicks < 2)", recovery, StringComparison.Ordinal);
-        Assert.Contains("_junhyunStandardMarkerRecoveryAttempted = true;", recovery, StringComparison.Ordinal);
-        Assert.Contains("QueueMarkerRefresh();", recovery, StringComparison.Ordinal);
+        Assert.Contains("HasExpectedStandardMarkers()", recovery, StringComparison.Ordinal);
+        Assert.Contains("RebuildStandardMarkerLayerFromLoadedData();", recovery, StringComparison.Ordinal);
+        Assert.Contains("CreateMapMarkerElement(marker, screenX, screenY, isCurrentFloor)", recovery, StringComparison.Ordinal);
+        Assert.DoesNotContain("QueueMarkerRefresh();", recovery, StringComparison.Ordinal);
     }
 
     private static string Read(string root, params string[] path) =>
