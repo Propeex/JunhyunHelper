@@ -25,9 +25,25 @@ public sealed class V120QuestDiagnosticsUiContractTests
 
         Assert.Contains("ToolTip=\"김태영 PC 진단\"", xaml, StringComparison.Ordinal);
         Assert.Contains("MouseLeftButtonUp=\"AppIcon_MouseLeftButtonUp\"", xaml, StringComparison.Ordinal);
-        Assert.Contains("김태영 본인이 맞습니까?", workflow, StringComparison.Ordinal);
+        Assert.Contains("혹시 김태영 본인?", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("김태영 본인이 맞습니까?", workflow, StringComparison.Ordinal);
         Assert.Contains("KimTaeyoungPcDiagnosticExporter.ExportAsync", workflow, StringComparison.Ordinal);
         Assert.Contains("hyune4784@naver.com", workflow, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Kim_taeyoung_diagnostic_has_fixed_progress_and_completion_ux()
+    {
+        var root = FindRepositoryRoot();
+        var xaml = Read(root, "src", "JunhyunHelper.Desktop", "MainWindow.xaml");
+        var workflow = Read(root, "src", "JunhyunHelper.Desktop", "MainWindow.KimTaeyoungDiagnostic.cs");
+
+        Assert.Contains("x:Name=\"KimTaeyoungDiagnosticProgressOverlay\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("IsIndeterminate=\"True\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("진단 완료.\\n파일을 hyune4784@naver.com 으로 보내주세요.", workflow, StringComparison.Ordinal);
+        Assert.Contains("https://mail.naver.com/v2/new", workflow, StringComparison.Ordinal);
+        Assert.Contains("UseShellExecute = true", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("바탕화면에 다음 파일을 만들었습니다", workflow, StringComparison.Ordinal);
     }
 
     [Fact]
