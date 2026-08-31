@@ -124,6 +124,73 @@ public sealed class FarmingGuideLoadoutPolicyTests
         Assert.Equal(1, kept.GridIndex);
     }
 
+    [Fact]
+    public void SanitizeSnapshotPreservesNestedContainerTree()
+    {
+        var outer = Item(
+            "outer",
+            "ItemPropertiesBackpack",
+            [new FarmingGuideStorageGridDefinition(3, 3, FarmingGuideItemFilter.Empty)],
+            width: 2,
+            height: 2);
+        var inner = Item(
+            "inner",
+            "ItemPropertiesBackpack",
+            [new FarmingGuideStorageGridDefinition(2, 2, FarmingGuideItemFilter.Empty)],
+            width: 2,
+            height: 2);
+        var loot = Item("loot", null, [], width: 1, height: 1);
+        var catalog = new Dictionary<string, GameItem>(StringComparer.Ordinal)
+        {
+            [outer.Id] = outer,
+            [inner.Id] = inner,
+            [loot.Id] = loot,
+        };
+        var snapshot = new FarmingGuideLoadoutSnapshot(
+            new Dictionary<FarmingGuideEquipmentSlot, FarmingGuideItemState>(),
+            null,
+            FarmingGuideItemState.Create(outer.Id),
+            null,
+            [
+                Stored("inner-instance", inner.Id, FarmingGuideStorageKind.Backpack, 0, 0, 0),
+                Stored("loot-instance", loot.Id, FarmingGuideStorageKind.Backpack, 0, 1, 1, parentInstanceId: "inner-instance"),
+            ]);
+
+        var sanitized = FarmingGuideLoadoutPolicy.SanitizeSnapshot(snapshot, catalog);
+
+        Assert.Equal(2, sanitized.StoredItems.Count);
+        var nested = Assert.Single(sanitized.StoredItems.Where(item => item.ParentInstanceId is not null));
+        Assert.Equal("inner-instance", nested.ParentInstanceId);
+        Assert.Equal("loot-instance", nested.InstanceId);
+    }
+
+    [Fact]
+    public void SanitizeSnapshotDropsOrphanAndCyclicNestedPlacements()
+    {
+        var bag = Item(
+            "bag",
+            "ItemPropertiesBackpack",
+            [new FarmingGuideStorageGridDefinition(2, 2, FarmingGuideItemFilter.Empty)]);
+        var catalog = new Dictionary<string, GameItem>(StringComparer.Ordinal)
+        {
+            [bag.Id] = bag,
+        };
+        var snapshot = new FarmingGuideLoadoutSnapshot(
+            new Dictionary<FarmingGuideEquipmentSlot, FarmingGuideItemState>(),
+            null,
+            FarmingGuideItemState.Create(bag.Id),
+            null,
+            [
+                Stored("orphan", bag.Id, FarmingGuideStorageKind.Backpack, 0, 0, 0, parentInstanceId: "missing"),
+                Stored("cycle-a", bag.Id, FarmingGuideStorageKind.Backpack, 0, 0, 0, parentInstanceId: "cycle-b"),
+                Stored("cycle-b", bag.Id, FarmingGuideStorageKind.Backpack, 0, 0, 0, parentInstanceId: "cycle-a"),
+            ]);
+
+        var sanitized = FarmingGuideLoadoutPolicy.SanitizeSnapshot(snapshot, catalog);
+
+        Assert.Empty(sanitized.StoredItems);
+    }
+
     private static FarmingGuideStoredItemState Stored(
         string instanceId,
         string itemId,
@@ -131,8 +198,9 @@ public sealed class FarmingGuideLoadoutPolicyTests
         int gridIndex,
         int x,
         int y,
-        bool rotated = false) =>
-        new(instanceId, FarmingGuideItemState.Create(itemId), storage, gridIndex, x, y, rotated);
+        bool rotated = false,
+        string? parentInstanceId = null) =>
+        new(instanceId, FarmingGuideItemState.Create(itemId), storage, gridIndex, x, y, rotated, parentInstanceId);
 
     private static GameItem Item(
         string id,
