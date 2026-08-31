@@ -163,9 +163,11 @@ public partial class FarmingGuidePage
         var probe = CurrentDropProbe;
         if (probe?.Valid == true)
         {
+            var fixedOnlyChange = session.FixedEquipment ||
+                                  probe.Target is EquipmentDropTarget { Fixed: true };
             RemoveOrigin(session, destructiveCarrierRemoval: false);
             ApplyDrop(session, probe);
-            MarkChanged(session.FixedEquipment);
+            MarkChanged(fixedOnlyChange);
         }
         else if (session.Origin != DragOriginKind.Search && IsClearlyOutsideDropArea(e.GetPosition(RootGrid)))
         {
@@ -243,6 +245,18 @@ public partial class FarmingGuidePage
     {
         var hit = RootGrid.InputHitTest(rootPoint) as DependencyObject;
         var tagged = FindTaggedAncestor(hit);
+
+        if (session.FixedEquipment)
+        {
+            if (tagged is EquipmentDropTarget fixedTarget)
+            {
+                return new DropProbe(
+                    fixedTarget,
+                    fixedTarget.Fixed && fixedTarget.Slot == session.EquipmentSlot);
+            }
+            return null;
+        }
+
         if (tagged is GridDropTarget grid)
             return ProbeGrid(grid, session, Mouse.GetPosition(grid.Canvas));
         if (tagged is EquipmentDropTarget equipment)
@@ -271,7 +285,11 @@ public partial class FarmingGuidePage
             })
             .ToArray();
 
-        var valid = FarmingGuideCompatibility.FilterAllows(session.Item, target.Filter) &&
+        var movingPopulatedCarrier = session.Origin == DragOriginKind.Carrier &&
+                                     session.CarrierKind is { } originKind &&
+                                     StoredItems.Any(item => item.Storage == originKind);
+        var valid = !movingPopulatedCarrier &&
+                    FarmingGuideCompatibility.FilterAllows(session.Item, target.Filter) &&
                     FarmingGuidePlacementEngine.CanPlace(
                         target.Width,
                         target.Height,
@@ -355,10 +373,14 @@ public partial class FarmingGuidePage
                     Equipment[equipment.Slot] = session.State;
                 break;
             case CarrierDropTarget carrier:
-                if (GetCarrier(carrier.Kind)?.ItemId != session.State.ItemId)
+            {
+                var movingSameCarrier = session.Origin == DragOriginKind.Carrier &&
+                                        session.CarrierKind == carrier.Kind;
+                if (!movingSameCarrier && GetCarrier(carrier.Kind)?.ItemId != session.State.ItemId)
                     StoredItems.RemoveAll(item => item.Storage == carrier.Kind);
                 SetCarrier(carrier.Kind, session.State);
                 break;
+            }
             case GridDropTarget grid:
                 StoredItems.Add(new FarmingGuideStoredItemState(
                     session.StoredInstanceId ?? Guid.NewGuid().ToString("N"),
@@ -386,7 +408,7 @@ public partial class FarmingGuidePage
                 return;
             case DragOriginKind.Carrier when session.CarrierKind is { } kind:
                 SetCarrier(kind, null);
-                if (destructiveCarrierRemoval || session.Origin == DragOriginKind.Carrier)
+                if (destructiveCarrierRemoval)
                     StoredItems.RemoveAll(item => item.Storage == kind);
                 return;
             case DragOriginKind.StoredItem when session.StoredInstanceId is { } instanceId:
@@ -474,35 +496,10 @@ public partial class FarmingGuidePage
         return null;
     }
 
-    private static Point PointInGrid(Point rootPoint, Canvas canvas)
+    private Point PointInGrid(Point rootPoint, Canvas canvas)
     {
-        var rootTransform = RootPointTransform(canvas);
-        return rootTransform(rootPoint);
-    }
-
-    private static Func<Point, Point> RootPointTransform(Canvas canvas)
-    {
-        return rootPoint =>
-        {
-            var root = FindRootGrid(canvas);
-            if (root is null)
-                return new Point();
-            var origin = canvas.TranslatePoint(new Point(0, 0), root);
-            return new Point(rootPoint.X - origin.X, rootPoint.Y - origin.Y);
-        };
-    }
-
-    private static Grid? FindRootGrid(DependencyObject source)
-    {
-        DependencyObject? current = source;
-        Grid? lastGrid = null;
-        while (current is not null)
-        {
-            if (current is Grid grid)
-                lastGrid = grid;
-            current = VisualTreeHelper.GetParent(current);
-        }
-        return lastGrid;
+        var origin = canvas.TranslatePoint(new Point(0, 0), RootGrid);
+        return new Point(rootPoint.X - origin.X, rootPoint.Y - origin.Y);
     }
 
     private static IEnumerable<T> FindVisualChildren<T>(DependencyObject root) where T : DependencyObject
