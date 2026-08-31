@@ -509,7 +509,10 @@ public partial class FarmingGuidePage
         return candidate;
     }
 
-    private bool IsPointWithinVisibleBounds(FrameworkElement element, Point rootPoint)
+    private bool IsPointWithinVisibleBounds(
+        FrameworkElement element,
+        Point rootPoint,
+        bool requireElementBounds = true)
     {
         DependencyObject? current = element;
         while (current is not null && !ReferenceEquals(current, RootGrid))
@@ -519,10 +522,11 @@ public partial class FarmingGuidePage
                 if (!framework.IsVisible || framework.ActualWidth <= 0 || framework.ActualHeight <= 0)
                     return false;
 
-                var clipsDescendants = ReferenceEquals(framework, element) ||
-                                       framework.ClipToBounds ||
-                                       framework is ScrollViewer or ScrollContentPresenter;
-                if (clipsDescendants)
+                var isElement = ReferenceEquals(framework, element);
+                var clipsPoint = isElement
+                    ? requireElementBounds
+                    : framework.ClipToBounds || framework is ScrollViewer or ScrollContentPresenter;
+                if (clipsPoint)
                 {
                     Point origin;
                     try
@@ -564,7 +568,7 @@ public partial class FarmingGuidePage
         foreach (var canvas in FindVisualChildren<Canvas>(StoragePanel))
         {
             if (canvas.Tag is not GridDropTarget target ||
-                !IsPointWithinVisibleBounds(canvas, rootPoint))
+                !IsPointWithinVisibleBounds(canvas, rootPoint, requireElementBounds: false))
             {
                 continue;
             }
