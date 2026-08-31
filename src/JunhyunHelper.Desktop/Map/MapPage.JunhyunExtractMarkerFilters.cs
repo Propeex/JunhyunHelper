@@ -132,18 +132,12 @@ public partial class MapPage
             VerifyFactionFilterControl(ChkShowScavExtracts, () => _showScavExtracts, "Scav");
             VerifyFactionFilterControl(ChkShowTransitExtracts, () => _showTransitExtracts, "Transit");
 
+            // Do not publish the required CI evidence yet. The v1.11.4 runtime smoke uses
+            // this same marker as a gate, so CI cannot pass until a fresh MiniMap creation,
+            // an actual Transit marker, standard-marker recovery, player-size isolation,
+            // and Mini Scanner context-menu removal have all been verified in the published EXE.
             var marker = Path.Combine(Path.GetTempPath(), "junhyun-map-extract-filter-smoke-success.txt");
-            File.WriteAllText(
-                marker,
-                "real-donor-checkboxes=ok\n" +
-                "marker-panel-visible=ok\n" +
-                "master-filter-render-state=ok\n" +
-                "hidden-master-render-gate=ok\n" +
-                "approved-three-filter-layout=ok\n" +
-                "minimap-refresh-handler-preserved=ok\n" +
-                "pmc-filter-render-state=ok\n" +
-                "scav-filter-render-state=ok\n" +
-                "transit-filter-render-state=ok\n");
+            _ = RunJunhyunV114MiniMapSmokeAndWriteExtractEvidenceAsync(marker);
         }
         catch (Exception exception)
         {
