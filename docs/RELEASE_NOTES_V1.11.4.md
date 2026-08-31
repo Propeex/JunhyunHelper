@@ -1,4 +1,4 @@
-# 준현 헬퍼 v1.11.4 Release Notes
+# 준현 헬퍼 v1.11.4
 
 v1.11.4는 v1.11.3 이후 실사용에서 확인된 MiniMap lifecycle/marker 표시 회귀와 Mini Scanner 우클릭 UX를 수정하는 PATCH 유지보수 릴리즈입니다.
 
