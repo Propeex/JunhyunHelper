@@ -14,6 +14,11 @@ public sealed record FarmingGuideFixedEquipmentState(
     FarmingGuideItemState? Dogtag)
 {
     public static FarmingGuideFixedEquipmentState Empty { get; } = new(null, null);
+
+    // Dogtag existed in Farming Guide schema v1 before v1.14.0. Keep the serialized
+    // member readable so existing user files never fail to deserialize, but the product
+    // no longer exposes or counts this impossible equipment surface.
+    public FarmingGuideFixedEquipmentState WithoutLegacyDogtag() => this with { Dogtag = null };
 }
 
 public sealed class FarmingGuidePresetStore
@@ -44,7 +49,7 @@ public sealed class FarmingGuidePresetStore
     public FarmingGuideFixedEquipmentState LoadFixedEquipment()
     {
         lock (_gate)
-            return LoadDocument().FixedEquipment;
+            return LoadDocument().FixedEquipment.WithoutLegacyDogtag();
     }
 
     public void SaveWorking(
@@ -170,7 +175,7 @@ public sealed class FarmingGuidePresetStore
         lock (_gate)
         {
             var document = LoadDocument();
-            SaveDocument(document with { FixedEquipment = fixedEquipment });
+            SaveDocument(document with { FixedEquipment = fixedEquipment.WithoutLegacyDogtag() });
         }
     }
 
@@ -185,7 +190,13 @@ public sealed class FarmingGuidePresetStore
     }
 
     private void SaveDocument(FarmingGuideDocument document) =>
-        _store.Save(document with { SchemaVersion = CurrentSchemaVersion }, JsonOptions);
+        _store.Save(
+            document with
+            {
+                SchemaVersion = CurrentSchemaVersion,
+                FixedEquipment = document.FixedEquipment.WithoutLegacyDogtag(),
+            },
+            JsonOptions);
 
     private static Dictionary<string, FarmingGuideProfileState> CopyProfiles(
         IReadOnlyDictionary<string, FarmingGuideProfileState> source) =>
