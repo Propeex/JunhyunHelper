@@ -16,6 +16,7 @@ base main: 0aab5c29c675aff0300458a4ff8352c260519863
 public stable: v1.13.2
 working branch: fix/v1.13.3-farming-guide-interaction-2026-08-31
 PR: #247 (draft)
+latest checkpoint head before this doc update: aac0e62b7ee3522cf07888b0c91b6e2088a29fdb
 ```
 
 ## Confirmed scope
@@ -29,40 +30,43 @@ PR: #247 (draft)
 
 ## Root cause confirmed
 
-- `FarmingGuideStoredItemState`가 `FarmingGuideStorageKind`만 저장하고 부모 컨테이너 instance를 식별하지 않아 nested storage를 표현할 수 없었다.
-- double-click이 `FarmingGuideItemConfigurationWindow`라는 별도 WPF `Window`를 열며 storage는 읽기 전용 미리보기, attachments/armor plates는 ComboBox 선택으로 구현되어 사용자 요구와 불일치했다.
-- current Tarkov secure container(Epsilon 등)는 `propertiesType = ItemPropertiesContainer`로 제공되는데 v1.13.2 secure compatibility는 이 property type을 인정하지 않아 실제 데이터에서 장착이 실패할 수 있었다.
-- current Tarkov item schema에는 `ItemPropertiesPreset` / `preset` 타입의 완성 weapon preset이 일반 item collection에 함께 존재한다. Farming Guide가 이를 실제 물리 아이템처럼 전부 검색 노출해 같은 총이 다수 보였고, preset에는 base weapon의 `slots`가 없어 Glock 같은 총의 attachment UI가 비어 보일 수 있었다.
+- 기존 stored state에는 부모 container instance가 없어 nested storage를 실제 상태로 표현할 수 없었다.
+- 기존 double-click은 별도 `FarmingGuideItemConfigurationWindow`에서 storage read-only preview와 attachment/armor ComboBox를 사용해 제품 의도와 불일치했다.
+- current Tarkov source에서 Epsilon 같은 Secure Container와 Medicine Case 같은 일반 stash case가 모두 `ItemPropertiesContainer`를 사용할 수 있으므로 property type만으로 Secure Container slot 호환성을 판단할 수 없다.
+- upstream item collection에는 `ItemPropertiesPreset` / `preset` assembled weapon records가 base weapon과 함께 존재해 같은 총기가 반복 노출되고 preset record에는 base weapon mod slots가 없을 수 있었다.
 
 ## Completed
 
-- Secure Container compatibility에 `ItemPropertiesContainer` 추가.
-- `FarmingGuideStoredItemState.ParentInstanceId` nullable field 추가. 기존 schema-v1 JSON은 null root placement로 그대로 호환.
-- loadout sanitize가 root → nested tree 순으로 parent 존재/그리드/filter/bounds/overlap을 검증하고 orphan/cycle/duplicate instance를 fail-closed 처리.
-- nested container drag/drop surface에서 parent instance를 보존하며, container 자체 이동 시 descendants를 aggregate로 유지하고 self/descendant cycle을 차단.
-- destructive delete/carrier replacement 시 nested subtree까지 함께 제거해 orphan 방지.
-- 가운데 storage column에 in-page `WorkbenchHost` 추가. 오른쪽 검색 결과를 계속 사용할 수 있는 상태에서 열린 내부 공간으로 drag/drop 가능.
-- stored backpack/rig 더블클릭 → 실제 내부 grid. top-level worn rig → 이미 main에 보이는 grid를 반복하지 않고 plate/mod slot만 표시.
-- weapon/helmet/body armor equipment 더블클릭 → attachment/plate drop slot.
-- attachment/plate slot의 직접 drag-in / replace / drag-out 지원.
+- `FarmingGuideStoredItemState.ParentInstanceId` nullable field 추가. 기존 schema-v1 JSON은 missing field → null root placement로 호환.
+- nested sanitize가 root → child 순으로 parent 존재/current grid/filter/bounds/overlap을 검증하고 orphan/duplicate/self-parent/cycle을 fail closed 처리.
+- nested container 이동 시 same instance/subtree를 보존하고 self/descendant cycle 차단.
+- destructive remove/carrier replacement 시 descendant subtree까지 함께 제거.
+- 가운데 storage column의 in-page `WorkbenchHost` 구현. 오른쪽 검색은 유지해 열린 실제 grid/slot으로 drag/drop 가능.
+- stored backpack/rig → 실제 internal grid, top-level worn rig → actionable plate/mod slots, weapon/helmet/body armor → attachment/plate drop slots.
+- attachment/armor slot one-item contract 및 occupied slot silent overwrite 방지.
 - 기존 `FarmingGuideItemConfigurationWindow` 삭제.
-- Farming Guide 검색에서 upstream `ItemPropertiesPreset` / `preset` 제외. base weapon/item은 유지.
-- nested storage를 총 수납 칸 요약에도 반영.
-- nested sanitize / secure property type / preset filter / nested persistence regression tests 추가.
-- Draft PR #247 생성 및 CI 시작.
-- Documentation Consistency 실패 원인이 필수 `## Completed` 섹션명 누락임을 확인하고 체크포인트 형식을 복구.
+- Farming Guide search에서 `ItemPropertiesPreset` / `preset` 제외. canonical Game Content와 실제 base weapon/variant는 보존.
+- total storage summary에 nested container grids 반영.
+- current Secure Container 판정을 명시적 secure-container/pouch semantics 우선 + `ItemPropertiesContainer` narrow fallback으로 수정. generic `container/case`인 Medicine Case 등은 장착 거부.
+- nested sanitize / nested persistence / preset filtering / Secure Container accept + ordinary case reject 회귀 테스트 추가.
+- workbench가 열린 동안 왼쪽 equipment 재배치를 시작하면 먼저 workbench를 닫아 stale owner callback 방지 + lifecycle contract test 추가.
+- Desktop version/FIRST_RUN/release notes를 v1.13.3으로 준비하고 PROJECT_STATE product target version을 1.13.3으로 정렬. publicStable은 실제 릴리즈 전까지 v1.13.2 유지.
+- `docs/PRODUCT.md`, `docs/ARCHITECTURE_FARMING_GUIDE.md`, `docs/DECISION_V1.13.3_FARMING_GUIDE_LIVE_ITEM_INTERACTION.md`, `docs/RELEASE_NOTES_V1.13.3.md`에 확정된 제품/기술 계약 반영.
+- CI에서 이전 코드 HEAD 기준 Windows Release build와 deterministic tests가 성공한 것을 확인. 초기 CI 실패는 xUnit analyzer 표현 두 곳과 문서 checkpoint/version 정렬 문제였고 모두 수정.
 
 ## Current step
 
-- PR CI에서 desktop compile/test/published smoke 결과 확인 중.
-- CI 결과에 따라 compile/runtime 계약 누락을 수정한 뒤 문서/버전/release 준비를 진행한다.
+- 최신 exact PR head의 CI / Shutdown Race / Documentation Consistency를 다시 통과시키고 Windows x64 publish + actual Product UI/Map/graceful-shutdown smoke 결과를 확인한다.
+- 장기 결정 index/reference 문서에서 v1.13.3 Farming Guide 구현 위치와 supersession 관계를 최종 정리한다.
 
 ## Remaining
 
-- CI compile/test failure가 있으면 수정
-- Farming Guide desktop source-contract regression test 보강
-- product/decision/architecture/reference/state docs 갱신
-- v1.13.3 version identity 갱신
-- Release build / published EXE product UI smoke 검증
-- PR ready / CI green / main merge / exact-main validation
-- v1.13.3 release / tag / public asset verification
+- latest PR exact-head CI green 확인: Release build, full tests, publish, Product UI/Map/graceful shutdown smoke, package/artifact
+- Shutdown Race / Documentation Consistency green 확인
+- `docs/DECISIONS.md` / `docs/DEVELOPER_REFERENCE.md` current Farming Guide reference 정리
+- PR ready 전환 및 main 병합
+- exact-main CI / Shutdown Race / Documentation Consistency 검증
+- automatic v1.13.3 Release workflow 성공 확인
+- tag / release / latest / asset size+digest 검증
+- release evidence와 canonical current-state 문서 갱신
+- ACTIVE_WORK `NONE` closure
