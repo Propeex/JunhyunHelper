@@ -1,51 +1,61 @@
 # ACTIVE WORK — 현재 진행 중 작업 체크포인트
 
-Status: **NONE**  
+Status: **ACTIVE**  
 Updated: **2026-08-31 KST**
 
-현재 진행 중인 개발 작업은 없습니다.
+## Goal
 
-## Last completed batch
+v1.12.1 PATCH 유지보수 배치로 기존 `김태영 PC 진단`의 UX를 단순화하고 실제 사용자 노트북 진단 ZIP 결과를 검증한다.
 
-`v1.12.0` MINOR 배치를 완료했습니다.
+## Base / working state
 
 ```text
+base main: 33f52bdbe3b05a42544271557859eb3ef7de010c
 public stable: v1.12.0
-exact product release source/tag target:
-b2fcec460df256c581e87b53c6293dc4d2177b9c
-final PR: #238 — MERGED
-superseded draft PR: #237 — CLOSED / NOT MERGED
-validated feature head: 5216ab410c8a4384aee7d9f1a69fbd30302ad0a8
-feature-head CI: 33348681591 — SUCCESS
-feature-head Shutdown Race CI: 33348681589 — SUCCESS
-feature-head Documentation Consistency: 33348681555 — SUCCESS
-exact-main CI: 33348916340 — SUCCESS
-exact-main Shutdown Race CI: 33348916440 — SUCCESS
-exact-main Documentation Consistency: 33348916365 — SUCCESS
-Release workflow: 33349066686 — SUCCESS
-release id: 379463868
-482 passed / 0 failed
+exact v1.12.0 product source: b2fcec460df256c581e87b53c6293dc4d2177b9c
+working branch: fix/v1.12.1-kim-diagnostic-ux-2026-08-31
+target version: v1.12.1
+PR: #239
 ```
 
-완료된 제품 변경:
+## Confirmed scope
 
-- Trader LL 진행 뒤 과거 staged task-pool Quest 최대 48개가 `확인 필요`로 되돌아가던 current availability 회귀 수정
-- exact ProfileVariable 우선 / current-stage 보수적 평가 / structural drift fail-closed 유지
-- Future Needed Items / cleanup 안전 계산과 current Quest UI compatibility 분리 유지
-- 은신처 검색창 clear `×` 수직 정렬 수정
-- 메인 좌측 상단 프로필 이미지로 실행하는 opt-in `김태영 PC 진단` 추가
-- 진단 ZIP은 바탕화면에만 생성하고 자동 전송하지 않으며 display/GPU/HDR/capture/Scanner evidence와 화면 비교를 수집
-- 공개 v1.12.0 tag/release/assets/checksum 검증 완료
+- 헤더의 김태영 진단 아이콘 클릭 확인 문구는 정확히 `혹시 김태영 본인?`만 표시한다.
+- `예`를 누른 뒤 진단 실행 중임을 확인할 수 있도록 별도 indeterminate progress bar를 표시한다.
+- 정상 완료 메시지는 정확히 다음 두 문장만 표시한다.
+  - `진단 완료.`
+  - `파일을 hyune4784@naver.com 으로 보내주세요.`
+- 완료 안내를 닫은 뒤 기본 브라우저에서 `https://mail.naver.com/v2/new` 네이버 메일 쓰기 페이지를 자동으로 연다.
+- 진단 ZIP은 계속 바탕화면에 로컬 생성하며 자동 업로드, 웹메일 자동 첨부, 자동 발송은 하지 않는다.
+- 브라우저 compose launch 실패는 성공 메시지 계약을 바꾸지 않고 내부 diagnostic log에만 남긴다.
 
-공개 릴리즈와 상세 근거:
+## Completed
 
-- `docs/PROJECT_STATE.json`
-- `docs/CURRENT_STATE.md`
-- `docs/STATE.md`
-- `docs/RELEASE_1.12.0.md`
-- `docs/RELEASE_NOTES_V1.12.0.md`
-- `docs/.release-v1.12.0-status.json`
-- `docs/DECISION_TASK_POOL_RUNTIME_COMPATIBILITY_2026-08-17.md`
-- `docs/DECISION_V1.12.0_KIM_TAEYOUNG_PC_DIAGNOSTIC.md`
+- 사용자 노트북에서 생성된 `JunhyunHelper-KimTaeyoung-Diagnostic-20260831-110826.zip` 검토
+  - expected top-level evidence 11개 모두 생성
+  - `probe-errors.txt = none`
+  - display screenshot + luminance stats 정상
+  - nested Scanner support ZIP 정상
+  - Scanner/catalog snapshot 정상
+  - 진단 당시 Tarkov 미실행으로 `captures/tarkov.txt = EscapeFromTarkov window not found.`; Tarkov dual-capture 비교는 이번 샘플에서 수행되지 않음
+  - allowlist 대상 관련 process가 없어 `relevant-processes.txt`가 헤더만 있는 것은 정상
+- 확인/완료 문구 고정 구현
+- indeterminate progress overlay 구현
+- 완료 후 네이버 메일 쓰기 페이지 기본 브라우저 launch 구현
+- v1.12.1 Desktop/FIRST_RUN version 정렬
+- regression source contract 추가
+- release notes / decision 문서 갱신
+- Ready PR #239 생성
 
-사용자의 실제 PC/Tarkov 환경에서 v1.12.0 최종 실사용 확인과 김태영 PC diagnostic ZIP의 실제 수집·분석은 자동화 release verification과 별개이며 `PENDING`입니다. 새 사용자 요구사항, 실제 회귀, 또는 Tarkov 변화가 확인되면 `main`의 현재 stable 상태에서 새 `ACTIVE` 작업을 시작합니다.
+## Current step
+
+- PR #239 exact-head CI / Shutdown Race / Documentation Consistency 검증
+- 첫 Documentation Consistency run `33350469114`는 ACTIVE_WORK required heading `## Confirmed scope` 누락만 검출했다. 제품/runtime 실패가 아니며 이 checkpoint에서 heading을 정정했다.
+
+## Remaining
+
+- 최신 exact-head PR gates 성공 확인
+- main merge / exact-main CI / Shutdown Race / Documentation Consistency 확인
+- automatic v1.12.1 release/tag/assets/checksum 검증
+- PROJECT_STATE / CURRENT_STATE / STATE / README / release evidence 최종 정렬
+- ACTIVE_WORK 완료 처리
