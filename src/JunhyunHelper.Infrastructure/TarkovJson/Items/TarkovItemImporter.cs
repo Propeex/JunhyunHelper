@@ -57,11 +57,59 @@ public sealed class TarkovItemImporter
                     : !typeKeys.Contains("noFlea", StringComparer.OrdinalIgnoreCase))
             {
                 FarmingGuideData = ReadFarmingGuideLayout(raw),
+                FarmingGuideAssembly = ReadAssemblySource(raw),
             };
 
             result.Add(item);
         }
 
+        return result;
+    }
+
+    private static FarmingGuideAssemblySource? ReadAssemblySource(JsonElement item)
+    {
+        var gridImageUrl = TarkovJsonReader.OptionalString(item, "gridImageLink");
+        var image512Url = TarkovJsonReader.OptionalString(item, "image512pxLink");
+        var containedItemIds = ReadContainedItemIds(item);
+        string? defaultPresetItemId = null;
+
+        if (item.TryGetProperty("properties", out var properties) &&
+            properties.ValueKind == JsonValueKind.Object &&
+            properties.TryGetProperty("defaultPreset", out var defaultPreset))
+        {
+            defaultPresetItemId = ReferenceId(defaultPreset);
+        }
+
+        if (string.IsNullOrWhiteSpace(gridImageUrl) &&
+            string.IsNullOrWhiteSpace(image512Url) &&
+            string.IsNullOrWhiteSpace(defaultPresetItemId) &&
+            containedItemIds.Count == 0)
+        {
+            return null;
+        }
+
+        return new FarmingGuideAssemblySource(
+            gridImageUrl,
+            image512Url,
+            defaultPresetItemId,
+            containedItemIds);
+    }
+
+    private static IReadOnlyList<string> ReadContainedItemIds(JsonElement item)
+    {
+        if (!item.TryGetProperty("containsItems", out var values) || values.ValueKind != JsonValueKind.Array)
+            return [];
+
+        var result = new List<string>();
+        foreach (var value in values.EnumerateArray())
+        {
+            string? id = null;
+            if (value.ValueKind == JsonValueKind.Object && value.TryGetProperty("item", out var nestedItem))
+                id = ReferenceId(nestedItem);
+            id ??= ReferenceId(value);
+            if (!string.IsNullOrWhiteSpace(id) && !result.Contains(id, StringComparer.Ordinal))
+                result.Add(id);
+        }
         return result;
     }
 
