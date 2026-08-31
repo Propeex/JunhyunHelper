@@ -42,7 +42,8 @@ public sealed class ContentSnapshotStoreTests
             Assert.Equal(GameMode.Regular, loaded.GameMode);
             var loadedItem = Assert.Single(loaded.Content.Items);
             Assert.Equal("item-a", loadedItem.Id);
-            var farmingGuide = Assert.NotNull(loadedItem.FarmingGuideData);
+            Assert.NotNull(loadedItem.FarmingGuideData);
+            var farmingGuide = loadedItem.FarmingGuideData!;
             Assert.Equal("ItemPropertiesBackpack", farmingGuide.PropertiesType);
             var grid = Assert.Single(farmingGuide.StorageGrids);
             Assert.Equal(2, grid.Width);
