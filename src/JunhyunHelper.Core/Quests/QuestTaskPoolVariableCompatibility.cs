@@ -11,8 +11,14 @@ namespace JunhyunHelper.Core.Quests;
 /// LL2–LL4 seed batches. We use that exact audited structure only while it continues to
 /// match the active game-mode dataset.
 ///
-/// Exact profile variable values always win. Synthetic values are runtime-only and are
-/// never persisted back into user.db. Any structural drift fails closed.
+/// EFT 1.1 also defines reaching the next trader loyalty level as an alternate unlock
+/// for the next side-task group. Therefore a fully audited pool from an earlier loyalty
+/// stage has an effective availability floor at its highest threshold once the profile
+/// has advanced beyond that stage. This is an availability compatibility value, not a
+/// claim about the hidden server counter. Exact profile variable values still win.
+///
+/// Synthetic values are runtime-only and are never persisted back into user.db. Any
+/// structural drift fails closed.
 /// </summary>
 public sealed class QuestTaskPoolVariableCompatibility
 {
@@ -55,8 +61,9 @@ public sealed class QuestTaskPoolVariableCompatibility
     }
 
     /// <summary>
-    /// Adds only task-pool values that can be reconstructed by the audited current
-    /// model. Exact imported/profile values are preserved and take precedence.
+    /// Adds only task-pool values whose effective availability can be reconstructed by
+    /// the audited current model. Exact imported/profile values are preserved and take
+    /// precedence.
     /// </summary>
     public static GameProfileSnapshot ApplyInferredProfileValues(
         IEnumerable<QuestDefinition> quests,
@@ -140,11 +147,21 @@ public sealed class QuestTaskPoolVariableCompatibility
             return false;
         }
 
-        // Under the audited current-version stage mapping, future LL pools have not
-        // begun yet, so zero is the deterministic counter value for this model.
+        // Before this stage begins the counter-equivalent availability value is zero.
         if (currentLoyalty < rule.LoyaltyLevel)
         {
             inferredValue = 0;
+            return true;
+        }
+
+        // EFT 1.1 explicitly allows advancing to the next trader LL to unlock the next
+        // side-task group. Once the profile is beyond this audited stage, every gate in
+        // that older stage is therefore satisfied even when the hidden pool variable was
+        // never imported. Use only the maximum audited threshold as the runtime
+        // availability floor; do not persist or describe it as the server's exact value.
+        if (currentLoyalty > rule.LoyaltyLevel)
+        {
+            inferredValue = rule.ExpectedThresholds.Max();
             return true;
         }
 
@@ -153,11 +170,10 @@ public sealed class QuestTaskPoolVariableCompatibility
             // BSG's 1.1 task-system description establishes that the LL1 side-task
             // progression advances by completing that trader's tasks. We still do not
             // know which ordinary LL1 tasks are the initial seed set, so after any
-            // same-trader completion we remain conservative. Before the first recorded
-            // completion, however, the counter cannot have advanced and zero is exact.
-            // Restrict this to a current LL1 trader so imported/legacy higher-LL
-            // profiles with incomplete Helper history are never back-filled as zero.
-            if (currentLoyalty != 1 || HasCompletedQuestForTrader(rule.TraderId))
+            // same-trader completion we remain conservative while the trader is still
+            // LL1. Before the first recorded completion, the counter cannot have
+            // advanced and zero is exact.
+            if (HasCompletedQuestForTrader(rule.TraderId))
                 return false;
 
             inferredValue = 0;
