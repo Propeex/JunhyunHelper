@@ -98,7 +98,7 @@
     <Page Include="../../vendor/Tarkov-Helper/TarkovHelper/Pages/Map/MapPage.xaml"
           Link="Legacy/TarkovHelper/Pages/Map/MapPage.xaml" />
     <Page Include="../../vendor/Tarkov-Helper/TarkovHelper/Windows/OverlayMiniMapWindow.xaml"
-          Link="Legacy/TarkovHelper/Windows/%(Filename)%(Extension)" />
+          Link="Legacy/TarkovHelper/Windows/OverlayMiniMapWindow.xaml" />
     <Page Include="../../vendor/Tarkov-Helper/TarkovHelper/Windows/Dialogs/OverlaySettingsWindow.xaml"
           Link="Legacy/TarkovHelper/Windows/Dialogs/%(Filename)%(Extension)" />
     <Page Include="../../vendor/Tarkov-Helper/TarkovHelper/Windows/Dialogs/CustomMarkerEditorWindow.xaml"
