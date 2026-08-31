@@ -36,6 +36,7 @@ public sealed class V191FinalUiContractTests
     {
         var root = FindRepositoryRoot();
         var source = Read(root, "src", "JunhyunHelper.Desktop", "Map", "MapPage.JunhyunExtractMarkerFilters.cs");
+        var v114Smoke = Read(root, "src", "JunhyunHelper.Desktop", "Map", "MapPage.JunhyunV114MiniMapSmoke.cs");
 
         Assert.Contains("header.Text = \"탈출구\"", source, StringComparison.Ordinal);
         Assert.Contains("NormalizeApprovedExtractCheckBox(ChkShowPmcExtracts, \"PMC 탈출구\")", source, StringComparison.Ordinal);
@@ -43,7 +44,9 @@ public sealed class V191FinalUiContractTests
         Assert.Contains("NormalizeApprovedExtractCheckBox(ChkShowTransitExtracts, \"트랜짓 탈출구\")", source, StringComparison.Ordinal);
         Assert.Contains("ChkShowExtractMarkers.Visibility = Visibility.Collapsed", source, StringComparison.Ordinal);
         Assert.Contains("sectionFilters.Length != 3", source, StringComparison.Ordinal);
-        Assert.Contains("approved-three-filter-layout=ok", source, StringComparison.Ordinal);
+        Assert.Contains("RunJunhyunV114MiniMapSmokeAndWriteExtractEvidenceAsync(marker)", source, StringComparison.Ordinal);
+        Assert.Contains("approved-three-filter-layout=ok", v114Smoke, StringComparison.Ordinal);
+        Assert.Contains("actual-transit-marker-render=ok", v114Smoke, StringComparison.Ordinal);
         Assert.DoesNotContain("MoveExistingExtractFilter", source, StringComparison.Ordinal);
         Assert.DoesNotContain("MapMarkersContent.Children.Add", source, StringComparison.Ordinal);
     }
