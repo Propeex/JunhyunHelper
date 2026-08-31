@@ -71,7 +71,9 @@ public sealed class FarmingGuidePresetStoreTests
             Assert.Equal("backpack", reloaded.WorkingSnapshot.Backpack?.ItemId);
             Assert.Equal("secure", reloaded.WorkingSnapshot.SecureContainer?.ItemId);
             Assert.Equal(2, reloaded.WorkingSnapshot.StoredItems.Count);
-            var stored = Assert.Single(reloaded.WorkingSnapshot.StoredItems.Where(item => item.InstanceId == "instance-1"));
+            var stored = Assert.Single(
+                reloaded.WorkingSnapshot.StoredItems,
+                item => item.InstanceId == "instance-1");
             Assert.Equal(FarmingGuideStorageKind.Backpack, stored.Storage);
             Assert.Equal(1, stored.GridIndex);
             Assert.Equal(2, stored.X);
