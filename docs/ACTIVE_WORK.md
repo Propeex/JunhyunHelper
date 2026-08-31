@@ -30,7 +30,7 @@ Target version: **v1.14.0**
 1. Farming Guide 장비 보드에서 인식표 슬롯을 제거한다. 현재 사용자가 장착할 수 있는 인식표 아이템이 없으므로 raid-start equipment surface에 노출하지 않는다.
 2. 조립 가능한 아이템은 장착 부품 상태가 바뀌면 표시 이미지도 그 조립 상태를 반영한다. Altyn + face shield, 총기 부품 조합을 대표 사례로 검증한다.
 3. 총기 부품/slot/compatibility 추적을 강화해 Farming Guide 안에서 실제 총기 개조를 구성할 수 있는 수준으로 만든다. 단순 root 1단계 attachment 편집에 머물지 않고 attachment child의 하위 슬롯까지 추적한다.
-4. 리그 등 다중 storage grid를 무한 가로 나열하지 않는다. 각 grid의 실제 width×height와 GridIndex 의미는 보존하면서 사용 가능한 가로 폭 안에서 compact 2D 배치해 화면 밖 clipping/overflow를 방지한다.
+4. 리그/가방/컨테이너의 다중 storage grid는 단순 가로 나열이나 generic compact packing을 제품 목표로 삼지 않는다. 가능한 경우 실제 Escape from Tarkov 인벤토리에서 보이는 grid 묶음의 상대적 배치를 아이템별로 그대로 재현한다. current tarkov.dev `ItemStorageGrid`는 width/height/filter만 제공하고 UI X/Y 좌표는 제공하지 않으므로, JunhyunHelper-owned canonical storage layout metadata를 item id 기준으로 관리한다. 아직 정확한 layout을 확보하지 못한 신규/미확인 아이템에만 compact 2D packing을 fallback으로 사용하며, fallback 상태가 canonical exact layout으로 오인되지 않게 한다.
 5. 조립 가능한 빈 슬롯을 클릭하면 해당 슬롯에 현재 상태에서 장착 가능한 아이템을 아이콘 포함 inline UI로 표시한다. 사용자가 하나를 클릭하면 즉시 장착한다. 별도 Windows/OS 창은 사용하지 않는다. 기존 검색 결과 drag → slot drop 방식도 그대로 유지한다.
 
 ## Completed
@@ -47,12 +47,14 @@ Target version: **v1.14.0**
   - preset item은 composed `image512pxLink`와 `containsItems`를 제공할 수 있음.
   - slot `nameId`는 `mod_barrel`, `mod_stock` 같은 실제 game slot identity로 사용 가능.
   - arbitrary gun build image generation은 별도 composite image service가 사용되는 사례가 있으나, 해당 외부 서비스의 안정성/비총기 장비 지원은 아직 product dependency로 확정하지 않음.
+- current tarkov.dev GraphQL schema의 `ItemStorageGrid`가 width/height/filters만 제공하며 UI position 좌표는 제공하지 않는 것을 확인. exact Tarkov carrier layout은 별도 product-owned layout source가 필요함.
 
 ## Current step
 
 - fixed dogtag persistence backward compatibility 확인.
 - richer canonical assembly data 계약 설계: image fields / default preset / recursive slot tree / compatibility candidate policy.
 - assembly image resolver의 exact-data / fallback 정책 확정.
+- authentic carrier storage layout source/resolver 설계: item-id exact layout override + unknown-item compact fallback.
 
 ## Remaining
 
@@ -62,7 +64,7 @@ Target version: **v1.14.0**
 - recursive gun/gear attachment editing 구현.
 - 빈 slot inline compatible-item chooser + icon loading 구현.
 - assembly-aware image resolver/rendering 구현.
-- finite-width compact multi-grid layout 구현.
+- 실제 Tarkov 리그/가방/컨테이너 grid 배치 데이터 구축 및 item-id layout resolver 구현; 미확인 아이템만 compact fallback.
 - deterministic tests / importer fixtures / persistence regression / desktop contract tests 추가.
 - v1.14.0 version/release notes/project-state 준비.
 - PR exact-head CI, Windows Release build, self-contained publish, actual published EXE Product UI/Farming Guide smoke, Shutdown Race, Documentation Consistency.
