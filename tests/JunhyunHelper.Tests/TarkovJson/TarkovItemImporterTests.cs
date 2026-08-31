@@ -41,6 +41,100 @@ public sealed class TarkovItemImporterTests
     }
 
     [Fact]
+    public void ImportsFarmingGuideStorageSlotsArmorAndConflictContracts()
+    {
+        var baseDocument = Document("""
+            {
+              "data": {
+                "items": [
+                  {
+                    "id": "rig-a",
+                    "name": "rig-a Name",
+                    "categories": ["rig-category"],
+                    "types": ["rig"],
+                    "blocksHeadphones": true,
+                    "conflictingItems": [{ "id": "conflict-a" }],
+                    "conflictingSlotIds": ["slot-conflict"],
+                    "properties": {
+                      "propertiesType": "ItemPropertiesChestRig",
+                      "class": 3,
+                      "grids": [
+                        {
+                          "width": 2,
+                          "height": 1,
+                          "filters": {
+                            "allowedCategories": [{ "id": "allowed-category" }],
+                            "allowedItems": ["allowed-item"],
+                            "excludedCategories": ["excluded-category"],
+                            "excludedItems": [{ "id": "excluded-item" }]
+                          }
+                        }
+                      ],
+                      "slots": [
+                        {
+                          "id": "mod-slot",
+                          "nameId": "mod_scope",
+                          "name": "Scope",
+                          "required": true,
+                          "filters": {
+                            "allowedItems": [{ "id": "scope-a" }]
+                          }
+                        }
+                      ],
+                      "armorSlots": [
+                        {
+                          "id": "front-slot",
+                          "nameId": "front",
+                          "name": "Front",
+                          "allowedPlates": [{ "id": "plate-a" }]
+                        },
+                        {
+                          "id": "back-slot",
+                          "nameId": "back",
+                          "name": "Back"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+            """);
+
+        var item = Assert.Single(
+            new TarkovItemImporter().Import(baseDocument, new TarkovLocalization()));
+        var layout = Assert.NotNull(item.FarmingGuideData);
+
+        Assert.Equal("ItemPropertiesChestRig", layout.PropertiesType);
+        Assert.True(layout.IsArmoredRig);
+        Assert.True(layout.BlocksHeadphones);
+        Assert.Contains("conflict-a", layout.ConflictingItemIds);
+        Assert.Contains("slot-conflict", layout.ConflictingSlotIds);
+
+        var grid = Assert.Single(layout.StorageGrids);
+        Assert.Equal(2, grid.Width);
+        Assert.Equal(1, grid.Height);
+        Assert.Contains("allowed-category", grid.Filters.AllowedCategoryIds);
+        Assert.Contains("allowed-item", grid.Filters.AllowedItemIds);
+        Assert.Contains("excluded-category", grid.Filters.ExcludedCategoryIds);
+        Assert.Contains("excluded-item", grid.Filters.ExcludedItemIds);
+
+        var attachment = Assert.Single(layout.AttachmentSlots);
+        Assert.Equal("mod-slot", attachment.Id);
+        Assert.Equal("mod_scope", attachment.NameId);
+        Assert.True(attachment.Required);
+        Assert.Contains("scope-a", attachment.Filters.AllowedItemIds);
+
+        Assert.Equal(2, layout.ArmorSlots.Count);
+        var openPlate = layout.ArmorSlots[0];
+        Assert.False(openPlate.Locked);
+        Assert.Contains("plate-a", openPlate.AllowedPlateIds);
+        var lockedPlate = layout.ArmorSlots[1];
+        Assert.True(lockedPlate.Locked);
+        Assert.Empty(lockedPlate.AllowedPlateIds);
+    }
+
+    [Fact]
     public void SupportsArrayCollectionsWithoutChangingCanonicalResult()
     {
         var baseDocument = Document("""
