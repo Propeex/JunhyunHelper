@@ -262,7 +262,7 @@ public partial class FarmingGuidePage
         if (tagged is EquipmentDropTarget equipment)
             return new DropProbe(equipment, CanEquip(equipment, session.Item));
         if (tagged is CarrierDropTarget carrier)
-            return new DropProbe(carrier, CanSetCarrier(carrier.Kind, session.Item));
+            return new DropProbe(carrier, CanSetCarrier(carrier.Kind, session.Item, session));
 
         var near = FindNearbyGrid(rootPoint, 11d);
         return near is null ? null : ProbeGrid(near, session, PointInGrid(rootPoint, near.Canvas));
@@ -348,10 +348,17 @@ public partial class FarmingGuidePage
         }
     }
 
-    private bool CanSetCarrier(FarmingGuideStorageKind kind, GameItem item)
+    private bool CanSetCarrier(FarmingGuideStorageKind kind, GameItem item, DragSession session)
     {
         if (!FarmingGuideCompatibility.IsStorageCarrierCompatible(kind, item))
             return false;
+
+        var movingSameCarrier = session.Origin == DragOriginKind.Carrier &&
+                                session.CarrierKind == kind;
+        var targetContainsItems = StoredItems.Any(stored => stored.Storage == kind);
+        if (!FarmingGuideLoadoutPolicy.CanReplaceCarrier(movingSameCarrier, targetContainsItems))
+            return false;
+
         if (kind == FarmingGuideStorageKind.Rig &&
             item.FarmingGuideData?.IsArmoredRig == true &&
             Equipment.ContainsKey(FarmingGuideEquipmentSlot.BodyArmor))
