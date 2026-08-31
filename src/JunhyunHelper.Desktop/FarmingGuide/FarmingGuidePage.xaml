@@ -34,10 +34,22 @@
                                 ToolTip="현재 상태를 새 프리셋으로 저장"
                                 Click="SavePresetButton_Click">
                             <Viewbox Width="18" Height="18" Stretch="Uniform">
-                                <Grid Width="20" Height="20">
-                                    <Path Data="M2,2 L18,2 L18,18 L2,18 Z M5,3 L14,3 L14,8 L5,8 Z M5,11 L15,11 L15,17 L5,17 Z"
-                                          Fill="{StaticResource TextSecondaryBrush}"
-                                          FillRule="EvenOdd" />
+                                <Grid Width="18" Height="18">
+                                    <Border BorderBrush="{StaticResource TextSecondaryBrush}"
+                                            BorderThickness="1.5"
+                                            CornerRadius="1" />
+                                    <Border Width="9" Height="5"
+                                            Margin="0,2,0,0"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Top"
+                                            BorderBrush="{StaticResource TextSecondaryBrush}"
+                                            BorderThickness="1.2" />
+                                    <Border Width="10" Height="6"
+                                            Margin="0,0,0,2"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Bottom"
+                                            BorderBrush="{StaticResource TextSecondaryBrush}"
+                                            BorderThickness="1.2" />
                                 </Grid>
                             </Viewbox>
                         </Button>
