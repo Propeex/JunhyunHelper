@@ -1,48 +1,65 @@
 # ACTIVE WORK — 현재 진행 중 작업 체크포인트
 
-Status: **NONE**  
+Status: **ACTIVE**  
 Updated: **2026-08-31 KST**
 
-현재 진행 중인 개발 작업은 없습니다.
+## Goal
 
-## Last completed batch
+사용자 실사용 요구사항을 반영한 **v1.12.0** 개발 배치를 진행한다.
 
-`v1.11.4` PATCH 유지보수 배치를 완료했습니다.
+- Quest 선행조건/상태 계산 회귀 수정: 새 프로필에서는 `확인 필요` 0개인데 일부 퀘스트 진행 후 정상 퀘스트가 대량으로 `확인 필요`로 늘어나는 현상을 재현·원인 분석·수정한다.
+- Hideout 검색창의 clear `×` 위치를 다른 탭 검색창과 일관되게 맞춘다.
+- 메인 좌측 상단 프로필 이미지 클릭으로 실행하는 `김태영 PC 진단` 지원 기능을 추가한다.
+
+## Base / working state
 
 ```text
+base main: b97556bfe162bd6d6507500eb1633adf4607efb6
 public stable: v1.11.4
-exact product release source/tag target:
-f9d3497004241ea80193e5a0d242e7219cf04f2a
-merged PR: #236
-superseded draft PR: #235 — CLOSED / NOT MERGED
-final feature head: 84b56e81171543e289ed417d822c40c9d607d4d3
-PR exact-head CI: 33345630940 — SUCCESS
-PR exact-head Shutdown Race: 33345630896 — SUCCESS
-PR exact-head Documentation Consistency: 33345630871 — SUCCESS
-exact-main CI: 33345851673 — SUCCESS
-exact-main Shutdown Race: 33345851704 — SUCCESS
-exact-main Documentation Consistency: 33345851658 — SUCCESS
-Release workflow: 33346020525 — SUCCESS
-release id: 379449740
-478 passed / 0 failed / 0 skipped
+working branch: feature/v1.12.0-quest-diagnostics-search-ui-2026-08-31
+PR: not created yet
 ```
 
-완료된 제품 수정:
+## Confirmed scope
 
-- Main Map에서 지도를 바꾼 직후 MiniMap을 처음 생성해도 stale map을 첫 프레임에 표시하지 않도록 selection synchronization 순서를 수정했습니다.
-- MiniMap PMC / Scav / Transit extract marker 경로를 actual rendered marker 기준으로 검증했습니다.
-- donor async marker refresh 취소 타이밍으로 standard marker layer가 비는 경우, 이미 로드된 데이터에서 해당 레이어만 직접 복구하도록 보강했습니다.
-- Player Marker Size 변경을 player marker scale에만 격리해 Name Size / MiniMap Marker Size 등 unrelated presentation을 건드리지 않도록 했습니다.
-- Mini Scanner 우클릭 `현재 결과 교정` context menu를 제거하면서 좌클릭 드래그, topmost, 결과 표시, 교정 데이터 단축키 계약은 유지했습니다.
-- release identity 문서 형식을 바로잡고 final PR head, exact-main, published EXE smoke, package checksum, 공개 release/tag/assets까지 검증했습니다.
+### Quest
 
-공개 릴리즈와 상세 근거는 다음 문서를 기준으로 합니다.
+- 사용자 증상 자체를 높은 우선순위 회귀 증거로 취급한다.
+- 퀘스트 몇 개를 진행한 뒤 `확인 필요`가 수십 개로 증가하는 이유를 prerequisite/status 계산과 데이터 의미를 기준으로 추적한다.
+- 기존 정상 상태 의미를 바꾸거나 fail-open으로 숨기지 않고 root cause를 수정한다.
 
-- `docs/PROJECT_STATE.json`
-- `docs/CURRENT_STATE.md`
-- `docs/STATE.md`
-- `docs/RELEASE_1.11.4.md`
-- `docs/RELEASE_NOTES_V1.11.4.md`
-- `docs/.release-v1.11.4-status.json`
+### Hideout search clear button
 
-사용자의 실제 PC/Tarkov 환경에서 v1.11.4 최종 실사용 확인은 자동화 검증과 별개이며 `PENDING`입니다. 새 사용자 요구사항, 실제 회귀, 또는 Tarkov 변화가 확인되면 `main`의 현재 stable 상태에서 새 `ACTIVE` 작업을 시작합니다.
+- 첨부 캡처 기준 Hideout 검색창의 `×`만 다른 주요 검색창과 위치가 다르다.
+- 공통 검색 UI 계약에 맞춰 정렬한다.
+
+### 김태영 PC 진단
+
+사용자 확정 흐름:
+
+1. 메인 헤더 좌측 프로필 이미지 클릭.
+2. 팝업에서 김태영 본인인지 확인.
+3. `예`를 누르면 진단 시작.
+4. Scanner/capture 결과에 영향을 줄 수 있는 환경·디스플레이·그래픽·캡처·앱/Scanner 상태를 필요한 범위에서 폭넓게 수집한다.
+5. 진단 결과와 필요한 증거를 ZIP으로 묶어 바탕화면에 생성한다.
+6. 완료 후 `hyune4784@naver.com`으로 ZIP을 보내 달라는 메시지를 표시하고 종료한다.
+
+개발자는 세부 진단 항목, 안전한 개인정보 제외 기준, 파일 구조, 오류 격리, 수집 구현 방식을 결정한다.
+
+## Current step
+
+- 공식 문서/현재 v1.11.4 상태 복구 완료.
+- 새 v1.12.0 작업 브랜치 생성 완료.
+- 관련 Quest prerequisite 계산, 검색창 템플릿, 메인 헤더 프로필 이미지, Scanner/capture/diagnostic subsystem 코드와 테스트를 조사한다.
+
+## Remaining
+
+- Quest root cause 규명 및 결정적 회귀 테스트 작성
+- Hideout clear button 정렬 수정 및 UI 계약 테스트
+- 김태영 PC 진단 설계/구현/테스트
+- 제품/설계/개발자 문서 갱신
+- Desktop version v1.12.0 정렬
+- PR 생성 및 CI
+- Windows published EXE 실제 UI/runtime smoke
+- main 병합 / exact-main CI
+- v1.12.0 공개 릴리즈 및 asset/tag/checksum 검증
