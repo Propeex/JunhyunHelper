@@ -1,7 +1,7 @@
 # 준현 헬퍼 v1.13.2
 
 Date: **2026-08-31 KST**  
-Status: **RELEASE CANDIDATE**
+Status: **PUBLIC STABLE / VERIFIED**
 
 v1.13.2는 v1.13.1 Farming Guide의 실사용 장착·수납·프리셋·내부 정보 UX를 보완하는 PATCH 릴리즈다. 기존 Loadout / Inventory Editor의 제품 의미를 유지하면서 사용자가 보고한 실제 사용 문제와 누락된 interaction을 수정한다.
 
@@ -32,9 +32,9 @@ v1.13.2는 v1.13.1 Farming Guide의 실사용 장착·수납·프리셋·내부 
 - 과거 preset은 current item/grid/filter와 현재 profile의 pocket geometry를 authority로 fail-closed sanitize한다.
 - filled carrier destructive replacement, item dimension, rotation, bounds/overlap/filter 검증 등 기존 v1.13.0/v1.13.1 안전 계약을 유지한다.
 
-## Regression coverage
+## Verification
 
-구현 검증 HEAD `ea73fff8f97eddf6e4411d6b4a85482b59c08344`는 다음을 통과했다.
+최종 PR head `ef4522880218b5e5ec8d8c0a8a3211e0f0c51020`과 exact-main product source `207cb948affc091c4ad67f18d7e4e4382b2f8125`가 동일 release gate를 통과했다.
 
 - **504 passed / 0 failed / 0 skipped** deterministic tests
 - Windows Release build / XAML compile
@@ -44,8 +44,11 @@ v1.13.2는 v1.13.1 Farming Guide의 실사용 장착·수납·프리셋·내부 
 - Shutdown Race CI
 - Documentation Consistency
 - release package/checksum audit
+- public tag/release/assets/latest readback
 
-v1.13.2 버전/배포 메타데이터까지 포함한 최종 release-candidate HEAD는 병합 전에 같은 exact-head gate를 다시 통과해야 한다.
+Public v1.13.2 release source/tag target:
+
+`207cb948affc091c4ad67f18d7e4e4382b2f8125`
 
 ## Preserved non-goals
 

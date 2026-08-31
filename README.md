@@ -4,9 +4,9 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 제품 상태
 
-현재 제품 상태는 **v1.13.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
+현재 제품 상태는 **v1.13.2 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
 
-v1.13.1은 v1.13.0에서 추가된 **파밍 가이드 Loadout / Inventory Editor**의 실사용 UI/drag-drop 회귀를 수정한 PATCH 릴리즈입니다. 새 제품 기능을 추가하지 않고 기존 제품 의미와 계약을 보존하면서, 사용자가 의도한 아이콘 중심 Tarkov 인벤토리형 UI와 실제 drag/drop 동작을 복구했습니다.
+v1.13.2는 Farming Guide의 장비·수납·프리셋·내부 정보 UX를 실사용 기준으로 보완한 PATCH 릴리즈입니다. 기존 raid-start Loadout / Inventory Editor의 제품 의미와 안전 계약은 유지합니다.
 
 공식 프로젝트 기억은 대화가 아니라 저장소 문서와 코드입니다.
 
@@ -20,79 +20,78 @@ v1.13.1은 v1.13.0에서 추가된 **파밍 가이드 Loadout / Inventory Editor
 ## 현재 공개 릴리즈
 
 ```text
-version: v1.13.1
-Desktop target version: 1.13.1
+version: v1.13.2
+Desktop target version: 1.13.2
 exact product release source/tag target:
-302f83e88cc65b5fae9b86b5cae294b2586c85a0
-PR: #243 — MERGED
-validated PR head: 314ce0501c0f680aacb13d2b3c61b20487c4eb15
-PR exact-head CI: 33364597514 — SUCCESS
-PR exact-head Shutdown Race CI: 33364597501 — SUCCESS
-PR exact-head Documentation Consistency: 33364597497 — SUCCESS
-exact-main CI: 33364865109 — SUCCESS
-exact-main Shutdown Race CI: 33364865123 — SUCCESS
-exact-main Documentation Consistency: 33364865134 — SUCCESS
-Release workflow: 33365070880 — SUCCESS
-release id: 379553485
-494 passed / 0 failed / 0 skipped
-published UTC: 2026-08-31T06:39:45Z
+207cb948affc091c4ad67f18d7e4e4382b2f8125
+PR: #245 — MERGED
+validated PR head: ef4522880218b5e5ec8d8c0a8a3211e0f0c51020
+PR exact-head CI: 33373322410 — SUCCESS
+PR exact-head Shutdown Race CI: 33373322440 — SUCCESS
+PR exact-head Documentation Consistency: 33373322395 — SUCCESS
+exact-main CI: 33373612303 — SUCCESS
+exact-main Shutdown Race CI: 33373612281 — SUCCESS
+exact-main Documentation Consistency: 33373612283 — SUCCESS
+Release workflow: 33373940475 — SUCCESS
+release id: 379612102
+504 passed / 0 failed / 0 skipped
+published UTC: 2026-08-31T08:40:02Z
 ```
 
 Public package:
 
 ```text
 Junhyun-Helper.zip
-asset id: 537579591
-bytes: 80,614,695
+asset id: 537701878
+bytes: 80,617,300
 SHA-256:
-d81b6bbcdb02712cb27a549e62cfb8c0d48a8c83f95d7798922474a56e99a737
+659071659531259a61d0996e277bf9643ee9fc4cfa8a0a437b4686994bd38bed
 ```
 
 Checksum asset:
 
 ```text
 SHA256SUMS.txt
-asset id: 537579593
+asset id: 537701880
 bytes: 86
 asset SHA-256:
-14c38f75b70a27d3d6d0ec956404e363dd7d134a6111da3a4b11538a97864e8c
+0ebdc1240c721bf0192b703c77cfd944665f870edb7d79444dfd6181a2a43a19
 ```
 
 Exact-main CI artifact:
 
 ```text
 JunhyunHelper-win-x64
-artifact id: 9747973218
-archive bytes: 241,778,025
+artifact id: 9751114832
+archive bytes: 241,785,937
 archive SHA-256:
-58b38558b33095ddb20ec2e3cdd1ebeea7abb4e9c9c4614ce5d8747927b8e3f6
+c4d146d46856f91f3dd489fe9a5d5eab7906cbcb05fe40dfd3966052872aba84
 ```
 
-GitHub `/releases/latest`, release target, `refs/tags/v1.13.1`, exact-main product source가 모두 `302f83e88cc65b5fae9b86b5cae294b2586c85a0`에 일치합니다. 공개 release는 `draft=false`, `prerelease=false`입니다.
+GitHub `/releases/latest`, release target, `refs/tags/v1.13.2`, exact-main product source가 모두 `207cb948affc091c4ad67f18d7e4e4382b2f8125`에 일치합니다. 공개 release는 `draft=false`, `prerelease=false`입니다.
 
-공식 v1.13.1 공개 기록:
+공식 v1.13.2 공개 기록:
 
-- `docs/RELEASE_1.13.1.md`
-- `docs/RELEASE_NOTES_V1.13.1.md`
-- `docs/.release-v1.13.1-status.json`
+- `docs/RELEASE_1.13.2.md`
+- `docs/RELEASE_NOTES_V1.13.2.md`
+- `docs/.release-v1.13.2-status.json`
 - `docs/DECISION_V1.13.0_FARMING_GUIDE_LOADOUT_EDITOR.md`
 - `docs/ARCHITECTURE_FARMING_GUIDE.md`
 
-후속 documentation-only commit은 v1.13.1 제품 릴리즈 소스가 아닙니다. product source/tag/assets는 위 exact source에 고정된 historical identity입니다.
+후속 documentation-only commit은 v1.13.2 제품 릴리즈 소스가 아닙니다. product source/tag/assets는 위 exact source에 고정된 historical identity입니다.
 
-## v1.13.1 — 파밍 가이드 UI / drag-drop 보완
+## v1.13.2 — Farming Guide 장비·수납·프리셋 보완
 
-v1.13.1에서 v1.13.0의 제품 의미를 유지하면서 다음 실사용 회귀를 바로잡았습니다.
-
-- 장비 영역을 텍스트 목록형에서 **아이콘 중심의 Tarkov 인벤토리 유사 슬롯 UI**로 재구성
-- 장착 장비, Rig / Backpack / Secure Container, storage grid 배치 item을 실제 item icon으로 표시
-- drag ghost를 item text가 아닌 실제 item icon으로 표시
-- `R` 회전 시 비정사각형 item icon도 회전된 footprint에 맞게 표시
-- WPF mouse capture 중 장비/carrier target을 놓치던 drag/drop 판정 보강
-- ScrollViewer로 잘린 offscreen target을 geometry fallback이 잘못 선택하지 않도록 visible bounds 검증
-- mouse-up 실제 좌표에서 drop 판정을 재계산
-- valid/invalid 초록·빨강 hover border가 pointer 이동 후 남지 않도록 cleanup
-- 프리셋 저장 아이콘과 검색창 입력 텍스트 clipping 수정
+- 권총/리볼버/handgun 계열은 전용 Holster 슬롯에 장착하고 Primary Weapon 1/2에서는 제외합니다.
+- 방탄복, 리그, 가방, 보안 컨테이너 장착 판정을 current Tarkov canonical type/category 의미로 보강했습니다.
+- 활성 프로필의 edition 및 Old Patterns 완료 상태를 사용해 실제 주머니 구조를 결정합니다.
+  - 일반: `1×1 / 1×1 / 1×1 / 1×1`
+  - 확장: `1×1 / 1×2 / 1×2 / 1×1`
+- 수납 순서는 `Rig → Pockets + Special Slots → Backpack → Secure Container`이며 Pockets와 Special Slots는 좌우로 배치됩니다.
+- 장착 장비와 검색 결과를 더블클릭하면 current Tarkov data의 storage grid, attachment slot, armor plate 구조를 확인할 수 있습니다.
+- 선택한 프리셋 삭제 기능을 추가했습니다. 삭제해도 현재 working loadout은 유지합니다.
+- 프리셋 이름 입력 창의 DPI/theme 하단 clipping을 수정했습니다.
+- 근접무기와 PMC 인식표의 fixed-setting lifecycle은 유지하면서 화면의 `고정` 문구만 제거했습니다.
 
 ## 파밍 가이드 제품 의미
 
@@ -178,7 +177,7 @@ Runtime GPT/AI 의존성은 없습니다.
 ## Schema / compatibility
 
 ```text
-Desktop target version: 1.13.1
+Desktop target version: 1.13.2
 Content schema write: v9
 Readable Content schemas: v3~v9
 user.db schema: v1
@@ -188,10 +187,10 @@ Scanner catalog cache write: v4
 Scanner catalog readable: v1~v4
 ```
 
-v1.13.0 → v1.13.1에는 mandatory user data migration이 없습니다.
+v1.13.1 → v1.13.2에는 mandatory user data migration이 없습니다.
 
 ## 검증
 
-v1.13.1 exact product source `302f83e88cc65b5fae9b86b5cae294b2586c85a0`은 494 deterministic tests, Windows Release build, Windows x64 self-contained publish, actual published EXE Product UI / Farming Guide / Map smoke, graceful shutdown, active-async Shutdown Race, package/checksum audit, exact-main Documentation Consistency, artifact upload, verified Release workflow, public tag/release/assets/latest-stable readback을 통과했습니다.
+v1.13.2 exact product source `207cb948affc091c4ad67f18d7e4e4382b2f8125`은 504 deterministic tests, Windows Release build, Windows x64 self-contained publish, actual published EXE Product UI / Farming Guide / Map smoke, graceful shutdown, active-async Shutdown Race, package/checksum audit, exact-main Documentation Consistency, artifact upload, verified Release workflow, public tag/release/assets/latest-stable readback을 통과했습니다.
 
-사용자의 실제 PC/Tarkov v1.13.1 최종 실사용 확인과 김태영 실제 PC diagnostic ZIP의 수집·분석은 자동화 검증과 별개이며 현재 `PENDING`입니다.
+사용자의 실제 PC/Tarkov v1.13.2 최종 실사용 확인과 김태영 실제 PC diagnostic ZIP의 수집·분석은 자동화 검증과 별개이며 현재 `PENDING`입니다.

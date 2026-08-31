@@ -3,7 +3,7 @@
 이 문서는 준현 헬퍼의 **무엇을 만들고 왜 만드는지**를 정의하는 canonical 제품 요구사항이다. 사용자가 현재 대화에서 새로 확정한 제품 의도가 기존 구현보다 우선한다. 현재 코드가 존재한다는 이유만으로 그 동작을 제품 요구사항으로 추정하지 않는다.
 
 기준일: **2026-08-31 KST**  
-상태: **v1.13.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+상태: **v1.13.2 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 정확한 release SHA, asset, CI와 현재 schema 사실값은 `docs/PROJECT_STATE.json`, `docs/CURRENT_STATE.md`, `docs/STATE.md`를 사용한다.
 
@@ -289,7 +289,7 @@ Canonical specialist document는 `docs/SCANNER.md`다.
 
 ## 14. Farming Guide
 
-v1.13.0에서 Scanner 오른쪽에 `파밍 가이드` first-class section을 추가했다. v1.13.1에서 실사용 UI/drag-drop 회귀를 수정했고, v1.13.2에서 장착·주머니·프리셋·내부 정보 interaction 계약을 보완한다.
+v1.13.0에서 Scanner 오른쪽에 `파밍 가이드` first-class section을 추가했다. v1.13.1에서 아이콘 중심 UI와 drag/drop 실사용 회귀를 수정했고, v1.13.2에서 장비 호환성·프로필별 주머니·프리셋 삭제·내부 구조 확인 UX를 보완했다.
 
 제품 의미:
 
@@ -297,7 +297,7 @@ v1.13.0에서 Scanner 오른쪽에 `파밍 가이드` first-class section을 추
 
 ### 포함 기능
 
-- 헤드셋, 헬멧/headwear, face/eyewear, armor/armored rig, armband, primary weapon, sidearm/Holster 등 장비 구성
+- 헤드셋, 헬멧/headwear, face/eyewear, armor/armored rig, armband, primary weapon, Holster sidearm 등 장비 구성
 - Pocket / Rig / Backpack / Secure Container / Special Slot 표현
 - current Tarkov `width × height` footprint
 - 검색 결과 기반 drag-and-drop
@@ -312,31 +312,53 @@ v1.13.0에서 Scanner 오른쪽에 `파밍 가이드` first-class section을 추
 - filled carrier destructive replacement fail-closed
 - old preset이 current Tarkov grid/filter/profile pocket geometry와 충돌하면 impossible placement를 복원하지 않음
 
-### 장착 / 주머니 계약
+### v1.13.2 equipment / pocket 계약
 
-- pistol / revolver / handgun 계열은 **Holster 전용**으로 취급하며 Primary Weapon 1/2에 넣지 않는다.
-- body armor / rig / backpack / secure container는 current item `propertiesType`과 canonical type/category 의미를 함께 사용해 호환성을 판정한다.
-- Rig / Backpack / Secure Container는 equipment slot과 별도 carrier aggregate지만 동일 drag/drop surface에서 장착한다.
-- Pocket geometry는 활성 profile의 edition과 Old Patterns 완료 사실을 사용한다.
-  - standard: `1×1 / 1×1 / 1×1 / 1×1`
-  - expanded: `1×1 / 1×2 / 1×2 / 1×1`
-- resolved pocket geometry는 화면과 persisted placement validation에서 동일한 authority다.
+- pistol / revolver / handgun 계열은 Holster target이다.
+- pistol 계열을 PrimaryWeapon1/2 generic weapon으로 받아들이지 않는다.
+- body armor / rig / backpack / secure container 판정은 current `propertiesType`과 canonical type/category 의미를 함께 사용한다.
+- pocket geometry는 active profile edition 및 current product가 증명한 Old Patterns 완료 상태로 resolve한다.
+
+```text
+standard: 1×1 / 1×1 / 1×1 / 1×1
+expanded: 1×1 / 1×2 / 1×2 / 1×1
+```
+
+Resolved pocket geometry는 presentation, placement, persisted-state sanitization에서 동일하게 사용한다.
+
+Storage canonical order:
+
+```text
+Rig
+Pockets (left) + Special Slots (right)
+Backpack
+Secure Container
+```
+
+### Preset / fixed equipment 계약
+
+- 선택 preset 삭제 시 saved preset만 제거한다.
+- 현재 working loadout은 유지한다.
+- 삭제한 preset이 selected 상태였다면 selected preset identity만 해제한다.
+- melee / PMC dogtag fixed lifecycle은 preset과 분리한다.
+- fixed behavior를 UI의 별도 `고정` 텍스트로 반복 표시하지 않는다.
+
+### Internal structure inspect 계약
+
+- equipped item double-click은 current structure를 연다.
+- editable attachment / replaceable armor structure는 기존 설정 기능을 유지한다.
+- locked armor structure도 읽기 전용으로 표시한다.
+- rig/backpack/secure container는 actual storage grids를 표시한다.
+- search result double-click은 동일 structure를 read-only로 확인할 수 있다.
 
 ### Presentation / interaction 계약
 
 - 장비/수납 surface는 text list가 아니라 **아이콘 중심 Tarkov 인벤토리 유사 layout**을 사용한다.
 - equipped item, carrier, storage placement, drag ghost는 실제 item icon으로 표현한다.
 - 회전 상태는 footprint뿐 아니라 icon presentation에도 일관되게 반영한다.
-- 수납 영역은 `Rig → Pockets + Special Slots → Backpack → Secure Container` 순서를 사용한다.
-- Pockets와 Special Slots는 같은 행에서 각각 왼쪽/오른쪽에 표시한다.
-- 장착 장비/수납 아이템을 더블클릭하면 current storage grid / attachment / armor slot 구조를 확인한다.
-- 검색 결과도 더블클릭하면 장착 전에 같은 내부 구조를 read-only로 확인할 수 있다.
-- editable attachment/armor slot이 있는 장비는 기존 설정 기능을 유지한다.
-- preset 삭제는 preset identity를 제거하되 current working loadout을 폐기하지 않는다.
-- melee / PMC dogtag fixed lifecycle은 유지하지만 UI에 `고정` 문구를 붙이지 않는다.
 - 화면 밖으로 clip된 drop target을 geometry fallback으로 선택하지 않는다.
 - valid/invalid hover presentation은 transient하며 pointer가 벗어나면 원복한다.
-- save/search/preset-name 기본 control은 정상 WPF/DPI layout에서 text/icon/button clipping이 없어야 한다.
+- save/search/preset-name 기본 control은 정상 WPF layout에서 text/icon/button clipping이 없어야 한다.
 
 ### 현재 비포함
 
@@ -366,7 +388,7 @@ Farming Guide는 향후 recommendation engine의 입력 기반이 될 수 있지
 schema v1
 ```
 
-Game Content item structure 확장:
+Game Content item structure:
 
 ```text
 Content write schema: v9
