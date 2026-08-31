@@ -162,7 +162,8 @@ public partial class FarmingGuidePage
         }
 
         var session = ActiveDrag;
-        var probe = CurrentDropProbe;
+        var releasePoint = e.GetPosition(RootGrid);
+        var probe = ProbeDrop(releasePoint, session);
         if (probe?.Valid == true)
         {
             var fixedOnlyChange = session.FixedEquipment ||
@@ -171,7 +172,7 @@ public partial class FarmingGuidePage
             ApplyDrop(session, probe);
             MarkChanged(fixedOnlyChange);
         }
-        else if (session.Origin != DragOriginKind.Search && IsClearlyOutsideDropArea(e.GetPosition(RootGrid)))
+        else if (session.Origin != DragOriginKind.Search && IsClearlyOutsideDropArea(releasePoint))
         {
             RemoveOrigin(session, destructiveCarrierRemoval: true);
             MarkChanged(session.FixedEquipment);
@@ -495,28 +496,56 @@ public partial class FarmingGuidePage
         object? candidate = null;
         foreach (var element in FindVisualChildren<FrameworkElement>(RootGrid))
         {
-            if (!element.IsVisible || element.Tag is not (EquipmentDropTarget or CarrierDropTarget or GridDropTarget))
-                continue;
-
-            Point origin;
-            try
-            {
-                origin = element.TranslatePoint(new Point(0, 0), RootGrid);
-            }
-            catch (InvalidOperationException)
+            if (element.Tag is not (EquipmentDropTarget or CarrierDropTarget or GridDropTarget) ||
+                !IsPointWithinVisibleBounds(element, rootPoint))
             {
                 continue;
             }
-
-            var bounds = new Rect(origin, new Size(element.ActualWidth, element.ActualHeight));
-            if (!bounds.Contains(rootPoint))
-                continue;
 
             if (element.Tag is GridDropTarget)
                 return element.Tag;
             candidate ??= element.Tag;
         }
         return candidate;
+    }
+
+    private bool IsPointWithinVisibleBounds(FrameworkElement element, Point rootPoint)
+    {
+        DependencyObject? current = element;
+        while (current is not null && !ReferenceEquals(current, RootGrid))
+        {
+            if (current is FrameworkElement framework)
+            {
+                if (!framework.IsVisible || framework.ActualWidth <= 0 || framework.ActualHeight <= 0)
+                    return false;
+
+                var clipsDescendants = ReferenceEquals(framework, element) ||
+                                       framework.ClipToBounds ||
+                                       framework is ScrollViewer or ScrollContentPresenter;
+                if (clipsDescendants)
+                {
+                    Point origin;
+                    try
+                    {
+                        origin = framework.TranslatePoint(new Point(0, 0), RootGrid);
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        return false;
+                    }
+
+                    var visibleBounds = new Rect(
+                        origin,
+                        new Size(framework.ActualWidth, framework.ActualHeight));
+                    if (!visibleBounds.Contains(rootPoint))
+                        return false;
+                }
+            }
+
+            current = VisualTreeHelper.GetParent(current);
+        }
+
+        return current is not null;
     }
 
     private object? FindTaggedAncestor(DependencyObject? current)
@@ -534,8 +563,12 @@ public partial class FarmingGuidePage
     {
         foreach (var canvas in FindVisualChildren<Canvas>(StoragePanel))
         {
-            if (canvas.Tag is not GridDropTarget target || !canvas.IsVisible)
+            if (canvas.Tag is not GridDropTarget target ||
+                !IsPointWithinVisibleBounds(canvas, rootPoint))
+            {
                 continue;
+            }
+
             var origin = canvas.TranslatePoint(new Point(0, 0), RootGrid);
             var bounds = new Rect(origin, new Size(canvas.ActualWidth, canvas.ActualHeight));
             bounds.Inflate(tolerance, tolerance);
