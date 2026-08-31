@@ -1,6 +1,7 @@
 using JunhyunHelper.Core.Ammo;
 using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.Editions;
+using JunhyunHelper.Core.FarmingGuide;
 using JunhyunHelper.Core.Hideout;
 using JunhyunHelper.Core.Items;
 using JunhyunHelper.Core.Profiles;
@@ -39,7 +40,14 @@ public sealed class ContentSnapshotStoreTests
 
             Assert.Equal(ContentSnapshotStore.CurrentSchemaVersion, loaded.SchemaVersion);
             Assert.Equal(GameMode.Regular, loaded.GameMode);
-            Assert.Equal("item-a", Assert.Single(loaded.Content.Items).Id);
+            var loadedItem = Assert.Single(loaded.Content.Items);
+            Assert.Equal("item-a", loadedItem.Id);
+            var farmingGuide = Assert.NotNull(loadedItem.FarmingGuideData);
+            Assert.Equal("ItemPropertiesBackpack", farmingGuide.PropertiesType);
+            var grid = Assert.Single(farmingGuide.StorageGrids);
+            Assert.Equal(2, grid.Width);
+            Assert.Equal(3, grid.Height);
+            Assert.Contains("allowed-item", grid.Filters.AllowedItemIds);
 
             var quest = Assert.Single(loaded.Content.Quests);
             Assert.Equal("quest-a", quest.Id);
@@ -82,7 +90,27 @@ public sealed class ContentSnapshotStoreTests
                     null,
                     null,
                     null,
-                    Array.Empty<string>()),
+                    Array.Empty<string>())
+                {
+                    FarmingGuideData = new FarmingGuideItemLayout(
+                        "ItemPropertiesBackpack",
+                        [
+                            new FarmingGuideStorageGridDefinition(
+                                2,
+                                3,
+                                new FarmingGuideItemFilter(
+                                    [],
+                                    ["allowed-item"],
+                                    [],
+                                    [])),
+                        ],
+                        [],
+                        [],
+                        [],
+                        [],
+                        false,
+                        false),
+                },
             },
             new[] { new TraderDefinition("trader-a", "상인 A", "Trader A") },
             new[] { new MapReference("map-a", "맵 A", "Map A", "map-a") },
