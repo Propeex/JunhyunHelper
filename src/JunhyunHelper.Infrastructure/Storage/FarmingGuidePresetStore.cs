@@ -128,6 +128,42 @@ public sealed class FarmingGuidePresetStore
         }
     }
 
+    public FarmingGuideProfileState DeletePreset(string profileId, string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        var normalizedName = name.Trim();
+        lock (_gate)
+        {
+            var document = LoadDocument();
+            var previous = document.Profiles.TryGetValue(profileId, out var profile)
+                ? profile
+                : EmptyProfile();
+            var presets = previous.Presets
+                .Where(preset => !string.Equals(preset.Name, normalizedName, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            if (presets.Length == previous.Presets.Count)
+                return previous;
+
+            var selectedPresetName = string.Equals(
+                previous.SelectedPresetName,
+                normalizedName,
+                StringComparison.OrdinalIgnoreCase)
+                ? null
+                : previous.SelectedPresetName;
+            var updated = previous with
+            {
+                SelectedPresetName = selectedPresetName,
+                Presets = presets,
+            };
+            var profiles = CopyProfiles(document.Profiles);
+            profiles[profileId] = updated;
+            SaveDocument(document with { Profiles = profiles });
+            return updated;
+        }
+    }
+
     public void SaveFixedEquipment(FarmingGuideFixedEquipmentState fixedEquipment)
     {
         ArgumentNullException.ThrowIfNull(fixedEquipment);
