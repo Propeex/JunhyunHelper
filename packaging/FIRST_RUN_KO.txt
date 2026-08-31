@@ -1,10 +1,15 @@
-준현 헬퍼 v1.11.4 — Windows x64
+준현 헬퍼 v1.12.0 — Windows x64
 
 실행 방법
 1. 받은 'Junhyun-Helper.zip'을 원하는 위치에 압축 해제합니다.
 2. 압축을 풀면 생성되는 '준현 헬퍼' 폴더 안의 '준현 헬퍼.exe'를 실행합니다.
 3. 처음 실행하면 프로필을 만들고 필요한 최신 게임 데이터를 온라인에서 내려받습니다.
 4. 프로그램 실행 시 GitHub의 최신 정식 준현 헬퍼 릴리즈를 확인합니다. 더 최신 버전이 있으면 업데이트 여부를 묻습니다.
+
+v1.12.0 Quest 선행조건 / 검색 UI / 김태영 PC 진단
+- Trader Loyalty Level이 이미 다음 단계로 올라간 뒤 과거 side-task pool 48개가 한꺼번에 `확인 필요`로 바뀌던 Quest 선행조건 회귀를 수정했습니다. 현재 게임의 단계형 task-pool 규칙과 다음 Trader LL 도달 시 다음 그룹이 열리는 동작을 함께 반영합니다.
+- 은신처 검색창의 `×`가 다른 검색창보다 아래에 보이던 위치 오차를 수정했습니다.
+- 메인 좌측 상단 프로필 이미지를 클릭하면 `김태영 PC 진단`을 실행할 수 있습니다. 본인 확인 후 디스플레이/GPU/HDR/드라이버/Scanner·캡처 관련 상태와 비교 화면을 로컬 ZIP으로 수집하며 자동 전송하지 않습니다. 완료되면 바탕화면 ZIP을 지정된 이메일로 보내 달라고 안내합니다.
 
 v1.11.4 MiniMap 마커 lifecycle / Mini Scanner 우클릭 수정
 - Main Map에서 지도를 바꾼 뒤 MiniMap을 처음 켜도 이전 지도가 잠깐 보이지 않고 현재 선택한 지도를 첫 생성부터 사용합니다.
@@ -43,4 +48,4 @@ v1.11.0 Scanner / Map 유지보수 및 탄약 판단
 - docs/CURRENT_STATE.md
 - docs/STATE.md
 - docs/DECISIONS.md
-- docs/RELEASE_NOTES_V1.11.4.md
+- docs/RELEASE_NOTES_V1.12.0.md

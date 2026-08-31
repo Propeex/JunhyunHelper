@@ -47,7 +47,10 @@
                            Width="28" Height="28"
                            Stretch="UniformToFill"
                            VerticalAlignment="Center"
-                           Margin="0,0,9,0" />
+                           Margin="0,0,9,0"
+                           Cursor="Hand"
+                           ToolTip="김태영 PC 진단"
+                           MouseLeftButtonUp="AppIcon_MouseLeftButtonUp" />
                     <TextBlock Text="준현 헬퍼" FontSize="20" FontWeight="Bold"
                                Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" />
                 </StackPanel>

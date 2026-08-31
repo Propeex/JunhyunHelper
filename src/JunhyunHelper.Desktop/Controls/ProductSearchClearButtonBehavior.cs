@@ -50,6 +50,11 @@ internal static class ProductSearchClearButtonBehavior
             Math.Max(originalPadding.Right, 32),
             originalPadding.Bottom);
 
+        // The button is a sibling overlay in the parent Grid, not a child of the
+        // TextBox. Mirror every outer TextBox margin so the glyph is centered against
+        // the actual input rectangle. Hideout carries its row spacing on SearchBox
+        // itself, while the other product searches place spacing on their container;
+        // ignoring Top/Bottom previously made Hideout's × appear vertically displaced.
         var clearButton = new Button
         {
             Content = "×",
@@ -58,7 +63,11 @@ internal static class ProductSearchClearButtonBehavior
             MinWidth = 0,
             MinHeight = 0,
             Padding = new Thickness(0),
-            Margin = new Thickness(0, 0, Math.Max(4, searchBox.Margin.Right + 4), 0),
+            Margin = new Thickness(
+                searchBox.Margin.Left,
+                searchBox.Margin.Top,
+                Math.Max(4, searchBox.Margin.Right + 4),
+                searchBox.Margin.Bottom),
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Center,
             Visibility = string.IsNullOrEmpty(searchBox.Text) ? Visibility.Collapsed : Visibility.Visible,
