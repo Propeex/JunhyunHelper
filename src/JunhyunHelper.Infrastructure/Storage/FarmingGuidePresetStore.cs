@@ -61,13 +61,11 @@ public sealed class FarmingGuidePresetStore
             var previous = document.Profiles.TryGetValue(profileId, out var profile)
                 ? profile
                 : EmptyProfile();
-            var profiles = new Dictionary<string, FarmingGuideProfileState>(document.Profiles, StringComparer.Ordinal)
+            var profiles = CopyProfiles(document.Profiles);
+            profiles[profileId] = previous with
             {
-                [profileId] = previous with
-                {
-                    WorkingSnapshot = snapshot,
-                    SelectedPresetName = selectedPresetName,
-                },
+                WorkingSnapshot = snapshot,
+                SelectedPresetName = selectedPresetName,
             };
             SaveDocument(document with { Profiles = profiles });
         }
@@ -95,10 +93,8 @@ public sealed class FarmingGuidePresetStore
                 .OrderBy(preset => preset.Name, StringComparer.CurrentCultureIgnoreCase)
                 .ToArray();
             var updated = new FarmingGuideProfileState(snapshot, normalizedName, presets);
-            var profiles = new Dictionary<string, FarmingGuideProfileState>(document.Profiles, StringComparer.Ordinal)
-            {
-                [profileId] = updated,
-            };
+            var profiles = CopyProfiles(document.Profiles);
+            profiles[profileId] = updated;
             SaveDocument(document with { Profiles = profiles });
             return updated;
         }
@@ -125,10 +121,8 @@ public sealed class FarmingGuidePresetStore
                 WorkingSnapshot = preset.Snapshot,
                 SelectedPresetName = preset.Name,
             };
-            var profiles = new Dictionary<string, FarmingGuideProfileState>(document.Profiles, StringComparer.Ordinal)
-            {
-                [profileId] = updated,
-            };
+            var profiles = CopyProfiles(document.Profiles);
+            profiles[profileId] = updated;
             SaveDocument(document with { Profiles = profiles });
             return updated;
         }
@@ -156,6 +150,13 @@ public sealed class FarmingGuidePresetStore
 
     private void SaveDocument(FarmingGuideDocument document) =>
         _store.Save(document with { SchemaVersion = CurrentSchemaVersion }, JsonOptions);
+
+    private static Dictionary<string, FarmingGuideProfileState> CopyProfiles(
+        IReadOnlyDictionary<string, FarmingGuideProfileState> source) =>
+        source.ToDictionary(
+            entry => entry.Key,
+            entry => entry.Value,
+            StringComparer.Ordinal);
 
     private static FarmingGuideProfileState EmptyProfile() =>
         new(FarmingGuideLoadoutSnapshot.Empty, null, []);
