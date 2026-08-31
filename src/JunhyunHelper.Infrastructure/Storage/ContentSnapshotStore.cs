@@ -18,13 +18,14 @@ public sealed record StoredContentSnapshot(
 
 public sealed class ContentSnapshotStore
 {
-    // v3-v8 remain readable as last-known-good offline snapshots. v8 added canonical
-    // all-item craft/barter/trader/flea relationships for the Scanner item database.
-    // v9 adds optional Tarkov equipment/storage grid, attachment slot, armor slot and
-    // conflict metadata used by Farming Guide. Older readable snapshots remain usable
-    // while offline; missing optional fields simply disable the affected structural UI.
+    // v3-v9 remain readable as last-known-good offline snapshots. v9 added canonical
+    // Tarkov equipment/storage grid, attachment slot, armor slot and conflict metadata.
+    // v10 adds optional source-backed assembly metadata (composed/grid images, default
+    // preset identity and preset contained-item ids) used by Farming Guide v1.14.0.
+    // Older readable snapshots remain usable while offline; missing optional fields
+    // simply disable the affected assembly visual/default-preset enhancement.
     public const int MinimumReadableSchemaVersion = 3;
-    public const int CurrentSchemaVersion = 9;
+    public const int CurrentSchemaVersion = 10;
 
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
 
