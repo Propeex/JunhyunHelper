@@ -15,7 +15,8 @@ public stable: v1.11.3
 exact v1.11.3 product source: 043abad38f4c3ebc9101463a162614ef67df7536
 working branch: fix/v1.11.4-minimap-lifecycle-miniscanner-2026-08-31
 target version: v1.11.4 (PATCH maintenance)
-baseline deterministic suite: 474 tests
+current deterministic suite: 478 tests
+draft PR: #235
 ```
 
 ## Confirmed scope
@@ -24,42 +25,74 @@ baseline deterministic suite: 474 tests
    - Main Map에서 A → B로 바꾼 뒤 MiniMap을 처음 켰을 때 이전 A가 아니라 현재 B를 첫 visible frame부터 표시한다.
    - 이미 열린/reused MiniMap뿐 아니라 아직 MiniMap window가 한 번도 생성되지 않은 first-create path를 검증한다.
 
-2. Player Marker Size 변경 시 다른 Map/MiniMap presentation 보존
-   - Player Marker Size를 바꿔도 사용자가 설정한 Name Size와 MiniMap Marker Size의 실제 렌더링이 초기값처럼 되돌아가지 않는다.
-   - UI 값만 남고 실제 표시만 달라지는 상태를 허용하지 않는다.
+2. MiniMap extract / general marker 전체 점검
+   - PMC / Scav / Transit extract marker filter와 실제 rendered marker를 검증한다.
+   - Transit은 checkbox state만 보지 않고 packaged data의 실제 Transit grouped extract 수와 MiniMap rendered Transit marker 수가 일치해야 한다.
+   - standard marker layer가 async refresh cancellation timing으로 비어도 사용자 재열기/toggle 없이 자동 복구한다.
 
-3. MiniMap marker blink/disappear 회귀
-   - marker가 잠깐 나타난 뒤 전부 사라지는 lifecycle/refresh race의 root cause를 수정한다.
-   - MiniMap 재열기 또는 marker toggle을 사용자가 수동 복구할 필요가 없어야 한다.
+3. Player Marker Size 변경 시 다른 presentation 보존
+   - Player Marker Size를 바꿔도 사용자가 설정한 Name Size와 MiniMap Marker Size의 실제 렌더링이 초기값처럼 되돌아가지 않는다.
+   - player marker 변경은 MiniMap 전체 view refresh를 거치지 않고 player marker scale에만 적용한다.
 
 4. Mini Scanner right-click menu 제거
-   - Mini Scanner 우클릭 시 현재 표시되는 `현재 결과 교정` context menu를 더 이상 표시하지 않는다.
+   - Mini Scanner 우클릭 시 `현재 결과 교정` context menu를 더 이상 표시하지 않는다.
    - Mini Scanner의 left-drag, topmost, 결과 표시 및 교정 데이터 단축키 계약은 유지한다.
 
-## Current findings
+## Root cause / implementation
 
-- Mini Scanner menu는 `MiniScannerWindow.xaml`의 `DragSurface`에 직접 선언된 `Border.ContextMenu`이며 `MiniScannerWindow.Correction.cs`의 modal correction handler를 호출한다. 제품 요구사항상 해당 context menu 전체를 제거할 수 있다.
-- MiniMap에는 v1.11.3에서 map selection bridge와 reused-window A→B smoke가 이미 존재하지만, 사용자가 보고한 exact first-create path는 runtime smoke가 직접 검증하지 않는다.
-- donor MiniMap marker refresh는 refresh 시작 시 visible marker containers를 먼저 clear한 뒤 async load를 수행한다. 이후 refresh cancellation/reentry가 발생하면 빈 layer가 남을 수 있는 구조이며 현재 product recovery timer는 사후 복구 방식이다. 실제 trigger/cancellation 경로를 추가 추적해 root cause 수준에서 수정한다.
-- Player Marker Size 변경은 donor `UpdateMapView()`를 호출하며 product reapply bridge가 존재하지만 실사용에서 Name/marker presentation reset이 남아 있어 비동기 후속 render/event 순서를 추가 감사한다.
+- Main Map selection handler가 `ContextIdle` sync만 예약해 fresh MiniMap creation이 같은 input turn에 stale tracker map을 읽을 수 있었다. SelectionChanged에서 synchronous `SynchronizeCore()`를 먼저 실행하고 queued reconciliation도 유지했다.
+- donor standard marker refresh는 live layer를 먼저 clear한 뒤 async work를 수행한다. 후속 refresh가 해당 work를 cancel하면 empty layer가 남을 수 있다. 표시 대상 marker가 이미 로드되어 있는데 layer만 일정 시간 비면 another refresh를 시작하지 않고 loaded `MapMarkerDbService` data에서 standard layer를 직접 재구성한다.
+- Player Marker Size는 donor whole-view update를 사용하지 않고 `PlayerMarkerScale`만 직접 변경하는 product-owned isolated path로 분리했다.
+- Mini Scanner의 XAML `Border.ContextMenu`와 전용 modal correction partial을 제거했다.
 
-## Completed
+## Completed verification
 
-- v1.11.3 stable / exact product source / main / 474-test baseline 복구.
-- 사용자 요구사항 4건을 v1.11.4 maintenance scope로 확정.
-- 작업 branch 생성.
-- Mini Scanner context-menu root cause 확인.
-- existing MiniMap first-create/reuse synchronization, player-marker reapply, marker-recovery 경로 1차 audit.
+Strong runtime candidate head before release identity bump:
+
+```text
+2b75579411c8c8aeab804213342206e3c913a9be
+CI: 33344938066 SUCCESS
+Shutdown Race CI: 33344938060 SUCCESS
+Documentation Consistency: 33344938059 SUCCESS
+478/478 deterministic tests PASS
+Release build PASS
+Windows x64 self-contained publish PASS
+actual published EXE smoke PASS
+graceful shutdown PASS
+release package audit PASS
+artifact upload PASS
+```
+
+Actual published EXE smoke evidence included:
+
+```text
+first-minimap-creation-boundary=ok
+actual-transit-marker-render=ok
+player-marker-size-isolated=ok
+standard-marker-direct-recovery=ok
+mini-scanner-context-menu=none
+main-map-selection-boundary=ok
+active-minimap-map-sync=ok
+reused-minimap-show-boundary=ok
+rendered-minimap-map-sync=ok
+```
+
+## Release identity progress
+
+- Desktop version bumped to **1.11.4**.
+- `packaging/FIRST_RUN_KO.txt` first line and maintenance summary updated to v1.11.4.
+- `docs/RELEASE_NOTES_V1.11.4.md` created.
+- schemas and pinned Map donor remain unchanged from v1.11.3.
 
 ## Current step
 
-MiniMap first-create lifecycle, marker async refresh cancellation path, Player Marker Size 후속 render 순서를 끝까지 추적하고 deterministic/runtime regression을 설계한 뒤 구현한다.
+Run the complete gate again on the final v1.11.4 exact PR head containing release identity and release notes, then convert/recreate the PR as Ready if necessary.
 
 ## Remaining
 
-- root cause audit 완료 및 구현.
-- deterministic regression + published EXE smoke 보강.
-- v1.11.4 release identity/release notes 갱신.
-- PR / Windows Release build / tests / publish / Product UI + Map + MiniMap + Scanner smoke / shutdown / package 검증.
-- main 병합 / exact-main 검증 / automatic stable release / public tag/assets readback.
-- release-state docs finalization 및 ACTIVE_WORK 종료.
+- final exact-head CI / Shutdown Race / Documentation Consistency and actual published EXE smoke.
+- ready PR / main merge.
+- exact-main validation and exact-main release artifact verification.
+- automatic v1.11.4 stable release.
+- public latest release / tag / `Junhyun-Helper.zip` / `SHA256SUMS.txt` readback and digest verification.
+- release-state docs finalization, documentation-only main validation, and `ACTIVE_WORK: NONE` closure.
