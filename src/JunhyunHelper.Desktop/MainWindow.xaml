@@ -128,6 +128,25 @@
 
             <Button x:Name="CreateProfileButton" Visibility="Collapsed" IsHitTestVisible="False" />
 
+            <Grid x:Name="KimTaeyoungDiagnosticProgressOverlay"
+                  Visibility="Collapsed"
+                  Background="#78000000"
+                  Panel.ZIndex="110">
+                <Border Width="420"
+                        Background="{StaticResource BackgroundMediumBrush}"
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="12"
+                        Padding="24"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                    <ProgressBar Height="10"
+                                 IsIndeterminate="True"
+                                 Background="{StaticResource BackgroundDarkBrush}"
+                                 Foreground="{StaticResource AccentBrush}" />
+                </Border>
+            </Grid>
+
             <Grid x:Name="UpdateProgressOverlay"
                   Visibility="Collapsed"
                   Background="#78000000"
