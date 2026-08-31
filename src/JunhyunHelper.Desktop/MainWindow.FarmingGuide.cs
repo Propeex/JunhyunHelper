@@ -20,7 +20,10 @@ public partial class MainWindow
         if (_farmingGuideConfigured)
             return;
 
-        FarmingGuidePage.Configure(_services.Images, _services.FarmingGuide);
+        FarmingGuidePage.Configure(
+            _services.Images,
+            _services.FarmingGuide,
+            () => _activeProfile);
         _farmingGuideConfigured = true;
     }
 }
