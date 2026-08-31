@@ -18,12 +18,13 @@ public sealed record StoredContentSnapshot(
 
 public sealed class ContentSnapshotStore
 {
-    // v3-v7 remain readable as last-known-good offline snapshots. v8 adds canonical
+    // v3-v8 remain readable as last-known-good offline snapshots. v8 added canonical
     // all-item craft/barter/trader/flea relationships for the Scanner item database.
-    // Older readable snapshots remain usable while offline; ItemRelationshipData stays
-    // null so presentation can distinguish "not collected yet" from a real empty graph.
+    // v9 adds optional Tarkov equipment/storage grid, attachment slot, armor slot and
+    // conflict metadata used by Farming Guide. Older readable snapshots remain usable
+    // while offline; missing optional fields simply disable the affected structural UI.
     public const int MinimumReadableSchemaVersion = 3;
-    public const int CurrentSchemaVersion = 8;
+    public const int CurrentSchemaVersion = 9;
 
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
 
@@ -165,9 +166,6 @@ public sealed class ContentSnapshotStore
             };
         }
 
-        // Dialogue compatibility is an interpretation fix, not a storage-shape change.
-        // Apply it to every readable snapshot in memory so upgrading the application does
-        // not force a network refresh or rewrite the user's last-known-good content DB.
         content = content with
         {
             Quests = TarkovDialogueAvailabilityCompatibility.Apply(content.Quests),

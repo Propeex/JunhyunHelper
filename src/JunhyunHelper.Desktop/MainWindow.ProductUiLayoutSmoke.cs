@@ -19,6 +19,7 @@ public partial class MainWindow
         VerifyFlexibleCandidateRenderedLayout();
         VerifyAmmoRenderedControls();
         VerifyScannerRenderedControls();
+        VerifyFarmingGuideRenderedControls();
         await VerifyScannerAdvancedRenderedLayoutAsync();
         await VerifyQuestSidebarRenderedLayoutAsync();
     }
@@ -231,6 +232,74 @@ public partial class MainWindow
             throw new InvalidOperationException("Scanner internal log retention cleanup failed.");
 
         VerifyScannerDiagnosticExportOverlay();
+    }
+
+    private void VerifyFarmingGuideRenderedControls()
+    {
+        var previousSection = _activeSection;
+        var previousVisibility = FarmingGuidePage.Visibility;
+        var navigatedThroughProductTab = _activeProfile is not null && _activeContent is not null;
+
+        try
+        {
+            if (navigatedThroughProductTab)
+            {
+                FarmingGuideTabButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                if (_activeSection != DesktopSection.FarmingGuide || FarmingGuidePage.Visibility != Visibility.Visible)
+                    throw new InvalidOperationException("Farming Guide tab did not activate the Farming Guide product section.");
+                if (FarmingGuideTabButton.IsEnabled)
+                    throw new InvalidOperationException("Active Farming Guide tab did not enter the selected/disabled button state.");
+            }
+            else
+            {
+                // The published smoke runner can start without user profile data. In that
+                // state the navigation button must remain disabled, but the shipped XAML
+                // still needs a real WPF arrange/render pass rather than source-only checks.
+                FarmingGuidePage.Visibility = Visibility.Visible;
+            }
+
+            UpdateLayout();
+            FarmingGuidePage.UpdateLayout();
+
+            var scannerX = ScannerTabButton.TranslatePoint(new Point(0, 0), this).X;
+            var farmingX = FarmingGuideTabButton.TranslatePoint(new Point(0, 0), this).X;
+            if (farmingX < scannerX + ScannerTabButton.ActualWidth - 0.5)
+            {
+                throw new InvalidOperationException(
+                    $"Farming Guide tab is not rendered immediately to the right of Scanner: " +
+                    $"scannerX={scannerX:F1}, scannerWidth={ScannerTabButton.ActualWidth:F1}, farmingX={farmingX:F1}.");
+            }
+
+            if (FarmingGuidePage.ActualWidth <= 0 || FarmingGuidePage.ActualHeight <= 0)
+                throw new InvalidOperationException("Farming Guide page did not receive rendered geometry in the published EXE smoke.");
+
+            var labels = FindVisualDescendants<TextBlock>(FarmingGuidePage)
+                .Select(text => text.Text)
+                .Where(text => !string.IsNullOrWhiteSpace(text))
+                .ToHashSet(StringComparer.Ordinal);
+            foreach (var required in new[] { "장비", "수납 공간", "현재 상태", "파밍한 가치", "총 무게" })
+            {
+                if (!labels.Contains(required))
+                    throw new InvalidOperationException($"Farming Guide rendered surface is missing '{required}'.");
+            }
+
+            var search = FindVisualDescendants<TextBox>(FarmingGuidePage).FirstOrDefault();
+            if (search is null || search.ActualHeight < 30)
+                throw new InvalidOperationException("Farming Guide item search box did not render at a usable height.");
+        }
+        finally
+        {
+            if (navigatedThroughProductTab)
+            {
+                _activeSection = previousSection;
+                ShowActiveSection();
+            }
+            else
+            {
+                FarmingGuidePage.Visibility = previousVisibility;
+            }
+            UpdateLayout();
+        }
     }
 
     private async Task VerifyScannerAdvancedRenderedLayoutAsync()

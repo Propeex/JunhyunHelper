@@ -7,6 +7,7 @@
         xmlns:items="clr-namespace:JunhyunHelper.Desktop.Items"
         xmlns:ammo="clr-namespace:JunhyunHelper.Desktop.Ammo"
         xmlns:scanner="clr-namespace:JunhyunHelper.Desktop.Scanner"
+        xmlns:farming="clr-namespace:JunhyunHelper.Desktop.FarmingGuide"
         Title="준현 헬퍼"
         Icon="Assets/AppIcon.png"
         Width="1320"
@@ -29,6 +30,7 @@
                 Padding="16,11">
             <Grid>
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
@@ -59,9 +61,10 @@
                 <Button x:Name="ItemsTabButton" Grid.Column="3" Content="아이템" Margin="0,0,6,0" Padding="14,7" Click="ItemsTabButton_Click" />
                 <Button x:Name="AmmoTabButton" Grid.Column="4" Content="탄약" Margin="0,0,6,0" Padding="14,7" Click="AmmoTabButton_Click" />
                 <Button x:Name="MapTabButton" Grid.Column="5" Content="지도" Margin="0,0,6,0" Padding="14,7" Click="MapTabButton_Click" />
-                <Button x:Name="ScannerTabButton" Grid.Column="6" Content="스캐너" Padding="14,7" Click="ScannerTabButton_Click" />
+                <Button x:Name="ScannerTabButton" Grid.Column="6" Content="스캐너" Margin="0,0,6,0" Padding="14,7" Click="ScannerTabButton_Click" />
+                <Button x:Name="FarmingGuideTabButton" Grid.Column="7" Content="파밍 가이드" Padding="14,7" Click="FarmingGuideTabButton_Click" />
 
-                <Grid Grid.Column="7" Margin="18,0">
+                <Grid Grid.Column="8" Margin="18,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
@@ -77,12 +80,12 @@
                                VerticalAlignment="Center"
                                TextTrimming="CharacterEllipsis" />
                 </Grid>
-                <ComboBox x:Name="ProfileComboBox" Grid.Column="8" Width="195" Margin="0,0,8,0"
+                <ComboBox x:Name="ProfileComboBox" Grid.Column="9" Width="195" Margin="0,0,8,0"
                           DropDownOpened="ProfileComboBox_DropDownOpened"
                           SelectionChanged="ProfileComboBox_CompactSelectionChanged" />
-                <Button x:Name="EditProfileButton" Grid.Column="9" Content="프로필 수정" Margin="0,0,8,0"
+                <Button x:Name="EditProfileButton" Grid.Column="10" Content="프로필 수정" Margin="0,0,8,0"
                         Click="EditProfileCompactButton_Click" />
-                <Button x:Name="UpdateDataButton" Grid.Column="10" Content="데이터 업데이트" Click="UnifiedUpdateDataButton_Click" />
+                <Button x:Name="UpdateDataButton" Grid.Column="11" Content="데이터 업데이트" Click="UnifiedUpdateDataButton_Click" />
             </Grid>
         </Border>
 
@@ -114,6 +117,7 @@
             </Grid>
 
             <scanner:ScannerPage x:Name="ScannerPlaceholder" Visibility="Collapsed" />
+            <farming:FarmingGuidePage x:Name="FarmingGuidePage" Visibility="Collapsed" />
 
             <Grid x:Name="EmptyState">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="520">

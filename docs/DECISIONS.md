@@ -3,7 +3,8 @@
 이 문서는 준현 헬퍼의 **현재 유효한 장기 결정과 supersession 관계를 빠르게 복구하기 위한 active index**다. 현재 사실값은 `docs/PROJECT_STATE.json`, 현재 제품 상태와 release evidence는 `docs/CURRENT_STATE.md` / `docs/STATE.md`가 권위다.
 
 기준일: **2026-08-31 KST**  
-현재 공개 제품: **v1.12.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+현재 공개 제품: **v1.12.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**  
+개발 중 제품 target: **v1.13.0 Farming Guide**
 
 과거 결정 원문과 당시 release-specific 사실은 historical evidence다. 현재 제품 의미와 충돌하면 최신 confirmed decision, canonical current-state 문서, 실제 코드/테스트가 우선한다.
 
@@ -21,7 +22,29 @@ DEC-001~DEC-029 원문은 `docs/DECISIONS_HISTORY_THROUGH_2026-08-09.md`에 보�
 - 장기 async/lifecycle 종료 경계는 active async work 중 정상 Main Window close를 포함해 회귀 검증한다.
 - 공개 stable release의 tag/source/assets는 immutable historical identity로 취급하며 후속 documentation-only commit을 제품 source로 재정의하지 않는다.
 
-## 2. Scanner current authority
+## 2. v1.13.0 Farming Guide
+
+현재 authority:
+
+- `docs/DECISION_V1.13.0_FARMING_GUIDE_LOADOUT_EDITOR.md`
+
+상태: **CONFIRMED / IMPLEMENTING**.
+
+핵심 계약:
+
+- Scanner 오른쪽에 `파밍 가이드` first-class section을 둔다.
+- 첫 slice는 raid-start Loadout / Inventory Editor이며 실시간 인게임 inventory mirror가 아니다.
+- 실제 Tarkov item width/height, carrier grids, grid filters, attachment slots, armor slots, conflicts를 current validated Game Content에서 사용한다.
+- drag/drop은 `R` 회전, grid snap, bounds/overlap/연속 공간 검증과 valid-invalid feedback을 제공한다.
+- 내용물이 든 carrier를 다른 carrier로 묵시적으로 교체해 내용을 유실시키지 않는다.
+- 과거 preset이 current Tarkov grid/filter와 충돌하면 impossible placement를 복원하지 않고 fail closed한다.
+- 근접무기와 PMC 인식표는 per-profile preset과 분리된 user-level fixed setting이다.
+- preset은 장비, 부품, 방탄판, carrier, stored item, 위치/회전을 보존한다.
+- Farming Guide 사용자 상태는 `%LocalAppData%/JunhyunHelper/farming-guide.json` schema v1에 Game Content와 분리해 저장한다.
+- Farming Guide용 optional item structure 추가로 Content write schema는 v9이며 v3~v9를 읽는다.
+- v1.13.0에는 가치 판단, 획득/폐기/교체 추천, Scanner 실시간 추천 연동, 지속적인 실제 inventory 좌표 1:1 동기화를 포함하지 않는다.
+
+## 3. Scanner current authority
 
 현재 사용자-facing 필요 수량/출처 authority:
 
@@ -54,7 +77,7 @@ Ground Truth는 explicit user-reviewed save만 authoritative하다. correction h
 - `docs/DECISION_V1.8.4_AMMO_SCANNER_ITEM_DETAIL.md`
 - `docs/DECISION_V1.9.0_SCANNER_FAVORITES_RECENTS_AND_UI_FIXES.md`
 
-## 3. Quest staged task-pool compatibility
+## 4. Quest staged task-pool compatibility
 
 현재 authority:
 
@@ -71,7 +94,7 @@ v1.12.0에서 정제된 계약을 유지한다.
 - structural drift는 `Indeterminate / 확인 필요`로 fail closed한다.
 - Future Needed Items / cleanup에는 current Quest UI compatibility를 낙관적으로 전파하지 않는다.
 
-## 4. 김태영 PC 진단
+## 5. 김태영 PC 진단
 
 현재 authority:
 
@@ -99,7 +122,7 @@ v1.12.0에서 정제된 계약을 유지한다.
 - optional probe는 fail-soft이며 핵심 ZIP 작성 실패만 전체 실패로 처리한다.
 - 사용자 노트북의 실제 v1.12.0 diagnostic ZIP에서 exporter 정상 동작을 확인했다. 김태영 PC 원인 판정은 김태영 실제 PC에서 생성된 evidence로 수행한다.
 
-## 5. Map / MiniMap
+## 6. Map / MiniMap
 
 Map/MiniMap donor pin:
 
@@ -124,7 +147,7 @@ JunhyunHelper first-party bridge가 제품 의미와 lifecycle/presentation owne
 - `docs/DECISION_V1.10.0_MINIMAP_REOPEN_MINISCANNER_FLEA_MINIMUM.md`
 - 최신 실제 계약과 v1.11.x 수정은 `docs/STATE.md` 및 각 release record가 권위다.
 
-## 6. Hideout / Ammo / Game Content
+## 7. Hideout / Ammo / Game Content
 
 Hideout FIR:
 
@@ -143,8 +166,9 @@ Game Content:
 - Last Known Good 보존
 - 검증 실패 시 기존 정상 데이터 유지
 - current source 의미가 불명확하거나 구조 drift가 있으면 fail closed
+- v1.13.0 target부터 optional Farming Guide item structure를 Content v9에 보존한다.
 
-## 7. Program Update / Release
+## 8. Program Update / Release
 
 - GitHub latest public stable release를 사용한다.
 - 사용자 동의 없이 프로그램을 자동 교체하지 않는다.
@@ -168,7 +192,7 @@ release id: 379473487
 - `docs/.release-v1.12.1-status.json`
 - `docs/RELEASE_NOTES_V1.12.1.md`
 
-## 8. Product complete / maintenance / lifecycle
+## 9. Product complete / maintenance / lifecycle
 
 관련 결정:
 
@@ -181,9 +205,9 @@ release id: 379473487
 - `docs/DECISION_V1.10.1_STABILITY_AUDIT.md`
 - `docs/DECISION_V1.10.1_POST_RELEASE_STABILITY_SWEEP.md`
 
-현재 제품은 feature-complete maintenance mode다. 실제 회귀, Tarkov 변화, 또는 사용자가 명시적으로 확정한 새 제품 요구사항이 있을 때 필요한 범위만 수정한다. 정상 동작하는 lifecycle/disposal 경로를 미관상 이유로 전면 리팩터링하지 않는다.
+현재 공개 stable은 feature-complete maintenance mode다. 실제 회귀, Tarkov 변화, 또는 사용자가 명시적으로 확정한 새 제품 요구사항이 있을 때 필요한 범위만 수정한다. v1.13.0 Farming Guide는 사용자가 명시적으로 확정한 새 MINOR 기능 작업이다. 정상 동작하는 unrelated lifecycle/disposal 경로를 미관상 이유로 전면 리팩터링하지 않는다.
 
-## 9. 현재 결정 확인 순서
+## 10. 현재 결정 확인 순서
 
 1. `docs/PROJECT_STATE.json`
 2. `docs/ACTIVE_WORK.md`
