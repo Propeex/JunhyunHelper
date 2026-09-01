@@ -1,8 +1,8 @@
 # DECISION — v1.14.0 Farming Guide recursive assembly and validated storage layouts
 
-Status: **CONFIRMED / RELEASE TARGET / NOT YET PUBLIC VERIFIED**  
+Status: **CONFIRMED / PUBLIC VERIFIED**  
 Date: **2026-09-01 KST**  
-Target: **v1.14.0**
+Release: **v1.14.0**
 
 ## 1. 문제
 
@@ -163,7 +163,7 @@ Farming Guide user state는 기존 tree/state shape로 표현 가능하므로 sc
 
 ## 6. 검증 계약
 
-v1.14.0 release candidate는 최소 다음을 만족해야 한다.
+v1.14.0은 다음을 release gate로 사용한다.
 
 - recursive assembly deterministic tests
 - importer layout identity tests
@@ -180,19 +180,37 @@ v1.14.0 release candidate는 최소 다음을 만족해야 한다.
 - main 병합 후 exact-main CI
 - public v1.14.0 tag/source/assets/checksum 검증
 
-## 7. 현재 검증 상태
-
-Release identity bump 직전 exact PR head:
+## 7. 공개 검증 결과
 
 ```text
-7b9a96ccdff0ff1e0ddfb6f676624d24b150b7a1
+version: v1.14.0
+exact product release source/tag target:
+9ff23b9f50dd84b84ec93cea31b079d7eff70fe1
+validated PR head:
+c5ee50ba60f2bc7db461328608ec591f4320ccca
+PR: #251 — MERGED
+superseded Draft PR: #250 — CLOSED UNMERGED
+PR exact-head CI: 33453431628 — SUCCESS
+PR exact-head Shutdown Race CI: 33453431625 — SUCCESS
+PR exact-head Documentation Consistency: 33453431595 — SUCCESS
+exact-main CI: 33453784868 — SUCCESS
+exact-main Shutdown Race CI: 33453784901 — SUCCESS
+exact-main Documentation Consistency: 33453784893 — SUCCESS
+Release workflow: 33454002732 — SUCCESS
+release id: 380133403
 527 passed / 0 failed / 0 skipped
-Windows Release build: SUCCESS
-self-contained win-x64 publish: SUCCESS
-published EXE Product UI/Farming Guide/Map smoke: SUCCESS
-graceful shutdown: SUCCESS
-Shutdown Race: SUCCESS
-Documentation Consistency: SUCCESS
 ```
 
-이 값은 **branch validation evidence**이며 공개 v1.14.0 release identity가 아니다. 공개 source/tag/assets는 main 병합과 Release workflow 완료 후 별도로 기록한다.
+Public package:
+
+```text
+Junhyun-Helper.zip
+asset id: 538692301
+bytes: 80,633,458
+SHA-256:
+87728ce9e34a30a9b1eb735fe92b1a4a39f172f3b9cf536dfd12d88c8c35667b
+```
+
+`refs/tags/v1.14.0`, `/releases/latest`, release target와 exact-main source가 모두 `9ff23b9f50dd84b84ec93cea31b079d7eff70fe1`에 일치한다. 공개 release는 `draft=false`, `prerelease=false`다.
+
+상세 release evidence는 `docs/RELEASE_1.14.0.md`와 `docs/.release-v1.14.0-status.json`에 기록한다. 후속 documentation-only commit은 v1.14.0 product source가 아니다.
