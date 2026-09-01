@@ -74,22 +74,21 @@ public sealed record FarmingGuideLockedCell(
 /// recommendation engine only; direct user editing remains authoritative.
 /// </summary>
 public sealed record FarmingGuideLockState(
-    IReadOnlySet<FarmingGuideEquipmentSlot> EquipmentSlots,
-    IReadOnlySet<FarmingGuideStorageKind> Carriers,
-    IReadOnlySet<string> ItemInstanceIds,
-    IReadOnlySet<FarmingGuideLockedCell> ReservedCells)
+    IReadOnlyList<FarmingGuideEquipmentSlot> EquipmentSlots,
+    IReadOnlyList<FarmingGuideStorageKind> Carriers,
+    IReadOnlyList<string> ItemInstanceIds,
+    IReadOnlyList<FarmingGuideLockedCell> ReservedCells)
 {
-    public static FarmingGuideLockState Empty { get; } = new(
-        new HashSet<FarmingGuideEquipmentSlot>(),
-        new HashSet<FarmingGuideStorageKind>(),
-        new HashSet<string>(StringComparer.Ordinal),
-        new HashSet<FarmingGuideLockedCell>());
+    public static FarmingGuideLockState Empty { get; } = new([], [], [], []);
 
     public FarmingGuideLockState Clone() => new(
-        new HashSet<FarmingGuideEquipmentSlot>(EquipmentSlots),
-        new HashSet<FarmingGuideStorageKind>(Carriers),
-        new HashSet<string>(ItemInstanceIds, StringComparer.Ordinal),
-        new HashSet<FarmingGuideLockedCell>(ReservedCells));
+        EquipmentSlots.Distinct().ToArray(),
+        Carriers.Distinct().ToArray(),
+        ItemInstanceIds
+            .Where(static value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray(),
+        ReservedCells.Distinct().ToArray());
 }
 
 public sealed record FarmingGuidePreset(
