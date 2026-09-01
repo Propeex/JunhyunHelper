@@ -78,7 +78,6 @@ public partial class FarmingGuidePage : UserControl
         ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
 
         ResetRaidForDataChange();
-        _content = content;
         _profileId = profileId;
         var activeProfile = _profileProvider?.Invoke();
         _pocketGrids = activeProfile is not null &&
@@ -89,8 +88,16 @@ public partial class FarmingGuidePage : UserControl
                 content.EditionData)
             : FarmingGuidePocketLayoutPolicy.StandardGrids;
 
-        _itemsById.Clear();
+        var sourceItemsById = new Dictionary<string, GameItem>(StringComparer.Ordinal);
         foreach (var item in content.Items)
+            sourceItemsById[item.Id] = item;
+        var runtimeItems = content.Items
+            .Select(item => FarmingGuideCompleteEquipmentPolicy.ToRuntimeItem(item, sourceItemsById))
+            .ToArray();
+        _content = content with { Items = runtimeItems };
+
+        _itemsById.Clear();
+        foreach (var item in runtimeItems)
             _itemsById[item.Id] = item;
         ResetAssemblyImageIndex();
 
@@ -311,7 +318,7 @@ public partial class FarmingGuidePage : UserControl
         {
             if (generation != _searchGeneration)
                 return;
-            var image = await _images.LoadAsync($"item-{row.Item.Id}", row.Item.IconUrl);
+            var image = await _images.LoadAsync($"complete-item-{row.Item.Id}", row.Item.IconUrl);
             if (generation != _searchGeneration)
                 return;
             row.Image = image;
@@ -400,9 +407,9 @@ public partial class FarmingGuidePage : UserControl
             .SelectMany(entry => entry.Grids)
             .Sum(grid => grid.Width * grid.Height);
         var nestedCells = _storedItems
-            .Select(stored => ResolveItem(stored.Item)?.FarmingGuideData?.StorageGrids)
-            .Where(static grids => grids is not null)
-            .SelectMany(static grids => grids!)
+            .Select(stored => ResolveItem(stored.Item))
+            .Where(static item => item is not null && FarmingGuideCompleteEquipmentPolicy.SupportsNestedStorage(item))
+            .SelectMany(item => item!.FarmingGuideData!.StorageGrids)
             .Sum(grid => grid.Width * grid.Height);
         var totalCells = rootCells + nestedCells;
         var usedCells = _storedItems.Sum(stored =>
@@ -426,30 +433,14 @@ public partial class FarmingGuidePage : UserControl
     private IEnumerable<FarmingGuideItemState> EnumerateAllItems()
     {
         foreach (var state in _equipment.Values)
-            foreach (var nested in EnumerateItemTree(state))
-                yield return nested;
+            yield return state;
         foreach (var state in new[] { _rig, _backpack, _secureContainer, _fixedEquipment.Melee, _fixedEquipment.Dogtag })
         {
-            if (state is null)
-                continue;
-            foreach (var nested in EnumerateItemTree(state))
-                yield return nested;
+            if (state is not null)
+                yield return state;
         }
         foreach (var stored in _storedItems)
-            foreach (var nested in EnumerateItemTree(stored.Item))
-                yield return nested;
-    }
-
-    private static IEnumerable<FarmingGuideItemState> EnumerateItemTree(FarmingGuideItemState state)
-    {
-        yield return state;
-        foreach (var child in state.Attachments.Values.Concat(state.ArmorPlates.Values))
-        {
-            if (child is null)
-                continue;
-            foreach (var nested in EnumerateItemTree(child))
-                yield return nested;
-        }
+            yield return stored.Item;
     }
 
     internal IReadOnlyList<StorageDefinition> StorageDefinitions()
