@@ -4,18 +4,26 @@ namespace JunhyunHelper.Desktop.FarmingGuide;
 
 /// <summary>
 /// Narrow desktop bridge between Scanner presentation and the Farming Guide page. Scanner
-/// publishes only confirmed Item IDs; Farming Guide owns all inventory decisions/state.
+/// publishes confirmed item presentation data; Farming Guide owns inventory decisions.
 /// </summary>
 public sealed class FarmingGuideRaidBridge
 {
     private readonly object _gate = new();
-    private Action<string>? _scanHandler;
+    private Action<ScannerItemSnapshot>? _scanHandler;
     private Func<bool>? _acceptHandler;
     private Action<string>? _miniScannerStatusHandler;
+    private Func<string, ScannerItemSnapshot?>? _snapshotResolver;
     private string? _lastScannerItemId;
 
+    public void SetScannerSnapshotResolver(Func<string, ScannerItemSnapshot?> resolver)
+    {
+        ArgumentNullException.ThrowIfNull(resolver);
+        lock (_gate)
+            _snapshotResolver = resolver;
+    }
+
     public void Bind(
-        Action<string> scanHandler,
+        Action<ScannerItemSnapshot> scanHandler,
         Func<bool> acceptHandler,
         Action<string> miniScannerStatusHandler)
     {
@@ -47,18 +55,20 @@ public sealed class FarmingGuideRaidBridge
         if (status.State != ScannerRuntimeState.ShowingItem || string.IsNullOrWhiteSpace(status.ItemId))
             return;
 
-        Action<string>? handler;
+        Action<ScannerItemSnapshot>? handler;
+        Func<string, ScannerItemSnapshot?>? resolver;
         lock (_gate)
         {
-            // Scanner refreshes the presentation of an already-confirmed item. Those
-            // refreshes must not create a second pickup recommendation for the same open
-            // Tarkov detail window.
             if (string.Equals(_lastScannerItemId, status.ItemId, StringComparison.Ordinal))
                 return;
             _lastScannerItemId = status.ItemId;
             handler = _scanHandler;
+            resolver = _snapshotResolver;
         }
-        handler?.Invoke(status.ItemId);
+
+        var snapshot = resolver?.Invoke(status.ItemId);
+        if (snapshot is not null)
+            handler?.Invoke(snapshot);
     }
 
     public void ResetScannerIdentity()
@@ -67,13 +77,22 @@ public sealed class FarmingGuideRaidBridge
             _lastScannerItemId = null;
     }
 
-    public void PublishSimulatedScan(string itemId)
+    public bool PublishSimulatedScan(string itemId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(itemId);
-        Action<string>? handler;
+        Action<ScannerItemSnapshot>? handler;
+        Func<string, ScannerItemSnapshot?>? resolver;
         lock (_gate)
+        {
             handler = _scanHandler;
-        handler?.Invoke(itemId.Trim());
+            resolver = _snapshotResolver;
+        }
+
+        var snapshot = resolver?.Invoke(itemId.Trim());
+        if (snapshot is null)
+            return false;
+        handler?.Invoke(snapshot);
+        return true;
     }
 
     public bool TryAccept()
