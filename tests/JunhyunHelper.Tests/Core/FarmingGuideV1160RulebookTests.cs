@@ -54,7 +54,7 @@ public sealed class FarmingGuideV1160RulebookTests
     }
 
     [Fact]
-    public void EliteStrengthExcludesEquippedWeaponSlotsOnly()
+    public void EliteStrengthExcludesSlingBackAndHolsterWeaponsOnly()
     {
         var elite = new FarmingGuideWeightSettings(51);
 
@@ -62,7 +62,13 @@ public sealed class FarmingGuideV1160RulebookTests
             FarmingGuideEquipmentSlot.PrimaryWeapon1,
             elite));
         Assert.False(FarmingGuideWeightPolicy.EquipmentCountsTowardWeight(
+            FarmingGuideEquipmentSlot.PrimaryWeapon2,
+            elite));
+        Assert.False(FarmingGuideWeightPolicy.EquipmentCountsTowardWeight(
             FarmingGuideEquipmentSlot.Holster,
+            elite));
+        Assert.True(FarmingGuideWeightPolicy.EquipmentCountsTowardWeight(
+            FarmingGuideEquipmentSlot.Melee,
             elite));
         Assert.True(FarmingGuideWeightPolicy.EquipmentCountsTowardWeight(
             FarmingGuideEquipmentSlot.Helmet,
