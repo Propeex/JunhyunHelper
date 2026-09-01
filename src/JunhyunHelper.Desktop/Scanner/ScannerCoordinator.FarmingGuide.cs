@@ -10,9 +10,23 @@ public sealed partial class ScannerCoordinator
         return Presentation.CreateSnapshot(itemId.Trim());
     }
 
+    public void SetFarmingGuideInstruction(string? instruction)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        _overlay.SetFarmingGuideInstruction(
+            _settings.Current.ShowFarmingGuide ? instruction : null);
+    }
+
+    public void ShowFarmingGuideTestSnapshot(ScannerItemSnapshot snapshot)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(snapshot);
+        _overlay.Show(snapshot, preview: true);
+    }
+
     /// <summary>
-    /// Farming Guide may publish a short instruction/acceptance message into the existing
-    /// Mini Scanner overlay without owning Scanner recognition state.
+    /// Short acknowledgement remains transient; the active recommendation itself is held
+    /// by SetFarmingGuideInstruction until acceptance, cancellation, or raid end.
     /// </summary>
     public void ShowFarmingGuideStatus(string message)
     {
