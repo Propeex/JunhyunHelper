@@ -31,15 +31,20 @@ public partial class FarmingGuidePage
         try
         {
             VerifyCompleteEquipmentAndNestedStorageSmoke();
+            VerifySpecializedNestedStorageAndLockVisualSmoke();
+            VerifyDedicatedNestedRaidPrioritySmoke();
             VerifyExactStorageVisualLayoutSmoke();
             var marker = Path.Combine(
                 Path.GetTempPath(),
-                "junhyun-farming-guide-v1152-smoke-success.txt");
+                "junhyun-farming-guide-v1153-smoke-success.txt");
             File.WriteAllLines(marker,
             [
                 "nested-storage-grid=ok",
                 "nested-storage-compact-host=ok",
                 "nested-parent-drop=ok",
+                "specialized-storage-filter=ok",
+                "stored-item-neutral-lock-border=ok",
+                "dedicated-nested-raid-priority=ok",
                 "equipment-internal-editor-disabled=ok",
                 "root-carrier-duplicate-editor-disabled=ok",
                 "exact-storage-layout=ok",
@@ -189,6 +194,144 @@ public partial class FarmingGuidePage
                 Equipment.Remove(FarmingGuideEquipmentSlot.PrimaryWeapon1);
             else
                 Equipment[FarmingGuideEquipmentSlot.PrimaryWeapon1] = previousWeapon;
+
+            foreach (var id in ids)
+            {
+                if (previous[id] is { } original)
+                    _itemsById[id] = original;
+                else
+                    _itemsById.Remove(id);
+            }
+        }
+    }
+
+    private void VerifySpecializedNestedStorageAndLockVisualSmoke()
+    {
+        const string caseId = "__junhyun_smoke_specialized_case";
+        const string allowedId = "__junhyun_smoke_allowed_key";
+        const string deniedId = "__junhyun_smoke_denied_item";
+        const string keyCategoryId = "__junhyun_smoke_key_category";
+        const string parentInstanceId = "__junhyun_smoke_specialized_parent";
+
+        var ids = new[] { caseId, allowedId, deniedId };
+        var previous = ids.ToDictionary(
+            id => id,
+            id => _itemsById.TryGetValue(id, out var item) ? item : null,
+            StringComparer.Ordinal);
+
+        var sourceCase = SmokeItem(caseId) with
+        {
+            FarmingGuideData = new FarmingGuideItemLayout(
+                "ItemPropertiesContainer",
+                [
+                    new FarmingGuideStorageGridDefinition(
+                        1,
+                        2,
+                        new FarmingGuideItemFilter([keyCategoryId], [], [], [])),
+                ],
+                [],
+                [],
+                [],
+                [],
+                false,
+                false),
+        };
+        var allowed = SmokeItem(allowedId) with
+        {
+            CategoryIds = [keyCategoryId],
+        };
+        var denied = SmokeItem(deniedId);
+        var sourceCatalog = new Dictionary<string, GameItem>(StringComparer.Ordinal)
+        {
+            [caseId] = sourceCase,
+            [allowedId] = allowed,
+            [deniedId] = denied,
+        };
+        var runtimeCase = FarmingGuideCompleteEquipmentPolicy.ToRuntimeItem(sourceCase, sourceCatalog);
+        if (!FarmingGuideCompleteEquipmentPolicy.SupportsNestedStorage(runtimeCase))
+            throw new InvalidOperationException("Source-backed specialized container lost its runtime storage surface.");
+
+        _itemsById[caseId] = runtimeCase;
+        _itemsById[allowedId] = allowed;
+        _itemsById[deniedId] = denied;
+
+        try
+        {
+            var placement = new FarmingGuideStoredItemState(
+                parentInstanceId,
+                FarmingGuideItemState.Create(caseId),
+                FarmingGuideStorageKind.SecureContainer,
+                0,
+                0,
+                0,
+                false);
+            OpenStoredWorkbench(new PlacedItemSource(placement));
+            WorkbenchHost.UpdateLayout();
+
+            var grid = FindVisualChildren<Canvas>(WorkbenchPanel)
+                .Select(canvas => canvas.Tag as GridDropTarget)
+                .FirstOrDefault(target => target is not null)
+                ?? throw new InvalidOperationException("Specialized container did not render an interactive nested grid.");
+            if (grid.Width != 1 || grid.Height != 2)
+                throw new InvalidOperationException("Specialized container grid dimensions were not preserved.");
+
+            var deniedDrag = new DragSession
+            {
+                Item = denied,
+                State = FarmingGuideItemState.Create(deniedId),
+                Origin = DragOriginKind.Search,
+                MouseDown = default,
+            };
+            if (ProbeGrid(grid, deniedDrag, new Point(CellSize / 2d, CellSize / 2d)).Valid)
+                throw new InvalidOperationException("Specialized container accepted an item rejected by its source filter.");
+
+            var allowedDrag = new DragSession
+            {
+                Item = allowed,
+                State = FarmingGuideItemState.Create(allowedId),
+                Origin = DragOriginKind.Search,
+                MouseDown = default,
+            };
+            var allowedProbe = ProbeGrid(grid, allowedDrag, new Point(CellSize / 2d, CellSize / 2d));
+            if (!allowedProbe.Valid)
+                throw new InvalidOperationException("Specialized container rejected an item allowed by its source filter.");
+            ApplyDrop(allowedDrag, allowedProbe);
+
+            var nested = StoredItems.FirstOrDefault(item =>
+                string.Equals(item.ParentInstanceId, parentInstanceId, StringComparison.Ordinal) &&
+                string.Equals(item.Item.ItemId, allowedId, StringComparison.Ordinal))
+                ?? throw new InvalidOperationException("Specialized nested drop did not create parent-addressed state.");
+
+            RenderWorkbench();
+            WorkbenchHost.UpdateLayout();
+            var card = FindVisualChildren<Border>(WorkbenchPanel)
+                .FirstOrDefault(border =>
+                    border.Tag is PlacedItemSource source &&
+                    string.Equals(source.Placement.InstanceId, nested.InstanceId, StringComparison.Ordinal))
+                ?? throw new InvalidOperationException("Specialized nested stored item card was not rendered.");
+
+            if (!Equals(card.BorderBrush, FindResource("BorderBrush")) || card.BorderThickness != new Thickness(1))
+                throw new InvalidOperationException("Unlocked stored item did not use the neutral border.");
+
+            _lockedItemInstanceIds.Add(nested.InstanceId);
+            ApplyLockVisuals();
+            if (!Equals(card.BorderBrush, FindResource("AccentBrush")) || card.BorderThickness != new Thickness(2))
+                throw new InvalidOperationException("Locked stored item did not use the accent border.");
+
+            _lockedItemInstanceIds.Remove(nested.InstanceId);
+            ApplyLockVisuals();
+            if (!Equals(card.BorderBrush, FindResource("BorderBrush")) || card.BorderThickness != new Thickness(1))
+                throw new InvalidOperationException("Unlocked stored item did not restore the neutral border.");
+        }
+        finally
+        {
+            _lockedItemInstanceIds.RemoveWhere(id =>
+                StoredItems.Any(item =>
+                    string.Equals(item.InstanceId, id, StringComparison.Ordinal) &&
+                    string.Equals(item.ParentInstanceId, parentInstanceId, StringComparison.Ordinal)));
+            StoredItems.RemoveAll(item =>
+                string.Equals(item.ParentInstanceId, parentInstanceId, StringComparison.Ordinal));
+            CloseWorkbench();
 
             foreach (var id in ids)
             {

@@ -379,7 +379,7 @@ public partial class FarmingGuidePage
                 Height = footprint.Height * CellSize - 2,
                 CornerRadius = new CornerRadius(2),
                 BorderThickness = new Thickness(1),
-                BorderBrush = (Brush)FindResource("AccentBrush"),
+                BorderBrush = (Brush)FindResource("BorderBrush"),
                 Background = (Brush)FindResource("BackgroundMediumBrush"),
                 Cursor = Cursors.Hand,
                 Tag = new PlacedItemSource(placement),

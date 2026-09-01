@@ -23,6 +23,23 @@ public static class FarmingGuideStoragePlacementPolicy
                (!IsSpecialSlotSurface(storage, parentInstanceId) || IsSpecialSlotCompatible(item));
     }
 
+    /// <summary>
+    /// A positive source allow-list means the grid exists for a particular family of
+    /// items rather than as generic inventory capacity. Raid planning should consume
+    /// these dedicated slots before ordinary root storage when the incoming item matches,
+    /// e.g. a key should go into a carried key container instead of occupying another
+    /// secure-container cell.
+    /// </summary>
+    public static bool IsDedicatedStorageFor(GameItem item, FarmingGuideItemFilter filter)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        ArgumentNullException.ThrowIfNull(filter);
+        if (filter.AllowedItemIds.Count == 0 && filter.AllowedCategoryIds.Count == 0)
+            return false;
+
+        return FarmingGuideCompatibility.FilterAllows(item, filter);
+    }
+
     public static bool IsSpecialSlotCompatible(GameItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
