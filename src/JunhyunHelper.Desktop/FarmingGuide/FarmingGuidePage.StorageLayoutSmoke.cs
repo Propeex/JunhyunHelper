@@ -35,30 +35,26 @@ public partial class FarmingGuidePage
         };
 
         _itemsById[itemId] = item;
-        StoredItems.Add(new FarmingGuideStoredItemState(
+        var placement = new FarmingGuideStoredItemState(
             instanceId,
             state,
             FarmingGuideStorageKind.Backpack,
             GridIndex: 0,
             X: 0,
             Y: 0,
-            Rotated: false));
+            Rotated: false);
+        StoredItems.Add(placement);
 
         try
         {
-            OpenWorkbench(
-                state,
-                WorkbenchMode.Storage,
-                FarmingGuideStorageKind.Backpack,
-                instanceId,
-                static _ => { });
+            OpenStoredWorkbench(new PlacedItemSource(placement));
             WorkbenchHost.UpdateLayout();
 
             var exactHost = WorkbenchPanel.Children
                 .OfType<Canvas>()
                 .FirstOrDefault()
                 ?? throw new InvalidOperationException(
-                    "Exact storage layout did not render as a positioned Canvas host.");
+                    "Exact nested storage layout did not render as a positioned Canvas host.");
 
             if (!FarmingGuideStorageVisualLayoutResolver.TryResolve(
                     itemId,
@@ -85,30 +81,30 @@ public partial class FarmingGuidePage
                     "Exact storage layout host bounds do not match the resolved Tarkov layout.");
             }
 
-            foreach (var placement in expected.Grids)
+            foreach (var expectedPlacement in expected.Grids)
             {
-                var rendered = renderedGrids[placement.GridIndex];
-                if (Math.Abs(Canvas.GetLeft(rendered) - placement.Left) > 0.01 ||
-                    Math.Abs(Canvas.GetTop(rendered) - placement.Top) > 0.01)
+                var rendered = renderedGrids[expectedPlacement.GridIndex];
+                if (Math.Abs(Canvas.GetLeft(rendered) - expectedPlacement.Left) > 0.01 ||
+                    Math.Abs(Canvas.GetTop(rendered) - expectedPlacement.Top) > 0.01)
                 {
                     throw new InvalidOperationException(
-                        $"Exact storage grid {placement.GridIndex} was rendered at the wrong position.");
+                        $"Exact storage grid {expectedPlacement.GridIndex} was rendered at the wrong position.");
                 }
 
                 if (rendered.Tag is not GridDropTarget target ||
-                    target.GridIndex != placement.GridIndex ||
+                    target.GridIndex != expectedPlacement.GridIndex ||
                     !string.Equals(target.ParentInstanceId, instanceId, StringComparison.Ordinal))
                 {
                     throw new InvalidOperationException(
-                        $"Exact storage grid {placement.GridIndex} lost its interactive drop target identity.");
+                        $"Exact storage grid {expectedPlacement.GridIndex} lost its interactive drop target identity.");
                 }
             }
         }
         finally
         {
-            StoredItems.RemoveAll(item =>
-                string.Equals(item.InstanceId, instanceId, StringComparison.Ordinal) ||
-                string.Equals(item.ParentInstanceId, instanceId, StringComparison.Ordinal));
+            StoredItems.RemoveAll(value =>
+                string.Equals(value.InstanceId, instanceId, StringComparison.Ordinal) ||
+                string.Equals(value.ParentInstanceId, instanceId, StringComparison.Ordinal));
             CloseWorkbench();
 
             if (previousItem is not null)
