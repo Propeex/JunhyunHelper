@@ -38,4 +38,44 @@ public static class FarmingGuideLootRetentionPolicy
         // improve geometry. Strict inequality also keeps ties deterministic and stable.
         return preserved.EffectiveValue > victimValue;
     }
+
+    /// <summary>
+    /// Chooses between two already-legal destructive plans for the same preserved item.
+    /// Lower sacrifice is better: required victims first, then aggregate known value,
+    /// victim count and finally occupied slots. Placement/search details stay out of this
+    /// policy so the ranking can evolve independently.
+    /// </summary>
+    public static bool IsPreferredVictimSet(
+        IReadOnlyList<FarmingGuideLootMetrics> candidate,
+        IReadOnlyList<FarmingGuideLootMetrics> incumbent)
+    {
+        ArgumentNullException.ThrowIfNull(candidate);
+        ArgumentNullException.ThrowIfNull(incumbent);
+
+        static (int Needed, long Value, int Count, int Slots) Score(
+            IReadOnlyList<FarmingGuideLootMetrics> values)
+        {
+            var needed = 0;
+            long value = 0;
+            var slots = 0;
+            foreach (var item in values)
+            {
+                if (item.CurrentNeeded > 0)
+                    needed++;
+                value += Math.Max(0, item.EffectiveValue);
+                slots += Math.Max(1, item.EffectiveSlots);
+            }
+            return (needed, value, values.Count, slots);
+        }
+
+        var left = Score(candidate);
+        var right = Score(incumbent);
+        if (left.Needed != right.Needed)
+            return left.Needed < right.Needed;
+        if (left.Value != right.Value)
+            return left.Value < right.Value;
+        if (left.Count != right.Count)
+            return left.Count < right.Count;
+        return left.Slots < right.Slots;
+    }
 }
