@@ -17,7 +17,8 @@ Farming Guide 실사용 보완 PATCH `v1.15.3` 작업.
 
 base main: `5352dfe6bf673a79d2833b44491ebe11ed6af65f`  
 working branch: `fix/v1.15.3-farming-guide-storage-scan-sim-2026-09-01`  
-PR: `#264`  
+final PR: `#265` (non-draft)  
+superseded draft validation PR: `#264`  
 public stable: `v1.15.2`  
 exact public product source: `f4974ee6bed5047865581240197f7f0e2787ba7c`
 
@@ -62,8 +63,8 @@ Canonical correction: `docs/DECISION_V1.15.3_SPECIALIZED_NESTED_STORAGE.md`.
   - compatible dedicated nested surface가 general root storage보다 우선되는 raid recommendation
   - v1.15.2 equipment-internal editor boundary 유지
 - Desktop version `1.15.3`, FIRST_RUN, PRODUCT, decision, release notes 갱신
-- final validated implementation/docs head before this checkpoint: `bb3461140f1d177f96ee73dfab8473dfeac5bb23`
-- PR `#264` final validation on that head
+- final validated implementation/docs head before checkpoint: `bb3461140f1d177f96ee73dfab8473dfeac5bb23`
+- draft PR `#264` validation on that head
   - CI `33486553199`: **SUCCESS**
   - Shutdown Race CI `33486553200`: **SUCCESS**
   - Documentation Consistency `33486553225`: **SUCCESS**
@@ -73,14 +74,17 @@ Canonical correction: `docs/DECISION_V1.15.3_SPECIALIZED_NESTED_STORAGE.md`.
   - release package verification: **SUCCESS**
   - candidate `Junhyun-Helper.zip`: `80,659,470` bytes / SHA-256 `75e9e64a11131f739fc55ef67df06e7aacf38a2a658d38524d4c5c9b610de8d9`
   - Actions artifact `JunhyunHelper-win-x64`: id `9792097578`, `241,909,736` bytes, archive SHA-256 `eafe229c991504d4a74599fd5083d1d03093239f5cb8ce80061c818c2cecc4fd`
+- GitHub draft→ready GraphQL wrapper가 repository schema의 `fullDatabaseId` 오류로 실패함을 확인
+- 구현 변경 없이 draft PR `#264`를 닫고 동일 branch/head를 non-draft PR `#265`로 교체
 
 ## Current step
 
-PR `#264`를 ready 상태로 전환하고 병합한다. 이후 exact-main CI / Shutdown Race / Documentation Consistency와 자동 Release workflow를 검증한다.
+PR `#265`의 final checkpoint head checks를 통과시킨 뒤 main에 병합한다. 이후 exact-main CI / Shutdown Race / Documentation Consistency와 자동 Release workflow를 검증한다.
 
 ## Remaining
 
-- checkpoint docs-only head 검증 및 PR ready/merge
+- PR `#265` final-head CI / Shutdown Race / Documentation Consistency
+- PR merge
 - exact-main CI / Shutdown Race / Documentation Consistency
 - automatic v1.15.3 Release workflow 성공 확인
 - public release/latest/tag/assets/checksum exact readback
