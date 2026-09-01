@@ -15,9 +15,12 @@ public sealed class FarmingGuideRaidBridge
     private readonly Dispatcher _dispatcher;
     private Action<ScannerItemSnapshot>? _scanHandler;
     private Func<bool>? _acceptHandler;
+    private Action<int>? _quantityHandler;
     private Func<string, ScannerItemSnapshot?>? _snapshotResolver;
     private Func<string, CancellationToken, Task<ScannerItemSnapshot?>>? _simulatedSnapshotResolver;
     private Action<string?>? _miniScannerInstructionHandler;
+    private Action? _miniScannerQuantityRequester;
+    private Action? _miniScannerQuantityCanceller;
     private Action<ScannerItemSnapshot>? _simulatedScanPresenter;
     private Action<string>? _transientStatusHandler;
     private string? _lastScannerItemId;
@@ -49,6 +52,17 @@ public sealed class FarmingGuideRaidBridge
             _miniScannerInstructionHandler = handler;
     }
 
+    public void SetMiniScannerQuantityHandlers(Action requester, Action canceller)
+    {
+        ArgumentNullException.ThrowIfNull(requester);
+        ArgumentNullException.ThrowIfNull(canceller);
+        lock (_gate)
+        {
+            _miniScannerQuantityRequester = requester;
+            _miniScannerQuantityCanceller = canceller;
+        }
+    }
+
     public void SetSimulatedScanPresenter(Action<ScannerItemSnapshot> presenter)
     {
         ArgumentNullException.ThrowIfNull(presenter);
@@ -73,7 +87,10 @@ public sealed class FarmingGuideRaidBridge
         return resolver?.Invoke(itemId.Trim());
     }
 
-    public void Bind(Action<ScannerItemSnapshot> scanHandler, Func<bool> acceptHandler)
+    public void Bind(
+        Action<ScannerItemSnapshot> scanHandler,
+        Func<bool> acceptHandler,
+        Action<int>? quantityHandler = null)
     {
         ArgumentNullException.ThrowIfNull(scanHandler);
         ArgumentNullException.ThrowIfNull(acceptHandler);
@@ -81,16 +98,16 @@ public sealed class FarmingGuideRaidBridge
         {
             _scanHandler = scanHandler;
             _acceptHandler = acceptHandler;
+            _quantityHandler = quantityHandler;
         }
     }
 
-    // Compatibility overload for the page created in the same feature branch. The third
-    // callback used to be supplied by the page; presentation ownership now lives here.
+    // Compatibility overload for the page created in the original raid-advisor feature.
     public void Bind(
         Action<ScannerItemSnapshot> scanHandler,
         Func<bool> acceptHandler,
         Action<string> legacyStatusHandler) =>
-        Bind(scanHandler, acceptHandler);
+        Bind(scanHandler, acceptHandler, quantityHandler: null);
 
     public void Unbind()
     {
@@ -98,8 +115,10 @@ public sealed class FarmingGuideRaidBridge
         {
             _scanHandler = null;
             _acceptHandler = null;
+            _quantityHandler = null;
             _lastScannerItemId = null;
         }
+        CancelMiniScannerQuantity();
         SetMiniScannerInstruction(null);
     }
 
@@ -135,6 +154,7 @@ public sealed class FarmingGuideRaidBridge
     {
         lock (_gate)
             _lastScannerItemId = null;
+        CancelMiniScannerQuantity();
         SetMiniScannerInstruction(null);
     }
 
@@ -222,6 +242,32 @@ public sealed class FarmingGuideRaidBridge
         }
     }
 
+    public void SubmitMiniScannerQuantity(int quantity)
+    {
+        Action<int>? handler;
+        lock (_gate)
+            handler = _quantityHandler;
+        if (handler is null)
+            return;
+        InvokePageCallback(() => handler(quantity));
+    }
+
+    public void RequestMiniScannerQuantity()
+    {
+        Action? handler;
+        lock (_gate)
+            handler = _miniScannerQuantityRequester;
+        handler?.Invoke();
+    }
+
+    public void CancelMiniScannerQuantity()
+    {
+        Action? handler;
+        lock (_gate)
+            handler = _miniScannerQuantityCanceller;
+        handler?.Invoke();
+    }
+
     public void SetMiniScannerInstruction(string? message)
     {
         Action<string?>? handler;
@@ -240,10 +286,6 @@ public sealed class FarmingGuideRaidBridge
         handler?.Invoke(message.Trim());
     }
 
-    /// <summary>
-    /// Active instructions are persistent. Acceptance feedback clears the active
-    /// instruction first and uses the existing short-lived Scanner status badge.
-    /// </summary>
     public void ShowMiniScannerStatus(string message)
     {
         if (string.IsNullOrWhiteSpace(message))
