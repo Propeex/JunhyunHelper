@@ -16,6 +16,7 @@ public sealed class FarmingGuideRaidBridge
     private Action<ScannerItemSnapshot>? _scanHandler;
     private Func<bool>? _acceptHandler;
     private Func<string, ScannerItemSnapshot?>? _snapshotResolver;
+    private Func<string, CancellationToken, Task<ScannerItemSnapshot?>>? _simulatedSnapshotResolver;
     private Action<string?>? _miniScannerInstructionHandler;
     private Action<ScannerItemSnapshot>? _simulatedScanPresenter;
     private Action<string>? _transientStatusHandler;
@@ -31,6 +32,14 @@ public sealed class FarmingGuideRaidBridge
         ArgumentNullException.ThrowIfNull(resolver);
         lock (_gate)
             _snapshotResolver = resolver;
+    }
+
+    public void SetSimulatedSnapshotResolver(
+        Func<string, CancellationToken, Task<ScannerItemSnapshot?>> resolver)
+    {
+        ArgumentNullException.ThrowIfNull(resolver);
+        lock (_gate)
+            _simulatedSnapshotResolver = resolver;
     }
 
     public void SetMiniScannerInstructionHandler(Action<string?> handler)
@@ -143,20 +152,54 @@ public sealed class FarmingGuideRaidBridge
         if (snapshot is null)
             return false;
 
+        PublishSimulatedSnapshot(snapshot, presenter, handler);
+        return true;
+    }
+
+    public async Task<bool> PublishSimulatedScanAsync(
+        string itemId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(itemId);
+
+        Func<string, CancellationToken, Task<ScannerItemSnapshot?>>? asyncResolver;
+        Action<ScannerItemSnapshot>? handler;
+        Action<ScannerItemSnapshot>? presenter;
+        lock (_gate)
+        {
+            asyncResolver = _simulatedSnapshotResolver;
+            handler = _scanHandler;
+            presenter = _simulatedScanPresenter;
+        }
+
+        var normalized = itemId.Trim();
+        var snapshot = asyncResolver is null
+            ? ResolveSnapshot(normalized)
+            : await asyncResolver(normalized, cancellationToken);
+        if (snapshot is null)
+            return false;
+
+        PublishSimulatedSnapshot(snapshot, presenter, handler);
+        return true;
+    }
+
+    private void PublishSimulatedSnapshot(
+        ScannerItemSnapshot snapshot,
+        Action<ScannerItemSnapshot>? presenter,
+        Action<ScannerItemSnapshot>? handler)
+    {
         if (_dispatcher.CheckAccess())
         {
             presenter?.Invoke(snapshot);
             handler?.Invoke(snapshot);
+            return;
         }
-        else
+
+        InvokePageCallback(() =>
         {
-            InvokePageCallback(() =>
-            {
-                presenter?.Invoke(snapshot);
-                handler?.Invoke(snapshot);
-            });
-        }
-        return true;
+            presenter?.Invoke(snapshot);
+            handler?.Invoke(snapshot);
+        });
     }
 
     public bool TryAccept()
