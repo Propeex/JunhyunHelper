@@ -3,110 +3,94 @@
 > 최신 제품 상태의 짧은 인덱스입니다. 기계 판독 가능한 사실값은 `docs/PROJECT_STATE.json`, 상세 계약은 `docs/STATE.md`, 진행 중 작업은 `docs/ACTIVE_WORK.md`를 기준으로 합니다.
 
 기준일: **2026-09-01 KST**  
-상태: **v1.15.4 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+상태: **v1.15.5 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 공개 stable
 
 ```text
-public stable/latest: v1.15.4
+public stable/latest: v1.15.5
 exact product source/tag target:
-c27daf2177b643ee16d4a3d5b0997e54a267c2c7
-validated PR head: da9e788a8494734149cfa0e65eff3535e14d2bac
-merge PR: #268
+62466a957a7e32a623a0ffcfad96bfb16504f823
+validated PR head: 2d9f01da32e3e80860c5a87b2d2e73bc87c31b17
+merge PR: #271
 PR CI / Shutdown / Docs:
-33500484624 / 33500484673 / 33500484510 — SUCCESS
+33516899412 / 33516899393 / 33516899505 — SUCCESS
 exact-main CI / Shutdown / Docs:
-33500904378 / 33500904396 / 33500904356 — SUCCESS
-Release workflow: 33501233130 — SUCCESS
-release id: 380429049
-published UTC: 2026-09-01T11:12:15Z
-585 passed / 0 failed / 0 skipped
+33520705401 / 33520705533 / 33520705395 — SUCCESS
+Release workflow: 33521076146 — SUCCESS
+release id: 380587916
+published UTC: 2026-09-01T14:42:06Z
+593 passed / 0 failed / 0 skipped
 ```
 
 Public package:
 
 ```text
 Junhyun-Helper.zip
-asset id: 539435772
-bytes: 80,695,104
-SHA-256: a0a5d6f19beecab7b656250e3d1ae56d3073aae442b7cdc9b19b865a7d8a9e81
+asset id: 539684740
+bytes: 80,705,841
+SHA-256: 32df6c471cf79349932a83a5d7598fecb8971548e4b38bb7bdab917602898d69
 
 SHA256SUMS.txt
-asset id: 539435771
+asset id: 539684739
 bytes: 86
-asset SHA-256: 86627e394474b4fb69b27c5db6cc380a2f0a3ebf1876ee6d842159436014ac89
+asset SHA-256: 683a2374431389efdc7d3176816917ef8ef466c2b493aa9bc78dfd6416be4f98
 ```
 
 Exact-main Actions artifact:
 
 ```text
 JunhyunHelper-win-x64
-artifact id: 9797756949
-bytes: 242,014,938
-SHA-256: 2ab185334c441dfa44f8d1afb774e7c7c6815df07849563ba865210a9b5857bb
+artifact id: 9805674187
+bytes: 242,052,034
+SHA-256: 6281d8f2ef0f5ab0d0b6414b6cded95852f9006d23806527c8467badb8bfc088
 ```
 
-GitHub `/releases/latest`, release target and `refs/tags/v1.15.4` all resolve to `c27daf2177b643ee16d4a3d5b0997e54a267c2c7`. The release is `draft=false`, `prerelease=false`. Documentation-only follow-up commits are not v1.15.4 product sources.
+`/releases/latest`, release target and `refs/tags/v1.15.5` all resolve to `62466a957a7e32a623a0ffcfad96bfb16504f823`. The public release is `draft=false`, `prerelease=false`.
 
 ## Farming Guide current contract
 
 ### Complete equipment
 
-Weapons, helmets, body armor and other equipment remain opaque complete items.
-
-- no weapon/helmet attachment editor;
-- no armor-plate editor or per-plate raid-state inference;
-- no equipment-internal drag/drop or raid Equip/ReplaceEquip target;
-- persisted legacy attachment/armor state remains readable only for compatibility and is normalized to root-only runtime state;
-- supported top-level equipment Equip/ReplaceEquip remains available.
+Weapons, helmets, body armor and other equipment remain opaque complete items. Weapon/helmet attachment editing and armor-plate editing are not exposed. Supported top-level Equip/ReplaceEquip remains available.
 
 ### Source-backed nested storage
 
 `ParentInstanceId` is the nested-storage address. A stored item may expose interactive internal storage whenever current validated Game Content contains real `StorageGrids` for it.
 
 - no Key tool/case name allowlist;
-- source grid width/height and allowed/excluded category/item filters are authoritative;
-- specialized containers inside Secure Container or another legal surface remain recursively addressable;
-- positive-allow-list dedicated nested storage that accepts an incoming item is preferred over general root storage;
+- source grid dimensions and allowed/excluded category/item filters are authoritative;
+- specialized containers may be recursively nested where legal;
+- dedicated positive-allow-list storage is preferred over general root storage;
 - orphan/duplicate/self/cycle/filter/bounds/overlap state fails closed;
-- nested Workbench avoids horizontal scrolling/cell clipping when its complete surface physically fits the effective viewport.
+- a physically fitting nested Workbench disables both scroll axes and exposes the full grid without clipped bottom cells.
 
-### Preservation-first raid planning — v1.15.4
+### Preservation-first state transition — v1.15.5
 
-Recommendation order is:
+Recommendation construction preserves the v1.15.4 safety order while extending equipment replacement into a complete-state transition:
 
 1. legal empty equipment target;
-2. objectively proven and structurally safe equipment upgrade;
-3. direct legal storage without moving existing items;
-4. non-destructive legal repacking of unlocked existing items;
-5. value/need-based destructive replacement only after preservation options fail;
-6. discard only when no preferable legal plan exists.
+2. objectively proven equipment upgrade;
+3. direct legal storage;
+4. non-destructive global repacking;
+5. preserve displaced equipment/carriers through legal storage or nesting;
+6. bounded value-aware eviction + repacking only when the retained state is provably preferable;
+7. discard only when no better legal state exists.
 
-Repacking is bounded and deterministic. It may move or rotate multiple unlocked items across legal root/nested surfaces while preserving source filters, dedicated-container preference, reserved cells, locks and nested parent/descendant constraints. Populated nested containers are not destructively replaced based only on the parent item's value.
+Displaced equipment is loot, not implicit deletion. A removed rig/backpack may be stored in another legal surface and its own storage grids may participate in the same proposed snapshot. Locks, reserved cells, source filters, dedicated-container preference, nested graph validity and complete-equipment boundaries remain enforced.
 
-### Equipment upgrades — v1.15.4
+Needed truth is derived from `current snapshot count - raid baseline count`, so a Needed item that was acquired and later discarded becomes needed again.
 
-Market/trader value is not equipment-performance authority.
+### Compact raid presentation — v1.15.5
 
-- protective equipment: incoming representative source `properties.class` must be strictly higher for a same-target protection upgrade;
-- backpack/ordinary rig: source-backed storage capacity must be strictly larger and every modeled current content item must remain legal;
-- armored rig -> armored rig: protection class and capacity must both be non-regressing and at least one must strictly improve;
-- headset: `distanceModifier` and `distortion` must both be no worse and at least one must strictly improve; trade-offs are not auto-ranked;
-- ordinary body armor + ordinary rig -> superior armored rig is one atomic fail-closed pending transaction and must preserve all modeled rig contents legally;
-- reverse creation of a missing ordinary rig from one scanned item is never inferred.
+Primary instructions use compact action vocabulary: `[장비 위치] 장착`, `방탄복 교체`, `헤드셋 교체`, `[장비 위치] 교체`, `방탄 리그 전환`, `[보관 위치] 보관`, `[보관 위치] [기존 아이템] 버리고 보관`, `버리기`.
 
-### Locks / simulated scan retained
-
-- unlocked stored item: neutral border;
-- `F`-locked stored item: accent/yellow border;
-- equipment/carrier locks and reserved empty-cell semantics remain unchanged;
-- hovered search result + `T` uses the real Farming Guide recommendation path even if Search TextBox retains focus;
-- a verified same-mode local Scanner catalog may be loaded on demand when capture is disabled/uninitialized after restart.
+Same visible storage-area X/Y/grid/rotation repacking is intentionally silent. Only actual cross-area moves or removals are appended as `+ [아이템] 이동 [위치]` / `+ [아이템] 버리기`; multiple operations are comma-separated. Presentation does not alter planner Action or ProposedSnapshot.
 
 ## Schema
 
 ```text
-Desktop: 1.15.4
+Desktop: 1.15.5
 Content write/read: v11 / v3-v11
 user.db: v1
 Farming Guide state: v2 (reads v1-v2)
@@ -114,17 +98,17 @@ Scanner display settings: v10
 Scanner catalog write/read: v4 / v1-v4
 ```
 
-v11 persists source-backed Farming Guide `ArmorClass`, `HeadsetDistanceModifier` and `HeadsetDistortion`. Older readable v3-v10 snapshots remain last-known-good offline fallback and may be opportunistically refreshed through the normal transactional Data Update boundary.
-
 ## Canonical references
 
 - `docs/DECISION_V1.15.2_COMPLETE_EQUIPMENT_MODEL.md`
 - `docs/DECISION_V1.15.3_SPECIALIZED_NESTED_STORAGE.md`
 - `docs/DECISION_V1.15.4_FARMING_GUIDE_REPACKING_EQUIPMENT_UPGRADES.md`
-- `docs/RELEASE_1.15.4.md`
-- `docs/RELEASE_NOTES_V1.15.4.md`
-- `docs/.release-v1.15.4-status.json`
+- `docs/DECISION_V1.15.5_FARMING_GUIDE_PRESENTATION_VIEWPORT.md`
+- `docs/DECISION_V1.15.5_FARMING_GUIDE_STATE_TRANSITION_PLANNER.md`
+- `docs/RELEASE_1.15.5.md`
+- `docs/RELEASE_NOTES_V1.15.5.md`
+- `docs/.release-v1.15.5-status.json`
 
 ## External validation still pending
 
-Automated release validation is complete. Separate actual-PC/Tarkov real-play validation remains `PENDING`; it does not alter the verified public v1.15.4 release identity above.
+Automated release validation is complete. Separate actual-PC/Tarkov real-play validation remains `PENDING`; it does not alter the verified public v1.15.5 release identity above.
