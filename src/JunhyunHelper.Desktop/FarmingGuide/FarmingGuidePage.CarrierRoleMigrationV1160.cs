@@ -194,6 +194,9 @@ public partial class FarmingGuidePage
         var selected = new List<FarmingGuideLockedCell>();
         var occupied = new HashSet<(int Grid, int X, int Y)>();
         var attempts = 0;
+        IReadOnlyList<FarmingGuideStoredItemState>? foundPacked = null;
+        IReadOnlyList<FarmingGuideLockedCell>? foundReserved = null;
+        var foundMovedCount = 0;
 
         bool Search(int componentIndex)
         {
@@ -208,13 +211,15 @@ public partial class FarmingGuidePage
                         roots,
                         current,
                         selected,
-                        out packedStored,
-                        out movedCount))
+                        out var candidatePacked,
+                        out var candidateMovedCount))
                 {
                     return false;
                 }
 
-                migratedReserved = selected.ToArray();
+                foundPacked = candidatePacked;
+                foundReserved = selected.ToArray();
+                foundMovedCount = candidateMovedCount;
                 return true;
             }
 
@@ -248,10 +253,11 @@ public partial class FarmingGuidePage
             return false;
         }
 
-        packedStored = current.StoredItems;
-        migratedReserved = [];
-        movedCount = 0;
-        return Search(0);
+        var success = Search(0);
+        packedStored = success && foundPacked is not null ? foundPacked : current.StoredItems;
+        migratedReserved = success && foundReserved is not null ? foundReserved : [];
+        movedCount = success ? foundMovedCount : 0;
+        return success;
     }
 
     private bool TryPackRootsAroundReservationV1160(
