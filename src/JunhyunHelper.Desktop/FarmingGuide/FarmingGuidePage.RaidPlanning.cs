@@ -605,7 +605,7 @@ public partial class FarmingGuidePage
             if (_lockedItemInstanceIds.Contains(currentId))
                 return true;
             currentId = StoredItems.FirstOrDefault(item =>
-                string.Equals(item.InstanceId, currentId, StringComparison.Ordinal)?.ParentInstanceId;
+                string.Equals(item.InstanceId, currentId, StringComparison.Ordinal))?.ParentInstanceId;
         }
         return false;
     }
