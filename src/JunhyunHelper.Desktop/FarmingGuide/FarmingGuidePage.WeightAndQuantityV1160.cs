@@ -94,7 +94,9 @@ public partial class FarmingGuidePage
         var current = BuildSnapshot();
         var weight = CalculateSnapshotWeightKgV1160(current);
         var limit = FarmingGuideWeightPolicy.MaximumCarryWeightKg(_weightSettingsV1160);
-        _weightButtonV1160.Content = $"{weight:0.0} / {limit:0.0} kg";
+        var content = $"{weight:0.0} / {limit:0.0} kg";
+        if (!string.Equals(_weightButtonV1160.Content as string, content, StringComparison.Ordinal))
+            _weightButtonV1160.Content = content;
     }
 
     private decimal CalculateSnapshotWeightKgV1160(FarmingGuideLoadoutSnapshot snapshot)
@@ -307,7 +309,9 @@ public partial class FarmingGuidePage
                 if (existingGrid.Children.OfType<Border>().FirstOrDefault(value => value.Tag is QuantityBadgeMarkerV1160)
                     is { Child: TextBlock badgeText })
                 {
-                    badgeText.Text = source.Placement.NormalizedQuantity.ToString("N0", CultureInfo.InvariantCulture);
+                    var text = source.Placement.NormalizedQuantity.ToString("N0", CultureInfo.InvariantCulture);
+                    if (!string.Equals(badgeText.Text, text, StringComparison.Ordinal))
+                        badgeText.Text = text;
                 }
                 continue;
             }
