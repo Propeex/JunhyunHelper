@@ -3,7 +3,7 @@
 이 문서는 준현 헬퍼의 **무엇을 만들고 왜 만드는지**를 정의하는 canonical 제품 요구사항이다. 사용자가 현재 대화에서 새로 확정한 제품 의도가 기존 구현보다 우선한다. 현재 코드가 존재한다는 이유만으로 그 동작을 제품 요구사항으로 추정하지 않는다.
 
 기준일: **2026-09-01 KST**  
-상태: **v1.15.2 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+상태: **v1.15.3 RELEASE CANDIDATE / v1.15.2 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 정확한 release SHA/asset/CI와 schema 사실값은 `docs/PROJECT_STATE.json`, 공개 상태는 `docs/CURRENT_STATE.md` / `docs/STATE.md`를 사용한다.
 
@@ -40,7 +40,7 @@
 - Program Update는 latest public stable GitHub release를 기준으로 사용자 동의 후 수행
 - public stable source/tag/assets는 immutable historical identity
 
-Current public stable은 **v1.15.2**이며 exact product source는 `f4974ee6bed5047865581240197f7f0e2787ba7c`이다. 이후 documentation-only main commit은 이 product source와 공개 asset identity를 대체하지 않는다.
+Current public stable은 **v1.15.2**이며 exact product source는 `f4974ee6bed5047865581240197f7f0e2787ba7c`이다. v1.15.3은 검증/배포가 완료될 때까지 이 공개 authority를 대체하지 않는다.
 
 ## 3. 데이터 authority
 
@@ -50,7 +50,7 @@ Remote Tarkov source를 import/검증해 만든 canonical snapshot이다.
 
 - Quest / Hideout / Item / Ammo 등 게임 기준 데이터
 - Farming Guide item dimensions, grids, filters, `specialSlot` classification, equipment compatibility, conflicts, preset/layout source data
-- source attachment/armor/default-preset metadata는 content evidence로 보존할 수 있지만 v1.15.2 Farming Guide는 equipment-internal user state를 만들지 않는다.
+- source attachment/armor/default-preset metadata는 content evidence로 보존할 수 있지만 v1.15.2+ Farming Guide는 equipment-internal user state를 만들지 않는다.
 - candidate가 validation/completeness/integrity를 통과해야 active가 됨
 - Last Known Good 보존
 
@@ -195,19 +195,19 @@ Source Game Content의 assembly/default-preset metadata는 **완제품 source im
 
 Secure Container는 explicit secure/pouch semantics를 우선하고 generic case/container와 구분한다.
 
-### Nested storage
+### Nested storage — v1.15.3+
 
 `FarmingGuideStoredItemState.ParentInstanceId`가 nested placement를 표현한다.
 
-사용자가 **상세 내부 화면으로 열 수 있는 stored item은 Backpack 또는 Rig뿐**이다.
+사용자가 상세 내부 화면으로 열 수 있는 stored item은 **current validated Game Content에 실제 `StorageGrids`가 존재하는 저장 아이템**이다. Backpack/Rig 이름이나 특정 case 이름을 하드코딩하지 않는다.
 
-- 가방 안 가방 허용
-- 가방/허용 storage 안 리그 허용
-- 실제 source-backed storage grids와 filters를 사용
+- 가방 안 가방/리그 같은 기존 nested storage 허용
+- Secure Container나 다른 허용 surface 안의 Key tool·문서/돈/카드/주사기 등 특수 컨테이너도 source-backed grid가 있으면 내부 storage surface를 제공
+- 실제 source-backed storage grids와 allowed/excluded category/item filters를 그대로 사용
 - 내부 grid에도 normal drag/drop 가능
-- nested backpack/rig 안에 다시 허용된 nested backpack/rig를 둘 수 있음
+- storage container 안에 다시 source가 허용하는 storage container를 둘 수 있음
 - root Rig / Backpack / Secure Container의 storage는 별도 상세창이 아니라 메인 Farming Guide storage surface에 표시
-- generic case/container나 일반 장비의 내부 detail surface는 현재 제품에서 제공하지 않음
+- weapon/helmet/armor attachment나 armor-plate state는 StorageGrids가 아니며 계속 내부 editor 대상이 아님
 - orphan/duplicate/self/cycle/invalid grid/filter/bounds/overlap state fail closed
 - carrier 이동 시 descendant parent chain 유지
 - destructive removal은 subtree 제거
@@ -258,6 +258,7 @@ Locks는 automation constraint이며 direct edit permission이 아니다.
 - locked Rig / Backpack / Secure Container 내부 ordinary storage는 여전히 자동 수납 후보가 될 수 있다.
 - empty-cell lock은 독립적인 1-cell reservation이며 사용자가 unlock할 때까지 유지한다.
 - direct user edit는 lock보다 우선하고, direct state change는 pending advice를 stale 처리한다.
+- stored item card의 기본 border는 neutral이며, `F`로 잠근 stored item만 accent/yellow border를 사용한다.
 
 ### Scanner-driven instruction / explicit acceptance
 
@@ -275,7 +276,10 @@ confirmed Scanner Item ID + scanner-owned price/needed facts
 - 수동 inventory/equipment/lock 변경은 pending을 조용히 무효화한다.
 - acceptance 성공 feedback은 `반영 완료`다.
 - scanned item name은 action text에서 반복하지 않는다.
-- T simulated scan은 같은 decision path를 사용하되 bounded lifetime 후 사라진다.
+- 검색 결과 위에 마우스를 둔 상태의 `T`는 simulated scan test command이며 Search TextBox가 focus를 보유해도 우선한다.
+- 검색 결과가 hover되지 않은 경우 `T`는 검색 입력으로 동작한다.
+- simulated scan은 실제 Scanner와 같은 Farming Guide decision path를 사용하며 Scanner capture mode가 꺼져 있어도 verified same-mode local Scanner catalog를 필요 시 on-demand load할 수 있다.
+- simulated snapshot 준비 실패는 조용히 무시하지 않고 테스트 실패 상태를 표시한다.
 
 Current action wording:
 
@@ -304,7 +308,7 @@ Accepted Store / Replace / top-level Equip / ReplaceEquip은 session-local acqui
 schema v2
 ```
 
-schema v2는 그대로 유지한다. v1.15.2는 schema bump 대신 legacy equipment assembly fields를 current runtime에서 root-only state로 정규화한다.
+schema v2는 그대로 유지한다. v1.15.2+는 schema bump 대신 legacy equipment assembly fields를 current runtime에서 root-only state로 정규화하며, v1.15.3은 기존 `ParentInstanceId` nested-storage model을 더 넓은 source-backed storage item에 적용한다.
 
 현재 Farming Guide 비포함:
 
@@ -316,7 +320,8 @@ schema v2는 그대로 유지한다. v1.15.2는 schema bump 대신 legacy equipm
 - user acceptance 없이 자동 상태 변경
 - extraction probability 기반 탈출 지시
 
-Canonical v1.15.2 correction: `docs/DECISION_V1.15.2_COMPLETE_EQUIPMENT_MODEL.md`.
+Canonical equipment correction: `docs/DECISION_V1.15.2_COMPLETE_EQUIPMENT_MODEL.md`.  
+Canonical specialized-storage/test correction: `docs/DECISION_V1.15.3_SPECIALIZED_NESTED_STORAGE.md`.
 
 ## 9. Diagnostics
 
@@ -333,7 +338,7 @@ Canonical v1.15.2 correction: `docs/DECISION_V1.15.2_COMPLETE_EQUIPMENT_MODEL.md
 ## 11. Schema / compatibility
 
 ```text
-Desktop: 1.15.2
+Desktop: 1.15.3 release candidate
 Public stable: 1.15.2
 Content write: v10
 Content readable: v3-v10
@@ -343,7 +348,7 @@ Scanner display settings: v10
 Scanner catalog write/read: v4 / v1-v4
 ```
 
-v1.15.2는 schema를 올리지 않는다. 기존 Farming Guide v2 파일의 equipment-internal assembly data는 읽을 수 있지만 complete-equipment runtime에서는 root-only equipment state로 정리한다. 사용자 프리셋 이름, top-level equipment, storage placement, nested backpack/rig placement와 locks는 보존한다.
+v1.15.3은 schema를 올리지 않는다. 기존 Farming Guide v2 파일의 equipment-internal assembly data는 complete-equipment runtime에서 root-only equipment state로 정리한다. 사용자 프리셋 이름, top-level equipment, storage placement, 기존 nested placement와 locks는 보존하며, 현재 source가 storage grid로 증명하는 specialized container는 같은 기존 nested-storage state model을 사용한다.
 
 ## 12. Release quality gate
 
@@ -364,6 +369,6 @@ v1.15.2는 schema를 올리지 않는다. 기존 Farming Guide v2 파일의 equi
 
 ## 13. 유지보수 방향
 
-현재 public 제품은 product-complete maintenance mode다. v1.15.0은 Farming Guide MINOR 기능 확장이었고 v1.15.1/v1.15.2는 실제 사용 흐름에 맞게 이를 보수하는 PATCH correction이다.
+현재 public 제품은 product-complete maintenance mode다. v1.15.0은 Farming Guide MINOR 기능 확장이었고 v1.15.1/v1.15.2/v1.15.3은 실제 사용 흐름에 맞게 이를 보수하는 PATCH correction이다.
 
 기본 우선순위는 실사용 오류, Tarkov 변화 대응, 안정성/신뢰성, 성능, regression coverage, bounded technical debt cleanup 순이다. 추가 새 기능이나 UX 변경은 사용자의 명시적인 제품 요구사항이 있을 때만 설계한다.
