@@ -77,6 +77,7 @@ public partial class FarmingGuidePage : UserControl
         ArgumentNullException.ThrowIfNull(content);
         ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
 
+        ResetRaidForDataChange();
         _content = content;
         _profileId = profileId;
         var activeProfile = _profileProvider?.Invoke();
@@ -105,12 +106,18 @@ public partial class FarmingGuidePage : UserControl
             _fixedEquipment = _presetStore.LoadFixedEquipment();
             var state = _presetStore.LoadProfile(profileId);
             ApplySnapshot(state.WorkingSnapshot);
+            ApplyLockState(state.Locks ?? FarmingGuideLockState.Empty);
             _selectedPresetName = state.SelectedPresetName;
+        }
+        else
+        {
+            ApplyLockState(FarmingGuideLockState.Empty);
         }
 
         RefreshPresetChoices();
         ApplySearch();
         RefreshAll();
+        RefreshRaidUi();
     }
 
     public void SetBusy(bool busy)
@@ -147,6 +154,17 @@ public partial class FarmingGuidePage : UserControl
 
     internal void MarkChanged(bool fixedSetting = false)
     {
+        if (_raidSession is not null && !fixedSetting)
+        {
+            var pendingWasPresent = _raidSession.State.PendingInstruction is not null;
+            _raidSession.ReplaceCurrentState(BuildSnapshot(), BuildLockState());
+            RefreshAll();
+            RefreshRaidUi();
+            if (pendingWasPresent)
+                _raidBridge?.ShowMiniScannerStatus("상태 변경으로 이전 파밍 지시를 취소했습니다.");
+            return;
+        }
+
         if (!fixedSetting)
         {
             _selectedPresetName = null;
@@ -161,7 +179,7 @@ public partial class FarmingGuidePage : UserControl
     {
         if (_presetStore is null || string.IsNullOrWhiteSpace(_profileId))
             return;
-        _presetStore.SaveWorking(_profileId, BuildSnapshot(), _selectedPresetName);
+        _presetStore.SaveWorking(_profileId, BuildSnapshot(), _selectedPresetName, BuildLockState());
     }
 
     private void RefreshAll()
@@ -170,6 +188,7 @@ public partial class FarmingGuidePage : UserControl
             return;
         RenderEquipment();
         RenderStorage();
+        ApplyLockVisuals();
         RefreshSummary();
     }
 
@@ -189,12 +208,14 @@ public partial class FarmingGuidePage : UserControl
             ? _selectedPresetName
             : PresetPlaceholder;
         _updatingPresetCombo = false;
-        DeletePresetButton.IsEnabled = !string.IsNullOrWhiteSpace(_selectedPresetName);
+        DeletePresetButton.IsEnabled = _raidSession is null && !string.IsNullOrWhiteSpace(_selectedPresetName);
+        PresetComboBox.IsEnabled = _raidSession is null;
     }
 
     private void PresetComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_updatingPresetCombo ||
+        if (_raidSession is not null ||
+            _updatingPresetCombo ||
             _presetStore is null ||
             string.IsNullOrWhiteSpace(_profileId) ||
             PresetComboBox.SelectedItem is not string name ||
@@ -206,6 +227,7 @@ public partial class FarmingGuidePage : UserControl
         var state = _presetStore.SelectPreset(_profileId, name);
         _selectedPresetName = state.SelectedPresetName;
         ApplySnapshot(state.WorkingSnapshot);
+        ApplyLockState(state.Locks ?? FarmingGuideLockState.Empty);
         CloseWorkbench();
         RefreshPresetChoices();
         RefreshAll();
@@ -213,7 +235,7 @@ public partial class FarmingGuidePage : UserControl
 
     private void SavePresetButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_presetStore is null || string.IsNullOrWhiteSpace(_profileId))
+        if (_raidSession is not null || _presetStore is null || string.IsNullOrWhiteSpace(_profileId))
             return;
 
         var dialog = new FarmingGuidePresetNameWindow
@@ -223,14 +245,16 @@ public partial class FarmingGuidePage : UserControl
         if (dialog.ShowDialog() != true || string.IsNullOrWhiteSpace(dialog.PresetName))
             return;
 
-        var state = _presetStore.SavePreset(_profileId, dialog.PresetName, BuildSnapshot());
+        var state = _presetStore.SavePreset(_profileId, dialog.PresetName, BuildSnapshot(), BuildLockState());
         _selectedPresetName = state.SelectedPresetName;
+        ApplyLockState(state.Locks ?? FarmingGuideLockState.Empty);
         RefreshPresetChoices();
     }
 
     private void DeletePresetButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_presetStore is null ||
+        if (_raidSession is not null ||
+            _presetStore is null ||
             string.IsNullOrWhiteSpace(_profileId) ||
             string.IsNullOrWhiteSpace(_selectedPresetName))
         {

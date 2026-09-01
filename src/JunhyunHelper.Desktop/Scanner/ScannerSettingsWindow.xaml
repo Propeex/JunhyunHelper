@@ -3,9 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Scanner 설정"
         Width="600"
-        Height="730"
+        Height="760"
         MinWidth="520"
-        MinHeight="600"
+        MinHeight="620"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource BackgroundDarkBrush}">
     <Grid Margin="14">
@@ -17,7 +17,7 @@
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
-                    <RowDefinition Height="260" />
+                    <RowDefinition Height="285" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
@@ -108,7 +108,7 @@
                         <Button Grid.Column="2" Content="변경" MinWidth="76"
                                 Click="ChangeScannerToggleButton_Click" />
                     </Grid>
-                    <Grid>
+                    <Grid Margin="0,0,0,8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="175" />
                             <ColumnDefinition Width="*" />
@@ -120,6 +120,19 @@
                                    VerticalAlignment="Center" />
                         <Button Grid.Column="2" Content="변경" MinWidth="76"
                                 Click="ChangeAddCorrectionDataButton_Click" />
+                    </Grid>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="175" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="88" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="파밍 가이드 수락" VerticalAlignment="Center" />
+                        <TextBlock x:Name="FarmingGuideAcceptText" Grid.Column="1"
+                                   Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold"
+                                   VerticalAlignment="Center" />
+                        <Button Grid.Column="2" Content="변경" MinWidth="76"
+                                Click="ChangeFarmingGuideAcceptButton_Click" />
                     </Grid>
                 </StackPanel>
             </Grid>

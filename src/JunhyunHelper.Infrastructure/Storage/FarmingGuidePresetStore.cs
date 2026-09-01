@@ -7,7 +7,8 @@ namespace JunhyunHelper.Infrastructure.Storage;
 public sealed record FarmingGuideProfileState(
     FarmingGuideLoadoutSnapshot WorkingSnapshot,
     string? SelectedPresetName,
-    IReadOnlyList<FarmingGuidePreset> Presets);
+    IReadOnlyList<FarmingGuidePreset> Presets,
+    FarmingGuideLockState? Locks = null);
 
 public sealed record FarmingGuideFixedEquipmentState(
     FarmingGuideItemState? Melee,
@@ -23,7 +24,7 @@ public sealed record FarmingGuideFixedEquipmentState(
 
 public sealed class FarmingGuidePresetStore
 {
-    private const int CurrentSchemaVersion = 1;
+    private const int CurrentSchemaVersion = 2;
     private readonly object _gate = new();
     private readonly AtomicJsonFileStore _store;
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
@@ -41,7 +42,7 @@ public sealed class FarmingGuidePresetStore
         {
             var document = LoadDocument();
             return document.Profiles.TryGetValue(profileId, out var profile)
-                ? profile
+                ? NormalizeProfile(profile)
                 : EmptyProfile();
         }
     }
@@ -55,7 +56,8 @@ public sealed class FarmingGuidePresetStore
     public void SaveWorking(
         string profileId,
         FarmingGuideLoadoutSnapshot snapshot,
-        string? selectedPresetName)
+        string? selectedPresetName,
+        FarmingGuideLockState? locks = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
         ArgumentNullException.ThrowIfNull(snapshot);
@@ -64,13 +66,14 @@ public sealed class FarmingGuidePresetStore
         {
             var document = LoadDocument();
             var previous = document.Profiles.TryGetValue(profileId, out var profile)
-                ? profile
+                ? NormalizeProfile(profile)
                 : EmptyProfile();
             var profiles = CopyProfiles(document.Profiles);
             profiles[profileId] = previous with
             {
                 WorkingSnapshot = snapshot,
                 SelectedPresetName = selectedPresetName,
+                Locks = (locks ?? previous.Locks ?? FarmingGuideLockState.Empty).CopyNormalized(),
             };
             SaveDocument(document with { Profiles = profiles });
         }
@@ -79,7 +82,8 @@ public sealed class FarmingGuidePresetStore
     public FarmingGuideProfileState SavePreset(
         string profileId,
         string name,
-        FarmingGuideLoadoutSnapshot snapshot)
+        FarmingGuideLoadoutSnapshot snapshot,
+        FarmingGuideLockState? locks = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -90,14 +94,15 @@ public sealed class FarmingGuidePresetStore
         {
             var document = LoadDocument();
             var previous = document.Profiles.TryGetValue(profileId, out var profile)
-                ? profile
+                ? NormalizeProfile(profile)
                 : EmptyProfile();
+            var effectiveLocks = (locks ?? previous.Locks ?? FarmingGuideLockState.Empty).CopyNormalized();
             var presets = previous.Presets
                 .Where(preset => !string.Equals(preset.Name, normalizedName, StringComparison.OrdinalIgnoreCase))
-                .Append(new FarmingGuidePreset(normalizedName, snapshot, DateTimeOffset.UtcNow))
+                .Append(new FarmingGuidePreset(normalizedName, snapshot, DateTimeOffset.UtcNow, effectiveLocks))
                 .OrderBy(preset => preset.Name, StringComparer.CurrentCultureIgnoreCase)
                 .ToArray();
-            var updated = new FarmingGuideProfileState(snapshot, normalizedName, presets);
+            var updated = new FarmingGuideProfileState(snapshot, normalizedName, presets, effectiveLocks);
             var profiles = CopyProfiles(document.Profiles);
             profiles[profileId] = updated;
             SaveDocument(document with { Profiles = profiles });
@@ -114,7 +119,7 @@ public sealed class FarmingGuidePresetStore
         {
             var document = LoadDocument();
             var previous = document.Profiles.TryGetValue(profileId, out var profile)
-                ? profile
+                ? NormalizeProfile(profile)
                 : EmptyProfile();
             var preset = previous.Presets.FirstOrDefault(value =>
                 string.Equals(value.Name, name.Trim(), StringComparison.OrdinalIgnoreCase));
@@ -125,6 +130,7 @@ public sealed class FarmingGuidePresetStore
             {
                 WorkingSnapshot = preset.Snapshot,
                 SelectedPresetName = preset.Name,
+                Locks = (preset.Locks ?? FarmingGuideLockState.Empty).CopyNormalized(),
             };
             var profiles = CopyProfiles(document.Profiles);
             profiles[profileId] = updated;
@@ -143,7 +149,7 @@ public sealed class FarmingGuidePresetStore
         {
             var document = LoadDocument();
             var previous = document.Profiles.TryGetValue(profileId, out var profile)
-                ? profile
+                ? NormalizeProfile(profile)
                 : EmptyProfile();
             var presets = previous.Presets
                 .Where(preset => !string.Equals(preset.Name, normalizedName, StringComparison.OrdinalIgnoreCase))
@@ -184,9 +190,19 @@ public sealed class FarmingGuidePresetStore
         var loaded = _store.LoadOrDefault(
             static () => FarmingGuideDocument.Empty,
             JsonOptions);
-        return loaded.SchemaVersion == CurrentSchemaVersion
-            ? loaded
-            : FarmingGuideDocument.Empty;
+        if (loaded.SchemaVersion is not (1 or CurrentSchemaVersion))
+            return FarmingGuideDocument.Empty;
+
+        var profiles = loaded.Profiles.ToDictionary(
+            entry => entry.Key,
+            entry => NormalizeProfile(entry.Value),
+            StringComparer.Ordinal);
+        return loaded with
+        {
+            SchemaVersion = CurrentSchemaVersion,
+            Profiles = profiles,
+            FixedEquipment = loaded.FixedEquipment.WithoutLegacyDogtag(),
+        };
     }
 
     private void SaveDocument(FarmingGuideDocument document) =>
@@ -198,6 +214,15 @@ public sealed class FarmingGuidePresetStore
             },
             JsonOptions);
 
+    private static FarmingGuideProfileState NormalizeProfile(FarmingGuideProfileState profile) =>
+        profile with
+        {
+            Locks = (profile.Locks ?? FarmingGuideLockState.Empty).CopyNormalized(),
+            Presets = profile.Presets
+                .Select(preset => preset with { Locks = (preset.Locks ?? FarmingGuideLockState.Empty).CopyNormalized() })
+                .ToArray(),
+        };
+
     private static Dictionary<string, FarmingGuideProfileState> CopyProfiles(
         IReadOnlyDictionary<string, FarmingGuideProfileState> source) =>
         source.ToDictionary(
@@ -206,7 +231,7 @@ public sealed class FarmingGuidePresetStore
             StringComparer.Ordinal);
 
     private static FarmingGuideProfileState EmptyProfile() =>
-        new(FarmingGuideLoadoutSnapshot.Empty, null, []);
+        new(FarmingGuideLoadoutSnapshot.Empty, null, [], FarmingGuideLockState.Empty);
 
     private static JsonSerializerOptions CreateJsonOptions()
     {

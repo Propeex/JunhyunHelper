@@ -4,6 +4,7 @@ using JunhyunHelper.Application.Hideout;
 using JunhyunHelper.Application.Items;
 using JunhyunHelper.Application.Profiles;
 using JunhyunHelper.Application.Quests;
+using JunhyunHelper.Desktop.FarmingGuide;
 using JunhyunHelper.Desktop.Scanner;
 using JunhyunHelper.Infrastructure.Content;
 using JunhyunHelper.Infrastructure.EditionData;
@@ -39,7 +40,14 @@ public sealed class DesktopServices : IDisposable
         AmmoFavorites = new AmmoFavoriteStore(RootDirectory);
         ScannerItemUiState = new ScannerItemUiStateStore(RootDirectory);
         FarmingGuide = new FarmingGuidePresetStore(RootDirectory);
+        FarmingGuideRaid = new FarmingGuideRaidBridge();
         Scanner = new ScannerCoordinator(_httpClient, RootDirectory);
+        FarmingGuideRaid.SetScannerSnapshotResolver(Scanner.CreateFarmingGuideSnapshot);
+        FarmingGuideRaid.SetMiniScannerInstructionHandler(Scanner.SetFarmingGuideInstruction);
+        FarmingGuideRaid.SetSimulatedScanPresenter(Scanner.ShowFarmingGuideTestSnapshot);
+        FarmingGuideRaid.SetTransientStatusHandler(Scanner.ShowFarmingGuideStatus);
+        Scanner.SetFarmingGuideAcceptHandler(FarmingGuideRaid.TryAccept);
+        Scanner.StatusChanged += FarmingGuideRaid.ObserveScannerStatus;
 
         var sourceLoader = new TarkovEndpointSourceLoader(new TarkovJsonClient(_httpClient));
         var buildService = new TarkovContentBuildService(
@@ -55,33 +63,25 @@ public sealed class DesktopServices : IDisposable
     }
 
     public string RootDirectory { get; }
-
     public UserProfileStore Profiles { get; }
-
     public ContentActivationService Content { get; }
-
     public TarkovContentUpdateService ContentUpdater { get; }
-
     public ImageCacheService Images { get; }
-
     public AmmoFavoriteStore AmmoFavorites { get; }
-
     public ScannerItemUiStateStore ScannerItemUiState { get; }
-
     public FarmingGuidePresetStore FarmingGuide { get; }
-
+    public FarmingGuideRaidBridge FarmingGuideRaid { get; }
     public ScannerCoordinator Scanner { get; }
-
     public ProfileApplicationService ProfileManagement { get; }
-
     public QuestApplicationService Quests { get; }
-
     public HideoutApplicationService Hideout { get; }
-
     public ItemsApplicationService Items { get; }
 
     public void Dispose()
     {
+        Scanner.StatusChanged -= FarmingGuideRaid.ObserveScannerStatus;
+        FarmingGuideRaid.SetMiniScannerInstruction(null);
+        FarmingGuideRaid.Unbind();
         Scanner.Dispose();
         _httpClient.Dispose();
     }

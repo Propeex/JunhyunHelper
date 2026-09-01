@@ -39,7 +39,7 @@ public sealed class V110MiniMapMiniScannerContractTests
         Assert.Contains("public int? FleaMinimumPrice { get; init; }", catalogItem, StringComparison.Ordinal);
         Assert.Contains("CurrentCacheSchemaVersion = 4", catalogService, StringComparison.Ordinal);
         Assert.Contains("GetInt(raw, \"lastLowPrice\")", catalogService, StringComparison.Ordinal);
-        Assert.Contains("CurrentSchemaVersion = 9", displaySettings, StringComparison.Ordinal);
+        Assert.Contains("CurrentSchemaVersion = 10", displaySettings, StringComparison.Ordinal);
         Assert.Contains("FleaMinimumPriceField = \"flea_minimum_price\"", displaySettings, StringComparison.Ordinal);
         Assert.Contains("ScannerInfoOrderPolicy.Normalize", displaySettings, StringComparison.Ordinal);
         Assert.Contains("ShowFleaMinimumPrice", displaySettings, StringComparison.Ordinal);

@@ -18,6 +18,7 @@ public sealed class MiniScannerOverlayService : IDisposable
     private MiniScannerWindow? _window;
     private ScannerItemSnapshot? _snapshot;
     private string? _requestedItemId;
+    private string? _farmingGuideInstruction;
     private bool _editMode;
     private bool _disposed;
     private int _visibilityEpoch;
@@ -55,16 +56,12 @@ public sealed class MiniScannerOverlayService : IDisposable
             }
         }
 
-        // Display-test and explicit preview remain deterministic development/test tools.
         if (preview || !_settings.Current.Enabled)
         {
             ShowVerified(snapshot, epoch);
             return;
         }
 
-        // Once an Item has already been presented, an authoritative later Scanner match
-        // updates it directly. Recognition owns liveness; Mini Scanner must not run an
-        // independent OCR gate for every presentation refresh.
         var hasVisibleSnapshot = Invoke(() => _snapshot is not null && _window?.IsVisible == true);
         if (hasVisibleSnapshot)
         {
@@ -72,11 +69,6 @@ public sealed class MiniScannerOverlayService : IDisposable
             return;
         }
 
-        // A hidden Mini Scanner still opens only while the real Tarkov client owns the
-        // foreground. The Scanner has already verified the detail window and Item ID at
-        // this point, so auxiliary top-band inventory OCR is weaker evidence and must not
-        // veto a confirmed result. This fixes successful Scanner recognition being logged
-        // while the Mini Scanner remained hidden because that second OCR missed raid UI.
         var foregroundTarkov = ScannerInventoryContextDetector.IsForegroundTarkovClient();
         if (!CanOpenConfirmedItem(preview, _settings.Current.Enabled, foregroundTarkov))
         {
@@ -98,14 +90,25 @@ public sealed class MiniScannerOverlayService : IDisposable
             if (_disposed || epoch != Volatile.Read(ref _visibilityEpoch))
                 return;
             _snapshot = snapshot;
-            EnsureWindow().Render(snapshot, _settings.Current, _editMode);
+            var window = EnsureWindow();
+            window.Render(snapshot, _settings.Current, _editMode);
+            window.SetFarmingGuideInstruction(_farmingGuideInstruction, _settings.Current);
         });
     }
 
-    /// <summary>
-    /// Hard non-item state. Scanner stop/suspend/unavailable states use this path and
-    /// clear the Mini Scanner immediately rather than consuming the transient miss budget.
-    /// </summary>
+    public void SetFarmingGuideInstruction(string? instruction)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        var normalized = string.IsNullOrWhiteSpace(instruction) ? null : instruction.Trim();
+        Invoke(() =>
+        {
+            if (_disposed)
+                return;
+            _farmingGuideInstruction = normalized;
+            _window?.SetFarmingGuideInstruction(_farmingGuideInstruction, _settings.Current);
+        });
+    }
+
     public void ShowStandby(string message)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -113,21 +116,12 @@ public sealed class MiniScannerOverlayService : IDisposable
         Hide();
     }
 
-    /// <summary>
-    /// Progress-only state such as candidate stabilization or OCR work. The Scanner page
-    /// may report the status, while the last confirmed Mini Scanner item stays untouched.
-    /// </summary>
     public void HoldStandby(string message)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
     }
 
-    /// <summary>
-    /// Shows a short user-facing confirmation without replacing Scanner evidence or the
-    /// current item snapshot. When no item is currently visible, the Mini Scanner opens as
-    /// a status-only card and closes itself after the transient message expires.
-    /// </summary>
     public void ShowTransientStatus(string message)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -141,11 +135,6 @@ public sealed class MiniScannerOverlayService : IDisposable
         });
     }
 
-    /// <summary>
-    /// Records one completed continuous-recognition miss. The last confirmed item remains
-    /// visible through two misses and is hidden on the third consecutive miss. Any later
-    /// successful Show call resets this budget, including an immediate switch to a new item.
-    /// </summary>
     public void ReportTransientMiss(string message)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -174,8 +163,6 @@ public sealed class MiniScannerOverlayService : IDisposable
         });
     }
 
-    // Legacy Foundation hooks are retained for developer use, but the product UI no
-    // longer exposes an edit mode. The window itself is always directly draggable.
     public void BeginPositionEdit()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -185,7 +172,9 @@ public sealed class MiniScannerOverlayService : IDisposable
             _editMode = true;
             if (_snapshot is not null)
             {
-                EnsureWindow().Render(_snapshot, _settings.Current, editMode: true);
+                var existingWindow = EnsureWindow();
+                existingWindow.Render(_snapshot, _settings.Current, editMode: true);
+                existingWindow.SetFarmingGuideInstruction(_farmingGuideInstruction, _settings.Current);
                 return;
             }
 
@@ -196,7 +185,9 @@ public sealed class MiniScannerOverlayService : IDisposable
                 _presentationRetention.Confirm(preview.ItemId);
                 _requestedItemId = preview.ItemId;
             }
-            EnsureWindow().Render(preview, _settings.Current, editMode: true);
+            var window = EnsureWindow();
+            window.Render(preview, _settings.Current, editMode: true);
+            window.SetFarmingGuideInstruction(_farmingGuideInstruction, _settings.Current);
         });
     }
 
@@ -238,7 +229,11 @@ public sealed class MiniScannerOverlayService : IDisposable
             _window.Close();
             _window = null;
             if (snapshot is not null)
-                EnsureWindow().Render(snapshot, _settings.Current, editMode);
+            {
+                var window = EnsureWindow();
+                window.Render(snapshot, _settings.Current, editMode);
+                window.SetFarmingGuideInstruction(_farmingGuideInstruction, _settings.Current);
+            }
         });
     }
 
@@ -259,6 +254,7 @@ public sealed class MiniScannerOverlayService : IDisposable
 
         _window = new MiniScannerWindow();
         _window.PositionCommitted += OnPositionCommitted;
+        _window.SetFarmingGuideInstruction(_farmingGuideInstruction, _settings.Current);
         return _window;
     }
 
@@ -268,7 +264,6 @@ public sealed class MiniScannerOverlayService : IDisposable
     {
         _settings.Update(settings =>
         {
-            // Negative WPF coordinates are valid for monitors left/above primary.
             settings.PositionX = x;
             settings.PositionY = y;
         });
@@ -286,7 +281,10 @@ public sealed class MiniScannerOverlayService : IDisposable
 
             _window.ApplySettings(settings);
             if (_snapshot is not null && _window.IsVisible)
+            {
                 _window.Render(_snapshot, settings, _editMode);
+                _window.SetFarmingGuideInstruction(_farmingGuideInstruction, settings);
+            }
         });
     }
 
@@ -336,6 +334,7 @@ public sealed class MiniScannerOverlayService : IDisposable
             _window.Close();
             _window = null;
             _snapshot = null;
+            _farmingGuideInstruction = null;
         });
         GC.SuppressFinalize(this);
     }
