@@ -93,10 +93,10 @@ public partial class FarmingGuidePage
     }
 
     /// <summary>
-    /// Sizes nested storage against the real viewport instead of measuring an unbounded
-    /// child and then clipping the outer Border. Scroll-viewer chrome is reserved before
-    /// final width is chosen, and horizontal scrolling remains only as a physical fallback
-    /// for storage wider than the available center column.
+    /// Size nested storage against the real center-column viewport. The content grid owns
+    /// the width decision; a long title must not inflate a tiny case. ScrollViewer template
+    /// chrome gets a small constant allowance, while the full system scrollbar width is
+    /// reserved only when content height actually requires a vertical scrollbar.
     /// </summary>
     private void SizeWorkbenchToGrid(FrameworkElement gridHost)
     {
@@ -130,35 +130,41 @@ public partial class FarmingGuidePage
             scrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
         }
 
-        // WPF ScrollViewer can reserve non-client scrollbar space only after arranging.
-        // Always budget one system scrollbar width so the final arrange pass cannot steal
-        // the last pixels of a cell from content that otherwise fits the workbench.
-        var scrollbarAllowance = Math.Max(18d, SystemParameters.VerticalScrollBarWidth);
-        var maximumViewportWidth = Math.Max(
+        // The default WPF ScrollViewer template consumes a couple of device-independent
+        // pixels even with both scrollbars collapsed. Without this allowance a grid that
+        // mathematically fits can still expose a one-pixel horizontal scrollbar after the
+        // final arrange pass.
+        const double scrollViewerChromeAllowance = 3d;
+        var baseViewportWidth = Math.Max(
             CellSize,
-            maxWidth - horizontalChrome - scrollbarAllowance);
+            maxWidth - horizontalChrome - scrollViewerChromeAllowance);
 
-        header?.Measure(new Size(maximumViewportWidth, double.PositiveInfinity));
+        header?.Measure(new Size(baseViewportWidth, double.PositiveInfinity));
         var headerHeight = header?.DesiredSize.Height ?? 0d;
-        var headerWidth = header?.DesiredSize.Width ?? 0d;
         var maximumViewportHeight = Math.Max(
             CellSize,
             maxHeight - verticalChrome - headerHeight);
 
-        gridHost.Measure(new Size(maximumViewportWidth, double.PositiveInfinity));
+        gridHost.Measure(new Size(baseViewportWidth, double.PositiveInfinity));
         var desired = gridHost.DesiredSize;
         var verticalScrollNeeded = desired.Height > maximumViewportHeight + 0.5d;
+        var reservedVerticalBar = verticalScrollNeeded
+            ? Math.Max(0d, SystemParameters.VerticalScrollBarWidth)
+            : 0d;
 
         if (verticalScrollNeeded)
         {
-            // maximumViewportWidth already reserves one bar. Re-measure so WrapPanel-based
-            // multi-grid layouts use the same width they will receive at arrange time.
-            gridHost.Measure(new Size(maximumViewportWidth, double.PositiveInfinity));
+            var constrainedWidth = Math.Max(
+                CellSize,
+                baseViewportWidth - reservedVerticalBar);
+            gridHost.Measure(new Size(constrainedWidth, double.PositiveInfinity));
             desired = gridHost.DesiredSize;
         }
 
-        var desiredContentWidth = Math.Max(desired.Width, headerWidth);
-        var desiredWidth = desiredContentWidth + horizontalChrome + scrollbarAllowance;
+        var desiredWidth = desired.Width +
+                           horizontalChrome +
+                           scrollViewerChromeAllowance +
+                           reservedVerticalBar;
         var desiredHeight = desired.Height + headerHeight + verticalChrome;
 
         WorkbenchHost.HorizontalAlignment = HorizontalAlignment.Left;
