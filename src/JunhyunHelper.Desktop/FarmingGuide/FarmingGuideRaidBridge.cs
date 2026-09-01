@@ -22,6 +22,16 @@ public sealed class FarmingGuideRaidBridge
             _snapshotResolver = resolver;
     }
 
+    public ScannerItemSnapshot? ResolveSnapshot(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            return null;
+        Func<string, ScannerItemSnapshot?>? resolver;
+        lock (_gate)
+            resolver = _snapshotResolver;
+        return resolver?.Invoke(itemId.Trim());
+    }
+
     public void Bind(
         Action<ScannerItemSnapshot> scanHandler,
         Func<bool> acceptHandler,
@@ -81,14 +91,9 @@ public sealed class FarmingGuideRaidBridge
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(itemId);
         Action<ScannerItemSnapshot>? handler;
-        Func<string, ScannerItemSnapshot?>? resolver;
+        var snapshot = ResolveSnapshot(itemId);
         lock (_gate)
-        {
             handler = _scanHandler;
-            resolver = _snapshotResolver;
-        }
-
-        var snapshot = resolver?.Invoke(itemId.Trim());
         if (snapshot is null)
             return false;
         handler?.Invoke(snapshot);
