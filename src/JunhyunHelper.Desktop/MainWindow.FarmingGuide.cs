@@ -24,6 +24,9 @@ public partial class MainWindow
             _services.Images,
             _services.FarmingGuide,
             () => _activeProfile);
+        FarmingGuidePage.ConfigureRaid(
+            _services.FarmingGuideRaid,
+            () => _services.Scanner.FarmingGuideAcceptHotkeyText);
         _farmingGuideConfigured = true;
     }
 }
