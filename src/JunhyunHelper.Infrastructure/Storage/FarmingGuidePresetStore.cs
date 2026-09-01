@@ -8,7 +8,8 @@ public sealed record FarmingGuideProfileState(
     FarmingGuideLoadoutSnapshot WorkingSnapshot,
     string? SelectedPresetName,
     IReadOnlyList<FarmingGuidePreset> Presets,
-    FarmingGuideLockState? Locks = null);
+    FarmingGuideLockState? Locks = null,
+    FarmingGuideWeightSettings? WeightSettings = null);
 
 public sealed record FarmingGuideFixedEquipmentState(
     FarmingGuideItemState? Melee,
@@ -16,15 +17,12 @@ public sealed record FarmingGuideFixedEquipmentState(
 {
     public static FarmingGuideFixedEquipmentState Empty { get; } = new(null, null);
 
-    // Dogtag existed in Farming Guide schema v1 before v1.14.0. Keep the serialized
-    // member readable so existing user files never fail to deserialize, but the product
-    // no longer exposes or counts this impossible equipment surface.
     public FarmingGuideFixedEquipmentState WithoutLegacyDogtag() => this with { Dogtag = null };
 }
 
 public sealed class FarmingGuidePresetStore
 {
-    private const int CurrentSchemaVersion = 2;
+    private const int CurrentSchemaVersion = 3;
     private readonly object _gate = new();
     private readonly AtomicJsonFileStore _store;
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
@@ -71,10 +69,26 @@ public sealed class FarmingGuidePresetStore
             var profiles = CopyProfiles(document.Profiles);
             profiles[profileId] = previous with
             {
-                WorkingSnapshot = snapshot,
+                WorkingSnapshot = NormalizeSnapshot(snapshot),
                 SelectedPresetName = selectedPresetName,
                 Locks = (locks ?? previous.Locks ?? FarmingGuideLockState.Empty).CopyNormalized(),
             };
+            SaveDocument(document with { Profiles = profiles });
+        }
+    }
+
+    public void SaveWeightSettings(string profileId, FarmingGuideWeightSettings settings)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
+        ArgumentNullException.ThrowIfNull(settings);
+        lock (_gate)
+        {
+            var document = LoadDocument();
+            var previous = document.Profiles.TryGetValue(profileId, out var profile)
+                ? NormalizeProfile(profile)
+                : EmptyProfile();
+            var profiles = CopyProfiles(document.Profiles);
+            profiles[profileId] = previous with { WeightSettings = settings.Normalized() };
             SaveDocument(document with { Profiles = profiles });
         }
     }
@@ -97,12 +111,19 @@ public sealed class FarmingGuidePresetStore
                 ? NormalizeProfile(profile)
                 : EmptyProfile();
             var effectiveLocks = (locks ?? previous.Locks ?? FarmingGuideLockState.Empty).CopyNormalized();
+            var normalizedSnapshot = NormalizeSnapshot(snapshot);
             var presets = previous.Presets
                 .Where(preset => !string.Equals(preset.Name, normalizedName, StringComparison.OrdinalIgnoreCase))
-                .Append(new FarmingGuidePreset(normalizedName, snapshot, DateTimeOffset.UtcNow, effectiveLocks))
+                .Append(new FarmingGuidePreset(normalizedName, normalizedSnapshot, DateTimeOffset.UtcNow, effectiveLocks))
                 .OrderBy(preset => preset.Name, StringComparer.CurrentCultureIgnoreCase)
                 .ToArray();
-            var updated = new FarmingGuideProfileState(snapshot, normalizedName, presets, effectiveLocks);
+            var updated = previous with
+            {
+                WorkingSnapshot = normalizedSnapshot,
+                SelectedPresetName = normalizedName,
+                Presets = presets,
+                Locks = effectiveLocks,
+            };
             var profiles = CopyProfiles(document.Profiles);
             profiles[profileId] = updated;
             SaveDocument(document with { Profiles = profiles });
@@ -128,7 +149,7 @@ public sealed class FarmingGuidePresetStore
 
             var updated = previous with
             {
-                WorkingSnapshot = preset.Snapshot,
+                WorkingSnapshot = NormalizeSnapshot(preset.Snapshot),
                 SelectedPresetName = preset.Name,
                 Locks = (preset.Locks ?? FarmingGuideLockState.Empty).CopyNormalized(),
             };
@@ -190,7 +211,7 @@ public sealed class FarmingGuidePresetStore
         var loaded = _store.LoadOrDefault(
             static () => FarmingGuideDocument.Empty,
             JsonOptions);
-        if (loaded.SchemaVersion is not (1 or CurrentSchemaVersion))
+        if (loaded.SchemaVersion is not (1 or 2 or CurrentSchemaVersion))
             return FarmingGuideDocument.Empty;
 
         var profiles = loaded.Profiles.ToDictionary(
@@ -217,9 +238,23 @@ public sealed class FarmingGuidePresetStore
     private static FarmingGuideProfileState NormalizeProfile(FarmingGuideProfileState profile) =>
         profile with
         {
+            WorkingSnapshot = NormalizeSnapshot(profile.WorkingSnapshot),
             Locks = (profile.Locks ?? FarmingGuideLockState.Empty).CopyNormalized(),
+            WeightSettings = (profile.WeightSettings ?? FarmingGuideWeightSettings.Default).Normalized(),
             Presets = profile.Presets
-                .Select(preset => preset with { Locks = (preset.Locks ?? FarmingGuideLockState.Empty).CopyNormalized() })
+                .Select(preset => preset with
+                {
+                    Snapshot = NormalizeSnapshot(preset.Snapshot),
+                    Locks = (preset.Locks ?? FarmingGuideLockState.Empty).CopyNormalized(),
+                })
+                .ToArray(),
+        };
+
+    private static FarmingGuideLoadoutSnapshot NormalizeSnapshot(FarmingGuideLoadoutSnapshot snapshot) =>
+        snapshot with
+        {
+            StoredItems = snapshot.StoredItems
+                .Select(item => item with { Quantity = Math.Max(1, item.Quantity) })
                 .ToArray(),
         };
 
@@ -231,7 +266,12 @@ public sealed class FarmingGuidePresetStore
             StringComparer.Ordinal);
 
     private static FarmingGuideProfileState EmptyProfile() =>
-        new(FarmingGuideLoadoutSnapshot.Empty, null, [], FarmingGuideLockState.Empty);
+        new(
+            FarmingGuideLoadoutSnapshot.Empty,
+            null,
+            [],
+            FarmingGuideLockState.Empty,
+            FarmingGuideWeightSettings.Default);
 
     private static JsonSerializerOptions CreateJsonOptions()
     {
