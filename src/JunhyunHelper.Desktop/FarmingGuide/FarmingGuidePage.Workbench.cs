@@ -92,11 +92,15 @@ public partial class FarmingGuidePage
         ApplyLockVisuals();
     }
 
+    /// <summary>
+    /// Sizes nested storage against the real viewport instead of measuring an unbounded
+    /// child and then clipping the outer Border. A vertical scrollbar is accounted for
+    /// before final width is chosen, and horizontal scrolling is enabled only as a
+    /// physical fallback for storage wider than the available center column. This keeps
+    /// complete cells visible for Key tool, rigs, bags and any future source-backed case.
+    /// </summary>
     private void SizeWorkbenchToGrid(FrameworkElement gridHost)
     {
-        gridHost.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        var desired = gridHost.DesiredSize;
-
         var columnWidth = RootGrid.ColumnDefinitions.Count > 1
             ? RootGrid.ColumnDefinitions[1].ActualWidth
             : ActualWidth;
@@ -107,15 +111,67 @@ public partial class FarmingGuidePage
             ? RootGrid.ActualHeight
             : Math.Max(240d, ActualHeight);
 
-        const double horizontalChrome = 30d;
-        const double verticalChrome = 76d;
-        var maxWidth = Math.Max(180d, columnWidth - 24d);
-        var maxHeight = Math.Max(150d, availableHeight - 24d);
+        var maxWidth = Math.Max(180d, columnWidth - WorkbenchHost.Margin.Left - WorkbenchHost.Margin.Right);
+        var maxHeight = Math.Max(150d, availableHeight - WorkbenchHost.Margin.Top - WorkbenchHost.Margin.Bottom);
+        var horizontalChrome = WorkbenchHost.Padding.Left +
+                               WorkbenchHost.Padding.Right +
+                               WorkbenchHost.BorderThickness.Left +
+                               WorkbenchHost.BorderThickness.Right;
+        var verticalChrome = WorkbenchHost.Padding.Top +
+                             WorkbenchHost.Padding.Bottom +
+                             WorkbenchHost.BorderThickness.Top +
+                             WorkbenchHost.BorderThickness.Bottom;
+
+        var dock = WorkbenchHost.Child as DockPanel;
+        var header = dock?.Children.OfType<Grid>().FirstOrDefault();
+        var scrollViewer = dock?.Children.OfType<ScrollViewer>().FirstOrDefault();
+        if (scrollViewer is not null)
+        {
+            // Auto means normal cases remain scrollbar-free, while a genuinely wider
+            // Tarkov grid scrolls instead of cutting a partial cell off the right edge.
+            scrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
+            scrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
+        }
+
+        var maximumViewportWidth = Math.Max(CellSize, maxWidth - horizontalChrome);
+        header?.Measure(new Size(maximumViewportWidth, double.PositiveInfinity));
+        var headerHeight = header?.DesiredSize.Height ?? 0d;
+        var maximumViewportHeight = Math.Max(
+            CellSize,
+            maxHeight - verticalChrome - headerHeight);
+
+        // Pass 1 establishes whether the full content height requires a vertical bar.
+        gridHost.Measure(new Size(maximumViewportWidth, double.PositiveInfinity));
+        var desired = gridHost.DesiredSize;
+        var verticalScrollNeeded = desired.Height > maximumViewportHeight + 0.5d;
+
+        // A later vertical scrollbar must never steal the final few pixels from a grid
+        // that originally measured as fitting. Reserve its actual system width first.
+        var reservedVerticalBar = verticalScrollNeeded
+            ? Math.Max(0d, SystemParameters.VerticalScrollBarWidth)
+            : 0d;
+        var measuredViewportWidth = Math.Max(
+            CellSize,
+            maximumViewportWidth - reservedVerticalBar);
+
+        gridHost.Measure(new Size(measuredViewportWidth, double.PositiveInfinity));
+        desired = gridHost.DesiredSize;
+        if (!verticalScrollNeeded && desired.Height > maximumViewportHeight + 0.5d)
+        {
+            verticalScrollNeeded = true;
+            reservedVerticalBar = Math.Max(0d, SystemParameters.VerticalScrollBarWidth);
+            measuredViewportWidth = Math.Max(CellSize, maximumViewportWidth - reservedVerticalBar);
+            gridHost.Measure(new Size(measuredViewportWidth, double.PositiveInfinity));
+            desired = gridHost.DesiredSize;
+        }
+
+        var desiredWidth = desired.Width + horizontalChrome + reservedVerticalBar;
+        var desiredHeight = desired.Height + headerHeight + verticalChrome;
 
         WorkbenchHost.HorizontalAlignment = HorizontalAlignment.Left;
         WorkbenchHost.VerticalAlignment = VerticalAlignment.Top;
-        WorkbenchHost.Width = Math.Min(maxWidth, Math.Max(180d, desired.Width + horizontalChrome));
-        WorkbenchHost.Height = Math.Min(maxHeight, Math.Max(150d, desired.Height + verticalChrome));
+        WorkbenchHost.Width = Math.Min(maxWidth, Math.Max(180d, desiredWidth));
+        WorkbenchHost.Height = Math.Min(maxHeight, Math.Max(150d, desiredHeight));
     }
 
     // Complete-equipment mode intentionally exposes no equipment-internal drop targets.
