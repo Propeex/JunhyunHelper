@@ -3,122 +3,148 @@
 > 새 대화/새 개발자는 `AGENTS.md` → `docs/PROJECT_STATE.json` → `docs/ACTIVE_WORK.md` 순으로 복구한 뒤 이 문서를 읽습니다. 저장소 문서, 실제 코드, 테스트, GitHub 상태가 기준입니다.
 
 기준일: **2026-09-01 KST**  
-상태: **v1.15.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+상태: **v1.15.2 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 1. 제품 / 공개 상태
 
 준현 헬퍼는 Escape from Tarkov 플레이를 지원하는 Windows x64 .NET 10 WPF 데스크톱 프로그램이다. 주요 제품 영역은 Profile/User Progress, Quest, Hideout, Needed Items/Inventory, Items, Ammo, Game Content update, Map/MiniMap, Scanner/Mini Scanner, Farming Guide, diagnostics, Program Update다. Runtime GPT/AI 의존성은 없다.
 
-현재 public stable은 **v1.15.1**이다.
+현재 public stable은 **v1.15.2**다.
 
 ```text
 exact product source/tag target:
-821def285e2b4964242b50981f6ba6245e996057
-release id: 380252024
-published UTC: 2026-09-01T06:15:51Z
-558 passed / 0 failed / 0 skipped
+f4974ee6bed5047865581240197f7f0e2787ba7c
+release id: 380290463
+published UTC: 2026-09-01T07:24:43Z
+562 passed / 0 failed / 0 skipped
 ```
 
 Validation:
 
 ```text
-validated PR head: e78ca34c272ac40b8f7c6a4bfcefede59adb9d59
-PR CI: 33476320371 — SUCCESS
-PR Shutdown Race: 33476320367 — SUCCESS
-PR Documentation Consistency: 33476320491 — SUCCESS
-merge PR: #259
-exact-main CI: 33476586723 — SUCCESS
-exact-main Shutdown Race: 33476586808 — SUCCESS
-exact-main Documentation Consistency: 33476586819 — SUCCESS
-Release workflow: 33476812315 — SUCCESS
+validated PR head: 1662cc86f6298fc3a13bbcc591d38ae8c8e0787d
+merge PR: #262
+PR CI: 33481383672 — SUCCESS
+PR Shutdown Race: 33481383604 — SUCCESS
+PR Documentation Consistency: 33481383640 — SUCCESS
+exact-main CI: 33481524940 — SUCCESS
+exact-main Shutdown Race: 33481524896 — SUCCESS
+exact-main Documentation Consistency: 33481524999 — SUCCESS
+Release workflow: 33481956300 — SUCCESS
 ```
-
-PR #258 carried the implementation as a Draft. The GitHub connector's draft-to-ready GraphQL mutation failed due to a connector-side schema incompatibility, so the same branch/head was reopened as non-draft PR #259. An earlier full smoke attempt on the same implementation hit a transient Factory-map visibility timeout while the process remained responsive; rerunning the same HEAD succeeded, and PR #259 plus exact-main validation subsequently passed the full smoke pipeline.
 
 Public package:
 
 ```text
 Junhyun-Helper.zip
-asset id: 539091025
-bytes: 80,658,918
-SHA-256: 80283d9dfc294d195d644ab12ac074b5d4698f4e500475d7435680ccb6e4fc0a
+asset id: 539168506
+bytes: 80,654,539
+SHA-256: 642fa3845ccb4491c2d0b520000316d79067c3957144814b0b3b77516d14ad34
 
 SHA256SUMS.txt
-asset id: 539091026
+asset id: 539168503
 bytes: 86
-asset SHA-256: 906bde7d2c5a6e7234b3de1c21ba935c39522af84fe9f6fda352738457fb91d9
+asset SHA-256: 077160c0ac6076e07d061a0feb8e386f131327ad82bc4281a619afc4ecd91741
 ```
 
 Exact-main Actions artifact:
 
 ```text
 name: JunhyunHelper-win-x64
-artifact id: 9788440065
-bytes: 241,908,886
-SHA-256: e865fb395dcca353788495bbfb84f860129b39bdc6e89b51780d99db481592b8
+artifact id: 9790251740
+bytes: 241,895,658
+SHA-256: 57665346651872dd4f351241dabe77de09349150ebb2d8664f8d5f626a8daf65
 ```
 
-`/releases/latest`, release target and lightweight `refs/tags/v1.15.1` resolve to `821def285e2b4964242b50981f6ba6245e996057`. Follow-up documentation-only commits are not v1.15.1 product sources and may not replace its public assets.
+`/releases/latest`, release target and lightweight `refs/tags/v1.15.2` all resolve to `f4974ee6bed5047865581240197f7f0e2787ba7c`. Follow-up documentation-only commits are not v1.15.2 product sources and cannot replace the immutable public assets.
 
-## 2. Farming Guide raid-session advisor — v1.15.1 current contract
+## 2. Farming Guide — v1.15.2 current contract
 
-v1.15.0 introduced the user-controlled raid-session recommendation layer. v1.15.1 supersedes the first real-play behaviors documented in `DECISION_V1.15.1_FARMING_GUIDE_REAL_PLAY_CORRECTIONS.md` while preserving the same safety and session architecture.
+v1.15.0 introduced the raid-session advisor. v1.15.1 corrected first real-play pending/lock/special-slot behavior. v1.15.2 now supersedes the v1.14-v1.15.1 assumption that Farming Guide should model/edit equipment internals.
 
-### Raid-session lifecycle
+### Complete-equipment runtime boundary
 
-- `레이드 시작` snapshots the current working equipment/storage/lock state into an isolated raid session.
-- Raid-session mutations do not overwrite the saved preset or original working state.
-- Manual Farming Guide changes during a raid immediately become the new recommendation input state.
-- `레이드 종료` discards raid-session mutations and restores the raid-start snapshot.
-- Session revision remains the stale-write guard for pending recommendations.
+Weapons, helmets, body armor and other equipment are **opaque complete items** in Farming Guide.
 
-### Scanner / Mini Scanner bridge
+- no weapon attachment/mod editor;
+- no helmet attachment editor;
+- no body-armor/armored-rig plate editor;
+- no recursive assembly workbench or compatible-part picker;
+- no equipment-internal drag/drop surface;
+- no equipment-internal Equip/ReplaceEquip raid recommendation;
+- persisted legacy `Attachments` / `ArmorPlates` remain readable for schema compatibility but are normalized to root-only item state in current runtime.
 
-- Scanner owns confirmed Item ID; Farming Guide owns decision/planning.
-- Scanner worker callbacks cross a WPF Dispatcher boundary before Farming Guide UI/state interaction.
-- At most one pending recommendation exists at a time.
-- A new scan silently rejects the previous unaccepted pending recommendation without state mutation, then plans the new item against unchanged current raid state.
-- Manual equipment/storage/lock edits invalidate pending advice silently.
-- Explicit configured Farming Guide accept hotkey is still required before recommendation effects commit.
-- Accepted feedback is `반영 완료`.
-- Mini Scanner guidance is action-only and does not repeat the scanned item name.
-- Search-result hover + `T` produces a simulated scan through the exact same snapshot/planning path, but its presentation expires after a bounded interval and cannot hide a newer real scan.
+Current Game Content may continue to import attachment/armor/default-preset source metadata because that evidence is useful for validation, compatibility and authoritative complete-image selection. It is not current user-editable Farming Guide state.
 
-Current guidance classes:
+Implementation boundary:
 
-- Store: `[보관할 장소]에 보관`
-- Replace stored item: `[보관할 장소]의 [기존 아이템]과 교체`
-- Discard: `버리기`
-- Equip: `[장착할 장소]에 장착`
-- Replace equipped/attached item: `[장착할 장소]의 [기존 아이템]과 교체`
+- `FarmingGuideCompleteEquipmentPolicy` projects source `GameItem` records into the Farming Guide runtime catalog;
+- runtime layout removes attachment and armor slots;
+- unsupported generic case/container internal grids are not exposed as Farming Guide storage surfaces;
+- backpack/rig/secure-container root storage mechanics remain source-backed where product-supported;
+- legacy assembly state sanitizes against the projected catalog and therefore collapses to root equipment.
 
-### Equip / replace-equip
+### Top-level equipment
 
-Raid planning evaluates legal empty equipment targets as well as storage surfaces.
+The user still equips/replaces complete items at legal top-level targets:
 
-Supported target classes include:
+- Headset;
+- Helmet;
+- Face Cover;
+- Armband;
+- Body Armor;
+- Eyewear;
+- Primary Weapon 1 / 2;
+- Holster / Pistol;
+- Rig;
+- Backpack;
+- Secure Container;
+- fixed Melee / Dogtag setup remains user-defined raid-start state.
 
-- PMC equipment slots;
-- rig/backpack/secure-container carrier equipment slots;
-- recursive weapon/helmet attachment/mod slots;
-- replaceable armor-plate slots.
+Raid guidance may say `[장비 칸]에 장착` or `[장비 칸]의 [기존 장비]와 교체`. It may not tell the user to install a scope, muzzle, plate or other part inside equipment.
 
-If no legal empty target exists, unlocked lower-priority equipped/attached items may be replacement candidates when current compatibility/conflict rules permit replacement. Accepted Store, Replace, Equip and ReplaceEquip actions all contribute to raid-acquired Needed quantity.
+### Complete-item imagery
 
-### Lock ownership / reserved capacity
+Farming Guide does not fabricate weapon assemblies.
 
-`FarmingGuideLockState` keeps four constraint classes: EquipmentSlots, Carriers, ItemInstanceIds and ReservedCells.
+Image priority is:
 
-Current semantics:
+1. authoritative canonical default-preset image if the base item points to one;
+2. source-backed item `Image512Url` / `GridImageUrl`;
+3. canonical item icon fallback.
 
-- item lock protects that item from automated removal/replacement; moving the same instance preserves its lock;
-- equipment/carrier lock protects the currently equipped target from automated removal/replacement;
-- removing/replacing the locked target removes that target lock;
-- empty-cell lock is an independent reserved-space constraint and persists until explicitly unlocked;
-- locking a rig, backpack or secure container does **not** lock its internal inventory surface;
-- item locking does not globally disable a nested carrier's ordinary storage grids;
-- direct user drag/drop remains authoritative and is not blocked by automation locks;
-- F lock toggles update the affected state/visual without rebuilding the full page, while full rerenders reapply lock visuals from state.
+Equipment cards preserve aspect ratio but use substantially smaller internal safety margins so long weapons and other gear fill the equipment slot more like Tarkov. The old base-receiver + part-tile presentation is no longer the user-facing equipment model.
+
+## 3. Farming Guide storage / nested storage
+
+Ordinary placement uses current Tarkov item width/height, current validated grids/filters, bounded snap, bounds, overlap, contiguous-space and rotation rules.
+
+### Root storage
+
+- Pockets, Rig, Backpack, Secure Container and Special Slots remain visible in the main Farming Guide storage area.
+- root Rig / Backpack / Secure Container do not open a duplicate internal detail window because their storage is already visible on the main page.
+- filled carrier destructive replacement fails closed.
+- Secure Container compatibility remains distinct from generic case/container classification.
+
+### Nested storage
+
+`FarmingGuideStoredItemState.ParentInstanceId` identifies a stored item's owning stored carrier.
+
+Only stored **Backpack** and **Rig** items expose an internal detail surface.
+
+- backpack-in-backpack remains supported when current source grids/filters allow it;
+- rig-in-backpack/other legal storage remains supported;
+- nested detail uses the real source-backed grids and remains interactive for drag/drop;
+- nested backpack/rig can itself contain another supported nested backpack/rig when mechanically legal;
+- generic cases/containers and ordinary equipment do not expose a user-facing internal detail surface;
+- orphan, duplicate, self, cycle, unknown-parent, invalid-grid/filter/bounds/overlap state fails closed;
+- moving a carrier preserves descendant parent relationships;
+- destructive carrier removal deletes its subtree;
+- a carrier cannot be moved into itself or one of its descendants.
+
+### Compact nested detail
+
+The detail view measures the rendered storage grid footprint and adds only bounded title/close chrome. Width/height are clamped to the available viewport. The main storage area remains visible behind the compact detail instead of being covered by a fixed full-column workbench.
 
 ### Special Slots
 
@@ -126,77 +152,99 @@ Special Slots are not generic 1×1 inventory grids.
 
 - eligibility uses canonical current Game Content `specialSlot` classification;
 - ineligible items cannot be placed there;
-- an eligible item occupies exactly one special slot regardless of ordinary width/height;
-- normal inventory/storage continues to use the item's ordinary footprint;
-- manual drag/drop, sanitizer, rendering, collision, capacity summary and raid planner use the same special-slot policy;
-- nested ordinary storage inside a special-slot item remains ordinary storage.
+- an eligible item occupies exactly one Special Slot regardless of ordinary width/height;
+- ordinary storage continues to use the item's normal footprint;
+- manual drag/drop, sanitizer, rendering, collision, capacity summary and raid planner share the same policy.
 
-### Current loot priority
+## 4. Raid-session advisor
 
-The recommendation engine remains separated from Scanner identity and placement mechanics.
+### Lifecycle
 
-Comparison policy:
+```text
+working/preset snapshot + persisted locks
+→ Raid Start
+→ isolated FarmingGuideRaidSession
+→ manual or accepted session-local changes
+→ Raid End
+→ baseline restored; session discarded
+```
 
-1. remaining current-needed quantity;
+- raid-start state is an immutable baseline;
+- raid-session mutations do not overwrite the saved preset or ordinary working state;
+- manual Farming Guide changes inside a raid become the new session input and advance revision;
+- preset selection/deletion stays blocked while the raid session is active;
+- raid end restores the baseline.
+
+### Scanner / pending transaction
+
+Scanner owns confirmed Item ID. Farming Guide owns the recommendation.
+
+```text
+confirmed Scanner item + scanner-owned price/needed facts
+→ current raid snapshot + locks
+→ Store / Replace / Discard / top-level Equip / ReplaceEquip proposal
+→ one revision-bound pending instruction
+→ explicit accept hotkey
+→ revision-checked commit
+```
+
+- at most one pending recommendation exists;
+- a new scan silently rejects an older unaccepted pending without state mutation, then plans the new item against unchanged current raid state;
+- manual equipment/storage/lock changes invalidate stale pending advice silently;
+- explicit configured accept hotkey is required before recommendation effects commit;
+- successful acceptance feedback is `반영 완료`;
+- incoming item name is not repeated in the action text;
+- search-result hover + `T` runs the same snapshot/planning path, but the presentation expires after a bounded interval and cannot hide a newer real scan.
+
+Current guidance:
+
+- Store: `[보관할 장소]에 보관`
+- Replace stored item: `[보관할 장소]의 [기존 아이템]과 교체`
+- Discard: `버리기`
+- top-level Equip: `[장착할 장비 칸]에 장착`
+- top-level ReplaceEquip: `[장착할 장비 칸]의 [기존 장비]와 교체`
+
+Accepted Store / Replace / Equip / ReplaceEquip contribute to session-local acquired Needed quantity. They do not directly modify authoritative profile inventory.
+
+### Loot priority
+
+Current comparison policy remains isolated in `FarmingGuideLootPriorityPolicy`:
+
+1. item with remaining current-needed quantity;
 2. higher effective value per ordinary occupied slot;
 3. higher total effective value;
 4. smaller ordinary footprint as deterministic tie-breaker.
 
 `EffectiveValue = max(current merchant sell price, current Flea average price, 0)`.
 
-Placement-context mechanics such as special-slot one-cell occupancy are handled by storage policy; the global loot policy does not redefine Tarkov compatibility.
+Legal empty placement is preferred over destructive replacement. Special-slot one-cell occupancy is a placement mechanic, not a global item-value footprint redefinition.
 
-The product does not infer extraction probability or tell the user whether to leave the raid. Recommendations remain advisory until explicit acceptance.
+## 5. Lock ownership / reserved capacity
 
-## 3. Farming Guide base editor contract
+`FarmingGuideLockState` keeps EquipmentSlots, Carriers, ItemInstanceIds and ReservedCells.
 
-Farming Guide retains all v1.14.x loadout/editor behavior plus v1.15.x raid-session behavior.
+- item lock protects that exact item instance from automated removal/replacement;
+- moving the same stored instance preserves its lock;
+- equipment/carrier lock protects the currently equipped target from automated removal/replacement;
+- removing/replacing a target removes its target lock;
+- carrier lock does not block automatic placement into its ordinary internal storage;
+- item lock does not globally block a supported nested carrier's ordinary storage;
+- empty-cell lock is an independent one-cell reserved-capacity constraint and persists until explicitly unlocked;
+- direct user drag/drop is authoritative and not blocked by automation locks;
+- F lock toggle updates local state/visual without intentionally rebuilding the full page;
+- later full rerenders reapply valid lock highlights from state.
 
-### Equipment / storage
-
-- ordinary item footprint uses current Tarkov width/height;
-- storage legality uses current validated grids, filters, bounds and item dimensions;
-- Special Slots use the v1.15.1 one-slot special policy above;
-- drag supports rotation, bounded snap, bounds/overlap/filter/contiguous-space validation;
-- Secure Container classification is distinct from generic case/container classification;
-- profile-aware pocket geometry is resolved centrally;
-- filled carrier destructive replacement fails closed;
-- pistol/holster presentation is below eyewear;
-- storage helper text is `R: 회전 · F: 아이템/장비/빈 칸 잠금`.
-
-### Nested storage
-
-`FarmingGuideStoredItemState.ParentInstanceId` identifies the owning stored carrier. Root items have null parent. Load/sanitize accepts the root→parent tree in order and rejects duplicate IDs, orphan/self/cycle relationships, unknown parents, invalid grids, filters, bounds and overlap. Carrier moves preserve descendants; destructive removal deletes the subtree; a carrier cannot be moved into itself/its descendant.
-
-### Assembly / workbench
-
-- the same-page workbench exposes actionable storage, attachment/mod and replaceable armor slots;
-- recursive navigation supports attachment child slots;
-- empty actionable slots can open an inline compatible-item icon picker;
-- picker, manual drag/drop and raid equip planning share Core compatibility/conflict authority;
-- occupied one-item slots are never silently overwritten;
-- required-slot and conflict validation recurse through the assembly tree;
-- impossible persisted assembly state is sanitized fail closed;
-- raw source slot identifiers are translated to user-facing Korean labels where a known semantic label exists.
-
-### Search / visual presentation
-
-- assembled `ItemPropertiesPreset` / `preset` weapon records are excluded from Farming Guide draggable search while canonical base weapons remain;
-- changed weapon/helmet composed imagery is used only when canonical content contains an authoritative image whose exact contained-item signature matches the current assembly;
-- unsupported arbitrary assemblies retain safe base/part presentation rather than fabricated composites;
-- product-owned exact storage coordinates are visual metadata only and require exact layout identity, grid count and per-index width/height signature; otherwise compact fallback is used.
-
-### Persistence
+## 6. Persistence
 
 ```text
 %LocalAppData%/JunhyunHelper/farming-guide.json
 Farming Guide state schema: v2
-readable Farming Guide state: v1-v2
+readable: v1-v2
 ```
 
-Game Content and user-owned Farming Guide state have separate lifecycles. Program/Game Content updates do not overwrite user state.
+v1.15.2 does not require a schema bump. Legacy equipment-internal state can be read but is discarded during current complete-equipment normalization. Preset names, top-level equipment, storage placement, nested backpack/rig relationships and locks remain preserved when valid.
 
-## 4. Game Content
+## 7. Game Content
 
 Lifecycle:
 
@@ -206,11 +254,11 @@ remote source
 → schema/semantic validation
 → canonical candidate
 → completeness/LKG guard
-→ candidate DB/read-back/integrity validation
+→ DB/read-back/integrity validation
 → atomic active replacement
 ```
 
-Unknown structural/semantic drift fails closed. Optional enrichment can fail soft only within its own boundary. User progress and reviewed Ground Truth are never rewritten by content activation.
+Unknown structural or semantic drift fails closed. User progress and reviewed Ground Truth are not rewritten by content activation.
 
 Current Content compatibility:
 
@@ -219,9 +267,9 @@ write: v10
 read: v3-v10
 ```
 
-Farming Guide content preserves current item dimensions, grids/filters, `specialSlot` item classification, attachment/armor slots/conflicts, default-preset membership/image and optional storage layout identity.
+Farming Guide content may preserve item dimensions, storage grids/filters, `specialSlot`, equipment compatibility/conflicts, attachment/armor source metadata, default-preset membership/images and storage layout identity. Only the product-supported subset becomes editable runtime state.
 
-## 5. Scanner
+## 8. Scanner
 
 Recognition contract:
 
@@ -237,32 +285,32 @@ screen pixels
 - false positive is worse than miss;
 - current catalog is identity authority;
 - price/needed/source/relationships are not identity proof;
-- reviewed actual Tarkov evidence is required before relaxing OCR/matcher/recovery thresholds;
-- scan-time network work is not identity proof;
-- Ground Truth is explicit user-reviewed truth only.
+- reviewed actual Tarkov evidence is required before relaxing recognition acceptance;
+- Ground Truth is explicit user-reviewed truth only;
+- Scanner uses external screen pixels + OCR only and does not use game memory read, injection, game/process hooks, kernel/driver access, input automation, network manipulation or anti-cheat bypass;
+- Needed quantity/source presentation reuses `ItemsWorkspace.Plan.NeededItems` authority.
 
-Scanner uses external screen pixels + OCR only and does not use game memory read, DLL/code injection, process/game hooks, kernel/driver access, input automation, game network manipulation or anti-cheat bypass.
-
-Needed quantity/source presentation reuses `ItemsWorkspace.Plan.NeededItems` rather than creating a second truth. Scanner display settings schema is v10 and preserves v9 settings through migration.
-
-## 6. Quest / Hideout / Needed Items
+## 9. Quest / Hideout / Needed Items
 
 - exact ProfileVariable values are authoritative over compatibility inference;
 - audited staged task-pool compatibility is bounded and structural drift fails closed;
-- Future Needed Items / cleanup do not inherit optimistic current-Quest UI compatibility;
-- flexible future requirements remain protected when exact candidate consumption is not known;
-- Hideout `foundInRaid` source semantics are preserved; non-FIR inventory cannot satisfy FIR requirements;
-- consumption ledger prevents double-consumption and supports rollback for deterministic mandatory materials.
+- Future Needed Items / cleanup remain conservative;
+- flexible future requirements are protected when exact candidate consumption is unknown;
+- Hideout `foundInRaid` semantics are preserved;
+- deterministic mandatory-material ledger prevents double consumption and supports rollback.
 
-## 7. Ammo
+## 10. Items / Ammo
 
-- read-only ammo comparison plus profile-aware pickup judgment;
+Items combines canonical content, profile, inventory and Needed Items for browsing/presentation.
+
+Ammo remains read-only comparison plus profile-aware pickup judgment:
+
 - same-caliber penetration comparison;
-- only currently proven direct purchase is treated as current direct purchase;
-- flea/barter/craft/higher-LL/unproven quest unlock is not promoted to current direct purchase;
-- authoritative Ammo Pack `containsItems` relationship is preferred.
+- only proven current direct purchase is treated as direct purchase;
+- flea/barter/craft/higher LL/unproven quest unlock is not promoted to direct purchase;
+- authoritative Ammo Pack `containsItems` relation is preferred.
 
-## 8. Map / MiniMap
+## 11. Map / MiniMap
 
 Pinned donor:
 
@@ -270,41 +318,36 @@ Pinned donor:
 SIGDrone/Tarkov-Helper@d933792b6042a51cea38dc44b686a096fe30de67
 ```
 
-JunhyunHelper owns product lifecycle/presentation. Maintained regressions include map-selection synchronization, position/heading transform consistency, PMC/Scav/Transit extract filtering, standard-marker recovery, isolated Player Marker Size changes and removal of the Mini Scanner right-click correction menu.
+JunhyunHelper owns integration, settings and lifecycle. Maintained regression coverage includes map-selection synchronization, position/heading transform consistency, PMC/Scav/Transit extract filtering, standard-marker recovery and isolated Player Marker Size behavior.
 
-A single v1.15.1 candidate CI attempt hit a Factory floor-presentation smoke timeout while the process was responsive. The identical HEAD succeeded on rerun, the replacement non-draft PR succeeded, and exact-main succeeded. This is recorded as CI timing evidence rather than a product regression.
-
-## 9. Program Update / release immutability
+## 12. Program Update / release immutability
 
 - latest public stable GitHub release is updater authority;
 - update is user-consented;
 - ZIP/checksum are verified before replacement;
-- user data under `%LocalAppData%/JunhyunHelper` is outside program replacement;
+- mutable user data under `%LocalAppData%/JunhyunHelper` is outside program replacement;
 - Release workflow consumes the exact-main CI artifact;
-- an already-published version's source/tag/assets are immutable and are not replaced by later documentation-only commits.
+- a published version's source/tag/assets are immutable and later documentation-only commits cannot replace them.
 
-## 10. Validation gates
+## 13. Validation gates
 
-Relevant changes use the required subset of:
+v1.15.2 exact product source `f4974ee6bed5047865581240197f7f0e2787ba7c` passed all applicable automated gates:
 
-- deterministic tests;
+- deterministic tests: 562 / 0 / 0;
 - Windows Release build / XAML compile;
 - self-contained win-x64 publish;
-- actual published EXE Product UI / Farming Guide / Map / Scanner runtime smoke;
-- exact storage layout / drop-target smoke;
+- actual published EXE Product UI / Farming Guide / Map / Scanner smoke;
 - normal graceful shutdown;
 - active-async Shutdown Race;
 - portable root / forbidden dependency audit;
-- package/checksum verification;
-- PR and exact-main Documentation Consistency;
+- release package/checksum verification;
+- PR + exact-main Documentation Consistency;
 - public tag/release/assets/latest readback.
 
-v1.15.1 exact product source `821def285e2b4964242b50981f6ba6245e996057` passed all applicable automated gates.
-
-## 11. Current schemas / remaining external evidence
+## 14. Current schemas / remaining external evidence
 
 ```text
-Desktop: 1.15.1
+Desktop: 1.15.2
 Content: write v10 / read v3-v10
 user.db: v1
 Farming Guide state: v2 (reads v1-v2)
@@ -314,12 +357,13 @@ Scanner catalog: write v4 / read v1-v4
 
 Automated release verification is complete. Separate real-environment evidence remains pending:
 
-- further user actual-PC/Tarkov play validation;
-- Kim Taeyoung actual-PC diagnostic ZIP collection/analysis.
+- 사용자 actual-PC/Tarkov play validation for v1.15.2 Farming Guide presentation/behavior;
+- Kim Taeyoung actual-PC diagnostic ZIP collection/analysis when that diagnostic work resumes.
 
-Current release evidence:
+Current release / decision evidence:
 
-- `docs/RELEASE_1.15.1.md`
-- `docs/.release-v1.15.1-status.json`
-- `docs/RELEASE_NOTES_V1.15.1.md`
+- `docs/RELEASE_NOTES_V1.15.2.md`
+- `docs/DECISION_V1.15.2_COMPLETE_EQUIPMENT_MODEL.md`
 - `docs/DECISION_V1.15.1_FARMING_GUIDE_REAL_PLAY_CORRECTIONS.md`
+- `docs/DECISION_V1.15.0_FARMING_GUIDE_RAID_ADVISOR.md`
+- `docs/ARCHITECTURE_FARMING_GUIDE.md`
