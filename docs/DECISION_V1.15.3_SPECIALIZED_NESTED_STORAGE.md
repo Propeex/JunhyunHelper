@@ -68,7 +68,26 @@ Existing safety remains mandatory:
 - moving/removing a parent preserves or removes its descendant subtree according to existing storage semantics;
 - an item cannot be moved into itself or its descendants.
 
-## 4. Complete-equipment boundary is unchanged
+## 4. Dedicated nested storage has raid-placement priority
+
+A source-backed nested grid with a **positive allow-list** (`AllowedItemIds` or `AllowedCategoryIds`) is treated as dedicated storage for an incoming item when that same filter accepts the item.
+
+When the raid advisor is looking for a non-destructive empty placement, a compatible dedicated nested surface is evaluated before general-purpose root storage such as Secure Container, Pockets, Rig or Backpack.
+
+Example:
+
+```text
+Secure Container
+├─ free ordinary cells
+└─ Key tool
+   └─ free key cell
+```
+
+If a scanned key is permitted by the Key tool's current source filter, the advisor should recommend the Key tool interior instead of consuming the Secure Container's general cells first.
+
+This priority is **not** based on container names or inferred item purpose. It exists only when the authoritative grid contains a positive allow-list that accepts the incoming item. Generic/unrestricted nested bags remain behind the established root-storage ordering so they do not unexpectedly absorb ordinary loot.
+
+## 5. Complete-equipment boundary is unchanged
 
 This correction does **not** restore equipment assembly editing.
 
@@ -82,7 +101,7 @@ The following remain hidden/non-editable:
 
 A source `StorageGrid` is inventory capacity. Attachment/armor slots are equipment composition. These are separate domains.
 
-## 5. Nested storage UI
+## 6. Nested storage UI
 
 A stored item with real storage grids may open the compact nested-storage detail surface.
 
@@ -91,7 +110,7 @@ A stored item with real storage grids may open the compact nested-storage detail
 - the host remains bounded and sized to the rendered grid footprint rather than becoming a full-column equipment workbench;
 - root Rig / Backpack / Secure Container storage continues to render directly on the main Farming Guide page.
 
-## 6. Lock border presentation
+## 7. Lock border presentation
 
 Stored-item cards use the ordinary neutral border by default.
 
@@ -104,7 +123,7 @@ The accent/yellow border is reserved for explicit Farming Guide lock/fix state:
 
 This makes lock state visually distinguishable from ordinary possession.
 
-## 7. Simulated Scanner input
+## 8. Simulated Scanner input
 
 Search-result hover + `T` is a Farming Guide test command.
 
@@ -121,6 +140,7 @@ Before v1.15.3 is closed:
 
 - deterministic test that arbitrary source-backed container grids survive complete-equipment runtime projection;
 - deterministic test that a specialized nested container inside Secure Container accepts an allowed item and rejects an item denied by its source filter;
+- published-product smoke proving a compatible dedicated nested surface wins over otherwise-free general root storage for the same incoming item;
 - stored-item default border is neutral and lock application/restoration is accent ↔ neutral;
 - hover + `T` path is reachable while the search TextBox has focus and uses an on-demand Scanner snapshot resolver;
 - v1.15.2 equipment-internal editing/recommendation boundary remains closed;
