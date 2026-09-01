@@ -23,6 +23,17 @@ Game Content readable schemas: 3..11
 
 Public stable evidence in `docs/PROJECT_STATE.json` intentionally remains v1.15.3 until v1.15.4 tag/release/assets are publicly verified.
 
+## Confirmed scope
+
+- Preserve-first live raid planning: direct legal storage and non-destructive repacking must be exhausted before destructive replacement/discard.
+- Source-backed nested storage and dedicated-container semantics remain authoritative.
+- `F` locks, locked ancestors, carrier/equipment locks, reserved cells, filters and nested parent/descendant constraints are automation invariants.
+- Objectively superior compatible top-level equipment may be equipped before ordinary storage, but superiority must be source-backed and conservative rather than inferred from price/name.
+- Ordinary body armor + ordinary rig → superior armored rig is an atomic fail-closed transition that must preserve every modeled rig content item legally.
+- Complete-equipment boundary stays closed: weapon/helmet attachment and armor-plate user state are not reintroduced.
+- Game Content schema v11 persists the new armor/headset comparison facts while v3..v10 remain readable offline fallback.
+- Nested Workbench scrollbars are physical overflow fallback only; a grid that fits the effective viewport must render without manufactured horizontal scrolling/cell clipping.
+
 ## Canonical product decision
 
 `docs/DECISION_V1.15.4_FARMING_GUIDE_REPACKING_EQUIPMENT_UPGRADES.md`
@@ -77,7 +88,7 @@ This is implementation evidence only. Because that head still packaged version 1
 
 ## Current step
 
-The v1.15.4 candidate is now frozen at product version/schema/package/release-note level. Run the resulting PR head through the complete gate again. Only a head that packages **1.15.4** and passes CI + Shutdown Race + Documentation Consistency is eligible to merge.
+The v1.15.4 candidate is frozen at product version/schema/package/release-note level. Run the resulting PR head through the complete gate again. Only a head that packages **1.15.4** and passes CI + Shutdown Race + Documentation Consistency is eligible to merge.
 
 ## Remaining
 
