@@ -114,7 +114,11 @@ public partial class FarmingGuidePage
             return;
         }
 
-        var recommendation = PlanScannedItemEquipmentAware(scanned, item);
+        var current = BuildSnapshot();
+        var recommendation = ApplyRaidInstructionPresentationV1155(
+            current,
+            PlanScannedItemEquipmentAware(scanned, item),
+            item);
         _raidSession.SetPending(
             scanned.ItemId,
             recommendation.Instruction,
