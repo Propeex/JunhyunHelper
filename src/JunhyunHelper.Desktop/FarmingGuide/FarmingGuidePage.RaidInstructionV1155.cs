@@ -73,9 +73,10 @@ public partial class FarmingGuidePage
             primary = "장비 교체";
         }
 
-        return AppendExistingItemOperationsV1155(
-            primary,
-            BuildExistingItemOperationsV1155(current, proposed, includeRemoved: true));
+        var operations = new List<string>();
+        operations.AddRange(BuildDisplacedTopLevelOperationsV1155(current, proposed));
+        operations.AddRange(BuildExistingItemOperationsV1155(current, proposed, includeRemoved: true));
+        return AppendExistingItemOperationsV1155(primary, operations);
     }
 
     private string FormatStoreInstructionV1155(
@@ -121,6 +122,58 @@ public partial class FarmingGuidePage
             BuildExistingItemOperationsV1155(current, proposed, includeRemoved: false));
     }
 
+    private IReadOnlyList<string> BuildDisplacedTopLevelOperationsV1155(
+        FarmingGuideLoadoutSnapshot current,
+        FarmingGuideLoadoutSnapshot proposed)
+    {
+        var operations = new List<string>();
+        var available = proposed.StoredItems
+            .Where(value => value.InstanceId.StartsWith(V1155DisplacedInstancePrefix, StringComparison.Ordinal))
+            .ToList();
+        var consumed = new HashSet<string>(StringComparer.Ordinal);
+
+        void Add(FarmingGuideItemState? before, FarmingGuideItemState? after)
+        {
+            if (before is null || SameRootItemV1155(before, after))
+                return;
+            var item = ResolveItem(before);
+            var name = item is null ? "아이템" : DisplayName(item);
+            var stored = available.FirstOrDefault(value =>
+                !consumed.Contains(value.InstanceId) &&
+                string.Equals(value.Item.ItemId, before.ItemId, StringComparison.Ordinal));
+            if (stored is null)
+            {
+                operations.Add($"{name} 버리기");
+                return;
+            }
+
+            consumed.Add(stored.InstanceId);
+            operations.Add($"{name} 이동 {StorageLocationLabelV1155(proposed, stored)}");
+        }
+
+        foreach (var slot in new[]
+                 {
+                     FarmingGuideEquipmentSlot.Headset,
+                     FarmingGuideEquipmentSlot.Helmet,
+                     FarmingGuideEquipmentSlot.FaceCover,
+                     FarmingGuideEquipmentSlot.Armband,
+                     FarmingGuideEquipmentSlot.BodyArmor,
+                     FarmingGuideEquipmentSlot.Eyewear,
+                     FarmingGuideEquipmentSlot.PrimaryWeapon1,
+                     FarmingGuideEquipmentSlot.PrimaryWeapon2,
+                     FarmingGuideEquipmentSlot.Holster,
+                 })
+        {
+            current.Equipment.TryGetValue(slot, out var before);
+            proposed.Equipment.TryGetValue(slot, out var after);
+            Add(before, after);
+        }
+
+        Add(current.Rig, proposed.Rig);
+        Add(current.Backpack, proposed.Backpack);
+        return operations;
+    }
+
     private IReadOnlyList<string> BuildExistingItemOperationsV1155(
         FarmingGuideLoadoutSnapshot current,
         FarmingGuideLoadoutSnapshot proposed,
@@ -141,6 +194,21 @@ public partial class FarmingGuidePage
                 continue;
             }
 
+            // Contents that remain inside a carrier while that carrier is unequipped did
+            // not require an item-by-item user move. The state model re-parents them under
+            // the newly stored carrier instance; suppress that representational change.
+            if (IsImplicitDisplacedCarrierReparentV1155(current, proposed, original, moved))
+                continue;
+
+            // Conversely, root contents that stay "Rig"/"Backpack" while the carrier
+            // identity changes do require a real transfer from the old carrier to the new
+            // one, even though the coarse storage-kind key is the same.
+            if (IsRootCarrierTransferV1155(current, proposed, original, moved))
+            {
+                operations.Add($"{name} 이동 {StorageLocationLabelV1155(proposed, moved)}");
+                continue;
+            }
+
             // Grid index, X/Y and rotation are intentionally ignored here. Repacking inside
             // the same visible storage area is an ordinary Tarkov inventory gesture and does
             // not deserve a separate instruction. Only cross-area moves are surfaced.
@@ -156,6 +224,48 @@ public partial class FarmingGuidePage
         }
 
         return operations;
+    }
+
+    private bool IsImplicitDisplacedCarrierReparentV1155(
+        FarmingGuideLoadoutSnapshot current,
+        FarmingGuideLoadoutSnapshot proposed,
+        FarmingGuideStoredItemState original,
+        FarmingGuideStoredItemState moved)
+    {
+        if (original.ParentInstanceId is not null || string.IsNullOrWhiteSpace(moved.ParentInstanceId))
+            return false;
+        if (original.Storage is not (FarmingGuideStorageKind.Rig or FarmingGuideStorageKind.Backpack))
+            return false;
+
+        var parent = proposed.StoredItems.FirstOrDefault(value =>
+            string.Equals(value.InstanceId, moved.ParentInstanceId, StringComparison.Ordinal));
+        if (parent is null || !parent.InstanceId.StartsWith(V1155DisplacedInstancePrefix, StringComparison.Ordinal))
+            return false;
+
+        var oldCarrier = original.Storage == FarmingGuideStorageKind.Rig
+            ? current.Rig
+            : current.Backpack;
+        return oldCarrier is not null &&
+               string.Equals(parent.Item.ItemId, oldCarrier.ItemId, StringComparison.Ordinal);
+    }
+
+    private static bool IsRootCarrierTransferV1155(
+        FarmingGuideLoadoutSnapshot current,
+        FarmingGuideLoadoutSnapshot proposed,
+        FarmingGuideStoredItemState original,
+        FarmingGuideStoredItemState moved)
+    {
+        if (original.ParentInstanceId is not null || moved.ParentInstanceId is not null ||
+            original.Storage != moved.Storage ||
+            original.Storage is not (FarmingGuideStorageKind.Rig or FarmingGuideStorageKind.Backpack))
+        {
+            return false;
+        }
+
+        var before = original.Storage == FarmingGuideStorageKind.Rig ? current.Rig : current.Backpack;
+        var after = moved.Storage == FarmingGuideStorageKind.Rig ? proposed.Rig : proposed.Backpack;
+        return before is not null && after is not null &&
+               !string.Equals(before.ItemId, after.ItemId, StringComparison.Ordinal);
     }
 
     private string StorageLocationLabelV1155(
