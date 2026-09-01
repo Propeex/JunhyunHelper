@@ -25,6 +25,7 @@ public partial class MiniScannerWindow : Window
     private DispatcherTimer? _transientStatusTimer;
     private bool _hideWhenTransientStatusEnds;
     private bool _positionInitialized;
+    private string? _farmingGuideInstruction;
 
     public MiniScannerWindow()
     {
@@ -51,6 +52,23 @@ public partial class MiniScannerWindow : Window
         ShowAndPosition(settings);
     }
 
+    public void SetFarmingGuideInstruction(string? text, ScannerDisplaySettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        _farmingGuideInstruction = string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+        ConfigureLine(
+            FarmingGuideText,
+            settings.ShowFarmingGuide && _farmingGuideInstruction is not null,
+            _farmingGuideInstruction ?? string.Empty,
+            settings.FontSize);
+        ApplyInformationOrder(settings);
+        if (IsVisible)
+        {
+            UpdateLayout();
+            EnforceTopmost();
+        }
+    }
+
     public void ShowTransientStatus(string text, ScannerDisplaySettings settings, bool hasItemContent)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(text);
@@ -72,6 +90,12 @@ public partial class MiniScannerWindow : Window
     public void ApplySettings(ScannerDisplaySettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
+        ConfigureLine(
+            FarmingGuideText,
+            settings.ShowFarmingGuide && _farmingGuideInstruction is not null,
+            _farmingGuideInstruction ?? string.Empty,
+            settings.FontSize);
+        ApplyInformationOrder(settings);
         if (settings.PositionX.HasValue && settings.PositionY.HasValue)
         {
             Left = settings.PositionX.Value;
@@ -117,8 +141,6 @@ public partial class MiniScannerWindow : Window
 
     private void ApplySnapshot(ScannerItemSnapshot snapshot, ScannerDisplaySettings settings)
     {
-        // Icon and item name are the fixed Mini Scanner identity header. They are never
-        // hidden by user settings; missing icon data leaves the reserved icon area empty.
         ItemIcon.Visibility = Visibility.Visible;
         ItemIcon.Source = snapshot.Icon;
         ConfigureLine(ItemNameText, true, snapshot.OfficialName, settings.FontSize);
@@ -155,6 +177,11 @@ public partial class MiniScannerWindow : Window
             settings.ShowAmmoPickup && snapshot.AmmoShouldPickUp.HasValue,
             FormatAmmoPickup(snapshot),
             settings.FontSize);
+        ConfigureLine(
+            FarmingGuideText,
+            settings.ShowFarmingGuide && _farmingGuideInstruction is not null,
+            _farmingGuideInstruction ?? string.Empty,
+            settings.FontSize);
 
         ApplyInformationOrder(settings);
     }
@@ -169,6 +196,7 @@ public partial class MiniScannerWindow : Window
             [ScannerDisplaySettings.FleaPricePerSlotField] = FleaSlotPriceText,
             [ScannerDisplaySettings.CurrentNeededField] = CurrentNeededText,
             [ScannerDisplaySettings.AmmoPickupField] = AmmoPickupText,
+            [ScannerDisplaySettings.FarmingGuideField] = FarmingGuideText,
         };
 
         InfoStackPanel.Children.Clear();
@@ -178,8 +206,6 @@ public partial class MiniScannerWindow : Window
                 InfoStackPanel.Children.Add(control);
         }
 
-        // Defensive compatibility for malformed/older settings passed directly to the
-        // window without normalization. Every currently displayed row remains reachable.
         foreach (var key in ScannerDisplaySettings.DefaultInfoOrder)
         {
             if (controls.Remove(key, out var control))
