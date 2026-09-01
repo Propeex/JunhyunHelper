@@ -1,33 +1,49 @@
 # ACTIVE WORK — 현재 진행 중 작업 체크포인트
 
-Status: **NONE**  
+Status: **ACTIVE**  
 Updated: **2026-09-01 KST**
 
-현재 복구해야 할 진행 중 개발 작업은 없습니다.
+## Goal
 
-## 최근 완료
+준현 헬퍼 v1.15.0에서 파밍 가이드를 레이드 중 실시간 의사결정 도우미로 확장한다.
 
-**v1.14.1 Farming Guide exact storage-layout signature guard**
+## Base / Working branch
 
-- v1.14.0 공개 후 release-closure review에서 exact visual-layout activation의 per-grid expected width/height 비교 누락을 발견했습니다.
-- v1.14.0 public tag/source/assets는 immutable historical identity로 유지했습니다.
-- v1.14.1에서 product-owned exact profile에 expected width/height를 저장하고 current live grid의 per-index dimensions가 정확히 일치할 때만 exact coordinates를 사용하도록 수정했습니다.
-- dimension mismatch는 storage mechanics를 변경하지 않고 finite compact visual fallback으로 fail closed합니다.
-- deterministic regression과 actual published-runtime A18 smoke fixture를 동일 verified signature로 정합화했습니다.
-- PR #253 final exact head `42abdc7945c8f12a26553c6d0386cdadc6e41803`의 CI / Shutdown Race / Documentation Consistency가 성공했습니다.
-- exact product source `add12c1b160f54e494d549978073f25e27cc4191`의 exact-main CI / Shutdown Race / Documentation Consistency가 성공했습니다.
-- 529 passed / 0 failed / 0 skipped.
-- Release workflow `33457066723`이 exact-main artifact `9781796510`을 사용해 v1.14.1을 공개했습니다.
-- public release ID `380147230`, ZIP SHA-256 `b1216d9c661be909aee8c4a3f4eeb199b03eae46ba1f91799172bf8fd0074921`을 검증했습니다.
-- `/releases/latest`, `refs/tags/v1.14.1`, release target이 exact product source에 일치함을 확인했습니다.
+- Base main: `72cd197458f929bc0048b2c808c426f3444d0aa8`
+- Working branch: `feature/v1.15.0-farming-guide-raid-session`
+- PR: not created yet
 
-공식 증거:
+## Confirmed scope
 
-- `docs/PROJECT_STATE.json`
-- `docs/CURRENT_STATE.md`
-- `docs/STATE.md`
-- `docs/RELEASE_1.14.1.md`
-- `docs/.release-v1.14.1-status.json`
-- `docs/DECISION_V1.14.1_STORAGE_LAYOUT_SIGNATURE_GUARD.md`
+- 파밍 가이드 탭에 `레이드 시작 / 레이드 종료` 전환 버튼을 추가한다.
+- 레이드 시작 시 현재 선택된 프리셋/작업 상태를 기준으로 독립적인 raid-session snapshot을 생성한다.
+- 레이드 종료 시 raid-session 변경을 폐기하고 시작 시점의 프리셋/작업 상태로 복귀한다.
+- 레이드 중 사용자가 파밍 가이드 UI에서 아이템·장비를 임의 변경하면 이후 판단은 즉시 새 상태를 기준으로 한다.
+- 칸/아이템/장비 위에 커서를 두고 `F`를 누르면 잠금/해제한다. 빈 칸 잠금은 자동 배치 로직이 사용할 수 없는 예약 공간이다.
+- 미니 스캐너 설정에 파밍 가이드 표시 옵션을 추가한다.
+- 스캔된 아이템에 대해 파밍 가이드가 지시를 만들고 `수락 [단축키]`를 표시한다.
+- 사용자가 수락 단축키를 눌러야 파밍 가이드 상태에 결과를 commit한다. 적용 후 `수락 완료` 피드백을 표시한다.
+- 미확정 지시는 동시에 하나만 유지하고, 인벤토리/장비/잠금 상태가 바뀌면 stale 지시는 무효화한다.
+- 파밍 가이드 검색 결과 아이템 위에서 `T`를 누르면 실제 스캔과 동일한 입력 경로로 테스트 스캔을 발생시킨다.
+- 정책/배치/세션/UI/스캐너 어댑터를 분리해 추후 파밍 판단 로직을 교체하기 쉽게 유지한다.
 
-향후 새로운 작업은 현재 public stable v1.14.1과 위 canonical 상태에서 시작합니다.
+## Completed
+
+- v1.14.1 public stable / ACTIVE_WORK NONE 상태 복구.
+- 기존 Farming Guide state, drag/drop, nested storage, scanner display settings/hotkey/mini overlay 구조 확인.
+- v1.15.0 작업 브랜치 생성.
+
+## Current step
+
+Core raid-session / lock / pending-instruction 계약과 Desktop 통합 지점을 구현한다.
+
+## Remaining
+
+- Core raid session / lock / recommendation models and deterministic tests
+- Farming Guide raid button / F lock / T simulated scan UI
+- scanner display settings + mini overlay farming-guide instruction presentation
+- configurable accept hotkey and stale-instruction guard
+- integration/published-runtime smoke as appropriate
+- PRODUCT / DECISIONS / ARCHITECTURE / DEVELOPER_REFERENCE / PROJECT_STATE documentation update
+- PR / CI / exact-main verification
+- v1.15.0 release and public asset verification
