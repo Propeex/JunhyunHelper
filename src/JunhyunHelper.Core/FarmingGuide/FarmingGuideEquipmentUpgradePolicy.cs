@@ -6,8 +6,7 @@ namespace JunhyunHelper.Core.FarmingGuide;
 /// Conservative source-backed superiority rules for live-raid equipment changes.
 /// Market price is intentionally not an equipment-performance metric. A replacement is
 /// called an upgrade only when current canonical Tarkov facts prove a strict improvement.
-/// Subjective equipment (for example headphones with several incomparable audio tuning
-/// parameters) deliberately returns false and remains under the ordinary loot-value path.
+/// Multi-dimensional equipment uses Pareto dominance rather than a guessed scalar tier.
 /// </summary>
 public static class FarmingGuideEquipmentUpgradePolicy
 {
@@ -21,6 +20,31 @@ public static class FarmingGuideEquipmentUpgradePolicy
         return incomingClass is > 0 &&
                existingClass is > 0 &&
                incomingClass.Value > existingClass.Value;
+    }
+
+    public static bool IsHeadsetUpgrade(GameItem incoming, GameItem existing)
+    {
+        ArgumentNullException.ThrowIfNull(incoming);
+        ArgumentNullException.ThrowIfNull(existing);
+
+        var incomingDistance = incoming.FarmingGuideData?.HeadsetDistanceModifier;
+        var existingDistance = existing.FarmingGuideData?.HeadsetDistanceModifier;
+        var incomingDistortion = incoming.FarmingGuideData?.HeadsetDistortion;
+        var existingDistortion = existing.FarmingGuideData?.HeadsetDistortion;
+        if (incomingDistance is null ||
+            existingDistance is null ||
+            incomingDistortion is null ||
+            existingDistortion is null)
+        {
+            return false;
+        }
+
+        // Higher distanceModifier extends useful hearing distance, while lower distortion
+        // keeps the amplified signal cleaner. Trade-offs are not an objective upgrade.
+        return incomingDistance.Value >= existingDistance.Value &&
+               incomingDistortion.Value <= existingDistortion.Value &&
+               (incomingDistance.Value > existingDistance.Value ||
+                incomingDistortion.Value < existingDistortion.Value);
     }
 
     public static bool IsCarrierUpgrade(
