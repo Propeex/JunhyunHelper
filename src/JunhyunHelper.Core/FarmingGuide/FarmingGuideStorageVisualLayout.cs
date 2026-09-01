@@ -15,15 +15,20 @@ public sealed record FarmingGuideStorageVisualLayout(
 /// <summary>
 /// Resolves verified Tarkov compound-grid UI templates without allowing stale
 /// visual metadata to affect inventory compatibility or placement mechanics.
-/// Profiles are activated only when the current live grid count and geometry are
-/// compatible; otherwise callers must use their ordinary procedural layout.
+/// Profiles are activated only when the current live grid count and each grid's
+/// width/height match the verified profile signature; otherwise callers must use
+/// their ordinary procedural layout.
 /// </summary>
 public static class FarmingGuideStorageVisualLayoutResolver
 {
     private const double TarkovCellSize = 64d;
     private const double OverlapEpsilon = 0.01d;
 
-    private sealed record SourcePosition(double X, double Y);
+    private sealed record SourceGrid(
+        double X,
+        double Y,
+        int ExpectedWidth,
+        int ExpectedHeight);
 
     // Item ids are stable EFT template ids. These aliases make the first verified
     // profiles usable even when the normalized tarkov.dev payload omits the raw
@@ -36,51 +41,54 @@ public static class FarmingGuideStorageVisualLayoutResolver
             ["5c0e722886f7740458316a57"] = "ANA Tactical M1",
         };
 
-    // Coordinates are independently retained factual UI metadata from verified
-    // Tarkov compound-grid templates. EFT coordinates use +X right and -Y down.
-    private static readonly IReadOnlyDictionary<string, SourcePosition[]> Profiles =
-        new Dictionary<string, SourcePosition[]>(StringComparer.OrdinalIgnoreCase)
+    // Coordinates and expected grid dimensions are independently retained factual
+    // metadata for the small product-owned set of verified Tarkov compound-grid
+    // templates. EFT coordinates use +X right and -Y down. The expected dimensions
+    // are part of the profile identity: if current Tarkov mechanics drift at any
+    // grid index, exact coordinates are rejected and presentation falls back.
+    private static readonly IReadOnlyDictionary<string, SourceGrid[]> Profiles =
+        new Dictionary<string, SourceGrid[]>(StringComparer.OrdinalIgnoreCase)
         {
             ["mbss_rig"] =
             [
-                new(210, 3),
-                new(210, -65),
-                new(210, -133),
-                new(0, -69.3),
-                new(70, -69.3),
-                new(4.3, -0.3),
-                new(140, -2),
+                new(210, 3, 1, 1),
+                new(210, -65, 1, 1),
+                new(210, -133, 1, 1),
+                new(0, -69.3, 1, 2),
+                new(70, -69.3, 1, 2),
+                new(4.3, -0.3, 2, 1),
+                new(140, -2, 1, 3),
             ],
             ["ANA Tactical M1"] =
             [
-                new(0, 0),
-                new(70, 0),
-                new(140, 0),
-                new(210, 0),
-                new(7, -133),
-                new(140, -133),
-                new(0, -266),
-                new(70, -266),
-                new(140, -266),
-                new(210, -266),
+                new(0, 0, 1, 2),
+                new(70, 0, 1, 2),
+                new(140, 0, 1, 2),
+                new(210, 0, 1, 2),
+                new(7, -133, 2, 2),
+                new(140, -133, 2, 2),
+                new(0, -266, 1, 1),
+                new(70, -266, 1, 1),
+                new(140, -266, 1, 1),
+                new(210, -266, 1, 1),
             ],
             ["A18"] =
             [
-                new(0, 0),
-                new(70, 0),
-                new(140, 0),
-                new(210, 0),
-                new(280, 0),
-                new(0, -133),
-                new(70, -133),
-                new(140, -133),
-                new(210, -133),
-                new(280, -133),
-                new(0, -266),
-                new(70, -266),
-                new(140, -266),
-                new(210, -266),
-                new(280, -266),
+                new(0, 0, 1, 2),
+                new(70, 0, 1, 2),
+                new(140, 0, 1, 2),
+                new(210, 0, 1, 2),
+                new(280, 0, 1, 2),
+                new(0, -133, 1, 2),
+                new(70, -133, 1, 2),
+                new(140, -133, 1, 2),
+                new(210, -133, 1, 2),
+                new(280, -133, 1, 2),
+                new(0, -266, 1, 1),
+                new(70, -266, 1, 1),
+                new(140, -266, 1, 1),
+                new(210, -266, 1, 1),
+                new(280, -266, 1, 1),
             ],
         };
 
@@ -105,9 +113,20 @@ public static class FarmingGuideStorageVisualLayoutResolver
             return false;
         }
 
+        for (var index = 0; index < source.Length; index++)
+        {
+            var definition = liveGrids[index];
+            var expected = source[index];
+            if (definition.Width != expected.ExpectedWidth ||
+                definition.Height != expected.ExpectedHeight)
+            {
+                return false;
+            }
+        }
+
         var scale = cellSize / TarkovCellSize;
-        var rawLeft = source.Select(position => position.X * scale).ToArray();
-        var rawTop = source.Select(position => -position.Y * scale).ToArray();
+        var rawLeft = source.Select(grid => grid.X * scale).ToArray();
+        var rawTop = source.Select(grid => -grid.Y * scale).ToArray();
         var minLeft = rawLeft.Min();
         var minTop = rawTop.Min();
 
@@ -118,9 +137,6 @@ public static class FarmingGuideStorageVisualLayoutResolver
         for (var index = 0; index < source.Length; index++)
         {
             var definition = liveGrids[index];
-            if (definition.Width <= 0 || definition.Height <= 0)
-                return false;
-
             var left = rawLeft[index] - minLeft;
             var top = rawTop[index] - minTop;
             var right = left + definition.Width * cellSize;
