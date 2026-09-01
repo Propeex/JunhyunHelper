@@ -11,8 +11,10 @@ public sealed class FarmingGuideRaidBridge
     private readonly object _gate = new();
     private Action<ScannerItemSnapshot>? _scanHandler;
     private Func<bool>? _acceptHandler;
-    private Action<string>? _miniScannerStatusHandler;
     private Func<string, ScannerItemSnapshot?>? _snapshotResolver;
+    private Action<string?>? _miniScannerInstructionHandler;
+    private Action<ScannerItemSnapshot>? _simulatedScanPresenter;
+    private Action<string>? _transientStatusHandler;
     private string? _lastScannerItemId;
 
     public void SetScannerSnapshotResolver(Func<string, ScannerItemSnapshot?> resolver)
@@ -20,6 +22,27 @@ public sealed class FarmingGuideRaidBridge
         ArgumentNullException.ThrowIfNull(resolver);
         lock (_gate)
             _snapshotResolver = resolver;
+    }
+
+    public void SetMiniScannerInstructionHandler(Action<string?> handler)
+    {
+        ArgumentNullException.ThrowIfNull(handler);
+        lock (_gate)
+            _miniScannerInstructionHandler = handler;
+    }
+
+    public void SetSimulatedScanPresenter(Action<ScannerItemSnapshot> presenter)
+    {
+        ArgumentNullException.ThrowIfNull(presenter);
+        lock (_gate)
+            _simulatedScanPresenter = presenter;
+    }
+
+    public void SetTransientStatusHandler(Action<string> handler)
+    {
+        ArgumentNullException.ThrowIfNull(handler);
+        lock (_gate)
+            _transientStatusHandler = handler;
     }
 
     public ScannerItemSnapshot? ResolveSnapshot(string itemId)
@@ -32,19 +55,14 @@ public sealed class FarmingGuideRaidBridge
         return resolver?.Invoke(itemId.Trim());
     }
 
-    public void Bind(
-        Action<ScannerItemSnapshot> scanHandler,
-        Func<bool> acceptHandler,
-        Action<string> miniScannerStatusHandler)
+    public void Bind(Action<ScannerItemSnapshot> scanHandler, Func<bool> acceptHandler)
     {
         ArgumentNullException.ThrowIfNull(scanHandler);
         ArgumentNullException.ThrowIfNull(acceptHandler);
-        ArgumentNullException.ThrowIfNull(miniScannerStatusHandler);
         lock (_gate)
         {
             _scanHandler = scanHandler;
             _acceptHandler = acceptHandler;
-            _miniScannerStatusHandler = miniScannerStatusHandler;
         }
     }
 
@@ -54,7 +72,6 @@ public sealed class FarmingGuideRaidBridge
         {
             _scanHandler = null;
             _acceptHandler = null;
-            _miniScannerStatusHandler = null;
             _lastScannerItemId = null;
         }
     }
@@ -63,7 +80,11 @@ public sealed class FarmingGuideRaidBridge
     {
         ArgumentNullException.ThrowIfNull(status);
         if (status.State != ScannerRuntimeState.ShowingItem || string.IsNullOrWhiteSpace(status.ItemId))
+        {
+            lock (_gate)
+                _lastScannerItemId = null;
             return;
+        }
 
         Action<ScannerItemSnapshot>? handler;
         Func<string, ScannerItemSnapshot?>? resolver;
@@ -91,11 +112,16 @@ public sealed class FarmingGuideRaidBridge
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(itemId);
         Action<ScannerItemSnapshot>? handler;
+        Action<ScannerItemSnapshot>? presenter;
         var snapshot = ResolveSnapshot(itemId);
         lock (_gate)
+        {
             handler = _scanHandler;
+            presenter = _simulatedScanPresenter;
+        }
         if (snapshot is null)
             return false;
+        presenter?.Invoke(snapshot);
         handler?.Invoke(snapshot);
         return true;
     }
@@ -108,13 +134,21 @@ public sealed class FarmingGuideRaidBridge
         return handler?.Invoke() == true;
     }
 
-    public void ShowMiniScannerStatus(string message)
+    public void SetMiniScannerInstruction(string? message)
+    {
+        Action<string?>? handler;
+        lock (_gate)
+            handler = _miniScannerInstructionHandler;
+        handler?.Invoke(string.IsNullOrWhiteSpace(message) ? null : message.Trim());
+    }
+
+    public void ShowTransientStatus(string message)
     {
         if (string.IsNullOrWhiteSpace(message))
             return;
         Action<string>? handler;
         lock (_gate)
-            handler = _miniScannerStatusHandler;
+            handler = _transientStatusHandler;
         handler?.Invoke(message.Trim());
     }
 }
