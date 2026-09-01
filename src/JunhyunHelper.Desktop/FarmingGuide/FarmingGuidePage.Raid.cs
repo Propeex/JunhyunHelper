@@ -165,7 +165,7 @@ public partial class FarmingGuidePage
         RefreshRaidAcquiredCounts(current);
 
         var quantity = Math.Max(1, scanned.Quantity);
-        var totalFlea = scanned.FleaAveragePrice is { } flea
+        int? totalFlea = scanned.FleaAveragePrice is { } flea
             ? checked(flea * quantity)
             : null;
         var decisionScan = scanned with
