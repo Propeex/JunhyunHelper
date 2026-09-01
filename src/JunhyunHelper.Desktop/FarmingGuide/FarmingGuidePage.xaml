@@ -83,7 +83,7 @@
                     <TextBlock x:Name="RaidStatusText"
                                Margin="2,7,2,12"
                                Foreground="{StaticResource TextSecondaryBrush}"
-                               Text="레이드를 시작하면 현재 상태를 기준으로 파밍 지시를 계산합니다."
+                               Visibility="Collapsed"
                                TextWrapping="Wrap" />
                 </StackPanel>
 
@@ -98,7 +98,7 @@
             <DockPanel LastChildFill="True">
                 <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
                     <TextBlock Text="수납 공간" FontSize="21" FontWeight="SemiBold" />
-                    <TextBlock Text="아이템을 끌어 놓으세요. R: 회전 · F: 아이템/장비/빈 칸 잠금"
+                    <TextBlock Text="R: 회전 · F: 아이템/장비/빈 칸 잠금"
                                Foreground="{StaticResource TextSecondaryBrush}"
                                Margin="0,3,0,0" />
                 </StackPanel>

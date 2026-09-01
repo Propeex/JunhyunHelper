@@ -298,10 +298,13 @@ public partial class FarmingGuidePage
             .Select(item =>
             {
                 var current = ResolveItem(item.Item);
-                var footprint = FarmingGuidePlacementEngine.Footprint(
-                    current?.Width ?? 1,
-                    current?.Height ?? 1,
-                    item.Rotated);
+                var footprint = current is null
+                    ? (Width: 1, Height: 1)
+                    : FarmingGuideStoragePlacementPolicy.Footprint(
+                        item.Storage,
+                        item.ParentInstanceId,
+                        current,
+                        item.Rotated);
                 return new FarmingGuideGridPlacement(item.InstanceId, item.X, item.Y, footprint.Width, footprint.Height);
             })
             .ToArray();
@@ -313,17 +316,26 @@ public partial class FarmingGuidePage
         var createsCycle = session.Origin == DragOriginKind.StoredItem &&
                            session.StoredInstanceId is { } movingId &&
                            WouldCreateNestedCycle(movingId, target.ParentInstanceId);
+        var footprint = FarmingGuideStoragePlacementPolicy.Footprint(
+            target.Kind,
+            target.ParentInstanceId,
+            session.Item,
+            session.Rotated);
         var valid = !movingPopulatedCarrier &&
                     !createsCycle &&
-                    FarmingGuideCompatibility.FilterAllows(session.Item, target.Filter) &&
+                    FarmingGuideStoragePlacementPolicy.CanStore(
+                        target.Kind,
+                        target.ParentInstanceId,
+                        session.Item,
+                        target.Filter) &&
                     FarmingGuidePlacementEngine.CanPlace(
                         target.Width,
                         target.Height,
                         x,
                         y,
-                        session.Item.Width ?? 1,
-                        session.Item.Height ?? 1,
-                        session.Rotated,
+                        footprint.Width,
+                        footprint.Height,
+                        rotated: false,
                         existing,
                         session.StoredInstanceId);
         return new DropProbe(target, valid, x, y);
@@ -415,6 +427,8 @@ public partial class FarmingGuidePage
         switch (probe.Target)
         {
             case EquipmentDropTarget equipment:
+                if (GetEquipmentState(equipment.Slot) is not null)
+                    ClearEquipmentLock(equipment.Slot);
                 if (equipment.Fixed)
                     SetFixed(equipment.Slot, session.State);
                 else
@@ -424,6 +438,8 @@ public partial class FarmingGuidePage
             {
                 var movingSameCarrier = session.Origin == DragOriginKind.Carrier &&
                                         session.CarrierKind == carrier.Kind;
+                if (!movingSameCarrier && GetCarrier(carrier.Kind) is not null)
+                    ClearCarrierLock(carrier.Kind);
                 if (!movingSameCarrier && GetCarrier(carrier.Kind)?.ItemId != session.State.ItemId)
                     RemoveCarrierContents(carrier.Kind);
                 SetCarrier(carrier.Kind, session.State);
@@ -437,7 +453,9 @@ public partial class FarmingGuidePage
                     grid.GridIndex,
                     probe.X,
                     probe.Y,
-                    session.Rotated,
+                    FarmingGuideStoragePlacementPolicy.IsSpecialSlotSurface(grid.Kind, grid.ParentInstanceId)
+                        ? false
+                        : session.Rotated,
                     grid.ParentInstanceId));
                 break;
             case WorkbenchSlotDropTarget slot:
@@ -456,12 +474,14 @@ public partial class FarmingGuidePage
             case DragOriginKind.Search:
                 return;
             case DragOriginKind.Equipment when session.EquipmentSlot is { } slot:
+                ClearEquipmentLock(slot);
                 if (session.FixedEquipment)
                     SetFixed(slot, null);
                 else
                     Equipment.Remove(slot);
                 return;
             case DragOriginKind.Carrier when session.CarrierKind is { } kind:
+                ClearCarrierLock(kind);
                 SetCarrier(kind, null);
                 if (destructiveCarrierRemoval)
                     RemoveCarrierContents(kind);
@@ -536,9 +556,10 @@ public partial class FarmingGuidePage
         }
 
         var origin = grid.Canvas.TranslatePoint(new Point(0, 0), RootGrid);
-        var footprint = FarmingGuidePlacementEngine.Footprint(
-            ActiveDrag.Item.Width ?? 1,
-            ActiveDrag.Item.Height ?? 1,
+        var footprint = FarmingGuideStoragePlacementPolicy.Footprint(
+            grid.Kind,
+            grid.ParentInstanceId,
+            ActiveDrag.Item,
             ActiveDrag.Rotated);
         _dropHighlight.Width = footprint.Width * CellSize;
         _dropHighlight.Height = footprint.Height * CellSize;
@@ -577,8 +598,7 @@ public partial class FarmingGuidePage
         DragGhost = null;
         _dragGhostImage = null;
         _dropHighlight = null;
-        RenderEquipment();
-        RenderStorage();
+        ApplyLockVisuals();
         RenderWorkbench();
     }
 

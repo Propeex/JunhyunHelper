@@ -1,41 +1,104 @@
 # ACTIVE WORK — 현재 진행 중 작업 체크포인트
 
-Status: **NONE**  
+Status: **ACTIVE**  
 Updated: **2026-09-01 KST**
 
-## Last completed work
+## Goal
 
-준현 헬퍼 **v1.15.0 Farming Guide raid-session advisor** 개발·검증·공개 릴리즈를 완료했다.
+준현 헬퍼 **v1.15.1 Farming Guide real-play regression fixes**를 구현·검증·공개 릴리즈한다.
 
-```text
-public stable: v1.15.0
-exact product source/tag target:
-b974d56f32d073ce21a5de4171737670f83261f3
-merge PR: #256
-exact-main CI: 33467376556 — SUCCESS
-exact-main Shutdown Race: 33467376508 — SUCCESS
-exact-main Documentation Consistency: 33467376529 — SUCCESS
-Release workflow: 33467575493 — SUCCESS
-release id: 380200480
-540 passed / 0 failed / 0 skipped
-```
+## Base
 
-Public `refs/tags/v1.15.0`, release target and `/releases/latest` all resolve to the exact product source above. Required public assets `Junhyun-Helper.zip` and `SHA256SUMS.txt` were read back and verified.
+branch: `fix/v1.15.1-farming-guide-real-play-2026-09-01`  
+base main: `a682bfb1b1200c2db851c606a4ea7616fce4bcc2`  
+PR: **#258**
 
-Canonical closure evidence:
+## Confirmed scope
 
-- `docs/PROJECT_STATE.json`
-- `docs/CURRENT_STATE.md`
-- `docs/STATE.md`
-- `docs/RELEASE_1.15.0.md`
-- `docs/.release-v1.15.0-status.json`
-- `docs/RELEASE_NOTES_V1.15.0.md`
-- `docs/DECISION_V1.15.0_FARMING_GUIDE_RAID_ADVISOR.md`
-- `docs/ARCHITECTURE_FARMING_GUIDE.md`
+1. Mini Scanner Farming Guide text
+   - Store: `[보관할 장소]에 보관`
+   - Replace stored item: `[보관할 장소]의 [기존 아이템 명]과 교체`
+   - Discard: `버리기`
+   - Equip: `[장착할 장소]에 장착`
+   - Replace equipped/attached item: `[장착할 장소]의 [기존 아이템 명]과 교체`
+   - Acceptance feedback: `반영 완료`
+   - a new scan rejects the previous unaccepted instruction; never require `먼저 수락`
+   - manual inventory/lock changes silently invalidate pending advice without user-facing cancellation text
+   - scanned item name is not repeated in Farming Guide text
 
-## Remaining external evidence
+2. Lock lifetime and semantics
+   - item/carrier/equipment-target locks follow the locked target and disappear when that target is removed/replaced
+   - empty-cell lock remains an independent reserved-space constraint for reload magazine headroom
+   - locking a rig/backpack/secure container protects the carrier itself from automated replacement/removal, but does not block automated storage inside it
+   - lock visuals survive rerender/state changes
+   - lock toggling must not cause visible UI stalls
 
-No repository development task is currently active. Separate real-environment evidence remains outside release closure:
+3. Special slots
+   - enforce Tarkov-compatible special-slot item eligibility from canonical `specialSlot` type classification
+   - eligible special-slot items occupy one special slot regardless of ordinary inventory footprint
+   - rendering, collision, summary, manual placement, sanitizer, and raid advisor share this rule
 
-- user's actual PC/Tarkov play validation
+4. Raid advisor
+   - implement equipment and nested attachment/armor-plate placement recommendations
+   - support both empty-target equip and replace-equipped/attached-item recommendations
+   - accepted equip actions count toward raid-acquired needed quantity exactly like stored loot
+
+5. UI / interaction
+   - move pistol/holster below eyewear
+   - remove the inactive raid explanatory sentence below `레이드 시작`
+   - storage hint: `R: 회전 · F: 아이템/장비/빈 칸 잠금`
+   - simulated `T` scan expires instead of remaining indefinitely
+   - translate raw modification slot IDs such as `mod_*` into understandable Korean labels
+   - use only exact source-backed composed/preset images for changed weapon/helmet appearance; never fabricate an inaccurate composite
+
+Canonical correction decision:
+
+`docs/DECISION_V1.15.1_FARMING_GUIDE_REAL_PLAY_CORRECTIONS.md`
+
+## Completed
+
+- recovered v1.15.0 stable state and captured user-confirmed real-play corrections
+- implemented source-backed special-slot eligibility and one-slot footprint policy
+- aligned persisted-state sanitizer, manual drag/drop, rendering, capacity summary, and raid placement with special-slot semantics
+- added first-class Equip / ReplaceEquip pending actions
+- implemented top-level equipment, carrier, recursive attachment, and armor-plate recommendation targets
+- changed new-scan behavior to reject the previous unaccepted pending transaction without state mutation
+- applied user-confirmed concise recommendation wording and `반영 완료`
+- separated carrier-lock ownership from internal storage availability
+- made target locks expire when the locked target is removed/replaced while preserving empty-cell reservations
+- fixed lock-highlight rerender loss and removed full-page redraw from ordinary F lock toggles
+- moved pistol below eyewear and simplified Farming Guide helper text
+- added bounded 3-second lifecycle for simulated T-scan Mini Scanner presentation with real-scan race protection
+- added Korean attachment/armor slot label policy
+- expanded authoritative exact-assembly image lookup while preserving non-fabricated fallback presentation
+- split raid session, lock, and planning code into narrow partial files
+- added deterministic tests for special slots, slot labels, pending replacement, and equip transaction actions
+- opened draft PR #258
+- bumped Desktop/Product candidate version to 1.15.1 while keeping publicStable authority at v1.15.0 until exact-main publication
+- updated FIRST_RUN_KO.txt and added docs/RELEASE_NOTES_V1.15.1.md
+- analyzed the first full deterministic run: 556 passed / 2 failed / 0 skipped; both failures were stale v1.15.0 source-contract assertions rather than runtime/test failures
+- rewrote those two maintenance contracts to assert the v1.15.1 carrier-lock and silent pending-invalidation behavior instead of deleting coverage
+- final validated code checkpoint `c4bdce6812fdd7eb75edc9b82c7ff3cde8c76fa4`: 558 passed / 0 failed / 0 skipped, full published Windows smoke and Shutdown Race SUCCESS
+- staged canonical candidate facts: desktopVersion 1.15.1, deterministicTestCount 558; publicStable remains v1.15.0 until publication succeeds
+- final PR HEAD `fda3dfbcc9e25dc701f690fe5409646b8b8ba6ac` validation:
+  - CI run `33475310940` SUCCESS
+  - Shutdown Race run `33475310845` SUCCESS
+  - Documentation Consistency run `33475310864` SUCCESS
+  - full build/test/publish/Product UI + Map + Scanner/graceful-shutdown/package pipeline SUCCESS
+
+## Current step
+
+PR #258 is fully validated and ready for merge. Merge it, then treat the resulting main commit as the candidate exact product source and require exact-main CI/Shutdown Race/Documentation Consistency plus the automatic v1.15.1 Release workflow before release closure.
+
+## Remaining
+
+- mark PR #258 ready and merge
+- verify exact-main CI and Shutdown Race / Documentation Consistency on merged main
+- verify automatic v1.15.1 release workflow, public tag/release/latest status, assets and checksums
+- create and merge documentation-only v1.15.1 release closure updating README/CURRENT_STATE/STATE/PROJECT_STATE/release evidence
+- close ACTIVE_WORK to NONE only after release closure documents are on exact main
+
+External evidence after release:
+
+- further user actual-PC/Tarkov play validation
 - Kim Taeyoung actual-PC diagnostic ZIP collection/analysis

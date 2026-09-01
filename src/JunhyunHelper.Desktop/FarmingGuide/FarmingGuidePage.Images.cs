@@ -9,6 +9,7 @@ namespace JunhyunHelper.Desktop.FarmingGuide;
 public partial class FarmingGuidePage
 {
     private readonly Dictionary<string, ImageSource?> _farmingGuideItemImages = new(StringComparer.Ordinal);
+    private Dictionary<string, (string ItemId, string ImageUrl)>? _authoritativeAssemblyImagesBySignature;
 
     internal Image CreateItemImage(GameItem item, bool rotated = false, Thickness? margin = null)
     {
@@ -99,6 +100,8 @@ public partial class FarmingGuidePage
         image.LayoutTransform = rotated ? new RotateTransform(90) : Transform.Identity;
     }
 
+    internal void ResetAssemblyImageIndex() => _authoritativeAssemblyImagesBySignature = null;
+
     private Image CreateRemoteImage(string cacheKey, string? url, bool rotated, Thickness margin)
     {
         var image = new Image
@@ -138,6 +141,37 @@ public partial class FarmingGuidePage
         out string cacheKey,
         out string? imageUrl)
     {
+        if (TryResolveDefaultPresetImage(state, item, out cacheKey, out imageUrl))
+            return true;
+
+        var signature = AssemblySignature(FarmingGuideAssemblyPolicy.EnumerateStates(state)
+            .Select(static value => value.ItemId));
+        if (signature.Length == 0)
+        {
+            cacheKey = string.Empty;
+            imageUrl = null;
+            return false;
+        }
+
+        var index = GetAuthoritativeAssemblyImageIndex();
+        if (!index.TryGetValue(signature, out var source))
+        {
+            cacheKey = string.Empty;
+            imageUrl = null;
+            return false;
+        }
+
+        cacheKey = $"assembly-source-{source.ItemId}";
+        imageUrl = source.ImageUrl;
+        return true;
+    }
+
+    private bool TryResolveDefaultPresetImage(
+        FarmingGuideItemState state,
+        GameItem item,
+        out string cacheKey,
+        out string? imageUrl)
+    {
         cacheKey = string.Empty;
         imageUrl = null;
         var presetId = item.FarmingGuideAssembly?.DefaultPresetItemId;
@@ -164,6 +198,33 @@ public partial class FarmingGuidePage
         cacheKey = $"assembly-preset-{preset.Id}";
         return true;
     }
+
+    private IReadOnlyDictionary<string, (string ItemId, string ImageUrl)> GetAuthoritativeAssemblyImageIndex()
+    {
+        if (_authoritativeAssemblyImagesBySignature is not null)
+            return _authoritativeAssemblyImagesBySignature;
+
+        var index = new Dictionary<string, (string ItemId, string ImageUrl)>(StringComparer.Ordinal);
+        foreach (var candidate in _itemsById.Values)
+        {
+            var source = candidate.FarmingGuideAssembly;
+            if (source is null || source.ContainedItemIds.Count == 0)
+                continue;
+            var imageUrl = source.Image512Url ?? source.GridImageUrl;
+            if (string.IsNullOrWhiteSpace(imageUrl))
+                continue;
+            var signature = AssemblySignature(source.ContainedItemIds);
+            if (signature.Length > 0)
+                index.TryAdd(signature, (candidate.Id, imageUrl));
+        }
+        _authoritativeAssemblyImagesBySignature = index;
+        return index;
+    }
+
+    private static string AssemblySignature(IEnumerable<string> itemIds) =>
+        string.Join('\u001f', itemIds
+            .Where(static value => !string.IsNullOrWhiteSpace(value))
+            .OrderBy(static value => value, StringComparer.Ordinal));
 
     private static void RemoveOne(List<string> values, string id)
     {

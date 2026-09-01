@@ -36,7 +36,7 @@ public sealed class FarmingGuideRaidSessionTests
 
         var pending = session.SetPending(
             "accepted-item",
-            "accepted-item → backpack",
+            "backpack에 보관",
             FarmingGuideInstructionAction.Store,
             proposed);
 
@@ -47,6 +47,51 @@ public sealed class FarmingGuideRaidSessionTests
         Assert.Equal(1, session.State.Revision);
         Assert.Null(session.State.PendingInstruction);
         Assert.Same(baseline, session.BaselineSnapshot);
+    }
+
+    [Fact]
+    public void New_scan_can_reject_pending_and_replace_it_without_mutating_revision()
+    {
+        var baseline = SnapshotWith("baseline-item");
+        var ignoredProposal = SnapshotWith("ignored-item");
+        var acceptedProposal = SnapshotWith("next-item");
+        var session = new FarmingGuideRaidSession(baseline);
+
+        session.SetPending(
+            "ignored-item",
+            "가방에 보관",
+            FarmingGuideInstructionAction.Store,
+            ignoredProposal);
+        session.ClearPending();
+        var replacement = session.SetPending(
+            "next-item",
+            "헬멧에 장착",
+            FarmingGuideInstructionAction.Equip,
+            acceptedProposal);
+
+        Assert.Equal(0, session.State.Revision);
+        Assert.Equal("next-item", replacement.ItemId);
+        Assert.Equal(FarmingGuideInstructionAction.Equip, replacement.Action);
+        Assert.True(session.TryAccept(out var accepted));
+        Assert.Same(acceptedProposal, accepted);
+        Assert.DoesNotContain(accepted.StoredItems, item => item.Item.ItemId == "ignored-item");
+    }
+
+    [Theory]
+    [InlineData(FarmingGuideInstructionAction.Equip)]
+    [InlineData(FarmingGuideInstructionAction.ReplaceEquip)]
+    public void Equip_actions_are_first_class_pending_transactions(FarmingGuideInstructionAction action)
+    {
+        var baseline = SnapshotWith("baseline-item");
+        var proposed = SnapshotWith("equipped-item");
+        var session = new FarmingGuideRaidSession(baseline);
+
+        var pending = session.SetPending("equipped-item", "헬멧에 장착", action, proposed);
+
+        Assert.Equal(action, pending.Action);
+        Assert.True(session.TryAccept(out var accepted));
+        Assert.Same(proposed, accepted);
+        Assert.Equal(1, session.State.Revision);
     }
 
     [Fact]

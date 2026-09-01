@@ -4,6 +4,8 @@ public enum FarmingGuideInstructionAction
 {
     Store,
     Replace,
+    Equip,
+    ReplaceEquip,
     Discard,
 }
 

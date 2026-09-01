@@ -22,6 +22,7 @@ public sealed class MiniScannerOverlayService : IDisposable
     private bool _editMode;
     private bool _disposed;
     private int _visibilityEpoch;
+    private int _temporaryPreviewEpoch;
 
     public MiniScannerOverlayService(ScannerSettingsService settings, IScannerOcrEngine ocr)
     {
@@ -40,6 +41,8 @@ public sealed class MiniScannerOverlayService : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(snapshot);
+        if (!preview)
+            Interlocked.Increment(ref _temporaryPreviewEpoch);
 
         int epoch;
         lock (_requestGate)
@@ -81,6 +84,48 @@ public sealed class MiniScannerOverlayService : IDisposable
         }
 
         ShowVerified(snapshot, epoch);
+    }
+
+    public void ShowTemporaryPreview(ScannerItemSnapshot snapshot, TimeSpan lifetime)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(snapshot);
+        if (lifetime <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(lifetime));
+
+        var previewEpoch = Interlocked.Increment(ref _temporaryPreviewEpoch);
+        Show(snapshot, preview: true);
+        var visibilityEpoch = Volatile.Read(ref _visibilityEpoch);
+        _ = HideTemporaryPreviewAsync(snapshot.ItemId, previewEpoch, visibilityEpoch, lifetime);
+    }
+
+    private async Task HideTemporaryPreviewAsync(
+        string itemId,
+        int previewEpoch,
+        int visibilityEpoch,
+        TimeSpan lifetime)
+    {
+        try
+        {
+            await Task.Delay(lifetime).ConfigureAwait(false);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+
+        if (_disposed || previewEpoch != Volatile.Read(ref _temporaryPreviewEpoch))
+            return;
+
+        bool isSamePresentation;
+        lock (_requestGate)
+        {
+            isSamePresentation =
+                visibilityEpoch == Volatile.Read(ref _visibilityEpoch) &&
+                string.Equals(_requestedItemId, itemId, StringComparison.Ordinal);
+        }
+        if (isSamePresentation)
+            Hide();
     }
 
     private void ShowVerified(ScannerItemSnapshot snapshot, int epoch)
@@ -239,6 +284,7 @@ public sealed class MiniScannerOverlayService : IDisposable
 
     private void ClearRequestedItem()
     {
+        Interlocked.Increment(ref _temporaryPreviewEpoch);
         lock (_requestGate)
         {
             _presentationRetention.Reset();
