@@ -3,7 +3,7 @@
 이 문서는 준현 헬퍼의 현재 유효한 결정과 supersession 관계를 빠르게 복구하기 위한 active index다. 현재 사실값은 `docs/PROJECT_STATE.json`, 상세 상태는 `docs/CURRENT_STATE.md` / `docs/STATE.md`가 권위다.
 
 기준일: **2026-09-01 KST**  
-현재 공개 제품: **v1.14.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+현재 제품 상태: **v1.15.0 RELEASE CANDIDATE / v1.14.1 PUBLIC STABLE**
 
 ## 1. 장기 기본 원칙
 
@@ -25,6 +25,7 @@ Current documents:
 - `docs/DECISION_V1.13.3_FARMING_GUIDE_LIVE_ITEM_INTERACTION.md`
 - `docs/DECISION_V1.14.0_FARMING_GUIDE_ASSEMBLY_AND_AUTHENTIC_LAYOUTS.md`
 - `docs/DECISION_V1.14.1_STORAGE_LAYOUT_SIGNATURE_GUARD.md`
+- `docs/DECISION_V1.15.0_FARMING_GUIDE_RAID_ADVISOR.md`
 - `docs/ARCHITECTURE_FARMING_GUIDE.md`
 
 Current status:
@@ -32,33 +33,30 @@ Current status:
 - v1.13.3 live item interaction: **PUBLIC VERIFIED**
 - v1.14.0 recursive assembly / inline picker / layout identity: **PUBLIC HISTORICAL, FUNCTIONALITY RETAINED**
 - v1.14.1 exact storage dimension-signature guard: **PUBLIC VERIFIED / CURRENT**
+- v1.15.0 live raid advisor: **CONFIRMED / IMPLEMENTED / RELEASE-CANDIDATE VERIFICATION**
 
 Current contract:
 
-- Farming Guide is a raid-start Loadout / Inventory Editor, not a live raid inventory mirror.
+- Farming Guide remains the raid-start Loadout / Inventory Editor and additionally owns the v1.15.0 live raid recommendation session.
+- raid start snapshots working/preset state + locks into an isolated session; raid end discards session changes and restores the baseline.
 - current validated Tarkov item dimensions, grids, filters, equipment/attachment/armor slots and conflicts are mechanical authority.
 - nested storage uses `ParentInstanceId` and impossible parent/grid/filter/bounds/overlap state fails closed.
 - recursive assembly uses `FarmingGuideAssemblyPolicy`; WPF does not invent a second compatibility truth.
 - empty actionable slots use a same-page compatible-item picker; search drag/drop and picker share Core compatibility.
 - occupied one-item slots are not silently overwritten.
 - current build may use an authoritative default-preset composed image only when imported membership exactly matches.
-- product-owned exact storage coordinates are presentation-only metadata.
-- **v1.14.1 requirement:** exact coordinates activate only when layout identity, grid count and every grid index's expected width/height match current mechanics; any mismatch uses compact fallback.
-- visual metadata never changes storage legality.
+- product-owned exact storage coordinates are presentation-only metadata and activate only when the full verified dimension signature matches current mechanics.
+- Scanner owns confirmed Item ID and mapped price/needed facts; Farming Guide owns the placement/replacement/discard decision.
+- every Scanner-driven recommendation is one revision-bound pending transaction and requires explicit user acceptance before commit.
+- manual inventory/equipment/lock edits invalidate stale pending instructions.
+- F locks constrain automation; direct user edits remain authoritative.
+- current loot priority is isolated in `FarmingGuideLootPriorityPolicy` and may evolve without rewriting placement/session/Scanner identity code.
 
 ### v1.14.0 correction relationship
 
 v1.14.0 intended a full count/width/height signature guard, but the public source only implemented identity/count/positive-dimension/non-overlap checks. That public release is not rewritten. v1.14.1 supersedes only this incomplete activation guard and adds deterministic plus published-runtime regression evidence.
 
-Current public identity:
-
-```text
-v1.14.1
-exact source/tag target:
-add12c1b160f54e494d549978073f25e27cc4191
-release id: 380147230
-529 passed / 0 failed / 0 skipped
-```
+Current public identity remains v1.14.1 until v1.15.0 release publication completes. Exact public facts are in `docs/PROJECT_STATE.json`.
 
 ## 3. Scanner
 
@@ -74,6 +72,8 @@ Maintained rules:
 - reviewed actual Tarkov evidence is required before relaxing acceptance thresholds;
 - Ground Truth is explicit user-reviewed truth only;
 - Needed quantity/source presentation reuses `ItemsWorkspace.Plan.NeededItems` authority.
+
+v1.15.0 adds a narrow post-recognition bridge: once Item ID is confirmed, Scanner presentation facts may be projected into Farming Guide. This does not make price/needed data recognition evidence and does not move decision authority into Scanner.
 
 ## 4. Quest / Needed Items
 
@@ -135,15 +135,17 @@ Game Content:
 - Release workflow consumes exact-main CI artifact;
 - already-published source/tag/assets are immutable and are not replaced by a later documentation-only commit of the same assembly version.
 
-Current release evidence:
+Current public release evidence remains:
 
 - `docs/RELEASE_1.14.1.md`
 - `docs/.release-v1.14.1-status.json`
 - `docs/RELEASE_NOTES_V1.14.1.md`
 
+v1.15.0 release evidence becomes authoritative only after exact-main CI and public release readback complete.
+
 ## 9. Maintenance mode
 
-Product-complete maintenance remains the default mode. Priorities are real user regressions, Tarkov changes, stability/reliability, performance, deterministic regression coverage and bounded technical-debt cleanup. New product behavior requires an explicit product decision.
+Product-complete maintenance remains the default mode. v1.15.0 is an explicitly user-requested MINOR feature expansion. After that release, priorities return to real user regressions, Tarkov changes, stability/reliability, performance, deterministic regression coverage and bounded technical-debt cleanup unless the user explicitly requests further product behavior.
 
 ## 10. Recovery order
 
