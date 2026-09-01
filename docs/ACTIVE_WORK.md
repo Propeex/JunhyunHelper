@@ -20,7 +20,7 @@ v1.15.5 Farming Guide maintenance PATCH.
 base main: f8ad66d7919dba9ca8b7cdf7eb55083fe42e83fe
 public stable: v1.15.4
 working branch: fix/v1.15.5-farming-guide-ui-instructions-2026-09-01
-PR: #270
+PR: #271
 ```
 
 ## Confirmed scope
@@ -36,7 +36,8 @@ PR: #270
 
 - stable v1.15.4 / main 상태 복구
 - 사용자 요구사항 확정
-- v1.15.5 작업 브랜치 및 Draft PR #270 생성
+- v1.15.5 작업 브랜치 생성
+- closed draft PR #270을 non-draft PR #271로 교체
 - raid planner/upgrade/repacking 흐름 재검토: 보존 우선·source-backed 제약은 유지하고 presentation만 분리
 - compact raid instruction formatter 구현
 - same-storage-area X/Y/grid/rotation repacking 멘트 억제
@@ -53,15 +54,16 @@ PR: #270
   - CI 33506271835 SUCCESS
   - Documentation Consistency 33506271972 SUCCESS
 - v1.15.5 version identity / first-run notes / release notes / decision 문서 반영
+- pre-PR-replacement final head `23fe805984c2aedada2d7cda4c61e27e155bc6f1`도 CI 33506969505 / Shutdown 33506969407 / Docs 33506969463 SUCCESS
 
 ## Current step
 
-최종 v1.15.5 PR head의 CI를 다시 통과시킨 뒤 main 병합 및 exact-main 검증으로 진행한다.
+PR #271의 current final head를 검증한 뒤 main 병합 및 exact-main 검증으로 진행한다.
 
 ## Remaining
 
-- 최종 PR head CI / Shutdown Race / Documentation Consistency
-- PR ready / main merge
+- PR #271 current-head CI / Shutdown Race / Documentation Consistency
+- main merge
 - exact-main CI / Shutdown Race / Documentation Consistency
 - v1.15.5 release / tag / asset 무결성 검증
 - 공개 상태 문서 갱신
