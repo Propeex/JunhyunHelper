@@ -49,7 +49,7 @@ public sealed class FarmingGuideDesktopSectionContractTests
     }
 
     [Fact]
-    public void FarmingGuide_DoubleClickOnlyExposesInteractiveNestedBagOrRigStorage()
+    public void FarmingGuide_DoubleClickExposesSourceBackedNestedStorageWithoutRestoringEquipmentInternals()
     {
         var root = FindRepositoryRoot();
         var directory = Path.Combine(
@@ -62,13 +62,15 @@ public sealed class FarmingGuideDesktopSectionContractTests
         var drag = File.ReadAllText(Path.Combine(directory, "FarmingGuidePage.Drag.cs"));
         var page = File.ReadAllText(Path.Combine(directory, "FarmingGuidePage.xaml.cs"));
         var images = File.ReadAllText(Path.Combine(directory, "FarmingGuidePage.Images.cs"));
+        var locks = File.ReadAllText(Path.Combine(directory, "FarmingGuidePage.Locks.cs"));
+        var rendering = File.ReadAllText(Path.Combine(directory, "FarmingGuidePage.Rendering.cs"));
 
         Assert.Contains("x:Name=\"WorkbenchHost\"", xaml, StringComparison.Ordinal);
         Assert.Contains("FarmingGuideCompleteEquipmentPolicy.SupportsNestedStorage(item)", workbench, StringComparison.Ordinal);
         Assert.Contains("OpenStoredWorkbench", workbench, StringComparison.Ordinal);
         Assert.Contains("OpenEquipmentWorkbench", workbench, StringComparison.Ordinal);
         Assert.Contains("opaque complete item", workbench, StringComparison.Ordinal);
-        Assert.Contains("Root rig/backpack storage is already visible", workbench, StringComparison.Ordinal);
+        Assert.Contains("Root rig/backpack/secure-container storage is already visible", workbench, StringComparison.Ordinal);
         Assert.Contains("SizeWorkbenchToGrid", workbench, StringComparison.Ordinal);
         Assert.DoesNotContain("StoragePanel.Visibility = Visibility.Collapsed", workbench, StringComparison.Ordinal);
         Assert.DoesNotContain("CreateWorkbenchSlot(", workbench, StringComparison.Ordinal);
@@ -77,6 +79,12 @@ public sealed class FarmingGuideDesktopSectionContractTests
         Assert.Contains("FarmingGuideSearchPolicy.IsDraggableInventoryItem", page, StringComparison.Ordinal);
         Assert.Contains("FarmingGuideCompleteEquipmentPolicy.ToRuntimeItem", page, StringComparison.Ordinal);
         Assert.DoesNotContain("EnumerateStates(state)", images, StringComparison.Ordinal);
+        Assert.Contains("ApplyUnlockedBorder(border)", locks, StringComparison.Ordinal);
+        Assert.Contains("PublishSimulatedScanAsync(row.Item.Id)", locks, StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "BorderBrush = (Brush)FindResource(\"AccentBrush\"),\r\n                Background = (Brush)FindResource(\"BackgroundMediumBrush\"),\r\n                Cursor = Cursors.Hand,\r\n                Tag = new PlacedItemSource",
+            rendering,
+            StringComparison.Ordinal);
         Assert.False(File.Exists(Path.Combine(directory, "FarmingGuideItemConfigurationWindow.cs")));
     }
 
