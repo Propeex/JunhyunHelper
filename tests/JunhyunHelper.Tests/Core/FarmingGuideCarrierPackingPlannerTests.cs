@@ -36,9 +36,9 @@ public sealed class FarmingGuideCarrierPackingPlannerTests
         var plan = FarmingGuideCarrierPackingPlanner.TryPack(surfaces, [locked, movable]);
 
         Assert.NotNull(plan);
-        var fixedPlacement = Assert.Single(plan.Placements.Where(value => value.InstanceId == "locked"));
+        var fixedPlacement = Assert.Single(plan.Placements, value => value.InstanceId == "locked");
         Assert.Equal((1, 1), (fixedPlacement.X, fixedPlacement.Y));
-        var moved = Assert.Single(plan.Placements.Where(value => value.InstanceId == "movable"));
+        var moved = Assert.Single(plan.Placements, value => value.InstanceId == "movable");
         Assert.NotEqual((1, 1), (moved.X, moved.Y));
     }
 
