@@ -28,6 +28,28 @@ public sealed class TarkovItemImporterEquipmentFactsTests
     }
 
     [Fact]
+    public void Import_PreservesHeadsetDistanceAndDistortionFacts()
+    {
+        var item = ImportSingle("""
+            {
+              "items": [
+                {
+                  "id": "headset",
+                  "properties": {
+                    "propertiesType": "ItemPropertiesHeadphone",
+                    "distanceModifier": 1.21,
+                    "distortion": 0.17
+                  }
+                }
+              ]
+            }
+            """);
+
+        Assert.Equal(1.21m, item.FarmingGuideData?.HeadsetDistanceModifier);
+        Assert.Equal(0.17m, item.FarmingGuideData?.HeadsetDistortion);
+    }
+
+    [Fact]
     public void Import_UsesArmorClassToIdentifyArmoredChestRigAndKeepsItsGrids()
     {
         var item = ImportSingle("""
