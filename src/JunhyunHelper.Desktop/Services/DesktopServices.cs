@@ -43,6 +43,9 @@ public sealed class DesktopServices : IDisposable
         FarmingGuideRaid = new FarmingGuideRaidBridge();
         Scanner = new ScannerCoordinator(_httpClient, RootDirectory);
         FarmingGuideRaid.SetScannerSnapshotResolver(Scanner.CreateFarmingGuideSnapshot);
+        FarmingGuideRaid.SetMiniScannerInstructionHandler(Scanner.SetFarmingGuideInstruction);
+        FarmingGuideRaid.SetSimulatedScanPresenter(Scanner.ShowFarmingGuideTestSnapshot);
+        FarmingGuideRaid.SetTransientStatusHandler(Scanner.ShowFarmingGuideStatus);
         Scanner.SetFarmingGuideAcceptHandler(FarmingGuideRaid.TryAccept);
         Scanner.StatusChanged += FarmingGuideRaid.ObserveScannerStatus;
 
@@ -60,36 +63,24 @@ public sealed class DesktopServices : IDisposable
     }
 
     public string RootDirectory { get; }
-
     public UserProfileStore Profiles { get; }
-
     public ContentActivationService Content { get; }
-
     public TarkovContentUpdateService ContentUpdater { get; }
-
     public ImageCacheService Images { get; }
-
     public AmmoFavoriteStore AmmoFavorites { get; }
-
     public ScannerItemUiStateStore ScannerItemUiState { get; }
-
     public FarmingGuidePresetStore FarmingGuide { get; }
-
     public FarmingGuideRaidBridge FarmingGuideRaid { get; }
-
     public ScannerCoordinator Scanner { get; }
-
     public ProfileApplicationService ProfileManagement { get; }
-
     public QuestApplicationService Quests { get; }
-
     public HideoutApplicationService Hideout { get; }
-
     public ItemsApplicationService Items { get; }
 
     public void Dispose()
     {
         Scanner.StatusChanged -= FarmingGuideRaid.ObserveScannerStatus;
+        FarmingGuideRaid.SetMiniScannerInstruction(null);
         FarmingGuideRaid.Unbind();
         Scanner.Dispose();
         _httpClient.Dispose();
