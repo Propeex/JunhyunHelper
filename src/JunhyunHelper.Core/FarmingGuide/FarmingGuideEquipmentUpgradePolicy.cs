@@ -3,10 +3,10 @@ using JunhyunHelper.Core.Items;
 namespace JunhyunHelper.Core.FarmingGuide;
 
 /// <summary>
-/// Conservative source-backed superiority rules for live-raid equipment changes.
-/// Market price is intentionally not an equipment-performance metric. A replacement is
-/// called an upgrade only when current canonical Tarkov facts prove a strict improvement.
-/// Multi-dimensional equipment uses Pareto dominance rather than a guessed scalar tier.
+/// v1.16 deterministic equipment-superiority manual. Each equipment family has one
+/// representative criterion; armored rigs are the deliberate two-step exception because
+/// they are both protection and storage equipment. Unknown instance facts such as
+/// durability or live weapon assembly never participate.
 /// </summary>
 public static class FarmingGuideEquipmentUpgradePolicy
 {
@@ -29,22 +29,9 @@ public static class FarmingGuideEquipmentUpgradePolicy
 
         var incomingDistance = incoming.FarmingGuideData?.HeadsetDistanceModifier;
         var existingDistance = existing.FarmingGuideData?.HeadsetDistanceModifier;
-        var incomingDistortion = incoming.FarmingGuideData?.HeadsetDistortion;
-        var existingDistortion = existing.FarmingGuideData?.HeadsetDistortion;
-        if (incomingDistance is null ||
-            existingDistance is null ||
-            incomingDistortion is null ||
-            existingDistortion is null)
-        {
-            return false;
-        }
-
-        // Higher distanceModifier extends useful hearing distance, while lower distortion
-        // keeps the amplified signal cleaner. Trade-offs are not an objective upgrade.
-        return incomingDistance.Value >= existingDistance.Value &&
-               incomingDistortion.Value <= existingDistortion.Value &&
-               (incomingDistance.Value > existingDistance.Value ||
-                incomingDistortion.Value < existingDistortion.Value);
+        return incomingDistance is not null &&
+               existingDistance is not null &&
+               incomingDistance.Value > existingDistance.Value;
     }
 
     public static bool IsCarrierUpgrade(
@@ -55,7 +42,7 @@ public static class FarmingGuideEquipmentUpgradePolicy
         ArgumentNullException.ThrowIfNull(incoming);
         ArgumentNullException.ThrowIfNull(existing);
 
-        if (kind is not (FarmingGuideStorageKind.Rig or FarmingGuideStorageKind.Backpack))
+        if (kind is not (FarmingGuideStorageKind.Rig or FarmingGuideStorageKind.Backpack or FarmingGuideStorageKind.SecureContainer))
             return false;
 
         var incomingCapacity = StorageCapacity(incoming);
@@ -63,32 +50,35 @@ public static class FarmingGuideEquipmentUpgradePolicy
         if (incomingCapacity <= 0 || existingCapacity <= 0)
             return false;
 
-        if (kind == FarmingGuideStorageKind.Backpack)
+        if (kind is FarmingGuideStorageKind.Backpack or FarmingGuideStorageKind.SecureContainer)
             return incomingCapacity > existingCapacity;
 
         var incomingArmored = incoming.FarmingGuideData?.IsArmoredRig == true;
         var existingArmored = existing.FarmingGuideData?.IsArmoredRig == true;
-        if (existingArmored && !incomingArmored)
-            return false;
 
-        if (!existingArmored && !incomingArmored)
+        // Ordinary rigs are storage equipment: capacity is the sole superiority fact.
+        if (!incomingArmored && !existingArmored)
             return incomingCapacity > existingCapacity;
 
-        var incomingClass = ArmorClass(incoming) ?? 0;
-        var existingClass = ArmorClass(existing) ?? 0;
+        // An ordinary rig never automatically replaces an armored rig because that would
+        // discard the rig's primary protective role.
+        if (!incomingArmored && existingArmored)
+            return false;
 
-        // Ordinary rig -> armored rig is an automatic upgrade only when adding protection
-        // does not also reduce raw storage capacity. The body-armor + rig -> armored-rig
-        // transition has its own rule because the user explicitly permits a smaller carrier
-        // when all actual contents still fit.
-        if (!existingArmored && incomingArmored)
-            return incomingClass > 0 && incomingCapacity >= existingCapacity;
+        // Ordinary -> armored adds a protection role. A positive armor class proves the
+        // equipment-class upgrade; actual content migration is validated separately by the
+        // transition planner and lock/reservation inheritance rules.
+        if (incomingArmored && !existingArmored)
+            return ArmorClass(incoming) is > 0;
 
-        // Armored rig -> armored rig uses Pareto dominance: no objective regression in
-        // either protection class or capacity, and at least one strict improvement.
-        return incomingClass >= existingClass &&
-               incomingCapacity >= existingCapacity &&
-               (incomingClass > existingClass || incomingCapacity > existingCapacity);
+        // Armored rig: armor class first. Only an equal class falls through to capacity.
+        var incomingClass = ArmorClass(incoming);
+        var existingClass = ArmorClass(existing);
+        if (incomingClass is null || existingClass is null)
+            return false;
+        if (incomingClass.Value != existingClass.Value)
+            return incomingClass.Value > existingClass.Value;
+        return incomingCapacity > existingCapacity;
     }
 
     public static bool IsBodyArmorToArmoredRigUpgrade(GameItem incomingRig, GameItem bodyArmor)
