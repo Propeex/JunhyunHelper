@@ -49,5 +49,13 @@ public sealed record FarmingGuideItemLayout(
     /// </summary>
     public string? StorageLayoutName { get; init; }
 
+    /// <summary>
+    /// Source-backed protection class for armor/helmet/armored-rig style properties.
+    /// Null means the current source did not prove a meaningful positive class. This is
+    /// intentionally retained even though complete-equipment mode hides plate internals:
+    /// the live raid advisor needs an objective top-level upgrade signal.
+    /// </summary>
+    public int? ArmorClass { get; init; }
+
     public int StorageCapacity => StorageGrids.Sum(grid => grid.Width * grid.Height);
 }
