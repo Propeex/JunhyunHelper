@@ -10,9 +10,8 @@ public enum FarmingGuideInstructionAction
 }
 
 /// <summary>
-/// A recommendation is a proposal against one exact raid-state revision. The proposal
-/// is committed only after an explicit user acceptance and only while that revision is
-/// still current.
+/// A recommendation is a proposal against one exact raid-state revision. Snapshot and
+/// lock/reservation roles are committed atomically only after explicit user acceptance.
 /// </summary>
 public sealed record FarmingGuidePendingInstruction(
     string ItemId,
@@ -20,7 +19,10 @@ public sealed record FarmingGuidePendingInstruction(
     FarmingGuideInstructionAction Action,
     long BaseRevision,
     FarmingGuideLoadoutSnapshot ProposedSnapshot,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt)
+{
+    public FarmingGuideLockState? ProposedLocks { get; init; }
+}
 
 public sealed record FarmingGuideRaidState(
     FarmingGuideLoadoutSnapshot Snapshot,
@@ -85,7 +87,8 @@ public sealed class FarmingGuideRaidSession
         string itemId,
         string instruction,
         FarmingGuideInstructionAction action,
-        FarmingGuideLoadoutSnapshot proposedSnapshot)
+        FarmingGuideLoadoutSnapshot proposedSnapshot,
+        FarmingGuideLockState? proposedLocks = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(itemId);
         ArgumentException.ThrowIfNullOrWhiteSpace(instruction);
@@ -97,28 +100,38 @@ public sealed class FarmingGuideRaidSession
             action,
             _state.Revision,
             proposedSnapshot,
-            DateTimeOffset.UtcNow);
+            DateTimeOffset.UtcNow)
+        {
+            ProposedLocks = (proposedLocks ?? _state.Locks).CopyNormalized(),
+        };
         _state = _state with { PendingInstruction = pending };
         return pending;
     }
 
     public void ClearPending() => _state = _state with { PendingInstruction = null };
 
-    public bool TryAccept(out FarmingGuideLoadoutSnapshot acceptedSnapshot)
+    public bool TryAccept(out FarmingGuideLoadoutSnapshot acceptedSnapshot) =>
+        TryAccept(out acceptedSnapshot, out _);
+
+    public bool TryAccept(
+        out FarmingGuideLoadoutSnapshot acceptedSnapshot,
+        out FarmingGuideLockState acceptedLocks)
     {
         var pending = _state.PendingInstruction;
         if (pending is null || pending.BaseRevision != _state.Revision)
         {
             acceptedSnapshot = _state.Snapshot;
+            acceptedLocks = _state.Locks.CopyNormalized();
             if (pending is not null)
                 ClearPending();
             return false;
         }
 
         acceptedSnapshot = pending.ProposedSnapshot;
+        acceptedLocks = (pending.ProposedLocks ?? _state.Locks).CopyNormalized();
         _state = new FarmingGuideRaidState(
             acceptedSnapshot,
-            _state.Locks.CopyNormalized(),
+            acceptedLocks,
             checked(_state.Revision + 1),
             PendingInstruction: null);
         return true;
