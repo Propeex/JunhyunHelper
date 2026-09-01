@@ -5,103 +5,77 @@ Updated: **2026-09-01 KST**
 
 ## Goal
 
-**v1.14.0 Farming Guide — 실제 조립 상태/총기 개조/검증된 수납 배치 강화**
+**v1.14.1 PATCH — Farming Guide exact storage-layout stale geometry fail-closed 보강**
+
+v1.14.0에서 확정한 제품 계약은 product-owned exact multi-grid coordinates를 current live grid **count/width/height signature가 정확히 일치할 때만** 사용하고, structure drift 시 finite compact layout으로 fallback하는 것이다.
+
+공개 v1.14.0 closure review에서 resolver가 expected width/height signature를 저장·비교하지 않는 구현 누락이 확인됐다. v1.14.1은 이 실제 회귀를 수정한다.
 
 ## Base
 
-Base main:
+Public v1.14.0 exact product source / current main base:
 
 ```text
-f8728e2d18bb07d47d8d4adcb5bf683dff92bce5
+9ff23b9f50dd84b84ec93cea31b079d7eff70fe1
+```
+
+Public v1.14.0 release:
+
+```text
+release id: 380133403
+release workflow: 33454002732 — SUCCESS
+527 passed / 0 failed / 0 skipped
 ```
 
 Working branch:
 
 ```text
-feature/v1.14.0-farming-guide-assembly-2026-08-31
+fix/v1.14.1-storage-layout-signature-2026-09-01
 ```
 
-Draft PR: **#250**  
-Target version: **v1.14.0**
+Target version: **v1.14.1**
 
-버전 근거: 빈 조립 슬롯 클릭 시 호환 아이템을 아이콘으로 탐색·즉시 장착하는 새 사용자 능력, 재귀 부품 편집, 조립 상태 기반 표현을 추가하므로 `docs/VERSIONING.md`의 MINOR 규칙을 적용한다.
+v1.14.0 tag/source/assets는 immutable historical identity로 유지하며 교체하지 않는다.
 
 ## Confirmed scope
 
-사용자 확정 요구사항:
-
-1. Farming Guide 장비 보드에서 인식표 슬롯을 제거한다. 현재 사용자가 장착할 수 있는 인식표 아이템이 없으므로 raid-start equipment surface에 노출하지 않는다.
-2. 조립 가능한 아이템은 장착 부품 상태가 바뀌면 표시 이미지도 그 조립 상태를 반영한다. Altyn + face shield, 총기 부품 조합을 대표 사례로 검증한다.
-3. 총기 부품/slot/compatibility 추적을 강화해 Farming Guide 안에서 실제 총기 개조를 구성할 수 있는 수준으로 만든다. root 1단계에 머물지 않고 attachment child의 하위 슬롯까지 재귀 추적한다.
-4. 리그/가방/컨테이너의 다중 storage grid는 generic 가로 나열을 제품 목표로 삼지 않는다. 검증된 exact visual metadata가 있고 current live grid signature와 일치할 때만 해당 상대 배치를 사용한다. metadata가 없거나 구조가 달라지면 finite compact layout으로 fail-safe fallback하며 이를 authentic layout으로 주장하지 않는다.
-5. 조립 가능한 빈 슬롯을 클릭하면 현재 조립 상태에서 장착 가능한 아이템을 아이콘 포함 inline UI로 표시한다. 사용자가 하나를 클릭하면 즉시 장착한다. 별도 Windows/OS 창은 사용하지 않는다. 기존 search drag → slot drop도 유지한다.
+1. `FarmingGuideStorageVisualLayoutResolver`의 product-owned exact profile에 각 grid의 expected width/height signature를 함께 저장한다.
+2. exact layout 적용 전에 layout identity, grid count뿐 아니라 **각 grid index의 width/height가 모두 expected signature와 일치하는지** 검증한다.
+3. 단 하나의 dimension mismatch라도 exact layout을 거부하고 기존 finite compact fallback으로 보낸다.
+4. 기존 non-overlap 검증은 corrupted/internally inconsistent profile에 대한 secondary defense로 유지한다.
+5. 현재 product-owned exact profiles의 expected signature는 검증된 factual geometry만 사용한다.
+6. v1.14.0에서 width/height mismatch가 non-overlap인 경우 stale exact coordinates를 통과시킬 수 있던 회귀를 deterministic test로 고정한다.
+7. 그 외 recursive assembly / inline compatible-item picker / nested storage / drag-drop / Scanner / Map 계약은 변경하지 않는다.
 
 ## Completed
 
-- v1.13.3 public stable / repository state 복구 완료. 공개 v1.13.3 release identity는 변경하지 않았다.
-- Draft PR #250 생성 및 Farming Guide architecture/state/importer/image/workbench/storage rendering 경로 분석 완료.
-- dogtag 장비 보드 UI 퇴역 및 schema-v1 persistence backward compatibility 구현. legacy dogtag 값은 읽을 수 있으나 current product state에서는 제거된다.
-- `FarmingGuideAssemblyPolicy` 기반 recursive assembly 구현:
-  - deep attachment/armor mutation
-  - recursive current-data sanitization
-  - slot filter/allowed plate/conflict 검증
-  - assembly-wide conflict 검증
-  - required-slot recursion
-  - deterministic assembly signature
-- recursive WPF workbench 구현:
-  - attachment child 하위 slot 탐색
-  - 상위 부품으로 복귀
-  - empty slot inline compatible-item picker
-  - 아이콘 카드 single-click 장착
-  - drag/drop과 동일한 compatibility policy 공유
-  - 별도 OS/config Window 없음
-- assembly-aware image presentation 구현:
-  - current build가 authoritative default preset 구성과 정확히 일치하면 imported composed preset image 사용
-  - 그 외 임의 조립은 base image + deterministic installed-part visual fallback
-- richer assembly metadata import:
-  - `properties.defaultPreset`
-  - preset `image512pxLink` / `gridImageLink`
-  - preset `containsItems`
-  - slot `id/nameId/required/filters`
-- Content snapshot write schema **v10**, readable **v3-v10**으로 확장. Farming Guide user-state schema는 v1 유지.
-- storage visual layout resolver/renderer 구현:
-  - live grid count/width/height signature와 exact visual metadata를 대조
-  - signature가 맞을 때만 exact relative placement 적용
-  - mismatch/unknown은 deterministic finite compact fallback
-  - current exact catalog는 검증된 최소 alias만 보유하며, provenance/license가 확인되지 않은 외부 atlas는 포함하지 않음
-- importer가 `GridLayoutName` / `gridLayoutName` / `RigLayoutName` / `rigLayoutName`을 `StorageLayoutName`으로 보존하도록 수정.
-- published EXE Farming Guide smoke에 exact multi-grid Canvas 배치와 각 `GridDropTarget.GridIndex` identity 검증 추가.
-- deterministic regression 추가:
-  - importer layout identity 3건
-  - recursive assembly 6건
-  - storage visual resolver 및 기존 persistence/UI 계약
-- exact PR head `7b9a96ccdff0ff1e0ddfb6f676624d24b150b7a1` 기준 검증 완료:
-  - Windows Release build SUCCESS
-  - **527 passed / 0 failed / 0 skipped**
-  - self-contained win-x64 publish SUCCESS
-  - actual published EXE Product UI/Farming Guide/Map smoke SUCCESS
-  - graceful shutdown SUCCESS
-  - release package/checksum verification SUCCESS
-  - Shutdown Race SUCCESS
-  - Documentation Consistency SUCCESS
-- v1.14.0 release preparation 시작:
-  - `docs/PROJECT_STATE.json` desktopVersion을 1.14.0 target으로 갱신
-  - publicStable은 검증된 v1.13.3으로 유지
-  - deterministic test count를 527로 갱신
+- v1.14.0 public release / exact-main / public assets verification 완료.
+- v1.14.0 documentation closure PR #252에서 implementation/documentation mismatch review 발견.
+- exact v1.14.0 product source code 확인 결과 review가 사실임을 재현·확정.
+- PR #252를 unmerged 상태로 닫아 잘못된 `PUBLIC VERIFIED` 계약 기록이 main에 들어가지 않도록 차단.
+- fix branch `fix/v1.14.1-storage-layout-signature-2026-09-01` 생성.
+- `FarmingGuideStorageVisualLayoutResolver` profile을 coordinate + expected width/height signature로 확장.
+- exact layout 적용 전에 각 live grid index의 width/height exact-match 검증 추가.
+- A18 / ANA Tactical M1 / current product-owned exact profile의 정상 signature test 추가.
+- grid count drift, non-overlapping height drift, width drift 거부 regression 추가.
+- desktop version을 1.14.1로 bump.
+- `packaging/FIRST_RUN_KO.txt`를 v1.14.1로 정합화.
+- `docs/RELEASE_NOTES_V1.14.1.md` 추가.
+- `docs/PROJECT_STATE.json` desktop target을 1.14.1로 갱신.
 
 ## Current step
 
-- desktop assembly version / FIRST_RUN / release notes를 v1.14.0으로 정합화한다.
-- v1.14.0 Farming Guide 결정문과 architecture/current decision index를 갱신한다.
-- release-prep exact PR HEAD에서 CI / Shutdown Race / Documentation Consistency / published EXE smoke를 다시 수행한다.
+- v1.14.1 fix branch exact HEAD로 non-draft PR을 생성한다.
+- CI / Shutdown Race / Documentation Consistency / actual published EXE smoke를 수행해 test count와 release-candidate integrity를 확정한다.
 
 ## Remaining
 
-- v1.14.0 release identity 파일 정리 완료.
-- PR #250 exact-head 전체 gate green 확인.
-- PR ready 처리 및 main 병합.
-- merged exact-main CI / Shutdown Race / Documentation Consistency green 확인.
-- main CI artifact에서 자동 v1.14.0 Release workflow 완료 확인.
-- public `v1.14.0` tag/release/source/assets/checksum 무결성 검증.
-- 공개 사실값으로 README / PROJECT_STATE / CURRENT_STATE / STATE / DECISIONS / Farming Guide architecture / release evidence 갱신.
-- `docs/ACTIVE_WORK.md`를 NONE으로 닫고 post-release docs-only main gate를 확인한다.
+- PR exact-head 전체 gate green 확인 및 review thread 처리.
+- main 병합.
+- exact-main CI / Shutdown Race / Documentation Consistency green 확인.
+- exact-main artifact에서 automatic v1.14.1 Release 완료 확인.
+- public v1.14.1 tag/source/assets/checksum/latest-stable 무결성 검증.
+- 공개 사실값으로 release proof / README / PROJECT_STATE / CURRENT_STATE / STATE / DECISIONS / PRODUCT 정리.
+- docs-only closure PR을 검증·병합.
+- post-docs Release workflow가 이미 공개된 v1.14.1 assets를 변경하지 않고 immutable existing-release 경로로 성공하는지 확인.
+- `docs/ACTIVE_WORK.md`를 `NONE`으로 닫고 최종 public readback 확인.
