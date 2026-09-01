@@ -20,6 +20,7 @@ v1.15.5 Farming Guide maintenance PATCH.
 base main: f8ad66d7919dba9ca8b7cdf7eb55083fe42e83fe
 public stable: v1.15.4
 working branch: fix/v1.15.5-farming-guide-ui-instructions-2026-09-01
+PR: #270
 ```
 
 ## Confirmed scope
@@ -29,22 +30,39 @@ working branch: fix/v1.15.5-farming-guide-ui-instructions-2026-09-01
 3. 같은 보관 위치 안에서 발생하는 단순 위치 재정렬은 사용자에게 별도 지시하지 않는다.
 4. 실제로 다른 위치로 옮기거나 버려야 하는 기존 아이템만 `+ {아이템} 이동 {위치}` / `+ {아이템} 버리기`로 표시한다.
 5. 부가 조작이 여러 개면 쉼표로 구분하고, 각각의 동작 표현은 동일 철학을 유지한다.
+6. presentation 단순화는 planner의 Action/ProposedSnapshot을 변경하지 않는다.
 
 ## Completed
 
 - stable v1.15.4 / main 상태 복구
 - 사용자 요구사항 확정
-- v1.15.5 작업 브랜치 생성
+- v1.15.5 작업 브랜치 및 Draft PR #270 생성
+- raid planner/upgrade/repacking 흐름 재검토: 보존 우선·source-backed 제약은 유지하고 presentation만 분리
+- compact raid instruction formatter 구현
+- same-storage-area X/Y/grid/rotation repacking 멘트 억제
+- cross-area move / removal만 `+` 부가 작업으로 표시하고 복수 작업 comma 구분
+- nested Workbench 양축 viewport/scrollbar 안정화 구현
+- 4x4 Key-tool-like nested container + compact instruction published-runtime smoke 추가
+- 구현 head `e6834d582df311b14199d5a56efa141b9cd05629` 검증:
+  - Windows Release build SUCCESS
+  - deterministic tests SUCCESS
+  - self-contained win-x64 publish SUCCESS
+  - published EXE Product UI/Farming Guide smoke SUCCESS
+  - release package verification SUCCESS
+  - Shutdown Race CI 33506271930 SUCCESS
+  - CI 33506271835 SUCCESS
+  - Documentation Consistency 33506271972 SUCCESS
+- v1.15.5 version identity / first-run notes / release notes / decision 문서 반영
 
 ## Current step
 
-현재 Workbench viewport 구현과 raid instruction formatter/plan 결과를 점검하고 회귀 원인을 수정한다.
+최종 v1.15.5 PR head의 CI를 다시 통과시킨 뒤 main 병합 및 exact-main 검증으로 진행한다.
 
 ## Remaining
 
-- 관련 코드/테스트 분석
-- 구현
-- deterministic tests / Release build / published EXE smoke
-- PR / CI / main merge / exact-main 검증
-- v1.15.5 release / asset 검증
-- 공식 상태 문서 갱신 및 ACTIVE_WORK 종료
+- 최종 PR head CI / Shutdown Race / Documentation Consistency
+- PR ready / main merge
+- exact-main CI / Shutdown Race / Documentation Consistency
+- v1.15.5 release / tag / asset 무결성 검증
+- 공개 상태 문서 갱신
+- ACTIVE_WORK 종료
