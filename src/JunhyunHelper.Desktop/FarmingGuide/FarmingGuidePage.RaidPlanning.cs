@@ -23,7 +23,7 @@ public partial class FarmingGuidePage
                 emptyEquip.ProposedSnapshot);
         }
 
-        var surfaces = EnumerateRaidSurfaces().ToArray();
+        var surfaces = EnumerateRaidSurfaces(item).ToArray();
         foreach (var surface in surfaces)
         {
             if (!TryFindFit(surface, item, current.StoredItems, ignoredInstanceId: null, out var fit))
@@ -446,7 +446,7 @@ public partial class FarmingGuidePage
     }
 
     private static FarmingGuideLootMetrics AsSingleSlot(FarmingGuideLootMetrics metrics) =>
-        new(metrics.CurrentNeeded, metrics.TraderSellPrice, metrics.FleaAveragePrice, 1);
+        metrics with { Slots = 1 };
 
     private FarmingGuideLootMetrics MetricsForStorageSurface(GameItem item, RaidSurface surface)
     {
@@ -461,8 +461,39 @@ public partial class FarmingGuidePage
             ? AsSingleSlot(metrics)
             : metrics;
 
-    private IEnumerable<RaidSurface> EnumerateRaidSurfaces()
+    private IEnumerable<RaidSurface> EnumerateRaidSurfaces(GameItem incoming)
     {
+        var nested = StoredItems
+            .SelectMany(stored =>
+            {
+                var owner = ResolveItem(stored.Item);
+                var grids = owner?.FarmingGuideData?.StorageGrids;
+                if (owner is null || grids is null || grids.Count == 0)
+                    return Array.Empty<RaidSurface>();
+
+                return grids
+                    .Select((grid, index) => new RaidSurface(
+                        stored.Storage,
+                        stored.InstanceId,
+                        index,
+                        grid,
+                        $"{DisplayName(owner)} 내부"))
+                    .ToArray();
+            })
+            .ToArray();
+
+        // A carried storage grid with an explicit positive allow-list represents a
+        // dedicated Tarkov container. When it accepts the incoming item, use that
+        // purpose-built capacity before consuming general secure-container/pocket/rig/
+        // backpack space. Generic nested bags/rigs keep their historical lower priority.
+        foreach (var surface in nested.Where(surface =>
+                     FarmingGuideStoragePlacementPolicy.IsDedicatedStorageFor(
+                         incoming,
+                         surface.Definition.Filters)))
+        {
+            yield return surface;
+        }
+
         var root = StorageDefinitions().ToDictionary(value => value.Kind);
         var order = new[]
         {
@@ -480,21 +511,12 @@ public partial class FarmingGuidePage
                 yield return new RaidSurface(kind, null, index, storage.Grids[index], storage.Label);
         }
 
-        foreach (var stored in StoredItems)
+        foreach (var surface in nested.Where(surface =>
+                     !FarmingGuideStoragePlacementPolicy.IsDedicatedStorageFor(
+                         incoming,
+                         surface.Definition.Filters)))
         {
-            var owner = ResolveItem(stored.Item);
-            var grids = owner?.FarmingGuideData?.StorageGrids;
-            if (grids is null || grids.Count == 0)
-                continue;
-            for (var index = 0; index < grids.Count; index++)
-            {
-                yield return new RaidSurface(
-                    stored.Storage,
-                    stored.InstanceId,
-                    index,
-                    grids[index],
-                    $"{DisplayName(owner!)} 내부");
-            }
+            yield return surface;
         }
     }
 
@@ -583,7 +605,7 @@ public partial class FarmingGuidePage
             if (_lockedItemInstanceIds.Contains(currentId))
                 return true;
             currentId = StoredItems.FirstOrDefault(item =>
-                string.Equals(item.InstanceId, currentId, StringComparison.Ordinal))?.ParentInstanceId;
+                string.Equals(item.InstanceId, currentId, StringComparison.Ordinal)?.ParentInstanceId;
         }
         return false;
     }
