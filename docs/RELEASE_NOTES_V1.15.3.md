@@ -47,6 +47,14 @@ v1.15.3은 **현재 검증된 Game Content에 실제 storage grid가 존재하�
 
 컨테이너 안 컨테이너 역시 source grid/filter가 허용하는 한 같은 방식으로 관리합니다. orphan, cycle, overlap, bounds/filter 위반은 기존과 동일하게 fail closed합니다.
 
+### 전용 컨테이너가 맞는 아이템은 그 내부를 우선 사용합니다
+
+전용 nested grid에 positive allow-list가 있고 스캔된 아이템이 그 필터에 실제로 허용된다면, 파밍 가이드는 일반 보안 컨테이너·주머니·리그·가방의 빈칸보다 해당 전용 컨테이너 내부를 먼저 검사합니다.
+
+예를 들어 보안 컨테이너 안에 Key tool과 일반 빈칸이 동시에 있고 현재 Tarkov 데이터상 그 열쇠가 Key tool에 들어갈 수 있다면, 열쇠 스캔 시 Key tool 내부 보관을 먼저 지시합니다.
+
+이 우선순위 역시 `Key tool`이라는 이름을 하드코딩해서 판단하지 않습니다. source grid의 `AllowedItemIds` / `AllowedCategoryIds`가 해당 아이템을 받아들이는 경우에만 전용 storage로 취급합니다. unrestricted 가방류는 기존 일반 수납 순서를 유지합니다.
+
 ### 검색 결과 + T 테스트 스캔을 수정했습니다
 
 검색창에서 아이템을 검색한 뒤 결과 위에 마우스를 올리고 `T`를 누르는 simulated scan이 검색 TextBox의 keyboard focus 때문에 실행되지 않던 회귀를 수정했습니다.
@@ -85,6 +93,7 @@ v1.15.3은 **현재 검증된 Game Content에 실제 storage grid가 존재하�
 
 - arbitrary source-backed storage surface runtime projection
 - Secure Container 안 specialized container + allowed/denied filter sanitizer
+- dedicated nested storage > general root storage raid-placement priority
 - neutral ↔ locked accent stored-item border contract
 - hover + `T` simulated scan routing and on-demand Scanner catalog path
 - v1.15.2 complete-equipment boundary preservation
