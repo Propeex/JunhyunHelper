@@ -7,15 +7,8 @@ namespace TarkovHelper.Services;
 /// <summary>
 /// JunhyunHelper-owned compatibility replacement for the transplanted Tarkov Helper
 /// global keyboard hook. Product overlay hotkeys are dispatched by JunhyunHelper's
-/// own runtime. This class retains only the direct bare-NumPad floor-selection input
-/// needed by the Map product and exposes it through a viewport-safe endpoint.
-///
-/// Deliberately absent from the old implementation:
-/// - hidden S/S+D/D/O command sequence
-/// - hidden Ctrl+L overlay-settings shortcut
-/// - legacy direct zoom/floor/opacity/view-mode dispatch
-/// - keyboard/foreground-process log file
-/// - broad process-name substring matching
+/// own runtime. v1.16 preserves the established donor-compatible hook lifecycle while
+/// disabling only the old bare-NumPad direct floor-selection mapping.
 /// </summary>
 public sealed class GlobalKeyboardHookService : IDisposable
 {
@@ -67,22 +60,9 @@ public sealed class GlobalKeyboardHookService : IDisposable
         _callback = HookCallback;
     }
 
-    /// <summary>
-    /// Legacy source compatibility only. The pinned MapPage still subscribes to this
-    /// event, but JunhyunHelper deliberately does not dispatch it because that path
-    /// changes ComboBox selection directly and can reset the user's viewport.
-    /// </summary>
     public event Action<int>? FloorKeyPressed { add { } remove { } }
-
-    /// <summary>
-    /// Product direct floor-selection event. Bare NumPad0..5 map to floor indexes 0..5
-    /// and are handled by LegacyMapProductRuntime through MapPage.JunhyunSelectFloorAsync.
-    /// Modifier combinations remain available to configurable Map product hotkeys.
-    /// </summary>
     public event Action<int>? DirectFloorSelectionPressed;
 
-    // Compatibility-only events. The transplanted overlay service may attach handlers,
-    // but JunhyunHelper never lets this legacy hook dispatch those product actions.
     public event Action? OverlayTogglePressed { add { } remove { } }
     public event Action? OverlaySettingsPressed { add { } remove { } }
     public event Action? OverlayZoomInPressed { add { } remove { } }
@@ -97,8 +77,6 @@ public sealed class GlobalKeyboardHookService : IDisposable
     public event Action? OverlayResetViewPressed { add { } remove { } }
     public event Action? OverlayResumeAutoFloorPressed { add { } remove { } }
 
-    // Compatibility properties are intentionally inert. Product hotkeys are read from
-    // JunhyunMapProductSettingsStore by the JunhyunHelper-owned dispatcher.
     public int ZoomInKey { get; set; }
     public int ZoomOutKey { get; set; }
     public int FloorUpKey { get; set; }
@@ -111,10 +89,6 @@ public sealed class GlobalKeyboardHookService : IDisposable
     public int ResetViewKey { get; set; }
     public int ResumeAutoFloorKey { get; set; }
 
-    /// <summary>
-    /// Used while a key editor is capturing input so the same press is not treated as
-    /// a direct floor-selection action.
-    /// </summary>
     public bool OverlayHotkeysSuppressed { get; set; }
 
     public bool IsEnabled
@@ -221,16 +195,9 @@ public sealed class GlobalKeyboardHookService : IDisposable
         }
     }
 
-    private static int? GetFloorIndex(int virtualKey) => virtualKey switch
-    {
-        0x60 => 0,
-        0x61 => 1,
-        0x62 => 2,
-        0x63 => 3,
-        0x64 => 4,
-        0x65 => 5,
-        _ => null,
-    };
+    // v1.16: bare NumPad0..5 no longer own direct floor-selection actions. Keep the
+    // established hook lifecycle intact so Map/MiniMap donor behavior remains unchanged.
+    private static int? GetFloorIndex(int virtualKey) => null;
 
     public void Dispose()
     {

@@ -241,9 +241,10 @@ jobs:
             )
 
             # Some feature probes are scheduled at Dispatcher.ContextIdle after the main
-            # smoke completion marker. Give those real lifecycle callbacks a bounded chance
-            # to publish evidence instead of making marker order itself part of the product contract.
-            $evidenceDeadline = (Get-Date).AddSeconds(10)
+            # smoke completion marker. Map extract validation can itself wait up to 20 seconds
+            # for the preceding MiniMap lifecycle evidence, then runs additional real checks.
+            # Keep this bounded above that legal probe runtime without weakening any assertion.
+            $evidenceDeadline = (Get-Date).AddSeconds(35)
             while ((Get-Date) -lt $evidenceDeadline) {
               if (Test-Path $diagnostic) {
                 Write-SmokeFailureContext -Process $process

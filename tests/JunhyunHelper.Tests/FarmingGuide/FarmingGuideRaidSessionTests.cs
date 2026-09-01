@@ -152,21 +152,22 @@ public sealed class FarmingGuideRaidSessionTests
     }
 
     [Fact]
-    public void Higher_value_per_slot_wins_when_need_priority_is_equal()
+    public void Higher_total_flea_value_wins_when_need_priority_is_equal()
     {
-        var dense = new FarmingGuideLootMetrics(0, 80_000, null, 2);
-        var bulky = new FarmingGuideLootMetrics(0, 100_000, null, 4);
+        var expensiveBulky = new FarmingGuideLootMetrics(0, null, 100_000, 4);
+        var cheaperDense = new FarmingGuideLootMetrics(0, null, 80_000, 2);
 
-        Assert.True(FarmingGuideLootPriorityPolicy.Compare(dense, bulky) > 0);
+        Assert.True(FarmingGuideLootPriorityPolicy.Compare(expensiveBulky, cheaperDense) > 0);
     }
 
     [Fact]
-    public void Total_value_breaks_equal_value_per_slot_tie()
+    public void Equal_flea_value_does_not_restore_legacy_value_per_slot_priority()
     {
-        var largerTotal = new FarmingGuideLootMetrics(0, 80_000, null, 2);
-        var smallerTotal = new FarmingGuideLootMetrics(0, 40_000, null, 1);
+        var larger = new FarmingGuideLootMetrics(0, null, 40_000, 2);
+        var compact = new FarmingGuideLootMetrics(0, null, 40_000, 1);
 
-        Assert.True(FarmingGuideLootPriorityPolicy.Compare(largerTotal, smallerTotal) > 0);
+        Assert.True(FarmingGuideLootPriorityPolicy.Compare(compact, larger) > 0);
+        Assert.False(FarmingGuideLootPriorityPolicy.ShouldReplace(larger, compact));
     }
 
     [Fact]

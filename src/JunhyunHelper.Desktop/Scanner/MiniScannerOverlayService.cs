@@ -19,6 +19,7 @@ public sealed class MiniScannerOverlayService : IDisposable
     private ScannerItemSnapshot? _snapshot;
     private string? _requestedItemId;
     private string? _farmingGuideInstruction;
+    private bool _farmingGuideQuantityPending;
     private bool _editMode;
     private bool _disposed;
     private int _visibilityEpoch;
@@ -33,6 +34,8 @@ public sealed class MiniScannerOverlayService : IDisposable
     }
 
     public bool IsEditing => Invoke(() => _editMode);
+    public bool IsFarmingGuideQuantityPending => Invoke(() => _farmingGuideQuantityPending);
+    public event Action<int>? FarmingGuideQuantitySubmitted;
 
     internal static bool CanOpenConfirmedItem(bool preview, bool scannerEnabled, bool foregroundTarkov) =>
         preview || !scannerEnabled || foregroundTarkov;
@@ -138,6 +141,8 @@ public sealed class MiniScannerOverlayService : IDisposable
             var window = EnsureWindow();
             window.Render(snapshot, _settings.Current, _editMode);
             window.SetFarmingGuideInstruction(_farmingGuideInstruction, _settings.Current);
+            if (_farmingGuideQuantityPending)
+                window.BeginFarmingGuideQuantityInput(_settings.Current);
         });
     }
 
@@ -150,8 +155,38 @@ public sealed class MiniScannerOverlayService : IDisposable
             if (_disposed)
                 return;
             _farmingGuideInstruction = normalized;
+            if (normalized is not null)
+                CancelFarmingGuideQuantityInputCore();
             _window?.SetFarmingGuideInstruction(_farmingGuideInstruction, _settings.Current);
         });
+    }
+
+    public void RequestFarmingGuideQuantityInput()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        Invoke(() =>
+        {
+            if (_disposed || _snapshot is null)
+                return;
+            _farmingGuideInstruction = null;
+            _farmingGuideQuantityPending = true;
+            var window = EnsureWindow();
+            window.SetFarmingGuideInstruction(null, _settings.Current);
+            window.BeginFarmingGuideQuantityInput(_settings.Current);
+        });
+    }
+
+    public void CancelFarmingGuideQuantityInput()
+    {
+        if (_disposed)
+            return;
+        Invoke(CancelFarmingGuideQuantityInputCore);
+    }
+
+    private void CancelFarmingGuideQuantityInputCore()
+    {
+        _farmingGuideQuantityPending = false;
+        _window?.CancelFarmingGuideQuantityInput(_settings.Current);
     }
 
     public void ShowStandby(string message)
@@ -201,6 +236,7 @@ public sealed class MiniScannerOverlayService : IDisposable
         ClearRequestedItem();
         Invoke(() =>
         {
+            CancelFarmingGuideQuantityInputCore();
             _snapshot = null;
             if (_editMode)
                 return;
@@ -214,6 +250,7 @@ public sealed class MiniScannerOverlayService : IDisposable
         ClearRequestedItem();
         Invoke(() =>
         {
+            CancelFarmingGuideQuantityInputCore();
             _editMode = true;
             if (_snapshot is not null)
             {
@@ -271,6 +308,7 @@ public sealed class MiniScannerOverlayService : IDisposable
 
             var snapshot = _snapshot;
             var editMode = _editMode;
+            _window.FarmingGuideQuantitySubmitted -= OnFarmingGuideQuantitySubmitted;
             _window.Close();
             _window = null;
             if (snapshot is not null)
@@ -278,6 +316,8 @@ public sealed class MiniScannerOverlayService : IDisposable
                 var window = EnsureWindow();
                 window.Render(snapshot, _settings.Current, editMode);
                 window.SetFarmingGuideInstruction(_farmingGuideInstruction, _settings.Current);
+                if (_farmingGuideQuantityPending)
+                    window.BeginFarmingGuideQuantityInput(_settings.Current);
             }
         });
     }
@@ -300,8 +340,15 @@ public sealed class MiniScannerOverlayService : IDisposable
 
         _window = new MiniScannerWindow();
         _window.PositionCommitted += OnPositionCommitted;
+        _window.FarmingGuideQuantitySubmitted += OnFarmingGuideQuantitySubmitted;
         _window.SetFarmingGuideInstruction(_farmingGuideInstruction, _settings.Current);
         return _window;
+    }
+
+    private void OnFarmingGuideQuantitySubmitted(int quantity)
+    {
+        _farmingGuideQuantityPending = false;
+        FarmingGuideQuantitySubmitted?.Invoke(quantity);
     }
 
     private void OnPositionCommitted(double x, double y) => SavePosition(x, y);
@@ -330,6 +377,8 @@ public sealed class MiniScannerOverlayService : IDisposable
             {
                 _window.Render(_snapshot, settings, _editMode);
                 _window.SetFarmingGuideInstruction(_farmingGuideInstruction, settings);
+                if (_farmingGuideQuantityPending)
+                    _window.BeginFarmingGuideQuantityInput(settings);
             }
         });
     }
@@ -377,10 +426,12 @@ public sealed class MiniScannerOverlayService : IDisposable
             if (_window is null)
                 return;
             _window.PositionCommitted -= OnPositionCommitted;
+            _window.FarmingGuideQuantitySubmitted -= OnFarmingGuideQuantitySubmitted;
             _window.Close();
             _window = null;
             _snapshot = null;
             _farmingGuideInstruction = null;
+            _farmingGuideQuantityPending = false;
         });
         GC.SuppressFinalize(this);
     }

@@ -45,9 +45,13 @@ public sealed class DesktopServices : IDisposable
         FarmingGuideRaid.SetScannerSnapshotResolver(Scanner.CreateFarmingGuideSnapshot);
         FarmingGuideRaid.SetSimulatedSnapshotResolver(Scanner.CreateFarmingGuideSnapshotAsync);
         FarmingGuideRaid.SetMiniScannerInstructionHandler(Scanner.SetFarmingGuideInstruction);
+        FarmingGuideRaid.SetMiniScannerQuantityHandlers(
+            Scanner.RequestFarmingGuideQuantityInput,
+            Scanner.CancelFarmingGuideQuantityInput);
         FarmingGuideRaid.SetSimulatedScanPresenter(Scanner.ShowFarmingGuideTestSnapshot);
         FarmingGuideRaid.SetTransientStatusHandler(Scanner.ShowFarmingGuideStatus);
         Scanner.SetFarmingGuideAcceptHandler(FarmingGuideRaid.TryAccept);
+        Scanner.FarmingGuideQuantitySubmitted += FarmingGuideRaid.SubmitMiniScannerQuantity;
         Scanner.StatusChanged += FarmingGuideRaid.ObserveScannerStatus;
 
         var sourceLoader = new TarkovEndpointSourceLoader(new TarkovJsonClient(_httpClient));
@@ -80,7 +84,9 @@ public sealed class DesktopServices : IDisposable
 
     public void Dispose()
     {
+        Scanner.FarmingGuideQuantitySubmitted -= FarmingGuideRaid.SubmitMiniScannerQuantity;
         Scanner.StatusChanged -= FarmingGuideRaid.ObserveScannerStatus;
+        FarmingGuideRaid.CancelMiniScannerQuantity();
         FarmingGuideRaid.SetMiniScannerInstruction(null);
         FarmingGuideRaid.Unbind();
         Scanner.Dispose();

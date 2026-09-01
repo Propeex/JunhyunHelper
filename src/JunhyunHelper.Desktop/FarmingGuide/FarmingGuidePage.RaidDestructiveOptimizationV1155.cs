@@ -58,8 +58,16 @@ public partial class FarmingGuidePage
             if (retained.Contains(stored.InstanceId))
                 continue;
             var item = ResolveItem(stored.Item);
-            if (item is not null)
-                result.Add(MetricsForExisting(item));
+            if (item is null)
+                continue;
+
+            // Existing stackable ammo/currency is a concrete quantity-bearing instance.
+            // Destructive comparison must value the complete stack, not one nominal unit.
+            result.Add(MetricsForExisting(item) with
+            {
+                Quantity = stored.NormalizedQuantity,
+                UnitWeightKg = item.WeightKg,
+            });
         }
         return result;
     }
