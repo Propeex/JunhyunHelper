@@ -3,85 +3,92 @@
 > 최신 제품 상태의 짧은 인덱스입니다. 기계 판독 가능한 사실값은 `docs/PROJECT_STATE.json`, 상세 계약은 `docs/STATE.md`, 진행 중 작업은 `docs/ACTIVE_WORK.md`를 기준으로 합니다.
 
 기준일: **2026-09-01 KST**  
-상태: **v1.14.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+상태: **v1.15.0 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 공개 stable
 
 ```text
-public stable/latest: v1.14.1
+public stable/latest: v1.15.0
 exact product source/tag target:
-add12c1b160f54e494d549978073f25e27cc4191
-PR #253 final head: 42abdc7945c8f12a26553c6d0386cdadc6e41803
-PR CI / Shutdown / Docs: 33456589868 / 33456589884 / 33456589878 — SUCCESS
-exact-main CI / Shutdown / Docs: 33456851817 / 33456851818 / 33456851901 — SUCCESS
-Release workflow: 33457066723 — SUCCESS
-release id: 380147230
-published UTC: 2026-09-01T01:01:22Z
-529 passed / 0 failed / 0 skipped
+b974d56f32d073ce21a5de4171737670f83261f3
+validated candidate head: 397c82b8911597128c5878e7974db6a7822888d8
+candidate PR CI / Shutdown / Docs: 33466090956 / 33466090958 / 33466090940 — SUCCESS
+merge PR: #256
+exact-main CI / Shutdown / Docs: 33467376556 / 33467376508 / 33467376529 — SUCCESS
+Release workflow: 33467575493 — SUCCESS
+release id: 380200480
+published UTC: 2026-09-01T03:49:49Z
+540 passed / 0 failed / 0 skipped
 ```
 
 Public package:
 
 ```text
 Junhyun-Helper.zip
-asset id: 538731592
-bytes: 80,630,913
-SHA-256: b1216d9c661be909aee8c4a3f4eeb199b03eae46ba1f91799172bf8fd0074921
+asset id: 538909239
+bytes: 80,647,419
+SHA-256: 95f62c7d795f1954c3fd3437b17d9e15db05f5ab113f95df97055d15061bc76a
 
 SHA256SUMS.txt
-asset id: 538731593
+asset id: 538909237
 bytes: 86
-asset SHA-256: a3817550bf8d8ed0813606ddc4ae511d3f989b473cedea8c1e137e9209b7944a
+asset SHA-256: 5b8101bf0e086952ee12d4070e678cd1e0b5406e0c32ae91b7bf2562e7ab2ecb
 ```
 
 Exact-main artifact:
 
 ```text
 JunhyunHelper-win-x64
-artifact id: 9781796510
-bytes: 241,822,850
-SHA-256: c55c6da388c078c9cf011b5db35b2797424daa8d59cdd7a7c9ed232acfd97031
+artifact id: 9785383239
+bytes: 241,875,746
+SHA-256: 6ba4c5819119a230ee02e4f7c2cb093679527623e3ab9665b8ebc05dee5936ae
 ```
 
-`/releases/latest`, release target and `refs/tags/v1.14.1` all resolve to `add12c1b160f54e494d549978073f25e27cc4191`. Public release is `draft=false`, `prerelease=false`.
+`/releases/latest`, release target and `refs/tags/v1.15.0` all resolve to `b974d56f32d073ce21a5de4171737670f83261f3`. Public release is `draft=false`, `prerelease=false`.
 
-## v1.14.0 → v1.14.1
+## v1.15.0 Farming Guide raid advisor
 
-v1.14.0 added recursive Farming Guide assembly editing, inline compatible-item selection, assembly-aware presentation, layout identity import and verified multi-grid visual-layout support.
+Farming Guide now extends the existing raid-start Loadout / Inventory Editor with an explicit **raid-session advisor**. It still does not read Tarkov's internal inventory state or automate game input.
 
-Release-closure review found one implementation gap in v1.14.0: exact layout activation did not compare the expected width/height for every grid index. A dimension-only Tarkov drift could keep stale exact coordinates if the rectangles still did not overlap.
+Current user flow:
 
-v1.14.1 is the corrective PATCH:
+- `레이드 시작` snapshots the current Farming Guide working state into an isolated raid session.
+- Scanner-recognized items are evaluated against the current raid-session state.
+- Mini Scanner shows keep/place/replace/discard guidance.
+- The user must press the configured Farming Guide accept hotkey before the recommendation mutates the raid-session model.
+- Manual equipment/storage/lock changes invalidate stale pending guidance immediately.
+- `레이드 종료` discards raid-session mutations and restores the raid-start snapshot without overwriting the original preset.
+- Hover + `F` protects an item/equipment/storage/cell from automatic placement/replacement; locked empty cells act as reserved capacity.
+- Hovering a Farming Guide search result and pressing `T` sends a simulated scan through the same recommendation path as Scanner input.
 
-- exact profile stores coordinates plus expected width/height per grid index;
-- exact layout requires exact layout identity, grid count and per-index width/height match;
-- dimension mismatch fails closed to finite compact presentation;
-- current Game Content remains the sole authority for storage legality/filter/item footprint;
-- non-overlap remains secondary profile-corruption defense;
-- published-runtime A18 smoke and deterministic tests use the same verified signature.
+Current recommendation policy uses existing JunhyunHelper truth rather than duplicate trackers:
 
-v1.14.0 remains immutable historical evidence; current behavior is v1.14.0 functionality plus the v1.14.1 guard.
+- remaining needed quantity from the existing Needed Items plan;
+- current merchant sell / Flea average economic data available to Scanner;
+- item footprint and legal storage filters;
+- current raid-session occupancy and lock state;
+- deterministic placement/replacement selection.
+
+Protected carriers/items/cells are never sacrificed by the automatic recommendation path. Recommendations remain advisory until explicit user acceptance.
 
 Canonical references:
 
-- `docs/DECISION_V1.14.0_FARMING_GUIDE_ASSEMBLY_AND_AUTHENTIC_LAYOUTS.md`
-- `docs/DECISION_V1.14.1_STORAGE_LAYOUT_SIGNATURE_GUARD.md`
+- `docs/DECISION_V1.15.0_FARMING_GUIDE_RAID_ADVISOR.md`
 - `docs/ARCHITECTURE_FARMING_GUIDE.md`
-- `docs/RELEASE_1.14.1.md`
+- `docs/RELEASE_NOTES_V1.15.0.md`
+- `docs/RELEASE_1.15.0.md`
 
-## Farming Guide current contract
+## Farming Guide maintained contracts
 
-- raid-start Loadout / Inventory Editor; not live raid inventory mirroring
-- current Tarkov item dimensions, storage mechanics, filters, attachment/armor slots and conflicts
-- nested storage via `ParentInstanceId`
-- recursive weapon/helmet/armor child-slot editing
-- same-page compatible-item picker plus search drag/drop using one Core compatibility policy
-- one-item slot silent overwrite prohibited
-- profile-aware pockets and preset persistence
-- product-owned exact multi-grid visual layout only on verified full grid signature; otherwise compact fallback
-- impossible persisted state fails closed
-
-Loot value/pickup/discard/replace recommendation and Scanner real-time recommendation remain out of current Farming Guide scope.
+- current Tarkov item dimensions, storage mechanics, filters, attachment/armor slots and conflicts remain authoritative;
+- nested storage uses `ParentInstanceId`;
+- recursive weapon/helmet/armor child-slot editing remains available;
+- one-item slot silent overwrite is prohibited;
+- product-owned exact multi-grid visual layout activates only on verified full grid signature; otherwise compact fallback is used;
+- impossible persisted state fails closed;
+- raid-session mutations are isolated from the saved preset/working state;
+- pending Scanner recommendations are single-flight, revision-bound and explicitly accepted;
+- locked carriers/items/cells are excluded from automatic recommendation placement/replacement.
 
 ## Other maintained contracts
 
@@ -96,11 +103,11 @@ Loot value/pickup/discard/replace recommendation and Scanner real-time recommend
 ## Schema
 
 ```text
-Desktop: 1.14.1
+Desktop: 1.15.0
 Content write/read: v10 / v3-v10
 user.db: v1
-Farming Guide state: v1
-Scanner display settings: v9
+Farming Guide state: v2
+Scanner display settings: v10
 Scanner catalog write/read: v4 / v1-v4
 ```
 
