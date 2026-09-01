@@ -11,12 +11,12 @@ public partial class FarmingGuidePage
         const string instanceId = "__junhyun_smoke_exact_storage_instance";
 
         _itemsById.TryGetValue(itemId, out var previousItem);
-        var grids = Enumerable.Range(0, 15)
-            .Select(static _ => new FarmingGuideStorageGridDefinition(
-                1,
-                1,
-                FarmingGuideItemFilter.Empty))
-            .ToArray();
+        var grids = new[]
+        {
+            Grid(1, 2), Grid(1, 2), Grid(1, 2), Grid(1, 2), Grid(1, 2),
+            Grid(1, 2), Grid(1, 2), Grid(1, 2), Grid(1, 2), Grid(1, 2),
+            Grid(1, 1), Grid(1, 1), Grid(1, 1), Grid(1, 1), Grid(1, 1),
+        };
         var state = FarmingGuideItemState.Create(itemId);
         var item = SmokeItem(itemId) with
         {
@@ -116,5 +116,8 @@ public partial class FarmingGuidePage
             else
                 _itemsById.Remove(itemId);
         }
+
+        static FarmingGuideStorageGridDefinition Grid(int width, int height) =>
+            new(width, height, FarmingGuideItemFilter.Empty);
     }
 }
