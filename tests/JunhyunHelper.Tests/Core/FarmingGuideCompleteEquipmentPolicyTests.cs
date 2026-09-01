@@ -169,7 +169,7 @@ public sealed class FarmingGuideCompleteEquipmentPolicyTests
     }
 
     private static GameItem Item(string id, string? propertiesType, string? iconUrl) =>
-        new(
+        new GameItem(
             id,
             id,
             id,
