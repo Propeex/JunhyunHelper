@@ -1,5 +1,12 @@
 namespace JunhyunHelper.Core.FarmingGuide;
 
+public enum FarmingGuideInstructionAction
+{
+    Store,
+    Replace,
+    Discard,
+}
+
 /// <summary>
 /// A recommendation is a proposal against one exact raid-state revision. The proposal
 /// is committed only after an explicit user acceptance and only while that revision is
@@ -8,6 +15,7 @@ namespace JunhyunHelper.Core.FarmingGuide;
 public sealed record FarmingGuidePendingInstruction(
     string ItemId,
     string Instruction,
+    FarmingGuideInstructionAction Action,
     long BaseRevision,
     FarmingGuideLoadoutSnapshot ProposedSnapshot,
     DateTimeOffset CreatedAt);
@@ -74,6 +82,7 @@ public sealed class FarmingGuideRaidSession
     public FarmingGuidePendingInstruction SetPending(
         string itemId,
         string instruction,
+        FarmingGuideInstructionAction action,
         FarmingGuideLoadoutSnapshot proposedSnapshot)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(itemId);
@@ -83,6 +92,7 @@ public sealed class FarmingGuideRaidSession
         var pending = new FarmingGuidePendingInstruction(
             itemId.Trim(),
             instruction.Trim(),
+            action,
             _state.Revision,
             proposedSnapshot,
             DateTimeOffset.UtcNow);
