@@ -58,7 +58,42 @@ public sealed record FarmingGuideLoadoutSnapshot(
         []);
 }
 
+/// <summary>
+/// One reserved inventory cell. ParentInstanceId distinguishes a root storage surface
+/// from the same grid index inside a nested carrier instance.
+/// </summary>
+public sealed record FarmingGuideLockedCell(
+    FarmingGuideStorageKind Storage,
+    int GridIndex,
+    int X,
+    int Y,
+    string? ParentInstanceId = null);
+
+/// <summary>
+/// User-owned constraints for automatic Farming Guide decisions. Locks constrain the
+/// recommendation engine only; direct user editing remains authoritative.
+/// </summary>
+public sealed record FarmingGuideLockState(
+    IReadOnlySet<FarmingGuideEquipmentSlot> EquipmentSlots,
+    IReadOnlySet<FarmingGuideStorageKind> Carriers,
+    IReadOnlySet<string> ItemInstanceIds,
+    IReadOnlySet<FarmingGuideLockedCell> ReservedCells)
+{
+    public static FarmingGuideLockState Empty { get; } = new(
+        new HashSet<FarmingGuideEquipmentSlot>(),
+        new HashSet<FarmingGuideStorageKind>(),
+        new HashSet<string>(StringComparer.Ordinal),
+        new HashSet<FarmingGuideLockedCell>());
+
+    public FarmingGuideLockState Clone() => new(
+        new HashSet<FarmingGuideEquipmentSlot>(EquipmentSlots),
+        new HashSet<FarmingGuideStorageKind>(Carriers),
+        new HashSet<string>(ItemInstanceIds, StringComparer.Ordinal),
+        new HashSet<FarmingGuideLockedCell>(ReservedCells));
+}
+
 public sealed record FarmingGuidePreset(
     string Name,
     FarmingGuideLoadoutSnapshot Snapshot,
-    DateTimeOffset SavedAt);
+    DateTimeOffset SavedAt,
+    FarmingGuideLockState? Locks = null);
