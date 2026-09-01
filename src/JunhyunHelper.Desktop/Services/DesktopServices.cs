@@ -43,6 +43,7 @@ public sealed class DesktopServices : IDisposable
         FarmingGuideRaid = new FarmingGuideRaidBridge();
         Scanner = new ScannerCoordinator(_httpClient, RootDirectory);
         FarmingGuideRaid.SetScannerSnapshotResolver(Scanner.CreateFarmingGuideSnapshot);
+        FarmingGuideRaid.SetSimulatedSnapshotResolver(Scanner.CreateFarmingGuideSnapshotAsync);
         FarmingGuideRaid.SetMiniScannerInstructionHandler(Scanner.SetFarmingGuideInstruction);
         FarmingGuideRaid.SetSimulatedScanPresenter(Scanner.ShowFarmingGuideTestSnapshot);
         FarmingGuideRaid.SetTransientStatusHandler(Scanner.ShowFarmingGuideStatus);
