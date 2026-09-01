@@ -3,13 +3,13 @@
 이 문서는 준현 헬퍼의 **무엇을 만들고 왜 만드는지**를 정의하는 canonical 제품 요구사항이다. 사용자가 현재 대화에서 새로 확정한 제품 의도가 기존 구현보다 우선한다. 현재 코드가 존재한다는 이유만으로 그 동작을 제품 요구사항으로 추정하지 않는다.
 
 기준일: **2026-09-01 KST**  
-상태: **v1.14.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+상태: **v1.15.0 RELEASE CANDIDATE / v1.14.1 PUBLIC STABLE / PRODUCT COMPLETE**
 
 정확한 release SHA/asset/CI와 schema 사실값은 `docs/PROJECT_STATE.json`, 공개 상태는 `docs/CURRENT_STATE.md` / `docs/STATE.md`를 사용한다.
 
 ## 1. 제품 정의
 
-준현 헬퍼는 Escape from Tarkov 플레이에 필요한 진행, 아이템, 탄약, 지도, 화면 인식, raid-start loadout 정보를 하나의 Windows x64 데스크톱 프로그램에서 제공하는 개인용 헬퍼다.
+준현 헬퍼는 Escape from Tarkov 플레이에 필요한 진행, 아이템, 탄약, 지도, 화면 인식, raid-start loadout과 raid 중 파밍 판단을 하나의 Windows x64 데스크톱 프로그램에서 제공하는 개인용 헬퍼다.
 
 핵심 목표:
 
@@ -59,7 +59,7 @@ Remote Tarkov source를 import/검증해 만든 canonical snapshot이다.
 - FIR/non-FIR inventory와 consumption ledger
 - Scanner settings/favorites/recents/reviewed evidence
 - Map/MiniMap settings
-- Farming Guide working state/presets/fixed equipment
+- Farming Guide working state/presets/fixed equipment/automation locks
 
 Game Content Update나 Program Update가 user-owned state를 덮어쓰지 않는다.
 
@@ -134,9 +134,16 @@ Recognition:
 - reviewed actual Tarkov evidence 없이 OCR/matcher/recovery acceptance를 완화하지 않음
 - Ground Truth는 explicit user-reviewed save만 authoritative
 
+Mini Scanner는 v1.15.0부터 파밍 가이드의 **지속 지시 presentation surface**이기도 하다. Item ID/가격/필요 개수 truth는 Scanner/Items workspace의 기존 authority를 재사용하고, 파밍 가이드는 해당 사실을 받아 의사결정만 소유한다.
+
 ## 8. Farming Guide
 
-Farming Guide는 Scanner 오른쪽의 first-class section이며 제품 의미는 **레이드 시작 상태를 구성하는 Loadout / Inventory Editor**다. 실제 raid inventory를 지속적으로 1:1 mirror하지 않는다.
+Farming Guide는 Scanner 오른쪽의 first-class section이며 두 역할을 가진다.
+
+1. **Loadout / Inventory Editor** — 레이드 시작 상태와 프리셋을 구성한다.
+2. **Live Raid Farming Advisor** — 레이드 중 Scanner가 확인한 아이템을 현재 raid-session 상태와 비교해 보관/교체/버리기 지시를 제안한다.
+
+실제 게임 inventory를 화면 좌표까지 자동 mirror하거나 게임 입력을 대신하지 않는다.
 
 ### Equipment / storage
 
@@ -195,23 +202,73 @@ Mechanics authority:
 
 Product-owned exact visual metadata는 mechanics를 바꿀 수 없다.
 
-**v1.14.1 current rule:** exact multi-grid coordinates는 verified profile의 layout identity, grid count와 **각 grid index의 expected width/height가 current live grids와 정확히 일치할 때만** 사용한다. 하나라도 다르면 finite compact visual fallback을 사용한다. Non-overlap은 추가 corruption guard다.
+**v1.14.1+ current rule:** exact multi-grid coordinates는 verified profile의 layout identity, grid count와 **각 grid index의 expected width/height가 current live grids와 정확히 일치할 때만** 사용한다. 하나라도 다르면 finite compact visual fallback을 사용한다. Non-overlap은 추가 corruption guard다.
 
-v1.14.0 public source에는 expected dimension comparison이 완전 구현되지 않았으며 이 activation guard는 v1.14.1에서 교정됐다. v1.14.0의 recursive assembly/inline picker functionality는 현재 제품에 유지된다.
+### Raid session lifecycle
+
+- `레이드 시작`은 현재 working/preset snapshot과 lock state를 immutable baseline으로 잡고 별도 raid-session을 연다.
+- 레이드 중 수동 drag/drop, 장비/보관 상태 변경, lock 변경은 즉시 새로운 session revision이 된다.
+- `레이드 종료`는 session 변경을 폐기하고 raid-start baseline snapshot/locks로 복원한다.
+- 레이드 중 변경은 명시적인 preset/working-state 저장으로 취급하지 않는다.
+- preset 선택/삭제 같은 raid-start configuration 변경은 raid 중 차단한다.
+
+### Lock contract
+
+사용자는 hover + `F`로 자동 의사결정이 건드리면 안 되는 범위를 lock/unlock한다.
+
+- stored item lock: 해당 item을 자동 replacement 대상으로 사용하지 않는다.
+- locked item의 subtree/내부 storage도 자동 destructive decision에서 보호한다.
+- Rig / Backpack / Secure Container 등 carrier lock: 해당 storage와 그 내부를 자동 배치 후보에서 제외한다.
+- empty grid cell lock: 자동 배치가 사용할 수 없는 1-cell reservation으로 취급한다.
+- equipment-slot lock은 장비 자동 판단 확장 시 동일한 automation constraint authority로 사용한다.
+- 사용자의 직접 편집은 lock보다 우선하며, 직접 변경이 일어나면 이전 pending instruction은 stale이다.
+
+### Scanner-driven instruction / explicit acceptance
+
+```text
+confirmed Scanner Item ID + scanner-owned price/needed facts
+→ current raid-session snapshot + locks
+→ placement / replacement / discard proposal
+→ one pending instruction
+→ Mini Scanner persistent instruction + accept hotkey hint
+→ explicit accept
+→ revision-checked commit
+```
+
+- pending instruction은 동시에 하나만 유지한다.
+- acceptance 전에는 Farming Guide inventory를 바꾸지 않는다.
+- pending이 생성된 session revision과 현재 revision이 다르면 적용하지 않는다.
+- 사용자가 수동으로 inventory/equipment/lock을 바꾸면 pending을 즉시 취소하고 Mini Scanner의 지속 지시도 제거한다.
+- acceptance 후에는 짧은 `수락 완료` feedback만 표시하고 다음 scan을 기다린다.
+- 같은 Item ID도 Scanner가 비-item 상태를 거친 뒤 다시 확인하면 새 scan event로 처리할 수 있다.
+- 검색 결과 item hover + `T`는 실제 Scanner와 동일한 snapshot/decision 경로를 사용하는 개발·사용자 검증용 simulated scan이다.
+
+### Current loot priority boundary
+
+현재 v1.15.0 정책은 placement mechanics와 분리된 `FarmingGuideLootPriorityPolicy`가 소유한다.
+
+1. 현재 필요한 수량이 남아 있는 item을 필요하지 않은 item보다 우선한다.
+2. 필요 여부가 같으면 trader/flea 중 높은 유효 가치의 **칸당 가치**를 우선한다.
+3. 칸당 가치가 같으면 총 유효 가치를 우선한다.
+4. 마지막 동률이면 더 작은 footprint를 우선한다.
+
+빈 공간에 합법적으로 들어가는 경우에는 우선 배치하고, 공간이 부족할 때만 위 priority를 이용해 unlocked stored item replacement를 검토한다.
 
 ### Persistence / non-goals
 
 ```text
 %LocalAppData%/JunhyunHelper/farming-guide.json
-schema v1
+schema v2
 ```
+
+schema v2는 working/preset lock state를 저장하며 기존 v1 파일을 읽어 empty-lock 상태로 migration한다.
 
 현재 Farming Guide 비포함:
 
-- loot 가치 판단
-- pickup/discard/replace recommendation
-- Scanner 실시간 recommendation
-- live raid inventory coordinate mirror
+- game memory 기반 live inventory read
+- 게임 입력 자동화/자동 loot
+- 화면상의 실제 inventory 좌표를 지속적으로 1:1 추적하는 mirror
+- user acceptance 없이 자동 상태 변경
 
 ## 9. Diagnostics
 
@@ -227,16 +284,17 @@ schema v1
 ## 11. Schema / compatibility
 
 ```text
-Desktop: 1.14.1
+Desktop candidate: 1.15.0
+Public stable: 1.14.1
 Content write: v10
 Content readable: v3-v10
 user.db: v1
-Farming Guide state: v1
-Scanner display settings: v9
+Farming Guide state: v2 (reads v1-v2)
+Scanner display settings: v10
 Scanner catalog write/read: v4 / v1-v4
 ```
 
-v1.14.1은 mandatory user-data migration을 요구하지 않는다.
+v1.15.0의 Farming Guide v1→v2 및 Scanner settings v9→v10 migration은 additive이며 기존 user-owned loadout/preset/Scanner 설정을 보존한다.
 
 ## 12. Release quality gate
 
@@ -257,4 +315,4 @@ v1.14.1은 mandatory user-data migration을 요구하지 않는다.
 
 ## 13. 유지보수 방향
 
-현재 제품은 product-complete maintenance mode다. 우선순위는 실사용 오류, Tarkov 변화 대응, 안정성/신뢰성, 성능, regression coverage, bounded technical debt cleanup 순이다. 새 기능이나 UX 변경은 사용자의 명시적인 제품 요구사항이 있을 때만 설계한다.
+현재 public 제품은 product-complete maintenance mode이며 v1.15.0은 사용자가 명시적으로 확정한 Farming Guide 기능 확장이다. 이후 기본 우선순위는 실사용 오류, Tarkov 변화 대응, 안정성/신뢰성, 성능, regression coverage, bounded technical debt cleanup 순이다. 추가 새 기능이나 UX 변경은 사용자의 명시적인 제품 요구사항이 있을 때만 설계한다.
