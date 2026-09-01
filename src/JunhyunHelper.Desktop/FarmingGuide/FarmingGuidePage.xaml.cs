@@ -156,9 +156,12 @@ public partial class FarmingGuidePage : UserControl
     {
         if (_raidSession is not null && !fixedSetting)
         {
+            var pendingWasPresent = _raidSession.State.PendingInstruction is not null;
             _raidSession.ReplaceCurrentState(BuildSnapshot(), BuildLockState());
             RefreshAll();
             RefreshRaidUi();
+            if (pendingWasPresent)
+                _raidBridge?.ShowMiniScannerStatus("상태 변경으로 이전 파밍 지시를 취소했습니다.");
             return;
         }
 
