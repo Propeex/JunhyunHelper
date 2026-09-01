@@ -40,6 +40,27 @@ public sealed class FarmingGuideSnapshotInventoryCounterTests
     }
 
     [Fact]
+    public void StoredStackContributesItsConcreteQuantity()
+    {
+        var snapshot = new FarmingGuideLoadoutSnapshot(
+            new Dictionary<FarmingGuideEquipmentSlot, FarmingGuideItemState>(),
+            null,
+            FarmingGuideItemState.Create("bag"),
+            null,
+            [new FarmingGuideStoredItemState(
+                "ammo-stack",
+                FarmingGuideItemState.Create("ammo"),
+                FarmingGuideStorageKind.Backpack,
+                0,
+                0,
+                0,
+                false,
+                Quantity: 43)]);
+
+        Assert.Equal(43, FarmingGuideSnapshotInventoryCounter.Count(snapshot, "ammo"));
+    }
+
+    [Fact]
     public void AcquiredSinceTracksCurrentSnapshotInsteadOfHistoricalAcceptance()
     {
         var baseline = SnapshotWithStored("baseline", "quest-item");
