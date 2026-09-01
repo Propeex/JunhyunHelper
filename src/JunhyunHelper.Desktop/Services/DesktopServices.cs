@@ -4,6 +4,7 @@ using JunhyunHelper.Application.Hideout;
 using JunhyunHelper.Application.Items;
 using JunhyunHelper.Application.Profiles;
 using JunhyunHelper.Application.Quests;
+using JunhyunHelper.Desktop.FarmingGuide;
 using JunhyunHelper.Desktop.Scanner;
 using JunhyunHelper.Infrastructure.Content;
 using JunhyunHelper.Infrastructure.EditionData;
@@ -39,7 +40,9 @@ public sealed class DesktopServices : IDisposable
         AmmoFavorites = new AmmoFavoriteStore(RootDirectory);
         ScannerItemUiState = new ScannerItemUiStateStore(RootDirectory);
         FarmingGuide = new FarmingGuidePresetStore(RootDirectory);
+        FarmingGuideRaid = new FarmingGuideRaidBridge();
         Scanner = new ScannerCoordinator(_httpClient, RootDirectory);
+        Scanner.StatusChanged += FarmingGuideRaid.ObserveScannerStatus;
 
         var sourceLoader = new TarkovEndpointSourceLoader(new TarkovJsonClient(_httpClient));
         var buildService = new TarkovContentBuildService(
@@ -70,6 +73,8 @@ public sealed class DesktopServices : IDisposable
 
     public FarmingGuidePresetStore FarmingGuide { get; }
 
+    public FarmingGuideRaidBridge FarmingGuideRaid { get; }
+
     public ScannerCoordinator Scanner { get; }
 
     public ProfileApplicationService ProfileManagement { get; }
@@ -82,6 +87,8 @@ public sealed class DesktopServices : IDisposable
 
     public void Dispose()
     {
+        Scanner.StatusChanged -= FarmingGuideRaid.ObserveScannerStatus;
+        FarmingGuideRaid.Unbind();
         Scanner.Dispose();
         _httpClient.Dispose();
     }
