@@ -55,6 +55,8 @@ public sealed class GlobalKeyboardHookService : IDisposable
     /// </summary>
     public event Action<int>? DirectFloorSelectionPressed { add { } remove { } }
 
+    // Donor compatibility-only events. Product hotkeys are dispatched by the JunhyunHelper
+    // owned hotkey service; these endpoints deliberately never fire from this hook.
     public event Action? OverlayTogglePressed { add { } remove { } }
     public event Action? OverlaySettingsPressed { add { } remove { } }
     public event Action? OverlayZoomInPressed { add { } remove { } }
@@ -63,16 +65,22 @@ public sealed class GlobalKeyboardHookService : IDisposable
     public event Action? OverlayFloorDownPressed { add { } remove { } }
     public event Action? OverlayOpacityIncreasePressed { add { } remove { } }
     public event Action? OverlayOpacityDecreasePressed { add { } remove { } }
+    public event Action? OverlayCenterPlayerPressed { add { } remove { } }
+    public event Action? OverlayToggleViewModePressed { add { } remove { } }
     public event Action? OverlayToggleClickThroughPressed { add { } remove { } }
     public event Action? OverlayResetViewPressed { add { } remove { } }
     public event Action? OverlayResumeAutoFloorPressed { add { } remove { } }
 
+    // Donor compatibility properties are inert. Product values live in
+    // JunhyunMapProductSettingsStore.
     public int ZoomInKey { get; set; }
     public int ZoomOutKey { get; set; }
     public int FloorUpKey { get; set; }
     public int FloorDownKey { get; set; }
     public int OpacityIncreaseKey { get; set; }
     public int OpacityDecreaseKey { get; set; }
+    public int CenterPlayerKey { get; set; }
+    public int ToggleViewModeKey { get; set; }
     public int ToggleClickThroughKey { get; set; }
     public int ResetViewKey { get; set; }
     public int ResumeAutoFloorKey { get; set; }
