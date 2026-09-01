@@ -1,60 +1,45 @@
 # ACTIVE WORK — 현재 진행 중 작업 체크포인트
 
-Status: **ACTIVE**  
+Status: **NONE**  
 Updated: **2026-09-01 KST**
 
 ## Goal
 
-준현 헬퍼 **v1.15.2 Farming Guide complete-equipment simplification**을 구현·검증·공개 릴리즈한다.
+현재 진행 중인 개발 작업 없음.
 
 ## Base
 
-branch: `fix/v1.15.2-farming-guide-complete-equipment-2026-09-01`  
-base main: `e25bf52812a4a4ffe77e69f83e1c444555a2dd70`  
-public stable: `v1.15.1` / exact product source `821def285e2b4964242b50981f6ba6245e996057`
+branch: `main`  
+public stable: `v1.15.2`  
+exact product source: `f4974ee6bed5047865581240197f7f0e2787ba7c`
 
 ## Confirmed scope
 
-1. Equipment is an opaque complete item; weapon/helmet/armor attachment and armor-plate editing is removed.
-2. Only stored backpack/rig nested storage may open an internal detail surface; root carrier storage remains on the main page.
-3. Nested storage detail sizes to the actual grid footprint instead of covering the center column.
-4. Equipment imagery prefers authoritative complete/default-preset source images and uses substantially more of the equipment slot.
-5. Raid guidance keeps top-level equipment-slot Equip/ReplaceEquip but removes equipment-internal attachment/armor targets.
-
-Canonical decision: `docs/DECISION_V1.15.2_COMPLETE_EQUIPMENT_MODEL.md`.
+완료된 v1.15.2 제품 계약은 `docs/DECISION_V1.15.2_COMPLETE_EQUIPMENT_MODEL.md`, `docs/PRODUCT.md`, `docs/CURRENT_STATE.md`, `docs/STATE.md`를 기준으로 한다.
 
 ## Completed
 
-- recovered v1.15.1 public-stable state and opened the v1.15.2 maintenance branch
-- recorded the user-confirmed complete-equipment decision
-- added `FarmingGuideCompleteEquipmentPolicy` runtime projection
-  - attachment/armor slot definitions are removed from Farming Guide runtime content
-  - unsupported generic-case internal grids are removed from Farming Guide runtime surfaces
-  - backpack/rig/secure-container root storage mechanics remain source-backed
-  - authoritative default-preset/source image is projected as the complete-item Farming Guide icon when available
-- changed Farming Guide SetData/search to use the complete-equipment runtime catalog
-- legacy saved attachment/armor state now sanitizes to root-only state because runtime items expose no internal equipment slots
-- replaced equipment assembly rendering with one complete-item image; removed part tiles/composed user assembly presentation
-- reduced weapon/equipment image safety margins so long weapons fill their equipment slots substantially better
-- reduced the workbench to stored backpack/rig nested storage only
-  - top-level equipment and root carrier workbench entry points are intentionally no-op
-  - nested detail remains an interactive grid surface
-  - detail host measures its actual grid and uses compact bounded width/height
-  - the main storage surface stays visible behind the compact detail
-- rewrote published-product Farming Guide smoke for compact nested storage and disabled equipment-internal editor behavior
-- added deterministic complete-equipment policy tests and updated desktop maintenance contract tests
+- Farming Guide 장비를 내부 부품 편집 없는 완제품 모델로 전환
+- 저장된 backpack/rig의 nested storage만 내부 상세 수납 surface로 유지
+- nested storage 상세 화면을 실제 grid 크기에 맞춘 compact view로 변경
+- authoritative complete/default-preset 장비 이미지 우선 사용 및 equipment-slot 이미지 점유율 개선
+- 장비 내부 attachment/armor 편집과 raid Equip/ReplaceEquip target 제거, 최상위 장비 칸 판단 유지
+- legacy assembly state를 root-only equipment state로 정리
+- PR #262 병합
+- exact-main `f4974ee6bed5047865581240197f7f0e2787ba7c` 검증 완료
+- 562 passed / 0 failed / 0 skipped
+- Windows x64 publish, Product UI smoke, graceful shutdown, Shutdown Race, package/checksum 검증 완료
+- Release workflow `33481956300` 성공
+- public latest `v1.15.2` 게시 및 tag/release/assets 무결성 확인
 
 ## Current step
 
-Open a draft PR and run Build/Test/published runtime smoke to catch compile or stale-contract failures before version/release metadata is finalized.
+없음. v1.15.2는 공개 stable 상태다.
 
 ## Remaining
 
-- fix any compile/test/runtime regressions discovered by CI
-- confirm no equipment-internal recommendation is reachable in the runtime planner while top-level Equip/ReplaceEquip remains
-- bump v1.15.2 release metadata and release notes
-- update PRODUCT/DECISIONS/ARCHITECTURE/current-state documentation for the simplified model
-- PR CI / Shutdown Race / Documentation Consistency
-- merge and exact-main verification
-- verify public v1.15.2 release/tag/assets/checksums
-- close release documentation and ACTIVE_WORK
+자동화된 릴리즈 작업은 없음. 별도 실환경 evidence만 남아 있다.
+
+- 사용자 실제 Tarkov 플레이에서 v1.15.2 Farming Guide 시각/동작 검증
+- 필요 시 실사용 피드백 기반 후속 PATCH
+- 김태영 실제 PC 진단 ZIP 수집/분석은 해당 진단 작업을 진행할 때 별도로 수행
