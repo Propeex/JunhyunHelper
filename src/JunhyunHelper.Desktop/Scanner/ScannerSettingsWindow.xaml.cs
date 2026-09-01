@@ -21,8 +21,6 @@ public partial class ScannerSettingsWindow : Window
         settings.Normalize();
         foreach (var key in settings.MiniScannerInfoOrder)
         {
-            // v1.11 removes flea minimum price from Scanner presentation only. Keep the
-            // compatibility setting/data field intact, but never expose it as a display row.
             if (string.Equals(key, ScannerDisplaySettings.FleaMinimumPriceField, StringComparison.Ordinal))
                 continue;
 
@@ -86,6 +84,9 @@ public partial class ScannerSettingsWindow : Window
 
     private void ChangeAddCorrectionDataButton_Click(object sender, RoutedEventArgs e) =>
         BeginCapture(CaptureTarget.AddCorrectionData, sender as Button);
+
+    private void ChangeFarmingGuideAcceptButton_Click(object sender, RoutedEventArgs e) =>
+        BeginCapture(CaptureTarget.FarmingGuideAccept, sender as Button);
 
     private void BeginCapture(CaptureTarget target, Button? button)
     {
@@ -159,6 +160,7 @@ public partial class ScannerSettingsWindow : Window
             (CaptureTarget.OneShotTest, Parse(settings.OneShotTestHotkey)),
             (CaptureTarget.ScannerToggle, Parse(settings.ScannerToggleHotkey)),
             (CaptureTarget.AddCorrectionData, Parse(settings.AddCorrectionDataHotkey)),
+            (CaptureTarget.FarmingGuideAccept, Parse(settings.FarmingGuideAcceptHotkey)),
         };
         return values.Any(value => value.Item1 != target && value.Item2 == gesture);
     }
@@ -178,6 +180,9 @@ public partial class ScannerSettingsWindow : Window
                 break;
             case CaptureTarget.AddCorrectionData:
                 _coordinator.SetAddCorrectionDataHotkey(gesture);
+                break;
+            case CaptureTarget.FarmingGuideAccept:
+                _coordinator.SetFarmingGuideAcceptHotkey(gesture);
                 break;
         }
     }
@@ -205,6 +210,7 @@ public partial class ScannerSettingsWindow : Window
         OneShotTestText.Text = Format(Parse(settings.OneShotTestHotkey));
         ScannerToggleText.Text = Format(Parse(settings.ScannerToggleHotkey));
         AddCorrectionDataText.Text = Format(Parse(settings.AddCorrectionDataHotkey));
+        FarmingGuideAcceptText.Text = Format(Parse(settings.FarmingGuideAcceptHotkey));
     }
 
     private void SetTargetText(CaptureTarget target, string value)
@@ -222,6 +228,9 @@ public partial class ScannerSettingsWindow : Window
                 break;
             case CaptureTarget.AddCorrectionData:
                 AddCorrectionDataText.Text = value;
+                break;
+            case CaptureTarget.FarmingGuideAccept:
+                FarmingGuideAcceptText.Text = value;
                 break;
         }
     }
@@ -252,6 +261,7 @@ public partial class ScannerSettingsWindow : Window
         ScannerDisplaySettings.FleaPricePerSlotField => "플리 평균가 / 칸",
         ScannerDisplaySettings.CurrentNeededField => "필요 개수",
         ScannerDisplaySettings.AmmoPickupField => "탄약 줍기 판단",
+        ScannerDisplaySettings.FarmingGuideField => "파밍 가이드",
         _ => key,
     };
 
@@ -268,5 +278,6 @@ public partial class ScannerSettingsWindow : Window
         OneShotTest,
         ScannerToggle,
         AddCorrectionData,
+        FarmingGuideAccept,
     }
 }
