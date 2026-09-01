@@ -6,6 +6,9 @@ namespace JunhyunHelper.Desktop.FarmingGuide;
 
 public partial class FarmingGuidePage
 {
+    // Compatibility cache for the existing metrics boundary. It is rebuilt from the
+    // current-vs-baseline snapshot before every recommendation; it is never historical
+    // acceptance truth. Discarding an item therefore removes it from the next calculation.
     private readonly Dictionary<string, int> _acceptedRaidItemCounts = new(StringComparer.Ordinal);
 
     private FarmingGuideRaidBridge? _raidBridge;
@@ -114,7 +117,15 @@ public partial class FarmingGuidePage
             return;
         }
 
-        var recommendation = PlanScannedItemEquipmentAware(scanned, item);
+        var current = BuildSnapshot();
+        RefreshRaidAcquiredCounts(current);
+        var planned = PlanScannedItemEquipmentAware(scanned, item);
+        var transitioned = ApplyRaidStateTransitionsV1155(current, planned, scanned, item);
+        var optimized = OptimizeDestructiveRaidPlanV1155(current, transitioned, scanned, item);
+        var recommendation = ApplyRaidInstructionPresentationV1155(
+            current,
+            optimized,
+            item);
         _raidSession.SetPending(
             scanned.ItemId,
             recommendation.Instruction,
@@ -123,6 +134,20 @@ public partial class FarmingGuidePage
         RefreshRaidUi();
         _raidBridge?.ShowMiniScannerStatus(
             $"{recommendation.Instruction}\n수락 [{AcceptHotkeyText()}]");
+    }
+
+    private void RefreshRaidAcquiredCounts(FarmingGuideLoadoutSnapshot current)
+    {
+        _acceptedRaidItemCounts.Clear();
+        if (_raidSession is null)
+            return;
+
+        foreach (var pair in FarmingGuideSnapshotInventoryCounter.AcquiredSinceAll(
+                     _raidSession.BaselineSnapshot,
+                     current))
+        {
+            _acceptedRaidItemCounts[pair.Key] = pair.Value;
+        }
     }
 
     private string AcceptHotkeyText()
@@ -136,17 +161,12 @@ public partial class FarmingGuidePage
         if (_raidSession?.State.PendingInstruction is not { } pending)
             return false;
 
-        var acceptedAddsItem = pending.Action is
-            FarmingGuideInstructionAction.Store or
-            FarmingGuideInstructionAction.Replace or
-            FarmingGuideInstructionAction.Equip or
-            FarmingGuideInstructionAction.ReplaceEquip;
         if (!_raidSession.TryAccept(out var snapshot))
             return false;
 
         ApplySnapshot(snapshot);
-        if (acceptedAddsItem)
-            _acceptedRaidItemCounts[pending.ItemId] = _acceptedRaidItemCounts.GetValueOrDefault(pending.ItemId) + 1;
+        // Do not mutate a historical accepted-item counter here. The next recommendation
+        // derives acquired quantities from the accepted current snapshot against baseline.
         RefreshAll();
         RefreshRaidUi();
         _raidBridge?.ShowMiniScannerStatus("반영 완료");
