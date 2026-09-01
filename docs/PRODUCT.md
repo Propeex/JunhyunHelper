@@ -2,8 +2,8 @@
 
 이 문서는 준현 헬퍼의 **무엇을 만들고 왜 만드는지**를 정의하는 canonical 제품 요구사항이다. 사용자가 현재 대화에서 새로 확정한 제품 의도가 기존 구현보다 우선한다. 현재 코드가 존재한다는 이유만으로 그 동작을 제품 요구사항으로 추정하지 않는다.
 
-기준일: **2026-08-31 KST**  
-상태: **v1.13.3 TARGET / v1.13.2 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+기준일: **2026-09-01 KST**  
+상태: **v1.14.0 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 정확한 release SHA, asset, CI와 현재 schema 사실값은 `docs/PROJECT_STATE.json`, `docs/CURRENT_STATE.md`, `docs/STATE.md`를 사용한다.
 
@@ -20,7 +20,7 @@
 - 게임 프로세스 내부를 변조하거나 읽지 않는 외부 보조 프로그램을 유지한다.
 - 사용자 데이터와 외부 Game Content의 lifecycle을 분리한다.
 - 실사용 회귀를 재현 가능한 evidence/test로 축적한다.
-- 기능이 늘어도 각 subsystem의 authority와 책임을 분리한다.
+- 기능이 늘어도 subsystem별 authority와 책임을 분리한다.
 
 제품이 아닌 것:
 
@@ -54,7 +54,7 @@ Junhyun-Helper.zip
 
 Mutable user data는 `%LocalAppData%/JunhyunHelper`에 저장한다. Portable executable 옆에 profile/log/settings 등의 mutable state를 생성하지 않는다.
 
-## 3. 데이터 authority 원칙
+## 3. 데이터 authority
 
 제품 데이터는 의미에 따라 분리한다.
 
@@ -63,7 +63,8 @@ Mutable user data는 `%LocalAppData%/JunhyunHelper`에 저장한다. Portable ex
 Remote Tarkov source에서 검증 후 생성한 canonical snapshot이다.
 
 - Quest / Hideout / Item / Ammo 등 게임 기준 데이터
-- Farming Guide item dimensions / storage grids / compatible slots 등 current item structure
+- Farming Guide item dimensions / storage grids / compatible slots / conflicts
+- Farming Guide assembly source / default preset metadata / storage layout identity
 - active snapshot은 검증된 candidate만 승격
 
 ### User Progress
@@ -111,12 +112,12 @@ remote source
 - 기존 healthy Last Known Good 유지
 - suspicious partial payload / unexplained shrink 차단
 - importer가 의미를 이해하지 못하는 collection/schema drift는 fail closed
-- 개별 optional enrichment/image failure는 해당 범위에서 fail-soft 가능
+- optional enrichment/image failure는 해당 범위에서 fail-soft 가능
 - User Progress / Farming Guide user state / reviewed Ground Truth를 수정하지 않음
 
 Top-level Game Data Update는 일반 content activation 뒤 current GameMode Scanner catalog/market refresh를 함께 수행한다. Scanner catalog refresh만 실패했다고 healthy general content를 rollback하지 않는다.
 
-## 5. Program Update
+## 5. Program Update / Release
 
 프로그램 업데이트는 GitHub의 latest public stable release를 기준으로 한다.
 
@@ -130,6 +131,8 @@ Top-level Game Data Update는 일반 content activation 뒤 current GameMode Sca
 - public stable tag/source/assets는 immutable historical identity
 
 Release workflow는 exact-main CI가 생성한 검증 artifact를 사용한다. 동일 version의 후속 documentation-only commit이 별도 bytes를 만들 수 있어도 기존 public stable asset을 교체하거나 product source를 재정의하지 않는다.
+
+현재 공개 release authority는 `docs/PROJECT_STATE.json`과 `docs/RELEASE_1.14.0.md`다.
 
 ## 6. Profile / User Progress
 
@@ -147,8 +150,6 @@ User Progress는 사용자가 확인한 사실을 authority로 한다. Derived a
 
 Quest 화면은 current content + profile facts를 결합해 availability/progress를 표현한다.
 
-주요 원칙:
-
 - 서로 다른 prerequisite requirement는 source semantics대로 결합한다.
 - exact ProfileVariable 값이 있으면 compatibility inference보다 우선한다.
 - 받을 수 있는 Quest를 제품 내에서 이미 수락한 것으로 다루는 기존 제품 계약을 유지한다.
@@ -157,7 +158,7 @@ Quest 화면은 current content + profile facts를 결합해 availability/progre
 - structural drift는 `확인 필요`/indeterminate로 fail closed한다.
 - current Quest UI compatibility를 Future Needed Items / cleanup에 낙관적으로 전파하지 않는다.
 
-## 8. Quest / Hideout Item 소비
+## 8. Quest / Hideout item 소비
 
 Fixed mandatory material은 완료/upgrade 처리와 함께 ledger 기반으로 소비할 수 있다.
 
@@ -177,18 +178,13 @@ Needed Items는 앞으로 실제 필요할 수 있는 item을 보수적으로 �
 - flexible candidate 보호
 - unresolved future path는 indeterminate potential로 유지
 - cleanup safety를 증명할 수 없으면 정리 가능으로 단정하지 않음
-- FIR / non-FIR inventory를 구분
+- FIR / non-FIR inventory 구분
 
-Current user-facing needed quantity authority:
-
-```text
-ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal
-```
-
-Needed source authority:
+Current user-facing authority:
 
 ```text
-ItemsWorkspace.Plan.NeededItems[itemId].Sources
+needed quantity = ItemsWorkspace.Plan.NeededItems[itemId].RemainingTotal
+needed source   = ItemsWorkspace.Plan.NeededItems[itemId].Sources
 ```
 
 Scanner 등 다른 subsystem이 Quest/Hideout requirement를 별도로 재계산해 다른 truth를 만들지 않는다.
@@ -219,7 +215,7 @@ Pickup 의미:
 - same-caliber penetration 비교
 - 현재 profile에서 **증명된 direct purchase state** 사용
 - flea/barter/craft/higher trader LL/unproven quest unlock을 현재 직접 구매 가능으로 취급하지 않음
-- authoritative Ammo Pack `containsItems` 관계를 우선
+- authoritative Ammo Pack `containsItems` 관계 우선
 - 자체 임의 armor-effectiveness heuristic을 새 truth로 만들지 않음
 
 ## 12. Map / MiniMap
@@ -289,38 +285,43 @@ Canonical specialist document는 `docs/SCANNER.md`다.
 
 ## 14. Farming Guide
 
-v1.13.0에서 Scanner 오른쪽에 `파밍 가이드` first-class section을 추가했다. v1.13.1에서 아이콘 중심 UI와 drag/drop 실사용 회귀를 수정했고, v1.13.2에서 장비 호환성·프로필별 주머니·프리셋 삭제를 보완했다. v1.13.3은 v1.13.2 실사용 검증에서 확인된 내부 상호작용을 실제 raid-start inventory editor 의미에 맞게 교정한다.
+Farming Guide는 Scanner 오른쪽의 first-class section이며 **레이드 시작 상태를 구성하는 Loadout / Inventory Editor**다.
 
-제품 의미:
-
-**레이드 시작 상태를 구성하는 Loadout / Inventory Editor**다.
+v1.13.0에서 기본 editor를 추가했고, v1.13.1~v1.13.3에서 icon UI, drag/drop, equipment compatibility, profile-aware pockets, nested storage, actual attachment/armor interaction을 실사용 기준으로 보완했다. v1.14.0은 recursive assembly editing과 validated storage visual layout을 추가한다.
 
 ### 포함 기능
 
-- 헤드셋, 헬멧/headwear, face/eyewear, armor/armored rig, armband, primary weapon, Holster sidearm 등 장비 구성
+- 헤드셋, 헬멧/headwear, face/eyewear, armor/armored rig, armband, primary weapons, Holster sidearm 등 raid-start equipment 구성
 - Pocket / Rig / Backpack / Secure Container / Special Slot 표현
 - current Tarkov `width × height` footprint
 - 검색 결과 기반 drag-and-drop
 - drag 중 `R` 90도 회전
 - bounded grid snap
 - bounds / overlap / contiguous-space / current filter 검증
-- storage grid / equipment slot / attachment slot / armor plate slot / conflict 구조를 current validated Game Content에서 사용
-- attachment / 교체형 armor plate 실제 drag/drop 설정
+- current validated Game Content의 storage grid / equipment slot / attachment slot / armor plate slot / conflicts 사용
+- attachment / replaceable armor plate 직접 manipulation
+- nested bag/rig/container storage state
+- recursive attachment/armor assembly editing
+- empty slot inline compatible-item icon picker
 - 전체 raid-start state preset save/load/delete
-- melee / PMC dogtag는 per-profile preset과 분리된 fixed setting
-- 총 무게 / 사용 storage cell / 전체 storage cell 요약
-- filled carrier destructive replacement fail-closed
-- old preset이 current Tarkov grid/filter/profile pocket geometry와 충돌하면 impossible placement를 복원하지 않음
-- 가방 안 가방 / 가방 안 리그 등 nested storage state
+- melee user-level fixed setting
+- total weight / used cells / total storage cells 요약
+- filled carrier destructive replacement fail closed
+- impossible persisted state current-content/profile sanitization
 
-### Equipment / pocket 계약
+### Equipment / fixed setting 계약
 
 - pistol / revolver / handgun 계열은 Holster target이다.
 - pistol 계열을 PrimaryWeapon1/2 generic weapon으로 받아들이지 않는다.
 - body armor / rig / backpack 판정은 current `propertiesType`과 canonical type/category 의미를 함께 사용한다.
 - Secure Container는 explicit secure-container/pouch semantics를 우선하며 일반 `container/case`를 장착 가능한 Secure Container로 오인하지 않는다.
-- current `ItemPropertiesContainer` fallback은 generic container/case classification이 없는 경우로 제한한다.
-- pocket geometry는 active profile edition 및 current product가 증명한 Old Patterns 완료 상태로 resolve한다.
+- current product에서 사용자가 직접 장착할 수 없는 PMC dogtag equipment surface는 v1.14.0부터 제거한다.
+- legacy Farming Guide state의 dogtag value는 schema-v1 compatibility를 위해 읽을 수 있지만 current working state에서 정상 equipment로 유지하지 않는다.
+- melee는 per-profile preset과 분리된 user-level fixed setting이다.
+
+### Pocket 계약
+
+Pocket geometry는 active profile edition 및 current product가 증명한 Old Patterns 완료 상태로 resolve한다.
 
 ```text
 standard: 1×1 / 1×1 / 1×1 / 1×1
@@ -338,41 +339,32 @@ Backpack
 Secure Container
 ```
 
-### Preset / fixed equipment 계약
-
-- 선택 preset 삭제 시 saved preset만 제거한다.
-- 현재 working loadout은 유지한다.
-- 삭제한 preset이 selected 상태였다면 selected preset identity만 해제한다.
-- melee / PMC dogtag fixed lifecycle은 preset과 분리한다.
-- fixed behavior를 UI의 별도 `고정` 텍스트로 반복 표시하지 않는다.
-- nested placement의 parent relationship도 working state/preset에 보존한다.
-
-### Double-click / 내부 작업면 계약
+### Workbench / recursive assembly 계약
 
 Double-click은 정보 조회 Window가 아니라 **실제 아이템 내부 조작을 여는 행위**다.
 
-별도 `장비 정보/장비 설정` OS Window와 읽기 전용 storage preview / ComboBox 기반 attachment 선택은 제품 계약에서 폐기한다.
+별도 `장비 정보/장비 설정` OS Window와 read-only storage preview / ComboBox 기반 attachment 선택은 제품 계약에서 폐기한다.
 
-Farming Guide 가운데에 in-page workbench를 사용한다. 오른쪽 item search는 계속 사용할 수 있어 검색한 아이템을 열린 실제 grid/slot으로 drag/drop할 수 있다.
+Farming Guide 가운데 in-page workbench를 사용하며 오른쪽 item search는 계속 사용할 수 있다.
 
-아이템 유형과 현재 위치에 필요한 구조만 표시한다.
+- stored backpack/rig/storage carrier → 실제 내부 storage grid
+- worn/top-level rig → main storage가 이미 보이면 actionable armor/mod slots
+- weapon → actual attachment/mod slots
+- helmet/body armor → actionable attachment / replaceable armor plate slots
 
-- stored backpack: 실제 내부 storage grid
-- stored rig: 실제 내부 storage grid
-- worn/top-level rig: main에 수납 grid가 이미 있으므로 actionable armor/mod slots
-- backpack / Secure Container carrier: 실제 storage grid
-- weapon: actual attachment/mod slots
-- helmet / body armor: actionable attachment / replaceable armor plate slots
+`FarmingGuideAssemblyPolicy`가 deep attachment/armor mutation, compatible candidate, slot filter/allowed plate, assembly-wide conflict, required-slot recursion, persisted-tree sanitization의 Core authority다.
 
-내부 grid가 몇 칸이라는 설명이나 read-only 구조 목록 자체를 사용자 목적물로 표시하지 않는다.
+Installed attachment가 자체 slot을 가지면 child item으로 들어가 하위 slot을 계속 편집할 수 있다.
 
-### Attachment / armor slot 계약
+Empty attachment/armor slot single-click:
 
-- 실제 한 슬롯을 하나의 icon drop target으로 표시한다.
-- current attachment filter / allowed plate IDs / conflicts를 검증한다.
-- occupied slot을 새 drop으로 묵시적으로 overwrite하지 않는다.
-- 기존 부품을 drag-out한 뒤 새 부품을 넣는다.
-- locked/non-actionable armor structure를 불필요한 정보 UI로 반복 표시하지 않는다.
+- 같은 page의 compatible-item icon picker 표시
+- full current assembly 기준 실제 호환 후보만 노출
+- candidate single-click 즉시 장착
+- 별도 OS/config dialog 없음
+- search drag → slot drop과 동일 Core policy 공유
+
+Occupied one-item slot을 새 item으로 silent overwrite하지 않는다.
 
 ### Nested storage 계약
 
@@ -381,30 +373,51 @@ Farming Guide 가운데에 in-page workbench를 사용한다. 오른쪽 item sea
 - root placement: parent 없음
 - nested placement: 실제 parent stored instance ID
 - parent가 없는 child / duplicate instance / self-parent / cycle은 fail closed
-- nested grid의 current bounds/filter/overlap을 실제 parent item layout으로 검증
-- container 이동 시 descendants의 parent chain 보존
+- current parent grid의 bounds/filter/overlap 검증
+- container 이동 시 descendants parent chain 보존
 - destructive remove 시 descendant subtree 함께 제거
 - 자신/자기 descendant 안으로 container 이동 금지
 
+### Assembly-aware image presentation
+
+- current build가 authoritative imported default preset contained-item membership과 정확히 일치할 때만 usable composed preset image를 사용한다.
+- arbitrary/custom build는 base item image + deterministic installed-part indicators로 표시한다.
+- fallback을 Tarkov client의 완전한 합성 렌더 결과라고 주장하지 않는다.
+
+### Storage mechanics와 visual layout authority 분리
+
+수납 legality는 current validated Game Content가 권위다.
+
+- grid count
+- width / height
+- allowed/excluded filters
+- item dimensions
+- placement legality
+
+다중 grid의 화면상 상대 배치는 별도의 product-owned verified visual metadata가 담당할 수 있다.
+
+Exact placement 조건:
+
+```text
+expected visual metadata grid signature
+(count + each width/height)
+        │
+        ├─ current live grids와 exact match → exact relative placement
+        └─ mismatch / unknown              → finite compact fallback
+```
+
+Stale/unknown coordinates를 actual Tarkov layout이라고 추측하지 않는다. Importer는 `GridLayoutName` / `RigLayoutName` 계열 identity를 `StorageLayoutName`으로 보존한다.
+
 ### 동일 총기 반복 검색 계약
 
-current upstream item feed에는 실제 base weapon과 assembled weapon preset records가 함께 있을 수 있다.
+Upstream item feed에는 base weapon과 assembled weapon preset records가 함께 있을 수 있다.
 
-Canonical Game Content는 이를 임의 병합하지 않는다. Farming Guide의 draggable search surface만 다음 records를 제외한다.
+Canonical Game Content는 이를 임의 병합하지 않는다. Farming Guide draggable search만 다음 record를 제외한다.
 
 - `ItemPropertiesPreset`
 - `preset` type
 
-실제 base weapon과 실제로 서로 다른 Tarkov item variant는 보존한다. 따라서 Glock 등 base weapon의 actual mod slots가 workbench의 authority가 된다.
-
-### Presentation / interaction 계약
-
-- 장비/수납 surface는 text list가 아니라 **아이콘 중심 Tarkov 인벤토리 유사 layout**을 사용한다.
-- equipped item, carrier, storage placement, drag ghost는 실제 item icon으로 표현한다.
-- 회전 상태는 footprint뿐 아니라 icon presentation에도 일관되게 반영한다.
-- 화면 밖으로 clip된 drop target을 geometry fallback으로 선택하지 않는다.
-- valid/invalid hover presentation은 transient하며 pointer가 벗어나면 원복한다.
-- save/search/preset-name 기본 control은 정상 WPF layout에서 text/icon/button clipping이 없어야 한다.
+실제 base weapon과 실제로 다른 Tarkov item variant는 보존한다.
 
 ### 현재 비포함
 
@@ -414,13 +427,13 @@ Canonical Game Content는 이를 임의 병합하지 않는다. Farming Guide의
 - replace 추천
 - Scanner 실시간 recommendation
 - 실제 raid inventory grid 좌표의 지속적인 1:1 동기화
-
-Farming Guide는 향후 recommendation engine의 입력 기반이 될 수 있지만, recommendation-derived truth를 editor의 canonical state와 혼합하지 않는다.
+- 모든 arbitrary assembly의 Tarkov client 동일 composite renderer
 
 제품 결정:
 
 - `docs/DECISION_V1.13.0_FARMING_GUIDE_LOADOUT_EDITOR.md`
 - `docs/DECISION_V1.13.3_FARMING_GUIDE_LIVE_ITEM_INTERACTION.md`
+- `docs/DECISION_V1.14.0_FARMING_GUIDE_ASSEMBLY_AND_AUTHENTIC_LAYOUTS.md`
 
 기술 계약:
 
@@ -438,19 +451,19 @@ schema v1
 Game Content item structure:
 
 ```text
-Content write schema: v9
-Readable Content schemas: v3~v9
+Content write schema: v10
+Readable Content schemas: v3~v10
 ```
 
-v1.13.3의 `ParentInstanceId`는 nullable additive field다. 이전 schema-v1 JSON에서는 missing field가 null root placement로 deserialize되므로 mandatory user-data migration 없이 기존 저장 데이터를 유지한다.
+v1.13.3 `ParentInstanceId`와 v1.14.0 legacy dogtag cleanup/assembly additions는 기존 Farming Guide user-state schema v1 안에서 backward-compatible하게 처리한다. mandatory user-data migration은 없다.
 
-Old readable Content snapshot에 Farming Guide 구조가 없으면 그 구조를 추측해 만들지 않는다.
+Old readable Content snapshot에 새 assembly/layout structure가 없으면 해당 의미를 추측해 만들지 않는다.
 
 ## 16. 진단 / 지원
 
 제품 진단은 사용자가 명시적으로 실행하는 opt-in 경로다.
 
-김태영 PC 진단의 현재 계약:
+김태영 PC 진단 계약:
 
 - 명시적 확인 후 local diagnostic ZIP 생성
 - allowlist 기반 display/GPU/HDR/capture/Scanner evidence
