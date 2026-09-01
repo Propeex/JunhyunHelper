@@ -1,58 +1,50 @@
 # ACTIVE WORK
 
-Status: **ACTIVE**
+Status: **NONE**
 
-## Goal
+## Current task
 
-**v1.16.0 Farming Guide deterministic rulebook / weight / stack quantity / minimap hotkey cleanup**
+None.
 
-## Base
+## Current stable baseline
 
 ```text
-base main: 555c0f841e06c170dd356ea88a11bdcafd6a479b
-public stable: v1.15.5
-branch: feature/v1.16.0-farming-guide-rulebook-weight-stack-2026-09-02
-PR: #273 (Draft)
+public stable: v1.16.0
+exact product source/tag target: f1c00b0ac9ea0b70f81991d30be9a04128253d48
+merge PR: #273
+release id: 380701728
 ```
 
-## Confirmed scope
+## Latest completed work
 
-- Farming Guide 판단을 weighted/scored optimization이 아니라 **제약 → 중요도 → 상황 대처**의 deterministic manual/rulebook로 정비한다.
-- 보호 대상은 **잠긴 아이템 + 예약 칸**만이다. 음식/음료/필수 탄약/필수 탄창을 별도 보호 클래스로 만들지 않는다.
-- Found in Raid가 필요한 아이템만 loot priority 최상위로 취급한다. 비-FIR 필요 아이템은 일반 경제 loot과 동일하게 취급한다.
-- 경제 가치는 **평균 Flea Market 가격**을 기준으로 한다. 공간 부족 시 incoming item과 실제로 희생해야 하는 전체 물품의 결과를 비교한다.
-- 장비 자동 우월 판단은 단순 대표 기준만 사용한다: 방탄복/헬멧=방탄 등급, 헤드셋=청취 성능, 일반 리그/가방/보안 컨테이너=수납 능력, 방탄 리그=방탄 등급 우선 후 동급이면 수납 능력. 총기/권총은 자동 우월 비교하지 않는다. 내구도/실제 총기 조립 상태 등 Scanner가 알 수 없는 정보는 판단하지 않는다.
-- 수납 장비 교체는 좌표가 아니라 **잠긴 item role + reserved-cell shape/capacity**를 새 장비에 승계해야 하며 승계 불가능하면 교체 금지한다.
-- Farming Guide 우측 하단 정보 영역에 무게 기능을 추가한다. 필요한 캐릭터 skill level을 내부 popup에서 입력하고 바깥 클릭으로 닫는다. 별도 저장 버튼은 두지 않는다.
-- ammo/currency처럼 stack quantity가 판단에 필요한 scan은 Mini Scanner Farming Guide 지시 대신 quantity input을 먼저 표시하고 Enter 후 동일 recommendation path를 실행한다.
-- Farming Guide 탭에서도 ammo/currency item double-click으로 quantity를 수정할 수 있고 item에 quantity를 표시한다.
-- quantity는 state/preset/raid transition에서 보존되고 가치·무게·needed count 계산에 반영한다.
-- Mini Scanner quantity 입력 대기 중에는 기존 accept 동작을 실행하지 않으며 새 scan은 이전 quantity pending을 취소한다.
-- Minimap numeric keypad direct-floor hotkeys를 제거하고 hotkey 설정/충돌 점유에서도 해제한다. 기존 위/아래 층 이동 단축키는 유지한다.
+**v1.16.0 Farming Guide deterministic rulebook / weight / stack quantity / MiniMap hotkey cleanup**
 
-## Completed
+Completed scope:
 
-- v1.15.5 stable recovery 완료.
-- 제품 로직/예외 분석 및 사용자 확정 완료.
-- v1.16.0 MINOR 범위 확정.
-- deterministic loot policy, FIR-only priority, Flea-only economics, aggregate-victim comparison 구현.
-- 단순 장비 우월 기준 및 occupied-equipment price fallback 차단 구현.
-- stack quantity state/schema-v3, Scanner quantity input bridge, Farming Guide quantity editing/display 구현.
-- Strength 기반 weight settings/policy/UI 및 final-state weight guard 구현.
-- carrier replacement의 locked-item 이동 허용 + reserved-cell shape 승계 구현.
-- legacy bare NumPad direct-floor hook 제거.
-- Draft PR #273 생성 및 CI 검증 시작.
-- v1.16 핵심 deterministic regression tests 추가/갱신.
+- Farming Guide 판단을 weighted score가 아닌 **제약 → 중요도 → 상황 대처**의 결정적 rulebook으로 정비.
+- 보호 상태를 **잠긴 아이템 + 예약 칸**으로 단순화.
+- Found in Raid가 실제 필요한 아이템만 특별 우선순위 적용.
+- 경제 가치를 평균 Flea Market 가격으로 통일하고, destructive replacement는 실제 희생되는 전체 물품 가치와 비교.
+- 장비별 단순 대표 우월 기준 적용; 총기/권총은 자동 우월 비교하지 않음.
+- storage-bearing equipment 교체 시 locked item과 reserved-cell shape/capacity 승계.
+- stack quantity state/schema v3, Mini Scanner quantity 입력, Farming Guide quantity 표시/수정 지원.
+- Strength 기반 운반 중량 설정/계산 및 final-state weight guard 적용.
+- MiniMap bare NumPad 0~5 직접 층 선택 제거, 기존 사용자 지정 위/아래 층 단축키 유지.
+- v1.16 UI의 `LayoutUpdated` feedback loop를 제거하여 Dispatcher ContextIdle starvation 및 Map smoke 회귀 수정.
 
-## Current step
+## Validation
 
-PR #273 CI compile/test 결과를 확인하면서 remaining compile/runtime contract와 persistence/documentation/version 정합성을 수정한다.
+```text
+validated PR head: bbc8dc25ec35ba24a64df00445b4454bbd7f66d8
+PR CI / Shutdown / Docs:
+33537853686 / 33537853397 / 33537853539 — SUCCESS
 
-## Remaining
+exact-main source:
+f1c00b0ac9ea0b70f81991d30be9a04128253d48
+exact-main CI / Shutdown / Docs:
+33538397901 / 33538397873 / 33538397904 — SUCCESS
+Release workflow: 33538760085 — SUCCESS
+610 passed / 0 failed / 0 skipped
+```
 
-1. PR CI compile/test failure 수정 및 deterministic test pass 확보
-2. schema-v3 persistence tests와 UI/runtime smoke contract 보강
-3. version 1.16.0 / decision / architecture / project-state 문서 정합성 반영
-4. Windows Release build / publish-smoke / shutdown / package 검증
-5. PR final CI / main merge / exact-main 검증
-6. v1.16.0 release/tag/assets 검증 및 ACTIVE_WORK close
+Public v1.16.0 release/tag/assets were verified against the exact product source. Actual user-PC/Tarkov real-play validation remains separately `PENDING` and does not change the public stable identity.

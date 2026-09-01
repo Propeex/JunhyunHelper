@@ -2,188 +2,230 @@
 
 > 새 대화/새 개발자는 `AGENTS.md` → `docs/PROJECT_STATE.json` → `docs/ACTIVE_WORK.md` 순으로 복구한 뒤 이 문서를 읽습니다. 저장소 문서, 실제 코드, 테스트, GitHub 상태가 기준입니다.
 
-기준일: **2026-09-01 KST**  
-상태: **v1.15.5 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+기준일: **2026-09-02 KST**  
+상태: **v1.16.0 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 1. 제품 / 공개 상태
 
-준현 헬퍼는 Escape from Tarkov 플레이를 지원하는 Windows x64 .NET 10 WPF 데스크톱 프로그램이다. 현재 public stable은 **v1.15.5**다.
+준현 헬퍼는 Escape from Tarkov 플레이를 지원하는 Windows x64 .NET 10 WPF 데스크톱 프로그램이다. 현재 public stable은 **v1.16.0**이다.
 
 ```text
 exact product source/tag target:
-62466a957a7e32a623a0ffcfad96bfb16504f823
+f1c00b0ac9ea0b70f81991d30be9a04128253d48
 validated PR head:
-2d9f01da32e3e80860c5a87b2d2e73bc87c31b17
-merge PR: #271
+bbc8dc25ec35ba24a64df00445b4454bbd7f66d8
+merge PR: #273
 PR CI / Shutdown / Docs:
-33516899412 / 33516899393 / 33516899505 — SUCCESS
+33537853686 / 33537853397 / 33537853539 — SUCCESS
 exact-main CI / Shutdown / Docs:
-33520705401 / 33520705533 / 33520705395 — SUCCESS
-Release workflow: 33521076146 — SUCCESS
-release id: 380587916
-published UTC: 2026-09-01T14:42:06Z
-593 passed / 0 failed / 0 skipped
+33538397901 / 33538397873 / 33538397904 — SUCCESS
+Release workflow: 33538760085 — SUCCESS
+release id: 380701728
+published UTC: 2026-09-01T17:37:02Z
+610 passed / 0 failed / 0 skipped
 ```
 
 Public package:
 
 ```text
 Junhyun-Helper.zip
-asset id: 539684740
-bytes: 80,705,841
-SHA-256: 32df6c471cf79349932a83a5d7598fecb8971548e4b38bb7bdab917602898d69
+asset id: 539905673
+bytes: 80,716,585
+SHA-256: db6a769bbe1d0213b7d5e1d59416b230f4c8387554d1d9c9354701c1da56e233
 
 SHA256SUMS.txt
-asset id: 539684739
+asset id: 539905674
 bytes: 86
-asset SHA-256: 683a2374431389efdc7d3176816917ef8ef466c2b493aa9bc78dfd6416be4f98
+asset SHA-256: 2d77327a477ac8df8701517890902622323b5b2d8b8c787de0b85ef8a71cd93f
 ```
 
 Exact-main Actions artifact:
 
 ```text
 name: JunhyunHelper-win-x64
-artifact id: 9805674187
-bytes: 242,052,034
-SHA-256: 6281d8f2ef0f5ab0d0b6414b6cded95852f9006d23806527c8467badb8bfc088
+artifact id: 9812704124
+bytes: 242,082,062
+SHA-256: 328e2d8a30803443d497f1a85a98b56e672cbdcd36e01d6573a13d580cf7fc49
 ```
 
-`/releases/latest`, release target and lightweight `refs/tags/v1.15.5` all resolve to `62466a957a7e32a623a0ffcfad96bfb16504f823`. Documentation-only commits after the release are not v1.15.5 product sources.
+The public `v1.16.0` release targets `f1c00b0ac9ea0b70f81991d30be9a04128253d48`, is `draft=false` and `prerelease=false`. Documentation-only commits after release are not v1.16.0 product sources.
 
-## 2. Farming Guide complete-equipment boundary
+## 2. Farming Guide deterministic rulebook — v1.16.0
 
-The v1.15.2 complete-equipment decision remains current. Weapons, helmets, body armor and other equipment are opaque complete items. Weapon/helmet attachment editing, armor-plate editing and equipment-internal raid targets are not exposed. Legal top-level equipment targets remain available.
-
-## 3. Source-backed nested storage
-
-`FarmingGuideStoredItemState.ParentInstanceId` is the canonical nested-storage address. A stored item supports nested storage when current validated Game Content exposes real `StorageGrids`.
-
-- container names such as Key tool are not product allowlists;
-- source grid dimensions and allowed/excluded filters are authoritative;
-- manual drag/drop, sanitizer and raid planning share storage-filter authority;
-- supported containers may remain nested inside Secure Container or another legal storage surface;
-- arbitrary legal depth uses the parent-instance chain;
-- orphan, duplicate, self-parent, cycle, bad-grid, filter, bounds and overlap failures fail closed;
-- a dedicated positive-allow-list nested grid is evaluated before general root empty space.
-
-### Nested Workbench viewport — v1.15.5
-
-Workbench sizing accounts for rendered grid footprint, header, border/padding, ScrollViewer template chrome and any genuinely required system scrollbar. Horizontal and vertical overflow are solved together. If the complete grid fits the effective center-column viewport, both scroll axes are explicitly disabled and the full grid is visible. Scrolling remains only for genuine physical overflow.
-
-## 4. Preservation-first state-transition planning — v1.15.5
-
-The raid planner now treats the result of a scan as a candidate whole-inventory state rather than assuming displaced equipment disappears.
-
-Governing order:
-
-1. legal empty equipment target;
-2. source-proven equipment upgrade;
-3. direct legal storage;
-4. non-destructive global repacking;
-5. preserve displaced equipment/carriers by legal storage or nesting;
-6. bounded value-aware eviction + repacking when clearly preferable;
-7. discard only when no better legal retained state exists.
-
-### Displaced equipment is loot
-
-When an incoming item replaces an equipped item or carrier, the displaced item becomes a movable loot candidate. The planner attempts to retain it in legal root/nested storage before allowing destruction. This applies to ordinary equipment slots, PrimaryWeapon/Holster, Rig, Backpack and the body-armor + ordinary-rig → armored-rig atomic transition. Secure Container remains conservative under existing compatibility/lock rules.
-
-### Containers remain storage after displacement
-
-A displaced rig/backpack that is nested in another legal surface keeps its own real source-backed grids. Existing items may therefore move into that displaced container within the same ProposedSnapshot, provided filters, parent existence, cycle prevention, locks and reserved-cell constraints remain valid.
-
-### Bounded destructive optimization
-
-Destructive search may evict more than one low-retention leaf when needed for a clearly superior retained state, but remains bounded and deterministic. Locked items/subtrees, populated containers and protected structural state are excluded from automatic victim selection. Candidate eviction prefixes are evaluated by the separate retention policy and the existing non-destructive repacking solver.
-
-## 5. Retention and Needed truth
-
-Geometry/legality does not decide value. `FarmingGuideLootRetentionPolicy` is the policy boundary for retention ranking and destructive eligibility.
-
-Needed acquisition is not a historical accepted-scan counter. Raid-acquired quantity is derived from:
+The raid planner follows a deterministic manual/rulebook rather than a weighted score:
 
 ```text
-current snapshot count(Item ID) - raid baseline snapshot count(Item ID)
+hard constraints
+→ importance / priority
+→ applicable situation response
+→ one legal proposed state
+→ explicit user accept
 ```
 
-The inventory counter recursively covers modeled equipment, carriers, stored items and compatible persisted trees. Therefore an acquired Needed item that is later discarded becomes needed again.
+No speculative future-value score or weighted optimization is part of the product contract.
 
-Known item weight may be policy metadata, but no player-specific live carry threshold is invented. Unsupported live facts such as actual durability, plate condition, partial stack count, hydration/energy and live magazine/chamber state continue to fail conservatively.
+### Hard constraints
 
-## 6. Compact raid instruction presentation — v1.15.5
+- current validated Tarkov placement/filter/conflict/nesting rules;
+- locked items;
+- reserved cells;
+- protected-state migration when replacing storage-bearing equipment;
+- final-state carry-weight rule;
+- explicit transaction/revision boundary.
 
-Presentation is separate from planner state transitions. It consumes the current/proposed snapshot difference and does not alter `Action` or `ProposedSnapshot`.
+Illegal candidates fail closed before priority comparison.
 
-Primary vocabulary:
+## 3. Priority / economics
 
-- `[장비 위치] 장착`
-- `방탄복 교체`
-- `헤드셋 교체`
-- `[장비 위치] 교체`
-- `방탄 리그 전환`
-- `[보관 위치] 보관`
-- `[보관 위치] [기존 아이템] 버리고 보관`
-- `버리기`
+### FIR needed
 
-Same visible storage-area grid/X/Y/rotation rearrangement is silent. Only real cross-area moves/removals are appended as `+ [아이템] 이동 [위치]` or `+ [아이템] 버리기`; multiple operations use comma separation.
+Only an item whose requirement specifically needs **Found in Raid** receives special needed priority. Non-FIR needed items remain ordinary economic loot because they can be acquired through money.
 
-## 7. Lock / safety contracts
+### Economic value
 
-- ordinary unlocked stored item: neutral border;
-- `F`-locked stored item: accent/yellow border;
-- reserved empty cells and equipment/carrier locks remain authoritative;
-- locked ancestors/subtrees are preserved;
-- populated nested containers are not destructively replaced based only on parent standalone value;
-- explicit recommendation acceptance remains the transaction boundary;
-- source-backed equipment superiority rules and dedicated-container preference remain current.
+Farming Guide economic value uses **average Flea Market price**. Trader price is not mixed into the Farming Guide importance rule.
 
-## 8. Schema / compatibility
+When space requires destructive replacement, the incoming item's total value is compared with the total value of the actual sacrificed item set. Universal item-to-item ₽/slot ordering is not the decisive rule.
+
+### Quantity-dependent items
+
+Quantity-dependent items use the user-entered quantity for:
+
+- total economic value;
+- current-needed quantity accounting;
+- total modeled weight.
+
+## 4. Equipment superiority
+
+Automatic replacement uses simple representative criteria and does not infer hidden instance facts.
+
+- body armor / helmet: armor class;
+- headset: hearing distance;
+- ordinary rig / backpack / secure container: storage capacity;
+- armored rig: armor class first; storage capacity only when armor class is equal;
+- weapon / pistol: no automatic superiority replacement.
+
+Durability, remaining uses and actual firearm assembly state are not inferred from item identity.
+
+## 5. Protected state / carrier migration
+
+Protected state consists only of:
+
+1. locked items;
+2. reserved cells.
+
+When a storage-bearing equipment item is replaced:
+
+- locked item instances must survive;
+- legal relocation is allowed;
+- reserved empty space is migrated by connected shape/capacity rather than fixed coordinates;
+- the replacement is forbidden if equivalent protected state cannot be represented legally.
+
+Nested storage continues to use current source-backed `StorageGrids`, filters and `ParentInstanceId` graph rules. Cycles, overlap, invalid parents and illegal filter placements fail closed.
+
+## 6. Stack quantity state / UI
+
+Farming Guide state schema is **v3**.
+
+- Mini Scanner requests quantity before Farming Guide recommendation for authoritative quantity-dependent item types.
+- Enter commits the quantity into the same recommendation path.
+- a new scan cancels stale pending quantity input;
+- stored stack quantity persists in state/presets;
+- stack count is displayed on Farming Guide item cards;
+- double-click opens quantity editing;
+- quantity changes participate in value, weight and needed counting.
+
+## 7. Strength / weight rule
+
+Strength level is stored per Farming Guide profile. The footer displays current modeled weight and the Strength-derived carry limit.
+
+The current v1.16 product rule uses the Tarkov mechanics recorded in the release decision/docs: base maximum carry weight 77 kg, +0.6% per Strength level, Elite approximately 100 kg, with Elite weapon-slot weight exclusion according to the implemented policy.
+
+Final proposed state must be within the calculated limit. If the user's reflected current state is already above the limit, recommendations may only preserve or reduce weight until the modeled state returns within limit.
+
+## 8. MiniMap hotkey cleanup
+
+Bare NumPad 0–5 no longer map to direct floor selection. Existing configurable floor-up/floor-down hotkeys remain available.
+
+The donor-compatible global keyboard hook lifecycle remains intact; only the direct NumPad floor-index mapping is disabled.
+
+## 9. Runtime stability correction discovered during v1.16 validation
+
+The first v1.16 release candidate introduced a WPF `LayoutUpdated` feedback loop:
+
+- weight button content was reassigned on every layout cycle;
+- quantity badge text could likewise be reassigned even when unchanged;
+- those writes generated further layout work;
+- Dispatcher `ContextIdle` callbacks were starved;
+- Map extract runtime smoke evidence never started even while the process remained responsive.
+
+The presentation refresh is now idempotent: rendered values are assigned only when they actually differ. Final PR and exact-main published-EXE smoke both pass, which also verifies the Map/Factory/MiniMap runtime evidence path is no longer starved.
+
+## 10. Complete-equipment / storage boundary retained
+
+Weapons, helmets, body armor and other equipment remain opaque complete items. Weapon/helmet attachment editing and armor-plate editing are not exposed in Farming Guide.
+
+Source-backed nested storage remains authoritative:
+
+- real `StorageGrids` determine whether a stored item exposes internal storage;
+- source dimensions and allowed/excluded filters are authoritative;
+- dedicated positive-allow-list nested storage is preferred before general root storage;
+- legal recursive nesting is supported;
+- displaced storage-bearing equipment may remain a storage surface inside the same proposed snapshot when legally retained;
+- nested Workbench viewport fit keeps the v1.15.5 clipping fix.
+
+## 11. Transaction / state truth contracts
+
+- Scanner owns confirmed item identity and scanned price/needed facts; Farming Guide owns final store/equip/replace/discard recommendation.
+- user-reflected modeled state is treated as current truth;
+- recommendations are revision-bound;
+- explicit user accept is the only commit boundary;
+- a new scan rejects an unaccepted pending recommendation without mutating the committed state;
+- manual Farming Guide edits invalidate stale pending recommendations.
+
+## 12. Schema / compatibility
 
 ```text
-Desktop: 1.15.5
-Public stable: 1.15.5
+Desktop: 1.16.0
+Public stable: 1.16.0
 Content write: v11
 Content readable: v3-v11
 user.db: v1
-Farming Guide state: v2 (reads v1-v2)
+Farming Guide state: v3
 Scanner display settings: v10
 Scanner catalog write/read: v4 / v1-v4
 ```
 
-## 9. Verification evidence
+## 13. Verification evidence
 
-The immutable product source `62466a957a7e32a623a0ffcfad96bfb16504f823` passed:
+The immutable product source `f1c00b0ac9ea0b70f81991d30be9a04128253d48` passed:
 
 - Windows Release/XAML desktop build;
-- 593 deterministic tests with zero failure/skip;
+- 610 deterministic tests with zero failure/skip;
 - self-contained win-x64 publish;
 - actual published EXE Product UI / Map / Farming Guide runtime smoke;
-- 4x4 Key-tool-like nested Workbench dual-axis fit regression smoke;
-- compact Farming Guide instruction regression smoke;
-- displaced equipment/carrier preservation and nested-repacking transition smoke;
-- Needed baseline-vs-current counting tests;
-- bounded retention/destructive-policy tests;
+- Map extract and MiniMap lifecycle evidence;
+- stack quantity / persistence / rulebook regressions;
+- Strength/weight policy regressions;
+- protected carrier-role migration regressions;
 - graceful shutdown and active-async Shutdown Race;
 - release package/checksum verification;
 - exact-main Documentation Consistency;
 - automated Release workflow;
-- public tag/release/latest/asset digest readback.
+- public tag/release/asset digest readback.
 
-## 10. Canonical references
+## 14. Canonical references
 
 - `docs/PROJECT_STATE.json`
+- `docs/ACTIVE_WORK.md`
+- `docs/CURRENT_STATE.md`
 - `docs/PRODUCT.md`
 - `docs/DECISIONS.md`
-- `docs/DECISION_V1.15.2_COMPLETE_EQUIPMENT_MODEL.md`
-- `docs/DECISION_V1.15.3_SPECIALIZED_NESTED_STORAGE.md`
-- `docs/DECISION_V1.15.4_FARMING_GUIDE_REPACKING_EQUIPMENT_UPGRADES.md`
-- `docs/DECISION_V1.15.5_FARMING_GUIDE_PRESENTATION_VIEWPORT.md`
-- `docs/DECISION_V1.15.5_FARMING_GUIDE_STATE_TRANSITION_PLANNER.md`
-- `docs/RELEASE_1.15.5.md`
-- `docs/RELEASE_NOTES_V1.15.5.md`
-- `docs/.release-v1.15.5-status.json`
+- `docs/DECISION_FARMING_GUIDE_RULEBOOK_V1_16.md`
+- `docs/RELEASE_NOTES_V1.16.0.md`
+- `docs/.release-v1.16.0-status.json`
 - `docs/ARCHITECTURE_FARMING_GUIDE.md`
 
-## 11. External evidence still pending
+## 15. External evidence still pending
 
-Automated release validation is complete. Separate actual-PC/Tarkov real-play validation remains open and does not change the verified public release identity.
+Automated release validation is complete. Separate actual-PC/Tarkov real-play validation remains `PENDING` and does not change the verified public release identity.
