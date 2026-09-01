@@ -114,7 +114,7 @@ public partial class FarmingGuidePage
             return;
         }
 
-        var recommendation = PlanScannedItem(scanned, item);
+        var recommendation = PlanScannedItemHardened(scanned, item);
         _raidSession.SetPending(
             scanned.ItemId,
             recommendation.Instruction,
