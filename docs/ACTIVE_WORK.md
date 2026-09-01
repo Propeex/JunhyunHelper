@@ -78,15 +78,18 @@ Canonical correction decision:
 - latest observed Shutdown Race CI passed on the implementation checkpoint
 - bumped Desktop/Product candidate version to 1.15.1 while keeping publicStable authority at v1.15.0 until exact-main publication
 - updated FIRST_RUN_KO.txt and added docs/RELEASE_NOTES_V1.15.1.md
+- analyzed the first full deterministic run: 556 passed / 2 failed / 0 skipped; both failures were stale v1.15.0 source-contract assertions rather than runtime/test failures
+- rewrote those two maintenance contracts to assert the v1.15.1 carrier-lock and silent pending-invalidation behavior instead of deleting coverage
 
 ## Current step
 
-The v1.15.1 release-candidate metadata is now staged. Wait only on the newly triggered PR checks for the current branch HEAD; inspect any build/test failure immediately. Once green, mark PR #258 ready and merge, then verify exact-main CI and the automatic Release workflow before closing project memory.
+Final PR validation is rerunning from the contract-test correction. Require a clean deterministic suite plus Release build, published EXE/UI/graceful-shutdown smoke and package verification before PR #258 leaves draft state.
 
 ## Remaining
 
 - obtain green PR CI / Shutdown Race CI / Documentation Consistency on the final candidate HEAD
-- record exact deterministic test count and published WPF/EXE/package smoke result from CI
+- confirm expected deterministic result: 558 passed / 0 failed / 0 skipped
+- record published WPF/EXE/package smoke result from CI
 - mark PR #258 ready and merge
 - verify exact-main CI and Shutdown Race / Documentation Consistency on merged main
 - verify automatic v1.15.1 release workflow, public tag/release/latest status, assets and checksums
