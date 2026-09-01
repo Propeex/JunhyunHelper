@@ -3,7 +3,7 @@
 이 문서는 준현 헬퍼의 **무엇을 만들고 왜 만드는지**를 정의하는 canonical 제품 요구사항이다. 사용자가 현재 대화에서 새로 확정한 제품 의도가 기존 구현보다 우선한다. 현재 코드가 존재한다는 이유만으로 그 동작을 제품 요구사항으로 추정하지 않는다.
 
 기준일: **2026-09-01 KST**  
-상태: **v1.15.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+상태: **v1.15.2 RELEASE CANDIDATE / v1.15.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 정확한 release SHA/asset/CI와 schema 사실값은 `docs/PROJECT_STATE.json`, 공개 상태는 `docs/CURRENT_STATE.md` / `docs/STATE.md`를 사용한다.
 
@@ -40,7 +40,7 @@
 - Program Update는 latest public stable GitHub release를 기준으로 사용자 동의 후 수행
 - public stable source/tag/assets는 immutable historical identity
 
-Current public stable은 **v1.15.1**이며 exact product source는 `821def285e2b4964242b50981f6ba6245e996057`이다. 이후 documentation-only main commit은 이 release의 product source를 대체하지 않는다.
+Current public stable은 **v1.15.1**이며 exact product source는 `821def285e2b4964242b50981f6ba6245e996057`이다. v1.15.2는 검증/배포가 완료될 때까지 이 공개 authority를 대체하지 않는다.
 
 ## 3. 데이터 authority
 
@@ -49,7 +49,8 @@ Current public stable은 **v1.15.1**이며 exact product source는 `821def285e2b
 Remote Tarkov source를 import/검증해 만든 canonical snapshot이다.
 
 - Quest / Hideout / Item / Ammo 등 게임 기준 데이터
-- Farming Guide item dimensions, grids, filters, `specialSlot` classification, equipment/attachment/armor slots, conflicts, preset/layout source data
+- Farming Guide item dimensions, grids, filters, `specialSlot` classification, equipment compatibility, conflicts, preset/layout source data
+- source attachment/armor/default-preset metadata는 content evidence로 보존할 수 있지만 v1.15.2 Farming Guide는 equipment-internal user state를 만들지 않는다.
 - candidate가 validation/completeness/integrity를 통과해야 active가 됨
 - Last Known Good 보존
 
@@ -140,168 +141,161 @@ Mini Scanner는 Farming Guide의 **지속 지시 presentation surface**이기도
 
 ## 8. Farming Guide
 
-Farming Guide는 Scanner 오른쪽의 first-class section이며 두 역할을 가진다.
+Farming Guide는 두 역할을 가진다.
 
-1. **Loadout / Inventory Editor** — 레이드 시작 상태와 프리셋을 구성한다.
-2. **Live Raid Farming Advisor** — 레이드 중 Scanner가 확인한 아이템을 현재 raid-session 상태와 비교해 보관/교체/버리기/장착 판단을 제안한다.
+1. **Loadout / Inventory Editor** — 레이드 시작 시점의 완제품 장비와 수납 상태/프리셋을 구성한다.
+2. **Live Raid Farming Advisor** — Scanner가 확인한 아이템을 현재 raid-session 상태와 비교해 보관/교체/버리기/최상위 장비 칸 장착을 제안한다.
 
-실제 게임 inventory를 화면 좌표까지 자동 mirror하거나 게임 입력을 대신하지 않는다.
+실제 게임 inventory를 자동 mirror하거나 게임 입력을 대신하지 않는다. 특히 레이드 중 주운 총기·헬멧·방탄복의 알 수 없는 내부 부품 상태를 추측하지 않는다.
 
-### Equipment / storage
+### Complete equipment contract — v1.15.2+
+
+장비는 **opaque complete item 하나**로 처리한다.
+
+- 총기 attachment/mod 편집 UI 없음
+- 헬멧 attachment 편집 UI 없음
+- body armor / armored rig armor-plate 편집 UI 없음
+- recursive assembly navigation / compatible-part picker 없음
+- equipment-internal drag/drop target 없음
+- raid advisor가 equipment-internal Equip / ReplaceEquip을 만들지 않음
+- 저장된 legacy `Attachments` / `ArmorPlates`는 schema read compatibility를 위해 읽을 수 있지만 current Farming Guide runtime에서는 root Item ID만 남기고 폐기한다.
+
+Source Game Content의 assembly/default-preset metadata는 **완제품 source image 선택 같은 read-only evidence**에만 사용할 수 있다. 사용자가 관리해야 할 실제 raid equipment state로 승격하지 않는다.
+
+### Top-level equipment
+
+다음 top-level target은 계속 완제품 단위로 장착/교체할 수 있다.
+
+- Headset
+- Helmet
+- Face Cover
+- Armband
+- Body Armor
+- Eyewear
+- Primary Weapon 1 / 2
+- Holster / Pistol
+- Rig
+- Backpack
+- Secure Container
+- fixed Melee / Dogtag setup
+
+레이드 지시는 `[장비 칸]에 장착`, `[장비 칸]의 [기존 장비]와 교체`까지 허용한다. `총구/조준경/방탄판에 장착` 같은 내부 지시는 허용하지 않는다.
+
+### Storage mechanics
 
 - ordinary storage에서는 current Tarkov item `width × height` 사용
-- equipment surfaces for actionable raid-start gear
 - Pocket / Rig / Backpack / Secure Container / Special Slots
 - drag 중 `R` rotation
 - bounded grid snap
 - bounds / overlap / contiguous-space / current filter 검증
-- current validated Game Content의 storage grids, equipment/attachment/armor slots, conflicts 사용
 - profile edition/progress 기반 standard/expanded pocket geometry
-- contents가 있는 carrier의 destructive replacement fail closed
+- contents가 있는 root carrier의 destructive replacement fail closed
 - pistol/holster는 화면상 Eyewear 아래에 표시
 - storage hint는 `R: 회전 · F: 아이템/장비/빈 칸 잠금`
 
 Secure Container는 explicit secure/pouch semantics를 우선하고 generic case/container와 구분한다.
 
-### Special Slots
-
-Special Slots는 일반 1×1 inventory grid가 아니다.
-
-- 호환성 authority는 current Game Content의 canonical `specialSlot` classification이다.
-- `specialSlot`이 아닌 일반 아이템은 Special Slot에 들어갈 수 없다.
-- 호환 아이템은 일반 인벤토리 footprint와 무관하게 Special Slot **1칸**을 사용한다.
-- 같은 아이템이 일반 storage에 있을 때는 원래 width × height를 사용한다.
-- sanitizer, manual drag/drop, rendering, collision, summary, raid advisor가 동일 policy를 사용한다.
-- Special Slot에 들어간 carrier의 내부 ordinary storage까지 special footprint가 되는 것은 아니다.
-
 ### Nested storage
 
-`FarmingGuideStoredItemState.ParentInstanceId`가 특정 stored carrier 내부 placement를 표현한다.
+`FarmingGuideStoredItemState.ParentInstanceId`가 nested placement를 표현한다.
 
-- root는 null parent
-- orphan/duplicate/self/cycle/invalid grid/filter/bounds/overlap fail closed
+사용자가 **상세 내부 화면으로 열 수 있는 stored item은 Backpack 또는 Rig뿐**이다.
+
+- 가방 안 가방 허용
+- 가방/허용 storage 안 리그 허용
+- 실제 source-backed storage grids와 filters를 사용
+- 내부 grid에도 normal drag/drop 가능
+- nested backpack/rig 안에 다시 허용된 nested backpack/rig를 둘 수 있음
+- root Rig / Backpack / Secure Container의 storage는 별도 상세창이 아니라 메인 Farming Guide storage surface에 표시
+- generic case/container나 일반 장비의 내부 detail surface는 현재 제품에서 제공하지 않음
+- orphan/duplicate/self/cycle/invalid grid/filter/bounds/overlap state fail closed
 - carrier 이동 시 descendant parent chain 유지
 - destructive removal은 subtree 제거
 - 자신/descendant 안으로 이동 금지
 
-### Workbench / recursive assembly
+Nested storage detail은 전체 center column을 가리는 고정 overlay가 아니다. 렌더링된 grid footprint + 제목/닫기 chrome에 맞춰 compact size를 계산하고 viewport를 넘지 않도록 제한한다. 메인 storage surface는 뒤에서 계속 보인다.
 
-별도 generic item information/configuration OS Window는 editing authority가 아니다. 같은 Farming Guide page의 workbench를 사용한다.
+### Special Slots
 
-- stored bag/rig/carrier → 실제 내부 grid
-- weapon → actual mod/attachment slots
-- helmet/body armor → actionable attachment/replaceable armor slots
-- installed child attachment의 하위 slots까지 재귀 navigation
-- 빈 actionable slot single-click → 같은 page의 compatible-item icon picker
-- picker 선택, search drag/drop, raid equip planning은 동일 Core compatibility/conflict authority 사용
-- occupied one-item slot silent overwrite 금지
-- required-slot/conflict validation은 assembly tree 전체에 적용
-- persisted impossible assembly는 fail closed sanitization
-- source/internal `mod_*` 등의 identifier는 내부 identity로 유지하되 알려진 의미는 사용자에게 한국어 label로 표시
+- 호환성 authority는 current Game Content의 canonical `specialSlot` classification이다.
+- `specialSlot`이 아닌 일반 아이템은 Special Slot에 들어갈 수 없다.
+- 호환 아이템은 일반 인벤토리 footprint와 무관하게 Special Slot 정확히 1칸을 사용한다.
+- 같은 아이템이 ordinary storage에 있을 때는 원래 width × height를 사용한다.
+- sanitizer, manual drag/drop, rendering, collision, summary, raid advisor가 동일 policy를 사용한다.
 
-### Weapon search / image presentation
+### Complete-item imagery
 
-- Farming Guide draggable search에서는 assembled `ItemPropertiesPreset` / `preset` records를 제외하고 canonical base weapon을 사용
-- current assembly contained-item signature와 authoritative source-backed preset/composed image signature가 정확히 일치할 때만 해당 composed image 사용
-- 정확한 source match가 없으면 base item + installed-part 기반의 안전한 fallback을 유지
-- 임의 합성으로 Tarkov 실제 외형과 일치한다고 주장하지 않음
+Farming Guide는 임의 조립 이미지를 만들지 않는다.
+
+이미지 우선순위:
+
+1. canonical base item에 authoritative `DefaultPresetItemId`가 있고 해당 preset에 source image가 있으면 그 완제품 image
+2. item 자체의 source-backed `Image512Url` / `GridImageUrl`
+3. canonical item icon
+
+총기/장비 card는 기존의 큰 내부 여백을 줄여 aspect ratio를 유지하면서 equipment slot을 더 크게 채운다.
 
 ### Storage visual layout authority
 
-Storage **mechanics**와 화면상 **visual arrangement**를 분리한다.
+Storage mechanics와 화면상 visual arrangement를 분리한다. Product-owned exact visual metadata는 mechanics를 바꿀 수 없다.
 
-Mechanics authority:
-
-- current validated Game Content grid count / width / height
-- filters
-- item dimensions
-- special-slot classification
-- actual placement legality
-
-Product-owned exact visual metadata는 mechanics를 바꿀 수 없다.
-
-Exact multi-grid coordinates는 verified profile의 layout identity, grid count와 **각 grid index의 expected width/height가 current live grids와 정확히 일치할 때만** 사용한다. 하나라도 다르면 finite compact visual fallback을 사용한다. Non-overlap은 추가 corruption guard다.
+Exact multi-grid coordinates는 verified profile의 layout identity, grid count와 각 grid index의 expected width/height가 current grids와 정확히 일치할 때만 사용한다. 하나라도 다르면 finite compact visual fallback을 사용한다.
 
 ### Raid session lifecycle
 
 - `레이드 시작`은 현재 working/preset snapshot과 lock state를 immutable baseline으로 잡고 별도 raid-session을 연다.
 - 레이드 중 수동 drag/drop, 장비/보관 상태 변경, lock 변경은 즉시 새로운 session revision이 된다.
 - `레이드 종료`는 session 변경을 폐기하고 raid-start baseline snapshot/locks로 복원한다.
-- 레이드 중 변경은 명시적인 preset/working-state 저장으로 취급하지 않는다.
-- preset 선택/삭제 같은 raid-start configuration 변경은 raid 중 차단한다.
+- 레이드 중 변경은 preset/working-state 영구 저장으로 취급하지 않는다.
 
 ### Lock contract
 
-사용자는 hover + `F`로 자동 의사결정이 건드리면 안 되는 target/capacity를 lock/unlock한다. Locks는 automation constraint이며 direct edit permission이 아니다.
+Locks는 automation constraint이며 direct edit permission이 아니다.
 
-- stored item lock: 해당 item instance를 자동 removal/replacement 대상으로 사용하지 않는다.
-- 같은 locked item을 이동하면 instance lock은 유지한다.
-- equipment/carrier lock: 현재 장착된 target 자체를 자동 removal/replacement하지 않는다.
-- locked target이 직접 조작 또는 accepted recommendation으로 제거/교체되면 그 target lock도 사라진다.
-- Rig / Backpack / Secure Container carrier lock은 **carrier 자체**를 보호하지만 그 내부 ordinary storage를 자동 배치 후보에서 제외하지 않는다.
-- item lock도 nested carrier 내부 storage 전체를 자동으로 봉쇄하지 않는다.
-- empty grid cell lock: 특정 target과 무관한 독립 1-cell reservation이며 사용자가 unlock할 때까지 유지한다. 대표 목적은 재장전 시 탄창을 넣을 빈 공간 확보다.
-- equipment-slot lock은 같은 automation constraint authority를 사용한다.
-- 사용자의 직접 편집은 lock보다 우선하며, 직접 변경이 일어나면 이전 pending instruction은 stale이다.
-- F lock toggle은 전체 page rebuild를 의도하지 않으며, full rerender가 발생해도 유효한 lock highlight를 다시 적용한다.
+- stored item lock은 해당 item instance의 자동 removal/replacement를 막는다.
+- equipment/carrier lock은 현재 장착된 target 자체의 자동 removal/replacement를 막는다.
+- locked target이 제거/교체되면 해당 target lock도 사라진다.
+- locked Rig / Backpack / Secure Container 내부 ordinary storage는 여전히 자동 수납 후보가 될 수 있다.
+- empty-cell lock은 독립적인 1-cell reservation이며 사용자가 unlock할 때까지 유지한다.
+- direct user edit는 lock보다 우선하고, direct state change는 pending advice를 stale 처리한다.
 
 ### Scanner-driven instruction / explicit acceptance
 
 ```text
 confirmed Scanner Item ID + scanner-owned price/needed facts
-→ current raid-session snapshot + locks
-→ Store / Replace / Discard / Equip / ReplaceEquip proposal
+→ current raid-session complete-equipment/storage snapshot + locks
+→ Store / Replace / Discard / top-level Equip / ReplaceEquip proposal
 → one revision-bound pending instruction
-→ Mini Scanner persistent action text
+→ Mini Scanner action text
 → explicit accept hotkey
 → revision-checked commit
 ```
 
-- pending instruction은 동시에 하나만 유지한다.
-- acceptance 전에는 Farming Guide raid-session state를 바꾸지 않는다.
-- pending이 생성된 session revision과 현재 revision이 다르면 적용하지 않는다.
-- **새 Scanner item이 확인되면 이전 미수락 pending은 state mutation 없이 폐기하고 새 item을 현재 unchanged raid state에서 다시 계산한다.** 따라서 이전 지시를 먼저 수락하도록 요구하지 않는다.
-- 사용자가 수동으로 inventory/equipment/lock을 바꾸면 pending을 즉시 무효화하고 Mini Scanner의 지속 지시를 조용히 제거한다. 별도 취소 문구는 표시하지 않는다.
-- acceptance 성공 후 feedback은 `반영 완료`다.
-- incoming scanned item name은 Mini Scanner의 다른 field에서 이미 표시되므로 Farming Guide action text에서 반복하지 않는다.
-- 같은 Item ID도 Scanner가 비-item 상태를 거친 뒤 다시 확인하면 새 scan event로 처리할 수 있다.
-- 검색 결과 item hover + `T`는 실제 Scanner와 동일한 snapshot/decision 경로를 사용하는 simulated scan이다.
-- T test presentation은 bounded lifetime 후 사라지며, 늦게 도착한 test cleanup이 더 새로운 real Scanner presentation을 숨길 수 없다.
+- 새 scan은 이전 미수락 pending을 state mutation 없이 폐기하고 unchanged current raid state에서 다시 계산한다.
+- 수동 inventory/equipment/lock 변경은 pending을 조용히 무효화한다.
+- acceptance 성공 feedback은 `반영 완료`다.
+- scanned item name은 action text에서 반복하지 않는다.
+- T simulated scan은 같은 decision path를 사용하되 bounded lifetime 후 사라진다.
 
 Current action wording:
 
 - Store: `[보관할 장소]에 보관`
 - Replace stored: `[보관할 장소]의 [기존 아이템]과 교체`
 - Discard: `버리기`
-- Equip: `[장착할 장소]에 장착`
-- Replace equipped/attached: `[장착할 장소]의 [기존 아이템]과 교체`
+- top-level Equip: `[장착할 장비 칸]에 장착`
+- top-level ReplaceEquip: `[장착할 장비 칸]의 [기존 장비]와 교체`
 - accepted feedback: `반영 완료`
 
-### Equip / ReplaceEquip targets
+Accepted Store / Replace / top-level Equip / ReplaceEquip은 session-local acquired count에 반영되어 이후 Needed priority에서 남은 수량을 줄이지만 authoritative profile inventory를 직접 바꾸지 않는다.
 
-Raid advisor는 ordinary storage뿐 아니라 합법적인 장착 위치를 함께 평가한다.
+### Loot priority boundary
 
-- PMC equipment slots
-- Rig / Backpack / Secure Container carrier equipment slots
-- recursive weapon/helmet attachment slots
-- replaceable armor-plate slots
+1. 현재 필요한 수량이 남은 item 우선
+2. 같은 필요 여부에서는 `max(trader sell, flea average, 0) / ordinary slots` 우선
+3. 같은 칸당 가치에서는 total effective value 우선
+4. 마지막 동률이면 작은 ordinary footprint 우선
 
-빈 target이 합법적이면 Equip을 제안할 수 있다. 빈 target이 없을 때는 current compatibility/conflict/lock rules를 만족하고 incoming item이 기존 item보다 현재 loot priority상 우수한 경우 ReplaceEquip을 제안할 수 있다.
-
-Accepted Store / Replace / Equip / ReplaceEquip은 모두 session-local acquired count에 반영되어 이후 Needed priority를 계산할 때 남은 수량을 줄인다. 이는 authoritative profile inventory를 직접 변경하지 않는다.
-
-### Current loot priority boundary
-
-현재 정책은 placement mechanics와 분리된 `FarmingGuideLootPriorityPolicy`가 소유한다.
-
-1. 현재 필요한 수량이 남아 있는 item을 필요하지 않은 item보다 우선한다.
-2. 필요 여부가 같으면 trader/flea 중 높은 유효 가치의 **ordinary 칸당 가치**를 우선한다.
-3. 칸당 가치가 같으면 총 유효 가치를 우선한다.
-4. 마지막 동률이면 더 작은 ordinary footprint를 우선한다.
-
-`EffectiveValue = max(TraderSellPrice, FleaAveragePrice, 0)`.
-
-합법적인 빈 placement를 destructive replacement보다 우선한다. Special Slot의 1칸 점유는 placement context의 mechanic이며 item의 일반 footprint/value-per-slot truth를 전역으로 바꾸지 않는다.
+합법적인 빈 placement를 destructive replacement보다 우선한다.
 
 ### Persistence / non-goals
 
@@ -310,15 +304,19 @@ Accepted Store / Replace / Equip / ReplaceEquip은 모두 session-local acquired
 schema v2
 ```
 
-schema v2는 working/preset lock state를 저장하며 기존 v1 파일을 읽어 empty-lock 상태로 migration한다.
+schema v2는 그대로 유지한다. v1.15.2는 schema bump 대신 legacy equipment assembly fields를 current runtime에서 root-only state로 정규화한다.
 
 현재 Farming Guide 비포함:
 
 - game memory 기반 live inventory read
 - 게임 입력 자동화/자동 loot
 - 화면상의 실제 inventory 좌표를 지속적으로 1:1 추적하는 mirror
+- unknown equipment internals inference
+- weapon/helmet/armor modification editor
 - user acceptance 없이 자동 상태 변경
 - extraction probability 기반 탈출 지시
+
+Canonical v1.15.2 correction: `docs/DECISION_V1.15.2_COMPLETE_EQUIPMENT_MODEL.md`.
 
 ## 9. Diagnostics
 
@@ -335,7 +333,7 @@ schema v2는 working/preset lock state를 저장하며 기존 v1 파일을 읽�
 ## 11. Schema / compatibility
 
 ```text
-Desktop: 1.15.1
+Desktop candidate: 1.15.2
 Public stable: 1.15.1
 Content write: v10
 Content readable: v3-v10
@@ -345,7 +343,7 @@ Scanner display settings: v10
 Scanner catalog write/read: v4 / v1-v4
 ```
 
-v1.15.1은 v1.15.0과 동일한 Farming Guide state v2 / Scanner settings v10 / Game Content v10 schema를 유지한다. 별도의 사용자 데이터 migration은 필요하지 않으며 기존 additive migration과 readable compatibility를 보존한다.
+v1.15.2는 schema를 올리지 않는다. 기존 Farming Guide v2 파일의 equipment-internal assembly data는 읽을 수 있지만 complete-equipment runtime에서는 root-only equipment state로 정리한다. 사용자 프리셋 이름, top-level equipment, storage placement, nested backpack/rig placement와 locks는 보존한다.
 
 ## 12. Release quality gate
 
@@ -366,6 +364,6 @@ v1.15.1은 v1.15.0과 동일한 Farming Guide state v2 / Scanner settings v10 / 
 
 ## 13. 유지보수 방향
 
-현재 public 제품은 product-complete maintenance mode다. v1.15.0은 사용자가 명시적으로 확정한 Farming Guide MINOR 기능 확장이었고, v1.15.1은 그 첫 실사용 PATCH correction이다.
+현재 public 제품은 product-complete maintenance mode다. v1.15.0은 Farming Guide MINOR 기능 확장이었고 v1.15.1/v1.15.2는 실제 사용 흐름에 맞게 이를 보수하는 PATCH correction이다.
 
 기본 우선순위는 실사용 오류, Tarkov 변화 대응, 안정성/신뢰성, 성능, regression coverage, bounded technical debt cleanup 순이다. 추가 새 기능이나 UX 변경은 사용자의 명시적인 제품 요구사항이 있을 때만 설계한다.

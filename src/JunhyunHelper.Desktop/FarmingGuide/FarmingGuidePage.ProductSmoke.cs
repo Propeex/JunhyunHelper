@@ -30,18 +30,18 @@ public partial class FarmingGuidePage
         _productSmokeRunning = true;
         try
         {
-            VerifyLiveInventoryWorkbenchSmoke();
+            VerifyCompleteEquipmentAndNestedStorageSmoke();
             VerifyExactStorageVisualLayoutSmoke();
             var marker = Path.Combine(
                 Path.GetTempPath(),
-                "junhyun-farming-guide-v113-smoke-success.txt");
+                "junhyun-farming-guide-v1152-smoke-success.txt");
             File.WriteAllLines(marker,
             [
-                "live-storage-grid=ok",
+                "nested-storage-grid=ok",
+                "nested-storage-compact-host=ok",
                 "nested-parent-drop=ok",
-                "attachment-slot-drag-drop=ok",
-                "occupied-slot-overwrite-blocked=ok",
-                "attachment-drag-out=ok",
+                "equipment-internal-editor-disabled=ok",
+                "root-carrier-duplicate-editor-disabled=ok",
                 "exact-storage-layout=ok",
             ]);
             _productSmokeCompleted = true;
@@ -51,7 +51,7 @@ public partial class FarmingGuidePage
             var diagnostic = Path.Combine(Path.GetTempPath(), "junhyun-map-smoke-error.txt");
             File.WriteAllText(
                 diagnostic,
-                "Farming Guide live workbench smoke failed." + Environment.NewLine + exception);
+                "Farming Guide complete-equipment/nested-storage smoke failed." + Environment.NewLine + exception);
             throw;
         }
         finally
@@ -60,20 +60,19 @@ public partial class FarmingGuidePage
         }
     }
 
-    private void VerifyLiveInventoryWorkbenchSmoke()
+    private void VerifyCompleteEquipmentAndNestedStorageSmoke()
     {
         const string bagId = "__junhyun_smoke_nested_bag";
         const string lootId = "__junhyun_smoke_loot";
         const string weaponId = "__junhyun_smoke_weapon";
-        const string modId = "__junhyun_smoke_mod";
         const string parentInstanceId = "__junhyun_smoke_parent_instance";
-        const string modSlotId = "__junhyun_smoke_mod_slot";
 
-        var ids = new[] { bagId, lootId, weaponId, modId };
+        var ids = new[] { bagId, lootId, weaponId };
         var previous = ids.ToDictionary(
             id => id,
             id => _itemsById.TryGetValue(id, out var item) ? item : null,
             StringComparer.Ordinal);
+        var previousWeapon = Equipment.GetValueOrDefault(FarmingGuideEquipmentSlot.PrimaryWeapon1);
 
         var bag = SmokeItem(bagId) with
         {
@@ -88,8 +87,6 @@ public partial class FarmingGuidePage
                 false),
         };
         var loot = SmokeItem(lootId);
-        var mod = SmokeItem(modId);
-        var attachmentFilter = new FarmingGuideItemFilter([], [modId], [], []);
         var weapon = SmokeItem(weaponId) with
         {
             FarmingGuideData = new FarmingGuideItemLayout(
@@ -97,11 +94,11 @@ public partial class FarmingGuidePage
                 [],
                 [
                     new FarmingGuideAttachmentSlotDefinition(
-                        modSlotId,
+                        "scope",
                         "mod_scope",
                         "Smoke mod",
                         false,
-                        attachmentFilter),
+                        FarmingGuideItemFilter.Empty),
                 ],
                 [],
                 [],
@@ -113,30 +110,40 @@ public partial class FarmingGuidePage
         _itemsById[bagId] = bag;
         _itemsById[lootId] = loot;
         _itemsById[weaponId] = weapon;
-        _itemsById[modId] = mod;
 
         try
         {
-            OpenWorkbench(
-                FarmingGuideItemState.Create(bagId),
-                WorkbenchMode.Storage,
-                FarmingGuideStorageKind.Backpack,
+            var placement = new FarmingGuideStoredItemState(
                 parentInstanceId,
-                static _ => { });
+                FarmingGuideItemState.Create(bagId),
+                FarmingGuideStorageKind.Backpack,
+                0,
+                0,
+                0,
+                false);
+            OpenStoredWorkbench(new PlacedItemSource(placement));
             WorkbenchHost.UpdateLayout();
 
-            if (!IsWorkbenchOpen || StoragePanel.Visibility != Visibility.Collapsed)
-                throw new InvalidOperationException("Nested storage workbench did not replace the main storage surface.");
+            if (!IsWorkbenchOpen)
+                throw new InvalidOperationException("Stored backpack did not open its nested storage detail.");
+            if (StoragePanel.Visibility != Visibility.Visible)
+                throw new InvalidOperationException("Compact nested storage detail still hides the full main storage surface.");
 
             var grid = FindVisualChildren<Canvas>(WorkbenchPanel)
                 .Select(canvas => canvas.Tag as GridDropTarget)
                 .FirstOrDefault(target => target is not null)
-                ?? throw new InvalidOperationException("Nested storage workbench did not render an interactive grid target.");
+                ?? throw new InvalidOperationException("Nested storage detail did not render an interactive grid target.");
             if (grid.Width != 2 ||
                 grid.Height != 2 ||
                 !string.Equals(grid.ParentInstanceId, parentInstanceId, StringComparison.Ordinal))
             {
-                throw new InvalidOperationException("Nested storage grid did not preserve its parent-instance address.");
+                throw new InvalidOperationException("Nested storage grid did not preserve its real dimensions/parent address.");
+            }
+
+            if (WorkbenchHost.Width > 240d || WorkbenchHost.Height > 230d)
+            {
+                throw new InvalidOperationException(
+                    $"Nested 2x2 detail is still oversized: {WorkbenchHost.Width:0.#}x{WorkbenchHost.Height:0.#}.");
             }
 
             var lootDrag = new DragSession
@@ -159,50 +166,17 @@ public partial class FarmingGuidePage
             RemoveStoredTree(nested.InstanceId);
             CloseWorkbench();
 
-            FarmingGuideItemState? appliedWeapon = null;
-            OpenWorkbench(
-                FarmingGuideItemState.Create(weaponId),
-                WorkbenchMode.Slots,
-                FarmingGuideStorageKind.Pockets,
-                parentInstanceId: null,
-                updated => appliedWeapon = updated);
-            WorkbenchHost.UpdateLayout();
+            Equipment[FarmingGuideEquipmentSlot.PrimaryWeapon1] = FarmingGuideItemState.Create(weaponId);
+            OpenEquipmentWorkbench(new EquipmentDropTarget(
+                FarmingGuideEquipmentSlot.PrimaryWeapon1,
+                false,
+                new Border()));
+            if (IsWorkbenchOpen)
+                throw new InvalidOperationException("Complete weapon still opens an equipment-internal assembly editor.");
 
-            var slot = FindVisualChildren<Border>(WorkbenchPanel)
-                .Select(border => border.Tag as WorkbenchSlotDropTarget)
-                .FirstOrDefault(target => target is not null)
-                ?? throw new InvalidOperationException("Weapon workbench did not render an attachment drop slot.");
-            if (!string.Equals(slot.SlotId, modSlotId, StringComparison.Ordinal) ||
-                !CanDropIntoWorkbenchSlot(slot, mod))
-            {
-                throw new InvalidOperationException("Rendered weapon attachment slot rejected its allowed mod.");
-            }
-
-            var modDrag = new DragSession
-            {
-                Item = mod,
-                State = FarmingGuideItemState.Create(modId),
-                Origin = DragOriginKind.Search,
-                MouseDown = default,
-            };
-            ApplyDrop(modDrag, new DropProbe(slot, true));
-            if (appliedWeapon?.Attachments.GetValueOrDefault(modSlotId)?.ItemId != modId)
-                throw new InvalidOperationException("Attachment drag/drop did not update the workbench item state.");
-            if (CanDropIntoWorkbenchSlot(slot, mod))
-                throw new InvalidOperationException("Occupied attachment slot still accepts an implicit overwrite.");
-
-            var childDrag = new DragSession
-            {
-                Item = mod,
-                State = FarmingGuideItemState.Create(modId),
-                Origin = DragOriginKind.WorkbenchSlot,
-                WorkbenchSlotKind = WorkbenchSlotKind.Attachment,
-                WorkbenchSlotId = modSlotId,
-                MouseDown = default,
-            };
-            RemoveOrigin(childDrag, destructiveCarrierRemoval: false, destructiveStoredRemoval: false);
-            if (GetWorkbenchSlotState(slot) is not null)
-                throw new InvalidOperationException("Attachment drag-out did not empty the rendered slot.");
+            OpenCarrierWorkbench(new CarrierDropTarget(FarmingGuideStorageKind.Backpack, new Border()));
+            if (IsWorkbenchOpen)
+                throw new InvalidOperationException("Root carrier opened a duplicate full-detail editor.");
         }
         finally
         {
@@ -210,6 +184,11 @@ public partial class FarmingGuidePage
                 string.Equals(item.ParentInstanceId, parentInstanceId, StringComparison.Ordinal) ||
                 string.Equals(item.Item.ItemId, lootId, StringComparison.Ordinal));
             CloseWorkbench();
+
+            if (previousWeapon is null)
+                Equipment.Remove(FarmingGuideEquipmentSlot.PrimaryWeapon1);
+            else
+                Equipment[FarmingGuideEquipmentSlot.PrimaryWeapon1] = previousWeapon;
 
             foreach (var id in ids)
             {
