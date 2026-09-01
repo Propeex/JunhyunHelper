@@ -7,14 +7,15 @@ namespace JunhyunHelper.Desktop.FarmingGuide;
 public partial class FarmingGuidePage
 {
     // Compatibility cache for the existing metrics boundary. It is rebuilt from the
-    // current-vs-baseline snapshot before every recommendation; it is never historical
-    // acceptance truth. Discarding an item therefore removes it from the next calculation.
+    // current-vs-baseline snapshot before every recommendation and is quantity-aware.
     private readonly Dictionary<string, int> _acceptedRaidItemCounts = new(StringComparer.Ordinal);
 
     private FarmingGuideRaidBridge? _raidBridge;
     private FarmingGuideRaidSession? _raidSession;
     private Func<string>? _acceptHotkeyTextProvider;
     private string? _raidStartSelectedPresetName;
+    private ScannerItemSnapshot? _quantityPendingSnapshot;
+    private FarmingGuideLockState? _plannedLocksOverrideV1160;
 
     public bool IsRaidActive => _raidSession is not null;
 
@@ -24,7 +25,7 @@ public partial class FarmingGuidePage
     {
         _raidBridge = bridge ?? throw new ArgumentNullException(nameof(bridge));
         _acceptHotkeyTextProvider = acceptHotkeyTextProvider;
-        bridge.Bind(HandleScannedItem, TryAcceptPendingInstruction, bridge.ShowMiniScannerStatus);
+        bridge.Bind(HandleScannedItem, TryAcceptPendingInstruction, HandleScannedQuantity);
         RefreshRaidUi();
     }
 
@@ -46,6 +47,8 @@ public partial class FarmingGuidePage
         _raidSession = new FarmingGuideRaidSession(snapshot, locks);
         _raidStartSelectedPresetName = _selectedPresetName;
         _acceptedRaidItemCounts.Clear();
+        _quantityPendingSnapshot = null;
+        _plannedLocksOverrideV1160 = null;
         _raidBridge?.ResetScannerIdentity();
         CloseWorkbench();
         RefreshPresetChoices();
@@ -66,6 +69,8 @@ public partial class FarmingGuidePage
         _selectedPresetName = _raidStartSelectedPresetName;
         _raidStartSelectedPresetName = null;
         _acceptedRaidItemCounts.Clear();
+        _quantityPendingSnapshot = null;
+        _plannedLocksOverrideV1160 = null;
         _raidBridge?.ResetScannerIdentity();
         CloseWorkbench();
         RefreshPresetChoices();
@@ -78,6 +83,8 @@ public partial class FarmingGuidePage
         _raidSession = null;
         _raidStartSelectedPresetName = null;
         _acceptedRaidItemCounts.Clear();
+        _quantityPendingSnapshot = null;
+        _plannedLocksOverrideV1160 = null;
         _raidBridge?.ResetScannerIdentity();
     }
 
@@ -90,9 +97,11 @@ public partial class FarmingGuidePage
         RaidToggleButton.Content = active ? "레이드 종료" : "레이드 시작";
         RaidStatusText.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
         RaidStatusText.Text = active
-            ? _raidSession!.State.PendingInstruction is { } pending
-                ? pending.Instruction
-                : "레이드 진행 중 · 아이템을 스캔하세요."
+            ? _quantityPendingSnapshot is not null
+                ? "개수 입력 대기 중"
+                : _raidSession!.State.PendingInstruction is { } pending
+                    ? pending.Instruction
+                    : "레이드 진행 중 · 아이템을 스캔하세요."
             : string.Empty;
     }
 
@@ -101,9 +110,11 @@ public partial class FarmingGuidePage
         if (_raidSession is null || _content is null)
             return;
 
-        // Scanning another item is an implicit rejection of the previous recommendation.
-        // No inventory state was committed yet, so the new item is evaluated against the
-        // same current raid snapshot.
+        // A new scan rejects both the old unaccepted recommendation and any old quantity
+        // prompt. Neither path has committed inventory state yet.
+        _quantityPendingSnapshot = null;
+        _plannedLocksOverrideV1160 = null;
+        _raidBridge?.CancelMiniScannerQuantity();
         if (_raidSession.State.PendingInstruction is not null)
         {
             _raidSession.ClearPending();
@@ -117,23 +128,109 @@ public partial class FarmingGuidePage
             return;
         }
 
+        if (FarmingGuideStackQuantityPolicy.RequiresQuantity(item))
+        {
+            _quantityPendingSnapshot = scanned;
+            _raidBridge?.SetMiniScannerInstruction(null);
+            _raidBridge?.RequestMiniScannerQuantity();
+            RefreshRaidUi();
+            return;
+        }
+
+        PlanConfirmedScannedItem(scanned with { Quantity = 1 }, item);
+    }
+
+    private void HandleScannedQuantity(int quantity)
+    {
+        if (_raidSession is null || _content is null || _quantityPendingSnapshot is not { } pending)
+            return;
+
+        var item = ResolveItem(pending.ItemId);
+        _quantityPendingSnapshot = null;
+        _raidBridge?.CancelMiniScannerQuantity();
+        if (item is null || !FarmingGuideSearchPolicy.IsDraggableInventoryItem(item))
+        {
+            RefreshRaidUi();
+            return;
+        }
+
+        PlanConfirmedScannedItem(
+            pending with { Quantity = FarmingGuideStackQuantityPolicy.NormalizeQuantity(quantity) },
+            item);
+    }
+
+    private void PlanConfirmedScannedItem(ScannerItemSnapshot scanned, Core.Items.GameItem item)
+    {
+        if (_raidSession is null)
+            return;
+
         var current = BuildSnapshot();
         RefreshRaidAcquiredCounts(current);
-        var planned = PlanScannedItemEquipmentAware(scanned, item);
-        var transitioned = ApplyRaidStateTransitionsV1155(current, planned, scanned, item);
-        var optimized = OptimizeDestructiveRaidPlanV1155(current, transitioned, scanned, item);
+
+        // The existing planner boundary accepts CurrentNeeded and unit market fields. Feed
+        // it v1.16 rulebook facts: FIR need only and total Flea value for this concrete
+        // scanned stack. Trader value deliberately remains irrelevant to the policy.
+        var quantity = Math.Max(1, scanned.Quantity);
+        var totalFlea = scanned.FleaAveragePrice is { } flea
+            ? checked(flea * quantity)
+            : null;
+        var decisionScan = scanned with
+        {
+            CurrentNeeded = scanned.CurrentNeededFir,
+            FleaAveragePrice = totalFlea,
+            Quantity = quantity,
+        };
+
+        _plannedLocksOverrideV1160 = null;
+        var planned = PlanScannedItemEquipmentAware(decisionScan, item);
+        var transitioned = ApplyRaidStateTransitionsV1155(current, planned, decisionScan, item);
+        var optimized = OptimizeDestructiveRaidPlanV1155(current, transitioned, decisionScan, item);
+        var quantityApplied = ApplyIncomingQuantityV1160(current, optimized, item.Id, quantity);
+        var weightChecked = ApplyRaidWeightConstraintV1160(current, quantityApplied);
         var recommendation = ApplyRaidInstructionPresentationV1155(
             current,
-            optimized,
+            weightChecked,
             item);
         _raidSession.SetPending(
             scanned.ItemId,
             recommendation.Instruction,
             recommendation.Action,
-            recommendation.ProposedSnapshot);
+            recommendation.ProposedSnapshot,
+            _plannedLocksOverrideV1160 ?? BuildLockState());
         RefreshRaidUi();
         _raidBridge?.ShowMiniScannerStatus(
             $"{recommendation.Instruction}\n수락 [{AcceptHotkeyText()}]");
+    }
+
+    private static RaidRecommendation ApplyIncomingQuantityV1160(
+        FarmingGuideLoadoutSnapshot current,
+        RaidRecommendation recommendation,
+        string incomingItemId,
+        int quantity)
+    {
+        if (quantity <= 1)
+            return recommendation;
+
+        var existingIds = current.StoredItems
+            .Select(value => value.InstanceId)
+            .ToHashSet(StringComparer.Ordinal);
+        var changed = false;
+        var stored = recommendation.ProposedSnapshot.StoredItems
+            .Select(value =>
+            {
+                if (changed || existingIds.Contains(value.InstanceId) ||
+                    !string.Equals(value.Item.ItemId, incomingItemId, StringComparison.Ordinal))
+                {
+                    return value;
+                }
+
+                changed = true;
+                return value with { Quantity = quantity };
+            })
+            .ToArray();
+        return changed
+            ? recommendation with { ProposedSnapshot = recommendation.ProposedSnapshot with { StoredItems = stored } }
+            : recommendation;
     }
 
     private void RefreshRaidAcquiredCounts(FarmingGuideLoadoutSnapshot current)
@@ -158,15 +255,18 @@ public partial class FarmingGuidePage
 
     private bool TryAcceptPendingInstruction()
     {
-        if (_raidSession?.State.PendingInstruction is not { } pending)
+        if (_quantityPendingSnapshot is not null ||
+            _raidSession?.State.PendingInstruction is not { })
+        {
             return false;
+        }
 
-        if (!_raidSession.TryAccept(out var snapshot))
+        if (!_raidSession.TryAccept(out var snapshot, out var locks))
             return false;
 
         ApplySnapshot(snapshot);
-        // Do not mutate a historical accepted-item counter here. The next recommendation
-        // derives acquired quantities from the accepted current snapshot against baseline.
+        ApplyLockState(locks);
+        _plannedLocksOverrideV1160 = null;
         RefreshAll();
         RefreshRaidUi();
         _raidBridge?.ShowMiniScannerStatus("반영 완료");
