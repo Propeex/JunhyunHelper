@@ -8,25 +8,44 @@
     "desktopVersion": "1.14.0"
   },
   "publicStable": {
-    "version": "1.13.3",
-    "tag": "v1.13.3",
-    "exactProductSource": "9a0064d81dca4c2cffcb01c55742d46298d235de",
-    "releaseId": 379676479,
+    "version": "1.14.0",
+    "tag": "v1.14.0",
+    "exactProductSource": "9ff23b9f50dd84b84ec93cea31b079d7eff70fe1",
+    "releaseId": 380133403,
+    "publishedAtUtc": "2026-09-01T00:15:44Z",
     "asset": {
       "name": "Junhyun-Helper.zip",
-      "id": 537835859,
-      "bytes": 80620064,
-      "sha256": "704afb5e376f9087dd57c1795d8b95397c06a020acd9545fe80c5fc1b546b7b7"
+      "id": 538692301,
+      "bytes": 80633458,
+      "sha256": "87728ce9e34a30a9b1eb735fe92b1a4a39f172f3b9cf536dfd12d88c8c35667b"
     },
     "checksumAsset": {
       "name": "SHA256SUMS.txt",
-      "id": 537835858,
+      "id": 538692300,
       "bytes": 86,
-      "sha256": "2c74d9c4e4f096c35eb3b4e45deb734af5b9df31306c9961d66c9aa7cd4e5b4d"
+      "sha256": "06ae3473f7fe87d62b0d05dac0d16640a55e30e8a8fd83e4770f962a8fc5dfe3"
+    }
+  },
+  "releaseValidation": {
+    "pr": 251,
+    "supersededDraftPr": 250,
+    "validatedPrHead": "c5ee50ba60f2bc7db461328608ec591f4320ccca",
+    "prCiRun": 33453431628,
+    "prShutdownRaceRun": 33453431625,
+    "prDocumentationConsistencyRun": 33453431595,
+    "exactMainCiRun": 33453784868,
+    "exactMainShutdownRaceRun": 33453784901,
+    "exactMainDocumentationConsistencyRun": 33453784893,
+    "releaseWorkflowRun": 33454002732,
+    "artifact": {
+      "name": "JunhyunHelper-win-x64",
+      "id": 9780762947,
+      "bytes": 241830878,
+      "sha256": "1898028e10ef336b2dce35add94d2e1cf83b5c58c27c98649691fe11bdbe8632"
     }
   },
   "maintenance": {
-    "latestNonDocumentationHead": "9a0064d81dca4c2cffcb01c55742d46298d235de",
+    "latestNonDocumentationHead": "9ff23b9f50dd84b84ec93cea31b079d7eff70fe1",
     "deterministicTestCount": 527,
     "userRealPcTarkovValidation": "PENDING"
   },
