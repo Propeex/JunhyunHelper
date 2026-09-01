@@ -10,6 +10,7 @@ public partial class FarmingGuidePage
     {
         VerifyV1155NestedStorageViewportSmoke();
         VerifyV1155RaidInstructionPresentationSmoke();
+        VerifyV1155RaidStateTransitionSmoke();
     }
 
     private void VerifyV1155NestedStorageViewportSmoke()
@@ -155,7 +156,7 @@ public partial class FarmingGuidePage
                 [FarmingGuideEquipmentSlot.BodyArmor] = FarmingGuideItemState.Create(oldEquipmentId),
             });
             AssertInstruction(
-                "방탄복 교체",
+                "방탄복 교체 + 기존 장비 버리기",
                 oldBody,
                 FarmingGuideInstructionAction.ReplaceEquip,
                 bodyEquip,
@@ -170,7 +171,7 @@ public partial class FarmingGuidePage
                 [FarmingGuideEquipmentSlot.Headset] = FarmingGuideItemState.Create(incomingId),
             });
             AssertInstruction(
-                "헤드셋 교체",
+                "헤드셋 교체 + 기존 장비 버리기",
                 oldHeadset,
                 FarmingGuideInstructionAction.ReplaceEquip,
                 newHeadset,
@@ -185,7 +186,7 @@ public partial class FarmingGuidePage
                 [FarmingGuideEquipmentSlot.Helmet] = FarmingGuideItemState.Create(incomingId),
             });
             AssertInstruction(
-                "헬멧 교체",
+                "헬멧 교체 + 기존 장비 버리기",
                 oldHelmet,
                 FarmingGuideInstructionAction.ReplaceEquip,
                 newHelmet,
@@ -200,7 +201,7 @@ public partial class FarmingGuidePage
                 backpack: FarmingGuideItemState.Create(incomingId),
                 stored: [carrierItemRepacked]);
             AssertInstruction(
-                "가방 교체",
+                "가방 교체 + 기존 가방 버리기, 이동A 이동 가방",
                 oldBackpack,
                 FarmingGuideInstructionAction.ReplaceEquip,
                 newBackpack,
@@ -219,7 +220,7 @@ public partial class FarmingGuidePage
                 rig: FarmingGuideItemState.Create(armoredRigId),
                 stored: [rigItemRepacked]);
             AssertInstruction(
-                "방탄 리그 전환",
+                "방탄 리그 전환 + 기존 장비 버리기, 기존 가방 버리기, 이동A 이동 리그",
                 armorAndRig,
                 FarmingGuideInstructionAction.ReplaceEquip,
                 armoredRigTransition,
