@@ -93,11 +93,12 @@ public partial class FarmingGuidePage
 
         var active = _raidSession is not null;
         RaidToggleButton.Content = active ? "레이드 종료" : "레이드 시작";
+        RaidStatusText.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
         RaidStatusText.Text = active
             ? _raidSession!.State.PendingInstruction is { } pending
                 ? pending.Instruction
                 : "레이드 진행 중 · 아이템을 스캔하세요."
-            : "레이드를 시작하면 현재 상태를 기준으로 파밍 지시를 계산합니다.";
+            : string.Empty;
     }
 
     private FarmingGuideLockState BuildLockState()
@@ -106,6 +107,8 @@ public partial class FarmingGuidePage
             .Select(item => item.InstanceId)
             .ToHashSet(StringComparer.Ordinal);
         _lockedItemInstanceIds.RemoveWhere(id => !existingIds.Contains(id));
+        _lockedEquipmentSlots.RemoveWhere(slot => GetEquipmentState(slot) is null);
+        _lockedCarriers.RemoveWhere(kind => GetCarrier(kind) is null);
 
         return new FarmingGuideLockState(
             _lockedEquipmentSlots.OrderBy(value => value).ToArray(),
@@ -120,6 +123,11 @@ public partial class FarmingGuidePage
                 .ToArray());
     }
 
+    private FarmingGuideItemState? GetEquipmentState(FarmingGuideEquipmentSlot slot) =>
+        slot is FarmingGuideEquipmentSlot.Melee or FarmingGuideEquipmentSlot.Dogtag
+            ? GetFixed(slot)
+            : Equipment.GetValueOrDefault(slot);
+
     private void ApplyLockState(FarmingGuideLockState state)
     {
         ArgumentNullException.ThrowIfNull(state);
@@ -131,7 +139,12 @@ public partial class FarmingGuidePage
         _lockedItemInstanceIds.UnionWith(state.ItemInstanceIds.Where(static value => !string.IsNullOrWhiteSpace(value)));
         _reservedCells.Clear();
         _reservedCells.UnionWith(state.ReservedCells);
+        _ = BuildLockState();
     }
+
+    internal void ClearEquipmentLock(FarmingGuideEquipmentSlot slot) => _lockedEquipmentSlots.Remove(slot);
+
+    internal void ClearCarrierLock(FarmingGuideStorageKind kind) => _lockedCarriers.Remove(kind);
 
     private void Root_ProductPreviewKeyDown(object sender, KeyEventArgs e)
     {
@@ -147,14 +160,8 @@ public partial class FarmingGuidePage
             var row = FindHoveredSearchRow();
             if (row is not null)
             {
-                if (_raidSession is null)
-                {
-                    RaidStatusText.Text = "테스트 스캔 전에 레이드를 시작하세요.";
-                }
-                else
-                {
+                if (_raidSession is not null)
                     _raidBridge?.PublishSimulatedScan(row.Item.Id);
-                }
                 e.Handled = true;
             }
             return;
@@ -193,14 +200,17 @@ public partial class FarmingGuidePage
                     case PlacedItemSource placed:
                         Toggle(_lockedItemInstanceIds, placed.Placement.InstanceId);
                         CommitLockChange();
+                        RefreshLockVisual(element);
                         return true;
-                    case EquipmentDropTarget equipment:
+                    case EquipmentDropTarget equipment when GetEquipmentState(equipment.Slot) is not null:
                         Toggle(_lockedEquipmentSlots, equipment.Slot);
                         CommitLockChange();
+                        RefreshLockVisual(element);
                         return true;
-                    case CarrierDropTarget carrier:
+                    case CarrierDropTarget carrier when GetCarrier(carrier.Kind) is not null:
                         Toggle(_lockedCarriers, carrier.Kind);
                         CommitLockChange();
+                        RefreshLockVisual(element);
                         return true;
                     case GridDropTarget grid:
                     {
@@ -217,6 +227,7 @@ public partial class FarmingGuidePage
                             grid.ParentInstanceId);
                         Toggle(_reservedCells, cell);
                         CommitLockChange();
+                        RefreshReservedCellVisuals(grid.Canvas, grid);
                         return true;
                     }
                 }
@@ -226,12 +237,53 @@ public partial class FarmingGuidePage
         return false;
     }
 
-    private void CommitLockChange() => MarkChanged();
+    private void CommitLockChange()
+    {
+        var locks = BuildLockState();
+        if (_raidSession is not null)
+        {
+            _raidSession.ReplaceLocks(locks);
+            _raidBridge?.SetMiniScannerInstruction(null);
+            RefreshRaidUi();
+            return;
+        }
+
+        _selectedPresetName = null;
+        RefreshPresetChoices();
+        PersistWorking();
+    }
 
     private static void Toggle<T>(ISet<T> set, T value)
     {
         if (!set.Add(value))
             set.Remove(value);
+    }
+
+    private void RefreshLockVisual(FrameworkElement element)
+    {
+        if (element is not Border border)
+            return;
+
+        var locked = element.Tag switch
+        {
+            PlacedItemSource placed => _lockedItemInstanceIds.Contains(placed.Placement.InstanceId),
+            EquipmentDropTarget equipment => _lockedEquipmentSlots.Contains(equipment.Slot),
+            CarrierDropTarget carrier => _lockedCarriers.Contains(carrier.Kind),
+            _ => false,
+        };
+        if (locked)
+        {
+            ApplyLockedBorder(border);
+            return;
+        }
+
+        border.BorderThickness = new Thickness(1);
+        border.BorderBrush = element.Tag is PlacedItemSource
+            ? (Brush)FindResource("AccentBrush")
+            : (Brush)FindResource("BorderBrush");
+        var tooltip = border.ToolTip?.ToString();
+        if (!string.IsNullOrWhiteSpace(tooltip) && tooltip.EndsWith(" · 잠금", StringComparison.Ordinal))
+            border.ToolTip = tooltip[..^5];
     }
 
     private void ApplyLockVisuals()
@@ -271,6 +323,18 @@ public partial class FarmingGuidePage
             border.ToolTip = string.IsNullOrWhiteSpace(original) ? "잠금" : $"{original} · 잠금";
     }
 
+    private void RefreshReservedCellVisuals(Canvas canvas, GridDropTarget grid)
+    {
+        foreach (var overlay in canvas.Children
+                     .OfType<FrameworkElement>()
+                     .Where(static child => child.Tag is ReservedCellOverlayMarker)
+                     .ToArray())
+        {
+            canvas.Children.Remove(overlay);
+        }
+        AddReservedCellVisuals(canvas, grid);
+    }
+
     private void AddReservedCellVisuals(Canvas canvas, GridDropTarget grid)
     {
         foreach (var cell in _reservedCells.Where(cell =>
@@ -289,6 +353,7 @@ public partial class FarmingGuidePage
                 Opacity = 0.72,
                 IsHitTestVisible = false,
                 ToolTip = "자동 배치 사용 금지",
+                Tag = new ReservedCellOverlayMarker(),
             };
             Canvas.SetLeft(overlay, cell.X * CellSize + 1);
             Canvas.SetTop(overlay, cell.Y * CellSize + 1);
@@ -315,14 +380,16 @@ public partial class FarmingGuidePage
 
         if (_raidSession.State.PendingInstruction is not null)
         {
-            _raidBridge?.ShowMiniScannerStatus(
-                $"{_raidSession.State.PendingInstruction.Instruction}\n먼저 수락 [{AcceptHotkeyText()}]");
-            return;
+            _raidSession.ClearPending();
+            _raidBridge?.SetMiniScannerInstruction(null);
         }
 
         var item = ResolveItem(scanned.ItemId);
         if (item is null || !FarmingGuideSearchPolicy.IsDraggableInventoryItem(item))
+        {
+            RefreshRaidUi();
             return;
+        }
 
         var recommendation = PlanScannedItem(scanned, item);
         _raidSession.SetPending(
@@ -346,7 +413,11 @@ public partial class FarmingGuidePage
         if (_raidSession?.State.PendingInstruction is not { } pending)
             return false;
 
-        var acceptedAddsItem = pending.Action is FarmingGuideInstructionAction.Store or FarmingGuideInstructionAction.Replace;
+        var acceptedAddsItem = pending.Action is
+            FarmingGuideInstructionAction.Store or
+            FarmingGuideInstructionAction.Replace or
+            FarmingGuideInstructionAction.Equip or
+            FarmingGuideInstructionAction.ReplaceEquip;
         if (!_raidSession.TryAccept(out var snapshot))
             return false;
 
@@ -355,7 +426,7 @@ public partial class FarmingGuidePage
             _acceptedRaidItemCounts[pending.ItemId] = _acceptedRaidItemCounts.GetValueOrDefault(pending.ItemId) + 1;
         RefreshAll();
         RefreshRaidUi();
-        _raidBridge?.ShowMiniScannerStatus("수락 완료");
+        _raidBridge?.ShowMiniScannerStatus("반영 완료");
         return true;
     }
 
@@ -363,12 +434,28 @@ public partial class FarmingGuidePage
     {
         var current = BuildSnapshot();
         var incomingMetrics = ToMetrics(scanned, adjustAcceptedCount: true);
-        var surfaces = EnumerateRaidSurfaces().ToArray();
+        var equipTargets = EnumerateRaidEquipTargets(current, item).ToArray();
 
+        var emptyEquip = equipTargets.FirstOrDefault(static target => target.ExistingItem is null);
+        if (emptyEquip is not null)
+        {
+            return new RaidRecommendation(
+                $"{emptyEquip.Label}에 장착",
+                FarmingGuideInstructionAction.Equip,
+                emptyEquip.ProposedSnapshot);
+        }
+
+        var surfaces = EnumerateRaidSurfaces().ToArray();
         foreach (var surface in surfaces)
         {
-            if (!FarmingGuideCompatibility.FilterAllows(item, surface.Definition.Filters))
+            if (!FarmingGuideStoragePlacementPolicy.CanStore(
+                    surface.Kind,
+                    surface.ParentInstanceId,
+                    item,
+                    surface.Definition.Filters))
+            {
                 continue;
+            }
             if (TryFindFit(surface, item, current.StoredItems, ignoredInstanceId: null, out var fit))
             {
                 var added = new FarmingGuideStoredItemState(
@@ -382,10 +469,25 @@ public partial class FarmingGuidePage
                     surface.ParentInstanceId);
                 var proposed = current with { StoredItems = current.StoredItems.Append(added).ToArray() };
                 return new RaidRecommendation(
-                    $"{DisplayName(item)} → {surface.Label}",
+                    $"{surface.Label}에 보관",
                     FarmingGuideInstructionAction.Store,
                     proposed);
             }
+        }
+
+        var incomingEquipMetrics = AsSingleSlot(incomingMetrics);
+        var equipReplacement = equipTargets
+            .Where(static target => target.ExistingItem is not null)
+            .Select(target => (Target: target, Metrics: AsSingleSlot(MetricsForExisting(target.ExistingItem!))))
+            .Where(candidate => FarmingGuideLootPriorityPolicy.ShouldReplace(incomingEquipMetrics, candidate.Metrics))
+            .OrderBy(candidate => candidate.Metrics, LootMetricsComparer.Instance)
+            .FirstOrDefault();
+        if (equipReplacement.Target is not null)
+        {
+            return new RaidRecommendation(
+                $"{equipReplacement.Target.Label}의 {DisplayName(equipReplacement.Target.ExistingItem!)}과 교체",
+                FarmingGuideInstructionAction.ReplaceEquip,
+                equipReplacement.Target.ProposedSnapshot);
         }
 
         var replacements = surfaces
@@ -398,11 +500,14 @@ public partial class FarmingGuidePage
             .Select(candidate =>
             {
                 var existingItem = ResolveItem(candidate.Stored.Item);
-                var metrics = existingItem is null ? null : MetricsForExisting(existingItem);
-                return (candidate.Surface, candidate.Stored, ExistingItem: existingItem, Metrics: metrics);
+                var metrics = existingItem is null
+                    ? null
+                    : MetricsForStorageSurface(existingItem, candidate.Surface);
+                var incoming = MetricsForStorageSurface(incomingMetrics, candidate.Surface);
+                return (candidate.Surface, candidate.Stored, ExistingItem: existingItem, Metrics: metrics, Incoming: incoming);
             })
             .Where(candidate => candidate.ExistingItem is not null && candidate.Metrics is not null)
-            .Where(candidate => FarmingGuideLootPriorityPolicy.ShouldReplace(incomingMetrics, candidate.Metrics!))
+            .Where(candidate => FarmingGuideLootPriorityPolicy.ShouldReplace(candidate.Incoming, candidate.Metrics!))
             .OrderBy(candidate => candidate.Metrics!, LootMetricsComparer.Instance)
             .ToArray();
 
@@ -423,15 +528,324 @@ public partial class FarmingGuidePage
                 candidate.Surface.ParentInstanceId);
             var proposed = current with { StoredItems = remaining.Append(added).ToArray() };
             return new RaidRecommendation(
-                $"{DisplayName(candidate.ExistingItem!)} 버리고 {DisplayName(item)} → {candidate.Surface.Label}",
+                $"{candidate.Surface.Label}의 {DisplayName(candidate.ExistingItem!)}과 교체",
                 FarmingGuideInstructionAction.Replace,
                 proposed);
         }
 
         return new RaidRecommendation(
-            $"{DisplayName(item)} 버리기",
+            "버리기",
             FarmingGuideInstructionAction.Discard,
             current);
+    }
+
+    private IEnumerable<RaidEquipTarget> EnumerateRaidEquipTargets(
+        FarmingGuideLoadoutSnapshot current,
+        GameItem incoming)
+    {
+        foreach (var slot in new[]
+                 {
+                     FarmingGuideEquipmentSlot.Headset,
+                     FarmingGuideEquipmentSlot.Helmet,
+                     FarmingGuideEquipmentSlot.FaceCover,
+                     FarmingGuideEquipmentSlot.Armband,
+                     FarmingGuideEquipmentSlot.BodyArmor,
+                     FarmingGuideEquipmentSlot.Eyewear,
+                     FarmingGuideEquipmentSlot.PrimaryWeapon1,
+                     FarmingGuideEquipmentSlot.PrimaryWeapon2,
+                     FarmingGuideEquipmentSlot.Holster,
+                 })
+        {
+            var existingState = current.Equipment.GetValueOrDefault(slot);
+            if (existingState is not null && _lockedEquipmentSlots.Contains(slot))
+                continue;
+            if (!CanEquipInSnapshot(slot, incoming, current))
+                continue;
+
+            var equipment = new Dictionary<FarmingGuideEquipmentSlot, FarmingGuideItemState>(current.Equipment)
+            {
+                [slot] = FarmingGuideItemState.Create(incoming.Id),
+            };
+            yield return new RaidEquipTarget(
+                EquipmentLabel(slot),
+                ResolveItem(existingState),
+                current with { Equipment = equipment });
+        }
+
+        foreach (var kind in new[]
+                 {
+                     FarmingGuideStorageKind.Rig,
+                     FarmingGuideStorageKind.Backpack,
+                     FarmingGuideStorageKind.SecureContainer,
+                 })
+        {
+            var existingState = kind switch
+            {
+                FarmingGuideStorageKind.Rig => current.Rig,
+                FarmingGuideStorageKind.Backpack => current.Backpack,
+                FarmingGuideStorageKind.SecureContainer => current.SecureContainer,
+                _ => null,
+            };
+            if (existingState is not null && _lockedCarriers.Contains(kind))
+                continue;
+            if (!CanSetCarrierInSnapshot(kind, incoming, current))
+                continue;
+
+            var proposed = kind switch
+            {
+                FarmingGuideStorageKind.Rig => current with { Rig = FarmingGuideItemState.Create(incoming.Id) },
+                FarmingGuideStorageKind.Backpack => current with { Backpack = FarmingGuideItemState.Create(incoming.Id) },
+                FarmingGuideStorageKind.SecureContainer => current with { SecureContainer = FarmingGuideItemState.Create(incoming.Id) },
+                _ => current,
+            };
+            yield return new RaidEquipTarget(
+                CarrierLabel(kind),
+                ResolveItem(existingState),
+                proposed);
+        }
+
+        foreach (var root in EnumerateRaidAssemblyRoots(current))
+        {
+            foreach (var target in EnumerateAssemblyTargets(current, root, incoming))
+                yield return target;
+        }
+    }
+
+    private IEnumerable<RaidAssemblyRoot> EnumerateRaidAssemblyRoots(FarmingGuideLoadoutSnapshot current)
+    {
+        foreach (var entry in current.Equipment)
+        {
+            if (_lockedEquipmentSlots.Contains(entry.Key))
+                continue;
+            var state = entry.Value;
+            if (ResolveItem(state)?.FarmingGuideData is null)
+                continue;
+            var slot = entry.Key;
+            yield return new RaidAssemblyRoot(
+                state,
+                updated =>
+                {
+                    var equipment = new Dictionary<FarmingGuideEquipmentSlot, FarmingGuideItemState>(current.Equipment)
+                    {
+                        [slot] = updated,
+                    };
+                    return current with { Equipment = equipment };
+                });
+        }
+
+        foreach (var kind in new[]
+                 {
+                     FarmingGuideStorageKind.Rig,
+                     FarmingGuideStorageKind.Backpack,
+                     FarmingGuideStorageKind.SecureContainer,
+                 })
+        {
+            if (_lockedCarriers.Contains(kind))
+                continue;
+            var state = kind switch
+            {
+                FarmingGuideStorageKind.Rig => current.Rig,
+                FarmingGuideStorageKind.Backpack => current.Backpack,
+                FarmingGuideStorageKind.SecureContainer => current.SecureContainer,
+                _ => null,
+            };
+            if (state is null || ResolveItem(state)?.FarmingGuideData is null)
+                continue;
+            yield return new RaidAssemblyRoot(
+                state,
+                updated => kind switch
+                {
+                    FarmingGuideStorageKind.Rig => current with { Rig = updated },
+                    FarmingGuideStorageKind.Backpack => current with { Backpack = updated },
+                    FarmingGuideStorageKind.SecureContainer => current with { SecureContainer = updated },
+                    _ => current,
+                });
+        }
+
+        foreach (var stored in current.StoredItems)
+        {
+            if (IsInsideLockedItem(stored.InstanceId) || ResolveItem(stored.Item)?.FarmingGuideData is null)
+                continue;
+            var instanceId = stored.InstanceId;
+            yield return new RaidAssemblyRoot(
+                stored.Item,
+                updated => current with
+                {
+                    StoredItems = current.StoredItems
+                        .Select(value => string.Equals(value.InstanceId, instanceId, StringComparison.Ordinal)
+                            ? value with { Item = updated }
+                            : value)
+                        .ToArray(),
+                });
+        }
+    }
+
+    private IEnumerable<RaidEquipTarget> EnumerateAssemblyTargets(
+        FarmingGuideLoadoutSnapshot current,
+        RaidAssemblyRoot root,
+        GameItem incoming)
+    {
+        var pending = new Stack<string[]>();
+        pending.Push([]);
+        while (pending.Count > 0)
+        {
+            var ownerPath = pending.Pop();
+            var ownerState = FarmingGuideAssemblyPolicy.GetNode(root.State, ownerPath);
+            var ownerItem = ResolveItem(ownerState);
+            var layout = ownerItem?.FarmingGuideData;
+            if (ownerState is null || ownerItem is null || layout is null)
+                continue;
+
+            foreach (var slot in layout.AttachmentSlots)
+            {
+                var existingState = ownerState.Attachments.GetValueOrDefault(slot.Id);
+                var compatibilityRoot = existingState is null
+                    ? root.State
+                    : FarmingGuideAssemblyPolicy.SetAttachment(root.State, ownerPath, slot.Id, null);
+                if (!FarmingGuideAssemblyPolicy.CanAttach(
+                        compatibilityRoot,
+                        ownerPath,
+                        slot,
+                        incoming,
+                        ItemCatalog))
+                {
+                    continue;
+                }
+
+                var updatedRoot = FarmingGuideAssemblyPolicy.SetAttachment(
+                    compatibilityRoot,
+                    ownerPath,
+                    slot.Id,
+                    FarmingGuideItemState.Create(incoming.Id));
+                yield return new RaidEquipTarget(
+                    $"{DisplayName(ownerItem)} · {FarmingGuideSlotLabelPolicy.Attachment(slot)}",
+                    ResolveItem(existingState),
+                    root.Apply(updatedRoot));
+            }
+
+            foreach (var slot in layout.ArmorSlots.Where(static value => !value.Locked))
+            {
+                var existingState = ownerState.ArmorPlates.GetValueOrDefault(slot.Id);
+                var compatibilityRoot = existingState is null
+                    ? root.State
+                    : FarmingGuideAssemblyPolicy.SetArmorPlate(root.State, ownerPath, slot.Id, null);
+                if (!FarmingGuideAssemblyPolicy.CanInstallArmorPlate(
+                        compatibilityRoot,
+                        ownerPath,
+                        slot,
+                        incoming,
+                        ItemCatalog))
+                {
+                    continue;
+                }
+
+                var updatedRoot = FarmingGuideAssemblyPolicy.SetArmorPlate(
+                    compatibilityRoot,
+                    ownerPath,
+                    slot.Id,
+                    FarmingGuideItemState.Create(incoming.Id));
+                yield return new RaidEquipTarget(
+                    $"{DisplayName(ownerItem)} · {FarmingGuideSlotLabelPolicy.ArmorPlate(slot)}",
+                    ResolveItem(existingState),
+                    root.Apply(updatedRoot));
+            }
+
+            foreach (var slot in layout.AttachmentSlots.Reverse())
+            {
+                if (ownerState.Attachments.GetValueOrDefault(slot.Id) is not null)
+                    pending.Push(ownerPath.Append(slot.Id).ToArray());
+            }
+        }
+    }
+
+    private bool CanEquipInSnapshot(
+        FarmingGuideEquipmentSlot slot,
+        GameItem item,
+        FarmingGuideLoadoutSnapshot snapshot)
+    {
+        if (!FarmingGuideCompatibility.IsEquipmentSlotCompatible(slot, item))
+            return false;
+        if (slot == FarmingGuideEquipmentSlot.BodyArmor &&
+            ResolveItem(snapshot.Rig)?.FarmingGuideData?.IsArmoredRig == true)
+        {
+            return false;
+        }
+
+        if (slot == FarmingGuideEquipmentSlot.Headset &&
+            snapshot.Equipment.TryGetValue(FarmingGuideEquipmentSlot.Helmet, out var helmetState) &&
+            ResolveItem(helmetState)?.FarmingGuideData?.BlocksHeadphones == true)
+        {
+            return false;
+        }
+        if (slot == FarmingGuideEquipmentSlot.Helmet &&
+            item.FarmingGuideData?.BlocksHeadphones == true &&
+            snapshot.Equipment.ContainsKey(FarmingGuideEquipmentSlot.Headset))
+        {
+            return false;
+        }
+
+        return EnumerateSnapshotEquippedItems(snapshot, slot, replacingCarrier: null)
+            .All(other => !FarmingGuideCompatibility.ItemsConflict(item, other));
+    }
+
+    private bool CanSetCarrierInSnapshot(
+        FarmingGuideStorageKind kind,
+        GameItem item,
+        FarmingGuideLoadoutSnapshot snapshot)
+    {
+        if (!FarmingGuideCompatibility.IsStorageCarrierCompatible(kind, item))
+            return false;
+
+        var targetContainsItems = snapshot.StoredItems.Any(stored =>
+            stored.ParentInstanceId is null && stored.Storage == kind);
+        var currentCarrier = kind switch
+        {
+            FarmingGuideStorageKind.Rig => snapshot.Rig,
+            FarmingGuideStorageKind.Backpack => snapshot.Backpack,
+            FarmingGuideStorageKind.SecureContainer => snapshot.SecureContainer,
+            _ => null,
+        };
+        if (currentCarrier is not null && targetContainsItems)
+            return false;
+
+        if (kind == FarmingGuideStorageKind.Rig &&
+            item.FarmingGuideData?.IsArmoredRig == true &&
+            snapshot.Equipment.ContainsKey(FarmingGuideEquipmentSlot.BodyArmor))
+        {
+            return false;
+        }
+
+        return EnumerateSnapshotEquippedItems(snapshot, replacingEquipment: null, replacingCarrier: kind)
+            .All(other => !FarmingGuideCompatibility.ItemsConflict(item, other));
+    }
+
+    private IEnumerable<GameItem> EnumerateSnapshotEquippedItems(
+        FarmingGuideLoadoutSnapshot snapshot,
+        FarmingGuideEquipmentSlot? replacingEquipment,
+        FarmingGuideStorageKind? replacingCarrier)
+    {
+        foreach (var entry in snapshot.Equipment)
+        {
+            if (replacingEquipment == entry.Key)
+                continue;
+            var item = ResolveItem(entry.Value);
+            if (item is not null)
+                yield return item;
+        }
+
+        foreach (var pair in new[]
+                 {
+                     (FarmingGuideStorageKind.Rig, snapshot.Rig),
+                     (FarmingGuideStorageKind.Backpack, snapshot.Backpack),
+                     (FarmingGuideStorageKind.SecureContainer, snapshot.SecureContainer),
+                 })
+        {
+            if (replacingCarrier == pair.Item1)
+                continue;
+            var item = ResolveItem(pair.Item2);
+            if (item is not null)
+                yield return item;
+        }
     }
 
     private FarmingGuideLootMetrics ToMetrics(ScannerItemSnapshot snapshot, bool adjustAcceptedCount)
@@ -453,6 +867,22 @@ public partial class FarmingGuidePage
         return new FarmingGuideLootMetrics(0, item.BasePrice, null, slots);
     }
 
+    private static FarmingGuideLootMetrics AsSingleSlot(FarmingGuideLootMetrics metrics) =>
+        new(metrics.CurrentNeeded, metrics.TraderSellPrice, metrics.FleaAveragePrice, 1);
+
+    private FarmingGuideLootMetrics MetricsForStorageSurface(GameItem item, RaidSurface surface)
+    {
+        var metrics = MetricsForExisting(item);
+        return MetricsForStorageSurface(metrics, surface);
+    }
+
+    private static FarmingGuideLootMetrics MetricsForStorageSurface(
+        FarmingGuideLootMetrics metrics,
+        RaidSurface surface) =>
+        FarmingGuideStoragePlacementPolicy.IsSpecialSlotSurface(surface.Kind, surface.ParentInstanceId)
+            ? AsSingleSlot(metrics)
+            : metrics;
+
     private IEnumerable<RaidSurface> EnumerateRaidSurfaces()
     {
         var root = StorageDefinitions().ToDictionary(value => value.Kind);
@@ -466,7 +896,7 @@ public partial class FarmingGuidePage
         };
         foreach (var kind in order)
         {
-            if (_lockedCarriers.Contains(kind) || !root.TryGetValue(kind, out var storage))
+            if (!root.TryGetValue(kind, out var storage))
                 continue;
             for (var index = 0; index < storage.Grids.Count; index++)
                 yield return new RaidSurface(kind, null, index, storage.Grids[index], storage.Label);
@@ -474,9 +904,6 @@ public partial class FarmingGuidePage
 
         foreach (var stored in StoredItems)
         {
-            if (_lockedCarriers.Contains(stored.Storage) || IsInsideLockedItem(stored.InstanceId))
-                continue;
-
             var owner = ResolveItem(stored.Item);
             var grids = owner?.FarmingGuideData?.StorageGrids;
             if (grids is null || grids.Count == 0)
@@ -506,10 +933,13 @@ public partial class FarmingGuidePage
             .Select(stored =>
             {
                 var existingItem = ResolveItem(stored.Item);
-                var footprint = FarmingGuidePlacementEngine.Footprint(
-                    existingItem?.Width ?? 1,
-                    existingItem?.Height ?? 1,
-                    stored.Rotated);
+                var footprint = existingItem is null
+                    ? (Width: 1, Height: 1)
+                    : FarmingGuideStoragePlacementPolicy.Footprint(
+                        stored.Storage,
+                        stored.ParentInstanceId,
+                        existingItem,
+                        stored.Rotated);
                 return new FarmingGuideGridPlacement(
                     stored.InstanceId,
                     stored.X,
@@ -525,14 +955,25 @@ public partial class FarmingGuidePage
                     $"__locked_{index}", cell.X, cell.Y, 1, 1)))
             .ToArray();
 
-        foreach (var rotated in item.Width != item.Height ? new[] { false, true } : new[] { false })
+        var rotations = FarmingGuideStoragePlacementPolicy.SupportsRotation(
+            surface.Kind,
+            surface.ParentInstanceId,
+            item)
+            ? new[] { false, true }
+            : new[] { false };
+        foreach (var rotated in rotations)
         {
+            var footprint = FarmingGuideStoragePlacementPolicy.Footprint(
+                surface.Kind,
+                surface.ParentInstanceId,
+                item,
+                rotated);
             var found = FarmingGuidePlacementEngine.FindFirstFit(
                 surface.Definition.Width,
                 surface.Definition.Height,
-                item.Width ?? 1,
-                item.Height ?? 1,
-                rotated,
+                footprint.Width,
+                footprint.Height,
+                rotated: false,
                 existing,
                 ignoredInstanceId);
             if (found is { } point)
@@ -597,6 +1038,30 @@ public partial class FarmingGuidePage
         return source.Where(item => !remove.Contains(item.InstanceId)).ToArray();
     }
 
+    private static string EquipmentLabel(FarmingGuideEquipmentSlot slot) => slot switch
+    {
+        FarmingGuideEquipmentSlot.Headset => "헤드셋",
+        FarmingGuideEquipmentSlot.Helmet => "헬멧",
+        FarmingGuideEquipmentSlot.FaceCover => "얼굴",
+        FarmingGuideEquipmentSlot.Armband => "완장",
+        FarmingGuideEquipmentSlot.BodyArmor => "방탄복",
+        FarmingGuideEquipmentSlot.Eyewear => "안경",
+        FarmingGuideEquipmentSlot.PrimaryWeapon1 => "무기 1",
+        FarmingGuideEquipmentSlot.PrimaryWeapon2 => "무기 2",
+        FarmingGuideEquipmentSlot.Holster => "권총",
+        FarmingGuideEquipmentSlot.Melee => "칼",
+        FarmingGuideEquipmentSlot.Dogtag => "인식표",
+        _ => "장비",
+    };
+
+    private static string CarrierLabel(FarmingGuideStorageKind kind) => kind switch
+    {
+        FarmingGuideStorageKind.Rig => "리그",
+        FarmingGuideStorageKind.Backpack => "가방",
+        FarmingGuideStorageKind.SecureContainer => "보안 컨테이너",
+        _ => "장비",
+    };
+
     private sealed record RaidSurface(
         FarmingGuideStorageKind Kind,
         string? ParentInstanceId,
@@ -610,6 +1075,17 @@ public partial class FarmingGuidePage
         string Instruction,
         FarmingGuideInstructionAction Action,
         FarmingGuideLoadoutSnapshot ProposedSnapshot);
+
+    private sealed record RaidEquipTarget(
+        string Label,
+        GameItem? ExistingItem,
+        FarmingGuideLoadoutSnapshot ProposedSnapshot);
+
+    private sealed record RaidAssemblyRoot(
+        FarmingGuideItemState State,
+        Func<FarmingGuideItemState, FarmingGuideLoadoutSnapshot> Apply);
+
+    private sealed class ReservedCellOverlayMarker;
 
     private sealed class LootMetricsComparer : IComparer<FarmingGuideLootMetrics>
     {
