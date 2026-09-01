@@ -3,9 +3,11 @@ using JunhyunHelper.Core.Items;
 namespace JunhyunHelper.Core.FarmingGuide;
 
 /// <summary>
-/// Product boundary for the v1.15.2 complete-equipment model.
+/// Product boundary for the complete-equipment Farming Guide model.
 /// Farming Guide may retain source assembly metadata as read-only evidence, but the
-/// user-facing runtime model never exposes attachment or armor-plate state.
+/// user-facing runtime model never exposes attachment or armor-plate state. Source-backed
+/// inventory grids are different: any item that Tarkov defines as a real storage surface
+/// keeps those grids so specialized nested containers remain usable.
 /// </summary>
 public static class FarmingGuideCompleteEquipmentPolicy
 {
@@ -17,17 +19,15 @@ public static class FarmingGuideCompleteEquipmentPolicy
         ArgumentNullException.ThrowIfNull(sourceCatalog);
 
         var layout = item.FarmingGuideData;
-        var keepsStorageSurface = layout is not null &&
-            (FarmingGuideCompatibility.IsStorageCarrierCompatible(FarmingGuideStorageKind.Rig, item) ||
-             FarmingGuideCompatibility.IsStorageCarrierCompatible(FarmingGuideStorageKind.Backpack, item) ||
-             FarmingGuideCompatibility.IsStorageCarrierCompatible(FarmingGuideStorageKind.SecureContainer, item));
         var runtimeLayout = layout is null
             ? null
             : layout with
             {
-                StorageGrids = keepsStorageSurface
-                    ? layout.StorageGrids
-                    : Array.Empty<FarmingGuideStorageGridDefinition>(),
+                // Keep authoritative storage grids for every real Tarkov container.
+                // The grid definitions already include allowed/excluded item/category
+                // filters, so Key tool, document/money/card/injector cases and future
+                // specialized containers do not need brittle item-name allowlists.
+                StorageGrids = layout.StorageGrids,
                 AttachmentSlots = Array.Empty<FarmingGuideAttachmentSlotDefinition>(),
                 ArmorSlots = Array.Empty<FarmingGuideArmorSlotDefinition>(),
             };
@@ -49,11 +49,7 @@ public static class FarmingGuideCompleteEquipmentPolicy
     public static bool SupportsNestedStorage(GameItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
-        if (item.FarmingGuideData?.StorageGrids.Count is not > 0)
-            return false;
-
-        return FarmingGuideCompatibility.IsStorageCarrierCompatible(FarmingGuideStorageKind.Backpack, item) ||
-               FarmingGuideCompatibility.IsStorageCarrierCompatible(FarmingGuideStorageKind.Rig, item);
+        return item.FarmingGuideData?.StorageGrids.Count is > 0;
     }
 
     public static string? PreferredCompleteImageUrl(
