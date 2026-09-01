@@ -18,16 +18,24 @@ public sealed record StoredContentSnapshot(
 
 public sealed class ContentSnapshotStore
 {
-    // v3-v9 remain readable as last-known-good offline snapshots. v9 added canonical
+    // v3-v10 remain readable as last-known-good offline snapshots. v9 added canonical
     // Tarkov equipment/storage grid, attachment slot, armor slot and conflict metadata.
-    // v10 adds optional source-backed assembly metadata (composed/grid images, default
+    // v10 added optional source-backed assembly metadata (composed/grid images, default
     // preset identity and preset contained-item ids) used by Farming Guide v1.14.0.
-    // Older readable snapshots remain usable while offline; missing optional fields
-    // simply disable the affected assembly visual/default-preset enhancement.
+    // v11 adds source-backed top-level equipment comparison facts used by Farming Guide
+    // v1.15.4: armor class plus headset distance/distortion. Older readable snapshots are
+    // still valid offline fallbacks, but Desktop attempts a current-schema refresh when it
+    // encounters them so automatic equipment advice is deterministic across installations.
     public const int MinimumReadableSchemaVersion = 3;
-    public const int CurrentSchemaVersion = 10;
+    public const int CurrentSchemaVersion = 11;
 
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
+
+    public static bool RequiresCurrentSchemaRefresh(StoredContentSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        return snapshot.SchemaVersion < CurrentSchemaVersion;
+    }
 
     public async Task WriteNewAsync(
         string databasePath,

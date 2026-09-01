@@ -142,6 +142,8 @@ public sealed class TarkovItemImporter
         var slots = ReadAttachmentSlots(properties);
         var armorSlots = ReadArmorSlots(properties);
         var armorClass = TarkovJsonReader.OptionalInt(properties, "class") ?? 0;
+        var headsetDistanceModifier = OptionalDecimal(properties, "distanceModifier");
+        var headsetDistortion = OptionalDecimal(properties, "distortion");
         var isChestRig = string.Equals(
             propertiesType,
             "ItemPropertiesChestRig",
@@ -153,6 +155,9 @@ public sealed class TarkovItemImporter
             grids.Count == 0 &&
             slots.Count == 0 &&
             armorSlots.Count == 0 &&
+            armorClass <= 0 &&
+            headsetDistanceModifier is null &&
+            headsetDistortion is null &&
             !blocksHeadphones &&
             conflictingItems.Count == 0 &&
             conflictingSlotIds.Length == 0)
@@ -171,6 +176,9 @@ public sealed class TarkovItemImporter
             isArmoredRig)
         {
             StorageLayoutName = storageLayoutName,
+            ArmorClass = armorClass > 0 ? armorClass : null,
+            HeadsetDistanceModifier = headsetDistanceModifier,
+            HeadsetDistortion = headsetDistortion,
         };
     }
 

@@ -1,84 +1,109 @@
 # ACTIVE WORK — 현재 진행 중 작업 체크포인트
 
-Status: **NONE**  
+Status: **ACTIVE**  
 Updated: **2026-09-01 KST**
 
-현재 진행 중인 구현 작업은 없습니다.
+## Goal
 
-## Last completed work
+**v1.15.4 Farming Guide repacking / raid-planning / equipment-upgrade hardening PATCH**
 
-**v1.15.3 Farming Guide storage and scan simulation PATCH**
+실제 레이드에서 수납 공간이 단편화됐을 때 불필요한 파괴/버리기를 피하고, source-backed fact로 객관적 우위를 증명할 수 있는 장비는 현재 수납·잠금·내용물을 보존하는 범위에서 안전하게 업그레이드하도록 강화한다. Key tool 등 source-backed nested storage 상세창은 물리적으로 viewport에 들어갈 수 있는 경우 셀이 잘리거나 불필요한 horizontal scrollbar가 생기지 않아야 한다.
 
-Public stable:
-
-```text
-version/tag: v1.15.3
-exact product source/tag target:
-c35204da66eb0af454b50550c830b071a0897835
-merge PR: #265
-validated PR head: db82512e6e723f2d85ed0ddf3f3c7c9b0e3a70af
-PR CI / Shutdown / Docs:
-33487099126 / 33487099119 / 33487099201 — SUCCESS
-exact-main CI / Shutdown / Docs:
-33487466031 / 33487466005 / 33487465946 — SUCCESS
-Release workflow: 33487795730 — SUCCESS
-release id: 380333729
-published UTC: 2026-09-01T08:35:55Z
-563 passed / 0 failed / 0 skipped
-```
-
-Public package:
+## Base / delivery
 
 ```text
-Junhyun-Helper.zip
-asset id: 539249489
-bytes: 80,659,355
-SHA-256: a22a426de32aa20a4c158018d98a6eec96b39d460d367d33d9d970d7e2581d99
-
-SHA256SUMS.txt
-asset id: 539249490
-bytes: 86
-asset SHA-256: 286e27a9db1394d1a4487c5b26598f08998bb03e07e21fa116dc4fca5844fdde
+public stable baseline: v1.15.3
+v1.15.3 exact product source: c35204da66eb0af454b50550c830b071a0897835
+work branch: fix/v1.15.4-farming-guide-repacking-hardening-2026-09-01
+PR: #267 (draft until final candidate gates pass)
+current desktop candidate version: 1.15.4
+Game Content write schema: 11
+Game Content readable schemas: 3..11
 ```
 
-Exact-main Actions artifact:
+Public stable evidence in `docs/PROJECT_STATE.json` intentionally remains v1.15.3 until v1.15.4 tag/release/assets are publicly verified.
 
-```text
-JunhyunHelper-win-x64
-artifact id: 9792459273
-bytes: 241,909,375
-SHA-256: c0aba02d6a465734c841b044776dfcf087bab9b29141b23c71ffb5a0a65c6cb2
-```
+## Confirmed scope
 
-Completed scope:
+- Preserve-first live raid planning: direct legal storage and non-destructive repacking must be exhausted before destructive replacement/discard.
+- Source-backed nested storage and dedicated-container semantics remain authoritative.
+- `F` locks, locked ancestors, carrier/equipment locks, reserved cells, filters and nested parent/descendant constraints are automation invariants.
+- Objectively superior compatible top-level equipment may be equipped before ordinary storage, but superiority must be source-backed and conservative rather than inferred from price/name.
+- Ordinary body armor + ordinary rig → superior armored rig is an atomic fail-closed transition that must preserve every modeled rig content item legally.
+- Complete-equipment boundary stays closed: weapon/helmet attachment and armor-plate user state are not reintroduced.
+- Game Content schema v11 persists the new armor/headset comparison facts while v3..v10 remain readable offline fallback.
+- Nested Workbench scrollbars are physical overflow fallback only; a grid that fits the effective viewport must render without manufactured horizontal scrolling/cell clipping.
 
-- 일반 stored item의 기본 테두리를 neutral로 복원하고 명시적 `F` lock에만 accent/yellow 표시
-- current validated Game Content의 실제 `StorageGrids`를 가진 모든 stored container로 nested-storage surface 일반화
-- source-backed allowed/excluded item/category filter를 manual placement, sanitizer, raid planning에 공통 적용
-- Secure Container 안 specialized container 및 container-in-container 재귀 상태 유지
-- compatible positive-allow-list nested grid를 general root empty storage보다 우선하는 raid placement
-- 검색 결과 hover + `T` simulated scan의 Search TextBox focus 회귀 수정
-- Scanner capture가 비활성/미초기화 상태여도 verified same-mode local catalog를 on-demand 사용
-- v1.15.2 complete-equipment boundary 유지
-- Release build, 563 deterministic tests, self-contained Windows x64 publish, published EXE runtime smoke, graceful shutdown, Shutdown Race, package/checksum, exact-main CI/docs, public tag/release/assets 검증 완료
+## Canonical product decision
 
-Canonical evidence:
+`docs/DECISION_V1.15.4_FARMING_GUIDE_REPACKING_EQUIPMENT_UPGRADES.md`
 
-- `docs/PROJECT_STATE.json`
-- `docs/CURRENT_STATE.md`
-- `docs/STATE.md`
-- `docs/PRODUCT.md`
-- `docs/DECISIONS.md`
-- `docs/DECISION_V1.15.3_SPECIALIZED_NESTED_STORAGE.md`
-- `docs/RELEASE_1.15.3.md`
-- `docs/.release-v1.15.3-status.json`
-- `docs/RELEASE_NOTES_V1.15.3.md`
+Core decisions:
 
-## External evidence not treated as active development
+1. Raid planning is preservation-first: empty equipment → proven safe equipment upgrade → direct storage → non-destructive repacking → destructive low-priority replacement → discard last.
+2. Repacking is bounded/deterministic and may move/rotate multiple unlocked items across legal root/nested surfaces while preserving filters, reservations, locks and parent graph.
+3. Market value is not equipment performance. Auto equipment upgrades require conservative source-backed superiority.
+4. Protective equipment uses representative top-level `properties.class`; customized plate internals remain intentionally unmodeled by the complete-equipment product boundary.
+5. Headset superiority requires `distanceModifier` no worse + `distortion` no worse + at least one strict improvement. Trade-offs are not auto-ranked.
+6. Backpack/Rig upgrades require objectively superior source-backed capacity and complete legal content preservation.
+7. Ordinary body armor + ordinary rig → superior armored rig is one fail-closed atomic pending transaction. Partial transitions are forbidden; reverse creation of a missing ordinary rig is not inferred.
+8. Game Content v11 persists armor/headset comparison facts. Readable v3-v10 snapshots remain safe offline fallback and are opportunistically refreshed through the normal transactional Data Update boundary.
+9. Nested Workbench horizontal scrolling is a physical fallback only when content genuinely exceeds effective viewport width.
 
-Automated v1.15.3 release validation is complete. 다음 실환경 증거는 별도 유지보수 요청이 있을 때 다시 시작합니다.
+## Completed
 
-- 사용자 실제 Tarkov 플레이에서 v1.15.3 Farming Guide 시각/동작 검증
-- 김태영 actual-PC diagnostic ZIP collection/analysis
+- Core `FarmingGuideRepackingPlanner` with deterministic bounded displacement search.
+- One/multiple blocker movement, rotation, cross-surface legal moves, reserved-cell/lock/filter/cycle protections.
+- Populated nested containers excluded from destructive value-only replacement; locked ancestors protect descendants.
+- Desktop direct-store → repack → protected destructive fallback → discard-last raid flow.
+- Source-backed `ArmorClass`, `HeadsetDistanceModifier`, `HeadsetDistortion` import/runtime persistence.
+- `FarmingGuideEquipmentUpgradePolicy` and `FarmingGuideCarrierPackingPlanner`.
+- Safe same-slot protective/headset/carrier upgrades.
+- Atomic body armor + populated ordinary rig → superior armored rig transition with full content repack/preservation and canonical sanitizer check.
+- Fail-closed guard preventing illegal body armor + armored-rig state after a failed combined transition.
+- Reverse armored-rig → body armor + fabricated ordinary rig transition prohibited.
+- Nested Workbench viewport correction: horizontal scrolling disabled when constrained content fits, Auto only when genuinely wider.
+- Game Content schema v11 with v3..v10 readable fallback.
+- Opportunistic one-shot legacy-content refresh integrated through the existing `MainWindow.ProductLifecycle` lifecycle owner; no competing WPF lifecycle override.
+- Deterministic tests for repacking, carrier packing, equipment/headset policy, importer equipment facts, schema v11 round-trip/refresh contract.
+- Published EXE smoke for fragmented repacking, nested Workbench viewport, and body armor + populated rig → armored rig preservation/repacking.
+- v1.15.4 package first-run notes and `docs/RELEASE_NOTES_V1.15.4.md` added.
 
-새 작업은 `AGENTS.md` → `docs/PROJECT_STATE.json` → 이 파일 순으로 복구하고, 현재 public stable v1.15.3에서 시작합니다.
+## Pre-freeze validated implementation evidence
+
+Implementation head `9b8c317cecec375cf5ddbfc67cf0207e29cdc125` passed all PR gates before the version bump:
+
+- CI run `33498171195`: success
+- Shutdown Race run `33498171241`: success
+- Documentation Consistency run `33498171191`: success
+- deterministic tests: **585 passed / 0 failed / 0 skipped**
+- Windows Release build: success
+- self-contained win-x64 publish: success
+- actual published EXE Product UI / Map / Farming Guide smoke: success
+- package/checksum verification: success
+- graceful shutdown: success
+- artifact `JunhyunHelper-win-x64`: id `9796675755`, bytes `242508051`, SHA256 `5659947d283a313988866abd3120323948c48fa8f4b3c9274ba6b9282d2dc47c`
+
+This is implementation evidence only. Because that head still packaged version 1.15.3, it is **not** final v1.15.4 release evidence.
+
+## Current step
+
+The v1.15.4 candidate is frozen at product version/schema/package/release-note level. Run the resulting PR head through the complete gate again. Only a head that packages **1.15.4** and passes CI + Shutdown Race + Documentation Consistency is eligible to merge.
+
+## Remaining
+
+1. Confirm final candidate head has:
+   - 585 deterministic tests passing with zero failures/skips;
+   - Windows Release build;
+   - self-contained win-x64 publish;
+   - actual published EXE Product UI / Map / Farming Guide smoke;
+   - fragmented repacking + Workbench viewport + armored-rig transition smoke;
+   - package/checksum verification;
+   - graceful shutdown;
+   - Shutdown Race and Documentation Consistency.
+2. Update PR #267 validation summary and mark ready.
+3. Merge PR #267.
+4. Verify the exact main product-source SHA through CI / Shutdown Race / Documentation Consistency.
+5. Publish tag/release **v1.15.4** from that exact product source and verify release workflow, ZIP, checksum asset, sizes and SHA256.
+6. Perform documentation-only release closure: update `PROJECT_STATE`, README, CURRENT_STATE, STATE, PRODUCT, DECISIONS, release evidence/status docs with public v1.15.4 facts.
+7. Close this file to `Status: NONE` only after the public release is verified.

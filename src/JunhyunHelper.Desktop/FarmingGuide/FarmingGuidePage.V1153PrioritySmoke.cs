@@ -1,3 +1,5 @@
+using System.Windows;
+using System.Windows.Controls;
 using JunhyunHelper.Core.FarmingGuide;
 using JunhyunHelper.Core.Items;
 using JunhyunHelper.Desktop.Scanner;
@@ -81,7 +83,7 @@ public partial class FarmingGuidePage
                 Slots: 1,
                 CurrentNeeded: 0);
 
-            var recommendation = PlanScannedItem(scanned, key);
+            var recommendation = PlanScannedItemHardened(scanned, key);
             if (recommendation.Action != FarmingGuideInstructionAction.Store)
             {
                 throw new InvalidOperationException(
@@ -112,6 +114,174 @@ public partial class FarmingGuidePage
                 else
                     _itemsById.Remove(id);
             }
+        }
+
+        VerifyRaidRepackingHardeningSmoke();
+        VerifyNestedWorkbenchViewportSmoke();
+    }
+
+    private void VerifyRaidRepackingHardeningSmoke()
+    {
+        const string bagId = "__junhyun_smoke_repack_bag";
+        const string blockerId = "__junhyun_smoke_repack_blocker";
+        const string incomingId = "__junhyun_smoke_repack_incoming";
+        const string blockerInstanceId = "__junhyun_smoke_repack_blocker_instance";
+
+        var ids = new[] { bagId, blockerId, incomingId };
+        var previousItems = ids.ToDictionary(
+            id => id,
+            id => _itemsById.TryGetValue(id, out var item) ? item : null,
+            StringComparer.Ordinal);
+        var previousBackpack = _backpack;
+        var previousStored = _storedItems.ToArray();
+        var previousLocks = BuildLockState();
+
+        var bag = SmokeItem(bagId) with
+        {
+            FarmingGuideData = new FarmingGuideItemLayout(
+                "ItemPropertiesBackpack",
+                [new FarmingGuideStorageGridDefinition(3, 3, FarmingGuideItemFilter.Empty)],
+                [],
+                [],
+                [],
+                [],
+                false,
+                false),
+        };
+        var blocker = SmokeItem(blockerId) with { Width = 1, Height = 1 };
+        var incoming = SmokeItem(incomingId) with { Width = 2, Height = 3 };
+
+        _itemsById[bagId] = bag;
+        _itemsById[blockerId] = blocker;
+        _itemsById[incomingId] = incoming;
+        _backpack = FarmingGuideItemState.Create(bagId);
+        _storedItems.Clear();
+        _storedItems.Add(new FarmingGuideStoredItemState(
+            blockerInstanceId,
+            FarmingGuideItemState.Create(blockerId),
+            FarmingGuideStorageKind.Backpack,
+            0,
+            1,
+            1,
+            false));
+        ApplyLockState(FarmingGuideLockState.Empty);
+
+        try
+        {
+            var scanned = new ScannerItemSnapshot(
+                incomingId,
+                incomingId,
+                null,
+                TraderSellPrice: 100_000,
+                FleaAveragePrice: 100_000,
+                TraderPricePerSlot: 0,
+                FleaPricePerSlot: 0,
+                Slots: 6,
+                CurrentNeeded: 0);
+
+            var recommendation = PlanScannedItemHardened(scanned, incoming);
+            if (recommendation.Action != FarmingGuideInstructionAction.Store)
+            {
+                throw new InvalidOperationException(
+                    $"Fragmented free capacity did not repack before discard/replacement: {recommendation.Action}.");
+            }
+
+            var moved = recommendation.ProposedSnapshot.StoredItems.Single(value =>
+                string.Equals(value.InstanceId, blockerInstanceId, StringComparison.Ordinal));
+            if (moved.X == 1 && moved.Y == 1)
+                throw new InvalidOperationException("Repacking recommendation left the blocking 1x1 item in place.");
+
+            var added = recommendation.ProposedSnapshot.StoredItems.FirstOrDefault(value =>
+                string.Equals(value.Item.ItemId, incomingId, StringComparison.Ordinal));
+            if (added is null)
+                throw new InvalidOperationException("Repacking recommendation did not preserve the incoming item.");
+            if (!recommendation.Instruction.Contains("이동", StringComparison.Ordinal))
+                throw new InvalidOperationException("Repacking recommendation does not tell the user that an item must move.");
+        }
+        finally
+        {
+            _backpack = previousBackpack;
+            _storedItems.Clear();
+            _storedItems.AddRange(previousStored);
+            ApplyLockState(previousLocks);
+            foreach (var id in ids)
+            {
+                if (previousItems[id] is { } original)
+                    _itemsById[id] = original;
+                else
+                    _itemsById.Remove(id);
+            }
+        }
+    }
+
+    private void VerifyNestedWorkbenchViewportSmoke()
+    {
+        const string caseId = "__junhyun_smoke_workbench_viewport_case";
+        const string parentInstanceId = "__junhyun_smoke_workbench_viewport_parent";
+
+        var previousItem = _itemsById.TryGetValue(caseId, out var existing) ? existing : null;
+        var sourceCase = SmokeItem(caseId) with
+        {
+            FarmingGuideData = new FarmingGuideItemLayout(
+                "ItemPropertiesContainer",
+                [new FarmingGuideStorageGridDefinition(4, 4, FarmingGuideItemFilter.Empty)],
+                [],
+                [],
+                [],
+                [],
+                false,
+                false),
+        };
+        _itemsById[caseId] = sourceCase;
+
+        try
+        {
+            var placement = new FarmingGuideStoredItemState(
+                parentInstanceId,
+                FarmingGuideItemState.Create(caseId),
+                FarmingGuideStorageKind.SecureContainer,
+                0,
+                0,
+                0,
+                false);
+            OpenStoredWorkbench(new PlacedItemSource(placement));
+            WorkbenchHost.UpdateLayout();
+
+            if (!IsWorkbenchOpen)
+                throw new InvalidOperationException("Source-backed 4x4 container did not open its storage workbench.");
+
+            var dock = WorkbenchHost.Child as DockPanel
+                ?? throw new InvalidOperationException("Nested storage workbench lost its DockPanel host.");
+            var scroll = dock.Children.OfType<ScrollViewer>().FirstOrDefault()
+                ?? throw new InvalidOperationException("Nested storage workbench lost its scroll viewport.");
+            var gridHost = WorkbenchPanel.Children.OfType<FrameworkElement>().FirstOrDefault()
+                ?? throw new InvalidOperationException("Nested storage workbench did not render its grid host.");
+
+            WorkbenchHost.UpdateLayout();
+            gridHost.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            var physicallyFits = gridHost.DesiredSize.Width +
+                                 WorkbenchHost.Padding.Left + WorkbenchHost.Padding.Right +
+                                 WorkbenchHost.BorderThickness.Left + WorkbenchHost.BorderThickness.Right +
+                                 SystemParameters.VerticalScrollBarWidth <
+                                 Math.Max(240d, RootGrid.ColumnDefinitions[1].ActualWidth - 24d);
+            if (physicallyFits &&
+                scroll.ComputedHorizontalScrollBarVisibility == Visibility.Visible)
+            {
+                throw new InvalidOperationException("Nested storage grid fits the viewport but still requires horizontal scrolling.");
+            }
+            if (physicallyFits && scroll.ViewportWidth + 0.5d < gridHost.ActualWidth)
+            {
+                throw new InvalidOperationException(
+                    $"Nested storage viewport clips grid cells: viewport={scroll.ViewportWidth:0.#}, grid={gridHost.ActualWidth:0.#}.");
+            }
+        }
+        finally
+        {
+            CloseWorkbench();
+            if (previousItem is null)
+                _itemsById.Remove(caseId);
+            else
+                _itemsById[caseId] = previousItem;
         }
     }
 }
