@@ -3,89 +3,112 @@
 > 새 대화/새 개발자는 `AGENTS.md` → `docs/PROJECT_STATE.json` → `docs/ACTIVE_WORK.md` 순으로 복구한 뒤 이 문서를 읽습니다. 저장소 문서, 실제 코드, 테스트, GitHub 상태가 기준입니다.
 
 기준일: **2026-09-01 KST**  
-상태: **v1.14.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+상태: **v1.15.0 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 1. 제품 / 공개 상태
 
 준현 헬퍼는 Escape from Tarkov 플레이를 지원하는 Windows x64 .NET 10 WPF 데스크톱 프로그램이다. 주요 제품 영역은 Profile/User Progress, Quest, Hideout, Needed Items/Inventory, Items, Ammo, Game Content update, Map/MiniMap, Scanner/Mini Scanner, Farming Guide, diagnostics, Program Update다. Runtime GPT/AI 의존성은 없다.
 
-현재 public stable은 **v1.14.1**이다.
+현재 public stable은 **v1.15.0**이다.
 
 ```text
 exact product source/tag target:
-add12c1b160f54e494d549978073f25e27cc4191
-release id: 380147230
-published UTC: 2026-09-01T01:01:22Z
-529 passed / 0 failed / 0 skipped
+b974d56f32d073ce21a5de4171737670f83261f3
+release id: 380200480
+published UTC: 2026-09-01T03:49:49Z
+540 passed / 0 failed / 0 skipped
 ```
 
 Validation:
 
 ```text
-PR #253 final head: 42abdc7945c8f12a26553c6d0386cdadc6e41803
-PR CI: 33456589868 — SUCCESS
-PR Shutdown Race: 33456589884 — SUCCESS
-PR Documentation Consistency: 33456589878 — SUCCESS
-exact-main CI: 33456851817 — SUCCESS
-exact-main Shutdown Race: 33456851818 — SUCCESS
-exact-main Documentation Consistency: 33456851901 — SUCCESS
-Release workflow: 33457066723 — SUCCESS
+validated candidate head: 397c82b8911597128c5878e7974db6a7822888d8
+candidate CI: 33466090956 — SUCCESS
+candidate Shutdown Race: 33466090958 — SUCCESS
+candidate Documentation Consistency: 33466090940 — SUCCESS
+merge PR: #256
+exact-main CI: 33467376556 — SUCCESS
+exact-main Shutdown Race: 33467376508 — SUCCESS
+exact-main Documentation Consistency: 33467376529 — SUCCESS
+Release workflow: 33467575493 — SUCCESS
 ```
+
+PR #255 carried the original Draft implementation and completed candidate validation. The GitHub connector's draft-to-ready GraphQL mutation failed because of a connector-side schema incompatibility, so the exact same validated branch/head was reopened as non-draft PR #256 and squash-merged without changing product contents.
 
 Public package:
 
 ```text
 Junhyun-Helper.zip
-asset id: 538731592
-bytes: 80,630,913
-SHA-256: b1216d9c661be909aee8c4a3f4eeb199b03eae46ba1f91799172bf8fd0074921
+asset id: 538909239
+bytes: 80,647,419
+SHA-256: 95f62c7d795f1954c3fd3437b17d9e15db05f5ab113f95df97055d15061bc76a
 
 SHA256SUMS.txt
-asset id: 538731593
+asset id: 538909237
 bytes: 86
-asset SHA-256: a3817550bf8d8ed0813606ddc4ae511d3f989b473cedea8c1e137e9209b7944a
+asset SHA-256: 5b8101bf0e086952ee12d4070e678cd1e0b5406e0c32ae91b7bf2562e7ab2ecb
 ```
 
 Exact-main Actions artifact:
 
 ```text
-id: 9781796510
-bytes: 241,822,850
-SHA-256: c55c6da388c078c9cf011b5db35b2797424daa8d59cdd7a7c9ed232acfd97031
+name: JunhyunHelper-win-x64
+artifact id: 9785383239
+bytes: 241,875,746
+SHA-256: 6ba4c5819119a230ee02e4f7c2cb093679527623e3ab9665b8ebc05dee5936ae
 ```
 
-`/releases/latest`, release target and lightweight `refs/tags/v1.14.1` resolve to the exact product source. Follow-up documentation-only commits are not product sources and may not replace public v1.14.1 assets.
+`/releases/latest`, release target and lightweight `refs/tags/v1.15.0` resolve to `b974d56f32d073ce21a5de4171737670f83261f3`. Follow-up documentation-only commits are not v1.15.0 product sources and may not replace its public assets.
 
-## 2. v1.14.0 / v1.14.1 Farming Guide evolution
+## 2. v1.15.0 Farming Guide raid-session advisor
 
-v1.14.0 introduced:
+v1.15.0 extends the existing Farming Guide raid-start Loadout / Inventory Editor with a user-controlled raid-session recommendation layer.
 
-- removal of the non-actionable PMC dogtag equipment-board surface while preserving legacy state readability;
-- recursive `FarmingGuideAssemblyPolicy` authority for deep attachment/armor child trees;
-- same-page compatible-item picker for empty attachment/armor slots;
-- shared Core compatibility between picker and search drag/drop;
-- authoritative default-preset composed image use only when membership exactly matches;
-- deterministic arbitrary-assembly presentation fallback;
-- `StorageLayoutName` import and product-owned exact multi-grid coordinates for a deliberately small verified catalog;
-- Content snapshot write schema v10 / readable v3-v10.
+### Raid-session lifecycle
 
-During v1.14.0 release-closure review, the exact visual-layout activation contract was audited against the product source. The public resolver checked identity, count, positive dimensions and non-overlap, but did not store/compare each grid index's expected width/height. Therefore v1.14.0 must not be described as having a complete dimension-signature guard.
+- `레이드 시작` snapshots the current working equipment/storage/lock state into an isolated raid session.
+- Raid-session mutations do not overwrite the saved preset or original working state.
+- Manual Farming Guide changes during a raid immediately become the new recommendation input state.
+- `레이드 종료` discards raid-session mutations and restores the raid-start snapshot.
+- A monotonically changing session revision invalidates stale pending recommendations after state changes.
 
-v1.14.1 corrects that gap:
+### Scanner / Mini Scanner bridge
 
-- each exact profile grid stores `X`, `Y`, `ExpectedWidth`, `ExpectedHeight`;
-- live grid count must equal profile count;
-- each live grid's width/height must exactly equal the expected values for the same index;
-- width/height drift fails closed even when the stale rectangles would not overlap;
-- finite/positive/non-overlap validation remains;
-- mismatch falls back to compact visual arrangement only; it does not alter current Game Content mechanics;
-- deterministic and actual published-runtime A18 verification use the verified profile signature.
+- recognized Scanner item identity is bridged to Farming Guide through a UI Dispatcher boundary; Scanner worker callbacks do not directly mutate WPF Farming Guide state;
+- at most one unaccepted Farming Guide instruction is active;
+- Mini Scanner can persistently show the current Farming Guide instruction;
+- the configured Farming Guide accept hotkey is required before recommendation effects are committed;
+- acceptance produces transient completion feedback;
+- manual equipment/storage/lock edits cancel stale pending instructions and clear the Mini Scanner persistent instruction;
+- hovering a Farming Guide search result and pressing `T` produces a simulated Scanner input through the same recommendation pipeline.
 
-v1.14.0 public bytes/source/assets remain immutable historical evidence. v1.14.1 supersedes only the incomplete exact-layout activation guard.
+### Locks / reserved capacity
 
-## 3. Farming Guide system contract
+- hover + `F` toggles lock state for supported item/equipment/storage/cell targets;
+- locked items are excluded from automatic sacrifice/replacement;
+- locked carriers and their contents are excluded from automatic placement/replacement;
+- locked empty cells are reserved capacity unavailable to automatic placement;
+- locks persist in Farming Guide state schema v2 and v1 remains readable/migratable;
+- locks do not prohibit the user's own direct drag/drop edits.
 
-Farming Guide is a **raid-start Loadout / Inventory Editor**, not a live inventory mirror.
+### Current loot policy
+
+The recommendation engine is deliberately separated from session/UI/scanner plumbing so policy can evolve independently.
+
+Current v1.15.0 policy uses existing JunhyunHelper truth instead of introducing a second item-need database:
+
+1. remaining required quantity from the existing Needed Items plan;
+2. current merchant sell / Flea average economic values available to Scanner;
+3. occupied cell count and value per cell;
+4. total value and deterministic size tie-breaking;
+5. legal destination candidates from current validated Farming Guide storage/filter state;
+6. replacement search only among non-protected eligible raid-session loot.
+
+The product does not infer extraction probability or tell the user whether to leave the raid. Recommendations remain advisory until explicit acceptance.
+
+## 3. Farming Guide base editor contract
+
+Farming Guide retains all v1.14.x loadout/editor behavior.
 
 ### Equipment / storage
 
@@ -102,7 +125,6 @@ Farming Guide is a **raid-start Loadout / Inventory Editor**, not a live invento
 
 ### Assembly / workbench
 
-- separate generic item-information/configuration windows are not the editing authority;
 - the same-page workbench exposes actionable storage, attachment/mod and replaceable armor slots;
 - recursive navigation supports attachment child slots;
 - empty actionable slots can open an inline compatible-item icon picker;
@@ -116,13 +138,14 @@ Farming Guide is a **raid-start Loadout / Inventory Editor**, not a live invento
 - assembled `ItemPropertiesPreset` / `preset` weapon records are excluded from Farming Guide draggable search while canonical base weapons remain;
 - exact preset composed image is used only when current build membership exactly matches authoritative imported preset membership;
 - arbitrary builds use deterministic fallback presentation;
-- product-owned exact storage coordinates are visual metadata only and require the complete verified grid signature; otherwise compact fallback is used.
+- product-owned exact storage coordinates are visual metadata only and require exact layout identity, grid count and per-index width/height signature; otherwise compact fallback is used.
 
 ### Persistence
 
 ```text
 %LocalAppData%/JunhyunHelper/farming-guide.json
-Farming Guide state schema: v1
+Farming Guide state schema: v2
+readable Farming Guide state: v1-v2
 ```
 
 Game Content and user-owned Farming Guide state have separate lifecycles. Program/Game Content updates do not overwrite user state.
@@ -174,7 +197,7 @@ screen pixels
 
 Scanner uses external screen pixels + OCR only and does not use game memory read, DLL/code injection, process/game hooks, kernel/driver access, input automation, game network manipulation or anti-cheat bypass.
 
-Needed quantity/source presentation reuses `ItemsWorkspace.Plan.NeededItems` rather than creating a second truth.
+Needed quantity/source presentation reuses `ItemsWorkspace.Plan.NeededItems` rather than creating a second truth. Scanner display settings schema is v10 and preserves v9 settings through migration.
 
 ## 6. Quest / Hideout / Needed Items
 
@@ -228,16 +251,16 @@ Relevant changes use the required subset of:
 - PR and exact-main Documentation Consistency;
 - public tag/release/assets/latest readback.
 
-v1.14.1 exact product source passed all of these applicable gates.
+v1.15.0 exact product source passed all applicable automated gates.
 
 ## 11. Current schemas / remaining external evidence
 
 ```text
-Desktop: 1.14.1
+Desktop: 1.15.0
 Content: write v10 / read v3-v10
 user.db: v1
-Farming Guide state: v1
-Scanner display settings: v9
+Farming Guide state: v2 (reads v1-v2)
+Scanner display settings: v10
 Scanner catalog: write v4 / read v1-v4
 ```
 
@@ -246,4 +269,4 @@ Automated release verification is complete. Separate real-environment evidence r
 - user's actual PC/Tarkov play validation;
 - Kim Taeyoung actual-PC diagnostic ZIP collection/analysis.
 
-Current release evidence: `docs/RELEASE_1.14.1.md` and `docs/.release-v1.14.1-status.json`.
+Current release evidence: `docs/RELEASE_1.15.0.md` and `docs/.release-v1.15.0-status.json`.
