@@ -94,10 +94,9 @@ public partial class FarmingGuidePage
 
     /// <summary>
     /// Sizes nested storage against the real viewport instead of measuring an unbounded
-    /// child and then clipping the outer Border. A vertical scrollbar is accounted for
-    /// before final width is chosen, and horizontal scrolling is enabled only as a
-    /// physical fallback for storage wider than the available center column. This keeps
-    /// complete cells visible for Key tool, rigs, bags and any future source-backed case.
+    /// child and then clipping the outer Border. Scroll-viewer chrome is reserved before
+    /// final width is chosen, and horizontal scrolling remains only as a physical fallback
+    /// for storage wider than the available center column.
     /// </summary>
     private void SizeWorkbenchToGrid(FrameworkElement gridHost)
     {
@@ -127,45 +126,39 @@ public partial class FarmingGuidePage
         var scrollViewer = dock?.Children.OfType<ScrollViewer>().FirstOrDefault();
         if (scrollViewer is not null)
         {
-            // Auto means normal cases remain scrollbar-free, while a genuinely wider
-            // Tarkov grid scrolls instead of cutting a partial cell off the right edge.
             scrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
             scrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
         }
 
-        var maximumViewportWidth = Math.Max(CellSize, maxWidth - horizontalChrome);
+        // WPF ScrollViewer can reserve non-client scrollbar space only after arranging.
+        // Always budget one system scrollbar width so the final arrange pass cannot steal
+        // the last pixels of a cell from content that otherwise fits the workbench.
+        var scrollbarAllowance = Math.Max(18d, SystemParameters.VerticalScrollBarWidth);
+        var maximumViewportWidth = Math.Max(
+            CellSize,
+            maxWidth - horizontalChrome - scrollbarAllowance);
+
         header?.Measure(new Size(maximumViewportWidth, double.PositiveInfinity));
         var headerHeight = header?.DesiredSize.Height ?? 0d;
+        var headerWidth = header?.DesiredSize.Width ?? 0d;
         var maximumViewportHeight = Math.Max(
             CellSize,
             maxHeight - verticalChrome - headerHeight);
 
-        // Pass 1 establishes whether the full content height requires a vertical bar.
         gridHost.Measure(new Size(maximumViewportWidth, double.PositiveInfinity));
         var desired = gridHost.DesiredSize;
         var verticalScrollNeeded = desired.Height > maximumViewportHeight + 0.5d;
 
-        // A later vertical scrollbar must never steal the final few pixels from a grid
-        // that originally measured as fitting. Reserve its actual system width first.
-        var reservedVerticalBar = verticalScrollNeeded
-            ? Math.Max(0d, SystemParameters.VerticalScrollBarWidth)
-            : 0d;
-        var measuredViewportWidth = Math.Max(
-            CellSize,
-            maximumViewportWidth - reservedVerticalBar);
-
-        gridHost.Measure(new Size(measuredViewportWidth, double.PositiveInfinity));
-        desired = gridHost.DesiredSize;
-        if (!verticalScrollNeeded && desired.Height > maximumViewportHeight + 0.5d)
+        if (verticalScrollNeeded)
         {
-            verticalScrollNeeded = true;
-            reservedVerticalBar = Math.Max(0d, SystemParameters.VerticalScrollBarWidth);
-            measuredViewportWidth = Math.Max(CellSize, maximumViewportWidth - reservedVerticalBar);
-            gridHost.Measure(new Size(measuredViewportWidth, double.PositiveInfinity));
+            // maximumViewportWidth already reserves one bar. Re-measure so WrapPanel-based
+            // multi-grid layouts use the same width they will receive at arrange time.
+            gridHost.Measure(new Size(maximumViewportWidth, double.PositiveInfinity));
             desired = gridHost.DesiredSize;
         }
 
-        var desiredWidth = desired.Width + horizontalChrome + reservedVerticalBar;
+        var desiredContentWidth = Math.Max(desired.Width, headerWidth);
+        var desiredWidth = desiredContentWidth + horizontalChrome + scrollbarAllowance;
         var desiredHeight = desired.Height + headerHeight + verticalChrome;
 
         WorkbenchHost.HorizontalAlignment = HorizontalAlignment.Left;
