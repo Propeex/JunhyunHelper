@@ -4,7 +4,7 @@
              Focusable="True"
              PreviewMouseMove="Root_PreviewMouseMove"
              PreviewMouseLeftButtonUp="Root_PreviewMouseLeftButtonUp"
-             PreviewKeyDown="Root_PreviewKeyDown">
+             PreviewKeyDown="Root_ProductPreviewKeyDown">
     <Grid x:Name="RootGrid" Background="{StaticResource BackgroundDarkBrush}">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="390" />
@@ -16,7 +16,7 @@
             <DockPanel LastChildFill="True">
                 <StackPanel DockPanel.Dock="Top">
                     <TextBlock Text="장비" FontSize="21" FontWeight="SemiBold" Margin="0,0,0,10" />
-                    <Grid Margin="0,0,0,12">
+                    <Grid Margin="0,0,0,10">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
@@ -75,6 +75,16 @@
                             </Viewbox>
                         </Button>
                     </Grid>
+                    <Button x:Name="RaidToggleButton"
+                            MinHeight="38"
+                            Content="레이드 시작"
+                            FontWeight="SemiBold"
+                            Click="RaidToggleButton_Click" />
+                    <TextBlock x:Name="RaidStatusText"
+                               Margin="2,7,2,12"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               Text="레이드를 시작하면 현재 상태를 기준으로 파밍 지시를 계산합니다."
+                               TextWrapping="Wrap" />
                 </StackPanel>
 
                 <ScrollViewer VerticalScrollBarVisibility="Auto"
@@ -88,7 +98,7 @@
             <DockPanel LastChildFill="True">
                 <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
                     <TextBlock Text="수납 공간" FontSize="21" FontWeight="SemiBold" />
-                    <TextBlock Text="아이템을 끌어 놓으세요. 드래그 중 R로 회전할 수 있습니다."
+                    <TextBlock Text="아이템을 끌어 놓으세요. R: 회전 · F: 아이템/장비/빈 칸 잠금"
                                Foreground="{StaticResource TextSecondaryBrush}"
                                Margin="0,3,0,0" />
                 </StackPanel>
@@ -132,6 +142,7 @@
                                     Background="{StaticResource BackgroundDarkBrush}"
                                     Cursor="Hand"
                                     Tag="{Binding}"
+                                    ToolTip="드래그: 배치 · T: 테스트 스캔"
                                     MouseLeftButtonDown="SearchResult_MouseLeftButtonDown">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
