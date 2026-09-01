@@ -17,7 +17,7 @@ public sealed partial class ScannerCoordinator
     public void ShowFarmingGuideStatus(string message)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (string.IsNullOrWhiteSpace(message))
+        if (!_settings.Current.ShowFarmingGuide || string.IsNullOrWhiteSpace(message))
             return;
         _overlay.ShowTransientStatus(message.Trim());
     }
