@@ -20,19 +20,47 @@
 - Game Content snapshot write schema를 **v10**으로 올려 assembly source와 storage layout identity를 보존합니다.
 - 기존 **v3~v9** Game Content snapshot도 계속 읽을 수 있습니다.
 - Farming Guide 사용자 상태 schema는 **v1**을 유지합니다.
+- mandatory user-state migration은 없습니다.
 
-## 검증
+## 최종 검증
 
-릴리즈 준비 전 기능 HEAD에서 다음을 확인했습니다.
+공개 v1.14.0 exact product source:
 
-- Windows Release build 성공
+```text
+9ff23b9f50dd84b84ec93cea31b079d7eff70fe1
+```
+
+검증 결과:
+
 - deterministic tests **527 passed / 0 failed / 0 skipped**
+- Windows Release build / XAML compile 성공
 - self-contained Windows x64 publish 성공
+- ProductVersion `1.14.0+9ff23b9f50dd84b84ec93cea31b079d7eff70fe1`
 - actual published EXE Product UI / Farming Guide / Map smoke 성공
-- exact multi-grid render 및 drop-target identity smoke 성공
-- graceful shutdown 성공
-- release package/checksum 검증 성공
+- recursive assembly / compatible-item picker smoke 성공
+- exact multi-grid Canvas render 및 `GridDropTarget.GridIndex` identity smoke 성공
+- graceful shutdown / clean portable root 성공
 - Shutdown Race 성공
-- Documentation Consistency 성공
+- release package/checksum 검증 성공
+- exact-main Documentation Consistency 성공
+- exact-main Actions artifact digest 검증 성공
+- automatic Release workflow 성공
+- public tag / release / assets / latest-stable readback 성공
 
-최종 공개 v1.14.0의 exact source / tag / release asset / checksum은 main 병합 후 공개 release 검증 시 canonical 상태 문서에 기록합니다.
+Public release:
+
+```text
+release id: 380133403
+published UTC: 2026-09-01T00:15:44Z
+Junhyun-Helper.zip
+bytes: 80,633,458
+SHA-256:
+87728ce9e34a30a9b1eb735fe92b1a4a39f172f3b9cf536dfd12d88c8c35667b
+```
+
+상세 release evidence:
+
+- `docs/RELEASE_1.14.0.md`
+- `docs/.release-v1.14.0-status.json`
+
+후속 documentation-only main commit은 v1.14.0 제품 릴리즈 소스가 아니며 공개 tag/source/assets를 변경하지 않습니다.
