@@ -81,7 +81,7 @@ public sealed record FarmingGuideLockState(
 {
     public static FarmingGuideLockState Empty { get; } = new([], [], [], []);
 
-    public FarmingGuideLockState Clone() => new(
+    public FarmingGuideLockState CopyNormalized() => new(
         EquipmentSlots.Distinct().ToArray(),
         Carriers.Distinct().ToArray(),
         ItemInstanceIds
