@@ -58,7 +58,7 @@ public partial class FarmingGuidePage
 
     internal void ClearCarrierLock(FarmingGuideStorageKind kind) => _lockedCarriers.Remove(kind);
 
-    private void Root_ProductPreviewKeyDown(object sender, KeyEventArgs e)
+    private async void Root_ProductPreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (ActiveDrag is { Started: true })
         {
@@ -67,16 +67,26 @@ public partial class FarmingGuidePage
         }
 
         var key = e.Key == Key.System ? e.SystemKey : e.Key;
-        if (key == Key.T && !SearchTextBox.IsKeyboardFocusWithin)
+        if (key == Key.T)
         {
+            // Search normally leaves keyboard focus in the TextBox. Hovering a result is
+            // the explicit gesture that turns T into the Farming Guide simulated-scan
+            // command; without a hovered result T remains ordinary search text input.
             var row = FindHoveredSearchRow();
             if (row is not null)
             {
-                if (_raidSession is not null)
-                    _raidBridge?.PublishSimulatedScan(row.Item.Id);
                 e.Handled = true;
+                if (_raidSession is not null && _raidBridge is not null)
+                {
+                    var published = await _raidBridge.PublishSimulatedScanAsync(row.Item.Id);
+                    if (!published)
+                    {
+                        RaidStatusText.Text = "테스트 스캔 데이터를 준비하지 못했습니다.";
+                        _raidBridge.ShowTransientStatus("테스트 스캔 데이터를 준비하지 못했습니다.");
+                    }
+                }
+                return;
             }
-            return;
         }
 
         if (key == Key.F && !SearchTextBox.IsKeyboardFocusWithin && TryToggleHoveredLock())
@@ -189,13 +199,7 @@ public partial class FarmingGuidePage
             return;
         }
 
-        border.BorderThickness = new Thickness(1);
-        border.BorderBrush = element.Tag is PlacedItemSource
-            ? (Brush)FindResource("AccentBrush")
-            : (Brush)FindResource("BorderBrush");
-        var tooltip = border.ToolTip?.ToString();
-        if (!string.IsNullOrWhiteSpace(tooltip) && tooltip.EndsWith(" · 잠금", StringComparison.Ordinal))
-            border.ToolTip = tooltip[..^5];
+        ApplyUnlockedBorder(border);
     }
 
     private void ApplyLockVisuals()
@@ -207,9 +211,11 @@ public partial class FarmingGuidePage
         {
             switch (element)
             {
-                case Border border when border.Tag is PlacedItemSource placed &&
-                                        _lockedItemInstanceIds.Contains(placed.Placement.InstanceId):
-                    ApplyLockedBorder(border);
+                case Border border when border.Tag is PlacedItemSource placed:
+                    if (_lockedItemInstanceIds.Contains(placed.Placement.InstanceId))
+                        ApplyLockedBorder(border);
+                    else
+                        ApplyUnlockedBorder(border);
                     break;
                 case Border border when border.Tag is EquipmentDropTarget equipment &&
                                         _lockedEquipmentSlots.Contains(equipment.Slot):
@@ -233,6 +239,15 @@ public partial class FarmingGuidePage
         var original = border.ToolTip?.ToString();
         if (string.IsNullOrWhiteSpace(original) || !original.Contains("잠금", StringComparison.Ordinal))
             border.ToolTip = string.IsNullOrWhiteSpace(original) ? "잠금" : $"{original} · 잠금";
+    }
+
+    private void ApplyUnlockedBorder(Border border)
+    {
+        border.BorderThickness = new Thickness(1);
+        border.BorderBrush = (Brush)FindResource("BorderBrush");
+        var tooltip = border.ToolTip?.ToString();
+        if (!string.IsNullOrWhiteSpace(tooltip) && tooltip.EndsWith(" · 잠금", StringComparison.Ordinal))
+            border.ToolTip = tooltip[..^5];
     }
 
     private void RefreshReservedCellVisuals(Canvas canvas, GridDropTarget grid)
