@@ -165,6 +165,55 @@ public sealed class FarmingGuideLoadoutPolicyTests
     }
 
     [Fact]
+    public void SanitizeSnapshotAppliesSpecializedFilterInsideGenericNestedContainer()
+    {
+        const string keyCategory = "key-category";
+        var secure = Item(
+            "secure",
+            "ItemPropertiesContainer",
+            [new FarmingGuideStorageGridDefinition(3, 3, FarmingGuideItemFilter.Empty)],
+            width: 2,
+            height: 2);
+        var keyTool = Item(
+            "key-tool",
+            "ItemPropertiesContainer",
+            [
+                new FarmingGuideStorageGridDefinition(
+                    1,
+                    4,
+                    new FarmingGuideItemFilter([keyCategory], [], [], [])),
+            ],
+            width: 1,
+            height: 1);
+        var key = Item("key", null, [], categoryIds: [keyCategory]);
+        var unrelated = Item("unrelated", null, []);
+        var catalog = new Dictionary<string, GameItem>(StringComparer.Ordinal)
+        {
+            [secure.Id] = secure,
+            [keyTool.Id] = keyTool,
+            [key.Id] = key,
+            [unrelated.Id] = unrelated,
+        };
+        var snapshot = new FarmingGuideLoadoutSnapshot(
+            new Dictionary<FarmingGuideEquipmentSlot, FarmingGuideItemState>(),
+            null,
+            null,
+            FarmingGuideItemState.Create(secure.Id),
+            [
+                Stored("key-tool-instance", keyTool.Id, FarmingGuideStorageKind.SecureContainer, 0, 0, 0),
+                Stored("key-instance", key.Id, FarmingGuideStorageKind.SecureContainer, 0, 0, 0, parentInstanceId: "key-tool-instance"),
+                Stored("denied-instance", unrelated.Id, FarmingGuideStorageKind.SecureContainer, 0, 0, 1, parentInstanceId: "key-tool-instance"),
+            ]);
+
+        var sanitized = FarmingGuideLoadoutPolicy.SanitizeSnapshot(snapshot, catalog);
+
+        Assert.Equal(2, sanitized.StoredItems.Count);
+        Assert.Contains(sanitized.StoredItems, item => item.InstanceId == "key-tool-instance");
+        Assert.Contains(sanitized.StoredItems, item => item.InstanceId == "key-instance");
+        Assert.DoesNotContain(sanitized.StoredItems, item => item.InstanceId == "denied-instance");
+    }
+
+    [Fact]
     public void SanitizeSnapshotDropsOrphanAndCyclicNestedPlacements()
     {
         var bag = Item(
