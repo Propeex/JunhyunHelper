@@ -41,7 +41,11 @@ public sealed record FarmingGuideStoredItemState(
     int X,
     int Y,
     bool Rotated,
-    string? ParentInstanceId = null);
+    string? ParentInstanceId = null,
+    int Quantity = 1)
+{
+    public int NormalizedQuantity => Math.Max(1, Quantity);
+}
 
 public sealed record FarmingGuideLoadoutSnapshot(
     IReadOnlyDictionary<FarmingGuideEquipmentSlot, FarmingGuideItemState> Equipment,
@@ -56,6 +60,20 @@ public sealed record FarmingGuideLoadoutSnapshot(
         null,
         null,
         []);
+}
+
+/// <summary>
+/// Character facts needed for deterministic weight calculations. Strength is persisted
+/// per profile and edited through the lightweight Farming Guide weight popup.
+/// </summary>
+public sealed record FarmingGuideWeightSettings(int StrengthLevel = 0)
+{
+    public static FarmingGuideWeightSettings Default { get; } = new();
+
+    public FarmingGuideWeightSettings Normalized() => this with
+    {
+        StrengthLevel = Math.Clamp(StrengthLevel, 0, 51),
+    };
 }
 
 /// <summary>
