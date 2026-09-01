@@ -42,6 +42,7 @@ public sealed class DesktopServices : IDisposable
         FarmingGuide = new FarmingGuidePresetStore(RootDirectory);
         FarmingGuideRaid = new FarmingGuideRaidBridge();
         Scanner = new ScannerCoordinator(_httpClient, RootDirectory);
+        FarmingGuideRaid.SetScannerSnapshotResolver(Scanner.CreateFarmingGuideSnapshot);
         Scanner.StatusChanged += FarmingGuideRaid.ObserveScannerStatus;
 
         var sourceLoader = new TarkovEndpointSourceLoader(new TarkovJsonClient(_httpClient));
