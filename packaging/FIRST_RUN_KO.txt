@@ -1,4 +1,4 @@
-준현 헬퍼 v1.14.1 — Windows x64
+준현 헬퍼 v1.15.0 — Windows x64
 
 실행 방법
 1. 받은 'Junhyun-Helper.zip'을 원하는 위치에 압축 해제합니다.
@@ -6,27 +6,28 @@
 3. 처음 실행하면 프로필을 만들고 필요한 최신 게임 데이터를 온라인에서 내려받습니다.
 4. 프로그램 실행 시 GitHub의 최신 정식 준현 헬퍼 릴리즈를 확인합니다. 더 최신 버전이 있으면 업데이트 여부를 묻습니다.
 
+v1.15.0 파밍 가이드 레이드 도우미
+- 파밍 가이드에서 '레이드 시작'을 누르면 현재 장비·수납·잠금 상태를 기준으로 독립적인 레이드 세션을 시작합니다.
+- Scanner가 확인한 아이템에 대해 현재 필요한 개수, 상인 판매가, 플리 평균가, 차지하는 칸과 현재 수납 상태를 함께 고려해 보관·교체·버리기 지시를 표시합니다.
+- 지시는 Mini Scanner에 표시되며 사용자가 설정한 '파밍 가이드 수락' 단축키를 눌러야 실제 파밍 가이드 세션 상태에 반영됩니다.
+- 수락 전 사용자가 장비·수납·잠금 상태를 직접 바꾸면 이전 지시는 자동 취소됩니다.
+- 아이템·장비·수납칸에 커서를 두고 F를 누르면 자동 판단에서 제외하도록 잠글 수 있습니다. 빈 칸 잠금은 자동 배치가 사용하지 않는 예약 칸입니다.
+- 잠긴 리그·가방·보안 컨테이너와 잠긴 아이템 내부는 자동 배치 대상으로 사용하지 않습니다.
+- 검색 결과 아이템에 커서를 두고 T를 누르면 실제 Scanner와 동일한 판단 경로로 테스트 스캔할 수 있습니다.
+- 레이드 종료 시 레이드 중 변경을 폐기하고 시작 시점 상태로 돌아갑니다. 레이드 중 임시 변경은 원래 프리셋을 덮어쓰지 않습니다.
+- 파밍 판단은 현재 필요한 아이템을 우선하고, 필요 여부가 같으면 칸당 가치와 총가치를 비교합니다.
+
 v1.14.1 파밍 가이드 수납 배치 안전성 수정
-- v1.14.0에서 추가한 검증형 다중 수납칸 배치의 fail-closed 조건을 보강했습니다.
-- product-owned exact layout은 이제 layout identity와 grid 개수뿐 아니라 각 grid index의 가로×세로 크기까지 검증된 signature와 정확히 일치할 때만 사용합니다.
-- Tarkov 업데이트로 수납칸 크기만 달라지고 기존 좌표가 우연히 겹치지 않는 경우에도 오래된 exact 배치를 계속 사용하지 않습니다.
-- signature가 다르면 실제 수납 가능 여부·필터·아이템 크기는 current Game Content를 그대로 사용하면서 화면 배치만 안전한 compact fallback으로 전환합니다.
-- A18, ANA Tactical M1 및 현재 product-owned exact profile에 대해 dimension drift 회귀 검증을 추가했습니다.
+- product-owned exact layout은 layout identity, grid 개수와 각 grid index의 가로×세로 signature가 current Game Content와 정확히 일치할 때만 사용합니다.
+- signature가 다르면 수납 mechanics는 current Game Content를 유지하면서 화면 배치만 compact fallback으로 전환합니다.
 
 v1.14.0 파밍 가이드 조립·총기 개조·수납 배치 강화
-- 장비 보드에서 현재 사용자가 직접 장착할 수 없는 PMC 인식표 슬롯을 제거했습니다.
 - 총기·헬멧·방어구의 부착물 구조를 하위 부품 슬롯까지 재귀적으로 편집할 수 있습니다.
-- 빈 부착물/방탄판 슬롯을 클릭하면 현재 조립 상태에서 장착 가능한 아이템을 같은 화면에서 선택해 즉시 장착할 수 있습니다.
-- 기존 검색 결과 drag/drop도 동일한 current Tarkov 호환성·충돌 검증을 사용합니다.
-- authoritative default preset과 정확히 일치하는 조립은 composed preset 이미지를 사용하고 임의 조립은 deterministic fallback으로 표시합니다.
-- 다중 storage grid는 검증된 visual metadata가 있을 때 exact relative placement를 사용하며 그렇지 않으면 compact fallback을 사용합니다.
-- Game Content snapshot write schema는 v10이며 기존 v3~v9도 계속 읽습니다.
+- 빈 부착물/방탄판 슬롯에서 현재 조립 상태에 맞는 아이템을 같은 화면에서 선택할 수 있습니다.
+- authoritative default preset과 정확히 일치하는 조립만 composed preset 이미지를 사용합니다.
 
 v1.13.3 파밍 가이드 인게임식 장비·수납 상호작용 수정
-- Epsilon/Gamma/Kappa 등 보안 컨테이너 장착 판정을 수정하고 Medicine Case 같은 일반 케이스와 구분했습니다.
-- 가방 안 가방·가방 안 리그 등 nested storage를 실제 drag/drop 가능한 상태로 유지합니다.
-- 총기·헬멧·방어구는 별도 정보 Window 대신 Farming Guide 안의 실제 부착물/방탄판 작업면을 사용합니다.
-- assembled weapon preset records를 Farming Guide 검색 결과에서 제외해 base weapon의 실제 mod slot을 사용합니다.
+- 보안 컨테이너 장착 판정, nested storage drag/drop, 총기·헬멧·방어구 작업면과 base weapon 검색을 정리했습니다.
 
 상세 변경 이력과 검증 기록
 - GitHub Releases
@@ -34,4 +35,4 @@ v1.13.3 파밍 가이드 인게임식 장비·수납 상호작용 수정
 - docs/CURRENT_STATE.md
 - docs/STATE.md
 - docs/DECISIONS.md
-- docs/RELEASE_NOTES_V1.14.1.md
+- docs/RELEASE_NOTES_V1.15.0.md
