@@ -1,13 +1,12 @@
 using System.Windows;
 using JunhyunHelper.Core.FarmingGuide;
+using JunhyunHelper.Core.Items;
 using JunhyunHelper.Desktop.Scanner;
 
 namespace JunhyunHelper.Desktop.FarmingGuide;
 
 public partial class FarmingGuidePage
 {
-    // Compatibility cache for the existing metrics boundary. It is rebuilt from the
-    // current-vs-baseline snapshot before every recommendation and is quantity-aware.
     private readonly Dictionary<string, int> _acceptedRaidItemCounts = new(StringComparer.Ordinal);
 
     private FarmingGuideRaidBridge? _raidBridge;
@@ -110,8 +109,6 @@ public partial class FarmingGuidePage
         if (_raidSession is null || _content is null)
             return;
 
-        // A new scan rejects both the old unaccepted recommendation and any old quantity
-        // prompt. Neither path has committed inventory state yet.
         _quantityPendingSnapshot = null;
         _plannedLocksOverrideV1160 = null;
         _raidBridge?.CancelMiniScannerQuantity();
@@ -159,7 +156,7 @@ public partial class FarmingGuidePage
             item);
     }
 
-    private void PlanConfirmedScannedItem(ScannerItemSnapshot scanned, Core.Items.GameItem item)
+    private void PlanConfirmedScannedItem(ScannerItemSnapshot scanned, GameItem item)
     {
         if (_raidSession is null)
             return;
@@ -167,9 +164,6 @@ public partial class FarmingGuidePage
         var current = BuildSnapshot();
         RefreshRaidAcquiredCounts(current);
 
-        // The existing planner boundary accepts CurrentNeeded and unit market fields. Feed
-        // it v1.16 rulebook facts: FIR need only and total Flea value for this concrete
-        // scanned stack. Trader value deliberately remains irrelevant to the policy.
         var quantity = Math.Max(1, scanned.Quantity);
         var totalFlea = scanned.FleaAveragePrice is { } flea
             ? checked(flea * quantity)
@@ -182,15 +176,12 @@ public partial class FarmingGuidePage
         };
 
         _plannedLocksOverrideV1160 = null;
-        var planned = PlanScannedItemEquipmentAware(decisionScan, item);
+        var planned = PlanScannedItemRulebookV1160(current, decisionScan, item);
         var transitioned = ApplyRaidStateTransitionsV1155(current, planned, decisionScan, item);
         var optimized = OptimizeDestructiveRaidPlanV1155(current, transitioned, decisionScan, item);
         var quantityApplied = ApplyIncomingQuantityV1160(current, optimized, item.Id, quantity);
         var weightChecked = ApplyRaidWeightConstraintV1160(current, quantityApplied);
-        var recommendation = ApplyRaidInstructionPresentationV1155(
-            current,
-            weightChecked,
-            item);
+        var recommendation = ApplyRaidInstructionPresentationV1155(current, weightChecked, item);
         _raidSession.SetPending(
             scanned.ItemId,
             recommendation.Instruction,
