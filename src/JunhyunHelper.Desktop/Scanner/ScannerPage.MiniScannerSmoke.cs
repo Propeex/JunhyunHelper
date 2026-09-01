@@ -30,22 +30,25 @@ public partial class ScannerPage
             ParseRequired(settings.OneShotTestHotkey),
             ParseRequired(settings.ScannerToggleHotkey),
             ParseRequired(settings.AddCorrectionDataHotkey),
+            ParseRequired(settings.FarmingGuideAcceptHotkey),
         };
 
         if (settings.SchemaVersion != ScannerDisplaySettings.CurrentSchemaVersion ||
-            settings.SchemaVersion != 9 ||
+            settings.SchemaVersion != 10 ||
             settings.OcrSubstitutions.Count != 0 ||
             !settings.ShowItemName ||
             !settings.ShowItemIcon ||
             !settings.ShowAmmoPickup ||
+            !settings.ShowFarmingGuide ||
             !settings.MiniScannerInfoOrder.SequenceEqual(ScannerDisplaySettings.DefaultInfoOrder) ||
             gestures[0] != ScannerHotkeyGesture.DefaultOneShotTarkov ||
             gestures[1] != ScannerHotkeyGesture.DefaultOneShotTest ||
             gestures[2] != ScannerHotkeyGesture.DefaultScannerToggle ||
             gestures[3] != new ScannerHotkeyGesture(true, false, true, Key.F9) ||
-            gestures.Distinct().Count() != 4)
+            gestures[4] != new ScannerHotkeyGesture(true, false, true, Key.F6) ||
+            gestures.Distinct().Count() != 5)
         {
-            throw new InvalidOperationException("Scanner v1.11.1 settings/hotkey contract failed.");
+            throw new InvalidOperationException("Scanner v1.15.0 settings/hotkey contract failed.");
         }
 
         var hiddenIdentity = new ScannerDisplaySettings
@@ -70,6 +73,7 @@ public partial class ScannerPage
             migrated.OneShotTestHotkey,
             migrated.ScannerToggleHotkey,
             migrated.AddCorrectionDataHotkey,
+            migrated.FarmingGuideAcceptHotkey,
         }.Where(static value => !string.IsNullOrWhiteSpace(value)).ToArray();
         if (migrated.OneShotTarkovHotkey != ScannerHotkeyGesture.DefaultOneShotTest.ToString() ||
             migratedHotkeys.Distinct(StringComparer.OrdinalIgnoreCase).Count() != migratedHotkeys.Length)
@@ -161,6 +165,7 @@ public partial class ScannerPage
                 ScannerDisplaySettings.TraderPricePerSlotField,
                 ScannerDisplaySettings.FleaPricePerSlotField,
                 ScannerDisplaySettings.FleaMinimumPriceField,
+                ScannerDisplaySettings.FarmingGuideField,
             ];
             window.Render(snapshot, settings, editMode: false);
             if (window.FindName("CurrentNeededText") is not TextBlock needed ||
