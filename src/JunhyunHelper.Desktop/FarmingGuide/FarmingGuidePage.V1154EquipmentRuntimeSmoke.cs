@@ -1,4 +1,5 @@
 using System.IO;
+using System.Windows.Media;
 using System.Windows.Threading;
 using JunhyunHelper.Core.FarmingGuide;
 using JunhyunHelper.Core.Items;
@@ -11,10 +12,12 @@ public partial class FarmingGuidePage
     private bool _v1154EquipmentSmokeScheduled;
     private bool _v1154EquipmentSmokeCompleted;
 
-    protected override void OnInitialized(EventArgs e)
+    protected override void OnRender(DrawingContext drawingContext)
     {
-        base.OnInitialized(e);
-        if (!string.Equals(
+        base.OnRender(drawingContext);
+        if (_v1154EquipmentSmokeScheduled ||
+            _v1154EquipmentSmokeCompleted ||
+            !string.Equals(
                 Environment.GetEnvironmentVariable("JUNHYUNHELPER_MAP_SMOKE"),
                 "1",
                 StringComparison.Ordinal))
@@ -22,7 +25,7 @@ public partial class FarmingGuidePage
             return;
         }
 
-        Loaded += (_, _) => ScheduleV1154EquipmentRuntimeSmoke();
+        ScheduleV1154EquipmentRuntimeSmoke();
     }
 
     private void ScheduleV1154EquipmentRuntimeSmoke()
