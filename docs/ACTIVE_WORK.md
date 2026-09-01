@@ -74,21 +74,24 @@ Canonical correction decision:
 - split raid session, lock, and planning code into narrow partial files
 - added deterministic tests for special slots, slot labels, pending replacement, and equip transaction actions
 - opened draft PR #258
+- latest Documentation Consistency check passed after restoring the canonical ACTIVE_WORK heading contract
+- latest observed Shutdown Race CI passed on the implementation checkpoint
+- bumped Desktop/Product candidate version to 1.15.1 while keeping publicStable authority at v1.15.0 until exact-main publication
+- updated FIRST_RUN_KO.txt and added docs/RELEASE_NOTES_V1.15.1.md
 
 ## Current step
 
-PR CI is running. The first Documentation Consistency attempt failed because the initial ACTIVE_WORK checkpoint predated the repository-required heading template; this checkpoint now uses the required canonical sections. CI/build/test results still need to be evaluated and any code failures corrected.
+The v1.15.1 release-candidate metadata is now staged. Wait only on the newly triggered PR checks for the current branch HEAD; inspect any build/test failure immediately. Once green, mark PR #258 ready and merge, then verify exact-main CI and the automatic Release workflow before closing project memory.
 
 ## Remaining
 
-- obtain green PR CI / Shutdown Race CI / Documentation Consistency
-- correct any build or deterministic-test failures
-- run/confirm Release publish and affected WPF/published EXE smoke from CI
-- update release/current-state documentation and version metadata for v1.15.1
-- mark PR ready and merge
-- verify exact-main CI
-- create and verify public v1.15.1 tag/release/assets/checksums
-- close ACTIVE_WORK to NONE after release closure
+- obtain green PR CI / Shutdown Race CI / Documentation Consistency on the final candidate HEAD
+- record exact deterministic test count and published WPF/EXE/package smoke result from CI
+- mark PR #258 ready and merge
+- verify exact-main CI and Shutdown Race / Documentation Consistency on merged main
+- verify automatic v1.15.1 release workflow, public tag/release/latest status, assets and checksums
+- update README/CURRENT_STATE/STATE/PROJECT_STATE with exact v1.15.1 release authority and evidence
+- close ACTIVE_WORK to NONE only after release closure documents are on exact main
 
 External evidence after release:
 
