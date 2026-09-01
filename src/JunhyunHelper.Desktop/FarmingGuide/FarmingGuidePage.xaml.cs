@@ -92,6 +92,7 @@ public partial class FarmingGuidePage : UserControl
         _itemsById.Clear();
         foreach (var item in content.Items)
             _itemsById[item.Id] = item;
+        ResetAssemblyImageIndex();
 
         _equipment.Clear();
         _storedItems.Clear();
@@ -156,12 +157,10 @@ public partial class FarmingGuidePage : UserControl
     {
         if (_raidSession is not null && !fixedSetting)
         {
-            var pendingWasPresent = _raidSession.State.PendingInstruction is not null;
             _raidSession.ReplaceCurrentState(BuildSnapshot(), BuildLockState());
+            _raidBridge?.SetMiniScannerInstruction(null);
             RefreshAll();
             RefreshRaidUi();
-            if (pendingWasPresent)
-                _raidBridge?.ShowMiniScannerStatus("상태 변경으로 이전 파밍 지시를 취소했습니다.");
             return;
         }
 
@@ -411,11 +410,12 @@ public partial class FarmingGuidePage : UserControl
             var item = ResolveItem(stored.Item);
             if (item is null)
                 return 0;
-            var (width, height) = FarmingGuidePlacementEngine.Footprint(
-                item.Width ?? 1,
-                item.Height ?? 1,
+            var footprint = FarmingGuideStoragePlacementPolicy.Footprint(
+                stored.Storage,
+                stored.ParentInstanceId,
+                item,
                 stored.Rotated);
-            return width * height;
+            return footprint.Width * footprint.Height;
         });
 
         ValueSummaryText.Text = "—";
