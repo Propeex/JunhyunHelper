@@ -57,5 +57,14 @@ public sealed record FarmingGuideItemLayout(
     /// </summary>
     public int? ArmorClass { get; init; }
 
+    /// <summary>
+    /// Source-backed active-headset comparison facts. They are intentionally kept as a
+    /// pair rather than collapsed into a guessed tier: longer hearing distance is better,
+    /// while lower distortion is cleaner. The upgrade policy only accepts Pareto-dominant
+    /// pairs and leaves trade-offs to the user/existing loot-value path.
+    /// </summary>
+    public decimal? HeadsetDistanceModifier { get; init; }
+    public decimal? HeadsetDistortion { get; init; }
+
     public int StorageCapacity => StorageGrids.Sum(grid => grid.Width * grid.Height);
 }
