@@ -42,10 +42,10 @@ public sealed class FarmingGuideRaidSession
     {
         ArgumentNullException.ThrowIfNull(baselineSnapshot);
         _baselineSnapshot = baselineSnapshot;
-        _baselineLocks = (baselineLocks ?? FarmingGuideLockState.Empty).Clone();
+        _baselineLocks = (baselineLocks ?? FarmingGuideLockState.Empty).CopyNormalized();
         _state = new FarmingGuideRaidState(
             baselineSnapshot,
-            _baselineLocks.Clone(),
+            _baselineLocks.CopyNormalized(),
             Revision: 0,
             PendingInstruction: null);
     }
@@ -54,7 +54,7 @@ public sealed class FarmingGuideRaidSession
 
     public FarmingGuideLoadoutSnapshot BaselineSnapshot => _baselineSnapshot;
 
-    public FarmingGuideLockState BaselineLocks => _baselineLocks.Clone();
+    public FarmingGuideLockState BaselineLocks => _baselineLocks.CopyNormalized();
 
     public void ReplaceCurrentState(
         FarmingGuideLoadoutSnapshot snapshot,
@@ -63,7 +63,7 @@ public sealed class FarmingGuideRaidSession
         ArgumentNullException.ThrowIfNull(snapshot);
         _state = new FarmingGuideRaidState(
             snapshot,
-            (locks ?? _state.Locks).Clone(),
+            (locks ?? _state.Locks).CopyNormalized(),
             checked(_state.Revision + 1),
             PendingInstruction: null);
     }
@@ -73,7 +73,7 @@ public sealed class FarmingGuideRaidSession
         ArgumentNullException.ThrowIfNull(locks);
         _state = _state with
         {
-            Locks = locks.Clone(),
+            Locks = locks.CopyNormalized(),
             Revision = checked(_state.Revision + 1),
             PendingInstruction = null,
         };
@@ -116,7 +116,7 @@ public sealed class FarmingGuideRaidSession
         acceptedSnapshot = pending.ProposedSnapshot;
         _state = new FarmingGuideRaidState(
             acceptedSnapshot,
-            _state.Locks.Clone(),
+            _state.Locks.CopyNormalized(),
             checked(_state.Revision + 1),
             PendingInstruction: null);
         return true;
