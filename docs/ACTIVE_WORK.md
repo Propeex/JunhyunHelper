@@ -50,7 +50,7 @@ Core decisions:
 8. Game Content v11 persists armor/headset comparison facts. Readable v3-v10 snapshots remain safe offline fallback and are opportunistically refreshed through the normal transactional Data Update boundary.
 9. Nested Workbench horizontal scrolling is a physical fallback only when content genuinely exceeds effective viewport width.
 
-## Implemented
+## Completed
 
 - Core `FarmingGuideRepackingPlanner` with deterministic bounded displacement search.
 - One/multiple blocker movement, rotation, cross-surface legal moves, reserved-cell/lock/filter/cycle protections.
