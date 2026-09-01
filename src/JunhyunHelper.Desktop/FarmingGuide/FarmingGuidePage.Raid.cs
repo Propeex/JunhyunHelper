@@ -226,13 +226,7 @@ public partial class FarmingGuidePage
         return false;
     }
 
-    private void CommitLockChange()
-    {
-        var pendingWasPresent = _raidSession?.State.PendingInstruction is not null;
-        MarkChanged();
-        if (pendingWasPresent)
-            _raidBridge?.ShowMiniScannerStatus("상태 변경으로 이전 파밍 지시를 취소했습니다.");
-    }
+    private void CommitLockChange() => MarkChanged();
 
     private static void Toggle<T>(ISet<T> set, T value)
     {
@@ -472,7 +466,7 @@ public partial class FarmingGuidePage
         };
         foreach (var kind in order)
         {
-            if (!root.TryGetValue(kind, out var storage))
+            if (_lockedCarriers.Contains(kind) || !root.TryGetValue(kind, out var storage))
                 continue;
             for (var index = 0; index < storage.Grids.Count; index++)
                 yield return new RaidSurface(kind, null, index, storage.Grids[index], storage.Label);
@@ -480,6 +474,9 @@ public partial class FarmingGuidePage
 
         foreach (var stored in StoredItems)
         {
+            if (_lockedCarriers.Contains(stored.Storage) || IsInsideLockedItem(stored.InstanceId))
+                continue;
+
             var owner = ResolveItem(stored.Item);
             var grids = owner?.FarmingGuideData?.StorageGrids;
             if (grids is null || grids.Count == 0)
@@ -546,6 +543,19 @@ public partial class FarmingGuidePage
         }
 
         fit = default;
+        return false;
+    }
+
+    private bool IsInsideLockedItem(string instanceId)
+    {
+        string? currentId = instanceId;
+        while (!string.IsNullOrWhiteSpace(currentId))
+        {
+            if (_lockedItemInstanceIds.Contains(currentId))
+                return true;
+            currentId = StoredItems.FirstOrDefault(item =>
+                string.Equals(item.InstanceId, currentId, StringComparison.Ordinal))?.ParentInstanceId;
+        }
         return false;
     }
 
