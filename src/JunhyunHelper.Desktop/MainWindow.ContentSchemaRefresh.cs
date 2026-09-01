@@ -5,18 +5,31 @@ namespace JunhyunHelper.Desktop;
 public partial class MainWindow
 {
     private bool _contentSchemaRefreshStarted;
+    private bool _contentSchemaRefreshAttached;
 
-    protected override void OnInitialized(EventArgs e)
+    private void AttachContentSchemaRefreshTrigger()
     {
-        base.OnInitialized(e);
+        if (_contentSchemaRefreshAttached)
+            return;
+
+        _contentSchemaRefreshAttached = true;
         LayoutUpdated += MainWindow_ContentSchemaLayoutUpdated;
+    }
+
+    private void DetachContentSchemaRefreshTrigger()
+    {
+        if (!_contentSchemaRefreshAttached)
+            return;
+
+        LayoutUpdated -= MainWindow_ContentSchemaLayoutUpdated;
+        _contentSchemaRefreshAttached = false;
     }
 
     private void MainWindow_ContentSchemaLayoutUpdated(object? sender, EventArgs e)
     {
         if (_contentSchemaRefreshStarted || IsProductSmokeRun())
         {
-            LayoutUpdated -= MainWindow_ContentSchemaLayoutUpdated;
+            DetachContentSchemaRefreshTrigger();
             return;
         }
 
@@ -24,7 +37,7 @@ public partial class MainWindow
             return;
 
         _contentSchemaRefreshStarted = true;
-        LayoutUpdated -= MainWindow_ContentSchemaLayoutUpdated;
+        DetachContentSchemaRefreshTrigger();
         _ = TryRefreshLegacyContentSchemaAsync();
     }
 
