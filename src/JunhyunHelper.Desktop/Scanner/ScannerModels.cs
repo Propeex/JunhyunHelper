@@ -26,6 +26,8 @@ public sealed record ScannerItemSnapshot(
     string? BestTraderName = null)
 {
     public int? FleaMinimumPrice { get; init; }
+    public int CurrentNeededFir { get; init; }
+    public int Quantity { get; init; } = 1;
 
     /// <summary>
     /// Null for non-ammunition items or when the current profile/content cannot produce a
@@ -80,13 +82,6 @@ public sealed record ScannerRuntimeStatus(
     public DateTimeOffset Timestamp { get; } = UpdatedAt ?? DateTimeOffset.Now;
 }
 
-/// <summary>
-/// User-facing recognition history. This is deliberately separate from scanner.log:
-/// the UI receives only the OCR text, nearest official candidate, similarity and the
-/// final decision, while the developer log keeps lower-level capture/runtime metadata.
-/// CaseId is an exact join key and CorrectionAvailable is set only when the Scanner page
-/// can prove that the matching persisted/current evidence is available.
-/// </summary>
 public sealed record ScannerActivityEntry(
     DateTimeOffset Timestamp,
     ScannerCaptureMode CaptureMode,
