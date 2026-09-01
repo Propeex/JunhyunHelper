@@ -4,7 +4,7 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 제품 상태
 
-현재 상태는 **v1.15.5 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
+현재 상태는 **v1.16.0 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
 
 공식 프로젝트 기억은 대화가 아니라 저장소의 문서·코드·테스트·GitHub 상태입니다.
 
@@ -18,109 +18,105 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 ## 현재 공개 릴리즈
 
 ```text
-version/tag: v1.15.5
+version/tag: v1.16.0
 exact product source/tag target:
-62466a957a7e32a623a0ffcfad96bfb16504f823
-validated PR head: 2d9f01da32e3e80860c5a87b2d2e73bc87c31b17
-merge PR: #271 — MERGED
+f1c00b0ac9ea0b70f81991d30be9a04128253d48
+validated PR head: bbc8dc25ec35ba24a64df00445b4454bbd7f66d8
+merge PR: #273 — MERGED
 PR CI / Shutdown / Docs:
-33516899412 / 33516899393 / 33516899505 — SUCCESS
+33537853686 / 33537853397 / 33537853539 — SUCCESS
 exact-main CI / Shutdown / Docs:
-33520705401 / 33520705533 / 33520705395 — SUCCESS
-Release workflow: 33521076146 — SUCCESS
-release id: 380587916
-published UTC: 2026-09-01T14:42:06Z
-593 passed / 0 failed / 0 skipped
+33538397901 / 33538397873 / 33538397904 — SUCCESS
+Release workflow: 33538760085 — SUCCESS
+release id: 380701728
+published UTC: 2026-09-01T17:37:02Z
+610 passed / 0 failed / 0 skipped
 ```
 
 Public package:
 
 ```text
 Junhyun-Helper.zip
-asset id: 539684740
-bytes: 80,705,841
+asset id: 539905673
+bytes: 80,716,585
 SHA-256:
-32df6c471cf79349932a83a5d7598fecb8971548e4b38bb7bdab917602898d69
+db6a769bbe1d0213b7d5e1d59416b230f4c8387554d1d9c9354701c1da56e233
 
 SHA256SUMS.txt
-asset id: 539684739
+asset id: 539905674
 bytes: 86
 asset SHA-256:
-683a2374431389efdc7d3176816917ef8ef466c2b493aa9bc78dfd6416be4f98
+2d77327a477ac8df8701517890902622323b5b2d8b8c787de0b85ef8a71cd93f
 ```
 
 Exact-main Actions artifact:
 
 ```text
 JunhyunHelper-win-x64
-artifact id: 9805674187
-archive bytes: 242,052,034
+artifact id: 9812704124
+archive bytes: 242,082,062
 archive SHA-256:
-6281d8f2ef0f5ab0d0b6414b6cded95852f9006d23806527c8467badb8bfc088
+328e2d8a30803443d497f1a85a98b56e672cbdcd36e01d6573a13d580cf7fc49
 ```
 
-GitHub `/releases/latest`, release target and `refs/tags/v1.15.5` all resolve to `62466a957a7e32a623a0ffcfad96bfb16504f823`. The release is neither draft nor prerelease. Later documentation-only commits are not v1.15.5 product sources and may not replace these assets.
+GitHub release `v1.16.0` targets `f1c00b0ac9ea0b70f81991d30be9a04128253d48`. The release is neither draft nor prerelease. Later documentation-only commits are not v1.16.0 product sources and may not replace these assets.
 
 Release evidence:
 
-- `docs/RELEASE_1.15.5.md`
-- `docs/.release-v1.15.5-status.json`
-- `docs/RELEASE_NOTES_V1.15.5.md`
-- `docs/DECISION_V1.15.5_FARMING_GUIDE_PRESENTATION_VIEWPORT.md`
-- `docs/DECISION_V1.15.5_FARMING_GUIDE_STATE_TRANSITION_PLANNER.md`
+- `docs/.release-v1.16.0-status.json`
+- `docs/RELEASE_NOTES_V1.16.0.md`
+- `docs/DECISION_FARMING_GUIDE_RULEBOOK_V1_16.md`
+- `docs/PROJECT_STATE.json`
+- `docs/CURRENT_STATE.md`
 
-## v1.15.5 Farming Guide
+## v1.16.0 Farming Guide
 
 `파밍 가이드`는 raid-start Loadout / Inventory Editor와 Scanner 기반 raid-session advisor를 제공합니다. Tarkov 내부 inventory를 직접 읽거나 게임 입력을 자동화하지 않습니다.
 
-### 보존 우선 상태 전이
+### 결정적 rulebook
 
-새 아이템을 판단할 때 현재 전체 modeled raid inventory에서 도달 가능한 합법 상태를 비교합니다.
+판단 순서는 **제약 확인 → 중요도 비교 → 상황 대처 결정**입니다. weighted score나 여러 요소를 임의 가중합하지 않습니다.
 
-```text
-빈 장비칸
-→ source-backed 안전한 장비 업그레이드
-→ 직접 수납
-→ 비파괴 global repacking
-→ 교체로 벗겨진 장비/컨테이너 보존 및 nesting
-→ 가치 기반 bounded eviction + repacking
-→ 마지막으로 버리기
-```
-
-장비 교체로 벗겨진 기존 장비는 즉시 소멸하지 않습니다. 일반 장비, 총기, 리그, 가방은 다시 loot candidate가 되어 합법적으로 보관·재배치할 수 있는지 먼저 평가됩니다. Storage grid가 있는 displaced carrier는 다른 수납공간 안에 들어간 뒤 그 내부 공간도 같은 candidate state에서 사용할 수 있습니다.
-
-Needed 획득량은 과거 수락 횟수가 아니라 현재 snapshot과 raid baseline의 Item ID 수량 차이에서 계산되므로, 획득 후 버린 Needed item을 계속 보유한 것으로 오판하지 않습니다.
-
-### 짧은 raid 지시
-
-Mini Scanner는 `장착`, `교체`, `보관`, `버리기`, `방탄 리그 전환` 중심으로 짧게 표시합니다. 같은 가방·리그·컨테이너 내부의 좌표/회전 재배치는 말하지 않고, 실제 다른 storage area로 이동하거나 버려야 하는 기존 아이템만 `+ 아이템 이동 위치` / `+ 아이템 버리기`로 표시합니다. 여러 작업은 쉼표로 구분합니다.
-
-### Source-backed nested storage
-
-- current validated Game Content의 실제 `StorageGrids`와 allowed/excluded item/category filter가 저장 관계의 authority입니다.
-- Key tool 같은 특수 컨테이너를 이름으로 하드코딩하지 않습니다.
-- Secure Container 안 컨테이너, 컨테이너 안 컨테이너를 `ParentInstanceId`로 재귀 관리합니다.
-- compatible positive-allow-list nested grid는 일반 root storage보다 우선하는 dedicated storage 후보입니다.
-- nested Workbench는 전체 grid가 물리적으로 viewport에 들어갈 때 가로/세로 scrollbar를 명시적으로 비활성화하여 하단 셀 잘림을 만들지 않습니다.
+- 보호 상태는 **잠긴 아이템 + 예약 칸**만 사용합니다.
+- 특별 needed 우선순위는 **Found in Raid가 실제 필요한 아이템**에만 적용합니다.
+- 비-FIR needed 아이템은 일반 경제 loot과 동일하게 취급합니다.
+- 경제 가치는 **평균 Flea Market 가격**으로 통일합니다.
+- 공간 부족으로 기존 물품을 버려야 할 때는 incoming item과 실제 희생되는 전체 물품의 총 Flea 가치를 비교합니다.
 
 ### 장비 우위 판단
 
-시장가/상점가는 장비 성능의 근거가 아닙니다. 자동 장비 교체는 source-backed 사실로 명백한 우위를 증명할 수 있고 최종 proposed snapshot이 합법적일 때만 제안합니다.
+장비 자동 교체는 단순 대표 기준만 사용합니다.
 
-- 보호 장비: 대표 top-level armor class가 엄격히 높을 때만 업그레이드
-- Backpack/Rig: 실제 source-backed 수납 capacity가 엄격히 우수하고 기존 내용물을 합법적으로 처리할 수 있어야 함
-- Armored Rig끼리: 방어등급과 capacity가 모두 비열화되지 않고 하나 이상 엄격히 개선
-- Headset: `distanceModifier`와 `distortion`이 모두 비열화되지 않고 하나 이상 엄격히 개선
-- Body Armor + ordinary Rig → superior Armored Rig: 하나의 atomic fail-closed 전환
+- 방탄복 / 헬멧: 방탄 등급
+- 헤드셋: 청취 거리
+- 일반 리그 / 가방 / 보안 컨테이너: 수납량
+- 방탄 리그: 방탄 등급 우선, 동급일 때 수납량
+- 총기 / 권총: 자동 우월 교체 없음
 
-총기/헬멧 attachment와 armor plate 내부 편집은 계속 제공하지 않으며 완제품 장비 모델을 유지합니다.
+Scanner가 알 수 없는 내구도, 남은 사용 횟수, 실제 총기 조립 상태는 추정하지 않습니다.
+
+### 잠금·예약 승계
+
+수납 장비 교체 시 잠긴 item instance는 버리지 않고 새 장비에 합법적으로 재배치합니다. 예약 칸은 기존 좌표가 아니라 연결된 모양과 용량을 새 장비에 승계하며, 동일한 보호 상태를 만들 수 없으면 교체하지 않습니다.
+
+### 스택 수량
+
+탄약·화폐처럼 수량이 판단에 필요한 아이템은 Mini Scanner에서 수량을 먼저 입력한 뒤 Farming Guide 판단을 계속합니다. 저장된 스택 수량은 상태 schema v3에 보존되고, 가치·무게·needed count 계산에 반영됩니다. Farming Guide 화면에서도 수량을 표시하고 더블클릭으로 수정할 수 있습니다.
+
+### 무게
+
+Farming Guide 우측 하단에서 현재 modeled weight와 Strength 기반 최대 운반 중량을 표시합니다. Strength level은 profile에 저장되며, 최종 proposed state가 허용 중량을 넘는 지시는 차단합니다. 현재 상태가 이미 초과 중이면 무게를 유지하거나 줄이는 방향만 허용합니다.
+
+### MiniMap hotkey
+
+Bare NumPad 0–5 직접 층 선택 기능은 제거했습니다. 기존 사용자 지정 위/아래 층 이동 hotkey는 유지합니다.
 
 ## 데이터 / 호환성
 
 ```text
-Desktop: 1.15.5
+Desktop: 1.16.0
 Game Content write/read: v11 / v3-v11
-Farming Guide state: v2
+Farming Guide state: v3
 Scanner display settings: v10
 Scanner catalog write/read: v4 / v1-v4
 ```
