@@ -8,47 +8,47 @@
     "desktopVersion": "1.15.3"
   },
   "publicStable": {
-    "version": "1.15.2",
-    "tag": "v1.15.2",
-    "exactProductSource": "f4974ee6bed5047865581240197f7f0e2787ba7c",
-    "releaseId": 380290463,
-    "publishedAtUtc": "2026-09-01T07:24:43Z",
+    "version": "1.15.3",
+    "tag": "v1.15.3",
+    "exactProductSource": "c35204da66eb0af454b50550c830b071a0897835",
+    "releaseId": 380333729,
+    "publishedAtUtc": "2026-09-01T08:35:55Z",
     "asset": {
       "name": "Junhyun-Helper.zip",
-      "id": 539168506,
-      "bytes": 80654539,
-      "sha256": "642fa3845ccb4491c2d0b520000316d79067c3957144814b0b3b77516d14ad34"
+      "id": 539249489,
+      "bytes": 80659355,
+      "sha256": "a22a426de32aa20a4c158018d98a6eec96b39d460d367d33d9d970d7e2581d99"
     },
     "checksumAsset": {
       "name": "SHA256SUMS.txt",
-      "id": 539168503,
+      "id": 539249490,
       "bytes": 86,
-      "sha256": "077160c0ac6076e07d061a0feb8e386f131327ad82bc4281a619afc4ecd91741"
+      "sha256": "286e27a9db1394d1a4487c5b26598f08998bb03e07e21fa116dc4fca5844fdde"
     },
     "validation": {
-      "mergePr": 262,
-      "validatedPrHead": "1662cc86f6298fc3a13bbcc591d38ae8c8e0787d",
-      "prCiRun": 33481383672,
-      "prShutdownRaceRun": 33481383604,
-      "prDocumentationConsistencyRun": 33481383640,
-      "exactMainCiRun": 33481524940,
-      "exactMainShutdownRaceRun": 33481524896,
-      "exactMainDocumentationConsistencyRun": 33481524999,
-      "releaseWorkflowRun": 33481956300,
-      "deterministicTestsPassed": 562,
+      "mergePr": 265,
+      "validatedPrHead": "db82512e6e723f2d85ed0ddf3f3c7c9b0e3a70af",
+      "prCiRun": 33487099126,
+      "prShutdownRaceRun": 33487099119,
+      "prDocumentationConsistencyRun": 33487099201,
+      "exactMainCiRun": 33487466031,
+      "exactMainShutdownRaceRun": 33487466005,
+      "exactMainDocumentationConsistencyRun": 33487465946,
+      "releaseWorkflowRun": 33487795730,
+      "deterministicTestsPassed": 563,
       "deterministicTestsFailed": 0,
       "deterministicTestsSkipped": 0,
       "artifact": {
         "name": "JunhyunHelper-win-x64",
-        "id": 9790251740,
-        "bytes": 241895658,
-        "sha256": "57665346651872dd4f351241dabe77de09349150ebb2d8664f8d5f626a8daf65"
+        "id": 9792459273,
+        "bytes": 241909375,
+        "sha256": "c0aba02d6a465734c841b044776dfcf087bab9b29141b23c71ffb5a0a65c6cb2"
       }
     }
   },
   "maintenance": {
-    "latestNonDocumentationHead": "f4974ee6bed5047865581240197f7f0e2787ba7c",
-    "deterministicTestCount": 562,
+    "latestNonDocumentationHead": "c35204da66eb0af454b50550c830b071a0897835",
+    "deterministicTestCount": 563,
     "userRealPcTarkovValidation": "PENDING"
   },
   "schemas": {

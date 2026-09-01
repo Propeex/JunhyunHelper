@@ -3,7 +3,7 @@
 이 문서는 준현 헬퍼의 현재 유효한 결정과 supersession 관계를 빠르게 복구하기 위한 active index다. 현재 사실값은 `docs/PROJECT_STATE.json`, 상세 상태는 `docs/CURRENT_STATE.md` / `docs/STATE.md`가 권위다.
 
 기준일: **2026-09-01 KST**  
-현재 제품 상태: **v1.15.2 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+현재 제품 상태: **v1.15.3 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 1. 장기 기본 원칙
 
@@ -28,6 +28,7 @@ Current documents:
 - `docs/DECISION_V1.15.0_FARMING_GUIDE_RAID_ADVISOR.md`
 - `docs/DECISION_V1.15.1_FARMING_GUIDE_REAL_PLAY_CORRECTIONS.md`
 - `docs/DECISION_V1.15.2_COMPLETE_EQUIPMENT_MODEL.md`
+- `docs/DECISION_V1.15.3_SPECIALIZED_NESTED_STORAGE.md`
 - `docs/ARCHITECTURE_FARMING_GUIDE.md`
 
 Current status:
@@ -37,20 +38,24 @@ Current status:
 - v1.14.0/v1.14.1 source-backed storage layout identity/signature guard: **PUBLIC VERIFIED / CURRENT**
 - v1.15.0 raid-session advisor: **PUBLIC VERIFIED / BASE CONTRACT**
 - v1.15.1 real-play pending/lock/special-slot corrections: **PUBLIC VERIFIED / RETAINED**
-- v1.15.2 complete-equipment model: **PUBLIC VERIFIED / CURRENT SUPERSEDING EQUIPMENT CONTRACT**
+- v1.15.2 complete-equipment model: **PUBLIC VERIFIED / CURRENT EQUIPMENT CONTRACT**
+- v1.15.3 source-backed specialized nested storage + simulated scan correction: **PUBLIC VERIFIED / CURRENT STORAGE/TEST CONTRACT**
 
 ### Current Farming Guide contract
 
 - Farming Guide remains both the raid-start Loadout / Inventory Editor and live raid recommendation session.
 - raid start snapshots working/preset state + locks into an isolated session; raid end discards session changes and restores baseline.
-- current validated Tarkov item dimensions, supported storage grids/filters, `specialSlot` classification, equipment compatibility and conflicts remain mechanical authority.
+- current validated Tarkov item dimensions, storage grids/filters, `specialSlot` classification, equipment compatibility and conflicts remain mechanical authority.
 - **equipment is opaque complete-item state**: no weapon/helmet/armor internal editor, recursive attachment picker, armor-plate editing or equipment-internal raid target.
 - source attachment/armor/default-preset metadata may remain in Game Content as read-only evidence, especially for authoritative complete-item imagery, but it is not current user-editable equipment state.
 - legacy persisted `Attachments` / `ArmorPlates` are readable for compatibility but current runtime normalizes them to root-only equipment state.
 - top-level equipment targets remain: normal PMC equipment plus Rig / Backpack / Secure Container carrier slots.
-- nested storage uses `ParentInstanceId`; only stored Backpack/Rig items expose a detail storage surface.
-- nested backpack/rig detail uses real grids/filters and compact measured presentation; root carrier storage remains on the main Farming Guide page.
-- generic case/container internal detail is not current Farming Guide product behavior.
+- nested storage uses `ParentInstanceId`; any stored item with current validated source `StorageGrids` may expose a compact interactive detail surface.
+- nested storage width/height and allowed/excluded item/category filters come from current Game Content; container names are not product allowlists.
+- supported storage containers can remain recursively nested inside Secure Container or another legal storage surface.
+- root Rig / Backpack / Secure Container storage remains on the main Farming Guide page rather than opening a duplicate detail surface.
+- a nested grid with a positive source allow-list that accepts the incoming item is a dedicated placement candidate and is evaluated before general Secure Container/Pockets/Rig/Backpack empty space.
+- unrestricted nested storage keeps the established general ordering and does not receive dedicated priority.
 - occupied storage/equipment targets are not silently overwritten outside explicit legal replacement behavior.
 - authoritative complete/default-preset source imagery is preferred; unsupported combinations do not receive a fabricated composite.
 - product-owned exact storage coordinates are presentation-only metadata and activate only when verified layout identity + per-grid dimension signature match current mechanics.
@@ -59,6 +64,10 @@ Current status:
 - a newer scan silently rejects the previous unaccepted pending transaction and creates a new one against unchanged current raid state.
 - manual inventory/equipment/lock edits silently invalidate stale pending instructions.
 - accepted feedback is `반영 완료`; Mini Scanner action text does not repeat the scanned item name.
+- search-result hover + `T` is a simulated Scanner test command: hovered result takes precedence over Search TextBox focus, and the same Farming Guide recommendation path is used.
+- simulated scan does not require capture mode to be enabled and may on-demand load verified same-mode local Scanner catalog data after restart.
+- simulated snapshot preparation failure is surfaced instead of silently ignored.
+- unlocked stored-item border is neutral; only explicit `F` lock uses accent/yellow, and unlock restores neutral.
 - F locks constrain automation; direct user edits remain authoritative.
 - carrier lock protects the carrier itself without blocking automatic ordinary storage inside it.
 - reserved empty-cell lock is independent reserved capacity and persists until explicitly unlocked.
@@ -67,6 +76,8 @@ Current status:
 - loot priority remains isolated in `FarmingGuideLootPriorityPolicy`.
 
 ### Supersession relationship
+
+`DECISION_V1.15.3_SPECIALIZED_NESTED_STORAGE.md` supersedes only the v1.15.2 restriction that stored Backpack/Rig items were the only nested detail surfaces. It generalizes nested storage to any authoritative source-backed `StorageGrids`, adds compatible positive-allow-list nested placement priority, clarifies stored-item lock border presentation, and fixes hover + `T` simulated scan behavior. It does **not** restore equipment assembly editing.
 
 `DECISION_V1.15.2_COMPLETE_EQUIPMENT_MODEL.md` supersedes the user-facing recursive assembly/modification portions of v1.14.0 and the v1.15.1 rule that raid equip targets include recursive attachment and armor-plate slots. It does **not** remove source-backed storage layouts, nested storage mechanics, v1.15.1 pending replacement behavior, locks, Special Slots, explicit acceptance, or top-level equipment recommendations.
 
@@ -132,10 +143,11 @@ JunhyunHelper owns product integration/lifecycle. Maintained contracts include m
 
 Current public stable facts are canonical in `docs/PROJECT_STATE.json`.
 
-v1.15.2 release evidence:
+v1.15.3 release evidence:
 
-- `docs/RELEASE_1.15.2.md`
-- `docs/.release-v1.15.2-status.json`
-- `docs/RELEASE_NOTES_V1.15.2.md`
+- `docs/RELEASE_1.15.3.md`
+- `docs/.release-v1.15.3-status.json`
+- `docs/RELEASE_NOTES_V1.15.3.md`
+- `docs/DECISION_V1.15.3_SPECIALIZED_NESTED_STORAGE.md`
 
-The public v1.15.2 source/tag/assets are immutable. Documentation-only follow-up commits may describe that release but are not allowed to become its product source or replace its published package.
+The public v1.15.3 source/tag/assets are immutable. Documentation-only follow-up commits may describe that release but are not allowed to become its product source or replace its published package.

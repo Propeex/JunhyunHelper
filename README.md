@@ -4,7 +4,7 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 제품 상태
 
-현재 상태는 **v1.15.2 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
+현재 상태는 **v1.15.3 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
 
 공식 프로젝트 기억은 대화가 아니라 저장소의 문서·코드·테스트·GitHub 상태입니다.
 
@@ -18,88 +18,90 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 ## 현재 공개 릴리즈
 
 ```text
-version/tag: v1.15.2
+version/tag: v1.15.3
 exact product source/tag target:
-f4974ee6bed5047865581240197f7f0e2787ba7c
-validated PR head: 1662cc86f6298fc3a13bbcc591d38ae8c8e0787d
-merge PR: #262 — MERGED
+c35204da66eb0af454b50550c830b071a0897835
+validated PR head: db82512e6e723f2d85ed0ddf3f3c7c9b0e3a70af
+merge PR: #265 — MERGED
 PR CI / Shutdown / Docs:
-33481383672 / 33481383604 / 33481383640 — SUCCESS
+33487099126 / 33487099119 / 33487099201 — SUCCESS
 exact-main CI / Shutdown / Docs:
-33481524940 / 33481524896 / 33481524999 — SUCCESS
-Release workflow: 33481956300 — SUCCESS
-release id: 380290463
-published UTC: 2026-09-01T07:24:43Z
-562 passed / 0 failed / 0 skipped
+33487466031 / 33487466005 / 33487465946 — SUCCESS
+Release workflow: 33487795730 — SUCCESS
+release id: 380333729
+published UTC: 2026-09-01T08:35:55Z
+563 passed / 0 failed / 0 skipped
 ```
 
 Public package:
 
 ```text
 Junhyun-Helper.zip
-asset id: 539168506
-bytes: 80,654,539
+asset id: 539249489
+bytes: 80,659,355
 SHA-256:
-642fa3845ccb4491c2d0b520000316d79067c3957144814b0b3b77516d14ad34
+a22a426de32aa20a4c158018d98a6eec96b39d460d367d33d9d970d7e2581d99
 
 SHA256SUMS.txt
-asset id: 539168503
+asset id: 539249490
 bytes: 86
 asset SHA-256:
-077160c0ac6076e07d061a0feb8e386f131327ad82bc4281a619afc4ecd91741
+286e27a9db1394d1a4487c5b26598f08998bb03e07e21fa116dc4fca5844fdde
 ```
 
 Exact-main Actions artifact:
 
 ```text
 JunhyunHelper-win-x64
-artifact id: 9790251740
-archive bytes: 241,895,658
+artifact id: 9792459273
+archive bytes: 241,909,375
 archive SHA-256:
-57665346651872dd4f351241dabe77de09349150ebb2d8664f8d5f626a8daf65
+c0aba02d6a465734c841b044776dfcf087bab9b29141b23c71ffb5a0a65c6cb2
 ```
 
-GitHub `/releases/latest`, release target and `refs/tags/v1.15.2` all resolve to `f4974ee6bed5047865581240197f7f0e2787ba7c`. The release is neither draft nor prerelease. Later documentation-only commits are not v1.15.2 product sources and may not replace these assets.
+GitHub `/releases/latest`, the release target and `refs/tags/v1.15.3` all resolve to `c35204da66eb0af454b50550c830b071a0897835`. The release is neither draft nor prerelease. Later documentation-only commits are not v1.15.3 product sources and may not replace these assets.
 
 Release evidence:
 
-- `docs/RELEASE_NOTES_V1.15.2.md`
-- `docs/DECISION_V1.15.2_COMPLETE_EQUIPMENT_MODEL.md`
-- `docs/CURRENT_STATE.md`
-- `docs/STATE.md`
+- `docs/RELEASE_1.15.3.md`
+- `docs/.release-v1.15.3-status.json`
+- `docs/RELEASE_NOTES_V1.15.3.md`
+- `docs/DECISION_V1.15.3_SPECIALIZED_NESTED_STORAGE.md`
 
-## v1.15.2 Farming Guide
+## v1.15.3 Farming Guide
 
 `파밍 가이드`는 raid-start Loadout / Inventory Editor와 Scanner 기반 raid-session advisor를 함께 제공합니다. Tarkov 내부 inventory를 직접 읽거나 게임 입력을 자동화하지 않습니다.
 
-### 장비 완제품 모델
+### Source-backed nested storage
 
-- 총기·헬멧·방탄복 등 장비는 내부 부품을 따로 관리하지 않는 **완제품 하나**로 처리합니다.
-- 총기 부착물·헬멧 부착물·방탄판 편집 UI와 장비 내부 장착/교체 파밍 지시는 없습니다.
-- Primary Weapon, Pistol/Holster, Helmet, Body Armor, Rig, Backpack, Secure Container 등 최상위 장비 칸 장착/교체 판단은 유지됩니다.
-- 예전 Farming Guide 파일의 attachment/armor state는 읽을 수 있지만 current runtime에서는 root Item ID만 남깁니다.
-- canonical default preset/source의 완제품 이미지가 있으면 이를 우선 사용하며 근거 없는 조립 이미지는 만들지 않습니다.
-- 무기/장비 아이콘은 aspect ratio를 유지하면서 실제 장비 칸을 더 크게 채우도록 표시합니다.
+- 실제 current Tarkov Game Content에 `StorageGrids`가 있는 stored item은 nested storage를 열 수 있습니다.
+- Key tool, 문서/돈/카드/주사기 계열 전용 컨테이너 등 특정 이름을 하드코딩하지 않습니다.
+- 각 grid의 실제 width/height 및 allowed/excluded category/item filter를 그대로 사용합니다.
+- Secure Container 안 특수 컨테이너, 컨테이너 안 컨테이너도 `ParentInstanceId`로 재귀적으로 관리합니다.
+- source positive allow-list가 스캔 아이템을 허용하는 전용 nested grid는 일반 Secure Container/Pockets/Rig/Backpack 빈칸보다 먼저 추천합니다.
+- unrestricted nested bag/rig는 기존 일반 수납 순서를 유지합니다.
 
-### Nested storage
+### Stored-item lock 표시
 
-- `ParentInstanceId` 기반 nested storage를 유지합니다.
-- 상세 내부 화면을 열 수 있는 stored item은 Backpack 또는 Rig입니다.
-- 가방 안 가방, 가방 안 리그 등 current Tarkov grid/filter가 허용하는 배치는 유지됩니다.
-- 상세 화면은 실제 수납 grid 크기에 맞춘 compact view로 열리며 전체 storage 영역을 불필요하게 가리지 않습니다.
-- root Rig / Backpack / Secure Container 수납칸은 메인 화면에 그대로 표시합니다.
-- generic case/container나 일반 장비 내부는 Farming Guide 상세 surface로 노출하지 않습니다.
+- 일반 보관 아이템: neutral border
+- `F`로 잠근 아이템: accent/노란색 border
+- 잠금 해제: neutral border로 즉시 복귀
+- 빈 칸 reservation 및 기존 장비/carrier lock 의미는 유지
 
-### Raid advisor
+### 검색 결과 + T 테스트 스캔
 
-- `레이드 시작` 시 현재 장비·수납·잠금 상태를 독립적인 raid session으로 snapshot
-- Scanner가 확인한 아이템을 current Needed quantity, 경제 가치, footprint, 장비·수납·잠금 상태와 함께 평가
-- 새 scan은 이전 미수락 지시를 상태에 반영하지 않고 폐기한 뒤 current state에서 새 아이템을 판단
-- Mini Scanner에는 incoming item 이름을 반복하지 않고 행동만 짧게 표시
-- 사용자가 설정한 `파밍 가이드 수락` 단축키를 눌러야 session state에 반영하며 성공 피드백은 `반영 완료`
-- Special Slots는 canonical `specialSlot` item만 허용하고 compatible item은 ordinary size와 관계없이 정확히 1칸을 사용
-- locks는 automation removal/replacement를 제한하지만 direct user editing은 허용
-- `레이드 종료` 시 raid-session 변경을 폐기하고 시작 baseline으로 복귀
+- 검색 결과 위에 마우스를 올린 상태에서 `T`를 누르면 Search TextBox 포커스가 남아 있어도 simulated scan이 실행됩니다.
+- hover된 결과가 없으면 `T`는 정상 검색 문자 입력입니다.
+- active raid session에서는 실제 Scanner-confirmed item과 같은 Farming Guide recommendation path를 사용합니다.
+- Scanner capture가 꺼져 있거나 재시작 후 아직 in-memory catalog가 없더라도 verified same-mode local catalog를 필요 시 로드합니다.
+- 테스트 snapshot 준비 실패는 silent no-op 대신 명시적 실패 상태로 표시됩니다.
+
+### 장비 완제품 모델 유지
+
+- 총기·헬멧·방탄복 등 장비는 내부 부품을 별도 관리하지 않는 opaque complete item입니다.
+- 총기/헬멧 attachment, armor plate 편집과 equipment-internal raid recommendation은 없습니다.
+- Primary Weapon, Pistol/Holster, Helmet, Body Armor, Rig, Backpack, Secure Container 등 최상위 장비 칸 판단은 유지됩니다.
+- authoritative default-preset/source complete image를 우선하고 임의 assembly 이미지는 만들지 않습니다.
 
 ## 설치 / 실행
 
@@ -125,7 +127,7 @@ Junhyun-Helper.zip
 - Items / Ammo 조회와 profile-aware 판단
 - Map / MiniMap
 - Scanner / Mini Scanner
-- Farming Guide loadout / nested storage / raid advisor
+- Farming Guide loadout / source-backed nested storage / raid advisor
 - Game Content update with validation + Last Known Good
 - Program Update
 - opt-in diagnostics

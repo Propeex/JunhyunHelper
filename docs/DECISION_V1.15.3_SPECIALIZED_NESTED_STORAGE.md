@@ -1,7 +1,7 @@
 # Decision — v1.15.3 Farming Guide Specialized Nested Storage
 
 Date: **2026-09-01 KST**  
-Status: **CONFIRMED / IMPLEMENTATION IN PROGRESS**
+Status: **PUBLIC VERIFIED / CURRENT**
 
 This decision corrects the nested-storage boundary established by `DECISION_V1.15.2_COMPLETE_EQUIPMENT_MODEL.md`.
 
@@ -148,3 +148,5 @@ Before v1.15.3 is closed:
 - self-contained published EXE product smoke and graceful shutdown;
 - Shutdown Race, package verification, PR/exact-main CI and Documentation Consistency;
 - public v1.15.3 release/tag/assets/checksum verification.
+
+All items in this verification contract were satisfied by the v1.15.3 public release evidence recorded in `docs/RELEASE_1.15.3.md` and `docs/.release-v1.15.3-status.json`.
