@@ -13,7 +13,7 @@ public sealed class V1111ScannerSearchFeedbackContractTests
         var settingsWindow = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerSettingsWindow.xaml.cs");
         var miniScanner = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "MiniScannerWindow.xaml.cs");
 
-        Assert.Contains("public const int CurrentSchemaVersion = 9;", settings, StringComparison.Ordinal);
+        Assert.Contains("public const int CurrentSchemaVersion = 10;", settings, StringComparison.Ordinal);
         Assert.Contains("public const string AmmoPickupField = \"ammo_pickup\";", settings, StringComparison.Ordinal);
         Assert.Contains("public bool ShowAmmoPickup { get; set; } = true;", settings, StringComparison.Ordinal);
         Assert.Contains("if (SchemaVersion < 9)", settings, StringComparison.Ordinal);
