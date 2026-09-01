@@ -30,6 +30,12 @@ public partial class MainWindow
         // class-level Loaded handler whose activation depends on type/event ordering.
         ScheduleHeaderStatusPolish();
 
+        // A readable older content schema remains a valid offline fallback, but v1.15.4
+        // needs the current schema for the new source-backed equipment metrics. Attach an
+        // opportunistic one-shot refresh trigger through this single lifecycle owner so
+        // partial classes never compete for WPF lifecycle overrides.
+        AttachContentSchemaRefreshTrigger();
+
         // Scanner global commands belong to the product window lifetime, not the
         // Scanner tab lifetime. WindowInteropHandle may not exist yet here; the hotkey
         // service listens for SourceInitialized and registers as soon as the HWND is
@@ -54,6 +60,7 @@ public partial class MainWindow
         // is torn down. This keeps lifecycle ownership symmetric and avoids retaining a
         // closed MainWindow through component-model event infrastructure.
         DetachHeaderStatusPolish();
+        DetachContentSchemaRefreshTrigger();
 
         // Dispose product-owned hooks/timers before WPF tears down remaining windows.
         try { _legacyMapProductRuntime?.Dispose(); } catch { }
