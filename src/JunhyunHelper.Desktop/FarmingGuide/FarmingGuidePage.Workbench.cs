@@ -199,10 +199,11 @@ public partial class FarmingGuidePage
         };
         foreach (var slot in currentLayout.AttachmentSlots)
         {
+            var label = FarmingGuideSlotLabelPolicy.Attachment(slot);
             slots.Children.Add(CreateWorkbenchSlot(
                 WorkbenchSlotKind.Attachment,
                 slot.Id,
-                slot.Required ? $"{slot.Name ?? slot.NameId} *" : slot.Name ?? slot.NameId,
+                slot.Required ? $"{label} *" : label,
                 slot.Filters,
                 [],
                 currentState.Attachments.GetValueOrDefault(slot.Id)));
@@ -213,7 +214,7 @@ public partial class FarmingGuidePage
             slots.Children.Add(CreateWorkbenchSlot(
                 WorkbenchSlotKind.ArmorPlate,
                 slot.Id,
-                slot.Name ?? slot.NameId,
+                FarmingGuideSlotLabelPolicy.ArmorPlate(slot),
                 FarmingGuideItemFilter.Empty,
                 slot.AllowedPlateIds,
                 currentState.ArmorPlates.GetValueOrDefault(slot.Id)));
