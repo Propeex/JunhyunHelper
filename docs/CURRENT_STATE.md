@@ -2,75 +2,76 @@
 
 > 최신 제품 상태의 짧은 인덱스입니다. 기계 판독 가능한 사실값은 `docs/PROJECT_STATE.json`, 상세 계약은 `docs/STATE.md`, 진행 중 작업은 `docs/ACTIVE_WORK.md`를 기준으로 합니다.
 
-기준일: **2026-08-31 KST**  
-상태: **v1.13.3 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+기준일: **2026-09-01 KST**  
+상태: **v1.14.0 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 공개 stable
 
 ```text
-public stable/latest: v1.13.3
+public stable/latest: v1.14.0
 exact product release source/tag target:
-9a0064d81dca4c2cffcb01c55742d46298d235de
-PR: #248 — MERGED
-validated PR head: b39f7156f458fd6fd513b5eca551e522d5a12343
-PR exact-head CI: 33382678094 — SUCCESS
-PR exact-head Shutdown Race CI: 33382678096 — SUCCESS
-PR exact-head Documentation Consistency: 33382678065 — SUCCESS
-exact-main CI: 33382979766 — SUCCESS
-exact-main Shutdown Race CI: 33382979902 — SUCCESS
-exact-main Documentation Consistency: 33382979845 — SUCCESS
-release workflow: 33383407835 — SUCCESS
-release id: 379676479
-published UTC: 2026-08-31T10:40:13Z
-513 passed / 0 failed / 0 skipped
+9ff23b9f50dd84b84ec93cea31b079d7eff70fe1
+PR: #251 — MERGED
+superseded Draft PR: #250 — CLOSED UNMERGED
+validated PR head: c5ee50ba60f2bc7db461328608ec591f4320ccca
+PR exact-head CI: 33453431628 — SUCCESS
+PR exact-head Shutdown Race CI: 33453431625 — SUCCESS
+PR exact-head Documentation Consistency: 33453431595 — SUCCESS
+exact-main CI: 33453784868 — SUCCESS
+exact-main Shutdown Race CI: 33453784901 — SUCCESS
+exact-main Documentation Consistency: 33453784893 — SUCCESS
+release workflow: 33454002732 — SUCCESS
+release id: 380133403
+published UTC: 2026-09-01T00:15:44Z
+527 passed / 0 failed / 0 skipped
 ```
 
-Public package:
+Public assets:
 
 ```text
 Junhyun-Helper.zip
-asset id: 537835859
-bytes: 80,620,064
+asset id: 538692301
+bytes: 80,633,458
 SHA-256:
-704afb5e376f9087dd57c1795d8b95397c06a020acd9545fe80c5fc1b546b7b7
+87728ce9e34a30a9b1eb735fe92b1a4a39f172f3b9cf536dfd12d88c8c35667b
 
 SHA256SUMS.txt
-asset id: 537835858
+asset id: 538692300
 bytes: 86
 asset SHA-256:
-2c74d9c4e4f096c35eb3b4e45deb734af5b9df31306c9961d66c9aa7cd4e5b4d
+06ae3473f7fe87d62b0d05dac0d16640a55e30e8a8fd83e4770f962a8fc5dfe3
 ```
 
 Exact-main Actions artifact:
 
 ```text
 name: JunhyunHelper-win-x64
-artifact id: 9754610879
-archive bytes: 241,795,611
+artifact id: 9780762947
+archive bytes: 241,830,878
 archive SHA-256:
-ae3fb9857920ab61e79c46da01d030fbded4a90eca27ec306e7f5661beb0cc3a
+1898028e10ef336b2dce35add94d2e1cf83b5c58c27c98649691fe11bdbe8632
 ```
 
-GitHub `/releases/latest`, release target, `refs/tags/v1.13.3`, exact-main product source가 모두 `9a0064d81dca4c2cffcb01c55742d46298d235de`에 일치한다. 공개 release는 `draft=false`, `prerelease=false`이다.
+GitHub `/releases/latest`, `refs/tags/v1.14.0`, release target, exact-main source가 모두 `9ff23b9f50dd84b84ec93cea31b079d7eff70fe1`에 일치한다. Release는 `draft=false`, `prerelease=false`이다.
 
-## v1.13.3 핵심 변경 — Farming Guide live item interaction
+## v1.14.0 핵심 변경 — Farming Guide assembly / validated layouts
 
-v1.13.3은 v1.13.2 실사용에서 확인된 Farming Guide interaction 문제를 수정한 PATCH 릴리즈다.
-
-- Secure Container는 current Tarkov `ItemPropertiesContainer` 구조를 지원하되 Medicine Case 같은 일반 container/case를 오인하지 않는다.
-- stored item state에 nullable `ParentInstanceId`를 사용해 nested bag/rig storage를 표현한다.
-- root → nested tree 순서 sanitize로 orphan, duplicate instance, self/cycle, invalid grid/filter/bounds/overlap을 fail closed한다.
-- 별도 generic item configuration Window를 제거하고 가운데 in-page workbench를 사용한다.
-- stored bag/rig double-click은 실제 내부 storage grid를 직접 조작한다.
-- weapon/helmet/body armor는 actionable attachment/mod/replaceable armor plate slot을 one-item drag/drop target으로 표시한다.
-- occupied attachment/plate slot은 묵시적으로 overwrite하지 않는다.
-- nested container 이동은 descendants를 유지하고 destructive delete/replacement는 subtree를 함께 제거한다.
-- Farming Guide 검색에서는 upstream assembled weapon preset만 제외하고 canonical base weapon의 실제 mod slots를 사용한다.
-- 열린 workbench owner 이동 시 workbench를 먼저 닫아 stale write-back을 방지한다.
+- PMC dogtag equipment surface를 제거하고 legacy persisted value는 backward-compatible하게 읽는다.
+- `FarmingGuideAssemblyPolicy`가 deep attachment/armor tree mutation, compatible candidates, slot filter, allowed plate, assembly-wide conflict, required-slot recursion, persisted-tree sanitization의 Core authority다.
+- installed attachment의 하위 slot으로 재귀 navigation할 수 있다.
+- empty slot 클릭은 in-page compatible-item icon picker를 열며 single-click으로 즉시 장착한다. 별도 Windows/OS configuration dialog는 사용하지 않는다.
+- inline picker와 search drag/drop은 동일 compatibility policy를 사용한다.
+- exact imported default-preset membership일 때만 composed preset image를 사용하고 arbitrary build는 deterministic assembly-aware fallback을 사용한다.
+- storage legality는 current validated Game Content grid/filter mechanics가 권위다.
+- product-owned exact multi-grid coordinates는 current grid count/width/height signature가 정확히 일치할 때만 적용한다.
+- unknown/stale visual metadata는 finite compact layout으로 fail-safe fallback하며 authentic layout으로 주장하지 않는다.
+- importer는 `GridLayoutName` / `RigLayoutName` 계열 identity를 `StorageLayoutName`으로 보존한다.
+- Content snapshot write schema는 v10, readable compatibility는 v3~v10이다.
+- Farming Guide user state schema는 v1을 유지한다.
 
 Canonical decision / architecture:
 
-- `docs/DECISION_V1.13.3_FARMING_GUIDE_LIVE_ITEM_INTERACTION.md`
+- `docs/DECISION_V1.14.0_FARMING_GUIDE_ASSEMBLY_AND_AUTHENTIC_LAYOUTS.md`
 - `docs/ARCHITECTURE_FARMING_GUIDE.md`
 
 ## Farming Guide 유지 계약
@@ -83,15 +84,16 @@ Farming Guide는 Scanner 오른쪽의 raid-start Loadout / Inventory Editor다.
 - bounds / overlap / contiguous-space / current filter 검증
 - current validated Game Content의 storage grids, equipment/attachment/armor slots, conflicts 사용
 - nested storage parent-instance 관계 보존
-- attachment / replaceable armor plate direct drag/drop
-- 전체 출발 상태 preset save/load
-- melee / PMC dogtag fixed setting 분리
+- recursive attachment / armor tree editing
+- inline compatible-item picker + existing drag/drop
+- 전체 raid-start preset save/load/delete
+- melee user-level fixed setting
 - profile-aware standard/expanded pockets
 - 총 무게 / 사용·전체 storage cell 표시
-- filled carrier destructive replacement fail-closed
-- old preset impossible placement current-content/profile sanitization
+- filled carrier destructive replacement fail closed
+- impossible persisted state current-content/profile sanitization
 
-Loot 가치 판단, 획득/폐기/교체 추천, Scanner 실시간 recommendation, 실제 raid inventory grid 좌표의 지속적인 1:1 동기화는 현재 범위가 아니다.
+Loot 가치 판단, pickup/discard/replace 추천, Scanner 실시간 recommendation, 실제 raid inventory 좌표의 지속적인 1:1 동기화는 현재 범위가 아니다.
 
 ## 유지되는 주요 계약
 
@@ -108,9 +110,9 @@ Loot 가치 판단, 획득/폐기/교체 추천, Scanner 실시간 recommendatio
 ## Schema / compatibility
 
 ```text
-Desktop target version: 1.13.3
-Content schema write: v9
-Readable Content schemas: v3~v9
+Desktop version: 1.14.0
+Content schema write: v10
+Readable Content schemas: v3~v10
 user.db schema: v1
 Farming Guide state schema: v1
 Scanner display settings schema: v9
@@ -118,17 +120,18 @@ Scanner catalog cache write: v4
 Scanner catalog readable: v1~v4
 ```
 
-Farming Guide 상태는 `%LocalAppData%/JunhyunHelper/farming-guide.json`에 Game Content와 분리해 저장한다. v1.13.2 → v1.13.3 mandatory user data migration은 없다. 기존 schema-v1 JSON에서 missing `ParentInstanceId`는 null root placement로 호환된다.
+Farming Guide 상태는 `%LocalAppData%/JunhyunHelper/farming-guide.json`에 Game Content와 분리해 저장한다. v1.14.0에는 mandatory user-state migration이 없다.
 
 ## 검증 상태
 
-Exact product source `9a0064d81dca4c2cffcb01c55742d46298d235de`은 다음을 통과했다.
+Exact product source `9ff23b9f50dd84b84ec93cea31b079d7eff70fe1`은 다음을 통과했다.
 
-- 513 deterministic tests
+- 527 deterministic tests
 - Windows Release build / XAML compile
 - Windows x64 self-contained publish
+- ProductVersion `1.14.0+9ff23b9f50dd84b84ec93cea31b079d7eff70fe1`
 - actual published EXE Product UI / Farming Guide / Map smoke
-- Farming Guide live nested-storage / attachment-slot interaction smoke
+- recursive assembly / inline picker / exact storage-layout render-drop target smoke
 - graceful shutdown + clean portable root
 - active-async Shutdown Race
 - package root / forbidden dependency audit
@@ -142,14 +145,14 @@ Exact product source `9a0064d81dca4c2cffcb01c55742d46298d235de`은 다음을 통
 
 자동화 release verification과 별개로 다음은 `PENDING`이다.
 
-- 사용자의 실제 PC/Tarkov에서 v1.13.3 최종 실사용 확인
+- 사용자의 실제 PC/Tarkov에서 v1.14.0 최종 실사용 확인
 - 김태영 실제 PC에서 diagnostic ZIP 수집/분석
 
 공개 증거:
 
-- `docs/RELEASE_1.13.3.md`
-- `docs/.release-v1.13.3-status.json`
-- `docs/RELEASE_NOTES_V1.13.3.md`
-- `docs/DECISION_V1.13.3_FARMING_GUIDE_LIVE_ITEM_INTERACTION.md`
+- `docs/RELEASE_1.14.0.md`
+- `docs/.release-v1.14.0-status.json`
+- `docs/RELEASE_NOTES_V1.14.0.md`
+- `docs/DECISION_V1.14.0_FARMING_GUIDE_ASSEMBLY_AND_AUTHENTIC_LAYOUTS.md`
 
-후속 documentation-only commit은 v1.13.3 product release source가 아니다. historical identity는 `9a0064d81dca4c2cffcb01c55742d46298d235de`에 고정한다.
+후속 documentation-only commit은 v1.14.0 product release source가 아니다. historical identity는 `9ff23b9f50dd84b84ec93cea31b079d7eff70fe1`에 고정한다.
