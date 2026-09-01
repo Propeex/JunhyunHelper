@@ -73,7 +73,7 @@ public sealed class FarmingGuidePresetStore
             {
                 WorkingSnapshot = snapshot,
                 SelectedPresetName = selectedPresetName,
-                Locks = (locks ?? previous.Locks ?? FarmingGuideLockState.Empty).Clone(),
+                Locks = (locks ?? previous.Locks ?? FarmingGuideLockState.Empty).CopyNormalized(),
             };
             SaveDocument(document with { Profiles = profiles });
         }
@@ -96,7 +96,7 @@ public sealed class FarmingGuidePresetStore
             var previous = document.Profiles.TryGetValue(profileId, out var profile)
                 ? NormalizeProfile(profile)
                 : EmptyProfile();
-            var effectiveLocks = (locks ?? previous.Locks ?? FarmingGuideLockState.Empty).Clone();
+            var effectiveLocks = (locks ?? previous.Locks ?? FarmingGuideLockState.Empty).CopyNormalized();
             var presets = previous.Presets
                 .Where(preset => !string.Equals(preset.Name, normalizedName, StringComparison.OrdinalIgnoreCase))
                 .Append(new FarmingGuidePreset(normalizedName, snapshot, DateTimeOffset.UtcNow, effectiveLocks))
@@ -130,7 +130,7 @@ public sealed class FarmingGuidePresetStore
             {
                 WorkingSnapshot = preset.Snapshot,
                 SelectedPresetName = preset.Name,
-                Locks = (preset.Locks ?? FarmingGuideLockState.Empty).Clone(),
+                Locks = (preset.Locks ?? FarmingGuideLockState.Empty).CopyNormalized(),
             };
             var profiles = CopyProfiles(document.Profiles);
             profiles[profileId] = updated;
@@ -217,9 +217,9 @@ public sealed class FarmingGuidePresetStore
     private static FarmingGuideProfileState NormalizeProfile(FarmingGuideProfileState profile) =>
         profile with
         {
-            Locks = (profile.Locks ?? FarmingGuideLockState.Empty).Clone(),
+            Locks = (profile.Locks ?? FarmingGuideLockState.Empty).CopyNormalized(),
             Presets = profile.Presets
-                .Select(preset => preset with { Locks = (preset.Locks ?? FarmingGuideLockState.Empty).Clone() })
+                .Select(preset => preset with { Locks = (preset.Locks ?? FarmingGuideLockState.Empty).CopyNormalized() })
                 .ToArray(),
         };
 
