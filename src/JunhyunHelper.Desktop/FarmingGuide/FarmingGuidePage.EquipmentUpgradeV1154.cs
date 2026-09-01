@@ -107,17 +107,26 @@ public partial class FarmingGuidePage
         GameItem incoming,
         out RaidRecommendation recommendation)
     {
-        // The user explicitly allows ordinary body armor + ordinary rig -> armored rig
-        // when the incoming armored rig is a protection upgrade and every current rig item
-        // can be preserved inside it. The reverse transition is intentionally not inferred:
-        // scanning body armor cannot create a missing ordinary rig.
-        if (FarmingGuideCompatibility.IsStorageCarrierCompatible(FarmingGuideStorageKind.Rig, incoming) &&
-            incoming.FarmingGuideData?.IsArmoredRig == true &&
-            current.Rig is { } currentRigState &&
-            current.Equipment.TryGetValue(FarmingGuideEquipmentSlot.BodyArmor, out var bodyArmorState) &&
-            !_lockedCarriers.Contains(FarmingGuideStorageKind.Rig) &&
-            !_lockedEquipmentSlots.Contains(FarmingGuideEquipmentSlot.BodyArmor))
+        var incomingIsRig = FarmingGuideCompatibility.IsStorageCarrierCompatible(
+            FarmingGuideStorageKind.Rig,
+            incoming);
+        var incomingIsArmoredRig = incomingIsRig && incoming.FarmingGuideData?.IsArmoredRig == true;
+
+        // Body armor + ordinary rig -> armored rig is one atomic transition. If body armor
+        // exists, an incoming armored rig may never fall through to the ordinary carrier
+        // replacement path: that could otherwise leave body armor equipped together with
+        // an armored rig when a lock or packing constraint prevents the combined change.
+        if (incomingIsArmoredRig &&
+            current.Equipment.TryGetValue(FarmingGuideEquipmentSlot.BodyArmor, out var bodyArmorState))
         {
+            if (current.Rig is not { } currentRigState ||
+                _lockedCarriers.Contains(FarmingGuideStorageKind.Rig) ||
+                _lockedEquipmentSlots.Contains(FarmingGuideEquipmentSlot.BodyArmor))
+            {
+                recommendation = default!;
+                return false;
+            }
+
             var currentRig = ResolveItem(currentRigState);
             var bodyArmor = ResolveItem(bodyArmorState);
             if (currentRig is not null &&
@@ -152,9 +161,6 @@ public partial class FarmingGuidePage
                 return true;
             }
 
-            // An armored rig conflicts with the existing body armor. If the explicit
-            // combined transition is not safe, do not reinterpret it as an ordinary rig
-            // upgrade and silently delete or invalidate the body armor.
             recommendation = default!;
             return false;
         }
