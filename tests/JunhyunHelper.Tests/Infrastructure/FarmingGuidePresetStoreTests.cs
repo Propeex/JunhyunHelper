@@ -104,9 +104,13 @@ public sealed class FarmingGuidePresetStoreTests
                 null,
                 []);
             store.SavePreset("profile-a", "default", original);
+
+            // Dogtags are no longer an equipable Farming Guide surface. Keep accepting the
+            // legacy schema-v1 field so existing files deserialize, but normalize it away
+            // whenever fixed equipment is saved/read.
             store.SaveFixedEquipment(new FarmingGuideFixedEquipmentState(
                 FarmingGuideItemState.Create("melee"),
-                FarmingGuideItemState.Create("dogtag")));
+                FarmingGuideItemState.Create("legacy-dogtag")));
 
             var changed = original with
             {
@@ -125,7 +129,7 @@ public sealed class FarmingGuidePresetStoreTests
 
             var fixedEquipment = new FarmingGuidePresetStore(root).LoadFixedEquipment();
             Assert.Equal("melee", fixedEquipment.Melee?.ItemId);
-            Assert.Equal("dogtag", fixedEquipment.Dogtag?.ItemId);
+            Assert.Null(fixedEquipment.Dogtag);
         }
         finally
         {

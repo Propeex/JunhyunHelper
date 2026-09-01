@@ -57,11 +57,59 @@ public sealed class TarkovItemImporter
                     : !typeKeys.Contains("noFlea", StringComparer.OrdinalIgnoreCase))
             {
                 FarmingGuideData = ReadFarmingGuideLayout(raw),
+                FarmingGuideAssembly = ReadAssemblySource(raw),
             };
 
             result.Add(item);
         }
 
+        return result;
+    }
+
+    private static FarmingGuideAssemblySource? ReadAssemblySource(JsonElement item)
+    {
+        var gridImageUrl = TarkovJsonReader.OptionalString(item, "gridImageLink");
+        var image512Url = TarkovJsonReader.OptionalString(item, "image512pxLink");
+        var containedItemIds = ReadContainedItemIds(item);
+        string? defaultPresetItemId = null;
+
+        if (item.TryGetProperty("properties", out var properties) &&
+            properties.ValueKind == JsonValueKind.Object &&
+            properties.TryGetProperty("defaultPreset", out var defaultPreset))
+        {
+            defaultPresetItemId = ReferenceId(defaultPreset);
+        }
+
+        if (string.IsNullOrWhiteSpace(gridImageUrl) &&
+            string.IsNullOrWhiteSpace(image512Url) &&
+            string.IsNullOrWhiteSpace(defaultPresetItemId) &&
+            containedItemIds.Count == 0)
+        {
+            return null;
+        }
+
+        return new FarmingGuideAssemblySource(
+            gridImageUrl,
+            image512Url,
+            defaultPresetItemId,
+            containedItemIds);
+    }
+
+    private static IReadOnlyList<string> ReadContainedItemIds(JsonElement item)
+    {
+        if (!item.TryGetProperty("containsItems", out var values) || values.ValueKind != JsonValueKind.Array)
+            return [];
+
+        var result = new List<string>();
+        foreach (var value in values.EnumerateArray())
+        {
+            string? id = null;
+            if (value.ValueKind == JsonValueKind.Object && value.TryGetProperty("item", out var nestedItem))
+                id = ReferenceId(nestedItem);
+            id ??= ReferenceId(value);
+            if (!string.IsNullOrWhiteSpace(id) && !result.Contains(id, StringComparer.Ordinal))
+                result.Add(id);
+        }
         return result;
     }
 
@@ -89,6 +137,7 @@ public sealed class TarkovItemImporter
 
         var propertiesType = TarkovJsonReader.OptionalString(properties, "propertiesType")
                              ?? TarkovJsonReader.OptionalString(properties, "__typename");
+        var storageLayoutName = ReadStorageLayoutName(properties);
         var grids = ReadStorageGrids(properties);
         var slots = ReadAttachmentSlots(properties);
         var armorSlots = ReadArmorSlots(properties);
@@ -100,6 +149,7 @@ public sealed class TarkovItemImporter
         var isArmoredRig = isChestRig && (armorSlots.Count > 0 || armorClass > 0);
 
         if (string.IsNullOrWhiteSpace(propertiesType) &&
+            string.IsNullOrWhiteSpace(storageLayoutName) &&
             grids.Count == 0 &&
             slots.Count == 0 &&
             armorSlots.Count == 0 &&
@@ -118,8 +168,17 @@ public sealed class TarkovItemImporter
             conflictingItems,
             conflictingSlotIds,
             blocksHeadphones,
-            isArmoredRig);
+            isArmoredRig)
+        {
+            StorageLayoutName = storageLayoutName,
+        };
     }
+
+    private static string? ReadStorageLayoutName(JsonElement properties) =>
+        TarkovJsonReader.OptionalString(properties, "gridLayoutName")
+        ?? TarkovJsonReader.OptionalString(properties, "GridLayoutName")
+        ?? TarkovJsonReader.OptionalString(properties, "rigLayoutName")
+        ?? TarkovJsonReader.OptionalString(properties, "RigLayoutName");
 
     private static IReadOnlyList<FarmingGuideStorageGridDefinition> ReadStorageGrids(JsonElement properties)
     {

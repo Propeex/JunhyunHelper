@@ -93,7 +93,7 @@
                                Margin="0,3,0,0" />
                 </StackPanel>
                 <ScrollViewer VerticalScrollBarVisibility="Auto"
-                              HorizontalScrollBarVisibility="Auto">
+                              HorizontalScrollBarVisibility="Disabled">
                     <StackPanel x:Name="StoragePanel" />
                 </ScrollViewer>
             </DockPanel>
@@ -225,7 +225,7 @@
                             Click="CloseWorkbenchButton_Click" />
                 </Grid>
                 <ScrollViewer VerticalScrollBarVisibility="Auto"
-                              HorizontalScrollBarVisibility="Auto">
+                              HorizontalScrollBarVisibility="Disabled">
                     <StackPanel x:Name="WorkbenchPanel" />
                 </ScrollViewer>
             </DockPanel>

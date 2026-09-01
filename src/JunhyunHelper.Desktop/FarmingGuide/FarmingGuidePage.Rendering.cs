@@ -44,7 +44,7 @@ public partial class FarmingGuidePage
                 ? GetFixed(definition.Slot)
                 : Equipment.TryGetValue(definition.Slot, out var equipped) ? equipped : null;
             var item = ResolveItem(state);
-            var slot = CreateEquipmentSlot(definition.Slot, definition.Label, definition.Fixed, item);
+            var slot = CreateEquipmentSlot(definition.Slot, definition.Label, definition.Fixed, state, item);
             var placement = EquipmentBoardPlacement(definition.Slot);
 
             Grid.SetRow(slot, placement.Row);
@@ -61,6 +61,7 @@ public partial class FarmingGuidePage
         FarmingGuideEquipmentSlot slot,
         string label,
         bool fixedSlot,
+        FarmingGuideItemState? state,
         GameItem? item)
     {
         var border = new Border
@@ -79,9 +80,9 @@ public partial class FarmingGuidePage
         border.MouseLeftButtonDown += Equipment_MouseLeftButtonDown;
 
         var content = new Grid();
-        if (item is not null)
+        if (item is not null && state is not null)
         {
-            content.Children.Add(CreateItemImage(item, margin: new Thickness(8, 24, 8, 6)));
+            content.Children.Add(CreateAssemblyVisual(state, item, margin: new Thickness(8, 24, 8, 6)));
         }
         else
         {
@@ -127,8 +128,7 @@ public partial class FarmingGuidePage
         FarmingGuideEquipmentSlot.Armband => (1, 0, 1, 1),
         FarmingGuideEquipmentSlot.BodyArmor => (1, 1, 2, 1),
         FarmingGuideEquipmentSlot.Eyewear => (1, 2, 1, 1),
-        FarmingGuideEquipmentSlot.Dogtag => (2, 0, 1, 1),
-        FarmingGuideEquipmentSlot.Holster => (2, 2, 1, 1),
+        FarmingGuideEquipmentSlot.Holster => (2, 0, 1, 1),
         FarmingGuideEquipmentSlot.PrimaryWeapon1 => (3, 0, 1, 2),
         FarmingGuideEquipmentSlot.Melee => (3, 2, 1, 1),
         FarmingGuideEquipmentSlot.PrimaryWeapon2 => (4, 0, 1, 2),
@@ -185,10 +185,7 @@ public partial class FarmingGuidePage
             Margin = new Thickness(2, 0, 0, 6),
         });
 
-        var gridsPanel = new WrapPanel { Orientation = Orientation.Horizontal };
-        for (var index = 0; index < storage.Grids.Count; index++)
-            gridsPanel.Children.Add(CreateGridCanvas(storage.Kind, index, storage.Grids[index]));
-        section.Children.Add(gridsPanel);
+        section.Children.Add(CreateCompactGridHost(storage.Kind, storage.Grids, parentInstanceId: null));
         return section;
     }
 
@@ -226,9 +223,9 @@ public partial class FarmingGuidePage
         carrier.Tag = target;
         carrier.MouseLeftButtonDown += Carrier_MouseLeftButtonDown;
 
-        if (carrierItem is not null)
+        if (carrierItem is not null && storage.Carrier is not null)
         {
-            carrier.Child = CreateItemImage(carrierItem, margin: new Thickness(5));
+            carrier.Child = CreateAssemblyVisual(storage.Carrier, carrierItem, margin: new Thickness(5));
         }
         else
         {
@@ -249,10 +246,7 @@ public partial class FarmingGuidePage
         Grid.SetColumn(content, 1);
         if (storage.Grids.Count > 0)
         {
-            var gridsPanel = new WrapPanel { Orientation = Orientation.Horizontal };
-            for (var index = 0; index < storage.Grids.Count; index++)
-                gridsPanel.Children.Add(CreateGridCanvas(storage.Kind, index, storage.Grids[index]));
-            content.Children.Add(gridsPanel);
+            content.Children.Add(CreateCompactGridHost(storage.Kind, storage.Grids, parentInstanceId: null));
         }
         else
         {
@@ -269,6 +263,60 @@ public partial class FarmingGuidePage
         body.Children.Add(content);
         section.Children.Add(body);
         return section;
+    }
+
+    private FrameworkElement CreateCompactGridHost(
+        FarmingGuideStorageKind kind,
+        IReadOnlyList<FarmingGuideStorageGridDefinition> grids,
+        string? parentInstanceId)
+    {
+        var ownerItem = ResolveStorageSurfaceOwner(kind, parentInstanceId);
+        if (ownerItem is not null &&
+            FarmingGuideStorageVisualLayoutResolver.TryResolve(
+                ownerItem.Id,
+                ownerItem.FarmingGuideData?.StorageLayoutName,
+                grids,
+                CellSize,
+                out var exact))
+        {
+            var exactHost = new Canvas
+            {
+                Width = exact.Width,
+                Height = exact.Height,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                ClipToBounds = false,
+            };
+            foreach (var placement in exact.Grids)
+            {
+                var grid = CreateGridCanvas(kind, placement.GridIndex, grids[placement.GridIndex], parentInstanceId);
+                grid.Margin = new Thickness(0);
+                Canvas.SetLeft(grid, placement.Left);
+                Canvas.SetTop(grid, placement.Top);
+                exactHost.Children.Add(grid);
+            }
+            return exactHost;
+        }
+
+        var host = new WrapPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+        for (var index = 0; index < grids.Count; index++)
+            host.Children.Add(CreateGridCanvas(kind, index, grids[index], parentInstanceId));
+        return host;
+    }
+
+    private GameItem? ResolveStorageSurfaceOwner(FarmingGuideStorageKind kind, string? parentInstanceId)
+    {
+        if (!string.IsNullOrWhiteSpace(parentInstanceId))
+        {
+            var stored = StoredItems.FirstOrDefault(item =>
+                string.Equals(item.InstanceId, parentInstanceId, StringComparison.Ordinal));
+            return stored is null ? null : ResolveItem(stored.Item);
+        }
+
+        return ResolveItem(GetCarrier(kind));
     }
 
     private Canvas CreateGridCanvas(
@@ -338,7 +386,7 @@ public partial class FarmingGuidePage
                 ClipToBounds = true,
             };
             card.MouseLeftButtonDown += PlacedItem_MouseLeftButtonDown;
-            card.Child = CreateItemImage(item, placement.Rotated, new Thickness(2));
+            card.Child = CreateAssemblyVisual(placement.Item, item, placement.Rotated, new Thickness(2));
             Canvas.SetLeft(card, placement.X * CellSize + 1);
             Canvas.SetTop(card, placement.Y * CellSize + 1);
             canvas.Children.Add(card);

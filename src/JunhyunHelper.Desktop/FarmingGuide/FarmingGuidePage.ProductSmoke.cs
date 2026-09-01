@@ -31,6 +31,7 @@ public partial class FarmingGuidePage
         try
         {
             VerifyLiveInventoryWorkbenchSmoke();
+            VerifyExactStorageVisualLayoutSmoke();
             var marker = Path.Combine(
                 Path.GetTempPath(),
                 "junhyun-farming-guide-v113-smoke-success.txt");
@@ -41,6 +42,7 @@ public partial class FarmingGuidePage
                 "attachment-slot-drag-drop=ok",
                 "occupied-slot-overwrite-blocked=ok",
                 "attachment-drag-out=ok",
+                "exact-storage-layout=ok",
             ]);
             _productSmokeCompleted = true;
         }
@@ -49,7 +51,7 @@ public partial class FarmingGuidePage
             var diagnostic = Path.Combine(Path.GetTempPath(), "junhyun-map-smoke-error.txt");
             File.WriteAllText(
                 diagnostic,
-                "Farming Guide v1.13.3 live workbench smoke failed." + Environment.NewLine + exception);
+                "Farming Guide live workbench smoke failed." + Environment.NewLine + exception);
             throw;
         }
         finally
