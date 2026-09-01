@@ -78,26 +78,20 @@ Canonical correction decision:
 - updated FIRST_RUN_KO.txt and added docs/RELEASE_NOTES_V1.15.1.md
 - analyzed the first full deterministic run: 556 passed / 2 failed / 0 skipped; both failures were stale v1.15.0 source-contract assertions rather than runtime/test failures
 - rewrote those two maintenance contracts to assert the v1.15.1 carrier-lock and silent pending-invalidation behavior instead of deleting coverage
-- final validated code checkpoint `c4bdce6812fdd7eb75edc9b82c7ff3cde8c76fa4`:
-  - CI run `33474959447` SUCCESS
-  - Shutdown Race run `33474959473` SUCCESS
-  - Documentation Consistency run `33474959441` SUCCESS
-  - 558 passed / 0 failed / 0 skipped
-  - Release build and win-x64 publish SUCCESS
-  - published ProductVersion `1.15.1+a03e7cee2076ceefd153e2f0cfbcd26b022d27dd` verified
-  - Startup + rendered Product UI + full Map/Factory/MiniMap + Scanner smoke SUCCESS
-  - graceful shutdown + clean portable root SUCCESS
-  - candidate `Junhyun-Helper.zip`: 80,658,846 bytes; SHA-256 `13b8e534aad3af81548f3d822fbee619bb892f5696e607e11eb30c83a6ec5d44`
-  - CI artifact `JunhyunHelper-win-x64`: id `9787880290`, 241,908,544 bytes, SHA-256 `21a5f4689d5ee6eda477678e11c8f6ac6d354f15a5c4680f128b67526f3fd544`
+- final validated code checkpoint `c4bdce6812fdd7eb75edc9b82c7ff3cde8c76fa4`: 558 passed / 0 failed / 0 skipped, full published Windows smoke and Shutdown Race SUCCESS
 - staged canonical candidate facts: desktopVersion 1.15.1, deterministicTestCount 558; publicStable remains v1.15.0 until publication succeeds
+- final PR HEAD `fda3dfbcc9e25dc701f690fe5409646b8b8ba6ac` validation:
+  - CI run `33475310940` SUCCESS
+  - Shutdown Race run `33475310845` SUCCESS
+  - Documentation Consistency run `33475310864` SUCCESS
+  - full build/test/publish/Product UI + Map + Scanner/graceful-shutdown/package pipeline SUCCESS
 
 ## Current step
 
-Only documentation/checkpoint facts changed after the fully validated code checkpoint. Obtain green checks on the final PR HEAD, then mark PR #258 ready and merge. After merge, verify the exact-main build/tests/runtime smoke and automatic v1.15.1 public release before starting the documentation-only release-closure PR.
+PR #258 is fully validated and ready for merge. Merge it, then treat the resulting main commit as the candidate exact product source and require exact-main CI/Shutdown Race/Documentation Consistency plus the automatic v1.15.1 Release workflow before release closure.
 
 ## Remaining
 
-- obtain green PR CI / Shutdown Race CI / Documentation Consistency on the final PR HEAD
 - mark PR #258 ready and merge
 - verify exact-main CI and Shutdown Race / Documentation Consistency on merged main
 - verify automatic v1.15.1 release workflow, public tag/release/latest status, assets and checksums
