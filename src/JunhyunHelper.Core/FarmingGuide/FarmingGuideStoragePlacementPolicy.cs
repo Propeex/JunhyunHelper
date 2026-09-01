@@ -6,19 +6,21 @@ namespace JunhyunHelper.Core.FarmingGuide;
 /// Centralizes storage-surface-specific placement semantics. Tarkov special slots are
 /// not ordinary 1x1 inventory grids: only items explicitly classified as special-slot
 /// compatible may enter them, and a compatible item occupies exactly one special slot
-/// regardless of its normal inventory footprint.
+/// regardless of its normal inventory footprint. Nested storage inside an item that
+/// happens to sit in a special slot remains an ordinary storage surface.
 /// </summary>
 public static class FarmingGuideStoragePlacementPolicy
 {
     public static bool CanStore(
         FarmingGuideStorageKind storage,
+        string? parentInstanceId,
         GameItem item,
         FarmingGuideItemFilter filter)
     {
         ArgumentNullException.ThrowIfNull(item);
         ArgumentNullException.ThrowIfNull(filter);
         return FarmingGuideCompatibility.FilterAllows(item, filter) &&
-               (storage != FarmingGuideStorageKind.SpecialSlots || IsSpecialSlotCompatible(item));
+               (!IsSpecialSlotSurface(storage, parentInstanceId) || IsSpecialSlotCompatible(item));
     }
 
     public static bool IsSpecialSlotCompatible(GameItem item)
@@ -30,11 +32,12 @@ public static class FarmingGuideStoragePlacementPolicy
 
     public static (int Width, int Height) Footprint(
         FarmingGuideStorageKind storage,
+        string? parentInstanceId,
         GameItem item,
         bool rotated)
     {
         ArgumentNullException.ThrowIfNull(item);
-        return storage == FarmingGuideStorageKind.SpecialSlots
+        return IsSpecialSlotSurface(storage, parentInstanceId)
             ? (1, 1)
             : FarmingGuidePlacementEngine.Footprint(
                 item.Width ?? 1,
@@ -42,12 +45,18 @@ public static class FarmingGuideStoragePlacementPolicy
                 rotated);
     }
 
-    public static bool SupportsRotation(FarmingGuideStorageKind storage, GameItem item)
+    public static bool SupportsRotation(
+        FarmingGuideStorageKind storage,
+        string? parentInstanceId,
+        GameItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
-        return storage != FarmingGuideStorageKind.SpecialSlots &&
+        return !IsSpecialSlotSurface(storage, parentInstanceId) &&
                (item.Width ?? 1) != (item.Height ?? 1);
     }
+
+    public static bool IsSpecialSlotSurface(FarmingGuideStorageKind storage, string? parentInstanceId) =>
+        storage == FarmingGuideStorageKind.SpecialSlots && string.IsNullOrWhiteSpace(parentInstanceId);
 
     private static string Normalize(string value) =>
         new(value.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
