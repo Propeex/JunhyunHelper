@@ -16,6 +16,7 @@ Farming Guide 실사용 보완 PATCH `v1.15.3` 작업.
 
 base main: `5352dfe6bf673a79d2833b44491ebe11ed6af65f`  
 working branch: `fix/v1.15.3-farming-guide-storage-scan-sim-2026-09-01`  
+PR: `#264` (draft validation)  
 public stable: `v1.15.2`  
 exact public product source: `f4974ee6bed5047865581240197f7f0e2787ba7c`
 
@@ -29,24 +30,44 @@ exact public product source: `f4974ee6bed5047865581240197f7f0e2787ba7c`
 4. 검색 결과 hover + `T` 테스트 입력은 활성 raid session에서 실제 스캔과 동일한 Farming Guide recommendation 경로로 들어가야 한다.
 5. 기존 v1.15.2 완제품 장비 모델(weapon/armor 내부 부품 편집 비노출)은 유지한다.
 
+Canonical correction: `docs/DECISION_V1.15.3_SPECIALIZED_NESTED_STORAGE.md`.
+
 ## Completed
 
 - v1.15.2 stable 상태와 관련 코드 복구
-- root cause 확인: `FarmingGuideCompleteEquipmentPolicy.ToRuntimeItem`가 rig/backpack/secure-container 외 아이템의 `StorageGrids`를 삭제하고, `SupportsNestedStorage`도 backpack/rig로 제한하고 있음
 - importer가 이미 `properties.grids`와 allowed/excluded filters를 canonical FarmingGuide layout으로 보존함을 확인
-- 저장 아이템 기본 노란색 테두리가 `FarmingGuidePage.Rendering.CreateGridCanvas`와 unlock visual restore 경로에 하드코딩되어 있음을 확인
-- 작업 브랜치 생성 및 체크포인트 시작
+- root cause 수정
+  - complete-equipment runtime projection이 모든 source-backed `StorageGrids`를 유지하도록 변경
+  - `SupportsNestedStorage`를 backpack/rig 이름/분류가 아니라 실제 storage grid 존재 여부로 일반화
+- 기존 recursive `ParentInstanceId` sanitizer/raid-surface 탐색이 generic container nesting과 grid filter를 이미 공통 지원함을 확인
+- stored item 기본 렌더링 border를 neutral `BorderBrush`로 변경
+- lock apply/unlock restore가 accent ↔ neutral로 명확히 왕복하도록 정리
+- nested detail render 직후에도 lock visual을 적용하도록 보완
+- hover + `T` test command가 Search TextBox focus보다 hovered result를 우선하도록 수정
+- Scanner runtime이 꺼져 있거나 in-memory catalog 미초기화 상태에서도 same-mode verified local Scanner cache를 on-demand load하는 simulated snapshot resolver 추가
+- simulated snapshot 준비 실패가 silent no-op이 아니라 명시적 상태로 보이도록 처리
+- deterministic tests 추가
+  - arbitrary source-backed specialized storage runtime preservation
+  - Secure Container 안 specialized container의 allowed/denied filter enforcement
+- v1.15.2 equipment-internal editor boundary 유지
+- initial PR `#264` CI evidence
+  - Desktop Release build: SUCCESS
+  - Shutdown Race CI `33484816329`: SUCCESS
+  - Documentation Consistency `33484816312`: SUCCESS
+  - Core tests: 562? existing + new total 563 중 1개 stale maintenance-contract assertion 실패
+  - 실패 원인은 v1.15.2의 `bag/rig only` 문구를 고정한 `FarmingGuideDesktopSectionContractTests`; 구현 compile 오류 아님
+- stale maintenance contract를 v1.15.3 source-backed storage/T/border contract로 갱신
+- Desktop version `1.15.3`, FIRST_RUN, PRODUCT, decision, release notes 갱신
 
 ## Current step
 
-- nested-storage runtime policy를 source-backed grid 기준으로 일반화
-- 저장 아이템 잠금 시각 규칙 수정
-- hover + `T` simulated scan 이벤트 경로 및 focus/hit-test 회귀 분석
+최신 PR head에서 full CI / Shutdown Race / Documentation Consistency를 다시 검증하고, 통과 후 published EXE smoke 및 release metadata/state를 finalization한다.
 
 ## Remaining
 
-- 코드 수정 및 회귀 테스트 추가/보완
-- 전체 테스트 / Release build / Windows publish 및 관련 Product UI/runtime smoke
-- 문서/버전 갱신
-- PR/CI/main 병합/exact-main 검증
-- v1.15.3 release/tag/assets 검증 및 ACTIVE_WORK 종료
+- 최신 head full CI 결과 확인 및 발견 회귀 수정
+- published Windows product smoke / package audit 확인
+- PR ready/merge 및 exact-main CI / Shutdown Race / Documentation Consistency
+- README/CURRENT_STATE/STATE/PROJECT_STATE를 exact release evidence로 최종 갱신
+- v1.15.3 release/tag/assets/checksum 검증
+- release-close docs commit 후 ACTIVE_WORK `NONE`
