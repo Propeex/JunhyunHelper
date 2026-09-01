@@ -53,6 +53,29 @@ public sealed class FarmingGuideLootRetentionPolicyTests
         Assert.False(FarmingGuideLootRetentionPolicy.CanSacrificeFor(preserved, victims));
     }
 
+    [Fact]
+    public void TwoCheapVictimsArePreferredOverOneMoreExpensiveVictim()
+    {
+        var twoCheap = new[]
+        {
+            Metrics(needed: 0, value: 10_000, slots: 1),
+            Metrics(needed: 0, value: 15_000, slots: 1),
+        };
+        var oneExpensive = new[] { Metrics(needed: 0, value: 50_000, slots: 1) };
+
+        Assert.True(FarmingGuideLootRetentionPolicy.IsPreferredVictimSet(twoCheap, oneExpensive));
+        Assert.False(FarmingGuideLootRetentionPolicy.IsPreferredVictimSet(oneExpensive, twoCheap));
+    }
+
+    [Fact]
+    public void AnyRequiredVictimMakesAPlanWorseThanOrdinaryVictims()
+    {
+        var ordinary = new[] { Metrics(needed: 0, value: 100_000, slots: 1) };
+        var required = new[] { Metrics(needed: 1, value: 1, slots: 1) };
+
+        Assert.True(FarmingGuideLootRetentionPolicy.IsPreferredVictimSet(ordinary, required));
+    }
+
     private static FarmingGuideLootMetrics Metrics(int needed, int value, int slots) =>
         new(needed, value, null, slots);
 }
