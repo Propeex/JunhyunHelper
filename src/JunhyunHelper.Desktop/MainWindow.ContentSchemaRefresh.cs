@@ -4,16 +4,28 @@ namespace JunhyunHelper.Desktop;
 
 public partial class MainWindow
 {
-    private bool _contentSchemaRefreshScheduled;
+    private bool _contentSchemaRefreshStarted;
 
-    protected override async void OnContentRendered(EventArgs e)
+    protected override void OnInitialized(EventArgs e)
     {
-        base.OnContentRendered(e);
-        if (_contentSchemaRefreshScheduled || IsProductSmokeRun())
+        base.OnInitialized(e);
+        LayoutUpdated += MainWindow_ContentSchemaLayoutUpdated;
+    }
+
+    private void MainWindow_ContentSchemaLayoutUpdated(object? sender, EventArgs e)
+    {
+        if (_contentSchemaRefreshStarted || IsProductSmokeRun())
+        {
+            LayoutUpdated -= MainWindow_ContentSchemaLayoutUpdated;
+            return;
+        }
+
+        if (_activeProfile is null || _activeContent is null)
             return;
 
-        _contentSchemaRefreshScheduled = true;
-        await TryRefreshLegacyContentSchemaAsync();
+        _contentSchemaRefreshStarted = true;
+        LayoutUpdated -= MainWindow_ContentSchemaLayoutUpdated;
+        _ = TryRefreshLegacyContentSchemaAsync();
     }
 
     private async Task TryRefreshLegacyContentSchemaAsync()
@@ -44,7 +56,8 @@ public partial class MainWindow
         }
         catch (OperationCanceledException)
         {
-            throw;
+            // Window/application shutdown can cancel opportunistic migration. The readable
+            // last-known-good snapshot remains intact and migration is retried next launch.
         }
         catch (Exception)
         {
