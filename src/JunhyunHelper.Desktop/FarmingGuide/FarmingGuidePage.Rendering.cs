@@ -128,7 +128,7 @@ public partial class FarmingGuidePage
         FarmingGuideEquipmentSlot.Armband => (1, 0, 1, 1),
         FarmingGuideEquipmentSlot.BodyArmor => (1, 1, 2, 1),
         FarmingGuideEquipmentSlot.Eyewear => (1, 2, 1, 1),
-        FarmingGuideEquipmentSlot.Holster => (2, 0, 1, 1),
+        FarmingGuideEquipmentSlot.Holster => (2, 2, 1, 1),
         FarmingGuideEquipmentSlot.PrimaryWeapon1 => (3, 0, 1, 2),
         FarmingGuideEquipmentSlot.Melee => (3, 2, 1, 1),
         FarmingGuideEquipmentSlot.PrimaryWeapon2 => (4, 0, 1, 2),
@@ -368,14 +368,15 @@ public partial class FarmingGuidePage
             var item = ResolveItem(placement.Item);
             if (item is null)
                 continue;
-            var (width, height) = FarmingGuidePlacementEngine.Footprint(
-                item.Width ?? 1,
-                item.Height ?? 1,
+            var footprint = FarmingGuideStoragePlacementPolicy.Footprint(
+                kind,
+                parentInstanceId,
+                item,
                 placement.Rotated);
             var card = new Border
             {
-                Width = width * CellSize - 2,
-                Height = height * CellSize - 2,
+                Width = footprint.Width * CellSize - 2,
+                Height = footprint.Height * CellSize - 2,
                 CornerRadius = new CornerRadius(2),
                 BorderThickness = new Thickness(1),
                 BorderBrush = (Brush)FindResource("AccentBrush"),
