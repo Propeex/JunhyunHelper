@@ -21,9 +21,8 @@ public partial class FarmingGuidePage
     private string? _quantityEditInstanceIdV1160;
     private bool _v1160UiInitialized;
 
-    protected override void OnInitialized(EventArgs e)
+    private void InitializeV1160UiHooks()
     {
-        base.OnInitialized(e);
         Loaded += FarmingGuideV1160_Loaded;
         LayoutUpdated += FarmingGuideV1160_LayoutUpdated;
         AddHandler(Mouse.PreviewMouseDownEvent, new MouseButtonEventHandler(FarmingGuideV1160_PreviewMouseDown), true);
@@ -280,7 +279,8 @@ public partial class FarmingGuidePage
         {
             Quantity = FarmingGuideStackQuantityPolicy.NormalizeQuantity(quantity),
         };
-        _quantityPopupV1160?.SetCurrentValue(Popup.IsOpenProperty, false);
+        if (_quantityPopupV1160 is not null)
+            _quantityPopupV1160.IsOpen = false;
         _quantityEditInstanceIdV1160 = null;
         MarkChanged();
     }
