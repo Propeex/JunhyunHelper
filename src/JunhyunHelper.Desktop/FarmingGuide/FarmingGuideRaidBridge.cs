@@ -198,8 +198,8 @@ public sealed class FarmingGuideRaidBridge
     }
 
     /// <summary>
-    /// Active instructions are persistent. Acceptance/cancellation messages clear the
-    /// active instruction first and use the existing short-lived Scanner status badge.
+    /// Active instructions are persistent. Acceptance feedback clears the active
+    /// instruction first and uses the existing short-lived Scanner status badge.
     /// </summary>
     public void ShowMiniScannerStatus(string message)
     {
@@ -207,8 +207,8 @@ public sealed class FarmingGuideRaidBridge
             return;
 
         var normalized = message.Trim();
-        if (string.Equals(normalized, "수락 완료", StringComparison.Ordinal) ||
-            normalized.StartsWith("상태 변경으로", StringComparison.Ordinal))
+        if (string.Equals(normalized, "반영 완료", StringComparison.Ordinal) ||
+            string.Equals(normalized, "수락 완료", StringComparison.Ordinal))
         {
             SetMiniScannerInstruction(null);
             ShowTransientStatus(normalized);
