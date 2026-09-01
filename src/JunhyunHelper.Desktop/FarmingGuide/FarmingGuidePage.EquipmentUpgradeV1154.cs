@@ -7,16 +7,17 @@ namespace JunhyunHelper.Desktop.FarmingGuide;
 public partial class FarmingGuidePage
 {
     /// <summary>
-    /// Objective equipment superiority is evaluated before ordinary storage. A clearly
-    /// better armor/carrier should be worn now instead of being put in a free backpack cell.
-    /// Equipment whose source data has no single defensible ordering (notably headphones)
-    /// falls through to the existing value/need policy rather than receiving a guessed rank.
+    /// Source-backed equipment superiority is evaluated before ordinary storage. Clearly
+    /// better armor, headsets and carriers should be worn now instead of consuming free
+    /// backpack space. Multi-dimensional comparisons use conservative Pareto dominance.
     /// </summary>
     private RaidRecommendation PlanScannedItemEquipmentAware(ScannerItemSnapshot scanned, GameItem incoming)
     {
         var current = BuildSnapshot();
         if (TryBuildProtectiveUpgrade(current, incoming, out var protective))
             return protective;
+        if (TryBuildHeadsetUpgrade(current, incoming, out var headset))
+            return headset;
         if (TryBuildCarrierUpgrade(current, incoming, out var carrier))
             return carrier;
         return PlanScannedItemHardened(scanned, incoming);
@@ -65,6 +66,40 @@ public partial class FarmingGuidePage
 
         recommendation = default!;
         return false;
+    }
+
+    private bool TryBuildHeadsetUpgrade(
+        FarmingGuideLoadoutSnapshot current,
+        GameItem incoming,
+        out RaidRecommendation recommendation)
+    {
+        const FarmingGuideEquipmentSlot slot = FarmingGuideEquipmentSlot.Headset;
+        if (!current.Equipment.TryGetValue(slot, out var existingState) ||
+            _lockedEquipmentSlots.Contains(slot) ||
+            !FarmingGuideCompatibility.IsEquipmentSlotCompatible(slot, incoming))
+        {
+            recommendation = default!;
+            return false;
+        }
+
+        var existing = ResolveItem(existingState);
+        if (existing is null ||
+            !FarmingGuideEquipmentUpgradePolicy.IsHeadsetUpgrade(incoming, existing) ||
+            !CanEquipInSnapshot(slot, incoming, current))
+        {
+            recommendation = default!;
+            return false;
+        }
+
+        var equipment = new Dictionary<FarmingGuideEquipmentSlot, FarmingGuideItemState>(current.Equipment)
+        {
+            [slot] = FarmingGuideItemState.Create(incoming.Id),
+        };
+        recommendation = new RaidRecommendation(
+            $"헤드셋의 {DisplayName(existing)}을 {DisplayName(incoming)}으로 교체 · 청취 거리/왜곡 개선",
+            FarmingGuideInstructionAction.ReplaceEquip,
+            current with { Equipment = equipment });
+        return true;
     }
 
     private bool TryBuildCarrierUpgrade(
