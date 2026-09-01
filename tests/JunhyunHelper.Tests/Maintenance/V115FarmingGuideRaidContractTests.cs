@@ -35,7 +35,7 @@ public sealed class V115FarmingGuideRaidContractTests
     }
 
     [Fact]
-    public void Raid_end_and_data_change_clear_scanner_identity_and_persistent_instruction()
+    public void Raid_end_data_change_and_scanner_worker_callbacks_keep_the_ui_boundary_safe()
     {
         var root = FindRepositoryRoot();
         var raid = Read(root, "src", "JunhyunHelper.Desktop", "FarmingGuide", "FarmingGuidePage.Raid.cs");
@@ -44,6 +44,11 @@ public sealed class V115FarmingGuideRaidContractTests
         Assert.Contains("_raidBridge?.ResetScannerIdentity();", raid, StringComparison.Ordinal);
         Assert.Contains("public void ResetScannerIdentity()", bridge, StringComparison.Ordinal);
         Assert.Contains("SetMiniScannerInstruction(null);", bridge, StringComparison.Ordinal);
+        Assert.Contains("private readonly Dispatcher _dispatcher;", bridge, StringComparison.Ordinal);
+        Assert.Contains("InvokePageCallback(() => handler(snapshot));", bridge, StringComparison.Ordinal);
+        Assert.Contains("if (_dispatcher.CheckAccess())", bridge, StringComparison.Ordinal);
+        Assert.Contains("_dispatcher.BeginInvoke(callback, DispatcherPriority.Normal)", bridge, StringComparison.Ordinal);
+        Assert.Contains("return _dispatcher.Invoke(handler);", bridge, StringComparison.Ordinal);
     }
 
     private static string Read(string root, params string[] path) =>
