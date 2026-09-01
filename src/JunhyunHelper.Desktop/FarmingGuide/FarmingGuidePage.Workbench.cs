@@ -9,7 +9,7 @@ namespace JunhyunHelper.Desktop.FarmingGuide;
 public partial class FarmingGuidePage
 {
     // Retained only as a compatibility surface for drag-session code compiled against
-    // the older assembly editor. No WorkbenchSlotDropTarget is rendered in v1.15.2.
+    // the older assembly editor. No WorkbenchSlotDropTarget is rendered in v1.15.2+.
     internal enum WorkbenchSlotKind
     {
         Attachment,
@@ -32,14 +32,14 @@ public partial class FarmingGuidePage
 
     internal void OpenEquipmentWorkbench(EquipmentDropTarget target)
     {
-        // Equipment is an opaque complete item in v1.15.2. There is intentionally no
+        // Equipment is an opaque complete item. There is intentionally no
         // attachment/armor workbench for top-level equipment.
     }
 
     internal void OpenCarrierWorkbench(CarrierDropTarget target)
     {
-        // Root rig/backpack storage is already visible in the main storage column.
-        // A separate carrier workbench would only duplicate that surface.
+        // Root rig/backpack/secure-container storage is already visible in the main
+        // storage column. A separate carrier workbench would only duplicate that surface.
     }
 
     internal void OpenStoredWorkbench(PlacedItemSource source)
@@ -89,6 +89,7 @@ public partial class FarmingGuidePage
             _workbenchParentInstanceId);
         WorkbenchPanel.Children.Add(gridHost);
         SizeWorkbenchToGrid(gridHost);
+        ApplyLockVisuals();
     }
 
     private void SizeWorkbenchToGrid(FrameworkElement gridHost)
@@ -117,8 +118,8 @@ public partial class FarmingGuidePage
         WorkbenchHost.Height = Math.Min(maxHeight, Math.Max(150d, desired.Height + verticalChrome));
     }
 
-    // v1.15.2 intentionally exposes no equipment-internal drop targets. These stubs
-    // make any stale drag state fail closed instead of mutating an assembly tree.
+    // Complete-equipment mode intentionally exposes no equipment-internal drop targets.
+    // These stubs make any stale drag state fail closed instead of mutating an assembly tree.
     internal bool CanDropIntoWorkbenchSlot(WorkbenchSlotDropTarget target, GameItem item) => false;
 
     internal FarmingGuideItemState? GetWorkbenchSlotState(WorkbenchSlotDropTarget target) => null;
