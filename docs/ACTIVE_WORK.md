@@ -30,8 +30,9 @@ User-reported real-use requirements/regressions:
 2. A movable 1x1 item can fragment otherwise sufficient contiguous capacity for a 2x3 item, but v1.15.3 cannot move existing items and incorrectly falls through toward replacement/discard.
 3. Clearly superior compatible equipment should be equipped instead of merely stored:
    - higher-class body armor/helmet and other objectively comparable protective slot items may replace the current same-slot item;
+   - a headset replaces the current headset only when source-backed listening distance is no worse, distortion is no worse, and at least one of those two facts strictly improves;
    - objectively better rig/backpack may replace the current carrier only when every modeled contained item is preserved legally;
-   - ordinary body armor + ordinary rig may transition to a superior armored rig when the incoming armored rig has a strictly higher source-backed armor class and every current rig item fits legally after repacking;
+   - ordinary body armor + ordinary rig may transition to a superior armored rig when the incoming armored rig has a strictly higher source-backed representative armor class and every current rig item fits legally after repacking;
    - armored rig -> body armor + ordinary rig is not inferred from one scanned item because the missing second item cannot be created by the advisor.
 
 Decision order after the equipment requirement:
@@ -43,13 +44,14 @@ Decision order after the equipment requirement:
 5. value/need-based destructive replacement only after preservation options fail;
 6. discard only when no preferable legal plan exists.
 
-Equipment superiority rules are deliberately source-backed and conservative:
+Equipment superiority rules are source-backed and conservative:
 
-- Tarkov `properties.class` is preserved as `FarmingGuideItemLayout.ArmorClass` and drives strict protection-class upgrades;
+- Tarkov `properties.class` is preserved as `FarmingGuideItemLayout.ArmorClass` and is used as the complete-equipment model's representative top-level protection class; open plate internals remain intentionally unmodeled, so the advisor never invents a user's in-raid plate configuration;
 - backpack/rig raw storage grids provide objective storage capacity;
+- headset `distanceModifier` and `distortion` are preserved; only Pareto improvement is considered objectively superior and tuning trade-offs are not auto-ranked;
 - same-carrier upgrades cannot delete contents and use a dedicated deterministic packing transaction;
 - ordinary body armor + rig -> armored rig uses protection-class improvement plus actual content-fit as the explicit product rule;
-- headphone source data exposes several audio tuning parameters but no single authoritative total order, so no hard-coded/headset-name/price-as-performance ranking is introduced; headphones continue through the existing loot-value/need replacement path unless a future authoritative superiority contract is established.
+- an incoming armored rig while body armor exists is fail-closed: the atomic combined transition must succeed or the armored rig is not reinterpreted as a normal rig replacement.
 
 Retained constraints:
 
@@ -64,37 +66,37 @@ Additional hardening found during review:
 
 - populated nested containers must not be destructively auto-replaced based only on the parent container value;
 - a locked ancestor protects descendants from automated movement/removal;
-- destructive fallback should reuse repacking after a legal low-priority leaf removal instead of assuming the incoming item must occupy that leaf's original cells.
+- destructive fallback reuses repacking after a legal low-priority leaf removal instead of assuming the incoming item must occupy that leaf's original cells;
+- Game Content schema advances from v10 to v11 so armor/headset comparison facts are persisted canonically; v3-v10 stay readable as offline last-known-good snapshots, while Desktop opportunistically refreshes an older readable snapshot once active content is available and falls back safely if the network/update is unavailable.
 
 ## Completed
 
 - confirmed v1.15.3 direct-fit root cause: `FindFirstFit` treats all existing placements as fixed and has no move/repack domain;
-- confirmed workbench root cause: unconstrained child measurement + clamped outer host + later scrollbar width can crop cells;
 - added Core `FarmingGuideRepackingPlanner` as bounded deterministic displacement search;
 - added deterministic tests for one blocker, multiple blockers, cascading cross-surface movement, immovable locks, reserved cells and nested-cycle rejection;
 - added hardened Desktop raid path for direct storage, non-destructive repacking, protected leaf replacement + repacking and discard-last behavior;
 - hardened path uses top-level equipment targets only and does not traverse legacy equipment internals;
 - populated nested containers are excluded from destructive auto-replacement;
 - nested parent root-storage kinds are normalized after repacking;
-- added source-backed `ArmorClass`, conservative `FarmingGuideEquipmentUpgradePolicy`, and bounded `FarmingGuideCarrierPackingPlanner`;
-- added Desktop equipment-aware transaction path including ordinary body armor + rig -> superior armored rig with full rig-content preservation;
-- workbench sizing is viewport-aware and under follow-up smoke tuning for exact scrollbar/chrome behavior;
-- published-product smoke includes a 3x3/central-1x1/2x3 fragmentation scenario plus nested workbench viewport checks;
-- first and second Windows Release/XAML builds on PR #267 succeeded;
-- current deterministic suite before the equipment-upgrade additions: 569 passed / 0 failed / 0 skipped.
+- added source-backed `ArmorClass`, `HeadsetDistanceModifier`, `HeadsetDistortion`, conservative `FarmingGuideEquipmentUpgradePolicy`, and bounded `FarmingGuideCarrierPackingPlanner`;
+- added Desktop equipment-aware transaction path including ordinary body armor + rig -> superior armored rig with full rig-content preservation and fail-closed partial-transition guard;
+- added deterministic armor/headset/carrier upgrade tests, importer equipment-fact tests, carrier-packing tests and v11 snapshot round-trip/refresh-contract tests;
+- added published-product armor+populated-rig -> armored-rig smoke including content preservation, repacking, canonical sanitization and reverse-transition rejection;
+- pre-v11 head passed Windows Release build, 583 deterministic tests and self-contained win-x64 publish; its only main-CI failure was the published WPF nested-workbench horizontal-scroll smoke;
+- workbench follow-up now disables horizontal scrolling when content fits the effective viewport and enables Auto only when constrained measured content is genuinely wider;
+- Documentation Consistency has remained green through the schema-state update.
 
 ## Current step
 
-Add deterministic importer/upgrade/carrier-packing tests and published-product armor+rig -> armored-rig smoke, then run the new PR head through Windows Release build and CI. In parallel, correct the remaining workbench smoke regression where the latest scrollbar reservation made a small 2x2 detail wider than the established compact-host contract.
+Run the latest head through Windows Release build/tests/published EXE smoke after the workbench and content-schema corrections. Inspect any new compiler/runtime regression, then freeze the implementation before candidate versioning.
 
 ## Remaining
 
-- complete deterministic tests for armor-class import, protective upgrade, carrier dominance, carrier content repacking, locks/reserved cells and unsafe transition rejection;
-- add published EXE smoke for body armor + populated rig -> superior armored rig and verify the complete pending snapshot;
-- fix the remaining small-workbench oversizing smoke regression without reintroducing right/bottom clipping;
-- continue broader realistic-raid review for bounded destructive/multi-item edge cases and performance;
-- version v1.15.4 candidate and update PRODUCT/DECISIONS/architecture/release notes once implementation stabilizes;
-- pass full Release build, deterministic tests, self-contained win-x64 publish, product UI smoke, graceful shutdown, Shutdown Race, package/checksum and Documentation Consistency on final PR head;
+- obtain green final-head CI / Shutdown Race / Documentation Consistency including published EXE Farming Guide smoke;
+- confirm v11 current-schema refresh code compiles and does not interfere with product-smoke startup/offline fallback;
+- continue bounded review for unsafe armored-rig transition/lock/content-fit cases without adding speculative equipment ranking;
+- version v1.15.4 candidate and update PRODUCT/DECISIONS/architecture/release notes;
+- pass full Release build, deterministic tests, self-contained win-x64 publish, product UI smoke, graceful shutdown, package/checksum and all PR gates on the frozen candidate head;
 - merge, pass exact-main gate, publish v1.15.4, verify public tag/release/assets, then close ACTIVE_WORK to NONE.
 
 v1.15.3 release evidence remains canonical in `docs/PROJECT_STATE.json`, `docs/RELEASE_1.15.3.md` and `docs/.release-v1.15.3-status.json` until v1.15.4 is publicly verified.
