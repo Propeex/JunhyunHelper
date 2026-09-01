@@ -10,6 +10,7 @@ public partial class FarmingGuidePage
     {
         base.OnInitialized(e);
         MouseDoubleClick += FarmingGuidePage_MouseDoubleClick;
+        InitializeV1160UiHooks();
     }
 
     private void FarmingGuidePage_MouseDoubleClick(object sender, MouseButtonEventArgs e)
