@@ -3,7 +3,7 @@
 이 문서는 준현 헬퍼의 **무엇을 만들고 왜 만드는지**를 정의하는 canonical 제품 요구사항이다. 사용자가 현재 대화에서 새로 확정한 제품 의도가 기존 구현보다 우선한다. 현재 코드가 존재한다는 이유만으로 그 동작을 제품 요구사항으로 추정하지 않는다.
 
 기준일: **2026-09-01 KST**  
-상태: **v1.15.2 RELEASE CANDIDATE / v1.15.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+상태: **v1.15.2 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 정확한 release SHA/asset/CI와 schema 사실값은 `docs/PROJECT_STATE.json`, 공개 상태는 `docs/CURRENT_STATE.md` / `docs/STATE.md`를 사용한다.
 
@@ -40,7 +40,7 @@
 - Program Update는 latest public stable GitHub release를 기준으로 사용자 동의 후 수행
 - public stable source/tag/assets는 immutable historical identity
 
-Current public stable은 **v1.15.1**이며 exact product source는 `821def285e2b4964242b50981f6ba6245e996057`이다. v1.15.2는 검증/배포가 완료될 때까지 이 공개 authority를 대체하지 않는다.
+Current public stable은 **v1.15.2**이며 exact product source는 `f4974ee6bed5047865581240197f7f0e2787ba7c`이다. 이후 documentation-only main commit은 이 product source와 공개 asset identity를 대체하지 않는다.
 
 ## 3. 데이터 authority
 
@@ -333,8 +333,8 @@ Canonical v1.15.2 correction: `docs/DECISION_V1.15.2_COMPLETE_EQUIPMENT_MODEL.md
 ## 11. Schema / compatibility
 
 ```text
-Desktop candidate: 1.15.2
-Public stable: 1.15.1
+Desktop: 1.15.2
+Public stable: 1.15.2
 Content write: v10
 Content readable: v3-v10
 user.db: v1
