@@ -7,7 +7,7 @@ namespace JunhyunHelper.Tests.Core;
 public sealed class FarmingGuideEquipmentUpgradePolicyTests
 {
     [Fact]
-    public void ProtectiveUpgradeRequiresStrictlyHigherSourceArmorClass()
+    public void ProtectiveUpgradeUsesArmorClassOnly()
     {
         var class4 = Item("class4", "ItemPropertiesArmor", armorClass: 4);
         var class5 = Item("class5", "ItemPropertiesArmor", armorClass: 5);
@@ -20,39 +20,38 @@ public sealed class FarmingGuideEquipmentUpgradePolicyTests
     }
 
     [Fact]
-    public void HeadsetUpgradeRequiresParetoImprovementWithoutAudioRegression()
+    public void HeadsetUpgradeUsesHearingDistanceOnly()
     {
         var current = Item(
             "current-headset",
             "ItemPropertiesHeadphone",
             headsetDistance: 1.10m,
             headsetDistortion: 0.20m);
-        var dominant = Item(
-            "dominant-headset",
-            "ItemPropertiesHeadphone",
-            headsetDistance: 1.20m,
-            headsetDistortion: 0.18m);
-        var distanceTradeoff = Item(
-            "distance-tradeoff",
+        var longerButMoreDistorted = Item(
+            "longer-headset",
             "ItemPropertiesHeadphone",
             headsetDistance: 1.25m,
-            headsetDistortion: 0.25m);
-        var distortionTradeoff = Item(
-            "distortion-tradeoff",
+            headsetDistortion: 0.99m);
+        var cleanerButShorter = Item(
+            "cleaner-headset",
             "ItemPropertiesHeadphone",
             headsetDistance: 1.00m,
-            headsetDistortion: 0.10m);
+            headsetDistortion: 0.01m);
+        var sameDistance = Item(
+            "same-distance",
+            "ItemPropertiesHeadphone",
+            headsetDistance: 1.10m,
+            headsetDistortion: 0.01m);
         var unknown = Item("unknown-headset", "ItemPropertiesHeadphone");
 
-        Assert.True(FarmingGuideEquipmentUpgradePolicy.IsHeadsetUpgrade(dominant, current));
-        Assert.False(FarmingGuideEquipmentUpgradePolicy.IsHeadsetUpgrade(distanceTradeoff, current));
-        Assert.False(FarmingGuideEquipmentUpgradePolicy.IsHeadsetUpgrade(distortionTradeoff, current));
-        Assert.False(FarmingGuideEquipmentUpgradePolicy.IsHeadsetUpgrade(current, current));
+        Assert.True(FarmingGuideEquipmentUpgradePolicy.IsHeadsetUpgrade(longerButMoreDistorted, current));
+        Assert.False(FarmingGuideEquipmentUpgradePolicy.IsHeadsetUpgrade(cleanerButShorter, current));
+        Assert.False(FarmingGuideEquipmentUpgradePolicy.IsHeadsetUpgrade(sameDistance, current));
         Assert.False(FarmingGuideEquipmentUpgradePolicy.IsHeadsetUpgrade(unknown, current));
     }
 
     [Fact]
-    public void BackpackUpgradeRequiresStrictCapacityIncrease()
+    public void BackpackUpgradeUsesCapacityOnly()
     {
         var small = Item("small", "ItemPropertiesBackpack", grids: [(2, 2)]);
         var large = Item("large", "ItemPropertiesBackpack", grids: [(2, 3)]);
@@ -68,7 +67,19 @@ public sealed class FarmingGuideEquipmentUpgradePolicyTests
     }
 
     [Fact]
-    public void OrdinaryRigUpgradeRequiresStrictCapacityIncrease()
+    public void SecureContainerUpgradeUsesCapacityOnly()
+    {
+        var small = Item("small-secure", "ItemPropertiesContainer", grids: [(2, 2)]);
+        var large = Item("large-secure", "ItemPropertiesContainer", grids: [(3, 2)]);
+
+        Assert.True(FarmingGuideEquipmentUpgradePolicy.IsCarrierUpgrade(
+            FarmingGuideStorageKind.SecureContainer,
+            large,
+            small));
+    }
+
+    [Fact]
+    public void OrdinaryRigUpgradeUsesCapacityOnly()
     {
         var small = Item("small-rig", "ItemPropertiesChestRig", grids: [(2, 2)]);
         var large = Item("large-rig", "ItemPropertiesChestRig", grids: [(3, 2)]);
@@ -88,25 +99,30 @@ public sealed class FarmingGuideEquipmentUpgradePolicyTests
     }
 
     [Fact]
-    public void ArmoredRigUpgradeRejectsObjectiveRegression()
+    public void ArmoredRigUsesArmorClassThenCapacity()
     {
-        var current = Item("current", "ItemPropertiesChestRig", armorClass: 4, armoredRig: true, grids: [(2, 3)]);
-        var higherArmorSmaller = Item("tradeoff", "ItemPropertiesChestRig", armorClass: 5, armoredRig: true, grids: [(2, 2)]);
-        var dominant = Item("dominant", "ItemPropertiesChestRig", armorClass: 5, armoredRig: true, grids: [(2, 3)]);
-        var ordinary = Item("ordinary", "ItemPropertiesChestRig", armorClass: null, armoredRig: false, grids: [(3, 3)]);
+        var class4Large = Item("class4-large", "ItemPropertiesChestRig", armorClass: 4, armoredRig: true, grids: [(3, 3)]);
+        var class5Small = Item("class5-small", "ItemPropertiesChestRig", armorClass: 5, armoredRig: true, grids: [(2, 2)]);
+        var class5Large = Item("class5-large", "ItemPropertiesChestRig", armorClass: 5, armoredRig: true, grids: [(2, 3)]);
+        var class5Same = Item("class5-same", "ItemPropertiesChestRig", armorClass: 5, armoredRig: true, grids: [(2, 3)]);
+        var ordinaryHuge = Item("ordinary", "ItemPropertiesChestRig", armorClass: null, armoredRig: false, grids: [(5, 5)]);
 
-        Assert.False(FarmingGuideEquipmentUpgradePolicy.IsCarrierUpgrade(
-            FarmingGuideStorageKind.Rig,
-            higherArmorSmaller,
-            current));
         Assert.True(FarmingGuideEquipmentUpgradePolicy.IsCarrierUpgrade(
             FarmingGuideStorageKind.Rig,
-            dominant,
-            current));
+            class5Small,
+            class4Large));
+        Assert.True(FarmingGuideEquipmentUpgradePolicy.IsCarrierUpgrade(
+            FarmingGuideStorageKind.Rig,
+            class5Large,
+            class5Small));
         Assert.False(FarmingGuideEquipmentUpgradePolicy.IsCarrierUpgrade(
             FarmingGuideStorageKind.Rig,
-            ordinary,
-            current));
+            class5Same,
+            class5Large));
+        Assert.False(FarmingGuideEquipmentUpgradePolicy.IsCarrierUpgrade(
+            FarmingGuideStorageKind.Rig,
+            ordinaryHuge,
+            class4Large));
     }
 
     [Fact]
