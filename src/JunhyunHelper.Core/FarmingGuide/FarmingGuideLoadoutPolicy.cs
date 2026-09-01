@@ -165,8 +165,14 @@ public static class FarmingGuideLoadoutPolicy
             return false;
 
         var grid = grids[stored.GridIndex];
-        if (!FarmingGuideCompatibility.FilterAllows(item, grid.Filters))
+        if (!FarmingGuideStoragePlacementPolicy.CanStore(
+                stored.Storage,
+                stored.ParentInstanceId,
+                item,
+                grid.Filters))
+        {
             return false;
+        }
 
         var existing = accepted
             .Where(value =>
@@ -175,9 +181,10 @@ public static class FarmingGuideLoadoutPolicy
             .Select(value =>
             {
                 var existingItem = itemCatalog[value.Item.ItemId];
-                var footprint = FarmingGuidePlacementEngine.Footprint(
-                    existingItem.Width ?? 1,
-                    existingItem.Height ?? 1,
+                var footprint = FarmingGuideStoragePlacementPolicy.Footprint(
+                    value.Storage,
+                    value.ParentInstanceId,
+                    existingItem,
                     value.Rotated);
                 return new FarmingGuideGridPlacement(
                     value.InstanceId,
@@ -187,14 +194,19 @@ public static class FarmingGuideLoadoutPolicy
                     footprint.Height);
             });
 
+        var incomingFootprint = FarmingGuideStoragePlacementPolicy.Footprint(
+            stored.Storage,
+            stored.ParentInstanceId,
+            item,
+            stored.Rotated);
         if (!FarmingGuidePlacementEngine.CanPlace(
                 grid.Width,
                 grid.Height,
                 stored.X,
                 stored.Y,
-                item.Width ?? 1,
-                item.Height ?? 1,
-                stored.Rotated,
+                incomingFootprint.Width,
+                incomingFootprint.Height,
+                rotated: false,
                 existing))
         {
             return false;
