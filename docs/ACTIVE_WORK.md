@@ -9,7 +9,7 @@ Updated: **2026-09-01 KST**
 
 v1.14.0에서 확정한 제품 계약은 product-owned exact multi-grid coordinates를 current live grid **count/width/height signature가 정확히 일치할 때만** 사용하고, structure drift 시 finite compact layout으로 fallback하는 것이다.
 
-공개 v1.14.0 closure review에서 resolver가 실제로는 expected width/height signature를 저장·비교하지 않는 구현 누락이 확인됐다. v1.14.1은 이 실제 회귀를 수정한다.
+공개 v1.14.0 closure review에서 resolver가 expected width/height signature를 저장·비교하지 않는 구현 누락이 확인됐다. v1.14.1은 이 실제 회귀를 수정한다.
 
 ## Base
 
@@ -43,35 +43,9 @@ v1.14.0 tag/source/assets는 immutable historical identity로 유지하며 교�
 2. exact layout 적용 전에 layout identity, grid count뿐 아니라 **각 grid index의 width/height가 모두 expected signature와 일치하는지** 검증한다.
 3. 단 하나의 dimension mismatch라도 exact layout을 거부하고 기존 finite compact fallback으로 보낸다.
 4. 기존 non-overlap 검증은 corrupted/internally inconsistent profile에 대한 secondary defense로 유지한다.
-5. 현재 product-owned exact profiles의 expected signature는 검증된 factual geometry만 사용한다. provenance/license 검토 없이 외부 atlas 전체를 제품 데이터로 복사하지 않는다.
+5. 현재 product-owned exact profiles의 expected signature는 검증된 factual geometry만 사용한다.
 6. v1.14.0에서 width/height mismatch가 non-overlap인 경우 stale exact coordinates를 통과시킬 수 있던 회귀를 deterministic test로 고정한다.
 7. 그 외 recursive assembly / inline compatible-item picker / nested storage / drag-drop / Scanner / Map 계약은 변경하지 않는다.
-
-## Reproduction / evidence
-
-v1.14.0 exact source의 `FarmingGuideStorageVisualLayoutResolver.TryResolve`는:
-
-- profile/layout name 확인
-- live grid count 확인
-- live width/height positive 확인
-- current dimensions로 만든 rectangle non-overlap 확인
-
-까지만 수행한다.
-
-Expected dimensions 자체가 profile에 없으므로, 예를 들어 기존 1×1 grid가 1×2로 바뀌어도 다른 rectangle과 겹치지 않으면 stale exact coordinates를 계속 사용할 수 있다.
-
-검증된 current geometry evidence를 이용한 product-owned profile signature:
-
-```text
-A18:
-(1×2) × 10, (1×1) × 5
-
-ANA Tactical M1:
-(1×2) × 4, (2×2) × 2, (1×1) × 4
-
-mbss_rig profile order:
-1×1, 1×1, 1×1, 1×2, 1×2, 2×1, 1×3
-```
 
 ## Completed
 
@@ -79,21 +53,24 @@ mbss_rig profile order:
 - v1.14.0 documentation closure PR #252에서 implementation/documentation mismatch review 발견.
 - exact v1.14.0 product source code 확인 결과 review가 사실임을 재현·확정.
 - PR #252를 unmerged 상태로 닫아 잘못된 `PUBLIC VERIFIED` 계약 기록이 main에 들어가지 않도록 차단.
-- v1.14.0 public tag/source/assets는 변경하지 않고 v1.14.1 PATCH로 교정하기로 결정.
 - fix branch `fix/v1.14.1-storage-layout-signature-2026-09-01` 생성.
+- `FarmingGuideStorageVisualLayoutResolver` profile을 coordinate + expected width/height signature로 확장.
+- exact layout 적용 전에 각 live grid index의 width/height exact-match 검증 추가.
+- A18 / ANA Tactical M1 / current product-owned exact profile의 정상 signature test 추가.
+- grid count drift, non-overlapping height drift, width drift 거부 regression 추가.
+- desktop version을 1.14.1로 bump.
+- `packaging/FIRST_RUN_KO.txt`를 v1.14.1로 정합화.
+- `docs/RELEASE_NOTES_V1.14.1.md` 추가.
+- `docs/PROJECT_STATE.json` desktop target을 1.14.1로 갱신.
 
 ## Current step
 
-- resolver profile에 expected grid width/height signature를 추가한다.
-- exact signature success/mismatch 회귀 테스트를 수정·추가한다.
-- v1.14.1 version/FIRST_RUN/release target 문서를 정합화한다.
+- v1.14.1 fix branch exact HEAD로 non-draft PR을 생성한다.
+- CI / Shutdown Race / Documentation Consistency / actual published EXE smoke를 수행해 test count와 release-candidate integrity를 확정한다.
 
 ## Remaining
 
-- Core resolver 수정.
-- deterministic regression 보강 및 exact test count 확인.
-- v1.14.1 version / FIRST_RUN / release notes / current target state 정리.
-- non-draft PR 생성 및 exact-head CI / Shutdown Race / Documentation Consistency / published EXE smoke green 확인.
+- PR exact-head 전체 gate green 확인 및 review thread 처리.
 - main 병합.
 - exact-main CI / Shutdown Race / Documentation Consistency green 확인.
 - exact-main artifact에서 automatic v1.14.1 Release 완료 확인.
