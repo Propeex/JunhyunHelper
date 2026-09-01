@@ -26,8 +26,8 @@
     }
   },
   "maintenance": {
-    "latestNonDocumentationHead": "64c8793cccf1025f4ae517f001a581033ba3709c",
-    "deterministicTestCount": 540,
+    "latestNonDocumentationHead": "1e6469fcf9f99ecbd2956b824fe5cc58bf3d7ca2",
+    "deterministicTestCount": 558,
     "userRealPcTarkovValidation": "PENDING"
   },
   "schemas": {
