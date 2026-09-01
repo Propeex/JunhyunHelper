@@ -113,6 +113,8 @@ public partial class FarmingGuidePage
                 _itemsById.Remove(itemId);
         }
 
+        VerifyV1155FarmingGuideSmoke();
+
         static FarmingGuideStorageGridDefinition Grid(int width, int height) =>
             new(width, height, FarmingGuideItemFilter.Empty);
     }
