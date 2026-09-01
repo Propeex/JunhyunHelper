@@ -46,50 +46,55 @@ public sealed class FarmingGuideCompleteEquipmentPolicyTests
     }
 
     [Fact]
-    public void RuntimeProjectionKeepsOnlySupportedCarrierStorageSurfaces()
+    public void RuntimeProjectionKeepsEverySourceBackedStorageSurface()
     {
-        var grids = new[] { new FarmingGuideStorageGridDefinition(2, 2, FarmingGuideItemFilter.Empty) };
+        var unrestrictedGrid = new FarmingGuideStorageGridDefinition(2, 2, FarmingGuideItemFilter.Empty);
+        var specializedFilter = new FarmingGuideItemFilter(["keys-category"], [], [], []);
+        var specializedGrid = new FarmingGuideStorageGridDefinition(1, 4, specializedFilter);
         var backpack = Item("backpack", "ItemPropertiesBackpack", "bag.png") with
         {
-            FarmingGuideData = Layout("ItemPropertiesBackpack", grids),
+            FarmingGuideData = Layout("ItemPropertiesBackpack", [unrestrictedGrid]),
         };
         var rig = Item("rig", "ItemPropertiesChestRig", "rig.png") with
         {
-            FarmingGuideData = Layout("ItemPropertiesChestRig", grids),
+            FarmingGuideData = Layout("ItemPropertiesChestRig", [unrestrictedGrid]),
         };
-        var genericCase = new GameItem(
-            "case",
-            "Case",
-            "Case",
-            "Case",
-            "Case",
-            "case.png",
+        var specializedCase = new GameItem(
+            "key-tool",
+            "Key tool",
+            "Key tool",
+            "Key tool",
+            "Key tool",
+            "key-tool.png",
             null,
             [],
             ["container"],
             ["container"],
-            2,
-            2) with
+            1,
+            1) with
         {
-            FarmingGuideData = Layout("ItemPropertiesContainer", grids),
+            FarmingGuideData = Layout("ItemPropertiesContainer", [specializedGrid]),
         };
         var catalog = new Dictionary<string, GameItem>(StringComparer.Ordinal)
         {
             [backpack.Id] = backpack,
             [rig.Id] = rig,
-            [genericCase.Id] = genericCase,
+            [specializedCase.Id] = specializedCase,
         };
 
         var runtimeBackpack = FarmingGuideCompleteEquipmentPolicy.ToRuntimeItem(backpack, catalog);
         var runtimeRig = FarmingGuideCompleteEquipmentPolicy.ToRuntimeItem(rig, catalog);
-        var runtimeCase = FarmingGuideCompleteEquipmentPolicy.ToRuntimeItem(genericCase, catalog);
+        var runtimeCase = FarmingGuideCompleteEquipmentPolicy.ToRuntimeItem(specializedCase, catalog);
 
         Assert.Single(runtimeBackpack.FarmingGuideData!.StorageGrids);
         Assert.Single(runtimeRig.FarmingGuideData!.StorageGrids);
-        Assert.Empty(runtimeCase.FarmingGuideData!.StorageGrids);
+        var caseGrid = Assert.Single(runtimeCase.FarmingGuideData!.StorageGrids);
+        Assert.Equal(1, caseGrid.Width);
+        Assert.Equal(4, caseGrid.Height);
+        Assert.Same(specializedFilter, caseGrid.Filters);
         Assert.True(FarmingGuideCompleteEquipmentPolicy.SupportsNestedStorage(runtimeBackpack));
         Assert.True(FarmingGuideCompleteEquipmentPolicy.SupportsNestedStorage(runtimeRig));
-        Assert.False(FarmingGuideCompleteEquipmentPolicy.SupportsNestedStorage(runtimeCase));
+        Assert.True(FarmingGuideCompleteEquipmentPolicy.SupportsNestedStorage(runtimeCase));
     }
 
     [Fact]
