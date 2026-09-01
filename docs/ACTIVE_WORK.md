@@ -2,17 +2,17 @@
 
 Status: **ACTIVE**
 
-## Current task
+## Goal
 
 **v1.16.0 Farming Guide deterministic rulebook / weight / stack quantity / minimap hotkey cleanup**
 
-## Base / branch
+## Base
 
 ```text
 base main: 555c0f841e06c170dd356ea88a11bdcafd6a479b
 public stable: v1.15.5
-working branch: feature/v1.16.0-farming-guide-rulebook-weight-stack-2026-09-02
-PR: not created yet
+branch: feature/v1.16.0-farming-guide-rulebook-weight-stack-2026-09-02
+PR: #273 (Draft)
 ```
 
 ## Confirmed scope
@@ -35,20 +35,24 @@ PR: not created yet
 - v1.15.5 stable recovery 완료.
 - 제품 로직/예외 분석 및 사용자 확정 완료.
 - v1.16.0 MINOR 범위 확정.
-- 작업 branch 생성 및 checkpoint 시작.
+- deterministic loot policy, FIR-only priority, Flea-only economics, aggregate-victim comparison 구현.
+- 단순 장비 우월 기준 및 occupied-equipment price fallback 차단 구현.
+- stack quantity state/schema-v3, Scanner quantity input bridge, Farming Guide quantity editing/display 구현.
+- Strength 기반 weight settings/policy/UI 및 final-state weight guard 구현.
+- carrier replacement의 locked-item 이동 허용 + reserved-cell shape 승계 구현.
+- legacy bare NumPad direct-floor hook 제거.
+- Draft PR #273 생성 및 CI 검증 시작.
+- v1.16 핵심 deterministic regression tests 추가/갱신.
 
 ## Current step
 
-관련 Core state/priority/equipment policy, Desktop Farming Guide/Mini Scanner UI, persisted state, minimap hotkey 구현과 테스트 위치를 조사한 뒤 변경한다.
+PR #273 CI compile/test 결과를 확인하면서 remaining compile/runtime contract와 persistence/documentation/version 정합성을 수정한다.
 
 ## Remaining
 
-1. 관련 code/test/data contracts 조사
-2. deterministic rulebook + quantity/weight state 구현
-3. equipment lock/reservation inheritance 구현
-4. Mini Scanner quantity interaction + Farming Guide quantity editing/weight popup 구현
-5. minimap numpad floor hotkey 제거
-6. schema/version/documentation 정합성 반영
-7. deterministic tests / Windows Release build / publish-smoke / shutdown 검증
-8. PR / CI / main merge / exact-main 검증
-9. v1.16.0 release/tag/assets 검증 및 ACTIVE_WORK close
+1. PR CI compile/test failure 수정 및 deterministic test pass 확보
+2. schema-v3 persistence tests와 UI/runtime smoke contract 보강
+3. version 1.16.0 / decision / architecture / project-state 문서 정합성 반영
+4. Windows Release build / publish-smoke / shutdown / package 검증
+5. PR final CI / main merge / exact-main 검증
+6. v1.16.0 release/tag/assets 검증 및 ACTIVE_WORK close
