@@ -119,9 +119,11 @@ public partial class FarmingGuidePage
 
         var current = BuildSnapshot();
         RefreshRaidAcquiredCounts(current);
+        var planned = PlanScannedItemEquipmentAware(scanned, item);
+        var transitioned = ApplyRaidStateTransitionsV1155(current, planned, scanned, item);
         var recommendation = ApplyRaidInstructionPresentationV1155(
             current,
-            PlanScannedItemEquipmentAware(scanned, item),
+            transitioned,
             item);
         _raidSession.SetPending(
             scanned.ItemId,
