@@ -5,7 +5,7 @@
     "name": "준현 헬퍼",
     "repository": "Propeex/JunhyunHelper",
     "lifecycle": "PUBLIC_STABLE_PRODUCT_COMPLETE_MAINTENANCE",
-    "desktopVersion": "1.15.0"
+    "desktopVersion": "1.15.1"
   },
   "publicStable": {
     "version": "1.15.0",
@@ -26,7 +26,7 @@
     }
   },
   "maintenance": {
-    "latestNonDocumentationHead": "b974d56f32d073ce21a5de4171737670f83261f3",
+    "latestNonDocumentationHead": "64c8793cccf1025f4ae517f001a581033ba3709c",
     "deterministicTestCount": 540,
     "userRealPcTarkovValidation": "PENDING"
   },
