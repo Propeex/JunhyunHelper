@@ -66,6 +66,14 @@ public sealed class FarmingGuideRaidBridge
         }
     }
 
+    // Compatibility overload for the page created in the same feature branch. The third
+    // callback used to be supplied by the page; presentation ownership now lives here.
+    public void Bind(
+        Action<ScannerItemSnapshot> scanHandler,
+        Func<bool> acceptHandler,
+        Action<string> legacyStatusHandler) =>
+        Bind(scanHandler, acceptHandler);
+
     public void Unbind()
     {
         lock (_gate)
@@ -74,6 +82,7 @@ public sealed class FarmingGuideRaidBridge
             _acceptHandler = null;
             _lastScannerItemId = null;
         }
+        SetMiniScannerInstruction(null);
     }
 
     public void ObserveScannerStatus(ScannerRuntimeStatus status)
@@ -106,6 +115,7 @@ public sealed class FarmingGuideRaidBridge
     {
         lock (_gate)
             _lastScannerItemId = null;
+        SetMiniScannerInstruction(null);
     }
 
     public bool PublishSimulatedScan(string itemId)
@@ -150,5 +160,26 @@ public sealed class FarmingGuideRaidBridge
         lock (_gate)
             handler = _transientStatusHandler;
         handler?.Invoke(message.Trim());
+    }
+
+    /// <summary>
+    /// Active instructions are persistent. Acceptance/cancellation messages clear the
+    /// active instruction first and use the existing short-lived Scanner status badge.
+    /// </summary>
+    public void ShowMiniScannerStatus(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            return;
+
+        var normalized = message.Trim();
+        if (string.Equals(normalized, "수락 완료", StringComparison.Ordinal) ||
+            normalized.StartsWith("상태 변경으로", StringComparison.Ordinal))
+        {
+            SetMiniScannerInstruction(null);
+            ShowTransientStatus(normalized);
+            return;
+        }
+
+        SetMiniScannerInstruction(normalized);
     }
 }
