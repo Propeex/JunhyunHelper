@@ -5,9 +5,9 @@ Updated: **2026-09-01 KST**
 
 ## Goal
 
-**v1.15.4 Farming Guide repacking / raid-planning hardening PATCH**
+**v1.15.4 Farming Guide repacking / raid-planning / equipment-upgrade hardening PATCH**
 
-실제 레이드에서 발생하는 수납 단편화와 nested storage 표시 문제를 수정하고, 파밍 가이드가 불필요하게 `버리기`로 떨어지기 전에 합법적인 아이템 이동/재배치를 판단하도록 강화한다. Key tool을 포함한 source-backed 모든 내부 수납 UI는 물리적으로 viewport에 들어갈 수 있는 경우 셀이 잘리지 않아야 한다.
+실제 레이드에서 발생하는 수납 단편화와 nested storage 표시 문제를 수정하고, 파밍 가이드가 불필요하게 `버리기`로 떨어지기 전에 합법적인 아이템 이동/재배치와 안전한 장비 업그레이드를 판단하도록 강화한다. Key tool을 포함한 source-backed 모든 내부 수납 UI는 물리적으로 viewport에 들어갈 수 있는 경우 셀이 잘리지 않아야 한다.
 
 ## Base
 
@@ -24,18 +24,32 @@ draft PR: #267
 
 ## Confirmed scope
 
-User-reported regressions:
+User-reported real-use requirements/regressions:
 
 1. Key tool internal storage detail clips cells. The correction is generic for source-backed backpack/rig/specialized-container storage. Scroll only when the physical viewport cannot contain the complete surface.
 2. A movable 1x1 item can fragment otherwise sufficient contiguous capacity for a 2x3 item, but v1.15.3 cannot move existing items and incorrectly falls through toward replacement/discard.
+3. Clearly superior compatible equipment should be equipped instead of merely stored:
+   - higher-class body armor/helmet and other objectively comparable protective slot items may replace the current same-slot item;
+   - objectively better rig/backpack may replace the current carrier only when every modeled contained item is preserved legally;
+   - ordinary body armor + ordinary rig may transition to a superior armored rig when the incoming armored rig has a strictly higher source-backed armor class and every current rig item fits legally after repacking;
+   - armored rig -> body armor + ordinary rig is not inferred from one scanned item because the missing second item cannot be created by the advisor.
 
-Target decision order:
+Decision order after the equipment requirement:
 
 1. legal empty equipment target where applicable;
-2. direct legal storage without moving existing items;
-3. non-destructive legal repacking/movement of existing unlocked items, preferring low disruption;
-4. destructive replacement only after preservation options fail;
-5. discard only when no preferable legal plan exists.
+2. objectively proven, structurally safe equipment upgrade;
+3. direct legal storage without moving existing items;
+4. non-destructive legal repacking/movement of existing unlocked items, preferring low disruption;
+5. value/need-based destructive replacement only after preservation options fail;
+6. discard only when no preferable legal plan exists.
+
+Equipment superiority rules are deliberately source-backed and conservative:
+
+- Tarkov `properties.class` is preserved as `FarmingGuideItemLayout.ArmorClass` and drives strict protection-class upgrades;
+- backpack/rig raw storage grids provide objective storage capacity;
+- same-carrier upgrades cannot delete contents and use a dedicated deterministic packing transaction;
+- ordinary body armor + rig -> armored rig uses protection-class improvement plus actual content-fit as the explicit product rule;
+- headphone source data exposes several audio tuning parameters but no single authoritative total order, so no hard-coded/headset-name/price-as-performance ranking is introduced; headphones continue through the existing loot-value/need replacement path unless a future authoritative superiority contract is established.
 
 Retained constraints:
 
@@ -44,7 +58,7 @@ Retained constraints:
 - source-backed nested grids/filters and dedicated-container preference remain authoritative;
 - moved containers preserve descendants and may not create self/descendant cycles;
 - complete-equipment boundary remains closed;
-- every proposed multi-move state remains one revision-bound pending transaction and commits only after explicit acceptance.
+- every proposed multi-move/multi-slot state remains one revision-bound pending transaction and commits only after explicit acceptance.
 
 Additional hardening found during review:
 
@@ -58,29 +72,27 @@ Additional hardening found during review:
 - confirmed workbench root cause: unconstrained child measurement + clamped outer host + later scrollbar width can crop cells;
 - added Core `FarmingGuideRepackingPlanner` as bounded deterministic displacement search;
 - added deterministic tests for one blocker, multiple blockers, cascading cross-surface movement, immovable locks, reserved cells and nested-cycle rejection;
-- added hardened Desktop raid path:
-  - empty equipment;
-  - direct storage;
-  - non-destructive repacking;
-  - equipment replacement;
-  - protected leaf replacement + repacking;
-  - discard last;
+- added hardened Desktop raid path for direct storage, non-destructive repacking, protected leaf replacement + repacking and discard-last behavior;
 - hardened path uses top-level equipment targets only and does not traverse legacy equipment internals;
 - populated nested containers are excluded from destructive auto-replacement;
 - nested parent root-storage kinds are normalized after repacking;
-- workbench sizing is now viewport-aware, accounts for a vertical scrollbar before final width, and enables horizontal scrolling only as a physical fallback;
-- published-product smoke now calls the hardened planner and includes a 3x3/central-1x1/2x3 fragmentation scenario plus nested workbench viewport checks;
-- first Windows Release/XAML build on PR #267 succeeded.
+- added source-backed `ArmorClass`, conservative `FarmingGuideEquipmentUpgradePolicy`, and bounded `FarmingGuideCarrierPackingPlanner`;
+- added Desktop equipment-aware transaction path including ordinary body armor + rig -> superior armored rig with full rig-content preservation;
+- workbench sizing is viewport-aware and under follow-up smoke tuning for exact scrollbar/chrome behavior;
+- published-product smoke includes a 3x3/central-1x1/2x3 fragmentation scenario plus nested workbench viewport checks;
+- first and second Windows Release/XAML builds on PR #267 succeeded;
+- current deterministic suite before the equipment-upgrade additions: 569 passed / 0 failed / 0 skipped.
 
 ## Current step
 
-PR #267 validation is running. Documentation Consistency initially failed only because this ACTIVE_WORK file did not use the required canonical section headings; this checkpoint corrects that format. Full deterministic tests are still running on the previous head and will be rerun on this new head.
+Add deterministic importer/upgrade/carrier-packing tests and published-product armor+rig -> armored-rig smoke, then run the new PR head through Windows Release build and CI. In parallel, correct the remaining workbench smoke regression where the latest scrollbar reservation made a small 2x2 detail wider than the established compact-host contract.
 
 ## Remaining
 
-- inspect first deterministic-test/published-smoke results and fix any implementation/test defects;
-- continue broader realistic-raid review for bounded destructive/multi-item edge cases and performance without speculative product-policy changes;
-- verify nested lock/reserved-cell semantics through automatic movement;
+- complete deterministic tests for armor-class import, protective upgrade, carrier dominance, carrier content repacking, locks/reserved cells and unsafe transition rejection;
+- add published EXE smoke for body armor + populated rig -> superior armored rig and verify the complete pending snapshot;
+- fix the remaining small-workbench oversizing smoke regression without reintroducing right/bottom clipping;
+- continue broader realistic-raid review for bounded destructive/multi-item edge cases and performance;
 - version v1.15.4 candidate and update PRODUCT/DECISIONS/architecture/release notes once implementation stabilizes;
 - pass full Release build, deterministic tests, self-contained win-x64 publish, product UI smoke, graceful shutdown, Shutdown Race, package/checksum and Documentation Consistency on final PR head;
 - merge, pass exact-main gate, publish v1.15.4, verify public tag/release/assets, then close ACTIVE_WORK to NONE.
