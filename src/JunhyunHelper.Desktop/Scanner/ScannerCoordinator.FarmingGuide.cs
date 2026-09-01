@@ -21,12 +21,12 @@ public sealed partial class ScannerCoordinator
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(snapshot);
-        _overlay.Show(snapshot, preview: true);
+        _overlay.ShowTemporaryPreview(snapshot, TimeSpan.FromSeconds(3));
     }
 
     /// <summary>
     /// Short acknowledgement remains transient; the active recommendation itself is held
-    /// by SetFarmingGuideInstruction until acceptance, cancellation, or raid end.
+    /// by SetFarmingGuideInstruction until acceptance, replacement by a new scan, or raid end.
     /// </summary>
     public void ShowFarmingGuideStatus(string message)
     {
