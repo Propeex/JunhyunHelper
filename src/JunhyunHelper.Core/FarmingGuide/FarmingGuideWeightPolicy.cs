@@ -4,9 +4,10 @@ namespace JunhyunHelper.Core.FarmingGuide;
 
 /// <summary>
 /// Current Tarkov carrying-weight facts used by Farming Guide. Strength increases maximum
-/// carrying weight by 0.6% per level; elite (51) is treated as 100 kg and equipped weapon
-/// slots no longer contribute to carried weight. Instance-specific stimulant effects are
-/// intentionally outside the product boundary because Scanner cannot observe them.
+/// carrying weight by 0.6% per level from a 77 kg base; elite (51) is treated as 100 kg.
+/// At elite, weapons equipped on sling, back and holster do not contribute to character
+/// weight. Instance-specific stimulant effects are intentionally outside the product
+/// boundary because Scanner cannot observe them.
 /// </summary>
 public static class FarmingGuideWeightPolicy
 {
@@ -40,8 +41,7 @@ public static class FarmingGuideWeightPolicy
         return slot is not (
             FarmingGuideEquipmentSlot.PrimaryWeapon1 or
             FarmingGuideEquipmentSlot.PrimaryWeapon2 or
-            FarmingGuideEquipmentSlot.Holster or
-            FarmingGuideEquipmentSlot.Melee);
+            FarmingGuideEquipmentSlot.Holster);
     }
 
     public static bool IsWithinLimit(decimal totalWeightKg, FarmingGuideWeightSettings settings) =>
