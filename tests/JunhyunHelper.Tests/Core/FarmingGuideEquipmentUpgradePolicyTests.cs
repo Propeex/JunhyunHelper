@@ -20,6 +20,38 @@ public sealed class FarmingGuideEquipmentUpgradePolicyTests
     }
 
     [Fact]
+    public void HeadsetUpgradeRequiresParetoImprovementWithoutAudioRegression()
+    {
+        var current = Item(
+            "current-headset",
+            "ItemPropertiesHeadphone",
+            headsetDistance: 1.10m,
+            headsetDistortion: 0.20m);
+        var dominant = Item(
+            "dominant-headset",
+            "ItemPropertiesHeadphone",
+            headsetDistance: 1.20m,
+            headsetDistortion: 0.18m);
+        var distanceTradeoff = Item(
+            "distance-tradeoff",
+            "ItemPropertiesHeadphone",
+            headsetDistance: 1.25m,
+            headsetDistortion: 0.25m);
+        var distortionTradeoff = Item(
+            "distortion-tradeoff",
+            "ItemPropertiesHeadphone",
+            headsetDistance: 1.00m,
+            headsetDistortion: 0.10m);
+        var unknown = Item("unknown-headset", "ItemPropertiesHeadphone");
+
+        Assert.True(FarmingGuideEquipmentUpgradePolicy.IsHeadsetUpgrade(dominant, current));
+        Assert.False(FarmingGuideEquipmentUpgradePolicy.IsHeadsetUpgrade(distanceTradeoff, current));
+        Assert.False(FarmingGuideEquipmentUpgradePolicy.IsHeadsetUpgrade(distortionTradeoff, current));
+        Assert.False(FarmingGuideEquipmentUpgradePolicy.IsHeadsetUpgrade(current, current));
+        Assert.False(FarmingGuideEquipmentUpgradePolicy.IsHeadsetUpgrade(unknown, current));
+    }
+
+    [Fact]
     public void BackpackUpgradeRequiresStrictCapacityIncrease()
     {
         var small = Item("small", "ItemPropertiesBackpack", grids: [(2, 2)]);
@@ -33,6 +65,26 @@ public sealed class FarmingGuideEquipmentUpgradePolicyTests
             FarmingGuideStorageKind.Backpack,
             small,
             large));
+    }
+
+    [Fact]
+    public void OrdinaryRigUpgradeRequiresStrictCapacityIncrease()
+    {
+        var small = Item("small-rig", "ItemPropertiesChestRig", grids: [(2, 2)]);
+        var large = Item("large-rig", "ItemPropertiesChestRig", grids: [(3, 2)]);
+
+        Assert.True(FarmingGuideEquipmentUpgradePolicy.IsCarrierUpgrade(
+            FarmingGuideStorageKind.Rig,
+            large,
+            small));
+        Assert.False(FarmingGuideEquipmentUpgradePolicy.IsCarrierUpgrade(
+            FarmingGuideStorageKind.Rig,
+            small,
+            large));
+        Assert.False(FarmingGuideEquipmentUpgradePolicy.IsCarrierUpgrade(
+            FarmingGuideStorageKind.Rig,
+            small,
+            small));
     }
 
     [Fact]
@@ -75,7 +127,9 @@ public sealed class FarmingGuideEquipmentUpgradePolicyTests
         string propertiesType,
         int? armorClass = null,
         bool armoredRig = false,
-        IReadOnlyList<(int Width, int Height)>? grids = null)
+        IReadOnlyList<(int Width, int Height)>? grids = null,
+        decimal? headsetDistance = null,
+        decimal? headsetDistortion = null)
     {
         var item = new GameItem(
             id,
@@ -106,6 +160,8 @@ public sealed class FarmingGuideEquipmentUpgradePolicyTests
                 armoredRig)
             {
                 ArmorClass = armorClass,
+                HeadsetDistanceModifier = headsetDistance,
+                HeadsetDistortion = headsetDistortion,
             },
         };
     }
