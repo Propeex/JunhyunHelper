@@ -2,8 +2,9 @@
 
 이 문서는 준현 헬퍼의 **현재 유효한 장기 결정과 supersession 관계를 빠르게 복구하기 위한 active index**다. 현재 사실값은 `docs/PROJECT_STATE.json`, 현재 제품 상태와 release evidence는 `docs/CURRENT_STATE.md` / `docs/STATE.md`가 권위다.
 
-기준일: **2026-08-31 KST**  
-현재 공개 제품: **v1.13.3 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+기준일: **2026-09-01 KST**  
+현재 공개 제품: **v1.13.3 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**  
+현재 release target: **v1.14.0 Farming Guide assembly / validated storage layouts**
 
 과거 결정 원문과 당시 release-specific 사실은 historical evidence다. 현재 제품 의미와 충돌하면 최신 confirmed decision, canonical current-state 문서, 실제 코드/테스트가 우선한다.
 
@@ -27,9 +28,13 @@ DEC-001~DEC-029 원문은 `docs/DECISIONS_HISTORY_THROUGH_2026-08-09.md`에 보�
 
 - `docs/DECISION_V1.13.0_FARMING_GUIDE_LOADOUT_EDITOR.md`
 - `docs/DECISION_V1.13.3_FARMING_GUIDE_LIVE_ITEM_INTERACTION.md`
+- `docs/DECISION_V1.14.0_FARMING_GUIDE_ASSEMBLY_AND_AUTHENTIC_LAYOUTS.md`
 - `docs/ARCHITECTURE_FARMING_GUIDE.md`
 
-상태: **CONFIRMED / PUBLIC VERIFIED v1.13.3**.
+상태:
+
+- v1.13.3 interaction contract: **CONFIRMED / PUBLIC VERIFIED**
+- v1.14.0 assembly/layout extension: **CONFIRMED / RELEASE TARGET / NOT YET PUBLIC VERIFIED**
 
 핵심 제품 계약:
 
@@ -37,7 +42,7 @@ DEC-001~DEC-029 원문은 `docs/DECISIONS_HISTORY_THROUGH_2026-08-09.md`에 보�
 - 제품 의미는 raid-start Loadout / Inventory Editor이며 실시간 인게임 inventory mirror가 아니다.
 - actual Tarkov item width/height, carrier grids, filters, equipment/attachment/armor slots, conflicts를 current validated Game Content에서 사용한다.
 - drag/drop은 `R` 회전, bounded grid snap, bounds/overlap/contiguous-space/current filter 검증과 valid-invalid feedback을 제공한다.
-- 근접무기와 PMC 인식표는 per-profile preset과 분리된 user-level fixed setting이다.
+- 근접무기는 per-profile preset과 분리된 user-level fixed setting이다. v1.14.0부터 current product에서 직접 장착할 수 없는 PMC dogtag equipment surface는 제거하며 legacy persisted value만 backward-compatible하게 읽는다.
 - profile edition / Old Patterns state에 따라 standard/expanded pocket geometry를 사용하고 UI와 persisted-state sanitization이 같은 resolved geometry를 소비한다.
 - contents가 있는 carrier를 다른 carrier로 묵시적으로 교체해 contents를 유실시키지 않는다.
 - persisted state가 current Tarkov structure와 충돌하면 impossible placement를 fail closed한다.
@@ -56,7 +61,19 @@ v1.13.3 supersession:
 - Farming Guide 검색에서는 upstream `ItemPropertiesPreset` / `preset` assembled weapon record만 제외하고 canonical base weapon의 actual mod slots를 사용한다.
 - 열린 workbench owner item 이동 시작 시 workbench를 닫아 stale write-back을 방지한다.
 
-현재 product identity:
+v1.14.0 extension:
+
+- `FarmingGuideAssemblyPolicy`가 deep attachment/armor tree mutation, compatible candidate, assembly-wide conflict, required-slot recursion, persisted-tree sanitization의 Core authority다.
+- 설치 attachment의 하위 slot으로 재귀 navigation할 수 있다.
+- empty slot single-click은 같은 Farming Guide page에 compatible item icon picker를 열며 candidate single-click으로 즉시 장착한다. 별도 OS dialog는 사용하지 않는다.
+- inline picker와 search drag/drop은 동일 Core compatibility를 공유한다.
+- current build가 authoritative imported default preset membership과 정확히 일치할 때만 composed preset image를 사용하고 arbitrary build는 deterministic assembly-aware fallback을 사용한다.
+- storage legality는 current live grid mechanics가 권위다. Visual exact layout은 검증된 metadata와 current grid count/width/height signature가 정확히 일치할 때만 적용한다.
+- exact metadata가 없거나 stale하면 finite compact fallback을 사용하며 이를 authentic layout으로 주장하지 않는다.
+- importer는 `GridLayoutName` / `RigLayoutName` 계열 identity를 `StorageLayoutName`으로 보존한다.
+- Content snapshot은 v10을 write하고 v3-v10을 read한다.
+
+현재 public product identity:
 
 ```text
 v1.13.3
@@ -65,6 +82,17 @@ exact source/tag target:
 release id: 379676479
 513 passed / 0 failed / 0 skipped
 ```
+
+v1.14.0 release-prep branch evidence:
+
+```text
+pre-version-bump exact head:
+7b9a96ccdff0ff1e0ddfb6f676624d24b150b7a1
+527 passed / 0 failed / 0 skipped
+Windows Release build / self-contained publish / published EXE smoke / Shutdown Race / Documentation Consistency: SUCCESS
+```
+
+Branch evidence는 공개 release identity가 아니다.
 
 ## 3. Scanner current authority
 
@@ -181,7 +209,8 @@ Game Content:
 - Last Known Good 보존
 - 검증 실패 시 기존 정상 데이터 유지
 - current source 의미가 불명확하거나 structure drift가 있으면 fail closed
-- Farming Guide item structure는 Content v9에 보존한다.
+- Farming Guide assembly/layout identity를 포함한 item structure는 Content v10에 보존한다.
+- v3-v10 snapshots을 readable compatibility 범위로 유지한다.
 - Farming Guide user state와 Game Content lifecycle을 분리한다.
 
 ## 8. Program Update / Release
@@ -221,7 +250,7 @@ release id: 379676479
 - `docs/DECISION_V1.10.1_STABILITY_AUDIT.md`
 - `docs/DECISION_V1.10.1_POST_RELEASE_STABILITY_SWEEP.md`
 
-현재 공개 stable은 product-complete maintenance mode다. Farming Guide는 사용자가 명시적으로 확정한 기능으로 v1.13.0에 추가됐고, v1.13.1~v1.13.3은 실사용 회귀와 UX/compatibility를 필요한 범위에서 수정했다. 이후 실제 runtime error, Tarkov 변화, reviewed Scanner evidence 또는 사용자가 새로 확정한 제품 요구사항이 있을 때 필요한 범위만 수정한다.
+현재 공개 stable은 product-complete maintenance mode다. Farming Guide는 사용자가 명시적으로 확정한 기능으로 v1.13.0에 추가됐고 v1.13.1~v1.13.3은 실사용 회귀/UX/compatibility를 보완했다. v1.14.0은 사용자가 새로 확정한 recursive assembly, inline compatible-item selection, assembly-aware presentation, 검증된 multi-grid visual layout 능력을 추가하는 MINOR release target이다. 이후 실제 runtime error, Tarkov 변화, reviewed Scanner evidence 또는 사용자가 새로 확정한 제품 요구사항이 있을 때 필요한 범위만 수정한다.
 
 ## 10. 현재 결정 확인 순서
 
