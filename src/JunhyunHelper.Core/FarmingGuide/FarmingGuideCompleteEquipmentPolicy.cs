@@ -17,10 +17,17 @@ public static class FarmingGuideCompleteEquipmentPolicy
         ArgumentNullException.ThrowIfNull(sourceCatalog);
 
         var layout = item.FarmingGuideData;
+        var keepsStorageSurface = layout is not null &&
+            (FarmingGuideCompatibility.IsStorageCarrierCompatible(FarmingGuideStorageKind.Rig, item) ||
+             FarmingGuideCompatibility.IsStorageCarrierCompatible(FarmingGuideStorageKind.Backpack, item) ||
+             FarmingGuideCompatibility.IsStorageCarrierCompatible(FarmingGuideStorageKind.SecureContainer, item));
         var runtimeLayout = layout is null
             ? null
             : layout with
             {
+                StorageGrids = keepsStorageSurface
+                    ? layout.StorageGrids
+                    : Array.Empty<FarmingGuideStorageGridDefinition>(),
                 AttachmentSlots = Array.Empty<FarmingGuideAttachmentSlotDefinition>(),
                 ArmorSlots = Array.Empty<FarmingGuideArmorSlotDefinition>(),
             };
