@@ -1,7 +1,7 @@
 # Decision — v1.15.1 Farming Guide Real-Play Corrections
 
 Date: **2026-09-01 KST**  
-Status: **CONFIRMED / IMPLEMENTED PENDING VERIFICATION**
+Status: **PUBLIC VERIFIED / CURRENT**
 
 This decision records product corrections discovered during the first real-play review of the v1.15.0 Farming Guide raid advisor. Where this document conflicts with `DECISION_V1.15.0_FARMING_GUIDE_RAID_ADVISOR.md`, this document supersedes the older behavior.
 
@@ -24,7 +24,7 @@ Manual inventory/lock changes may invalidate pending advice internally but do no
 
 The single-pending-transaction safety model remains, but the user is not forced to accept or explicitly cancel the previous item.
 
-New contract:
+Current contract:
 
 `scan A → recommendation A → scan B without acceptance → discard pending A with no state mutation → calculate recommendation B against the unchanged current raid state`
 
@@ -85,15 +85,25 @@ The program may show a changed weapon/helmet image only when current canonical c
 
 If no exact source-backed image exists, the program does not fabricate a visually misleading composite. It retains the base item image and installed-part indicators.
 
-## Verification contract
+## Verification evidence
 
-Before v1.15.1 is closed:
+v1.15.1 was closed only after the complete verification contract passed.
 
-- deterministic special-slot eligibility/footprint tests
-- pending rejection/replacement and equip transaction tests
-- Korean slot-label tests
-- full deterministic test suite
-- Release build and affected WPF/published-runtime smoke
-- PR CI, Shutdown Race CI, Documentation Consistency
-- exact-main verification after merge
-- public v1.15.1 release/tag/assets and integrity verification
+```text
+validated PR: #259
+validated head: e78ca34c272ac40b8f7c6a4bfcefede59adb9d59
+PR CI / Shutdown / Docs:
+33476320371 / 33476320367 / 33476320491 — SUCCESS
+
+exact product source:
+821def285e2b4964242b50981f6ba6245e996057
+exact-main CI / Shutdown / Docs:
+33476586723 / 33476586808 / 33476586819 — SUCCESS
+
+Release workflow: 33476812315 — SUCCESS
+558 passed / 0 failed / 0 skipped
+public release: v1.15.1
+release id: 380252024
+```
+
+Public release evidence is canonical in `docs/RELEASE_1.15.1.md` and `docs/.release-v1.15.1-status.json`.

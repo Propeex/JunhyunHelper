@@ -3,7 +3,7 @@
 이 문서는 준현 헬퍼의 현재 유효한 결정과 supersession 관계를 빠르게 복구하기 위한 active index다. 현재 사실값은 `docs/PROJECT_STATE.json`, 상세 상태는 `docs/CURRENT_STATE.md` / `docs/STATE.md`가 권위다.
 
 기준일: **2026-09-01 KST**  
-현재 제품 상태: **v1.15.0 RELEASE CANDIDATE / v1.14.1 PUBLIC STABLE**
+현재 제품 상태: **v1.15.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 1. 장기 기본 원칙
 
@@ -26,37 +26,47 @@ Current documents:
 - `docs/DECISION_V1.14.0_FARMING_GUIDE_ASSEMBLY_AND_AUTHENTIC_LAYOUTS.md`
 - `docs/DECISION_V1.14.1_STORAGE_LAYOUT_SIGNATURE_GUARD.md`
 - `docs/DECISION_V1.15.0_FARMING_GUIDE_RAID_ADVISOR.md`
+- `docs/DECISION_V1.15.1_FARMING_GUIDE_REAL_PLAY_CORRECTIONS.md`
 - `docs/ARCHITECTURE_FARMING_GUIDE.md`
 
 Current status:
 
-- v1.13.3 live item interaction: **PUBLIC VERIFIED**
-- v1.14.0 recursive assembly / inline picker / layout identity: **PUBLIC HISTORICAL, FUNCTIONALITY RETAINED**
+- v1.13.3 live item interaction: **PUBLIC VERIFIED / RETAINED**
+- v1.14.0 recursive assembly / inline picker / layout identity: **PUBLIC HISTORICAL / FUNCTIONALITY RETAINED**
 - v1.14.1 exact storage dimension-signature guard: **PUBLIC VERIFIED / CURRENT**
-- v1.15.0 live raid advisor: **CONFIRMED / IMPLEMENTED / RELEASE-CANDIDATE VERIFICATION**
+- v1.15.0 raid-session advisor: **PUBLIC VERIFIED / BASE CONTRACT**
+- v1.15.1 real-play corrections: **PUBLIC VERIFIED / CURRENT SUPERSEDING CONTRACT**
 
 Current contract:
 
-- Farming Guide remains the raid-start Loadout / Inventory Editor and additionally owns the v1.15.0 live raid recommendation session.
+- Farming Guide remains the raid-start Loadout / Inventory Editor and also owns the live raid recommendation session.
 - raid start snapshots working/preset state + locks into an isolated session; raid end discards session changes and restores the baseline.
-- current validated Tarkov item dimensions, grids, filters, equipment/attachment/armor slots and conflicts are mechanical authority.
+- current validated Tarkov item dimensions, grids, filters, `specialSlot` classification, equipment/attachment/armor slots and conflicts are mechanical authority.
 - nested storage uses `ParentInstanceId` and impossible parent/grid/filter/bounds/overlap state fails closed.
 - recursive assembly uses `FarmingGuideAssemblyPolicy`; WPF does not invent a second compatibility truth.
-- empty actionable slots use a same-page compatible-item picker; search drag/drop and picker share Core compatibility.
+- empty actionable slots use a same-page compatible-item picker; search drag/drop, picker and raid equip planning share Core compatibility/conflict authority.
 - occupied one-item slots are not silently overwritten.
-- current build may use an authoritative default-preset composed image only when imported membership exactly matches.
+- composed weapon/helmet imagery is used only when current canonical content contains an authoritative exact assembly-signature match; unsupported combinations do not receive a fabricated composite.
 - product-owned exact storage coordinates are presentation-only metadata and activate only when the full verified dimension signature matches current mechanics.
-- Scanner owns confirmed Item ID and mapped price/needed facts; Farming Guide owns the placement/replacement/discard decision.
-- every Scanner-driven recommendation is one revision-bound pending transaction and requires explicit user acceptance before commit.
-- manual inventory/equipment/lock edits invalidate stale pending instructions.
+- Scanner owns confirmed Item ID and mapped price/needed facts; Farming Guide owns the store/replace/discard/equip/replace-equip decision.
+- every Scanner-driven recommendation is a revision-bound pending transaction and still requires explicit user acceptance before commit.
+- a newer scan may silently reject the previous unaccepted pending transaction and create a new one against unchanged current raid state.
+- manual inventory/equipment/lock edits silently invalidate stale pending instructions.
+- accepted feedback is `반영 완료`; Mini Scanner action text does not repeat the scanned item name.
 - F locks constrain automation; direct user edits remain authoritative.
-- current loot priority is isolated in `FarmingGuideLootPriorityPolicy` and may evolve without rewriting placement/session/Scanner identity code.
+- item/equipment/carrier locks protect the target itself from automated removal/replacement; removing/replacing the target expires that target lock.
+- carrier lock does not block automatic use of the carrier's internal ordinary storage grids.
+- reserved empty-cell lock is independent reserved capacity and persists until explicitly unlocked.
+- Special Slots accept canonical `specialSlot` items only; a compatible item occupies one special slot regardless of ordinary footprint.
+- equip targets include PMC equipment, legal rig/backpack/secure-container carrier slots, recursive attachment slots and replaceable armor-plate slots.
+- accepted Store/Replace/Equip/ReplaceEquip actions all reduce session-local remaining Needed quantity.
+- current loot priority remains isolated in `FarmingGuideLootPriorityPolicy` and may evolve without rewriting placement/session/Scanner identity code.
 
-### v1.14.0 correction relationship
+### Supersession relationship
 
-v1.14.0 intended a full count/width/height signature guard, but the public source only implemented identity/count/positive-dimension/non-overlap checks. That public release is not rewritten. v1.14.1 supersedes only this incomplete activation guard and adds deterministic plus published-runtime regression evidence.
+`DECISION_V1.15.1_FARMING_GUIDE_REAL_PLAY_CORRECTIONS.md` supersedes only the conflicting v1.15.0 real-play behaviors. In particular, the old interpretations that a carrier lock blocks its interior, that a pending recommendation must be accepted before a new scan, and that the raid advisor only recommends storage/replacement/discard are no longer current product contracts.
 
-Current public identity remains v1.14.1 until v1.15.0 release publication completes. Exact public facts are in `docs/PROJECT_STATE.json`.
+`DECISION_V1.14.1_STORAGE_LAYOUT_SIGNATURE_GUARD.md` continues to supersede only the incomplete v1.14.0 exact-layout activation guard.
 
 ## 3. Scanner
 
@@ -73,7 +83,7 @@ Maintained rules:
 - Ground Truth is explicit user-reviewed truth only;
 - Needed quantity/source presentation reuses `ItemsWorkspace.Plan.NeededItems` authority.
 
-v1.15.0 adds a narrow post-recognition bridge: once Item ID is confirmed, Scanner presentation facts may be projected into Farming Guide. This does not make price/needed data recognition evidence and does not move decision authority into Scanner.
+The Farming Guide bridge is post-recognition only. Once Item ID is confirmed, Scanner presentation facts may be projected into Farming Guide. This does not make price/needed data recognition evidence and does not move decision authority into Scanner.
 
 ## 4. Quest / Needed Items
 
@@ -125,6 +135,7 @@ Game Content:
 - Last Known Good is preserved on invalid candidates;
 - unknown source semantics/structure fail closed;
 - Content write schema v10, readable v3-v10;
+- current `specialSlot` item classification is source-backed storage compatibility authority;
 - user-owned state is a separate lifecycle.
 
 ## 8. Program Update / release
@@ -135,17 +146,17 @@ Game Content:
 - Release workflow consumes exact-main CI artifact;
 - already-published source/tag/assets are immutable and are not replaced by a later documentation-only commit of the same assembly version.
 
-Current public release evidence remains:
+Current public release evidence:
 
-- `docs/RELEASE_1.14.1.md`
-- `docs/.release-v1.14.1-status.json`
-- `docs/RELEASE_NOTES_V1.14.1.md`
+- `docs/RELEASE_1.15.1.md`
+- `docs/.release-v1.15.1-status.json`
+- `docs/RELEASE_NOTES_V1.15.1.md`
 
-v1.15.0 release evidence becomes authoritative only after exact-main CI and public release readback complete.
+Canonical public identity is `v1.15.1` at exact product source `821def285e2b4964242b50981f6ba6245e996057`.
 
 ## 9. Maintenance mode
 
-Product-complete maintenance remains the default mode. v1.15.0 is an explicitly user-requested MINOR feature expansion. After that release, priorities return to real user regressions, Tarkov changes, stability/reliability, performance, deterministic regression coverage and bounded technical-debt cleanup unless the user explicitly requests further product behavior.
+Product-complete maintenance is the default mode. v1.15.1 is a PATCH real-play correction release on top of the v1.15.0 Farming Guide feature expansion. Current priorities return to real user regressions, Tarkov changes, stability/reliability, performance, deterministic regression coverage and bounded technical-debt cleanup unless the user explicitly requests further product behavior.
 
 ## 10. Recovery order
 

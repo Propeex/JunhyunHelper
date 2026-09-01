@@ -8,25 +8,46 @@
     "desktopVersion": "1.15.1"
   },
   "publicStable": {
-    "version": "1.15.0",
-    "tag": "v1.15.0",
-    "exactProductSource": "b974d56f32d073ce21a5de4171737670f83261f3",
-    "releaseId": 380200480,
+    "version": "1.15.1",
+    "tag": "v1.15.1",
+    "exactProductSource": "821def285e2b4964242b50981f6ba6245e996057",
+    "releaseId": 380252024,
+    "publishedAtUtc": "2026-09-01T06:15:51Z",
     "asset": {
       "name": "Junhyun-Helper.zip",
-      "id": 538909239,
-      "bytes": 80647419,
-      "sha256": "95f62c7d795f1954c3fd3437b17d9e15db05f5ab113f95df97055d15061bc76a"
+      "id": 539091025,
+      "bytes": 80658918,
+      "sha256": "80283d9dfc294d195d644ab12ac074b5d4698f4e500475d7435680ccb6e4fc0a"
     },
     "checksumAsset": {
       "name": "SHA256SUMS.txt",
-      "id": 538909237,
+      "id": 539091026,
       "bytes": 86,
-      "sha256": "5b8101bf0e086952ee12d4070e678cd1e0b5406e0c32ae91b7bf2562e7ab2ecb"
+      "sha256": "906bde7d2c5a6e7234b3de1c21ba935c39522af84fe9f6fda352738457fb91d9"
+    },
+    "validation": {
+      "mergePr": 259,
+      "validatedPrHead": "e78ca34c272ac40b8f7c6a4bfcefede59adb9d59",
+      "prCiRun": 33476320371,
+      "prShutdownRaceRun": 33476320367,
+      "prDocumentationConsistencyRun": 33476320491,
+      "exactMainCiRun": 33476586723,
+      "exactMainShutdownRaceRun": 33476586808,
+      "exactMainDocumentationConsistencyRun": 33476586819,
+      "releaseWorkflowRun": 33476812315,
+      "deterministicTestsPassed": 558,
+      "deterministicTestsFailed": 0,
+      "deterministicTestsSkipped": 0,
+      "artifact": {
+        "name": "JunhyunHelper-win-x64",
+        "id": 9788440065,
+        "bytes": 241908886,
+        "sha256": "e865fb395dcca353788495bbfb84f860129b39bdc6e89b51780d99db481592b8"
+      }
     }
   },
   "maintenance": {
-    "latestNonDocumentationHead": "1e6469fcf9f99ecbd2956b824fe5cc58bf3d7ca2",
+    "latestNonDocumentationHead": "821def285e2b4964242b50981f6ba6245e996057",
     "deterministicTestCount": 558,
     "userRealPcTarkovValidation": "PENDING"
   },
