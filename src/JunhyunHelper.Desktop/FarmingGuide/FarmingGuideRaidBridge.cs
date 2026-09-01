@@ -1,3 +1,4 @@
+using System.Windows.Threading;
 using JunhyunHelper.Desktop.Scanner;
 
 namespace JunhyunHelper.Desktop.FarmingGuide;
@@ -5,10 +6,13 @@ namespace JunhyunHelper.Desktop.FarmingGuide;
 /// <summary>
 /// Narrow desktop bridge between Scanner presentation and the Farming Guide page. Scanner
 /// publishes confirmed item presentation data; Farming Guide owns inventory decisions.
+/// Scanner runtime events may originate on worker threads, so all page-facing callbacks
+/// cross the WPF Dispatcher boundary here.
 /// </summary>
 public sealed class FarmingGuideRaidBridge
 {
     private readonly object _gate = new();
+    private readonly Dispatcher _dispatcher;
     private Action<ScannerItemSnapshot>? _scanHandler;
     private Func<bool>? _acceptHandler;
     private Func<string, ScannerItemSnapshot?>? _snapshotResolver;
@@ -16,6 +20,11 @@ public sealed class FarmingGuideRaidBridge
     private Action<ScannerItemSnapshot>? _simulatedScanPresenter;
     private Action<string>? _transientStatusHandler;
     private string? _lastScannerItemId;
+
+    public FarmingGuideRaidBridge()
+    {
+        _dispatcher = System.Windows.Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
+    }
 
     public void SetScannerSnapshotResolver(Func<string, ScannerItemSnapshot?> resolver)
     {
@@ -107,8 +116,10 @@ public sealed class FarmingGuideRaidBridge
         }
 
         var snapshot = resolver?.Invoke(status.ItemId);
-        if (snapshot is not null)
-            handler?.Invoke(snapshot);
+        if (snapshot is null || handler is null)
+            return;
+
+        InvokePageCallback(() => handler(snapshot));
     }
 
     public void ResetScannerIdentity()
@@ -131,8 +142,20 @@ public sealed class FarmingGuideRaidBridge
         }
         if (snapshot is null)
             return false;
-        presenter?.Invoke(snapshot);
-        handler?.Invoke(snapshot);
+
+        if (_dispatcher.CheckAccess())
+        {
+            presenter?.Invoke(snapshot);
+            handler?.Invoke(snapshot);
+        }
+        else
+        {
+            InvokePageCallback(() =>
+            {
+                presenter?.Invoke(snapshot);
+                handler?.Invoke(snapshot);
+            });
+        }
         return true;
     }
 
@@ -141,7 +164,19 @@ public sealed class FarmingGuideRaidBridge
         Func<bool>? handler;
         lock (_gate)
             handler = _acceptHandler;
-        return handler?.Invoke() == true;
+        if (handler is null || _dispatcher.HasShutdownStarted || _dispatcher.HasShutdownFinished)
+            return false;
+        if (_dispatcher.CheckAccess())
+            return handler();
+
+        try
+        {
+            return _dispatcher.Invoke(handler);
+        }
+        catch (Exception exception) when (exception is TaskCanceledException or InvalidOperationException)
+        {
+            return false;
+        }
     }
 
     public void SetMiniScannerInstruction(string? message)
@@ -181,5 +216,18 @@ public sealed class FarmingGuideRaidBridge
         }
 
         SetMiniScannerInstruction(normalized);
+    }
+
+    private void InvokePageCallback(Action callback)
+    {
+        if (_dispatcher.HasShutdownStarted || _dispatcher.HasShutdownFinished)
+            return;
+        if (_dispatcher.CheckAccess())
+        {
+            callback();
+            return;
+        }
+
+        _ = _dispatcher.BeginInvoke(callback, DispatcherPriority.Normal);
     }
 }
