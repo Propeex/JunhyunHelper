@@ -4,7 +4,7 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 제품 상태
 
-현재 상태는 **v1.16.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
+현재 상태는 **v1.16.2 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
 
 공식 프로젝트 기억은 대화가 아니라 저장소의 문서·코드·테스트·GitHub 상태입니다.
 
@@ -18,85 +18,111 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 ## 현재 공개 릴리즈
 
 ```text
-version/tag: v1.16.1
+version/tag: v1.16.2
 exact product source/tag target:
-7fb148434d22fac823d57d88021f9615081c47cd
-validated PR head: 7d7cf002aa4f1d61c891b340ff73c56781655d64
-merge PR: #276 — MERGED
+81ce1dc93fefd633502e62cb5fdde54c2f61ce8c
+validated PR head: 119b47c406058ed422afdb17bace54db0f7e68f5
+merge PR: #279 — MERGED
 PR CI / Shutdown / Docs:
-33589038565 / 33589038575 / 33589038576 — SUCCESS
+33601684251 / 33601684206 / 33601684210 — SUCCESS
 exact-main CI / Shutdown / Docs:
-33589274983 / 33589275133 / 33589275021 — SUCCESS
-Release workflow: 33589497077 — SUCCESS
-release id: 380969416
-published UTC: 2026-09-02T04:06:31Z
-612 passed / 0 failed / 0 skipped
+33602013494 / 33602013351 / 33602013617 — SUCCESS
+Release workflow: 33602299729 — SUCCESS
+release id: 381041582
+published UTC: 2026-09-02T07:11:21Z
+619 passed / 0 failed / 0 skipped
 ```
 
 Public package:
 
 ```text
 Junhyun-Helper.zip
-asset id: 540589667
-bytes: 80,717,818
+asset id: 540776589
+bytes: 80,718,992
 SHA-256:
-8599645a2d0a38c6b74f4f79cab71120b26e378da254a98605610f1c7493b3c3
+8396a7810ac95a7118f88f68914038332e9876cdfd7b59247d32c4d44c22c7a7
 
 SHA256SUMS.txt
-asset id: 540589668
+asset id: 540776588
 bytes: 86
 asset SHA-256:
-c78b0be06dbcf3f5239591d796f3b6a94299445e45157012ee122972cbfcaeee
+0fb2eb4894acc0e37b0f3c72633b1d5d37ef8a134ece1829158414c3652da805
 ```
 
 Exact-main Actions artifact:
 
 ```text
 JunhyunHelper-win-x64
-artifact id: 9831224038
-archive bytes: 242,086,160
+artifact id: 9835631036
+archive bytes: 242,089,986
 archive SHA-256:
-74435818344f94d6cd9d8fb918582dbdb3b047e789aa0f2f47c398facfbabd2a
+efcfb965a2a64cb7f7e3916ae3ed1c96d8eba5c0f77e1cd6090d41f6f9a5564c
 ```
 
-GitHub release `v1.16.1` targets `7fb148434d22fac823d57d88021f9615081c47cd`. The release is neither draft nor prerelease. The Release workflow downloaded the exact-main artifact with digest verification, independently compared `SHA256SUMS.txt` against the actual release ZIP hash, and published only after they matched. Later documentation-only commits are not v1.16.1 product sources and may not replace these immutable stable assets.
+GitHub release `v1.16.2` targets `81ce1dc93fefd633502e62cb5fdde54c2f61ce8c`, is neither draft nor prerelease, and was published only after the Release workflow re-downloaded the exact-main artifact with digest verification and independently matched `SHA256SUMS.txt` against the actual release ZIP hash. Later documentation-only commits are not v1.16.2 product sources and may not replace these stable assets.
 
 Release evidence:
 
-- `docs/.release-v1.16.1-status.json`
-- `docs/RELEASE_NOTES_V1.16.1.md`
+- `docs/.release-v1.16.2-status.json`
+- `docs/RELEASE_NOTES_V1.16.2.md`
 - `docs/PROJECT_STATE.json`
 - `docs/CURRENT_STATE.md`
 - `docs/STATE.md`
 
-## v1.16.1 maintenance hardening
+## v1.16.2 Farming Guide regression fixes
 
-v1.16.1 does not add a new user feature. It strengthens existing product-state recovery and asynchronous profile consistency while preserving the current Farming Guide contract introduced in v1.16.0.
+### 파밍한 가치
 
-- `farming-guide.json` now safely normalizes syntactically valid but semantically partial/null state instead of allowing null collections or nested item state to fail later during load. Salvageable presets, equipment and stored items are preserved; structurally unusable entries are discarded.
-- persisted stack quantity, Strength settings, locks, fixed equipment, attachment and armor-plate subtrees are normalized within existing product contracts.
-- opportunistic startup content-schema migration now pins `ProfileId + GameMode` and rechecks the active profile after asynchronous boundaries so an old profile refresh cannot be applied to a newly selected profile.
-- deterministic regressions protect both recovery and stale-continuation behavior.
-- the maintenance pass also reviewed MainWindow lifecycle/update paths, Scanner settings/UI state, Map/MiniMap settings/window state, atomic storage/content activation, image cache, updater/service disposal and existing rendered WPF smoke coverage.
-- no additional reproduced UI defect justified speculative layout or behavior changes.
+Farming Guide가 실제 값을 계산하지 않고 `—`를 고정 표시하던 연결 누락을 수정했습니다.
 
-## Farming Guide current contract — introduced in v1.16.0, retained in v1.16.1
+활성 레이드의 파밍 가치는 **레이드 시작 snapshot 대비 현재 snapshot에서 순증가해 현재 보유 중인 수량 × 평균 Flea Market 가격**입니다.
 
-`파밍 가이드`는 raid-start Loadout / Inventory Editor와 Scanner 기반 raid-session advisor를 제공합니다. Tarkov 내부 inventory를 직접 읽거나 게임 입력을 자동화하지 않습니다.
+- 원래 들고 들어간 아이템은 포함하지 않습니다.
+- 획득 후 버린 아이템은 현재 보유량에서 빠진 만큼 가치에서도 제거됩니다.
+- 시작 아이템을 잃어도 파밍 가치는 음수가 되지 않습니다.
+- 탄약·화폐 등의 stack quantity를 반영합니다.
+- nested storage와 snapshot inventory count도 같은 기준을 사용합니다.
+- 가격이 확인되지 않는 아이템의 가격을 추정하지 않습니다.
 
-### 결정적 rulebook
+### 예약/고정 빈칸 표시
 
-판단 순서는 **제약 확인 → 중요도 비교 → 상황 대처 결정**입니다. weighted score나 여러 요소를 임의 가중합하지 않습니다.
+예약 칸은 자동 배치 금지 제약을 표시하는 배경 marker입니다. 기존에는 marker가 높은 Z-index로 item card를 덮어, 사용자가 예약된 빈칸에 직접 아이템을 놓으면 상태는 정상인데 화면에서 아이템이 보이지 않았습니다.
 
-- 보호 상태는 **잠긴 아이템 + 예약 칸**만 사용합니다.
+v1.16.2에서는 reservation marker를 item card 뒤에 렌더링합니다. 자동 배치 보호는 그대로 유지되며 사용자의 직접 배치는 정상적으로 보입니다.
+
+### 전체 Farming Guide 점검
+
+이번 PATCH에서 다음 계약을 함께 재검토했습니다.
+
+- raid baseline/current snapshot과 명시적 accept transaction
+- FIR 필요 우선순위와 일반 경제 loot
+- 평균 Flea Market 총가치와 destructive victim-set 비교
+- 장비 대표 우위 기준과 가격 기반 장비 자동 교체 금지
+- locked items / reserved cells / carrier migration
+- nested storage, specialized filter, recursive repacking
+- ammo/currency quantity 입력·표시·수정과 가치/무게 반영
+- Strength 기반 최대 운반 중량과 overweight 차단
+- Farming Guide persistence normalization/recovery
+- Scanner/Mini Scanner bridge lifecycle
+- rendered WPF와 published EXE runtime smoke
+
+사용자가 보고한 두 회귀 외에 기존 deterministic rulebook을 변경해야 할 추가 결함은 재현되지 않았습니다. 근거 없는 규칙 변경이나 추측성 리팩터링은 하지 않았습니다.
+
+## Farming Guide current contract
+
+Farming Guide는 raid-start Loadout / Inventory Editor와 Scanner 기반 raid-session advisor를 제공합니다. Tarkov 내부 inventory를 직접 읽거나 게임 입력을 자동화하지 않습니다.
+
+판단 순서는 **제약 확인 → 중요도 비교 → 상황 대처 결정**입니다. weighted score나 임의 가중합을 사용하지 않습니다.
+
+### 우선순위 / 경제성
+
 - 특별 needed 우선순위는 **Found in Raid가 실제 필요한 아이템**에만 적용합니다.
-- 비-FIR needed 아이템은 일반 경제 loot과 동일하게 취급합니다.
-- 경제 가치는 **평균 Flea Market 가격**으로 통일합니다.
-- 공간 부족으로 기존 물품을 버려야 할 때는 incoming item과 실제 희생되는 전체 물품의 총 Flea 가치를 비교합니다.
+- 비-FIR needed는 일반 경제 loot과 동일하게 판단합니다.
+- 경제 가치는 **평균 Flea Market 가격**을 사용합니다.
+- 공간 확보를 위해 기존 물품을 희생해야 하면 incoming item과 실제 희생되는 전체 item set의 총 Flea 가치를 비교합니다.
+- 동일 가치일 때는 양쪽의 무게가 알려진 경우 더 가벼운 상태를 선호하고, 이후 ordinary footprint를 tie-break로 사용합니다.
 
-### 장비 우위 판단
-
-장비 자동 교체는 단순 대표 기준만 사용합니다.
+### 장비 우위
 
 - 방탄복 / 헬멧: 방탄 등급
 - 헤드셋: 청취 거리
@@ -104,55 +130,32 @@ v1.16.1 does not add a new user feature. It strengthens existing product-state r
 - 방탄 리그: 방탄 등급 우선, 동급일 때 수납량
 - 총기 / 권총: 자동 우월 교체 없음
 
-Scanner가 알 수 없는 내구도, 남은 사용 횟수, 실제 총기 조립 상태는 추정하지 않습니다.
+Scanner가 관측할 수 없는 내구도, 남은 사용 횟수, 실제 총기 조립 상태는 추정하지 않습니다.
 
-### 잠금·예약 승계
+### 잠금 / 예약 / 중첩 수납
 
-수납 장비 교체 시 잠긴 item instance는 버리지 않고 새 장비에 합법적으로 재배치합니다. 예약 칸은 기존 좌표가 아니라 연결된 모양과 용량을 새 장비에 승계하며, 동일한 보호 상태를 만들 수 없으면 교체하지 않습니다.
+수납 장비 교체 시 잠긴 item instance는 버리지 않고 새 장비에 합법적으로 재배치합니다. 예약 칸은 고정 좌표가 아니라 연결된 모양과 용량을 승계하며, 동일한 보호 상태를 만들 수 없으면 교체하지 않습니다.
 
-### 스택 수량
+실제 Tarkov source-backed `StorageGrids`와 필터가 nested storage의 권위 있는 구조입니다. Key tool, money/document/card/injector 계열 등 specialized containers도 별도 이름 allowlist가 아니라 source filter를 따릅니다.
 
-탄약·화폐처럼 수량이 판단에 필요한 아이템은 Mini Scanner에서 수량을 먼저 입력한 뒤 Farming Guide 판단을 계속합니다. 저장된 스택 수량은 상태 schema v3에 보존되고, 가치·무게·needed count 계산에 반영됩니다. Farming Guide 화면에서도 수량을 표시하고 더블클릭으로 수정할 수 있습니다.
+### 스택 수량 / 무게
 
-### 무게
+탄약·화폐처럼 수량이 판단에 필요한 아이템은 Mini Scanner에서 수량을 입력한 뒤 판단을 계속합니다. 수량은 상태 schema v3에 저장되고 card에 표시되며 더블클릭으로 수정할 수 있습니다. 필요 수량, 경제 가치와 무게에 반영됩니다.
 
-Farming Guide 우측 하단에서 현재 modeled weight와 Strength 기반 최대 운반 중량을 표시합니다. Strength level은 profile에 저장되며, 최종 proposed state가 허용 중량을 넘는 지시는 차단합니다. 현재 상태가 이미 초과 중이면 무게를 유지하거나 줄이는 방향만 허용합니다.
+Farming Guide 우측 하단에서는 현재 modeled weight와 Strength 기반 최대 운반 중량을 표시합니다. 최종 proposed state가 허용 중량을 넘는 지시는 차단합니다. 현재 state가 이미 한계를 넘었다면 무게를 유지하거나 줄이는 방향만 허용합니다.
 
-### MiniMap hotkey
+## 검증 계약
 
-Bare NumPad 0–5 직접 층 선택 기능은 제거했습니다. 기존 사용자 지정 위/아래 층 이동 hotkey는 유지합니다.
+중요한 제품 변경은 가능한 범위에서 다음을 통과해야 합니다.
 
-## 데이터 / 호환성
+- deterministic tests
+- Release build
+- Windows x64 self-contained publish
+- 실제 published EXE Product UI / Map / Farming Guide runtime smoke
+- graceful shutdown
+- Shutdown Race CI
+- package / SHA256SUMS 검증
+- PR 및 exact-main CI
+- 공개 tag / release / asset identity 및 digest 검증
 
-```text
-Desktop: 1.16.1
-Game Content write/read: v11 / v3-v11
-Farming Guide state: v3
-Scanner display settings: v10
-Scanner catalog write/read: v4 / v1-v4
-```
-
-## 설치 / 실행
-
-```text
-Junhyun-Helper.zip
-└─ 준현 헬퍼/
-   ├─ 준현 헬퍼.exe
-   ├─ FIRST_RUN_KO.txt
-   └─ Assets/
-```
-
-- Windows x64
-- .NET 10 / WPF
-- self-contained single-file executable
-- portable ZIP / installer 없음
-- 일반 사용에 관리자 권한 불필요
-- mutable user data는 `%LocalAppData%/JunhyunHelper`에 저장
-
-## 안전 경계
-
-Scanner와 준현 헬퍼는 외부 화면 픽셀과 사용자 입력을 기반으로 동작합니다. Tarkov game memory read, DLL/code injection, process/game hook, kernel/driver access, packet manipulation, anti-cheat bypass, 자동 loot/게임 입력 자동화는 제품 범위가 아닙니다.
-
-## 개발 / 복구
-
-새 작업은 `AGENTS.md`와 `docs/PROJECT_STATE.json`을 먼저 확인합니다. `docs/ACTIVE_WORK.md`가 `ACTIVE`이면 기록된 지점에서 이어가고, `NONE`이면 현재 public stable 상태에서 새 요청을 시작합니다.
+현재 v1.16.2는 위 검증을 완료했습니다. 실제 사용자 PC/Tarkov 실플레이 검증은 별도 `PENDING` 상태이며 공개 릴리즈 identity나 완료된 자동 검증을 변경하지 않습니다.
