@@ -56,15 +56,17 @@ public partial class FarmingGuidePage
     private FarmingGuideLootMetrics? MetricsForStoredV1163(FarmingGuideStoredItemState stored)
     {
         var item = ResolveItem(stored.Item);
-        if (item is null)
-            return null;
+        return item is null ? null : MetricsForStoredV1163(stored, item);
+    }
 
-        return MetricsForExisting(item) with
+    private FarmingGuideLootMetrics MetricsForStoredV1163(
+        FarmingGuideStoredItemState stored,
+        GameItem item) =>
+        MetricsForExisting(item) with
         {
             Quantity = stored.NormalizedQuantity,
             UnitWeightKg = item.WeightKg,
         };
-    }
 
     private bool PreservesExplicitLocksV1163(
         FarmingGuideLoadoutSnapshot current,
@@ -110,7 +112,7 @@ public partial class FarmingGuidePage
         if (currentDrink && !HasDrinkReserveV1163(proposed))
             return false;
 
-        var weapons = CurrentRaidWeaponsV1163(current).ToArray();
+        var weapons = CurrentRaidWeaponsForSafetyV1163(current).ToArray();
         if (weapons.Length == 0)
             return true;
 
@@ -129,7 +131,7 @@ public partial class FarmingGuidePage
             ResolveItem(stored.Item) is { } item &&
             FarmingGuideTacticalResourcePolicy.ProvidesDrink(item));
 
-    private IEnumerable<GameItem> CurrentRaidWeaponsV1163(FarmingGuideLoadoutSnapshot snapshot)
+    private IEnumerable<GameItem> CurrentRaidWeaponsForSafetyV1163(FarmingGuideLoadoutSnapshot snapshot)
     {
         foreach (var slot in new[]
                  {
