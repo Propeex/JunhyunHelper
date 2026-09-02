@@ -22,33 +22,31 @@ PR: #275 (draft)
 - Inspect core state/data flows, Farming Guide, Scanner, settings/persistence, update/error paths, resource cleanup, and shutdown behavior.
 - Identify concrete defects or high-confidence maintenance risks; fix them only where behavior is already defined or the correction is semantics-preserving.
 - Add/strengthen deterministic regression coverage for fixes.
-- Validate tests, Release/publish path, CI, shutdown-race coverage, documentation consistency, and exact-main state as applicable.
+- Validate tests, Release/publish path, CI, shutdown-race coverage, documentation consistency, exact-main state, and public release artifacts.
 - Keep changes proportional; no speculative feature work or broad redesign.
 
 ## Completed
 
-- Recovered current canonical project state and v1.16.0 release identity.
-- Confirmed previous work was closed (`ACTIVE_WORK` was `NONE`) and created the maintenance branch.
-- Audited product/architecture/maintenance contracts and high-risk runtime/persistence paths across MainWindow, Scanner, Farming Guide, update, storage, image-cache, service ownership, and Map window-state code.
-- Hardened `FarmingGuidePresetStore` so syntactically valid but semantically partial/null JSON is normalized instead of throwing. Valid salvageable state is preserved, invalid/null collections/items are repaired or discarded, stack quantity/weight values are normalized, and legacy dogtag persistence remains removed.
-- Added a deterministic persistence regression proving partial Farming Guide JSON can be loaded, normalized, saved, and reloaded.
-- Hardened opportunistic content-schema migration against stale async continuations: a migration started for one profile/game mode cannot later apply its content to a different active profile.
-- Added a deterministic source-contract regression preserving the stale-profile guards.
-- Opened draft PR #275.
-- Documentation Consistency passed on the current reviewed implementation commit.
-- Windows CI desktop build and deterministic core tests passed; publish/runtime smoke/package phases are still running.
-- UI review confirmed substantial existing rendered WPF smoke coverage for Scanner, Ammo, Farming Guide, nested storage/workbenches, overlays, Quest sidebar, Map, and published EXE startup/shutdown. One remaining verification gap is explicit minimum-main-window containment for the full Farming Guide/header layout; no concrete clipping defect has been reproduced from repository/runtime evidence yet.
+- Recovered the canonical v1.16.0 stable state and audited high-risk runtime, persistence, lifecycle, UI-smoke, packaging, and release paths.
+- Hardened `FarmingGuidePresetStore` against syntactically valid but semantically partial/null JSON while preserving salvageable state and existing schema/legacy contracts.
+- Added a deterministic partial-state load/save/reload regression.
+- Hardened opportunistic content-schema migration against stale async continuations across profile/game-mode changes.
+- Added a maintenance source-contract regression preserving the profile identity guards.
+- Reviewed Scanner UI-state/settings, Map/MiniMap settings/window-state, atomic storage, content activation, image cache, updater, service ownership/disposal, and published WPF smoke coverage; no further concrete defect justified speculative behavior/layout changes.
+- Initial implementation validation passed end-to-end: Documentation Consistency `33587976453`, CI `33587976468`, Shutdown Race `33587976484` all succeeded, including published EXE Product UI + Map + graceful shutdown and package verification.
+- Bumped the PATCH target to `1.16.1`, updated package identity, and kept `publicStable` at v1.16.0 until an actual v1.16.1 release exists.
+- Final versioned candidate run `33588318252` failed only in `ReleaseIdentityTests.ProjectFirstRunAndReleaseNotesUseTheSameVersion`: `docs/RELEASE_NOTES_V1.16.1.md` was missing. Build succeeded and the remaining test result was 611 passed / 1 failed / 0 skipped. Shutdown Race `33588318203` and Documentation Consistency `33588318166` succeeded.
+- Added `docs/RELEASE_NOTES_V1.16.1.md` with the actual maintenance scope and 612-test release target.
 
 ## Current step
 
-Finish Windows published-candidate/runtime/package and shutdown-race validation, continue focused high-risk UI/state review, then review the complete PR diff for unintended product changes.
+Validate the corrected release-ready PR head end-to-end, then mark PR #275 ready and merge only if CI, Shutdown Race, and Documentation Consistency are all green.
 
 ## Remaining
 
-- Complete current Windows published EXE/UI/Map/graceful-shutdown/package CI and shutdown-race validation.
-- Address any CI/runtime finding; otherwise avoid speculative UI/layout changes without reproduced failure evidence.
-- Review PR diff and versioning/release contracts.
-- Bump PATCH/version/docs as required for v1.16.1 and run final CI on the release-ready branch.
-- Mark PR ready, merge when all required checks are green, and verify exact-main CI.
-- Publish/verify v1.16.1 release/tag/assets if required by the repository release contract.
-- Update project state/docs and close this checkpoint only when the maintenance pass is fully merged, verified, and released.
+- Confirm corrected PR head: 612 deterministic tests, Windows publish, Product UI/Map/graceful-shutdown smoke, package/checksum, Shutdown Race, Documentation Consistency.
+- Review final diff and mark PR #275 ready.
+- Merge to main and verify exact-main CI / Shutdown Race / Documentation Consistency.
+- Verify the automatic v1.16.1 release workflow, tag, source target, `Junhyun-Helper.zip`, checksum asset, sizes, and hashes.
+- Update `PROJECT_STATE`, `CURRENT_STATE`, `STATE`, README/release notes as required using real release metadata.
+- Close `ACTIVE_WORK` to `NONE` only after public release and documentation are exact and verified.
