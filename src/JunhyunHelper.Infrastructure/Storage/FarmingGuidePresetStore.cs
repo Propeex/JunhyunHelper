@@ -48,7 +48,7 @@ public sealed class FarmingGuidePresetStore
     public FarmingGuideFixedEquipmentState LoadFixedEquipment()
     {
         lock (_gate)
-            return LoadDocument().FixedEquipment.WithoutLegacyDogtag();
+            return NormalizeFixedEquipment(LoadDocument().FixedEquipment);
     }
 
     public void SaveWorking(
@@ -71,7 +71,7 @@ public sealed class FarmingGuidePresetStore
             {
                 WorkingSnapshot = NormalizeSnapshot(snapshot),
                 SelectedPresetName = selectedPresetName,
-                Locks = (locks ?? previous.Locks ?? FarmingGuideLockState.Empty).CopyNormalized(),
+                Locks = NormalizeLocks(locks ?? previous.Locks),
             };
             SaveDocument(document with { Profiles = profiles });
         }
@@ -110,7 +110,7 @@ public sealed class FarmingGuidePresetStore
             var previous = document.Profiles.TryGetValue(profileId, out var profile)
                 ? NormalizeProfile(profile)
                 : EmptyProfile();
-            var effectiveLocks = (locks ?? previous.Locks ?? FarmingGuideLockState.Empty).CopyNormalized();
+            var effectiveLocks = NormalizeLocks(locks ?? previous.Locks);
             var normalizedSnapshot = NormalizeSnapshot(snapshot);
             var presets = previous.Presets
                 .Where(preset => !string.Equals(preset.Name, normalizedName, StringComparison.OrdinalIgnoreCase))
@@ -151,7 +151,7 @@ public sealed class FarmingGuidePresetStore
             {
                 WorkingSnapshot = NormalizeSnapshot(preset.Snapshot),
                 SelectedPresetName = preset.Name,
-                Locks = (preset.Locks ?? FarmingGuideLockState.Empty).CopyNormalized(),
+                Locks = NormalizeLocks(preset.Locks),
             };
             var profiles = CopyProfiles(document.Profiles);
             profiles[profileId] = updated;
@@ -202,7 +202,7 @@ public sealed class FarmingGuidePresetStore
         lock (_gate)
         {
             var document = LoadDocument();
-            SaveDocument(document with { FixedEquipment = fixedEquipment.WithoutLegacyDogtag() });
+            SaveDocument(document with { FixedEquipment = NormalizeFixedEquipment(fixedEquipment) });
         }
     }
 
@@ -214,15 +214,19 @@ public sealed class FarmingGuidePresetStore
         if (loaded.SchemaVersion is not (1 or 2 or CurrentSchemaVersion))
             return FarmingGuideDocument.Empty;
 
-        var profiles = loaded.Profiles.ToDictionary(
-            entry => entry.Key,
-            entry => NormalizeProfile(entry.Value),
-            StringComparer.Ordinal);
+        var profiles = new Dictionary<string, FarmingGuideProfileState>(StringComparer.Ordinal);
+        foreach (var entry in loaded.Profiles ?? new Dictionary<string, FarmingGuideProfileState>(StringComparer.Ordinal))
+        {
+            if (string.IsNullOrWhiteSpace(entry.Key))
+                continue;
+            profiles[entry.Key] = NormalizeProfile(entry.Value);
+        }
+
         return loaded with
         {
             SchemaVersion = CurrentSchemaVersion,
             Profiles = profiles,
-            FixedEquipment = loaded.FixedEquipment.WithoutLegacyDogtag(),
+            FixedEquipment = NormalizeFixedEquipment(loaded.FixedEquipment),
         };
     }
 
@@ -231,32 +235,121 @@ public sealed class FarmingGuidePresetStore
             document with
             {
                 SchemaVersion = CurrentSchemaVersion,
-                FixedEquipment = document.FixedEquipment.WithoutLegacyDogtag(),
+                FixedEquipment = NormalizeFixedEquipment(document.FixedEquipment),
             },
             JsonOptions);
 
-    private static FarmingGuideProfileState NormalizeProfile(FarmingGuideProfileState profile) =>
-        profile with
+    private static FarmingGuideProfileState NormalizeProfile(FarmingGuideProfileState? profile)
+    {
+        if (profile is null)
+            return EmptyProfile();
+
+        var presets = (profile.Presets ?? Array.Empty<FarmingGuidePreset>())
+            .OfType<FarmingGuidePreset>()
+            .Where(static preset => !string.IsNullOrWhiteSpace(preset.Name))
+            .Select(preset => preset with
+            {
+                Snapshot = NormalizeSnapshot(preset.Snapshot),
+                Locks = NormalizeLocks(preset.Locks),
+            })
+            .ToArray();
+        var selectedPresetName = presets.Any(preset =>
+            string.Equals(preset.Name, profile.SelectedPresetName, StringComparison.OrdinalIgnoreCase))
+            ? profile.SelectedPresetName
+            : null;
+
+        return profile with
         {
             WorkingSnapshot = NormalizeSnapshot(profile.WorkingSnapshot),
-            Locks = (profile.Locks ?? FarmingGuideLockState.Empty).CopyNormalized(),
+            SelectedPresetName = selectedPresetName,
+            Locks = NormalizeLocks(profile.Locks),
             WeightSettings = (profile.WeightSettings ?? FarmingGuideWeightSettings.Default).Normalized(),
-            Presets = profile.Presets
-                .Select(preset => preset with
-                {
-                    Snapshot = NormalizeSnapshot(preset.Snapshot),
-                    Locks = (preset.Locks ?? FarmingGuideLockState.Empty).CopyNormalized(),
-                })
-                .ToArray(),
+            Presets = presets,
         };
+    }
 
-    private static FarmingGuideLoadoutSnapshot NormalizeSnapshot(FarmingGuideLoadoutSnapshot snapshot) =>
-        snapshot with
+    private static FarmingGuideLoadoutSnapshot NormalizeSnapshot(FarmingGuideLoadoutSnapshot? snapshot)
+    {
+        if (snapshot is null)
+            return FarmingGuideLoadoutSnapshot.Empty;
+
+        var equipment = new Dictionary<FarmingGuideEquipmentSlot, FarmingGuideItemState>();
+        foreach (var entry in snapshot.Equipment ?? new Dictionary<FarmingGuideEquipmentSlot, FarmingGuideItemState>())
         {
-            StoredItems = snapshot.StoredItems
-                .Select(item => item with { Quantity = Math.Max(1, item.Quantity) })
-                .ToArray(),
+            if (NormalizeItemState(entry.Value) is { } normalized)
+                equipment[entry.Key] = normalized;
+        }
+
+        var storedItems = new List<FarmingGuideStoredItemState>();
+        foreach (var item in (snapshot.StoredItems ?? Array.Empty<FarmingGuideStoredItemState>()).OfType<FarmingGuideStoredItemState>())
+        {
+            var normalizedItem = NormalizeItemState(item.Item);
+            if (normalizedItem is null || string.IsNullOrWhiteSpace(item.InstanceId))
+                continue;
+
+            storedItems.Add(item with
+            {
+                Item = normalizedItem,
+                Quantity = Math.Max(1, item.Quantity),
+            });
+        }
+
+        return snapshot with
+        {
+            Equipment = equipment,
+            Rig = NormalizeItemState(snapshot.Rig),
+            Backpack = NormalizeItemState(snapshot.Backpack),
+            SecureContainer = NormalizeItemState(snapshot.SecureContainer),
+            StoredItems = storedItems,
         };
+    }
+
+    private static FarmingGuideItemState? NormalizeItemState(FarmingGuideItemState? state)
+    {
+        if (state is null || string.IsNullOrWhiteSpace(state.ItemId))
+            return null;
+
+        var attachments = new Dictionary<string, FarmingGuideItemState?>(StringComparer.Ordinal);
+        foreach (var entry in state.Attachments ?? new Dictionary<string, FarmingGuideItemState?>())
+        {
+            if (!string.IsNullOrWhiteSpace(entry.Key))
+                attachments[entry.Key] = NormalizeItemState(entry.Value);
+        }
+
+        var armorPlates = new Dictionary<string, FarmingGuideItemState?>(StringComparer.Ordinal);
+        foreach (var entry in state.ArmorPlates ?? new Dictionary<string, FarmingGuideItemState?>())
+        {
+            if (!string.IsNullOrWhiteSpace(entry.Key))
+                armorPlates[entry.Key] = NormalizeItemState(entry.Value);
+        }
+
+        return state with
+        {
+            Attachments = attachments,
+            ArmorPlates = armorPlates,
+        };
+    }
+
+    private static FarmingGuideLockState NormalizeLocks(FarmingGuideLockState? locks)
+    {
+        if (locks is null)
+            return FarmingGuideLockState.Empty;
+
+        return new FarmingGuideLockState(
+            (locks.EquipmentSlots ?? Array.Empty<FarmingGuideEquipmentSlot>()).Distinct().ToArray(),
+            (locks.Carriers ?? Array.Empty<FarmingGuideStorageKind>()).Distinct().ToArray(),
+            (locks.ItemInstanceIds ?? Array.Empty<string>())
+                .Where(static value => !string.IsNullOrWhiteSpace(value))
+                .Distinct(StringComparer.Ordinal)
+                .ToArray(),
+            (locks.ReservedCells ?? Array.Empty<FarmingGuideLockedCell>())
+                .OfType<FarmingGuideLockedCell>()
+                .Distinct()
+                .ToArray());
+    }
+
+    private static FarmingGuideFixedEquipmentState NormalizeFixedEquipment(FarmingGuideFixedEquipmentState? fixedEquipment) =>
+        new(NormalizeItemState(fixedEquipment?.Melee), null);
 
     private static Dictionary<string, FarmingGuideProfileState> CopyProfiles(
         IReadOnlyDictionary<string, FarmingGuideProfileState> source) =>
