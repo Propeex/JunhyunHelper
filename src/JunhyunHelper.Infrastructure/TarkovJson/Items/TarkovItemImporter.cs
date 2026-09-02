@@ -144,6 +144,18 @@ public sealed class TarkovItemImporter
         var armorClass = TarkovJsonReader.OptionalInt(properties, "class") ?? 0;
         var headsetDistanceModifier = OptionalDecimal(properties, "distanceModifier");
         var headsetDistortion = OptionalDecimal(properties, "distortion");
+        var energy = TarkovJsonReader.OptionalInt(properties, "energy");
+        var hydration = TarkovJsonReader.OptionalInt(properties, "hydration");
+        var caliber = TarkovJsonReader.OptionalString(properties, "caliber");
+        var allowedAmmoItemIds = ReadReferenceArray(properties, "allowedAmmo");
+        var isAmmo = string.Equals(
+            propertiesType,
+            "ItemPropertiesAmmo",
+            StringComparison.OrdinalIgnoreCase);
+        var isWeapon = string.Equals(
+            propertiesType,
+            "ItemPropertiesWeapon",
+            StringComparison.OrdinalIgnoreCase);
         var isChestRig = string.Equals(
             propertiesType,
             "ItemPropertiesChestRig",
@@ -158,6 +170,10 @@ public sealed class TarkovItemImporter
             armorClass <= 0 &&
             headsetDistanceModifier is null &&
             headsetDistortion is null &&
+            energy is null &&
+            hydration is null &&
+            string.IsNullOrWhiteSpace(caliber) &&
+            allowedAmmoItemIds.Count == 0 &&
             !blocksHeadphones &&
             conflictingItems.Count == 0 &&
             conflictingSlotIds.Length == 0)
@@ -179,6 +195,13 @@ public sealed class TarkovItemImporter
             ArmorClass = armorClass > 0 ? armorClass : null,
             HeadsetDistanceModifier = headsetDistanceModifier,
             HeadsetDistortion = headsetDistortion,
+            Energy = energy,
+            Hydration = hydration,
+            AmmoCaliber = isAmmo ? caliber : null,
+            WeaponCaliber = isWeapon ? caliber : null,
+            AllowedAmmoItemIds = isWeapon
+                ? allowedAmmoItemIds
+                : Array.Empty<string>(),
         };
     }
 
