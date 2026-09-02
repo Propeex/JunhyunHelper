@@ -63,6 +63,15 @@ public partial class FarmingGuidePage
             // contents/reservations, the temporary carrier lock above prevents any fallback
             // path from bypassing that failure. The item may still be stored as ordinary loot.
             _ = carrierHandled;
+
+            // v1.16.3: protected storage is a distinct decision boundary. A free pocket must
+            // not terminate planning before a secure-container-eligible high-priority item
+            // has had the chance to move strictly lower-priority secure contents to legal
+            // ordinary storage. This pass is non-destructive and falls through when a safe
+            // secure promotion cannot be built.
+            if (TryBuildSecureProtectionRecommendationV1163(current, scanned, incoming, out var secure))
+                return secure;
+
             return PlanScannedItemHardened(scanned, incoming);
         }
         finally

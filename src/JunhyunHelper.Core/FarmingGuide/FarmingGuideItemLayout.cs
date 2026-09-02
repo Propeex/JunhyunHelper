@@ -58,13 +58,30 @@ public sealed record FarmingGuideItemLayout(
     public int? ArmorClass { get; init; }
 
     /// <summary>
-    /// Source-backed active-headset comparison facts. They are intentionally kept as a
-    /// pair rather than collapsed into a guessed tier: longer hearing distance is better,
-    /// while lower distortion is cleaner. The upgrade policy only accepts Pareto-dominant
-    /// pairs and leaves trade-offs to the user/existing loot-value path.
+    /// Source-backed active-headset hearing-distance fact. Distortion is retained as
+    /// diagnostic/source metadata, but the v1.16+ automatic upgrade rule uses hearing
+    /// distance only.
     /// </summary>
     public decimal? HeadsetDistanceModifier { get; init; }
     public decimal? HeadsetDistortion { get; init; }
+
+    /// <summary>
+    /// Source-backed provision effects. Positive energy/hydration identify whether the
+    /// item can satisfy the Farming Guide's minimum raid food/drink reserve. Null means an
+    /// older content snapshot or a source item that does not expose the fact.
+    /// </summary>
+    public int? Energy { get; init; }
+    public int? Hydration { get; init; }
+
+    /// <summary>
+    /// Source-backed ammunition compatibility. AmmoCaliber is present on ammunition;
+    /// WeaponCaliber/AllowedAmmoItemIds are present on weapons. AllowedAmmoItemIds is the
+    /// authoritative match when available, with caliber retained as a safe fallback for
+    /// older source rows.
+    /// </summary>
+    public string? AmmoCaliber { get; init; }
+    public string? WeaponCaliber { get; init; }
+    public IReadOnlyList<string> AllowedAmmoItemIds { get; init; } = Array.Empty<string>();
 
     public int StorageCapacity => StorageGrids.Sum(grid => grid.Width * grid.Height);
 }

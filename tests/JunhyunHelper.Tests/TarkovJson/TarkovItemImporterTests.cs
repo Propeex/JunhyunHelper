@@ -136,6 +136,61 @@ public sealed class TarkovItemImporterTests
     }
 
     [Fact]
+    public void ImportsFarmingGuideSurvivalAndAmmoCompatibilityFacts()
+    {
+        var baseDocument = Document("""
+            {
+              "data": {
+                "items": [
+                  {
+                    "id": "food-drink",
+                    "name": "food-drink Name",
+                    "properties": {
+                      "propertiesType": "ItemPropertiesFoodDrink",
+                      "energy": 20,
+                      "hydration": 60
+                    }
+                  },
+                  {
+                    "id": "ammo-a",
+                    "name": "ammo-a Name",
+                    "types": ["ammo"],
+                    "properties": {
+                      "propertiesType": "ItemPropertiesAmmo",
+                      "caliber": "Caliber545x39"
+                    }
+                  },
+                  {
+                    "id": "weapon-a",
+                    "name": "weapon-a Name",
+                    "types": ["gun"],
+                    "properties": {
+                      "propertiesType": "ItemPropertiesWeapon",
+                      "caliber": "Caliber545x39",
+                      "allowedAmmo": [{ "id": "ammo-a" }, "ammo-b"]
+                    }
+                  }
+                ]
+              }
+            }
+            """);
+
+        var items = new TarkovItemImporter()
+            .Import(baseDocument, new TarkovLocalization())
+            .ToDictionary(item => item.Id, StringComparer.Ordinal);
+
+        Assert.Equal(20, items["food-drink"].FarmingGuideData?.Energy);
+        Assert.Equal(60, items["food-drink"].FarmingGuideData?.Hydration);
+        Assert.Equal("Caliber545x39", items["ammo-a"].FarmingGuideData?.AmmoCaliber);
+        Assert.Null(items["ammo-a"].FarmingGuideData?.WeaponCaliber);
+        Assert.Equal("Caliber545x39", items["weapon-a"].FarmingGuideData?.WeaponCaliber);
+        Assert.Null(items["weapon-a"].FarmingGuideData?.AmmoCaliber);
+        Assert.Equal(
+            new[] { "ammo-a", "ammo-b" },
+            items["weapon-a"].FarmingGuideData?.AllowedAmmoItemIds);
+    }
+
+    [Fact]
     public void SupportsArrayCollectionsWithoutChangingCanonicalResult()
     {
         var baseDocument = Document("""
