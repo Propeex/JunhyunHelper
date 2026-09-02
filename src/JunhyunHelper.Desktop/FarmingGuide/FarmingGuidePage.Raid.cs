@@ -205,7 +205,8 @@ public partial class FarmingGuidePage
         var transitioned = ApplyRaidStateTransitionsV1155(current, planned, decisionScan, item);
         var optimized = OptimizeDestructiveRaidPlanV1155(current, transitioned, decisionScan, item);
         var quantityApplied = ApplyIncomingQuantityV1160(current, optimized, item.Id, quantity);
-        var weightChecked = ApplyRaidWeightConstraintV1160(current, quantityApplied);
+        var safetyChecked = ApplyFinalRaidSafetyV1163(current, quantityApplied, decisionScan);
+        var weightChecked = ApplyRaidWeightConstraintV1160(current, safetyChecked);
         var recommendation = ApplyRaidInstructionPresentationV1155(current, weightChecked, item);
         _raidSession.SetPending(
             scanned.ItemId,
