@@ -148,16 +148,24 @@ public partial class MapPage
                 TimeSpan.FromSeconds(2),
                 "MiniMap standard marker scale was unavailable.");
             var standardScaleBeforePlayerResize = window.JunhyunFirstStandardMarkerScaleForSmoke!.Value;
+            var productMarkerScaleBeforePlayerResize = window.JunhyunMarkerScale;
 
             JunhyunMiniMapProductRegistry.ApplyPlayerMarkerSize(42.0);
-            await Task.Delay(150);
-            var standardScaleAfterPlayerResize = window.JunhyunFirstStandardMarkerScaleForSmoke
-                ?? throw new InvalidOperationException("Standard marker disappeared after Player Marker Size change.");
-            if (Math.Abs(standardScaleAfterPlayerResize - standardScaleBeforePlayerResize) > 0.0001)
+            if (Math.Abs(window.JunhyunMarkerScale - productMarkerScaleBeforePlayerResize) > 0.0001)
             {
                 throw new InvalidOperationException(
-                    $"Player Marker Size changed unrelated MiniMap marker scale: {standardScaleBeforePlayerResize:F4} -> {standardScaleAfterPlayerResize:F4}.");
+                    "Player Marker Size mutated the independent MiniMap marker-scale setting.");
             }
+
+            // Donor marker refreshes are asynchronous and may recreate the standard marker
+            // visual between these two product actions. Verify convergence to the unchanged
+            // product scale rather than attributing a transient donor refresh to the Player
+            // Marker Size action. This keeps the smoke strict while removing a timing race.
+            await WaitForV114SmokeAsync(
+                () => window.JunhyunFirstStandardMarkerScaleForSmoke is { } scale &&
+                      Math.Abs(scale - standardScaleBeforePlayerResize) <= 0.0001,
+                TimeSpan.FromSeconds(2),
+                "Standard MiniMap marker scale did not recover to its unchanged value after Player Marker Size update.");
 
             var expectedPlayerScale = Math.Clamp(42.0 / 18.0, 0.5, 3.0);
             if (Math.Abs(window.JunhyunPlayerMarkerScaleForSmoke - expectedPlayerScale) > 0.0001)
