@@ -1,60 +1,54 @@
 # ACTIVE WORK
 
-Status: **NONE**
+Status: **ACTIVE**
 
-## Current task
+## Goal
 
-None.
+Fix two user-reported Farming Guide regressions and perform a focused end-to-end Farming Guide audit, including the deterministic decision logic.
 
-## Current stable baseline
+Confirmed user-visible symptoms:
+
+1. farmed/looted value is not shown in Farming Guide;
+2. when an item is dragged into a locked/reserved empty slot, the item disappears visually.
+
+The maintenance work must preserve the existing v1.16.0/v1.16.1 Farming Guide contract except where required to correct these regressions.
+
+## Base / branch
 
 ```text
 public stable: v1.16.1
-exact product source/tag target: 7fb148434d22fac823d57d88021f9615081c47cd
-merge PR: #276
-release id: 380969416
+base main: c0ea1e5e1f65299fe7700f794ee8257544f41f29
+exact v1.16.1 product source/tag target: 7fb148434d22fac823d57d88021f9615081c47cd
+working branch: maintenance/v1.16.2-farming-guide-value-lock-2026-09-02
+target version: v1.16.2 PATCH
+PR: not opened yet
 ```
 
-## Latest completed work
+## Current step
 
-**v1.16.1 product quality / resilience maintenance pass**
+Trace the Farming Guide state/render/update flows for raid value accounting and locked/reserved-slot drag placement, then reproduce both defects in deterministic regression coverage.
 
-Completed scope:
+## Scope
 
-- audited high-risk internal correctness, persistence, asynchronous profile/content state, lifecycle/shutdown, Scanner/Map settings, Farming Guide nested state, rendered WPF smoke, packaging and release paths;
-- hardened `FarmingGuidePresetStore` so syntactically valid but semantically partial/null state is normalized while salvageable presets/equipment/stored items are preserved;
-- added deterministic partial Farming Guide state load/save/reload regression coverage;
-- hardened opportunistic startup content-schema refresh against stale async continuation across profile/game-mode changes by pinning and revalidating `ProfileId + GameMode`;
-- added maintenance regression coverage for those profile identity guards;
-- found and corrected the missing `docs/RELEASE_NOTES_V1.16.1.md` through the release-identity gate before publication;
-- completed PR, exact-main, published EXE Product UI/Map/graceful-shutdown, Shutdown Race, package/checksum and public release verification;
-- recorded exact public release/tag/asset/action evidence in canonical project memory.
+- identify root cause for missing farmed value display and repair it;
+- identify root cause for invisible item after drop into a locked/reserved empty slot and repair it;
+- audit Farming Guide state transitions, rendering, persistence, nested storage, quantity/weight, locks/reserved slots, raid planning/instructions and deterministic rulebook interactions for adjacent regressions;
+- add focused deterministic regressions for every corrected contract;
+- validate Release build/publish, rendered Product UI smoke, Farming Guide smoke, graceful shutdown, Shutdown Race, package/checksum and normal CI before release;
+- update canonical project documentation and release v1.16.2 if validation is green.
 
-The maintenance audit did not reproduce another user-visible UI defect strongly enough to justify speculative layout or behavior changes. Explicit minimum-main-window containment remains a possible future verification improvement if real evidence warrants it.
+## Completed
 
-## Validation
+- recovered v1.16.1 canonical state from `AGENTS.md`, `PROJECT_STATE.json` and `ACTIVE_WORK.md`;
+- created the maintenance branch from current main;
+- enumerated the Farming Guide implementation surface for focused analysis.
 
-```text
-validated PR head:
-7d7cf002aa4f1d61c891b340ff73c56781655d64
-PR CI / Shutdown / Docs:
-33589038565 / 33589038575 / 33589038576 — SUCCESS
+## Remaining
 
-exact product source:
-7fb148434d22fac823d57d88021f9615081c47cd
-exact-main CI / Shutdown / Docs:
-33589274983 / 33589275133 / 33589275021 — SUCCESS
-Release workflow: 33589497077 — SUCCESS
-612 passed / 0 failed / 0 skipped
-
-public release: v1.16.1
-release id: 380969416
-published UTC: 2026-09-02T04:06:31Z
-Junhyun-Helper.zip:
-80,717,818 bytes
-8599645a2d0a38c6b74f4f79cab71120b26e378da254a98605610f1c7493b3c3
-```
-
-Public v1.16.1 release/tag/assets were verified against the exact product source. The Release workflow re-downloaded the exact-main artifact with digest verification and independently matched the checksum manifest to the actual release ZIP hash before publication.
-
-Actual user-PC/Tarkov real-play validation remains separately `PENDING` and does not change the verified public stable identity.
+- root-cause analysis;
+- regression tests;
+- implementation;
+- full Farming Guide audit and validation;
+- version/release identity updates;
+- PR / CI / merge / exact-main / release verification;
+- documentation finalization and `ACTIVE_WORK: NONE`.
