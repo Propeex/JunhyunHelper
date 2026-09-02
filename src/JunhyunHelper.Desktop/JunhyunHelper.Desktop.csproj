@@ -23,7 +23,7 @@
     <Product>준현 헬퍼</Product>
     <Title>준현 헬퍼</Title>
     <Description>Escape from Tarkov 진행도·아이템·탄약·지도·스캐너·파밍 도우미</Description>
-    <Version>1.16.1</Version>
+    <Version>1.16.2</Version>
     <ApplicationIcon>$(MSBuildProjectDirectory)\obj\JunhyunHelper.AppIcon.ico</ApplicationIcon>
     <!-- The product UI is Korean-only. Let the .NET SDK filter framework/package
          satellite assemblies at publish time instead of deleting files afterward. -->
@@ -57,8 +57,6 @@
              Link="Legacy/TarkovHelper/Models/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../../vendor/Tarkov-Helper/TarkovHelper/Services/**/*.cs"
              Link="Legacy/TarkovHelper/Services/%(RecursiveDir)%(Filename)%(Extension)" />
-
-    <!-- These belong to the old application's non-Map content/update subsystems. -->
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/Ammo/**/*.cs" />
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/ItemsDataService.cs" />
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/ItemsFilterService.cs" />
@@ -76,14 +74,8 @@
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/HideoutDbService.cs" />
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/TarkovDataDatabaseBuilder*.cs" />
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/UserProgressResetService.cs" />
-    <!-- The old global hook contained unrelated hidden commands/logging. JunhyunHelper
-         provides a product-safe compatibility replacement in Desktop/Map. -->
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/GlobalKeyboardHookService.cs" />
-    <!-- The old logger writes beside the executable. Replace it with a product-owned
-         implementation that keeps logs under %LocalAppData%/JunhyunHelper/Logs. -->
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/Logging/LoggingService.cs" />
-    <!-- JunhyunHelper release/update ownership is separate from the transplanted Map.
-         Never ship the old Tarkov-Helper updater, which targets the legacy repository. -->
     <Compile Remove="../../vendor/Tarkov-Helper/TarkovHelper/Services/UpdateService.cs" />
 
     <Compile Include="../../vendor/Tarkov-Helper/TarkovHelper/Pages/Map/**/*.cs"
@@ -102,11 +94,9 @@
     <Page Include="../../vendor/Tarkov-Helper/TarkovHelper/Windows/Dialogs/OverlaySettingsWindow.xaml"
           Link="Legacy/TarkovHelper/Windows/Dialogs/OverlaySettingsWindow.xaml" />
     <Page Include="../../vendor/Tarkov-Helper/TarkovHelper/Windows/Dialogs/CustomMarkerEditorWindow.xaml"
-          Link="Legacy/TarkovHelper/Windows/Dialogs/CustomMarkerEditorWindow.xaml" />
+          Link="Legacy/TarkovHelper/Windows/Dialogs/%(Filename)%(Extension)" />
   </ItemGroup>
 
-  <!-- Map/MiniMap read these files directly by path. Keep them outside the single-file
-       executable while the framework/runtime/native dependencies are bundled. -->
   <ItemGroup>
     <Content Include="../../vendor/Tarkov-Helper/TarkovHelper/Assets/tarkov_data.db"
              Link="Assets/tarkov_data.db"
@@ -139,9 +129,6 @@
     <Exec Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\Build\GenerateApplicationIcon.ps1&quot; -Source &quot;$(MSBuildProjectDirectory)\Assets/AppIcon.png&quot; -Destination &quot;$(ApplicationIcon)&quot;" />
   </Target>
 
-  <!-- Native NuGet packages can contribute PDBs even when DebugType=None. They are
-       useful to developers but not to users and previously added ~89 MB uncompressed
-       to the Windows package. Keep release ZIPs free of all debug symbol files. -->
   <Target Name="RemovePublishDebugSymbols" AfterTargets="Publish">
     <ItemGroup>
       <PublishDebugSymbols Include="$(PublishDir)**\*.pdb" />
