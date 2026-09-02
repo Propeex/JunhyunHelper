@@ -1,6 +1,6 @@
 # 준현 헬퍼 v1.16.1
 
-상태: **RELEASE CANDIDATE / VALIDATION IN PROGRESS**  
+상태: **PUBLIC STABLE / VERIFIED**  
 기준일: **2026-09-02 KST**
 
 v1.16.1은 새 사용자 기능을 추가하지 않고, 공개 안정판 v1.16.0의 **저장 복구력·비동기 상태 일관성·릴리즈 검증 신뢰성**을 보강하는 PATCH 유지보수 릴리즈다.
@@ -50,19 +50,65 @@ v1.16.1에서는:
 
 현재 저장소와 runtime smoke 증거에서 기존 제품 동작을 바꿀 정도의 추가 UI 결함은 재현되지 않았다. 특히 최소 메인 창 크기의 전체 containment를 더 명시적으로 측정하는 자동 검증은 향후 강화 여지가 있지만, 재현되지 않은 잘림을 추측으로 고치기 위해 창 크기나 레이아웃을 임의 변경하지 않았다.
 
-## 검증 목표
-
-릴리즈 전 다음을 모두 통과해야 한다.
+## 릴리즈 검증
 
 ```text
-Release build
+exact product source:
+7fb148434d22fac823d57d88021f9615081c47cd
+validated PR head:
+7d7cf002aa4f1d61c891b340ff73c56781655d64
+merge PR: #276
+
+PR CI / Shutdown / Docs:
+33589038565 / 33589038575 / 33589038576 — SUCCESS
+
+exact-main CI / Shutdown / Docs:
+33589274983 / 33589275133 / 33589275021 — SUCCESS
+
+Release workflow:
+33589497077 — SUCCESS
+
 612 deterministic tests / 0 failed / 0 skipped
-self-contained win-x64 publish
-published EXE Product UI + Map/MiniMap + Farming Guide runtime smoke
-graceful shutdown / Shutdown Race
-package/checksum verification
-PR CI / exact-main CI / Documentation Consistency
-public v1.16.1 tag / release / assets verification
+self-contained win-x64 publish — SUCCESS
+published EXE Product UI + Map/MiniMap + Farming Guide runtime smoke — SUCCESS
+graceful shutdown / Shutdown Race — SUCCESS
+package/checksum verification — SUCCESS
+public tag/release/assets readback — SUCCESS
 ```
 
-최종 exact product source, CI run, release/tag/asset 정보는 공개 릴리즈 검증 후 `docs/PROJECT_STATE.json`, `docs/STATE.md`, `docs/CURRENT_STATE.md`에 기록한다.
+Public release:
+
+```text
+v1.16.1
+release id: 380969416
+published UTC: 2026-09-02T04:06:31Z
+draft: false
+prerelease: false
+```
+
+Public assets:
+
+```text
+Junhyun-Helper.zip
+id: 540589667
+bytes: 80,717,818
+SHA-256: 8599645a2d0a38c6b74f4f79cab71120b26e378da254a98605610f1c7493b3c3
+
+SHA256SUMS.txt
+id: 540589668
+bytes: 86
+SHA-256: c78b0be06dbcf3f5239591d796f3b6a94299445e45157012ee122972cbfcaeee
+```
+
+Exact-main Actions artifact:
+
+```text
+JunhyunHelper-win-x64
+id: 9831224038
+bytes: 242,086,160
+SHA-256: 74435818344f94d6cd9d8fb918582dbdb3b047e789aa0f2f47c398facfbabd2a
+```
+
+Release workflow는 위 exact-main artifact를 digest 검증하며 다시 내려받았고, `SHA256SUMS.txt`의 ZIP hash와 실제 `Junhyun-Helper.zip`의 `Get-FileHash` 결과가 정확히 일치하는 것을 확인한 뒤 공개했다.
+
+상세 canonical release evidence는 `docs/.release-v1.16.1-status.json`, `docs/PROJECT_STATE.json`, `docs/CURRENT_STATE.md`, `docs/STATE.md`에 기록한다.
