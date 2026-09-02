@@ -1,55 +1,60 @@
 # ACTIVE WORK
 
-Status: **ACTIVE**
+Status: **NONE**
 
-## Goal
+## Current task
 
-Perform a repository-backed **v1.16.1 product quality / maintenance pass** over 준현 헬퍼, covering internal correctness, functional behavior, user-visible WPF/UI robustness, persistence/error handling, tests, packaging, CI, and release-readiness without changing confirmed product behavior without evidence.
+None.
 
-## Base / working state
+## Current stable baseline
 
 ```text
-base main: 14c8c6c2d7edc3ca248490af843b6fb5749ec41a
-public stable: v1.16.0
-working branch: maintenance/v1.16.1-product-quality-pass-2026-09-02
-current PR: #276
-superseded PR: #275 (closed unmerged; Draft→Ready connector mutation incompatible with current GitHub GraphQL schema)
+public stable: v1.16.1
+exact product source/tag target: 7fb148434d22fac823d57d88021f9615081c47cd
+merge PR: #276
+release id: 380969416
 ```
 
-## Confirmed scope
+## Latest completed work
 
-- Audit canonical product/maintenance contracts against implementation and tests.
-- Inspect user-visible WPF/UI for clipping, sizing, scrolling, focus/input, DPI/layout, loading/empty/error states, and lifecycle regressions.
-- Inspect core state/data flows, Farming Guide, Scanner, settings/persistence, update/error paths, resource cleanup, and shutdown behavior.
-- Identify concrete defects or high-confidence maintenance risks; fix them only where behavior is already defined or the correction is semantics-preserving.
-- Add/strengthen deterministic regression coverage for fixes.
-- Validate tests, Release/publish path, CI, shutdown-race coverage, documentation consistency, exact-main state, and public release artifacts.
-- Keep changes proportional; no speculative feature work or broad redesign.
+**v1.16.1 product quality / resilience maintenance pass**
 
-## Completed
+Completed scope:
 
-- Recovered the canonical v1.16.0 stable state and audited high-risk runtime, persistence, lifecycle, UI-smoke, packaging, and release paths.
-- Hardened `FarmingGuidePresetStore` against syntactically valid but semantically partial/null JSON while preserving salvageable state and existing schema/legacy contracts.
-- Added a deterministic partial-state load/save/reload regression.
-- Hardened opportunistic content-schema migration against stale async continuations across profile/game-mode changes.
-- Added a maintenance source-contract regression preserving the profile identity guards.
-- Reviewed Scanner UI-state/settings, Map/MiniMap settings/window-state, atomic storage, content activation, image cache, updater, service ownership/disposal, and published WPF smoke coverage; no further concrete defect justified speculative behavior/layout changes.
-- Initial implementation validation passed end-to-end: Documentation Consistency `33587976453`, CI `33587976468`, Shutdown Race `33587976484` all succeeded, including published EXE Product UI + Map + graceful shutdown and package verification.
-- Bumped the PATCH target to `1.16.1`, updated package identity, and kept `publicStable` at v1.16.0 until an actual v1.16.1 release exists.
-- Versioned candidate `33588318252` found one release metadata omission: `docs/RELEASE_NOTES_V1.16.1.md` was missing. Build and 611 other tests passed; Shutdown Race `33588318203` and Documentation Consistency `33588318166` passed.
-- Added `docs/RELEASE_NOTES_V1.16.1.md`.
-- Corrected head `f037687346195eb02fc06088ca46d46e3d4d3bae` passed CI `33588730993`, Shutdown Race `33588731048`, Documentation Consistency `33588730995`: 612 tests, Windows publish, published EXE Product UI + Map + graceful shutdown, package/checksum verification, artifact upload all succeeded.
-- PR #275 could not be transitioned from Draft by the connected GitHub tool because its GraphQL response selection references a removed GitHub field. REST correctly refused to merge a Draft PR. #275 was closed unmerged; the validated branch was not changed.
-- Opened normal PR #276 from the same branch/base so standard merge flow can continue without product-code workaround.
+- audited high-risk internal correctness, persistence, asynchronous profile/content state, lifecycle/shutdown, Scanner/Map settings, Farming Guide nested state, rendered WPF smoke, packaging and release paths;
+- hardened `FarmingGuidePresetStore` so syntactically valid but semantically partial/null state is normalized while salvageable presets/equipment/stored items are preserved;
+- added deterministic partial Farming Guide state load/save/reload regression coverage;
+- hardened opportunistic startup content-schema refresh against stale async continuation across profile/game-mode changes by pinning and revalidating `ProfileId + GameMode`;
+- added maintenance regression coverage for those profile identity guards;
+- found and corrected the missing `docs/RELEASE_NOTES_V1.16.1.md` through the release-identity gate before publication;
+- completed PR, exact-main, published EXE Product UI/Map/graceful-shutdown, Shutdown Race, package/checksum and public release verification;
+- recorded exact public release/tag/asset/action evidence in canonical project memory.
 
-## Current step
+The maintenance audit did not reproduce another user-visible UI defect strongly enough to justify speculative layout or behavior changes. Explicit minimum-main-window containment remains a possible future verification improvement if real evidence warrants it.
 
-Validate the current PR #276 head after this checkpoint-only commit, then merge only if CI, Shutdown Race, and Documentation Consistency are green.
+## Validation
 
-## Remaining
+```text
+validated PR head:
+7d7cf002aa4f1d61c891b340ff73c56781655d64
+PR CI / Shutdown / Docs:
+33589038565 / 33589038575 / 33589038576 — SUCCESS
 
-- Confirm PR #276 final head: 612 deterministic tests, Windows publish, Product UI/Map/graceful-shutdown smoke, package/checksum, Shutdown Race, Documentation Consistency.
-- Merge PR #276 to main and verify exact-main CI / Shutdown Race / Documentation Consistency.
-- Verify the automatic v1.16.1 release workflow, tag, source target, `Junhyun-Helper.zip`, checksum asset, sizes, and hashes.
-- Update `PROJECT_STATE`, `CURRENT_STATE`, `STATE`, README/release notes as required using real release metadata.
-- Close `ACTIVE_WORK` to `NONE` only after public release and documentation are exact and verified.
+exact product source:
+7fb148434d22fac823d57d88021f9615081c47cd
+exact-main CI / Shutdown / Docs:
+33589274983 / 33589275133 / 33589275021 — SUCCESS
+Release workflow: 33589497077 — SUCCESS
+612 passed / 0 failed / 0 skipped
+
+public release: v1.16.1
+release id: 380969416
+published UTC: 2026-09-02T04:06:31Z
+Junhyun-Helper.zip:
+80,717,818 bytes
+8599645a2d0a38c6b74f4f79cab71120b26e378da254a98605610f1c7493b3c3
+```
+
+Public v1.16.1 release/tag/assets were verified against the exact product source. The Release workflow re-downloaded the exact-main artifact with digest verification and independently matched the checksum manifest to the actual release ZIP hash before publication.
+
+Actual user-PC/Tarkov real-play validation remains separately `PENDING` and does not change the verified public stable identity.
