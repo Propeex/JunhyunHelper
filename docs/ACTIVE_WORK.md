@@ -16,7 +16,8 @@ exact v1.16.3 product source/tag target: 89fae2e07b721b1dfd4922642412fcebf01b275
 base main: eecaf1c772a17ec5c7c000d3c66f02b6b59c6770
 branch: fix/v1.16.4-farming-guide-locked-item-position-2026-09-02
 target version: v1.16.4 PATCH
-PR: #284 (draft)
+PR: #285 (ready/non-draft)
+replaced draft PR: #284 (closed unmerged because connector ready-for-review mutation is broken)
 ```
 
 ## Confirmed scope
@@ -42,27 +43,28 @@ v1.16.3 deliberately changed exact-item lock semantics to identity preservation 
 - Added final fail-closed validation of exact storage kind/grid/X/Y/rotation/parent/quantity, ancestor placement, and root carrier identity for every locked stored item.
 - Routed live raid advice through the v1.16.4 planning, transition and final-safety path.
 - Replaced the obsolete published lock-movement expectation with v1.16.4 smoke coverage for the user-observed secure-container case, general repacking, final safety and root-carrier replacement.
-- Opened draft PR #284 for integrated validation.
 - Corrected the canonical v1.16 Farming Guide decision document so item lock now means automatic position lock; the earlier identity-only interpretation is explicitly historical and superseded.
-- Pre-release-identity hotfix head `39b04f450ad58f5f52f05520df54faad9dabe6b8` passed:
-  - CI `33622167893` — SUCCESS;
+- Release identity is aligned to v1.16.4: Desktop version, FIRST_RUN and `docs/RELEASE_NOTES_V1.16.4.md`; `PROJECT_STATE.product.desktopVersion` is 1.16.4 while public stable remains v1.16.3 until publication.
+- Fully versioned candidate head `3fb8093dd090041d71f2ff790bffe54b3e21bf2e` passed:
+  - CI `33622697275` — SUCCESS;
   - 623 passed / 0 failed / 0 skipped;
   - Windows x64 self-contained publish — SUCCESS;
   - actual published EXE Product UI / Map / Farming Guide decision smoke — SUCCESS;
   - graceful shutdown / package-checksum path — SUCCESS;
-  - Shutdown Race `33622167954` — SUCCESS;
-  - Documentation Consistency `33622167900` — SUCCESS.
-- Release identity alignment has started: Desktop version and FIRST_RUN are v1.16.4, `docs/RELEASE_NOTES_V1.16.4.md` exists, and `PROJECT_STATE.product.desktopVersion` is 1.16.4 while public stable correctly remains v1.16.3 until publication.
+  - Actions artifact `JunhyunHelper-win-x64` id `9843624373`, bytes `242151605`, digest `sha256:4fd9a019ead0698c9556599438106e4e715e7b371ef04adbba198d1580c3f815`;
+  - Shutdown Race `33622697267` — SUCCESS;
+  - Documentation Consistency `33622697269` — SUCCESS.
+- Draft PR #284 was closed unmerged after the connector's ready-for-review mutation failed on removed GitHub GraphQL field `fullDatabaseId`; replacement non-draft PR #285 uses the same validated branch.
 
 ## Current step
 
-Validate the fully versioned v1.16.4 PR candidate. Fix any product, smoke, release-identity or documentation failure rather than bypassing validation.
+Obtain green checks on the final PR #285 head, merge it, then treat the resulting main merge commit as the v1.16.4 exact product source candidate.
 
 ## Remaining
 
-- obtain a fully green versioned PR #284 candidate and record its exact head/run evidence;
-- mark PR ready and merge after required checks are green;
-- revalidate the exact main product source with CI, Shutdown Race and Documentation Consistency;
+- obtain fully green PR #285 checks and record exact final head/run evidence;
+- merge PR #285;
+- revalidate exact main with CI, Shutdown Race and Documentation Consistency;
 - publish v1.16.4 from exact-main and verify public tag, release, ZIP, checksum and immutable source identity;
 - update `PROJECT_STATE.json`, README, CURRENT_STATE, STATE, release notes and release-status evidence to the actual public release;
 - close ACTIVE_WORK to NONE only after implementation, validation, merge, release and canonical documentation are complete.
