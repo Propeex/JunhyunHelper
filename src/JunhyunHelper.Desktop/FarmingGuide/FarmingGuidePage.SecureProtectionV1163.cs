@@ -99,8 +99,6 @@ public partial class FarmingGuidePage
                 existing,
                 stored.Rotated);
             var rawOptions = BuildRepackingOptions(existing, current.StoredItems).ToArray();
-            var locked = IsInsideLockedItemInSnapshot(stored.InstanceId, current.StoredItems) ||
-                         SubtreeContainsLockedItemInSnapshot(stored.InstanceId, current.StoredItems);
             var currentlySecure = IsStoredInSecureRootV1163(stored, current.StoredItems);
             var hasChildren = current.StoredItems.Any(value =>
                 string.Equals(value.ParentInstanceId, stored.InstanceId, StringComparison.Ordinal));
@@ -109,14 +107,17 @@ public partial class FarmingGuidePage
             if (currentlySecure)
             {
                 var existingMetrics = MetricsForStoredSecurePriorityV1163(stored, existing);
-                var mayLoseProtection = !locked &&
-                    !hasChildren &&
+                var mayLoseProtection = !hasChildren &&
                     FarmingGuideLootPriorityPolicy.Compare(incomingMetrics, existingMetrics) > 0;
 
                 // Equal/higher-priority secure contents may still slide/repack inside the
                 // protected root, but can never be demoted outside it. A populated nested
                 // carrier is likewise kept in the secure root because parent-only pricing
                 // cannot safely value all descendants.
+                //
+                // Exact item locks deliberately do not make an item immovable here. The
+                // lock contract protects identity from automated removal/replacement; this
+                // pass is non-destructive and preserves the same instance id while moving.
                 options = mayLoseProtection
                     ? rawOptions
                     : rawOptions.Where(option => secureSurfaceIds.Contains(option.SurfaceId)).ToArray();
@@ -129,7 +130,7 @@ public partial class FarmingGuidePage
                 options = rawOptions.Where(option => !secureSurfaceIds.Contains(option.SurfaceId)).ToArray();
             }
 
-            var movable = !locked && options.Count > 0;
+            var movable = options.Count > 0;
             coreItems.Add(new FarmingGuideRepackingItem(
                 stored.InstanceId,
                 currentSurfaceId,
@@ -201,11 +202,10 @@ public partial class FarmingGuidePage
                 continue;
             }
 
-            // A secure -> ordinary move is permitted only for an unlocked leaf whose
-            // deterministic priority is strictly lower than the incoming item.
-            if (IsInsideLockedItemInSnapshot(before.InstanceId, current.StoredItems) ||
-                SubtreeContainsLockedItemInSnapshot(before.InstanceId, current.StoredItems) ||
-                current.StoredItems.Any(value =>
+            // A secure -> ordinary move is permitted only for a leaf whose deterministic
+            // priority is strictly lower than the incoming item. Item lock is intentionally
+            // not a location lock; the same locked instance survives the move.
+            if (current.StoredItems.Any(value =>
                     string.Equals(value.ParentInstanceId, before.InstanceId, StringComparison.Ordinal)))
             {
                 return false;
