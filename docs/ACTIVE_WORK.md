@@ -28,35 +28,53 @@ PR: #279
 ## Completed
 
 - recovered v1.16.1 canonical state from official project memory and created the v1.16.2 maintenance branch;
-- reproduced the missing-value root cause: the summary still hard-coded `ValueSummaryText.Text = "—"`;
+- reproduced the missing-value root cause: the summary hard-coded `ValueSummaryText.Text = "—"` instead of evaluating raid state;
 - reproduced the reserved-cell visual root cause: reservation overlays used Z-index 50 while placed item cards use the default Z-index 0;
 - added `FarmingGuideRaidValuePolicy` using recursive net-acquired inventory deltas and average Flea Market prices;
 - wired active-raid value presentation to raid baseline + live `BuildSnapshot()` state, remembering scanned Flea prices with bridge resolution as fallback;
 - moved the reserved-cell marker behind placed item cards without changing reservation/manual-drag semantics;
-- added deterministic value-policy tests for baseline exclusion, stack quantity, lost baseline items, discarded loot, nested assembly contents and unknown/non-positive prices;
+- added deterministic value-policy tests for baseline exclusion, stack quantity, lost baseline items, discarded loot, nested inventory and unknown/non-positive prices;
 - added source contract coverage for the two corrected UI contracts;
 - added published WPF product smoke that renders the farmed value and directly asserts reservation-marker Z-index remains below the placed item card;
-- opened PR #279 for continuous CI while the broader Farming Guide audit continues.
+- completed focused review of rulebook priority, destructive victim-set comparison, equipment/carrier representative superiority, protected locks/reservations, nested repacking, quantity, weight, persistence and Scanner bridge state; no additional reproducible rulebook defect requiring behavior change was found;
+- verified the pre-version implementation candidate on head `f3639cc9295c0d3f1eb3070061bd4251ac30a515`: CI `33594845425` SUCCESS including build, deterministic tests, Windows publish, published Product UI/Map/Farming Guide/graceful-shutdown smoke, package/checksum and artifact upload; Shutdown Race `33594845418` SUCCESS; Documentation Consistency `33594845407` SUCCESS;
+- raised desktop version to 1.16.2 while preserving the project-file diff as version-only;
+- diagnosed the first versioned candidate failure on head `9156382c0007abaa89ee16ee279aec6394ee4d59` as release-identity only: build succeeded, but `FIRST_RUN_KO.txt` still identified v1.16.1 and project-memory desktopVersion still identified v1.16.1;
+- aligned `FIRST_RUN_KO.txt`, `docs/PROJECT_STATE.json` candidate desktopVersion and deterministic test count with v1.16.2;
+- added `docs/RELEASE_NOTES_V1.16.2.md` with the two root-cause fixes and Farming Guide audit contract.
 
 ## Current step
 
-Run the implementation validation while completing the focused Farming Guide rulebook/state audit. Correct any deterministic or published-WPF regression before versioning the release candidate.
+Validate the fully version-aligned v1.16.2 PR candidate. If all PR gates are green, merge PR #279, revalidate exact-main, then publish and verify the public v1.16.2 release before closing project memory.
 
 ## Validation status
 
-Initial PR validation on head `5d7adabbdab35053b8e1ddd24fbb14f7bd4263b3`:
+Historical checkpoint-format failures:
 
-- Documentation Consistency `33594717790`: FAILED because the first active checkpoint was missing the mandatory `## Confirmed scope` section.
-- Subsequent Documentation Consistency `33594792044`: FAILED because the checkpoint used `## Implemented so far` instead of the mandatory `## Completed` heading.
-- These are checkpoint-format failures only; this commit aligns the active checkpoint with the repository's exact required headings.
-- CI / Shutdown Race remain under validation on the current branch.
+- Documentation Consistency `33594717790`: FAILED because `## Confirmed scope` was missing.
+- Documentation Consistency `33594792044`: FAILED because `## Completed` was not using the mandatory heading.
+- Both were documentation checkpoint-format failures only and were corrected.
+
+Green pre-version implementation validation:
+
+- CI `33594845425`: SUCCESS.
+- Shutdown Race `33594845418`: SUCCESS.
+- Documentation Consistency `33594845407`: SUCCESS.
+- Deterministic tests at this stage: 619 total after the new Farming Guide regressions were added.
+- Windows publish + published EXE Product UI/Map/Farming Guide/graceful shutdown + package/checksum: SUCCESS.
+
+Expected version-identity gate on head `9156382c0007abaa89ee16ee279aec6394ee4d59`:
+
+- build: SUCCESS;
+- test suite: 618 passed / 1 failed; the only failure was `ReleaseIdentityTests.ProjectFirstRunAndReleaseNotesUseTheSameVersion` because FIRST_RUN still said v1.16.1;
+- Documentation Consistency also failed because candidate `PROJECT_STATE.product.desktopVersion` had not yet been raised to 1.16.2;
+- those identity inputs are now aligned on the current candidate.
 
 ## Remaining
 
-- finish focused Farming Guide logic/state/weight/quantity/persistence audit;
-- resolve any implementation/CI findings;
-- update v1.16.2 version / first-run / release notes / project-state candidate facts;
-- obtain green PR CI, Shutdown Race and Documentation Consistency including published Product UI/Map/Farming Guide/graceful-shutdown smoke and package/checksum validation;
-- merge, validate exact-main, publish and verify immutable v1.16.2 assets;
-- finalize README/CURRENT_STATE/STATE/PROJECT_STATE/release evidence;
+- obtain green PR CI, Shutdown Race and Documentation Consistency on the fully version-aligned candidate;
+- inspect the final PR diff and merge PR #279;
+- validate exact-main CI, Shutdown Race and Documentation Consistency including published Product UI/Map/Farming Guide/graceful-shutdown smoke and package/checksum validation;
+- run the automatic release flow for v1.16.2 and verify exact tag target, release metadata, ZIP/checksum assets and SHA-256 digests;
+- finalize README/CURRENT_STATE/STATE/PROJECT_STATE/release notes/release evidence with immutable public facts;
 - close `ACTIVE_WORK` to `NONE`.
