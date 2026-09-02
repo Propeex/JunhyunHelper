@@ -62,11 +62,33 @@ public partial class FarmingGuidePage
     private FarmingGuideLootMetrics MetricsForStoredV1163(
         FarmingGuideStoredItemState stored,
         GameItem item) =>
-        MetricsForExisting(item) with
+        MetricsForExistingRulebookV1163(item) with
         {
             Quantity = stored.NormalizedQuantity,
             UnitWeightKg = item.WeightKg,
         };
+
+    /// <summary>
+    /// Existing loot uses the same FIR-only special-priority contract as incoming loot.
+    /// Scanner's general CurrentNeeded value is presentation truth for the Items feature;
+    /// Farming Guide must not reinterpret a non-FIR requirement as protected FIR loot.
+    /// </summary>
+    private FarmingGuideLootMetrics MetricsForExistingRulebookV1163(GameItem item)
+    {
+        var snapshot = _raidBridge?.ResolveSnapshot(item.Id);
+        if (snapshot is not null)
+        {
+            var accepted = _acceptedRaidItemCounts.GetValueOrDefault(snapshot.ItemId);
+            return new FarmingGuideLootMetrics(
+                Math.Max(0, snapshot.CurrentNeededFir - accepted),
+                snapshot.TraderSellPrice,
+                snapshot.FleaAveragePrice,
+                Math.Max(1, snapshot.Slots));
+        }
+
+        var slots = Math.Max(1, (item.Width ?? 1) * (item.Height ?? 1));
+        return new FarmingGuideLootMetrics(0, item.BasePrice, null, slots);
+    }
 
     private bool PreservesExplicitLocksV1163(
         FarmingGuideLoadoutSnapshot current,
