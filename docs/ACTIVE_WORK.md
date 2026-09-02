@@ -12,7 +12,8 @@ Perform a repository-backed **v1.16.1 product quality / maintenance pass** over 
 base main: 14c8c6c2d7edc3ca248490af843b6fb5749ec41a
 public stable: v1.16.0
 working branch: maintenance/v1.16.1-product-quality-pass-2026-09-02
-PR: #275 (draft)
+current PR: #276
+superseded PR: #275 (closed unmerged; Draft→Ready connector mutation incompatible with current GitHub GraphQL schema)
 ```
 
 ## Confirmed scope
@@ -35,18 +36,20 @@ PR: #275 (draft)
 - Reviewed Scanner UI-state/settings, Map/MiniMap settings/window-state, atomic storage, content activation, image cache, updater, service ownership/disposal, and published WPF smoke coverage; no further concrete defect justified speculative behavior/layout changes.
 - Initial implementation validation passed end-to-end: Documentation Consistency `33587976453`, CI `33587976468`, Shutdown Race `33587976484` all succeeded, including published EXE Product UI + Map + graceful shutdown and package verification.
 - Bumped the PATCH target to `1.16.1`, updated package identity, and kept `publicStable` at v1.16.0 until an actual v1.16.1 release exists.
-- Final versioned candidate run `33588318252` failed only in `ReleaseIdentityTests.ProjectFirstRunAndReleaseNotesUseTheSameVersion`: `docs/RELEASE_NOTES_V1.16.1.md` was missing. Build succeeded and the remaining test result was 611 passed / 1 failed / 0 skipped. Shutdown Race `33588318203` and Documentation Consistency `33588318166` succeeded.
-- Added `docs/RELEASE_NOTES_V1.16.1.md` with the actual maintenance scope and 612-test release target.
+- Versioned candidate `33588318252` found one release metadata omission: `docs/RELEASE_NOTES_V1.16.1.md` was missing. Build and 611 other tests passed; Shutdown Race `33588318203` and Documentation Consistency `33588318166` passed.
+- Added `docs/RELEASE_NOTES_V1.16.1.md`.
+- Corrected head `f037687346195eb02fc06088ca46d46e3d4d3bae` passed CI `33588730993`, Shutdown Race `33588731048`, Documentation Consistency `33588730995`: 612 tests, Windows publish, published EXE Product UI + Map + graceful shutdown, package/checksum verification, artifact upload all succeeded.
+- PR #275 could not be transitioned from Draft by the connected GitHub tool because its GraphQL response selection references a removed GitHub field. REST correctly refused to merge a Draft PR. #275 was closed unmerged; the validated branch was not changed.
+- Opened normal PR #276 from the same branch/base so standard merge flow can continue without product-code workaround.
 
 ## Current step
 
-Validate the corrected release-ready PR head end-to-end, then mark PR #275 ready and merge only if CI, Shutdown Race, and Documentation Consistency are all green.
+Validate the current PR #276 head after this checkpoint-only commit, then merge only if CI, Shutdown Race, and Documentation Consistency are green.
 
 ## Remaining
 
-- Confirm corrected PR head: 612 deterministic tests, Windows publish, Product UI/Map/graceful-shutdown smoke, package/checksum, Shutdown Race, Documentation Consistency.
-- Review final diff and mark PR #275 ready.
-- Merge to main and verify exact-main CI / Shutdown Race / Documentation Consistency.
+- Confirm PR #276 final head: 612 deterministic tests, Windows publish, Product UI/Map/graceful-shutdown smoke, package/checksum, Shutdown Race, Documentation Consistency.
+- Merge PR #276 to main and verify exact-main CI / Shutdown Race / Documentation Consistency.
 - Verify the automatic v1.16.1 release workflow, tag, source target, `Junhyun-Helper.zip`, checksum asset, sizes, and hashes.
 - Update `PROJECT_STATE`, `CURRENT_STATE`, `STATE`, README/release notes as required using real release metadata.
 - Close `ACTIVE_WORK` to `NONE` only after public release and documentation are exact and verified.
