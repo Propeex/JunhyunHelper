@@ -3,24 +3,24 @@
 > 복구 순서는 `AGENTS.md` → `docs/PROJECT_STATE.json` → `docs/ACTIVE_WORK.md`입니다. 기계 판독 가능한 현재 사실값은 `docs/PROJECT_STATE.json`이 기준입니다.
 
 기준일: **2026-09-02 KST**  
-상태: **v1.16.3 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+상태: **v1.16.4 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 1. 공개 제품 상태
 
 ```text
-public stable: v1.16.3
+public stable: v1.16.4
 exact product source/tag target:
-89fae2e07b721b1dfd4922642412fcebf01b275d
+5886d8f97abd060d398d4c50d3dd3b720e4ace09
 validated PR head:
-1c223a696e896e1af2ec1c35ec727eb3c70aa44d
-merge PR: #282
+d55e138c962e87dc8691f82c81d36a516db52941
+merge PR: #285
 PR CI / Shutdown / Docs:
-33618363995 / 33618364028 / 33618363996 — SUCCESS
+33623459284 / 33623459290 / 33623459267 — SUCCESS
 exact-main CI / Shutdown / Docs:
-33618724736 / 33618724737 / 33618725069 — SUCCESS
-Release workflow: 33619033186 — SUCCESS
-release id: 381157194
-published UTC: 2026-09-02T10:21:57Z
+33623824030 / 33623824052 / 33623824027 — SUCCESS
+Release workflow: 33624248788 — SUCCESS
+release id: 381192920
+published UTC: 2026-09-02T11:22:47Z
 623 passed / 0 failed / 0 skipped
 ```
 
@@ -28,83 +28,95 @@ Public release:
 
 ```text
 Junhyun-Helper.zip
-asset id: 541000063
-bytes: 80,735,580
-SHA-256: eabc7c162ea583f138fbeb3bd2567145bc28c6f305bde20e049175c56580f657
+asset id: 541072599
+bytes: 80,738,891
+SHA-256: 2ceddbd3cc805bc8de2cdb5eddcef72c2001a6724a43ec7fdd993781af649fb4
 
 SHA256SUMS.txt
-asset id: 541000067
+asset id: 541072598
 bytes: 86
-asset SHA-256: c25ad9cb116c53143f1aece1a5035313d0a1176acff5b71c6366ea297d69dae5
+asset SHA-256: 2a07506d6c84048940a35beb7aa637de9e27dd51bea25600a9b62a5a93f6017f
 ```
 
 Exact-main Actions artifact:
 
 ```text
 JunhyunHelper-win-x64
-artifact id: 9842117423
-bytes: 242,138,760
-SHA-256: cda8d29a6dfa3499df8ba23522ed7faeb11475e726c6b8ed66566bb29eda55eb
+artifact id: 9844117414
+bytes: 242,151,516
+SHA-256: f2aea11845611012d26bc135f8d6386200ea5007382d441b652ef6d1b3f86477
 ```
 
-Release workflow checked out exact product source `89fae2e07b721b1dfd4922642412fcebf01b275d`, downloaded exact-main artifact `9842117423` with expected digest verification, verified ProductVersion/FIRST_RUN identity, and published only after the actual ZIP hash exactly matched `SHA256SUMS.txt`. `v1.16.3` is not draft or prerelease.
+Release workflow `33624248788` checked out exact product source `5886d8f97abd060d398d4c50d3dd3b720e4ace09`, downloaded exact-main artifact `9844117414` with expected digest verification, verified ProductVersion/FIRST_RUN identity, independently matched the actual release ZIP hash to `SHA256SUMS.txt`, and then published stable `v1.16.4`. The release is not draft or prerelease.
 
-The draft validation PR #281 was closed unmerged only because the connected GitHub ready-for-review GraphQL path referenced the removed `Repository.fullDatabaseId` field. Non-draft PR #282 reused the exact same validated branch/head, passed its own complete validation, and is the authoritative merge PR.
+Draft PR #284 was closed unmerged only because the connected GitHub ready-for-review GraphQL path referenced removed `Repository.fullDatabaseId`. Non-draft PR #285 reused the same branch, received complete independent validation, and is the authoritative merge PR.
 
-## 2. v1.16.3 Farming Guide decision-safety maintenance
+## 2. v1.16.4 exact item lock contract
 
-The v1.16 deterministic contract remains:
+The v1.16 deterministic decision flow remains:
 
 ```text
 hard constraints
 → priority / importance
 → applicable situation response
 → legal proposed state
+→ final fail-closed safety
 → explicit user accept
 ```
 
 No weighted score was introduced.
 
-### Secure-container promotion before ordinary free storage
+### Root cause of the v1.16.3 regression
 
-The historical page path could accept the first ordinary free pocket/rig/backpack placement before evaluating whether a secure-container-eligible high-value item should replace lower-priority removable secure contents.
+v1.16.3 interpreted an exact stored-item lock as identity preservation: a recommendation could move the item as long as the same `InstanceId` survived. That interpretation was encoded in secure-container promotion, general repacking/carrier migration and the then-current published smoke.
 
-v1.16.3 adds a non-destructive secure-protection pass before ordinary free storage:
+Real play exposed the mismatch: while evaluating a scanned Wires item, Farming Guide instructed moving a locked Grizzly emergency kit. The intended product meaning is stronger—an explicitly locked stored item is position-locked for automatic advice.
 
-- incoming must be legal for a secure surface according to source-backed storage filters;
-- only strictly lower-priority safe leaf contents may be demoted;
-- demoted contents must be preserved in other legal free storage rather than discarded;
-- locked contents, equal/higher-priority contents and storage-bearing parents are not casually displaced;
-- if promotion cannot be proven legal and beneficial, the planner falls through to the ordinary placement/destructive rules.
+### Current authoritative behavior
+
+For every exact locked stored item, automatic advice must preserve:
+
+- exact `InstanceId` and item identity;
+- storage kind;
+- grid index;
+- X/Y coordinates;
+- rotation;
+- `ParentInstanceId`;
+- quantity;
+- placement of stored ancestors whose movement would indirectly move it;
+- identity of the root Rig / Backpack / SecureContainer that contains it.
+
+Therefore automatic advice cannot discard, replace, relocate, rotate, re-parent or indirectly move the locked instance.
+
+Manual user editing remains authoritative and is not blocked by this recommendation constraint.
+
+### Lock-aware planning and repacking
+
+v1.16.4 applies the position contract throughout the automatic planning stack rather than relying on presentation-only filtering.
+
+- Secure-container promotion is rejected when promotion requires relocating a locked existing item.
+- General repacking treats an exact locked item as a hard geometry obstacle.
+- A stored ancestor containing a locked descendant is also immovable when moving that ancestor would move the descendant.
+- Carrier upgrade/migration is rejected when it cannot preserve the locked descendant's real physical placement and containing root carrier identity.
+- The final safety boundary independently checks exact placement again and fails closed if an earlier planner produces an invalid proposal.
+
+A lock on an equipped Rig / Backpack / SecureContainer still protects that carrier root from automatic replacement without disabling its legal internal storage. Independently unlocked contents and legal free cells inside the locked carrier remain usable. Reserved cells retain their separate automatic-placement prohibition.
+
+## 3. Retained v1.16.3 secure-container and destructive safety
+
+v1.16.4 preserves all compatible v1.16.3 decision-safety improvements.
+
+### Secure-container promotion
+
+Secure-container-eligible high-value incoming loot is considered for non-destructive secure promotion before ordinary free storage. Lower-priority secure contents may be demoted only when they can be preserved in other legal storage and no lock/reservation/tactical constraint is violated. v1.16.4 adds exact-position lock preservation to this gate.
 
 ### Quantity-aware destructive economics
 
-Stored stacks now use actual `Quantity` in destructive value and weight metrics. A 60-round ammunition stack is not evaluated as one round.
+Stored stack `Quantity` is reflected in destructive value and weight. Multi-victim eviction performs a bounded deterministic subset search rather than considering only sorted prefixes. Incoming total average-Flea value must remain strictly greater than the complete actual sacrificed set.
 
-Multi-victim eviction no longer checks only sorted prefixes. A bounded deterministic subset search evaluates actual candidate combinations so an irrelevant cheap victim cannot force unnecessary loss or mask a valid lower-loss geometric solution.
+### Tactical resource protection
 
-The existing economic contract remains: incoming total average-Flea value must be strictly greater than the complete actual sacrificed set.
-
-### Lock semantics and carrier storage
-
-A lock protects an item instance/root from automatic deletion or replacement; it does not convert the carrier's internal storage into unusable space.
-
-- locked rig/backpack/secure-container roots remain equipped/protected;
-- their legal internal storage remains available to packing/repacking;
-- a locked stored item may move if the same exact `InstanceId` survives the proposed state;
-- destructive loss or substitution of a locked instance remains forbidden.
-
-Reserved cells continue to block automatic placement. Carrier replacement continues to fail closed unless locked instances and equivalent reserved connected shape/capacity can be preserved legally.
-
-### Expanded pocket geometry
-
-All applicable v1.16.3 transition/repacking paths use the page's active resolved pocket grids. Profiles with expanded pockets therefore use their real modeled geometry instead of historical standard-pocket assumptions.
-
-## 3. Tactical resource protection
-
-The Farming Guide now retains source-backed tactical facts needed to distinguish raid survival resources without localized-name inference.
-
-Content facts added in schema v12:
+Content schema v12 retains source-backed facts required to identify raid survival resources without localized-name inference:
 
 - `Energy`
 - `Hydration`
@@ -112,70 +124,54 @@ Content facts added in schema v12:
 - `WeaponCaliber`
 - `AllowedAmmoItemIds`
 
-Automatic destructive recommendations preserve:
+Automatic destructive advice preserves the minimum modeled food provider, minimum modeled drink provider, and loose ammunition compatible with currently carried PrimaryWeapon1 / PrimaryWeapon2 / Holster weapons.
 
-- the minimum modeled food provider;
-- the minimum modeled drink provider;
-- loose ammunition compatible with the currently carried PrimaryWeapon1, PrimaryWeapon2 or Holster weapon set.
+### FIR priority consistency
 
-Compatibility uses source caliber/allowed-ammo relationships rather than text matching.
+Special needed priority applies only to actual Found-in-Raid requirements (`CurrentNeededFir`). General non-FIR need remains ordinary economic loot.
 
-## 4. FIR priority consistency
+### Expanded pockets / reservations
 
-Special needed priority applies only to actual Found-in-Raid requirements.
+Transition and repacking paths use the active profile's resolved pocket geometry. Reserved cells continue to block automatic placement. They do not become item locks and their behavior is unchanged by v1.16.4.
 
-v1.16.3 applies this consistently to existing loot as well as incoming loot by using `CurrentNeededFir` for the special protected boundary. General non-FIR need remains ordinary economic loot and does not gain an unintended absolute priority.
+## 4. Final fail-closed recommendation boundary
 
-## 5. Final fail-closed recommendation boundary
+Before recommendation exposure, cross-cutting safety validation covers:
 
-Before a destructive recommendation is exposed, the proposed state is revalidated against cross-cutting contracts:
-
-- explicit equipment/carrier/item locks;
-- protected exact item identity;
+- equipment/carrier locks;
+- exact stored-item position locks and indirect ancestor/root-carrier movement;
+- reserved/protected state;
 - minimum food/drink retention;
-- current-weapon compatible loose ammunition retention;
-- interpretable complete removed-victim set;
-- actual quantity-aware total sacrificed average-Flea value;
-- modeled carry-weight limit.
+- current-weapon compatible loose-ammunition retention;
+- complete removed-victim interpretation;
+- quantity-aware sacrificed average-Flea value;
+- modeled carry-weight constraint.
 
-If the planner cannot prove the destructive transition is safe and legal, it fails closed and does not expose the destructive advice.
+If legality cannot be proven, the planner retains the current state rather than presenting unsafe advice.
 
-## 6. MiniMap smoke stabilization
+## 5. Scanner / persistence / prior contracts
 
-The intermittent Player Marker Size smoke failure was investigated separately from the Farming Guide changes.
+Scanner remains the owner of confirmed scan facts; Farming Guide owns modeled inventory decisions. Quantity prompt, explicit accept transaction, Mini Scanner lifecycle, nested source-backed storage, state schema v3, persistence normalization/recovery, and Strength-based carry limits remain unchanged except where v1.16.4 strengthens lock safety.
 
-Product code was confirmed to update only the player marker. The failure occurred when the test compared a transient standard-marker visual instance during asynchronous donor-marker recreation.
+The v1.16.2 farmed-value and reserved-overlay fixes remain active. The v1.16.3 MiniMap Player Marker Size smoke stabilization remains test-only stabilization; no user-facing marker-size behavior changed.
 
-The smoke now verifies the independent Player Marker Size setting and waits with a bounded convergence condition before comparing standard-marker rendering. No user-facing MiniMap marker-size behavior was changed.
+## 6. v1.16.4 regression coverage
 
-## 7. Persistence / Scanner bridge / prior contracts
+The published-EXE Farming Guide decision smoke now executes the user-reported lock class through the actual WPF/page/planner boundary. It verifies at least:
 
-Existing v1.16.1 persistence normalization and recovery remain active. Scanner remains the owner of confirmed scan facts; Farming Guide owns modeled inventory decisions. Quantity prompt, explicit accept transaction, Mini Scanner lifecycle, nested source-backed storage and Strength-based carry limits remain unchanged except where the v1.16.3 safety rules above explicitly strengthen validation.
+1. secure-container recommendation does not move an explicitly locked existing item when ordinary legal storage exists;
+2. general repacking does not move a locked blocker;
+3. final safety rejects a proposal that changes locked placement;
+4. root carrier replacement does not indirectly move a locked descendant;
+5. locked carrier internal legal storage remains usable;
+6. prior secure promotion, expanded pockets, stack total value, bounded victim selection, food/drink reserve, current-weapon ammunition reserve and FIR-only priority continue to work.
 
-The v1.16.2 farmed-value and reserved-overlay fixes remain part of the current product contract.
+PR #285 and exact-main both passed Release build, **623/623 deterministic tests**, Windows x64 self-contained publish, actual published EXE Product UI / Map / Farming Guide decision smoke, graceful shutdown, clean portable-root checks, package/checksum verification, dedicated Shutdown Race and Documentation Consistency workflows.
 
-## 8. v1.16.3 regression coverage
-
-Deterministic/source tests cover the new tactical facts and schema-v12 import/round-trip/refresh path. The first schema-v12 candidate exposed two stale test assertions still expecting v11; those assertions were corrected rather than weakening current-schema validation.
-
-A dedicated published-EXE Farming Guide decision smoke executes synthetic raid states through the actual WPF/page/planner boundary for:
-
-1. secure promotion before free pocket;
-2. locked carrier internal storage;
-3. expanded pocket geometry;
-4. stored stack total value;
-5. non-prefix geometric victim selection;
-6. final food/drink reserve protection;
-7. current-weapon compatible ammo reserve;
-8. safe movement of a locked exact item instance;
-9. general non-FIR need versus true FIR need semantics.
-
-Exact-main CI passed **623/623 tests**, Release build, Windows x64 self-contained publish, actual published EXE Product UI / Map / Farming Guide decision smoke, graceful shutdown, clean portable-root checks, package creation and checksum verification.
-
-## 9. Schema / canonical references
+## 7. Schema / canonical references
 
 ```text
-Desktop: 1.16.3
+Desktop: 1.16.4
 Content write/read: v12 / v3-v12
 user.db: v1
 Farming Guide state: v3
@@ -187,8 +183,9 @@ Map donor revision: d933792b6042a51cea38dc44b686a096fe30de67
 Canonical release evidence:
 
 - `docs/PROJECT_STATE.json`
-- `docs/.release-v1.16.3-status.json`
-- `docs/RELEASE_NOTES_V1.16.3.md`
+- `docs/.release-v1.16.4-status.json`
+- `docs/RELEASE_NOTES_V1.16.4.md`
 - `docs/CURRENT_STATE.md`
+- `docs/DECISION_FARMING_GUIDE_RULEBOOK_V1_16.md`
 
-Automated implementation, merge, exact-main and public release validation are complete. Actual Tarkov play validation on the user's own environment remains a separate `PENDING` evidence field and does not make v1.16.3 development or release incomplete.
+Automated implementation, merge, exact-main and public release validation are complete. Actual Tarkov play validation on the user's own environment remains a separate `PENDING` evidence field and does not make v1.16.4 development or release incomplete.

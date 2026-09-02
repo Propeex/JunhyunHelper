@@ -1,6 +1,6 @@
 # 준현 헬퍼 v1.16.4
 
-상태: **RELEASE CANDIDATE / NOT YET PUBLIC STABLE**  
+상태: **PUBLIC STABLE**  
 기준일: **2026-09-02 KST**
 
 v1.16.4는 v1.16.3에서 확인된 Farming Guide 잠금 아이템 위치 회귀를 수정하는 PATCH hotfix다.
@@ -79,4 +79,44 @@ published EXE Farming Guide decision smoke에 다음 경계를 추가했다.
 
 v1.16.3의 나머지 secure promotion, locked-carrier internal storage, expanded pockets, stack total value, victim subset, food/drink reserve, current-weapon ammo reserve, FIR-only need 검증은 그대로 유지한다.
 
-공개 stable은 실제 PR 검증·main 병합·exact-main 검증·공개 Release asset 검증이 완료되기 전까지 v1.16.3이다.
+## 공개 릴리즈 검증
+
+```text
+exact product source/tag target:
+5886d8f97abd060d398d4c50d3dd3b720e4ace09
+merge PR: #285
+validated PR head: d55e138c962e87dc8691f82c81d36a516db52941
+PR CI / Shutdown / Docs:
+33623459284 / 33623459290 / 33623459267 — SUCCESS
+exact-main CI / Shutdown / Docs:
+33623824030 / 33623824052 / 33623824027 — SUCCESS
+Release workflow: 33624248788 — SUCCESS
+623 passed / 0 failed / 0 skipped
+release id: 381192920
+published UTC: 2026-09-02T11:22:47Z
+```
+
+Exact-main Actions artifact:
+
+```text
+JunhyunHelper-win-x64
+id: 9844117414
+bytes: 242,151,516
+SHA-256: f2aea11845611012d26bc135f8d6386200ea5007382d441b652ef6d1b3f86477
+```
+
+Public assets:
+
+```text
+Junhyun-Helper.zip
+id: 541072599
+bytes: 80,738,891
+SHA-256: 2ceddbd3cc805bc8de2cdb5eddcef72c2001a6724a43ec7fdd993781af649fb4
+
+SHA256SUMS.txt
+id: 541072598
+bytes: 86
+asset SHA-256: 2a07506d6c84048940a35beb7aa637de9e27dd51bea25600a9b62a5a93f6017f
+```
+
+Release workflow는 exact-main commit을 checkout하고 해당 CI artifact를 digest 검증과 함께 다시 내려받은 뒤, ProductVersion/FIRST_RUN identity와 실제 ZIP의 SHA-256을 `SHA256SUMS.txt`에 대조한 후 stable release를 공개했다.
