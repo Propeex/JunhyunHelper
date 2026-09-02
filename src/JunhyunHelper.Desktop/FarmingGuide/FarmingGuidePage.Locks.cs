@@ -8,6 +8,8 @@ namespace JunhyunHelper.Desktop.FarmingGuide;
 
 public partial class FarmingGuidePage
 {
+    internal const int ReservedCellOverlayZIndex = -1;
+
     private readonly HashSet<FarmingGuideEquipmentSlot> _lockedEquipmentSlots = [];
     private readonly HashSet<FarmingGuideStorageKind> _lockedCarriers = [];
     private readonly HashSet<string> _lockedItemInstanceIds = new(StringComparer.Ordinal);
@@ -284,7 +286,10 @@ public partial class FarmingGuidePage
             };
             Canvas.SetLeft(overlay, cell.X * CellSize + 1);
             Canvas.SetTop(overlay, cell.Y * CellSize + 1);
-            Panel.SetZIndex(overlay, 50);
+            // Reserved cells are a background constraint marker, not a foreground mask.
+            // Manual placement into a reserved cell is intentionally allowed, so the item
+            // visual must remain above this overlay after the drop is committed.
+            Panel.SetZIndex(overlay, ReservedCellOverlayZIndex);
             canvas.Children.Add(overlay);
         }
     }
