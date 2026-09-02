@@ -71,7 +71,7 @@ Release evidence:
 
 ## v1.16.1 maintenance hardening
 
-v1.16.1 does not add a new user feature. It strengthens existing product-state recovery and asynchronous profile consistency while preserving the confirmed v1.16.0 Farming Guide behavior.
+v1.16.1 does not add a new user feature. It strengthens existing product-state recovery and asynchronous profile consistency while preserving the current Farming Guide contract introduced in v1.16.0.
 
 - `farming-guide.json` now safely normalizes syntactically valid but semantically partial/null state instead of allowing null collections or nested item state to fail later during load. Salvageable presets, equipment and stored items are preserved; structurally unusable entries are discarded.
 - persisted stack quantity, Strength settings, locks, fixed equipment, attachment and armor-plate subtrees are normalized within existing product contracts.
@@ -80,7 +80,7 @@ v1.16.1 does not add a new user feature. It strengthens existing product-state r
 - the maintenance pass also reviewed MainWindow lifecycle/update paths, Scanner settings/UI state, Map/MiniMap settings/window state, atomic storage/content activation, image cache, updater/service disposal and existing rendered WPF smoke coverage.
 - no additional reproduced UI defect justified speculative layout or behavior changes.
 
-## v1.16.0 Farming Guide
+## Farming Guide current contract — introduced in v1.16.0, retained in v1.16.1
 
 `파밍 가이드`는 raid-start Loadout / Inventory Editor와 Scanner 기반 raid-session advisor를 제공합니다. Tarkov 내부 inventory를 직접 읽거나 게임 입력을 자동화하지 않습니다.
 
