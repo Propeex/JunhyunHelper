@@ -4,7 +4,7 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 제품 상태
 
-현재 상태는 **v1.16.0 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
+현재 상태는 **v1.16.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
 
 공식 프로젝트 기억은 대화가 아니라 저장소의 문서·코드·테스트·GitHub 상태입니다.
 
@@ -18,56 +18,67 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 ## 현재 공개 릴리즈
 
 ```text
-version/tag: v1.16.0
+version/tag: v1.16.1
 exact product source/tag target:
-f1c00b0ac9ea0b70f81991d30be9a04128253d48
-validated PR head: bbc8dc25ec35ba24a64df00445b4454bbd7f66d8
-merge PR: #273 — MERGED
+7fb148434d22fac823d57d88021f9615081c47cd
+validated PR head: 7d7cf002aa4f1d61c891b340ff73c56781655d64
+merge PR: #276 — MERGED
 PR CI / Shutdown / Docs:
-33537853686 / 33537853397 / 33537853539 — SUCCESS
+33589038565 / 33589038575 / 33589038576 — SUCCESS
 exact-main CI / Shutdown / Docs:
-33538397901 / 33538397873 / 33538397904 — SUCCESS
-Release workflow: 33538760085 — SUCCESS
-release id: 380701728
-published UTC: 2026-09-01T17:37:02Z
-610 passed / 0 failed / 0 skipped
+33589274983 / 33589275133 / 33589275021 — SUCCESS
+Release workflow: 33589497077 — SUCCESS
+release id: 380969416
+published UTC: 2026-09-02T04:06:31Z
+612 passed / 0 failed / 0 skipped
 ```
 
 Public package:
 
 ```text
 Junhyun-Helper.zip
-asset id: 539905673
-bytes: 80,716,585
+asset id: 540589667
+bytes: 80,717,818
 SHA-256:
-db6a769bbe1d0213b7d5e1d59416b230f4c8387554d1d9c9354701c1da56e233
+8599645a2d0a38c6b74f4f79cab71120b26e378da254a98605610f1c7493b3c3
 
 SHA256SUMS.txt
-asset id: 539905674
+asset id: 540589668
 bytes: 86
 asset SHA-256:
-2d77327a477ac8df8701517890902622323b5b2d8b8c787de0b85ef8a71cd93f
+c78b0be06dbcf3f5239591d796f3b6a94299445e45157012ee122972cbfcaeee
 ```
 
 Exact-main Actions artifact:
 
 ```text
 JunhyunHelper-win-x64
-artifact id: 9812704124
-archive bytes: 242,082,062
+artifact id: 9831224038
+archive bytes: 242,086,160
 archive SHA-256:
-328e2d8a30803443d497f1a85a98b56e672cbdcd36e01d6573a13d580cf7fc49
+74435818344f94d6cd9d8fb918582dbdb3b047e789aa0f2f47c398facfbabd2a
 ```
 
-GitHub release `v1.16.0` targets `f1c00b0ac9ea0b70f81991d30be9a04128253d48`. The release is neither draft nor prerelease. Later documentation-only commits are not v1.16.0 product sources and may not replace these assets.
+GitHub release `v1.16.1` targets `7fb148434d22fac823d57d88021f9615081c47cd`. The release is neither draft nor prerelease. The Release workflow downloaded the exact-main artifact with digest verification, independently compared `SHA256SUMS.txt` against the actual release ZIP hash, and published only after they matched. Later documentation-only commits are not v1.16.1 product sources and may not replace these immutable stable assets.
 
 Release evidence:
 
-- `docs/.release-v1.16.0-status.json`
-- `docs/RELEASE_NOTES_V1.16.0.md`
-- `docs/DECISION_FARMING_GUIDE_RULEBOOK_V1_16.md`
+- `docs/.release-v1.16.1-status.json`
+- `docs/RELEASE_NOTES_V1.16.1.md`
 - `docs/PROJECT_STATE.json`
 - `docs/CURRENT_STATE.md`
+- `docs/STATE.md`
+
+## v1.16.1 maintenance hardening
+
+v1.16.1 does not add a new user feature. It strengthens existing product-state recovery and asynchronous profile consistency while preserving the confirmed v1.16.0 Farming Guide behavior.
+
+- `farming-guide.json` now safely normalizes syntactically valid but semantically partial/null state instead of allowing null collections or nested item state to fail later during load. Salvageable presets, equipment and stored items are preserved; structurally unusable entries are discarded.
+- persisted stack quantity, Strength settings, locks, fixed equipment, attachment and armor-plate subtrees are normalized within existing product contracts.
+- opportunistic startup content-schema migration now pins `ProfileId + GameMode` and rechecks the active profile after asynchronous boundaries so an old profile refresh cannot be applied to a newly selected profile.
+- deterministic regressions protect both recovery and stale-continuation behavior.
+- the maintenance pass also reviewed MainWindow lifecycle/update paths, Scanner settings/UI state, Map/MiniMap settings/window state, atomic storage/content activation, image cache, updater/service disposal and existing rendered WPF smoke coverage.
+- no additional reproduced UI defect justified speculative layout or behavior changes.
 
 ## v1.16.0 Farming Guide
 
@@ -114,7 +125,7 @@ Bare NumPad 0–5 직접 층 선택 기능은 제거했습니다. 기존 사용�
 ## 데이터 / 호환성
 
 ```text
-Desktop: 1.16.0
+Desktop: 1.16.1
 Game Content write/read: v11 / v3-v11
 Farming Guide state: v3
 Scanner display settings: v10
