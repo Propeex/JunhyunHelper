@@ -8,6 +8,7 @@ namespace JunhyunHelper.Desktop.FarmingGuide;
 public partial class FarmingGuidePage
 {
     private readonly Dictionary<string, int> _acceptedRaidItemCounts = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, int> _raidFleaAveragePrices = new(StringComparer.Ordinal);
 
     private FarmingGuideRaidBridge? _raidBridge;
     private FarmingGuideRaidSession? _raidSession;
@@ -46,13 +47,14 @@ public partial class FarmingGuidePage
         _raidSession = new FarmingGuideRaidSession(snapshot, locks);
         _raidStartSelectedPresetName = _selectedPresetName;
         _acceptedRaidItemCounts.Clear();
+        _raidFleaAveragePrices.Clear();
         _quantityPendingSnapshot = null;
         _plannedLocksOverrideV1160 = null;
         _raidBridge?.ResetScannerIdentity();
         CloseWorkbench();
         RefreshPresetChoices();
-        RefreshRaidUi();
         RefreshAll();
+        RefreshRaidUi();
     }
 
     private void EndRaid()
@@ -68,6 +70,7 @@ public partial class FarmingGuidePage
         _selectedPresetName = _raidStartSelectedPresetName;
         _raidStartSelectedPresetName = null;
         _acceptedRaidItemCounts.Clear();
+        _raidFleaAveragePrices.Clear();
         _quantityPendingSnapshot = null;
         _plannedLocksOverrideV1160 = null;
         _raidBridge?.ResetScannerIdentity();
@@ -82,6 +85,7 @@ public partial class FarmingGuidePage
         _raidSession = null;
         _raidStartSelectedPresetName = null;
         _acceptedRaidItemCounts.Clear();
+        _raidFleaAveragePrices.Clear();
         _quantityPendingSnapshot = null;
         _plannedLocksOverrideV1160 = null;
         _raidBridge?.ResetScannerIdentity();
@@ -102,6 +106,24 @@ public partial class FarmingGuidePage
                     ? pending.Instruction
                     : "레이드 진행 중 · 아이템을 스캔하세요."
             : string.Empty;
+        ValueSummaryText.Text = active ? FormatRaidValue() : "—";
+    }
+
+    private string FormatRaidValue()
+    {
+        if (_raidSession is null)
+            return "—";
+
+        var value = FarmingGuideRaidValuePolicy.CalculateAcquiredFleaValue(
+            _raidSession.BaselineSnapshot,
+            BuildSnapshot(),
+            itemId =>
+            {
+                if (_raidFleaAveragePrices.TryGetValue(itemId, out var remembered))
+                    return remembered;
+                return _raidBridge?.ResolveSnapshot(itemId)?.FleaAveragePrice;
+            });
+        return $"₽{value:N0}";
     }
 
     private void HandleScannedItem(ScannerItemSnapshot scanned)
@@ -124,6 +146,9 @@ public partial class FarmingGuidePage
             RefreshRaidUi();
             return;
         }
+
+        if (scanned.FleaAveragePrice is > 0)
+            _raidFleaAveragePrices[item.Id] = scanned.FleaAveragePrice.Value;
 
         if (FarmingGuideStackQuantityPolicy.RequiresQuantity(item))
         {
