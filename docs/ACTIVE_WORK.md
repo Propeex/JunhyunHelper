@@ -1,51 +1,47 @@
 # ACTIVE WORK
 
-Status: **NONE**
+Status: **ACTIVE**
 
-## Current task
+## Goal
 
-None.
+Prepare v1.16.4 PATCH hotfix for a user-reported Farming Guide regression in v1.16.3: an explicitly locked stored item can be included in an automatic movement/repacking instruction.
 
-## Stable baseline
+Observed real-play evidence: the Farming Guide instructed moving a locked Grizzly emergency kit while evaluating a scanned Wires item.
+
+## Base
 
 ```text
 public stable: v1.16.3
-exact product source/tag target:
-89fae2e07b721b1dfd4922642412fcebf01b275d
-merge PR: #282
-release id: 381157194
-published UTC: 2026-09-02T10:21:57Z
+exact v1.16.3 product source/tag target: 89fae2e07b721b1dfd4922642412fcebf01b275d
+base main: eecaf1c772a17ec5c7c000d3c66f02b6b59c6770
+branch: fix/v1.16.4-farming-guide-locked-item-position-2026-09-02
+target version: v1.16.4 PATCH
+PR: not opened yet
 ```
 
-## Completed v1.16.3 maintenance
+## Confirmed product contract
 
-- Farming Guide secure-container promotion is evaluated before ordinary free storage for legal high-value incoming loot.
-- Lower-priority removable secure contents are preserved through legal relocation when possible.
-- Locked carrier roots keep their usable internal storage; locked exact item identity remains protected while safe movement is allowed.
-- Destructive decisions use actual stack quantity and bounded deterministic victim-subset search.
-- Active expanded-pocket geometry is used through applicable transition/repacking paths.
-- Minimum modeled food/drink and source-backed current-weapon compatible loose ammunition are protected from automatic sacrifice.
-- Existing-loot special priority is limited to actual FIR need.
-- Final destructive recommendations fail closed across lock, tactical-resource, value and weight contracts.
-- Content write schema is v12 with v3-v12 readability.
-- MiniMap Player Marker Size smoke was stabilized around asynchronous donor-marker recreation without changing product behavior.
-- Dedicated published-EXE Farming Guide decision smoke covers nine synthetic real-raid decision boundaries.
+- An explicitly locked stored item is position-locked for automatic Farming Guide decisions.
+- Automatic advice must not discard, replace, relocate, rotate, re-parent, or otherwise change the storage placement of that exact locked item instance.
+- The user may still manually edit inventory state; the restriction applies to automatic Farming Guide recommendations.
+- Locking a carrier root still does not disable use of its legal internal storage. Unlocked contents inside a locked carrier may be used/repacked according to normal rules.
+- Reserved-cell behavior remains unchanged.
 
-## Validation / release
+## Root cause
 
-```text
-validated PR head:
-1c223a696e896e1af2ec1c35ec727eb3c70aa44d
-PR #282 CI / Shutdown / Docs:
-33618363995 / 33618364028 / 33618363996 — SUCCESS
+v1.16.3 deliberately changed exact-item lock semantics to identity preservation only. Both the secure-protection planner and general repacking transition planner allowed the same locked `InstanceId` to move, while final safety checked only that the locked instance still existed. This contradicts the user's intended lock meaning.
 
-exact-main CI / Shutdown / Docs:
-33618724736 / 33618724737 / 33618725069 — SUCCESS
+## Current step
 
-623 passed / 0 failed / 0 skipped
-Release workflow: 33619033186 — SUCCESS
-```
+Correct all automatic repacking paths and final safety so explicit locked item placement is immutable, replace the v1.16.3 published smoke that asserts locked-item movement with a regression asserting exact placement preservation, and audit related lock handling for bypass paths.
 
-Public assets and hashes are recorded in `docs/PROJECT_STATE.json` and `docs/.release-v1.16.3-status.json`.
+## Remaining
 
-Actual user-PC/Tarkov real-play validation remains separately `PENDING`. It is external follow-up evidence, not unfinished v1.16.3 implementation or release work.
+- implement position immutability in secure promotion and general repacking;
+- make final safety compare full locked-item placement state, not only instance survival;
+- update published-EXE decision smoke and deterministic/source-contract coverage as appropriate;
+- update product/decision documentation where v1.16.3 recorded the incorrect lock semantics;
+- bump release identity to v1.16.4 and add release notes;
+- run PR CI / Shutdown Race / Documentation Consistency and published EXE smoke;
+- merge, exact-main validate, publish v1.16.4, verify assets/digests;
+- finalize canonical docs and close ACTIVE_WORK to NONE.
