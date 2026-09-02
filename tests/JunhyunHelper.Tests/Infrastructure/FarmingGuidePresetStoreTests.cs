@@ -171,6 +171,93 @@ public sealed class FarmingGuidePresetStoreTests
         }
     }
 
+    [Fact]
+    public void LoadProfile_SemanticallyPartialJson_IsNormalizedAndRemainsWritable()
+    {
+        var root = CreateTempDirectory();
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(root, "farming-guide.json"),
+                """
+                {
+                  "schemaVersion": 3,
+                  "profiles": {
+                    "profile-a": {
+                      "workingSnapshot": {
+                        "equipment": {
+                          "Helmet": {
+                            "itemId": "helmet-a",
+                            "attachments": null,
+                            "armorPlates": null
+                          }
+                        },
+                        "rig": null,
+                        "backpack": null,
+                        "secureContainer": null,
+                        "storedItems": [
+                          null,
+                          {
+                            "instanceId": "stack-a",
+                            "item": {
+                              "itemId": "ammo-a",
+                              "attachments": null,
+                              "armorPlates": null
+                            },
+                            "storage": "Pockets",
+                            "gridIndex": 0,
+                            "x": 0,
+                            "y": 0,
+                            "rotated": false,
+                            "quantity": 0
+                          }
+                        ]
+                      },
+                      "selectedPresetName": "missing-preset",
+                      "presets": null,
+                      "locks": {
+                        "equipmentSlots": null,
+                        "carriers": null,
+                        "itemInstanceIds": null,
+                        "reservedCells": null
+                      },
+                      "weightSettings": {
+                        "strengthLevel": 999
+                      }
+                    }
+                  },
+                  "fixedEquipment": null
+                }
+                """);
+
+            var store = new FarmingGuidePresetStore(root);
+            var profile = store.LoadProfile("profile-a");
+
+            Assert.Null(profile.SelectedPresetName);
+            Assert.Empty(profile.Presets);
+            Assert.Equal(51, profile.WeightSettings?.StrengthLevel);
+            Assert.Empty(profile.Locks?.EquipmentSlots ?? []);
+            Assert.Equal("helmet-a", profile.WorkingSnapshot.Equipment[FarmingGuideEquipmentSlot.Helmet].ItemId);
+            Assert.Empty(profile.WorkingSnapshot.Equipment[FarmingGuideEquipmentSlot.Helmet].Attachments);
+            var stack = Assert.Single(profile.WorkingSnapshot.StoredItems);
+            Assert.Equal("ammo-a", stack.Item.ItemId);
+            Assert.Empty(stack.Item.Attachments);
+            Assert.Equal(1, stack.Quantity);
+
+            var fixedEquipment = store.LoadFixedEquipment();
+            Assert.Null(fixedEquipment.Melee);
+            Assert.Null(fixedEquipment.Dogtag);
+
+            store.SaveWorking("profile-a", SnapshotWithHelmet("helmet-b"), selectedPresetName: null);
+            var reloaded = new FarmingGuidePresetStore(root).LoadProfile("profile-a");
+            Assert.Equal("helmet-b", reloaded.WorkingSnapshot.Equipment[FarmingGuideEquipmentSlot.Helmet].ItemId);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static FarmingGuideLoadoutSnapshot SnapshotWithHelmet(string itemId) =>
         new(
             new Dictionary<FarmingGuideEquipmentSlot, FarmingGuideItemState>
