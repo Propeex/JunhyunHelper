@@ -46,26 +46,40 @@ public partial class MainWindow
         if (_activeProfile is null || _activeContent is null)
             return;
 
+        var targetProfileId = _activeProfile.ProfileId;
+        var gameMode = _activeProfile.GameMode;
+        var ownsBusyState = false;
+
+        bool TargetIsStillCurrent() =>
+            _activeProfile is { } activeProfile &&
+            string.Equals(activeProfile.ProfileId, targetProfileId, StringComparison.Ordinal) &&
+            activeProfile.GameMode == gameMode;
+
         try
         {
-            var gameMode = _activeProfile.GameMode;
             var snapshot = await _services.Content.ReadActiveOrRecoverAsync(gameMode);
-            if (!ContentSnapshotStore.RequiresCurrentSchemaRefresh(snapshot))
+            if (!TargetIsStillCurrent() || !ContentSnapshotStore.RequiresCurrentSchemaRefresh(snapshot))
                 return;
 
+            // The initial cache read is asynchronous while the profile selector is still
+            // usable. Re-check identity before taking ownership of the UI and never apply a
+            // completed migration to a profile that replaced the one that started it.
             SetBusy(true, "게임 데이터 형식을 최신 버전으로 갱신하는 중...");
+            ownsBusyState = true;
+
             var result = await RunContentUpdateAsync(gameMode);
-            if (!result.Applied)
+            if (!result.Applied || !TargetIsStillCurrent())
                 return;
 
             var refreshed = await _services.Content.ReadActiveOrRecoverAsync(gameMode);
-            if (ContentSnapshotStore.RequiresCurrentSchemaRefresh(refreshed))
+            if (!TargetIsStillCurrent() || ContentSnapshotStore.RequiresCurrentSchemaRefresh(refreshed))
                 return;
 
             _activeContent = refreshed.Content;
             AmmoPage.SetData(_activeContent);
             await RefreshActiveWorkspacesAsync(detectCleanupChanges: false);
-            ShowActiveSection();
+            if (TargetIsStillCurrent())
+                ShowActiveSection();
         }
         catch (OperationCanceledException)
         {
@@ -79,8 +93,8 @@ public partial class MainWindow
         }
         finally
         {
-            if (_activeProfile is not null)
-                SetBusy(false, BuildLoadedStatus(_activeProfile.GameMode));
+            if (ownsBusyState && TargetIsStillCurrent())
+                SetBusy(false, BuildLoadedStatus(gameMode));
         }
     }
 
