@@ -201,10 +201,10 @@ public partial class FarmingGuidePage
         };
 
         _plannedLocksOverrideV1160 = null;
-        var planned = PlanScannedItemRulebookV1160(current, decisionScan, item);
-        var transitioned = ApplyRaidStateTransitionsV1163(current, planned, decisionScan, item);
+        var planned = PlanScannedItemRulebookV1164(current, decisionScan, item);
+        var transitioned = ApplyRaidStateTransitionsV1164(current, planned, decisionScan, item);
         var quantityApplied = ApplyIncomingQuantityV1160(current, transitioned, item.Id, quantity);
-        var safetyChecked = ApplyFinalRaidSafetyV1163(current, quantityApplied, decisionScan);
+        var safetyChecked = ApplyFinalRaidSafetyV1164(current, quantityApplied, decisionScan);
         var weightChecked = ApplyRaidWeightConstraintV1160(current, safetyChecked);
         var recommendation = ApplyRaidInstructionPresentationV1155(current, weightChecked, item);
         _raidSession.SetPending(

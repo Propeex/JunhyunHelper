@@ -1,6 +1,6 @@
 # Farming Guide deterministic rulebook — v1.16.0
 
-Status: **APPROVED / IMPLEMENTED FOR v1.16.0**
+Status: **APPROVED / IMPLEMENTED; LOCK SEMANTICS CORRECTED BY v1.16.4**
 
 ## Purpose
 
@@ -37,11 +37,19 @@ Farming Guide는 자체적인 가중치 점수나 불투명한 최적화로 행�
 
 ## Protected-role inheritance
 
-- 잠금은 아이템을 버리지 못하게 보호하는 의미이며 기존 X/Y 좌표를 고정하는 의미가 아니다.
-- 수납 장비 교체 시 기존 root contents를 새 장비에 합법적으로 다시 배치할 수 있어야 한다.
+- **v1.16.4부터 명시적 item lock은 자동 Farming Guide 판단에서 해당 stored item의 물리적 위치까지 고정한다.** 자동 지시는 잠긴 exact instance를 버리거나 교체하거나 다른 수납 공간/좌표로 이동하거나 회전하거나 re-parent할 수 없다.
+- 잠긴 descendant가 있는 stored ancestor를 움직이거나 root carrier를 교체하여 잠긴 item을 간접 이동시키는 것도 금지한다.
+- 사용자의 직접 편집은 계속 authoritative하다. 위 위치 고정은 자동 recommendation에 대한 제약이다.
+- 장착 중인 리그/가방/보안 컨테이너 root lock은 해당 carrier 자체의 자동 교체를 막지만 합법적인 내부 storage 사용까지 막지는 않는다.
+- stored container를 item lock한 경우 그 container 자체의 위치는 고정되지만, 내부의 별도로 잠기지 않은 contents는 독립적으로 판단할 수 있다. 단, locked descendant를 간접 이동시키는 ancestor 이동은 허용하지 않는다.
+- 수납 장비 교체는 locked stored item의 위치/ancestor/root-carrier 경로를 바꾸지 않는 경우에만 가능하다.
 - 예약 칸은 기존 좌표가 아니라 각 grid에서 4방향으로 연결된 shape/capacity role로 취급한다.
-- 새 장비에서 모든 보호 아이템과 예약 shape를 함께 만족할 수 없으면 해당 장비 교체를 금지한다.
+- 새 장비에서 모든 잠금 및 예약 제약을 함께 만족할 수 없으면 해당 장비 교체를 금지한다.
 - 성공한 교체의 ProposedSnapshot과 migration된 lock/reservation state는 하나의 accept transaction으로 함께 commit한다.
+
+### Historical correction
+
+v1.16.0~v1.16.3 구현과 이전 문서에는 exact item lock을 "인스턴스가 사라지지만 않으면 재배치 가능"으로 해석한 내용이 있었다. 2026-09-02 실제 사용자 보고에서 잠긴 Grizzly를 옮기라는 지시가 확인되었고, 사용자가 확정한 제품 의미와 충돌하므로 이 해석은 폐기한다. 이후 구현·테스트·문서는 위 v1.16.4 위치 잠금 계약을 canonical contract로 사용한다.
 
 ## Stack quantity
 
@@ -68,4 +76,5 @@ Farming Guide는 자체적인 가중치 점수나 불투명한 최적화로 행�
 ## Regression contract
 
 - v1.16.0 deterministic tests는 FIR/Flea/stack/weight/equipment/raid atomic-accept/state schema 계약을 고정한다.
+- v1.16.4 published EXE decision smoke는 locked-item exact placement, indirect ancestor/root-carrier movement, secure-promotion fallback 및 final fail-closed 경계를 추가로 고정한다.
 - Windows published EXE smoke는 기존 Map/MiniMap/Scanner/Farming Guide 제품 계약을 계속 통과해야 한다.
