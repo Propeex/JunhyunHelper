@@ -145,6 +145,36 @@ public sealed class DesktopStartupWiringContractTests
         Assert.Contains("_timer.Dispose();", retentionService, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void OpportunisticContentSchemaRefresh_RejectsStaleProfileContinuation()
+    {
+        var root = FindRepositoryRoot();
+        var schemaRefresh = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "JunhyunHelper.Desktop",
+            "MainWindow.ContentSchemaRefresh.cs"));
+
+        Assert.Contains("var targetProfileId = _activeProfile.ProfileId;", schemaRefresh, StringComparison.Ordinal);
+        Assert.Contains("bool TargetIsStillCurrent()", schemaRefresh, StringComparison.Ordinal);
+        Assert.Contains(
+            "string.Equals(activeProfile.ProfileId, targetProfileId, StringComparison.Ordinal)",
+            schemaRefresh,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "if (!TargetIsStillCurrent() || !ContentSnapshotStore.RequiresCurrentSchemaRefresh(snapshot))",
+            schemaRefresh,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "if (!result.Applied || !TargetIsStillCurrent())",
+            schemaRefresh,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "if (!TargetIsStillCurrent() || ContentSnapshotStore.RequiresCurrentSchemaRefresh(refreshed))",
+            schemaRefresh,
+            StringComparison.Ordinal);
+    }
+
     private static string FindRepositoryRoot([CallerFilePath] string sourcePath = "")
     {
         var directory = new DirectoryInfo(Path.GetDirectoryName(sourcePath)
