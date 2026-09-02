@@ -114,6 +114,7 @@ public partial class FarmingGuidePage
         }
 
         VerifyV1155FarmingGuideSmoke();
+        VerifyV1162RaidValueAndReservedCellSmoke();
 
         static FarmingGuideStorageGridDefinition Grid(int width, int height) =>
             new(width, height, FarmingGuideItemFilter.Empty);
