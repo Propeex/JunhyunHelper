@@ -1,11 +1,9 @@
 # 준현 헬퍼 v1.16.3
 
-상태: **RELEASE CANDIDATE / NOT YET PUBLIC STABLE**  
+상태: **PUBLIC STABLE / VERIFIED**  
 기준일: **2026-09-02 KST**
 
-v1.16.3은 v1.16.2 이후 실제 레이드 사용 전에 Farming Guide의 자동 판단 경계를 선제적으로 감사하고, 고가치 loot 보호·희생 판단·잠금·생존 예비량·현재 총기 탄약·확장 주머니와 MiniMap 검증 안정성을 강화하는 PATCH 유지보수 릴리즈다.
-
-공개 stable은 이 문서가 작성된 후보 단계에서는 여전히 v1.16.2이며, v1.16.3은 PR 검증·main 병합·exact-main 검증·공개 릴리즈 검증까지 완료된 뒤에만 stable로 전환한다.
+v1.16.3은 v1.16.2 이후 실제 레이드 사용 전에 Farming Guide의 자동 판단 경계를 선제적으로 감사하고, 고가치 loot 보호·희생 판단·잠금·생존 예비량·현재 총기 탄약·확장 주머니와 MiniMap 검증 안정성을 강화한 PATCH 유지보수 릴리즈다.
 
 ## 보안 컨테이너 보호 우선순위
 
@@ -14,16 +12,16 @@ v1.16.3은 v1.16.2 이후 실제 레이드 사용 전에 Farming Guide의 자동
 v1.16.3에서는 일반 free storage를 확정하기 전에 별도의 비파괴 secure-promotion 경계를 실행한다.
 
 - incoming item이 실제 Tarkov 수납 규칙상 보안 컨테이너에 들어갈 수 있어야 한다.
-- 보안 컨테이너의 기존 물품 중 incoming보다 우선순위가 엄격히 낮은 leaf item만 보호 영역 밖으로 내보낼 수 있다.
+- 보안 컨테이너의 기존 물품 중 incoming보다 우선순위가 엄격히 낮은 안전한 leaf item만 보호 영역 밖으로 내보낼 수 있다.
 - 이동되는 기존 물품은 버리지 않고 다른 합법적인 free storage에 보존한다.
 - 동급/상위 우선순위 물품, 잠긴 보호 물품, 내부에 다른 물품을 가진 컨테이너는 단순 parent 가격만으로 강등하지 않는다.
 - 안전한 승격 계획이 없으면 기존 ordinary storage/destructive rulebook으로 정상적으로 넘어간다.
 
 ## 스택 총가치와 실제 희생 조합
 
-탄약·화폐 같은 stored stack은 이제 destructive candidate 단계에서도 실제 `Quantity`를 포함한다. 60발 스택을 1발 가치로 평가해 버리는 식의 오판을 막는다.
+탄약·화폐 같은 stored stack은 destructive candidate 단계에서도 실제 `Quantity`를 포함한다. 60발 스택을 1발 가치로 평가해 버리는 식의 오판을 막는다.
 
-또한 과거의 다중 희생 탐색은 가치순으로 정렬한 뒤 `{A}`, `{A+B}`, `{A+B+C}` 같은 prefix 조합만 검사할 수 있었다. 따라서 A가 싸지만 공간 확보에는 무관하고 B 하나만 버리면 되는 경우에도 A까지 잃거나, 유효한 B 단독 해법을 놓칠 수 있었다.
+과거의 다중 희생 탐색은 가치순으로 정렬한 뒤 prefix 조합만 검사할 수 있었다. 따라서 공간 확보와 무관한 값싼 물품까지 함께 희생하거나, 실제로 더 나은 단독/부분 조합을 놓칠 수 있었다.
 
 v1.16.3은 bounded deterministic subset search를 사용한다.
 
@@ -42,7 +40,7 @@ v1.16.3은 bounded deterministic subset search를 사용한다.
 - reserved cell은 계속 자동 배치 금지 영역으로 보존한다.
 - 모든 v1.16.3 전환/repacking 경로는 현재 프로필에서 실제로 계산된 확장 주머니 geometry를 사용한다.
 
-추가로 자동 희생에서 레이드 생존에 필요한 최소 자원을 보호한다.
+자동 희생에서는 레이드 생존에 필요한 최소 자원을 보호한다.
 
 - 현재 보유 중인 마지막 modeled 음식 provider
 - 현재 보유 중인 마지막 modeled 음료 provider
@@ -59,15 +57,16 @@ FIR 특별 우선순위는 incoming뿐 아니라 기존 보유 물품에도 **�
 
 ## 최종 fail-closed 검증
 
-여러 planner를 통과한 추천은 최종 지시 직전에 다시 검증된다.
+여러 planner를 통과한 파괴적 추천은 최종 지시 직전에 다시 검증된다.
 
 - explicit equipment/carrier/item locks 보존
 - modeled food/drink reserve 보존
 - 현재 총기용 loose ammo 수량 보존
 - 실제 removed victim 전체의 해석 가능 여부
 - stack quantity를 포함한 전체 희생 Flea 가치
+- modeled carry-weight constraint
 
-안전성을 증명할 수 없는 파괴적 추천은 자동으로 거부하고 현재 상태를 유지하는 `버리기` 결과로 fail closed 한다.
+안전성을 증명할 수 없는 파괴적 추천은 자동으로 거부한다.
 
 ## Content schema v12
 
@@ -81,7 +80,7 @@ FIR 특별 우선순위는 incoming뿐 아니라 기존 보유 물품에도 **�
 - `WeaponCaliber`
 - `AllowedAmmoItemIds`
 
-v11을 포함한 기존 readable snapshot은 계속 읽을 수 있지만 current schema가 아니므로 정상 update path에서 v12로 갱신된다.
+v3-v12 snapshot을 읽을 수 있으며 구버전 cache는 정상적으로 읽은 뒤 current update path에서 v12로 갱신된다.
 
 ## MiniMap smoke 안정화
 
@@ -97,27 +96,63 @@ v1.16.3 published WPF smoke에는 실제 page/planner 경계를 실행하는 syn
 - locked carrier root의 내부 storage 사용
 - expanded pocket geometry
 - stored stack total value
-- prefix-only 탐색으로 놓치던 실제 geometric victim 단독 선택
+- prefix-only 탐색으로 놓치던 실제 geometric victim 선택
 - 마지막 food/drink reserve 보호
 - 현재 총기 compatible loose ammo 보호
 - locked exact instance의 안전한 이동 허용
 - non-FIR general need와 true FIR need의 우선순위 구분
 
-## 현재 후보 검증 증거
-
-릴리즈 식별자 v1.16.3으로 올리기 직전의 동일 제품 로직/새 published decision smoke head:
+## 공개 릴리즈 검증
 
 ```text
-head: 1e20dd97338ad56048071766a85539c29fe8f4ba
-PR: #281 (draft candidate)
-CI: 33616912770 — SUCCESS
-Shutdown Race: 33616912788 — SUCCESS
-Documentation Consistency: 33616912777 — SUCCESS
+exact product source/tag target:
+89fae2e07b721b1dfd4922642412fcebf01b275d
+validated PR head:
+1c223a696e896e1af2ec1c35ec727eb3c70aa44d
+merge PR: #282
+
+PR CI / Shutdown / Docs:
+33618363995 / 33618364028 / 33618363996 — SUCCESS
+
+exact-main CI / Shutdown / Docs:
+33618724736 / 33618724737 / 33618725069 — SUCCESS
+
+Release workflow:
+33619033186 — SUCCESS
+
 623 passed / 0 failed / 0 skipped
-Windows x64 self-contained publish — SUCCESS
-published EXE Product UI / Map / Farming Guide decision smoke — SUCCESS
-graceful shutdown / clean portable root — SUCCESS
-package/checksum verification — SUCCESS
+release id: 381157194
+published UTC: 2026-09-02T10:21:57Z
 ```
 
-위 pre-identity candidate release package는 검증용이며 공개 릴리즈 asset이 아니다. v1.16.3 최종 PR 후보, exact-main, 공개 release의 immutable evidence는 실제 릴리즈 완료 후 이 문서와 canonical project state에 기록한다.
+Exact-main CI는 Release build, 623개 결정적 테스트, Windows x64 self-contained publish, 실제 published EXE의 Product UI / Map / Farming Guide decision / graceful-shutdown smoke, portable-root 검사와 패키지/checksum 검증을 통과했다.
+
+Exact-main Actions artifact:
+
+```text
+JunhyunHelper-win-x64
+artifact id: 9842117423
+bytes: 242,138,760
+SHA-256:
+cda8d29a6dfa3499df8ba23522ed7faeb11475e726c6b8ed66566bb29eda55eb
+```
+
+Public release assets:
+
+```text
+Junhyun-Helper.zip
+asset id: 541000063
+bytes: 80,735,580
+SHA-256:
+eabc7c162ea583f138fbeb3bd2567145bc28c6f305bde20e049175c56580f657
+
+SHA256SUMS.txt
+asset id: 541000067
+bytes: 86
+asset SHA-256:
+c25ad9cb116c53143f1aece1a5035313d0a1176acff5b71c6366ea297d69dae5
+```
+
+Release workflow는 exact-main commit `89fae2e07b721b1dfd4922642412fcebf01b275d`를 직접 checkout하고 exact-main artifact ID `9842117423`을 기대 digest `cda8d29a6dfa3499df8ba23522ed7faeb11475e726c6b8ed66566bb29eda55eb`와 함께 다시 내려받았다. 실제 `Junhyun-Helper.zip`의 SHA-256 `eabc7c162ea583f138fbeb3bd2567145bc28c6f305bde20e049175c56580f657`가 `SHA256SUMS.txt`와 일치한 뒤 stable release를 공개했다.
+
+`v1.16.3`은 `draft=false`, `prerelease=false`이며 공개 릴리즈 target은 위 exact product source다. 이후 문서-only main commit은 v1.16.3 제품 소스가 아니며 이미 공개된 stable assets를 교체하지 않는다.
