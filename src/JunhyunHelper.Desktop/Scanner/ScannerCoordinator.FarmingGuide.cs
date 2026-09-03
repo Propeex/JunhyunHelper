@@ -7,18 +7,14 @@ public sealed partial class ScannerCoordinator
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (string.IsNullOrWhiteSpace(itemId))
             return null;
-
-        var normalized = itemId.Trim();
-        return Runtime.CreateLiveFarmingGuideSnapshot(normalized)
-            ?? Presentation.CreateSnapshot(normalized);
+        return Presentation.CreateSnapshot(itemId.Trim());
     }
 
     /// <summary>
     /// Simulated Farming Guide scans are a product test path, not a Scanner-runtime
     /// capture mode. Load the current mode's verified local Scanner catalog on demand so
     /// hover + T keeps working after an application restart even when Scanner itself is
-    /// disabled and has not initialized its in-memory catalog yet. Simulation intentionally
-    /// remains catalog-only, so it cannot manufacture real-raid FIR provenance.
+    /// disabled and has not initialized its in-memory catalog yet.
     /// </summary>
     public async Task<ScannerItemSnapshot?> CreateFarmingGuideSnapshotAsync(
         string itemId,
