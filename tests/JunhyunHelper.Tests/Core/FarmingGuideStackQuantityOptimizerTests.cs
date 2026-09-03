@@ -15,7 +15,7 @@ public sealed class FarmingGuideStackQuantityOptimizerTests
                 "quest-ammo",
                 MinimumQuantity: 1,
                 MaximumQuantity: 3,
-                RaidAcquired: true,
+                FirQualified: true,
                 UnitWeightKg: 1m,
                 UnitEconomicValue: 1),
             new FarmingGuideStackQuantityVariable(
@@ -23,7 +23,7 @@ public sealed class FarmingGuideStackQuantityOptimizerTests
                 "valuable-ammo",
                 MinimumQuantity: 1,
                 MaximumQuantity: 3,
-                RaidAcquired: false,
+                FirQualified: false,
                 UnitWeightKg: 1m,
                 UnitEconomicValue: 100_000),
         };
@@ -32,7 +32,7 @@ public sealed class FarmingGuideStackQuantityOptimizerTests
             variables,
             fixedWeightKg: 0m,
             maximumWeightKg: 4m,
-            fixedRaidAcquiredUnits: new Dictionary<string, int>(),
+            fixedFirQualifiedUnits: new Dictionary<string, int>(),
             remainingFirNeed: id => id == "quest-ammo" ? 3 : 0);
 
         Assert.True(result.Found);
@@ -51,7 +51,7 @@ public sealed class FarmingGuideStackQuantityOptimizerTests
                 "cheap",
                 MinimumQuantity: 1,
                 MaximumQuantity: 5,
-                RaidAcquired: false,
+                FirQualified: false,
                 UnitWeightKg: 1m,
                 UnitEconomicValue: 10),
             new FarmingGuideStackQuantityVariable(
@@ -59,7 +59,7 @@ public sealed class FarmingGuideStackQuantityOptimizerTests
                 "expensive",
                 MinimumQuantity: 1,
                 MaximumQuantity: 5,
-                RaidAcquired: false,
+                FirQualified: false,
                 UnitWeightKg: 1m,
                 UnitEconomicValue: 100),
         };
@@ -68,7 +68,7 @@ public sealed class FarmingGuideStackQuantityOptimizerTests
             variables,
             fixedWeightKg: 0m,
             maximumWeightKg: 6m,
-            fixedRaidAcquiredUnits: new Dictionary<string, int>(),
+            fixedFirQualifiedUnits: new Dictionary<string, int>(),
             remainingFirNeed: _ => 0);
 
         Assert.True(result.Found);
@@ -86,7 +86,7 @@ public sealed class FarmingGuideStackQuantityOptimizerTests
                 "ammo",
                 MinimumQuantity: 1,
                 MaximumQuantity: 60,
-                RaidAcquired: false,
+                FirQualified: false,
                 UnitWeightKg: 0.1m,
                 UnitEconomicValue: 1_000),
         };
@@ -95,7 +95,7 @@ public sealed class FarmingGuideStackQuantityOptimizerTests
             variables,
             fixedWeightKg: 5m,
             maximumWeightKg: 7.5m,
-            fixedRaidAcquiredUnits: new Dictionary<string, int>(),
+            fixedFirQualifiedUnits: new Dictionary<string, int>(),
             remainingFirNeed: _ => 0);
 
         Assert.True(result.Found);
@@ -113,7 +113,7 @@ public sealed class FarmingGuideStackQuantityOptimizerTests
                 "quest-ammo",
                 MinimumQuantity: 1,
                 MaximumQuantity: 10,
-                RaidAcquired: true,
+                FirQualified: true,
                 UnitWeightKg: 1m,
                 UnitEconomicValue: 0),
         };
@@ -126,7 +126,7 @@ public sealed class FarmingGuideStackQuantityOptimizerTests
             variables,
             fixedWeightKg: 0m,
             maximumWeightKg: 4m,
-            fixedRaidAcquiredUnits: fixedFir,
+            fixedFirQualifiedUnits: fixedFir,
             remainingFirNeed: id => id == "quest-ammo" ? 4 : 0);
 
         Assert.True(result.Found);
@@ -144,7 +144,7 @@ public sealed class FarmingGuideStackQuantityOptimizerTests
                 "currency",
                 MinimumQuantity: 1,
                 MaximumQuantity: 100_000,
-                RaidAcquired: false,
+                FirQualified: false,
                 UnitWeightKg: 0.000001m,
                 UnitEconomicValue: 1),
         };
@@ -153,7 +153,7 @@ public sealed class FarmingGuideStackQuantityOptimizerTests
             variables,
             fixedWeightKg: 0m,
             maximumWeightKg: 100m,
-            fixedRaidAcquiredUnits: new Dictionary<string, int>(),
+            fixedFirQualifiedUnits: new Dictionary<string, int>(),
             remainingFirNeed: _ => 0,
             maxCapacityStates: 100);
 
