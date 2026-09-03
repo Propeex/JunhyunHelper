@@ -40,6 +40,9 @@ public sealed class V1170GlobalFarmingGuideContractTests
         var directory = FarmingGuideDirectory();
         var global = File.ReadAllText(Path.Combine(directory, "FarmingGuidePage.GlobalOptimizationV1170.cs"));
         var quantities = File.ReadAllText(Path.Combine(directory, "FarmingGuidePage.UnifiedQuantityOptimizationV1170.cs"));
+        var stackOptimizer = File.ReadAllText(Path.Combine(
+            CoreFarmingGuideDirectory(),
+            "FarmingGuideStackQuantityOptimizer.cs"));
 
         Assert.Contains("HasProvableFirDecisionFactsV1170", global, StringComparison.Ordinal);
         Assert.Contains("scanned.CurrentNeededFir", global, StringComparison.Ordinal);
@@ -47,10 +50,16 @@ public sealed class V1170GlobalFarmingGuideContractTests
         Assert.Contains("state.FirStatus == FarmingGuideFirStatus.Unknown", global, StringComparison.Ordinal);
         Assert.Contains("firStatus: scanned.FirStatus", quantities, StringComparison.Ordinal);
         Assert.Contains("root.State.IsFirQualified", quantities, StringComparison.Ordinal);
+        Assert.Contains("FirQualified: root.State.IsFirQualified", quantities, StringComparison.Ordinal);
         Assert.Contains("currentScan.CurrentNeededFir", quantities, StringComparison.Ordinal);
         Assert.DoesNotContain("TryFindBestUnifiedRaidStateV1170(", quantities, StringComparison.Ordinal);
         Assert.DoesNotContain("Math.Max(0, currentScan.CurrentNeeded)", global, StringComparison.Ordinal);
         Assert.DoesNotContain("Math.Max(0, currentScan.CurrentNeeded)", quantities, StringComparison.Ordinal);
+
+        Assert.Contains("bool FirQualified", stackOptimizer, StringComparison.Ordinal);
+        Assert.Contains("fixedFirQualifiedUnits", stackOptimizer, StringComparison.Ordinal);
+        Assert.DoesNotContain("bool RaidAcquired", stackOptimizer, StringComparison.Ordinal);
+        Assert.DoesNotContain("fixedRaidAcquiredUnits", stackOptimizer, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -75,6 +84,9 @@ public sealed class V1170GlobalFarmingGuideContractTests
 
     private static string FarmingGuideDirectory([CallerFilePath] string sourcePath = "") =>
         Path.Combine(RepositoryRoot(sourcePath), "src", "JunhyunHelper.Desktop", "FarmingGuide");
+
+    private static string CoreFarmingGuideDirectory([CallerFilePath] string sourcePath = "") =>
+        Path.Combine(RepositoryRoot(sourcePath), "src", "JunhyunHelper.Core", "FarmingGuide");
 
     private static string ScannerDirectory([CallerFilePath] string sourcePath = "") =>
         Path.Combine(RepositoryRoot(sourcePath), "src", "JunhyunHelper.Desktop", "Scanner");
