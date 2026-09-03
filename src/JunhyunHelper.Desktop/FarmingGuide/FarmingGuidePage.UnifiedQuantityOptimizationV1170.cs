@@ -36,7 +36,10 @@ public partial class FarmingGuidePage
 
         var incomingRoot = new GlobalOwnedRootV1170(
             $"{V1170IncomingInstancePrefix}{Guid.NewGuid():N}",
-            FarmingGuideItemState.Create(incoming.Id, raidAcquired: true),
+            FarmingGuideItemState.Create(
+                incoming.Id,
+                raidAcquired: true,
+                firStatus: scanned.FirStatus),
             incoming,
             Math.Max(1, scanned.Quantity),
             GlobalRootOriginV1170.Incoming);
