@@ -63,19 +63,23 @@ public partial class FarmingGuidePage
     }
 
     /// <summary>
-    /// FIR is a decision fact, not something inferred from "seen during this raid". The
-    /// current Scanner snapshot does not yet prove Tarkov's FIR marker, so a newly scanned item
-    /// with remaining FIR need is intentionally indeterminate. Existing raid-acquired Unknown
-    /// items are likewise safe only when current requirement data proves that their item id has
-    /// no remaining FIR need. This prevents Unknown from being silently treated as either FIR
-    /// or non-FIR in a destructive global solve.
+    /// FIR is a decision fact, not something inferred from "seen during this raid". A newly
+    /// scanned item with remaining FIR need is actionable only when Scanner has an explicit
+    /// FIR observation. Current Scanner auto-promotes only positive marker evidence to
+    /// FoundInRaid; absence remains Unknown and therefore fail-closed. An explicit future
+    /// NotFoundInRaid observation is also a proven fact and may participate as ordinary loot.
+    /// Existing raid-acquired Unknown items are safe only when current requirement data proves
+    /// that their item id has no remaining FIR need.
     /// </summary>
     private bool HasProvableFirDecisionFactsV1170(
         FarmingGuideLoadoutSnapshot current,
         ScannerItemSnapshot scanned)
     {
-        if (Math.Max(0, scanned.CurrentNeededFir) > 0)
+        if (Math.Max(0, scanned.CurrentNeededFir) > 0 &&
+            scanned.FirStatus == FarmingGuideFirStatus.Unknown)
+        {
             return false;
+        }
 
         foreach (var state in EnumerateFirDecisionStatesV1170(current))
         {
