@@ -3,6 +3,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using JunhyunHelper.Application.Items;
 using JunhyunHelper.Core.Content;
+using JunhyunHelper.Core.FarmingGuide;
 using JunhyunHelper.Core.Profiles;
 
 namespace JunhyunHelper.Desktop.Scanner;
@@ -30,6 +31,13 @@ public sealed record ScannerItemSnapshot(
     public int Quantity { get; init; } = 1;
 
     /// <summary>
+    /// Concrete Tarkov Found-in-Raid observation for this exact Scanner presentation. Catalog
+    /// snapshots and any capture that cannot positively prove the in-game marker remain Unknown.
+    /// A missing visual marker is never converted to NotFoundInRaid by Scanner.
+    /// </summary>
+    public FarmingGuideFirStatus FirStatus { get; init; } = FarmingGuideFirStatus.Unknown;
+
+    /// <summary>
     /// Null for non-ammunition items or when the current profile/content cannot produce a
     /// deterministic decision. Ammo packs carry the decision for their contained ammo.
     /// </summary>
@@ -49,7 +57,8 @@ public sealed record ScannerInspectCandidate(
     Rect? MagnifierBounds = null,
     Rect? CloseBounds = null,
     double TitleAnchorScore = 0,
-    string TitleAnchorReason = "");
+    string TitleAnchorReason = "",
+    bool HasFoundInRaidMarkerEvidence = false);
 
 public enum ScannerCaptureMode
 {
