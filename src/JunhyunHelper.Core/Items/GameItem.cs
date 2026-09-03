@@ -19,7 +19,8 @@ public sealed record GameItem(
     decimal? WeightKg = null,
     int? BasePrice = null,
     bool? FleaTradable = null,
-    int? StackMaxSize = null)
+    int? StackMaxSize = null,
+    int? DiscardLimit = null)
 {
     /// <summary>
     /// Optional Tarkov equipment/storage structure used by Farming Guide. Content
