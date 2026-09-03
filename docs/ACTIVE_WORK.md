@@ -26,7 +26,7 @@ public stable: v1.16.4
 working branch: feature/v1.17.0-farming-guide-restart-2026-09-03
 previous PR #287: CLOSED / ABANDONED / MUST NOT BE RESUMED
 Draft PR: #288
-latest audited implementation checkpoint before this document update: 5118a913811f837f9960ccc54d654f76b0a5559d
+latest implementation checkpoint before this document update: 418e609b0ca325a0f589e76c1b54fd46a72db413
 ```
 
 ## Confirmed scope
@@ -53,50 +53,49 @@ Confirmed rules:
 
 Do not copy implementation from abandoned PR #287 as authority.
 
-Code from the abandoned branch may only be consulted later as a non-authoritative implementation reference after the stable-main design is independently derived and only if it matches this confirmed rulebook. No Scanner FIR observation code is to be reused.
+Code from the abandoned branch may only be consulted as a non-authoritative implementation reference after the stable-main design is independently derived and only if it matches this confirmed rulebook. No Scanner FIR observation code is to be reused.
 
 ## Completed
 
 - Closed PR #287 unmerged and marked it abandoned.
 - Created clean branch from stable `main@379c6ab4ab02431c6bb74b537e899e94f45ee987` and opened Draft PR #288.
-- Recorded the clean canonical v1.17 rulebook.
-- Removed the old tactical/category/equipment-superiority/local-planner semantics from the authoritative live raid decision route.
-- Added ephemeral `[JsonIgnore]` `FarmingGuideItemState.RaidAcquired` provenance and explicit raid-acquired inventory counting without modifying Scanner or persisted presets.
+- Recorded the canonical confirmed v1.17 rulebook.
+- Removed tactical/category/equipment-superiority/local-planner semantics from the authoritative live raid decision route.
+- Added ephemeral `[JsonIgnore]` `FarmingGuideItemState.RaidAcquired` provenance; Scanner does not inspect FIR and presets do not persist raid provenance.
 - Added complete-state `FarmingGuideOptimizationScore` with exactly two dimensions: satisfied FIR quantity and retained Flea value.
-- Added deterministic from-scratch `FarmingGuideGlobalPackingPlanner` with fixed-placement preservation, owned/nested surfaces, cycle rejection, cross-surface final validation, and explicit `BudgetExceeded` handling.
-- Built the live global candidate pool across stored items, top-level equipment, Rig, Backpack, Secure Container, nested storage and incoming Scanner items.
+- Added deterministic from-scratch `FarmingGuideGlobalPackingPlanner` with fixed-placement preservation, owned/nested surfaces, cycle rejection, cross-surface validation and explicit budget failure.
+- Built the global candidate pool across stored roots, top-level equipment, Rig, Backpack, Secure Container, nested storage and the incoming Scanner item.
 - Routed the active raid decision through the v1.17 global optimizer and preserved `RaidAcquired` through accepted-state sanitization.
-- Enforced weight as a strict final-state constraint and added fail-closed handling for unknown destructive Flea comparisons.
-- Added v1.17 WPF Product UI/runtime smoke coverage for FIR priority, quota capping, no tactical food privilege, incoming-container capacity, locks, equipment participation, consecutive scans, overweight rejection and unknown-price fail-closed behavior.
-- Verified PR #288 head `5118a913811f837f9960ccc54d654f76b0a5559d`: CI, Shutdown Race CI and Documentation Consistency all succeeded.
-- Confirmed generic global owner-graph validation already rejects self-containment and indirect nested-container cycles.
-- Confirmed raid value display is based on explicit `RaidAcquired` provenance rather than baseline-count inference.
+- Enforced weight as a strict final-state constraint rather than an item priority.
+- Made v1.17 root geometry and complete assembly weight proof fail closed on unknown facts instead of treating unknown values as 1x1 or 0 kg.
+- Included modeled attachment/armor-plate descendants in complete retained Flea value, FIR fact collection and final/current weight proof.
+- Included fixed out-of-pool Melee/Dogtag state in final weight proof.
+- Enforced Tarkov assembly `ConflictingSlotIds` in both directions and added `ItemPropertiesHeadwear` compatibility for the head equipment slot.
+- Preserved body armor/armored-rig, helmet/headset, item conflict, grid filter, nesting, owner graph and stack legality in final global validation.
+- Exposed same-storage-area position/rotation changes as explicit `내부 재배치` instructions instead of silently requiring movement.
+- Audited stack quantity end to end: user-entered ammo/currency quantity remains one observed stack instance and scales FIR/value/weight; no automatic split/merge behavior was invented.
+- Added deterministic stack quantity tests for acquired and baseline stacks.
+- Audited lock ancestry: a fixed nested item or nested fixed cell fixes the necessary stored ancestor chain and root carrier so indirect movement is impossible.
+- Added published Product Smoke for nested fixed-item/fixed-cell ancestry propagation.
+- Removed the legacy v1.15 local raid-priority smoke from the published gate so obsolete tactical/local-planner expectations are not product authority.
+- Preserved dedicated nested storage as a legal final-placement choice and added a v1.17 global-solver smoke proving a compatible incoming key can be placed inside the existing dedicated container without adding a retention priority.
+- Confirmed attachment/plate price/FIR facts reuse the existing Scanner catalog/presentation resolver for arbitrary canonical item IDs; no new observation source or inference path was added and missing facts fail closed.
+- Added a durable developer product-semantics authority boundary to `AGENTS.md`.
+- Verified an earlier legality/fact-proof checkpoint on PR #288 with CI, Shutdown Race CI and Documentation Consistency all successful.
+- Latest implementation checkpoint `418e609b0ca325a0f589e76c1b54fd46a72db413` has passed Windows desktop compilation and core deterministic tests; its full publish/runtime/package and shutdown workflows are being completed before release-prep commits.
 
 ## Current step
 
-Finish the Tarkov system-legality and fact-proof audit of the current global optimizer. The audit has identified concrete implementation gaps that do not require new product semantics:
-
-- complete assembled equipment currently contributes only the root item's weight to global final-weight validation;
-- missing item weight can still collapse to `0 kg` in legacy helpers used by the global path;
-- missing root dimensions can still collapse to `1x1` for global packing;
-- complete-state candidate facts/ranking currently omit attachment/armor-plate Flea value even though snapshot inventory counting includes those retained items;
-- `ConflictingSlotIds` is assembly-slot legality and is not yet enforced by `FarmingGuideAssemblyPolicy`;
-- upstream `ItemPropertiesHeadwear` is not yet accepted by the shared head equipment-slot compatibility rule;
-- a global solve may require an existing stored item to move/rotate inside the same visible storage area, while the current v1.17 instruction projection suppresses that physical delta.
-
-These are being corrected fail-closed and mechanically, without adding new farming priorities, Scanner inference, data sources or user confirmation flows.
+Complete final branch validation, then prepare the v1.17.0 release identity and authoritative release documentation. The implementation/fact/legality audit has no unresolved product-semantic question at this checkpoint.
 
 ## Remaining
 
-- make complete-state Flea/FIR fact collection and retained-set scoring include modeled attachment/armor-plate descendants;
-- make v1.17 current/final weight proof assembly-aware, include fixed out-of-pool Melee/Dogtag state, and fail closed on unknown weight;
-- fail closed on unknown root geometry before global destructive advice;
-- enforce `ConflictingSlotIds` with exact assembly slot context and add Headwear slot compatibility;
-- make current → final instructions surface required same-area grid/rotation changes;
-- complete stack/quantity and locked-ancestry regression audit without inventing automatic split/merge behavior;
-- audit published smoke/source contracts for stale v1.16.x farming expectations;
-- add deterministic regression coverage for every corrected legality/fact boundary;
-- add the durable developer-authority guard to `AGENTS.md` before completion;
-- validate Windows Release build, full deterministic tests, win-x64 publish, actual published EXE Product UI/runtime smoke, graceful shutdown and package integrity;
-- synchronize authoritative project docs and final Draft PR description/state;
-- only then merge/release.
+- require the latest implementation checkpoint to pass win-x64 publish, actual published EXE Product UI/Farming Guide smoke, graceful shutdown, package verification, dedicated Shutdown Race CI and Documentation Consistency;
+- bump Desktop/EXE/FIRST_RUN release identity from v1.16.4 to v1.17.0 and add matching release notes/status documentation;
+- re-run the complete branch release gate on the final version/documentation HEAD;
+- perform final PR #288 changed-file/review audit and synchronize its description/state;
+- merge only after the final branch gate is green;
+- validate exact `main` with CI, Shutdown Race CI and Documentation Consistency;
+- publish stable v1.17.0 only from the exact validated main source and verify tag/release/assets/checksums;
+- update `PROJECT_STATE`, `CURRENT_STATE`, `STATE` and release-status facts to the actual public release;
+- close `ACTIVE_WORK` only after merge, exact-main validation, release publication and documentation are complete.
