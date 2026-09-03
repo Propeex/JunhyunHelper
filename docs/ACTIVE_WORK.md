@@ -1,35 +1,58 @@
 # ACTIVE WORK
 
-Status: **NONE**
+Status: **ACTIVE**
 
 ## Current task
 
-None.
+Farming Guide raid-advisor rule simplification and global inventory optimization.
 
-## Last completed
+## Goal
 
-v1.16.4 PATCH fixed the user-reported Farming Guide regression where an explicitly locked stored item could be included in an automatic movement/repacking instruction.
+Align the Farming Guide with the user-confirmed product model:
+
+- separate **system rules** from **farming rules**;
+- system rules enforce Tarkov-valid inventory mechanics and user locks, but do not become farming preferences;
+- farming priority is lexicographic: (1) currently needed FIR quest/hideout items, then (2) maximum retained economic value;
+- food, drink, ammunition, magazines and medicine receive no automatic tactical-retention privilege unless the exact item is currently FIR-needed; users protect personally important items with locks;
+- weight is the only user-configurable farming constraint;
+- every scan conceptually releases all unlocked inventory items into one candidate pool with the incoming item and solves for the best legal final inventory state, instead of locally inserting the incoming item around the current arrangement.
+
+## Base / working state
 
 ```text
+base main: 379c6ab4ab02431c6bb74b537e899e94f45ee987
 public stable: v1.16.4
-exact product source/tag target:
-5886d8f97abd060d398d4c50d3dd3b720e4ace09
-merge PR: #285
-validated PR head: d55e138c962e87dc8691f82c81d36a516db52941
-PR CI / Shutdown / Docs:
-33623459284 / 33623459290 / 33623459267 — SUCCESS
-exact-main CI / Shutdown / Docs:
-33623824030 / 33623824052 / 33623824027 — SUCCESS
-Release workflow: 33624248788 — SUCCESS
-release id: 381192920
-published UTC: 2026-09-02T11:22:47Z
-623 passed / 0 failed / 0 skipped
+working branch: feature/v1.17.0-farming-guide-global-optimization-2026-09-03
+PR: not opened yet
 ```
 
-Authoritative lock contract: an explicitly locked stored item is position-locked for automatic Farming Guide advice. Automatic planning cannot discard, replace, relocate, rotate, re-parent or indirectly move it through ancestor/root-carrier movement. Manual editing remains authoritative, and a locked carrier root still exposes legal internal storage.
+## Confirmed scope
 
-Draft PR #284 was closed unmerged only because the connected GitHub ready-for-review mutation was broken; non-draft PR #285 is the authoritative validated and merged PR.
+1. Audit existing Farming Guide decision documents, policies, planner semantics and tests for conflicts with the newly confirmed rules.
+2. Record the new product decision and supersession relationship.
+3. Remove tactical food/drink/current-weapon-ammo retention from automated farming decisions.
+4. Simplify loot priority to FIR-needed first, economic retained value second; geometry is a system feasibility concern rather than an independent farming preference.
+5. Replace local displacement semantics with a global unlocked-item optimization model while preserving locked items/cells and Tarkov-valid placement/filter/nesting rules.
+6. Apply user-configured weight as a hard farming constraint when enabled/defined by the product settings.
+7. Add deterministic regression coverage for rule boundaries and global-optimum cases.
+8. Run relevant deterministic tests, full suite/Release verification where available, then PR/CI and documentation consistency.
 
-Public release assets and exact validation evidence are recorded in `docs/PROJECT_STATE.json`, `docs/.release-v1.16.4-status.json`, `docs/CURRENT_STATE.md`, `docs/STATE.md`, and `docs/RELEASE_NOTES_V1.16.4.md`.
+## Completed
 
-Actual user-PC/Tarkov real-play validation remains separately `PENDING`; it is not unfinished development and does not alter the completed v1.16.4 public release identity.
+- Recovered repository authority and current v1.16.4 state.
+- Identified two concrete conflicts in current code:
+  - `FarmingGuideRepackingPlanner` is explicitly a local displacement planner rather than a global unlocked-item optimizer.
+  - `FarmingGuideTacticalResourcePolicy` encodes automatic food/drink/current-weapon-ammo retention, which the user has now rejected as a farming rule.
+- Identified priority drift: current policy uses weight/footprint as item-level tie breakers; new product rule treats weight as the only user farming constraint and geometry as system feasibility.
+
+## Current step
+
+Audit all callers/tests and design the smallest coherent implementation that produces the globally optimal retained legal state without reintroducing tactical heuristics.
+
+## Remaining
+
+- update decision/product/architecture/reference docs;
+- implement rule changes and global optimization;
+- update/add tests;
+- validate build/test behavior;
+- open PR, verify CI, merge/release if the implementation is complete and release-ready.
