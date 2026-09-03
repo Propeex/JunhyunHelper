@@ -277,9 +277,13 @@ public partial class FarmingGuidePage
             string.Equals(value.InstanceId, _quantityEditInstanceIdV1160, StringComparison.Ordinal));
         if (index < 0)
             return;
+
+        var item = ResolveItem(_storedItems[index].Item);
+        if (item is null)
+            return;
         _storedItems[index] = _storedItems[index] with
         {
-            Quantity = FarmingGuideStackQuantityPolicy.NormalizeQuantity(quantity),
+            Quantity = FarmingGuideStackQuantityPolicy.NormalizeQuantity(item, quantity),
         };
         if (_quantityPopupV1160 is not null)
             _quantityPopupV1160.IsOpen = false;
