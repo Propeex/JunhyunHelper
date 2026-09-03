@@ -2,9 +2,9 @@ namespace JunhyunHelper.Core.FarmingGuide;
 
 /// <summary>
 /// Scanner/content facts projected into the Farming Guide decision layer.
-/// CurrentNeeded intentionally means remaining Found-in-Raid need in v1.16.0.
-/// Trader price is retained only for source/API compatibility; Farming Guide economic
-/// decisions use average Flea Market value exclusively.
+/// CurrentNeeded means remaining Found-in-Raid quest/hideout need. Trader price is retained
+/// only for source/API compatibility; Farming Guide economic decisions use average Flea
+/// Market value exclusively.
 /// </summary>
 public sealed record FarmingGuideLootMetrics(
     int CurrentNeeded,
@@ -19,6 +19,10 @@ public sealed record FarmingGuideLootMetrics(
     public int UnitFleaValue => Math.Max(0, FleaAveragePrice ?? 0);
     public int EffectiveValue => checked(UnitFleaValue * NormalizedQuantity);
     public int EffectiveSlots => Math.Max(1, Slots);
+
+    // These derived facts remain useful to placement/search and weight validation. They are
+    // deliberately not Farming Guide priority tiers: geometry is a system feasibility fact
+    // and weight is a final-state constraint.
     public double ValuePerSlot => EffectiveValue / (double)EffectiveSlots;
     public decimal? EffectiveWeightKg => UnitWeightKg is { } weight
         ? Math.Max(0m, weight) * NormalizedQuantity
@@ -26,17 +30,15 @@ public sealed record FarmingGuideLootMetrics(
 }
 
 /// <summary>
-/// Deterministic Farming Guide priority manual. This is deliberately lexicographic rather
-/// than a weighted score: classify the item, compare one rule, and only on a tie proceed
-/// to the next rule.
+/// v1.17 item-level projection of the Farming Guide rulebook.
 ///
-/// 1. Remaining Found-in-Raid need outranks ordinary economic loot.
-/// 2. Average Flea Market total value decides ordinary economic priority.
-/// 3. Equal-value items prefer the lighter known total weight.
-/// 4. A final tie prefers the smaller ordinary footprint.
+/// Product priority has exactly two farming dimensions:
+/// 1. an item with remaining FIR quest/hideout need outranks ordinary loot;
+/// 2. otherwise higher average Flea total value wins.
 ///
-/// Geometry-specific destructive decisions compare the complete victim set in
-/// FarmingGuideLootRetentionPolicy instead of treating ₽/slot as an absolute item score.
+/// Exact inventory optimization must apply FIR priority quantity-wise and compare complete
+/// legal final states; this comparator is only for places that still need a deterministic
+/// pairwise ordering during migration/search. Weight and footprint are not priority tiers.
 /// </summary>
 public static class FarmingGuideLootPriorityPolicy
 {
@@ -49,20 +51,7 @@ public static class FarmingGuideLootPriorityPolicy
         if (firNeeded != 0)
             return firNeeded;
 
-        var totalValue = left.EffectiveValue.CompareTo(right.EffectiveValue);
-        if (totalValue != 0)
-            return totalValue;
-
-        // Unknown weight must never be guessed. Weight breaks a tie only when both facts
-        // are present, otherwise the decision falls through to footprint/stability.
-        if (left.EffectiveWeightKg is { } leftWeight && right.EffectiveWeightKg is { } rightWeight)
-        {
-            var lighter = rightWeight.CompareTo(leftWeight);
-            if (lighter != 0)
-                return lighter;
-        }
-
-        return right.EffectiveSlots.CompareTo(left.EffectiveSlots);
+        return left.EffectiveValue.CompareTo(right.EffectiveValue);
     }
 
     public static bool ShouldReplace(
