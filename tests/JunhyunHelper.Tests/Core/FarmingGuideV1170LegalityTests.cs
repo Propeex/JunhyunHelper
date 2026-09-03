@@ -20,6 +20,62 @@ public sealed class FarmingGuideV1170LegalityTests
     }
 
     [Fact]
+    public void OptimizationScoreUsesStackQuantityForFirAndValue()
+    {
+        var stored = new FarmingGuideStoredItemState(
+            "stack-instance",
+            FarmingGuideItemState.Create("stack-item", raidAcquired: true),
+            FarmingGuideStorageKind.Pockets,
+            0,
+            0,
+            0,
+            false)
+        {
+            Quantity = 30,
+        };
+        var snapshot = FarmingGuideLoadoutSnapshot.Empty with
+        {
+            StoredItems = [stored],
+        };
+
+        var score = FarmingGuideOptimizationPolicy.Score(
+            snapshot,
+            itemId => string.Equals(itemId, "stack-item", StringComparison.Ordinal) ? 20 : 0,
+            itemId => string.Equals(itemId, "stack-item", StringComparison.Ordinal) ? 100 : 0);
+
+        Assert.Equal(20, score.SatisfiedFirUnits);
+        Assert.Equal(3_000, score.RetainedFleaValue);
+    }
+
+    [Fact]
+    public void NonRaidAcquiredStackCountsValueButNotFirProgress()
+    {
+        var stored = new FarmingGuideStoredItemState(
+            "baseline-stack-instance",
+            FarmingGuideItemState.Create("stack-item"),
+            FarmingGuideStorageKind.Pockets,
+            0,
+            0,
+            0,
+            false)
+        {
+            Quantity = 30,
+        };
+        var snapshot = FarmingGuideLoadoutSnapshot.Empty with
+        {
+            StoredItems = [stored],
+        };
+
+        var score = FarmingGuideOptimizationPolicy.Score(
+            snapshot,
+            _ => 20,
+            _ => 100);
+
+        Assert.Equal(0, score.SatisfiedFirUnits);
+        Assert.Equal(3_000, score.RetainedFleaValue);
+    }
+
+    [Fact]
     public void AssemblyCandidateIsRejectedWhenOccupiedItemBlocksTargetSlot()
     {
         var slotA = AttachmentSlot("slot-a", "blocker");
