@@ -25,10 +25,10 @@ public partial class FarmingGuidePage
 
     /// <summary>
     /// Replaces the historical tactical/victim-first transition with a best-first complete
-    /// state search. All unlocked movable stored leaf items are potential economic victims;
-    /// food/drink/ammunition/medicine receive no category privilege. Each feasible packed
-    /// state is scored by (FIR units satisfied, total retained Flea value), with weight as a
-    /// hard admissibility constraint.
+    /// state search. All unlocked movable stored leaf items with provable decision facts are
+    /// potential economic victims; food/drink/ammunition/medicine receive no category
+    /// privilege. Each feasible packed state is scored by (FIR units satisfied, total
+    /// retained Flea value), with weight as a hard admissibility constraint.
     ///
     /// The underlying repacking planner is deliberately reused as the system-mechanics
     /// proof for legal geometry, filters, rotations, nesting, reservations and position
@@ -251,7 +251,24 @@ public partial class FarmingGuidePage
             .Where(stored => !SubtreeContainsLockedItemInSnapshot(stored.InstanceId, snapshot.StoredItems))
             .Where(stored => !_reservedCells.Any(cell =>
                 string.Equals(cell.ParentInstanceId, stored.InstanceId, StringComparison.Ordinal)))
+            // Unknown decision facts are not zero value. If the current catalog/Scanner bridge
+            // cannot prove both FIR-need and Flea-value facts for a concrete victim, automatic
+            // destructive advice must leave that instance out of the victim pool.
+            .Where(HasProvableVictimFactsV1170)
             .OrderBy(stored => stored.InstanceId, StringComparer.Ordinal);
+    }
+
+    private bool HasProvableVictimFactsV1170(FarmingGuideStoredItemState stored)
+    {
+        var item = ResolveItem(stored.Item);
+        if (item is null)
+            return false;
+
+        var snapshot = _raidBridge?.ResolveSnapshot(item.Id);
+        if (snapshot is null)
+            return false;
+
+        return _raidFleaAveragePrices.ContainsKey(item.Id) || snapshot.FleaAveragePrice is not null;
     }
 
     private void EnqueueGlobalSubsetV1170(
