@@ -202,6 +202,38 @@ public partial class FarmingGuidePage
                 throw new InvalidOperationException("v1.17 equipment root is not unified with the economic candidate pool.");
             }
 
+            // A retained old top-level root may move into storage while the incoming root
+            // occupies its former slot. The projected stored root must receive a persistent
+            // identity that cannot collide with the next scan's synthetic slot identity.
+            _pocketGrids = [new FarmingGuideStorageGridDefinition(1, 1, FarmingGuideItemFilter.Empty)];
+            if (!TryPlanScannedItemGlobalV1170(
+                    equippedCurrent,
+                    snapshots[helmetNewId],
+                    helmetNew,
+                    out var retainedEquipmentRecommendation) ||
+                retainedEquipmentRecommendation.Action != FarmingGuideInstructionAction.ReplaceEquip ||
+                retainedEquipmentRecommendation.ProposedSnapshot.StoredItems.SingleOrDefault(value =>
+                    value.Item.ItemId == helmetOldId) is not { } movedOldHelmet ||
+                string.Equals(
+                    movedOldHelmet.InstanceId,
+                    EquipmentRootIdV1170(FarmingGuideEquipmentSlot.Helmet),
+                    StringComparison.Ordinal) ||
+                !retainedEquipmentRecommendation.Instruction.Contains("이동", StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("v1.17 did not persist a relocated equipment root safely.");
+            }
+
+            snapshots[foodId] = V1170SmokeSnapshot(foodId, flea: 10_000, firNeed: 0);
+            if (!TryPlanScannedItemGlobalV1170(
+                    retainedEquipmentRecommendation.ProposedSnapshot,
+                    snapshots[foodId],
+                    food,
+                    out var consecutiveRecommendation) ||
+                consecutiveRecommendation.Action != FarmingGuideInstructionAction.Discard)
+            {
+                throw new InvalidOperationException("v1.17 consecutive scan failed after retaining relocated equipment.");
+            }
+
             // Strict final weight: a single incoming root heavier than the configured limit
             // is never an admissible retained state, regardless of its value.
             _pocketGrids = [new FarmingGuideStorageGridDefinition(1, 1, FarmingGuideItemFilter.Empty)];
