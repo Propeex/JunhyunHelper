@@ -38,7 +38,7 @@ public partial class FarmingGuidePage
         _ = recommendation;
 
         if (!HasProvableRaidWeightDomainV1170(current, incoming) ||
-            !HasProvableFirDecisionFactsV1170(current, scanned))
+            !HasProvableFirDecisionFactsV1170(current))
         {
             return IndeterminateRaidPlanV1170(current);
         }
@@ -63,24 +63,17 @@ public partial class FarmingGuidePage
     }
 
     /// <summary>
-    /// FIR is a decision fact, not something inferred from "seen during this raid". A newly
-    /// scanned item with remaining FIR need is actionable only when Scanner has an explicit
-    /// FIR observation. Current Scanner auto-promotes only positive marker evidence to
-    /// FoundInRaid; absence remains Unknown and therefore fail-closed. An explicit future
-    /// NotFoundInRaid observation is also a proven fact and may participate as ordinary loot.
-    /// Existing raid-acquired Unknown items are safe only when current requirement data proves
-    /// that their item id has no remaining FIR need.
+    /// Product rule: once Farming Guide raid mode is active, every newly Scanner-identified
+    /// incoming item is modeled as Found-in-Raid. Scanner does not inspect or infer Tarkov's
+    /// FIR icon; the active-raid scan event itself is the product authority for new loot.
+    ///
+    /// This validator therefore only guards already-modeled raid-acquired state. New incoming
+    /// roots are created explicitly as FoundInRaid in the unified solver. Any unexpected legacy
+    /// raid-acquired Unknown state still fails closed when its FIR requirement could affect the
+    /// optimum, so corrupted/incomplete state never becomes destructive advice.
     /// </summary>
-    private bool HasProvableFirDecisionFactsV1170(
-        FarmingGuideLoadoutSnapshot current,
-        ScannerItemSnapshot scanned)
+    private bool HasProvableFirDecisionFactsV1170(FarmingGuideLoadoutSnapshot current)
     {
-        if (Math.Max(0, scanned.CurrentNeededFir) > 0 &&
-            scanned.FirStatus == FarmingGuideFirStatus.Unknown)
-        {
-            return false;
-        }
-
         foreach (var state in EnumerateFirDecisionStatesV1170(current))
         {
             if (!state.RaidAcquired)
@@ -173,9 +166,8 @@ public partial class FarmingGuidePage
     }
 
     /// <summary>
-    /// Incoming acquisition provenance is assigned when the unified candidate root is created
-    /// and is carried by the exact FarmingGuideItemState through every placement. Do not infer
-    /// FIR provenance from that acquisition or from a changed slot/location.
+    /// Incoming acquisition/FIR provenance is assigned when the unified candidate root is
+    /// created and is carried by the exact FarmingGuideItemState through every placement.
     /// </summary>
     private static RaidRecommendation MarkIncomingRaidProvenanceV1170(
         FarmingGuideLoadoutSnapshot current,
