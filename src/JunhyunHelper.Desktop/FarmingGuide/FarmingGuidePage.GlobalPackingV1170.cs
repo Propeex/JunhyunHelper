@@ -77,6 +77,8 @@ public partial class FarmingGuidePage
         }
 
         EnsureWeightSettingsLoadedV1160();
+        if (!TryCalculateFixedOutsideWeightStrictV1170(current, out var fixedOutsideWeight))
+            return FarmingGuideGlobalPackingStatus.NoSolution;
         var maximumAdmissibleWeight = FarmingGuideWeightPolicy.MaximumCarryWeightKg(_weightSettingsV1160);
 
         var result = FarmingGuideGlobalPackingPlanner.TryPlan(
@@ -86,6 +88,7 @@ public partial class FarmingGuidePage
                 placements,
                 rootsById,
                 surfaceById,
+                fixedOutsideWeight,
                 maximumAdmissibleWeight));
         if (!result.Found)
             return result.Status;
@@ -356,6 +359,7 @@ public partial class FarmingGuidePage
         IReadOnlyDictionary<string, FarmingGuideGlobalPackingPlacement> placements,
         IReadOnlyDictionary<string, GlobalRootV1170> roots,
         IReadOnlyDictionary<string, GlobalSurfaceV1170> surfaces,
+        decimal fixedOutsideWeight,
         decimal maximumAdmissibleWeight)
     {
         // Container capacity is conditional on how the owner itself is retained. A nested
@@ -430,7 +434,7 @@ public partial class FarmingGuidePage
         if (headsetOccupied && equippedHelmet?.Item.FarmingGuideData?.BlocksHeadphones == true)
             return false;
 
-        decimal totalWeight = 0m;
+        var totalWeight = fixedOutsideWeight;
         foreach (var placement in placements.Values)
         {
             if (!roots.TryGetValue(placement.InstanceId, out var root) ||
@@ -445,7 +449,11 @@ public partial class FarmingGuidePage
             {
                 continue;
             }
-            totalWeight += FarmingGuideWeightPolicy.ItemWeightKg(root.Item, root.Quantity);
+            if (!TryCalculateRootWeightStrictV1170(root, out var rootWeight))
+                return false;
+            totalWeight = checked(totalWeight + rootWeight);
+            if (totalWeight > maximumAdmissibleWeight)
+                return false;
         }
 
         return totalWeight <= maximumAdmissibleWeight;
