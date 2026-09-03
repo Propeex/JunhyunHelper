@@ -26,7 +26,7 @@ public stable: v1.16.4
 working branch: feature/v1.17.0-farming-guide-restart-2026-09-03
 previous PR #287: CLOSED / ABANDONED / MUST NOT BE RESUMED
 Draft PR: #288
-latest implementation checkpoint before this document update: a3ea3191da076fbc12f79ff0b9be5b6f83d02cec
+latest audited implementation checkpoint before this document update: 5118a913811f837f9960ccc54d654f76b0a5559d
 ```
 
 ## Confirmed scope
@@ -60,35 +60,43 @@ Code from the abandoned branch may only be consulted later as a non-authoritativ
 - Closed PR #287 unmerged and marked it abandoned.
 - Created clean branch from stable `main@379c6ab4ab02431c6bb74b537e899e94f45ee987` and opened Draft PR #288.
 - Recorded the clean canonical v1.17 rulebook.
-- Audited stable live raid path and identified conflicting old product semantics: tactical food/drink/current-weapon-ammo protection, armor/headset superiority, local insertion/displacement, lighter-item and smaller-footprint priority.
-- Simplified `FarmingGuideLootPriorityPolicy` to FIR need then total Flea value only; weight/footprint remain system facts, not priority tiers.
-- Added ephemeral `[JsonIgnore]` `FarmingGuideItemState.RaidAcquired` provenance so active-raid Scanner acquisitions can be represented without modifying Scanner or persisted presets.
-- Added explicit raid-acquired inventory counting; v1.17 can distinguish a new scanned copy from an identical raid-start item even when net item-id count is unchanged.
+- Removed the old tactical/category/equipment-superiority/local-planner semantics from the authoritative live raid decision route.
+- Added ephemeral `[JsonIgnore]` `FarmingGuideItemState.RaidAcquired` provenance and explicit raid-acquired inventory counting without modifying Scanner or persisted presets.
 - Added complete-state `FarmingGuideOptimizationScore` with exactly two dimensions: satisfied FIR quantity and retained Flea value.
-- Added a new deterministic from-scratch `FarmingGuideGlobalPackingPlanner` that packs an already-selected retained root set globally, preserves exact fixed placements, supports owned/nested surfaces, rejects owner cycles, supports cross-surface final validation, and distinguishes `BudgetExceeded` from proven `NoSolution`.
-- Added deterministic unit tests for the objective and global packing engine.
-- First clean CI generation proved Desktop Release compilation succeeds. Core tests exposed two stale footprint-priority expectations; these were corrected to the confirmed no-footprint-priority contract.
-- First Documentation Consistency failure was only a missing required `## Goal` checkpoint section; this document update corrects it.
-- Shutdown Race CI for the first clean generation succeeded.
+- Added deterministic from-scratch `FarmingGuideGlobalPackingPlanner` with fixed-placement preservation, owned/nested surfaces, cycle rejection, cross-surface final validation, and explicit `BudgetExceeded` handling.
+- Built the live global candidate pool across stored items, top-level equipment, Rig, Backpack, Secure Container, nested storage and incoming Scanner items.
+- Routed the active raid decision through the v1.17 global optimizer and preserved `RaidAcquired` through accepted-state sanitization.
+- Enforced weight as a strict final-state constraint and added fail-closed handling for unknown destructive Flea comparisons.
+- Added v1.17 WPF Product UI/runtime smoke coverage for FIR priority, quota capping, no tactical food privilege, incoming-container capacity, locks, equipment participation, consecutive scans, overweight rejection and unknown-price fail-closed behavior.
+- Verified PR #288 head `5118a913811f837f9960ccc54d654f76b0a5559d`: CI, Shutdown Race CI and Documentation Consistency all succeeded.
+- Confirmed generic global owner-graph validation already rejects self-containment and indirect nested-container cycles.
+- Confirmed raid value display is based on explicit `RaidAcquired` provenance rather than baseline-count inference.
 
 ## Current step
 
-Finish the stable-main system-mechanics audit, then build a new v1.17 Desktop candidate-pool projection that reuses verified placement/filter/lock/weight mechanics without reusing old tactical/local farming policy. Route the live raid decision to that new complete-state path only after deterministic integration tests are in place.
+Finish the Tarkov system-legality and fact-proof audit of the current global optimizer. The audit has identified concrete implementation gaps that do not require new product semantics:
+
+- complete assembled equipment currently contributes only the root item's weight to global final-weight validation;
+- missing item weight can still collapse to `0 kg` in legacy helpers used by the global path;
+- missing root dimensions can still collapse to `1x1` for global packing;
+- complete-state candidate facts/ranking currently omit attachment/armor-plate Flea value even though snapshot inventory counting includes those retained items;
+- `ConflictingSlotIds` is assembly-slot legality and is not yet enforced by `FarmingGuideAssemblyPolicy`;
+- upstream `ItemPropertiesHeadwear` is not yet accepted by the shared head equipment-slot compatibility rule;
+- a global solve may require an existing stored item to move/rotate inside the same visible storage area, while the current v1.17 instruction projection suppresses that physical delta.
+
+These are being corrected fail-closed and mechanically, without adding new farming priorities, Scanner inference, data sources or user confirmation flows.
 
 ## Remaining
 
-- confirm fresh CI is green after stale test/documentation corrections;
-- finish auditing stable placement surfaces/options, lock closure, equipment/carrier legality, quantity and weight helpers;
-- implement complete root candidate pool for stored items, top-level equipment/carriers and incoming Scanner item;
-- ensure incoming root is `RaidAcquired = true` only inside active Farming Guide raid state;
-- preserve ephemeral provenance after accepted snapshot sanitization without persisting it;
-- implement retained-set optimization using `FarmingGuideOptimizationPolicy` + `FarmingGuideGlobalPackingPlanner`;
-- remove old tactical/category/equipment-superiority/local-planner semantics from the authoritative v1.17 live route;
-- preserve exact locked item placement and reserved-cell constraints;
-- derive user instruction from current state → chosen final state diff using existing confirmed action vocabulary;
-- preserve quantity/stack and weight behavior within the confirmed rules; add only system mechanics required for correctness, not new preferences;
-- add deterministic regression coverage and source-contract tests;
-- add a durable developer-authority guard to `AGENTS.md` before completion;
-- validate Windows Release build, tests, published EXE Product UI/runtime smoke, graceful shutdown and package integrity;
-- synchronize authoritative project docs;
+- make complete-state Flea/FIR fact collection and retained-set scoring include modeled attachment/armor-plate descendants;
+- make v1.17 current/final weight proof assembly-aware, include fixed out-of-pool Melee/Dogtag state, and fail closed on unknown weight;
+- fail closed on unknown root geometry before global destructive advice;
+- enforce `ConflictingSlotIds` with exact assembly slot context and add Headwear slot compatibility;
+- make current → final instructions surface required same-area grid/rotation changes;
+- complete stack/quantity and locked-ancestry regression audit without inventing automatic split/merge behavior;
+- audit published smoke/source contracts for stale v1.16.x farming expectations;
+- add deterministic regression coverage for every corrected legality/fact boundary;
+- add the durable developer-authority guard to `AGENTS.md` before completion;
+- validate Windows Release build, full deterministic tests, win-x64 publish, actual published EXE Product UI/runtime smoke, graceful shutdown and package integrity;
+- synchronize authoritative project docs and final Draft PR description/state;
 - only then merge/release.
