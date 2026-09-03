@@ -212,15 +212,6 @@ public sealed class ScannerLab38InspectDetector : IScannerTrackedInspectDetector
         var closeBounds = ToScreenRect(anchors.CloseButton, screenLeft, screenTop);
         var geometrySignature = $"tracked:{Quantize(lockedWindow.X + screenLeft)}:{Quantize(lockedWindow.Y + screenTop)}:{Quantize(lockedWindow.Width)}:{Quantize(lockedWindow.Height)}";
         var titleSignature = $"{HashPixels(titlePixels):X16}";
-        var hasFoundInRaidMarkerEvidence = ScannerFirMarkerDetector.HasFoundInRaidMarker(
-            data.Pixels,
-            bitmap.Width,
-            bitmap.Height,
-            data.Stride,
-            lockedWindow.X,
-            lockedWindow.Y,
-            lockedWindow.Width,
-            lockedWindow.Height);
 
         return new ScannerInspectCandidate(
             windowBounds,
@@ -233,8 +224,7 @@ public sealed class ScannerLab38InspectDetector : IScannerTrackedInspectDetector
             magnifierBounds,
             closeBounds,
             anchors.Score,
-            anchors.Reason,
-            hasFoundInRaidMarkerEvidence);
+            anchors.Reason);
     }
 
     private static ScannerDetectedRegion ToLocalRegion(
@@ -465,15 +455,6 @@ public sealed class ScannerLab38InspectDetector : IScannerTrackedInspectDetector
             Rect? closeBounds = anchors.CloseButton.Width > 0
                 ? ToScreenRect(anchors.CloseButton, screenLeft, screenTop)
                 : null;
-            var hasFoundInRaidMarkerEvidence = ScannerFirMarkerDetector.HasFoundInRaidMarker(
-                data.Pixels,
-                bitmap.Width,
-                bitmap.Height,
-                data.Stride,
-                lockedWindow.X,
-                lockedWindow.Y,
-                lockedWindow.Width,
-                lockedWindow.Height);
 
             result.Add(new ScannerInspectCandidate(
                 windowBounds,
@@ -486,8 +467,7 @@ public sealed class ScannerLab38InspectDetector : IScannerTrackedInspectDetector
                 magnifierBounds,
                 closeBounds,
                 anchors.Score,
-                anchors.Reason,
-                hasFoundInRaidMarkerEvidence));
+                anchors.Reason));
         }
 
         var ordered = result
