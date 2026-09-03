@@ -106,16 +106,57 @@ public sealed class FarmingGuideRaidValuePolicyTests
         Assert.Equal(0L, value);
     }
 
+    [Fact]
+    public void CalculateRaidAcquiredFleaValue_DistinguishesIdenticalRaidStartAndScannerCopies()
+    {
+        var current = Snapshot(
+            Stored("raid-start-copy", "same-item", 1),
+            Stored("scanner-copy", "same-item", 1, raidAcquired: true));
+
+        var value = FarmingGuideRaidValuePolicy.CalculateRaidAcquiredFleaValue(
+            current,
+            _ => 75_000);
+
+        Assert.Equal(75_000L, value);
+    }
+
+    [Fact]
+    public void CalculateRaidAcquiredFleaValue_UsesConcreteAcquiredStackQuantity()
+    {
+        var current = Snapshot(
+            Stored("baseline-ammo", "ammo", 60),
+            Stored("scanner-ammo", "ammo", 37, raidAcquired: true));
+
+        var value = FarmingGuideRaidValuePolicy.CalculateRaidAcquiredFleaValue(
+            current,
+            _ => 1_250);
+
+        Assert.Equal(46_250L, value);
+    }
+
+    [Fact]
+    public void CalculateRaidAcquiredFleaValue_DropsToZeroWhenAcquiredCopyIsNoLongerRetained()
+    {
+        var current = Snapshot(Stored("baseline", "item-a", 1));
+
+        var value = FarmingGuideRaidValuePolicy.CalculateRaidAcquiredFleaValue(
+            current,
+            _ => 100_000);
+
+        Assert.Equal(0L, value);
+    }
+
     private static FarmingGuideLoadoutSnapshot Snapshot(params FarmingGuideStoredItemState[] stored) =>
         FarmingGuideLoadoutSnapshot.Empty with { StoredItems = stored };
 
     private static FarmingGuideStoredItemState Stored(
         string instanceId,
         string itemId,
-        int quantity) =>
+        int quantity,
+        bool raidAcquired = false) =>
         new(
             instanceId,
-            FarmingGuideItemState.Create(itemId),
+            FarmingGuideItemState.Create(itemId, raidAcquired),
             FarmingGuideStorageKind.Backpack,
             0,
             0,
