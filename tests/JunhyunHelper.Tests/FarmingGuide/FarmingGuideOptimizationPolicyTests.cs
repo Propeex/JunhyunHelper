@@ -9,7 +9,12 @@ public sealed class FarmingGuideOptimizationPolicyTests
     public void Score_PrioritizesNeededFirUnitsAheadOfEconomicValue()
     {
         var baseline = FarmingGuideLoadoutSnapshot.Empty;
-        var needed = Snapshot(Stored("needed", "quest-food", 1, acquired: true));
+        var needed = Snapshot(Stored(
+            "needed",
+            "quest-food",
+            1,
+            acquired: true,
+            firStatus: FarmingGuideFirStatus.FoundInRaid));
         var expensive = Snapshot(Stored("expensive", "valuable", 1, acquired: true));
         var needs = new Dictionary<string, int> { ["quest-food"] = 1 };
         var prices = new Dictionary<string, int?>
@@ -36,8 +41,18 @@ public sealed class FarmingGuideOptimizationPolicyTests
     public void Score_CapsFirBenefitAtRemainingRequiredQuantity()
     {
         var baseline = FarmingGuideLoadoutSnapshot.Empty;
-        var one = Snapshot(Stored("one", "quest-item", 1, acquired: true));
-        var three = Snapshot(Stored("three", "quest-item", 3, acquired: true));
+        var one = Snapshot(Stored(
+            "one",
+            "quest-item",
+            1,
+            acquired: true,
+            firStatus: FarmingGuideFirStatus.FoundInRaid));
+        var three = Snapshot(Stored(
+            "three",
+            "quest-item",
+            3,
+            acquired: true,
+            firStatus: FarmingGuideFirStatus.FoundInRaid));
 
         var oneScore = FarmingGuideOptimizationPolicy.Score(baseline, one, _ => 1, _ => 10_000);
         var threeScore = FarmingGuideOptimizationPolicy.Score(baseline, three, _ => 1, _ => 10_000);
@@ -48,26 +63,78 @@ public sealed class FarmingGuideOptimizationPolicyTests
     }
 
     [Fact]
-    public void Score_DoesNotTreatBaselineCopyAsRaidAcquired()
+    public void Score_RaidAcquiredUnknownDoesNotSatisfyFirNeed()
     {
-        var baseline = Snapshot(Stored("baseline", "quest-item", 1));
-        var unchanged = Snapshot(Stored("baseline", "quest-item", 1));
-        var acquiredSecond = Snapshot(
-            Stored("baseline", "quest-item", 1),
-            Stored("loot", "quest-item", 1, acquired: true));
+        var candidate = Snapshot(Stored(
+            "loot",
+            "quest-item",
+            1,
+            acquired: true,
+            firStatus: FarmingGuideFirStatus.Unknown));
 
-        var unchangedScore = FarmingGuideOptimizationPolicy.Score(baseline, unchanged, _ => 2, _ => 10_000);
-        var acquiredScore = FarmingGuideOptimizationPolicy.Score(baseline, acquiredSecond, _ => 2, _ => 10_000);
+        var score = FarmingGuideOptimizationPolicy.Score(
+            FarmingGuideLoadoutSnapshot.Empty,
+            candidate,
+            _ => 1,
+            _ => 10_000);
 
-        Assert.Equal(0, unchangedScore.SatisfiedFirUnits);
-        Assert.Equal(1, acquiredScore.SatisfiedFirUnits);
+        Assert.Equal(0, score.SatisfiedFirUnits);
+        Assert.Equal(1, FarmingGuideSnapshotInventoryCounter.CountRaidAcquired(candidate, "quest-item"));
+        Assert.Equal(0, FarmingGuideSnapshotInventoryCounter.CountFoundInRaid(candidate, "quest-item"));
+    }
+
+    [Fact]
+    public void Score_RaidAcquiredNotFoundInRaidDoesNotSatisfyFirNeed()
+    {
+        var candidate = Snapshot(Stored(
+            "loot",
+            "quest-item",
+            1,
+            acquired: true,
+            firStatus: FarmingGuideFirStatus.NotFoundInRaid));
+
+        var score = FarmingGuideOptimizationPolicy.Score(
+            FarmingGuideLoadoutSnapshot.Empty,
+            candidate,
+            _ => 1,
+            _ => 10_000);
+
+        Assert.Equal(0, score.SatisfiedFirUnits);
+        Assert.Equal(1, FarmingGuideSnapshotInventoryCounter.CountRaidAcquired(candidate, "quest-item"));
+        Assert.Equal(0, FarmingGuideSnapshotInventoryCounter.CountFoundInRaid(candidate, "quest-item"));
+    }
+
+    [Fact]
+    public void Score_ExplicitFoundInRaidSatisfiesFirNeed()
+    {
+        var candidate = Snapshot(Stored(
+            "loot",
+            "quest-item",
+            1,
+            acquired: true,
+            firStatus: FarmingGuideFirStatus.FoundInRaid));
+
+        var score = FarmingGuideOptimizationPolicy.Score(
+            FarmingGuideLoadoutSnapshot.Empty,
+            candidate,
+            _ => 1,
+            _ => 10_000);
+
+        Assert.Equal(1, score.SatisfiedFirUnits);
+        Assert.Equal(1, FarmingGuideSnapshotInventoryCounter.CountRaidAcquired(candidate, "quest-item"));
+        Assert.Equal(1, FarmingGuideSnapshotInventoryCounter.CountFoundInRaid(candidate, "quest-item"));
     }
 
     [Fact]
     public void Score_PreservesFirProvenanceWhenIdenticalBaselineCopyWasDiscarded()
     {
         var baseline = Snapshot(Stored("baseline", "quest-item", 1));
-        var current = Snapshot(Stored("loot", "quest-item", 1, acquired: true));
+        var current = Snapshot(Stored(
+            "loot",
+            "quest-item",
+            1,
+            acquired: true,
+            firStatus: FarmingGuideFirStatus.FoundInRaid));
 
         var score = FarmingGuideOptimizationPolicy.Score(baseline, current, _ => 1, _ => 10_000);
 
@@ -76,14 +143,46 @@ public sealed class FarmingGuideOptimizationPolicyTests
     }
 
     [Fact]
+    public void CompleteEquipmentNormalizationPreservesAcquisitionAndFirProvenance()
+    {
+        var original = FarmingGuideItemState.Create(
+            "quest-item",
+            raidAcquired: true,
+            firStatus: FarmingGuideFirStatus.FoundInRaid) with
+        {
+            Attachments = new Dictionary<string, FarmingGuideItemState?>
+            {
+                ["scope"] = FarmingGuideItemState.Create("optic"),
+            },
+        };
+
+        var normalized = FarmingGuideCompleteEquipmentPolicy.NormalizeState(original);
+
+        Assert.True(normalized.RaidAcquired);
+        Assert.Equal(FarmingGuideFirStatus.FoundInRaid, normalized.FirStatus);
+        Assert.True(normalized.IsFirQualified);
+        Assert.Empty(normalized.Attachments);
+    }
+
+    [Fact]
     public void Score_UsesTotalRetainedValueAfterFirTie()
     {
         var baseline = FarmingGuideLoadoutSnapshot.Empty;
         var left = Snapshot(
-            Stored("needed-left", "quest-item", 1, acquired: true),
+            Stored(
+                "needed-left",
+                "quest-item",
+                1,
+                acquired: true,
+                firStatus: FarmingGuideFirStatus.FoundInRaid),
             Stored("left-value", "left", 1, acquired: true));
         var right = Snapshot(
-            Stored("needed-right", "quest-item", 1, acquired: true),
+            Stored(
+                "needed-right",
+                "quest-item",
+                1,
+                acquired: true,
+                firStatus: FarmingGuideFirStatus.FoundInRaid),
             Stored("right-value", "right", 1, acquired: true));
         var prices = new Dictionary<string, int?>
         {
@@ -101,14 +200,25 @@ public sealed class FarmingGuideOptimizationPolicyTests
     }
 
     [Fact]
-    public void RaidAcquiredCounterTracksNestedAssemblyProvenance()
+    public void ProvenanceCountersTrackNestedAssemblyIndependently()
     {
-        var acquiredAttachment = FarmingGuideItemState.Create("optic", raidAcquired: true);
+        var acquiredAttachment = FarmingGuideItemState.Create(
+            "optic",
+            raidAcquired: true,
+            firStatus: FarmingGuideFirStatus.FoundInRaid);
+        var acquiredButNotFirPlate = FarmingGuideItemState.Create(
+            "plate",
+            raidAcquired: true,
+            firStatus: FarmingGuideFirStatus.NotFoundInRaid);
         var weapon = FarmingGuideItemState.Create("weapon") with
         {
             Attachments = new Dictionary<string, FarmingGuideItemState?>
             {
                 ["scope"] = acquiredAttachment,
+            },
+            ArmorPlates = new Dictionary<string, FarmingGuideItemState?>
+            {
+                ["plate"] = acquiredButNotFirPlate,
             },
         };
         var snapshot = FarmingGuideLoadoutSnapshot.Empty with
@@ -120,7 +230,11 @@ public sealed class FarmingGuideOptimizationPolicyTests
         };
 
         Assert.Equal(1, FarmingGuideSnapshotInventoryCounter.CountRaidAcquired(snapshot, "optic"));
+        Assert.Equal(1, FarmingGuideSnapshotInventoryCounter.CountFoundInRaid(snapshot, "optic"));
+        Assert.Equal(1, FarmingGuideSnapshotInventoryCounter.CountRaidAcquired(snapshot, "plate"));
+        Assert.Equal(0, FarmingGuideSnapshotInventoryCounter.CountFoundInRaid(snapshot, "plate"));
         Assert.Equal(0, FarmingGuideSnapshotInventoryCounter.CountRaidAcquired(snapshot, "weapon"));
+        Assert.Equal(0, FarmingGuideSnapshotInventoryCounter.CountFoundInRaid(snapshot, "weapon"));
     }
 
     private static FarmingGuideLoadoutSnapshot Snapshot(params FarmingGuideStoredItemState[] stored) =>
@@ -130,10 +244,11 @@ public sealed class FarmingGuideOptimizationPolicyTests
         string instanceId,
         string itemId,
         int quantity,
-        bool acquired = false) =>
+        bool acquired = false,
+        FarmingGuideFirStatus firStatus = FarmingGuideFirStatus.Unknown) =>
         new(
             instanceId,
-            FarmingGuideItemState.Create(itemId, raidAcquired: acquired),
+            FarmingGuideItemState.Create(itemId, raidAcquired: acquired, firStatus: firStatus),
             FarmingGuideStorageKind.Backpack,
             0,
             0,
