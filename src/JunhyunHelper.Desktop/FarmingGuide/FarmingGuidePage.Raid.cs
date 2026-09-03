@@ -177,7 +177,7 @@ public partial class FarmingGuidePage
         }
 
         PlanConfirmedScannedItem(
-            pending with { Quantity = FarmingGuideStackQuantityPolicy.NormalizeQuantity(quantity) },
+            pending with { Quantity = FarmingGuideStackQuantityPolicy.NormalizeQuantity(item, quantity) },
             item);
     }
 
@@ -189,7 +189,7 @@ public partial class FarmingGuidePage
         var current = BuildSnapshot();
         RefreshRaidAcquiredCounts(current);
 
-        var quantity = Math.Max(1, scanned.Quantity);
+        var quantity = FarmingGuideStackQuantityPolicy.NormalizeQuantity(item, scanned.Quantity);
         int? totalFlea = scanned.FleaAveragePrice is { } flea
             ? checked(flea * quantity)
             : null;
