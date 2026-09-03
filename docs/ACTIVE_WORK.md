@@ -26,8 +26,9 @@ base main: 379c6ab4ab02431c6bb74b537e899e94f45ee987
 public stable: v1.16.4
 working branch: feature/v1.17.0-farming-guide-global-optimization-2026-09-03
 Draft PR: #287
-last code/test checkpoint before this document update: 0ab93ccc38787e11d6dc5e9da7c76222e1abebc8
-current work: active; do not merge/release until FIR observation and final release-quality validation are complete
+last code/test checkpoint before this document update: fd592c08983c61da847cf177cfd3e95347174d91
+last fully green FIR implementation checkpoint: 2103c508cb1c4781a4baa1480b1dcecb558a574c
+current work: active; do not merge/release until final release-quality validation and authoritative documentation are complete
 ```
 
 ## Confirmed scope
@@ -79,14 +80,22 @@ subject to Tarkov-valid placement, explicit user locks and the configured weight
   - normalization/repacking preserves both facts;
   - stack quantity optimization receives FIR-qualified units rather than treating all raid-acquired units as FIR.
 - Corrected v1.17 FIR-need fallbacks to use `ScannerItemSnapshot.CurrentNeededFir`, not generic `CurrentNeeded`.
-- Added fail-closed FIR decision boundary: because the current Scanner does not yet prove the Tarkov FIR marker, an incoming item with remaining FIR need is `판단 보류` rather than being guessed FIR/non-FIR.
-- Added regressions for `RaidAcquired + FIR Unknown`, explicit non-FIR, explicit FIR, identical-item replacement, normalization preservation, nested provenance and the live FIR fail-closed route.
-- Validation for checkpoint `0ab93ccc38787e11d6dc5e9da7c76222e1abebc8` observed so far:
-  - Documentation Consistency: success (`33720366390`);
-  - Shutdown Race CI: success (`33720366311`);
-  - Windows Desktop build: success in CI `33720366460`;
-  - core tests: success in CI `33720366460`;
-  - Windows publish / Product UI runtime smoke / package verification: still running at the time of this checkpoint update.
+- Implemented conservative automatic Scanner FIR observation from the same header-locked inspect-window pixels that prove the scanned item identity:
+  - `ScannerFirMarkerDetector` uses scale-relative lower-left geometry, circular-marker evidence and check-stroke evidence rather than a copyrighted bitmap template;
+  - neutral gray/white and yellow/gold FIR check variants are accepted as positive evidence;
+  - only the exact current `TarkovWindow` live scan may promote `Unknown` to `FoundInRaid`;
+  - Display Test and simulated Farming Guide scans remain catalog-only and cannot manufacture FIR provenance;
+  - absence or ambiguous detection remains `Unknown`; Scanner does **not** infer `NotFoundInRaid` from a missing marker.
+- Propagated live Scanner FIR observation through `ScannerItemSnapshot` into the incoming `FarmingGuideItemState`, and preserved it through the unified global solver.
+- Unified quantity-one and stacked incoming items onto the same quantity-complete live solver so FIR/weight/proof semantics do not diverge through an older single-item branch.
+- Added deterministic FIR marker regressions covering neutral positive, yellow positive, ring-only negative, check-only negative, out-of-ROI negative and bright-noise negative cases.
+- Added source-contract regressions proving live FIR is Tarkov-window-only, positive-only, simulator-safe, and connected to the global solver.
+- Renamed the stack-quantity optimizer's historical FIR-bearing `RaidAcquired` terminology to explicit `FirQualified` / `fixedFirQualifiedUnits`; this removes the remaining semantic naming trap while preserving the real `FarmingGuideItemState.RaidAcquired` acquisition fact.
+- Validation for FIR implementation checkpoint `2103c508cb1c4781a4baa1480b1dcecb558a574c`:
+  - Documentation Consistency: success (`33724798003`);
+  - Shutdown Race CI: success (`33724798019`);
+  - full Windows CI: success (`33724798037`), including Desktop build, core tests, Windows x64 publish, Product UI/runtime smoke, package verification and artifact upload.
+- A fresh CI generation is required after the semantic stack-optimizer rename/checkpoint ending at `fd592c08983c61da847cf177cfd3e95347174d91`.
 
 ## Rule-level findings that must remain explicit
 
@@ -94,32 +103,31 @@ subject to Tarkov-valid placement, explicit user locks and the configured weight
 2. **Category is irrelevant.** Food/ammo/medicine/etc. can be first-priority when currently FIR-needed and ordinary loot otherwise.
 3. **Raid-acquired is not FIR.** An item obtained during the modeled raid may still be non-FIR; `RaidAcquired` must never be used as a substitute for Tarkov FIR provenance.
 4. **Unknown FIR is not false and not true.** When FIR status can affect the optimum, Unknown must cause fail-closed/no-advice until the status is proven.
-5. **Tetris/slot density is not a third priority.** It matters only because it changes which legal complete states fit; the objective remains final retained total value.
-6. **Locks remove optimizer choices; they do not add item value.** Item/slot/carrier/cell lock representations are system state implementing the user's explicit fixed-item/fixed-cell intent.
-7. **Unknown facts are not zero.** Destructive advice fails closed when needed/value/legality facts required for proof are unavailable.
-8. **A bounded heuristic may not be presented as the optimum.** If the solver cannot prove a destructive result within its deterministic budget, it must not issue a known-unproven discard/rearrangement.
-9. **Indeterminate is not discard.** `Discard` requires a proven farming decision; uncertainty leaves modeled inventory unchanged.
-10. **Current layout is not a farming preference.** Current placement/fewer moves may only be a deterministic tie/stability choice after FIR satisfaction and total retained value are equal.
+5. **Scanner marker absence is not non-FIR proof.** Current automatic observation is deliberately positive-only; false negatives degrade to `Unknown`/no-advice rather than a destructive false conclusion.
+6. **Tetris/slot density is not a third priority.** It matters only because it changes which legal complete states fit; the objective remains final retained total value.
+7. **Locks remove optimizer choices; they do not add item value.** Item/slot/carrier/cell lock representations are system state implementing the user's explicit fixed-item/fixed-cell intent.
+8. **Unknown facts are not zero.** Destructive advice fails closed when needed/value/legality facts required for proof are unavailable.
+9. **A bounded heuristic may not be presented as the optimum.** If the solver cannot prove a destructive result within its deterministic budget, it must not issue a known-unproven discard/rearrangement.
+10. **Indeterminate is not discard.** `Discard` requires a proven farming decision; uncertainty leaves modeled inventory unchanged.
+11. **Current layout is not a farming preference.** Current placement/fewer moves may only be a deterministic tie/stability choice after FIR satisfaction and total retained value are equal.
 
-## Remaining implementation gaps
+## Remaining implementation / validation gaps
 
 These are why PR #287 remains Draft:
 
-1. **Scanner FIR observation.** The model and optimizer now represent FIR correctly, but the current Scanner item snapshot does not prove whether the inspected/scanned concrete item has Tarkov's FIR marker. Until an authoritative visual/runtime observation path is implemented, a currently FIR-needed incoming item deliberately produces `판단 보류`.
-2. **FIR-observation propagation and regression proof.** Once a reliable Scanner FIR observation is available, propagate it into the incoming `FarmingGuideItemState`, preserve it through accepted raid state, and add deterministic positive/negative/unknown integration tests.
-3. **Semantic cleanup.** `FarmingGuideStackQuantityVariable.RaidAcquired` and `fixedRaidAcquiredUnits` are historical names. The v1.17 caller now passes FIR-qualified data, but these internal names should be renamed to FIR-qualified terminology before the implementation is considered cleanly final.
-4. **Release-quality validation and documentation.** Complete all CI/published-EXE/UI/package checks, then update `PRODUCT.md`, `DECISIONS.md`, `CURRENT_STATE.md`, `STATE.md` and release documentation to match the finalized implementation.
+1. **Fresh post-cleanup CI.** Re-run/observe all branch checks after the stack-optimizer terminology cleanup and source-contract update.
+2. **Live FIR ground-truth boundary.** The new detector is covered by deterministic synthetic shape/noise tests and current UI/reference inspection, but the repository does not yet contain a broad real-user Tarkov FIR screenshot corpus across resolutions/UI scales. Because the detector is positive-only, false negatives safely become `Unknown`; false positives remain the risk to watch in real use. Do not weaken the detector to improve recall without ground-truth evidence.
+3. **Release-quality documentation.** Update `PRODUCT.md`, `DECISIONS.md`, `CURRENT_STATE.md`, `STATE.md`, machine-readable project state/release notes as appropriate after final validation.
+4. **Final release validation.** Require green Windows Release/published EXE Product UI/runtime smoke, graceful shutdown, packaging, documentation consistency, exact-main state and public release asset integrity before calling v1.17.0 complete.
 
 ## Current step
 
-Inspect the existing Scanner capture/vision pipeline for a reliable, deterministic way to observe Tarkov's FIR marker from the same inspected item that produced the item-ID result. Do not infer FIR from raid acquisition, item category, item ID, or generic requirement state. If no trustworthy automatic observation is available from the current captured screen, preserve fail-closed behavior and treat the required user interaction as a product decision rather than inventing one.
+Wait for and inspect the fresh CI generation after `fd592c08983c61da847cf177cfd3e95347174d91` plus this checkpoint update. If green, perform the final source/rule audit and authoritative-document update. Preserve the positive-only Scanner FIR boundary: do not turn marker absence into `NotFoundInRaid` without independent trusted evidence.
 
 ## Remaining
 
-- determine whether the existing Scanner capture geometry contains a stable FIR visual signal and whether it can be associated with the exact scanned item;
-- if yes, implement automatic FIR observation, snapshot propagation and integration regressions;
-- if no, document the technical boundary and obtain a product decision before introducing any new manual FIR-confirmation interaction;
-- rename remaining historical stack-optimizer FIR parameter names after behavior is stable;
-- require green deterministic tests, Windows Release build, published EXE Product UI/runtime smoke, graceful shutdown, packaging and Documentation Consistency;
-- update final authoritative project docs;
+- confirm the fresh CI generation is fully green after the FIR-qualified terminology cleanup;
+- perform final source/rule audit for tactical/category/value-density regressions, `RaidAcquired => FIR` leakage, unknown-to-discard leakage, and accidental use of the obsolete single-item solver path;
+- record the real-live FIR detector validation boundary explicitly in authoritative docs;
+- update final project/product/state/release documentation;
 - only then mark PR ready, merge, exact-main verify and release/document as appropriate.
