@@ -51,7 +51,14 @@ public static class FarmingGuideOptimizationPolicy
         long retainedValue = 0;
         foreach (var pair in FarmingGuideSnapshotInventoryCounter.CountAll(scoringSnapshot))
         {
-            var unitValue = Math.Max(0, fleaAverageValue(pair.Key) ?? 0);
+            var rawValue = fleaAverageValue(pair.Key);
+            if (rawValue is null)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot score Farming Guide final state because average Flea value is unknown for item '{pair.Key}'.");
+            }
+
+            var unitValue = Math.Max(0, rawValue.Value);
             retainedValue = checked(retainedValue + (long)unitValue * Math.Max(0, pair.Value));
         }
 
