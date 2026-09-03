@@ -59,14 +59,8 @@ public partial class FarmingGuidePage
         return ProvenDiscardV1170(current);
     }
 
-    private bool HasProvableIncomingEconomicValueV1170(ScannerItemSnapshot scanned)
-    {
-        if (scanned.FleaAveragePrice is not null)
-            return true;
-        if (_raidFleaAveragePrices.ContainsKey(scanned.ItemId))
-            return true;
-        return _raidBridge?.ResolveSnapshot(scanned.ItemId)?.FleaAveragePrice is not null;
-    }
+    private bool HasProvableIncomingEconomicValueV1170(ScannerItemSnapshot scanned) =>
+        ResolveUnitEconomicValueV1170(scanned.ItemId) is not null;
 
     private FarmingGuideOptimizationScore ScoreRaidStateV1170(
         FarmingGuideLoadoutSnapshot candidate,
@@ -85,12 +79,7 @@ public partial class FarmingGuidePage
                     ? Math.Max(0, currentScan.CurrentNeeded)
                     : 0;
             },
-            itemId =>
-            {
-                if (_raidFleaAveragePrices.TryGetValue(itemId, out var remembered))
-                    return remembered;
-                return _raidBridge?.ResolveSnapshot(itemId)?.FleaAveragePrice;
-            });
+            ResolveUnitEconomicValueV1170);
     }
 
     private bool IsWeightAdmissibleV1170(
