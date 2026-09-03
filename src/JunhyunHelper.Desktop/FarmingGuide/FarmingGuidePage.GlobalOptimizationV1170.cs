@@ -25,8 +25,10 @@ public partial class FarmingGuidePage
     /// <summary>
     /// Authoritative v1.17 raid decision. Stored items, nested containers, top-level
     /// equipment/carriers and the incoming item are evaluated through one complete candidate
-    /// pool. A result is committable only when the corresponding search domain and packing
-    /// proof are complete; otherwise the explicit non-committing Indeterminate state wins.
+    /// pool. A result is committable only when the corresponding search domain, decision
+    /// facts and packing proof are complete; otherwise the non-committing Indeterminate state
+    /// wins. In particular an unresolved market value is never silently treated as zero when
+    /// deciding that the scanned item should be discarded.
     /// </summary>
     private RaidRecommendation ApplyRaidStateTransitionsV1170(
         FarmingGuideLoadoutSnapshot current,
@@ -49,9 +51,19 @@ public partial class FarmingGuidePage
         if (found && FarmingGuideOptimizationPolicy.IsBetter(candidateScore, currentScore))
             return candidate;
 
-        return proofComplete
-            ? ProvenDiscardV1170(current)
-            : IndeterminateRaidPlanV1170(current);
+        if (!proofComplete || !HasProvableIncomingEconomicValueV1170(scanned))
+            return IndeterminateRaidPlanV1170(current);
+
+        return ProvenDiscardV1170(current);
+    }
+
+    private bool HasProvableIncomingEconomicValueV1170(ScannerItemSnapshot scanned)
+    {
+        if (scanned.FleaAveragePrice is not null)
+            return true;
+        if (_raidFleaAveragePrices.ContainsKey(scanned.ItemId))
+            return true;
+        return _raidBridge?.ResolveSnapshot(scanned.ItemId)?.FleaAveragePrice is not null;
     }
 
     private FarmingGuideOptimizationScore ScoreRaidStateV1170(
@@ -93,7 +105,7 @@ public partial class FarmingGuidePage
     }
 
     /// <summary>
-    /// Incoming provenance is now assigned when the unified candidate root is created and is
+    /// Incoming provenance is assigned when the unified candidate root is created and is
     /// carried by the exact FarmingGuideItemState through every placement. Do not infer
     /// provenance from a changed slot/location: an existing same-id item can move to a new
     /// slot and must never become falsely FIR-acquired.
