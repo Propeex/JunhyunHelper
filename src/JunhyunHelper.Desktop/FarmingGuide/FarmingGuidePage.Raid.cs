@@ -203,10 +203,18 @@ public partial class FarmingGuidePage
         _plannedLocksOverrideV1160 = null;
         var planned = PlanScannedItemRulebookV1170(current, decisionScan, item);
         var transitioned = ApplyRaidStateTransitionsV1170(current, planned, decisionScan, item);
-        var quantityApplied = ApplyIncomingQuantityV1160(current, transitioned, item.Id, quantity);
-        var safetyChecked = ApplyFinalRaidSafetyV1170(current, quantityApplied, decisionScan);
+
+        // v1.17 owns quantity inside the global solve. The historical v1.16 compatibility
+        // pass used to force the scanned quantity back onto the incoming stack after planning,
+        // which would overwrite an exact partial-stack result (for example 25/60 rounds).
+        var safetyChecked = ApplyFinalRaidSafetyV1170(current, transitioned, decisionScan);
         var weightChecked = ApplyRaidWeightConstraintV1160(current, safetyChecked);
-        var recommendation = ApplyRaidInstructionPresentationV1155(current, weightChecked, item);
+        var presented = ApplyRaidInstructionPresentationV1155(current, weightChecked, item);
+        var recommendation = ApplyRaidQuantityInstructionPresentationV1170(
+            current,
+            presented,
+            item,
+            quantity);
 
         if (recommendation.Action == FarmingGuideInstructionAction.Indeterminate)
         {
