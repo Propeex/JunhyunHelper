@@ -32,7 +32,7 @@ public partial class FarmingGuidePage
         {
             VerifyCompleteEquipmentAndNestedStorageSmoke();
             VerifySpecializedNestedStorageAndLockVisualSmoke();
-            VerifyDedicatedNestedRaidPrioritySmoke();
+            VerifyNestedWorkbenchViewportSmoke();
             VerifyExactStorageVisualLayoutSmoke();
             VerifyV1170GlobalOptimizerSmoke();
             var marker = Path.Combine(
@@ -45,7 +45,7 @@ public partial class FarmingGuidePage
                 "nested-parent-drop=ok",
                 "specialized-storage-filter=ok",
                 "stored-item-neutral-lock-border=ok",
-                "dedicated-nested-raid-priority=ok",
+                "nested-workbench-viewport=ok",
                 "equipment-internal-editor-disabled=ok",
                 "root-carrier-duplicate-editor-disabled=ok",
                 "exact-storage-layout=ok",
