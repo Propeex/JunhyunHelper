@@ -60,6 +60,31 @@ public sealed class FarmingGuideOptimizationPolicyTests
         Assert.True(FarmingGuideOptimizationPolicy.IsBetter(higher, lower));
     }
 
+    [Fact]
+    public void FixedMeleeAndDogtagAreOutsideOptimizationScore()
+    {
+        var snapshot = FarmingGuideLoadoutSnapshot.Empty with
+        {
+            Equipment = new Dictionary<FarmingGuideEquipmentSlot, FarmingGuideItemState>
+            {
+                [FarmingGuideEquipmentSlot.Melee] = FarmingGuideItemState.Create("shared", raidAcquired: true),
+                [FarmingGuideEquipmentSlot.Dogtag] = FarmingGuideItemState.Create("dogtag", raidAcquired: true),
+            },
+            StoredItems =
+            [
+                Stored("loot", "shared", raidAcquired: true),
+            ],
+        };
+
+        var score = FarmingGuideOptimizationPolicy.Score(
+            snapshot,
+            _ => 10,
+            id => id == "shared" ? 100 : 1_000_000);
+
+        Assert.Equal(1, score.SatisfiedFirUnits);
+        Assert.Equal(100, score.RetainedFleaValue);
+    }
+
     private static FarmingGuideLoadoutSnapshot Snapshot(params FarmingGuideStoredItemState[] stored) =>
         FarmingGuideLoadoutSnapshot.Empty with { StoredItems = stored };
 
