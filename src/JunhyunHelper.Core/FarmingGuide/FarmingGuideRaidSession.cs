@@ -7,6 +7,12 @@ public enum FarmingGuideInstructionAction
     Equip,
     ReplaceEquip,
     Discard,
+    /// <summary>
+    /// The Farming Guide cannot prove a safe/optimal recommendation from the current facts
+    /// and bounded solver domain. This is not a discard decision and must not mutate raid
+    /// inventory state when surfaced to the user.
+    /// </summary>
+    Indeterminate,
 }
 
 /// <summary>
@@ -93,6 +99,8 @@ public sealed class FarmingGuideRaidSession
         ArgumentException.ThrowIfNullOrWhiteSpace(itemId);
         ArgumentException.ThrowIfNullOrWhiteSpace(instruction);
         ArgumentNullException.ThrowIfNull(proposedSnapshot);
+        if (action == FarmingGuideInstructionAction.Indeterminate)
+            throw new ArgumentException("Indeterminate advice is non-committing and cannot become pending state.", nameof(action));
 
         var pending = new FarmingGuidePendingInstruction(
             itemId.Trim(),
