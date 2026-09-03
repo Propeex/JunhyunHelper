@@ -43,7 +43,7 @@ public static class FarmingGuideCompleteEquipmentPolicy
     public static FarmingGuideItemState NormalizeState(FarmingGuideItemState state)
     {
         ArgumentNullException.ThrowIfNull(state);
-        return FarmingGuideItemState.Create(state.ItemId);
+        return FarmingGuideItemState.Create(state.ItemId, state.RaidAcquired);
     }
 
     public static bool SupportsNestedStorage(GameItem item)
