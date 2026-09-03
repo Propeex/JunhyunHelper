@@ -1,11 +1,11 @@
 # 준현 헬퍼 v1.17.0
 
-상태: **RELEASE CANDIDATE / NOT YET PUBLIC**  
+상태: **PUBLIC STABLE**  
 기준일: **2026-09-03 KST**
 
-v1.17.0은 파밍 가이드의 판단 기준과 전체 배치 방식을 사용자와 확정한 규칙으로 다시 구축하는 MINOR 릴리즈다.
+v1.17.0은 파밍 가이드의 판단 기준과 전체 배치 방식을 사용자와 확정한 규칙으로 다시 구축한 MINOR 릴리즈다.
 
-기존 v1.16.x에서 존재하던 음식·음료·탄약·장비 등의 자동 전술 보호, 장비별 별도 우열 기준, 로컬 삽입식 판단은 v1.17.0의 authoritative raid decision에서 제거된다. 사용자가 보호하려는 물품과 칸은 파밍 가이드의 고정 기능으로 직접 지정한다.
+기존 v1.16.x에서 존재하던 음식·음료·탄약·장비 등의 자동 전술 보호, 장비별 별도 우열 기준, 로컬 삽입식 판단은 v1.17.0의 authoritative raid decision에서 제거됐다. 사용자가 보호하려는 물품과 칸은 기존 고정 기능으로 직접 지정한다.
 
 ## 판단 목표
 
@@ -29,100 +29,62 @@ v1.17.0은 파밍 가이드의 판단 기준과 전체 배치 방식을 사용�
 
 새 아이템을 현재 빈칸에 국소적으로 끼워 넣는 대신, 매 스캔마다 이동 가능한 현재 root들과 incoming item을 대상으로 합법적인 최종 상태를 다시 계산한다.
 
-대상에는 다음이 포함된다.
+대상에는 일반 stored item, top-level equipment, Rig / Backpack / Secure Container, container 안 container, complete equipment state와 incoming item이 포함된다. 전용 컨테이너는 보관 우선순위가 아니라 합법적 placement 후보다.
 
-- 일반 stored item
-- top-level equipment
-- Rig / Backpack / Secure Container
-- container 안 container
-- 장착물과 armor plate를 포함한 complete equipment state
-- incoming Scanner item
+## Tarkov legality / fail closed
 
-전용 컨테이너는 보관 우선순위를 추가하는 것이 아니라, 해당 아이템을 넣을 수 있는 합법적인 최종 placement 후보로 사용된다.
+최종 상태는 실제 데이터와 상태를 기준으로 item geometry/rotation/collision, storage grid/filter, nested ownership/cycle, equipment slot, attachment/plate filters, item conflict와 `ConflictingSlotIds`, body armor/armored rig, helmet/headset, stack quantity, fixed state와 final carry weight를 검증한다.
 
-## Tarkov legality
-
-최종 상태는 다음을 실제 데이터와 상태를 기준으로 검증한다.
-
-- item width/height와 rotation
-- grid collision과 storage grid filter
-- nested container parent/child 관계와 cycle 금지
-- equipment slot compatibility
-- attachment / armor plate slot filter
-- item conflict와 `ConflictingSlotIds`
-- body armor와 armored rig 충돌
-- helmet의 headset 차단
-- stack quantity
-- item/cell/root lock
-- 최종 carry weight
-
-`ItemPropertiesHeadwear`도 head equipment slot의 합법적 headwear로 처리한다.
+부착물과 armor plate도 retained Flea value와 weight에 포함한다. 필요한 가격·무게·크기·호환 사실을 증명할 수 없으면 0/1x1 등의 임의 기본값으로 파괴적 recommendation을 만들지 않는다.
 
 ## 고정 제약
 
-사용자가 고정한 item/cell은 가치 점수를 얻는 것이 아니라 최종 상태가 반드시 지켜야 하는 constraint다.
+고정 item/cell은 value가 아니라 hard constraint다. fixed descendant를 담은 ancestor나 root carrier를 이동해 간접적으로 고정 위치를 바꾸는 계획도 허용하지 않는다. fixed carrier 내부의 독립적으로 고정되지 않은 합법적 free storage는 계속 사용할 수 있다.
 
-- fixed item은 버리기·교체·좌표 이동·회전·re-parenting을 할 수 없다.
-- fixed descendant를 담은 stored ancestor를 움직여 간접 이동시키는 계획도 허용하지 않는다.
-- 필요한 경우 해당 ancestor chain과 root Rig / Backpack / Secure Container까지 고정한다.
-- fixed carrier 내부의 독립적으로 고정되지 않은 합법적 빈 공간은 계속 사용할 수 있다.
+같은 storage area 안에서 global solve가 이동/회전을 요구하면 `내부 재배치`로 표시한다.
 
-published Product Smoke에서 nested fixed item과 nested fixed cell이 parent chain과 root Secure Container까지 올바르게 고정되는지 검증한다.
+## 수량 / 무게
 
-## 완전한 가치·무게 계산
+Ammo와 Currency의 사용자 입력 수량은 하나의 실제 관측 stack instance 수량으로 취급하고 FIR 충족량, Flea value와 weight에 반영한다. 자동 split/merge 규칙은 추가하지 않았다.
 
-최종 보유 가치와 무게 계산은 root item만 보지 않는다.
+## 공개 릴리즈 검증
 
-- modeled attachment와 armor plate의 플리마켓 가치도 최종 retained value에 포함한다.
-- attachment/plate 무게도 current/final carry weight에 포함한다.
-- candidate pool 밖에서 항상 유지되는 Melee/Dogtag 상태도 최종 무게에 포함한다.
-- 탄약·화폐처럼 수량을 입력하는 stack은 하나의 관측된 stack instance로 유지하며 해당 수량이 FIR 충족량, 플리 가치, 무게에 반영된다.
-- v1.17.0에서 임의의 자동 split/merge 규칙은 추가하지 않는다.
+```text
+exact product source/tag target:
+8b0e1f8f46fa3822f4cff05b7be3223d40ad7435
+merge PR: #288
+validated PR head: a01d61cd9957db94a7475734c1e8df66ce71f53d
+PR CI / Shutdown / Docs:
+33746966753 / 33746966804 / 33746966771 — SUCCESS
+exact-main CI / Shutdown / Docs:
+33748900315 / 33748900348 / 33748900377 — SUCCESS
+Release workflow: 33749193376 — SUCCESS
+649 passed / 0 failed / 0 skipped
+release id: 381959220
+published UTC: 2026-09-03T11:21:35Z
+```
 
-## 불확실성 처리
+Exact-main Actions artifact:
 
-파괴적 recommendation을 만들기 위해 필요한 사실을 증명할 수 없으면 보수적으로 실패한다.
+```text
+JunhyunHelper-win-x64
+id: 9890816795
+bytes: 242,234,759
+SHA-256: d9115f24968804fc5b4e65fa7bbaaf008f4af516e044f3b00e0ee6b4525a15dd
+```
 
-- unknown weight를 0 kg으로 가정하지 않는다.
-- unknown root geometry를 1x1로 가정하지 않는다.
-- Flea 거래 가능한 retained item의 가격을 확인할 수 없으면 0원으로 가정하지 않는다.
-- attachment/plate의 필요한 가격/FIR 사실도 기존 Scanner catalog/presentation resolver에서 확인하며 새로운 관찰 소스를 만들지 않는다.
-- deterministic search budget 안에서 파괴적 optimum을 증명할 수 없으면 해당 파괴적 지시를 표시하지 않는다.
+Public assets:
 
-## 사용자 지시 표시
+```text
+Junhyun-Helper.zip
+id: 542663027
+bytes: 80,766,362
+SHA-256: 6ecc3a61d0b492f6b475e18f309e55790776911e5496fc704d12ffd611c629cb
 
-글로벌 solve가 동일 storage area 안에서 기존 item의 좌표나 rotation을 바꿔야 하는 경우 해당 물리적 변경을 숨기지 않고 `내부 재배치`로 지시에 표시한다. 회전이 필요한 경우 회전 포함 여부도 표시한다.
+SHA256SUMS.txt
+id: 542663026
+bytes: 86
+asset SHA-256: 7a2fb4f7ebcb333eafd8cad6f9acbf532549118e608776786666014a24875bdf
+```
 
-## 개발 권한 경계
-
-`AGENTS.md`에 내부 구현 최적화와 제품 의미 변경의 경계를 명문화했다.
-
-성능·캐시·자료구조·탐색 전략은 확정된 제품 의미를 보존하는 범위에서 개선할 수 있지만, 개발 편의를 이유로 새로운 판단 기준, 관찰 권한, 자동 추론, 사용자 확인 흐름, cross-feature 자동화 또는 visible failure semantic을 만들 수 없다.
-
-## 회귀 검증
-
-v1.17.0 release candidate gate는 다음을 포함한다.
-
-- deterministic core tests
-- Windows Release desktop build
-- win-x64 self-contained single-file publish
-- ProductVersion / FIRST_RUN identity 검증
-- 실제 published EXE Product UI/runtime smoke
-- FIR 우선순위와 quota cap
-- 음식/음료에 전술적 특권이 없음을 검증
-- complete assembly retained value / weight
-- unknown price / weight / geometry fail-closed
-- incoming container capacity
-- equipment replacement/relocation 및 consecutive scan
-- 같은 storage area 내부 재배치 instruction
-- fixed item/fixed cell ancestry propagation
-- global solver의 dedicated nested storage placement
-- graceful Main Window shutdown과 process 종료
-- clean portable root
-- release package 구조와 SHA-256 manifest 검증
-- 별도 Shutdown Race CI
-- Documentation Consistency gate
-
-## 릴리즈 상태
-
-이 문서는 branch release candidate 단계에서 작성됐다. 실제 public stable source SHA, PR/CI run IDs, exact-main artifact, GitHub release/asset IDs와 SHA-256은 main 병합 및 공개 릴리즈 검증 뒤 canonical release-status 문서와 `PROJECT_STATE`, `CURRENT_STATE`, `STATE`에 기록한다.
+Release workflow는 exact-main commit을 checkout하고 해당 CI artifact를 다시 내려받은 뒤, ProductVersion/FIRST_RUN identity와 실제 ZIP SHA-256을 `SHA256SUMS.txt`에 대조하고 stable `v1.17.0`을 공개했다. 공개 release는 `draft=false`, `prerelease=false`이며 tag target은 exact product source와 일치한다.

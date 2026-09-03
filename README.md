@@ -4,7 +4,7 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 제품 상태
 
-현재 상태는 **v1.16.4 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
+현재 상태는 **v1.17.0 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
 
 공식 프로젝트 기억은 대화가 아니라 저장소의 문서·코드·테스트·GitHub 상태입니다.
 
@@ -18,121 +18,132 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 ## 현재 공개 릴리즈
 
 ```text
-version/tag: v1.16.4
+version/tag: v1.17.0
 exact product source/tag target:
-5886d8f97abd060d398d4c50d3dd3b720e4ace09
-validated PR head: d55e138c962e87dc8691f82c81d36a516db52941
-merge PR: #285 — MERGED
+8b0e1f8f46fa3822f4cff05b7be3223d40ad7435
+validated PR head: a01d61cd9957db94a7475734c1e8df66ce71f53d
+merge PR: #288 — MERGED
 PR CI / Shutdown / Docs:
-33623459284 / 33623459290 / 33623459267 — SUCCESS
+33746966753 / 33746966804 / 33746966771 — SUCCESS
 exact-main CI / Shutdown / Docs:
-33623824030 / 33623824052 / 33623824027 — SUCCESS
-Release workflow: 33624248788 — SUCCESS
-release id: 381192920
-published UTC: 2026-09-02T11:22:47Z
-623 passed / 0 failed / 0 skipped
+33748900315 / 33748900348 / 33748900377 — SUCCESS
+Release workflow: 33749193376 — SUCCESS
+release id: 381959220
+published UTC: 2026-09-03T11:21:35Z
+649 passed / 0 failed / 0 skipped
 ```
 
 Public package:
 
 ```text
 Junhyun-Helper.zip
-asset id: 541072599
-bytes: 80,738,891
+asset id: 542663027
+bytes: 80,766,362
 SHA-256:
-2ceddbd3cc805bc8de2cdb5eddcef72c2001a6724a43ec7fdd993781af649fb4
+6ecc3a61d0b492f6b475e18f309e55790776911e5496fc704d12ffd611c629cb
 
 SHA256SUMS.txt
-asset id: 541072598
+asset id: 542663026
 bytes: 86
 asset SHA-256:
-2a07506d6c84048940a35beb7aa637de9e27dd51bea25600a9b62a5a93f6017f
+7a2fb4f7ebcb333eafd8cad6f9acbf532549118e608776786666014a24875bdf
 ```
 
 Exact-main Actions artifact:
 
 ```text
 JunhyunHelper-win-x64
-artifact id: 9844117414
-archive bytes: 242,151,516
+artifact id: 9890816795
+archive bytes: 242,234,759
 archive SHA-256:
-f2aea11845611012d26bc135f8d6386200ea5007382d441b652ef6d1b3f86477
+d9115f24968804fc5b4e65fa7bbaaf008f4af516e044f3b00e0ee6b4525a15dd
 ```
 
-GitHub release `v1.16.4` targets exact product source `5886d8f97abd060d398d4c50d3dd3b720e4ace09`, is neither draft nor prerelease, and was published only after the Release workflow re-downloaded the exact-main artifact with digest verification, verified ProductVersion/FIRST_RUN identity, and independently matched the actual release ZIP hash against `SHA256SUMS.txt`. Later documentation-only commits are not v1.16.4 product sources and may not replace these stable assets.
+GitHub release `v1.17.0` targets exact product source `8b0e1f8f46fa3822f4cff05b7be3223d40ad7435`, is neither draft nor prerelease, and was published only after the Release workflow re-downloaded the exact-main artifact, verified ProductVersion/FIRST_RUN identity, and matched the actual release ZIP hash against `SHA256SUMS.txt`. Later documentation-only commits are not v1.17.0 product sources and must not replace these stable assets.
 
 Release evidence:
 
-- `docs/.release-v1.16.4-status.json`
-- `docs/RELEASE_NOTES_V1.16.4.md`
+- `docs/.release-v1.17.0-status.json`
+- `docs/RELEASE_NOTES_V1.17.0.md`
 - `docs/PROJECT_STATE.json`
 - `docs/CURRENT_STATE.md`
 - `docs/STATE.md`
 
-## v1.16.4 Farming Guide 잠금 아이템 회귀 수정
-
-v1.16.3에서 exact item lock을 동일 `InstanceId` 보존으로만 해석하여, 잠긴 아이템도 안전한 재배치라면 자동으로 움직일 수 있었던 동작을 바로잡았습니다.
-
-현재 계약은 다음과 같습니다.
-
-- 명시적으로 잠근 stored item은 자동 Farming Guide 판단에서 **물리적 위치까지 고정**됩니다.
-- 자동 지시는 잠긴 아이템을 버리기·교체·이동·회전·재부모화할 수 없습니다.
-- 잠긴 descendant를 담은 상위 stored container 이동이나 root carrier 교체로 잠금 아이템을 간접 이동시키는 것도 금지합니다.
-- 보안 컨테이너 승격이나 일반 repacking이 잠금 위치를 바꿔야만 성립하면 그 계획을 채택하지 않습니다.
-- 최종 fail-closed 검증에서 storage kind, grid, X/Y, rotation, parent, quantity, ancestor chain, root carrier identity를 다시 검사합니다.
-- 사용자가 직접 편집하는 것은 계속 허용됩니다.
-- 잠긴 리그·가방·보안 컨테이너 root 자체는 자동 교체하지 않지만, 그 내부의 합법적인 빈 공간은 계속 사용할 수 있습니다.
-
-사용자가 보고한 `Wires 전선` 판단 중 잠금 상태 `Grizzly 응급 치료 키트` 이동 지시 형태를 published EXE 회귀 시나리오로 고정했습니다.
-
-## v1.16.3에서 유지되는 판단 안전성
-
-v1.16.4는 v1.16.3의 나머지 안전성 개선을 그대로 유지합니다.
-
-- secure-container-eligible 고가치 loot은 ordinary free storage보다 먼저 비파괴 secure promotion 가능성을 검사합니다.
-- 탄약·화폐 같은 stack은 실제 `Quantity` 전체를 가치·무게에 반영합니다.
-- 여러 물품을 희생해야 할 때 실제 필요한 bounded subset을 탐색하고, incoming 총 Flea 가치가 실제 희생 전체 가치보다 엄격히 큰 경우만 허용합니다.
-- reserved cells는 자동 배치 금지 계약을 유지합니다.
-- expanded pockets는 실제 프로필 geometry를 사용합니다.
-- 최소 음식·음료와 현재 휴대한 총기에 맞는 loose ammunition을 자동 희생하지 않습니다.
-- 특별 needed 우선순위는 실제 Found in Raid 필요량에만 적용합니다.
-- Content schema v12는 위 판단에 필요한 source-backed energy/hydration/caliber/allowed-ammo facts를 보존합니다.
-
-## Farming Guide current contract
+## v1.17.0 Farming Guide current contract
 
 Farming Guide는 raid-start Loadout / Inventory Editor와 Scanner 기반 raid-session advisor를 제공합니다. Tarkov 내부 inventory를 직접 읽거나 게임 입력을 자동화하지 않습니다.
 
-판단 순서는 **제약 확인 → 중요도 비교 → 상황 대처 결정**입니다. weighted score나 임의 가중합을 사용하지 않습니다.
+### FIR / Scanner 경계
 
-### 우선순위 / 경제성
+활성 Farming Guide raid 중 Scanner가 새로 확인한 incoming item은 Farming Guide가 그 레이드에서 획득한 FIR item으로 취급합니다.
 
-- 특별 needed 우선순위는 **Found in Raid가 실제 필요한 아이템**에만 적용합니다.
-- 비-FIR needed는 일반 경제 loot과 동일하게 판단합니다.
-- 경제 가치는 **평균 Flea Market 가격**을 사용합니다.
-- 공간 확보를 위해 기존 물품을 희생해야 하면 incoming item과 실제 희생되는 전체 item set의 총 Flea 가치를 비교합니다.
-- 동일 가치일 때는 양쪽의 무게가 알려진 경우 더 가벼운 상태를 선호하고, 이후 ordinary footprint를 tie-break로 사용합니다.
+- Scanner가 FIR 아이콘·체크·색·문자를 판독하지 않습니다.
+- 사용자에게 별도의 FIR 확인을 요구하지 않습니다.
+- raid 획득 provenance는 세션 전용 `RaidAcquired` 상태이며 preset에 저장하지 않습니다.
 
-### 장비 우위
+### 판단 목표
 
-- 방탄복 / 헬멧: 방탄 등급
-- 헤드셋: 청취 거리
-- 일반 리그 / 가방 / 보안 컨테이너: 수납량
-- 방탄 리그: 방탄 등급 우선, 동급일 때 수납량
-- 총기 / 권총: 자동 우월 교체 없음
+매 스캔은 로컬 빈칸 삽입이 아니라 **현재 이동 가능한 전체 상태 + incoming item의 합법적인 최종 상태**를 다시 계산합니다.
 
-Scanner가 관측할 수 없는 내구도, 남은 사용 횟수, 실제 총기 조립 상태는 추정하지 않습니다.
+판단 목표는 정확히 두 단계입니다.
 
-### 중첩 수납 / 잠금
+1. 현재 퀘스트·은신처에 필요한 FIR 수량을 가능한 한 많이 충족합니다. 남은 필요 수량까지만 우선순위가 있습니다.
+2. 1번 결과가 같다면 최종 보유하는 모든 아이템의 평균 Flea Market 가치 합계를 최대화합니다.
 
-실제 Tarkov source-backed `StorageGrids`와 필터가 nested storage의 권위 있는 구조입니다. Key tool, money/document/card/injector 계열 등 specialized containers도 별도 이름 allowlist가 아니라 source filter를 따릅니다.
+음식·음료·탄약·탄창·치료제·방어구·헤드셋 등 특정 종류에 자동 전술 우선순위를 부여하지 않습니다. 사용자가 보호하고 싶은 물품/칸은 기존 고정 기능으로 지정합니다.
 
-명시적 item lock은 자동 판단에서 exact placement를 보존하는 hard constraint입니다. carrier root lock은 carrier 자체의 자동 교체를 막지만 내부 legal storage까지 폐쇄하지 않습니다. Reserved cell은 자동 배치 금지 역할을 유지합니다.
+무게는 아이템 우선순위가 아니라 Strength 설정 기준 최종 운반 가능 여부를 판정하는 제약입니다.
+
+### 글로벌 배치 / Tarkov legality
+
+글로벌 solve는 다음을 함께 고려합니다.
+
+- 일반 stored item
+- top-level equipment
+- Rig / Backpack / Secure Container
+- container 안 container
+- 전용 storage grid
+- incoming Scanner item
+
+최종 상태는 실제 데이터와 현재 상태를 기준으로 다음을 검증합니다.
+
+- width/height, rotation, collision
+- storage grid/filter
+- nested parent/child와 cycle 금지
+- equipment slot compatibility
+- attachment / armor plate slot filter
+- item conflict / `ConflictingSlotIds`
+- body armor / armored rig conflict
+- helmet / headset compatibility
+- stack quantity
+- item/cell/root lock
+- final carry weight
+
+부착물과 armor plate도 retained Flea value와 weight에 포함됩니다. Melee/Dogtag은 자동 후보에서 제외되지만 최종 무게에는 포함됩니다.
+
+전용 컨테이너는 보관 가치 우선순위를 만드는 기능이 아니라 합법적인 placement 후보입니다.
+
+### 고정 / 잠금
+
+고정 item/cell은 판단 점수가 아니라 hard constraint입니다.
+
+- 고정 item은 버리기·교체·좌표 이동·회전·re-parenting할 수 없습니다.
+- 고정 descendant를 담은 상위 container나 root carrier를 움직여 간접 이동시키는 것도 금지합니다.
+- 고정 carrier 내부의 독립적으로 고정되지 않은 합법적 빈칸은 계속 사용할 수 있습니다.
+- 같은 storage area 안에서 합법적 global solve가 기존 item 이동/회전을 요구하면 지시에 `내부 재배치`를 표시합니다.
 
 ### 스택 수량 / 무게
 
-탄약·화폐처럼 수량이 판단에 필요한 아이템은 Mini Scanner에서 수량을 입력한 뒤 판단을 계속합니다. 수량은 상태 schema v3에 저장되고 card에 표시되며 더블클릭으로 수정할 수 있습니다. 필요 수량, 경제 가치와 무게에 반영됩니다.
+Ammo와 Currency는 기존 수량 입력 흐름을 사용합니다. 입력한 수량은 하나의 실제 관측 stack instance의 수량이며 FIR 충족량, Flea value, weight에 반영됩니다. v1.17.0은 자동 split/merge나 확인되지 않은 max-stack 사실을 새로 만들지 않습니다.
 
-Farming Guide 우측 하단에서는 현재 modeled weight와 Strength 기반 최대 운반 중량을 표시합니다. 최종 proposed state가 허용 중량을 넘는 지시는 차단합니다. 현재 state가 이미 한계를 넘었다면 무게를 유지하거나 줄이는 방향만 허용합니다.
+### Fail closed
+
+파괴적 지시에 필요한 사실을 증명할 수 없으면 임의 기본값을 사용하지 않습니다.
+
+- unknown weight → 0 kg으로 가정하지 않음
+- unknown geometry → 1x1로 가정하지 않음
+- unknown tradable Flea price → 0 ₽로 가정하지 않음
+- bounded optimizer가 optimum을 증명하지 못함 → 파괴적 지시를 만들지 않음
 
 ## 검증 계약
 
@@ -141,11 +152,11 @@ Farming Guide 우측 하단에서는 현재 modeled weight와 Strength 기반 �
 - deterministic tests
 - Release build
 - Windows x64 self-contained publish
-- 실제 published EXE Product UI / Map / Farming Guide runtime smoke
+- 실제 published EXE Product UI / Map / Scanner / Farming Guide runtime smoke
 - graceful shutdown
 - Shutdown Race CI
 - package / SHA256SUMS 검증
 - PR 및 exact-main CI
 - 공개 tag / release / asset identity 및 digest 검증
 
-현재 v1.16.4는 위 자동 검증을 완료했습니다. 실제 사용자 PC/Tarkov 실플레이 검증은 별도 `PENDING` 상태이며 공개 릴리즈 identity나 완료된 개발 상태를 변경하지 않습니다.
+현재 v1.17.0은 위 자동 검증을 완료했습니다. 실제 사용자 PC/Tarkov 실플레이 검증은 별도 `PENDING` 상태이며 공개 릴리즈 identity나 완료된 개발 상태를 변경하지 않습니다.
