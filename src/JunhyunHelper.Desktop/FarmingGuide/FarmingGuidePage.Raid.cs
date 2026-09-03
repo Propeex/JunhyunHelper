@@ -209,7 +209,7 @@ public partial class FarmingGuidePage
         // which would overwrite an exact partial-stack result (for example 25/60 rounds).
         var safetyChecked = ApplyFinalRaidSafetyV1170(current, transitioned, decisionScan);
         var weightChecked = ApplyRaidWeightConstraintV1160(current, safetyChecked);
-        var presented = ApplyRaidInstructionPresentationV1155(current, weightChecked, item);
+        var presented = ApplyRaidInstructionPresentationV1170(current, weightChecked, item);
         var recommendation = ApplyRaidQuantityInstructionPresentationV1170(
             current,
             presented,
