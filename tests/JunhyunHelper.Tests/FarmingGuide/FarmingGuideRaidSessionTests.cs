@@ -50,6 +50,23 @@ public sealed class FarmingGuideRaidSessionTests
     }
 
     [Fact]
+    public void Indeterminate_advice_cannot_become_a_pending_transaction()
+    {
+        var baseline = SnapshotWith("baseline-item");
+        var session = new FarmingGuideRaidSession(baseline);
+
+        var error = Assert.Throws<ArgumentException>(() => session.SetPending(
+            "incoming",
+            "판단 보류",
+            FarmingGuideInstructionAction.Indeterminate,
+            baseline));
+
+        Assert.Contains("non-committing", error.Message, StringComparison.Ordinal);
+        Assert.Null(session.State.PendingInstruction);
+        Assert.Equal(0, session.State.Revision);
+    }
+
+    [Fact]
     public void New_scan_can_reject_pending_and_replace_it_without_mutating_revision()
     {
         var baseline = SnapshotWith("baseline-item");
