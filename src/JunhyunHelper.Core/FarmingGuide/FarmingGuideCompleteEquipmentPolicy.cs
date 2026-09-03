@@ -43,7 +43,10 @@ public static class FarmingGuideCompleteEquipmentPolicy
     public static FarmingGuideItemState NormalizeState(FarmingGuideItemState state)
     {
         ArgumentNullException.ThrowIfNull(state);
-        return FarmingGuideItemState.Create(state.ItemId);
+        // Complete-equipment normalization removes editable assembly detail, not raid
+        // provenance. A newly acquired complete root must remain FIR-acquired after any
+        // normalize/render/persist boundary used by the live Farming Guide session.
+        return FarmingGuideItemState.Create(state.ItemId, state.RaidAcquired);
     }
 
     public static bool SupportsNestedStorage(GameItem item)
