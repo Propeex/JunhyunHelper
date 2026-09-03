@@ -104,7 +104,7 @@ public sealed class FarmingGuideStackQuantityOptimizerTests
     }
 
     [Fact]
-    public void Optimize_UsesAlreadyRetainedFirUnitsWhenCappingNeed()
+    public void Optimize_UsesAlreadyRetainedFirUnitsWhenCappingNeed_ThenAvoidsUnnecessaryDiscard()
     {
         var variables = new[]
         {
@@ -130,7 +130,7 @@ public sealed class FarmingGuideStackQuantityOptimizerTests
             remainingFirNeed: id => id == "quest-ammo" ? 4 : 0);
 
         Assert.True(result.Found);
-        Assert.Equal(2, result.Quantities["ammo"]);
+        Assert.Equal(4, result.Quantities["ammo"]);
         Assert.Equal(4, result.SatisfiedFirUnits);
     }
 
