@@ -10,6 +10,8 @@ public partial class FarmingGuidePage
     /// Quantity-complete v1.17 candidate-pool solve. The outer search chooses which physical
     /// roots exist; for every geometrically legal selected set, the inner exact quantity
     /// optimizer chooses retained units for unlocked stacks under the weight constraint.
+    /// Single-unit roots deliberately use this same path so FIR provenance and complete-state
+    /// semantics have one authoritative live solver rather than a second historical branch.
     ///
     /// Full-quantity objective values are upper bounds for subset search. When a candidate
     /// must split stacks to satisfy weight, we do not return the first feasible subset: later
@@ -43,19 +45,6 @@ public partial class FarmingGuidePage
             incoming,
             Math.Max(1, scanned.Quantity),
             GlobalRootOriginV1170.Incoming);
-
-        var hasStackChoices = currentRoots.Append(incomingRoot).Any(root => root.Quantity > 1);
-        if (!hasStackChoices)
-        {
-            return TryFindBestUnifiedRaidStateV1170(
-                current,
-                scanned,
-                incoming,
-                currentScore,
-                out recommendation,
-                out score,
-                out proofComplete);
-        }
 
         var allSelected = currentRoots.Append(incomingRoot).ToArray();
         var allPacking = TryPackUnifiedSelectionV1170(current, allSelected, out var allProposed);
