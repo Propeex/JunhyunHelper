@@ -43,10 +43,10 @@ public static class FarmingGuideCompleteEquipmentPolicy
     public static FarmingGuideItemState NormalizeState(FarmingGuideItemState state)
     {
         ArgumentNullException.ThrowIfNull(state);
-        // Complete-equipment normalization removes editable assembly detail, not raid
-        // provenance. A newly acquired complete root must remain FIR-acquired after any
+        // Complete-equipment normalization removes editable assembly detail, not provenance.
+        // Acquisition history and the independent Tarkov FIR status both survive every
         // normalize/render/persist boundary used by the live Farming Guide session.
-        return FarmingGuideItemState.Create(state.ItemId, state.RaidAcquired);
+        return FarmingGuideItemState.Create(state.ItemId, state.RaidAcquired, state.FirStatus);
     }
 
     public static bool SupportsNestedStorage(GameItem item)
