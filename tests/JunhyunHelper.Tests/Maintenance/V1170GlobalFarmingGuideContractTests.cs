@@ -35,7 +35,7 @@ public sealed class V1170GlobalFarmingGuideContractTests
     }
 
     [Fact]
-    public void FirDecisionUsesObservedProvenanceAndFailsClosedOnlyWhenNeededStatusIsUnknown()
+    public void ActiveRaidIncomingScansAreFirAndExistingUnknownStateStillFailsClosed()
     {
         var directory = FarmingGuideDirectory();
         var global = File.ReadAllText(Path.Combine(directory, "FarmingGuidePage.GlobalOptimizationV1170.cs"));
@@ -44,11 +44,11 @@ public sealed class V1170GlobalFarmingGuideContractTests
             CoreFarmingGuideDirectory(),
             "FarmingGuideStackQuantityOptimizer.cs"));
 
-        Assert.Contains("HasProvableFirDecisionFactsV1170", global, StringComparison.Ordinal);
-        Assert.Contains("scanned.CurrentNeededFir", global, StringComparison.Ordinal);
-        Assert.Contains("scanned.FirStatus == FarmingGuideFirStatus.Unknown", global, StringComparison.Ordinal);
+        Assert.Contains("HasProvableFirDecisionFactsV1170(current)", global, StringComparison.Ordinal);
         Assert.Contains("state.FirStatus == FarmingGuideFirStatus.Unknown", global, StringComparison.Ordinal);
-        Assert.Contains("firStatus: scanned.FirStatus", quantities, StringComparison.Ordinal);
+        Assert.DoesNotContain("scanned.FirStatus", global, StringComparison.Ordinal);
+        Assert.Contains("firStatus: FarmingGuideFirStatus.FoundInRaid", quantities, StringComparison.Ordinal);
+        Assert.DoesNotContain("firStatus: scanned.FirStatus", quantities, StringComparison.Ordinal);
         Assert.Contains("root.State.IsFirQualified", quantities, StringComparison.Ordinal);
         Assert.Contains("FirQualified: root.State.IsFirQualified", quantities, StringComparison.Ordinal);
         Assert.Contains("currentScan.CurrentNeededFir", quantities, StringComparison.Ordinal);
@@ -63,23 +63,28 @@ public sealed class V1170GlobalFarmingGuideContractTests
     }
 
     [Fact]
-    public void ScannerFirObservationIsPositiveOnlyAndRestrictedToCurrentLiveTarkovItem()
+    public void ScannerDoesNotInspectOrClassifyFir()
     {
+        var root = RepositoryRoot();
         var scanner = ScannerDirectory();
         var models = File.ReadAllText(Path.Combine(scanner, "ScannerModels.cs"));
         var coordinator = File.ReadAllText(Path.Combine(scanner, "ScannerCoordinator.FarmingGuide.cs"));
-        var runtime = File.ReadAllText(Path.Combine(scanner, "ScannerRuntimeService.FirObservationV1170.cs"));
         var vision = File.ReadAllText(Path.Combine(scanner, "ScannerLab38WindowsVision.cs"));
 
-        Assert.Contains("FarmingGuideFirStatus FirStatus", models, StringComparison.Ordinal);
-        Assert.Contains("HasFoundInRaidMarkerEvidence", models, StringComparison.Ordinal);
-        Assert.Contains("Runtime.CreateLiveFarmingGuideSnapshot", coordinator, StringComparison.Ordinal);
+        Assert.DoesNotContain("FarmingGuideFirStatus", models, StringComparison.Ordinal);
+        Assert.DoesNotContain("HasFoundInRaidMarkerEvidence", models, StringComparison.Ordinal);
+        Assert.DoesNotContain("CreateLiveFarmingGuideSnapshot", coordinator, StringComparison.Ordinal);
         Assert.Contains("Presentation.CreateSnapshot", coordinator, StringComparison.Ordinal);
-        Assert.Contains("Status.CaptureMode != ScannerCaptureMode.TarkovWindow", runtime, StringComparison.Ordinal);
-        Assert.Contains("FarmingGuideFirStatus.FoundInRaid", runtime, StringComparison.Ordinal);
-        Assert.Contains("FarmingGuideFirStatus.Unknown", runtime, StringComparison.Ordinal);
-        Assert.DoesNotContain("FarmingGuideFirStatus.NotFoundInRaid", runtime, StringComparison.Ordinal);
-        Assert.Contains("ScannerFirMarkerDetector.HasFoundInRaidMarker", vision, StringComparison.Ordinal);
+        Assert.DoesNotContain("ScannerFirMarkerDetector", vision, StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(
+            root,
+            "src",
+            "JunhyunHelper.Core",
+            "Scanner",
+            "ScannerFirMarkerDetector.cs")));
+        Assert.False(File.Exists(Path.Combine(
+            scanner,
+            "ScannerRuntimeService.FirObservationV1170.cs")));
     }
 
     private static string FarmingGuideDirectory([CallerFilePath] string sourcePath = "") =>
@@ -91,7 +96,7 @@ public sealed class V1170GlobalFarmingGuideContractTests
     private static string ScannerDirectory([CallerFilePath] string sourcePath = "") =>
         Path.Combine(RepositoryRoot(sourcePath), "src", "JunhyunHelper.Desktop", "Scanner");
 
-    private static string RepositoryRoot(string sourcePath)
+    private static string RepositoryRoot([CallerFilePath] string sourcePath = "")
     {
         var directory = new DirectoryInfo(Path.GetDirectoryName(sourcePath)
             ?? throw new InvalidOperationException("Test source path is unavailable."));
