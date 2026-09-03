@@ -26,8 +26,22 @@ base main: 379c6ab4ab02431c6bb74b537e899e94f45ee987
 public stable: v1.16.4
 working branch: feature/v1.17.0-farming-guide-global-optimization-2026-09-03
 Draft PR: #287
-current reviewed head: ecedcd48baae1cf4e6ac349d8241d7c946da5c7d
+current work: active; do not merge/release until complete global semantics are proven
 ```
+
+## Confirmed scope
+
+1. Keep the user-facing farming rulebook minimal and fixed:
+   - currently needed FIR quest/hideout units first, capped by remaining need;
+   - then maximize complete final retained average-Flea value;
+   - respect weight as the only user-configurable farming constraint.
+2. Treat category-specific tactical retention/upgrade logic as superseded: food, drink, ammunition, magazines, medicine, armor/headset performance and similar categories receive no automatic privilege unless the exact item is FIR-needed.
+3. Treat all Tarkov-valid placement behavior, explicit locks, quantity/provenance/value/weight facts, transaction revision consistency, solver proof boundaries and uncertainty reporting as system rules rather than additional farming priorities.
+4. Replace local insertion/victim reasoning with a complete candidate-pool model: preserve explicit locks, release all other movable items conceptually, add the scanned item, solve the best complete legal state, then derive the user instruction from the state difference.
+5. Preserve fail-closed safety without conflating uncertainty with a proven discard: missing facts, incomplete solver domain or exhausted proof budget must produce an indeterminate/no-advice result rather than `버리기`.
+6. Reuse already verified Tarkov placement/filter/nesting mechanics where valid, but do not weaken the new rulebook to fit historical local-planner assumptions.
+7. Add deterministic regression coverage for rule boundaries, global-optimum cases, locks, weight, nested/new containers, top-level equipment/carriers, FIR quantity/provenance and indeterminate safety.
+8. Keep PR #287 Draft until implementation, tests, Release/published EXE smoke, packaging and documentation consistency are all complete.
 
 ## Confirmed rule authority
 
@@ -52,13 +66,14 @@ subject to Tarkov-valid placement, explicit user locks and the configured weight
   - item-level weight/footprint priority tie-breaks;
   - armor/headset combat-performance upgrade heuristics.
 - Recorded the v1.17 canonical system-rule/farming-rule decision, including quantity-capped FIR semantics, complete-state economic objective and bounded-search fail-closed requirement.
+- Clarified the rulebook that **indeterminate is not discard**: an unproven result must be reported as no-advice/hold and may not mutate raid state as though discard were proven.
 - Simplified `FarmingGuideLootPriorityPolicy` to FIR-needed then total Flea value only; weight and footprint are no longer farming priority tiers.
 - Added `FarmingGuideOptimizationPolicy` for complete-state lexicographic scoring and deterministic tests covering FIR dominance, remaining-quantity capping, raid-baseline acquisition and retained-value tie resolution.
 - Routed the live scan path through v1.17 decision/safety entry points, bypassing tactical armor/headset superiority heuristics and tactical resource retention.
 - Added best-first unlocked stored-item subset optimization on top of existing proven storage legality/repacking mechanics.
 - Added fail-closed victim handling: items whose required FIR/value facts cannot be proven are not automatically sacrificed.
-- First Draft PR CI proved Desktop compilation succeeded; the initial core-test failure was an obsolete test asserting weight as an item-level priority. That test has been corrected to the newly confirmed product contract and CI is rerunning.
-- Documentation Consistency is green on the current Draft PR head.
+- Corrected obsolete tests that encoded weight/footprint as farming priority.
+- Latest observed CI generation after those test corrections is running; Shutdown Race CI is green. Documentation Consistency exposed a missing required `## Confirmed scope` section in this checkpoint, which this update restores.
 
 ## Rule-level findings that must remain explicit
 
@@ -67,8 +82,9 @@ subject to Tarkov-valid placement, explicit user locks and the configured weight
 3. **Tetris/slot density is not a third priority.** It matters only because it changes which legal complete states can fit; the objective remains final retained total value.
 4. **Locks remove optimizer choices; they do not add item value.** Item/slot/carrier/cell lock representations are system state implementing the user's explicit fixed-item/fixed-cell intent.
 5. **Unknown facts are not zero.** Destructive advice fails closed when needed/value/legality facts required for proof are unavailable.
-6. **A bounded heuristic may not be presented as the optimum.** If the solver cannot prove a destructive result within its deterministic budget, it keeps the current state rather than issuing a known-unproven discard/rearrangement.
-7. **Current layout is not a farming preference.** Fewer moves/current placement may be used only as a deterministic tie-break after FIR satisfaction and total retained value are exactly equal.
+6. **A bounded heuristic may not be presented as the optimum.** If the solver cannot prove a destructive result within its deterministic budget, it must not issue a known-unproven discard/rearrangement.
+7. **Indeterminate is not discard.** `Discard` requires a proven farming decision; uncertainty must be surfaced separately and leave the modeled inventory unchanged.
+8. **Current layout is not a farming preference.** Fewer moves/current placement may be used only as a deterministic tie-break after FIR satisfaction and total retained value are exactly equal.
 
 ## Remaining implementation gaps found by the global-rule audit
 
@@ -80,13 +96,15 @@ These are why PR #287 remains Draft and must not be merged/released yet:
 4. **FIR provenance edge case.** Current session acquisition accounting is primarily baseline-count based. For complete semantic precision, the model should preserve raid-acquired/FIR provenance when an identical baseline copy is discarded and a new copy is acquired, rather than relying only on net item-id count.
 5. **Stack granularity.** Current modeled stack instances are retained/evicted as whole instances. If partial-stack split recommendations are to be part of the physical system model, the global solver must model legal split quantities explicitly rather than pretending whole-stack selection is mathematically complete.
 6. **Low-level packing search completeness.** The existing repacking engine is safe and deterministic but historically optimized local displacement and is bounded. It can serve as a legality proof during migration, but a final "global optimum" claim requires an all-selected-items packing proof or an explicit fail-closed proof boundary.
+7. **Indeterminate runtime action.** Current legacy action vocabulary still conflates some fail-closed paths with `Discard`; add an explicit non-committing indeterminate/no-advice runtime result and regression coverage.
 
 ## Current step
 
-Keep the product rulebook fixed while replacing the remaining local/hierarchical implementation assumptions with a complete candidate-pool solver. Do not weaken the rulebook to fit old code.
+Implement the explicit indeterminate/no-advice state, then continue replacing the remaining local/hierarchical implementation assumptions with a complete candidate-pool solver. Do not weaken the rulebook to fit old code.
 
 ## Remaining
 
+- add a non-committing indeterminate/no-advice runtime action and make bounded/incomplete proof paths use it;
 - finish complete global solver for unlocked stored items, nested containers, newly acquired containers and top-level equipment/carriers;
 - make FIR acquisition/provenance semantics explicit enough for quantity-correct optimization;
 - decide/implement system-level stack split representation only if required for exact physical optimization, without adding a farming preference;
