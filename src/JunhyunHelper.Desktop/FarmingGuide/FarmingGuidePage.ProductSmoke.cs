@@ -35,6 +35,7 @@ public partial class FarmingGuidePage
             VerifyNestedWorkbenchViewportSmoke();
             VerifyExactStorageVisualLayoutSmoke();
             VerifyV1170GlobalOptimizerSmoke();
+            VerifyV1170LockedAncestrySmoke();
             var marker = Path.Combine(
                 Path.GetTempPath(),
                 "junhyun-farming-guide-v1153-smoke-success.txt");
@@ -50,6 +51,7 @@ public partial class FarmingGuidePage
                 "root-carrier-duplicate-editor-disabled=ok",
                 "exact-storage-layout=ok",
                 "v1170-global-optimizer=ok",
+                "v1170-fixed-ancestry=ok",
             ]);
             _productSmokeCompleted = true;
         }
