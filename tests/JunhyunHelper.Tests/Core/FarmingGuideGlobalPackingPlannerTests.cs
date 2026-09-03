@@ -41,6 +41,45 @@ public sealed class FarmingGuideGlobalPackingPlannerTests
     }
 
     [Fact]
+    public void Plan_SurfaceOwnerDependencyCanDifferFromStorageParent()
+    {
+        var carrierGrid = Surface("backpack-grid", parent: null, width: 1, height: 1);
+        var carrierSlot = Surface("backpack-slot", parent: null, width: 1, height: 1);
+        var item = Item("backpack", Option("backpack-grid", 1, 1), Option("backpack-slot", 1, 1));
+        var owners = new Dictionary<string, string?>
+        {
+            ["backpack-grid"] = "backpack",
+            ["backpack-slot"] = null,
+        };
+
+        var result = FarmingGuideGlobalPackingPlanner.Plan(
+            [carrierGrid, carrierSlot],
+            [item],
+            surfaceOwners: owners);
+
+        Assert.True(result.Found);
+        Assert.Contains(result.Placements, value =>
+            value.InstanceId == "backpack" && value.SurfaceId == "backpack-slot");
+    }
+
+    [Fact]
+    public void Plan_FinalValidatorRejectsFirstLeafAndSearchesAlternative()
+    {
+        var first = Surface("first", parent: null, width: 1, height: 1);
+        var second = Surface("second", parent: null, width: 1, height: 1);
+        var item = Item("loot", Option("first", 1, 1), Option("second", 1, 1));
+
+        var result = FarmingGuideGlobalPackingPlanner.Plan(
+            [first, second],
+            [item],
+            finalValidator: placements =>
+                placements.Single().SurfaceId == "second");
+
+        Assert.True(result.Found);
+        Assert.Equal("second", Assert.Single(result.Placements).SurfaceId);
+    }
+
+    [Fact]
     public void Plan_RejectsMutualContainerCycle()
     {
         var aSurface = Surface("a:0", parent: "a", width: 1, height: 1);
@@ -52,6 +91,30 @@ public sealed class FarmingGuideGlobalPackingPlannerTests
         };
 
         var result = FarmingGuideGlobalPackingPlanner.Plan([aSurface, bSurface], items);
+
+        Assert.Equal(FarmingGuideGlobalPackingStatus.NoSolution, result.Status);
+    }
+
+    [Fact]
+    public void Plan_RejectsCycleExpressedOnlyThroughSurfaceOwnerMap()
+    {
+        var aSurface = Surface("a-grid", parent: null, width: 1, height: 1);
+        var bSurface = Surface("b-grid", parent: null, width: 1, height: 1);
+        var owners = new Dictionary<string, string?>
+        {
+            ["a-grid"] = "a",
+            ["b-grid"] = "b",
+        };
+        var items = new[]
+        {
+            Item("a", Option("b-grid", 1, 1)),
+            Item("b", Option("a-grid", 1, 1)),
+        };
+
+        var result = FarmingGuideGlobalPackingPlanner.Plan(
+            [aSurface, bSurface],
+            items,
+            surfaceOwners: owners);
 
         Assert.Equal(FarmingGuideGlobalPackingStatus.NoSolution, result.Status);
     }
