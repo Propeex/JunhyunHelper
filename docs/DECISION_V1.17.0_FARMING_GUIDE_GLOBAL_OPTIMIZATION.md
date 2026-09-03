@@ -26,9 +26,11 @@ They include, without being limited to:
 - explicit locked cells / reserved cells;
 - explicit locked equipment/carrier targets;
 - indirect lock preservation (for example, a parent/container may not move if doing so would move an explicitly position-locked descendant);
+- correct quantity, FIR-need, acquisition/provenance, value and weight facts;
+- transaction consistency between the modeled raid-state revision, the recommendation and explicit user acceptance;
 - deterministic, fail-closed behavior when required item facts or a legal/optimal plan cannot be proven.
 
-These rules exist because an invalid plan is not a valid candidate. They do not grant an item farming priority.
+These rules exist because an invalid or unproven plan is not a valid candidate. They do not grant an item farming priority.
 
 ### 1.2 Farming rules
 
@@ -146,15 +148,20 @@ Using a legal equipment/storage surface can improve the final feasible state bec
 
 If the user wants currently worn/held gear to be invariant for tactical reasons, the user locks it.
 
-## 10. Optimality and bounded-runtime safety
+## 10. Optimality, uncertainty and bounded-runtime safety
 
 The product must not claim a destructive/global rearrangement is optimal merely because a bounded heuristic found one feasible plan.
 
 Implementation may use branch-and-bound, pruning, memoization, search ordering, or bounded fallback strategies for raid-time responsiveness. However:
 
-- a destructive recommendation is emitted only when its rulebook safety is proven;
+- a destructive recommendation is emitted only when its rulebook safety and superiority are proven;
 - if exact optimality cannot be established within the implementation's deterministic safety budget, the system fails closed rather than silently substituting a known-suboptimal destructive plan;
+- **fail-closed uncertainty is not the same result as `Discard`**;
+- `Discard` means the solver has actually proven that keeping the newly scanned item cannot improve the admissible optimum under the Farming Guide objective;
+- missing facts, exhausted search budget, incomplete solver domain, or inability to prove a legal optimum must produce an explicit **indeterminate / hold / no-advice** result and must not mutate the modeled inventory as though the user discarded the item;
 - deterministic tie-breaking may prefer fewer moves / current placement stability only after FIR satisfaction and total retained value are equal.
+
+This distinction is a system reliability rule, not an additional farming preference.
 
 ## 11. Formal objective
 
