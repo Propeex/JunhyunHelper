@@ -81,10 +81,7 @@ public partial class FarmingGuidePage
         foreach (var slot in V1170EquipmentSlots)
         {
             if (current.Equipment.TryGetValue(slot, out var state) &&
-                !IsTopLevelRootRetainedV1170(
-                    state,
-                    EquipmentRootIdV1170(slot),
-                    proposed))
+                !IsTopLevelRootRetainedV1170(state, proposed))
             {
                 return true;
             }
@@ -93,10 +90,7 @@ public partial class FarmingGuidePage
         foreach (var kind in V1170CarrierKinds)
         {
             if (CarrierStateV1170(current, kind) is { } state &&
-                !IsTopLevelRootRetainedV1170(
-                    state,
-                    CarrierRootIdV1170(kind),
-                    proposed))
+                !IsTopLevelRootRetainedV1170(state, proposed))
             {
                 return true;
             }
@@ -117,7 +111,6 @@ public partial class FarmingGuidePage
                 continue;
             AddTopLevelRootOperationV1170(
                 state,
-                EquipmentRootIdV1170(slot),
                 $"equipment:{(int)slot}",
                 proposed,
                 operations);
@@ -129,7 +122,6 @@ public partial class FarmingGuidePage
                 continue;
             AddTopLevelRootOperationV1170(
                 state,
-                CarrierRootIdV1170(kind),
                 $"carrier:{(int)kind}",
                 proposed,
                 operations);
@@ -169,7 +161,6 @@ public partial class FarmingGuidePage
 
     private void AddTopLevelRootOperationV1170(
         FarmingGuideItemState state,
-        string syntheticInstanceId,
         string originalLocationKey,
         FarmingGuideLoadoutSnapshot proposed,
         List<string> operations)
@@ -177,8 +168,11 @@ public partial class FarmingGuidePage
         var item = ResolveItem(state);
         var name = item is null ? "아이템" : DisplayName(item);
 
+        // A top-level root receives a storage-safe persistent instance id if the global solve
+        // moves it into inventory. State reference identity remains stable inside the proven
+        // current->proposed projection and is therefore the authoritative link here.
         var stored = proposed.StoredItems.FirstOrDefault(value =>
-            string.Equals(value.InstanceId, syntheticInstanceId, StringComparison.Ordinal));
+            ReferenceEquals(value.Item, state));
         if (stored is not null)
         {
             operations.Add($"{name} 이동 {StorageLocationLabelV1155(proposed, stored)}");
@@ -209,10 +203,8 @@ public partial class FarmingGuidePage
 
     private bool IsTopLevelRootRetainedV1170(
         FarmingGuideItemState state,
-        string syntheticInstanceId,
         FarmingGuideLoadoutSnapshot proposed) =>
-        proposed.StoredItems.Any(value =>
-            string.Equals(value.InstanceId, syntheticInstanceId, StringComparison.Ordinal)) ||
+        proposed.StoredItems.Any(value => ReferenceEquals(value.Item, state)) ||
         TryFindTopLevelLocationV1170(proposed, state, out _, referenceOnly: true);
 
     private bool TryFindTopLevelLocationV1170(
