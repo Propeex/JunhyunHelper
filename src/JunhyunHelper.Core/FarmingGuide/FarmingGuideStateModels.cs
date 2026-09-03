@@ -29,8 +29,18 @@ public sealed record FarmingGuideItemState(
     IReadOnlyDictionary<string, FarmingGuideItemState?> Attachments,
     IReadOnlyDictionary<string, FarmingGuideItemState?> ArmorPlates)
 {
-    public static FarmingGuideItemState Create(string itemId) =>
-        new(itemId, new Dictionary<string, FarmingGuideItemState?>(), new Dictionary<string, FarmingGuideItemState?>());
+    /// <summary>
+    /// True only for an item instance acquired during the active modeled raid. This is
+    /// explicit provenance, not a value preference. It survives movement/repacking so an
+    /// acquired FIR copy can be distinguished from an identical copy brought into raid.
+    /// </summary>
+    public bool RaidAcquired { get; init; }
+
+    public static FarmingGuideItemState Create(string itemId, bool raidAcquired = false) =>
+        new(itemId, new Dictionary<string, FarmingGuideItemState?>(), new Dictionary<string, FarmingGuideItemState?>())
+        {
+            RaidAcquired = raidAcquired,
+        };
 }
 
 public sealed record FarmingGuideStoredItemState(
