@@ -30,4 +30,27 @@ public static class FarmingGuideStackQuantityPolicy
     }
 
     public static int NormalizeQuantity(int quantity) => Math.Max(1, quantity);
+
+    /// <summary>
+    /// Normalizes a modeled single-stack quantity against the source-backed Tarkov maximum
+    /// when that fact is available. Older content snapshots may legitimately have no maximum;
+    /// in that case the positive user-confirmed quantity is preserved rather than inventing a
+    /// limit. Current ammo data exposes stackMaxSize through ItemPropertiesAmmo.
+    /// </summary>
+    public static int NormalizeQuantity(GameItem item, int quantity)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        var normalized = NormalizeQuantity(quantity);
+        return item.StackMaxSize is > 0
+            ? Math.Min(normalized, item.StackMaxSize.Value)
+            : normalized;
+    }
+
+    public static bool IsQuantityWithinKnownStackLimit(GameItem item, int quantity)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        if (quantity <= 0)
+            return false;
+        return item.StackMaxSize is not > 0 || quantity <= item.StackMaxSize.Value;
+    }
 }
