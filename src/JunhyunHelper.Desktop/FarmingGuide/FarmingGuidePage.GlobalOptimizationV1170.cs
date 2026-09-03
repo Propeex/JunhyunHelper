@@ -26,8 +26,8 @@ public partial class FarmingGuidePage
     /// Authoritative v1.17 raid decision. Stored items, nested containers, top-level
     /// equipment/carriers and the incoming item are evaluated through one complete candidate
     /// pool. Stack quantities are optimized exactly inside each selected physical root set.
-    /// A result is committable only when the candidate domain, decision facts, quantity solve
-    /// and packing proof are complete; otherwise the non-committing Indeterminate state wins.
+    /// A result is committable only when the candidate domain, decision facts, quantity solve,
+    /// weight facts and packing proof are complete; otherwise Indeterminate wins.
     /// </summary>
     private RaidRecommendation ApplyRaidStateTransitionsV1170(
         FarmingGuideLoadoutSnapshot current,
@@ -36,6 +36,9 @@ public partial class FarmingGuidePage
         GameItem incoming)
     {
         _ = recommendation;
+
+        if (!HasProvableRaidWeightDomainV1170(current, incoming))
+            return IndeterminateRaidPlanV1170(current);
 
         var currentScore = ScoreRaidStateV1170(current, scanned);
         var found = TryFindBestUnifiedRaidStateWithQuantitiesV1170(
