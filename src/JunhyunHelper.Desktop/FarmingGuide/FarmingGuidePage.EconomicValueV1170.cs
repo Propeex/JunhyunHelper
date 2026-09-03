@@ -30,6 +30,15 @@ public partial class FarmingGuidePage
             : null;
     }
 
+    private void RememberCanonicalCurrencyValuesV1170()
+    {
+        foreach (var item in _itemsById.Values)
+        {
+            if (FarmingGuideStackQuantityPolicy.IsCurrency(item) && item.BasePrice is > 0)
+                _raidFleaAveragePrices[item.Id] = item.BasePrice.Value;
+        }
+    }
+
     private void RememberRaidEconomicUnitValueV1170(GameItem item, ScannerItemSnapshot scanned)
     {
         if (scanned.FleaAveragePrice is > 0)
