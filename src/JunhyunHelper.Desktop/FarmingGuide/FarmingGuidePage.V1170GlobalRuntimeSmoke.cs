@@ -15,6 +15,13 @@ public partial class FarmingGuidePage
         const string helmetOldId = "__v1170_smoke_helmet_old";
         const string helmetNewId = "__v1170_smoke_helmet_new";
         const string unknownValueId = "__v1170_smoke_unknown_value";
+        const string assemblyRootId = "__v1170_smoke_assembly_root";
+        const string assemblyChildId = "__v1170_smoke_assembly_child";
+        const string heavyRootId = "__v1170_smoke_heavy_root";
+        const string heavyChildId = "__v1170_smoke_heavy_child";
+        const string unknownWeightId = "__v1170_smoke_unknown_weight";
+        const string unknownSizeId = "__v1170_smoke_unknown_size";
+        const string wideIncomingId = "__v1170_smoke_wide_incoming";
         var ids = new[]
         {
             ordinaryId,
@@ -24,6 +31,13 @@ public partial class FarmingGuidePage
             helmetOldId,
             helmetNewId,
             unknownValueId,
+            assemblyRootId,
+            assemblyChildId,
+            heavyRootId,
+            heavyChildId,
+            unknownWeightId,
+            unknownSizeId,
+            wideIncomingId,
         };
 
         var previousItems = ids.ToDictionary(
@@ -61,14 +75,34 @@ public partial class FarmingGuidePage
         var helmetOld = V1170SmokeItem(helmetOldId, weightKg: 1m, typeKeys: ["helmet"]);
         var helmetNew = V1170SmokeItem(helmetNewId, weightKg: 1m, typeKeys: ["helmet"]);
         var unknownValue = V1170SmokeItem(unknownValueId, weightKg: 1m);
+        var assemblyRoot = V1170SmokeItem(assemblyRootId, weightKg: 1m);
+        var assemblyChild = V1170SmokeItem(assemblyChildId, weightKg: 1m);
+        var heavyRoot = V1170SmokeItem(heavyRootId, weightKg: 1m);
+        var heavyChild = V1170SmokeItem(heavyChildId, weightKg: 77m);
+        var unknownWeight = V1170SmokeItem(unknownWeightId, weightKg: null);
+        var unknownSize = V1170SmokeItem(unknownSizeId, weightKg: 1m, width: null, height: null);
+        var wideIncoming = V1170SmokeItem(wideIncomingId, weightKg: 1m, width: 2, height: 1);
 
-        _itemsById[ordinaryId] = ordinary;
-        _itemsById[incomingId] = incoming;
-        _itemsById[foodId] = food;
-        _itemsById[containerId] = container;
-        _itemsById[helmetOldId] = helmetOld;
-        _itemsById[helmetNewId] = helmetNew;
-        _itemsById[unknownValueId] = unknownValue;
+        foreach (var item in new[]
+                 {
+                     ordinary,
+                     incoming,
+                     food,
+                     container,
+                     helmetOld,
+                     helmetNew,
+                     unknownValue,
+                     assemblyRoot,
+                     assemblyChild,
+                     heavyRoot,
+                     heavyChild,
+                     unknownWeight,
+                     unknownSize,
+                     wideIncoming,
+                 })
+        {
+            _itemsById[item.Id] = item;
+        }
 
         var snapshots = new Dictionary<string, ScannerItemSnapshot>(StringComparer.Ordinal)
         {
@@ -79,6 +113,13 @@ public partial class FarmingGuidePage
             [helmetOldId] = V1170SmokeSnapshot(helmetOldId, flea: 20_000, firNeed: 0),
             [helmetNewId] = V1170SmokeSnapshot(helmetNewId, flea: 80_000, firNeed: 0),
             [unknownValueId] = V1170SmokeSnapshot(unknownValueId, flea: null, firNeed: 0),
+            [assemblyRootId] = V1170SmokeSnapshot(assemblyRootId, flea: 1_000, firNeed: 0),
+            [assemblyChildId] = V1170SmokeSnapshot(assemblyChildId, flea: 200_000, firNeed: 0),
+            [heavyRootId] = V1170SmokeSnapshot(heavyRootId, flea: 1_000, firNeed: 0),
+            [heavyChildId] = V1170SmokeSnapshot(heavyChildId, flea: 1_000, firNeed: 0),
+            [unknownWeightId] = V1170SmokeSnapshot(unknownWeightId, flea: 100_000, firNeed: 0),
+            [unknownSizeId] = V1170SmokeSnapshot(unknownSizeId, flea: 100_000, firNeed: 0),
+            [wideIncomingId] = V1170SmokeSnapshot(wideIncomingId, flea: 10_000, firNeed: 0),
         };
         var bridge = new FarmingGuideRaidBridge();
         bridge.SetScannerSnapshotResolver(itemId => snapshots.GetValueOrDefault(itemId));
@@ -143,6 +184,37 @@ public partial class FarmingGuidePage
                 economicRecommendation.ProposedSnapshot.StoredItems.Any(value => value.Item.ItemId == foodId))
             {
                 throw new InvalidOperationException("v1.17 incorrectly restored tactical food/drink protection.");
+            }
+
+            // Complete retained value includes modeled assembly descendants. A cheap root
+            // carrying a valuable attachment must not be replaced by a lower total-value item.
+            var assembledState = new FarmingGuideItemState(
+                assemblyRootId,
+                new Dictionary<string, FarmingGuideItemState?>
+                {
+                    ["attachment"] = FarmingGuideItemState.Create(assemblyChildId),
+                },
+                new Dictionary<string, FarmingGuideItemState?>());
+            var assembledCurrent = FarmingGuideLoadoutSnapshot.Empty with
+            {
+                StoredItems =
+                [
+                    new FarmingGuideStoredItemState(
+                        "assembled-instance",
+                        assembledState,
+                        FarmingGuideStorageKind.Pockets,
+                        0, 0, 0, false),
+                ],
+            };
+            snapshots[incomingId] = V1170SmokeSnapshot(incomingId, flea: 100_000, firNeed: 0);
+            if (!TryPlanScannedItemGlobalV1170(
+                    assembledCurrent,
+                    snapshots[incomingId],
+                    incoming,
+                    out var assembledValueRecommendation) ||
+                assembledValueRecommendation.Action != FarmingGuideInstructionAction.Discard)
+            {
+                throw new InvalidOperationException("v1.17 complete-state value omitted an assembly descendant.");
             }
 
             // An incoming retained container contributes its internal capacity in the same
@@ -241,6 +313,37 @@ public partial class FarmingGuidePage
                 throw new InvalidOperationException("v1.17 consecutive scan failed after retaining relocated equipment.");
             }
 
+            // Global packing can require movement inside the same storage area. The text
+            // instruction must not suppress that current -> final physical delta.
+            _pocketGrids = [new FarmingGuideStorageGridDefinition(2, 2, FarmingGuideItemFilter.Empty)];
+            snapshots[ordinaryId] = V1170SmokeSnapshot(ordinaryId, flea: 30_000, firNeed: 0);
+            var diagonalCurrent = FarmingGuideLoadoutSnapshot.Empty with
+            {
+                StoredItems =
+                [
+                    new FarmingGuideStoredItemState(
+                        "diagonal-a",
+                        FarmingGuideItemState.Create(ordinaryId),
+                        FarmingGuideStorageKind.Pockets,
+                        0, 0, 0, false),
+                    new FarmingGuideStoredItemState(
+                        "diagonal-b",
+                        FarmingGuideItemState.Create(ordinaryId),
+                        FarmingGuideStorageKind.Pockets,
+                        0, 1, 1, false),
+                ],
+            };
+            if (!TryPlanScannedItemGlobalV1170(
+                    diagonalCurrent,
+                    snapshots[wideIncomingId],
+                    wideIncoming,
+                    out var repackRecommendation) ||
+                repackRecommendation.Action != FarmingGuideInstructionAction.Store ||
+                !repackRecommendation.Instruction.Contains("내부 재배치", StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("v1.17 hid a required same-area global repack operation.");
+            }
+
             // Strict final weight: a single incoming root heavier than the configured limit
             // is never an admissible retained state, regardless of its value.
             _pocketGrids = [new FarmingGuideStorageGridDefinition(1, 1, FarmingGuideItemFilter.Empty)];
@@ -259,6 +362,53 @@ public partial class FarmingGuidePage
             }
             _itemsById.Remove(overweightIncoming.Id);
             snapshots.Remove(overweightIncoming.Id);
+
+            // Assembly descendants contribute to carry weight. A current modeled assembly
+            // that is already over the configured limit cannot be treated as a legal baseline.
+            var heavyState = new FarmingGuideItemState(
+                heavyRootId,
+                new Dictionary<string, FarmingGuideItemState?>
+                {
+                    ["attachment"] = FarmingGuideItemState.Create(heavyChildId),
+                },
+                new Dictionary<string, FarmingGuideItemState?>());
+            var heavyCurrent = FarmingGuideLoadoutSnapshot.Empty with
+            {
+                StoredItems =
+                [
+                    new FarmingGuideStoredItemState(
+                        "heavy-assembled-instance",
+                        heavyState,
+                        FarmingGuideStorageKind.Pockets,
+                        0, 0, 0, false),
+                ],
+            };
+            if (TryPlanScannedItemGlobalV1170(
+                    heavyCurrent,
+                    snapshots[incomingId],
+                    incoming,
+                    out _))
+            {
+                throw new InvalidOperationException("v1.17 omitted assembly descendants from current/final weight proof.");
+            }
+
+            // Unknown physical facts are uncertainty, not zero weight or 1x1 geometry.
+            if (TryPlanScannedItemGlobalV1170(
+                    FarmingGuideLoadoutSnapshot.Empty,
+                    snapshots[unknownWeightId],
+                    unknownWeight,
+                    out _))
+            {
+                throw new InvalidOperationException("v1.17 treated unknown item weight as a proven zero.");
+            }
+            if (TryPlanScannedItemGlobalV1170(
+                    FarmingGuideLoadoutSnapshot.Empty,
+                    snapshots[unknownSizeId],
+                    unknownSize,
+                    out _))
+            {
+                throw new InvalidOperationException("v1.17 treated unknown item dimensions as a proven 1x1 footprint.");
+            }
 
             // Missing price for a Flea-tradable current root is uncertainty, not zero value.
             // The optimizer must refuse to prove a destructive recommendation.
@@ -343,8 +493,10 @@ public partial class FarmingGuidePage
 
     private static GameItem V1170SmokeItem(
         string id,
-        decimal weightKg,
-        IReadOnlyList<string>? typeKeys = null) =>
+        decimal? weightKg,
+        IReadOnlyList<string>? typeKeys = null,
+        int? width = 1,
+        int? height = 1) =>
         new(
             id,
             id,
@@ -356,8 +508,8 @@ public partial class FarmingGuidePage
             [],
             [],
             typeKeys ?? [],
-            1,
-            1,
+            width,
+            height,
             weightKg,
             1_000,
             true);
