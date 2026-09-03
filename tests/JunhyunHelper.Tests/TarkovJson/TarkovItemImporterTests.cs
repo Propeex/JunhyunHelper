@@ -136,7 +136,7 @@ public sealed class TarkovItemImporterTests
     }
 
     [Fact]
-    public void ImportsFarmingGuideSurvivalAndAmmoCompatibilityFacts()
+    public void ImportsFarmingGuideSurvivalAmmoCompatibilityAndStackFacts()
     {
         var baseDocument = Document("""
             {
@@ -157,8 +157,14 @@ public sealed class TarkovItemImporterTests
                     "types": ["ammo"],
                     "properties": {
                       "propertiesType": "ItemPropertiesAmmo",
-                      "caliber": "Caliber545x39"
+                      "caliber": "Caliber545x39",
+                      "stackMaxSize": 60
                     }
+                  },
+                  {
+                    "id": "currency-a",
+                    "name": "currency-a Name",
+                    "stackMaxSize": 500000
                   },
                   {
                     "id": "weapon-a",
@@ -183,6 +189,8 @@ public sealed class TarkovItemImporterTests
         Assert.Equal(60, items["food-drink"].FarmingGuideData?.Hydration);
         Assert.Equal("Caliber545x39", items["ammo-a"].FarmingGuideData?.AmmoCaliber);
         Assert.Null(items["ammo-a"].FarmingGuideData?.WeaponCaliber);
+        Assert.Equal(60, items["ammo-a"].StackMaxSize);
+        Assert.Equal(500000, items["currency-a"].StackMaxSize);
         Assert.Equal("Caliber545x39", items["weapon-a"].FarmingGuideData?.WeaponCaliber);
         Assert.Null(items["weapon-a"].FarmingGuideData?.AmmoCaliber);
         Assert.Equal(
