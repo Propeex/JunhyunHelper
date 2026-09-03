@@ -61,6 +61,20 @@ public sealed class FarmingGuideOptimizationPolicyTests
     }
 
     [Fact]
+    public void UnknownFleaValueCannotBeSilentlyScoredAsZero()
+    {
+        var snapshot = Snapshot(Stored("unknown", "unknown", raidAcquired: false));
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            FarmingGuideOptimizationPolicy.Score(
+                snapshot,
+                _ => 0,
+                _ => null));
+
+        Assert.Contains("average Flea value is unknown", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void FixedMeleeAndDogtagAreOutsideOptimizationScore()
     {
         var snapshot = FarmingGuideLoadoutSnapshot.Empty with
