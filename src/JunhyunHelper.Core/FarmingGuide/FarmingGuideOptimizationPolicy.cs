@@ -28,7 +28,18 @@ public static class FarmingGuideOptimizationPolicy
         ArgumentNullException.ThrowIfNull(remainingFirNeed);
         ArgumentNullException.ThrowIfNull(fleaAverageValue);
 
-        var acquired = FarmingGuideSnapshotInventoryCounter.CountRaidAcquiredAll(snapshot);
+        // Melee and dogtag are fixed setup state by product contract. They never enter the
+        // v1.17 candidate pool, so they must also stay outside both sides of the objective
+        // comparison. Leaving those constants in snapshot scoring can still distort a real
+        // decision when an incoming candidate happens to share the same item id.
+        var scoringSnapshot = snapshot with
+        {
+            Equipment = snapshot.Equipment
+                .Where(pair => pair.Key is not FarmingGuideEquipmentSlot.Melee and not FarmingGuideEquipmentSlot.Dogtag)
+                .ToDictionary(pair => pair.Key, pair => pair.Value),
+        };
+
+        var acquired = FarmingGuideSnapshotInventoryCounter.CountRaidAcquiredAll(scoringSnapshot);
         var satisfiedFir = 0;
         foreach (var pair in acquired)
         {
@@ -38,7 +49,7 @@ public static class FarmingGuideOptimizationPolicy
         }
 
         long retainedValue = 0;
-        foreach (var pair in FarmingGuideSnapshotInventoryCounter.CountAll(snapshot))
+        foreach (var pair in FarmingGuideSnapshotInventoryCounter.CountAll(scoringSnapshot))
         {
             var unitValue = Math.Max(0, fleaAverageValue(pair.Key) ?? 0);
             retainedValue = checked(retainedValue + (long)unitValue * Math.Max(0, pair.Value));
