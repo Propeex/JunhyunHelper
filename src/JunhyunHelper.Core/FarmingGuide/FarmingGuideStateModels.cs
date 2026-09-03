@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace JunhyunHelper.Core.FarmingGuide;
 
 public enum FarmingGuideEquipmentSlot
@@ -29,8 +31,21 @@ public sealed record FarmingGuideItemState(
     IReadOnlyDictionary<string, FarmingGuideItemState?> Attachments,
     IReadOnlyDictionary<string, FarmingGuideItemState?> ArmorPlates)
 {
-    public static FarmingGuideItemState Create(string itemId) =>
-        new(itemId, new Dictionary<string, FarmingGuideItemState?>(), new Dictionary<string, FarmingGuideItemState?>());
+    /// <summary>
+    /// Ephemeral active-raid provenance. Farming Guide sets this only for items that enter
+    /// the modeled raid through a confirmed Scanner identification while the raid session is
+    /// active. The product rule treats those incoming items as FIR. This fact is deliberately
+    /// not persisted to presets/working state and is cleared naturally when raid state returns
+    /// to the raid-start baseline.
+    /// </summary>
+    [JsonIgnore]
+    public bool RaidAcquired { get; init; }
+
+    public static FarmingGuideItemState Create(string itemId, bool raidAcquired = false) =>
+        new(itemId, new Dictionary<string, FarmingGuideItemState?>(), new Dictionary<string, FarmingGuideItemState?>())
+        {
+            RaidAcquired = raidAcquired,
+        };
 }
 
 public sealed record FarmingGuideStoredItemState(
