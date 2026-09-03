@@ -284,8 +284,6 @@ public partial class FarmingGuidePage
             Math.Max(0m, root.Item.WeightKg!.Value) * root.Quantity);
         var fixedWeight = Math.Max(0m, fullWeight - variableFullWeight);
 
-        // The stack optimizer's historical parameter names say "RaidAcquired", but v1.17 FIR
-        // objective inputs are now populated exclusively from explicit FIR-qualified state.
         var fixedFirQualified = new Dictionary<string, int>(StringComparer.Ordinal);
         var variableIds = variables.Select(root => root.InstanceId).ToHashSet(StringComparer.Ordinal);
         foreach (var root in selected.Where(root =>
@@ -300,7 +298,7 @@ public partial class FarmingGuidePage
             root.Item.Id,
             MinimumQuantity: 1,
             MaximumQuantity: root.Quantity,
-            RaidAcquired: root.State.IsFirQualified,
+            FirQualified: root.State.IsFirQualified,
             UnitWeightKg: Math.Max(0m, root.Item.WeightKg!.Value),
             UnitEconomicValue: unitValues[root.InstanceId])).ToArray();
 
