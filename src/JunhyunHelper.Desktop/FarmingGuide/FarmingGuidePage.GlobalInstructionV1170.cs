@@ -135,12 +135,19 @@ public partial class FarmingGuidePage
                 string.Equals(value.InstanceId, original.InstanceId, StringComparison.Ordinal));
             if (afterStored is not null)
             {
-                if (!string.Equals(
-                        StorageAreaKeyV1155(original),
-                        StorageAreaKeyV1155(afterStored),
-                        StringComparison.Ordinal))
+                var sameArea = string.Equals(
+                    StorageAreaKeyV1155(original),
+                    StorageAreaKeyV1155(afterStored),
+                    StringComparison.Ordinal);
+                if (!sameArea)
                 {
                     operations.Add($"{name} 이동 {StorageLocationLabelV1155(proposed, afterStored)}");
+                }
+                else if (!SameStoredPhysicalPlacementV1170(original, afterStored))
+                {
+                    var rotation = original.Rotated != afterStored.Rotated ? " (회전 포함)" : string.Empty;
+                    operations.Add(
+                        $"{name} {StorageLocationLabelV1155(proposed, afterStored)} 내부 재배치{rotation}");
                 }
                 continue;
             }
@@ -158,6 +165,14 @@ public partial class FarmingGuidePage
             .Distinct(StringComparer.Ordinal)
             .ToArray();
     }
+
+    private static bool SameStoredPhysicalPlacementV1170(
+        FarmingGuideStoredItemState left,
+        FarmingGuideStoredItemState right) =>
+        left.GridIndex == right.GridIndex &&
+        left.X == right.X &&
+        left.Y == right.Y &&
+        left.Rotated == right.Rotated;
 
     private void AddTopLevelRootOperationV1170(
         FarmingGuideItemState state,
