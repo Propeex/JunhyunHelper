@@ -17,22 +17,17 @@ public static class FarmingGuideSnapshotInventoryCounter
     public static IReadOnlyDictionary<string, int> CountAll(FarmingGuideLoadoutSnapshot snapshot)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
-        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
-        EnumerateRoots(snapshot, (state, quantity) => AddState(counts, state, quantity, acquiredOnly: false));
-        return counts;
+        return CountMatching(snapshot, CountFilter.All);
     }
 
     /// <summary>
-    /// Counts only concrete item units whose modeled instance provenance says they were
-    /// acquired during the active raid. Unlike baseline subtraction, this remains correct
-    /// when a brought-in copy is discarded and an identical newly acquired copy is kept.
+    /// Counts item units acquired during the active modeled raid. This is acquisition history,
+    /// not Tarkov FIR eligibility.
     /// </summary>
     public static IReadOnlyDictionary<string, int> CountRaidAcquiredAll(FarmingGuideLoadoutSnapshot snapshot)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
-        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
-        EnumerateRoots(snapshot, (state, quantity) => AddState(counts, state, quantity, acquiredOnly: true));
-        return counts;
+        return CountMatching(snapshot, CountFilter.RaidAcquired);
     }
 
     public static int CountRaidAcquired(FarmingGuideLoadoutSnapshot snapshot, string itemId)
@@ -43,8 +38,25 @@ public static class FarmingGuideSnapshotInventoryCounter
     }
 
     /// <summary>
-    /// Compatibility helper for historical callers. New Farming Guide FIR decisions should
-    /// prefer explicit raid provenance via CountRaidAcquired/CountRaidAcquiredAll.
+    /// Counts only item units explicitly proven to carry Tarkov Found-in-Raid provenance.
+    /// Unknown and NotFoundInRaid units are deliberately excluded.
+    /// </summary>
+    public static IReadOnlyDictionary<string, int> CountFoundInRaidAll(FarmingGuideLoadoutSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        return CountMatching(snapshot, CountFilter.FoundInRaid);
+    }
+
+    public static int CountFoundInRaid(FarmingGuideLoadoutSnapshot snapshot, string itemId)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(itemId);
+        return CountFoundInRaidAll(snapshot).GetValueOrDefault(itemId);
+    }
+
+    /// <summary>
+    /// Compatibility helper for historical callers that need active-raid acquisition counts.
+    /// Explicit acquisition provenance wins over baseline item-id subtraction.
     /// </summary>
     public static int AcquiredSince(
         FarmingGuideLoadoutSnapshot baseline,
@@ -60,8 +72,8 @@ public static class FarmingGuideSnapshotInventoryCounter
     }
 
     /// <summary>
-    /// Compatibility helper for historical callers. Explicit provenance wins whenever it is
-    /// present; baseline deltas remain available for older snapshots created before v1.17.
+    /// Compatibility helper for historical callers. Explicit acquisition provenance wins
+    /// whenever it is present; baseline deltas remain available for older snapshots.
     /// </summary>
     public static IReadOnlyDictionary<string, int> AcquiredSinceAll(
         FarmingGuideLoadoutSnapshot baseline,
@@ -86,6 +98,15 @@ public static class FarmingGuideSnapshotInventoryCounter
         return result;
     }
 
+    private static IReadOnlyDictionary<string, int> CountMatching(
+        FarmingGuideLoadoutSnapshot snapshot,
+        CountFilter filter)
+    {
+        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+        EnumerateRoots(snapshot, (state, quantity) => AddState(counts, state, quantity, filter));
+        return counts;
+    }
+
     private static void EnumerateRoots(
         FarmingGuideLoadoutSnapshot snapshot,
         Action<FarmingGuideItemState, int> add)
@@ -106,9 +127,16 @@ public static class FarmingGuideSnapshotInventoryCounter
         Dictionary<string, int> counts,
         FarmingGuideItemState state,
         int rootQuantity,
-        bool acquiredOnly)
+        CountFilter filter)
     {
-        if (!acquiredOnly || state.RaidAcquired)
+        var include = filter switch
+        {
+            CountFilter.All => true,
+            CountFilter.RaidAcquired => state.RaidAcquired,
+            CountFilter.FoundInRaid => state.IsFirQualified,
+            _ => false,
+        };
+        if (include)
         {
             counts[state.ItemId] = checked(
                 counts.GetValueOrDefault(state.ItemId) + Math.Max(1, rootQuantity));
@@ -117,12 +145,19 @@ public static class FarmingGuideSnapshotInventoryCounter
         foreach (var attachment in state.Attachments.Values)
         {
             if (attachment is not null)
-                AddState(counts, attachment, 1, acquiredOnly);
+                AddState(counts, attachment, 1, filter);
         }
         foreach (var plate in state.ArmorPlates.Values)
         {
             if (plate is not null)
-                AddState(counts, plate, 1, acquiredOnly);
+                AddState(counts, plate, 1, filter);
         }
+    }
+
+    private enum CountFilter
+    {
+        All,
+        RaidAcquired,
+        FoundInRaid,
     }
 }
