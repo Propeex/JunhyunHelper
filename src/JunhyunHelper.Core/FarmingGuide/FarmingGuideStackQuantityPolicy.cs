@@ -19,7 +19,13 @@ public static class FarmingGuideStackQuantityPolicy
     public static bool RequiresQuantity(GameItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
-        return IsAmmo(item) || CurrencyItemIds.Contains(item.Id);
+        return IsAmmo(item) || IsCurrency(item);
+    }
+
+    public static bool IsCurrency(GameItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        return CurrencyItemIds.Contains(item.Id);
     }
 
     public static bool IsAmmo(GameItem item)
