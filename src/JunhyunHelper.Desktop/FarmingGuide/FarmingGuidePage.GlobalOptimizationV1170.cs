@@ -10,29 +10,29 @@ public partial class FarmingGuidePage
 
     /// <summary>
     /// v1.17 farming rulebook entry point. Combat-performance upgrade heuristics are no
-    /// longer a farming priority. The hardened planner remains useful for a non-destructive
-    /// all-items-retained fast path and legal equipment/storage target discovery; destructive
-    /// storage decisions are replaced by the complete-state optimizer below.
+    /// longer a farming priority. The hardened planner remains useful for legal target
+    /// discovery, but every newly introduced scanned item is explicitly marked as raid
+    /// acquired so FIR provenance survives later movement and repacking.
     /// </summary>
     private RaidRecommendation PlanScannedItemRulebookV1170(
         FarmingGuideLoadoutSnapshot current,
         ScannerItemSnapshot scanned,
         GameItem incoming)
     {
-        _ = current;
-        return PlanScannedItemHardened(scanned, incoming);
+        var planned = PlanScannedItemHardened(scanned, incoming);
+        return MarkIncomingRaidProvenanceV1170(current, planned, incoming.Id);
     }
 
     /// <summary>
     /// Replaces the historical tactical/victim-first transition with a best-first complete
-    /// state search. All unlocked movable stored leaf items with provable decision facts are
-    /// potential economic victims; food/drink/ammunition/medicine receive no category
-    /// privilege. Each feasible packed state is scored by (FIR units satisfied, total
-    /// retained Flea value), with weight as a hard admissibility constraint.
+    /// state search over the currently proven domain. Food/drink/ammunition/medicine receive
+    /// no category privilege. Each feasible packed state is scored by (FIR units satisfied,
+    /// total retained Flea value), with weight as a hard admissibility constraint.
     ///
-    /// The underlying repacking planner is deliberately reused as the system-mechanics
-    /// proof for legal geometry, filters, rotations, nesting, reservations and position
-    /// locks. Search ordering does not alter the product objective.
+    /// The current low-level packing engine is reused only as a system-legality proof. When
+    /// the complete v1.17 candidate domain is not representable (for example populated
+    /// container decomposition or top-level equipment pooling), destructive advice becomes
+    /// Indeterminate rather than pretending the restricted search proved a global optimum.
     /// </summary>
     private RaidRecommendation ApplyRaidStateTransitionsV1170(
         FarmingGuideLoadoutSnapshot current,
@@ -41,11 +41,11 @@ public partial class FarmingGuidePage
         GameItem incoming)
     {
         if (!PreservesLockedItemPlacementV1164(current, recommendation.ProposedSnapshot))
-            recommendation = RejectUnsafeRaidPlanV1163(current);
+            recommendation = IndeterminateRaidPlanV1170(current);
 
-        // If every currently retained item plus the incoming item already fits, the primary
-        // and secondary objectives cannot be improved by discarding something. Weight still
-        // has to be checked with the incoming stack quantity applied.
+        // Retaining every current item plus the incoming item is globally optimal for the
+        // farming objective: no destructive alternative can improve FIR satisfaction or
+        // retained value once all available units are already retained.
         if (recommendation.Action is FarmingGuideInstructionAction.Store or FarmingGuideInstructionAction.Equip)
         {
             var quantified = ApplyIncomingQuantityV1160(
@@ -53,17 +53,16 @@ public partial class FarmingGuidePage
                 recommendation,
                 incoming.Id,
                 Math.Max(1, scanned.Quantity));
+            quantified = MarkIncomingRaidProvenanceV1170(current, quantified, incoming.Id);
             if (IsWeightAdmissibleV1170(current, quantified.ProposedSnapshot))
                 return quantified;
         }
 
+        var incompleteDomain = HasUnmodeledGlobalChoicesV1170(current, incoming);
         var currentScore = ScoreRaidStateV1170(current, scanned);
         RaidRecommendation? best = null;
         FarmingGuideOptimizationScore bestScore = currentScore;
 
-        // A legal equipment replacement discovered by the non-tactical rulebook is another
-        // candidate final state. It is accepted only if its complete-state score actually
-        // beats keeping the current state, and only if locks/weight remain valid.
         if (recommendation.Action == FarmingGuideInstructionAction.ReplaceEquip &&
             PreservesLockedItemPlacementV1164(current, recommendation.ProposedSnapshot))
         {
@@ -72,27 +71,41 @@ public partial class FarmingGuidePage
                 recommendation,
                 incoming.Id,
                 Math.Max(1, scanned.Quantity));
+            quantified = MarkIncomingRaidProvenanceV1170(current, quantified, incoming.Id);
             if (IsWeightAdmissibleV1170(current, quantified.ProposedSnapshot))
             {
-                var score = ScoreRaidStateV1170(quantified.ProposedSnapshot, scanned);
-                if (FarmingGuideOptimizationPolicy.IsBetter(score, bestScore))
+                var candidateScore = ScoreRaidStateV1170(quantified.ProposedSnapshot, scanned);
+                if (FarmingGuideOptimizationPolicy.IsBetter(candidateScore, bestScore))
                 {
                     best = quantified;
-                    bestScore = score;
+                    bestScore = candidateScore;
                 }
             }
         }
 
-        if (TryFindBestStoredStateV1170(current, scanned, incoming, currentScore, out var stored, out var storedScore) &&
-            FarmingGuideOptimizationPolicy.IsBetter(storedScore, bestScore))
+        var storedFound = TryFindBestStoredStateV1170(
+            current,
+            scanned,
+            incoming,
+            currentScore,
+            out var stored,
+            out var storedScore,
+            out var storedProofComplete);
+        if (storedFound && FarmingGuideOptimizationPolicy.IsBetter(storedScore, bestScore))
         {
             best = stored;
             bestScore = storedScore;
         }
 
-        // Equal objective => keep the current arrangement and discard the incoming item.
-        // Fewer moves is only a deterministic stability tie-break after the farming objective.
-        return best ?? RejectUnsafeRaidPlanV1163(current);
+        // A destructive candidate is only globally authoritative when the candidate domain
+        // itself is complete and the bounded search proved its frontier. Otherwise retain
+        // the current modeled state and surface uncertainty without a hotkey-accept action.
+        if (best is not null)
+            return !incompleteDomain && storedProofComplete ? best : IndeterminateRaidPlanV1170(current);
+
+        return !incompleteDomain && storedProofComplete
+            ? ProvenDiscardV1170(current)
+            : IndeterminateRaidPlanV1170(current);
     }
 
     private bool TryFindBestStoredStateV1170(
@@ -101,13 +114,12 @@ public partial class FarmingGuidePage
         GameItem incoming,
         FarmingGuideOptimizationScore currentScore,
         out RaidRecommendation recommendation,
-        out FarmingGuideOptimizationScore score)
+        out FarmingGuideOptimizationScore score,
+        out bool proofComplete)
     {
-        var incomingState = FarmingGuideItemState.Create(incoming.Id);
+        var incomingState = FarmingGuideItemState.Create(incoming.Id, raidAcquired: true);
         var incomingInstanceId = $"__incoming_v1170_{Guid.NewGuid():N}";
 
-        // First prove the zero-eviction global repack. This keeps every current item and is
-        // therefore automatically optimal whenever it is legal and within the weight limit.
         if (TryBuildStoredCandidateV1170(
                 current,
                 scanned,
@@ -118,29 +130,22 @@ public partial class FarmingGuidePage
                 out recommendation,
                 out score))
         {
+            proofComplete = true;
             return FarmingGuideOptimizationPolicy.IsBetter(score, currentScore);
         }
 
         var victims = EnumerateGlobalVictimsV1170(current).ToArray();
         if (victims.Length == 0)
         {
-            recommendation = RejectUnsafeRaidPlanV1163(current);
+            recommendation = ProvenDiscardV1170(current);
             score = currentScore;
+            proofComplete = true;
             return false;
         }
 
-        // Each node removes a concrete set of unlocked leaf instances. Priority is the
-        // objective score of the conceptual retained set plus incoming item, descending.
-        // Removing additional items can never improve that score, so the first feasible
-        // node popped from this frontier is optimal over this search domain. If the bounded
-        // attempt budget is exhausted before such a proof, fail closed rather than claim a
-        // heuristic destructive plan is optimal.
         var queue = new PriorityQueue<GlobalSubsetV1170, GlobalPriorityV1170>();
         for (var i = 0; i < victims.Length; i++)
-        {
-            var indices = new[] { i };
-            EnqueueGlobalSubsetV1170(queue, current, scanned, incoming, victims, indices);
-        }
+            EnqueueGlobalSubsetV1170(queue, current, scanned, incoming, victims, [i]);
 
         var attempts = 0;
         while (queue.Count > 0 && attempts < V1170MaxGlobalSubsetAttempts)
@@ -148,10 +153,13 @@ public partial class FarmingGuidePage
             var subset = queue.Dequeue();
             attempts++;
 
-            // Queue order is descending objective. Once the best remaining conceptual state
-            // does not beat current state, no destructive descendant can become worthwhile.
             if (!FarmingGuideOptimizationPolicy.IsBetter(subset.Score, currentScore))
-                break;
+            {
+                recommendation = ProvenDiscardV1170(current);
+                score = currentScore;
+                proofComplete = true;
+                return false;
+            }
 
             if (TryBuildStoredCandidateV1170(
                     current,
@@ -163,6 +171,7 @@ public partial class FarmingGuidePage
                     out recommendation,
                     out score))
             {
+                proofComplete = true;
                 return true;
             }
 
@@ -176,8 +185,9 @@ public partial class FarmingGuidePage
             }
         }
 
-        recommendation = RejectUnsafeRaidPlanV1163(current);
+        recommendation = IndeterminateRaidPlanV1170(current);
         score = currentScore;
+        proofComplete = queue.Count == 0;
         return false;
     }
 
@@ -211,7 +221,7 @@ public partial class FarmingGuidePage
                 out var proposed) ||
             !PreservesLockedItemPlacementV1164(current, proposed))
         {
-            recommendation = RejectUnsafeRaidPlanV1163(current);
+            recommendation = IndeterminateRaidPlanV1170(current);
             score = ScoreRaidStateV1170(current, scanned);
             return false;
         }
@@ -227,6 +237,7 @@ public partial class FarmingGuidePage
             recommendation,
             incoming.Id,
             Math.Max(1, scanned.Quantity));
+        recommendation = MarkIncomingRaidProvenanceV1170(current, recommendation, incoming.Id);
 
         if (!IsWeightAdmissibleV1170(current, recommendation.ProposedSnapshot))
         {
@@ -242,18 +253,12 @@ public partial class FarmingGuidePage
         FarmingGuideLoadoutSnapshot snapshot)
     {
         return snapshot.StoredItems
-            // The current low-level planner can safely omit only a leaf without destroying
-            // descendants. Populated-container decomposition is tracked as remaining v1.17
-            // solver work; until then it fails closed rather than silently deleting contents.
             .Where(stored => !snapshot.StoredItems.Any(child =>
                 string.Equals(child.ParentInstanceId, stored.InstanceId, StringComparison.Ordinal)))
             .Where(stored => !_lockedItemInstanceIds.Contains(stored.InstanceId))
             .Where(stored => !SubtreeContainsLockedItemInSnapshot(stored.InstanceId, snapshot.StoredItems))
             .Where(stored => !_reservedCells.Any(cell =>
                 string.Equals(cell.ParentInstanceId, stored.InstanceId, StringComparison.Ordinal)))
-            // Unknown decision facts are not zero value. If the current catalog/Scanner bridge
-            // cannot prove both FIR-need and Flea-value facts for a concrete victim, automatic
-            // destructive advice must leave that instance out of the victim pool.
             .Where(HasProvableVictimFactsV1170)
             .OrderBy(stored => stored.InstanceId, StringComparer.Ordinal);
     }
@@ -269,6 +274,40 @@ public partial class FarmingGuidePage
             return false;
 
         return _raidFleaAveragePrices.ContainsKey(item.Id) || snapshot.FleaAveragePrice is not null;
+    }
+
+    private bool HasUnmodeledGlobalChoicesV1170(
+        FarmingGuideLoadoutSnapshot current,
+        GameItem incoming)
+    {
+        // Populated stored containers are not yet decomposed into independent parent/content
+        // choices by the low-level removal search.
+        if (current.StoredItems.Any(parent =>
+                !_lockedItemInstanceIds.Contains(parent.InstanceId) &&
+                current.StoredItems.Any(child =>
+                    string.Equals(child.ParentInstanceId, parent.InstanceId, StringComparison.Ordinal))))
+        {
+            return true;
+        }
+
+        // A scanned storage item can introduce capacity that the historical surface builder
+        // cannot use until the item has already been placed.
+        if (incoming.FarmingGuideData?.StorageGrids is { Count: > 0 })
+            return true;
+
+        // Unlocked top-level equipment/carriers are still discovered through historical
+        // target-specific paths rather than the same all-item candidate pool. Destructive
+        // advice therefore remains indeterminate until that representation is unified.
+        if (current.Equipment.Keys.Any(slot => !_lockedEquipmentSlots.Contains(slot)))
+            return true;
+        if (current.Rig is not null && !_lockedCarriers.Contains(FarmingGuideStorageKind.Rig))
+            return true;
+        if (current.Backpack is not null && !_lockedCarriers.Contains(FarmingGuideStorageKind.Backpack))
+            return true;
+        if (current.SecureContainer is not null && !_lockedCarriers.Contains(FarmingGuideStorageKind.SecureContainer))
+            return true;
+
+        return false;
     }
 
     private void EnqueueGlobalSubsetV1170(
@@ -307,7 +346,7 @@ public partial class FarmingGuidePage
     {
         var placeholder = new FarmingGuideStoredItemState(
             "__score_incoming_v1170__",
-            FarmingGuideItemState.Create(incoming.Id),
+            FarmingGuideItemState.Create(incoming.Id, raidAcquired: true),
             FarmingGuideStorageKind.Pockets,
             0,
             0,
@@ -353,6 +392,77 @@ public partial class FarmingGuidePage
         if (proposedWeight <= limit)
             return true;
         return currentWeight > limit && proposedWeight <= currentWeight;
+    }
+
+    private RaidRecommendation MarkIncomingRaidProvenanceV1170(
+        FarmingGuideLoadoutSnapshot current,
+        RaidRecommendation recommendation,
+        string incomingItemId)
+    {
+        var proposed = recommendation.ProposedSnapshot;
+        var equipment = new Dictionary<FarmingGuideEquipmentSlot, FarmingGuideItemState>(proposed.Equipment);
+        foreach (var slot in proposed.Equipment.Keys.ToArray())
+        {
+            current.Equipment.TryGetValue(slot, out var before);
+            equipment[slot] = MarkNewRaidStateV1170(before, proposed.Equipment[slot], incomingItemId);
+        }
+
+        var currentStored = current.StoredItems.ToDictionary(value => value.InstanceId, StringComparer.Ordinal);
+        var stored = proposed.StoredItems
+            .Select(value =>
+            {
+                currentStored.TryGetValue(value.InstanceId, out var before);
+                return value with
+                {
+                    Item = MarkNewRaidStateV1170(before?.Item, value.Item, incomingItemId),
+                };
+            })
+            .ToArray();
+
+        var marked = proposed with
+        {
+            Equipment = equipment,
+            Rig = proposed.Rig is null ? null : MarkNewRaidStateV1170(current.Rig, proposed.Rig, incomingItemId),
+            Backpack = proposed.Backpack is null ? null : MarkNewRaidStateV1170(current.Backpack, proposed.Backpack, incomingItemId),
+            SecureContainer = proposed.SecureContainer is null
+                ? null
+                : MarkNewRaidStateV1170(current.SecureContainer, proposed.SecureContainer, incomingItemId),
+            StoredItems = stored,
+        };
+        return recommendation with { ProposedSnapshot = marked };
+    }
+
+    private static FarmingGuideItemState MarkNewRaidStateV1170(
+        FarmingGuideItemState? before,
+        FarmingGuideItemState after,
+        string incomingItemId)
+    {
+        var attachments = new Dictionary<string, FarmingGuideItemState?>(after.Attachments, StringComparer.Ordinal);
+        foreach (var pair in after.Attachments)
+        {
+            if (pair.Value is null)
+                continue;
+            before?.Attachments.TryGetValue(pair.Key, out var beforeChild);
+            attachments[pair.Key] = MarkNewRaidStateV1170(beforeChild, pair.Value, incomingItemId);
+        }
+
+        var plates = new Dictionary<string, FarmingGuideItemState?>(after.ArmorPlates, StringComparer.Ordinal);
+        foreach (var pair in after.ArmorPlates)
+        {
+            if (pair.Value is null)
+                continue;
+            before?.ArmorPlates.TryGetValue(pair.Key, out var beforeChild);
+            plates[pair.Key] = MarkNewRaidStateV1170(beforeChild, pair.Value, incomingItemId);
+        }
+
+        var newlyIntroduced = string.Equals(after.ItemId, incomingItemId, StringComparison.Ordinal) &&
+                              (before is null || !string.Equals(before.ItemId, after.ItemId, StringComparison.Ordinal));
+        return after with
+        {
+            RaidAcquired = after.RaidAcquired || newlyIntroduced,
+            Attachments = attachments,
+            ArmorPlates = plates,
+        };
     }
 
     private sealed record GlobalSubsetV1170(
