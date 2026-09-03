@@ -203,9 +203,16 @@ public partial class FarmingGuidePage
             }
 
             // A retained old top-level root may move into storage while the incoming root
-            // occupies its former slot. The projected stored root must receive a persistent
-            // identity that cannot collide with the next scan's synthetic slot identity.
-            _pocketGrids = [new FarmingGuideStorageGridDefinition(1, 1, FarmingGuideItemFilter.Empty)];
+            // occupies its former slot. Restrict this synthetic pocket to the old root so
+            // the legal optimum must perform the transfer instead of using the equally valid
+            // stable tie (keep old helmet equipped + store the incoming helmet).
+            _pocketGrids =
+            [
+                new FarmingGuideStorageGridDefinition(
+                    1,
+                    1,
+                    new FarmingGuideItemFilter([], [helmetOldId], [], [])),
+            ];
             if (!TryPlanScannedItemGlobalV1170(
                     equippedCurrent,
                     snapshots[helmetNewId],
