@@ -460,6 +460,11 @@ public partial class FarmingGuidePage
     {
         var roots = selected.ToDictionary(root => root.InstanceId, StringComparer.Ordinal);
         var placementById = placements.ToDictionary(value => value.InstanceId, StringComparer.Ordinal);
+        var persistedInstanceIds = BuildPersistedInstanceIdsV1170(
+            current,
+            selected,
+            placementById,
+            surfaces);
         var equipment = current.Equipment
             .Where(pair => pair.Key is FarmingGuideEquipmentSlot.Melee or FarmingGuideEquipmentSlot.Dogtag)
             .ToDictionary(pair => pair.Key, pair => pair.Value);
@@ -508,15 +513,21 @@ public partial class FarmingGuidePage
                         snapshot = current;
                         return false;
                     }
+
+                    var persistedId = persistedInstanceIds[root.InstanceId];
+                    var persistedParentId = surface.StateParentInstanceId is { } transientParentId &&
+                                            persistedInstanceIds.TryGetValue(transientParentId, out var translatedParentId)
+                        ? translatedParentId
+                        : surface.StateParentInstanceId;
                     stored.Add(new FarmingGuideStoredItemState(
-                        root.InstanceId,
+                        persistedId,
                         root.State,
                         storageKind,
                         surface.GridIndex,
                         placement.X,
                         placement.Y,
                         placement.Rotated,
-                        surface.StateParentInstanceId,
+                        persistedParentId,
                         root.Quantity));
                     break;
             }
@@ -529,6 +540,55 @@ public partial class FarmingGuidePage
             secure,
             stored);
         return true;
+    }
+
+    private static IReadOnlyDictionary<string, string> BuildPersistedInstanceIdsV1170(
+        FarmingGuideLoadoutSnapshot current,
+        IReadOnlyList<GlobalRootV1170> selected,
+        IReadOnlyDictionary<string, FarmingGuideGlobalPackingPlacement> placements,
+        IReadOnlyDictionary<string, GlobalSurfaceV1170> surfaces)
+    {
+        var used = current.StoredItems
+            .Select(value => value.InstanceId)
+            .ToHashSet(StringComparer.Ordinal);
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var root in selected.Where(static root => root.Origin is GlobalRootOriginV1170.Stored or GlobalRootOriginV1170.Incoming))
+        {
+            result[root.InstanceId] = root.InstanceId;
+            used.Add(root.InstanceId);
+        }
+
+        foreach (var root in selected.Where(static root => root.Origin is GlobalRootOriginV1170.Equipment or GlobalRootOriginV1170.Carrier))
+        {
+            if (!placements.TryGetValue(root.InstanceId, out var placement) ||
+                !surfaces.TryGetValue(placement.SurfaceId, out var surface) ||
+                surface.Role != GlobalSurfaceRoleV1170.Storage)
+            {
+                result[root.InstanceId] = root.InstanceId;
+                continue;
+            }
+
+            var prefix = root.Origin == GlobalRootOriginV1170.Equipment
+                ? $"__v1170_stored_equipment_{(int)root.EquipmentSlot!.Value}"
+                : $"__v1170_stored_carrier_{(int)root.CarrierKind!.Value}";
+            result[root.InstanceId] = AllocatePersistedInstanceIdV1170(prefix, used);
+        }
+
+        return result;
+    }
+
+    private static string AllocatePersistedInstanceIdV1170(string prefix, HashSet<string> used)
+    {
+        if (used.Add(prefix))
+            return prefix;
+
+        for (var suffix = 2; ; suffix++)
+        {
+            var candidate = $"{prefix}_{suffix}";
+            if (used.Add(candidate))
+                return candidate;
+        }
     }
 
     private static bool TryResolveStoredKindV1170(
