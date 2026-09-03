@@ -34,6 +34,22 @@ public sealed class V1170GlobalFarmingGuideContractTests
         Assert.Contains("ResolveUnitEconomicValueV1170", raid, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void FirDecisionUsesExplicitProvenanceAndFailsClosedWhenScannerCannotProveIt()
+    {
+        var directory = FarmingGuideDirectory();
+        var global = File.ReadAllText(Path.Combine(directory, "FarmingGuidePage.GlobalOptimizationV1170.cs"));
+        var quantities = File.ReadAllText(Path.Combine(directory, "FarmingGuidePage.UnifiedQuantityOptimizationV1170.cs"));
+
+        Assert.Contains("HasProvableFirDecisionFactsV1170", global, StringComparison.Ordinal);
+        Assert.Contains("scanned.CurrentNeededFir", global, StringComparison.Ordinal);
+        Assert.Contains("state.FirStatus == FarmingGuideFirStatus.Unknown", global, StringComparison.Ordinal);
+        Assert.Contains("root.State.IsFirQualified", quantities, StringComparison.Ordinal);
+        Assert.Contains("currentScan.CurrentNeededFir", quantities, StringComparison.Ordinal);
+        Assert.DoesNotContain("Math.Max(0, currentScan.CurrentNeeded)", global, StringComparison.Ordinal);
+        Assert.DoesNotContain("Math.Max(0, currentScan.CurrentNeeded)", quantities, StringComparison.Ordinal);
+    }
+
     private static string FarmingGuideDirectory([CallerFilePath] string sourcePath = "")
     {
         var directory = new DirectoryInfo(Path.GetDirectoryName(sourcePath)
