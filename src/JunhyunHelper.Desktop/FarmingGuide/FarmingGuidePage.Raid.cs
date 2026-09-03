@@ -207,6 +207,16 @@ public partial class FarmingGuidePage
         var safetyChecked = ApplyFinalRaidSafetyV1170(current, quantityApplied, decisionScan);
         var weightChecked = ApplyRaidWeightConstraintV1160(current, safetyChecked);
         var recommendation = ApplyRaidInstructionPresentationV1155(current, weightChecked, item);
+
+        if (recommendation.Action == FarmingGuideInstructionAction.Indeterminate)
+        {
+            _plannedLocksOverrideV1160 = null;
+            _raidSession.ClearPending();
+            RefreshRaidUi();
+            _raidBridge?.ShowMiniScannerStatus("판단 보류\n현재 상태를 유지합니다.");
+            return;
+        }
+
         _raidSession.SetPending(
             scanned.ItemId,
             recommendation.Instruction,
@@ -252,15 +262,8 @@ public partial class FarmingGuidePage
     private void RefreshRaidAcquiredCounts(FarmingGuideLoadoutSnapshot current)
     {
         _acceptedRaidItemCounts.Clear();
-        if (_raidSession is null)
-            return;
-
-        foreach (var pair in FarmingGuideSnapshotInventoryCounter.AcquiredSinceAll(
-                     _raidSession.BaselineSnapshot,
-                     current))
-        {
+        foreach (var pair in FarmingGuideSnapshotInventoryCounter.CountRaidAcquiredAll(current))
             _acceptedRaidItemCounts[pair.Key] = pair.Value;
-        }
     }
 
     private string AcceptHotkeyText()
