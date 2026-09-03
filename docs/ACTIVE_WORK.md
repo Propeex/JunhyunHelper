@@ -1,35 +1,61 @@
 # ACTIVE WORK
 
-Status: **NONE**
+Status: **ACTIVE**
 
 ## Current task
 
-None.
+Clean v1.17.0 Farming Guide rulebook implementation restarted from stable v1.16.4.
 
-## Last completed
-
-v1.16.4 PATCH fixed the user-reported Farming Guide regression where an explicitly locked stored item could be included in an automatic movement/repacking instruction.
+## Base / working state
 
 ```text
+base main: 379c6ab4ab02431c6bb74b537e899e94f45ee987
 public stable: v1.16.4
-exact product source/tag target:
-5886d8f97abd060d398d4c50d3dd3b720e4ace09
-merge PR: #285
-validated PR head: d55e138c962e87dc8691f82c81d36a516db52941
-PR CI / Shutdown / Docs:
-33623459284 / 33623459290 / 33623459267 — SUCCESS
-exact-main CI / Shutdown / Docs:
-33623824030 / 33623824052 / 33623824027 — SUCCESS
-Release workflow: 33624248788 — SUCCESS
-release id: 381192920
-published UTC: 2026-09-02T11:22:47Z
-623 passed / 0 failed / 0 skipped
+working branch: feature/v1.17.0-farming-guide-restart-2026-09-03
+previous PR #287: CLOSED / ABANDONED / MUST NOT BE RESUMED
+new PR: not yet opened at this checkpoint
 ```
 
-Authoritative lock contract: an explicitly locked stored item is position-locked for automatic Farming Guide advice. Automatic planning cannot discard, replace, relocate, rotate, re-parent or indirectly move it through ancestor/root-carrier movement. Manual editing remains authoritative, and a locked carrier root still exposes legal internal storage.
+## Confirmed scope
 
-Draft PR #284 was closed unmerged only because the connected GitHub ready-for-review mutation was broken; non-draft PR #285 is the authoritative validated and merged PR.
+Canonical product decision:
 
-Public release assets and exact validation evidence are recorded in `docs/PROJECT_STATE.json`, `docs/.release-v1.16.4-status.json`, `docs/CURRENT_STATE.md`, `docs/STATE.md`, and `docs/RELEASE_NOTES_V1.16.4.md`.
+`docs/DECISION_V1.17.0_FARMING_GUIDE_RULEBOOK.md`
 
-Actual user-PC/Tarkov real-play validation remains separately `PENDING`; it is not unfinished development and does not alter the completed v1.16.4 public release identity.
+Confirmed rules:
+
+1. During an active Farming Guide raid, every newly Scanner-identified incoming item is treated by Farming Guide as FIR.
+2. Scanner does not classify FIR from an icon/checkmark/color/text and does not ask for separate FIR confirmation.
+3. Farming objective is lexicographic:
+   - maximize currently needed FIR Quest/Hideout units, capped by remaining quantity;
+   - then maximize complete final retained average-Flea value.
+4. The user's configured weight rule is the only user-configurable farming constraint; weight is not an item priority.
+5. Item category gives no tactical privilege.
+6. Every scan is a complete unlocked-item optimization problem, not a local insertion problem.
+7. User-fixed items and cells are constraints; locks do not add value.
+8. Existing verified Tarkov placement/container/equipment/stack mechanics remain system legality rules.
+9. Internal optimization/performance authority may not be used to invent a new product decision criterion, automatic inference, observation authority, user interaction, cross-feature behavior, or visible failure semantic.
+
+## Restart rule
+
+Do not copy implementation from abandoned PR #287 as authority.
+
+Code from the abandoned branch may only be consulted later as a non-authoritative implementation reference after the stable-main design is independently derived and only if it matches this confirmed rulebook. No Scanner FIR observation code is to be reused.
+
+## Current step
+
+Audit stable `main` Farming Guide code against the confirmed rulebook and identify the minimum coherent implementation changes. Start with the existing live raid decision path, priority policy, raid-session state, weight/quantity flow, locks, containers, and tests. Do not change user-visible product behavior outside the confirmed scope.
+
+## Remaining
+
+- inspect stable-main Farming Guide implementation and tests;
+- derive a clean architecture/change set from the confirmed rules;
+- open a new Draft PR after the initial authority/checkpoint commit;
+- implement active-raid scanned-item FIR semantics without Scanner FIR classification;
+- replace the old farming priority with needed-FIR quantity then complete retained Flea value;
+- implement complete unlocked-item optimization while preserving verified system mechanics and explicit locks;
+- preserve quantity/stack and weight behavior within the confirmed rules;
+- add deterministic regression coverage;
+- validate Windows Release build, tests, published EXE Product UI/runtime smoke, graceful shutdown and package integrity;
+- synchronize authoritative project docs;
+- only then merge/release.
