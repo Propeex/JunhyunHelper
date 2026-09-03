@@ -1,0 +1,325 @@
+using JunhyunHelper.Core.FarmingGuide;
+using JunhyunHelper.Core.Items;
+using JunhyunHelper.Desktop.Scanner;
+
+namespace JunhyunHelper.Desktop.FarmingGuide;
+
+public partial class FarmingGuidePage
+{
+    private void VerifyV1170GlobalOptimizerSmoke()
+    {
+        const string ordinaryId = "__v1170_smoke_ordinary";
+        const string incomingId = "__v1170_smoke_incoming";
+        const string foodId = "__v1170_smoke_food";
+        const string containerId = "__v1170_smoke_container";
+        const string helmetOldId = "__v1170_smoke_helmet_old";
+        const string helmetNewId = "__v1170_smoke_helmet_new";
+        const string unknownValueId = "__v1170_smoke_unknown_value";
+        var ids = new[]
+        {
+            ordinaryId,
+            incomingId,
+            foodId,
+            containerId,
+            helmetOldId,
+            helmetNewId,
+            unknownValueId,
+        };
+
+        var previousItems = ids.ToDictionary(
+            id => id,
+            id => _itemsById.TryGetValue(id, out var item) ? item : null,
+            StringComparer.Ordinal);
+        var previousBridge = _raidBridge;
+        var previousPockets = _pocketGrids;
+        var previousWeight = _weightSettingsV1160;
+        var previousWeightProfile = _weightSettingsProfileIdV1160;
+        var previousEquipmentLocks = _lockedEquipmentSlots.ToArray();
+        var previousCarrierLocks = _lockedCarriers.ToArray();
+        var previousItemLocks = _lockedItemInstanceIds.ToArray();
+        var previousCells = _reservedCells.ToArray();
+
+        var ordinary = V1170SmokeItem(ordinaryId, weightKg: 1m);
+        var incoming = V1170SmokeItem(incomingId, weightKg: 1m);
+        var food = V1170SmokeItem(foodId, weightKg: 1m) with
+        {
+            FarmingGuideData = new FarmingGuideItemLayout(
+                "ItemPropertiesFoodDrink",
+                [], [], [], [], [], false, false)
+            {
+                Energy = 40,
+                Hydration = 20,
+            },
+        };
+        var container = V1170SmokeItem(containerId, weightKg: 1m, typeKeys: ["container"]) with
+        {
+            FarmingGuideData = new FarmingGuideItemLayout(
+                "ItemPropertiesContainer",
+                [new FarmingGuideStorageGridDefinition(1, 1, FarmingGuideItemFilter.Empty)],
+                [], [], [], [], false, false),
+        };
+        var helmetOld = V1170SmokeItem(helmetOldId, weightKg: 1m, typeKeys: ["helmet"]);
+        var helmetNew = V1170SmokeItem(helmetNewId, weightKg: 1m, typeKeys: ["helmet"]);
+        var unknownValue = V1170SmokeItem(unknownValueId, weightKg: 1m);
+
+        _itemsById[ordinaryId] = ordinary;
+        _itemsById[incomingId] = incoming;
+        _itemsById[foodId] = food;
+        _itemsById[containerId] = container;
+        _itemsById[helmetOldId] = helmetOld;
+        _itemsById[helmetNewId] = helmetNew;
+        _itemsById[unknownValueId] = unknownValue;
+
+        var snapshots = new Dictionary<string, ScannerItemSnapshot>(StringComparer.Ordinal)
+        {
+            [ordinaryId] = V1170SmokeSnapshot(ordinaryId, flea: 500_000, firNeed: 0),
+            [incomingId] = V1170SmokeSnapshot(incomingId, flea: 1_000, firNeed: 1),
+            [foodId] = V1170SmokeSnapshot(foodId, flea: 10_000, firNeed: 0),
+            [containerId] = V1170SmokeSnapshot(containerId, flea: 20_000, firNeed: 0),
+            [helmetOldId] = V1170SmokeSnapshot(helmetOldId, flea: 20_000, firNeed: 0),
+            [helmetNewId] = V1170SmokeSnapshot(helmetNewId, flea: 80_000, firNeed: 0),
+            [unknownValueId] = V1170SmokeSnapshot(unknownValueId, flea: null, firNeed: 0),
+        };
+        var bridge = new FarmingGuideRaidBridge();
+        bridge.SetScannerSnapshotResolver(itemId => snapshots.GetValueOrDefault(itemId));
+        _raidBridge = bridge;
+        _weightSettingsV1160 = new FarmingGuideWeightSettings(0);
+        _weightSettingsProfileIdV1160 = _profileId;
+
+        try
+        {
+            ClearV1170SmokeLocks();
+
+            // Absolute FIR priority: one 1x1 slot is full of a much more valuable ordinary
+            // item, but a needed Scanner-acquired item must replace it.
+            _pocketGrids = [new FarmingGuideStorageGridDefinition(1, 1, FarmingGuideItemFilter.Empty)];
+            var current = V1170SmokeStoredSnapshot(ordinaryId, "ordinary-instance");
+            if (!TryPlanScannedItemGlobalV1170(
+                    current,
+                    snapshots[incomingId],
+                    incoming,
+                    out var firRecommendation) ||
+                firRecommendation.Action != FarmingGuideInstructionAction.Replace ||
+                firRecommendation.ProposedSnapshot.StoredItems.Any(value => value.Item.ItemId == ordinaryId) ||
+                firRecommendation.ProposedSnapshot.StoredItems.SingleOrDefault(value =>
+                    value.Item.ItemId == incomingId) is not { Item.RaidAcquired: true })
+            {
+                throw new InvalidOperationException("v1.17 global optimizer did not enforce needed-FIR priority/provenance.");
+            }
+
+            // FIR quota is quantity-capped. With one already retained Scanner-acquired copy
+            // satisfying the one-unit need, an equal-value second copy cannot displace it.
+            var firstAcquired = new FarmingGuideLoadoutSnapshot(
+                new Dictionary<FarmingGuideEquipmentSlot, FarmingGuideItemState>(),
+                null, null, null,
+                [
+                    new FarmingGuideStoredItemState(
+                        "first-acquired",
+                        FarmingGuideItemState.Create(incomingId, raidAcquired: true),
+                        FarmingGuideStorageKind.Pockets,
+                        0, 0, 0, false),
+                ]);
+            if (!TryPlanScannedItemGlobalV1170(
+                    firstAcquired,
+                    snapshots[incomingId],
+                    incoming,
+                    out var quotaRecommendation) ||
+                quotaRecommendation.Action != FarmingGuideInstructionAction.Discard ||
+                !ReferenceEquals(quotaRecommendation.ProposedSnapshot, firstAcquired))
+            {
+                throw new InvalidOperationException("v1.17 FIR quota cap or stable objective tie is incorrect.");
+            }
+
+            // No tactical category privilege: ordinary economic value may replace the last
+            // food/drink provider when no FIR need exists.
+            snapshots[incomingId] = V1170SmokeSnapshot(incomingId, flea: 50_000, firNeed: 0);
+            var foodCurrent = V1170SmokeStoredSnapshot(foodId, "food-instance");
+            if (!TryPlanScannedItemGlobalV1170(
+                    foodCurrent,
+                    snapshots[incomingId],
+                    incoming,
+                    out var economicRecommendation) ||
+                economicRecommendation.Action != FarmingGuideInstructionAction.Replace ||
+                economicRecommendation.ProposedSnapshot.StoredItems.Any(value => value.Item.ItemId == foodId))
+            {
+                throw new InvalidOperationException("v1.17 incorrectly restored tactical food/drink protection.");
+            }
+
+            // An incoming retained container contributes its internal capacity in the same
+            // scan: keep the existing loot by moving it inside the newly retained container.
+            snapshots[ordinaryId] = V1170SmokeSnapshot(ordinaryId, flea: 30_000, firNeed: 0);
+            snapshots[containerId] = V1170SmokeSnapshot(containerId, flea: 20_000, firNeed: 0);
+            var containerCurrent = V1170SmokeStoredSnapshot(ordinaryId, "ordinary-for-container");
+            if (!TryPlanScannedItemGlobalV1170(
+                    containerCurrent,
+                    snapshots[containerId],
+                    container,
+                    out var containerRecommendation) ||
+                containerRecommendation.Action != FarmingGuideInstructionAction.Store ||
+                containerRecommendation.ProposedSnapshot.StoredItems.Count != 2 ||
+                containerRecommendation.ProposedSnapshot.StoredItems.Single(value =>
+                    value.Item.ItemId == ordinaryId).ParentInstanceId is null)
+            {
+                throw new InvalidOperationException("v1.17 did not use incoming-container capacity in the same global solve.");
+            }
+
+            // Exact stored-item lock: the fixed root remains at the exact physical cell and
+            // the incoming item uses the other cell.
+            _pocketGrids = [new FarmingGuideStorageGridDefinition(2, 1, FarmingGuideItemFilter.Empty)];
+            _lockedItemInstanceIds.Add("locked-instance");
+            var lockedCurrent = V1170SmokeStoredSnapshot(ordinaryId, "locked-instance");
+            snapshots[incomingId] = V1170SmokeSnapshot(incomingId, flea: 50_000, firNeed: 0);
+            if (!TryPlanScannedItemGlobalV1170(
+                    lockedCurrent,
+                    snapshots[incomingId],
+                    incoming,
+                    out var lockedRecommendation) ||
+                lockedRecommendation.ProposedSnapshot.StoredItems.Single(value =>
+                    value.InstanceId == "locked-instance") is not { X: 0, Y: 0 })
+            {
+                throw new InvalidOperationException("v1.17 moved an explicitly fixed stored item.");
+            }
+            _lockedItemInstanceIds.Clear();
+
+            // Equipment is in the same value pool. With no legal storage, a more valuable
+            // helmet replaces the lower-valued unlocked helmet through the helmet slot.
+            _pocketGrids = [];
+            var equippedCurrent = FarmingGuideLoadoutSnapshot.Empty with
+            {
+                Equipment = new Dictionary<FarmingGuideEquipmentSlot, FarmingGuideItemState>
+                {
+                    [FarmingGuideEquipmentSlot.Helmet] = FarmingGuideItemState.Create(helmetOldId),
+                },
+            };
+            if (!TryPlanScannedItemGlobalV1170(
+                    equippedCurrent,
+                    snapshots[helmetNewId],
+                    helmetNew,
+                    out var equipmentRecommendation) ||
+                equipmentRecommendation.Action != FarmingGuideInstructionAction.ReplaceEquip ||
+                equipmentRecommendation.ProposedSnapshot.Equipment[FarmingGuideEquipmentSlot.Helmet].ItemId != helmetNewId)
+            {
+                throw new InvalidOperationException("v1.17 equipment root is not unified with the economic candidate pool.");
+            }
+
+            // Strict final weight: a single incoming root heavier than the configured limit
+            // is never an admissible retained state, regardless of its value.
+            _pocketGrids = [new FarmingGuideStorageGridDefinition(1, 1, FarmingGuideItemFilter.Empty)];
+            var overweightIncoming = V1170SmokeItem("__v1170_smoke_overweight", weightKg: 80m);
+            _itemsById[overweightIncoming.Id] = overweightIncoming;
+            var overweightSnapshot = V1170SmokeSnapshot(overweightIncoming.Id, flea: 9_000_000, firNeed: 0);
+            snapshots[overweightIncoming.Id] = overweightSnapshot;
+            if (!TryPlanScannedItemGlobalV1170(
+                    FarmingGuideLoadoutSnapshot.Empty,
+                    overweightSnapshot,
+                    overweightIncoming,
+                    out var overweightRecommendation) ||
+                overweightRecommendation.Action != FarmingGuideInstructionAction.Discard)
+            {
+                throw new InvalidOperationException("v1.17 accepted a final state above the configured weight limit.");
+            }
+            _itemsById.Remove(overweightIncoming.Id);
+            snapshots.Remove(overweightIncoming.Id);
+
+            // Missing price for a Flea-tradable current root is uncertainty, not zero value.
+            // The optimizer must refuse to prove a destructive recommendation.
+            snapshots[incomingId] = V1170SmokeSnapshot(incomingId, flea: 100_000, firNeed: 0);
+            var unknownCurrent = V1170SmokeStoredSnapshot(unknownValueId, "unknown-value-instance");
+            if (TryPlanScannedItemGlobalV1170(
+                    unknownCurrent,
+                    snapshots[incomingId],
+                    incoming,
+                    out _))
+            {
+                throw new InvalidOperationException("v1.17 treated an unknown tradable Flea price as a proven zero value.");
+            }
+        }
+        finally
+        {
+            _raidBridge = previousBridge;
+            _pocketGrids = previousPockets;
+            _weightSettingsV1160 = previousWeight;
+            _weightSettingsProfileIdV1160 = previousWeightProfile;
+
+            _lockedEquipmentSlots.Clear();
+            _lockedEquipmentSlots.UnionWith(previousEquipmentLocks);
+            _lockedCarriers.Clear();
+            _lockedCarriers.UnionWith(previousCarrierLocks);
+            _lockedItemInstanceIds.Clear();
+            _lockedItemInstanceIds.UnionWith(previousItemLocks);
+            _reservedCells.Clear();
+            _reservedCells.UnionWith(previousCells);
+
+            foreach (var id in ids)
+            {
+                if (previousItems[id] is { } original)
+                    _itemsById[id] = original;
+                else
+                    _itemsById.Remove(id);
+            }
+        }
+    }
+
+    private void ClearV1170SmokeLocks()
+    {
+        _lockedEquipmentSlots.Clear();
+        _lockedCarriers.Clear();
+        _lockedItemInstanceIds.Clear();
+        _reservedCells.Clear();
+    }
+
+    private static FarmingGuideLoadoutSnapshot V1170SmokeStoredSnapshot(
+        string itemId,
+        string instanceId) =>
+        FarmingGuideLoadoutSnapshot.Empty with
+        {
+            StoredItems =
+            [
+                new FarmingGuideStoredItemState(
+                    instanceId,
+                    FarmingGuideItemState.Create(itemId),
+                    FarmingGuideStorageKind.Pockets,
+                    0, 0, 0, false),
+            ],
+        };
+
+    private static ScannerItemSnapshot V1170SmokeSnapshot(
+        string itemId,
+        int? flea,
+        int firNeed) =>
+        new(
+            itemId,
+            itemId,
+            null,
+            null,
+            flea,
+            null,
+            null,
+            1,
+            firNeed,
+            null)
+        {
+            CurrentNeededFir = firNeed,
+        };
+
+    private static GameItem V1170SmokeItem(
+        string id,
+        decimal weightKg,
+        IReadOnlyList<string>? typeKeys = null) =>
+        new(
+            id,
+            id,
+            id,
+            id,
+            id,
+            null,
+            null,
+            [],
+            [],
+            typeKeys ?? [],
+            1,
+            1,
+            weightKg,
+            1_000,
+            true);
+}
