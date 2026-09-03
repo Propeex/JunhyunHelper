@@ -55,7 +55,8 @@ public sealed class TarkovItemImporter
                 typeKeys.Length == 0
                     ? null
                     : !typeKeys.Contains("noFlea", StringComparer.OrdinalIgnoreCase),
-                ReadStackMaxSize(raw))
+                ReadStackMaxSize(raw),
+                ReadDiscardLimit(raw))
             {
                 FarmingGuideData = ReadFarmingGuideLayout(raw),
                 FarmingGuideAssembly = ReadAssemblySource(raw),
@@ -80,6 +81,20 @@ public sealed class TarkovItemImporter
 
         var nested = TarkovJsonReader.OptionalInt(properties, "stackMaxSize");
         return nested is > 0 ? nested : null;
+    }
+
+    private static int? ReadDiscardLimit(JsonElement item)
+    {
+        var topLevel = TarkovJsonReader.OptionalInt(item, "discardLimit");
+        if (topLevel is not null)
+            return topLevel;
+        if (!item.TryGetProperty("properties", out var properties) ||
+            properties.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        return TarkovJsonReader.OptionalInt(properties, "discardLimit");
     }
 
     private static FarmingGuideAssemblySource? ReadAssemblySource(JsonElement item)
