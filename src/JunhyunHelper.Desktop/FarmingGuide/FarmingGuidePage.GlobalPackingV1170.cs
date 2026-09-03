@@ -77,9 +77,7 @@ public partial class FarmingGuidePage
         }
 
         EnsureWeightSettingsLoadedV1160();
-        var currentWeight = CalculateSnapshotWeightKgV1160(current);
-        var configuredLimit = FarmingGuideWeightPolicy.MaximumCarryWeightKg(_weightSettingsV1160);
-        var maximumAdmissibleWeight = currentWeight > configuredLimit ? currentWeight : configuredLimit;
+        var maximumAdmissibleWeight = FarmingGuideWeightPolicy.MaximumCarryWeightKg(_weightSettingsV1160);
 
         var result = FarmingGuideGlobalPackingPlanner.TryPlan(
             packingSurfaces,
