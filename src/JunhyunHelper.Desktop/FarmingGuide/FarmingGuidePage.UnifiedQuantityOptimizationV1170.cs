@@ -292,12 +292,15 @@ public partial class FarmingGuidePage
             Math.Max(0m, root.Item.WeightKg!.Value) * root.Quantity);
         var fixedWeight = Math.Max(0m, fullWeight - variableFullWeight);
 
-        var fixedRaidAcquired = new Dictionary<string, int>(StringComparer.Ordinal);
+        // The stack optimizer's historical parameter names say "RaidAcquired", but v1.17 FIR
+        // objective inputs are now populated exclusively from explicit FIR-qualified state.
+        var fixedFirQualified = new Dictionary<string, int>(StringComparer.Ordinal);
         var variableIds = variables.Select(root => root.InstanceId).ToHashSet(StringComparer.Ordinal);
-        foreach (var root in selected.Where(root => !variableIds.Contains(root.InstanceId) && root.State.RaidAcquired))
+        foreach (var root in selected.Where(root =>
+                     !variableIds.Contains(root.InstanceId) && root.State.IsFirQualified))
         {
-            fixedRaidAcquired[root.Item.Id] = checked(
-                fixedRaidAcquired.GetValueOrDefault(root.Item.Id) + root.Quantity);
+            fixedFirQualified[root.Item.Id] = checked(
+                fixedFirQualified.GetValueOrDefault(root.Item.Id) + root.Quantity);
         }
 
         var quantityVariables = variables.Select(root => new FarmingGuideStackQuantityVariable(
@@ -305,7 +308,7 @@ public partial class FarmingGuidePage
             root.Item.Id,
             MinimumQuantity: 1,
             MaximumQuantity: root.Quantity,
-            RaidAcquired: root.State.RaidAcquired,
+            RaidAcquired: root.State.IsFirQualified,
             UnitWeightKg: Math.Max(0m, root.Item.WeightKg!.Value),
             UnitEconomicValue: unitValues[root.InstanceId])).ToArray();
 
@@ -313,7 +316,7 @@ public partial class FarmingGuidePage
             quantityVariables,
             fixedWeight,
             effectiveLimit,
-            fixedRaidAcquired,
+            fixedFirQualified,
             itemId => ResolveRemainingFirNeedV1170(itemId, scanned));
         if (result.Status == FarmingGuideStackQuantityOptimizationStatus.BudgetExceeded)
             return StoredPackingOutcomeV1170.Indeterminate;
@@ -339,7 +342,7 @@ public partial class FarmingGuidePage
         if (snapshot is not null)
             return Math.Max(0, snapshot.CurrentNeededFir);
         return string.Equals(itemId, currentScan.ItemId, StringComparison.Ordinal)
-            ? Math.Max(0, currentScan.CurrentNeeded)
+            ? Math.Max(0, currentScan.CurrentNeededFir)
             : 0;
     }
 
