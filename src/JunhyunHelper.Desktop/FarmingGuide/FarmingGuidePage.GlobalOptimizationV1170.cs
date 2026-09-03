@@ -50,6 +50,10 @@ public partial class FarmingGuidePage
         FarmingGuideStorageKind? CarrierKind = null,
         bool Fixed = false);
 
+    private sealed record GlobalFactsV1170(
+        IReadOnlyDictionary<string, int> RemainingFirNeed,
+        IReadOnlyDictionary<string, int> FleaValue);
+
     private sealed record RetainedSetV1170(
         int[] RemovedOptionalIndices,
         FarmingGuideOptimizationScore Score);
@@ -94,11 +98,20 @@ public partial class FarmingGuidePage
             FarmingGuideInstructionAction.Discard,
             current);
 
-        if (!TryBuildGlobalRootsV1170(current, scanned, incoming, out var roots, out var incomingRoot))
+        // v1.17 defines weight as final-state admissibility. If the user/manual model already
+        // violates the configured limit, the scan cannot be compared truthfully against that
+        // illegal baseline without inventing a separate cleanup interaction. Fail closed.
+        if (!IsSnapshotWithinConfiguredWeightV1170(current))
             return false;
 
-        var currentScore = ScoreSnapshotV1170(current, scanned);
-        var allScore = ScoreRootsV1170(roots, scanned);
+        if (!TryBuildGlobalRootsV1170(current, scanned, incoming, out var roots, out var incomingRoot) ||
+            !TryBuildGlobalFactsV1170(roots, scanned, out var facts))
+        {
+            return false;
+        }
+
+        var currentScore = ScoreSnapshotV1170(current, facts);
+        var allScore = ScoreRootsV1170(roots, facts);
 
         // If even the conceptual all-retained state cannot improve the current Farming Guide
         // objective, no descendant obtained by removing non-negative-value roots can improve
@@ -111,7 +124,7 @@ public partial class FarmingGuidePage
             .OrderBy(root => root.InstanceId, StringComparer.Ordinal)
             .ToArray();
         var queue = new PriorityQueue<RetainedSetV1170, RetainedSetPriorityV1170>();
-        EnqueueRetainedSetV1170(queue, roots, optional, scanned, []);
+        EnqueueRetainedSetV1170(queue, roots, optional, facts, []);
 
         var attempts = 0;
         while (queue.Count > 0 && attempts < V1170MaximumRetainedSetAttempts)
@@ -146,7 +159,7 @@ public partial class FarmingGuidePage
 
             if (packing == FarmingGuideGlobalPackingStatus.Found)
             {
-                var proposedScore = ScoreSnapshotV1170(proposed, scanned);
+                var proposedScore = ScoreSnapshotV1170(proposed, facts);
                 if (FarmingGuideOptimizationPolicy.IsBetter(proposedScore, currentScore))
                 {
                     recommendation = BuildGlobalRecommendationV1170(
@@ -166,7 +179,7 @@ public partial class FarmingGuidePage
                 var expanded = new int[candidate.RemovedOptionalIndices.Length + 1];
                 Array.Copy(candidate.RemovedOptionalIndices, expanded, candidate.RemovedOptionalIndices.Length);
                 expanded[^1] = next;
-                EnqueueRetainedSetV1170(queue, roots, optional, scanned, expanded);
+                EnqueueRetainedSetV1170(queue, roots, optional, facts, expanded);
             }
         }
 
@@ -179,14 +192,14 @@ public partial class FarmingGuidePage
         PriorityQueue<RetainedSetV1170, RetainedSetPriorityV1170> queue,
         IReadOnlyList<GlobalRootV1170> roots,
         IReadOnlyList<GlobalRootV1170> optional,
-        ScannerItemSnapshot scanned,
+        GlobalFactsV1170 facts,
         int[] removedIndices)
     {
         var removedIds = removedIndices
             .Select(index => optional[index].InstanceId)
             .ToHashSet(StringComparer.Ordinal);
         var selected = roots.Where(root => !removedIds.Contains(root.InstanceId)).ToArray();
-        var score = ScoreRootsV1170(selected, scanned);
+        var score = ScoreRootsV1170(selected, facts);
         var key = string.Join(',', removedIndices.Select(index => optional[index].InstanceId));
         queue.Enqueue(
             new RetainedSetV1170(removedIndices, score),
@@ -300,6 +313,70 @@ public partial class FarmingGuidePage
         return true;
     }
 
+    private bool TryBuildGlobalFactsV1170(
+        IReadOnlyList<GlobalRootV1170> roots,
+        ScannerItemSnapshot scanned,
+        out GlobalFactsV1170 facts)
+    {
+        var flea = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var group in roots.GroupBy(root => root.Item.Id, StringComparer.Ordinal))
+        {
+            var root = group.First();
+            int? value = null;
+
+            if (string.Equals(root.Item.Id, scanned.ItemId, StringComparison.Ordinal) &&
+                scanned.FleaAveragePrice is { } incomingFlea)
+            {
+                value = Math.Max(0, incomingFlea);
+            }
+            else if (_raidFleaAveragePrices.TryGetValue(root.Item.Id, out var remembered))
+            {
+                value = Math.Max(0, remembered);
+            }
+            else if (_raidBridge?.ResolveSnapshot(root.Item.Id)?.FleaAveragePrice is { } resolved)
+            {
+                value = Math.Max(0, resolved);
+            }
+            else if (root.Item.FleaTradable == false)
+            {
+                value = 0;
+            }
+
+            // Unknown price is not zero. A destructive global ranking is unproven until the
+            // economic fact is available or source data proves that the item is non-Flea.
+            if (value is null)
+            {
+                facts = default!;
+                return false;
+            }
+            flea[root.Item.Id] = value.Value;
+        }
+
+        var remainingFir = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var itemId in roots
+                     .Where(root => root.State.RaidAcquired)
+                     .Select(root => root.Item.Id)
+                     .Distinct(StringComparer.Ordinal))
+        {
+            if (string.Equals(itemId, scanned.ItemId, StringComparison.Ordinal))
+            {
+                remainingFir[itemId] = Math.Max(0, scanned.CurrentNeededFir);
+                continue;
+            }
+
+            var snapshot = _raidBridge?.ResolveSnapshot(itemId);
+            if (snapshot is null)
+            {
+                facts = default!;
+                return false;
+            }
+            remainingFir[itemId] = Math.Max(0, snapshot.CurrentNeededFir);
+        }
+
+        facts = new GlobalFactsV1170(remainingFir, flea);
+        return true;
+    }
+
     private HashSet<string> BuildEffectiveLockedStoredIdsV1170(FarmingGuideLoadoutSnapshot snapshot)
     {
         var byId = snapshot.StoredItems.ToDictionary(value => value.InstanceId, StringComparer.Ordinal);
@@ -327,15 +404,15 @@ public partial class FarmingGuidePage
 
     private FarmingGuideOptimizationScore ScoreSnapshotV1170(
         FarmingGuideLoadoutSnapshot snapshot,
-        ScannerItemSnapshot scanned) =>
+        GlobalFactsV1170 facts) =>
         FarmingGuideOptimizationPolicy.Score(
             snapshot,
-            itemId => RemainingFirNeedV1170(itemId, scanned),
-            ResolveUnitFleaValueV1170);
+            itemId => facts.RemainingFirNeed.GetValueOrDefault(itemId),
+            itemId => facts.FleaValue.TryGetValue(itemId, out var value) ? value : null);
 
-    private FarmingGuideOptimizationScore ScoreRootsV1170(
+    private static FarmingGuideOptimizationScore ScoreRootsV1170(
         IReadOnlyList<GlobalRootV1170> roots,
-        ScannerItemSnapshot scanned)
+        GlobalFactsV1170 facts)
     {
         var acquired = new Dictionary<string, int>(StringComparer.Ordinal);
         long retainedValue = 0;
@@ -347,8 +424,7 @@ public partial class FarmingGuidePage
                     acquired.GetValueOrDefault(root.Item.Id) + Math.Max(1, root.Quantity));
             }
             retainedValue = checked(
-                retainedValue + (long)Math.Max(0, ResolveUnitFleaValueV1170(root.Item.Id) ?? 0) *
-                Math.Max(1, root.Quantity));
+                retainedValue + (long)facts.FleaValue[root.Item.Id] * Math.Max(1, root.Quantity));
         }
 
         var satisfied = 0;
@@ -356,25 +432,17 @@ public partial class FarmingGuidePage
         {
             satisfied = checked(satisfied + Math.Min(
                 pair.Value,
-                RemainingFirNeedV1170(pair.Key, scanned)));
+                facts.RemainingFirNeed.GetValueOrDefault(pair.Key)));
         }
         return new FarmingGuideOptimizationScore(satisfied, retainedValue);
     }
 
-    private int RemainingFirNeedV1170(string itemId, ScannerItemSnapshot scanned)
+    private bool IsSnapshotWithinConfiguredWeightV1170(FarmingGuideLoadoutSnapshot snapshot)
     {
-        if (string.Equals(itemId, scanned.ItemId, StringComparison.Ordinal))
-            return Math.Max(0, scanned.CurrentNeededFir);
-        return Math.Max(0, _raidBridge?.ResolveSnapshot(itemId)?.CurrentNeededFir ?? 0);
-    }
-
-    private int? ResolveUnitFleaValueV1170(string itemId)
-    {
-        if (_raidFleaAveragePrices.TryGetValue(itemId, out var remembered))
-            return Math.Max(0, remembered);
-        return _raidBridge?.ResolveSnapshot(itemId)?.FleaAveragePrice is { } flea
-            ? Math.Max(0, flea)
-            : 0;
+        EnsureWeightSettingsLoadedV1160();
+        return FarmingGuideWeightPolicy.IsWithinLimit(
+            CalculateSnapshotWeightKgV1160(snapshot),
+            _weightSettingsV1160);
     }
 
     private static FarmingGuideItemState? CarrierStateV1170(
