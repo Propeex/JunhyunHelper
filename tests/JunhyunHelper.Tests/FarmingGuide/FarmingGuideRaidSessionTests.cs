@@ -161,22 +161,25 @@ public sealed class FarmingGuideRaidSessionTests
     }
 
     [Fact]
-    public void Equal_flea_value_does_not_restore_legacy_value_per_slot_priority()
+    public void Equal_flea_value_does_not_create_value_per_slot_farming_priority()
     {
         var larger = new FarmingGuideLootMetrics(0, null, 40_000, 2);
         var compact = new FarmingGuideLootMetrics(0, null, 40_000, 1);
 
-        Assert.True(FarmingGuideLootPriorityPolicy.Compare(compact, larger) > 0);
+        Assert.Equal(0, FarmingGuideLootPriorityPolicy.Compare(compact, larger));
+        Assert.Equal(0, FarmingGuideLootPriorityPolicy.Compare(larger, compact));
+        Assert.False(FarmingGuideLootPriorityPolicy.ShouldReplace(compact, larger));
         Assert.False(FarmingGuideLootPriorityPolicy.ShouldReplace(larger, compact));
     }
 
     [Fact]
-    public void Smaller_footprint_is_final_tie_breaker_when_value_is_equal()
+    public void Footprint_is_system_geometry_not_final_farming_tie_breaker()
     {
         var compact = new FarmingGuideLootMetrics(0, 0, 0, 1);
         var bulky = new FarmingGuideLootMetrics(0, 0, 0, 4);
 
-        Assert.True(FarmingGuideLootPriorityPolicy.Compare(compact, bulky) > 0);
+        Assert.Equal(0, FarmingGuideLootPriorityPolicy.Compare(compact, bulky));
+        Assert.Equal(0, FarmingGuideLootPriorityPolicy.Compare(bulky, compact));
     }
 
     private static FarmingGuideLoadoutSnapshot SnapshotWith(string itemId) =>
