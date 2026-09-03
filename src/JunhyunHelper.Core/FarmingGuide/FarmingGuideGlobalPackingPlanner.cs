@@ -29,10 +29,13 @@ public sealed record FarmingGuideGlobalPackingResult(
 ///
 /// Unlike FarmingGuideRepackingPlanner, this planner has no concept of a preferred current
 /// placement. Every supplied movable item starts unplaced and the solver proves whether the
-/// complete selected set can coexist on the supplied legal surfaces. Container-owned
-/// surfaces may exist before their owner is placed; the final parent graph validation rejects
-/// self-nesting and cycles. A parent id not present in the movable set is treated as a fixed
-/// externally-owned container whose surface was supplied by the caller.
+/// complete selected set can coexist on the supplied legal surfaces.
+///
+/// surfaceOwners optionally supplies an ownership dependency that is distinct from the
+/// surface's storage ParentInstanceId. This lets Desktop model an equipped backpack's grid as
+/// root Backpack storage while still requiring that exact backpack instance to be retained.
+/// finalValidator can reject a geometrically valid leaf for cross-slot Tarkov constraints;
+/// the search then continues until another valid leaf is found or the domain is exhausted.
 /// </summary>
 public static class FarmingGuideGlobalPackingPlanner
 {
@@ -41,7 +44,9 @@ public static class FarmingGuideGlobalPackingPlanner
     public static FarmingGuideGlobalPackingResult Plan(
         IReadOnlyList<FarmingGuideRepackingSurface> surfaces,
         IReadOnlyList<FarmingGuideGlobalPackingItem> items,
-        int maxSearchNodes = DefaultMaxSearchNodes)
+        int maxSearchNodes = DefaultMaxSearchNodes,
+        IReadOnlyDictionary<string, string?>? surfaceOwners = null,
+        Func<IReadOnlyList<FarmingGuideRepackingPlacement>, bool>? finalValidator = null)
     {
         ArgumentNullException.ThrowIfNull(surfaces);
         ArgumentNullException.ThrowIfNull(items);
@@ -73,7 +78,7 @@ public static class FarmingGuideGlobalPackingPlanner
             if (string.IsNullOrWhiteSpace(item.InstanceId) || !itemIds.Add(item.InstanceId))
                 return new(FarmingGuideGlobalPackingStatus.NoSolution, [], 0);
 
-            var candidates = EnumeratePlacements(item, surfaceMap).ToArray();
+            var candidates = EnumeratePlacements(item, surfaceMap, surfaceOwners).ToArray();
             if (candidates.Length == 0)
                 return new(FarmingGuideGlobalPackingStatus.NoSolution, [], 0);
             candidatesByItem[item.InstanceId] = candidates;
@@ -110,7 +115,14 @@ public static class FarmingGuideGlobalPackingPlanner
             nodes++;
 
             if (index == ordered.Length)
-                return HasValidParentGraph(placements, surfaceMap, itemIds);
+            {
+                if (!HasValidParentGraph(placements, surfaceMap, itemIds, surfaceOwners))
+                    return false;
+                var leaf = placements.Values
+                    .OrderBy(value => value.InstanceId, StringComparer.Ordinal)
+                    .ToArray();
+                return finalValidator is null || finalValidator(leaf);
+            }
 
             var item = ordered[index];
             foreach (var candidate in candidatesByItem[item.InstanceId])
@@ -165,7 +177,8 @@ public static class FarmingGuideGlobalPackingPlanner
 
     private static IEnumerable<FarmingGuideRepackingPlacement> EnumeratePlacements(
         FarmingGuideGlobalPackingItem item,
-        IReadOnlyDictionary<string, FarmingGuideRepackingSurface> surfaces)
+        IReadOnlyDictionary<string, FarmingGuideRepackingSurface> surfaces,
+        IReadOnlyDictionary<string, string?>? surfaceOwners)
     {
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var option in item.Options
@@ -176,7 +189,7 @@ public static class FarmingGuideGlobalPackingPlanner
             if (!surfaces.TryGetValue(option.SurfaceId, out var surface) ||
                 option.Width <= 0 || option.Height <= 0 ||
                 option.Width > surface.Width || option.Height > surface.Height ||
-                string.Equals(surface.ParentInstanceId, item.InstanceId, StringComparison.Ordinal))
+                string.Equals(OwnerOf(surface, surfaceOwners), item.InstanceId, StringComparison.Ordinal))
             {
                 continue;
             }
@@ -205,7 +218,8 @@ public static class FarmingGuideGlobalPackingPlanner
     private static bool HasValidParentGraph(
         IReadOnlyDictionary<string, FarmingGuideRepackingPlacement> placements,
         IReadOnlyDictionary<string, FarmingGuideRepackingSurface> surfaces,
-        IReadOnlySet<string> movableItemIds)
+        IReadOnlySet<string> movableItemIds,
+        IReadOnlyDictionary<string, string?>? surfaceOwners)
     {
         foreach (var itemId in movableItemIds)
         {
@@ -213,9 +227,9 @@ public static class FarmingGuideGlobalPackingPlanner
             var current = itemId;
             while (placements.TryGetValue(current, out var placement) &&
                    surfaces.TryGetValue(placement.SurfaceId, out var surface) &&
-                   !string.IsNullOrWhiteSpace(surface.ParentInstanceId))
+                   !string.IsNullOrWhiteSpace(OwnerOf(surface, surfaceOwners)))
             {
-                var parent = surface.ParentInstanceId!;
+                var parent = OwnerOf(surface, surfaceOwners)!;
                 if (!visited.Add(parent))
                     return false;
                 if (!movableItemIds.Contains(parent))
@@ -224,6 +238,15 @@ public static class FarmingGuideGlobalPackingPlanner
             }
         }
         return true;
+    }
+
+    private static string? OwnerOf(
+        FarmingGuideRepackingSurface surface,
+        IReadOnlyDictionary<string, string?>? surfaceOwners)
+    {
+        if (surfaceOwners is not null && surfaceOwners.TryGetValue(surface.Id, out var owner))
+            return owner;
+        return surface.ParentInstanceId;
     }
 
     private static bool Overlaps(Occupied left, FarmingGuideRepackingPlacement right) =>
