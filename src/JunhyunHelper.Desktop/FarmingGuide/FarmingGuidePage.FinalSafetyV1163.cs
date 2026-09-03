@@ -8,9 +8,12 @@ public partial class FarmingGuidePage
 {
     /// <summary>
     /// Final fail-closed boundary for automatic raid advice. Individual planners optimize
-    /// different transitions; this validator re-checks cross-cutting contracts against the
-    /// actual complete proposed snapshot so a future planner regression cannot silently
-    /// sacrifice protected value or tactical reserves.
+    /// different transitions; this validator re-checks explicit user locks and any remaining
+    /// destructive economic proof against the actual complete proposed snapshot.
+    ///
+    /// v1.17 deliberately has no category-based tactical reserve. Food, drink, loose ammo,
+    /// magazines and medicine are ordinary economic loot unless the exact item is currently
+    /// FIR-needed or the user explicitly locked it.
     /// </summary>
     private RaidRecommendation ApplyFinalRaidSafetyV1163(
         FarmingGuideLoadoutSnapshot current,
@@ -21,11 +24,8 @@ public partial class FarmingGuidePage
             return recommendation;
 
         var proposed = recommendation.ProposedSnapshot;
-        if (!PreservesExplicitLocksV1163(current, proposed) ||
-            !PreservesTacticalResourcesV1163(current, proposed))
-        {
+        if (!PreservesExplicitLocksV1163(current, proposed))
             return RejectUnsafeRaidPlanV1163(current);
-        }
 
         if (recommendation.Action == FarmingGuideInstructionAction.Replace)
         {
@@ -41,7 +41,9 @@ public partial class FarmingGuidePage
                 .ToArray();
 
             // A removed item whose source facts can no longer be resolved is not safe to
-            // auto-sacrifice. The economic proof must cover every actual victim.
+            // auto-sacrifice. The economic proof must cover every actual victim. This
+            // compatibility guard remains until the v1.17 complete-state optimizer replaces
+            // legacy victim-oriented transition paths.
             var removedCount = current.StoredItems.Count(value => !proposedIds.Contains(value.InstanceId));
             if (victims.Length != removedCount ||
                 !FarmingGuideLootRetentionPolicy.CanSacrificeFor(incoming, victims))
@@ -121,65 +123,6 @@ public partial class FarmingGuidePage
         return current.StoredItems
             .Where(value => _lockedItemInstanceIds.Contains(value.InstanceId))
             .All(value => proposedIds.Contains(value.InstanceId));
-    }
-
-    private bool PreservesTacticalResourcesV1163(
-        FarmingGuideLoadoutSnapshot current,
-        FarmingGuideLoadoutSnapshot proposed)
-    {
-        var currentFood = HasFoodReserveV1163(current);
-        var currentDrink = HasDrinkReserveV1163(current);
-        if (currentFood && !HasFoodReserveV1163(proposed))
-            return false;
-        if (currentDrink && !HasDrinkReserveV1163(proposed))
-            return false;
-
-        var weapons = CurrentRaidWeaponsForSafetyV1163(current).ToArray();
-        if (weapons.Length == 0)
-            return true;
-
-        var beforeAmmo = CompatibleLooseAmmoQuantityV1163(current, weapons);
-        var afterAmmo = CompatibleLooseAmmoQuantityV1163(proposed, weapons);
-        return afterAmmo >= beforeAmmo;
-    }
-
-    private bool HasFoodReserveV1163(FarmingGuideLoadoutSnapshot snapshot) =>
-        snapshot.StoredItems.Any(stored =>
-            ResolveItem(stored.Item) is { } item &&
-            FarmingGuideTacticalResourcePolicy.ProvidesFood(item));
-
-    private bool HasDrinkReserveV1163(FarmingGuideLoadoutSnapshot snapshot) =>
-        snapshot.StoredItems.Any(stored =>
-            ResolveItem(stored.Item) is { } item &&
-            FarmingGuideTacticalResourcePolicy.ProvidesDrink(item));
-
-    private IEnumerable<GameItem> CurrentRaidWeaponsForSafetyV1163(FarmingGuideLoadoutSnapshot snapshot)
-    {
-        foreach (var slot in new[]
-                 {
-                     FarmingGuideEquipmentSlot.PrimaryWeapon1,
-                     FarmingGuideEquipmentSlot.PrimaryWeapon2,
-                     FarmingGuideEquipmentSlot.Holster,
-                 })
-        {
-            if (snapshot.Equipment.TryGetValue(slot, out var state) && ResolveItem(state) is { } weapon)
-                yield return weapon;
-        }
-    }
-
-    private int CompatibleLooseAmmoQuantityV1163(
-        FarmingGuideLoadoutSnapshot snapshot,
-        IReadOnlyList<GameItem> weapons)
-    {
-        var total = 0;
-        foreach (var stored in snapshot.StoredItems)
-        {
-            var item = ResolveItem(stored.Item);
-            if (item is null || !FarmingGuideTacticalResourcePolicy.IsAmmoForAnyWeapon(item, weapons))
-                continue;
-            total = checked(total + stored.NormalizedQuantity);
-        }
-        return total;
     }
 
     private static RaidRecommendation RejectUnsafeRaidPlanV1163(
