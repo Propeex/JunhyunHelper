@@ -200,7 +200,7 @@ public static class FarmingGuideAssemblyPolicy
     {
         var item = itemCatalog[state.ItemId];
         if (depth >= MaximumAssemblyDepth)
-            return FarmingGuideItemState.Create(state.ItemId);
+            return FarmingGuideItemState.Create(state.ItemId, state.RaidAcquired);
 
         occupied.Add(item);
         var attachments = new Dictionary<string, FarmingGuideItemState?>(StringComparer.Ordinal);
@@ -237,7 +237,10 @@ public static class FarmingGuideAssemblyPolicy
             }
         }
 
-        return new FarmingGuideItemState(state.ItemId, attachments, armor);
+        return new FarmingGuideItemState(state.ItemId, attachments, armor)
+        {
+            RaidAcquired = state.RaidAcquired,
+        };
     }
 
     private static FarmingGuideItemState MutateNode(
