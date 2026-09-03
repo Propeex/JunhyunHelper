@@ -8,12 +8,6 @@ public partial class FarmingGuidePage
 {
     private const int V1170MaxGlobalSubsetAttempts = 2048;
 
-    /// <summary>
-    /// v1.17 farming rulebook entry point. Combat-performance upgrade heuristics are no
-    /// longer a farming priority. The hardened planner remains useful for legal target
-    /// discovery, but every newly introduced scanned item is explicitly marked as raid
-    /// acquired so FIR provenance survives later movement and repacking.
-    /// </summary>
     private RaidRecommendation PlanScannedItemRulebookV1170(
         FarmingGuideLoadoutSnapshot current,
         ScannerItemSnapshot scanned,
@@ -24,15 +18,10 @@ public partial class FarmingGuidePage
     }
 
     /// <summary>
-    /// Replaces the historical tactical/victim-first transition with a best-first complete
-    /// state search over the currently proven domain. Food/drink/ammunition/medicine receive
-    /// no category privilege. Each feasible packed state is scored by (FIR units satisfied,
-    /// total retained Flea value), with weight as a hard admissibility constraint.
-    ///
-    /// The current low-level packing engine is reused only as a system-legality proof. When
-    /// the complete v1.17 candidate domain is not representable (for example populated
-    /// container decomposition or top-level equipment pooling), destructive advice becomes
-    /// Indeterminate rather than pretending the restricted search proved a global optimum.
+    /// v1.17 complete-state decision layer. Stored inventory is packed from scratch through
+    /// FarmingGuideGlobalPackingPlanner; current layout is not a farming preference. The
+    /// remaining intentionally incomplete domain is top-level equipment/carrier pooling,
+    /// which stays fail-closed until unified below the same objective.
     /// </summary>
     private RaidRecommendation ApplyRaidStateTransitionsV1170(
         FarmingGuideLoadoutSnapshot current,
@@ -43,9 +32,8 @@ public partial class FarmingGuidePage
         if (!PreservesLockedItemPlacementV1164(current, recommendation.ProposedSnapshot))
             recommendation = IndeterminateRaidPlanV1170(current);
 
-        // Retaining every current item plus the incoming item is globally optimal for the
-        // farming objective: no destructive alternative can improve FIR satisfaction or
-        // retained value once all available units are already retained.
+        // Keeping every current item plus the incoming item is globally optimal regardless
+        // of exact arrangement because both farming objectives are monotone in retained units.
         if (recommendation.Action is FarmingGuideInstructionAction.Store or FarmingGuideInstructionAction.Equip)
         {
             var quantified = ApplyIncomingQuantityV1160(
@@ -58,11 +46,14 @@ public partial class FarmingGuidePage
                 return quantified;
         }
 
-        var incompleteDomain = HasUnmodeledGlobalChoicesV1170(current, incoming);
+        var incompleteDomain = HasUnmodeledGlobalChoicesV1170(current);
         var currentScore = ScoreRaidStateV1170(current, scanned);
         RaidRecommendation? best = null;
         FarmingGuideOptimizationScore bestScore = currentScore;
 
+        // Historical equipment target discovery is retained temporarily, but a destructive
+        // equipment candidate cannot become authoritative while other unlocked top-level
+        // equipment/carrier choices remain outside the unified pool.
         if (recommendation.Action == FarmingGuideInstructionAction.ReplaceEquip &&
             PreservesLockedItemPlacementV1164(current, recommendation.ProposedSnapshot))
         {
@@ -97,9 +88,6 @@ public partial class FarmingGuidePage
             bestScore = storedScore;
         }
 
-        // A destructive candidate is only globally authoritative when the candidate domain
-        // itself is complete and the bounded search proved its frontier. Otherwise retain
-        // the current modeled state and surface uncertainty without a hotkey-accept action.
         if (best is not null)
             return !incompleteDomain && storedProofComplete ? best : IndeterminateRaidPlanV1170(current);
 
@@ -128,10 +116,18 @@ public partial class FarmingGuidePage
                 incomingInstanceId,
                 [],
                 out recommendation,
-                out score))
+                out score,
+                out var zeroEvictionProof))
         {
-            proofComplete = true;
+            proofComplete = zeroEvictionProof;
             return FarmingGuideOptimizationPolicy.IsBetter(score, currentScore);
+        }
+        if (!zeroEvictionProof)
+        {
+            recommendation = IndeterminateRaidPlanV1170(current);
+            score = currentScore;
+            proofComplete = false;
+            return false;
         }
 
         var victims = EnumerateGlobalVictimsV1170(current).ToArray();
@@ -153,6 +149,8 @@ public partial class FarmingGuidePage
             var subset = queue.Dequeue();
             attempts++;
 
+            // The queue is ordered by the conceptual complete-state objective. Once the
+            // best remaining retained set no longer beats current, all descendants are worse.
             if (!FarmingGuideOptimizationPolicy.IsBetter(subset.Score, currentScore))
             {
                 recommendation = ProvenDiscardV1170(current);
@@ -169,10 +167,18 @@ public partial class FarmingGuidePage
                     incomingInstanceId,
                     subset.Indices.Select(index => victims[index].InstanceId).ToArray(),
                     out recommendation,
-                    out score))
+                    out score,
+                    out var packingProof))
             {
-                proofComplete = true;
+                proofComplete = packingProof;
                 return true;
+            }
+            if (!packingProof)
+            {
+                recommendation = IndeterminateRaidPlanV1170(current);
+                score = currentScore;
+                proofComplete = false;
+                return false;
             }
 
             var last = subset.Indices[^1];
@@ -199,29 +205,22 @@ public partial class FarmingGuidePage
         string incomingInstanceId,
         IReadOnlyCollection<string> removedInstanceIds,
         out RaidRecommendation recommendation,
-        out FarmingGuideOptimizationScore score)
+        out FarmingGuideOptimizationScore score,
+        out bool proofComplete)
     {
-        var removed = removedInstanceIds.Count == 0
-            ? null
-            : removedInstanceIds.ToHashSet(StringComparer.Ordinal);
-        var reduced = removed is null
-            ? current
-            : current with
-            {
-                StoredItems = current.StoredItems
-                    .Where(value => !removed.Contains(value.InstanceId))
-                    .ToArray(),
-            };
-
-        if (!TryRepackIncomingStateV1164(
-                reduced,
-                incomingState,
-                incoming,
-                incomingInstanceId,
-                out var proposed) ||
-            !PreservesLockedItemPlacementV1164(current, proposed))
+        var packing = TryPackSelectedStoredPoolV1170(
+            current,
+            incomingState,
+            incoming,
+            incomingInstanceId,
+            removedInstanceIds,
+            out var proposed);
+        proofComplete = packing != StoredPackingOutcomeV1170.Indeterminate;
+        if (packing != StoredPackingOutcomeV1170.Found)
         {
-            recommendation = IndeterminateRaidPlanV1170(current);
+            recommendation = packing == StoredPackingOutcomeV1170.Indeterminate
+                ? IndeterminateRaidPlanV1170(current)
+                : ProvenDiscardV1170(current);
             score = ScoreRaidStateV1170(current, scanned);
             return false;
         }
@@ -253,10 +252,13 @@ public partial class FarmingGuidePage
         FarmingGuideLoadoutSnapshot snapshot)
     {
         return snapshot.StoredItems
-            .Where(stored => !snapshot.StoredItems.Any(child =>
-                string.Equals(child.ParentInstanceId, stored.InstanceId, StringComparison.Ordinal)))
+            // Populated containers are valid victims now: the global packing proof retains
+            // their children as independent selected items and repacks those children onto
+            // the remaining legal surfaces.
             .Where(stored => !_lockedItemInstanceIds.Contains(stored.InstanceId))
             .Where(stored => !SubtreeContainsLockedItemInSnapshot(stored.InstanceId, snapshot.StoredItems))
+            // A reserved cell owned by this exact container is an explicit user constraint;
+            // removing the container would remove the reserved surface itself.
             .Where(stored => !_reservedCells.Any(cell =>
                 string.Equals(cell.ParentInstanceId, stored.InstanceId, StringComparison.Ordinal)))
             .Where(HasProvableVictimFactsV1170)
@@ -276,28 +278,12 @@ public partial class FarmingGuidePage
         return _raidFleaAveragePrices.ContainsKey(item.Id) || snapshot.FleaAveragePrice is not null;
     }
 
-    private bool HasUnmodeledGlobalChoicesV1170(
-        FarmingGuideLoadoutSnapshot current,
-        GameItem incoming)
+    /// <summary>
+    /// Stored/nested/incoming-container choices are now in the complete packing pool. The
+    /// remaining missing domain is top-level equipment/carrier pooling.
+    /// </summary>
+    private bool HasUnmodeledGlobalChoicesV1170(FarmingGuideLoadoutSnapshot current)
     {
-        // Populated stored containers are not yet decomposed into independent parent/content
-        // choices by the low-level removal search.
-        if (current.StoredItems.Any(parent =>
-                !_lockedItemInstanceIds.Contains(parent.InstanceId) &&
-                current.StoredItems.Any(child =>
-                    string.Equals(child.ParentInstanceId, parent.InstanceId, StringComparison.Ordinal))))
-        {
-            return true;
-        }
-
-        // A scanned storage item can introduce capacity that the historical surface builder
-        // cannot use until the item has already been placed.
-        if (incoming.FarmingGuideData?.StorageGrids is { Count: > 0 })
-            return true;
-
-        // Unlocked top-level equipment/carriers are still discovered through historical
-        // target-specific paths rather than the same all-item candidate pool. Destructive
-        // advice therefore remains indeterminate until that representation is unified.
         if (current.Equipment.Keys.Any(slot => !_lockedEquipmentSlots.Contains(slot)))
             return true;
         if (current.Rig is not null && !_lockedCarriers.Contains(FarmingGuideStorageKind.Rig))
@@ -306,7 +292,6 @@ public partial class FarmingGuidePage
             return true;
         if (current.SecureContainer is not null && !_lockedCarriers.Contains(FarmingGuideStorageKind.SecureContainer))
             return true;
-
         return false;
     }
 
@@ -442,7 +427,9 @@ public partial class FarmingGuidePage
         {
             if (pair.Value is null)
                 continue;
-            before?.Attachments.TryGetValue(pair.Key, out var beforeChild);
+            FarmingGuideItemState? beforeChild = null;
+            if (before is not null)
+                before.Attachments.TryGetValue(pair.Key, out beforeChild);
             attachments[pair.Key] = MarkNewRaidStateV1170(beforeChild, pair.Value, incomingItemId);
         }
 
@@ -451,7 +438,9 @@ public partial class FarmingGuidePage
         {
             if (pair.Value is null)
                 continue;
-            before?.ArmorPlates.TryGetValue(pair.Key, out var beforeChild);
+            FarmingGuideItemState? beforeChild = null;
+            if (before is not null)
+                before.ArmorPlates.TryGetValue(pair.Key, out beforeChild);
             plates[pair.Key] = MarkNewRaidStateV1170(beforeChild, pair.Value, incomingItemId);
         }
 
