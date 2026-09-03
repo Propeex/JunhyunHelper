@@ -3,7 +3,7 @@
 Date: **2026-09-03 KST**  
 Status: **CONFIRMED / IMPLEMENTATION IN PROGRESS**
 
-This decision is the canonical product rulebook for Farming Guide raid loot decisions. It supersedes older Farming Guide rules wherever they conflict with this document, including tactical food/drink/ammunition retention, item-level weight/footprint priority tie-breaks, local-only insertion/displacement semantics, and automatic combat-performance upgrade heuristics.
+This decision is the canonical product rulebook for Farming Guide raid loot decisions. It supersedes older Farming Guide rules wherever they conflict with this document, including tactical food/drink/ammunition retention, item-level weight/footprint priority tie-breaks, local-only insertion/displacement semantics, automatic combat-performance upgrade heuristics, and the superseded attempt to visually classify FIR from Scanner pixels.
 
 ## 1. Two rule domains
 
@@ -26,7 +26,7 @@ They include, without being limited to:
 - explicit locked cells / reserved cells;
 - explicit locked equipment/carrier targets;
 - indirect lock preservation (for example, a parent/container may not move if doing so would move an explicitly position-locked descendant);
-- correct quantity, FIR-need, acquisition/provenance, value and weight facts;
+- correct quantity, FIR-need, raid-origin/provenance, value and weight facts according to the confirmed Farming Guide product model;
 - transaction consistency between the modeled raid-state revision, the recommendation and explicit user acceptance;
 - deterministic, fail-closed behavior when required item facts or a legal/optimal plan cannot be proven.
 
@@ -70,6 +70,20 @@ Therefore the primary optimization objective is:
 
 This prevents every duplicate copy of an item from receiving infinite/absolute protection merely because one or more copies are still needed.
 
+### 3.1 Active Farming Guide raid scan is the FIR authority
+
+The user-confirmed Farming Guide model is deliberately simpler than Tarkov-screen FIR classification:
+
+- the user explicitly starts a Farming Guide raid session before looting;
+- while that Farming Guide raid session is active, **every newly Scanner-identified incoming item is modeled as Found in Raid (FIR)**;
+- this is the product's raid-state contract, not a claim that Scanner visually proved Tarkov's FIR icon;
+- Scanner must **not** inspect an FIR checkmark, color, icon, highlight, text, or other visual marker to decide this;
+- Scanner must not add a separate FIR-confirmation interaction;
+- the accepted incoming item keeps that FIR provenance while it remains in the modeled raid state;
+- items that were already present in the raid-start baseline do not become FIR merely because a raid session was started.
+
+Therefore FIR classification for newly scanned raid loot belongs to the Farming Guide raid-session boundary, not to Scanner vision/OCR.
+
 ## 4. Economic objective is final retained total value
 
 After maximizing satisfied FIR need, Farming Guide maximizes the **total retained economic value of the complete final state**.
@@ -103,7 +117,7 @@ Conceptually, for every confirmed scan:
 
 1. preserve explicit locked items/positions/targets/cells as fixed system state;
 2. take every other movable item from the current modeled raid state and place it into one candidate pool;
-3. add the newly scanned item/quantity to that pool;
+3. add the newly scanned item/quantity to that pool as a raid-acquired FIR item under §3.1;
 4. solve the complete legal final state from that pool under Tarkov placement rules and the weight constraint;
 5. choose the lexicographically best state by:
    - maximum satisfied needed-FIR units;
@@ -196,6 +210,7 @@ Where older documents/code say otherwise, this decision supersedes:
 - one-victim or bounded-victim economic replacement as the conceptual decision model;
 - automatic tactical reserves for food/drink/current-weapon ammunition;
 - weight and footprint as item-priority tie-breaks;
-- armor/headset/combat-performance superiority as an independent automatic farming priority.
+- armor/headset/combat-performance superiority as an independent automatic farming priority;
+- Scanner-side FIR visual classification or any requirement to prove an FIR icon for a new active-raid scan.
 
 Older code paths may temporarily remain during migration, but they are implementation debt and are not authoritative product behavior after this decision.
