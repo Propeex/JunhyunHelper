@@ -27,7 +27,7 @@ public partial class FarmingGuidePage
     /// equipment/carriers and the incoming item are evaluated through one complete candidate
     /// pool. Stack quantities are optimized exactly inside each selected physical root set.
     /// A result is committable only when the candidate domain, decision facts, quantity solve,
-    /// weight facts and packing proof are complete; otherwise Indeterminate wins.
+    /// weight facts, FIR provenance and packing proof are complete; otherwise Indeterminate wins.
     /// </summary>
     private RaidRecommendation ApplyRaidStateTransitionsV1170(
         FarmingGuideLoadoutSnapshot current,
@@ -37,8 +37,11 @@ public partial class FarmingGuidePage
     {
         _ = recommendation;
 
-        if (!HasProvableRaidWeightDomainV1170(current, incoming))
+        if (!HasProvableRaidWeightDomainV1170(current, incoming) ||
+            !HasProvableFirDecisionFactsV1170(current, scanned))
+        {
             return IndeterminateRaidPlanV1170(current);
+        }
 
         var currentScore = ScoreRaidStateV1170(current, scanned);
         var found = TryFindBestUnifiedRaidStateWithQuantitiesV1170(
@@ -59,6 +62,76 @@ public partial class FarmingGuidePage
         return ProvenDiscardV1170(current);
     }
 
+    /// <summary>
+    /// FIR is a decision fact, not something inferred from "seen during this raid". The
+    /// current Scanner snapshot does not yet prove Tarkov's FIR marker, so a newly scanned item
+    /// with remaining FIR need is intentionally indeterminate. Existing raid-acquired Unknown
+    /// items are likewise safe only when current requirement data proves that their item id has
+    /// no remaining FIR need. This prevents Unknown from being silently treated as either FIR
+    /// or non-FIR in a destructive global solve.
+    /// </summary>
+    private bool HasProvableFirDecisionFactsV1170(
+        FarmingGuideLoadoutSnapshot current,
+        ScannerItemSnapshot scanned)
+    {
+        if (Math.Max(0, scanned.CurrentNeededFir) > 0)
+            return false;
+
+        foreach (var state in EnumerateFirDecisionStatesV1170(current))
+        {
+            if (!state.RaidAcquired)
+                continue;
+
+            var requirement = _raidBridge?.ResolveSnapshot(state.ItemId);
+            if (state.FirStatus == FarmingGuideFirStatus.Unknown)
+            {
+                if (requirement is null || Math.Max(0, requirement.CurrentNeededFir) > 0)
+                    return false;
+                continue;
+            }
+
+            if (state.FirStatus == FarmingGuideFirStatus.FoundInRaid && requirement is null)
+                return false;
+        }
+
+        return true;
+    }
+
+    private static IEnumerable<FarmingGuideItemState> EnumerateFirDecisionStatesV1170(
+        FarmingGuideLoadoutSnapshot snapshot)
+    {
+        foreach (var state in snapshot.Equipment.Values)
+        {
+            foreach (var nested in EnumerateFirDecisionStateTreeV1170(state))
+                yield return nested;
+        }
+        foreach (var state in new[] { snapshot.Rig, snapshot.Backpack, snapshot.SecureContainer })
+        {
+            if (state is null)
+                continue;
+            foreach (var nested in EnumerateFirDecisionStateTreeV1170(state))
+                yield return nested;
+        }
+        foreach (var stored in snapshot.StoredItems)
+        {
+            foreach (var nested in EnumerateFirDecisionStateTreeV1170(stored.Item))
+                yield return nested;
+        }
+    }
+
+    private static IEnumerable<FarmingGuideItemState> EnumerateFirDecisionStateTreeV1170(
+        FarmingGuideItemState state)
+    {
+        yield return state;
+        foreach (var child in state.Attachments.Values.Concat(state.ArmorPlates.Values))
+        {
+            if (child is null)
+                continue;
+            foreach (var nested in EnumerateFirDecisionStateTreeV1170(child))
+                yield return nested;
+        }
+    }
+
     private bool HasProvableIncomingEconomicValueV1170(ScannerItemSnapshot scanned) =>
         ResolveUnitEconomicValueV1170(scanned.ItemId) is not null;
 
@@ -76,7 +149,7 @@ public partial class FarmingGuidePage
                 if (snapshot is not null)
                     return Math.Max(0, snapshot.CurrentNeededFir);
                 return string.Equals(itemId, currentScan.ItemId, StringComparison.Ordinal)
-                    ? Math.Max(0, currentScan.CurrentNeeded)
+                    ? Math.Max(0, currentScan.CurrentNeededFir)
                     : 0;
             },
             ResolveUnitEconomicValueV1170);
@@ -96,10 +169,9 @@ public partial class FarmingGuidePage
     }
 
     /// <summary>
-    /// Incoming provenance is assigned when the unified candidate root is created and is
-    /// carried by the exact FarmingGuideItemState through every placement. Do not infer
-    /// provenance from a changed slot/location: an existing same-id item can move to a new
-    /// slot and must never become falsely FIR-acquired.
+    /// Incoming acquisition provenance is assigned when the unified candidate root is created
+    /// and is carried by the exact FarmingGuideItemState through every placement. Do not infer
+    /// FIR provenance from that acquisition or from a changed slot/location.
     /// </summary>
     private static RaidRecommendation MarkIncomingRaidProvenanceV1170(
         FarmingGuideLoadoutSnapshot current,
