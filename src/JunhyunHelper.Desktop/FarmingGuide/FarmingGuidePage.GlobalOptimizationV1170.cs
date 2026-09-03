@@ -98,13 +98,9 @@ public partial class FarmingGuidePage
             FarmingGuideInstructionAction.Discard,
             current);
 
-        // v1.17 defines weight as final-state admissibility. If the user/manual model already
-        // violates the configured limit, the scan cannot be compared truthfully against that
-        // illegal baseline without inventing a separate cleanup interaction. Fail closed.
-        if (!IsSnapshotWithinConfiguredWeightV1170(current))
-            return false;
-
         if (!TryBuildGlobalRootsV1170(current, scanned, incoming, out var roots, out var incomingRoot) ||
+            !TryValidateGlobalRootPhysicalFactsV1170(roots) ||
+            !IsSnapshotWithinConfiguredWeightV1170(current) ||
             !TryBuildGlobalFactsV1170(roots, scanned, out var facts))
         {
             return false;
@@ -316,66 +312,8 @@ public partial class FarmingGuidePage
     private bool TryBuildGlobalFactsV1170(
         IReadOnlyList<GlobalRootV1170> roots,
         ScannerItemSnapshot scanned,
-        out GlobalFactsV1170 facts)
-    {
-        var flea = new Dictionary<string, int>(StringComparer.Ordinal);
-        foreach (var group in roots.GroupBy(root => root.Item.Id, StringComparer.Ordinal))
-        {
-            var root = group.First();
-            int? value = null;
-
-            if (string.Equals(root.Item.Id, scanned.ItemId, StringComparison.Ordinal) &&
-                scanned.FleaAveragePrice is { } incomingFlea)
-            {
-                value = Math.Max(0, incomingFlea);
-            }
-            else if (_raidFleaAveragePrices.TryGetValue(root.Item.Id, out var remembered))
-            {
-                value = Math.Max(0, remembered);
-            }
-            else if (_raidBridge?.ResolveSnapshot(root.Item.Id)?.FleaAveragePrice is { } resolved)
-            {
-                value = Math.Max(0, resolved);
-            }
-            else if (root.Item.FleaTradable == false)
-            {
-                value = 0;
-            }
-
-            // Unknown price is not zero. A destructive global ranking is unproven until the
-            // economic fact is available or source data proves that the item is non-Flea.
-            if (value is null)
-            {
-                facts = default!;
-                return false;
-            }
-            flea[root.Item.Id] = value.Value;
-        }
-
-        var remainingFir = new Dictionary<string, int>(StringComparer.Ordinal);
-        foreach (var itemId in roots
-                     .Where(root => root.State.RaidAcquired)
-                     .Select(root => root.Item.Id)
-                     .Distinct(StringComparer.Ordinal))
-        {
-            if (string.Equals(itemId, scanned.ItemId, StringComparison.Ordinal))
-            {
-                remainingFir[itemId] = Math.Max(0, scanned.CurrentNeededFir);
-                continue;
-            }
-
-            var snapshot = _raidBridge?.ResolveSnapshot(itemId);
-            if (snapshot is null)
-            {
-                facts = default!;
-                return false;
-            }
-            remainingFir[itemId] = Math.Max(0, snapshot.CurrentNeededFir);
-        }
-
-        facts = new GlobalFactsV1170(remainingFir, flea);
-        return true;
-    }
+        out GlobalFactsV1170 facts) =>
+        TryBuildCompleteGlobalFactsV1170(roots, scanned, out facts);
 
     private HashSet<string> BuildEffectiveLockedStoredIdsV1170(FarmingGuideLoadoutSnapshot snapshot)
     {
@@ -410,40 +348,13 @@ public partial class FarmingGuidePage
             itemId => facts.RemainingFirNeed.GetValueOrDefault(itemId),
             itemId => facts.FleaValue.TryGetValue(itemId, out var value) ? value : null);
 
-    private static FarmingGuideOptimizationScore ScoreRootsV1170(
+    private FarmingGuideOptimizationScore ScoreRootsV1170(
         IReadOnlyList<GlobalRootV1170> roots,
-        GlobalFactsV1170 facts)
-    {
-        var acquired = new Dictionary<string, int>(StringComparer.Ordinal);
-        long retainedValue = 0;
-        foreach (var root in roots)
-        {
-            if (root.State.RaidAcquired)
-            {
-                acquired[root.Item.Id] = checked(
-                    acquired.GetValueOrDefault(root.Item.Id) + Math.Max(1, root.Quantity));
-            }
-            retainedValue = checked(
-                retainedValue + (long)facts.FleaValue[root.Item.Id] * Math.Max(1, root.Quantity));
-        }
+        GlobalFactsV1170 facts) =>
+        ScoreCompleteGlobalRootsV1170(roots, facts);
 
-        var satisfied = 0;
-        foreach (var pair in acquired)
-        {
-            satisfied = checked(satisfied + Math.Min(
-                pair.Value,
-                facts.RemainingFirNeed.GetValueOrDefault(pair.Key)));
-        }
-        return new FarmingGuideOptimizationScore(satisfied, retainedValue);
-    }
-
-    private bool IsSnapshotWithinConfiguredWeightV1170(FarmingGuideLoadoutSnapshot snapshot)
-    {
-        EnsureWeightSettingsLoadedV1160();
-        return FarmingGuideWeightPolicy.IsWithinLimit(
-            CalculateSnapshotWeightKgV1160(snapshot),
-            _weightSettingsV1160);
-    }
+    private bool IsSnapshotWithinConfiguredWeightV1170(FarmingGuideLoadoutSnapshot snapshot) =>
+        IsSnapshotWithinConfiguredWeightStrictV1170(snapshot);
 
     private static FarmingGuideItemState? CarrierStateV1170(
         FarmingGuideLoadoutSnapshot snapshot,
