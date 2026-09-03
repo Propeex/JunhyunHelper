@@ -36,12 +36,14 @@ public partial class FarmingGuidePage
             return false;
         }
 
+        // Product authority: every item newly identified by Scanner while Farming Guide raid
+        // mode is active is modeled as FIR. Scanner itself does not inspect an FIR icon.
         var incomingRoot = new GlobalOwnedRootV1170(
             $"{V1170IncomingInstancePrefix}{Guid.NewGuid():N}",
             FarmingGuideItemState.Create(
                 incoming.Id,
                 raidAcquired: true,
-                firStatus: scanned.FirStatus),
+                firStatus: FarmingGuideFirStatus.FoundInRaid),
             incoming,
             Math.Max(1, scanned.Quantity),
             GlobalRootOriginV1170.Incoming);
