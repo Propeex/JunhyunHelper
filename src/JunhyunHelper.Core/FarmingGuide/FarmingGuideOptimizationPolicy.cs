@@ -21,9 +21,10 @@ public readonly record struct FarmingGuideOptimizationScore(
 public static class FarmingGuideOptimizationPolicy
 {
     /// <summary>
-    /// Scores a complete modeled state. FIR satisfaction is based on units acquired relative
-    /// to the raid baseline, so an item brought into raid before the scan session is never
-    /// accidentally treated as newly found-in-raid merely because it has the same item id.
+    /// Scores a complete modeled state. FIR satisfaction is derived from explicit per-item
+    /// raid provenance carried by the candidate snapshot. The baseline parameter remains in
+    /// this API because callers still use it as the raid-session authority, but it is no
+    /// longer used to infer provenance by item-id subtraction.
     /// </summary>
     public static FarmingGuideOptimizationScore Score(
         FarmingGuideLoadoutSnapshot baseline,
@@ -36,8 +37,8 @@ public static class FarmingGuideOptimizationPolicy
         ArgumentNullException.ThrowIfNull(remainingFirNeed);
         ArgumentNullException.ThrowIfNull(fleaUnitValue);
 
-        var baselineCounts = FarmingGuideSnapshotInventoryCounter.CountAll(baseline);
         var candidateCounts = FarmingGuideSnapshotInventoryCounter.CountAll(candidate);
+        var acquiredCounts = FarmingGuideSnapshotInventoryCounter.CountRaidAcquiredAll(candidate);
 
         var satisfiedFir = 0;
         long retainedValue = 0;
@@ -47,7 +48,7 @@ public static class FarmingGuideOptimizationPolicy
             if (quantity == 0)
                 continue;
 
-            var acquired = Math.Max(0, quantity - baselineCounts.GetValueOrDefault(pair.Key));
+            var acquired = Math.Max(0, acquiredCounts.GetValueOrDefault(pair.Key));
             var need = Math.Max(0, remainingFirNeed(pair.Key));
             satisfiedFir = checked(satisfiedFir + Math.Min(acquired, need));
 
