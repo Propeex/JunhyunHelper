@@ -24,7 +24,8 @@ public static class FarmingGuideCompatibility
                 ContainsAny(keys, "headphone", "headphones", "headset", "earpiece"),
             FarmingGuideEquipmentSlot.Helmet =>
                 propertyType.Equals("ItemPropertiesHelmet", StringComparison.OrdinalIgnoreCase) ||
-                ContainsAny(keys, "helmet", "helmets"),
+                propertyType.Equals("ItemPropertiesHeadwear", StringComparison.OrdinalIgnoreCase) ||
+                ContainsAny(keys, "helmet", "helmets", "headwear", "headwears"),
             FarmingGuideEquipmentSlot.FaceCover => ContainsAny(keys, "facecover", "facecovers", "mask"),
             FarmingGuideEquipmentSlot.Armband => ContainsAny(keys, "armband", "armbands"),
             FarmingGuideEquipmentSlot.BodyArmor =>
