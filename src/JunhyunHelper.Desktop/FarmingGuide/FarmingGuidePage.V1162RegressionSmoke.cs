@@ -29,7 +29,7 @@ public partial class FarmingGuidePage
         var baseline = BuildSnapshot();
         var placement = new FarmingGuideStoredItemState(
             instanceId,
-            FarmingGuideItemState.Create(itemId),
+            FarmingGuideItemState.Create(itemId, raidAcquired: true),
             FarmingGuideStorageKind.Pockets,
             0,
             0,

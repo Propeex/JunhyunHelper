@@ -6,16 +6,16 @@ namespace JunhyunHelper.Tests.Maintenance;
 public sealed class V1162FarmingGuideRegressionContractTests
 {
     [Fact]
-    public void RaidValueSummary_UsesNetAcquiredAverageFleaValueAndRefreshesWithRaidUi()
+    public void RaidValueSummary_UsesExplicitRaidAcquiredAverageFleaValueAndRefreshesWithRaidUi()
     {
         var directory = FarmingGuideDirectory();
         var raid = File.ReadAllText(Path.Combine(directory, "FarmingGuidePage.Raid.cs"));
 
-        Assert.Contains("FarmingGuideRaidValuePolicy.CalculateAcquiredFleaValue", raid, StringComparison.Ordinal);
-        Assert.Contains("_raidSession.BaselineSnapshot", raid, StringComparison.Ordinal);
+        Assert.Contains("FarmingGuideRaidValuePolicy.CalculateRaidAcquiredFleaValue", raid, StringComparison.Ordinal);
         Assert.Contains("BuildSnapshot()", raid, StringComparison.Ordinal);
         Assert.Contains("FleaAveragePrice", raid, StringComparison.Ordinal);
         Assert.Contains("ValueSummaryText.Text = active ? FormatRaidValue() : \"—\";", raid, StringComparison.Ordinal);
+        Assert.DoesNotContain("CalculateAcquiredFleaValue(", raid, StringComparison.Ordinal);
         Assert.DoesNotContain("BasePrice", raid, StringComparison.Ordinal);
     }
 

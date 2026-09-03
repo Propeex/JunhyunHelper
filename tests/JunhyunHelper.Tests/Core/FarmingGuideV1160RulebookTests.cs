@@ -34,12 +34,13 @@ public sealed class FarmingGuideV1160RulebookTests
     }
 
     [Fact]
-    public void EqualValuePrefersLighterKnownItem()
+    public void EqualFleaValueDoesNotCreateWeightOrFootprintPriority()
     {
-        var light = new FarmingGuideLootMetrics(0, null, 50_000, 2) { UnitWeightKg = 0.4m };
-        var heavy = new FarmingGuideLootMetrics(0, null, 50_000, 2) { UnitWeightKg = 1.1m };
+        var lightSmall = new FarmingGuideLootMetrics(0, null, 50_000, 1) { UnitWeightKg = 0.4m };
+        var heavyLarge = new FarmingGuideLootMetrics(0, null, 50_000, 6) { UnitWeightKg = 3.1m };
 
-        Assert.True(FarmingGuideLootPriorityPolicy.Compare(light, heavy) > 0);
+        Assert.Equal(0, FarmingGuideLootPriorityPolicy.Compare(lightSmall, heavyLarge));
+        Assert.Equal(0, FarmingGuideLootPriorityPolicy.Compare(heavyLarge, lightSmall));
     }
 
     [Theory]

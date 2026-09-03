@@ -114,8 +114,7 @@ public partial class FarmingGuidePage
         if (_raidSession is null)
             return "—";
 
-        var value = FarmingGuideRaidValuePolicy.CalculateAcquiredFleaValue(
-            _raidSession.BaselineSnapshot,
+        var value = FarmingGuideRaidValuePolicy.CalculateRaidAcquiredFleaValue(
             BuildSnapshot(),
             itemId =>
             {
@@ -187,37 +186,36 @@ public partial class FarmingGuidePage
             return;
 
         var current = BuildSnapshot();
-        RefreshRaidAcquiredCounts(current);
-
         var quantity = Math.Max(1, scanned.Quantity);
-        int? totalFlea = scanned.FleaAveragePrice is { } flea
-            ? checked(flea * quantity)
-            : null;
         var decisionScan = scanned with
         {
             CurrentNeeded = scanned.CurrentNeededFir,
-            FleaAveragePrice = totalFlea,
             Quantity = quantity,
         };
 
         _plannedLocksOverrideV1160 = null;
-        var planned = PlanScannedItemRulebookV1164(current, decisionScan, item);
-        var transitioned = ApplyRaidStateTransitionsV1164(current, planned, decisionScan, item);
-        var quantityApplied = ApplyIncomingQuantityV1160(current, transitioned, item.Id, quantity);
-        var safetyChecked = ApplyFinalRaidSafetyV1164(current, quantityApplied, decisionScan);
-        var weightChecked = ApplyRaidWeightConstraintV1160(current, safetyChecked);
-        var recommendation = ApplyRaidInstructionPresentationV1155(current, weightChecked, item);
+        if (!TryPlanScannedItemGlobalV1170(current, decisionScan, item, out var recommendation))
+        {
+            // A bounded proof failure is not a proven discard. Keep the current modeled state
+            // and do not create an accept transaction for an unproven recommendation.
+            _raidBridge?.SetMiniScannerInstruction(null);
+            RefreshRaidUi();
+            return;
+        }
+
         _raidSession.SetPending(
             scanned.ItemId,
             recommendation.Instruction,
             recommendation.Action,
             recommendation.ProposedSnapshot,
-            _plannedLocksOverrideV1160 ?? BuildLockState());
+            BuildLockState());
         RefreshRaidUi();
         _raidBridge?.ShowMiniScannerStatus(
             $"{recommendation.Instruction}\n수락 [{AcceptHotkeyText()}]");
     }
 
+    // Legacy transition helper retained for historical smoke/tests. The authoritative v1.17
+    // live path projects stack quantity directly into the incoming global root.
     private static RaidRecommendation ApplyIncomingQuantityV1160(
         FarmingGuideLoadoutSnapshot current,
         RaidRecommendation recommendation,
@@ -249,6 +247,8 @@ public partial class FarmingGuidePage
             : recommendation;
     }
 
+    // Legacy count-delta cache retained only for old planner smoke paths. v1.17 live
+    // optimization uses FarmingGuideItemState.RaidAcquired provenance instead.
     private void RefreshRaidAcquiredCounts(FarmingGuideLoadoutSnapshot current)
     {
         _acceptedRaidItemCounts.Clear();

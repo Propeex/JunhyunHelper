@@ -32,8 +32,11 @@ public partial class FarmingGuidePage
         {
             VerifyCompleteEquipmentAndNestedStorageSmoke();
             VerifySpecializedNestedStorageAndLockVisualSmoke();
-            VerifyDedicatedNestedRaidPrioritySmoke();
+            VerifyNestedWorkbenchViewportSmoke();
             VerifyExactStorageVisualLayoutSmoke();
+            VerifyV1170GlobalOptimizerSmoke();
+            VerifyV1170LockedAncestrySmoke();
+            VerifyV1170DedicatedStorageSmoke();
             var marker = Path.Combine(
                 Path.GetTempPath(),
                 "junhyun-farming-guide-v1153-smoke-success.txt");
@@ -44,10 +47,13 @@ public partial class FarmingGuidePage
                 "nested-parent-drop=ok",
                 "specialized-storage-filter=ok",
                 "stored-item-neutral-lock-border=ok",
-                "dedicated-nested-raid-priority=ok",
+                "nested-workbench-viewport=ok",
                 "equipment-internal-editor-disabled=ok",
                 "root-carrier-duplicate-editor-disabled=ok",
                 "exact-storage-layout=ok",
+                "v1170-global-optimizer=ok",
+                "v1170-fixed-ancestry=ok",
+                "v1170-dedicated-storage=ok",
             ]);
             _productSmokeCompleted = true;
         }
@@ -56,7 +62,7 @@ public partial class FarmingGuidePage
             var diagnostic = Path.Combine(Path.GetTempPath(), "junhyun-map-smoke-error.txt");
             File.WriteAllText(
                 diagnostic,
-                "Farming Guide complete-equipment/nested-storage smoke failed." + Environment.NewLine + exception);
+                "Farming Guide complete-equipment/nested-storage/global-optimizer smoke failed." + Environment.NewLine + exception);
             throw;
         }
         finally

@@ -13,6 +13,11 @@ public static class FarmingGuideAssemblyPolicy
 {
     public const int MaximumAssemblyDepth = 24;
 
+    private sealed record OccupiedAssemblyNode(
+        FarmingGuideItemState State,
+        GameItem Item,
+        string? SlotId);
+
     public static FarmingGuideItemState? Sanitize(
         FarmingGuideItemState? state,
         IReadOnlyDictionary<string, GameItem> itemCatalog)
@@ -21,8 +26,8 @@ public static class FarmingGuideAssemblyPolicy
         if (state is null || !itemCatalog.ContainsKey(state.ItemId))
             return null;
 
-        var occupied = new List<GameItem>();
-        return SanitizeNode(state, itemCatalog, occupied, depth: 0);
+        var occupied = new List<OccupiedAssemblyNode>();
+        return SanitizeNode(state, itemCatalog, occupied, depth: 0, occupiedSlotId: null);
     }
 
     public static FarmingGuideItemState? GetNode(
@@ -96,19 +101,20 @@ public static class FarmingGuideAssemblyPolicy
         ArgumentNullException.ThrowIfNull(itemCatalog);
 
         var ownerState = GetNode(root, ownerPath);
-        if (ownerState is null || !itemCatalog.TryGetValue(ownerState.ItemId, out var ownerItem))
-            return false;
-        if (!FarmingGuideCompatibility.FilterAllows(candidate, slot.Filters) ||
-            FarmingGuideCompatibility.ItemsConflict(ownerItem, candidate))
+        if (ownerState is null ||
+            !itemCatalog.ContainsKey(ownerState.ItemId) ||
+            !FarmingGuideCompatibility.FilterAllows(candidate, slot.Filters) ||
+            !TryBuildOccupiedAssembly(root, itemCatalog, out var occupied))
         {
             return false;
         }
 
-        return EnumerateStates(root)
-            .Where(state => !ReferenceEquals(state, ownerState))
-            .Select(state => itemCatalog.GetValueOrDefault(state.ItemId))
-            .Where(static item => item is not null)
-            .All(item => !FarmingGuideCompatibility.ItemsConflict(candidate, item!));
+        var replaced = ownerState.Attachments.GetValueOrDefault(slot.Id);
+        var excluded = BuildReferenceSet(replaced);
+        return !ConflictsWithOccupied(
+            candidate,
+            slot.Id,
+            occupied.Where(node => !excluded.Contains(node.State)));
     }
 
     public static bool CanInstallArmorPlate(
@@ -124,19 +130,22 @@ public static class FarmingGuideAssemblyPolicy
         ArgumentNullException.ThrowIfNull(candidate);
         ArgumentNullException.ThrowIfNull(itemCatalog);
 
-        if (slot.Locked || !slot.AllowedPlateIds.Contains(candidate.Id, StringComparer.Ordinal))
-            return false;
         var ownerState = GetNode(root, ownerPath);
-        if (ownerState is null || !itemCatalog.TryGetValue(ownerState.ItemId, out var ownerItem) ||
-            FarmingGuideCompatibility.ItemsConflict(ownerItem, candidate))
+        if (slot.Locked ||
+            !slot.AllowedPlateIds.Contains(candidate.Id, StringComparer.Ordinal) ||
+            ownerState is null ||
+            !itemCatalog.ContainsKey(ownerState.ItemId) ||
+            !TryBuildOccupiedAssembly(root, itemCatalog, out var occupied))
         {
             return false;
         }
 
-        return EnumerateStates(root)
-            .Select(state => itemCatalog.GetValueOrDefault(state.ItemId))
-            .Where(static item => item is not null)
-            .All(item => !FarmingGuideCompatibility.ItemsConflict(candidate, item!));
+        var replaced = ownerState.ArmorPlates.GetValueOrDefault(slot.Id);
+        var excluded = BuildReferenceSet(replaced);
+        return !ConflictsWithOccupied(
+            candidate,
+            slot.Id,
+            occupied.Where(node => !excluded.Contains(node.State)));
     }
 
     public static IReadOnlyList<GameItem> CompatibleItems(
@@ -195,14 +204,15 @@ public static class FarmingGuideAssemblyPolicy
     private static FarmingGuideItemState SanitizeNode(
         FarmingGuideItemState state,
         IReadOnlyDictionary<string, GameItem> itemCatalog,
-        List<GameItem> occupied,
-        int depth)
+        List<OccupiedAssemblyNode> occupied,
+        int depth,
+        string? occupiedSlotId)
     {
         var item = itemCatalog[state.ItemId];
         if (depth >= MaximumAssemblyDepth)
-            return FarmingGuideItemState.Create(state.ItemId);
+            return FarmingGuideItemState.Create(state.ItemId, state.RaidAcquired);
 
-        occupied.Add(item);
+        occupied.Add(new OccupiedAssemblyNode(state, item, occupiedSlotId));
         var attachments = new Dictionary<string, FarmingGuideItemState?>(StringComparer.Ordinal);
         var armor = new Dictionary<string, FarmingGuideItemState?>(StringComparer.Ordinal);
         var layout = item.FarmingGuideData;
@@ -214,12 +224,17 @@ public static class FarmingGuideAssemblyPolicy
                 if (childState is null || !itemCatalog.TryGetValue(childState.ItemId, out var childItem))
                     continue;
                 if (!FarmingGuideCompatibility.FilterAllows(childItem, slot.Filters) ||
-                    occupied.Any(current => FarmingGuideCompatibility.ItemsConflict(current, childItem)))
+                    ConflictsWithOccupied(childItem, slot.Id, occupied))
                 {
                     continue;
                 }
 
-                attachments[slot.Id] = SanitizeNode(childState, itemCatalog, occupied, depth + 1);
+                attachments[slot.Id] = SanitizeNode(
+                    childState,
+                    itemCatalog,
+                    occupied,
+                    depth + 1,
+                    slot.Id);
             }
 
             foreach (var slot in layout.ArmorSlots.Where(static slot => !slot.Locked))
@@ -228,16 +243,107 @@ public static class FarmingGuideAssemblyPolicy
                 if (childState is null || !itemCatalog.TryGetValue(childState.ItemId, out var childItem))
                     continue;
                 if (!slot.AllowedPlateIds.Contains(childItem.Id, StringComparer.Ordinal) ||
-                    occupied.Any(current => FarmingGuideCompatibility.ItemsConflict(current, childItem)))
+                    ConflictsWithOccupied(childItem, slot.Id, occupied))
                 {
                     continue;
                 }
 
-                armor[slot.Id] = SanitizeNode(childState, itemCatalog, occupied, depth + 1);
+                armor[slot.Id] = SanitizeNode(
+                    childState,
+                    itemCatalog,
+                    occupied,
+                    depth + 1,
+                    slot.Id);
             }
         }
 
-        return new FarmingGuideItemState(state.ItemId, attachments, armor);
+        return new FarmingGuideItemState(state.ItemId, attachments, armor)
+        {
+            RaidAcquired = state.RaidAcquired,
+        };
+    }
+
+    private static bool ConflictsWithOccupied(
+        GameItem candidate,
+        string candidateSlotId,
+        IEnumerable<OccupiedAssemblyNode> occupied)
+    {
+        foreach (var existing in occupied)
+        {
+            if (FarmingGuideCompatibility.ItemsConflict(existing.Item, candidate))
+                return true;
+            if (existing.Item.FarmingGuideData?.ConflictingSlotIds.Contains(
+                    candidateSlotId,
+                    StringComparer.Ordinal) == true)
+            {
+                return true;
+            }
+            if (!string.IsNullOrWhiteSpace(existing.SlotId) &&
+                candidate.FarmingGuideData?.ConflictingSlotIds.Contains(
+                    existing.SlotId,
+                    StringComparer.Ordinal) == true)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static HashSet<FarmingGuideItemState> BuildReferenceSet(FarmingGuideItemState? root)
+    {
+        var result = new HashSet<FarmingGuideItemState>(ReferenceEqualityComparer.Instance);
+        if (root is null)
+            return result;
+
+        foreach (var state in EnumerateStates(root))
+            result.Add(state);
+        return result;
+    }
+
+    private static bool TryBuildOccupiedAssembly(
+        FarmingGuideItemState root,
+        IReadOnlyDictionary<string, GameItem> itemCatalog,
+        out IReadOnlyList<OccupiedAssemblyNode> occupied)
+    {
+        var result = new List<OccupiedAssemblyNode>();
+        if (!TryAppendOccupiedAssembly(root, null, itemCatalog, result, depth: 0))
+        {
+            occupied = [];
+            return false;
+        }
+
+        occupied = result;
+        return true;
+    }
+
+    private static bool TryAppendOccupiedAssembly(
+        FarmingGuideItemState state,
+        string? occupiedSlotId,
+        IReadOnlyDictionary<string, GameItem> itemCatalog,
+        List<OccupiedAssemblyNode> occupied,
+        int depth)
+    {
+        if (depth > MaximumAssemblyDepth || !itemCatalog.TryGetValue(state.ItemId, out var item))
+            return false;
+
+        occupied.Add(new OccupiedAssemblyNode(state, item, occupiedSlotId));
+        foreach (var entry in state.Attachments)
+        {
+            if (entry.Value is not null &&
+                !TryAppendOccupiedAssembly(entry.Value, entry.Key, itemCatalog, occupied, depth + 1))
+            {
+                return false;
+            }
+        }
+        foreach (var entry in state.ArmorPlates)
+        {
+            if (entry.Value is not null &&
+                !TryAppendOccupiedAssembly(entry.Value, entry.Key, itemCatalog, occupied, depth + 1))
+            {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static FarmingGuideItemState MutateNode(
