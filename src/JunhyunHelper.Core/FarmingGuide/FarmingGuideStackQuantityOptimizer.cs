@@ -5,7 +5,7 @@ public sealed record FarmingGuideStackQuantityVariable(
     string ItemId,
     int MinimumQuantity,
     int MaximumQuantity,
-    bool RaidAcquired,
+    bool FirQualified,
     decimal UnitWeightKg,
     long UnitEconomicValue);
 
@@ -37,6 +37,9 @@ public sealed record FarmingGuideStackQuantityOptimizationResult(
 /// retained-unit count is only a deterministic no-objective-change tie breaker so equal-value
 /// stacks are not split unnecessarily.
 ///
+/// FirQualified is explicit Tarkov Found-in-Raid provenance. It is intentionally unrelated to
+/// whether a modeled instance was acquired during the active raid.
+///
 /// Decimal Tarkov weights are converted exactly to a common integer scale. If an unusual data
 /// scale or capacity would make the exact dynamic program exceed its deterministic budget,
 /// the result is BudgetExceeded rather than an approximate quantity recommendation.
@@ -50,12 +53,12 @@ public static class FarmingGuideStackQuantityOptimizer
         IReadOnlyList<FarmingGuideStackQuantityVariable> variables,
         decimal fixedWeightKg,
         decimal maximumWeightKg,
-        IReadOnlyDictionary<string, int> fixedRaidAcquiredUnits,
+        IReadOnlyDictionary<string, int> fixedFirQualifiedUnits,
         Func<string, int> remainingFirNeed,
         int maxCapacityStates = DefaultMaxCapacityStates)
     {
         ArgumentNullException.ThrowIfNull(variables);
-        ArgumentNullException.ThrowIfNull(fixedRaidAcquiredUnits);
+        ArgumentNullException.ThrowIfNull(fixedFirQualifiedUnits);
         ArgumentNullException.ThrowIfNull(remainingFirNeed);
         if (maxCapacityStates <= 0)
             return BudgetExceeded();
@@ -82,7 +85,7 @@ public static class FarmingGuideStackQuantityOptimizer
             variable => variable.Key,
             variable => variable.MinimumQuantity,
             StringComparer.Ordinal);
-        var mandatoryAcquired = fixedRaidAcquiredUnits
+        var mandatoryFirQualified = fixedFirQualifiedUnits
             .ToDictionary(pair => pair.Key, pair => Math.Max(0, pair.Value), StringComparer.Ordinal);
 
         var mandatoryWeight = fixedWeightKg;
@@ -92,10 +95,10 @@ public static class FarmingGuideStackQuantityOptimizer
             mandatoryWeight += variable.UnitWeightKg * variable.MinimumQuantity;
             mandatoryValue = checked(
                 mandatoryValue + variable.UnitEconomicValue * variable.MinimumQuantity);
-            if (variable.RaidAcquired)
+            if (variable.FirQualified)
             {
-                mandatoryAcquired[variable.ItemId] = checked(
-                    mandatoryAcquired.GetValueOrDefault(variable.ItemId) + variable.MinimumQuantity);
+                mandatoryFirQualified[variable.ItemId] = checked(
+                    mandatoryFirQualified.GetValueOrDefault(variable.ItemId) + variable.MinimumQuantity);
             }
         }
 
@@ -103,14 +106,14 @@ public static class FarmingGuideStackQuantityOptimizer
             return NoSolution();
 
         var mandatoryFir = 0;
-        foreach (var itemId in mandatoryAcquired.Keys)
+        foreach (var itemId in mandatoryFirQualified.Keys)
         {
             mandatoryFir = checked(mandatoryFir + Math.Min(
-                mandatoryAcquired.GetValueOrDefault(itemId),
+                mandatoryFirQualified.GetValueOrDefault(itemId),
                 Math.Max(0, remainingFirNeed(itemId))));
         }
 
-        var groups = BuildOptionalGroups(variables, mandatoryAcquired, remainingFirNeed);
+        var groups = BuildOptionalGroups(variables, mandatoryFirQualified, remainingFirNeed);
         if (groups.Count == 0)
         {
             return new FarmingGuideStackQuantityOptimizationResult(
@@ -221,25 +224,25 @@ public static class FarmingGuideStackQuantityOptimizer
 
         var totalWeight = fixedWeightKg;
         long totalValue = 0;
-        var acquired = fixedRaidAcquiredUnits
+        var firQualified = fixedFirQualifiedUnits
             .ToDictionary(pair => pair.Key, pair => Math.Max(0, pair.Value), StringComparer.Ordinal);
         foreach (var variable in variables)
         {
             var quantity = quantities[variable.Key];
             totalWeight += variable.UnitWeightKg * quantity;
             totalValue = checked(totalValue + variable.UnitEconomicValue * quantity);
-            if (variable.RaidAcquired)
+            if (variable.FirQualified)
             {
-                acquired[variable.ItemId] = checked(
-                    acquired.GetValueOrDefault(variable.ItemId) + quantity);
+                firQualified[variable.ItemId] = checked(
+                    firQualified.GetValueOrDefault(variable.ItemId) + quantity);
             }
         }
 
         var fir = 0;
-        foreach (var itemId in acquired.Keys)
+        foreach (var itemId in firQualified.Keys)
         {
             fir = checked(fir + Math.Min(
-                acquired.GetValueOrDefault(itemId),
+                firQualified.GetValueOrDefault(itemId),
                 Math.Max(0, remainingFirNeed(itemId))));
         }
 
@@ -253,24 +256,24 @@ public static class FarmingGuideStackQuantityOptimizer
 
     private static List<OptionalGroup> BuildOptionalGroups(
         IReadOnlyList<FarmingGuideStackQuantityVariable> variables,
-        IReadOnlyDictionary<string, int> mandatoryAcquired,
+        IReadOnlyDictionary<string, int> mandatoryFirQualified,
         Func<string, int> remainingFirNeed)
     {
         var groups = new List<OptionalGroup>();
         foreach (var itemGroup in variables.GroupBy(variable => variable.ItemId, StringComparer.Ordinal))
         {
             var sample = itemGroup.First();
-            var acquiredVariables = itemGroup.Where(variable => variable.RaidAcquired).ToArray();
-            var ordinaryVariables = itemGroup.Where(variable => !variable.RaidAcquired).ToArray();
-            var acquiredOptional = acquiredVariables.Sum(variable =>
+            var firQualifiedVariables = itemGroup.Where(variable => variable.FirQualified).ToArray();
+            var ordinaryVariables = itemGroup.Where(variable => !variable.FirQualified).ToArray();
+            var firQualifiedOptional = firQualifiedVariables.Sum(variable =>
                 variable.MaximumQuantity - variable.MinimumQuantity);
             var ordinaryOptional = ordinaryVariables.Sum(variable =>
                 variable.MaximumQuantity - variable.MinimumQuantity);
             var remainingNeed = Math.Max(
                 0,
                 Math.Max(0, remainingFirNeed(itemGroup.Key)) -
-                mandatoryAcquired.GetValueOrDefault(itemGroup.Key));
-            var primaryCapacity = Math.Min(acquiredOptional, remainingNeed);
+                mandatoryFirQualified.GetValueOrDefault(itemGroup.Key));
+            var primaryCapacity = Math.Min(firQualifiedOptional, remainingNeed);
             if (primaryCapacity > 0)
             {
                 groups.Add(new OptionalGroup(
@@ -282,7 +285,7 @@ public static class FarmingGuideStackQuantityOptimizer
             }
 
             var valueOnlyCapacity = checked(
-                acquiredOptional - primaryCapacity + ordinaryOptional);
+                firQualifiedOptional - primaryCapacity + ordinaryOptional);
             if (valueOnlyCapacity > 0)
             {
                 groups.Add(new OptionalGroup(
@@ -318,11 +321,11 @@ public static class FarmingGuideStackQuantityOptimizer
                     valueSelected += selections[index];
             }
 
-            var acquired = itemGroup
-                .Where(variable => variable.RaidAcquired)
+            var firQualified = itemGroup
+                .Where(variable => variable.FirQualified)
                 .OrderBy(variable => variable.Key, StringComparer.Ordinal)
                 .ToArray();
-            foreach (var variable in acquired)
+            foreach (var variable in firQualified)
             {
                 if (primarySelected <= 0)
                     break;
