@@ -26,7 +26,7 @@ public partial class MainWindow
 
         try
         {
-            SetBusy(true, "프로필을 삭제하는 중...");
+            SetBusy(true);
             await _services.ProfileManagement.DeleteAsync(profile.ProfileId);
 
             _activeProfile = null;
@@ -42,7 +42,7 @@ public partial class MainWindow
         }
         finally
         {
-            SetBusy(false, StatusText.Text);
+            SetBusy(false);
         }
     }
 }
