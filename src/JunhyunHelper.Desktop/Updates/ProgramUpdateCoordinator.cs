@@ -11,7 +11,9 @@ namespace JunhyunHelper.Desktop.Updates;
 internal sealed class ProgramUpdateCoordinator : IDisposable
 {
     private readonly GitHubProgramUpdateClient _client = new();
+    private readonly CancellationTokenSource _lifetimeCts = new();
     private int _started;
+    private int _disposed;
 
     public async Task CheckAtStartupAsync(Window owner)
     {
@@ -22,7 +24,13 @@ internal sealed class ProgramUpdateCoordinator : IDisposable
         ProgramUpdateRelease? release;
         try
         {
-            release = await _client.GetLatestReleaseAsync(GetCurrentProductVersion());
+            release = await _client.GetLatestReleaseAsync(
+                GetCurrentProductVersion(),
+                _lifetimeCts.Token);
+        }
+        catch (OperationCanceledException) when (_lifetimeCts.IsCancellationRequested)
+        {
+            return;
         }
         catch (Exception exception)
         {
@@ -30,7 +38,7 @@ internal sealed class ProgramUpdateCoordinator : IDisposable
             return;
         }
 
-        if (release is null || !owner.IsVisible)
+        if (release is null || !owner.IsVisible || _lifetimeCts.IsCancellationRequested)
             return;
 
         var consent = MessageBox.Show(
@@ -60,12 +68,20 @@ internal sealed class ProgramUpdateCoordinator : IDisposable
             preparedUpdate = await _client.PrepareUpdateAsync(
                 release,
                 localApplicationData,
-                progress);
+                progress,
+                _lifetimeCts.Token);
 
+            _lifetimeCts.Token.ThrowIfCancellationRequested();
             progressWindow.UpdateProgress(new ProgramUpdateProgress("프로그램을 재시작하는 중...", 1));
             LaunchUpdater(preparedUpdate);
             progressWindow.CompleteAndClose();
             System.Windows.Application.Current.Shutdown(0);
+        }
+        catch (OperationCanceledException) when (_lifetimeCts.IsCancellationRequested)
+        {
+            if (preparedUpdate is not null)
+                ProgramUpdateApplier.TryCleanupPreparedUpdate(preparedUpdate);
+            return;
         }
         catch (Exception exception)
         {
@@ -197,7 +213,15 @@ internal sealed class ProgramUpdateCoordinator : IDisposable
             throw new InvalidOperationException("The update replacement process could not be started.");
     }
 
-    public void Dispose() => _client.Dispose();
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+            return;
+
+        _lifetimeCts.Cancel();
+        _client.Dispose();
+        _lifetimeCts.Dispose();
+    }
 }
 
 internal static class ProgramUpdateCommandLine
