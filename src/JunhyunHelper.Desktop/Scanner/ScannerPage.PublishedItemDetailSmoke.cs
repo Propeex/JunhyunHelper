@@ -161,7 +161,7 @@ public partial class ScannerPage
             !acquisitionText.Any(text => text.Contains("65,432₽", StringComparison.Ordinal)))
         {
             throw new InvalidOperationException(
-                "Scanner purchase/raid runtime text did not match the v1.9.0 contract: " +
+                "Scanner purchase/raid runtime text did not match the current contract: " +
                 string.Join(" | ", acquisitionText));
         }
 
@@ -282,7 +282,7 @@ internal static class ScannerItemDetailPublishedSmokeGate
                     try
                     {
                         var diagnostic = Path.Combine(Path.GetTempPath(), "junhyun-map-smoke-error.txt");
-                        File.WriteAllText(diagnostic, "Scanner v1.9.0 published item-detail smoke failed.\n" + exception);
+                        File.WriteAllText(diagnostic, "Scanner published item-detail smoke failed.\n" + exception);
                     }
                     catch
                     {
