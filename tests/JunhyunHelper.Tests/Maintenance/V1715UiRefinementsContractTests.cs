@@ -25,13 +25,15 @@ public sealed class V1715UiRefinementsContractTests
     {
         var root = FindRepositoryRoot();
         var source = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.CaliberDropdownPolish.cs");
+        var xaml = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.xaml");
 
-        Assert.Contains("static AmmoPage()", source, StringComparison.Ordinal);
-        Assert.Contains("ProductCaliberDropdownHandlerRegistered", source, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"FavoriteCaliberComboBox\"", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("FavoriteCaliberMenuButton", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("FavoriteCaliberPopup", xaml, StringComparison.Ordinal);
         Assert.Contains("CaliberComboBox.ItemTemplate = template", source, StringComparison.Ordinal);
-        Assert.Contains("ItemTemplate = template", source, StringComparison.Ordinal);
-        Assert.Contains("FavoriteCaliberMenuButton.Visibility = Visibility.Collapsed", source, StringComparison.Ordinal);
-        Assert.Contains("_productFavoriteCaliberComboBox = new ComboBox", source, StringComparison.Ordinal);
+        Assert.Contains("FavoriteCaliberComboBox.ItemTemplate = template", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("_productFavoriteCaliberComboBox = new ComboBox", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("RegisterClassHandler", source, StringComparison.Ordinal);
         Assert.Contains("VerifyProductCaliberDropdownRuntimeContract", source, StringComparison.Ordinal);
         Assert.Contains("junhyun-ammo-ui-smoke-success.txt", source, StringComparison.Ordinal);
         Assert.Contains("ProductCaliberIconCycleInterval = TimeSpan.FromMilliseconds(700)", source, StringComparison.Ordinal);
