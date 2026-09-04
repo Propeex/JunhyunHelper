@@ -24,7 +24,7 @@ public sealed class V1715UiRefinementsContractTests
     public void Ammo_CaliberAndFavoritesShareOneAnimatedIconTemplate()
     {
         var root = FindRepositoryRoot();
-        var source = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.CaliberDropdownPolish.cs");
+        var source = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.CaliberDropdowns.cs");
         var xaml = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.xaml");
 
         Assert.Contains("x:Name=\"FavoriteCaliberComboBox\"", xaml, StringComparison.Ordinal);
