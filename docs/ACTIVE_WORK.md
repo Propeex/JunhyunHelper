@@ -76,13 +76,30 @@ Passed:
 
 A prior validation exposed one nullable compile warning in the new weak image cache and three stale source-contract assertions; both were corrected before the successful candidate above.
 
+## Release-identity PR validation
+
+Validated release-identity branch head:
+
+`8adb26a945b650a86df95c6b465944e52edebfc8`
+
+Passed:
+
+- CI `33846264074` — SUCCESS;
+- Shutdown Race `33846264056` — SUCCESS;
+- Documentation Consistency `33846264066` — SUCCESS;
+- **503 passed / 0 failed / 0 skipped**;
+- Windows Release build;
+- win-x64 self-contained publish;
+- actual published EXE Product UI / Map / Scanner smoke;
+- graceful shutdown / active-async close;
+- stable package/checksum validation and Actions artifact upload.
+
 ## Current step
 
-v1.17.3 Desktop/project/FIRST_RUN/release-notes identity is staged. Validate this exact release-identity HEAD through CI, Shutdown Race and Documentation Consistency, then perform final PR review and merge.
+Run the final PR diff/review check on the documentation-checkpoint HEAD, mark PR #294 ready and merge with an exact expected head SHA.
 
 ## Remaining
 
-- exact release-identity PR CI / Shutdown / Documentation Consistency;
 - final PR diff/review-thread check;
 - mark PR ready and merge with exact expected head;
 - exact-main CI / Shutdown / Documentation Consistency;
