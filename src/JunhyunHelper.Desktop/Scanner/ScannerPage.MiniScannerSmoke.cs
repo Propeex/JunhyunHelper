@@ -43,7 +43,7 @@ public partial class ScannerPage
             gestures[3] != new ScannerHotkeyGesture(true, false, true, Key.F9) ||
             gestures.Distinct().Count() != 4)
         {
-            throw new InvalidOperationException("Scanner v1.15.0 settings/hotkey contract failed.");
+            throw new InvalidOperationException("Scanner current settings/hotkey contract failed.");
         }
 
         var migrated = new ScannerDisplaySettings
