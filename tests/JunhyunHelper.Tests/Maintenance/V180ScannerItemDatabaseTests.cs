@@ -144,6 +144,7 @@ public sealed class V180ScannerItemDatabaseTests
         var item = Read(root, "src", "JunhyunHelper.Core", "Items", "GameItem.cs");
         var build = Read(root, "src", "JunhyunHelper.Infrastructure", "Content", "TarkovContentBuildService.cs");
         var page = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.ItemRelationships.cs");
+        var scannerXaml = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.xaml");
         var usability = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.ProductUsability.cs");
         var search = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerCoordinator.Search.cs");
 
@@ -172,7 +173,10 @@ public sealed class V180ScannerItemDatabaseTests
         Assert.Contains("RelationshipItemButton_Click", page, StringComparison.Ordinal);
         Assert.Contains("SelectSearchItemById", page, StringComparison.Ordinal);
         Assert.Contains(" ₽", page, StringComparison.Ordinal);
-        Assert.Contains("VerticalScrollBarVisibility = ScrollBarVisibility.Auto", usability, StringComparison.Ordinal);
+        Assert.Contains("<ScrollViewer VerticalScrollBarVisibility=\"Auto\"", scannerXaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"SelectedItemPanel\" Visibility=\"Collapsed\"", scannerXaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("new ScrollViewer", usability, StringComparison.Ordinal);
+        Assert.DoesNotContain("Children.Remove(SelectedItemPanel)", usability, StringComparison.Ordinal);
     }
 
     private static TarkovJsonDocument Parse(string json)
