@@ -68,10 +68,6 @@ public partial class ScannerPage
 
     private void RenderProductItemExtensions(ScannerItemSearchDetails details)
     {
-        // The old three-row summary is not part of the current detail presentation.
-        if (FleaAverageText.Parent is FrameworkElement legacySummary)
-            legacySummary.Visibility = Visibility.Collapsed;
-
         RenderBasicInfo(details.Basic, details.Snapshot);
         RenderItemRelationships(details.Relationships, details.Snapshot);
     }
