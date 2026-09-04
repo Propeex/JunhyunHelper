@@ -121,7 +121,7 @@ UI event handler에 Core/Application의 domain truth를 복제하지 않는다.
 | Presentation preferences | user settings | atomic JSON + `.bak` |
 | Image cache | validated/normalized presentation bytes | `%LocalAppData%/JunhyunHelper/image-cache/` |
 | Scanner identity/market catalog | current full-item source + official Korean identity | `%LocalAppData%/JunhyunHelper/scanner/catalog/` + memory |
-| Scanner settings | hotkeys/display/order/OCR substitution | `%LocalAppData%/JunhyunHelper/scanner-settings.json(.bak)` |
+| Scanner settings | hotkeys/display/order/position | `%LocalAppData%/JunhyunHelper/scanner-settings.json(.bak)` |
 | Scanner local font cache | installed Tarkov assets read-only extraction | `%LocalAppData%/JunhyunHelper/scanner/fonts/` |
 | Scanner diagnostics / reviewed GT | runtime evidence + user truth | `%LocalAppData%/JunhyunHelper/scanner/diagnostics/` |
 | Runtime logs | diagnostic only | `%LocalAppData%/JunhyunHelper/logs/` |
@@ -459,7 +459,6 @@ screen pixels
 → semantic inspect-header validation
 → item-title ROI
 → Windows ko-KR OCR
-→ optional user substitution
 → conditional environment normalization
 → current official catalog sanitation/matching
 → optional strict visual recovery
@@ -489,7 +488,6 @@ screen pixels
 - `Core/Scanner/ScannerItemMatcher.cs`
 - `Core/Scanner/ScannerObservationPacingPolicy.cs`
 - `Core/Scanner/ScannerOcrCharacterPolicy.cs`
-- `Core/Scanner/ScannerOcrSubstitution.cs`
 - `Core/Scanner/ScannerPresentationJoin.cs`
 - `Core/Scanner/ScannerTitleIdentitySignature.cs`
 
@@ -556,7 +554,6 @@ OCR/matching:
 - Windows `ko-KR` primary
 - normal + bounded deep path
 - raw OCR 보존
-- user substitution 단일 ordered pass
 - current-catalog-derived character policy
 - exact-first
 - conservative fuzzy + top1/top2 margin
@@ -671,7 +668,7 @@ Recognition:
 capture/proposal
 → semantic header
 → ROI
-→ OCR/substitution/character policy/visual
+→ OCR/character policy/visual
 → catalog matcher
 → verified state
 → Item ID
@@ -964,7 +961,6 @@ WPF에서는 handler 본문이 중복처럼 보여도 routed/class handler 또�
 - Scanner에서 Needed Items 의미 재계산
 - Scanner searched-item Quest/Hideout source를 별도 requirement 계산으로 재구현
 - Scanner catalog shared writer synchronization 분리
-- user substitution을 automatic global correction table로 승격
 - reviewed Ground Truth 자동 삭제
 - title continuity signature를 Item identity proof로 사용
 - cross-frame OCR/visual cache로 current evidence 대체
@@ -989,7 +985,7 @@ WPF에서는 handler 본문이 중복처럼 보여도 routed/class handler 또�
 6. consumption ledger/undo에 영향이 있는가?
 7. schema compatibility/migration이 필요한가?
 8. Map donor인가 JunhyunHelper first-party인가?
-9. Scanner라면 capture/proposal/header/ROI/OCR/substitution/visual/catalog/presentation/search/overlay/GT 중 어느 layer인가?
+9. Scanner라면 capture/proposal/header/ROI/OCR/visual/catalog/presentation/search/overlay/GT 중 어느 layer인가?
 10. shared writer가 둘 이상이면 하나의 ordering boundary가 있는가?
 11. failure 시 current known-good data/program/Item identity/Ground Truth를 보존하는가?
 12. deterministic regression test와 actual EXE smoke 중 무엇이 필요한가?
