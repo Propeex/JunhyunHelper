@@ -21,7 +21,13 @@
         </DataTemplate>
     </Window.Resources>
 
-    <Grid Margin="20">
+    <Border Margin="14"
+            Padding="14"
+            Background="{StaticResource BackgroundMediumBrush}"
+            BorderBrush="{StaticResource BorderBrush}"
+            BorderThickness="1"
+            CornerRadius="8">
+    <Grid Margin="0">
         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
         <StackPanel Grid.Row="0" Margin="0,0,0,18">
             <TextBlock x:Name="TitleText" Text="프로필 설정" FontSize="22" FontWeight="SemiBold" />
@@ -130,4 +136,5 @@
             </StackPanel>
         </Grid>
     </Grid>
+    </Border>
 </Window>
