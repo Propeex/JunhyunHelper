@@ -25,7 +25,7 @@ public partial class MainWindow
 
         try
         {
-            SetBusy(true, $"상인 {actionText} 상태를 저장하는 중...");
+            SetBusy(true);
             _ = await _services.Quests.SetSpecialTraderAccessAsync(
                 _activeContent,
                 _activeProfile.ProfileId,
@@ -33,7 +33,7 @@ public partial class MainWindow
                 e.AccessAvailable);
 
             await RefreshActiveWorkspacesAsync(detectCleanupChanges: true);
-            StatusText.Text = BuildLoadedStatus(_activeProfile.GameMode);
+
         }
         catch (Exception exception)
         {
@@ -41,7 +41,7 @@ public partial class MainWindow
         }
         finally
         {
-            SetBusy(false, StatusText.Text);
+            SetBusy(false);
         }
     }
 }
