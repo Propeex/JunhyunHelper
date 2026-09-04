@@ -9,12 +9,12 @@ public sealed class V1713UiSimplificationContractTests
     public void AmmoDetails_DefaultCollapsed_AndPublishedSmokeChecksFullRoundTrip()
     {
         var root = FindRepositoryRoot();
-        var simplification = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.ProductUiSimplification.cs");
+        var presentation = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.ProductSearchAndDetails.cs");
         var xaml = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.xaml");
         var code = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.xaml.cs");
         var smoke = Read(root, "src", "JunhyunHelper.Desktop", "MainWindow.ProductUiLayoutSmoke.cs");
 
-        Assert.Contains("_productDetailsExpanded = false;", simplification, StringComparison.Ordinal);
+        Assert.Contains("_productDetailsExpanded = false;", presentation, StringComparison.Ordinal);
         Assert.DoesNotContain("SummaryText", xaml, StringComparison.Ordinal);
         Assert.DoesNotContain("SummaryText", code, StringComparison.Ordinal);
 
