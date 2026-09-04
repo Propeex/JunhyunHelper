@@ -149,7 +149,6 @@ public partial class ScannerPage
                 ScannerDisplaySettings.TraderSellPriceField,
                 ScannerDisplaySettings.TraderPricePerSlotField,
                 ScannerDisplaySettings.FleaPricePerSlotField,
-                ScannerDisplaySettings.FleaMinimumPriceField,
             ];
             window.Render(snapshot, settings);
             if (window.FindName("CurrentNeededText") is not TextBlock needed ||
