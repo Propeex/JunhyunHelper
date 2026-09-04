@@ -12,13 +12,6 @@ public partial class AmmoPage
         if (e.ChangedButton == MouseButton.Left &&
             FindAncestor<Button>(e.OriginalSource as DependencyObject) is { } button)
         {
-            if (ReferenceEquals(button, FavoriteCaliberMenuButton) && FavoriteCaliberPopup.IsOpen)
-            {
-                FavoriteCaliberPopup.IsOpen = false;
-                e.Handled = true;
-                return;
-            }
-
             if (ReferenceEquals(button, ColumnMenuButton) && ColumnMenuPopup.IsOpen)
             {
                 ColumnMenuPopup.IsOpen = false;
