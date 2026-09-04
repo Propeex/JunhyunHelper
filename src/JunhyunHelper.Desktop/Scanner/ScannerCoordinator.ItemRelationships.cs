@@ -54,8 +54,10 @@ public sealed partial class ScannerCoordinator
 
         var relation = ItemRelationshipQuery.ForItem(context.Content.ItemRelationshipData, itemId);
         var contentIndex = GetContentPresentationIndex(context.Content);
-        var questUsages = context.Content.QuestItemRequirements
-            .Where(requirement => requirement.AcceptedItemIds.Contains(itemId, StringComparer.Ordinal))
+        var questRequirements = contentIndex.QuestRequirementsByItemId.TryGetValue(itemId, out var indexedQuestRequirements)
+            ? indexedQuestRequirements
+            : Array.Empty<JunhyunHelper.Core.Quests.QuestItemRequirement>();
+        var questUsages = questRequirements
             .Select(requirement =>
             {
                 contentIndex.QuestsById.TryGetValue(requirement.QuestId, out var quest);
@@ -70,10 +72,10 @@ public sealed partial class ScannerCoordinator
             .ThenBy(row => row.TargetId, StringComparer.Ordinal)
             .ToArray();
 
-        var hideoutUsages = context.Content.HideoutStations
-            .SelectMany(station => station.Levels.SelectMany(level => level.ItemRequirements.Select(requirement =>
-                new { Station = station, Requirement = requirement })))
-            .Where(entry => string.Equals(entry.Requirement.ItemId, itemId, StringComparison.Ordinal))
+        var hideoutRequirements = contentIndex.HideoutRequirementsByItemId.TryGetValue(itemId, out var indexedHideoutRequirements)
+            ? indexedHideoutRequirements
+            : Array.Empty<ScannerHideoutRequirementReference>();
+        var hideoutUsages = hideoutRequirements
             .Select(entry => new ScannerItemRequirementUsageRow(
                 ScannerItemRequirementUsageKind.Hideout,
                 entry.Station.Id,
