@@ -54,9 +54,9 @@ public partial class MainWindow
 
         try
         {
-            SetBusy(true, $"{GameModeText(mode)} 데이터를 준비하는 중...");
+            SetBusy(true);
             var content = await ReadOrCreateContentAsync(mode);
-            SetBusy(false, "프로필 정보를 입력해주세요.");
+            SetBusy(false);
 
             var editor = new ProfileEditorWindow(mode, content);
             if (await ToggleInAppWindowAsync("profile-create-editor", editor) != true ||
@@ -65,7 +65,7 @@ public partial class MainWindow
                 return;
             }
 
-            SetBusy(true, "프로필을 저장하는 중...");
+            SetBusy(true);
             var created = await _services.ProfileManagement.CreateAsync(
                 mode,
                 result.Level,
@@ -82,7 +82,7 @@ public partial class MainWindow
         }
         finally
         {
-            SetBusy(false, StatusText.Text);
+            SetBusy(false);
         }
     }
 
@@ -104,7 +104,7 @@ public partial class MainWindow
         {
             if (editor.DeleteRequested)
             {
-                SetBusy(true, "프로필을 삭제하는 중...");
+                SetBusy(true);
                 await _services.ProfileManagement.DeleteAsync(profileId);
                 _activeProfile = null;
                 _activeContent = null;
@@ -116,7 +116,7 @@ public partial class MainWindow
             if (editor.Result is not { } result)
                 return;
 
-            SetBusy(true, "프로필을 저장하는 중...");
+            SetBusy(true);
             var updated = await _services.ProfileManagement.UpdateSettingsAsync(
                 profileId,
                 result.Level,
@@ -135,7 +135,7 @@ public partial class MainWindow
         }
         finally
         {
-            SetBusy(false, StatusText.Text);
+            SetBusy(false);
         }
     }
 
