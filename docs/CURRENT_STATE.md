@@ -3,84 +3,102 @@
 > 최신 제품 상태의 짧은 인덱스입니다. 기계 판독 가능한 사실값은 `docs/PROJECT_STATE.json`, 상세 계약은 `docs/STATE.md`, 진행 중 작업은 `docs/ACTIVE_WORK.md`를 기준으로 합니다.
 
 기준일: **2026-09-04 KST**  
-상태: **v1.17.0 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+상태: **v1.17.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 공개 stable
 
 ```text
-public stable/latest: v1.17.0
+public stable/latest: v1.17.1
 exact product source/tag target:
-8b0e1f8f46fa3822f4cff05b7be3223d40ad7435
-validated PR head: a01d61cd9957db94a7475734c1e8df66ce71f53d
-merge PR: #288
+4ad1f76ed7c2469e60d0822b229fe03f83c75816
+validated PR head:
+edd6fa6f5a2edc9d52be84bf1625266d5ad6abec
+merge PR: #290
 PR CI / Shutdown / Docs:
-33746966753 / 33746966804 / 33746966771 — SUCCESS
+33826796756 / 33826796665 / 33826796667 — SUCCESS
 exact-main CI / Shutdown / Docs:
-33748900315 / 33748900348 / 33748900377 — SUCCESS
-Release workflow: 33749193376 — SUCCESS
-release id: 381959220
-published UTC: 2026-09-03T11:21:35Z
-649 passed / 0 failed / 0 skipped
+33827008615 / 33827008595 / 33827008638 — SUCCESS
+Release workflow:
+33827205735 — SUCCESS
+release id: 382428841
+published UTC: 2026-09-04T01:49:57Z
+485 passed / 0 failed / 0 skipped
 ```
 
 Public package:
 
 ```text
 Junhyun-Helper.zip
-asset id: 542663027
-bytes: 80,766,362
-SHA-256: 6ecc3a61d0b492f6b475e18f309e55790776911e5496fc704d12ffd611c629cb
+asset id: 543627042
+bytes: 80,573,737
+SHA-256: fad73f3987c04cae73c5a473ccbce6c3a70ff8ca22da04a95a942e66ebea3b6c
 
 SHA256SUMS.txt
-asset id: 542663026
+asset id: 543627044
 bytes: 86
-asset SHA-256: 7a2fb4f7ebcb333eafd8cad6f9acbf532549118e608776786666014a24875bdf
+asset SHA-256: d665b07efa2d3e402937701f903d1eb5da8001feab0b54bcb2a9d8a93e46f9b1
 ```
 
 Exact-main Actions artifact:
 
 ```text
 JunhyunHelper-win-x64
-artifact id: 9890816795
-bytes: 242,234,759
-SHA-256: d9115f24968804fc5b4e65fa7bbaaf008f4af516e044f3b00e0ee6b4525a15dd
+artifact id: 9920376580
+bytes: 241,651,630
+SHA-256: 94cb4670b2889c42efaeaa50874b8bb0a186c3849f09a814184b82609bb2ad22
 ```
 
+## v1.17.1 product change
 
-## v1.17.1 active removal work
+Farming Guide is completely removed from the current product.
 
-User-confirmed target: **remove Farming Guide completely**.
+Removed:
 
-Implementation branch: `product/remove-farming-guide-2026-09-04`  
-Draft PR: **#290**
+- main Farming Guide navigation/page;
+- loadout/inventory editor and presets;
+- raid session/advisor, packing/repacking and loot optimization;
+- locks, reserved cells, weight and Farming Guide quantity flows;
+- Scanner Farming Guide bridge, accept hotkey/settings, Mini Scanner instruction/quantity integration;
+- Farming Guide-specific Core/Desktop/Infrastructure implementation and persistence;
+- Farming Guide-only Game Content metadata/import contracts and dedicated tests/smokes.
 
-Removed from the target product:
+Preserved:
 
-- Farming Guide main page/navigation;
-- loadout/preset/raid-session/optimizer/repacking/locks/weight/quantity flows;
-- Scanner Farming Guide bridge, Mini Scanner instruction/quantity state and accept hotkey/settings;
-- Farming Guide Core/Desktop/Infrastructure implementation and persistence;
-- Farming Guide-only Game Content metadata/import coverage;
-- Farming Guide-only tests and published runtime smoke.
+- Quest / Hideout / Needed Items;
+- Items;
+- Ammo;
+- Map / MiniMap;
+- Scanner recognition, catalog, search, ordinary Mini Scanner fields, correction, Ground Truth and diagnostics;
+- content/program update safety.
 
-Quest/Hideout/Items/Ammo/Map/MiniMap and independent Scanner behavior are preserved.
-
-Legacy `farming-guide.json` is no longer read/written and is not automatically deleted.
+Legacy `farming-guide.json` is inert: current product does not read/write it and does not automatically delete it.
 
 ## Validation coverage
 
-The v1.17.0 public stable evidence remains valid for that immutable release. On PR #290, the removal implementation before the v1.17.1 version/document pass already passed Windows Release build, **485/485 deterministic tests**, self-contained publish, actual Product UI / Map / Scanner smoke, graceful shutdown, package verification, Shutdown Race and Documentation Consistency. Final v1.17.1 CI will be rerun after this documentation/version update.
+v1.17.1 exact product source passed:
+
+- Windows Release build;
+- **485/485 deterministic tests**;
+- win-x64 self-contained publish;
+- ProductVersion/FIRST_RUN identity;
+- actual published EXE Product UI / full Map/Factory/MiniMap / Scanner smoke;
+- graceful shutdown;
+- active-async Shutdown Race;
+- clean portable-root audit;
+- release package/checksum validation;
+- Documentation Consistency;
+- exact-main artifact identity;
+- Release workflow re-download/hash verification;
+- public latest/tag/release/asset readback.
 
 ## Canonical references
 
-- `docs/.release-v1.17.0-status.json`
-- `docs/RELEASE_NOTES_V1.17.0.md`
-- `docs/DECISION_V1.17.1_REMOVE_FARMING_GUIDE.md`
-- `docs/RELEASE_NOTES_V1.17.1.md`
-- `docs/ACTIVE_WORK.md`
 - `docs/PROJECT_STATE.json`
+- `docs/.release-v1.17.1-status.json`
+- `docs/RELEASE_NOTES_V1.17.1.md`
+- `docs/DECISION_V1.17.1_REMOVE_FARMING_GUIDE.md`
 - `docs/STATE.md`
 
-## External validation still pending
+## External validation
 
-Automated implementation and release validation is complete. Separate actual-PC/Tarkov real-play validation remains `PENDING`; it does not alter the verified public v1.17.0 release identity or make the release incomplete.
+Actual Tarkov play validation on the user's own PC remains separately recorded as `PENDING`. Automated implementation/release validation is complete and v1.17.1 is the current public stable release.

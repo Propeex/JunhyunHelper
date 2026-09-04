@@ -3,7 +3,7 @@
 이 문서는 준현 헬퍼의 현재 유효한 결정과 supersession 관계를 빠르게 복구하기 위한 active index다. 현재 사실값은 `docs/PROJECT_STATE.json`, 상세 상태는 `docs/CURRENT_STATE.md` / `docs/STATE.md`가 권위다.
 
 기준일: **2026-09-04 KST**  
-현재 제품 상태: **v1.17.0 PUBLIC STABLE / v1.17.1 Farming Guide removal in progress**
+현재 제품 상태: **v1.17.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 1. 장기 기본 원칙
 
@@ -90,4 +90,12 @@ JunhyunHelper owns product integration/lifecycle. Maintained contracts include m
 
 Current public stable facts are canonical in `docs/PROJECT_STATE.json`.
 
-Current public stable facts are canonical in `docs/PROJECT_STATE.json`. v1.17.1 is the active PATCH target removing Farming Guide; exact release evidence is recorded only after merge/exact-main/release verification.
+v1.17.1 release evidence:
+
+- exact product source: `4ad1f76ed7c2469e60d0822b229fe03f83c75816`
+- merged PR: **#290**
+- `docs/.release-v1.17.1-status.json`
+- `docs/RELEASE_NOTES_V1.17.1.md`
+- `docs/DECISION_V1.17.1_REMOVE_FARMING_GUIDE.md`
+
+The public v1.17.1 source/tag/assets are immutable historical identity. Later documentation-only commits describe the release but are not product sources and must not replace the published package.
