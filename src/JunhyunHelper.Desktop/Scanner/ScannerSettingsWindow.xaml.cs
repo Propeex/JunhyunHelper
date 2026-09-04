@@ -21,9 +21,6 @@ public partial class ScannerSettingsWindow : Window
         settings.Normalize();
         foreach (var key in settings.MiniScannerInfoOrder)
         {
-            if (string.Equals(key, ScannerDisplaySettings.FleaMinimumPriceField, StringComparison.Ordinal))
-                continue;
-
             _rows.Add(new MiniInfoRow(
                 key,
                 LabelFor(key),
