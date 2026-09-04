@@ -4,71 +4,80 @@ Status: **ACTIVE**
 
 ## Goal
 
-Perform the v1.17.3 whole-product optimization, stability-hardening and visual-finishing pass on the clean v1.17.2 baseline.
+Complete the v1.17.3 whole-product optimization, stability-hardening and visual-finishing PATCH from the clean v1.17.2 baseline.
 
-This is a **PATCH maintenance release**. It adds no new product feature and must preserve confirmed user behavior while making the existing product more robust, predictable, efficient and visually consistent.
+No new user-facing product capability is introduced. Confirmed Quest/Hideout/Items/Ammo/Map/MiniMap/Scanner behavior, Scanner recognition safety, supported schema/read compatibility and user-owned state remain preserved.
 
 ## Base / branch
 
 - base main: `12f3e967fa02b80cbea134f92288ac8c6ae67644`
 - exact public stable product source: `73f0386a45818408c2a68530b90de7946ecaf1d1`
-- public stable: `v1.17.2`
+- current public stable: `v1.17.2`
 - working branch: `maintenance/v1.17.3-stability-optimization-2026-09-04`
 - target release: `v1.17.3`
 
-## Confirmed scope
+## Implemented
 
-Audit the current product end-to-end for evidence-backed improvements in:
+### Repeated-work / lookup efficiency
 
-- correctness and fail-closed behavior;
-- startup/shutdown and async lifetime safety;
-- cancellation, event subscription and resource disposal;
-- persistence, atomic writes, transactions and recovery;
-- concurrency/serialization and race resistance;
-- network/update failure isolation;
-- cache/data-structure/repeated-work efficiency where a real hot path or redundant work is visible;
-- WPF layout/rendering/lifecycle robustness;
-- visual consistency, spacing, typography, clipping, alignment and current design-system coherence;
-- diagnostics and regression-test coverage for defects found.
+- Quest, Hideout and Items reuse content indexes instead of repeatedly scanning canonical content.
+- MainWindow rebuilds Quest/Hideout/Items workspaces from one authoritative immutable profile snapshot.
+- Scanner catalog snapshot allocation was removed from repeated search paths.
+- Scanner canonical item/quest/trader/station lookups and item→Quest/Hideout requirement usages are indexed per content snapshot.
+- shared ImageCache performs per-path single-flight download/decode and keeps decoded image references weak.
+- Map Quest marker inverse scale reacts to ScaleTransform changes instead of a permanent 120ms DispatcherTimer.
 
-Preserve:
+### Correctness / concurrency
 
-- all confirmed current product behavior and product semantics;
-- current Quest/Hideout/Items/Ammo/Map/MiniMap/Scanner contracts;
-- pinned Map donor integration unless a concrete defect is proven;
-- Scanner recognition thresholds/pacing/matching safety unless reviewed evidence proves a correctness need;
-- supported schema/read compatibility and user-owned state;
-- public v1.17.2 release identity.
+- manual update, startup schema refresh, Map-triggered schema refresh, first-run provisioning and recovery updates share one product content-operation gate.
+- first-run/recovery paths re-check under the gate before starting duplicate network work.
+- mutation failures rebuild authoritative profile-derived presentation.
+- Hideout pending debounce is flushed before switching station.
+- cancelling a Hideout rollback restores the authoritative row presentation instead of leaving the optimistic preview.
 
-Do not add new user-facing product capabilities or speculative architecture.
+### Shutdown / lifetime safety
 
-## Audit order
+- MainWindow lifetime cancellation covers profile I/O, Quest/Hideout/Items mutations, data update/prefetch, Scanner sync, PC diagnostic and related UI progress callbacks.
+- ProgramUpdateCoordinator has its own lifetime cancellation and treats application shutdown cancellation as normal.
+- shutdown-time recovery cancellation no longer produces misleading diagnostics.
+- existing Scanner runtime cancellation/epoch and Map async smoke lifetime boundaries were reviewed and preserved.
 
-1. platform/startup/shutdown/shared lifetime;
-2. persistence/update/data-integrity boundaries;
-3. profile/Quest/Hideout/Items/Ammo workspaces and mutation paths;
-4. Scanner runtime/OCR/catalog/diagnostics;
-5. Map/MiniMap first-party bridge and resource ownership;
-6. WPF pages/shared controls/overlay/layout/design consistency;
-7. packaging/release/diagnostic contracts;
-8. full regression and published EXE verification.
+### UI / WPF
 
-## Completed
+- shared Button style exposes keyboard focus with the product AccentBrush.
+- Quest/Hideout/Items/Ammo/Scanner main layout, minimum-width, scrolling, clipping and virtualization contracts were audited; no speculative visual redesign was introduced.
 
-- recovered the finalized v1.17.2 public-stable repository state;
-- classified this work as PATCH maintenance under `docs/VERSIONING.md`;
-- created the dedicated v1.17.3 maintenance branch and checkpoint.
+## Functional candidate validation before release identity staging
+
+Validated branch head:
+
+`815fd5f9da739feb552ccc25bb14843df7d465fd`
+
+Passed:
+
+- CI `33845819785` — SUCCESS;
+- Shutdown Race `33845819872` — SUCCESS;
+- Documentation Consistency `33845819832` — SUCCESS;
+- **503 passed / 0 failed / 0 skipped**;
+- Windows Release build;
+- win-x64 self-contained publish;
+- actual published EXE Product UI / Map / Scanner smoke;
+- graceful shutdown;
+- release package/checksum verification.
+
+A prior validation exposed one nullable compile warning in the new weak image cache and three stale source-contract assertions; both were corrected before the successful candidate above.
 
 ## Current step
 
-Run repository-wide evidence gathering and subsystem audits, then implement only changes with concrete correctness, stability, efficiency or UI-quality justification.
+v1.17.3 Desktop/project/FIRST_RUN/release-notes identity is staged. Validate this exact release-identity HEAD through CI, Shutdown Race and Documentation Consistency, then perform final PR review and merge.
 
 ## Remaining
 
-- complete broad static/runtime-contract audit;
-- implement and test evidence-backed improvements by subsystem;
-- update architecture/reference/state docs for material changes;
-- stage v1.17.3 release identity;
-- run full deterministic tests, Release build, published EXE Product UI/Map/Scanner smoke, Shutdown Race, package and Documentation Consistency gates;
-- final PR review, merge, exact-main validation and public v1.17.3 release;
-- close ACTIVE_WORK with exact evidence.
+- exact release-identity PR CI / Shutdown / Documentation Consistency;
+- final PR diff/review-thread check;
+- mark PR ready and merge with exact expected head;
+- exact-main CI / Shutdown / Documentation Consistency;
+- automatic stable `v1.17.3` Release workflow;
+- verify public tag/release/package/checksum and exact-main artifact identity;
+- write final release evidence to PROJECT_STATE / release-status / README / CURRENT_STATE / STATE;
+- close ACTIVE_WORK to `NONE`.
