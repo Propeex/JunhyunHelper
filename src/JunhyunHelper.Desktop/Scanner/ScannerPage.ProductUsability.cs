@@ -24,32 +24,13 @@ public partial class ScannerPage
             return;
         _productUsabilityInitialized = true;
 
-        RebuildToolbarLayout();
         BuildNeededSourcesPresentation();
         BuildItemRelationshipPresentation();
         EnsureSelectedItemScrolling();
-        NormalizeSearchClearAffordance();
+        AttachSearchClearAffordance();
         InitializeScannerUserItemCollections();
         ApplyV191DetailActionAlignment();
 
-        SettingsButton.Click -= SettingsButton_Click;
-        SettingsButton.Click += ProductSettingsButton_Click;
-        AdvancedButton.Click -= AdvancedButton_Click;
-        AdvancedButton.Click += ProductAdvancedButton_Click;
-    }
-
-    private void RebuildToolbarLayout()
-    {
-        if (ScannerToggleButton.Parent is not Grid toolbar)
-            return;
-        while (toolbar.ColumnDefinitions.Count < 6)
-            toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        toolbar.ColumnDefinitions[3].Width = new GridLength(1, GridUnitType.Star);
-        toolbar.ColumnDefinitions[4].Width = GridLength.Auto;
-        toolbar.ColumnDefinitions[5].Width = GridLength.Auto;
-        Grid.SetColumn(RuntimeStatusText, 4);
-        Grid.SetColumn(CurrentCorrectionButton, 5);
-        CurrentCorrectionButton.Margin = new Thickness(8, 0, 0, 0);
     }
 
     private void EnsureSelectedItemScrolling()
@@ -67,19 +48,8 @@ public partial class ScannerPage
         parent.Children.Insert(index, _selectedItemScrollViewer);
     }
 
-    private void NormalizeSearchClearAffordance()
-    {
-        if (ItemSearchBox.Parent is not Grid searchGrid)
-            return;
-        foreach (var button in searchGrid.Children.OfType<Button>())
-        {
-            if (string.Equals(button.Content?.ToString(), "×", StringComparison.Ordinal))
-                button.Visibility = Visibility.Collapsed;
-        }
-        if (searchGrid.ColumnDefinitions.Count > 1)
-            searchGrid.ColumnDefinitions[1].Width = new GridLength(0);
+    private void AttachSearchClearAffordance() =>
         ProductSearchClearButtonBehavior.Attach(ItemSearchBox);
-    }
 
     private void BuildNeededSourcesPresentation()
     {
