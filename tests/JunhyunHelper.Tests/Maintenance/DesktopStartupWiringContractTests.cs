@@ -66,6 +66,7 @@ public sealed class DesktopStartupWiringContractTests
         Assert.DoesNotContain("ProductLoaded", ammoPresentation, StringComparison.Ordinal);
 
         Assert.Contains("_activeItemsWorkspace?.Plan.CleanupItems.Count", cleanupIndicator, StringComparison.Ordinal);
+        Assert.Contains("RefreshItemsCleanupIndicator();", mainWindow, StringComparison.Ordinal);
         Assert.DoesNotContain("DependencyPropertyDescriptor", cleanupIndicator, StringComparison.Ordinal);
         Assert.DoesNotContain("StatusText", xaml, StringComparison.Ordinal);
     }
