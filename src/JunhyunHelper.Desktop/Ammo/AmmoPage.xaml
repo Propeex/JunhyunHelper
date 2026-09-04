@@ -98,6 +98,53 @@
                       MaxDropDownHeight="460"
                       ToolTip="즐겨찾기 구경 선택" />
 
+            <Grid Grid.Column="4">
+                <TextBox x:Name="ProductSearchBox"
+                         HorizontalAlignment="Stretch"
+                         VerticalAlignment="Center"
+                         TextChanged="ProductSearchBox_TextChanged"
+                         PreviewKeyDown="ProductSearchBox_PreviewKeyDown" />
+            </Grid>
+
+            <Popup x:Name="ProductSearchPopup"
+                   Grid.Column="4"
+                   PlacementTarget="{Binding ElementName=ProductSearchBox}"
+                   Placement="Bottom"
+                   StaysOpen="False"
+                   AllowsTransparency="True">
+                <Border MinWidth="288"
+                        Background="{StaticResource BackgroundMediumBrush}"
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="6">
+                    <ListBox x:Name="ProductSearchResults"
+                             MinWidth="288"
+                             MaxHeight="360"
+                             Background="{StaticResource BackgroundMediumBrush}"
+                             Foreground="{StaticResource TextPrimaryBrush}"
+                             BorderThickness="0"
+                             PreviewMouseLeftButtonUp="ProductSearchResults_PreviewMouseLeftButtonUp">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Margin="4,3">
+                                    <Border Width="38" Height="38" CornerRadius="5" Margin="0,0,9,0">
+                                        <Image Width="34"
+                                               Height="34"
+                                               Stretch="Uniform"
+                                               Source="{Binding Row.Icon}" />
+                                    </Border>
+                                    <TextBlock VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"
+                                               TextWrapping="NoWrap"
+                                               Text="{Binding Label}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Border>
+            </Popup>
+
             <Button x:Name="ColumnMenuButton"
                     Grid.Column="6"
                     Content="표시 열"
