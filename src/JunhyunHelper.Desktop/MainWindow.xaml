@@ -56,27 +56,34 @@
                 </StackPanel>
                 <Button x:Name="QuestTabButton" Grid.Column="1" Content="퀘스트" Margin="0,0,6,0" Padding="14,7" Click="QuestTabButton_Click" />
                 <Button x:Name="HideoutTabButton" Grid.Column="2" Content="은신처" Margin="0,0,6,0" Padding="14,7" Click="HideoutTabButton_Click" />
-                <Button x:Name="ItemsTabButton" Grid.Column="3" Content="아이템" Margin="0,0,6,0" Padding="14,7" Click="ItemsTabButton_Click" />
+                <Grid Grid.Column="3" Margin="0,0,6,0">
+                    <Button x:Name="ItemsTabButton"
+                            Content="아이템"
+                            Padding="14,7"
+                            Click="ItemsTabButton_Click" />
+                    <Ellipse x:Name="ItemsCleanupIndicator"
+                             Width="8"
+                             Height="8"
+                             Fill="#F59E0B"
+                             HorizontalAlignment="Right"
+                             VerticalAlignment="Top"
+                             Margin="0,4,4,0"
+                             Visibility="Collapsed"
+                             IsHitTestVisible="False"
+                             Panel.ZIndex="10"
+                             SnapsToDevicePixels="True" />
+                </Grid>
                 <Button x:Name="AmmoTabButton" Grid.Column="4" Content="탄약" Margin="0,0,6,0" Padding="14,7" Click="AmmoTabButton_Click" />
                 <Button x:Name="MapTabButton" Grid.Column="5" Content="지도" Margin="0,0,6,0" Padding="14,7" Click="MapTabButton_Click" />
                 <Button x:Name="ScannerTabButton" Grid.Column="6" Content="스캐너" Margin="0,0,6,0" Padding="14,7" Click="ScannerTabButton_Click" />
 
-                <Grid Grid.Column="7" Margin="18,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <TextBlock x:Name="VersionText" Grid.Column="0"
-                               Text="{x:Static local:ProductVersion.Label}"
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               FontWeight="SemiBold"
-                               VerticalAlignment="Center"
-                               Margin="0,0,10,0" />
-                    <TextBlock x:Name="StatusText" Grid.Column="1"
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               VerticalAlignment="Center"
-                               TextTrimming="CharacterEllipsis" />
-                </Grid>
+                <TextBlock x:Name="VersionText"
+                           Grid.Column="7"
+                           Margin="18,0"
+                           Text="{x:Static local:ProductVersion.Label}"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center" />
                 <ComboBox x:Name="ProfileComboBox" Grid.Column="8" Width="195" Margin="0,0,8,0"
                           DropDownOpened="ProfileComboBox_DropDownOpened"
                           SelectionChanged="ProfileComboBox_CompactSelectionChanged" />
