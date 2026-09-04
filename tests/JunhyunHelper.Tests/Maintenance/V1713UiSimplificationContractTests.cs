@@ -55,6 +55,21 @@ public sealed class V1713UiSimplificationContractTests
         Assert.False(File.Exists(retiredSourceOwner));
     }
 
+    [Fact]
+    public void ScannerItemDetail_DoesNotRetainHiddenLegacySummary()
+    {
+        var root = FindRepositoryRoot();
+        var xaml = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.xaml");
+        var code = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.xaml.cs");
+        var relationships = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.ItemRelationships.cs");
+
+        Assert.DoesNotContain("FleaAverageText", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("BestTraderText", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("NeededCountText", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("FleaAverageText", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("legacySummary", relationships, StringComparison.Ordinal);
+    }
+
     private static string Read(string root, params string[] path) =>
         File.ReadAllText(Path.Combine([root, .. path]));
 
