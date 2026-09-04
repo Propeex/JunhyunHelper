@@ -18,7 +18,7 @@ public partial class AmmoPage
     private Border? _productDetailHost;
     private Button? _productDetailToggleButton;
     private bool _productDetailsPrepared;
-    private bool _productDetailsExpanded = true;
+    private bool _productDetailsExpanded = false;
     private bool _productFavoriteHandlersAttached;
 
     private void InitializeProductSearchAndDetails()
