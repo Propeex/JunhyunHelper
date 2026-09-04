@@ -35,8 +35,6 @@ public partial class ScannerPage
         if (settings.SchemaVersion != ScannerDisplaySettings.CurrentSchemaVersion ||
             settings.SchemaVersion != 10 ||
             settings.OcrSubstitutions.Count != 0 ||
-            !settings.ShowItemName ||
-            !settings.ShowItemIcon ||
             !settings.ShowAmmoPickup ||
             !settings.MiniScannerInfoOrder.SequenceEqual(ScannerDisplaySettings.DefaultInfoOrder) ||
             gestures[0] != ScannerHotkeyGesture.DefaultOneShotTarkov ||
@@ -47,16 +45,6 @@ public partial class ScannerPage
         {
             throw new InvalidOperationException("Scanner v1.15.0 settings/hotkey contract failed.");
         }
-
-        var hiddenIdentity = new ScannerDisplaySettings
-        {
-            SchemaVersion = 5,
-            ShowItemName = false,
-            ShowItemIcon = false,
-        };
-        hiddenIdentity.Normalize();
-        if (!hiddenIdentity.ShowItemName || !hiddenIdentity.ShowItemIcon)
-            throw new InvalidOperationException("Scanner migration must keep Mini Scanner identity visible.");
 
         var migrated = new ScannerDisplaySettings
         {
@@ -72,6 +60,7 @@ public partial class ScannerPage
             migrated.AddCorrectionDataHotkey,
         }.Where(static value => !string.IsNullOrWhiteSpace(value)).ToArray();
         if (migrated.OneShotTarkovHotkey != ScannerHotkeyGesture.DefaultOneShotTest.ToString() ||
+            migrated.OneShotHotkey is not null ||
             migratedHotkeys.Distinct(StringComparer.OrdinalIgnoreCase).Count() != migratedHotkeys.Length)
         {
             throw new InvalidOperationException("Scanner legacy hotkey migration produced a collision.");
