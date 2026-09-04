@@ -30,12 +30,8 @@ public partial class AmmoPage
         var header = root.Children
             .OfType<Grid>()
             .FirstOrDefault(element => Grid.GetRow(element) == 0);
-        if (header is not null)
-        {
-            NormalizeProductHeader(header);
-            if (_productSearchBox is null)
-                CreateProductSearch(header);
-        }
+        if (header is not null && _productSearchBox is null)
+            CreateProductSearch(header);
 
         if (!_productDetailsPrepared)
         {
@@ -47,44 +43,10 @@ public partial class AmmoPage
         NormalizeProductFavoriteButton();
     }
 
-    private void NormalizeProductHeader(Grid header)
-    {
-        // The labels repeat information already expressed by the controls themselves.
-        // Collapse them instead of merely shrinking their text so the header follows
-        // the compact search -> caliber -> star -> favorites -> columns rhythm.
-        foreach (var label in header.Children.OfType<TextBlock>())
-        {
-            if (label.Text is "구경" or "즐겨찾기")
-                label.Visibility = Visibility.Collapsed;
-        }
-
-        CaliberComboBox.Width = 160;
-        CaliberComboBox.MinWidth = 160;
-        CaliberComboBox.MaxWidth = 160;
-
-        FavoriteCaliberMenuButton.Width = 170;
-        FavoriteCaliberMenuButton.MinWidth = 170;
-        FavoriteCaliberMenuButton.MaxWidth = 170;
-
-        // Before the product search column is inserted these are the two label lanes.
-        // Once search has already been inserted, the labels are still collapsed and
-        // these widths are harmless because the named controls own their own width.
-        if (_productSearchBox is null && header.ColumnDefinitions.Count >= 8)
-        {
-            header.ColumnDefinitions[0].Width = new GridLength(0);
-            header.ColumnDefinitions[1].Width = new GridLength(160);
-            header.ColumnDefinitions[4].Width = new GridLength(0);
-            header.ColumnDefinitions[5].Width = new GridLength(170);
-        }
-    }
 
     private void CreateProductSearch(Grid header)
     {
-        // Search is the primary discovery action, so give it the left-most header lane.
-        header.ColumnDefinitions.Insert(0, new ColumnDefinition { Width = new GridLength(300) });
-        foreach (UIElement child in header.Children)
-            Grid.SetColumn(child, Grid.GetColumn(child) + 1);
-
+        // XAML owns the final seven-column toolbar. Search occupies the reserved lane.
         var searchHost = new Grid
         {
             Margin = new Thickness(0, 0, 12, 0),
