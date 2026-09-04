@@ -1,7 +1,6 @@
 # PROGRAM UPDATE — 제품 업데이트 계약
 
-기준일: 2026-08-27
-상태: **IMPLEMENTED / v1.7.13 PUBLIC STABLE**
+상태: **EVERGREEN CURRENT PROGRAM UPDATE CONTRACT**
 
 ## 1. 확정 요구사항
 
