@@ -22,11 +22,35 @@ public sealed partial class ScannerCoordinator
                 return _contentPresentationIndex;
             }
 
+            var questRequirementsByItemId = content.QuestItemRequirements
+                .SelectMany(requirement => requirement.AcceptedItemIds
+                    .Distinct(StringComparer.Ordinal)
+                    .Select(itemId => new { ItemId = itemId, Requirement = requirement }))
+                .GroupBy(entry => entry.ItemId, StringComparer.Ordinal)
+                .ToDictionary(
+                    group => group.Key,
+                    group => (IReadOnlyList<QuestItemRequirement>)group
+                        .Select(entry => entry.Requirement)
+                        .ToArray(),
+                    StringComparer.Ordinal);
+
+            var hideoutRequirementsByItemId = content.HideoutStations
+                .SelectMany(station => station.Levels
+                    .SelectMany(level => level.ItemRequirements
+                        .Select(requirement => new ScannerHideoutRequirementReference(station, requirement))))
+                .GroupBy(entry => entry.Requirement.ItemId, StringComparer.Ordinal)
+                .ToDictionary(
+                    group => group.Key,
+                    group => (IReadOnlyList<ScannerHideoutRequirementReference>)group.ToArray(),
+                    StringComparer.Ordinal);
+
             var index = new ScannerContentPresentationIndex(
                 content.Items.ToDictionary(item => item.Id, StringComparer.Ordinal),
                 content.Quests.ToDictionary(quest => quest.Id, StringComparer.Ordinal),
                 content.Traders.ToDictionary(trader => trader.Id, StringComparer.Ordinal),
-                content.HideoutStations.ToDictionary(station => station.Id, StringComparer.Ordinal));
+                content.HideoutStations.ToDictionary(station => station.Id, StringComparer.Ordinal),
+                questRequirementsByItemId,
+                hideoutRequirementsByItemId);
 
             _indexedPresentationContent = content;
             _contentPresentationIndex = index;
@@ -38,5 +62,11 @@ public sealed partial class ScannerCoordinator
         IReadOnlyDictionary<string, GameItem> ItemsById,
         IReadOnlyDictionary<string, QuestDefinition> QuestsById,
         IReadOnlyDictionary<string, TraderDefinition> TradersById,
-        IReadOnlyDictionary<string, HideoutStation> StationsById);
+        IReadOnlyDictionary<string, HideoutStation> StationsById,
+        IReadOnlyDictionary<string, IReadOnlyList<QuestItemRequirement>> QuestRequirementsByItemId,
+        IReadOnlyDictionary<string, IReadOnlyList<ScannerHideoutRequirementReference>> HideoutRequirementsByItemId);
+
+    private sealed record ScannerHideoutRequirementReference(
+        HideoutStation Station,
+        HideoutItemRequirement Requirement);
 }
