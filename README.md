@@ -4,7 +4,7 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 제품 상태
 
-현재 상태는 **v1.17.0 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
+현재 공개 안정판은 **v1.17.0**이며, **v1.17.1에서 Farming Guide를 완전히 제거하는 PATCH 작업이 진행 중**입니다.
 
 공식 프로젝트 기억은 대화가 아니라 저장소의 문서·코드·테스트·GitHub 상태입니다.
 
@@ -69,81 +69,27 @@ Release evidence:
 - `docs/CURRENT_STATE.md`
 - `docs/STATE.md`
 
-## v1.17.0 Farming Guide current contract
 
-Farming Guide는 raid-start Loadout / Inventory Editor와 Scanner 기반 raid-session advisor를 제공합니다. Tarkov 내부 inventory를 직접 읽거나 게임 입력을 자동화하지 않습니다.
+## v1.17.1 Farming Guide removal
 
-### FIR / Scanner 경계
+사용자 결정에 따라 Farming Guide는 제품에서 완전히 제거됩니다.
 
-활성 Farming Guide raid 중 Scanner가 새로 확인한 incoming item은 Farming Guide가 그 레이드에서 획득한 FIR item으로 취급합니다.
+제거 범위:
 
-- Scanner가 FIR 아이콘·체크·색·문자를 판독하지 않습니다.
-- 사용자에게 별도의 FIR 확인을 요구하지 않습니다.
-- raid 획득 provenance는 세션 전용 `RaidAcquired` 상태이며 preset에 저장하지 않습니다.
+- 메인 Farming Guide 탭/페이지
+- loadout/inventory editor, preset, lock/reserved-cell/weight/quantity UI
+- raid-session advisor와 loot/global packing/repacking 판단
+- Scanner → Farming Guide bridge와 simulated scan
+- Mini Scanner Farming Guide 지시 항목
+- Farming Guide 수락 단축키/Scanner 설정
+- Farming Guide 전용 persistence/service/domain policy
+- Farming Guide 전용 Game Content metadata/import와 테스트/스모크
 
-### 판단 목표
+Quest, Hideout, Items/Needed Items, Ammo, Map/MiniMap, Scanner 인식/검색/교정/진단은 독립 기능으로 유지됩니다.
 
-매 스캔은 로컬 빈칸 삽입이 아니라 **현재 이동 가능한 전체 상태 + incoming item의 합법적인 최종 상태**를 다시 계산합니다.
+기존 사용자 PC에 남아 있는 `%LocalAppData%/JunhyunHelper/farming-guide.json`은 더 이상 읽거나 쓰지 않습니다. 프로그램이 자동 삭제하지는 않습니다.
 
-판단 목표는 정확히 두 단계입니다.
-
-1. 현재 퀘스트·은신처에 필요한 FIR 수량을 가능한 한 많이 충족합니다. 남은 필요 수량까지만 우선순위가 있습니다.
-2. 1번 결과가 같다면 최종 보유하는 모든 아이템의 평균 Flea Market 가치 합계를 최대화합니다.
-
-음식·음료·탄약·탄창·치료제·방어구·헤드셋 등 특정 종류에 자동 전술 우선순위를 부여하지 않습니다. 사용자가 보호하고 싶은 물품/칸은 기존 고정 기능으로 지정합니다.
-
-무게는 아이템 우선순위가 아니라 Strength 설정 기준 최종 운반 가능 여부를 판정하는 제약입니다.
-
-### 글로벌 배치 / Tarkov legality
-
-글로벌 solve는 다음을 함께 고려합니다.
-
-- 일반 stored item
-- top-level equipment
-- Rig / Backpack / Secure Container
-- container 안 container
-- 전용 storage grid
-- incoming Scanner item
-
-최종 상태는 실제 데이터와 현재 상태를 기준으로 다음을 검증합니다.
-
-- width/height, rotation, collision
-- storage grid/filter
-- nested parent/child와 cycle 금지
-- equipment slot compatibility
-- attachment / armor plate slot filter
-- item conflict / `ConflictingSlotIds`
-- body armor / armored rig conflict
-- helmet / headset compatibility
-- stack quantity
-- item/cell/root lock
-- final carry weight
-
-부착물과 armor plate도 retained Flea value와 weight에 포함됩니다. Melee/Dogtag은 자동 후보에서 제외되지만 최종 무게에는 포함됩니다.
-
-전용 컨테이너는 보관 가치 우선순위를 만드는 기능이 아니라 합법적인 placement 후보입니다.
-
-### 고정 / 잠금
-
-고정 item/cell은 판단 점수가 아니라 hard constraint입니다.
-
-- 고정 item은 버리기·교체·좌표 이동·회전·re-parenting할 수 없습니다.
-- 고정 descendant를 담은 상위 container나 root carrier를 움직여 간접 이동시키는 것도 금지합니다.
-- 고정 carrier 내부의 독립적으로 고정되지 않은 합법적 빈칸은 계속 사용할 수 있습니다.
-- 같은 storage area 안에서 합법적 global solve가 기존 item 이동/회전을 요구하면 지시에 `내부 재배치`를 표시합니다.
-
-### 스택 수량 / 무게
-
-Ammo와 Currency는 기존 수량 입력 흐름을 사용합니다. 입력한 수량은 하나의 실제 관측 stack instance의 수량이며 FIR 충족량, Flea value, weight에 반영됩니다. v1.17.0은 자동 split/merge나 확인되지 않은 max-stack 사실을 새로 만들지 않습니다.
-
-### Fail closed
-
-파괴적 지시에 필요한 사실을 증명할 수 없으면 임의 기본값을 사용하지 않습니다.
-
-- unknown weight → 0 kg으로 가정하지 않음
-- unknown geometry → 1x1로 가정하지 않음
-- unknown tradable Flea price → 0 ₽로 가정하지 않음
-- bounded optimizer가 optimum을 증명하지 못함 → 파괴적 지시를 만들지 않음
+현재 제품 결정 authority는 `docs/DECISION_V1.17.1_REMOVE_FARMING_GUIDE.md`입니다. 이전 Farming Guide 결정 문서는 역사 기록일 뿐 현재 제품 동작을 정의하지 않습니다.
 
 ## 검증 계약
 
@@ -152,7 +98,7 @@ Ammo와 Currency는 기존 수량 입력 흐름을 사용합니다. 입력한 �
 - deterministic tests
 - Release build
 - Windows x64 self-contained publish
-- 실제 published EXE Product UI / Map / Scanner / Farming Guide runtime smoke
+- 실제 published EXE Product UI / Map / Scanner runtime smoke
 - graceful shutdown
 - Shutdown Race CI
 - package / SHA256SUMS 검증
