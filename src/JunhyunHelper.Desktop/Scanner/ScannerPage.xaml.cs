@@ -259,16 +259,6 @@ public partial class ScannerPage : UserControl
         var snapshot = details.Snapshot;
         SelectedItemIcon.Source = snapshot.Icon;
         SelectedItemNameText.Text = snapshot.OfficialName;
-        FleaAverageText.Text = snapshot.FleaAveragePrice is { } flea
-            ? FormatRoubles(flea)
-            : "정보 없음";
-        BestTraderText.Text = snapshot.TraderSellPrice is { } trader
-            ? string.IsNullOrWhiteSpace(snapshot.BestTraderName)
-                ? FormatRoubles(trader)
-                : $"{snapshot.BestTraderName} · {FormatRoubles(trader)}"
-            : "정보 없음";
-        NeededCountText.Text = snapshot.CurrentNeeded.ToString("N0", CultureInfo.InvariantCulture);
-
         _selectedWikiUrl = NormalizeWikiUrl(details.WikiUrl);
         WikiButton.IsEnabled = _selectedWikiUrl is not null;
         EmptyItemText.Visibility = Visibility.Collapsed;
