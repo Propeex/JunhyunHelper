@@ -12,7 +12,7 @@ public sealed class V113UiCalibrationContractTests
         var quest = Read(root, "src", "JunhyunHelper.Desktop", "Quests", "QuestPage.xaml.cs");
         var items = Read(root, "src", "JunhyunHelper.Desktop", "Items", "ItemsPage.xaml.cs");
         var hideout = Read(root, "src", "JunhyunHelper.Desktop", "Hideout", "HideoutPage.xaml.cs");
-        var smoke = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.V1111ProductSmoke.cs");
+        var smoke = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.ProductContractSmoke.cs");
 
         foreach (var source in new[] { quest, items, hideout })
             Assert.Contains("ProductSearchClearButtonBehavior.Attach(SearchBox);", source, StringComparison.Ordinal);
@@ -20,7 +20,7 @@ public sealed class V113UiCalibrationContractTests
         Assert.False(File.Exists(Path.Combine(root, "src", "JunhyunHelper.Desktop", "Items", "ItemsPage.SearchClearLifecycle.cs")));
         Assert.False(File.Exists(Path.Combine(root, "src", "JunhyunHelper.Desktop", "Hideout", "HideoutPage.SearchClearLifecycle.cs")));
         Assert.Contains("ApplyTemplate();", smoke, StringComparison.Ordinal);
-        Assert.Contains("lifecycle-attached inline clear glyph", smoke, StringComparison.Ordinal);
+        Assert.Contains("page-owned inline clear glyph", smoke, StringComparison.Ordinal);
         Assert.DoesNotContain("ProductSearchClearButtonBehavior.Attach(searchBox)", smoke, StringComparison.Ordinal);
     }
 
@@ -45,7 +45,7 @@ public sealed class V113UiCalibrationContractTests
         var root = FindRepositoryRoot();
         var xaml = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerCorrectionWindow.xaml");
         var zoom = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerCorrectionWindow.Zoom.cs");
-        var smoke = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.V113CorrectionZoomSmoke.cs");
+        var smoke = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.CorrectionZoomSmoke.cs");
 
         Assert.Contains("x:Name=\"ImageScrollViewer\"", xaml, StringComparison.Ordinal);
         Assert.Contains("PreviewMouseWheel=\"ImageScrollViewer_PreviewMouseWheel\"", xaml, StringComparison.Ordinal);
