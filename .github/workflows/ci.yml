@@ -371,20 +371,11 @@ jobs:
             }
           }
 
-          $expectedPackages = [System.Collections.Generic.List[string]]::new()
-          $expectedPackages.Add($stableName)
-          if ($expectedVersion -eq '1.6.0') {
-            $bridgeName = "Junhyun-Helper-v$expectedVersion-win-x64.zip"
-            $bridgePath = Join-Path 'artifacts/release' $bridgeName
-            if (-not (Test-Path $bridgePath)) {
-              throw "The v1.5 updater compatibility package was not produced: $bridgeName"
-            }
-            $expectedPackages.Add($bridgeName)
-          }
+          $expectedPackages = @($stableName)
 
           $checksumLines = @(Get-Content $checksumPath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-          if ($checksumLines.Count -ne $expectedPackages.Count) {
-            throw "SHA256SUMS.txt contains $($checksumLines.Count) entries; expected $($expectedPackages.Count)."
+          if ($checksumLines.Count -ne 1) {
+            throw "SHA256SUMS.txt contains $($checksumLines.Count) entries; expected exactly one stable package entry."
           }
 
           foreach ($packageName in $expectedPackages) {
