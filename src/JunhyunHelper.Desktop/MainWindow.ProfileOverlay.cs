@@ -1,5 +1,4 @@
 using System.Windows;
-using System.Windows.Controls;
 using JunhyunHelper.Core.Profiles;
 using JunhyunHelper.Desktop.Profiles;
 
