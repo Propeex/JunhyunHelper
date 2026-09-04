@@ -63,6 +63,7 @@ public partial class MainWindow
         }
         catch (Exception exception)
         {
+            await RecoverMutationPresentationAsync("Quest mutation presentation recovery failed");
             ShowFailure("퀘스트 진행 상태를 변경하지 못했습니다.", exception);
         }
         finally
@@ -129,6 +130,7 @@ public partial class MainWindow
         }
         catch (Exception exception)
         {
+            await RecoverMutationPresentationAsync("Hideout mutation presentation recovery failed");
             ShowFailure("은신처 진행 상태를 변경하지 못했습니다.", exception);
         }
         finally
@@ -166,11 +168,32 @@ public partial class MainWindow
         }
         catch (Exception exception)
         {
+            await RecoverMutationPresentationAsync("Inventory mutation presentation recovery failed");
             ShowFailure("보유 아이템 수량을 저장하지 못했습니다.", exception);
         }
         finally
         {
             SetBusy(false);
+        }
+    }
+
+    private async Task RecoverMutationPresentationAsync(string diagnosticContext)
+    {
+        if (_activeProfile is null || _activeContent is null)
+            return;
+
+        try
+        {
+            // Mutation pages may optimistically show a debounced +/- result before the
+            // authoritative SQLite write finishes. If that write fails, rebuild all
+            // profile-derived pages from UserProfileStore so the UI cannot keep showing
+            // a value that was never persisted. If the write committed but a later
+            // presentation rebuild failed, the store cache exposes the committed value.
+            await RefreshActiveWorkspacesAsync(detectCleanupChanges: false);
+        }
+        catch (Exception recoveryException)
+        {
+            App.WriteDiagnostic(diagnosticContext, recoveryException);
         }
     }
 
