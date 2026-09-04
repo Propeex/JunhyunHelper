@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.IO;
 using System.Net.Http;
 using System.Security.Cryptography;
@@ -19,6 +20,10 @@ public sealed class ImageCacheService
     private readonly HttpClient _httpClient;
     private readonly string _cacheDirectory;
     private readonly SemaphoreSlim _downloads = new(6, 6);
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _cachePathGates =
+        new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, ImageSource> _decodedImages =
+        new(StringComparer.Ordinal);
 
     public ImageCacheService(HttpClient httpClient, string rootDirectory)
     {
@@ -39,12 +44,18 @@ public sealed class ImageCacheService
 
         try
         {
+            if (_decodedImages.TryGetValue(path, out var memoryCached))
+                return memoryCached;
+
             var cached = TryLoadLocalImage(path);
             if (cached is not null)
-                return cached;
+                return _decodedImages.GetOrAdd(path, cached);
 
             await EnsureCachedAsync(stableId, sourceUrl, cancellationToken);
-            return TryLoadLocalImage(path);
+            cached = TryLoadLocalImage(path);
+            return cached is null
+                ? null
+                : _decodedImages.GetOrAdd(path, cached);
         }
         catch (OperationCanceledException)
         {
@@ -126,16 +137,34 @@ public sealed class ImageCacheService
         if (File.Exists(path))
             return;
 
-        await _downloads.WaitAsync(cancellationToken);
+        // Several product pages can request the same canonical item icon at once.
+        // Serialize by the final URL-hashed cache path before consuming a global
+        // download slot so duplicates wait for the first request instead of issuing
+        // redundant network/PNG normalization work.
+        var pathGate = _cachePathGates.GetOrAdd(
+            path,
+            static _ => new SemaphoreSlim(1, 1));
+        await pathGate.WaitAsync(cancellationToken);
         try
         {
             if (File.Exists(path))
                 return;
-            await DownloadAndNormalizeAsync(sourceUri, path, cancellationToken);
+
+            await _downloads.WaitAsync(cancellationToken);
+            try
+            {
+                if (File.Exists(path))
+                    return;
+                await DownloadAndNormalizeAsync(sourceUri, path, cancellationToken);
+            }
+            finally
+            {
+                _downloads.Release();
+            }
         }
         finally
         {
-            _downloads.Release();
+            pathGate.Release();
         }
     }
 
