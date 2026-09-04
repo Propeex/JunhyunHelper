@@ -40,24 +40,34 @@ Do **not** perform speculative performance optimization, broad redesign or unrel
 
 ## Completed
 
-- recovered current v1.17.1 official repository state;
-- confirmed ACTIVE_WORK was NONE;
-- created dedicated maintenance branch;
+- recovered current v1.17.1 official repository state and created the dedicated maintenance branch / draft PR #292;
 - classified historical release/decision evidence and active Map donor `Legacy*` bridges as retained, not cleanup targets;
-- removed the unreachable one-time v1.6 updater bridge from current packaging/CI;
-- removed Scanner's superseded standalone Settings/Advanced event path and runtime event rebinding;
-- removed Scanner's old outer search-clear button/runtime concealment path;
+- removed the unreachable one-time v1.6 updater/release bridge from current packaging, CI and updater package parsing/extraction;
+- removed current-looking stale docs (`docs/NEXT.md`, retired `docs/FARMING_GUIDE.md`) and converted Scanner/deployment/reference docs to evergreen ownership;
+- synchronized Content snapshot documentation with the actual v12 write / v3~v12 readable contract and strengthened Documentation Consistency against canonical code/schema drift;
+- removed hidden MainWindow `StatusText` state/event plumbing and replaced it with the direct Items cleanup indicator;
+- fixed the cleanup-indicator refresh regression exposed by orphan analysis and added a direct wiring contract;
+- removed superseded full-refresh Quest/Hideout/Items mutation handlers and runtime handler rebinding; canonical mutation/content-navigation owners now have current names;
+- removed hidden Items Quest/Hideout usage filter and its runtime concealment shim;
+- canonicalized Ammo toolbar/search/favorite/detail presentation in XAML, removing hidden legacy popup/summary UI, runtime control creation, layout-repair shims and duplicate activation lifecycle;
+- removed duplicate global search-clear lifecycle registration; Quest/Hideout/Items/Ammo/Scanner now attach the shared behavior from their explicit owners;
+- canonicalized Profile create/edit UI ownership, removed hidden proxy controls, standalone duplicate MainWindow handlers, runtime button discovery/rebinding and runtime profile-card reparenting;
 - removed unreachable Scanner OCR-substitution editor UI/controller API while retaining the active persisted substitution engine;
-- removed unreachable Scanner recognition-debug window while retaining active correction/debug evidence state;
-- removed the hidden Items Quest/Hideout usage filter and its runtime concealment shim;
-- removed the hidden Ammo summary row and dead summary-string computation;
-- removed superseded MainWindow full-refresh Quest/Hideout/Items mutation handlers and runtime handler replacement;
-- replaced hidden MainWindow `StatusText` state/event plumbing with a direct XAML Items cleanup indicator backed by current Items workspace state;
-- updated affected maintenance contracts to assert the canonical direct paths rather than the retired shims.
+- removed unreachable Scanner recognition-debug Window while extracting the still-used diagnostic image renderer;
+- removed the retired Scanner dedicated hotkey capture Window; Scanner Settings is the only hotkey capture authority;
+- removed retired Scanner `필요한 곳` panel, its duplicate ItemsWorkspace source join, and narrowed Scanner usage-card navigation to the existing Quest/Hideout navigation contract;
+- removed the hidden old Scanner three-row item summary and its dead update computation;
+- canonicalized Scanner detail scrolling and favorite/Wiki action layout in XAML instead of runtime visual-tree repair;
+- removed retired Mini Scanner identity/flea-minimum display settings while preserving compatible old JSON reading;
+- removed unreachable Mini Scanner preview/position-edit/reset subsystem and its unused OCR dependency while preserving direct drag position persistence;
+- audited Items/Hideout/Quest/Profile/Ammo/ScannerPage and Scanner Coordinator/runtime private methods; resolved actual orphan paths and retained XAML/cross-partial entrypoints that were false positives;
+- confirmed current Scanner OCR wrapper chain (`DiagnosticScannerLab38OcrEngine → EnvironmentGuarded → Serialized → FontAware`) is active and must be retained;
+- kept Scanner recognition thresholds/pacing/matching logic, Quest/Hideout domain rules and Map donor implementation unchanged;
+- Documentation Consistency is passing on current cleanup iterations.
 
 ## Current step
 
-Run an early Windows PR build/test/runtime gate to detect compile/XAML/reference fallout from the first cleanup batch while continuing the current-document audit.
+Finish the latest Windows CI / Shutdown Race gate, resolve only concrete fallout from cleanup, perform final PR/diff/documentation review, then move to exact-main validation and the v1.17.2 PATCH release if all gates remain green.
 
 ## Remaining
 
