@@ -29,7 +29,6 @@ public partial class MainWindow : TarkovHelper.MainWindow
     {
         base.OnContentRendered(e);
 
-        EnableFastMutationHandlers();
 
         if (_legacyMapTabHooked)
             return;
