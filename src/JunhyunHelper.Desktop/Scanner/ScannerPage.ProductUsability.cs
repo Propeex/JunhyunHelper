@@ -8,7 +8,6 @@ namespace JunhyunHelper.Desktop.Scanner;
 public partial class ScannerPage
 {
     private bool _productUsabilityInitialized;
-    private ScrollViewer? _selectedItemScrollViewer;
 
     protected override void OnInitialized(EventArgs e)
     {
@@ -23,27 +22,12 @@ public partial class ScannerPage
         _productUsabilityInitialized = true;
 
         BuildItemRelationshipPresentation();
-        EnsureSelectedItemScrolling();
         AttachSearchClearAffordance();
         InitializeScannerUserItemCollections();
         ApplyV191DetailActionAlignment();
 
     }
 
-    private void EnsureSelectedItemScrolling()
-    {
-        if (_selectedItemScrollViewer is not null || SelectedItemPanel.Parent is not Grid parent)
-            return;
-        var index = parent.Children.IndexOf(SelectedItemPanel);
-        parent.Children.RemoveAt(index);
-        _selectedItemScrollViewer = new ScrollViewer
-        {
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-            Content = SelectedItemPanel,
-        };
-        parent.Children.Insert(index, _selectedItemScrollViewer);
-    }
 
     private void AttachSearchClearAffordance() =>
         ProductSearchClearButtonBehavior.Attach(ItemSearchBox);
