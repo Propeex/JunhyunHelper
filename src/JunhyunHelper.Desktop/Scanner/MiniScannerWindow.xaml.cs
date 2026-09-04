@@ -25,7 +25,6 @@ public partial class MiniScannerWindow : Window
     private DispatcherTimer? _transientStatusTimer;
     private bool _hideWhenTransientStatusEnds;
     private bool _positionInitialized;
-    private string? _farmingGuideInstruction;
 
     public MiniScannerWindow()
     {
@@ -52,23 +51,6 @@ public partial class MiniScannerWindow : Window
         ShowAndPosition(settings);
     }
 
-    public void SetFarmingGuideInstruction(string? text, ScannerDisplaySettings settings)
-    {
-        ArgumentNullException.ThrowIfNull(settings);
-        _farmingGuideInstruction = string.IsNullOrWhiteSpace(text) ? null : text.Trim();
-        ConfigureLine(
-            FarmingGuideText,
-            settings.ShowFarmingGuide && _farmingGuideInstruction is not null,
-            _farmingGuideInstruction ?? string.Empty,
-            settings.FontSize);
-        ApplyInformationOrder(settings);
-        if (IsVisible)
-        {
-            UpdateLayout();
-            EnforceTopmost();
-        }
-    }
-
     public void ShowTransientStatus(string text, ScannerDisplaySettings settings, bool hasItemContent)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(text);
@@ -90,11 +72,6 @@ public partial class MiniScannerWindow : Window
     public void ApplySettings(ScannerDisplaySettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
-        ConfigureLine(
-            FarmingGuideText,
-            settings.ShowFarmingGuide && _farmingGuideInstruction is not null,
-            _farmingGuideInstruction ?? string.Empty,
-            settings.FontSize);
         ApplyInformationOrder(settings);
         if (settings.PositionX.HasValue && settings.PositionY.HasValue)
         {
@@ -177,11 +154,6 @@ public partial class MiniScannerWindow : Window
             settings.ShowAmmoPickup && snapshot.AmmoShouldPickUp.HasValue,
             FormatAmmoPickup(snapshot),
             settings.FontSize);
-        ConfigureLine(
-            FarmingGuideText,
-            settings.ShowFarmingGuide && _farmingGuideInstruction is not null,
-            _farmingGuideInstruction ?? string.Empty,
-            settings.FontSize);
 
         ApplyInformationOrder(settings);
     }
@@ -196,7 +168,6 @@ public partial class MiniScannerWindow : Window
             [ScannerDisplaySettings.FleaPricePerSlotField] = FleaSlotPriceText,
             [ScannerDisplaySettings.CurrentNeededField] = CurrentNeededText,
             [ScannerDisplaySettings.AmmoPickupField] = AmmoPickupText,
-            [ScannerDisplaySettings.FarmingGuideField] = FarmingGuideText,
         };
 
         InfoStackPanel.Children.Clear();

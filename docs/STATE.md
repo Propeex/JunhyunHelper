@@ -2,7 +2,7 @@
 
 > 복구 순서는 `AGENTS.md` → `docs/PROJECT_STATE.json` → `docs/ACTIVE_WORK.md`입니다. 기계 판독 가능한 현재 사실값은 `docs/PROJECT_STATE.json`이 기준입니다.
 
-기준일: **2026-09-03 KST**  
+기준일: **2026-09-04 KST**  
 상태: **v1.17.0 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 1. 공개 제품 상태
@@ -49,100 +49,87 @@ SHA-256: d9115f24968804fc5b4e65fa7bbaaf008f4af516e044f3b00e0ee6b4525a15dd
 
 Release workflow `33749193376` checked out exact product source `8b0e1f8f46fa3822f4cff05b7be3223d40ad7435`, downloaded exact-main artifact `9890816795`, verified ProductVersion/FIRST_RUN identity, independently matched the release ZIP hash to `SHA256SUMS.txt`, and published stable `v1.17.0`. The release is `draft=false` and `prerelease=false`.
 
-## 2. v1.17.0 authoritative Farming Guide objective
 
-The active raid planner no longer uses the v1.16 tactical/category/equipment-superiority decision stack as product authority.
+## 2. v1.17.1 Farming Guide removal
 
-Every Scanner-confirmed incoming item during an active Farming Guide raid is represented by ephemeral `FarmingGuideItemState.RaidAcquired=true`. Scanner does not classify FIR from an icon/check/color/text and does not add a FIR confirmation interaction. `RaidAcquired` is `[JsonIgnore]` and is not persisted to presets/working state.
+The user explicitly removed Farming Guide from the product.
 
-Every scan is evaluated as a complete final-state optimization with exactly two lexicographic score dimensions:
+Target version: **v1.17.1 PATCH**.
 
-1. maximize currently needed FIR Quest/Hideout units, capped by remaining need;
-2. maximize complete final retained average-Flea value.
+Current implementation branch/PR:
 
-No other item-priority tie-breaker is authoritative. Weight, footprint, item category, survival utility and equipment superiority are not farming score dimensions.
+- branch: `product/remove-farming-guide-2026-09-04`
+- PR: **#290** (draft while final validation is running)
 
-## 3. Global final-state planning
+Removed implementation:
 
-The candidate set includes all movable current roots plus the incoming item across:
+- all first-party `Core/FarmingGuide` domain policies/models;
+- all Desktop Farming Guide page/raid/editor/smoke code;
+- Farming Guide persistence and Desktop service wiring;
+- main navigation/section/busy state;
+- Scanner Farming Guide bridge, accept hotkey/settings, Mini Scanner instruction and quantity-input state;
+- Farming Guide-only GameItem extension metadata/import logic and dedicated tests.
 
-- ordinary stored items;
-- top-level equipment;
-- Rig / Backpack / Secure Container roots;
-- nested container roots;
-- incoming Scanner item.
+Legacy `%LocalAppData%/JunhyunHelper/farming-guide.json` is not read or written by the target product and is not automatically deleted.
 
-Melee and Dogtag remain fixed setup state outside the candidate pool but still contribute to final weight. Compatible dedicated storage is a legal placement option, not a retention priority.
+Historical Farming Guide decisions/releases remain history only. Current decision authority is `docs/DECISION_V1.17.1_REMOVE_FARMING_GUIDE.md`.
 
-`FarmingGuideGlobalPackingPlanner` rebuilds all unlocked placements from scratch. Current unlocked placement is only a stability ordering preference after the retained set is chosen. Search budget exhaustion is explicit `BudgetExceeded`; it is never treated as proof that a destructive optimum does not exist.
+## 3. Preserved product boundaries
 
-## 4. System legality and fail-closed facts
+The removal must preserve:
 
-Final proposals must prove:
+- Quest / Hideout / Needed Items;
+- Items inventory/progress behavior;
+- Ammo comparison/pickup/favorites;
+- Map / MiniMap;
+- Scanner recognition, catalog, search, Mini Scanner ordinary fields, correction, Ground Truth and diagnostics;
+- content/program update safety and user-owned state isolation.
 
-- real width/height and rotation;
-- grid bounds and collision;
-- source-backed storage-grid filters;
-- parent/child ownership and no self/indirect container cycle;
-- equipment-slot compatibility, including `ItemPropertiesHeadwear` for headwear;
-- attachment and armor-plate slot filters;
-- item conflicts and bidirectional `ConflictingSlotIds`;
-- body armor vs armored-rig conflict;
-- helmet/headset blocking;
-- exact stack quantity semantics;
-- item/cell/root fixed constraints;
-- final modeled carry weight.
+## 4. Compatibility / data cleanup
 
-Complete retained Flea/FIR and weight calculations include modeled attachment and armor-plate descendants. Unknown required root geometry, weight or Flea value is not replaced by 1x1/0 kg/0 ₽ for destructive advice. The existing Scanner catalog/presentation resolver supplies canonical item facts; no new observation source or automatic inference flow was introduced.
+- Scanner display settings remain schema v10. Older JSON may still contain removed Farming Guide fields/order entries; current deserialization/normalization ignores or drops them.
+- Content snapshot schema remains v12. Farming Guide-only item metadata is no longer imported into the canonical GameItem model.
+- No Farming Guide persistence schema is part of the current active product contract.
+- Historical user Farming Guide JSON is inert and left untouched.
 
-## 5. Fixed-state contract
+## 5. Pre-final validation evidence
 
-An explicitly fixed item/cell is a hard constraint, not extra value.
+PR #290 implementation head `7901724fa7007860dc1220a667a10911bdaf4a9a` passed:
 
-- fixed item identity, storage, grid, X/Y, rotation, parent and quantity must remain unchanged;
-- a stored ancestor cannot move if that indirectly moves a fixed descendant or fixed nested cell;
-- the containing root Rig / Backpack / Secure Container is therefore fixed when necessary;
-- a fixed carrier's independent legal free storage remains usable;
-- unlocked contents remain ordinary planning candidates unless separately fixed.
+- CI run `33821768569`;
+- Shutdown Race run `33821768577`;
+- Documentation Consistency run `33821768568`;
+- Windows Release build;
+- **485 passed / 0 failed / 0 skipped** deterministic tests;
+- win-x64 self-contained publish;
+- actual published EXE Product UI / full Map/Factory/MiniMap / Scanner smoke;
+- graceful shutdown and clean portable-root checks;
+- release package/checksum verification.
 
-Same-storage-area movement/rotation required by a legal global solve is surfaced to the user as `내부 재배치`; required physical changes are not hidden.
+Final v1.17.1 CI is required again after version/document updates.
 
-## 6. Stack and weight contract
+## 6. Version / release transition
 
-Ammo and Currency keep the existing user quantity-input flow. The entered quantity models one actual observed stack instance. v1.17.0 does not invent maximum-stack facts or automatic split/merge semantics.
+Public stable remains immutable **v1.17.0** until v1.17.1 exact-main/release verification completes.
 
-Quantity scales FIR units, Flea value and weight. Weight remains only a final-state feasibility constraint under the configured Strength rule; it never breaks item-priority ties.
+The source target is now Desktop **1.17.1**. `docs/PROJECT_STATE.json` intentionally keeps `publicStable` on v1.17.0 while `product.desktopVersion` tracks the in-progress v1.17.1 source.
 
 ## 7. Regression and published-runtime coverage
 
 PR #288 and exact-main both passed the full Windows gate. Coverage includes:
 
-- FIR absolute priority and remaining-need cap;
-- equal FIR → complete retained Flea optimization;
-- no tactical food/drink privilege;
-- stack quantity in FIR/value/weight;
-- complete attachment/plate value and weight;
-- unknown price/weight/geometry fail closed;
-- incoming container capacity in the same scan;
-- equipment replacement/relocation and consecutive scans;
-- same-area repacking instruction;
-- fixed nested-item and fixed-cell ancestry propagation;
-- dedicated nested storage through the v1.17 global solver;
-- owner-cycle rejection;
-- assembly slot conflicts and headwear compatibility;
-- actual published EXE Product UI / Map / Scanner / Farming Guide smoke;
-- graceful shutdown, clean portable root and release package/checksum verification;
-- dedicated Shutdown Race CI and Documentation Consistency.
+- removal implementation regression coverage is represented by the 485-test surviving suite plus actual Product UI / Map / Scanner smoke;
+- final v1.17.1 CI/exact-main/release evidence will replace this pre-final branch evidence.
 
 Deterministic result on exact product source: **649 passed / 0 failed / 0 skipped**.
 
 ## 8. Schema / canonical references
 
 ```text
-Desktop: 1.17.0
+Desktop target: 1.17.1
+Public stable: 1.17.0
 Content write/read: v12 / v3-v12
 user.db: v1
-Farming Guide state: v3
 Scanner display settings: v10
 Scanner catalog write/read: v4 / v1-v4
 Map donor revision: d933792b6042a51cea38dc44b686a096fe30de67
@@ -154,6 +141,8 @@ Canonical evidence:
 - `docs/.release-v1.17.0-status.json`
 - `docs/RELEASE_NOTES_V1.17.0.md`
 - `docs/CURRENT_STATE.md`
-- `docs/DECISION_V1.17.0_FARMING_GUIDE_RULEBOOK.md`
+- `docs/DECISION_V1.17.1_REMOVE_FARMING_GUIDE.md`
+- `docs/RELEASE_NOTES_V1.17.1.md`
+- `docs/ACTIVE_WORK.md`
 
 Automated implementation, merge, exact-main and public release validation are complete. Actual Tarkov play validation on the user's own environment remains a separate `PENDING` evidence field and does not make v1.17.0 development or release incomplete.

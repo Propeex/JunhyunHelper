@@ -1,7 +1,6 @@
 using JunhyunHelper.Core.Ammo;
 using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.Editions;
-using JunhyunHelper.Core.FarmingGuide;
 using JunhyunHelper.Core.Hideout;
 using JunhyunHelper.Core.Items;
 using JunhyunHelper.Core.Profiles;
@@ -42,14 +41,6 @@ public sealed class ContentSnapshotStoreTests
             Assert.Equal(GameMode.Regular, loaded.GameMode);
             var loadedItem = Assert.Single(loaded.Content.Items);
             Assert.Equal("item-a", loadedItem.Id);
-            Assert.NotNull(loadedItem.FarmingGuideData);
-            var farmingGuide = loadedItem.FarmingGuideData!;
-            Assert.Equal("ItemPropertiesBackpack", farmingGuide.PropertiesType);
-            var grid = Assert.Single(farmingGuide.StorageGrids);
-            Assert.Equal(2, grid.Width);
-            Assert.Equal(3, grid.Height);
-            Assert.Contains("allowed-item", grid.Filters.AllowedItemIds);
-
             var quest = Assert.Single(loaded.Content.Quests);
             Assert.Equal("quest-a", quest.Id);
             Assert.Equal("dialogue", Assert.Single(quest.UnsupportedAvailabilityRequirements));
@@ -91,27 +82,7 @@ public sealed class ContentSnapshotStoreTests
                     null,
                     null,
                     null,
-                    Array.Empty<string>())
-                {
-                    FarmingGuideData = new FarmingGuideItemLayout(
-                        "ItemPropertiesBackpack",
-                        [
-                            new FarmingGuideStorageGridDefinition(
-                                2,
-                                3,
-                                new FarmingGuideItemFilter(
-                                    [],
-                                    ["allowed-item"],
-                                    [],
-                                    [])),
-                        ],
-                        [],
-                        [],
-                        [],
-                        [],
-                        false,
-                        false),
-                },
+                    Array.Empty<string>()),
             },
             new[] { new TraderDefinition("trader-a", "상인 A", "Trader A") },
             new[] { new MapReference("map-a", "맵 A", "Map A", "map-a") },

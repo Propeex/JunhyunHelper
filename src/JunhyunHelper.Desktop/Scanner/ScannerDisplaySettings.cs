@@ -14,7 +14,6 @@ public sealed class ScannerDisplaySettings
     public const string FleaPricePerSlotField = "flea_price_per_slot";
     public const string CurrentNeededField = "current_needed";
     public const string AmmoPickupField = "ammo_pickup";
-    public const string FarmingGuideField = "farming_guide";
 
     private static readonly string[] DefaultMiniScannerInfoOrder =
     [
@@ -25,13 +24,10 @@ public sealed class ScannerDisplaySettings
         FleaPricePerSlotField,
         CurrentNeededField,
         AmmoPickupField,
-        FarmingGuideField,
     ];
 
     private static readonly ScannerHotkeyGesture DefaultAddCorrectionData =
         new(true, false, true, System.Windows.Input.Key.F9);
-    private static readonly ScannerHotkeyGesture DefaultFarmingGuideAccept =
-        new(true, false, true, System.Windows.Input.Key.F6);
 
     public int SchemaVersion { get; set; }
     public bool Enabled { get; set; }
@@ -44,7 +40,6 @@ public sealed class ScannerDisplaySettings
     public bool ShowFleaPricePerSlot { get; set; }
     public bool ShowCurrentNeeded { get; set; } = true;
     public bool ShowAmmoPickup { get; set; } = true;
-    public bool ShowFarmingGuide { get; set; } = true;
     public List<string> MiniScannerInfoOrder { get; set; } = [.. DefaultMiniScannerInfoOrder];
     public double? PositionX { get; set; }
     public double? PositionY { get; set; }
@@ -53,7 +48,6 @@ public sealed class ScannerDisplaySettings
     public string OneShotTestHotkey { get; set; } = ScannerHotkeyGesture.DefaultOneShotTest.ToString();
     public string ScannerToggleHotkey { get; set; } = ScannerHotkeyGesture.DefaultScannerToggle.ToString();
     public string AddCorrectionDataHotkey { get; set; } = DefaultAddCorrectionData.ToString();
-    public string FarmingGuideAcceptHotkey { get; set; } = DefaultFarmingGuideAccept.ToString();
 
     /// <summary>
     /// Optional user-owned exact OCR corrections. The default is deliberately empty;
@@ -81,7 +75,6 @@ public sealed class ScannerDisplaySettings
         ShowFleaPricePerSlot = ShowFleaPricePerSlot,
         ShowCurrentNeeded = ShowCurrentNeeded,
         ShowAmmoPickup = ShowAmmoPickup,
-        ShowFarmingGuide = ShowFarmingGuide,
         MiniScannerInfoOrder = MiniScannerInfoOrder?.ToList() ?? [],
         PositionX = PositionX,
         PositionY = PositionY,
@@ -90,7 +83,6 @@ public sealed class ScannerDisplaySettings
         OneShotTestHotkey = OneShotTestHotkey,
         ScannerToggleHotkey = ScannerToggleHotkey,
         AddCorrectionDataHotkey = AddCorrectionDataHotkey,
-        FarmingGuideAcceptHotkey = FarmingGuideAcceptHotkey,
         OcrSubstitutions = OcrSubstitutions?.Select(rule => rule.Clone()).ToList() ?? [],
         OneShotHotkey = OneShotHotkey,
     };
@@ -131,11 +123,6 @@ public sealed class ScannerDisplaySettings
             ShowFleaMinimumPrice = true;
         if (SchemaVersion < 9)
             ShowAmmoPickup = true;
-        if (SchemaVersion < 10)
-        {
-            ShowFarmingGuide = true;
-            FarmingGuideAcceptHotkey = DefaultFarmingGuideAccept.ToString();
-        }
 
         MiniScannerInfoOrder = ScannerInfoOrderPolicy.Normalize(
             MiniScannerInfoOrder,
@@ -153,9 +140,6 @@ public sealed class ScannerDisplaySettings
         AddCorrectionDataHotkey = NormalizeHotkey(
             AddCorrectionDataHotkey,
             DefaultAddCorrectionData);
-        FarmingGuideAcceptHotkey = NormalizeHotkey(
-            FarmingGuideAcceptHotkey,
-            DefaultFarmingGuideAccept);
 
         var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         AddIfConfigured(used, OneShotTarkovHotkey);
@@ -181,12 +165,6 @@ public sealed class ScannerDisplaySettings
             DefaultAddCorrectionData,
             new ScannerHotkeyGesture(true, false, true, System.Windows.Input.Key.F8),
             new ScannerHotkeyGesture(true, false, true, System.Windows.Input.Key.F7));
-        FarmingGuideAcceptHotkey = EnsureUnique(
-            FarmingGuideAcceptHotkey,
-            used,
-            DefaultFarmingGuideAccept,
-            new ScannerHotkeyGesture(true, false, true, System.Windows.Input.Key.F5),
-            new ScannerHotkeyGesture(true, false, true, System.Windows.Input.Key.F4));
 
         OcrSubstitutions = ScannerOcrSubstitutionEngine
             .NormalizeRules(OcrSubstitutions)
@@ -216,7 +194,6 @@ public sealed class ScannerDisplaySettings
         FleaPricePerSlotField => ShowFleaPricePerSlot,
         CurrentNeededField => ShowCurrentNeeded,
         AmmoPickupField => ShowAmmoPickup,
-        FarmingGuideField => ShowFarmingGuide,
         _ => false,
     };
 
@@ -244,9 +221,6 @@ public sealed class ScannerDisplaySettings
                 break;
             case AmmoPickupField:
                 ShowAmmoPickup = visible;
-                break;
-            case FarmingGuideField:
-                ShowFarmingGuide = visible;
                 break;
         }
     }

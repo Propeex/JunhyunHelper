@@ -8,15 +8,12 @@ public sealed partial class ScannerCoordinator
     private const int OneShotTestHotkeyId = 0x4A54;
     private const int ScannerToggleHotkeyId = 0x4A55;
     private const int AddCorrectionDataHotkeyId = 0x4A56;
-    private const int FarmingGuideAcceptHotkeyId = 0x4A57;
 
     private readonly SemaphoreSlim _oneShotCoordinatorGate = new(1, 1);
     private ScannerGlobalHotkeyService? _hotkeyService;
     private ScannerGlobalHotkeyService? _testHotkeyService;
     private ScannerGlobalHotkeyService? _scannerToggleHotkeyService;
     private ScannerGlobalHotkeyService? _addCorrectionDataHotkeyService;
-    private ScannerGlobalHotkeyService? _farmingGuideAcceptHotkeyService;
-    private Func<bool>? _farmingGuideAcceptHandler;
     private bool _hotkeySubscribed;
     private bool _extraHotkeysSubscribed;
 
@@ -27,13 +24,12 @@ public sealed partial class ScannerCoordinator
     public string OneShotTestHotkeyText => _settings.Current.OneShotTestHotkey;
     public string ScannerToggleHotkeyText => _settings.Current.ScannerToggleHotkey;
     public string AddCorrectionDataHotkeyText => _settings.Current.AddCorrectionDataHotkey;
-    public string FarmingGuideAcceptHotkeyText => _settings.Current.FarmingGuideAcceptHotkey;
 
     public string HotkeyStatusText
     {
         get
         {
-            var statuses = new List<string>(5);
+            var statuses = new List<string>(4);
             if (_hotkeyService is not null)
                 statuses.Add(_hotkeyService.StatusText);
             if (_testHotkeyService is not null)
@@ -42,18 +38,10 @@ public sealed partial class ScannerCoordinator
                 statuses.Add(_scannerToggleHotkeyService.StatusText);
             if (_addCorrectionDataHotkeyService is not null)
                 statuses.Add(_addCorrectionDataHotkeyService.StatusText);
-            if (_farmingGuideAcceptHotkeyService is not null)
-                statuses.Add(_farmingGuideAcceptHotkeyService.StatusText);
             return statuses.Count == 0
                 ? "Scanner 단축키가 아직 초기화되지 않았습니다."
                 : string.Join(" · ", statuses);
         }
-    }
-
-    public void SetFarmingGuideAcceptHandler(Func<bool> handler)
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        _farmingGuideAcceptHandler = handler ?? throw new ArgumentNullException(nameof(handler));
     }
 
     public void AttachHotkeyHost(Window window)
@@ -65,7 +53,6 @@ public sealed partial class ScannerCoordinator
         _testHotkeyService ??= new ScannerGlobalHotkeyService(OneShotTestHotkeyId, "1회 테스트 스캔");
         _scannerToggleHotkeyService ??= new ScannerGlobalHotkeyService(ScannerToggleHotkeyId, "스캐너 ON/OFF");
         _addCorrectionDataHotkeyService ??= new ScannerGlobalHotkeyService(AddCorrectionDataHotkeyId, "교정 데이터 추가");
-        _farmingGuideAcceptHotkeyService ??= new ScannerGlobalHotkeyService(FarmingGuideAcceptHotkeyId, "파밍 가이드 수락");
 
         if (!_hotkeySubscribed)
         {
@@ -78,7 +65,6 @@ public sealed partial class ScannerCoordinator
             _testHotkeyService.RegistrationChanged += OnHotkeyRegistrationChanged;
             _scannerToggleHotkeyService.RegistrationChanged += OnHotkeyRegistrationChanged;
             _addCorrectionDataHotkeyService.RegistrationChanged += OnHotkeyRegistrationChanged;
-            _farmingGuideAcceptHotkeyService.RegistrationChanged += OnHotkeyRegistrationChanged;
             _extraHotkeysSubscribed = true;
         }
 
@@ -98,10 +84,6 @@ public sealed partial class ScannerCoordinator
             window,
             ParseHotkey(_settings.Current.AddCorrectionDataHotkey),
             CaptureCorrectionDataFromHotkeyAsync);
-        _farmingGuideAcceptHotkeyService.Attach(
-            window,
-            ParseHotkey(_settings.Current.FarmingGuideAcceptHotkey),
-            AcceptFarmingGuideFromHotkeyAsync);
     }
 
     public void SetOneShotHotkey(ScannerHotkeyGesture? gesture) => SetOneShotTarkovHotkey(gesture);
@@ -140,15 +122,6 @@ public sealed partial class ScannerCoordinator
         _settings.Update(settings => settings.AddCorrectionDataHotkey = text);
         _addCorrectionDataHotkeyService?.UpdateGesture(gesture);
         HotkeyStatusChanged?.Invoke(_addCorrectionDataHotkeyService?.StatusText ?? "교정 데이터 추가 단축키 설정을 저장했습니다.");
-    }
-
-    public void SetFarmingGuideAcceptHotkey(ScannerHotkeyGesture? gesture)
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        var text = gesture?.ToString() ?? string.Empty;
-        _settings.Update(settings => settings.FarmingGuideAcceptHotkey = text);
-        _farmingGuideAcceptHotkeyService?.UpdateGesture(gesture);
-        HotkeyStatusChanged?.Invoke(_farmingGuideAcceptHotkeyService?.StatusText ?? "파밍 가이드 수락 단축키 설정을 저장했습니다.");
     }
 
     public Task<bool> TriggerOneShotAsync(CancellationToken cancellationToken = default) =>
@@ -258,13 +231,6 @@ public sealed partial class ScannerCoordinator
         }
     }
 
-    private Task AcceptFarmingGuideFromHotkeyAsync()
-    {
-        if (!_disposed)
-            _ = _farmingGuideAcceptHandler?.Invoke();
-        return Task.CompletedTask;
-    }
-
     private void OnHotkeyRegistrationChanged(string status) => HotkeyStatusChanged?.Invoke(status);
 
     private void OnPrimaryHotkeyDisposed()
@@ -290,15 +256,7 @@ public sealed partial class ScannerCoordinator
             _addCorrectionDataHotkeyService.Dispose();
             _addCorrectionDataHotkeyService = null;
         }
-        if (_farmingGuideAcceptHotkeyService is not null)
-        {
-            if (_extraHotkeysSubscribed)
-                _farmingGuideAcceptHotkeyService.RegistrationChanged -= OnHotkeyRegistrationChanged;
-            _farmingGuideAcceptHotkeyService.Dispose();
-            _farmingGuideAcceptHotkeyService = null;
-        }
         _extraHotkeysSubscribed = false;
-        _farmingGuideAcceptHandler = null;
     }
 
     private static ScannerHotkeyGesture? ParseHotkey(string? value) =>

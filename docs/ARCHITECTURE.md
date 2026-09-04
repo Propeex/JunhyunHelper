@@ -2,8 +2,8 @@
 
 이 문서는 준현 헬퍼의 현재 구현 구조와 장기적으로 지켜야 할 기술 경계를 기록한다. 세부 subsystem 계약은 specialist 문서로 분리하고, 이 문서는 전체 책임/데이터 흐름/lifecycle의 canonical architecture index 역할을 한다.
 
-기준일: **2026-08-31 KST**  
-상태: **v1.13.0 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+기준일: **2026-09-04 KST**  
+상태: **EVERGREEN CURRENT ARCHITECTURE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 정확한 현재 release SHA·CI·asset·schema 사실값은 `docs/PROJECT_STATE.json`과 `docs/STATE.md`를 사용한다. 제품 의미는 `docs/PRODUCT.md`와 최신 `docs/DECISION_*`이 우선한다.
 
@@ -45,7 +45,6 @@ Canonical domain과 deterministic 계산을 소유한다.
 - Quest prerequisite/availability semantics
 - Needed Items / cleanup safety
 - Item / Ammo canonical meaning
-- Farming Guide placement/compatibility semantics 중 pure domain 부분
 - Scanner pure matching/policy/signature 계약
 
 ### Application
@@ -64,7 +63,6 @@ I/O 경계를 소유한다.
 - remote Tarkov source parsing/import
 - Game Content build/validation/activation
 - SQLite/file persistence
-- Farming Guide JSON persistence
 - Scanner catalog/cache
 - Program Update client/applier
 
@@ -76,7 +74,6 @@ WPF와 OS integration을 소유한다.
 - page/view rendering and interaction
 - shared in-app overlay host
 - image-cache presentation
-- Farming Guide drag/drop/configuration UI
 - Scanner capture/OCR/runtime/diagnostics
 - Map first-party bridge/customization
 - startup/update/shutdown UX
@@ -90,7 +87,6 @@ Domain truth를 WPF event handler에 복제하지 않는다.
 | Game Content | validated online source → canonical snapshot | `%LocalAppData%/JunhyunHelper/content/<mode>/content.db` |
 | User Progress | user-confirmed facts | `%LocalAppData%/JunhyunHelper/user.db` |
 | Inventory | user quantity + consumption ledger | `user.db` |
-| Farming Guide state | user working state / presets / fixed settings | `%LocalAppData%/JunhyunHelper/farming-guide.json` |
 | Presentation settings | user preferences | subsystem JSON / SQLite as defined |
 | Image cache | validated/normalized bytes | `%LocalAppData%/JunhyunHelper/image-cache/` |
 | Scanner identity/market catalog | current full-item source + official identity | `scanner/catalog/` + memory |
@@ -100,7 +96,7 @@ Domain truth를 WPF event handler에 복제하지 않는다.
 | Map artwork/config/general markers | pinned donor bundle | release `Assets/` |
 | Program files | exact GitHub stable Release | portable product folder |
 
-각 lifecycle은 분리한다. Program Update와 Game Content Update가 `user.db`, Farming Guide state, reviewed Ground Truth 또는 mutable preferences를 덮어쓰지 않는다.
+각 lifecycle은 분리한다. Program Update와 Game Content Update가 `user.db`, reviewed Ground Truth 또는 mutable preferences를 덮어쓰지 않는다.
 
 ## 4. MainWindow / section lifecycle
 
@@ -114,7 +110,6 @@ MainWindow는 제품 shell과 first-class section lifecycle을 소유한다.
 - Ammo
 - Map
 - Scanner
-- Farming Guide
 
 Section integration은 다음 공통 상태를 명시적으로 처리한다.
 
@@ -155,7 +150,7 @@ App.OnStartup
 → MainWindow composition
 → optional startup Program Update check
 → profile/content/workspaces
-→ Map / Scanner / Farming Guide section context
+→ Map / Scanner section context
 ```
 
 Shutdown은 Scanner OCR/runtime, font/cache/background work와 기타 owned async resource를 정상 종료해야 한다.
@@ -190,32 +185,27 @@ remote source
 - suspicious shrink를 baseline-relative guard로 차단
 - importer가 이해하지 못하는 schema drift는 fail closed
 - optional enrichment는 필요한 범위에서 fail-soft
-- User Progress / Farming Guide user state에 영향 없음
+- User Progress / Scanner user state에 영향 없음
 
 Top-level Game Data Update는 general content activation 뒤 current GameMode Scanner catalog/market refresh까지 orchestration한다. Scanner-only partial failure가 general content success를 rollback하지 않는다.
 
 외부 최신 source 계약 검증은 hermetic PR/main CI와 분리한다.
 
-## 8. Content schema / Farming Guide item structure
 
-v1.13.0부터 canonical Item에 Farming Guide가 사용하는 optional structure를 보존한다.
+## 8. Content schema / Item structure
 
-- width / height
-- storage grids
-- grid filters
-- equipment / attachment slots
-- armor plate slots
-- conflicts
-- editor compatibility에 필요한 current item properties
+Canonical Item keeps only fields that remain current product data authority, including identity/category/type, ordinary dimensions/weight/base price/flea-tradability and other independently used content.
 
-현재 contract:
+Farming Guide-only storage/equipment/attachment/armor/layout extension metadata was removed in v1.17.1 because no remaining product feature consumes it.
+
+Current content contract:
 
 ```text
-Content write schema: v9
-Readable schemas: v3~v9
+Content write schema: v12
+Readable schemas: v3~v12
 ```
 
-Old readable snapshot에는 신규 structure가 없을 수 있다. 없는 데이터를 추측해 fabricate하지 않는다.
+Older v12 snapshots may contain historical JSON properties that current models ignore. The application does not reinterpret those removed properties as another feature's authority.
 
 ## 9. Profile / Quest / Needed Items flow
 
@@ -320,30 +310,14 @@ Display scaling은 original-pixel dataset coordinate authority를 변경하지 �
 
 김태영 PC 진단은 별도 opt-in support exporter다. 자동 upload/email send를 하지 않으며 allowlist evidence만 수집한다.
 
-## 14. Farming Guide architecture
 
-Farming Guide는 raid-start Loadout / Inventory Editor다.
+## 14. Retired Farming Guide boundary
 
-```text
-validated Item structure
-→ search/equipment/storage presentation
-→ drag payload + actual footprint
-→ rotation/snap
-→ bounds/overlap/contiguous/filter validation
-→ working raid-start state
-→ preset/fixed-state persistence
-```
+Farming Guide is not a current subsystem as of v1.17.1.
 
-핵심 경계:
+There is no current Farming Guide UI, service, persistence, Scanner bridge, planner, optimizer or domain model.
 
-- current validated Item structure가 carrier/grid/slot authority
-- populated carrier destructive replacement fail-closed
-- persisted placement를 current content에 대해 sanitize
-- preset과 fixed melee/dogtag lifecycle 분리
-- recommendation/value truth를 editor state에 혼합하지 않음
-- actual live Tarkov inventory coordinate mirror가 아님
-
-Canonical specialist doc: `docs/ARCHITECTURE_FARMING_GUIDE.md`.
+Historical decision/release documents may describe the removed subsystem for reproducibility, but they are not architecture authority for current code.
 
 ## 15. Program Update / release architecture
 
@@ -380,9 +354,8 @@ Public stable tag/source/assets는 immutable historical identity다. 후속 docu
 
 ```text
 user.db: v1
-Farming Guide state: v1
-Content write: v9 / readable v3~v9
-Scanner display settings: v9
+Content write: v12 / readable v3~v12
+Scanner display settings: v10
 Scanner catalog write: v4 / readable v1~v4
 ```
 
@@ -404,7 +377,7 @@ Deterministic unit/integration test만으로 user-visible WPF 완료를 선언�
 - Windows x64 self-contained publish
 - actual published EXE startup
 - relevant Product UI activation/render smoke
-- Map/Scanner/Farming Guide 비회귀 smoke
+- Map/Scanner 비회귀 smoke
 - normal shutdown
 - active async Shutdown Race
 - clean portable root

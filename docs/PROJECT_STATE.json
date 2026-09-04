@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "updatedDateKst": "2026-09-03",
+  "updatedDateKst": "2026-09-04",
   "product": {
     "name": "준현 헬퍼",
     "repository": "Propeex/JunhyunHelper",
     "lifecycle": "PUBLIC_STABLE_PRODUCT_COMPLETE_MAINTENANCE",
-    "desktopVersion": "1.17.0"
+    "desktopVersion": "1.17.1"
   },
   "publicStable": {
     "version": "1.17.0",
@@ -53,12 +53,27 @@
   },
   "schemas": {
     "contentWrite": 12,
-    "contentReadable": [3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    "contentReadable": [
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
     "userDb": 1,
-    "farmingGuideState": 3,
     "scannerDisplaySettings": 10,
     "scannerCatalogWrite": 4,
-    "scannerCatalogReadable": [1, 2, 3, 4]
+    "scannerCatalogReadable": [
+      1,
+      2,
+      3,
+      4
+    ]
   },
   "map": {
     "donorRepository": "SIGDrone/Tarkov-Helper",
