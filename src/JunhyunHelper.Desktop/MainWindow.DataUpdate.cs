@@ -16,9 +16,18 @@ public partial class MainWindow
         if (_activeProfile is null)
             return;
 
+        var gateEntered = false;
+        var ownsBusyState = false;
         try
         {
+            await _contentOperationGate.WaitAsync();
+            gateEntered = true;
+
+            if (_activeProfile is null)
+                return;
+
             SetBusy(true);
+            ownsBusyState = true;
             var gameMode = _activeProfile.GameMode;
             var result = await RunContentUpdateAsync(gameMode);
             if (!result.Applied)
@@ -69,7 +78,10 @@ public partial class MainWindow
         }
         finally
         {
-            SetBusy(false);
+            if (ownsBusyState)
+                SetBusy(false);
+            if (gateEntered)
+                _contentOperationGate.Release();
         }
     }
 }
