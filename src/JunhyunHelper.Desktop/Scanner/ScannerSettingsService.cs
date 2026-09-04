@@ -54,11 +54,6 @@ public sealed class ScannerSettingsService
         return snapshot;
     }
 
-    public ScannerDisplaySettings ResetPosition() => Update(settings =>
-    {
-        settings.PositionX = null;
-        settings.PositionY = null;
-    });
 
     private ScannerDisplaySettings Load()
     {
