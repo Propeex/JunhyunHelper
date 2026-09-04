@@ -468,8 +468,12 @@ public sealed class LegacyMapQuestSidebarV2 : Border
     public LegacyMapQuestSidebarV2()
     {
         Width = CollapsedWidth;
-        Background = new SolidColorBrush(Color.FromRgb(31, 31, 31));
-        BorderBrush = new SolidColorBrush(Color.FromRgb(69, 69, 69));
+        Background = BrushFromResource(
+            "BackgroundMediumBrush",
+            new SolidColorBrush(Color.FromRgb(31, 31, 31)));
+        BorderBrush = BrushFromResource(
+            "BorderBrush",
+            new SolidColorBrush(Color.FromRgb(69, 69, 69)));
         BorderThickness = new Thickness(0, 0, 1, 0);
 
         _root = new Grid();
@@ -494,7 +498,9 @@ public sealed class LegacyMapQuestSidebarV2 : Border
         _summary = new TextBlock
         {
             Margin = new Thickness(0, 4, 0, 10),
-            Foreground = new SolidColorBrush(Color.FromRgb(170, 170, 170)),
+            Foreground = BrushFromResource(
+                "TextSecondaryBrush",
+                new SolidColorBrush(Color.FromRgb(170, 170, 170))),
             FontSize = 11,
         };
         _items = new StackPanel();
@@ -512,7 +518,7 @@ public sealed class LegacyMapQuestSidebarV2 : Border
             Text = "진행 중 퀘스트",
             FontSize = 16,
             FontWeight = FontWeights.SemiBold,
-            Foreground = Brushes.White,
+            Foreground = BrushFromResource("TextPrimaryBrush", Brushes.White),
         });
         Grid.SetRow(_summary, 1);
         _expandedContent.Children.Add(_summary);
@@ -541,7 +547,9 @@ public sealed class LegacyMapQuestSidebarV2 : Border
             _items.Children.Add(new TextBlock
             {
                 Text = "이 지도에서 진행 중인 퀘스트가 없습니다.",
-                Foreground = new SolidColorBrush(Color.FromRgb(145, 145, 145)),
+                Foreground = BrushFromResource(
+                    "TextSecondaryBrush",
+                    new SolidColorBrush(Color.FromRgb(145, 145, 145))),
                 FontSize = 12,
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 8, 0, 0),
@@ -590,7 +598,9 @@ public sealed class LegacyMapQuestSidebarV2 : Border
                 Width = 28,
                 Height = 28,
                 CornerRadius = new CornerRadius(14),
-                Background = new SolidColorBrush(Color.FromRgb(197, 168, 74)),
+                Background = BrushFromResource(
+                    "AccentBrush",
+                    new SolidColorBrush(Color.FromRgb(197, 168, 74))),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 IsHitTestVisible = false,
@@ -638,8 +648,12 @@ public sealed class LegacyMapQuestSidebarV2 : Border
             MaxHeight = 68,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Top,
-            Background = new SolidColorBrush(Color.FromRgb(40, 40, 40)),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(63, 63, 63)),
+            Background = BrushFromResource(
+                "BackgroundLightBrush",
+                new SolidColorBrush(Color.FromRgb(40, 40, 40))),
+            BorderBrush = BrushFromResource(
+                "BorderBrush",
+                new SolidColorBrush(Color.FromRgb(63, 63, 63))),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(6),
             Padding = new Thickness(8, 6, 8, 6),
@@ -648,7 +662,7 @@ public sealed class LegacyMapQuestSidebarV2 : Border
         };
     }
 
-    private static FrameworkElement CreateQuestContent(LegacyMapQuestEntryV2 entry)
+    private FrameworkElement CreateQuestContent(LegacyMapQuestEntryV2 entry)
     {
         var content = new StackPanel
         {
@@ -658,7 +672,7 @@ public sealed class LegacyMapQuestSidebarV2 : Border
         content.Children.Add(new TextBlock
         {
             Text = entry.Name,
-            Foreground = Brushes.White,
+            Foreground = BrushFromResource("TextPrimaryBrush", Brushes.White),
             FontSize = 13,
             FontWeight = FontWeights.SemiBold,
             TextWrapping = TextWrapping.NoWrap,
@@ -671,8 +685,12 @@ public sealed class LegacyMapQuestSidebarV2 : Border
         {
             Text = entry.Markers.Count > 0 ? $"좌표 {entry.Markers.Count}개" : "정확한 좌표 없음",
             Foreground = entry.Markers.Count > 0
-                ? new SolidColorBrush(Color.FromRgb(197, 168, 74))
-                : new SolidColorBrush(Color.FromRgb(130, 130, 130)),
+                ? BrushFromResource(
+                    "AccentBrush",
+                    new SolidColorBrush(Color.FromRgb(197, 168, 74)))
+                : BrushFromResource(
+                    "TextSecondaryBrush",
+                    new SolidColorBrush(Color.FromRgb(130, 130, 130))),
             FontSize = 10,
             Margin = new Thickness(0, 3, 0, 0),
             TextWrapping = TextWrapping.NoWrap,
@@ -682,6 +700,9 @@ public sealed class LegacyMapQuestSidebarV2 : Border
         });
         return content;
     }
+
+    private static Brush BrushFromResource(string key, Brush fallback) =>
+        System.Windows.Application.Current?.TryFindResource(key) as Brush ?? fallback;
 
     private void MarkerToggle_Changed(object sender, RoutedEventArgs e)
     {
