@@ -4,7 +4,7 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 제품 상태
 
-현재 상태는 **v1.17.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
+현재 상태는 **v1.17.2 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
 
 공식 프로젝트 기억은 대화가 아니라 저장소의 문서·코드·테스트·GitHub 상태입니다.
 
@@ -18,82 +18,83 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 ## 현재 공개 릴리즈
 
 ```text
-version/tag: v1.17.1
+version/tag: v1.17.2
 exact product source/tag target:
-4ad1f76ed7c2469e60d0822b229fe03f83c75816
+73f0386a45818408c2a68530b90de7946ecaf1d1
 validated PR head:
-edd6fa6f5a2edc9d52be84bf1625266d5ad6abec
-merge PR: #290 — MERGED
+121d060db102eed0f4af241ef5f37c51164c6a04
+merge PR: #292 — MERGED
 PR CI / Shutdown / Docs:
-33826796756 / 33826796665 / 33826796667 — SUCCESS
+33840328932 / 33840328963 / 33840329237 — SUCCESS
 exact-main CI / Shutdown / Docs:
-33827008615 / 33827008595 / 33827008638 — SUCCESS
+33840553320 / 33840553329 / 33840553303 — SUCCESS
 Release workflow:
-33827205735 — SUCCESS
-release id: 382428841
-published UTC: 2026-09-04T01:49:57Z
-485 passed / 0 failed / 0 skipped
+33840780902 — SUCCESS
+release id: 382500195
+published UTC: 2026-09-04T05:31:31Z
+488 passed / 0 failed / 0 skipped
 ```
 
 Public package:
 
 ```text
 Junhyun-Helper.zip
-asset id: 543627042
-bytes: 80,573,737
+asset id: 543847934
+bytes: 80,554,487
 SHA-256:
-fad73f3987c04cae73c5a473ccbce6c3a70ff8ca22da04a95a942e66ebea3b6c
+a64d202046505273964b0735976d71e382624c68f16699c6844b193599b43971
 
 SHA256SUMS.txt
-asset id: 543627044
+asset id: 543847933
 bytes: 86
 asset SHA-256:
-d665b07efa2d3e402937701f903d1eb5da8001feab0b54bcb2a9d8a93e46f9b1
+a105826dcc518a58412a521b221a2e7842ccfb716662418981005b4d276505a0
 ```
 
 Exact-main Actions artifact:
 
 ```text
 JunhyunHelper-win-x64
-artifact id: 9920376580
-archive bytes: 241,651,630
+artifact id: 9924825161
+archive bytes: 241,595,886
 archive SHA-256:
-94cb4670b2889c42efaeaa50874b8bb0a186c3849f09a814184b82609bb2ad22
+864f971ebe799df881ac4d69318ae331cd3c4c4e783013836bceaacb33232ba4
 ```
 
-GitHub latest release `v1.17.1` targets exact product source `4ad1f76ed7c2469e60d0822b229fe03f83c75816`, is neither draft nor prerelease, and was published only after the Release workflow re-downloaded the exact-main artifact and independently verified ProductVersion, FIRST_RUN and package checksum identity.
+GitHub latest release `v1.17.2` directly targets exact product source `73f0386a45818408c2a68530b90de7946ecaf1d1`, is neither draft nor prerelease, and was published only after the Release workflow re-downloaded the exact-main artifact and verified ProductVersion, FIRST_RUN and package checksum identity.
 
 Release evidence:
 
-- `docs/.release-v1.17.1-status.json`
-- `docs/RELEASE_NOTES_V1.17.1.md`
-- `docs/DECISION_V1.17.1_REMOVE_FARMING_GUIDE.md`
+- `docs/.release-v1.17.2-status.json`
+- `docs/RELEASE_NOTES_V1.17.2.md`
 - `docs/PROJECT_STATE.json`
 - `docs/CURRENT_STATE.md`
 - `docs/STATE.md`
 
-## v1.17.1 — Farming Guide removed
+## v1.17.2 — Product Purity Cleanup
 
-사용자 결정에 따라 Farming Guide는 제품에서 **완전히 제거**되었습니다. 숨김 또는 비활성화 상태로 남긴 것이 아닙니다.
+이번 PATCH는 새 기능 추가나 성능 최적화가 아닙니다.
 
-제거 범위:
+현재 제품에서 실제 역할이 없다고 증명된 잔재만 제거했습니다.
 
-- 메인 Farming Guide 탭/페이지
-- loadout/inventory editor와 preset
-- raid-session farming advisor
-- loot/global packing/repacking 판단
-- lock/reserved-cell/weight/quantity 흐름
-- Scanner → Farming Guide bridge와 simulated scan
-- Mini Scanner Farming Guide 지시/수량 입력
-- Farming Guide 수락 단축키와 Scanner 설정
-- Farming Guide 전용 persistence/service/domain policy
-- Farming Guide 전용 Game Content metadata/import와 테스트/스모크
+주요 정리:
 
-Quest, Hideout, Items/Needed Items, Ammo, Map/MiniMap, Scanner 인식/검색/교정/Ground Truth/진단 기능은 유지됩니다.
+- 숨은 구형 UI와 runtime repair/rebinding 경로 제거
+- MainWindow/Profile/Ammo/Quest/Hideout/Items/Scanner lifecycle 소유권 정리
+- 구형 Scanner standalone debug/settings/hotkey UI 제거
+- Mini Scanner의 사용되지 않는 preview/position-edit 잔재 제거
+- updater/package의 전환기 compatibility fallback 제거
+- 오래된 current-state 문서와 중복 canonical fact 정리
+- 제거된 구조를 요구하던 회귀 테스트 갱신
+- 감사 중 발견된 Items 정리 필요 표시 갱신 회귀 수정
 
-기존 사용자 PC의 `%LocalAppData%/JunhyunHelper/farming-guide.json`은 더 이상 읽거나 쓰지 않습니다. 불필요한 사용자 파일 파괴를 피하기 위해 프로그램이 자동 삭제하지는 않습니다.
+Quest, Hideout, Items, Ammo, Map/MiniMap, Scanner 인식/검색/교정/Ground Truth/진단과 pinned Map donor 계약은 유지됩니다.
 
-Current authority: `docs/DECISION_V1.17.1_REMOVE_FARMING_GUIDE.md`.
+## Farming Guide
+
+Farming Guide는 v1.17.1에서 사용자 결정에 따라 완전히 제거되었으며 v1.17.2에서도 제거 상태를 유지합니다.
+
+기존 사용자 PC의 `%LocalAppData%/JunhyunHelper/farming-guide.json`은 더 이상 읽거나 쓰지 않으며 자동 삭제하지 않습니다.
 
 ## 검증 계약
 
@@ -109,4 +110,4 @@ Current authority: `docs/DECISION_V1.17.1_REMOVE_FARMING_GUIDE.md`.
 - PR 및 exact-main CI
 - public tag / release / asset identity 및 digest 검증
 
-v1.17.1은 위 자동 검증을 완료했습니다. 실제 사용자 PC/Tarkov 실플레이 검증은 별도 `PENDING` evidence이며 공개 릴리즈의 완료 상태나 identity를 변경하지 않습니다.
+v1.17.2는 위 자동 검증을 완료했습니다. 실제 사용자 PC/Tarkov 실플레이 검증은 별도 `PENDING` evidence이며 공개 릴리즈의 완료 상태나 identity를 변경하지 않습니다.
