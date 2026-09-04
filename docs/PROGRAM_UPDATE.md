@@ -30,8 +30,8 @@ https://api.github.com/repos/Propeex/JunhyunHelper/releases/latest
 - 현재 실행 버전보다 strictly newer인 release만 업데이트 대상으로 취급
 - current stable package name은 **`Junhyun-Helper.zip`**
 - checksum asset은 **`SHA256SUMS.txt`**
-- 현재 updater는 이전 릴리즈 호환을 위해 `Junhyun-Helper-v<version>-win-x64.zip`도 fallback으로 읽을 수 있으나, 신규 stable release의 canonical package contract는 `Junhyun-Helper.zip`이다.
-- stable package와 legacy package가 모두 있으면 canonical `Junhyun-Helper.zip`을 우선한다.
+- updater는 canonical **`Junhyun-Helper.zip`**만 설치 package로 인정한다.
+- 과거 전환기 versioned package 이름은 current updater contract가 아니다.
 - required release/package shape가 없거나 불명확하면 자동 추측하지 않고 업데이트를 중단한다.
 - asset URL은 `github.com/Propeex/JunhyunHelper/releases/download/...` HTTPS release URL만 허용한다.
 
@@ -102,8 +102,6 @@ staging/
 ├─ FIRST_RUN_KO.txt
 └─ Assets/
 ```
-
-호환용 legacy ZIP은 wrapper 없는 root를 가질 수 있으나 stable-wrapper entry와 legacy-root entry가 한 archive에 섞여 있으면 fail closed한다.
 
 Required staging facts:
 
@@ -186,24 +184,18 @@ Program Update와 Game Content update는 서로 다른 subsystem이다.
 
 이미 공개된 stable version은 immutable historical release로 취급한다. 이후 documentation-only main commit 때문에 동일 tag asset을 교체하지 않는다.
 
-현재 v1.7.13 exact product source:
-
-```text
-16198c462a6be58d77dbe2dc27aa57eabfc7b9fd
-```
-
-현재 공개 proof는 `docs/STATE.md`, `docs/RELEASE_1.7.13.md`, `docs/.release-v1.7.13-status.json`을 사용한다.
+현재 exact product source와 public proof는 이 문서에 복제하지 않는다. `docs/PROJECT_STATE.json`, `docs/CURRENT_STATE.md`, `docs/STATE.md`의 current release identity를 사용한다.
 
 ## 10. 검증 요구
 
 자동/릴리즈 regression은 최소 다음을 보호한다.
 
 - stable semantic version parsing
-- canonical package preference + legacy fallback compatibility
+- canonical stable package requirement
 - exact checksum selection
 - approved GitHub release asset URL
 - ZIP traversal/symlink/duplicate/PDB 거부
-- stable wrapper root / legacy-root 혼합 거부
+- stable product wrapper root 강제
 - staging required content
 - owned-file transaction replacement
 - unrelated target/user file 보존
