@@ -29,7 +29,7 @@ public sealed class DesktopStartupWiringContractTests
             "src",
             "JunhyunHelper.Desktop",
             "Ammo",
-            "AmmoPage.ProductGridFixes.cs"));
+            "AmmoPage.Initialization.cs"));
         var ammoPresentation = File.ReadAllText(Path.Combine(
             root,
             "src",
