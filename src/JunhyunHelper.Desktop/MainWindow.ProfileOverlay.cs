@@ -7,22 +7,6 @@ namespace JunhyunHelper.Desktop;
 
 public partial class MainWindow
 {
-    private bool _profileOverlayLaunchersAttached;
-
-    private void AttachProfileOverlayLaunchers()
-    {
-        if (_profileOverlayLaunchersAttached)
-            return;
-        _profileOverlayLaunchersAttached = true;
-
-        var createButton = FindButtons(EmptyState)
-            .FirstOrDefault(button => string.Equals(button.Content as string, "프로필 만들기", StringComparison.Ordinal));
-        if (createButton is not null)
-        {
-            createButton.Click -= CreateProfileButton_Click;
-            createButton.Click += CreateProfileOverlayButton_Click;
-        }
-    }
 
     private async void CreateProfileOverlayButton_Click(object sender, RoutedEventArgs e) =>
         await CreateProfileOverlayAsync();
