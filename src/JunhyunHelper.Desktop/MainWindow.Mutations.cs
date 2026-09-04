@@ -100,7 +100,15 @@ public partial class MainWindow
                     MessageBoxImage.Question,
                     MessageBoxResult.Yes);
                 if (decision == MessageBoxResult.Cancel)
+                {
+                    // Hideout +/- controls update their row optimistically before the
+                    // debounced mutation reaches this handler. A cancelled rollback is
+                    // not a persistence failure, so restore the authoritative profile-
+                    // derived presentation explicitly.
+                    var authoritative = _services.Hideout.BuildFromProfile(_activeContent, _activeProfile);
+                    HideoutPage.SetData(_activeContent, authoritative);
                     return;
+                }
                 restoreInventory = decision == MessageBoxResult.Yes;
             }
         }
