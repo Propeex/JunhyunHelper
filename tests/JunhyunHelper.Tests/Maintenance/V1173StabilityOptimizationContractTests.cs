@@ -180,6 +180,19 @@ public sealed class V1173StabilityOptimizationContractTests
         Assert.Contains("_client.Dispose();", source, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void FirstRunAndRecoveryContentUpdates_UseTheSharedProductGate()
+    {
+        var root = FindRepositoryRoot();
+        var source = Read(root, "src", "JunhyunHelper.Desktop", "MainWindow.xaml.cs");
+
+        Assert.Contains("private async Task<GameContentCatalog> ReadOrCreateContentAsync", source, StringComparison.Ordinal);
+        Assert.Equal(2, Count(source, "await _contentOperationGate.WaitAsync();"));
+        Assert.Equal(2, Count(source, "_contentOperationGate.Release();"));
+        Assert.Contains("if (!File.Exists(paths.ActivePath))", source, StringComparison.Ordinal);
+        Assert.Contains("var recovered = await _services.Content.ReadActiveOrRecoverAsync(gameMode);", source, StringComparison.Ordinal);
+    }
+
     private static int Count(string source, string value)
     {
         var count = 0;
