@@ -241,13 +241,13 @@ public partial class AmmoPage
 
     private void PrepareCollapsibleDetailPanel(Grid root)
     {
-        if (root.RowDefinitions.Count < 5 || _productDetailToggleButton is not null)
+        if (root.RowDefinitions.Count < 4 || _productDetailToggleButton is not null)
             return;
 
         // Canonical XAML owns the visual tree. Runtime code owns state only.
         _productDetailHost = ProductDetailHost;
         _productDetailToggleButton = ProductDetailToggleButton;
-        root.RowDefinitions[3].Height = GridLength.Auto;
+        root.RowDefinitions[2].Height = GridLength.Auto;
         ApplyProductDetailExpansionState();
     }
 
@@ -260,14 +260,14 @@ public partial class AmmoPage
     private void ApplyProductDetailExpansionState()
     {
         if (_productRootGrid is null ||
-            _productRootGrid.RowDefinitions.Count < 5 ||
+            _productRootGrid.RowDefinitions.Count < 4 ||
             _productDetailHost is null ||
             _productDetailToggleButton is null)
         {
             return;
         }
 
-        var detailRow = _productRootGrid.RowDefinitions[4];
+        var detailRow = _productRootGrid.RowDefinitions[3];
         if (_productDetailsExpanded)
         {
             _productDetailHost.Visibility = Visibility.Visible;
