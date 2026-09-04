@@ -24,7 +24,7 @@ public partial class ScannerPage
         BuildItemRelationshipPresentation();
         AttachSearchClearAffordance();
         InitializeScannerUserItemCollections();
-        ApplyV191DetailActionAlignment();
+        ArmDetailActionAlignmentSmoke();
 
     }
 
