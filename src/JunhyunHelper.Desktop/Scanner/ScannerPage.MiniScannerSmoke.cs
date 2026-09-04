@@ -120,7 +120,7 @@ public partial class ScannerPage
                 AmmoShouldPickUp = true,
                 EvaluatedAmmoName = "5.56x45mm M855",
             };
-            window.Render(snapshot, settings, editMode: false);
+            window.Render(snapshot, settings);
             window.UpdateLayout();
 
             if (window.FindName("TraderPriceText") is not TextBlock trader ||
@@ -151,7 +151,7 @@ public partial class ScannerPage
                 ScannerDisplaySettings.FleaPricePerSlotField,
                 ScannerDisplaySettings.FleaMinimumPriceField,
             ];
-            window.Render(snapshot, settings, editMode: false);
+            window.Render(snapshot, settings);
             if (window.FindName("CurrentNeededText") is not TextBlock needed ||
                 window.FindName("InfoStackPanel") is not StackPanel reordered ||
                 !ReferenceEquals(reordered.Children[0], ammoPickup) ||
@@ -161,7 +161,7 @@ public partial class ScannerPage
             }
 
             settings.ShowAmmoPickup = false;
-            window.Render(snapshot, settings, editMode: false);
+            window.Render(snapshot, settings);
             if (ammoPickup.Visibility != Visibility.Collapsed)
                 throw new InvalidOperationException("Mini Scanner ammo pickup visibility setting was not applied.");
         }
