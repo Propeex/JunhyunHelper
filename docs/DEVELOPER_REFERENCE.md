@@ -121,7 +121,7 @@ UI event handler에 Core/Application의 domain truth를 복제하지 않는다.
 | Presentation preferences | user settings | atomic JSON + `.bak` |
 | Image cache | validated/normalized presentation bytes | `%LocalAppData%/JunhyunHelper/image-cache/` |
 | Scanner identity/market catalog | current full-item source + official Korean identity | `%LocalAppData%/JunhyunHelper/scanner/catalog/` + memory |
-| Scanner settings | hotkeys/display/order/position | `%LocalAppData%/JunhyunHelper/scanner-settings.json(.bak)` |
+| Scanner settings | hotkeys/display/order/position/internal OCR substitution compatibility | `%LocalAppData%/JunhyunHelper/scanner-settings.json(.bak)` |
 | Scanner local font cache | installed Tarkov assets read-only extraction | `%LocalAppData%/JunhyunHelper/scanner/fonts/` |
 | Scanner diagnostics / reviewed GT | runtime evidence + user truth | `%LocalAppData%/JunhyunHelper/scanner/diagnostics/` |
 | Runtime logs | diagnostic only | `%LocalAppData%/JunhyunHelper/logs/` |
@@ -516,6 +516,7 @@ screen pixels
 - `Scanner/ScannerFullCatalogVisualMatcher.cs` — official-catalog-bounded visual recovery
 - `Scanner/ScannerItemPresentationService.cs` — confirmed Item ID → mapped presentation
 - `Scanner/ScannerRecognitionDebugStore.cs` — latest evidence
+- `Core/Scanner/ScannerOcrSubstitution.cs` — persisted user-owned exact OCR substitution runtime
 - `Scanner/ScannerLatencyTelemetry.cs` — stage latency telemetry
 - `Scanner/ScannerPage.xaml(.cs)` — normal surface/search/log/runtime controls
 - `Scanner/ScannerPage.ProductUsability.cs` — Scanner Settings/Advanced overlay routing and current usability lifecycle
@@ -668,7 +669,7 @@ Recognition:
 capture/proposal
 → semantic header
 → ROI
-→ OCR/character policy/visual
+→ OCR/persisted user substitution/character policy/visual
 → catalog matcher
 → verified state
 → Item ID
