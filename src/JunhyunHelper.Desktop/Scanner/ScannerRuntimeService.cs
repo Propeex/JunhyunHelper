@@ -178,39 +178,6 @@ public sealed partial class ScannerRuntimeService : IDisposable
         Publish(state, message, captureMode: mode);
     }
 
-    public void PauseForPositionEdit()
-    {
-        StopLoop();
-        Publish(
-            ScannerRuntimeState.Stabilizing,
-            "Mini Scanner 위치를 편집하는 중입니다.",
-            captureMode: ActiveCaptureMode);
-    }
-
-    public void ShowPreview(ScannerItemSnapshot snapshot)
-    {
-        ArgumentNullException.ThrowIfNull(snapshot);
-        StopLoop();
-        ResetObservationState(hideOverlay: false);
-        _currentSnapshot = snapshot;
-        _overlay.Show(snapshot, preview: true);
-        Publish(
-            ScannerRuntimeState.ShowingItem,
-            $"미리보기: {snapshot.OfficialName}",
-            snapshot,
-            ActiveCaptureMode);
-    }
-
-    public async Task HidePreviewAsync(CancellationToken cancellationToken = default)
-    {
-        _overlay.Hide();
-        _currentSnapshot = null;
-        var mode = ActiveCaptureMode;
-        if (mode is not null)
-            await StartAsync(mode.Value, cancellationToken);
-        else
-            Publish(ScannerRuntimeState.Disabled, "Scanner가 꺼져 있습니다.");
-    }
 
     public void PublishExternalState(ScannerRuntimeState state, string message) =>
         Publish(state, message, captureMode: ActiveCaptureMode);
