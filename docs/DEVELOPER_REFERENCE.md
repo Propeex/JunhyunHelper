@@ -520,14 +520,14 @@ screen pixels
 - `Scanner/ScannerRecognitionDebugStore.cs` — latest evidence
 - `Scanner/ScannerLatencyTelemetry.cs` — stage latency telemetry
 - `Scanner/ScannerPage.xaml(.cs)` — normal surface/search/log/runtime controls
-- `Scanner/ScannerPage.ProductUsability.cs` — v1.7.13+ source presentation, v1.7.14 Settings/Advanced overlay routing/search clear
+- `Scanner/ScannerPage.ProductUsability.cs` — Scanner Settings/Advanced overlay routing and current usability lifecycle
 - `Scanner/ScannerSettingsWindow.xaml(.cs)` — Mini fields/order + global Scanner hotkey editing, immediate persistence
 - `Scanner/ScannerAdvancedWindow.xaml(.cs)` — Display Test/correction/dataset/support diagnostics; shared overlay dialog
 - `Scanner/MiniScannerWindow.xaml(.cs)` — no-activate Topmost overlay
-- `MainWindow.ScannerItemSources.cs` — searched confirmed item → authoritative NeededItems source presentation/navigation
+- `MainWindow.ScannerItemNavigation.cs` — Scanner Quest/Hideout usage card → existing product navigation
 - `MainWindow.ProductUiLayoutSmoke.cs` — actual product surface/Scanner Advanced overlay smoke
 
-**v1.7.14에는 `ScannerHotkeySettingsWindow.xaml/.cs`가 없다.** Hotkey editor는 `ScannerSettingsWindow`에 통합됐다. 회귀 test가 old dedicated hotkey Window의 재도입을 금지한다.
+Scanner hotkey editor는 `ScannerSettingsWindow`가 단독 authority다. 별도 hotkey settings/capture Window를 병렬로 두지 않으며 회귀 test가 재도입을 금지한다.
 
 `SerializedScannerOcrEngine`의 reflection 기반 diagnostic serialization adapter는 의도적으로 남은 기술 부채다. 단순 cleanup 대상으로 취급하지 않는다.
 
