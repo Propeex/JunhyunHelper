@@ -19,7 +19,7 @@ public partial class MainWindow
 
         try
         {
-            SetBusy(true, "최신 게임 데이터를 업데이트하는 중...");
+            SetBusy(true);
             var gameMode = _activeProfile.GameMode;
             var result = await RunContentUpdateAsync(gameMode);
             if (!result.Applied)
@@ -40,19 +40,7 @@ public partial class MainWindow
             // game mode/content/profile set throughout the refresh/restart operation.
             // Network retry/timeout policy is owned by ScannerCatalogService so this UI
             // path never stacks another full retry sequence on top of service retries.
-            StatusText.Text = "Scanner 아이템·가격 데이터를 업데이트하는 중...";
             var scannerUsable = await ScannerCoordinator.SyncCatalogAsync();
-            var scannerDiagnostics = ScannerCoordinator.CatalogDiagnostics;
-
-            // `fresh-cache` deliberately uses the already-current local cache without a
-            // network request. v1.6.0 treated every UsedExistingCatalog outcome other
-            // than `success` as a failed download, so a healthy fresh cache incorrectly
-            // produced the "Scanner 기존 데이터 유지" modal. Only actual failure
-            // outcomes count as fallback.
-            var scannerUsedFallback = scannerUsable &&
-                                      scannerDiagnostics.UsedExistingCatalog &&
-                                      ScannerCatalogOutcomePolicy.IsRefreshFailure(scannerDiagnostics.Outcome);
-
             if (cleanupChanges.Count > 0)
             {
                 MessageBox.Show(
@@ -75,12 +63,6 @@ public partial class MainWindow
                     MessageBoxImage.Warning);
             }
 
-            // A verified same-mode Scanner cache is a successful fail-soft recovery, not
-            // a user-blocking condition. Keep the failure visible in the status/log but
-            // do not interrupt every data update with an informational MessageBox.
-            StatusText.Text = scannerUsedFallback
-                ? $"{BuildLoadedStatus(gameMode)} · Scanner 기존 정상 캐시 유지"
-                : BuildLoadedStatus(gameMode);
         }
         catch (Exception exception)
         {
@@ -88,7 +70,7 @@ public partial class MainWindow
         }
         finally
         {
-            SetBusy(false, StatusText.Text);
+            SetBusy(false);
         }
     }
 }
