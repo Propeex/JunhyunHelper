@@ -167,8 +167,10 @@ public sealed class ImageCacheService
         }
         finally
         {
+            // Keep the path gate for this process lifetime. Removing it immediately
+            // after Release can let a new caller create a second gate while an existing
+            // waiter still owns the old one after a failed first attempt.
             pathGate.Release();
-            _cachePathGates.TryRemove(path, out _);
         }
     }
 
@@ -177,8 +179,11 @@ public sealed class ImageCacheService
         image = null!;
         if (!_decodedImages.TryGetValue(path, out var reference))
             return false;
-        if (reference.TryGetTarget(out image))
+        if (reference.TryGetTarget(out var target) && target is not null)
+        {
+            image = target;
             return true;
+        }
 
         _decodedImages.TryRemove(path, out _);
         return false;
