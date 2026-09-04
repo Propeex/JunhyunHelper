@@ -14,11 +14,11 @@ public sealed class DesktopStartupWiringContractTests
             "src",
             "JunhyunHelper.Desktop",
             "MainWindow.ProductLifecycle.cs"));
-        var images = File.ReadAllText(Path.Combine(
+        var contentNavigation = File.ReadAllText(Path.Combine(
             root,
             "src",
             "JunhyunHelper.Desktop",
-            "MainWindow.Images.cs"));
+            "MainWindow.ContentNavigation.cs"));
         var xaml = File.ReadAllText(Path.Combine(
             root,
             "src",
@@ -54,9 +54,9 @@ public sealed class DesktopStartupWiringContractTests
         Assert.DoesNotContain("Loaded=\"HideoutPage_Loaded\"", xaml, StringComparison.Ordinal);
         Assert.DoesNotContain("Loaded=\"AmmoPage_Loaded\"", xaml, StringComparison.Ordinal);
 
-        Assert.DoesNotContain("ItemsPage_Loaded", images, StringComparison.Ordinal);
-        Assert.DoesNotContain("HideoutPage_Loaded", images, StringComparison.Ordinal);
-        Assert.DoesNotContain("AmmoPage_Loaded", images, StringComparison.Ordinal);
+        Assert.DoesNotContain("ItemsPage_Loaded", contentNavigation, StringComparison.Ordinal);
+        Assert.DoesNotContain("HideoutPage_Loaded", contentNavigation, StringComparison.Ordinal);
+        Assert.DoesNotContain("AmmoPage_Loaded", contentNavigation, StringComparison.Ordinal);
 
         Assert.Contains(
             "Dispatcher.BeginInvoke(InitializeProductSearchAndDetails, DispatcherPriority.Loaded);",
