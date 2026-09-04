@@ -121,19 +121,6 @@
                         <Button Grid.Column="2" Content="변경" MinWidth="76"
                                 Click="ChangeAddCorrectionDataButton_Click" />
                     </Grid>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="175" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="88" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="파밍 가이드 수락" VerticalAlignment="Center" />
-                        <TextBlock x:Name="FarmingGuideAcceptText" Grid.Column="1"
-                                   Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold"
-                                   VerticalAlignment="Center" />
-                        <Button Grid.Column="2" Content="변경" MinWidth="76"
-                                Click="ChangeFarmingGuideAcceptButton_Click" />
-                    </Grid>
                 </StackPanel>
             </Grid>
         </Border>
