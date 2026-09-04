@@ -31,8 +31,6 @@ public sealed class ScannerDisplaySettings
 
     public int SchemaVersion { get; set; }
     public bool Enabled { get; set; }
-    public bool ShowItemName { get; set; } = true;
-    public bool ShowItemIcon { get; set; } = true;
     public bool ShowTraderSellPrice { get; set; } = true;
     public bool ShowFleaAveragePrice { get; set; } = true;
     public bool ShowFleaMinimumPrice { get; set; } = true;
@@ -66,8 +64,6 @@ public sealed class ScannerDisplaySettings
     {
         SchemaVersion = SchemaVersion,
         Enabled = Enabled,
-        ShowItemName = ShowItemName,
-        ShowItemIcon = ShowItemIcon,
         ShowTraderSellPrice = ShowTraderSellPrice,
         ShowFleaAveragePrice = ShowFleaAveragePrice,
         ShowFleaMinimumPrice = ShowFleaMinimumPrice,
@@ -91,7 +87,6 @@ public sealed class ScannerDisplaySettings
     {
         if (SchemaVersion < 2)
         {
-            ShowItemIcon = true;
             ShowTraderSellPrice = true;
             ShowTraderPricePerSlot = true;
         }
@@ -116,8 +111,7 @@ public sealed class ScannerDisplaySettings
             OneShotHotkey = null;
         }
 
-        ShowItemName = true;
-        ShowItemIcon = true;
+        OneShotHotkey = null;
 
         if (SchemaVersion < 7)
             ShowFleaMinimumPrice = true;
