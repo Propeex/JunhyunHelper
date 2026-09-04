@@ -161,7 +161,7 @@ jobs:
           $miniMapSelectionSync = Join-Path $env:TEMP 'junhyun-minimap-selection-sync-smoke-success.txt'
           $scannerDetail = Join-Path $env:TEMP 'junhyun-scanner-item-detail-smoke-success.txt'
           $scannerFavorites = Join-Path $env:TEMP 'junhyun-scanner-favorites-recents-smoke-success.txt'
-          $scannerDetailActions = Join-Path $env:TEMP 'junhyun-scanner-v191-detail-actions-smoke-success.txt'
+          $scannerDetailActions = Join-Path $env:TEMP 'junhyun-scanner-detail-actions-smoke-success.txt'
           $startupLog = Join-Path $env:LOCALAPPDATA 'JunhyunHelper/logs/startup.log'
           foreach ($path in @($diagnostic, $success, $ammoIcons, $ammoToolbar, $mapExtract, $miniMapSelectionSync, $scannerDetail, $scannerFavorites, $scannerDetailActions, $startupLog)) {
             Remove-Item $path -Force -ErrorAction SilentlyContinue
