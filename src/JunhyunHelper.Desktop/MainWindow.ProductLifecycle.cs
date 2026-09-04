@@ -43,10 +43,6 @@ public partial class MainWindow
         // profile creation uses the same in-app overlay boundary as profile editing.
         Dispatcher.BeginInvoke(AttachProfileOverlayLaunchers, DispatcherPriority.Loaded);
 
-        // Replace the original full-refresh mutation handlers with dependency-aware
-        // product handlers. This keeps the existing UI events while avoiding duplicate
-        // DB reads/workspace rebuilds after each Quest/Hideout change.
-        EnableFastMutationHandlers();
     }
 
     protected override void OnClosed(EventArgs e)
