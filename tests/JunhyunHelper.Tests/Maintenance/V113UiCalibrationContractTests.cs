@@ -6,21 +6,19 @@ namespace JunhyunHelper.Tests.Maintenance;
 public sealed class V113UiCalibrationContractTests
 {
     [Fact]
-    public void Items_and_hideout_attach_the_shared_inline_clear_on_their_real_page_lifecycle()
+    public void Quest_items_and_hideout_attach_the_shared_inline_clear_directly_from_page_construction()
     {
         var root = FindRepositoryRoot();
-        var items = Read(root, "src", "JunhyunHelper.Desktop", "Items", "ItemsPage.SearchClearLifecycle.cs");
-        var hideout = Read(root, "src", "JunhyunHelper.Desktop", "Hideout", "HideoutPage.SearchClearLifecycle.cs");
+        var quest = Read(root, "src", "JunhyunHelper.Desktop", "Quests", "QuestPage.xaml.cs");
+        var items = Read(root, "src", "JunhyunHelper.Desktop", "Items", "ItemsPage.xaml.cs");
+        var hideout = Read(root, "src", "JunhyunHelper.Desktop", "Hideout", "HideoutPage.xaml.cs");
         var smoke = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.V1111ProductSmoke.cs");
 
-        foreach (var source in new[] { items, hideout })
-        {
-            Assert.Contains("FrameworkElement.LoadedEvent", source, StringComparison.Ordinal);
-            Assert.Contains("handledEventsToo: true", source, StringComparison.Ordinal);
-            Assert.Contains("public override void OnApplyTemplate()", source, StringComparison.Ordinal);
-            Assert.Contains("ProductSearchClearButtonBehavior.Attach(SearchBox)", source, StringComparison.Ordinal);
-        }
+        foreach (var source in new[] { quest, items, hideout })
+            Assert.Contains("ProductSearchClearButtonBehavior.Attach(SearchBox);", source, StringComparison.Ordinal);
 
+        Assert.False(File.Exists(Path.Combine(root, "src", "JunhyunHelper.Desktop", "Items", "ItemsPage.SearchClearLifecycle.cs")));
+        Assert.False(File.Exists(Path.Combine(root, "src", "JunhyunHelper.Desktop", "Hideout", "HideoutPage.SearchClearLifecycle.cs")));
         Assert.Contains("ApplyTemplate();", smoke, StringComparison.Ordinal);
         Assert.Contains("lifecycle-attached inline clear glyph", smoke, StringComparison.Ordinal);
         Assert.DoesNotContain("ProductSearchClearButtonBehavior.Attach(searchBox)", smoke, StringComparison.Ordinal);
