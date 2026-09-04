@@ -25,10 +25,9 @@ public partial class MainWindow
         AmmoPage.SetFavoriteStore(_services.AmmoFavorites);
         AttachContentNavigation();
 
-        // A readable older content schema remains a valid offline fallback, but v1.15.4
-        // needs the current schema for the new source-backed equipment metrics. Attach an
-        // opportunistic one-shot refresh trigger through this single lifecycle owner so
-        // partial classes never compete for WPF lifecycle overrides.
+        // A readable older content schema remains a valid offline fallback. Attach an
+        // opportunistic one-shot current-schema refresh through this single lifecycle
+        // owner so partial classes never compete for WPF lifecycle overrides.
         AttachContentSchemaRefreshTrigger();
 
         // Scanner global commands belong to the product window lifetime, not the
