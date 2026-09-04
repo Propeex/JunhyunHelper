@@ -1,7 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Threading;
 using JunhyunHelper.Desktop.Controls;
 
 namespace JunhyunHelper.Desktop.Ammo;
@@ -13,7 +12,6 @@ public partial class AmmoPage
     private Button? _productDetailToggleButton;
     private bool _productDetailsPrepared;
     private bool _productDetailsExpanded = false;
-    private bool _productFavoriteHandlersAttached;
 
     private void InitializeProductSearchAndDetails()
     {
@@ -29,8 +27,6 @@ public partial class AmmoPage
             PrepareCollapsibleDetailPanel(root);
         }
 
-        AttachProductFavoritePresentation();
-        NormalizeProductFavoriteButton();
     }
 
 
@@ -147,34 +143,6 @@ public partial class AmmoPage
         }
     }
 
-    private void AttachProductFavoritePresentation()
-    {
-        if (_productFavoriteHandlersAttached)
-            return;
-
-        _productFavoriteHandlersAttached = true;
-        FavoriteCaliberButton.Click += ProductFavoritePresentationChanged;
-        CaliberComboBox.SelectionChanged += ProductFavoritePresentationChanged;
-    }
-
-    private void ProductFavoritePresentationChanged(object sender, RoutedEventArgs e) =>
-        Dispatcher.BeginInvoke(NormalizeProductFavoriteButton, DispatcherPriority.Loaded);
-
-    private void NormalizeProductFavoriteButton()
-    {
-        if (FavoriteCaliberButton is null || CaliberComboBox is null)
-            return;
-
-        var caliber = (CaliberComboBox.SelectedItem as CaliberChoice)?.RawCaliber;
-        var isFavorite = caliber is not null && _favoriteCalibers.Contains(caliber);
-        FavoriteCaliberButton.Content = isFavorite ? "★" : "☆";
-        FavoriteCaliberButton.Width = 38;
-        FavoriteCaliberButton.MinWidth = 38;
-        FavoriteCaliberButton.MaxWidth = 38;
-        FavoriteCaliberButton.Padding = new Thickness(0);
-        FavoriteCaliberButton.FontSize = 16;
-        FavoriteCaliberButton.ToolTip = isFavorite ? "즐겨찾기 해제" : "즐겨찾기 추가";
-    }
 
     private sealed record AmmoSearchHit(AmmoRow Row, string Label);
 }
