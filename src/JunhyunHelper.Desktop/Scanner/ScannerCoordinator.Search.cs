@@ -33,7 +33,7 @@ public sealed partial class ScannerCoordinator
         if (context is null || _catalog.LoadedMode != context.GameMode || !_catalog.HasHealthyCatalog)
             return [];
 
-        var contentById = CreateContentById(context.Content.Items);
+        var contentIndex = GetContentPresentationIndex(context.Content);
 
         return _catalog.GetItemsSnapshot()
             .Select(item => new { Item = item, Rank = SearchRank(item.OfficialName, item.ShortName, text) })
@@ -41,7 +41,7 @@ public sealed partial class ScannerCoordinator
             .OrderBy(entry => entry.Rank)
             .ThenBy(entry => entry.Item.OfficialName, StringComparer.CurrentCultureIgnoreCase)
             .Take(Math.Clamp(maximumResults, 1, 50))
-            .Select(entry => CreateSearchHit(entry.Item, contentById)).ToArray();
+            .Select(entry => CreateSearchHit(entry.Item, contentIndex.ItemsById)).ToArray();
     }
 
     /// <summary>
@@ -60,12 +60,11 @@ public sealed partial class ScannerCoordinator
             return null;
 
         var normalizedItemId = itemId.Trim();
-        var catalogItem = _catalog.GetItemsSnapshot().FirstOrDefault(item =>
-            string.Equals(item.Id, normalizedItemId, StringComparison.Ordinal));
-        if (catalogItem is null)
+        if (!_catalog.TryGetItem(normalizedItemId, out var catalogItem))
             return null;
 
-        return CreateSearchHit(catalogItem, CreateContentById(context.Content.Items));
+        var contentIndex = GetContentPresentationIndex(context.Content);
+        return CreateSearchHit(catalogItem, contentIndex.ItemsById);
     }
 
     public ScannerItemSearchDetails? GetSearchItemDetails(string? itemId)
@@ -83,8 +82,8 @@ public sealed partial class ScannerCoordinator
         if (snapshot is null)
             return null;
 
-        var canonical = context.Content.Items.FirstOrDefault(item =>
-            string.Equals(item.Id, snapshot.ItemId, StringComparison.Ordinal));
+        var contentIndex = GetContentPresentationIndex(context.Content);
+        contentIndex.ItemsById.TryGetValue(snapshot.ItemId, out var canonical);
         _catalog.TryGetItem(snapshot.ItemId, out var catalogItem);
         var width = canonical?.Width ?? catalogItem?.Width ?? 0;
         var height = canonical?.Height ?? catalogItem?.Height ?? 0;
@@ -102,11 +101,6 @@ public sealed partial class ScannerCoordinator
             basic,
             BuildItemRelationshipDetails(context, snapshot.ItemId));
     }
-
-    private static IReadOnlyDictionary<string, GameItem> CreateContentById(IEnumerable<GameItem> items) =>
-        items.Where(item => !string.IsNullOrWhiteSpace(item.Id))
-            .GroupBy(item => item.Id, StringComparer.Ordinal)
-            .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
 
     private ScannerItemSearchHit CreateSearchHit(ScannerCatalogItem item, IReadOnlyDictionary<string, GameItem> contentById)
     {
