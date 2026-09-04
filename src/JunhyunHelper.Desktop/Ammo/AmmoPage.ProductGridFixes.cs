@@ -19,7 +19,6 @@ public partial class AmmoPage
         // The remaining presentation setup can run once layout/resources are ready.
         Dispatcher.BeginInvoke(InitializeProductSearchAndDetails, DispatcherPriority.Loaded);
         Dispatcher.BeginInvoke(ApplyProductGridFixes, DispatcherPriority.Loaded);
-        Dispatcher.BeginInvoke(ApplyProductUiSimplification, DispatcherPriority.Loaded);
     }
 
     private void ApplyProductGridFixes()
