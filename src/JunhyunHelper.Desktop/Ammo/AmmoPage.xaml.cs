@@ -182,13 +182,6 @@ public partial class AmmoPage : UserControl
                                     string.Equals(row.Ammo.ItemId, selectedItemId, StringComparison.Ordinal))
                                 ?? filtered.FirstOrDefault();
 
-        var sourceText = _usingWikiBallisticsFilter
-            ? "Wiki Ballistics 등록 탄약만"
-            : "Wiki 목록 확인 불가 · 기본 탄약 임시 표시";
-        SummaryText.Text = selectedCaliber is null
-            ? $"탄약 {filtered.Length}종 · 구경 {Math.Max(0, CaliberComboBox.Items.Count - 1)}개 · {sourceText} · 관통력/피해량 낮은 순"
-            : $"{CaliberText(selectedCaliber)} · 탄약 {filtered.Length}종 · {sourceText} · 관통력/피해량 낮은 순";
-
         UpdateFavoriteButton();
         if (filtered.Length == 0)
             ShowDetail(null);
