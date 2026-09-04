@@ -2,7 +2,9 @@
 
 이 문서는 기존 `Propeex/Tarkov-Helper`를 기반으로 리팩터링하지 않고, 현재 확정된 준현 헬퍼 제품 의도와 유지보수 철학에서 새로 도출한 시스템 설계입니다.
 
-상태: `CONFIRMED — 큰 틀 / 세부 기술 스택 미정`
+상태: `HISTORICAL DESIGN BASIS — NOT CURRENT IMPLEMENTATION AUTHORITY`
+
+이 문서는 준현 헬퍼 초기 독립 설계의 근거를 보존하는 역사 기록이다. 현재 구현 구조·프로젝트 수·기술 경계는 `ARCHITECTURE.md`와 `DEVELOPER_REFERENCE.md`를 사용하며, 이 문서의 초기 계획이 현재 코드와 다를 경우 현재 authority를 우선한다.
 
 관련 문서:
 
