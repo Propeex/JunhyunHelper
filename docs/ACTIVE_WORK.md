@@ -1,86 +1,21 @@
 # ACTIVE WORK
 
-Status: **ACTIVE**
+Status: **NONE**
 
-## Goal
+v1.17.2 Product Purity Cleanup is complete.
 
-Perform a product-purity maintenance pass on the current v1.17.1 codebase.
+Canonical completion evidence:
 
-This work is explicitly **not a performance-optimization pass**. The goal is to remove implementation impurities that no longer belong to the current product and fix defects discovered while doing so.
+- merged PR: #292
+- final validated PR head: `121d060db102eed0f4af241ef5f37c51164c6a04`
+- exact product source / public tag target: `73f0386a45818408c2a68530b90de7946ecaf1d1`
+- public release: `v1.17.2`
+- PR CI / Shutdown / Docs: `33840328932` / `33840328963` / `33840329237` — SUCCESS
+- exact-main CI / Shutdown / Docs: `33840553320` / `33840553329` / `33840553303` — SUCCESS
+- release workflow: `33840780902` — SUCCESS
+- deterministic tests: 488 passed / 0 failed / 0 skipped
+- public package SHA-256: `a64d202046505273964b0735976d71e382624c68f16699c6844b193599b43971`
 
-## Base / branch
+No implementation work remains active for this release.
 
-- base main: `67c2da75f829f961c4ca1f019b544ef85d6dfad6`
-- public stable product source: `4ad1f76ed7c2469e60d0822b229fe03f83c75816`
-- public stable: `v1.17.1`
-- working branch: `maintenance/v1.17.2-product-purity-2026-09-04`
-- target: PATCH release if code changes remain after validation
-
-## Confirmed scope
-
-Audit and, where safe, remove or correct:
-
-- dead/unreachable first-party code;
-- removed-feature remnants and stale integration points;
-- obsolete version-specific shims that are no longer required by supported compatibility;
-- duplicate or superseded implementation paths;
-- stale product/runtime flags, fields, settings, assets or tests that no longer have a current owner;
-- incorrect stale comments/names/contracts that can mislead maintenance;
-- latent correctness defects exposed by the cleanup.
-
-Preserve:
-
-- current product behavior and user-visible contracts;
-- supported schema/read compatibility;
-- required migration paths for existing user state;
-- historical release/decision evidence where it remains official repository history;
-- pinned Map donor integration and other explicitly retained product contracts.
-
-Do **not** perform speculative performance optimization, broad redesign or unrelated feature work.
-
-## Completed
-
-- recovered current v1.17.1 official repository state and created the dedicated maintenance branch / draft PR #292;
-- classified historical release/decision evidence and active Map donor `Legacy*` bridges as retained, not cleanup targets;
-- removed the unreachable one-time v1.6 updater/release bridge from current packaging, CI and updater package parsing/extraction;
-- removed current-looking stale docs (`docs/NEXT.md`, retired `docs/FARMING_GUIDE.md`) and converted Scanner/deployment/reference docs to evergreen ownership;
-- synchronized Content snapshot documentation with the actual v12 write / v3~v12 readable contract and strengthened Documentation Consistency against canonical code/schema drift;
-- removed hidden MainWindow `StatusText` state/event plumbing and replaced it with the direct Items cleanup indicator;
-- fixed the cleanup-indicator refresh regression exposed by orphan analysis and added a direct wiring contract;
-- removed superseded full-refresh Quest/Hideout/Items mutation handlers and runtime handler rebinding; canonical mutation/content-navigation owners now have current names;
-- removed hidden Items Quest/Hideout usage filter and its runtime concealment shim;
-- canonicalized Ammo toolbar/search/favorite/detail presentation in XAML, removing hidden legacy popup/summary UI, runtime control creation, layout-repair shims and duplicate activation lifecycle;
-- removed duplicate global search-clear lifecycle registration; Quest/Hideout/Items/Ammo/Scanner now attach the shared behavior from their explicit owners;
-- canonicalized Profile create/edit UI ownership, removed hidden proxy controls, standalone duplicate MainWindow handlers, runtime button discovery/rebinding and runtime profile-card reparenting;
-- removed unreachable Scanner OCR-substitution editor UI/controller API while retaining the active persisted substitution engine;
-- removed unreachable Scanner recognition-debug Window while extracting the still-used diagnostic image renderer;
-- removed the retired Scanner dedicated hotkey capture Window; Scanner Settings is the only hotkey capture authority;
-- removed retired Scanner `필요한 곳` panel, its duplicate ItemsWorkspace source join, and narrowed Scanner usage-card navigation to the existing Quest/Hideout navigation contract;
-- removed the hidden old Scanner three-row item summary and its dead update computation;
-- canonicalized Scanner detail scrolling and favorite/Wiki action layout in XAML instead of runtime visual-tree repair;
-- removed retired Mini Scanner identity/flea-minimum display settings while preserving compatible old JSON reading;
-- removed unreachable Mini Scanner preview/position-edit/reset subsystem and its unused OCR dependency while preserving direct drag position persistence;
-- audited Items/Hideout/Quest/Profile/Ammo/ScannerPage and Scanner Coordinator/runtime private methods; resolved actual orphan paths and retained XAML/cross-partial entrypoints that were false positives;
-- confirmed current Scanner OCR wrapper chain (`DiagnosticScannerLab38OcrEngine → EnvironmentGuarded → Serialized → FontAware`) is active and must be retained;
-- kept Scanner recognition thresholds/pacing/matching logic, Quest/Hideout domain rules and Map donor implementation unchanged;
-- Documentation Consistency is passing on current cleanup iterations.
-- updated the three stale deterministic contracts that still required removed Scanner/search-clear lifecycle structures; they now verify the canonical XAML/direct-owner paths instead of reviving retired code.
-- renamed current Scanner and Ammo runtime/smoke partials that still carried obsolete version/`Polish`/`Fixes` ownership names; behavior and published verification contracts remain unchanged.
-- staged the maintenance release identity as v1.17.2 per `docs/VERSIONING.md`; public stable remains v1.17.1 until exact-main release publication succeeds.
-- completed an exact branch-tree filename audit: retired Farming Guide/search-clear/old Scanner/old Ammo paths are absent; the remaining version-tagged first-party Map smoke names are retained as regression provenance around the pinned donor contract rather than treated as dead product code.
-- removed stale Scanner release-version wording from current published-smoke diagnostics and CI labels without changing any smoke assertion or product path.
-- final validated code/CI head `f00e6871db6afa9f1cca6532e69d201674536687` passed CI `33839991885`, Shutdown Race `33839991847` and Documentation Consistency `33839991837`.
-- final PR validation: 488 passed / 0 failed / 0 skipped; Release build; win-x64 publish; actual Product UI / full Map/Factory/MiniMap / Scanner runtime smoke; graceful shutdown; clean portable root; package/checksum verification.
-- validated PR artifact `JunhyunHelper-win-x64`: id `9924637693`, bytes `241595338`, SHA-256 `c94ab864d16037841c693260f6b3a10cffe9b53d159ee521324f997d098c4f5c`; candidate `Junhyun-Helper.zip` SHA-256 `7e23087ba447cbd81a46edf82b59e583cc2f2fd38746fc180d1bc61ef36ff920`.
-
-## Current step
-
-Validate this final documentation checkpoint HEAD, then mark PR #292 ready, merge it, and run exact-main v1.17.2 release validation.
-
-## Remaining
-
-- validate this documentation-only checkpoint HEAD through CI / Shutdown Race / Documentation Consistency;
-- mark PR #292 ready and merge;
-- verify exact-main CI / Shutdown Race / Documentation Consistency and exact-main artifact/package identity;
-- publish and verify v1.17.2 stable release/assets;
-- finalize PROJECT_STATE/CURRENT_STATE/STATE/README/ACTIVE_WORK with exact release evidence and close ACTIVE_WORK.
+Future work starts from the current public stable state recorded in `docs/PROJECT_STATE.json`, `docs/CURRENT_STATE.md` and `docs/STATE.md`.
