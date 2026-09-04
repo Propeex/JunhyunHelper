@@ -55,9 +55,13 @@ public partial class MainWindow
                 result.Faction,
                 result.EditionId,
                 result.PrestigeLevel,
-                result.Traders);
+                result.Traders,
+                _windowLifetimeCts.Token);
 
             await LoadProfilesAsync(created.ProfileId);
+        }
+        catch (OperationCanceledException) when (_windowLifetimeCts.IsCancellationRequested)
+        {
         }
         catch (Exception exception)
         {
@@ -65,7 +69,8 @@ public partial class MainWindow
         }
         finally
         {
-            SetBusy(false);
+            if (!_windowLifetimeCts.IsCancellationRequested)
+                SetBusy(false);
         }
     }
 
@@ -88,7 +93,7 @@ public partial class MainWindow
             if (editor.DeleteRequested)
             {
                 SetBusy(true);
-                await _services.ProfileManagement.DeleteAsync(profileId);
+                await _services.ProfileManagement.DeleteAsync(profileId, _windowLifetimeCts.Token);
                 _activeProfile = null;
                 _activeContent = null;
                 _activeItemsWorkspace = null;
@@ -106,9 +111,13 @@ public partial class MainWindow
                 result.Faction,
                 result.EditionId,
                 result.PrestigeLevel,
-                result.Traders);
+                result.Traders,
+                _windowLifetimeCts.Token);
 
             await LoadProfilesAsync(updated.ProfileId);
+        }
+        catch (OperationCanceledException) when (_windowLifetimeCts.IsCancellationRequested)
+        {
         }
         catch (Exception exception)
         {
@@ -118,7 +127,8 @@ public partial class MainWindow
         }
         finally
         {
-            SetBusy(false);
+            if (!_windowLifetimeCts.IsCancellationRequested)
+                SetBusy(false);
         }
     }
 
