@@ -183,15 +183,13 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="170" />
-                <ColumnDefinition Width="130" />
                 <ColumnDefinition Width="145" />
                 <ColumnDefinition Width="150" />
             </Grid.ColumnDefinitions>
             <TextBox x:Name="SearchBox" Grid.Column="0" Margin="0,0,8,0" ToolTip="아이템 검색" TextChanged="SearchBox_TextChanged" />
             <ComboBox x:Name="CategoryComboBox" Grid.Column="1" Margin="0,0,8,0" SelectionChanged="CategoryComboBox_SelectionChanged" />
-            <ComboBox x:Name="UsageComboBox" Grid.Column="2" Margin="0,0,8,0" SelectionChanged="UsageComboBox_SelectionChanged" />
-            <ComboBox x:Name="FilterComboBox" Grid.Column="3" Margin="0,0,8,0" SelectionChanged="FilterComboBox_SelectionChanged" />
-            <Button x:Name="ViewModeButton" Grid.Column="4" Content="유동 제출 보기" Click="ViewModeButton_Click" />
+            <ComboBox x:Name="FilterComboBox" Grid.Column="2" Margin="0,0,8,0" SelectionChanged="FilterComboBox_SelectionChanged" />
+            <Button x:Name="ViewModeButton" Grid.Column="3" Content="유동 제출 보기" Click="ViewModeButton_Click" />
         </Grid>
 
         <Border x:Name="CleanupNotice" Grid.Row="1" Visibility="Collapsed" Background="{StaticResource BackgroundMediumBrush}"
