@@ -64,10 +64,13 @@ Do **not** perform speculative performance optimization, broad redesign or unrel
 - confirmed current Scanner OCR wrapper chain (`DiagnosticScannerLab38OcrEngine → EnvironmentGuarded → Serialized → FontAware`) is active and must be retained;
 - kept Scanner recognition thresholds/pacing/matching logic, Quest/Hideout domain rules and Map donor implementation unchanged;
 - Documentation Consistency is passing on current cleanup iterations.
+- updated the three stale deterministic contracts that still required removed Scanner/search-clear lifecycle structures; they now verify the canonical XAML/direct-owner paths instead of reviving retired code.
+- renamed current Scanner and Ammo runtime/smoke partials that still carried obsolete version/`Polish`/`Fixes` ownership names; behavior and published verification contracts remain unchanged.
+- staged the maintenance release identity as v1.17.2 per `docs/VERSIONING.md`; public stable remains v1.17.1 until exact-main release publication succeeds.
 
 ## Current step
 
-Finish the latest Windows CI / Shutdown Race gate, resolve only concrete fallout from cleanup, perform final PR/diff/documentation review, then move to exact-main validation and the v1.17.2 PATCH release if all gates remain green.
+Validate the v1.17.2 release-identity cleanup HEAD through Windows CI / published smoke / package, Shutdown Race and Documentation Consistency; then perform the final PR/diff review before merge and exact-main release validation.
 
 ## Remaining
 
