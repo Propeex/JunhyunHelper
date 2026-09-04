@@ -5,6 +5,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using JunhyunHelper.Application.Hideout;
 using JunhyunHelper.Core.Content;
+using JunhyunHelper.Core.Items;
 using JunhyunHelper.Desktop.Controls;
 using JunhyunHelper.Desktop.Services;
 
@@ -25,6 +26,8 @@ public partial class HideoutPage : UserControl
     private static readonly TimeSpan RapidLevelClickWindow = TimeSpan.FromMilliseconds(180);
 
     private GameContentCatalog? _content;
+    private GameContentCatalog? _indexedContent;
+    private IReadOnlyDictionary<string, GameItem> _itemsById = new Dictionary<string, GameItem>(StringComparer.Ordinal);
     private HideoutWorkspace? _workspace;
     private ImageCacheService? _imageCache;
     private IReadOnlyList<StationRow> _rows = [];
@@ -63,6 +66,7 @@ public partial class HideoutPage : UserControl
 
         _levelSaveDebounceTimer.Stop();
         _pendingLevelChange = null;
+        EnsureContentIndex(content);
         _content = content;
         _workspace = workspace;
         _rows = workspace.Stations
@@ -111,6 +115,15 @@ public partial class HideoutPage : UserControl
 
         StationList.SelectedItem = target;
         StationList.ScrollIntoView(target);
+    }
+
+    private void EnsureContentIndex(GameContentCatalog content)
+    {
+        if (ReferenceEquals(_indexedContent, content))
+            return;
+
+        _itemsById = content.Items.ToDictionary(item => item.Id, StringComparer.Ordinal);
+        _indexedContent = content;
     }
 
     public void SetBusy(bool busy) => IsEnabled = !busy;
@@ -196,9 +209,25 @@ public partial class HideoutPage : UserControl
     private void StationList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (StationList.SelectedItem is StationRow row)
+        {
+            if (_pendingLevelChange is { } pending &&
+                !string.Equals(pending.StationId, row.Entry.Station.Id, StringComparison.Ordinal))
+            {
+                // Commit the previous station before exposing controls for a new one.
+                // The parent disables this page synchronously while the save is active,
+                // so the first +/- click on the new station cannot be lost behind a
+                // pending debounce from the previous selection.
+                FlushPendingLevelChange();
+                if (!IsEnabled)
+                    return;
+            }
+
             ShowDetail(row);
+        }
         else
+        {
             ClearDetail();
+        }
     }
 
     private void ShowDetail(StationRow row)
@@ -235,11 +264,10 @@ public partial class HideoutPage : UserControl
             ? "필요 아이템"
             : "아이템 요구사항이 없습니다.";
 
-        var items = _content.Items.ToDictionary(item => item.Id, StringComparer.Ordinal);
         var materialRows = entry.NextLevel.ItemRequirements
             .Select(requirement =>
             {
-                items.TryGetValue(requirement.ItemId, out var item);
+                _itemsById.TryGetValue(requirement.ItemId, out var item);
                 var itemName = item is null
                     ? requirement.ItemId
                     : DisplayName(item.NameKo, item.NameEn, item.Id);
