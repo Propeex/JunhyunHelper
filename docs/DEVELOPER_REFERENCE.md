@@ -601,9 +601,9 @@ Scanner presentation이 raw inventory를 다시 빼거나 `RequiredTotal`을 사
 
 Market/dimension failure는 해당 presentation field만 비우고 Item identity를 소급 무효화하지 않는다.
 
-## 9.9 Scanner Settings / hotkeys / Advanced v1.7.14
+## 9.9 Scanner Settings / hotkeys / Advanced
 
-Scanner display settings schema는 **v6 그대로**다. v1.7.14는 settings schema migration release가 아니다.
+Scanner display settings schema의 current 값은 `docs/PROJECT_STATE.json`과 `ScannerDisplaySettings.CurrentSchemaVersion`을 따른다. UI maintenance가 schema migration 의미를 임의로 만들지 않는다.
 
 `ScannerSettingsWindow` owns:
 
