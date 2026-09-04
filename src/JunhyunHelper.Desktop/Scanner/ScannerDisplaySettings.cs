@@ -44,6 +44,13 @@ public sealed class ScannerDisplaySettings
     public string ScannerToggleHotkey { get; set; } = ScannerHotkeyGesture.DefaultScannerToggle.ToString();
     public string AddCorrectionDataHotkey { get; set; } = DefaultAddCorrectionData.ToString();
 
+    /// <summary>
+    /// Persisted user-owned exact OCR corrections. The normal settings surface does not
+    /// expose an editor, but existing rules remain an active runtime compatibility
+    /// contract and are applied by ScannerRuntimeService before catalog matching.
+    /// </summary>
+    public List<ScannerOcrSubstitutionRule> OcrSubstitutions { get; set; } = [];
+
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? OneShotHotkey { get; set; }
 
@@ -67,6 +74,7 @@ public sealed class ScannerDisplaySettings
         OneShotTestHotkey = OneShotTestHotkey,
         ScannerToggleHotkey = ScannerToggleHotkey,
         AddCorrectionDataHotkey = AddCorrectionDataHotkey,
+        OcrSubstitutions = OcrSubstitutions?.Select(rule => rule.Clone()).ToList() ?? [],
         OneShotHotkey = OneShotHotkey,
     };
 
@@ -144,6 +152,11 @@ public sealed class ScannerDisplaySettings
             DefaultAddCorrectionData,
             new ScannerHotkeyGesture(true, false, true, System.Windows.Input.Key.F8),
             new ScannerHotkeyGesture(true, false, true, System.Windows.Input.Key.F7));
+
+        OcrSubstitutions = ScannerOcrSubstitutionEngine
+            .NormalizeRules(OcrSubstitutions)
+            .Select(rule => rule.Clone())
+            .ToList();
 
         if (PositionX is { } x && !double.IsFinite(x))
             PositionX = null;
