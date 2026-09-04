@@ -2,10 +2,10 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Threading;
 using JunhyunHelper.Application.Quests;
 using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.Quests;
+using JunhyunHelper.Core.Reference;
 using TarkovHelper.Services.Map;
 
 namespace JunhyunHelper.Desktop.Map;
@@ -55,8 +55,12 @@ public sealed class LegacyMapQuestV2Controller : IDisposable
     private readonly ScaleTransform? _mapScale;
     private readonly ComboBox? _floorSelector;
     private readonly CheckBox? _globalToggle;
-    private readonly DispatcherTimer _scaleTimer;
+    private readonly ScaleTransform _inverseMarkerScale = new(1, 1);
     private readonly Dictionary<string, bool> _questMarkerEnabled = new(StringComparer.Ordinal);
+    private GameContentCatalog? _indexedContent;
+    private IReadOnlyDictionary<string, MapReference> _mapsById = new Dictionary<string, MapReference>(StringComparer.Ordinal);
+    private IReadOnlyDictionary<string, IReadOnlyList<QuestObjective>> _objectivesByQuestId =
+        new Dictionary<string, IReadOnlyList<QuestObjective>>(StringComparer.Ordinal);
     private bool _disposed;
 
     public LegacyMapQuestV2Controller(
@@ -79,6 +83,8 @@ public sealed class LegacyMapQuestV2Controller : IDisposable
         mapCanvas.Children.Add(_layer);
 
         _mapScale = _page.FindName("MapScale") as ScaleTransform;
+        if (_mapScale is not null)
+            _mapScale.Changed += MapScale_Changed;
         _floorSelector = _page.FindName("CmbFloorSelect") as ComboBox;
         _globalToggle = _page.FindName("ChkShowQuestMarkers") as CheckBox;
 
@@ -95,13 +101,6 @@ public sealed class LegacyMapQuestV2Controller : IDisposable
         _sidebar.QuestRequested += Sidebar_QuestRequested;
         _sidebar.MarkerVisibilityChanged += Sidebar_MarkerVisibilityChanged;
         _page.Loaded += Page_Loaded;
-
-        _scaleTimer = new DispatcherTimer(
-            TimeSpan.FromMilliseconds(120),
-            DispatcherPriority.Background,
-            (_, _) => UpdateMarkerScale(),
-            _page.Dispatcher);
-        _scaleTimer.Start();
     }
 
     public void Refresh()
@@ -153,10 +152,7 @@ public sealed class LegacyMapQuestV2Controller : IDisposable
         QuestWorkspace workspace,
         string mapKey)
     {
-        var maps = content.Maps.ToDictionary(map => map.Id, StringComparer.Ordinal);
-        var objectivesByQuest = content.QuestObjectives
-            .GroupBy(objective => objective.QuestId, StringComparer.Ordinal)
-            .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal);
+        EnsureContentIndexes(content);
         var result = new List<LegacyMapQuestEntryV2>();
 
         foreach (var catalogEntry in workspace.Quests)
@@ -165,18 +161,18 @@ public sealed class LegacyMapQuestV2Controller : IDisposable
                 continue;
 
             var quest = catalogEntry.Quest;
-            objectivesByQuest.TryGetValue(quest.Id, out var objectives);
+            _objectivesByQuestId.TryGetValue(quest.Id, out var objectives);
             objectives ??= Array.Empty<QuestObjective>();
 
-            var questMapMatches = MapIdMatches(maps, quest.MapId, mapKey);
+            var questMapMatches = MapIdMatches(_mapsById, quest.MapId, mapKey);
             var objectiveMapMatches = objectives.Any(objective =>
-                objective.MapIds.Any(mapId => MapIdMatches(maps, mapId, mapKey)));
+                objective.MapIds.Any(mapId => MapIdMatches(_mapsById, mapId, mapKey)));
             if (!questMapMatches && !objectiveMapMatches)
                 continue;
 
             var markers = objectives
                 .SelectMany(objective => objective.MapLocations.Select(location => (objective, location)))
-                .Where(pair => MapIdMatches(maps, pair.location.MapId, mapKey))
+                .Where(pair => MapIdMatches(_mapsById, pair.location.MapId, mapKey))
                 .Select(pair => CreateProjection(quest, pair.objective, pair.location, mapKey))
                 .Where(static marker => marker is not null)
                 .Cast<JunhyunQuestMarkerProjectionV2>()
@@ -191,6 +187,21 @@ public sealed class LegacyMapQuestV2Controller : IDisposable
         }
 
         return result.OrderBy(entry => entry.Name, StringComparer.CurrentCulture).ToArray();
+    }
+
+    private void EnsureContentIndexes(GameContentCatalog content)
+    {
+        if (ReferenceEquals(_indexedContent, content))
+            return;
+
+        _mapsById = content.Maps.ToDictionary(map => map.Id, StringComparer.Ordinal);
+        _objectivesByQuestId = content.QuestObjectives
+            .GroupBy(objective => objective.QuestId, StringComparer.Ordinal)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<QuestObjective>)group.ToArray(),
+                StringComparer.Ordinal);
+        _indexedContent = content;
     }
 
     private JunhyunQuestMarkerProjectionV2? CreateProjection(
@@ -248,6 +259,8 @@ public sealed class LegacyMapQuestV2Controller : IDisposable
                         continue;
 
                     var visual = JunhyunQuestMarkerVisualFactoryV2.Create(coded);
+                    visual.RenderTransform = _inverseMarkerScale;
+                    visual.RenderTransformOrigin = new Point(0, 0);
                     Canvas.SetLeft(visual, coded.X);
                     Canvas.SetTop(visual, coded.Y);
                     _layer.Children.Add(visual);
@@ -255,20 +268,25 @@ public sealed class LegacyMapQuestV2Controller : IDisposable
             }
         }
 
-        UpdateMarkerScale();
+        UpdateInverseMarkerScale();
         JunhyunMapQuestProjectionV2.Publish(mapKey, miniMapMarkers);
         JunhyunMapQuestProjection.Publish(mapKey, Array.Empty<JunhyunQuestMarkerProjection>());
     }
 
-    private void UpdateMarkerScale()
+    private void MapScale_Changed(object? sender, EventArgs e) => UpdateInverseMarkerScale();
+
+    private void UpdateInverseMarkerScale()
     {
         var zoom = _mapScale?.ScaleX ?? 1.0;
         var inverse = 1.0 / Math.Max(zoom, 0.01);
-        foreach (FrameworkElement child in _layer.Children)
+        if (Math.Abs(_inverseMarkerScale.ScaleX - inverse) < 0.0001 &&
+            Math.Abs(_inverseMarkerScale.ScaleY - inverse) < 0.0001)
         {
-            child.RenderTransform = new ScaleTransform(inverse, inverse);
-            child.RenderTransformOrigin = new Point(0, 0);
+            return;
         }
+
+        _inverseMarkerScale.ScaleX = inverse;
+        _inverseMarkerScale.ScaleY = inverse;
     }
 
     private void PublishEmpty(string? mapKey)
@@ -358,7 +376,8 @@ public sealed class LegacyMapQuestV2Controller : IDisposable
             return;
         _disposed = true;
 
-        _scaleTimer.Stop();
+        if (_mapScale is not null)
+            _mapScale.Changed -= MapScale_Changed;
         _tracker.MapChanged -= Tracker_MapChanged;
         if (_floorSelector is not null)
             _floorSelector.SelectionChanged -= FloorSelector_SelectionChanged;
