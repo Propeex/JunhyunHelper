@@ -41,7 +41,6 @@ Tarkov window/display pixels
 → inspect-header semantic validation
 → item-name ROI
 → serialized Windows ko-KR OCR
-→ optional persisted user OCR substitution
 → bounded environment/title normalization
 → current official Korean item catalog sanitation/matching
 → bounded reviewed-evidence recovery where explicitly supported
