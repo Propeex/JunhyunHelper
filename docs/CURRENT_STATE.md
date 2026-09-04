@@ -5,6 +5,29 @@
 기준일: **2026-09-04 KST**  
 상태: **v1.17.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
+## v1.17.2 release candidate
+
+The product-purity cleanup is implemented on PR #292 and has completed its final code-head validation. Public stable remains v1.17.1 until merge, exact-main validation and release publication finish.
+
+Validated code/CI head:
+
+```text
+f00e6871db6afa9f1cca6532e69d201674536687
+PR CI: 33839991885 — SUCCESS
+Shutdown Race: 33839991847 — SUCCESS
+Documentation Consistency: 33839991837 — SUCCESS
+488 passed / 0 failed / 0 skipped
+candidate Junhyun-Helper.zip SHA-256:
+7e23087ba447cbd81a46edf82b59e583cc2f2fd38746fc180d1bc61ef36ff920
+Actions artifact: 9924637693
+artifact SHA-256:
+c94ab864d16037841c693260f6b3a10cffe9b53d159ee521324f997d098c4f5c
+```
+
+The validated candidate also passed Windows Release build, win-x64 self-contained publish, actual Product UI / full Map/Factory/MiniMap / Scanner runtime smoke, graceful shutdown, clean portable-root and stable package/checksum verification.
+
+This maintenance release adds no user feature and performs no performance optimization. It removes evidence-backed obsolete/dead/superseded implementation paths while preserving current product contracts and the pinned Map donor integration.
+
 ## 공개 stable
 
 ```text
