@@ -126,6 +126,19 @@ public sealed class V1714UiConsistencyContractTests
         Assert.Contains("ProductSearchClearButtonBehavior.Attach(ItemSearchBox)", scanner, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ScannerItemDetailScrolling_IsCanonicalXaml_NotRuntimeReparenting()
+    {
+        var root = FindRepositoryRoot();
+        var xaml = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.xaml");
+        var usability = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.ProductUsability.cs");
+
+        Assert.Contains("VerticalScrollBarVisibility=\"Auto\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"SelectedItemPanel\"", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("new ScrollViewer", usability, StringComparison.Ordinal);
+        Assert.DoesNotContain("EnsureSelectedItemScrolling", usability, StringComparison.Ordinal);
+    }
+
     private static string Read(string root, params string[] path) =>
         File.ReadAllText(Path.Combine([root, .. path]));
 
