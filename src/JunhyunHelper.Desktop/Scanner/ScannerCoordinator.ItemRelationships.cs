@@ -53,12 +53,12 @@ public sealed partial class ScannerCoordinator
             return null;
 
         var relation = ItemRelationshipQuery.ForItem(context.Content.ItemRelationshipData, itemId);
+        var contentIndex = GetContentPresentationIndex(context.Content);
         var questUsages = context.Content.QuestItemRequirements
             .Where(requirement => requirement.AcceptedItemIds.Contains(itemId, StringComparer.Ordinal))
             .Select(requirement =>
             {
-                var quest = context.Content.Quests.FirstOrDefault(candidate =>
-                    string.Equals(candidate.Id, requirement.QuestId, StringComparison.Ordinal));
+                contentIndex.QuestsById.TryGetValue(requirement.QuestId, out var quest);
                 return new ScannerItemRequirementUsageRow(
                     ScannerItemRequirementUsageKind.Quest,
                     requirement.QuestId,
@@ -86,18 +86,18 @@ public sealed partial class ScannerCoordinator
             .ToArray();
 
         var craftUsages = relation.CraftsUsingItem.Select(craft => new ScannerItemUsageRow(
-                ResolveStationName(context, craft.StationId), craft.RequiredLevel,
-                ResolveItemLink(context, craft.ProductItemId), craft.ProductCount,
-                ResolveMaterials(context, craft.RequiredItems)))
+                ResolveStationName(contentIndex, craft.StationId), craft.RequiredLevel,
+                ResolveItemLink(context, contentIndex, craft.ProductItemId), craft.ProductCount,
+                ResolveMaterials(context, contentIndex, craft.RequiredItems)))
             .OrderBy(row => row.SourceName, StringComparer.CurrentCultureIgnoreCase)
             .ThenBy(row => row.RequiredLevel)
             .ThenBy(row => row.Product.OfficialName, StringComparer.CurrentCultureIgnoreCase)
             .ThenBy(row => row.Product.ItemId, StringComparer.Ordinal).ToArray();
 
         var barterUsages = relation.BartersUsingItem.Select(barter => new ScannerItemUsageRow(
-                ResolveTraderName(context, barter.TraderId), barter.RequiredLevel,
-                ResolveItemLink(context, barter.ProductItemId), barter.ProductCount,
-                ResolveMaterials(context, barter.RequiredItems)))
+                ResolveTraderName(contentIndex, barter.TraderId), barter.RequiredLevel,
+                ResolveItemLink(context, contentIndex, barter.ProductItemId), barter.ProductCount,
+                ResolveMaterials(context, contentIndex, barter.RequiredItems)))
             .OrderBy(row => row.SourceName, StringComparer.CurrentCultureIgnoreCase)
             .ThenBy(row => row.RequiredLevel)
             .ThenBy(row => row.Product.OfficialName, StringComparer.CurrentCultureIgnoreCase)
@@ -106,11 +106,10 @@ public sealed partial class ScannerCoordinator
         var acquisitions = new List<ScannerItemAcquisitionRow>();
         acquisitions.AddRange(relation.TraderPurchasesForItem.Select(purchase =>
         {
-            var trader = context.Content.Traders.FirstOrDefault(candidate =>
-                string.Equals(candidate.Id, purchase.TraderId, StringComparison.Ordinal));
+            contentIndex.TradersById.TryGetValue(purchase.TraderId, out var trader);
             return new ScannerItemAcquisitionRow(
                 ScannerItemAcquisitionKind.TraderPurchase,
-                ResolveTraderName(context, purchase.TraderId),
+                ResolveTraderName(contentIndex, purchase.TraderId),
                 purchase.RequiredLevel,
                 [],
                 Price: purchase.Price,
@@ -121,19 +120,20 @@ public sealed partial class ScannerCoordinator
         acquisitions.AddRange(relation.BartersForItem.Select(barter =>
             new ScannerItemAcquisitionRow(
                 ScannerItemAcquisitionKind.TraderBarter,
-                ResolveTraderName(context, barter.TraderId),
+                ResolveTraderName(contentIndex, barter.TraderId),
                 barter.RequiredLevel,
-                ResolveMaterials(context, barter.RequiredItems),
+                ResolveMaterials(context, contentIndex, barter.RequiredItems),
                 barter.ProductCount,
                 BuyLimit: barter.BuyLimit,
-                RefreshTime: context.Content.Traders.FirstOrDefault(candidate =>
-                    string.Equals(candidate.Id, barter.TraderId, StringComparison.Ordinal))?.ResetTime)));
+                RefreshTime: contentIndex.TradersById.TryGetValue(barter.TraderId, out var trader)
+                    ? trader.ResetTime
+                    : null)));
         acquisitions.AddRange(relation.CraftsForItem.Select(craft =>
             new ScannerItemAcquisitionRow(
                 ScannerItemAcquisitionKind.HideoutCraft,
-                ResolveStationName(context, craft.StationId),
+                ResolveStationName(contentIndex, craft.StationId),
                 craft.RequiredLevel,
-                ResolveMaterials(context, craft.RequiredItems),
+                ResolveMaterials(context, contentIndex, craft.RequiredItems),
                 craft.ProductCount,
                 DurationSeconds: craft.DurationSeconds)));
         if (relation.FleaMarketAvailable)
@@ -161,10 +161,13 @@ public sealed partial class ScannerCoordinator
                 .ThenBy(row => row.RequiredLevel ?? 0).ToArray());
     }
 
-    private ScannerItemLink ResolveItemLink(ScannerDataContext context, string itemId)
+    private ScannerItemLink ResolveItemLink(
+        ScannerDataContext context,
+        ScannerContentPresentationIndex contentIndex,
+        string itemId)
     {
         _catalog.TryGetItem(itemId, out var scannerItem);
-        var canonical = context.Content.Items.FirstOrDefault(item => string.Equals(item.Id, itemId, StringComparison.Ordinal));
+        contentIndex.ItemsById.TryGetValue(itemId, out var canonical);
         var name = !string.IsNullOrWhiteSpace(scannerItem?.OfficialName)
             ? scannerItem.OfficialName
             : FirstNonBlank(canonical?.NameKo, canonical?.NameEn, itemId);
@@ -172,21 +175,24 @@ public sealed partial class ScannerCoordinator
         return new ScannerItemLink(itemId, name, _icons.Load($"item-{itemId}", iconUrl));
     }
 
-    private IReadOnlyList<ScannerItemMaterialRow> ResolveMaterials(ScannerDataContext context, IReadOnlyList<ItemIngredient> materials) =>
+    private IReadOnlyList<ScannerItemMaterialRow> ResolveMaterials(
+        ScannerDataContext context,
+        ScannerContentPresentationIndex contentIndex,
+        IReadOnlyList<ItemIngredient> materials) =>
         materials.Select(material => new ScannerItemMaterialRow(
-                ResolveItemLink(context, material.ItemId), material.Count, material.IsTool))
+                ResolveItemLink(context, contentIndex, material.ItemId), material.Count, material.IsTool))
             .OrderBy(row => row.Item.OfficialName, StringComparer.CurrentCultureIgnoreCase)
             .ThenBy(row => row.Item.ItemId, StringComparer.Ordinal).ToArray();
 
-    private static string ResolveTraderName(ScannerDataContext context, string traderId)
+    private static string ResolveTraderName(ScannerContentPresentationIndex contentIndex, string traderId)
     {
-        var trader = context.Content.Traders.FirstOrDefault(candidate => string.Equals(candidate.Id, traderId, StringComparison.Ordinal));
+        contentIndex.TradersById.TryGetValue(traderId, out var trader);
         return FirstNonBlank(trader?.NameKo, trader?.NameEn, traderId);
     }
 
-    private static string ResolveStationName(ScannerDataContext context, string stationId)
+    private static string ResolveStationName(ScannerContentPresentationIndex contentIndex, string stationId)
     {
-        var station = context.Content.HideoutStations.FirstOrDefault(candidate => string.Equals(candidate.Id, stationId, StringComparison.Ordinal));
+        contentIndex.StationsById.TryGetValue(stationId, out var station);
         return FirstNonBlank(station?.NameKo, station?.NameEn, stationId);
     }
 
