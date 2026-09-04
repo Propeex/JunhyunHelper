@@ -105,12 +105,16 @@ public sealed class V1714UiConsistencyContractTests
     {
         var root = FindRepositoryRoot();
         var behavior = Read(root, "src", "JunhyunHelper.Desktop", "Controls", "ProductSearchClearButtonBehavior.cs");
+        var quests = Read(root, "src", "JunhyunHelper.Desktop", "Quests", "QuestPage.xaml.cs");
+        var hideout = Read(root, "src", "JunhyunHelper.Desktop", "Hideout", "HideoutPage.xaml.cs");
+        var items = Read(root, "src", "JunhyunHelper.Desktop", "Items", "ItemsPage.xaml.cs");
         var ammo = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.ProductSearchAndDetails.cs");
         var scanner = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.ProductUsability.cs");
 
-        Assert.Contains("typeof(QuestPage)", behavior, StringComparison.Ordinal);
-        Assert.Contains("typeof(HideoutPage)", behavior, StringComparison.Ordinal);
-        Assert.Contains("typeof(ItemsPage)", behavior, StringComparison.Ordinal);
+        Assert.DoesNotContain("RegisterClassHandler", behavior, StringComparison.Ordinal);
+        Assert.Contains("ProductSearchClearButtonBehavior.Attach(SearchBox)", quests, StringComparison.Ordinal);
+        Assert.Contains("ProductSearchClearButtonBehavior.Attach(SearchBox)", hideout, StringComparison.Ordinal);
+        Assert.Contains("ProductSearchClearButtonBehavior.Attach(SearchBox)", items, StringComparison.Ordinal);
         Assert.Contains("Content = \"×\"", behavior, StringComparison.Ordinal);
         Assert.Contains("HorizontalAlignment = HorizontalAlignment.Right", behavior, StringComparison.Ordinal);
         Assert.Contains("searchBox.Clear()", behavior, StringComparison.Ordinal);
