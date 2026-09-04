@@ -4,6 +4,7 @@ namespace JunhyunHelper.Desktop;
 
 public partial class MainWindow
 {
+    private readonly SemaphoreSlim _contentOperationGate = new(1, 1);
     private bool _contentSchemaRefreshStarted;
     private bool _contentSchemaRefreshAttached;
 
@@ -48,6 +49,7 @@ public partial class MainWindow
 
         var targetProfileId = _activeProfile.ProfileId;
         var gameMode = _activeProfile.GameMode;
+        var gateEntered = false;
         var ownsBusyState = false;
 
         bool TargetIsStillCurrent() =>
@@ -61,9 +63,23 @@ public partial class MainWindow
             if (!TargetIsStillCurrent() || !ContentSnapshotStore.RequiresCurrentSchemaRefresh(snapshot))
                 return;
 
-            // The initial cache read is asynchronous while the profile selector is still
-            // usable. Re-check identity before taking ownership of the UI and never apply a
-            // completed migration to a profile that replaced the one that started it.
+            // Manual Data Update and this opportunistic migration share one product-level
+            // UI operation gate. The infrastructure update service already serializes disk
+            // activation, but without this outer gate one caller could release SetBusy(false)
+            // while the other was still waiting/running.
+            await _contentOperationGate.WaitAsync();
+            gateEntered = true;
+
+            // The user may have started a manual update while the initial legacy-schema
+            // read was in flight. Re-read after acquiring the gate so a completed manual
+            // update does not trigger a redundant second network refresh.
+            if (!TargetIsStillCurrent())
+                return;
+
+            snapshot = await _services.Content.ReadActiveOrRecoverAsync(gameMode);
+            if (!ContentSnapshotStore.RequiresCurrentSchemaRefresh(snapshot))
+                return;
+
             SetBusy(true);
             ownsBusyState = true;
 
@@ -86,15 +102,18 @@ public partial class MainWindow
             // Window/application shutdown can cancel opportunistic migration. The readable
             // last-known-good snapshot remains intact and migration is retried next launch.
         }
-        catch (Exception)
+        catch (Exception exception)
         {
             // A readable older snapshot remains the intentional offline fallback. Schema
             // refresh is opportunistic: network/update failure must not prevent startup.
+            App.WriteDiagnostic("Opportunistic content schema refresh failed", exception);
         }
         finally
         {
             if (ownsBusyState && TargetIsStillCurrent())
                 SetBusy(false);
+            if (gateEntered)
+                _contentOperationGate.Release();
         }
     }
 
