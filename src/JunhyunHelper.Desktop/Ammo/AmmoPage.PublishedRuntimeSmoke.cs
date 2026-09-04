@@ -25,7 +25,7 @@ public partial class AmmoPage
         // Runtime verification must never repair a missed product lifecycle. The
         // published executable is valid only when the real AmmoPage Loaded path already
         // installed the shared template, favorite selector and timer.
-        if (!_productCaliberDropdownApplied ||
+        if (!_productCaliberDropdownInitialized ||
             _productCaliberIconTimer is null)
         {
             throw new InvalidOperationException(
