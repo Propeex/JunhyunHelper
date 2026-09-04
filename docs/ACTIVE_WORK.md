@@ -4,49 +4,44 @@ Status: **ACTIVE**
 
 ## Goal
 
-Remove the Farming Guide product feature completely at the user's explicit request.
+Remove the Farming Guide product feature completely at the user's explicit request and release the removal as v1.17.1.
 
 ## Base / branch
 
-- base: current `main` / public stable v1.17.0
-- working branch: `product/remove-farming-guide-2026-09-04`
-- PR: #290 (draft)
+- base: public stable v1.17.0
+- branch: `product/remove-farming-guide-2026-09-04`
+- PR: #290 (draft until final validation)
 
 ## Confirmed scope
 
-Remove Farming Guide-specific:
+Remove Farming Guide-specific UI, navigation, editor/presets, raid-session advisor, packing/repacking/loot logic, locks/weight/quantity flows, Scanner bridge/hotkey/Mini Scanner integration, persistence/services/domain policies, Game Content extension metadata and dedicated tests.
 
-- product UI/navigation and overlays
-- persisted Farming Guide state and presets
-- raid-session lifecycle, solver/planner, locks, weight configuration and recommendation logic
-- Scanner → Farming Guide bridge, acceptance flow, simulated Farming Guide scan actions and related hotkeys/settings
-- Farming Guide-only models, services, policies and persistence
-- Farming Guide-only tests/smokes
-- current product/documentation references that present Farming Guide as an active feature
+Preserve Quest, Hideout, Items, Ammo, Map/MiniMap, independent Scanner behavior, update safety and user-owned data.
 
-Preserve Scanner recognition itself, Items/Quest/Hideout/Ammo/Map and all unrelated product behavior.
-
-Historical release/decision records may remain only where needed as immutable history, but must not be presented as current product authority.
+Legacy `farming-guide.json` is no longer read/written and is not automatically deleted.
 
 ## Completed
 
-- recovered v1.17.0 current state and canonical Farming Guide authority
-- user explicitly decided to remove the entire Farming Guide feature
-- created working branch
-- removed 101 dedicated Farming Guide implementation/test files
-- removed main navigation/service wiring and Scanner Farming Guide display/hotkey integration
-- opened draft PR #290 for Windows CI dependency detection
+- recovered v1.17.0 authority and captured the user's removal decision
+- created branch and draft PR #290
+- removed 101+ Farming Guide implementation/test files and all first-class UI/service/Scanner integration
+- removed Farming Guide-only GameItem/importer metadata
+- pre-version removal head `7901724fa7007860dc1220a667a10911bdaf4a9a` passed CI/Shutdown/Docs
+- pre-version deterministic suite: 485 passed / 0 failed / 0 skipped
+- pre-version published EXE Product UI / Map / Scanner smoke and graceful shutdown passed
+- set target version to v1.17.1
+- added current removal decision/release notes and removed active Farming Guide architecture authority
+- updated current product/state/architecture documentation
 
 ## Current step
 
-Use PR #290 Windows CI plus targeted source review to remove any remaining cross-feature references, then update current documentation/version.
+Run final PR #290 CI on the v1.17.1 version/document head and resolve any remaining compile, test, runtime-smoke, review or documentation findings.
 
 ## Remaining
 
-- remove implementation and integration points
-- repair compile/runtime dependencies
-- remove/adjust tests and smoke coverage
-- update current product/state/reference documentation and version facts
-- run deterministic tests, Release build/publish and applicable runtime smoke
-- open PR, validate CI/review
-- merge, exact-main validation and release if all gates pass
+- verify final PR CI / Shutdown Race / Documentation Consistency
+- inspect final PR diff/review for unintended cross-feature deletion
+- mark PR ready and merge
+- verify exact-main CI / Shutdown Race / Documentation Consistency
+- publish and verify v1.17.1 stable release/assets
+- finalize PROJECT_STATE/CURRENT_STATE/STATE/README/ACTIVE_WORK with exact release evidence and close ACTIVE_WORK
