@@ -116,11 +116,52 @@ public sealed class V1173StabilityOptimizationContractTests
         var source = Read(root, "src", "JunhyunHelper.Desktop", "Services", "ImageCacheService.cs");
 
         Assert.Contains("ConcurrentDictionary<string, SemaphoreSlim> _cachePathGates", source, StringComparison.Ordinal);
-        Assert.Contains("ConcurrentDictionary<string, ImageSource> _decodedImages", source, StringComparison.Ordinal);
-        Assert.Contains("_decodedImages.TryGetValue(path, out var memoryCached)", source, StringComparison.Ordinal);
+        Assert.Contains("ConcurrentDictionary<string, WeakReference<ImageSource>> _decodedImages", source, StringComparison.Ordinal);
+        Assert.Contains("TryGetDecodedImage(path, out var memoryCached)", source, StringComparison.Ordinal);
         Assert.Contains("_cachePathGates.GetOrAdd(", source, StringComparison.Ordinal);
         Assert.Contains("await pathGate.WaitAsync(cancellationToken);", source, StringComparison.Ordinal);
-        Assert.Contains("_decodedImages.GetOrAdd(path, cached)", source, StringComparison.Ordinal);
+        Assert.Contains("_cachePathGates.TryRemove(path, out _);", source, StringComparison.Ordinal);
+        Assert.Contains("RememberDecodedImage(path, cached)", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MapQuestV2_UsesChangeDrivenScaleAndContentIndexesInsteadOfPolling()
+    {
+        var root = FindRepositoryRoot();
+        var source = Read(root, "src", "JunhyunHelper.Desktop", "Map", "LegacyMapQuestV2.cs");
+
+        Assert.DoesNotContain("DispatcherTimer _scaleTimer", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("TimeSpan.FromMilliseconds(120)", source, StringComparison.Ordinal);
+        Assert.Contains("_mapScale.Changed += MapScale_Changed;", source, StringComparison.Ordinal);
+        Assert.Contains("_mapScale.Changed -= MapScale_Changed;", source, StringComparison.Ordinal);
+        Assert.Contains("private readonly ScaleTransform _inverseMarkerScale", source, StringComparison.Ordinal);
+        Assert.Contains("visual.RenderTransform = _inverseMarkerScale;", source, StringComparison.Ordinal);
+        Assert.Contains("EnsureContentIndexes(content);", source, StringComparison.Ordinal);
+        Assert.Equal(1, Count(source, "content.Maps.ToDictionary(map => map.Id, StringComparer.Ordinal)"));
+        Assert.Equal(1, Count(source, "content.QuestObjectives"));
+    }
+
+    [Fact]
+    public void MapSchemaRefresh_SharesTheContentOperationGate()
+    {
+        var root = FindRepositoryRoot();
+        var source = Read(root, "src", "JunhyunHelper.Desktop", "MainWindow.LegacyMapHost.cs");
+
+        Assert.Contains("await _contentOperationGate.WaitAsync();", source, StringComparison.Ordinal);
+        Assert.Contains("snapshot = await _services.Content.ReadActiveOrRecoverAsync", source, StringComparison.Ordinal);
+        Assert.Contains("_contentOperationGate.Release();", source, StringComparison.Ordinal);
+        Assert.Contains("TargetIsStillCurrent()", source, StringComparison.Ordinal);
+        Assert.Contains("App.WriteDiagnostic(\"Map-triggered content schema refresh failed\"", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SharedTheme_ShowsKeyboardFocusOnButtons()
+    {
+        var root = FindRepositoryRoot();
+        var source = Read(root, "src", "JunhyunHelper.Desktop", "Themes", "DarkControls.xaml");
+
+        Assert.Contains("<Trigger Property=\"IsKeyboardFocused\" Value=\"True\">", source, StringComparison.Ordinal);
+        Assert.Contains("<Setter TargetName=\"ButtonBorder\" Property=\"BorderBrush\" Value=\"{StaticResource AccentBrush}\" />", source, StringComparison.Ordinal);
     }
 
     private static int Count(string source, string value)
