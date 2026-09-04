@@ -5,7 +5,45 @@
 기준일: **2026-09-04 KST**  
 상태: **v1.17.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
-## 1. 공개 제품 상태
+## 1. v1.17.2 product-purity release candidate
+
+PR #292 contains the current product-purity maintenance pass. Public stable remains v1.17.1 until exact-main release publication succeeds.
+
+Final validated code/CI head before this documentation checkpoint:
+
+```text
+f00e6871db6afa9f1cca6532e69d201674536687
+CI: 33839991885 — SUCCESS
+Shutdown Race: 33839991847 — SUCCESS
+Documentation Consistency: 33839991837 — SUCCESS
+488 passed / 0 failed / 0 skipped
+```
+
+Validation covered:
+
+- Windows Release build;
+- win-x64 self-contained publish;
+- actual published EXE Product UI / full Map/Factory/MiniMap / Scanner smoke;
+- graceful shutdown and clean portable root;
+- active-async Shutdown Race;
+- stable release package/checksum verification;
+- Documentation Consistency.
+
+Candidate evidence:
+
+```text
+Junhyun-Helper.zip SHA-256:
+7e23087ba447cbd81a46edf82b59e583cc2f2fd38746fc180d1bc61ef36ff920
+
+JunhyunHelper-win-x64 artifact id: 9924637693
+artifact bytes: 241595338
+artifact SHA-256:
+c94ab864d16037841c693260f6b3a10cffe9b53d159ee521324f997d098c4f5c
+```
+
+The cleanup removes only evidence-backed impurities: hidden/superseded UI ownership, runtime rebinding/repair paths, orphan lifecycle code, retired Scanner/Ammo/Profile/search-clear paths, transitional updater compatibility, stale current-state documentation and tests that required removed structures. Current Quest/Hideout/Items/Ammo/Map/MiniMap/Scanner behavior and validated Map donor/OCR contracts are preserved.
+
+## 2. 공개 제품 상태
 
 ```text
 public stable: v1.17.1
@@ -60,7 +98,7 @@ Public API readback confirmed:
 - both required assets present;
 - public ZIP digest equals exact-main package SHA-256.
 
-## 2. v1.17.1 Farming Guide removal
+## 3. v1.17.1 Farming Guide removal
 
 The user explicitly decided to remove Farming Guide completely.
 
@@ -79,7 +117,7 @@ Removed implementation:
 
 This is not a hidden/disabled feature state. The active product contains no Farming Guide UI or runtime decision path.
 
-## 3. Preserved product boundaries
+## 4. Preserved product boundaries
 
 The removal preserves:
 
@@ -92,7 +130,7 @@ The removal preserves:
 
 No remaining source/test file in the inspected active removal surface retained a Farming Guide runtime reference.
 
-## 4. Legacy compatibility / data handling
+## 5. Legacy compatibility / data handling
 
 ### Farming Guide user file
 
@@ -118,7 +156,7 @@ Content write/read remains v12 / v3-v12.
 
 Farming Guide-only item storage/equipment/attachment/armor/layout extension metadata is no longer part of the canonical `GameItem` runtime model or importer contract. Older snapshots may contain unknown historical JSON properties; current deserialization does not promote them into another feature.
 
-## 5. Validation evidence
+## 6. Validation evidence
 
 ### PR #290
 
@@ -181,7 +219,7 @@ Public `SHA256SUMS.txt` asset:
 - 86 bytes;
 - asset SHA-256 `d665b07efa2d3e402937701f903d1eb5da8001feab0b54bcb2a9d8a93e46f9b1`.
 
-## 6. Current schemas / pinned dependencies
+## 7. Current schemas / pinned dependencies
 
 ```text
 Desktop: 1.17.1
@@ -194,7 +232,7 @@ Map donor revision: d933792b6042a51cea38dc44b686a096fe30de67
 
 There is no current Farming Guide persistence schema in the active product contract.
 
-## 7. Canonical references
+## 8. Canonical references
 
 - `docs/PROJECT_STATE.json`
 - `docs/.release-v1.17.1-status.json`
@@ -203,7 +241,7 @@ There is no current Farming Guide persistence schema in the active product contr
 - `docs/CURRENT_STATE.md`
 - `docs/ACTIVE_WORK.md`
 
-## 8. Current work status
+## 9. Current work status
 
 The v1.17.1 Farming Guide removal is implemented, validated, merged, published and publicly verified.
 
