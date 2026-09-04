@@ -16,7 +16,16 @@ No new user-facing product capability is introduced. Confirmed Quest/Hideout/Ite
 - working branch: `maintenance/v1.17.3-stability-optimization-2026-09-04`
 - target release: `v1.17.3`
 
-## Implemented
+## Confirmed scope
+
+- optimize and harden only existing product behavior; no new user-facing feature;
+- preserve Quest/Hideout/Items/Ammo/Map/MiniMap/Scanner semantics and pinned donor behavior;
+- preserve Scanner recognition thresholds, pacing and matcher safety;
+- preserve supported schema/read compatibility and user-owned state;
+- improve only evidence-backed correctness, lifetime, concurrency, repeated-work efficiency and visual consistency;
+- finish as PATCH v1.17.3 only after full PR, exact-main and public release verification.
+
+## Completed
 
 ### Repeated-work / lookup efficiency
 
