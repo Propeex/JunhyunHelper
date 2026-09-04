@@ -164,7 +164,7 @@ public partial class MainWindow
             ScannerPlaceholder.RecentItemsScrollViewer.HorizontalScrollBarVisibility != ScrollBarVisibility.Disabled)
         {
             throw new InvalidOperationException(
-                "Scanner search/Favorites/Recents surface did not render its v1.9.0 product contract.");
+                "Scanner search/Favorites/Recents surface did not render its current product contract.");
         }
 
         if (ScannerPlaceholder.ActivityItems.Parent is not FrameworkElement diagnosticActivityHost ||
@@ -172,7 +172,7 @@ public partial class MainWindow
             diagnosticActivityHost.IsHitTestVisible)
         {
             throw new InvalidOperationException(
-                "Scanner diagnostic activity feed is exposed on the v1.9.0 user-facing surface.");
+                "Scanner diagnostic activity feed is exposed on the current user-facing surface.");
         }
 
         var forbiddenLabels = new HashSet<string>(StringComparer.Ordinal)
