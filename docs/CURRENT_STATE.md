@@ -2,7 +2,7 @@
 
 > 최신 제품 상태의 짧은 인덱스입니다. 기계 판독 가능한 사실값은 `docs/PROJECT_STATE.json`, 상세 계약은 `docs/STATE.md`, 진행 중 작업은 `docs/ACTIVE_WORK.md`를 기준으로 합니다.
 
-기준일: **2026-09-03 KST**  
+기준일: **2026-09-04 KST**  
 상태: **v1.17.0 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 공개 stable
@@ -46,28 +46,38 @@ bytes: 242,234,759
 SHA-256: d9115f24968804fc5b4e65fa7bbaaf008f4af516e044f3b00e0ee6b4525a15dd
 ```
 
-## v1.17.0 Farming Guide contract
 
-The authoritative raid decision is a complete-state global optimization with exactly two lexicographic objectives:
+## v1.17.1 active removal work
 
-1. maximize retained Scanner-acquired FIR Quest/Hideout units up to remaining need;
-2. then maximize total retained average-Flea value.
+User-confirmed target: **remove Farming Guide completely**.
 
-Weight is a feasibility constraint only. Food, drink, ammunition, magazines, medicine, armor, headsets and other item classes receive no automatic tactical privilege. User-fixed items/cells are hard constraints only.
+Implementation branch: `product/remove-farming-guide-2026-09-04`  
+Draft PR: **#290**
 
-Every accepted Scanner incoming item during an active Farming Guide raid is represented with ephemeral `RaidAcquired` provenance. Scanner does not inspect a FIR icon/color/text and does not ask the user to confirm FIR.
+Removed from the target product:
 
-The global solve considers movable stored roots, equipment, Rig, Backpack, Secure Container, nested containers and the incoming item. Final legality covers actual geometry/rotation/collision, grid filters, nesting/cycles, equipment compatibility, attachments/plates, item/slot conflicts, body-armor/armored-rig conflict, helmet/headset compatibility, quantity, locks and final weight. Unknown destructive facts fail closed.
+- Farming Guide main page/navigation;
+- loadout/preset/raid-session/optimizer/repacking/locks/weight/quantity flows;
+- Scanner Farming Guide bridge, Mini Scanner instruction/quantity state and accept hotkey/settings;
+- Farming Guide Core/Desktop/Infrastructure implementation and persistence;
+- Farming Guide-only Game Content metadata/import coverage;
+- Farming Guide-only tests and published runtime smoke.
+
+Quest/Hideout/Items/Ammo/Map/MiniMap and independent Scanner behavior are preserved.
+
+Legacy `farming-guide.json` is no longer read/written and is not automatically deleted.
 
 ## Validation coverage
 
-Exact-main CI passed Release build, **649/649 deterministic tests**, Windows x64 self-contained publish, ProductVersion/FIRST_RUN identity, actual published EXE Product UI / Map / Scanner / Farming Guide global-optimizer smoke, graceful shutdown, clean portable-root checks, package creation and checksum verification. Dedicated Shutdown Race and Documentation Consistency workflows also passed on the exact product source.
+The v1.17.0 public stable evidence remains valid for that immutable release. On PR #290, the removal implementation before the v1.17.1 version/document pass already passed Windows Release build, **485/485 deterministic tests**, self-contained publish, actual Product UI / Map / Scanner smoke, graceful shutdown, package verification, Shutdown Race and Documentation Consistency. Final v1.17.1 CI will be rerun after this documentation/version update.
 
 ## Canonical references
 
 - `docs/.release-v1.17.0-status.json`
 - `docs/RELEASE_NOTES_V1.17.0.md`
-- `docs/DECISION_V1.17.0_FARMING_GUIDE_RULEBOOK.md`
+- `docs/DECISION_V1.17.1_REMOVE_FARMING_GUIDE.md`
+- `docs/RELEASE_NOTES_V1.17.1.md`
+- `docs/ACTIVE_WORK.md`
 - `docs/PROJECT_STATE.json`
 - `docs/STATE.md`
 
