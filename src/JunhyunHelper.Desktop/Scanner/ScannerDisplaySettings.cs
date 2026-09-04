@@ -9,7 +9,6 @@ public sealed class ScannerDisplaySettings
 
     public const string TraderSellPriceField = "trader_sell_price";
     public const string FleaAveragePriceField = "flea_average_price";
-    public const string FleaMinimumPriceField = "flea_minimum_price";
     public const string TraderPricePerSlotField = "trader_price_per_slot";
     public const string FleaPricePerSlotField = "flea_price_per_slot";
     public const string CurrentNeededField = "current_needed";
@@ -19,7 +18,6 @@ public sealed class ScannerDisplaySettings
     [
         TraderSellPriceField,
         FleaAveragePriceField,
-        FleaMinimumPriceField,
         TraderPricePerSlotField,
         FleaPricePerSlotField,
         CurrentNeededField,
@@ -33,7 +31,6 @@ public sealed class ScannerDisplaySettings
     public bool Enabled { get; set; }
     public bool ShowTraderSellPrice { get; set; } = true;
     public bool ShowFleaAveragePrice { get; set; } = true;
-    public bool ShowFleaMinimumPrice { get; set; } = true;
     public bool ShowTraderPricePerSlot { get; set; } = true;
     public bool ShowFleaPricePerSlot { get; set; }
     public bool ShowCurrentNeeded { get; set; } = true;
@@ -66,7 +63,6 @@ public sealed class ScannerDisplaySettings
         Enabled = Enabled,
         ShowTraderSellPrice = ShowTraderSellPrice,
         ShowFleaAveragePrice = ShowFleaAveragePrice,
-        ShowFleaMinimumPrice = ShowFleaMinimumPrice,
         ShowTraderPricePerSlot = ShowTraderPricePerSlot,
         ShowFleaPricePerSlot = ShowFleaPricePerSlot,
         ShowCurrentNeeded = ShowCurrentNeeded,
@@ -113,8 +109,6 @@ public sealed class ScannerDisplaySettings
 
         OneShotHotkey = null;
 
-        if (SchemaVersion < 7)
-            ShowFleaMinimumPrice = true;
         if (SchemaVersion < 9)
             ShowAmmoPickup = true;
 
@@ -183,7 +177,6 @@ public sealed class ScannerDisplaySettings
     {
         TraderSellPriceField => ShowTraderSellPrice,
         FleaAveragePriceField => ShowFleaAveragePrice,
-        FleaMinimumPriceField => ShowFleaMinimumPrice,
         TraderPricePerSlotField => ShowTraderPricePerSlot,
         FleaPricePerSlotField => ShowFleaPricePerSlot,
         CurrentNeededField => ShowCurrentNeeded,
@@ -200,9 +193,6 @@ public sealed class ScannerDisplaySettings
                 break;
             case FleaAveragePriceField:
                 ShowFleaAveragePrice = visible;
-                break;
-            case FleaMinimumPriceField:
-                ShowFleaMinimumPrice = visible;
                 break;
             case TraderPricePerSlotField:
                 ShowTraderPricePerSlot = visible;
