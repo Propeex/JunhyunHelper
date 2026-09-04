@@ -25,11 +25,6 @@ public partial class MainWindow
         AmmoPage.SetFavoriteStore(_services.AmmoFavorites);
         AttachContentNavigation();
 
-        // Header presentation is likewise product-window infrastructure. Schedule it
-        // explicitly after the visual tree is loaded rather than relying on a static
-        // class-level Loaded handler whose activation depends on type/event ordering.
-        ScheduleHeaderStatusPolish();
-
         // A readable older content schema remains a valid offline fallback, but v1.15.4
         // needs the current schema for the new source-backed equipment metrics. Attach an
         // opportunistic one-shot refresh trigger through this single lifecycle owner so
@@ -56,10 +51,6 @@ public partial class MainWindow
 
     protected override void OnClosed(EventArgs e)
     {
-        // Release descriptor-backed event subscriptions before the product visual tree
-        // is torn down. This keeps lifecycle ownership symmetric and avoids retaining a
-        // closed MainWindow through component-model event infrastructure.
-        DetachHeaderStatusPolish();
         DetachContentSchemaRefreshTrigger();
 
         // Dispose product-owned hooks/timers before WPF tears down remaining windows.
