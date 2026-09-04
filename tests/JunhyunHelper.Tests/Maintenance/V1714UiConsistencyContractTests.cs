@@ -89,15 +89,17 @@ public sealed class V1714UiConsistencyContractTests
     }
 
     [Fact]
-    public void ProfileEditor_UsesScannerStyleContentCardInsideSharedOverlay()
+    public void ProfileEditor_UsesCanonicalContentCardInsideSharedOverlay()
     {
         var root = FindRepositoryRoot();
-        var source = Read(root, "src", "JunhyunHelper.Desktop", "Profiles", "ProfileEditorWindow.ProductOverlayStyle.cs");
+        var xaml = Read(root, "src", "JunhyunHelper.Desktop", "Profiles", "ProfileEditorWindow.xaml");
+        var retiredShim = Path.Combine(
+            root, "src", "JunhyunHelper.Desktop", "Profiles", "ProfileEditorWindow.ProductOverlayStyle.cs");
 
-        Assert.Contains("ApplyProductOverlayStyle", source, StringComparison.Ordinal);
-        Assert.Contains("BackgroundMediumBrush", source, StringComparison.Ordinal);
-        Assert.Contains("BorderBrush", source, StringComparison.Ordinal);
-        Assert.Contains("CornerRadius = new CornerRadius(8)", source, StringComparison.Ordinal);
+        Assert.Contains("Background=\"{StaticResource BackgroundMediumBrush}\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("BorderBrush=\"{StaticResource BorderBrush}\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("CornerRadius=\"8\"", xaml, StringComparison.Ordinal);
+        Assert.False(File.Exists(retiredShim));
     }
 
     [Fact]
