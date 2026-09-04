@@ -120,7 +120,9 @@ public sealed class V1714UiConsistencyContractTests
         Assert.Contains("Content = \"×\"", behavior, StringComparison.Ordinal);
         Assert.Contains("HorizontalAlignment = HorizontalAlignment.Right", behavior, StringComparison.Ordinal);
         Assert.Contains("searchBox.Clear()", behavior, StringComparison.Ordinal);
-        Assert.Contains("ProductSearchClearButtonBehavior.Attach(_productSearchBox)", ammo, StringComparison.Ordinal);
+        Assert.Contains("ProductSearchClearButtonBehavior.Attach(ProductSearchBox)", ammo, StringComparison.Ordinal);
+        Assert.DoesNotContain("new TextBox", ammo, StringComparison.Ordinal);
+        Assert.DoesNotContain("new Popup", ammo, StringComparison.Ordinal);
         Assert.Contains("ProductSearchClearButtonBehavior.Attach(ItemSearchBox)", scanner, StringComparison.Ordinal);
     }
 
