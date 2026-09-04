@@ -144,11 +144,16 @@ public partial class MainWindow : Window
         var previousPlan = detectCleanupChanges ? _activeItemsWorkspace?.Plan : null;
         var profileId = _activeProfile.ProfileId;
 
-        var questWorkspace = await _services.Quests.LoadAsync(_activeContent, profileId);
-        var hideoutWorkspace = await _services.Hideout.LoadAsync(_activeContent, profileId);
-        var itemsWorkspace = await _services.Items.LoadAsync(_activeContent, profileId);
+        // Build every derived workspace from one authoritative immutable profile
+        // snapshot. This prevents cross-page skew if persistence changes in the future
+        // and avoids three separate profile-store reads for one UI refresh.
+        var profile = await _services.Profiles.LoadAsync(profileId)
+            ?? throw new KeyNotFoundException($"Profile '{profileId}' does not exist.");
+        var questWorkspace = _services.Quests.BuildFromProfile(_activeContent, profile);
+        var hideoutWorkspace = _services.Hideout.BuildFromProfile(_activeContent, profile);
+        var itemsWorkspace = _services.Items.BuildFromProfile(_activeContent, profile);
 
-        _activeProfile = itemsWorkspace.Profile;
+        _activeProfile = profile;
         _activeItemsWorkspace = itemsWorkspace;
 
         QuestPage.SetDataPreservingScroll(_activeContent, questWorkspace);
