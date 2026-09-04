@@ -64,7 +64,7 @@ public partial class MainWindow
             // The initial cache read is asynchronous while the profile selector is still
             // usable. Re-check identity before taking ownership of the UI and never apply a
             // completed migration to a profile that replaced the one that started it.
-            SetBusy(true, "게임 데이터 형식을 최신 버전으로 갱신하는 중...");
+            SetBusy(true);
             ownsBusyState = true;
 
             var result = await RunContentUpdateAsync(gameMode);
@@ -94,7 +94,7 @@ public partial class MainWindow
         finally
         {
             if (ownsBusyState && TargetIsStillCurrent())
-                SetBusy(false, BuildLoadedStatus(gameMode));
+                SetBusy(false);
         }
     }
 
