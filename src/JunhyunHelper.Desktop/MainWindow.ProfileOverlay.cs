@@ -122,17 +122,4 @@ public partial class MainWindow
         }
     }
 
-    private static IEnumerable<Button> FindButtons(DependencyObject root)
-    {
-        foreach (var child in LogicalTreeHelper.GetChildren(root))
-        {
-            if (child is Button button)
-                yield return button;
-            if (child is DependencyObject dependencyObject)
-            {
-                foreach (var descendant in FindButtons(dependencyObject))
-                    yield return descendant;
-            }
-        }
-    }
 }
