@@ -323,7 +323,7 @@ public partial class MainWindow : Window
         AmmoTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Ammo;
         MapTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Map;
         ScannerTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Scanner;
-
+        RefreshItemsCleanupIndicator();
     }
 
     private void UpdateSectionButtons()
