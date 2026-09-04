@@ -193,6 +193,21 @@ public sealed class V1173StabilityOptimizationContractTests
         Assert.Contains("var recovered = await _services.Content.ReadActiveOrRecoverAsync(gameMode);", source, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void WorkspaceRefresh_BuildsAllPagesFromOneAuthoritativeProfileSnapshot()
+    {
+        var root = FindRepositoryRoot();
+        var source = Read(root, "src", "JunhyunHelper.Desktop", "MainWindow.xaml.cs");
+
+        Assert.Contains("var profile = await _services.Profiles.LoadAsync(profileId)", source, StringComparison.Ordinal);
+        Assert.Contains("_services.Quests.BuildFromProfile(_activeContent, profile)", source, StringComparison.Ordinal);
+        Assert.Contains("_services.Hideout.BuildFromProfile(_activeContent, profile)", source, StringComparison.Ordinal);
+        Assert.Contains("_services.Items.BuildFromProfile(_activeContent, profile)", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("_services.Quests.LoadAsync(_activeContent, profileId)", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("_services.Hideout.LoadAsync(_activeContent, profileId)", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("_services.Items.LoadAsync(_activeContent, profileId)", source, StringComparison.Ordinal);
+    }
+
     private static int Count(string source, string value)
     {
         var count = 0;
