@@ -1,21 +1,20 @@
 using System.IO;
 using System.Windows;
-using System.Windows.Media;
 using System.Windows.Threading;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
 public partial class ScannerPage
 {
-    private bool _v191DetailActionSmokeArmed;
-    private bool _v191DetailActionSmokeCompleted;
-    private DispatcherTimer? _v191DetailActionSmokeVisibilityTimer;
-    private Visibility? _v191DetailActionSmokeOriginalPageVisibility;
+    private bool _detailActionSmokeArmed;
+    private bool _detailActionSmokeCompleted;
+    private DispatcherTimer? _detailActionSmokeVisibilityTimer;
+    private Visibility? _detailActionSmokeOriginalPageVisibility;
 
 
     private void ArmDetailActionAlignmentSmoke()
     {
-        if (_v191DetailActionSmokeCompleted ||
+        if (_detailActionSmokeCompleted ||
             !string.Equals(
                 Environment.GetEnvironmentVariable("JUNHYUNHELPER_MAP_SMOKE"),
                 "1",
@@ -36,23 +35,23 @@ public partial class ScannerPage
             return;
         }
 
-        if (_v191DetailActionSmokeArmed)
+        if (_detailActionSmokeArmed)
             return;
 
-        _v191DetailActionSmokeArmed = true;
+        _detailActionSmokeArmed = true;
         SelectedItemPanel.IsVisibleChanged += SelectedItemPanel_DetailActionSmokeIsVisibleChanged;
 
-        _v191DetailActionSmokeVisibilityTimer ??= new DispatcherTimer(
+        _detailActionSmokeVisibilityTimer ??= new DispatcherTimer(
             TimeSpan.FromMilliseconds(50),
             DispatcherPriority.Background,
             DetailActionSmokeVisibilityTimer_Tick,
             Dispatcher);
-        _v191DetailActionSmokeVisibilityTimer.Start();
+        _detailActionSmokeVisibilityTimer.Start();
     }
 
     private void DetailActionSmokeVisibilityTimer_Tick(object? sender, EventArgs e)
     {
-        if (_v191DetailActionSmokeCompleted)
+        if (_detailActionSmokeCompleted)
         {
             StopDetailActionSmokeVisibilityTimer();
             return;
@@ -67,7 +66,7 @@ public partial class ScannerPage
         // without navigating tabs. We must verify ActualHeight on a genuinely visible tree.
         if (!IsVisible)
         {
-            _v191DetailActionSmokeOriginalPageVisibility ??= Visibility;
+            _detailActionSmokeOriginalPageVisibility ??= Visibility;
             Visibility = Visibility.Visible;
             UpdateLayout();
         }
@@ -80,11 +79,11 @@ public partial class ScannerPage
 
     private void SelectedItemPanel_DetailActionSmokeIsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
-        if (!SelectedItemPanel.IsVisible || _v191DetailActionSmokeCompleted)
+        if (!SelectedItemPanel.IsVisible || _detailActionSmokeCompleted)
             return;
 
         SelectedItemPanel.IsVisibleChanged -= SelectedItemPanel_DetailActionSmokeIsVisibleChanged;
-        _v191DetailActionSmokeArmed = false;
+        _detailActionSmokeArmed = false;
         StopDetailActionSmokeVisibilityTimer();
         Dispatcher.BeginInvoke(
             VerifyDetailActionAlignmentSmoke,
@@ -93,7 +92,7 @@ public partial class ScannerPage
 
     private void VerifyDetailActionAlignmentSmoke()
     {
-        if (_v191DetailActionSmokeCompleted)
+        if (_detailActionSmokeCompleted)
             return;
 
         // A render can be superseded by navigation before it executes. Do not convert that
@@ -123,7 +122,7 @@ public partial class ScannerPage
                 throw new InvalidOperationException("Scanner detail favorite action is not using the approved centered glyph layout.");
             }
 
-            _v191DetailActionSmokeCompleted = true;
+            _detailActionSmokeCompleted = true;
             File.WriteAllText(
                 Path.Combine(Path.GetTempPath(), "junhyun-scanner-detail-actions-smoke-success.txt"),
                 "favorite-wiki-height=34\n" +
@@ -150,19 +149,19 @@ public partial class ScannerPage
 
     private void StopDetailActionSmokeVisibilityTimer()
     {
-        _v191DetailActionSmokeVisibilityTimer?.Stop();
+        _detailActionSmokeVisibilityTimer?.Stop();
     }
 
     private void RestoreDetailActionSmokePageVisibility()
     {
         StopDetailActionSmokeVisibilityTimer();
         SelectedItemPanel.IsVisibleChanged -= SelectedItemPanel_DetailActionSmokeIsVisibleChanged;
-        _v191DetailActionSmokeArmed = false;
+        _detailActionSmokeArmed = false;
 
-        if (_v191DetailActionSmokeOriginalPageVisibility is not { } originalVisibility)
+        if (_detailActionSmokeOriginalPageVisibility is not { } originalVisibility)
             return;
 
-        _v191DetailActionSmokeOriginalPageVisibility = null;
+        _detailActionSmokeOriginalPageVisibility = null;
         Visibility = originalVisibility;
     }
 }
