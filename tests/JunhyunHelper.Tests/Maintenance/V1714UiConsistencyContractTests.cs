@@ -9,7 +9,7 @@ public sealed class V1714UiConsistencyContractTests
     public void AmmoDisplayedColumnsPopup_CloseAlreadyOpenPopupBeforeClickReopensIt()
     {
         var root = FindRepositoryRoot();
-        var source = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.PopupToggleFixes.cs");
+        var source = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.ColumnMenuPopup.cs");
 
         Assert.Contains("OnPreviewMouseDown", source, StringComparison.Ordinal);
         Assert.Contains("ColumnMenuPopup.IsOpen = false;", source, StringComparison.Ordinal);
