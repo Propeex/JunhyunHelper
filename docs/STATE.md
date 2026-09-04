@@ -3,152 +3,113 @@
 > 복구 순서는 `AGENTS.md` → `docs/PROJECT_STATE.json` → `docs/ACTIVE_WORK.md`입니다. 기계 판독 가능한 현재 사실값은 `docs/PROJECT_STATE.json`이 기준입니다.
 
 기준일: **2026-09-04 KST**  
-상태: **v1.17.2 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+상태: **v1.17.3 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 1. 공개 제품 상태
 
 ```text
-public stable: v1.17.2
+public stable: v1.17.3
 exact product source/tag target:
-73f0386a45818408c2a68530b90de7946ecaf1d1
+8ec677b1552f9deed55f98931c1df317e9bc4a4b
 validated PR head:
-121d060db102eed0f4af241ef5f37c51164c6a04
-merge PR: #292
+230a5284f58f9d5eb8954c6042164bc5635fd35c
+merge PR: #294
 PR CI / Shutdown / Docs:
-33840328932 / 33840328963 / 33840329237 — SUCCESS
+33846545486 / 33846545485 / 33846545484 — SUCCESS
 exact-main CI / Shutdown / Docs:
-33840553320 / 33840553329 / 33840553303 — SUCCESS
+33846852935 / 33846852933 / 33846852922 — SUCCESS
 Release workflow:
-33840780902 — SUCCESS
-release id: 382500195
-published UTC: 2026-09-04T05:31:31Z
-488 passed / 0 failed / 0 skipped
+33847077606 — SUCCESS
+release id: 382534812
+published UTC: 2026-09-04T07:04:53Z
+503 passed / 0 failed / 0 skipped
 ```
 
 Public release:
 
 ```text
 Junhyun-Helper.zip
-asset id: 543847934
-bytes: 80,554,487
+asset id: 543938413
+bytes: 80,560,157
 SHA-256:
-a64d202046505273964b0735976d71e382624c68f16699c6844b193599b43971
+1384f2d42b843617ed61f90d4b2b0c5aa46bc616fd54e808cafabef2eb24f1f7
 
 SHA256SUMS.txt
-asset id: 543847933
+asset id: 543938412
 bytes: 86
 asset SHA-256:
-a105826dcc518a58412a521b221a2e7842ccfb716662418981005b4d276505a0
+4944f6e04b6ae191272db805dd8b60c8ef82fd6d7c0e4f4629e53d41755f5b0a
 ```
 
 Exact-main Actions artifact:
 
 ```text
 JunhyunHelper-win-x64
-artifact id: 9924825161
-bytes: 241,595,886
+artifact id: 9926904439
+bytes: 241,611,421
 SHA-256:
-864f971ebe799df881ac4d69318ae331cd3c4c4e783013836bceaacb33232ba4
+ce1946f12f8da5de755ac91696f2f1ed1b137bf76da5a32b198c36c0228e12a3
 ```
 
-Release workflow `33840780902` checked out exact source `73f0386a45818408c2a68530b90de7946ecaf1d1`, downloaded exact-main artifact `9924825161`, verified ProductVersion/FIRST_RUN identity and package checksum, then published stable `v1.17.2`.
+Release workflow `33847077606` checked out exact source `8ec677b1552f9deed55f98931c1df317e9bc4a4b`, downloaded exact-main artifact `9926904439`, verified ProductVersion/FIRST_RUN identity and package checksum, then published stable `v1.17.3`.
 
 Public API readback confirmed:
 
-- tag `v1.17.2` directly targets exact product source `73f0386a45818408c2a68530b90de7946ecaf1d1`;
-- latest release is v1.17.2;
+- tag `v1.17.3` directly targets exact product source `8ec677b1552f9deed55f98931c1df317e9bc4a4b`;
+- latest release is v1.17.3;
 - draft: false;
 - prerelease: false;
 - both required assets are present;
-- public ZIP digest equals the exact-main package SHA-256.
+- public ZIP digest equals exact-main package SHA-256 `1384f2d42b843617ed61f90d4b2b0c5aa46bc616fd54e808cafabef2eb24f1f7`.
 
-## 2. v1.17.2 Product Purity Cleanup
+## 2. v1.17.3 Stability / Optimization / UI Finishing
 
-The maintenance goal was to remove only implementation impurities proven to have no current product role, without adding features or performing performance optimization.
+This PATCH added no new user-facing capability. It hardened the existing product after the v1.17.2 purity cleanup.
 
-Completed cleanup includes:
+### Repeated-work efficiency
 
-### MainWindow / lifecycle
+- Quest/Hideout/Items cache stable canonical content lookups.
+- MainWindow derives all three workspaces from one authoritative immutable profile snapshot.
+- Scanner reuses catalog snapshots and canonical item/quest/trader/station indexes.
+- Scanner item requirement usage uses item→Quest/Hideout reverse indexes instead of repeated full scans.
+- shared image caching uses per-path single-flight and weak decoded-image reuse.
+- Map Quest marker scale follows `ScaleTransform.Changed` instead of a permanent 120ms polling timer.
 
-- removed hidden `StatusText` event/state plumbing;
-- direct Items cleanup indicator ownership;
-- removed runtime mutation-handler rebinding;
-- canonical mutation and content-navigation ownership names;
-- removed hidden Profile proxy controls and orphan deletion path.
+### Correctness / concurrency
 
-The audit exposed and fixed a real regression where `RefreshItemsCleanupIndicator()` could lose its caller.
+- manual Data Update, startup schema refresh, Map-triggered refresh, first-run provisioning and recovery use one content-operation gate.
+- callers re-read after waiting where necessary, avoiding redundant network rebuilds.
+- mutation failures rebuild authoritative presentation.
+- Hideout pending level debounce is flushed before station switch.
+- cancelling a Hideout rollback restores authoritative presentation rather than leaving an optimistic preview.
 
-### Profile
+### Shutdown / lifetime
 
-- canonical Save/Cancel/Delete XAML controls;
-- one lifecycle for standalone/overlay behavior;
-- removed runtime visual-tree button discovery/rebinding and runtime card wrapping.
+- MainWindow lifetime cancellation reaches profile I/O, Quest/Hideout/Items mutations, data update/prefetch, Scanner sync and PC diagnostics.
+- queued progress UI callbacks fail closed after shutdown begins.
+- ProgramUpdateCoordinator cancels release lookup/preparation on disposal and does not report shutdown cancellation as an update failure.
+- existing Scanner runtime epoch/cancellation and Map async lifecycle contracts remain intact.
 
-### Quest / Hideout / Items search
+### UI / WPF
 
-- explicit page-owned `ProductSearchClearButtonBehavior.Attach(SearchBox)`;
-- removed global class-handler/module-initializer lifecycle and page-specific duplicate search-clear shims.
-
-### Ammo
-
-- removed hidden legacy summary/favorites/search/popup controls;
-- XAML owns the current selector/search/toolbar/detail presentation;
-- removed runtime toolbar/control creation and layout repair;
-- current caliber/favorites/search/detail/700ms icon-cycle contracts preserved;
-- stale `Polish`/`Fixes` ownership names replaced with responsibility-based names.
-
-### Scanner / Mini Scanner
-
-Removed retired UI/runtime paths:
-
-- OCR substitution editor UI;
-- recognition-debug Window;
-- dedicated hotkey-capture Window;
-- old `필요한 곳` source presentation;
-- hidden old three-row summary;
-- dead Mini Scanner identity/flea-minimum display settings;
-- unused preview/position-edit/reset subsystem;
-- unused OCR constructor dependency;
-- runtime detail ScrollViewer reparenting;
-- runtime favorite/Wiki action repair.
-
-Retained current contracts:
-
-- OCR substitution engine;
-- diagnostic image rendering;
-- Scanner recognition thresholds/pacing/matching;
-- catalog/search/favorites/recents;
-- correction/Ground Truth/diagnostics;
-- Mini Scanner direct drag position persistence.
-
-Current Scanner smoke files were renamed by responsibility instead of historical version tags where the version was no longer meaningful.
-
-### Update / packaging
-
-The current updater now accepts only the stable canonical package `Junhyun-Helper.zip` and stable wrapper root. Obsolete versioned-package/root transition fallbacks were removed.
-
-### Documentation / tests
-
-- removed current-looking `docs/NEXT.md` and retired `docs/FARMING_GUIDE.md`;
-- current release/schema facts centralized around `docs/PROJECT_STATE.json`;
-- Documentation Consistency now checks implementation constants against canonical schema facts;
-- stale tests were updated to verify current canonical ownership rather than revive removed lifecycle structures.
+- shared Button style visibly indicates keyboard focus using the product accent.
+- Quest/Hideout/Items/Ammo/Scanner minimum widths, scrolling, clipping and virtualization were audited.
+- no speculative redesign or new UI feature was introduced.
 
 ## 3. Explicitly preserved boundaries
 
-The cleanup intentionally did **not** rewrite or optimize:
+The pass intentionally did not change:
 
 - Quest/Hideout domain semantics;
-- current Items behavior;
-- Ammo product behavior;
-- Scanner recognition algorithms;
-- Scanner active OCR wrapper chain;
-- Map/MiniMap donor integration;
-- active Map `Legacy*` bridges;
-- supported old JSON/schema read compatibility;
-- historical decision/release evidence.
+- current Items or Ammo product behavior;
+- Scanner OCR thresholds, recognition pacing or matcher safety;
+- Scanner correction/Ground Truth/diagnostic meaning;
+- pinned Map/MiniMap donor revision;
+- active Map compatibility bridges;
+- supported old content/scanner schema read compatibility;
+- user-owned profile/settings state.
 
-The Map donor revision remains:
+Pinned Map donor revision remains:
 
 `d933792b6042a51cea38dc44b686a096fe30de67`
 
@@ -156,26 +117,24 @@ The Map donor revision remains:
 
 Farming Guide remains completely removed from the current product.
 
-There is no Farming Guide UI, planner, optimizer, Scanner bridge, persistence service or runtime domain model.
-
-Historical `%LocalAppData%/JunhyunHelper/farming-guide.json` remains inert user data and is not automatically deleted.
+There is no Farming Guide UI, planner, optimizer, Scanner bridge, persistence service or runtime domain model. Historical `%LocalAppData%/JunhyunHelper/farming-guide.json` remains inert and is not automatically deleted.
 
 ## 5. Validation evidence
 
-### PR #292
+### PR #294
 
 Final validated PR head:
 
 ```text
-121d060db102eed0f4af241ef5f37c51164c6a04
+230a5284f58f9d5eb8954c6042164bc5635fd35c
 ```
 
 Passed:
 
-- CI `33840328932`;
-- Shutdown Race `33840328963`;
-- Documentation Consistency `33840329237`;
-- **488 passed / 0 failed / 0 skipped**;
+- CI `33846545486`;
+- Shutdown Race `33846545485`;
+- Documentation Consistency `33846545484`;
+- **503 passed / 0 failed / 0 skipped**;
 - Windows Release build;
 - win-x64 self-contained publish;
 - actual published EXE Product UI / Map / Scanner smoke;
@@ -187,44 +146,44 @@ Passed:
 Exact product source:
 
 ```text
-73f0386a45818408c2a68530b90de7946ecaf1d1
+8ec677b1552f9deed55f98931c1df317e9bc4a4b
 ```
 
 Passed:
 
-- exact-main CI `33840553320`;
-- exact-main Shutdown Race `33840553329`;
-- exact-main Documentation Consistency `33840553303`;
-- **488 passed / 0 failed / 0 skipped**;
-- ProductVersion `1.17.2+73f0386a45818408c2a68530b90de7946ecaf1d1`;
+- exact-main CI `33846852935`;
+- exact-main Shutdown Race `33846852933`;
+- exact-main Documentation Consistency `33846852922`;
+- **503 passed / 0 failed / 0 skipped**;
+- ProductVersion `1.17.3+8ec677b1552f9deed55f98931c1df317e9bc4a4b`;
 - Windows publish;
 - actual Product UI / full Map/Factory/MiniMap / Scanner runtime smoke;
 - graceful shutdown + clean portable root;
-- release package SHA-256 `a64d202046505273964b0735976d71e382624c68f16699c6844b193599b43971`;
-- Actions artifact digest `864f971ebe799df881ac4d69318ae331cd3c4c4e783013836bceaacb33232ba4`.
+- release package SHA-256 `1384f2d42b843617ed61f90d4b2b0c5aa46bc616fd54e808cafabef2eb24f1f7`;
+- Actions artifact digest `ce1946f12f8da5de755ac91696f2f1ed1b137bf76da5a32b198c36c0228e12a3`.
 
 ### Public release
 
-Release workflow `33840780902` succeeded.
+Release workflow `33847077606` succeeded.
 
-Public `v1.17.2` release ID: `382500195`.
+Public `v1.17.3` release ID: `382534812`.
 
 Public `Junhyun-Helper.zip`:
 
-- id `543847934`;
-- 80,554,487 bytes;
-- SHA-256 `a64d202046505273964b0735976d71e382624c68f16699c6844b193599b43971`.
+- id `543938413`;
+- 80,560,157 bytes;
+- SHA-256 `1384f2d42b843617ed61f90d4b2b0c5aa46bc616fd54e808cafabef2eb24f1f7`.
 
 Public `SHA256SUMS.txt`:
 
-- id `543847933`;
+- id `543938412`;
 - 86 bytes;
-- asset SHA-256 `a105826dcc518a58412a521b221a2e7842ccfb716662418981005b4d276505a0`.
+- asset SHA-256 `4944f6e04b6ae191272db805dd8b60c8ef82fd6d7c0e4f4629e53d41755f5b0a`.
 
 ## 6. Current schemas / pinned dependencies
 
 ```text
-Desktop: 1.17.2
+Desktop: 1.17.3
 Content write/read: v12 / v3-v12
 user.db: v1
 Scanner display settings: v10
@@ -235,15 +194,15 @@ Map donor revision: d933792b6042a51cea38dc44b686a096fe30de67
 ## 7. Canonical references
 
 - `docs/PROJECT_STATE.json`
-- `docs/.release-v1.17.2-status.json`
-- `docs/RELEASE_NOTES_V1.17.2.md`
+- `docs/.release-v1.17.3-status.json`
+- `docs/RELEASE_NOTES_V1.17.3.md`
 - `docs/DECISION_V1.17.1_REMOVE_FARMING_GUIDE.md`
 - `docs/CURRENT_STATE.md`
 - `docs/ACTIVE_WORK.md`
 
 ## 8. Current work status
 
-v1.17.2 Product Purity Cleanup is implemented, validated, merged, published and publicly verified.
+v1.17.3 stability/optimization/UI-finishing maintenance is implemented, validated, merged, published and publicly verified.
 
 `docs/ACTIVE_WORK.md` is closed (`NONE`).
 

@@ -14,13 +14,17 @@
 - 공유 버튼 스타일에 키보드 focus 표시를 추가하고 주요 Quest/Hideout/Items/Ammo/Scanner layout, clipping, scrolling, virtualization 계약을 재검토했습니다.
 - Scanner OCR recognition thresholds, pacing, matcher safety, current Map donor revision, supported schema/read compatibility와 사용자 데이터 의미는 변경하지 않았습니다.
 
-## 검증 목표
+## 검증 완료
 
-- deterministic tests 503개 전체 통과
+- PR #294 final head: `230a5284f58f9d5eb8954c6042164bc5635fd35c`
+- exact product source: `8ec677b1552f9deed55f98931c1df317e9bc4a4b`
+- 503 / 503 deterministic tests
+- PR CI / Shutdown / Docs: `33846545486` / `33846545485` / `33846545484`
+- exact-main CI / Shutdown / Docs: `33846852935` / `33846852933` / `33846852922`
+- Release workflow: `33847077606`
 - Windows Release build
 - win-x64 self-contained publish
 - actual published EXE Product UI / Map / Scanner smoke
 - graceful shutdown / active-async Shutdown Race
 - stable package/checksum validation
-- Documentation Consistency
-- PR / exact-main / public release identity verification
+- public tag/release/asset identity and digest verification

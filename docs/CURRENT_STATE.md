@@ -3,88 +3,85 @@
 > 최신 제품 상태의 짧은 인덱스입니다. 기계 판독 가능한 사실값은 `docs/PROJECT_STATE.json`, 상세 계약은 `docs/STATE.md`, 진행 중 작업은 `docs/ACTIVE_WORK.md`를 기준으로 합니다.
 
 기준일: **2026-09-04 KST**  
-상태: **v1.17.2 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+상태: **v1.17.3 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
 ## 공개 stable
 
 ```text
-public stable/latest: v1.17.2
+public stable/latest: v1.17.3
 exact product source/tag target:
-73f0386a45818408c2a68530b90de7946ecaf1d1
+8ec677b1552f9deed55f98931c1df317e9bc4a4b
 validated PR head:
-121d060db102eed0f4af241ef5f37c51164c6a04
-merge PR: #292
+230a5284f58f9d5eb8954c6042164bc5635fd35c
+merge PR: #294
 PR CI / Shutdown / Docs:
-33840328932 / 33840328963 / 33840329237 — SUCCESS
+33846545486 / 33846545485 / 33846545484 — SUCCESS
 exact-main CI / Shutdown / Docs:
-33840553320 / 33840553329 / 33840553303 — SUCCESS
+33846852935 / 33846852933 / 33846852922 — SUCCESS
 Release workflow:
-33840780902 — SUCCESS
-release id: 382500195
-published UTC: 2026-09-04T05:31:31Z
-488 passed / 0 failed / 0 skipped
+33847077606 — SUCCESS
+release id: 382534812
+published UTC: 2026-09-04T07:04:53Z
+503 passed / 0 failed / 0 skipped
 ```
 
 Public package:
 
 ```text
 Junhyun-Helper.zip
-asset id: 543847934
-bytes: 80,554,487
+asset id: 543938413
+bytes: 80,560,157
 SHA-256:
-a64d202046505273964b0735976d71e382624c68f16699c6844b193599b43971
+1384f2d42b843617ed61f90d4b2b0c5aa46bc616fd54e808cafabef2eb24f1f7
 
 SHA256SUMS.txt
-asset id: 543847933
+asset id: 543938412
 bytes: 86
 asset SHA-256:
-a105826dcc518a58412a521b221a2e7842ccfb716662418981005b4d276505a0
+4944f6e04b6ae191272db805dd8b60c8ef82fd6d7c0e4f4629e53d41755f5b0a
 ```
 
 Exact-main Actions artifact:
 
 ```text
 JunhyunHelper-win-x64
-artifact id: 9924825161
-bytes: 241,595,886
+artifact id: 9926904439
+bytes: 241,611,421
 SHA-256:
-864f971ebe799df881ac4d69318ae331cd3c4c4e783013836bceaacb33232ba4
+ce1946f12f8da5de755ac91696f2f1ed1b137bf76da5a32b198c36c0228e12a3
 ```
 
-## v1.17.2 product change
+## v1.17.3 product change
 
-v1.17.2 is a **Product Purity Cleanup** PATCH.
+v1.17.3 is a **Stability, Optimization and UI Finishing** PATCH.
 
-No new user feature and no performance optimization were introduced.
+No new user-facing feature was introduced.
 
-Cleanup included:
+The pass:
 
-- dead/unreachable first-party code and removed-feature remnants;
-- hidden/superseded UI ownership and runtime repair/rebinding paths;
-- obsolete Profile/Ammo/Scanner/search-clear lifecycle shims;
-- retired Scanner standalone debug/settings/hotkey UI and dead Mini Scanner preview/position-edit paths;
-- transitional updater/package compatibility no longer required by the current stable updater contract;
-- stale current-looking documentation and duplicated canonical release/schema facts;
-- regression tests that still required removed structures.
+- reduced repeated canonical content/search work in Quest, Hideout, Items and Scanner;
+- made page workspaces derive from one authoritative profile snapshot;
+- added per-path image download/decode single-flight with weak decoded-image reuse;
+- removed permanent 120ms Map Quest marker scale polling;
+- serialized all product content-update entry points through one operation gate;
+- expanded shutdown cancellation across MainWindow and updater async work;
+- repaired optimistic Hideout/mutation presentation rollback boundaries;
+- added keyboard focus visibility and audited WPF clipping/scrolling/virtualization.
 
-A real cleanup-indicator refresh regression discovered during the audit was fixed.
-
-Preserved current product contracts include Quest, Hideout, Items, Ammo, Map/MiniMap, Scanner recognition/search/correction/Ground Truth/diagnostics, supported schema compatibility and the pinned Map donor integration.
+Preserved contracts include current Quest/Hideout/Items/Ammo behavior, Scanner recognition/search/correction/Ground Truth/diagnostics, Map/MiniMap pinned donor integration, supported schema compatibility and user-owned state.
 
 ## Farming Guide status
 
-Farming Guide remains completely removed as established in v1.17.1. There is no current Farming Guide UI/runtime subsystem.
-
-Historical `farming-guide.json` is inert and is not read, written or automatically deleted.
+Farming Guide remains completely removed as established in v1.17.1. Historical `farming-guide.json` remains inert user data.
 
 ## Validation coverage
 
-v1.17.2 exact product source passed:
+v1.17.3 exact product source passed:
 
 - Windows Release build;
-- **488/488 deterministic tests**;
+- **503/503 deterministic tests**;
 - win-x64 self-contained publish;
-- ProductVersion `1.17.2+73f0386a45818408c2a68530b90de7946ecaf1d1`;
+- ProductVersion `1.17.3+8ec677b1552f9deed55f98931c1df317e9bc4a4b`;
 - actual published EXE Product UI / full Map/Factory/MiniMap / Scanner smoke;
 - graceful shutdown;
 - active-async Shutdown Race;
@@ -98,11 +95,11 @@ v1.17.2 exact product source passed:
 ## Canonical references
 
 - `docs/PROJECT_STATE.json`
-- `docs/.release-v1.17.2-status.json`
-- `docs/RELEASE_NOTES_V1.17.2.md`
+- `docs/.release-v1.17.3-status.json`
+- `docs/RELEASE_NOTES_V1.17.3.md`
 - `docs/DECISION_V1.17.1_REMOVE_FARMING_GUIDE.md`
 - `docs/STATE.md`
 
 ## External validation
 
-Actual Tarkov play validation on the user's own PC remains separately recorded as `PENDING`. Automated implementation/release validation is complete and v1.17.2 is the current public stable release.
+Actual Tarkov play validation on the user's own PC remains separately recorded as `PENDING`. Automated implementation/release validation is complete and v1.17.3 is the current public stable release.

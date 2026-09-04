@@ -4,7 +4,7 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 
 ## 제품 상태
 
-현재 상태는 **v1.17.2 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
+현재 상태는 **v1.17.3 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**입니다.
 
 공식 프로젝트 기억은 대화가 아니라 저장소의 문서·코드·테스트·GitHub 상태입니다.
 
@@ -18,81 +18,80 @@ Escape from Tarkov 플레이를 지원하는 Windows x64 데스크톱 헬퍼 **�
 ## 현재 공개 릴리즈
 
 ```text
-version/tag: v1.17.2
+version/tag: v1.17.3
 exact product source/tag target:
-73f0386a45818408c2a68530b90de7946ecaf1d1
+8ec677b1552f9deed55f98931c1df317e9bc4a4b
 validated PR head:
-121d060db102eed0f4af241ef5f37c51164c6a04
-merge PR: #292 — MERGED
+230a5284f58f9d5eb8954c6042164bc5635fd35c
+merge PR: #294 — MERGED
 PR CI / Shutdown / Docs:
-33840328932 / 33840328963 / 33840329237 — SUCCESS
+33846545486 / 33846545485 / 33846545484 — SUCCESS
 exact-main CI / Shutdown / Docs:
-33840553320 / 33840553329 / 33840553303 — SUCCESS
+33846852935 / 33846852933 / 33846852922 — SUCCESS
 Release workflow:
-33840780902 — SUCCESS
-release id: 382500195
-published UTC: 2026-09-04T05:31:31Z
-488 passed / 0 failed / 0 skipped
+33847077606 — SUCCESS
+release id: 382534812
+published UTC: 2026-09-04T07:04:53Z
+503 passed / 0 failed / 0 skipped
 ```
 
 Public package:
 
 ```text
 Junhyun-Helper.zip
-asset id: 543847934
-bytes: 80,554,487
+asset id: 543938413
+bytes: 80,560,157
 SHA-256:
-a64d202046505273964b0735976d71e382624c68f16699c6844b193599b43971
+1384f2d42b843617ed61f90d4b2b0c5aa46bc616fd54e808cafabef2eb24f1f7
 
 SHA256SUMS.txt
-asset id: 543847933
+asset id: 543938412
 bytes: 86
 asset SHA-256:
-a105826dcc518a58412a521b221a2e7842ccfb716662418981005b4d276505a0
+4944f6e04b6ae191272db805dd8b60c8ef82fd6d7c0e4f4629e53d41755f5b0a
 ```
 
 Exact-main Actions artifact:
 
 ```text
 JunhyunHelper-win-x64
-artifact id: 9924825161
-archive bytes: 241,595,886
+artifact id: 9926904439
+archive bytes: 241,611,421
 archive SHA-256:
-864f971ebe799df881ac4d69318ae331cd3c4c4e783013836bceaacb33232ba4
+ce1946f12f8da5de755ac91696f2f1ed1b137bf76da5a32b198c36c0228e12a3
 ```
 
-GitHub latest release `v1.17.2` directly targets exact product source `73f0386a45818408c2a68530b90de7946ecaf1d1`, is neither draft nor prerelease, and was published only after the Release workflow re-downloaded the exact-main artifact and verified ProductVersion, FIRST_RUN and package checksum identity.
+GitHub latest release `v1.17.3` directly targets exact product source `8ec677b1552f9deed55f98931c1df317e9bc4a4b`, is neither draft nor prerelease, and was published only after the Release workflow re-downloaded the exact-main artifact and verified ProductVersion, FIRST_RUN and package checksum identity.
 
 Release evidence:
 
-- `docs/.release-v1.17.2-status.json`
-- `docs/RELEASE_NOTES_V1.17.2.md`
+- `docs/.release-v1.17.3-status.json`
+- `docs/RELEASE_NOTES_V1.17.3.md`
 - `docs/PROJECT_STATE.json`
 - `docs/CURRENT_STATE.md`
 - `docs/STATE.md`
 
-## v1.17.2 — Product Purity Cleanup
+## v1.17.3 — Stability, Optimization and UI Finishing
 
-이번 PATCH는 새 기능 추가나 성능 최적화가 아닙니다.
+이번 PATCH는 새 사용자 기능을 추가하지 않고 현재 기능 집합을 더 안정적이고 효율적으로 유지하기 위한 전제품 유지보수입니다.
 
-현재 제품에서 실제 역할이 없다고 증명된 잔재만 제거했습니다.
+주요 변경:
 
-주요 정리:
+- Quest/Hideout/Items의 반복 content lookup 인덱스화와 하나의 authoritative profile snapshot 기반 workspace 갱신
+- Scanner catalog/content/requirement lookup 재사용 및 반복 전체 순회 제거
+- 공용 이미지 cache의 동일 path single-flight와 weak decoded-image 재사용
+- Map Quest marker의 120ms polling 제거 및 ScaleTransform 변경 이벤트 기반 갱신
+- 수동/자동/Map/최초복구 content update의 공용 operation gate 직렬화
+- MainWindow 및 updater의 종료 cancellation 강화
+- mutation 실패와 Hideout rollback 취소 시 authoritative UI 복구
+- 공유 Button keyboard focus 표현 보강
+- 주요 WPF page clipping/scrolling/virtualization 재검토
 
-- 숨은 구형 UI와 runtime repair/rebinding 경로 제거
-- MainWindow/Profile/Ammo/Quest/Hideout/Items/Scanner lifecycle 소유권 정리
-- 구형 Scanner standalone debug/settings/hotkey UI 제거
-- Mini Scanner의 사용되지 않는 preview/position-edit 잔재 제거
-- updater/package의 전환기 compatibility fallback 제거
-- 오래된 current-state 문서와 중복 canonical fact 정리
-- 제거된 구조를 요구하던 회귀 테스트 갱신
-- 감사 중 발견된 Items 정리 필요 표시 갱신 회귀 수정
-
-Quest, Hideout, Items, Ammo, Map/MiniMap, Scanner 인식/검색/교정/Ground Truth/진단과 pinned Map donor 계약은 유지됩니다.
+Scanner recognition thresholds/pacing/matcher safety, pinned Map donor revision, supported schema/read compatibility와 사용자 데이터 의미는 유지됩니다.
 
 ## Farming Guide
 
-Farming Guide는 v1.17.1에서 사용자 결정에 따라 완전히 제거되었으며 v1.17.2에서도 제거 상태를 유지합니다.
+Farming Guide는 v1.17.1에서 사용자 결정에 따라 완전히 제거되었고 현재도 제거 상태입니다.
 
 기존 사용자 PC의 `%LocalAppData%/JunhyunHelper/farming-guide.json`은 더 이상 읽거나 쓰지 않으며 자동 삭제하지 않습니다.
 
@@ -110,4 +109,4 @@ Farming Guide는 v1.17.1에서 사용자 결정에 따라 완전히 제거되었
 - PR 및 exact-main CI
 - public tag / release / asset identity 및 digest 검증
 
-v1.17.2는 위 자동 검증을 완료했습니다. 실제 사용자 PC/Tarkov 실플레이 검증은 별도 `PENDING` evidence이며 공개 릴리즈의 완료 상태나 identity를 변경하지 않습니다.
+v1.17.3은 위 자동 검증을 완료했습니다. 실제 사용자 PC/Tarkov 실플레이 검증은 별도 `PENDING` evidence이며 공개 릴리즈의 완료 상태나 identity를 변경하지 않습니다.
