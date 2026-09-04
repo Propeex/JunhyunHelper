@@ -164,6 +164,22 @@ public sealed class V1173StabilityOptimizationContractTests
         Assert.Contains("<Setter TargetName=\"ButtonBorder\" Property=\"BorderBrush\" Value=\"{StaticResource AccentBrush}\" />", source, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ProgramUpdater_CancelsStartupAndPreparationWorkOnApplicationShutdown()
+    {
+        var root = FindRepositoryRoot();
+        var source = Read(root, "src", "JunhyunHelper.Desktop", "Updates", "ProgramUpdateCoordinator.cs");
+
+        Assert.Contains("private readonly CancellationTokenSource _lifetimeCts = new();", source, StringComparison.Ordinal);
+        Assert.Contains("GetCurrentProductVersion(),", source, StringComparison.Ordinal);
+        Assert.Contains("_lifetimeCts.Token);", source, StringComparison.Ordinal);
+        Assert.Contains("catch (OperationCanceledException) when (_lifetimeCts.IsCancellationRequested)", source, StringComparison.Ordinal);
+        Assert.Contains("progress,", source, StringComparison.Ordinal);
+        Assert.Contains("_lifetimeCts.Token.ThrowIfCancellationRequested();", source, StringComparison.Ordinal);
+        Assert.Contains("_lifetimeCts.Cancel();", source, StringComparison.Ordinal);
+        Assert.Contains("_client.Dispose();", source, StringComparison.Ordinal);
+    }
+
     private static int Count(string source, string value)
     {
         var count = 0;
