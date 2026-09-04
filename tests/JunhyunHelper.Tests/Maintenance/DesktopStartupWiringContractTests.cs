@@ -36,11 +36,11 @@ public sealed class DesktopStartupWiringContractTests
             "JunhyunHelper.Desktop",
             "Ammo",
             "AmmoPage.ProductSearchAndDetails.cs"));
-        var headerPresentation = File.ReadAllText(Path.Combine(
+        var cleanupIndicator = File.ReadAllText(Path.Combine(
             root,
             "src",
             "JunhyunHelper.Desktop",
-            "MainWindow.HeaderStatusPolish.cs"));
+            "MainWindow.ItemsCleanupIndicator.cs"));
 
         Assert.Contains("QuestPage.SetImageCache(_services.Images);", lifecycle, StringComparison.Ordinal);
         Assert.Contains("HideoutPage.SetImageCache(_services.Images);", lifecycle, StringComparison.Ordinal);
@@ -48,8 +48,7 @@ public sealed class DesktopStartupWiringContractTests
         Assert.Contains("AmmoPage.SetImageCache(_services.Images);", lifecycle, StringComparison.Ordinal);
         Assert.Contains("AmmoPage.SetFavoriteStore(_services.AmmoFavorites);", lifecycle, StringComparison.Ordinal);
         Assert.Contains("AttachContentNavigation();", lifecycle, StringComparison.Ordinal);
-        Assert.Contains("ScheduleHeaderStatusPolish();", lifecycle, StringComparison.Ordinal);
-        Assert.Contains("DetachHeaderStatusPolish();", lifecycle, StringComparison.Ordinal);
+        Assert.DoesNotContain("HeaderStatusPolish", lifecycle, StringComparison.Ordinal);
 
         Assert.DoesNotContain("Loaded=\"ItemsPage_Loaded\"", xaml, StringComparison.Ordinal);
         Assert.DoesNotContain("Loaded=\"HideoutPage_Loaded\"", xaml, StringComparison.Ordinal);
@@ -66,16 +65,9 @@ public sealed class DesktopStartupWiringContractTests
         Assert.DoesNotContain("RegisterClassHandler", ammoPresentation, StringComparison.Ordinal);
         Assert.DoesNotContain("ProductLoaded", ammoPresentation, StringComparison.Ordinal);
 
-        Assert.Contains(
-            "Dispatcher.BeginInvoke(ApplyHeaderStatusPolish, DispatcherPriority.Loaded);",
-            headerPresentation,
-            StringComparison.Ordinal);
-        Assert.Contains(
-            "_statusTextDescriptor.RemoveValueChanged(StatusText, StatusText_ValueChanged);",
-            headerPresentation,
-            StringComparison.Ordinal);
-        Assert.DoesNotContain("RegisterClassHandler", headerPresentation, StringComparison.Ordinal);
-        Assert.DoesNotContain("HeaderStatusPolishHandlerRegistered", headerPresentation, StringComparison.Ordinal);
+        Assert.Contains("_activeItemsWorkspace?.Plan.CleanupItems.Count", cleanupIndicator, StringComparison.Ordinal);
+        Assert.DoesNotContain("DependencyPropertyDescriptor", cleanupIndicator, StringComparison.Ordinal);
+        Assert.DoesNotContain("StatusText", xaml, StringComparison.Ordinal);
     }
 
     [Fact]
