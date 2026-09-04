@@ -104,33 +104,6 @@ public partial class ScannerPage : UserControl
         }
     }
 
-    private void SettingsButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (_coordinator is null)
-            return;
-
-        var window = new ScannerSettingsWindow(_coordinator)
-        {
-            Owner = Window.GetWindow(this),
-        };
-        window.ShowDialog();
-        UpdateStatus(_coordinator.Status);
-    }
-
-    private void AdvancedButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (_coordinator is null)
-            return;
-
-        var window = new ScannerAdvancedWindow(_coordinator)
-        {
-            Owner = Window.GetWindow(this),
-        };
-        window.ShowDialog();
-        UpdateToggleButton();
-        UpdateStatus(_coordinator.Status);
-        RefreshActivityCorrectionAvailability();
-    }
 
     private void CorrectActivityButton_Click(object sender, RoutedEventArgs e)
     {
@@ -241,12 +214,6 @@ public partial class ScannerPage : UserControl
             SelectSearchHit(hit);
     }
 
-    private void ClearSearchButton_Click(object sender, RoutedEventArgs e)
-    {
-        ItemSearchBox.Clear();
-        SearchResultsPopup.IsOpen = false;
-        ItemSearchBox.Focus();
-    }
 
     private void SelectSearchHit(ScannerItemSearchHit hit)
     {
