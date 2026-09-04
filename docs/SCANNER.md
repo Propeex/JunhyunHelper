@@ -611,6 +611,7 @@ Desktop:
 - `Scanner/ScannerFullCatalogVisualMatcher.cs`
 - `Scanner/ScannerItemPresentationService.cs`
 - `Scanner/ScannerRecognitionDebugStore.cs`
+- `Core/Scanner/ScannerOcrSubstitution.cs` — persisted user-owned exact substitution runtime
 - `Scanner/ScannerLatencyTelemetry.cs`
 - `Scanner/ScannerPage.xaml(.cs)`
 - `Scanner/ScannerPage.ProductUsability.cs`
