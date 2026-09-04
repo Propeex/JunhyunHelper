@@ -932,7 +932,7 @@ current code references
 + docs/history/recovery value
 ```
 
-WPF에서는 handler 본문이 중복처럼 보여도 routed/class handler 또는 `Loaded` delivery를 간접적으로 유지할 수 있다. v1.7.12 audit에서 부모 page Loaded subscription 제거가 Ammo class-level Loaded initialization 회귀를 드러냈다. 따라서 lifecycle 관련 dead-code 판단은 actual published EXE smoke까지 확인한다.
+WPF에서는 handler 본문이 중복처럼 보여도 routed/class handler 또는 `Loaded` delivery를 간접적으로 유지할 수 있으므로 lifecycle 관련 dead-code 판단은 actual published EXE smoke까지 확인한다. 다만 current XAML/constructor/explicit lifecycle가 같은 역할을 직접 소유하게 된 뒤에는 과거 runtime rebinding이나 hidden proxy path를 보존하지 않는다.
 
 현재 동작과 historical reproducibility에 가치가 있으면 참조가 적더라도 남길 수 있다.
 
@@ -941,7 +941,7 @@ WPF에서는 handler 본문이 중복처럼 보여도 routed/class handler 또�
 - active `Legacy` Map/MiniMap bridge
 - Main Map/Factory/MiniMap actual smoke
 - Scanner diagnostic reflection adapter
-- lifecycle evidence가 있는 original full-refresh mutation handlers + fast rebinding
+- lifecycle evidence가 실제 제품 경로에 남아 있는 current handler/overlay/Map bridge only
 
 반대로 obsolete UI가 새 authoritative path로 완전히 대체되면 제거할 수 있다. v1.7.14의 old `ScannerHotkeySettingsWindow`는 Scanner Settings 통합 뒤 제품/코드 path에서 삭제했다.
 
