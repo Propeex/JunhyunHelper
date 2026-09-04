@@ -3,226 +3,228 @@
 > 복구 순서는 `AGENTS.md` → `docs/PROJECT_STATE.json` → `docs/ACTIVE_WORK.md`입니다. 기계 판독 가능한 현재 사실값은 `docs/PROJECT_STATE.json`이 기준입니다.
 
 기준일: **2026-09-04 KST**  
-상태: **v1.17.1 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
+상태: **v1.17.2 PUBLIC STABLE / PRODUCT COMPLETE / MAINTENANCE MODE**
 
-## 1. v1.17.2 product-purity release candidate
-
-PR #292 contains the current product-purity maintenance pass. Public stable remains v1.17.1 until exact-main release publication succeeds.
-
-Final validated code/CI head before this documentation checkpoint:
+## 1. 공개 제품 상태
 
 ```text
-f00e6871db6afa9f1cca6532e69d201674536687
-CI: 33839991885 — SUCCESS
-Shutdown Race: 33839991847 — SUCCESS
-Documentation Consistency: 33839991837 — SUCCESS
-488 passed / 0 failed / 0 skipped
-```
-
-Validation covered:
-
-- Windows Release build;
-- win-x64 self-contained publish;
-- actual published EXE Product UI / full Map/Factory/MiniMap / Scanner smoke;
-- graceful shutdown and clean portable root;
-- active-async Shutdown Race;
-- stable release package/checksum verification;
-- Documentation Consistency.
-
-Candidate evidence:
-
-```text
-Junhyun-Helper.zip SHA-256:
-7e23087ba447cbd81a46edf82b59e583cc2f2fd38746fc180d1bc61ef36ff920
-
-JunhyunHelper-win-x64 artifact id: 9924637693
-artifact bytes: 241595338
-artifact SHA-256:
-c94ab864d16037841c693260f6b3a10cffe9b53d159ee521324f997d098c4f5c
-```
-
-The cleanup removes only evidence-backed impurities: hidden/superseded UI ownership, runtime rebinding/repair paths, orphan lifecycle code, retired Scanner/Ammo/Profile/search-clear paths, transitional updater compatibility, stale current-state documentation and tests that required removed structures. Current Quest/Hideout/Items/Ammo/Map/MiniMap/Scanner behavior and validated Map donor/OCR contracts are preserved.
-
-## 2. 공개 제품 상태
-
-```text
-public stable: v1.17.1
+public stable: v1.17.2
 exact product source/tag target:
-4ad1f76ed7c2469e60d0822b229fe03f83c75816
+73f0386a45818408c2a68530b90de7946ecaf1d1
 validated PR head:
-edd6fa6f5a2edc9d52be84bf1625266d5ad6abec
-merge PR: #290
+121d060db102eed0f4af241ef5f37c51164c6a04
+merge PR: #292
 PR CI / Shutdown / Docs:
-33826796756 / 33826796665 / 33826796667 — SUCCESS
+33840328932 / 33840328963 / 33840329237 — SUCCESS
 exact-main CI / Shutdown / Docs:
-33827008615 / 33827008595 / 33827008638 — SUCCESS
+33840553320 / 33840553329 / 33840553303 — SUCCESS
 Release workflow:
-33827205735 — SUCCESS
-release id: 382428841
-published UTC: 2026-09-04T01:49:57Z
-485 passed / 0 failed / 0 skipped
+33840780902 — SUCCESS
+release id: 382500195
+published UTC: 2026-09-04T05:31:31Z
+488 passed / 0 failed / 0 skipped
 ```
 
 Public release:
 
 ```text
 Junhyun-Helper.zip
-asset id: 543627042
-bytes: 80,573,737
-SHA-256: fad73f3987c04cae73c5a473ccbce6c3a70ff8ca22da04a95a942e66ebea3b6c
+asset id: 543847934
+bytes: 80,554,487
+SHA-256:
+a64d202046505273964b0735976d71e382624c68f16699c6844b193599b43971
 
 SHA256SUMS.txt
-asset id: 543627044
+asset id: 543847933
 bytes: 86
-asset SHA-256: d665b07efa2d3e402937701f903d1eb5da8001feab0b54bcb2a9d8a93e46f9b1
+asset SHA-256:
+a105826dcc518a58412a521b221a2e7842ccfb716662418981005b4d276505a0
 ```
 
 Exact-main Actions artifact:
 
 ```text
 JunhyunHelper-win-x64
-artifact id: 9920376580
-bytes: 241,651,630
-SHA-256: 94cb4670b2889c42efaeaa50874b8bb0a186c3849f09a814184b82609bb2ad22
+artifact id: 9924825161
+bytes: 241,595,886
+SHA-256:
+864f971ebe799df881ac4d69318ae331cd3c4c4e783013836bceaacb33232ba4
 ```
 
-Release workflow `33827205735` checked out exact source `4ad1f76ed7c2469e60d0822b229fe03f83c75816`, downloaded exact-main artifact `9920376580`, verified the artifact digest, ProductVersion/FIRST_RUN identity and `Junhyun-Helper.zip` checksum, then published stable `v1.17.1`.
+Release workflow `33840780902` checked out exact source `73f0386a45818408c2a68530b90de7946ecaf1d1`, downloaded exact-main artifact `9924825161`, verified ProductVersion/FIRST_RUN identity and package checksum, then published stable `v1.17.2`.
 
 Public API readback confirmed:
 
-- tag: `v1.17.1`;
-- target: exact product source `4ad1f76ed7c2469e60d0822b229fe03f83c75816`;
-- latest release: v1.17.1;
+- tag `v1.17.2` directly targets exact product source `73f0386a45818408c2a68530b90de7946ecaf1d1`;
+- latest release is v1.17.2;
 - draft: false;
 - prerelease: false;
-- both required assets present;
-- public ZIP digest equals exact-main package SHA-256.
+- both required assets are present;
+- public ZIP digest equals the exact-main package SHA-256.
 
-## 3. v1.17.1 Farming Guide removal
+## 2. v1.17.2 Product Purity Cleanup
 
-The user explicitly decided to remove Farming Guide completely.
+The maintenance goal was to remove only implementation impurities proven to have no current product role, without adding features or performing performance optimization.
 
-Current product therefore has no Farming Guide subsystem.
+Completed cleanup includes:
 
-Removed implementation:
+### MainWindow / lifecycle
 
-- all first-party `Core/FarmingGuide` policies/models;
-- all Desktop Farming Guide page/editor/raid/session/runtime-smoke code;
-- Farming Guide persistence store and Desktop service wiring;
-- MainWindow Farming Guide navigation/section/busy-state integration;
-- Scanner Farming Guide bridge, simulated scan path, accept hotkey/settings, Mini Scanner instruction and Farming Guide quantity-input state;
-- Farming Guide-only GameItem extension metadata/import logic;
-- Farming Guide-only deterministic tests and product smokes;
-- current specialist Farming Guide architecture document.
+- removed hidden `StatusText` event/state plumbing;
+- direct Items cleanup indicator ownership;
+- removed runtime mutation-handler rebinding;
+- canonical mutation and content-navigation ownership names;
+- removed hidden Profile proxy controls and orphan deletion path.
 
-This is not a hidden/disabled feature state. The active product contains no Farming Guide UI or runtime decision path.
+The audit exposed and fixed a real regression where `RefreshItemsCleanupIndicator()` could lose its caller.
 
-## 4. Preserved product boundaries
+### Profile
 
-The removal preserves:
+- canonical Save/Cancel/Delete XAML controls;
+- one lifecycle for standalone/overlay behavior;
+- removed runtime visual-tree button discovery/rebinding and runtime card wrapping.
 
-- Quest / Hideout / Needed Items;
-- Items inventory/progress behavior;
-- Ammo comparison/pickup/favorites;
-- Map / MiniMap;
-- Scanner recognition, catalog, search, ordinary Mini Scanner fields, correction, Ground Truth and diagnostics;
-- Game Content update, Program Update and user-owned state safety contracts.
+### Quest / Hideout / Items search
 
-No remaining source/test file in the inspected active removal surface retained a Farming Guide runtime reference.
+- explicit page-owned `ProductSearchClearButtonBehavior.Attach(SearchBox)`;
+- removed global class-handler/module-initializer lifecycle and page-specific duplicate search-clear shims.
 
-## 5. Legacy compatibility / data handling
+### Ammo
 
-### Farming Guide user file
+- removed hidden legacy summary/favorites/search/popup controls;
+- XAML owns the current selector/search/toolbar/detail presentation;
+- removed runtime toolbar/control creation and layout repair;
+- current caliber/favorites/search/detail/700ms icon-cycle contracts preserved;
+- stale `Polish`/`Fixes` ownership names replaced with responsibility-based names.
 
-Historical:
+### Scanner / Mini Scanner
 
-```text
-%LocalAppData%/JunhyunHelper/farming-guide.json
-```
+Removed retired UI/runtime paths:
 
-v1.17.1 does not read or write this file.
+- OCR substitution editor UI;
+- recognition-debug Window;
+- dedicated hotkey-capture Window;
+- old `필요한 곳` source presentation;
+- hidden old three-row summary;
+- dead Mini Scanner identity/flea-minimum display settings;
+- unused preview/position-edit/reset subsystem;
+- unused OCR constructor dependency;
+- runtime detail ScrollViewer reparenting;
+- runtime favorite/Wiki action repair.
 
-The application intentionally does not delete it automatically. It is inert legacy user data and not current product state.
+Retained current contracts:
 
-### Scanner settings
+- OCR substitution engine;
+- diagnostic image rendering;
+- Scanner recognition thresholds/pacing/matching;
+- catalog/search/favorites/recents;
+- correction/Ground Truth/diagnostics;
+- Mini Scanner direct drag position persistence.
 
-Scanner display settings remain schema v10.
+Current Scanner smoke files were renamed by responsibility instead of historical version tags where the version was no longer meaningful.
 
-Older settings JSON may contain obsolete Farming Guide properties or a `farming_guide` Mini Scanner order entry. The current settings type no longer exposes those properties, and `ScannerInfoOrderPolicy.Normalize` drops unknown order keys while preserving known user order.
+### Update / packaging
 
-### Game Content
+The current updater now accepts only the stable canonical package `Junhyun-Helper.zip` and stable wrapper root. Obsolete versioned-package/root transition fallbacks were removed.
 
-Content write/read remains v12 / v3-v12.
+### Documentation / tests
 
-Farming Guide-only item storage/equipment/attachment/armor/layout extension metadata is no longer part of the canonical `GameItem` runtime model or importer contract. Older snapshots may contain unknown historical JSON properties; current deserialization does not promote them into another feature.
+- removed current-looking `docs/NEXT.md` and retired `docs/FARMING_GUIDE.md`;
+- current release/schema facts centralized around `docs/PROJECT_STATE.json`;
+- Documentation Consistency now checks implementation constants against canonical schema facts;
+- stale tests were updated to verify current canonical ownership rather than revive removed lifecycle structures.
 
-## 6. Validation evidence
+## 3. Explicitly preserved boundaries
 
-### PR #290
+The cleanup intentionally did **not** rewrite or optimize:
+
+- Quest/Hideout domain semantics;
+- current Items behavior;
+- Ammo product behavior;
+- Scanner recognition algorithms;
+- Scanner active OCR wrapper chain;
+- Map/MiniMap donor integration;
+- active Map `Legacy*` bridges;
+- supported old JSON/schema read compatibility;
+- historical decision/release evidence.
+
+The Map donor revision remains:
+
+`d933792b6042a51cea38dc44b686a096fe30de67`
+
+## 4. Farming Guide status
+
+Farming Guide remains completely removed from the current product.
+
+There is no Farming Guide UI, planner, optimizer, Scanner bridge, persistence service or runtime domain model.
+
+Historical `%LocalAppData%/JunhyunHelper/farming-guide.json` remains inert user data and is not automatically deleted.
+
+## 5. Validation evidence
+
+### PR #292
 
 Final validated PR head:
 
 ```text
-edd6fa6f5a2edc9d52be84bf1625266d5ad6abec
+121d060db102eed0f4af241ef5f37c51164c6a04
 ```
 
 Passed:
 
-- CI `33826796756`;
-- Shutdown Race `33826796665`;
-- Documentation Consistency `33826796667`;
-- **485 passed / 0 failed / 0 skipped**;
+- CI `33840328932`;
+- Shutdown Race `33840328963`;
+- Documentation Consistency `33840329237`;
+- **488 passed / 0 failed / 0 skipped**;
 - Windows Release build;
 - win-x64 self-contained publish;
 - actual published EXE Product UI / Map / Scanner smoke;
 - graceful shutdown;
 - package/checksum verification.
 
-During final static review, one leftover MainWindow header `ColumnDefinition` was found after the Farming Guide tab removal. It was corrected before the final PR validation above, preventing star-column width allocation from shifting to the wrong header control.
-
 ### Exact main
 
 Exact product source:
 
 ```text
-4ad1f76ed7c2469e60d0822b229fe03f83c75816
+73f0386a45818408c2a68530b90de7946ecaf1d1
 ```
 
 Passed:
 
-- exact-main CI `33827008615`;
-- exact-main Shutdown Race `33827008595`;
-- exact-main Documentation Consistency `33827008638`;
-- **485 passed / 0 failed / 0 skipped**;
-- ProductVersion `1.17.1+4ad1f76ed7c2469e60d0822b229fe03f83c75816`;
+- exact-main CI `33840553320`;
+- exact-main Shutdown Race `33840553329`;
+- exact-main Documentation Consistency `33840553303`;
+- **488 passed / 0 failed / 0 skipped**;
+- ProductVersion `1.17.2+73f0386a45818408c2a68530b90de7946ecaf1d1`;
 - Windows publish;
 - actual Product UI / full Map/Factory/MiniMap / Scanner runtime smoke;
 - graceful shutdown + clean portable root;
-- release package SHA-256 `fad73f3987c04cae73c5a473ccbce6c3a70ff8ca22da04a95a942e66ebea3b6c`;
-- Actions artifact digest `94cb4670b2889c42efaeaa50874b8bb0a186c3849f09a814184b82609bb2ad22`.
+- release package SHA-256 `a64d202046505273964b0735976d71e382624c68f16699c6844b193599b43971`;
+- Actions artifact digest `864f971ebe799df881ac4d69318ae331cd3c4c4e783013836bceaacb33232ba4`.
 
 ### Public release
 
-Release workflow `33827205735` succeeded.
+Release workflow `33840780902` succeeded.
 
-Public `v1.17.1` release ID: `382428841`.
+Public `v1.17.2` release ID: `382500195`.
 
-Public `Junhyun-Helper.zip` asset:
+Public `Junhyun-Helper.zip`:
 
-- id `543627042`;
-- 80,573,737 bytes;
-- SHA-256 `fad73f3987c04cae73c5a473ccbce6c3a70ff8ca22da04a95a942e66ebea3b6c`.
+- id `543847934`;
+- 80,554,487 bytes;
+- SHA-256 `a64d202046505273964b0735976d71e382624c68f16699c6844b193599b43971`.
 
-Public `SHA256SUMS.txt` asset:
+Public `SHA256SUMS.txt`:
 
-- id `543627044`;
+- id `543847933`;
 - 86 bytes;
-- asset SHA-256 `d665b07efa2d3e402937701f903d1eb5da8001feab0b54bcb2a9d8a93e46f9b1`.
+- asset SHA-256 `a105826dcc518a58412a521b221a2e7842ccfb716662418981005b4d276505a0`.
 
-## 7. Current schemas / pinned dependencies
+## 6. Current schemas / pinned dependencies
 
 ```text
-Desktop: 1.17.1
+Desktop: 1.17.2
 Content write/read: v12 / v3-v12
 user.db: v1
 Scanner display settings: v10
@@ -230,19 +232,19 @@ Scanner catalog write/read: v4 / v1-v4
 Map donor revision: d933792b6042a51cea38dc44b686a096fe30de67
 ```
 
-There is no current Farming Guide persistence schema in the active product contract.
-
-## 8. Canonical references
+## 7. Canonical references
 
 - `docs/PROJECT_STATE.json`
-- `docs/.release-v1.17.1-status.json`
-- `docs/RELEASE_NOTES_V1.17.1.md`
+- `docs/.release-v1.17.2-status.json`
+- `docs/RELEASE_NOTES_V1.17.2.md`
 - `docs/DECISION_V1.17.1_REMOVE_FARMING_GUIDE.md`
 - `docs/CURRENT_STATE.md`
 - `docs/ACTIVE_WORK.md`
 
-## 9. Current work status
+## 8. Current work status
 
-The v1.17.1 Farming Guide removal is implemented, validated, merged, published and publicly verified.
+v1.17.2 Product Purity Cleanup is implemented, validated, merged, published and publicly verified.
 
-Actual Tarkov play validation on the user's own environment remains separately tracked as `PENDING` evidence. It does not make the v1.17.1 implementation or public release incomplete.
+`docs/ACTIVE_WORK.md` is closed (`NONE`).
+
+Actual Tarkov play validation on the user's own environment remains separately tracked as `PENDING`; this does not make the automated implementation/release validation incomplete.
