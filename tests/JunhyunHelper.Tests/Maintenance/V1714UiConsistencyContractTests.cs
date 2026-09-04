@@ -139,6 +139,21 @@ public sealed class V1714UiConsistencyContractTests
         Assert.DoesNotContain("EnsureSelectedItemScrolling", usability, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ScannerHotkeyCapture_IsOwnedBySettings_NotDedicatedWindow()
+    {
+        var root = FindRepositoryRoot();
+        var settings = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerSettingsWindow.xaml.cs");
+        var retiredXaml = Path.Combine(
+            root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerHotkeyCaptureWindow.xaml");
+        var retiredCode = retiredXaml + ".cs";
+
+        Assert.Contains("BeginCapture(CaptureTarget", settings, StringComparison.Ordinal);
+        Assert.Contains("CaptureButton_PreviewKeyDown", settings, StringComparison.Ordinal);
+        Assert.False(File.Exists(retiredXaml));
+        Assert.False(File.Exists(retiredCode));
+    }
+
     private static string Read(string root, params string[] path) =>
         File.ReadAllText(Path.Combine([root, .. path]));
 
