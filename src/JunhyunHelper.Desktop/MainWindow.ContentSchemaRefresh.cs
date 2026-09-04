@@ -59,7 +59,7 @@ public partial class MainWindow
 
         try
         {
-            var snapshot = await _services.Content.ReadActiveOrRecoverAsync(gameMode);
+            var snapshot = await _services.Content.ReadActiveOrRecoverAsync(gameMode, _windowLifetimeCts.Token);
             if (!TargetIsStillCurrent() || !ContentSnapshotStore.RequiresCurrentSchemaRefresh(snapshot))
                 return;
 
@@ -67,7 +67,7 @@ public partial class MainWindow
             // UI operation gate. The infrastructure update service already serializes disk
             // activation, but without this outer gate one caller could release SetBusy(false)
             // while the other was still waiting/running.
-            await _contentOperationGate.WaitAsync();
+            await _contentOperationGate.WaitAsync(_windowLifetimeCts.Token);
             gateEntered = true;
 
             // The user may have started a manual update while the initial legacy-schema
@@ -76,7 +76,7 @@ public partial class MainWindow
             if (!TargetIsStillCurrent())
                 return;
 
-            snapshot = await _services.Content.ReadActiveOrRecoverAsync(gameMode);
+            snapshot = await _services.Content.ReadActiveOrRecoverAsync(gameMode, _windowLifetimeCts.Token);
             if (!ContentSnapshotStore.RequiresCurrentSchemaRefresh(snapshot))
                 return;
 
@@ -87,7 +87,7 @@ public partial class MainWindow
             if (!result.Applied || !TargetIsStillCurrent())
                 return;
 
-            var refreshed = await _services.Content.ReadActiveOrRecoverAsync(gameMode);
+            var refreshed = await _services.Content.ReadActiveOrRecoverAsync(gameMode, _windowLifetimeCts.Token);
             if (!TargetIsStillCurrent() || ContentSnapshotStore.RequiresCurrentSchemaRefresh(refreshed))
                 return;
 
@@ -110,8 +110,12 @@ public partial class MainWindow
         }
         finally
         {
-            if (ownsBusyState && TargetIsStillCurrent())
+            if (ownsBusyState &&
+                !_windowLifetimeCts.IsCancellationRequested &&
+                TargetIsStillCurrent())
+            {
                 SetBusy(false);
+            }
             if (gateEntered)
                 _contentOperationGate.Release();
         }
