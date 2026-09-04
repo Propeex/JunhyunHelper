@@ -4,8 +4,10 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using JunhyunHelper.Application.Quests;
 using JunhyunHelper.Core.Content;
+using JunhyunHelper.Core.Items;
 using JunhyunHelper.Core.Profiles;
 using JunhyunHelper.Core.Quests;
+using JunhyunHelper.Core.Reference;
 using JunhyunHelper.Desktop.Controls;
 using JunhyunHelper.Desktop.Services;
 
@@ -31,6 +33,15 @@ public sealed class QuestActionRequestedEventArgs(
 public partial class QuestPage : UserControl
 {
     private GameContentCatalog? _content;
+    private GameContentCatalog? _indexedContent;
+    private IReadOnlyDictionary<string, TraderDefinition> _tradersById = new Dictionary<string, TraderDefinition>(StringComparer.Ordinal);
+    private IReadOnlyDictionary<string, MapReference> _mapsById = new Dictionary<string, MapReference>(StringComparer.Ordinal);
+    private IReadOnlyDictionary<string, GameItem> _itemsById = new Dictionary<string, GameItem>(StringComparer.Ordinal);
+    private IReadOnlyDictionary<string, QuestDefinition> _questsById = new Dictionary<string, QuestDefinition>(StringComparer.Ordinal);
+    private IReadOnlyDictionary<string, IReadOnlyList<QuestObjective>> _objectivesByQuestId =
+        new Dictionary<string, IReadOnlyList<QuestObjective>>(StringComparer.Ordinal);
+    private IReadOnlyDictionary<string, IReadOnlyList<QuestItemRequirement>> _itemRequirementsByQuestId =
+        new Dictionary<string, IReadOnlyList<QuestItemRequirement>>(StringComparer.Ordinal);
     private QuestWorkspace? _workspace;
     private IReadOnlyList<QuestRow> _rows = [];
     private bool _updatingFilters;
@@ -50,24 +61,22 @@ public partial class QuestPage : UserControl
         ArgumentNullException.ThrowIfNull(workspace);
 
         var selectedQuestId = (QuestList.SelectedItem as QuestRow)?.Entry.Quest.Id;
+        EnsureContentIndexes(content);
         _content = content;
         _workspace = workspace;
-
-        var traders = content.Traders.ToDictionary(trader => trader.Id, StringComparer.Ordinal);
-        var maps = content.Maps.ToDictionary(map => map.Id, StringComparer.Ordinal);
 
         _rows = workspace.Quests
             .Select(entry => new QuestRow(
                 entry,
                 DisplayName(entry.Quest.NameKo, entry.Quest.NameEn, entry.Quest.Id),
-                BuildSubtitle(entry.Quest, traders, maps),
+                BuildSubtitle(entry.Quest, _tradersById, _mapsById),
                 StatusText(entry.Availability.State),
                 StatusBrush(entry.Availability.State),
-                MapFilterKey(entry.Quest.MapId, maps)))
+                MapFilterKey(entry.Quest.MapId, _mapsById)))
             .OrderBy(row => row.Name, StringComparer.CurrentCulture)
             .ToArray();
 
-        PopulateReferenceFilters(traders, maps);
+        PopulateReferenceFilters(_tradersById, _mapsById);
         ProblemsButton.Content = $"확인 필요 원인 {workspace.Problems.Count}";
         ProblemsButton.IsEnabled = workspace.Problems.Count > 0;
 
@@ -89,6 +98,40 @@ public partial class QuestPage : UserControl
     {
         IsEnabled = !busy;
     }
+
+    private void EnsureContentIndexes(GameContentCatalog content)
+    {
+        if (ReferenceEquals(_indexedContent, content))
+            return;
+
+        _tradersById = content.Traders.ToDictionary(trader => trader.Id, StringComparer.Ordinal);
+        _mapsById = content.Maps.ToDictionary(map => map.Id, StringComparer.Ordinal);
+        _itemsById = content.Items.ToDictionary(item => item.Id, StringComparer.Ordinal);
+        _questsById = content.Quests.ToDictionary(quest => quest.Id, StringComparer.Ordinal);
+        _objectivesByQuestId = content.QuestObjectives
+            .GroupBy(objective => objective.QuestId, StringComparer.Ordinal)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<QuestObjective>)group.ToArray(),
+                StringComparer.Ordinal);
+        _itemRequirementsByQuestId = content.QuestItemRequirements
+            .GroupBy(requirement => requirement.QuestId, StringComparer.Ordinal)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<QuestItemRequirement>)group.ToArray(),
+                StringComparer.Ordinal);
+        _indexedContent = content;
+    }
+
+    private IReadOnlyList<QuestObjective> QuestObjectivesFor(string questId) =>
+        _objectivesByQuestId.TryGetValue(questId, out var values)
+            ? values
+            : Array.Empty<QuestObjective>();
+
+    private IReadOnlyList<QuestItemRequirement> QuestItemRequirementsFor(string questId) =>
+        _itemRequirementsByQuestId.TryGetValue(questId, out var values)
+            ? values
+            : Array.Empty<QuestItemRequirement>();
 
     private void PopulateStatusFilter()
     {
@@ -256,13 +299,9 @@ public partial class QuestPage : UserControl
         DetailScroll.Visibility = Visibility.Visible;
 
         var quest = entry.Quest;
-        var traders = _content.Traders.ToDictionary(trader => trader.Id, StringComparer.Ordinal);
-        var maps = _content.Maps.ToDictionary(map => map.Id, StringComparer.Ordinal);
-        var items = _content.Items.ToDictionary(item => item.Id, StringComparer.Ordinal);
-        var quests = _content.Quests.ToDictionary(item => item.Id, StringComparer.Ordinal);
 
         DetailName.Text = DisplayName(quest.NameKo, quest.NameEn, quest.Id);
-        DetailMeta.Text = BuildSubtitle(quest, traders, maps) + $" · {StatusText(entry.Availability.State)}";
+        DetailMeta.Text = BuildSubtitle(quest, _tradersById, _mapsById) + $" · {StatusText(entry.Availability.State)}";
 
         WikiButton.IsEnabled = !string.IsNullOrWhiteSpace(quest.WikiUrl);
         PrimaryActionButton.Visibility = entry.Availability.State switch
@@ -288,8 +327,7 @@ public partial class QuestPage : UserControl
         FailureActionButton.Content = explicitlyFailed ? "실패 취소" : "실패 처리";
         FailureActionButton.Tag = entry;
 
-        var objectives = _content.QuestObjectives
-            .Where(objective => objective.QuestId == quest.Id)
+        var objectives = QuestObjectivesFor(quest.Id)
             .Select(objective =>
             {
                 var description = DisplayName(
@@ -302,12 +340,11 @@ public partial class QuestPage : UserControl
             .ToArray();
         ObjectivesList.ItemsSource = objectives.Length > 0 ? objectives : ["표시할 목표 정보가 없습니다."];
 
-        var requiredItems = _content.QuestItemRequirements
-            .Where(requirement => requirement.QuestId == quest.Id)
+        var requiredItems = QuestItemRequirementsFor(quest.Id)
             .Select(requirement =>
             {
                 var accepted = requirement.AcceptedItemIds
-                    .Select(id => items.TryGetValue(id, out var item)
+                    .Select(id => _itemsById.TryGetValue(id, out var item)
                         ? DisplayName(item.NameKo, item.NameEn, id)
                         : id)
                     .ToArray();
@@ -320,12 +357,12 @@ public partial class QuestPage : UserControl
         RequiredItemsBox.Visibility = requiredItems.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         RequiredItemsList.ItemsSource = requiredItems;
 
-        RequirementsList.ItemsSource = BuildRequirements(quest, _content, traders);
+        RequirementsList.ItemsSource = BuildRequirements(quest, _content, _tradersById);
 
         var prerequisites = quest.TaskRequirements
             .Select(requirement =>
             {
-                var name = quests.TryGetValue(requirement.RequiredQuestId, out var prerequisite)
+                var name = _questsById.TryGetValue(requirement.RequiredQuestId, out var prerequisite)
                     ? DisplayName(prerequisite.NameKo, prerequisite.NameEn, requirement.RequiredQuestId)
                     : requirement.RequiredQuestId;
                 var states = string.Join(" / ", requirement.AcceptedStatuses.Select(StatusText));
@@ -337,7 +374,7 @@ public partial class QuestPage : UserControl
         PrerequisitesList.ItemsSource = prerequisites;
 
         var reasons = entry.Availability.Reasons
-            .Select(reason => $"• {ReasonText(reason, _content, traders)}")
+            .Select(reason => $"• {ReasonText(reason, _content, _tradersById)}")
             .ToArray();
         StateReasonsHeader.Visibility = reasons.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         StateReasonsBox.Visibility = reasons.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -452,7 +489,6 @@ public partial class QuestPage : UserControl
         if (_workspace is null || _content is null || _workspace.Problems.Count == 0)
             return;
 
-        var traders = _content.Traders.ToDictionary(trader => trader.Id, StringComparer.Ordinal);
         var text = string.Join(
             Environment.NewLine + Environment.NewLine,
             _workspace.Problems.Select(problem =>
@@ -461,7 +497,7 @@ public partial class QuestPage : UserControl
                 var reasons = string.Join(
                     Environment.NewLine,
                     problem.Availability.Reasons.Select(reason =>
-                        $"  • {ReasonText(reason, _content, traders)}"));
+                        $"  • {ReasonText(reason, _content, _tradersById)}"));
                 return $"{name}{Environment.NewLine}{reasons}";
             }));
 
