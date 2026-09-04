@@ -125,7 +125,9 @@ public sealed class V1173StabilityOptimizationContractTests
         Assert.Contains("TryGetDecodedImage(path, out var memoryCached)", source, StringComparison.Ordinal);
         Assert.Contains("_cachePathGates.GetOrAdd(", source, StringComparison.Ordinal);
         Assert.Contains("await pathGate.WaitAsync(cancellationToken);", source, StringComparison.Ordinal);
-        Assert.Contains("_cachePathGates.TryRemove(path, out _);", source, StringComparison.Ordinal);
+        Assert.Contains("Keep the path gate for this process lifetime", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("_cachePathGates.TryRemove(path, out _);", source, StringComparison.Ordinal);
+        Assert.Contains("reference.TryGetTarget(out var target) && target is not null", source, StringComparison.Ordinal);
         Assert.Contains("RememberDecodedImage(path, cached)", source, StringComparison.Ordinal);
     }
 
