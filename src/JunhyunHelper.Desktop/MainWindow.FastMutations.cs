@@ -36,14 +36,7 @@ public partial class MainWindow
 
         try
         {
-            SetBusy(true, e.Action switch
-            {
-                QuestActionKind.Complete => "퀘스트 완료를 저장하는 중...",
-                QuestActionKind.UndoCompletion => "퀘스트 완료를 취소하는 중...",
-                QuestActionKind.Fail => "퀘스트 실패를 저장하는 중...",
-                QuestActionKind.UndoFailure => "퀘스트 실패를 취소하는 중...",
-                _ => "퀘스트 진행 상태를 저장하는 중...",
-            });
+            SetBusy(true);
 
             var previousPlan = _activeItemsWorkspace?.Plan;
             var questWorkspace = e.Action switch
@@ -66,7 +59,7 @@ public partial class MainWindow
             QuestPage.SetDataPreservingScroll(_activeContent, questWorkspace);
             ItemsPage.SetData(_activeContent, itemsWorkspace);
             ApplyCleanupChanges(previousPlan, itemsWorkspace);
-            StatusText.Text = BuildLoadedStatus(_activeProfile.GameMode);
+
         }
         catch (Exception exception)
         {
@@ -74,7 +67,7 @@ public partial class MainWindow
         }
         finally
         {
-            SetBusy(false, StatusText.Text);
+            SetBusy(false);
         }
     }
 
@@ -113,7 +106,7 @@ public partial class MainWindow
 
         try
         {
-            SetBusy(true, "은신처 레벨을 저장하는 중...");
+            SetBusy(true);
             var previousPlan = _activeItemsWorkspace?.Plan;
             var hideoutWorkspace = await _services.Hideout.SetLevelAsync(
                 _activeContent,
@@ -133,7 +126,7 @@ public partial class MainWindow
             HideoutPage.SetData(_activeContent, hideoutWorkspace);
             ItemsPage.SetData(_activeContent, itemsWorkspace);
             ApplyCleanupChanges(previousPlan, itemsWorkspace);
-            StatusText.Text = BuildLoadedStatus(_activeProfile.GameMode);
+
         }
         catch (Exception exception)
         {
@@ -141,7 +134,7 @@ public partial class MainWindow
         }
         finally
         {
-            SetBusy(false, StatusText.Text);
+            SetBusy(false);
         }
     }
 
@@ -154,7 +147,7 @@ public partial class MainWindow
 
         try
         {
-            SetBusy(true, "보유 아이템 수량을 저장하는 중...");
+            SetBusy(true);
             var previousPlan = _activeItemsWorkspace?.Plan;
             var itemsWorkspace = await _services.Items.SetInventoryAsync(
                 _activeContent,
@@ -171,7 +164,7 @@ public partial class MainWindow
             // quest reachability and restarting the entire item image pipeline.
             ItemsPage.SetInventoryData(_activeContent, itemsWorkspace);
             ApplyCleanupChanges(previousPlan, itemsWorkspace);
-            StatusText.Text = BuildLoadedStatus(_activeProfile.GameMode);
+
         }
         catch (Exception exception)
         {
@@ -179,7 +172,7 @@ public partial class MainWindow
         }
         finally
         {
-            SetBusy(false, StatusText.Text);
+            SetBusy(false);
         }
     }
 
