@@ -42,11 +42,22 @@ Do **not** perform speculative performance optimization, broad redesign or unrel
 
 - recovered current v1.17.1 official repository state;
 - confirmed ACTIVE_WORK was NONE;
-- created dedicated maintenance branch.
+- created dedicated maintenance branch;
+- classified historical release/decision evidence and active Map donor `Legacy*` bridges as retained, not cleanup targets;
+- removed the unreachable one-time v1.6 updater bridge from current packaging/CI;
+- removed Scanner's superseded standalone Settings/Advanced event path and runtime event rebinding;
+- removed Scanner's old outer search-clear button/runtime concealment path;
+- removed unreachable Scanner OCR-substitution editor UI/controller API while retaining the active persisted substitution engine;
+- removed unreachable Scanner recognition-debug window while retaining active correction/debug evidence state;
+- removed the hidden Items Quest/Hideout usage filter and its runtime concealment shim;
+- removed the hidden Ammo summary row and dead summary-string computation;
+- removed superseded MainWindow full-refresh Quest/Hideout/Items mutation handlers and runtime handler replacement;
+- replaced hidden MainWindow `StatusText` state/event plumbing with a direct XAML Items cleanup indicator backed by current Items workspace state;
+- updated affected maintenance contracts to assert the canonical direct paths rather than the retired shims.
 
 ## Current step
 
-Inventory the repository and classify suspected impurities by whether they are truly unused, compatibility-critical, historical-only, or still part of current product behavior.
+Run an early Windows PR build/test/runtime gate to detect compile/XAML/reference fallout from the first cleanup batch while continuing the current-document audit.
 
 ## Remaining
 
