@@ -11,18 +11,16 @@ public partial class AmmoPage
     {
         base.OnInitialized(e);
 
-        // The selector surface is required product UI, not optional post-load polish.
-        // Initialize it from AmmoPage's existing lifecycle owner so a collapsed page does
-        // not depend on routed Loaded delivery before showing the correct controls.
-        EnsureProductVisibleDropdownInitialization();
+        // The selector surface is required product UI. Initialize it directly from the
+        // page lifecycle so it does not depend on routed Loaded delivery.
+        InitializeProductCaliberDropdowns();
 
         // The remaining presentation setup can run once layout/resources are ready.
         Dispatcher.BeginInvoke(InitializeProductSearchAndDetails, DispatcherPriority.Loaded);
-        Dispatcher.BeginInvoke(ApplyProductGridFixes, DispatcherPriority.Loaded);
-        Dispatcher.BeginInvoke(ApplyProductUiSimplification, DispatcherPriority.Loaded);
+        Dispatcher.BeginInvoke(ApplyProductGridPresentation, DispatcherPriority.Loaded);
     }
 
-    private void ApplyProductGridFixes()
+    private void ApplyProductGridPresentation()
     {
         var selectedBackground = TryFindResource("BackgroundLightBrush") as Brush
                                  ?? new SolidColorBrush(Color.FromRgb(48, 48, 48));

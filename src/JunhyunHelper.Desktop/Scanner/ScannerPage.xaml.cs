@@ -104,33 +104,6 @@ public partial class ScannerPage : UserControl
         }
     }
 
-    private void SettingsButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (_coordinator is null)
-            return;
-
-        var window = new ScannerSettingsWindow(_coordinator)
-        {
-            Owner = Window.GetWindow(this),
-        };
-        window.ShowDialog();
-        UpdateStatus(_coordinator.Status);
-    }
-
-    private void AdvancedButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (_coordinator is null)
-            return;
-
-        var window = new ScannerAdvancedWindow(_coordinator)
-        {
-            Owner = Window.GetWindow(this),
-        };
-        window.ShowDialog();
-        UpdateToggleButton();
-        UpdateStatus(_coordinator.Status);
-        RefreshActivityCorrectionAvailability();
-    }
 
     private void CorrectActivityButton_Click(object sender, RoutedEventArgs e)
     {
@@ -241,12 +214,6 @@ public partial class ScannerPage : UserControl
             SelectSearchHit(hit);
     }
 
-    private void ClearSearchButton_Click(object sender, RoutedEventArgs e)
-    {
-        ItemSearchBox.Clear();
-        SearchResultsPopup.IsOpen = false;
-        ItemSearchBox.Focus();
-    }
 
     private void SelectSearchHit(ScannerItemSearchHit hit)
     {
@@ -292,16 +259,6 @@ public partial class ScannerPage : UserControl
         var snapshot = details.Snapshot;
         SelectedItemIcon.Source = snapshot.Icon;
         SelectedItemNameText.Text = snapshot.OfficialName;
-        FleaAverageText.Text = snapshot.FleaAveragePrice is { } flea
-            ? FormatRoubles(flea)
-            : "정보 없음";
-        BestTraderText.Text = snapshot.TraderSellPrice is { } trader
-            ? string.IsNullOrWhiteSpace(snapshot.BestTraderName)
-                ? FormatRoubles(trader)
-                : $"{snapshot.BestTraderName} · {FormatRoubles(trader)}"
-            : "정보 없음";
-        NeededCountText.Text = snapshot.CurrentNeeded.ToString("N0", CultureInfo.InvariantCulture);
-
         _selectedWikiUrl = NormalizeWikiUrl(details.WikiUrl);
         WikiButton.IsEnabled = _selectedWikiUrl is not null;
         EmptyItemText.Visibility = Visibility.Collapsed;

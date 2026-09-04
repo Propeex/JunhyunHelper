@@ -29,7 +29,6 @@ public partial class MainWindow : TarkovHelper.MainWindow
     {
         base.OnContentRendered(e);
 
-        EnableFastMutationHandlers();
 
         if (_legacyMapTabHooked)
             return;
@@ -64,11 +63,10 @@ public partial class MainWindow : TarkovHelper.MainWindow
             if (snapshot.SchemaVersion >= ContentSnapshotStore.CurrentSchemaVersion)
                 return;
 
-            StatusText.Text = "퀘스트 지도 좌표를 최신 데이터로 준비하는 중...";
             var update = await RunContentUpdateAsync(_activeProfile.GameMode);
             if (!update.Applied)
             {
-                StatusText.Text = "기존 게임 데이터로 지도 표시 중";
+
                 return;
             }
 
@@ -76,11 +74,11 @@ public partial class MainWindow : TarkovHelper.MainWindow
             _activeContent = upgraded.Content;
             await RefreshActiveWorkspacesAsync(detectCleanupChanges: false);
             AmmoPage.SetData(_activeContent);
-            StatusText.Text = "퀘스트 지도 좌표 업데이트 완료";
+
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            StatusText.Text = "기존 게임 데이터로 지도 표시 중";
+
         }
     }
 

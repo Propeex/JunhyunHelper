@@ -27,7 +27,7 @@ public sealed class V110MiniMapMiniScannerContractTests
     }
 
     [Fact]
-    public void MiniScanner_flea_minimum_remains_compatibility_data_but_is_not_presented()
+    public void MiniScanner_flea_minimum_catalog_data_is_not_a_display_setting_or_row()
     {
         var root = FindRepositoryRoot();
         var catalogItem = Read(root, "src", "JunhyunHelper.Core", "Scanner", "ScannerCatalogItem.cs");
@@ -40,16 +40,15 @@ public sealed class V110MiniMapMiniScannerContractTests
         Assert.Contains("CurrentCacheSchemaVersion = 4", catalogService, StringComparison.Ordinal);
         Assert.Contains("GetInt(raw, \"lastLowPrice\")", catalogService, StringComparison.Ordinal);
         Assert.Contains("CurrentSchemaVersion = 10", displaySettings, StringComparison.Ordinal);
-        Assert.Contains("FleaMinimumPriceField = \"flea_minimum_price\"", displaySettings, StringComparison.Ordinal);
         Assert.Contains("ScannerInfoOrderPolicy.Normalize", displaySettings, StringComparison.Ordinal);
-        Assert.Contains("ShowFleaMinimumPrice", displaySettings, StringComparison.Ordinal);
+        Assert.DoesNotContain("FleaMinimumPriceField", displaySettings, StringComparison.Ordinal);
+        Assert.DoesNotContain("ShowFleaMinimumPrice", displaySettings, StringComparison.Ordinal);
 
-        // v1.11 removes only the product presentation. The compatibility field remains in
-        // persisted settings and Scanner catalog data so old settings/data can migrate
-        // without destructive schema churn.
+        // Catalog compatibility data may remain available to other Scanner diagnostics,
+        // but the removed Mini Scanner row must not remain in display settings or UI.
         Assert.DoesNotContain("x:Name=\"FleaMinimumPriceText\"", xaml, StringComparison.Ordinal);
         Assert.DoesNotContain("플리 최저", window, StringComparison.Ordinal);
-        Assert.DoesNotContain("[ScannerDisplaySettings.FleaMinimumPriceField]", window, StringComparison.Ordinal);
+        Assert.DoesNotContain("FleaMinimumPriceField", window, StringComparison.Ordinal);
     }
 
     private static string Read(string root, params string[] path) =>

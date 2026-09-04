@@ -1,7 +1,7 @@
 # DEVELOPER_REFERENCE — 준현 헬퍼 개발자용 시스템 설명서
 
-상태: **ACTIVE / v1.7.14 PUBLIC STABLE / MAINTENANCE MODE**  
-기준일: 2026-08-27
+상태: **ACTIVE EVERGREEN IMPLEMENTATION REFERENCE / MAINTENANCE MODE**  
+기준일: 2026-09-04
 
 이 문서는 다음 개발 세션이 대화 기억 없이 저장소만 보고 **현재 구현 위치·책임·데이터 흐름·변경 영향**을 빠르게 복구하기 위한 지도다.
 
@@ -16,15 +16,17 @@
 # 1. 새 세션 복구 순서
 
 1. `AGENTS.md`
-2. `README.md`
-3. `docs/CURRENT_STATE.md`
-4. `docs/STATE.md`
-5. `docs/PRODUCT.md`
-6. `docs/DECISIONS.md`
-7. `docs/MAINTENANCE_CONTRACTS.md`
-8. `docs/DEVELOPER_REFERENCE.md`
-9. `docs/ARCHITECTURE.md`
-10. 작업 영역 전문 문서 + 관련 code/tests/current PR/CI
+2. `docs/PROJECT_STATE.json`
+3. `docs/ACTIVE_WORK.md`
+4. `README.md`
+5. `docs/CURRENT_STATE.md`
+6. `docs/STATE.md`
+7. `docs/PRODUCT.md`
+8. `docs/DECISIONS.md`
+9. `docs/MAINTENANCE_CONTRACTS.md`
+10. `docs/DEVELOPER_REFERENCE.md`
+11. `docs/ARCHITECTURE.md`
+12. 작업 영역 전문 문서 + 관련 code/tests/current PR/CI
 
 Scanner 작업은 추가로:
 
@@ -47,11 +49,11 @@ Map/MiniMap 작업은 추가로:
 - `docs/MAP_PRODUCT_REQUIREMENTS.md`
 - `docs/REFERENCE_POLICY.md`
 
-현재 public product release가 필요한 작업이면 추가로:
+현재 public product release 사실이 필요한 작업이면 특정 과거 릴리즈 파일을 하드코딩하지 않는다.
 
-- `docs/RELEASE_1.7.14.md`
-- `docs/.release-v1.7.14-status.json`
-- `docs/RELEASE_NOTES_V1.7.14.md`
+- current release identity: `docs/PROJECT_STATE.json`
+- current release evidence: `docs/CURRENT_STATE.md` / `docs/STATE.md`
+- 해당 current version의 `docs/.release-vX.Y.Z-status.json` / `docs/RELEASE_NOTES_VX.Y.Z.md`
 
 ---
 
@@ -119,7 +121,7 @@ UI event handler에 Core/Application의 domain truth를 복제하지 않는다.
 | Presentation preferences | user settings | atomic JSON + `.bak` |
 | Image cache | validated/normalized presentation bytes | `%LocalAppData%/JunhyunHelper/image-cache/` |
 | Scanner identity/market catalog | current full-item source + official Korean identity | `%LocalAppData%/JunhyunHelper/scanner/catalog/` + memory |
-| Scanner settings | hotkeys/display/order/OCR substitution | `%LocalAppData%/JunhyunHelper/scanner-settings.json(.bak)` |
+| Scanner settings | hotkeys/display/order/position/internal OCR substitution compatibility | `%LocalAppData%/JunhyunHelper/scanner-settings.json(.bak)` |
 | Scanner local font cache | installed Tarkov assets read-only extraction | `%LocalAppData%/JunhyunHelper/scanner/fonts/` |
 | Scanner diagnostics / reviewed GT | runtime evidence + user truth | `%LocalAppData%/JunhyunHelper/scanner/diagnostics/` |
 | Runtime logs | diagnostic only | `%LocalAppData%/JunhyunHelper/logs/` |
@@ -457,7 +459,6 @@ screen pixels
 → semantic inspect-header validation
 → item-title ROI
 → Windows ko-KR OCR
-→ optional user substitution
 → conditional environment normalization
 → current official catalog sanitation/matching
 → optional strict visual recovery
@@ -487,7 +488,6 @@ screen pixels
 - `Core/Scanner/ScannerItemMatcher.cs`
 - `Core/Scanner/ScannerObservationPacingPolicy.cs`
 - `Core/Scanner/ScannerOcrCharacterPolicy.cs`
-- `Core/Scanner/ScannerOcrSubstitution.cs`
 - `Core/Scanner/ScannerPresentationJoin.cs`
 - `Core/Scanner/ScannerTitleIdentitySignature.cs`
 
@@ -516,16 +516,17 @@ screen pixels
 - `Scanner/ScannerFullCatalogVisualMatcher.cs` — official-catalog-bounded visual recovery
 - `Scanner/ScannerItemPresentationService.cs` — confirmed Item ID → mapped presentation
 - `Scanner/ScannerRecognitionDebugStore.cs` — latest evidence
+- `Core/Scanner/ScannerOcrSubstitution.cs` — persisted user-owned exact OCR substitution runtime
 - `Scanner/ScannerLatencyTelemetry.cs` — stage latency telemetry
 - `Scanner/ScannerPage.xaml(.cs)` — normal surface/search/log/runtime controls
-- `Scanner/ScannerPage.ProductUsability.cs` — v1.7.13+ source presentation, v1.7.14 Settings/Advanced overlay routing/search clear
+- `Scanner/ScannerPage.ProductUsability.cs` — Scanner Settings/Advanced overlay routing and current usability lifecycle
 - `Scanner/ScannerSettingsWindow.xaml(.cs)` — Mini fields/order + global Scanner hotkey editing, immediate persistence
 - `Scanner/ScannerAdvancedWindow.xaml(.cs)` — Display Test/correction/dataset/support diagnostics; shared overlay dialog
 - `Scanner/MiniScannerWindow.xaml(.cs)` — no-activate Topmost overlay
-- `MainWindow.ScannerItemSources.cs` — searched confirmed item → authoritative NeededItems source presentation/navigation
+- `MainWindow.ScannerItemNavigation.cs` — Scanner Quest/Hideout usage card → existing product navigation
 - `MainWindow.ProductUiLayoutSmoke.cs` — actual product surface/Scanner Advanced overlay smoke
 
-**v1.7.14에는 `ScannerHotkeySettingsWindow.xaml/.cs`가 없다.** Hotkey editor는 `ScannerSettingsWindow`에 통합됐다. 회귀 test가 old dedicated hotkey Window의 재도입을 금지한다.
+Scanner hotkey editor는 `ScannerSettingsWindow`가 단독 authority다. 별도 hotkey settings/capture Window를 병렬로 두지 않으며 회귀 test가 재도입을 금지한다.
 
 `SerializedScannerOcrEngine`의 reflection 기반 diagnostic serialization adapter는 의도적으로 남은 기술 부채다. 단순 cleanup 대상으로 취급하지 않는다.
 
@@ -554,7 +555,6 @@ OCR/matching:
 - Windows `ko-KR` primary
 - normal + bounded deep path
 - raw OCR 보존
-- user substitution 단일 ordered pass
 - current-catalog-derived character policy
 - exact-first
 - conservative fuzzy + top1/top2 margin
@@ -599,9 +599,9 @@ Scanner presentation이 raw inventory를 다시 빼거나 `RequiredTotal`을 사
 
 Market/dimension failure는 해당 presentation field만 비우고 Item identity를 소급 무효화하지 않는다.
 
-## 9.9 Scanner Settings / hotkeys / Advanced v1.7.14
+## 9.9 Scanner Settings / hotkeys / Advanced
 
-Scanner display settings schema는 **v6 그대로**다. v1.7.14는 settings schema migration release가 아니다.
+Scanner display settings schema의 current 값은 `docs/PROJECT_STATE.json`과 `ScannerDisplaySettings.CurrentSchemaVersion`을 따른다. UI maintenance가 schema migration 의미를 임의로 만들지 않는다.
 
 `ScannerSettingsWindow` owns:
 
@@ -669,7 +669,7 @@ Recognition:
 capture/proposal
 → semantic header
 → ROI
-→ OCR/substitution/character policy/visual
+→ OCR/persisted user substitution/character policy/visual
 → catalog matcher
 → verified state
 → Item ID
@@ -930,7 +930,7 @@ current code references
 + docs/history/recovery value
 ```
 
-WPF에서는 handler 본문이 중복처럼 보여도 routed/class handler 또는 `Loaded` delivery를 간접적으로 유지할 수 있다. v1.7.12 audit에서 부모 page Loaded subscription 제거가 Ammo class-level Loaded initialization 회귀를 드러냈다. 따라서 lifecycle 관련 dead-code 판단은 actual published EXE smoke까지 확인한다.
+WPF에서는 handler 본문이 중복처럼 보여도 routed/class handler 또는 `Loaded` delivery를 간접적으로 유지할 수 있으므로 lifecycle 관련 dead-code 판단은 actual published EXE smoke까지 확인한다. 다만 current XAML/constructor/explicit lifecycle가 같은 역할을 직접 소유하게 된 뒤에는 과거 runtime rebinding이나 hidden proxy path를 보존하지 않는다.
 
 현재 동작과 historical reproducibility에 가치가 있으면 참조가 적더라도 남길 수 있다.
 
@@ -939,7 +939,7 @@ WPF에서는 handler 본문이 중복처럼 보여도 routed/class handler 또�
 - active `Legacy` Map/MiniMap bridge
 - Main Map/Factory/MiniMap actual smoke
 - Scanner diagnostic reflection adapter
-- lifecycle evidence가 있는 original full-refresh mutation handlers + fast rebinding
+- lifecycle evidence가 실제 제품 경로에 남아 있는 current handler/overlay/Map bridge only
 
 반대로 obsolete UI가 새 authoritative path로 완전히 대체되면 제거할 수 있다. v1.7.14의 old `ScannerHotkeySettingsWindow`는 Scanner Settings 통합 뒤 제품/코드 path에서 삭제했다.
 
@@ -962,7 +962,6 @@ WPF에서는 handler 본문이 중복처럼 보여도 routed/class handler 또�
 - Scanner에서 Needed Items 의미 재계산
 - Scanner searched-item Quest/Hideout source를 별도 requirement 계산으로 재구현
 - Scanner catalog shared writer synchronization 분리
-- user substitution을 automatic global correction table로 승격
 - reviewed Ground Truth 자동 삭제
 - title continuity signature를 Item identity proof로 사용
 - cross-frame OCR/visual cache로 current evidence 대체
@@ -987,7 +986,7 @@ WPF에서는 handler 본문이 중복처럼 보여도 routed/class handler 또�
 6. consumption ledger/undo에 영향이 있는가?
 7. schema compatibility/migration이 필요한가?
 8. Map donor인가 JunhyunHelper first-party인가?
-9. Scanner라면 capture/proposal/header/ROI/OCR/substitution/visual/catalog/presentation/search/overlay/GT 중 어느 layer인가?
+9. Scanner라면 capture/proposal/header/ROI/OCR/visual/catalog/presentation/search/overlay/GT 중 어느 layer인가?
 10. shared writer가 둘 이상이면 하나의 ordering boundary가 있는가?
 11. failure 시 current known-good data/program/Item identity/Ground Truth를 보존하는가?
 12. deterministic regression test와 actual EXE smoke 중 무엇이 필요한가?
@@ -1006,4 +1005,4 @@ WPF에서는 handler 본문이 중복처럼 보여도 routed/class handler 또�
 
 현재 product stable은 v1.7.14이고 exact release source는 `docs/STATE.md`에 기록된 SHA다. 이 문서가 있는 docs-only commit을 product release source로 해석하지 않는다.
 
-현재 v1.7.14 릴리즈 배치에는 남은 제품 개발 작업이 없다. 이후 작업은 실제 runtime error, Tarkov 변화, reviewed Scanner evidence 또는 사용자가 새로 확정한 제품 요구사항이 있을 때 시작한다.
+현재 진행 중 제품 작업의 유무와 중단 지점은 `docs/ACTIVE_WORK.md`를 기준으로 판단한다. 새 유지보수/개발 작업은 실제 runtime error, Tarkov 변화, reviewed Scanner evidence 또는 사용자가 새로 확정한 제품 요구사항을 근거로 시작한다.

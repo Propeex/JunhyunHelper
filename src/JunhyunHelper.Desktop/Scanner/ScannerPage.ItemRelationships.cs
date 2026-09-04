@@ -32,22 +32,13 @@ public partial class ScannerPage
         (_craftUsageHost, _craftUsageItems) = CreateRelationshipSection("제작 재료 사용처");
         (_acquisitionHost, _acquisitionItems) = CreateRelationshipSection("수급처");
 
-        var insertIndex = _neededSourcesHost is null
-            ? SelectedItemPanel.Children.Count
-            : SelectedItemPanel.Children.IndexOf(_neededSourcesHost);
-        if (insertIndex < 0)
-            insertIndex = SelectedItemPanel.Children.Count;
+        var insertIndex = SelectedItemPanel.Children.Count;
 
         SelectedItemPanel.Children.Insert(insertIndex, _questUsageHost);
         SelectedItemPanel.Children.Insert(insertIndex + 1, _hideoutUsageHost);
         SelectedItemPanel.Children.Insert(insertIndex + 2, _craftUsageHost);
         SelectedItemPanel.Children.Insert(insertIndex + 3, _acquisitionHost);
 
-        // v1.8.4 item detail replaces the older separate "필요한 곳" block with the
-        // canonical quest/hideout usage sections above. Keep the old host out of the
-        // visible detail so the one-column presentation has no duplicate information.
-        if (_neededSourcesHost is not null)
-            _neededSourcesHost.Visibility = Visibility.Collapsed;
     }
 
     private (Border Host, StackPanel Items) CreateRelationshipSection(string title, double topMargin = 12)
@@ -77,14 +68,6 @@ public partial class ScannerPage
 
     private void RenderProductItemExtensions(ScannerItemSearchDetails details)
     {
-        // The legacy three-row summary is replaced by the exact four-field basic-info
-        // section below. Collapsing its actual parent keeps XAML compatibility without
-        // carrying duplicate flea/trader/needed rows in the visible detail.
-        if (FleaAverageText.Parent is FrameworkElement legacySummary)
-            legacySummary.Visibility = Visibility.Collapsed;
-        if (_neededSourcesHost is not null)
-            _neededSourcesHost.Visibility = Visibility.Collapsed;
-
         RenderBasicInfo(details.Basic, details.Snapshot);
         RenderItemRelationships(details.Relationships, details.Snapshot);
     }
@@ -225,13 +208,9 @@ public partial class ScannerPage
         if (sender is not Button { Tag: ScannerItemRequirementUsageRow usage } || Window.GetWindow(this) is not MainWindow mainWindow)
             return;
         var kind = usage.Kind == ScannerItemRequirementUsageKind.Quest
-            ? ScannerNeededSourceKind.Quest
-            : ScannerNeededSourceKind.Hideout;
-        mainWindow.NavigateFromScannerNeededSource(new ScannerNeededSourceRow(
-            kind,
-            usage.TargetId,
-            usage.SourceName,
-            usage.TargetLevel is { } level ? $"Lv.{level} 업그레이드" : "아이템 요구사항"));
+            ? ScannerItemNavigationKind.Quest
+            : ScannerItemNavigationKind.Hideout;
+        mainWindow.NavigateFromScannerItemUsage(new ScannerItemNavigationTarget(kind, usage.TargetId));
     }
 
     private UIElement CreateRecipeUsageCard(ScannerItemUsageRow usage)

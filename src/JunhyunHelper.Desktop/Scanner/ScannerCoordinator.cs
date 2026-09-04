@@ -68,7 +68,7 @@ public sealed partial class ScannerCoordinator : IDisposable
         // decorator; inventory-context deep OCR remains the proven OCR-only path.
         var serializedOcr = new SerializedScannerOcrEngine(rawOcr);
         _ocr = new FontAwareScannerOcrEngine(serializedOcr, _catalog, rootDirectory);
-        _overlay = new MiniScannerOverlayService(_settings, serializedOcr);
+        _overlay = new MiniScannerOverlayService(_settings);
     }
 
     public event Action<ScannerRuntimeStatus>? StatusChanged;
@@ -229,55 +229,6 @@ public sealed partial class ScannerCoordinator : IDisposable
         Runtime.PublishExternalState(ScannerRuntimeState.Disabled, "Scanner가 꺼져 있습니다.");
     }
 
-    public async Task<ScannerItemSnapshot?> ShowPreviewAsync(
-        string? itemId = null,
-        CancellationToken cancellationToken = default)
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        var context = GetContext();
-        if (context is null)
-        {
-            Runtime.Suspend(ScannerRuntimeState.NoProfile, "미리보기를 만들 활성 프로필이 없습니다.");
-            return null;
-        }
-
-        SetObservedContext(context);
-        if (!await _catalog.EnsureLoadedAsync(context.GameMode, cancellationToken))
-        {
-            Runtime.PublishExternalState(ScannerRuntimeState.CatalogUnavailable, "미리보기 전에 전체 아이템 카탈로그를 동기화해 주세요.");
-            return null;
-        }
-
-        var snapshot = string.IsNullOrWhiteSpace(itemId)
-            ? Presentation.CreateDefaultPreviewSnapshot()
-            : Presentation.CreateSnapshot(itemId.Trim());
-        if (snapshot is null)
-        {
-            Runtime.PublishExternalState(ScannerRuntimeState.Uncertain, "해당 Item ID의 안전한 미리보기 데이터를 만들 수 없습니다.");
-            return null;
-        }
-
-        Runtime.ShowPreview(snapshot);
-        return snapshot;
-    }
-
-    public Task HidePreviewAsync(CancellationToken cancellationToken = default) =>
-        Runtime.HidePreviewAsync(cancellationToken);
-
-    public void PauseForPositionEdit() => Runtime.PauseForPositionEdit();
-    public void BeginPositionEdit() => _overlay.BeginPositionEdit();
-    public void EndPositionEdit() => _overlay.EndPositionEdit(keepVisible: false);
-
-    public async Task ResumeAfterPositionEditAsync(CancellationToken cancellationToken = default)
-    {
-        var mode = ActiveCaptureMode;
-        if (mode is not null)
-            await Runtime.StartAsync(mode.Value, cancellationToken);
-        else
-            Runtime.PublishExternalState(ScannerRuntimeState.Disabled, "Scanner가 꺼져 있습니다.");
-    }
-
-    public void ResetPosition() => _overlay.ResetPosition();
 
     private async Task PrepareActiveRuntimeAsync(
         ScannerCaptureMode mode,

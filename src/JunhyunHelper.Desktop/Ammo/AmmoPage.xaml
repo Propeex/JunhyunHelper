@@ -57,7 +57,6 @@
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="3*" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="2*" MinHeight="190" />
@@ -65,71 +64,106 @@
 
         <Grid Grid.Row="0" Margin="0,0,0,10">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="0" />
                 <ColumnDefinition Width="160" />
                 <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="12" />
-                <ColumnDefinition Width="0" />
                 <ColumnDefinition Width="170" />
                 <ColumnDefinition Width="12" />
-                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="300" />
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <TextBlock Grid.Column="0" Text="구경" Visibility="Collapsed" />
-            <ComboBox x:Name="CaliberComboBox" Grid.Column="1" Width="160" MinWidth="160" MaxWidth="160"
+            <ComboBox x:Name="CaliberComboBox"
+                      Grid.Column="0"
+                      Width="160"
+                      MinWidth="160"
+                      MaxWidth="160"
                       SelectionChanged="CaliberComboBox_SelectionChanged" />
-            <Button x:Name="FavoriteCaliberButton" Grid.Column="2" Margin="8,0,0,0"
-                    Width="38" MinWidth="38" MaxWidth="38" Padding="0" FontSize="16"
-                    Content="☆" ToolTip="즐겨찾기 추가" Click="FavoriteCaliberButton_Click" />
+            <Button x:Name="FavoriteCaliberButton"
+                    Grid.Column="1"
+                    Margin="8,0,8,0"
+                    Width="38"
+                    MinWidth="38"
+                    MaxWidth="38"
+                    Padding="0"
+                    FontSize="16"
+                    Content="☆"
+                    ToolTip="즐겨찾기 추가"
+                    Click="FavoriteCaliberButton_Click" />
+            <ComboBox x:Name="FavoriteCaliberComboBox"
+                      Grid.Column="2"
+                      Width="170"
+                      MinHeight="32"
+                      VerticalContentAlignment="Center"
+                      MaxDropDownHeight="460"
+                      ToolTip="즐겨찾기 구경 선택" />
 
-            <TextBlock Grid.Column="4" Text="즐겨찾기" Visibility="Collapsed" />
-            <Button x:Name="FavoriteCaliberMenuButton" Grid.Column="5" Width="170" MinWidth="170" MaxWidth="170"
-                    Content="즐겨찾기 선택" HorizontalContentAlignment="Left"
-                    Click="FavoriteCaliberMenuButton_Click" />
+            <Grid Grid.Column="4">
+                <TextBox x:Name="ProductSearchBox"
+                         HorizontalAlignment="Stretch"
+                         VerticalAlignment="Center"
+                         TextChanged="ProductSearchBox_TextChanged"
+                         PreviewKeyDown="ProductSearchBox_PreviewKeyDown" />
+            </Grid>
 
-            <Popup x:Name="FavoriteCaliberPopup"
-                   PlacementTarget="{Binding ElementName=FavoriteCaliberMenuButton}"
-                   Placement="Bottom" StaysOpen="False" AllowsTransparency="True">
-                <Border Background="{StaticResource BackgroundMediumBrush}"
-                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-                        CornerRadius="8" Padding="8" Margin="0,6,0,0" MinWidth="210" MaxHeight="360">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel>
-                            <TextBlock x:Name="FavoriteCaliberEmptyText"
-                                       Text="등록된 즐겨찾기가 없습니다."
-                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                       Padding="8,7" />
-                            <ItemsControl x:Name="FavoriteCaliberItems">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Button Tag="{Binding RawCaliber}"
-                                                Content="{Binding Label}"
-                                                HorizontalAlignment="Stretch"
-                                                HorizontalContentAlignment="Left"
-                                                Padding="10,7" Margin="0,0,0,4"
-                                                Click="FavoriteCaliberShortcutButton_Click" />
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                                <ItemsControl.ItemContainerStyle>
-                                    <Style TargetType="ContentPresenter">
-                                        <Setter Property="HorizontalAlignment" Value="Stretch" />
-                                    </Style>
-                                </ItemsControl.ItemContainerStyle>
-                            </ItemsControl>
-                        </StackPanel>
-                    </ScrollViewer>
+            <Popup x:Name="ProductSearchPopup"
+                   Grid.Column="4"
+                   PlacementTarget="{Binding ElementName=ProductSearchBox}"
+                   Placement="Bottom"
+                   StaysOpen="False"
+                   AllowsTransparency="True">
+                <Border MinWidth="288"
+                        Background="{StaticResource BackgroundMediumBrush}"
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="6">
+                    <ListBox x:Name="ProductSearchResults"
+                             MinWidth="288"
+                             MaxHeight="360"
+                             Background="{StaticResource BackgroundMediumBrush}"
+                             Foreground="{StaticResource TextPrimaryBrush}"
+                             BorderThickness="0"
+                             PreviewMouseLeftButtonUp="ProductSearchResults_PreviewMouseLeftButtonUp">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Margin="4,3">
+                                    <Border Width="38" Height="38" CornerRadius="5" Margin="0,0,9,0">
+                                        <Image Width="34"
+                                               Height="34"
+                                               Stretch="Uniform"
+                                               Source="{Binding Row.Icon}" />
+                                    </Border>
+                                    <TextBlock VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"
+                                               TextWrapping="NoWrap"
+                                               Text="{Binding Label}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
                 </Border>
             </Popup>
 
-            <Button x:Name="ColumnMenuButton" Grid.Column="7" Content="표시 열" Padding="14,6" Click="ColumnMenuButton_Click" />
+            <Button x:Name="ColumnMenuButton"
+                    Grid.Column="6"
+                    Content="표시 열"
+                    Padding="14,6"
+                    HorizontalAlignment="Right"
+                    Click="ColumnMenuButton_Click" />
 
             <Popup x:Name="ColumnMenuPopup"
+                   Grid.Column="6"
                    PlacementTarget="{Binding ElementName=ColumnMenuButton}"
-                   Placement="Bottom" StaysOpen="False" AllowsTransparency="True">
+                   Placement="Bottom"
+                   StaysOpen="False"
+                   AllowsTransparency="True">
                 <Border Background="{StaticResource BackgroundMediumBrush}"
-                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-                        CornerRadius="8" Padding="12" Margin="0,6,0,0">
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="12"
+                        Margin="0,6,0,0">
                     <StackPanel MinWidth="190">
                         <TextBlock Text="표에 표시할 정보" FontWeight="SemiBold" Margin="2,0,0,8" />
                         <CheckBox x:Name="CaliberColumnCheckBox" Content="구경" IsChecked="True" Checked="ColumnVisibility_Changed" Unchecked="ColumnVisibility_Changed" />
@@ -147,10 +181,7 @@
             </Popup>
         </Grid>
 
-        <TextBlock x:Name="SummaryText" Grid.Row="1"
-                   Foreground="{StaticResource TextSecondaryBrush}" Margin="2,0,0,10" />
-
-        <DataGrid x:Name="AmmoGrid" Grid.Row="2"
+        <DataGrid x:Name="AmmoGrid" Grid.Row="1"
                   AutoGenerateColumns="False" IsReadOnly="True"
                   CanUserAddRows="False" CanUserDeleteRows="False"
                   CanUserReorderColumns="True" CanUserResizeColumns="True" CanUserSortColumns="False"
@@ -197,13 +228,13 @@
             </DataGrid.Columns>
         </DataGrid>
 
-        <Button x:Name="ProductDetailToggleButton" Grid.Row="3"
+        <Button x:Name="ProductDetailToggleButton" Grid.Row="2"
                 Content="▼" ToolTip="상세정보 접기"
                 HorizontalAlignment="Center" VerticalAlignment="Center"
                 Width="42" MinWidth="42" MaxWidth="42" Height="30" Margin="0,3" Padding="0" FontWeight="SemiBold"
                 Click="ProductDetailToggleButton_Click" />
 
-        <Border x:Name="ProductDetailHost" Grid.Row="4" Background="{StaticResource BackgroundMediumBrush}" CornerRadius="8" Padding="16">
+        <Border x:Name="ProductDetailHost" Grid.Row="3" Background="{StaticResource BackgroundMediumBrush}" CornerRadius="8" Padding="16">
             <Grid>
                 <TextBlock x:Name="EmptyDetailText"
                            Text="탄약을 선택하면 세부 성능과 수급처를 확인할 수 있습니다."

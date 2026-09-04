@@ -27,14 +27,19 @@ public sealed class V1111ScannerSearchFeedbackContractTests
     }
 
     [Fact]
-    public void Items_and_hideout_share_the_quest_conditional_clear_button_contract()
+    public void Quest_items_and_hideout_own_the_shared_conditional_clear_button_attachment()
     {
         var root = FindRepositoryRoot();
         var behavior = Read(root, "src", "JunhyunHelper.Desktop", "Controls", "ProductSearchClearButtonBehavior.cs");
+        var quest = Read(root, "src", "JunhyunHelper.Desktop", "Quests", "QuestPage.xaml.cs");
+        var hideout = Read(root, "src", "JunhyunHelper.Desktop", "Hideout", "HideoutPage.xaml.cs");
+        var items = Read(root, "src", "JunhyunHelper.Desktop", "Items", "ItemsPage.xaml.cs");
 
-        Assert.Contains("typeof(QuestPage)", behavior, StringComparison.Ordinal);
-        Assert.Contains("typeof(HideoutPage)", behavior, StringComparison.Ordinal);
-        Assert.Contains("typeof(ItemsPage)", behavior, StringComparison.Ordinal);
+        foreach (var page in new[] { quest, hideout, items })
+            Assert.Contains("ProductSearchClearButtonBehavior.Attach(SearchBox);", page, StringComparison.Ordinal);
+
+        Assert.DoesNotContain("RegisterClassHandler", behavior, StringComparison.Ordinal);
+        Assert.DoesNotContain("FrameworkElement.LoadedEvent", behavior, StringComparison.Ordinal);
         Assert.Contains("Content = \"×\"", behavior, StringComparison.Ordinal);
         Assert.Contains("Visibility = string.IsNullOrEmpty(searchBox.Text) ? Visibility.Collapsed : Visibility.Visible", behavior, StringComparison.Ordinal);
         Assert.Contains("clearButton.Visibility = string.IsNullOrEmpty(searchBox.Text)", behavior, StringComparison.Ordinal);

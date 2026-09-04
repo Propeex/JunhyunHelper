@@ -25,15 +25,9 @@ public partial class MainWindow
         AmmoPage.SetFavoriteStore(_services.AmmoFavorites);
         AttachContentNavigation();
 
-        // Header presentation is likewise product-window infrastructure. Schedule it
-        // explicitly after the visual tree is loaded rather than relying on a static
-        // class-level Loaded handler whose activation depends on type/event ordering.
-        ScheduleHeaderStatusPolish();
-
-        // A readable older content schema remains a valid offline fallback, but v1.15.4
-        // needs the current schema for the new source-backed equipment metrics. Attach an
-        // opportunistic one-shot refresh trigger through this single lifecycle owner so
-        // partial classes never compete for WPF lifecycle overrides.
+        // A readable older content schema remains a valid offline fallback. Attach an
+        // opportunistic one-shot current-schema refresh through this single lifecycle
+        // owner so partial classes never compete for WPF lifecycle overrides.
         AttachContentSchemaRefreshTrigger();
 
         // Scanner global commands belong to the product window lifetime, not the
@@ -43,23 +37,10 @@ public partial class MainWindow
         ScannerCoordinator.AttachContextProvider(GetScannerDataContext);
         ScannerCoordinator.AttachHotkeyHost(this);
 
-        // The empty-state create button is XAML-owned and receives its legacy handler
-        // during InitializeComponent. Rebind it after the visual tree is complete so
-        // profile creation uses the same in-app overlay boundary as profile editing.
-        Dispatcher.BeginInvoke(AttachProfileOverlayLaunchers, DispatcherPriority.Loaded);
-
-        // Replace the original full-refresh mutation handlers with dependency-aware
-        // product handlers. This keeps the existing UI events while avoiding duplicate
-        // DB reads/workspace rebuilds after each Quest/Hideout change.
-        EnableFastMutationHandlers();
     }
 
     protected override void OnClosed(EventArgs e)
     {
-        // Release descriptor-backed event subscriptions before the product visual tree
-        // is torn down. This keeps lifecycle ownership symmetric and avoids retaining a
-        // closed MainWindow through component-model event infrastructure.
-        DetachHeaderStatusPolish();
         DetachContentSchemaRefreshTrigger();
 
         // Dispose product-owned hooks/timers before WPF tears down remaining windows.

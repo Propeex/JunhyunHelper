@@ -1,10 +1,6 @@
-using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using JunhyunHelper.Desktop.Hideout;
-using JunhyunHelper.Desktop.Items;
-using JunhyunHelper.Desktop.Quests;
 
 namespace JunhyunHelper.Desktop.Controls;
 
@@ -20,19 +16,6 @@ internal static class ProductSearchClearButtonBehavior
         typeof(ProductSearchClearButtonBehavior),
         new PropertyMetadata(false));
 
-    [ModuleInitializer]
-    internal static void Register()
-    {
-        EventManager.RegisterClassHandler(typeof(QuestPage), FrameworkElement.LoadedEvent, new RoutedEventHandler(PageLoaded));
-        EventManager.RegisterClassHandler(typeof(HideoutPage), FrameworkElement.LoadedEvent, new RoutedEventHandler(PageLoaded));
-        EventManager.RegisterClassHandler(typeof(ItemsPage), FrameworkElement.LoadedEvent, new RoutedEventHandler(PageLoaded));
-    }
-
-    private static void PageLoaded(object sender, RoutedEventArgs e)
-    {
-        if (sender is FrameworkElement page && page.FindName("SearchBox") is TextBox searchBox)
-            Attach(searchBox);
-    }
 
     internal static Button? Attach(TextBox searchBox)
     {

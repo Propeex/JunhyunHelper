@@ -9,26 +9,28 @@ public sealed class V191FinalUiContractTests
     public void Scanner_favorite_action_matches_wiki_height_and_verifies_after_detail_is_visible()
     {
         var root = FindRepositoryRoot();
-        var source = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.V191FinalUiPolish.cs");
+        var xaml = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.xaml");
+        var source = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.DetailActionSmoke.cs");
         var productUsability = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.ProductUsability.cs");
+        var retiredPolish = Path.Combine(
+            root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.V191FinalUiPolish.cs");
 
-        Assert.Contains("ApplyV191DetailActionAlignment();", productUsability, StringComparison.Ordinal);
-        Assert.DoesNotContain("V191DetailActionHandlerRegistered", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("EventManager.RegisterClassHandler", source, StringComparison.Ordinal);
-        Assert.Contains("private const double V191DetailActionHeight = 34d", source, StringComparison.Ordinal);
-        Assert.Contains("FavoriteItemButton.Height = V191DetailActionHeight", source, StringComparison.Ordinal);
-        Assert.Contains("WikiButton.Height = V191DetailActionHeight", source, StringComparison.Ordinal);
-        Assert.Contains("FavoriteItemButton.Padding = new Thickness(0)", source, StringComparison.Ordinal);
-        Assert.Contains("new FontFamily(\"Segoe UI Symbol\")", source, StringComparison.Ordinal);
-        Assert.Contains("FavoriteItemButton.HorizontalContentAlignment = HorizontalAlignment.Center", source, StringComparison.Ordinal);
-        Assert.Contains("FavoriteItemButton.VerticalContentAlignment = VerticalAlignment.Center", source, StringComparison.Ordinal);
-        Assert.Contains("SelectedItemPanel.IsVisibleChanged += SelectedItemPanel_V191SmokeIsVisibleChanged", source, StringComparison.Ordinal);
+        Assert.Contains("Height=\"34\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Padding=\"0\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("FontFamily=\"Segoe UI Symbol\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("HorizontalContentAlignment=\"Center\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("VerticalContentAlignment=\"Center\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("ArmDetailActionAlignmentSmoke();", productUsability, StringComparison.Ordinal);
+        Assert.DoesNotContain("FavoriteItemButton.Height =", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("WikiButton.Height =", source, StringComparison.Ordinal);
+        Assert.Contains("SelectedItemPanel.IsVisibleChanged += SelectedItemPanel_DetailActionSmokeIsVisibleChanged", source, StringComparison.Ordinal);
         Assert.Contains("SelectedItemPanel.Visibility != Visibility.Visible", source, StringComparison.Ordinal);
         Assert.Contains("new DispatcherTimer(", source, StringComparison.Ordinal);
         Assert.Contains("Visibility = Visibility.Visible", source, StringComparison.Ordinal);
-        Assert.Contains("RestoreV191DetailActionSmokePageVisibility();", source, StringComparison.Ordinal);
+        Assert.Contains("RestoreDetailActionSmokePageVisibility();", source, StringComparison.Ordinal);
         Assert.Contains("DispatcherPriority.Render", source, StringComparison.Ordinal);
         Assert.DoesNotContain("DispatcherPriority.ContextIdle", source, StringComparison.Ordinal);
+        Assert.False(File.Exists(retiredPolish));
     }
 
     [Fact]

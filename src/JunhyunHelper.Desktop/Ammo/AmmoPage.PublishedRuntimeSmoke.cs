@@ -25,15 +25,14 @@ public partial class AmmoPage
         // Runtime verification must never repair a missed product lifecycle. The
         // published executable is valid only when the real AmmoPage Loaded path already
         // installed the shared template, favorite selector and timer.
-        if (!_productCaliberDropdownApplied ||
-            _productFavoriteCaliberComboBox is null ||
+        if (!_productCaliberDropdownInitialized ||
             _productCaliberIconTimer is null)
         {
             throw new InvalidOperationException(
                 "Ammo caliber dropdown product lifecycle was not active before published visual smoke.");
         }
         if (CaliberComboBox.ItemTemplate is null ||
-            !ReferenceEquals(CaliberComboBox.ItemTemplate, _productFavoriteCaliberComboBox.ItemTemplate))
+            !ReferenceEquals(CaliberComboBox.ItemTemplate, FavoriteCaliberComboBox.ItemTemplate))
         {
             throw new InvalidOperationException(
                 "Ammo caliber and favorite selectors are not using the same runtime icon template.");
@@ -75,7 +74,7 @@ public partial class AmmoPage
             RefreshProductFavoriteChoices();
             SyncProductFavoriteSelection();
 
-            if (_productFavoriteCaliberComboBox.SelectedItem is not CaliberChoice favoriteChoice ||
+            if (FavoriteCaliberComboBox.SelectedItem is not CaliberChoice favoriteChoice ||
                 !string.Equals(favoriteChoice.RawCaliber, PublishedAmmoSmokeCaliber, StringComparison.Ordinal))
             {
                 throw new InvalidOperationException("Ammo favorite selector did not select the same smoke caliber.");
@@ -86,7 +85,7 @@ public partial class AmmoPage
             ForcePublishedSmokeLayout();
 
             RequireRenderedCaliberIcon(CaliberComboBox, firstIcon, "caliber selector initial icon");
-            RequireRenderedCaliberIcon(_productFavoriteCaliberComboBox, firstIcon, "favorite selector initial icon");
+            RequireRenderedCaliberIcon(FavoriteCaliberComboBox, firstIcon, "favorite selector initial icon");
 
             // Exercise the exact callback used by the product DispatcherTimer. Both
             // selectors must observe the same per-caliber index after the tick.
@@ -94,7 +93,7 @@ public partial class AmmoPage
             ForcePublishedSmokeLayout();
 
             RequireRenderedCaliberIcon(CaliberComboBox, secondIcon, "caliber selector cycled icon");
-            RequireRenderedCaliberIcon(_productFavoriteCaliberComboBox, secondIcon, "favorite selector shared cycled icon");
+            RequireRenderedCaliberIcon(FavoriteCaliberComboBox, secondIcon, "favorite selector shared cycled icon");
 
             if (!ReferenceEquals(CurrentProductCaliberIcon(PublishedAmmoSmokeCaliber), secondIcon))
                 throw new InvalidOperationException("Ammo shared caliber icon state did not advance to the second icon.");
@@ -114,7 +113,7 @@ public partial class AmmoPage
         {
             _productCaliberIconTimer.Stop();
             CaliberComboBox.IsDropDownOpen = false;
-            _productFavoriteCaliberComboBox.IsDropDownOpen = false;
+            FavoriteCaliberComboBox.IsDropDownOpen = false;
 
             _favoriteCalibers.Clear();
             _favoriteCalibers.UnionWith(originalFavorites);
@@ -141,7 +140,7 @@ public partial class AmmoPage
         Arrange(new Rect(0, 0, 1200, 720));
         UpdateLayout();
         CaliberComboBox.ApplyTemplate();
-        _productFavoriteCaliberComboBox?.ApplyTemplate();
+        FavoriteCaliberComboBox.ApplyTemplate();
         RefreshProductCaliberIconVisuals();
         UpdateLayout();
     }

@@ -5,6 +5,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using JunhyunHelper.Application.Hideout;
 using JunhyunHelper.Core.Content;
+using JunhyunHelper.Desktop.Controls;
 using JunhyunHelper.Desktop.Services;
 
 namespace JunhyunHelper.Desktop.Hideout;
@@ -35,6 +36,7 @@ public partial class HideoutPage : UserControl
     public HideoutPage()
     {
         InitializeComponent();
+        ProductSearchClearButtonBehavior.Attach(SearchBox);
         _levelSaveDebounceTimer = new DispatcherTimer(
             RapidLevelClickWindow,
             DispatcherPriority.Background,

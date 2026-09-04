@@ -21,9 +21,6 @@ public partial class ScannerSettingsWindow : Window
         settings.Normalize();
         foreach (var key in settings.MiniScannerInfoOrder)
         {
-            if (string.Equals(key, ScannerDisplaySettings.FleaMinimumPriceField, StringComparison.Ordinal))
-                continue;
-
             _rows.Add(new MiniInfoRow(
                 key,
                 LabelFor(key),
@@ -65,8 +62,6 @@ public partial class ScannerSettingsWindow : Window
         var orderedRows = _rows.ToArray();
         _coordinator.UpdateDisplaySettings(settings =>
         {
-            settings.ShowItemName = true;
-            settings.ShowItemIcon = true;
             settings.MiniScannerInfoOrder = orderedRows.Select(row => row.Key).ToList();
             foreach (var row in orderedRows)
                 settings.SetInfoVisible(row.Key, row.IsVisible);

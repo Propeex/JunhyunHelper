@@ -21,7 +21,13 @@
         </DataTemplate>
     </Window.Resources>
 
-    <Grid Margin="20">
+    <Border Margin="14"
+            Padding="14"
+            Background="{StaticResource BackgroundMediumBrush}"
+            BorderBrush="{StaticResource BorderBrush}"
+            BorderThickness="1"
+            CornerRadius="8">
+    <Grid Margin="0">
         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
         <StackPanel Grid.Row="0" Margin="0,0,0,18">
             <TextBlock x:Name="TitleText" Text="프로필 설정" FontSize="22" FontWeight="SemiBold" />
@@ -118,9 +124,17 @@
         <Grid Grid.Row="3" Margin="0,18,0,0">
             <Button x:Name="DeleteProfileButton" Content="이 프로필 삭제" HorizontalAlignment="Left" Visibility="Collapsed" Click="DeleteProfileButton_Click" />
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="취소" IsCancel="True" Margin="0,0,8,0" />
-                <Button Content="저장" IsDefault="True" Click="SaveButton_Click" />
+                <Button x:Name="CancelProfileButton"
+                        Content="취소"
+                        IsCancel="True"
+                        Margin="0,0,8,0"
+                        Click="CancelButton_Click" />
+                <Button x:Name="SaveProfileButton"
+                        Content="저장"
+                        IsDefault="True"
+                        Click="SaveButton_Click" />
             </StackPanel>
         </Grid>
     </Grid>
+    </Border>
 </Window>

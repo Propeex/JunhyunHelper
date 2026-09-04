@@ -1,9 +1,8 @@
 # Scanner — 제품/기술 계약
 
-기준일: 2026-08-27
-상태: **v1.7.14 PUBLIC STABLE / FEATURE COMPLETE / MAINTENANCE ONLY**
+상태: **EVERGREEN CURRENT SCANNER CONTRACT / FEATURE COMPLETE / MAINTENANCE ONLY**
 
-이 문서는 현재 Scanner 제품 동작과 기술 안전 계약의 canonical 전문 문서다. 역사적 근거는 버전별 결정/릴리즈 문서에 보존하고, 현재 구현 판단은 이 문서와 `docs/STATE.md`, 실제 코드가 우선한다.
+이 문서는 현재 Scanner 제품 동작과 기술 안전 계약의 canonical 전문 문서다. 정확한 현재 릴리즈 버전·SHA·CI·asset은 `docs/PROJECT_STATE.json`, `docs/CURRENT_STATE.md`, `docs/STATE.md`를 사용한다. 역사적 근거는 버전별 결정/릴리즈 문서에 보존한다.
 
 ## 1. 목적과 경계
 
@@ -17,7 +16,6 @@ Tarkov window pixels
 → HEADER_FRAME_LOCKED
 → item-name ROI
 → serialized Windows ko-KR OCR
-→ optional user OCR substitution
 → conditional cross-environment title normalization
 → current-catalog sanitation / normalization
 → conservative catalog matching / bounded recovery
@@ -43,7 +41,7 @@ Scanner는 범용 OCR이 아니라 **현재 공식 한국어 Tarkov full-item ca
 - game memory read / DLL injection / packet interception 금지
 - 새로운 reviewed evidence 없이 semantic/OCR/matcher/visual acceptance 완화 금지
 
-## 2. Current v1.7.14 product state
+## 2. Current product state
 
 Scanner는 기능 개발이 끝난 **maintenance-only** 상태다. 실제 사용자 evidence가 있는 회귀만 failure stage를 확인해 affected layer에 최소 수정한다.
 
@@ -62,8 +60,6 @@ Scanner는 기능 개발이 끝난 **maintenance-only** 상태다. 실제 사용
 - Scanner Settings가 Mini display/order와 global Scanner hotkey 편집을 함께 소유
 - Scanner Advanced는 MainWindow shared in-app overlay에 host
 - verified main-CI artifact만 stable release 가능
-
-v1.7.14는 Scanner identity recognition 기준을 바꾸지 않았다. Settings/hotkey/Advanced overlay와 search interaction만 통일했다.
 
 ## 3. 핵심 안전 불변식
 
@@ -162,7 +158,7 @@ remote Game Content fetch/build
 - 기존 healthy same-mode Scanner cache가 있으면 유지한다.
 - partial failure를 상태로 보고한다.
 
-## 7. Scanner UI — current v1.7.14
+## 7. Scanner UI — current contract
 
 Normal Scanner surface:
 
@@ -348,8 +344,6 @@ OCR text는 current official catalog를 대상으로 sanitation/normalization �
 - conservative confidence + top1/top2 margin
 - ambiguous result fail closed
 - bounded unknown/edit recovery only
-- user substitution은 명시적 사용자 correction 범위에서만 적용
-- automatic global forced substitution table을 제품 기본값으로 만들지 않음
 - optional visual corroboration은 current exact pixels에 한정
 - matcher/visual recovery acceptance를 new reviewed evidence 없이 완화하지 않음
 
@@ -543,24 +537,7 @@ Release build
 → public tag/release/asset readback
 ```
 
-Current v1.7.14 proof:
-
-```text
-PR #200 final head: 1a2f0189c6a6f2a21dc70f50cb092217f0977c13
-final PR CI: 33060440860 — SUCCESS
-main release source: 0a51375de36cd13047216006c2c0311728b1bd89
-main CI: 33060827905 — SUCCESS
-Release workflow: 33061059154 — SUCCESS
-release id: 377720327
-asset id: 532104142
-asset bytes: 80,488,363
-asset SHA-256: 341ac502d2ace563ab2e7c8d7091a8e796cf87e7d1f5961edf869feab106e2fd
-407 passed / 0 failed / 0 skipped
-```
-
-Public tag/ref and `/releases/latest` point to exact product source and public ZIP digest matches main-CI package hash.
-
-이후 documentation-only commit은 v1.7.14 product release source가 아니다. Published stable assets are immutable.
+Current release proof is intentionally not duplicated in this specialist contract. Use `docs/PROJECT_STATE.json`, `docs/CURRENT_STATE.md`, `docs/STATE.md`, and the release record for the current version. Published stable assets remain immutable.
 
 ## 20. Maintenance workflow
 
@@ -586,7 +563,7 @@ Failure stage 예시:
 - inspect-header ownership/semantic lock
 - title ROI
 - OCR
-- substitution/sanitation
+- sanitation / character policy
 - catalog match/ambiguity
 - visual corroboration
 - presentation join
@@ -616,7 +593,6 @@ Core:
 - `Core/Scanner/ScannerItemMatcher.cs`
 - `Core/Scanner/ScannerObservationPacingPolicy.cs`
 - `Core/Scanner/ScannerOcrCharacterPolicy.cs`
-- `Core/Scanner/ScannerOcrSubstitution.cs`
 - `Core/Scanner/ScannerPresentationJoin.cs`
 - `Core/Scanner/ScannerTitleIdentitySignature.cs`
 
@@ -635,13 +611,14 @@ Desktop:
 - `Scanner/ScannerFullCatalogVisualMatcher.cs`
 - `Scanner/ScannerItemPresentationService.cs`
 - `Scanner/ScannerRecognitionDebugStore.cs`
+- `Core/Scanner/ScannerOcrSubstitution.cs` — persisted user-owned exact substitution runtime
 - `Scanner/ScannerLatencyTelemetry.cs`
 - `Scanner/ScannerPage.xaml(.cs)`
 - `Scanner/ScannerPage.ProductUsability.cs`
 - `Scanner/ScannerSettingsWindow.xaml(.cs)`
 - `Scanner/ScannerAdvancedWindow.xaml(.cs)`
 - `Scanner/MiniScannerWindow.xaml(.cs)`
-- `MainWindow.ScannerItemSources.cs`
+- `MainWindow.ScannerItemNavigation.cs`
 - `MainWindow.InAppOverlay.cs`
 - `MainWindow.ProductUiLayoutSmoke.cs`
 
@@ -652,4 +629,4 @@ Current regression references:
 - `docs/CURRENT_SCANNER_WORK.md`
 - `docs/SCANNER_GROUND_TRUTH.md`
 
-현재 v1.7.14 릴리즈 배치에 남은 Scanner 개발 작업은 없다.
+현재 진행 중 Scanner 작업의 유무와 중단 지점은 `docs/ACTIVE_WORK.md`를 기준으로 판단한다.

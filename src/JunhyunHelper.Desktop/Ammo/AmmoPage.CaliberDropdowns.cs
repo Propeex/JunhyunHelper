@@ -12,51 +12,22 @@ namespace JunhyunHelper.Desktop.Ammo;
 
 public partial class AmmoPage
 {
-    private static readonly bool ProductCaliberDropdownHandlerRegistered = RegisterProductCaliberDropdownHandler();
     private static readonly IValueConverter ProductCaliberIconVisibilityConverter = new CaliberIconVisibilityConverter();
     private static readonly TimeSpan ProductCaliberIconCycleInterval = TimeSpan.FromMilliseconds(700);
 
-    private bool _productCaliberDropdownApplied;
-    private ComboBox? _productFavoriteCaliberComboBox;
+    private bool _productCaliberDropdownInitialized;
     private DispatcherTimer? _productCaliberIconTimer;
     private IReadOnlyList<AmmoRow>? _productSubscribedRows;
     private Dictionary<string, AmmoRow[]> _productCaliberRows = new(StringComparer.Ordinal);
     private readonly Dictionary<string, int> _productCaliberIconIndices = new(StringComparer.Ordinal);
     private bool _productSyncingFavoriteSelection;
 
-    // This explicit type initializer is intentional. The v1.7.15 implementation registered
-    // the Loaded class handler only through a static-field side effect. Without an explicit
-    // static constructor the CLR may mark the type beforefieldinit, so an AmmoPage instance
-    // can be constructed before that side effect runs and the published UI remains the
-    // text-only XAML fallback. An explicit type initializer makes registration deterministic
-    // before the first instance constructor executes.
-    static AmmoPage()
-    {
-        _ = ProductCaliberDropdownHandlerRegistered;
-    }
 
-    private static bool RegisterProductCaliberDropdownHandler()
+    private void InitializeProductCaliberDropdowns()
     {
-        EventManager.RegisterClassHandler(
-            typeof(AmmoPage),
-            FrameworkElement.LoadedEvent,
-            new RoutedEventHandler(OnProductCaliberDropdownLoaded));
-        return true;
-    }
-
-    private static void OnProductCaliberDropdownLoaded(object sender, RoutedEventArgs e)
-    {
-        if (sender is not AmmoPage page || !ReferenceEquals(e.OriginalSource, page))
+        if (_productCaliberDropdownInitialized)
             return;
-
-        page.Dispatcher.BeginInvoke(page.ApplyProductCaliberDropdownPolish, DispatcherPriority.Loaded);
-    }
-
-    private void ApplyProductCaliberDropdownPolish()
-    {
-        if (_productCaliberDropdownApplied)
-            return;
-        _productCaliberDropdownApplied = true;
+        _productCaliberDropdownInitialized = true;
 
         var template = CreateProductCaliberChoiceTemplate();
         CaliberComboBox.ItemTemplate = template;
@@ -64,34 +35,11 @@ public partial class AmmoPage
         CaliberComboBox.DropDownClosed += ProductCaliberComboBox_DropDownClosed;
         CaliberComboBox.SelectionChanged += ProductCaliberComboBox_SelectionChanged;
 
-        if (FavoriteCaliberMenuButton.Parent is Grid toolbar)
-        {
-            FavoriteCaliberPopup.IsOpen = false;
-            FavoriteCaliberMenuButton.Visibility = Visibility.Collapsed;
-            FavoriteCaliberMenuButton.IsHitTestVisible = false;
-
-            _productFavoriteCaliberComboBox = new ComboBox
-            {
-                Width = 170,
-                MinHeight = 32,
-                VerticalContentAlignment = VerticalAlignment.Center,
-                ItemTemplate = template,
-                MaxDropDownHeight = 460,
-                ToolTip = "즐겨찾기 구경 선택",
-            };
-            Grid.SetColumn(_productFavoriteCaliberComboBox, Grid.GetColumn(FavoriteCaliberMenuButton));
-            Grid.SetRow(_productFavoriteCaliberComboBox, Grid.GetRow(FavoriteCaliberMenuButton));
-            _productFavoriteCaliberComboBox.SetBinding(
-                IsEnabledProperty,
-                new Binding(nameof(IsEnabled)) { Source = FavoriteCaliberMenuButton });
-            _productFavoriteCaliberComboBox.SelectionChanged += ProductFavoriteCaliberComboBox_SelectionChanged;
-            _productFavoriteCaliberComboBox.DropDownOpened += ProductCaliberComboBox_DropDownOpened;
-            _productFavoriteCaliberComboBox.DropDownClosed += ProductCaliberComboBox_DropDownClosed;
-            _productFavoriteCaliberComboBox.IsEnabledChanged += ProductFavoriteCaliberComboBox_IsEnabledChanged;
-            toolbar.Children.Add(_productFavoriteCaliberComboBox);
-        }
-
-        FavoriteCaliberButton.Click += ProductFavoriteCaliberButton_Click;
+        FavoriteCaliberComboBox.ItemTemplate = template;
+        FavoriteCaliberComboBox.SelectionChanged += ProductFavoriteCaliberComboBox_SelectionChanged;
+        FavoriteCaliberComboBox.DropDownOpened += ProductCaliberComboBox_DropDownOpened;
+        FavoriteCaliberComboBox.DropDownClosed += ProductCaliberComboBox_DropDownClosed;
+        FavoriteCaliberComboBox.IsEnabledChanged += ProductFavoriteCaliberComboBox_IsEnabledChanged;
 
         _productCaliberIconTimer = new DispatcherTimer(DispatcherPriority.Background, Dispatcher)
         {
@@ -110,14 +58,10 @@ public partial class AmmoPage
     {
         if (CaliberComboBox.ItemTemplate is null)
             throw new InvalidOperationException("Ammo caliber runtime icon template was not installed.");
-        if (_productFavoriteCaliberComboBox is null)
-            throw new InvalidOperationException("Ammo favorite-caliber runtime ComboBox was not created.");
-        if (!ReferenceEquals(CaliberComboBox.ItemTemplate, _productFavoriteCaliberComboBox.ItemTemplate))
+        if (!ReferenceEquals(CaliberComboBox.ItemTemplate, FavoriteCaliberComboBox.ItemTemplate))
             throw new InvalidOperationException("Ammo caliber and favorite selectors do not share one icon template.");
         if (_productCaliberIconTimer is null || _productCaliberIconTimer.Interval != ProductCaliberIconCycleInterval)
-            throw new InvalidOperationException("Ammo caliber selectors are not using the v1.9.0 700ms shared icon cycle.");
-        if (FavoriteCaliberMenuButton.Visibility != Visibility.Collapsed || FavoriteCaliberMenuButton.IsHitTestVisible)
-            throw new InvalidOperationException("Legacy favorite-caliber menu remained active after runtime polish.");
+            throw new InvalidOperationException("Ammo caliber selectors are not using the required 700ms shared icon cycle.");
 
         if (string.Equals(Environment.GetEnvironmentVariable("JUNHYUNHELPER_MAP_SMOKE"), "1", StringComparison.Ordinal))
         {
@@ -176,7 +120,7 @@ public partial class AmmoPage
     private void ProductFavoriteCaliberComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_productSyncingFavoriteSelection ||
-            _productFavoriteCaliberComboBox?.SelectedItem is not CaliberChoice { RawCaliber: { } caliber })
+            FavoriteCaliberComboBox.SelectedItem is not CaliberChoice { RawCaliber: { } caliber })
         {
             return;
         }
@@ -193,18 +137,9 @@ public partial class AmmoPage
             CaliberComboBox.SelectedItem = target;
     }
 
-    private void ProductFavoriteCaliberButton_Click(object sender, RoutedEventArgs e)
-    {
-        RefreshProductFavoriteChoices();
-        SyncProductFavoriteSelection();
-        ScheduleProductCaliberIconRefresh();
-    }
 
     private void RefreshProductFavoriteChoices()
     {
-        if (_productFavoriteCaliberComboBox is null)
-            return;
-
         var selectedCaliber = (CaliberComboBox.SelectedItem as CaliberChoice)?.RawCaliber;
         var placeholder = new CaliberChoice(null, "즐겨찾기 선택");
         var favorites = CaliberComboBox.Items
@@ -216,8 +151,8 @@ public partial class AmmoPage
         _productSyncingFavoriteSelection = true;
         try
         {
-            _productFavoriteCaliberComboBox.ItemsSource = new[] { placeholder }.Concat(favorites).ToArray();
-            _productFavoriteCaliberComboBox.SelectedItem = favorites.FirstOrDefault(choice =>
+            FavoriteCaliberComboBox.ItemsSource = new[] { placeholder }.Concat(favorites).ToArray();
+            FavoriteCaliberComboBox.SelectedItem = favorites.FirstOrDefault(choice =>
                 string.Equals(choice.RawCaliber, selectedCaliber, StringComparison.Ordinal)) ?? placeholder;
         }
         finally
@@ -228,7 +163,7 @@ public partial class AmmoPage
 
     private void SyncProductFavoriteSelection()
     {
-        if (_productFavoriteCaliberComboBox?.ItemsSource is not IEnumerable<CaliberChoice> choices)
+        if (FavoriteCaliberComboBox.ItemsSource is not IEnumerable<CaliberChoice> choices)
             return;
 
         var selectedCaliber = (CaliberComboBox.SelectedItem as CaliberChoice)?.RawCaliber;
@@ -236,13 +171,13 @@ public partial class AmmoPage
                          selectedCaliber is not null &&
                          string.Equals(choice.RawCaliber, selectedCaliber, StringComparison.Ordinal))
                      ?? choices.FirstOrDefault(choice => choice.RawCaliber is null);
-        if (target is null || ReferenceEquals(_productFavoriteCaliberComboBox.SelectedItem, target))
+        if (target is null || ReferenceEquals(FavoriteCaliberComboBox.SelectedItem, target))
             return;
 
         _productSyncingFavoriteSelection = true;
         try
         {
-            _productFavoriteCaliberComboBox.SelectedItem = target;
+            FavoriteCaliberComboBox.SelectedItem = target;
         }
         finally
         {
@@ -302,8 +237,8 @@ public partial class AmmoPage
 
     private void ProductFavoriteCaliberComboBox_IsEnabledChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
-        if (e.NewValue is false && _productFavoriteCaliberComboBox is not null)
-            _productFavoriteCaliberComboBox.IsDropDownOpen = false;
+        if (e.NewValue is false)
+            FavoriteCaliberComboBox.IsDropDownOpen = false;
     }
 
     private void ProductCaliberIconTimer_Tick(object? sender, EventArgs e)
@@ -314,7 +249,7 @@ public partial class AmmoPage
 
     private void StopProductCaliberIconTimerWhenInactive()
     {
-        if (!CaliberComboBox.IsDropDownOpen && _productFavoriteCaliberComboBox?.IsDropDownOpen != true)
+        if (!CaliberComboBox.IsDropDownOpen && !FavoriteCaliberComboBox.IsDropDownOpen)
             _productCaliberIconTimer?.Stop();
     }
 
@@ -380,8 +315,7 @@ public partial class AmmoPage
     private void RefreshProductCaliberIconVisuals()
     {
         RefreshProductCaliberIconVisuals(CaliberComboBox);
-        if (_productFavoriteCaliberComboBox is not null)
-            RefreshProductCaliberIconVisuals(_productFavoriteCaliberComboBox);
+        RefreshProductCaliberIconVisuals(FavoriteCaliberComboBox);
     }
 
     private void RefreshProductCaliberIconVisuals(ComboBox comboBox)

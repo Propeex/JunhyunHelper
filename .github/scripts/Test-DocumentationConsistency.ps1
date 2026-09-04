@@ -34,7 +34,15 @@ $requiredFiles = @(
     'docs/ARCHITECTURE.md',
     'docs/DEVELOPER_REFERENCE.md',
     'docs/MAINTENANCE_CONTRACTS.md',
+    'docs/CONTENT_STORAGE.md',
+    'docs/DATA_MODEL.md',
+    'docs/SCANNER.md',
+    'docs/PROGRAM_UPDATE.md',
+    'docs/DEPLOYMENT.md',
     'src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj',
+    'src/JunhyunHelper.Desktop/Scanner/ScannerDisplaySettings.cs',
+    'src/JunhyunHelper.Infrastructure/Scanner/ScannerCatalogService.cs',
+    'src/JunhyunHelper.Infrastructure/Storage/ContentSnapshotStore.cs',
     'packaging/FIRST_RUN_KO.txt'
 )
 
@@ -101,16 +109,55 @@ if ($activeStatus -eq 'ACTIVE') {
     Assert-True ($activeWork -match 'branch:\s*\S+') 'ACTIVE_WORK is ACTIVE but branch information is missing.'
 }
 
-# Architecture/reference documents are evergreen implementation maps. They are not
-# release authority, but an old "PUBLIC STABLE" header is easy to misread. Keep
-# surfacing this debt until the large documents are naturally edited/normalized.
-foreach ($evergreenPath in @('docs/ARCHITECTURE.md', 'docs/DEVELOPER_REFERENCE.md')) {
+# Current implementation/reference documents must not duplicate a historical release
+# identity as if it were current. Release identity belongs to PROJECT_STATE/STATE.
+foreach ($evergreenPath in @(
+    'docs/ARCHITECTURE.md',
+    'docs/DEVELOPER_REFERENCE.md',
+    'docs/SCANNER.md',
+    'docs/PROGRAM_UPDATE.md',
+    'docs/DEPLOYMENT.md'
+)) {
     $evergreen = Read-RequiredText $evergreenPath
-    $marker = [regex]::Match($evergreen, 'v(?<version>\d+\.\d+\.\d+)\s+PUBLIC STABLE')
-    if ($marker.Success -and $marker.Groups['version'].Value -ne $stableVersion) {
-        Write-Warning "$evergreenPath contains historical PUBLIC STABLE marker v$($marker.Groups['version'].Value). Current release authority is PROJECT_STATE/STATE ($stableTag). Normalize this evergreen header when that document is next materially edited."
-    }
+    Assert-True (-not ($evergreen -match 'v\d+\.\d+\.\d+\s+PUBLIC STABLE')) "$evergreenPath contains a release-specific PUBLIC STABLE marker. Current release authority is PROJECT_STATE/STATE."
+    Assert-True (-not ($evergreen -match 'Current v\d+\.\d+\.\d+ proof:')) "$evergreenPath embeds a historical current-release proof block."
 }
+
+# Active-work and canonical decision records replace duplicate current-looking task docs.
+Assert-True (-not (Test-Path -LiteralPath 'docs/NEXT.md')) 'docs/NEXT.md must not compete with docs/ACTIVE_WORK.md.'
+Assert-True (-not (Test-Path -LiteralPath 'docs/FARMING_GUIDE.md')) 'Retired Farming Guide must not regain a current-looking specialist document.'
+
+$contentWrite = [int]$projectState.schemas.contentWrite
+$contentReadable = @($projectState.schemas.contentReadable | ForEach-Object { [int]$_ })
+$contentReadableMin = ($contentReadable | Measure-Object -Minimum).Minimum
+$contentReadableMax = ($contentReadable | Measure-Object -Maximum).Maximum
+$contentStorage = Read-RequiredText 'docs/CONTENT_STORAGE.md'
+$dataModel = Read-RequiredText 'docs/DATA_MODEL.md'
+foreach ($entry in @(
+    @{ Name = 'docs/CONTENT_STORAGE.md'; Text = $contentStorage },
+    @{ Name = 'docs/DATA_MODEL.md'; Text = $dataModel }
+)) {
+    Assert-True ($entry.Text.Contains("v$contentWrite", [System.StringComparison]::Ordinal)) "$($entry.Name) does not contain canonical Content write schema v$contentWrite."
+    Assert-True ($entry.Text.Contains("v$contentReadableMin~v$contentReadableMax", [System.StringComparison]::Ordinal)) "$($entry.Name) does not contain canonical Content readable range v$contentReadableMin~v$contentReadableMax."
+}
+
+$contentStoreSource = Read-RequiredText 'src/JunhyunHelper.Infrastructure/Storage/ContentSnapshotStore.cs'
+$contentWriteMatch = [regex]::Match($contentStoreSource, 'public const int CurrentSchemaVersion\s*=\s*(?<value>\d+);')
+$contentReadableMatch = [regex]::Match($contentStoreSource, 'public const int MinimumReadableSchemaVersion\s*=\s*(?<value>\d+);')
+Assert-True $contentWriteMatch.Success 'ContentSnapshotStore CurrentSchemaVersion constant is missing.'
+Assert-True $contentReadableMatch.Success 'ContentSnapshotStore MinimumReadableSchemaVersion constant is missing.'
+Assert-True ([int]$contentWriteMatch.Groups['value'].Value -eq $contentWrite) 'PROJECT_STATE contentWrite does not match ContentSnapshotStore.CurrentSchemaVersion.'
+Assert-True ([int]$contentReadableMatch.Groups['value'].Value -eq $contentReadableMin) 'PROJECT_STATE contentReadable minimum does not match ContentSnapshotStore.MinimumReadableSchemaVersion.'
+
+$scannerDisplaySource = Read-RequiredText 'src/JunhyunHelper.Desktop/Scanner/ScannerDisplaySettings.cs'
+$scannerDisplayMatch = [regex]::Match($scannerDisplaySource, 'public const int CurrentSchemaVersion\s*=\s*(?<value>\d+);')
+Assert-True $scannerDisplayMatch.Success 'ScannerDisplaySettings CurrentSchemaVersion constant is missing.'
+Assert-True ([int]$scannerDisplayMatch.Groups['value'].Value -eq [int]$projectState.schemas.scannerDisplaySettings) 'PROJECT_STATE scannerDisplaySettings does not match ScannerDisplaySettings.CurrentSchemaVersion.'
+
+$scannerCatalogSource = Read-RequiredText 'src/JunhyunHelper.Infrastructure/Scanner/ScannerCatalogService.cs'
+$scannerCatalogMatch = [regex]::Match($scannerCatalogSource, 'CurrentCacheSchemaVersion\s*=\s*(?<value>\d+);')
+Assert-True $scannerCatalogMatch.Success 'ScannerCatalogService CurrentCacheSchemaVersion constant is missing.'
+Assert-True ([int]$scannerCatalogMatch.Groups['value'].Value -eq [int]$projectState.schemas.scannerCatalogWrite) 'PROJECT_STATE scannerCatalogWrite does not match ScannerCatalogService.CurrentCacheSchemaVersion.'
 
 Write-Host 'Documentation consistency passed.'
 Write-Host "Desktop version: $desktopVersion"

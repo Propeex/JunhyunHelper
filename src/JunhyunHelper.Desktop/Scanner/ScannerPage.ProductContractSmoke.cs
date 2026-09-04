@@ -7,7 +7,7 @@ using System.Windows.Threading;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
-internal static class ScannerPageV1111ProductSmokeRegistration
+internal static class ScannerPageProductContractSmokeRegistration
 {
     [ModuleInitializer]
     internal static void Initialize()
@@ -15,7 +15,7 @@ internal static class ScannerPageV1111ProductSmokeRegistration
         EventManager.RegisterClassHandler(
             typeof(ScannerPage),
             FrameworkElement.LoadedEvent,
-            new RoutedEventHandler(ScannerPage.HandleV1111ProductSmokeLoaded),
+            new RoutedEventHandler(ScannerPage.HandleProductContractSmokeLoaded),
             handledEventsToo: true);
     }
 }
@@ -24,12 +24,12 @@ public partial class ScannerPage
 {
     private const string ProductSmokeEnvironmentVariable = "JUNHYUNHELPER_MAP_SMOKE";
     private const string ProductSmokeDiagnosticFileName = "junhyun-map-smoke-error.txt";
-    private bool _v1111ProductSmokeScheduled;
+    private bool _productContractSmokeScheduled;
 
-    internal static void HandleV1111ProductSmokeLoaded(object sender, RoutedEventArgs e)
+    internal static void HandleProductContractSmokeLoaded(object sender, RoutedEventArgs e)
     {
         if (sender is not ScannerPage page ||
-            page._v1111ProductSmokeScheduled ||
+            page._productContractSmokeScheduled ||
             !string.Equals(
                 Environment.GetEnvironmentVariable(ProductSmokeEnvironmentVariable),
                 "1",
@@ -38,18 +38,18 @@ public partial class ScannerPage
             return;
         }
 
-        page._v1111ProductSmokeScheduled = true;
+        page._productContractSmokeScheduled = true;
         _ = page.Dispatcher.BeginInvoke(
             DispatcherPriority.ContextIdle,
-            new Action(page.RunV1111ProductSmoke));
+            new Action(page.RunProductContractSmoke));
     }
 
-    private void RunV1111ProductSmoke()
+    private void RunProductContractSmoke()
     {
         try
         {
             if (_coordinator is null)
-                throw new InvalidOperationException("Scanner coordinator was unavailable for v1.11.1 product smoke.");
+                throw new InvalidOperationException("Scanner coordinator was unavailable for product-contract smoke.");
 
             VerifyAmmoPickupSettingsRow();
             VerifySearchClearButton(Window.GetWindow(this) as MainWindow);
@@ -130,7 +130,7 @@ public partial class ScannerPage
         if (clearButtons.Length != 1)
         {
             throw new InvalidOperationException(
-                $"{owner} search must have exactly one lifecycle-attached inline clear glyph, found {clearButtons.Length}.");
+                $"{owner} search must have exactly one page-owned inline clear glyph, found {clearButtons.Length}.");
         }
 
         var clearButton = clearButtons[0];
@@ -150,7 +150,7 @@ public partial class ScannerPage
                 $"{owner} search clear glyph remained visible while the query was empty.");
         }
 
-        searchBox.Text = "v113-smoke";
+        searchBox.Text = "product-smoke";
         searchBox.UpdateLayout();
         if (clearButton.Visibility != Visibility.Visible)
         {

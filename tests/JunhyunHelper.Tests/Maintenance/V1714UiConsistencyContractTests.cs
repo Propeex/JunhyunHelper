@@ -6,13 +6,12 @@ namespace JunhyunHelper.Tests.Maintenance;
 public sealed class V1714UiConsistencyContractTests
 {
     [Fact]
-    public void AmmoPopupLaunchers_CloseAlreadyOpenPopupBeforeClickReopensIt()
+    public void AmmoDisplayedColumnsPopup_CloseAlreadyOpenPopupBeforeClickReopensIt()
     {
         var root = FindRepositoryRoot();
-        var source = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.PopupToggleFixes.cs");
+        var source = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.ColumnMenuPopup.cs");
 
         Assert.Contains("OnPreviewMouseDown", source, StringComparison.Ordinal);
-        Assert.Contains("FavoriteCaliberPopup.IsOpen = false;", source, StringComparison.Ordinal);
         Assert.Contains("ColumnMenuPopup.IsOpen = false;", source, StringComparison.Ordinal);
         Assert.Contains("e.Handled = true;", source, StringComparison.Ordinal);
     }
@@ -37,6 +36,7 @@ public sealed class V1714UiConsistencyContractTests
         var xaml = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerSettingsWindow.xaml");
         var code = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerSettingsWindow.xaml.cs");
         var page = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.ProductUsability.cs");
+        var pageXaml = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.xaml");
         var scannerDirectory = Path.Combine(root, "src", "JunhyunHelper.Desktop", "Scanner");
 
         Assert.Contains("Scanner 단축키", xaml, StringComparison.Ordinal);
@@ -47,6 +47,8 @@ public sealed class V1714UiConsistencyContractTests
         Assert.Contains("SetOneShotTestHotkey", code, StringComparison.Ordinal);
         Assert.Contains("SetScannerToggleHotkey", code, StringComparison.Ordinal);
         Assert.Contains("ToggleInAppWindowAsync(\"scanner-settings\"", page, StringComparison.Ordinal);
+        Assert.Contains("Click=\"ProductSettingsButton_Click\"", pageXaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Click=\"SettingsButton_Click\"", pageXaml, StringComparison.Ordinal);
         Assert.False(File.Exists(Path.Combine(scannerDirectory, "ScannerHotkeySettingsWindow.xaml")));
         Assert.False(File.Exists(Path.Combine(scannerDirectory, "ScannerHotkeySettingsWindow.xaml.cs")));
     }
@@ -58,12 +60,15 @@ public sealed class V1714UiConsistencyContractTests
         var xaml = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerAdvancedWindow.xaml");
         var code = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerAdvancedWindow.xaml.cs");
         var page = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.ProductUsability.cs");
+        var pageXaml = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.xaml");
 
         Assert.DoesNotContain("AdvancedCloseButton", xaml, StringComparison.Ordinal);
         Assert.DoesNotContain("Content=\"닫기\"", xaml, StringComparison.Ordinal);
         Assert.Contains("IInAppOverlayDialog", code, StringComparison.Ordinal);
         Assert.Contains("TryDismissInAppOverlay", code, StringComparison.Ordinal);
         Assert.Contains("ToggleInAppWindowAsync(\"scanner-advanced\"", page, StringComparison.Ordinal);
+        Assert.Contains("Click=\"ProductAdvancedButton_Click\"", pageXaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Click=\"AdvancedButton_Click\"", pageXaml, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -84,15 +89,17 @@ public sealed class V1714UiConsistencyContractTests
     }
 
     [Fact]
-    public void ProfileEditor_UsesScannerStyleContentCardInsideSharedOverlay()
+    public void ProfileEditor_UsesCanonicalContentCardInsideSharedOverlay()
     {
         var root = FindRepositoryRoot();
-        var source = Read(root, "src", "JunhyunHelper.Desktop", "Profiles", "ProfileEditorWindow.ProductOverlayStyle.cs");
+        var xaml = Read(root, "src", "JunhyunHelper.Desktop", "Profiles", "ProfileEditorWindow.xaml");
+        var retiredShim = Path.Combine(
+            root, "src", "JunhyunHelper.Desktop", "Profiles", "ProfileEditorWindow.ProductOverlayStyle.cs");
 
-        Assert.Contains("ApplyProductOverlayStyle", source, StringComparison.Ordinal);
-        Assert.Contains("BackgroundMediumBrush", source, StringComparison.Ordinal);
-        Assert.Contains("BorderBrush", source, StringComparison.Ordinal);
-        Assert.Contains("CornerRadius = new CornerRadius(8)", source, StringComparison.Ordinal);
+        Assert.Contains("Background=\"{StaticResource BackgroundMediumBrush}\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("BorderBrush=\"{StaticResource BorderBrush}\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("CornerRadius=\"8\"", xaml, StringComparison.Ordinal);
+        Assert.False(File.Exists(retiredShim));
     }
 
     [Fact]
@@ -100,17 +107,53 @@ public sealed class V1714UiConsistencyContractTests
     {
         var root = FindRepositoryRoot();
         var behavior = Read(root, "src", "JunhyunHelper.Desktop", "Controls", "ProductSearchClearButtonBehavior.cs");
+        var quests = Read(root, "src", "JunhyunHelper.Desktop", "Quests", "QuestPage.xaml.cs");
+        var hideout = Read(root, "src", "JunhyunHelper.Desktop", "Hideout", "HideoutPage.xaml.cs");
+        var items = Read(root, "src", "JunhyunHelper.Desktop", "Items", "ItemsPage.xaml.cs");
         var ammo = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.ProductSearchAndDetails.cs");
         var scanner = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.ProductUsability.cs");
 
-        Assert.Contains("typeof(QuestPage)", behavior, StringComparison.Ordinal);
-        Assert.Contains("typeof(HideoutPage)", behavior, StringComparison.Ordinal);
-        Assert.Contains("typeof(ItemsPage)", behavior, StringComparison.Ordinal);
+        Assert.DoesNotContain("RegisterClassHandler", behavior, StringComparison.Ordinal);
+        Assert.Contains("ProductSearchClearButtonBehavior.Attach(SearchBox)", quests, StringComparison.Ordinal);
+        Assert.Contains("ProductSearchClearButtonBehavior.Attach(SearchBox)", hideout, StringComparison.Ordinal);
+        Assert.Contains("ProductSearchClearButtonBehavior.Attach(SearchBox)", items, StringComparison.Ordinal);
         Assert.Contains("Content = \"×\"", behavior, StringComparison.Ordinal);
         Assert.Contains("HorizontalAlignment = HorizontalAlignment.Right", behavior, StringComparison.Ordinal);
         Assert.Contains("searchBox.Clear()", behavior, StringComparison.Ordinal);
-        Assert.Contains("ProductSearchClearButtonBehavior.Attach(_productSearchBox)", ammo, StringComparison.Ordinal);
+        Assert.Contains("ProductSearchClearButtonBehavior.Attach(ProductSearchBox)", ammo, StringComparison.Ordinal);
+        Assert.DoesNotContain("new TextBox", ammo, StringComparison.Ordinal);
+        Assert.DoesNotContain("new Popup", ammo, StringComparison.Ordinal);
+        Assert.DoesNotContain("FavoriteCaliberButton.Click +=", ammo, StringComparison.Ordinal);
+        Assert.DoesNotContain("CaliberComboBox.SelectionChanged +=", ammo, StringComparison.Ordinal);
         Assert.Contains("ProductSearchClearButtonBehavior.Attach(ItemSearchBox)", scanner, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ScannerItemDetailScrolling_IsCanonicalXaml_NotRuntimeReparenting()
+    {
+        var root = FindRepositoryRoot();
+        var xaml = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.xaml");
+        var usability = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.ProductUsability.cs");
+
+        Assert.Contains("VerticalScrollBarVisibility=\"Auto\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"SelectedItemPanel\"", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("new ScrollViewer", usability, StringComparison.Ordinal);
+        Assert.DoesNotContain("EnsureSelectedItemScrolling", usability, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ScannerHotkeyCapture_IsOwnedBySettings_NotDedicatedWindow()
+    {
+        var root = FindRepositoryRoot();
+        var settings = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerSettingsWindow.xaml.cs");
+        var retiredXaml = Path.Combine(
+            root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerHotkeyCaptureWindow.xaml");
+        var retiredCode = retiredXaml + ".cs";
+
+        Assert.Contains("BeginCapture(CaptureTarget", settings, StringComparison.Ordinal);
+        Assert.Contains("CaptureButton_PreviewKeyDown", settings, StringComparison.Ordinal);
+        Assert.False(File.Exists(retiredXaml));
+        Assert.False(File.Exists(retiredCode));
     }
 
     private static string Read(string root, params string[] path) =>

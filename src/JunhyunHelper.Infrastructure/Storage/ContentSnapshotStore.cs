@@ -18,16 +18,12 @@ public sealed record StoredContentSnapshot(
 
 public sealed class ContentSnapshotStore
 {
-    // v3-v11 remain readable as last-known-good offline snapshots. v9 added canonical
-    // Tarkov equipment/storage grid, attachment slot, armor slot and conflict metadata.
-    // v10 added optional source-backed assembly metadata (composed/grid images, default
-    // preset identity and preset contained-item ids) used by Farming Guide v1.14.0.
-    // v11 added source-backed top-level equipment comparison facts used by Farming Guide
-    // v1.15.4: armor class plus headset distance/distortion.
-    // v12 adds source-backed Farming Guide tactical facts: provision energy/hydration and
-    // weapon/ammunition caliber plus explicit weapon allowed-ammo ids. Older readable
-    // snapshots remain valid offline fallbacks, but Desktop attempts a current-schema
-    // refresh so live advice can enforce survival/ammunition retention deterministically.
+    // v3-v12 remain readable as last-known-good offline snapshots. Some intermediate
+    // schema revisions carried optional metadata for the now-retired Farming Guide.
+    // Current GameContentCatalog/GameItem types are the read-side authority: historical
+    // extra JSON fields are tolerated, while current writes serialize only the model that
+    // still belongs to the product. Desktop opportunistically refreshes older readable
+    // snapshots to the current schema when network/content validation permits.
     public const int MinimumReadableSchemaVersion = 3;
     public const int CurrentSchemaVersion = 12;
 

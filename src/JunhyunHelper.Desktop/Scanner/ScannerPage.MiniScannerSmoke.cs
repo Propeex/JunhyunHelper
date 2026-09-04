@@ -35,8 +35,6 @@ public partial class ScannerPage
         if (settings.SchemaVersion != ScannerDisplaySettings.CurrentSchemaVersion ||
             settings.SchemaVersion != 10 ||
             settings.OcrSubstitutions.Count != 0 ||
-            !settings.ShowItemName ||
-            !settings.ShowItemIcon ||
             !settings.ShowAmmoPickup ||
             !settings.MiniScannerInfoOrder.SequenceEqual(ScannerDisplaySettings.DefaultInfoOrder) ||
             gestures[0] != ScannerHotkeyGesture.DefaultOneShotTarkov ||
@@ -45,18 +43,8 @@ public partial class ScannerPage
             gestures[3] != new ScannerHotkeyGesture(true, false, true, Key.F9) ||
             gestures.Distinct().Count() != 4)
         {
-            throw new InvalidOperationException("Scanner v1.15.0 settings/hotkey contract failed.");
+            throw new InvalidOperationException("Scanner current settings/hotkey contract failed.");
         }
-
-        var hiddenIdentity = new ScannerDisplaySettings
-        {
-            SchemaVersion = 5,
-            ShowItemName = false,
-            ShowItemIcon = false,
-        };
-        hiddenIdentity.Normalize();
-        if (!hiddenIdentity.ShowItemName || !hiddenIdentity.ShowItemIcon)
-            throw new InvalidOperationException("Scanner migration must keep Mini Scanner identity visible.");
 
         var migrated = new ScannerDisplaySettings
         {
@@ -72,6 +60,7 @@ public partial class ScannerPage
             migrated.AddCorrectionDataHotkey,
         }.Where(static value => !string.IsNullOrWhiteSpace(value)).ToArray();
         if (migrated.OneShotTarkovHotkey != ScannerHotkeyGesture.DefaultOneShotTest.ToString() ||
+            migrated.OneShotHotkey is not null ||
             migratedHotkeys.Distinct(StringComparer.OrdinalIgnoreCase).Count() != migratedHotkeys.Length)
         {
             throw new InvalidOperationException("Scanner legacy hotkey migration produced a collision.");
@@ -131,7 +120,7 @@ public partial class ScannerPage
                 AmmoShouldPickUp = true,
                 EvaluatedAmmoName = "5.56x45mm M855",
             };
-            window.Render(snapshot, settings, editMode: false);
+            window.Render(snapshot, settings);
             window.UpdateLayout();
 
             if (window.FindName("TraderPriceText") is not TextBlock trader ||
@@ -160,9 +149,8 @@ public partial class ScannerPage
                 ScannerDisplaySettings.TraderSellPriceField,
                 ScannerDisplaySettings.TraderPricePerSlotField,
                 ScannerDisplaySettings.FleaPricePerSlotField,
-                ScannerDisplaySettings.FleaMinimumPriceField,
             ];
-            window.Render(snapshot, settings, editMode: false);
+            window.Render(snapshot, settings);
             if (window.FindName("CurrentNeededText") is not TextBlock needed ||
                 window.FindName("InfoStackPanel") is not StackPanel reordered ||
                 !ReferenceEquals(reordered.Children[0], ammoPickup) ||
@@ -172,7 +160,7 @@ public partial class ScannerPage
             }
 
             settings.ShowAmmoPickup = false;
-            window.Render(snapshot, settings, editMode: false);
+            window.Render(snapshot, settings);
             if (ammoPickup.Visibility != Visibility.Collapsed)
                 throw new InvalidOperationException("Mini Scanner ammo pickup visibility setting was not applied.");
         }

@@ -11,22 +11,8 @@ namespace JunhyunHelper.Desktop;
 
 public partial class MainWindow
 {
-    private void EnableFastMutationHandlers()
-    {
-        QuestPage.ActionRequested -= QuestPage_ActionRequested;
-        QuestPage.ActionRequested -= QuestPage_ActionRequestedFast;
-        QuestPage.ActionRequested += QuestPage_ActionRequestedFast;
 
-        HideoutPage.LevelChangeRequested -= HideoutPage_LevelChangeRequested;
-        HideoutPage.LevelChangeRequested -= HideoutPage_LevelChangeRequestedFast;
-        HideoutPage.LevelChangeRequested += HideoutPage_LevelChangeRequestedFast;
-
-        ItemsPage.InventoryChangeRequested -= ItemsPage_InventoryChangeRequested;
-        ItemsPage.InventoryChangeRequested -= ItemsPage_InventoryChangeRequestedFast;
-        ItemsPage.InventoryChangeRequested += ItemsPage_InventoryChangeRequestedFast;
-    }
-
-    private async void QuestPage_ActionRequestedFast(object? sender, QuestActionRequestedEventArgs e)
+    private async void QuestPage_ActionRequested(object? sender, QuestActionRequestedEventArgs e)
     {
         if (_activeProfile is null || _activeContent is null)
             return;
@@ -50,14 +36,7 @@ public partial class MainWindow
 
         try
         {
-            SetBusy(true, e.Action switch
-            {
-                QuestActionKind.Complete => "퀘스트 완료를 저장하는 중...",
-                QuestActionKind.UndoCompletion => "퀘스트 완료를 취소하는 중...",
-                QuestActionKind.Fail => "퀘스트 실패를 저장하는 중...",
-                QuestActionKind.UndoFailure => "퀘스트 실패를 취소하는 중...",
-                _ => "퀘스트 진행 상태를 저장하는 중...",
-            });
+            SetBusy(true);
 
             var previousPlan = _activeItemsWorkspace?.Plan;
             var questWorkspace = e.Action switch
@@ -80,7 +59,7 @@ public partial class MainWindow
             QuestPage.SetDataPreservingScroll(_activeContent, questWorkspace);
             ItemsPage.SetData(_activeContent, itemsWorkspace);
             ApplyCleanupChanges(previousPlan, itemsWorkspace);
-            StatusText.Text = BuildLoadedStatus(_activeProfile.GameMode);
+
         }
         catch (Exception exception)
         {
@@ -88,11 +67,11 @@ public partial class MainWindow
         }
         finally
         {
-            SetBusy(false, StatusText.Text);
+            SetBusy(false);
         }
     }
 
-    private async void HideoutPage_LevelChangeRequestedFast(
+    private async void HideoutPage_LevelChangeRequested(
         object? sender,
         HideoutLevelChangeRequestedEventArgs e)
     {
@@ -127,7 +106,7 @@ public partial class MainWindow
 
         try
         {
-            SetBusy(true, "은신처 레벨을 저장하는 중...");
+            SetBusy(true);
             var previousPlan = _activeItemsWorkspace?.Plan;
             var hideoutWorkspace = await _services.Hideout.SetLevelAsync(
                 _activeContent,
@@ -139,15 +118,14 @@ public partial class MainWindow
             _activeProfile = hideoutWorkspace.Profile;
 
             // Hideout levels and inventory quantities do not participate in current
-            // quest availability. Rebuilding/re-rendering the entire Quest workspace
-            // here was pure UI work and was the main source of mutation stutter.
+            // quest availability, so this mutation refreshes only affected workspaces.
             var itemsWorkspace = _services.Items.BuildFromProfile(_activeContent, _activeProfile);
             _activeItemsWorkspace = itemsWorkspace;
 
             HideoutPage.SetData(_activeContent, hideoutWorkspace);
             ItemsPage.SetData(_activeContent, itemsWorkspace);
             ApplyCleanupChanges(previousPlan, itemsWorkspace);
-            StatusText.Text = BuildLoadedStatus(_activeProfile.GameMode);
+
         }
         catch (Exception exception)
         {
@@ -155,11 +133,11 @@ public partial class MainWindow
         }
         finally
         {
-            SetBusy(false, StatusText.Text);
+            SetBusy(false);
         }
     }
 
-    private async void ItemsPage_InventoryChangeRequestedFast(
+    private async void ItemsPage_InventoryChangeRequested(
         object? sender,
         InventoryChangeRequestedEventArgs e)
     {
@@ -168,7 +146,7 @@ public partial class MainWindow
 
         try
         {
-            SetBusy(true, "보유 아이템 수량을 저장하는 중...");
+            SetBusy(true);
             var previousPlan = _activeItemsWorkspace?.Plan;
             var itemsWorkspace = await _services.Items.SetInventoryAsync(
                 _activeContent,
@@ -180,12 +158,11 @@ public partial class MainWindow
             _activeProfile = itemsWorkspace.Profile;
             _activeItemsWorkspace = itemsWorkspace;
 
-            // Inventory quantities affect Needed Items/Cleanup only. Reuse the static
-            // planning basis and preserve already-loaded icons instead of rebuilding all
-            // quest reachability and restarting the entire item image pipeline.
+            // Inventory quantities affect Needed Items/Cleanup only, so this mutation
+            // refreshes the Items workspace without rebuilding unrelated Quest state.
             ItemsPage.SetInventoryData(_activeContent, itemsWorkspace);
             ApplyCleanupChanges(previousPlan, itemsWorkspace);
-            StatusText.Text = BuildLoadedStatus(_activeProfile.GameMode);
+
         }
         catch (Exception exception)
         {
@@ -193,7 +170,7 @@ public partial class MainWindow
         }
         finally
         {
-            SetBusy(false, StatusText.Text);
+            SetBusy(false);
         }
     }
 

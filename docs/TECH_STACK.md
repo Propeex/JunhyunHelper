@@ -2,7 +2,9 @@
 
 결정일: **2026-08-08**
 
-상태: `CONFIRMED — 초기 핵심 구현`
+상태: `HISTORICAL INITIAL STACK DECISION — CURRENT STACK AUTHORITY IS ARCHITECTURE.md`
+
+이 문서는 초기 기술 선택의 이유를 보존한다. 현재 프로젝트 구성, dependency boundary, 패키지와 runtime 구조는 `ARCHITECTURE.md`, `DEVELOPER_REFERENCE.md`, 실제 project files를 기준으로 한다. 예를 들어 초기의 "3개 제품 프로젝트" 계획은 이후 `JunhyunHelper.Application` 도입으로 더 이상 현재 구조가 아니다.
 
 기술 선택 기준은 최신 유행보다 **준현 헬퍼의 기능을 가장 단순하고 직접적으로 구현할 수 있는가**입니다.
 

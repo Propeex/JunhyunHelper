@@ -9,11 +9,12 @@ public sealed class V1715UiRefinementsContractTests
     public void Header_ShowsVersionOnlyAndUsesItemsCleanupDot()
     {
         var root = FindRepositoryRoot();
-        var source = Read(root, "src", "JunhyunHelper.Desktop", "MainWindow.HeaderStatusPolish.cs");
+        var xaml = Read(root, "src", "JunhyunHelper.Desktop", "MainWindow.xaml");
+        var source = Read(root, "src", "JunhyunHelper.Desktop", "MainWindow.ItemsCleanupIndicator.cs");
 
-        Assert.Contains("StatusText.Visibility = Visibility.Collapsed", source, StringComparison.Ordinal);
-        Assert.Contains("VersionText.Margin = new Thickness(0)", source, StringComparison.Ordinal);
-        Assert.Contains("Color.FromRgb(245, 158, 11)", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("StatusText", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"ItemsCleanupIndicator\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Fill=\"#F59E0B\"", xaml, StringComparison.Ordinal);
         Assert.Contains("_activeItemsWorkspace?.Plan.CleanupItems.Count", source, StringComparison.Ordinal);
         Assert.Contains("Visibility.Visible", source, StringComparison.Ordinal);
         Assert.Contains("Visibility.Collapsed", source, StringComparison.Ordinal);
@@ -23,14 +24,16 @@ public sealed class V1715UiRefinementsContractTests
     public void Ammo_CaliberAndFavoritesShareOneAnimatedIconTemplate()
     {
         var root = FindRepositoryRoot();
-        var source = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.CaliberDropdownPolish.cs");
+        var source = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.CaliberDropdowns.cs");
+        var xaml = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.xaml");
 
-        Assert.Contains("static AmmoPage()", source, StringComparison.Ordinal);
-        Assert.Contains("ProductCaliberDropdownHandlerRegistered", source, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"FavoriteCaliberComboBox\"", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("FavoriteCaliberMenuButton", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("FavoriteCaliberPopup", xaml, StringComparison.Ordinal);
         Assert.Contains("CaliberComboBox.ItemTemplate = template", source, StringComparison.Ordinal);
-        Assert.Contains("ItemTemplate = template", source, StringComparison.Ordinal);
-        Assert.Contains("FavoriteCaliberMenuButton.Visibility = Visibility.Collapsed", source, StringComparison.Ordinal);
-        Assert.Contains("_productFavoriteCaliberComboBox = new ComboBox", source, StringComparison.Ordinal);
+        Assert.Contains("FavoriteCaliberComboBox.ItemTemplate = template", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("_productFavoriteCaliberComboBox = new ComboBox", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("RegisterClassHandler", source, StringComparison.Ordinal);
         Assert.Contains("VerifyProductCaliberDropdownRuntimeContract", source, StringComparison.Ordinal);
         Assert.Contains("junhyun-ammo-ui-smoke-success.txt", source, StringComparison.Ordinal);
         Assert.Contains("ProductCaliberIconCycleInterval = TimeSpan.FromMilliseconds(700)", source, StringComparison.Ordinal);

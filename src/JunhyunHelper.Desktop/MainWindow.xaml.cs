@@ -48,7 +48,7 @@ public partial class MainWindow : Window
     {
         try
         {
-            SetBusy(true, "프로필을 불러오는 중...");
+            SetBusy(true);
             _profiles = await _services.ProfileManagement.LoadAllAsync();
 
             var targetProfileId = selectedProfileId ?? _activeProfile?.ProfileId;
@@ -75,7 +75,7 @@ public partial class MainWindow : Window
         }
         finally
         {
-            SetBusy(false, StatusText.Text);
+            SetBusy(false);
         }
     }
 
@@ -92,7 +92,7 @@ public partial class MainWindow : Window
         ScannerPlaceholder.Visibility = Visibility.Collapsed;
         ItemsPage.ClearCleanupNotice();
         EmptyState.Visibility = Visibility.Visible;
-        StatusText.Text = "프로필 설정 필요";
+
         EditProfileButton.IsEnabled = false;
         UpdateDataButton.IsEnabled = false;
         UpdateSectionButtons();
@@ -113,7 +113,7 @@ public partial class MainWindow : Window
         }
         finally
         {
-            SetBusy(false, StatusText.Text);
+            SetBusy(false);
         }
     }
 
@@ -122,7 +122,7 @@ public partial class MainWindow : Window
         if (ProfileComboBox.SelectedItem is not ProfileChoice choice)
             return;
 
-        SetBusy(true, "게임 데이터를 불러오는 중...");
+        SetBusy(true);
         _activeProfile = choice.Profile;
         _activeContent = await ReadOrCreateContentAsync(choice.Profile.GameMode);
         _activeItemsWorkspace = null;
@@ -132,7 +132,7 @@ public partial class MainWindow : Window
         AmmoPage.SetData(_activeContent);
         EmptyState.Visibility = Visibility.Collapsed;
         ShowActiveSection();
-        StatusText.Text = BuildLoadedStatus(choice.Profile.GameMode);
+
     }
 
     private async Task<IReadOnlyList<InventoryCleanupIncrease>> RefreshActiveWorkspacesAsync(
@@ -206,7 +206,7 @@ public partial class MainWindow : Window
             UpdateProgressBar.Value = percent;
             UpdateProgressStageText.Text = value.Message;
             UpdateProgressPercentText.Text = $"{percent}%";
-            StatusText.Text = value.Message;
+
         });
 
         try
@@ -225,7 +225,7 @@ public partial class MainWindow : Window
                     ? "아이콘 준비 완료"
                     : $"아이콘 다운로드 중... {value.Completed}/{value.Total}";
                 UpdateProgressPercentText.Text = $"{percent}%";
-                StatusText.Text = UpdateProgressStageText.Text;
+
             });
             await _services.Images.PrefetchAsync(snapshot.Content, imageProgress);
 
@@ -240,326 +240,8 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void CreateProfileButton_Click(object sender, RoutedEventArgs e)
-    {
-        var existingModes = _profiles.Select(profile => profile.GameMode).ToHashSet();
-        var availableModes = Enum.GetValues<GameMode>()
-            .Where(mode => !existingModes.Contains(mode))
-            .ToArray();
 
-        if (availableModes.Length == 0)
-        {
-            MessageBox.Show(
-                this,
-                "현재 지원하는 모든 게임 모드의 프로필이 이미 있습니다.",
-                "새 프로필",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-            return;
-        }
 
-        var modeWindow = new ProfileModeWindow(availableModes)
-        {
-            Owner = this,
-        };
-        if (modeWindow.ShowDialog() != true || modeWindow.SelectedMode is not { } mode)
-            return;
-
-        try
-        {
-            SetBusy(true, $"{GameModeText(mode)} 데이터를 준비하는 중...");
-            var content = await ReadOrCreateContentAsync(mode);
-            SetBusy(false, "프로필 정보를 입력해주세요.");
-
-            var editor = new ProfileEditorWindow(mode, content)
-            {
-                Owner = this,
-            };
-            if (editor.ShowDialog() != true || editor.Result is not { } result)
-                return;
-
-            SetBusy(true, "프로필을 저장하는 중...");
-            var created = await _services.ProfileManagement.CreateAsync(
-                mode,
-                result.Level,
-                result.Faction,
-                result.EditionId,
-                result.PrestigeLevel,
-                result.Traders);
-
-            await LoadProfilesAsync(created.ProfileId);
-        }
-        catch (Exception exception)
-        {
-            ShowFailure("프로필을 만들지 못했습니다.", exception);
-        }
-        finally
-        {
-            SetBusy(false, StatusText.Text);
-        }
-    }
-
-    private async void EditProfileButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (_activeProfile is null || _activeContent is null)
-            return;
-
-        var profileId = _activeProfile.ProfileId;
-        var editor = new ProfileEditorWindow(
-            _activeProfile.GameMode,
-            _activeContent,
-            _activeProfile)
-        {
-            Owner = this,
-        };
-        if (editor.ShowDialog() != true)
-            return;
-
-        if (editor.DeleteRequested)
-        {
-            try
-            {
-                SetBusy(true, "프로필을 삭제하는 중...");
-                await _services.ProfileManagement.DeleteAsync(profileId);
-                _activeProfile = null;
-                await LoadProfilesAsync();
-            }
-            catch (Exception exception)
-            {
-                ShowFailure("프로필을 삭제하지 못했습니다.", exception);
-            }
-            finally
-            {
-                SetBusy(false, StatusText.Text);
-            }
-            return;
-        }
-
-        if (editor.Result is not { } result)
-            return;
-
-        try
-        {
-            SetBusy(true, "프로필을 저장하는 중...");
-            var updated = await _services.ProfileManagement.UpdateSettingsAsync(
-                profileId,
-                result.Level,
-                result.Faction,
-                result.EditionId,
-                result.PrestigeLevel,
-                result.Traders);
-
-            await LoadProfilesAsync(updated.ProfileId);
-        }
-        catch (Exception exception)
-        {
-            ShowFailure("프로필을 수정하지 못했습니다.", exception);
-        }
-        finally
-        {
-            SetBusy(false, StatusText.Text);
-        }
-    }
-
-    private async void UpdateDataButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (_activeProfile is null)
-            return;
-
-        try
-        {
-            SetBusy(true, "최신 게임 데이터를 업데이트하는 중...");
-            var result = await RunContentUpdateAsync(_activeProfile.GameMode);
-            if (!result.Applied)
-            {
-                throw new InvalidDataException(
-                    "새 데이터가 검증을 통과하지 못해 기존 정상 데이터를 유지했습니다.");
-            }
-
-            var snapshot = await _services.Content.ReadActiveOrRecoverAsync(_activeProfile.GameMode);
-            _activeContent = snapshot.Content;
-            AmmoPage.SetData(_activeContent);
-            var cleanupChanges = await RefreshActiveWorkspacesAsync(detectCleanupChanges: true);
-            ShowActiveSection();
-
-            if (cleanupChanges.Count > 0)
-            {
-                MessageBox.Show(
-                    this,
-                    $"게임 데이터 변경으로 정리 가능한 보유 아이템이 {cleanupChanges.Count}종 생기거나 늘었습니다. 아이템 탭의 '정리 필요'에서 확인할 수 있습니다.",
-                    "필요 아이템 변경",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
-            }
-
-            StatusText.Text = BuildLoadedStatus(_activeProfile.GameMode);
-        }
-        catch (Exception exception)
-        {
-            ShowFailure("게임 데이터를 업데이트하지 못했습니다.", exception);
-        }
-        finally
-        {
-            SetBusy(false, StatusText.Text);
-        }
-    }
-
-    private async void QuestPage_ActionRequested(object? sender, QuestActionRequestedEventArgs e)
-    {
-        if (_activeProfile is null || _activeContent is null)
-            return;
-
-        var restoreInventory = false;
-        if (e.Action == QuestActionKind.UndoCompletion &&
-            _activeProfile.QuestConsumptions.TryGetValue(e.QuestId, out var consumption) &&
-            !consumption.IsEmpty)
-        {
-            var decision = MessageBox.Show(
-                this,
-                "이 퀘스트를 완료할 때 자동으로 차감한 보유 아이템 기록이 있습니다.\n\n차감했던 수량을 보유량에 다시 복원할까요?",
-                "퀘스트 완료 취소",
-                MessageBoxButton.YesNoCancel,
-                MessageBoxImage.Question,
-                MessageBoxResult.Yes);
-            if (decision == MessageBoxResult.Cancel)
-                return;
-            restoreInventory = decision == MessageBoxResult.Yes;
-        }
-
-        try
-        {
-            SetBusy(true, e.Action switch
-            {
-                QuestActionKind.Complete => "퀘스트 완료를 저장하는 중...",
-                QuestActionKind.UndoCompletion => "퀘스트 완료를 취소하는 중...",
-                QuestActionKind.Fail => "퀘스트 실패를 저장하는 중...",
-                QuestActionKind.UndoFailure => "퀘스트 실패를 취소하는 중...",
-                _ => "퀘스트 진행 상태를 저장하는 중...",
-            });
-
-            _ = e.Action switch
-            {
-                QuestActionKind.Complete => await _services.Quests.CompleteAsync(
-                    _activeContent,
-                    _activeProfile.ProfileId,
-                    e.QuestId),
-                QuestActionKind.UndoCompletion => await _services.Quests.UndoCompletionAsync(
-                    _activeContent,
-                    _activeProfile.ProfileId,
-                    e.QuestId,
-                    restoreInventory),
-                QuestActionKind.Fail => await _services.Quests.FailAsync(
-                    _activeContent,
-                    _activeProfile.ProfileId,
-                    e.QuestId),
-                QuestActionKind.UndoFailure => await _services.Quests.UndoFailureAsync(
-                    _activeContent,
-                    _activeProfile.ProfileId,
-                    e.QuestId),
-                _ => throw new ArgumentOutOfRangeException(nameof(e.Action), e.Action, null),
-            };
-
-            await RefreshActiveWorkspacesAsync(detectCleanupChanges: true);
-            StatusText.Text = BuildLoadedStatus(_activeProfile.GameMode);
-        }
-        catch (Exception exception)
-        {
-            ShowFailure("퀘스트 진행 상태를 변경하지 못했습니다.", exception);
-        }
-        finally
-        {
-            SetBusy(false, StatusText.Text);
-        }
-    }
-
-    private async void HideoutPage_LevelChangeRequested(
-        object? sender,
-        HideoutLevelChangeRequestedEventArgs e)
-    {
-        if (_activeProfile is null || _activeContent is null)
-            return;
-
-        var currentLevel = _activeProfile.HideoutLevels.TryGetValue(e.StationId, out var savedLevel)
-            ? savedLevel
-            : 0;
-        var targetLevel = e.Level ?? 0;
-        var restoreInventory = false;
-
-        if (targetLevel < currentLevel)
-        {
-            var hasConsumption = Enumerable.Range(targetLevel + 1, currentLevel - targetLevel)
-                .Any(level => _activeProfile.HideoutUpgradeConsumptions.ContainsKey(
-                    HideoutApplicationService.UpgradeConsumptionKey(e.StationId, level)));
-            if (hasConsumption)
-            {
-                var decision = MessageBox.Show(
-                    this,
-                    "되돌리는 은신처 업그레이드에서 자동으로 차감한 보유 아이템 기록이 있습니다.\n\n차감했던 수량을 보유량에 다시 복원할까요?",
-                    "은신처 레벨 되돌리기",
-                    MessageBoxButton.YesNoCancel,
-                    MessageBoxImage.Question,
-                    MessageBoxResult.Yes);
-                if (decision == MessageBoxResult.Cancel)
-                    return;
-                restoreInventory = decision == MessageBoxResult.Yes;
-            }
-        }
-
-        try
-        {
-            SetBusy(true, "은신처 레벨을 저장하는 중...");
-            await _services.Hideout.SetLevelAsync(
-                _activeContent,
-                _activeProfile.ProfileId,
-                e.StationId,
-                e.Level,
-                restoreInventory);
-
-            await RefreshActiveWorkspacesAsync(detectCleanupChanges: true);
-            StatusText.Text = BuildLoadedStatus(_activeProfile.GameMode);
-        }
-        catch (Exception exception)
-        {
-            ShowFailure("은신처 진행 상태를 변경하지 못했습니다.", exception);
-        }
-        finally
-        {
-            SetBusy(false, StatusText.Text);
-        }
-    }
-
-    private async void ItemsPage_InventoryChangeRequested(
-        object? sender,
-        InventoryChangeRequestedEventArgs e)
-    {
-        if (_activeProfile is null || _activeContent is null)
-            return;
-
-        try
-        {
-            SetBusy(true, "보유 아이템 수량을 저장하는 중...");
-            var workspace = await _services.Items.SetInventoryAsync(
-                _activeContent,
-                _activeProfile.ProfileId,
-                e.ItemId,
-                e.Fir,
-                e.NonFir);
-
-            _activeProfile = workspace.Profile;
-            _activeItemsWorkspace = workspace;
-            ItemsPage.SetData(_activeContent, workspace);
-            ItemsPage.ClearCleanupNotice();
-            StatusText.Text = BuildLoadedStatus(_activeProfile.GameMode);
-        }
-        catch (Exception exception)
-        {
-            ShowFailure("보유 아이템 수량을 변경하지 못했습니다.", exception);
-        }
-        finally
-        {
-            SetBusy(false, StatusText.Text);
-        }
-    }
 
     private void QuestTabButton_Click(object sender, RoutedEventArgs e)
     {
@@ -623,7 +305,7 @@ public partial class MainWindow : Window
         UpdateSectionButtons();
     }
 
-    private void SetBusy(bool busy, string status)
+    private void SetBusy(bool busy)
     {
         ProfileComboBox.IsEnabled = !busy && _profiles.Count > 0;
         EditProfileButton.IsEnabled = !busy && _activeProfile is not null;
@@ -641,7 +323,7 @@ public partial class MainWindow : Window
         AmmoTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Ammo;
         MapTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Map;
         ScannerTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Scanner;
-        StatusText.Text = status;
+        RefreshItemsCleanupIndicator();
     }
 
     private void UpdateSectionButtons()
@@ -655,16 +337,10 @@ public partial class MainWindow : Window
         ScannerTabButton.IsEnabled = hasProfile && _activeSection != DesktopSection.Scanner;
     }
 
-    private string BuildLoadedStatus(GameMode gameMode)
-    {
-        _ = gameMode;
-        var cleanupCount = _activeItemsWorkspace?.Plan.CleanupItems.Count ?? 0;
-        return $"정리 필요 {cleanupCount}";
-    }
 
     private void ShowFailure(string title, Exception exception)
     {
-        StatusText.Text = title;
+
         MessageBox.Show(
             this,
             exception.Message,

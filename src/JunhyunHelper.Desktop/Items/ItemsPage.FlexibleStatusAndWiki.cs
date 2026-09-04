@@ -184,7 +184,6 @@ public partial class ItemsPage
         }
 
         FilterComboBox.IsEnabled = !_busy;
-        UsageComboBox.IsEnabled = !_busy && _viewMode == ItemViewMode.Normal;
     }
 
     private void ApplyJunhyunFlexibleStatusFilter()

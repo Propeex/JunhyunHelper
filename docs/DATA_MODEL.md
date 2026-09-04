@@ -24,7 +24,7 @@
 
 게임 모드별로 독립된 snapshot을 사용합니다.
 
-현재 Content snapshot schema는 **v7**, 읽기 지원 범위는 **v3~v7**입니다.
+현재 Content snapshot write schema는 **v12**, 읽기 지원 범위는 **v3~v12**입니다.
 
 ### User Progress
 
@@ -139,7 +139,7 @@ canonical 의미는 raw `requirementType + compareMethod + value + trader`를 �
 
 새 requirement type / comparison이 importer가 이해하는 범위를 벗어나면 fail-closed 합니다.
 
-### Profile-variable requirement — schema v7
+### Profile-variable requirement — schema v7에서 구조화 도입
 
 `globalVariable` requirement는 opaque 문자열이 아니라 다음 의미를 구조적으로 보존합니다.
 
@@ -412,7 +412,7 @@ Future planning은 `IndeterminatePotential`을 보수적으로 보호하여 프�
 
 Game Content는 모드별 `content.db`에 versioned snapshot으로 저장합니다.
 
-현재 최신 schema는 **v7**이고 v3~v7을 last-known-good 범위로 읽습니다.
+현재 write schema는 **v12**이고 v3~v12를 last-known-good 범위로 읽습니다.
 
 계산 편의를 위한 convenience property는 같은 사실을 snapshot에 중복 저장하지 않습니다.
 

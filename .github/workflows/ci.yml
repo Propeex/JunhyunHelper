@@ -161,9 +161,9 @@ jobs:
           $miniMapSelectionSync = Join-Path $env:TEMP 'junhyun-minimap-selection-sync-smoke-success.txt'
           $scannerDetail = Join-Path $env:TEMP 'junhyun-scanner-item-detail-smoke-success.txt'
           $scannerFavorites = Join-Path $env:TEMP 'junhyun-scanner-favorites-recents-smoke-success.txt'
-          $scannerV191Actions = Join-Path $env:TEMP 'junhyun-scanner-v191-detail-actions-smoke-success.txt'
+          $scannerDetailActions = Join-Path $env:TEMP 'junhyun-scanner-detail-actions-smoke-success.txt'
           $startupLog = Join-Path $env:LOCALAPPDATA 'JunhyunHelper/logs/startup.log'
-          foreach ($path in @($diagnostic, $success, $ammoIcons, $ammoToolbar, $mapExtract, $miniMapSelectionSync, $scannerDetail, $scannerFavorites, $scannerV191Actions, $startupLog)) {
+          foreach ($path in @($diagnostic, $success, $ammoIcons, $ammoToolbar, $mapExtract, $miniMapSelectionSync, $scannerDetail, $scannerFavorites, $scannerDetailActions, $startupLog)) {
             Remove-Item $path -Force -ErrorAction SilentlyContinue
           }
 
@@ -237,7 +237,7 @@ jobs:
               @{ Name = 'MiniMap map selection synchronization'; Path = $miniMapSelectionSync },
               @{ Name = 'Scanner item detail'; Path = $scannerDetail },
               @{ Name = 'Scanner favorites/recents'; Path = $scannerFavorites },
-              @{ Name = 'Scanner v1.9.1 detail actions'; Path = $scannerV191Actions }
+              @{ Name = 'Scanner detail actions'; Path = $scannerDetailActions }
             )
 
             # Some feature probes are scheduled at Dispatcher.ContextIdle after the main
@@ -303,14 +303,14 @@ jobs:
               'user-log-pane-hidden=ok',
               'canonical-item-id=ok'
             )
-            Assert-MarkerContains -Path $scannerV191Actions -Name 'Scanner v1.9.1 detail actions' -ExpectedLines @(
+            Assert-MarkerContains -Path $scannerDetailActions -Name 'Scanner detail actions' -ExpectedLines @(
               'favorite-wiki-height=34',
               'favorite-symbol-font=ok',
               'favorite-content-centered=ok',
               'wiki-content-centered=ok'
             )
 
-            Write-Host "Startup + rendered Product UI + full Map/Factory/MiniMap + v1.9 Scanner smoke passed. Requesting normal Main Window close..."
+            Write-Host "Startup + rendered Product UI + full Map/Factory/MiniMap + Scanner smoke passed. Requesting normal Main Window close..."
 
             $closeRequested = $false
             for ($attempt = 1; $attempt -le 10; $attempt++) {
@@ -371,20 +371,11 @@ jobs:
             }
           }
 
-          $expectedPackages = [System.Collections.Generic.List[string]]::new()
-          $expectedPackages.Add($stableName)
-          if ($expectedVersion -eq '1.6.0') {
-            $bridgeName = "Junhyun-Helper-v$expectedVersion-win-x64.zip"
-            $bridgePath = Join-Path 'artifacts/release' $bridgeName
-            if (-not (Test-Path $bridgePath)) {
-              throw "The v1.5 updater compatibility package was not produced: $bridgeName"
-            }
-            $expectedPackages.Add($bridgeName)
-          }
+          $expectedPackages = @($stableName)
 
           $checksumLines = @(Get-Content $checksumPath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-          if ($checksumLines.Count -ne $expectedPackages.Count) {
-            throw "SHA256SUMS.txt contains $($checksumLines.Count) entries; expected $($expectedPackages.Count)."
+          if ($checksumLines.Count -ne 1) {
+            throw "SHA256SUMS.txt contains $($checksumLines.Count) entries; expected exactly one stable package entry."
           }
 
           foreach ($packageName in $expectedPackages) {

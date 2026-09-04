@@ -39,11 +39,10 @@ public partial class MiniScannerWindow : Window
 
     public event Action<double, double>? PositionCommitted;
 
-    public void Render(ScannerItemSnapshot snapshot, ScannerDisplaySettings settings, bool editMode)
+    public void Render(ScannerItemSnapshot snapshot, ScannerDisplaySettings settings)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(settings);
-        _ = editMode;
 
         _hideWhenTransientStatusEnds = false;
         ItemContentPanel.Visibility = Visibility.Visible;
@@ -81,14 +80,6 @@ public partial class MiniScannerWindow : Window
         }
     }
 
-    // Kept for the hidden Foundation preview API. User-facing position edit mode no
-    // longer exists; the Mini Scanner is always draggable while visible.
-    public void SetEditMode(bool editMode)
-    {
-        _ = editMode;
-        ApplyExtendedStyles();
-        EnforceTopmost();
-    }
 
     public (double X, double Y) GetPosition() => (Left, Top);
 

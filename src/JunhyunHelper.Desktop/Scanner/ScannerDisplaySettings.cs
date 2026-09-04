@@ -9,7 +9,6 @@ public sealed class ScannerDisplaySettings
 
     public const string TraderSellPriceField = "trader_sell_price";
     public const string FleaAveragePriceField = "flea_average_price";
-    public const string FleaMinimumPriceField = "flea_minimum_price";
     public const string TraderPricePerSlotField = "trader_price_per_slot";
     public const string FleaPricePerSlotField = "flea_price_per_slot";
     public const string CurrentNeededField = "current_needed";
@@ -19,7 +18,6 @@ public sealed class ScannerDisplaySettings
     [
         TraderSellPriceField,
         FleaAveragePriceField,
-        FleaMinimumPriceField,
         TraderPricePerSlotField,
         FleaPricePerSlotField,
         CurrentNeededField,
@@ -31,11 +29,8 @@ public sealed class ScannerDisplaySettings
 
     public int SchemaVersion { get; set; }
     public bool Enabled { get; set; }
-    public bool ShowItemName { get; set; } = true;
-    public bool ShowItemIcon { get; set; } = true;
     public bool ShowTraderSellPrice { get; set; } = true;
     public bool ShowFleaAveragePrice { get; set; } = true;
-    public bool ShowFleaMinimumPrice { get; set; } = true;
     public bool ShowTraderPricePerSlot { get; set; } = true;
     public bool ShowFleaPricePerSlot { get; set; }
     public bool ShowCurrentNeeded { get; set; } = true;
@@ -50,10 +45,9 @@ public sealed class ScannerDisplaySettings
     public string AddCorrectionDataHotkey { get; set; } = DefaultAddCorrectionData.ToString();
 
     /// <summary>
-    /// Optional user-owned exact OCR corrections. The default is deliberately empty;
-    /// rules are evidence supplied by the user, not a global product substitution table.
-    /// This remains an internal compatibility setting even though the normal Scanner
-    /// settings surface no longer exposes a dedicated editor.
+    /// Persisted user-owned exact OCR corrections. The normal settings surface does not
+    /// expose an editor, but existing rules remain an active runtime compatibility
+    /// contract and are applied by ScannerRuntimeService before catalog matching.
     /// </summary>
     public List<ScannerOcrSubstitutionRule> OcrSubstitutions { get; set; } = [];
 
@@ -66,11 +60,8 @@ public sealed class ScannerDisplaySettings
     {
         SchemaVersion = SchemaVersion,
         Enabled = Enabled,
-        ShowItemName = ShowItemName,
-        ShowItemIcon = ShowItemIcon,
         ShowTraderSellPrice = ShowTraderSellPrice,
         ShowFleaAveragePrice = ShowFleaAveragePrice,
-        ShowFleaMinimumPrice = ShowFleaMinimumPrice,
         ShowTraderPricePerSlot = ShowTraderPricePerSlot,
         ShowFleaPricePerSlot = ShowFleaPricePerSlot,
         ShowCurrentNeeded = ShowCurrentNeeded,
@@ -91,7 +82,6 @@ public sealed class ScannerDisplaySettings
     {
         if (SchemaVersion < 2)
         {
-            ShowItemIcon = true;
             ShowTraderSellPrice = true;
             ShowTraderPricePerSlot = true;
         }
@@ -116,11 +106,8 @@ public sealed class ScannerDisplaySettings
             OneShotHotkey = null;
         }
 
-        ShowItemName = true;
-        ShowItemIcon = true;
+        OneShotHotkey = null;
 
-        if (SchemaVersion < 7)
-            ShowFleaMinimumPrice = true;
         if (SchemaVersion < 9)
             ShowAmmoPickup = true;
 
@@ -189,7 +176,6 @@ public sealed class ScannerDisplaySettings
     {
         TraderSellPriceField => ShowTraderSellPrice,
         FleaAveragePriceField => ShowFleaAveragePrice,
-        FleaMinimumPriceField => ShowFleaMinimumPrice,
         TraderPricePerSlotField => ShowTraderPricePerSlot,
         FleaPricePerSlotField => ShowFleaPricePerSlot,
         CurrentNeededField => ShowCurrentNeeded,
@@ -206,9 +192,6 @@ public sealed class ScannerDisplaySettings
                 break;
             case FleaAveragePriceField:
                 ShowFleaAveragePrice = visible;
-                break;
-            case FleaMinimumPriceField:
-                ShowFleaMinimumPrice = visible;
                 break;
             case TraderPricePerSlotField:
                 ShowTraderPricePerSlot = visible;

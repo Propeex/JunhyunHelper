@@ -7,7 +7,7 @@ using System.Windows.Threading;
 
 namespace JunhyunHelper.Desktop.Scanner;
 
-internal static class ScannerPageV113CorrectionZoomSmokeRegistration
+internal static class ScannerPageCorrectionZoomSmokeRegistration
 {
     [ModuleInitializer]
     internal static void Initialize()
@@ -15,19 +15,19 @@ internal static class ScannerPageV113CorrectionZoomSmokeRegistration
         EventManager.RegisterClassHandler(
             typeof(ScannerPage),
             FrameworkElement.LoadedEvent,
-            new RoutedEventHandler(ScannerPage.HandleV113CorrectionZoomSmokeLoaded),
+            new RoutedEventHandler(ScannerPage.HandleCorrectionZoomSmokeLoaded),
             handledEventsToo: true);
     }
 }
 
 public partial class ScannerPage
 {
-    private bool _v113CorrectionZoomSmokeScheduled;
+    private bool _correctionZoomSmokeScheduled;
 
-    internal static void HandleV113CorrectionZoomSmokeLoaded(object sender, RoutedEventArgs e)
+    internal static void HandleCorrectionZoomSmokeLoaded(object sender, RoutedEventArgs e)
     {
         if (sender is not ScannerPage page ||
-            page._v113CorrectionZoomSmokeScheduled ||
+            page._correctionZoomSmokeScheduled ||
             !string.Equals(
                 Environment.GetEnvironmentVariable("JUNHYUNHELPER_MAP_SMOKE"),
                 "1",
@@ -36,13 +36,13 @@ public partial class ScannerPage
             return;
         }
 
-        page._v113CorrectionZoomSmokeScheduled = true;
+        page._correctionZoomSmokeScheduled = true;
         _ = page.Dispatcher.BeginInvoke(
             DispatcherPriority.ApplicationIdle,
-            new Action(page.VerifyV113CorrectionImageZoom));
+            new Action(page.VerifyCorrectionImageZoom));
     }
 
-    private void VerifyV113CorrectionImageZoom()
+    private void VerifyCorrectionImageZoom()
     {
         ScannerCorrectionWindow? window = null;
         try
@@ -58,7 +58,7 @@ public partial class ScannerPage
                 bitmap,
                 CaptureOriginX: 0,
                 CaptureOriginY: 0,
-                Source: "v1.11.3-published-smoke",
+                Source: "published-smoke",
                 SelectedBounds: new Rect(120, 80, 760, 480),
                 TitleBounds: new Rect(180, 120, 620, 28),
                 MagnifierBounds: null,
@@ -67,7 +67,7 @@ public partial class ScannerPage
                 StructuralReason: "SMOKE",
                 TitleAnchorScore: 1,
                 TitleAnchorReason: "SMOKE",
-                CaseId: "case_v113_zoom_smoke");
+                CaseId: "case_correction_zoom_smoke");
 
             window = new ScannerCorrectionWindow(frame, coordinator: null)
             {

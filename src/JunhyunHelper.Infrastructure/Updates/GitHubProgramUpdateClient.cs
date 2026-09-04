@@ -138,9 +138,7 @@ public sealed class GitHubProgramUpdateClient : IDisposable
             throw new InvalidDataException("GitHub release assets are missing.");
 
         var tagName = tagElement.GetString()!;
-        var legacyPackageFileName = $"Junhyun-Helper-v{version.ToString(3)}-win-x64.zip";
-        Uri? stablePackageUri = null;
-        Uri? legacyPackageUri = null;
+        Uri? packageUri = null;
         Uri? checksumUri = null;
 
         foreach (var asset in assetsElement.EnumerateArray())
@@ -156,7 +154,6 @@ public sealed class GitHubProgramUpdateClient : IDisposable
 
             var name = nameElement.GetString();
             if (!string.Equals(name, StablePackageFileName, StringComparison.Ordinal) &&
-                !string.Equals(name, legacyPackageFileName, StringComparison.Ordinal) &&
                 !string.Equals(name, "SHA256SUMS.txt", StringComparison.Ordinal))
             {
                 continue;
@@ -169,19 +166,15 @@ public sealed class GitHubProgramUpdateClient : IDisposable
             ValidateReleaseAssetUri(uri);
 
             if (string.Equals(name, StablePackageFileName, StringComparison.Ordinal))
-                stablePackageUri = uri;
-            else if (string.Equals(name, legacyPackageFileName, StringComparison.Ordinal))
-                legacyPackageUri = uri;
+                packageUri = uri;
             else
                 checksumUri = uri;
         }
 
-        var packageUri = stablePackageUri ?? legacyPackageUri;
-        var packageFileName = stablePackageUri is not null ? StablePackageFileName : legacyPackageFileName;
         if (packageUri is null || checksumUri is null)
-            throw new InvalidDataException("The latest release does not contain the required Windows package and checksum assets.");
+            throw new InvalidDataException("The latest release does not contain the required stable Windows package and checksum assets.");
 
-        return new ProgramUpdateRelease(version, tagName, packageFileName, packageUri, checksumUri);
+        return new ProgramUpdateRelease(version, tagName, StablePackageFileName, packageUri, checksumUri);
     }
 
     internal static bool TryParseReleaseVersion(string? tagName, out Version version)
@@ -259,18 +252,6 @@ public sealed class GitHubProgramUpdateClient : IDisposable
             .Where(item => item.Name.Length > 0)
             .ToArray();
 
-        var stableRootPrefix = StablePackageRootDirectory + "/";
-        var hasStableRoot = normalizedEntries.Any(item =>
-            string.Equals(item.Name.TrimEnd('/'), StablePackageRootDirectory, StringComparison.Ordinal) ||
-            item.Name.StartsWith(stableRootPrefix, StringComparison.Ordinal));
-        var hasLegacyRoot = normalizedEntries.Any(item =>
-            !string.Equals(item.Name.TrimEnd('/'), StablePackageRootDirectory, StringComparison.Ordinal) &&
-            !item.Name.StartsWith(stableRootPrefix, StringComparison.Ordinal));
-
-        if (hasStableRoot && hasLegacyRoot)
-            throw new InvalidDataException("The update package mixes the stable product folder with legacy root entries.");
-
-        var stripStableRoot = hasStableRoot;
         var seenEntries = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var item in normalizedEntries)
@@ -283,14 +264,12 @@ public sealed class GitHubProgramUpdateClient : IDisposable
             if (sourceSegments.Length == 0 || sourceSegments.Any(segment => segment is "." or ".."))
                 throw new InvalidDataException($"Unsafe update archive path: {item.Entry.FullName}");
 
-            if (stripStableRoot)
-            {
-                if (!string.Equals(sourceSegments[0], StablePackageRootDirectory, StringComparison.Ordinal))
-                    throw new InvalidDataException($"Unexpected stable update package root entry: {sourceSegments[0]}");
-                sourceSegments = sourceSegments.Skip(1).ToArray();
-                if (sourceSegments.Length == 0)
-                    continue;
-            }
+            if (!string.Equals(sourceSegments[0], StablePackageRootDirectory, StringComparison.Ordinal))
+                throw new InvalidDataException($"Unexpected update package root entry: {sourceSegments[0]}");
+
+            sourceSegments = sourceSegments.Skip(1).ToArray();
+            if (sourceSegments.Length == 0)
+                continue;
 
             if (!allowedRoots.Contains(sourceSegments[0]))
                 throw new InvalidDataException($"Unexpected update package root entry: {sourceSegments[0]}");

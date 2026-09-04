@@ -6,6 +6,7 @@ using JunhyunHelper.Application.Quests;
 using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.Profiles;
 using JunhyunHelper.Core.Quests;
+using JunhyunHelper.Desktop.Controls;
 using JunhyunHelper.Desktop.Services;
 
 namespace JunhyunHelper.Desktop.Quests;
@@ -37,6 +38,7 @@ public partial class QuestPage : UserControl
     public QuestPage()
     {
         InitializeComponent();
+        ProductSearchClearButtonBehavior.Attach(SearchBox);
         PopulateStatusFilter();
     }
 

@@ -9,28 +9,27 @@ public sealed class V183VisibleUiActivationContractTests
     public void AmmoVisibleDropdowns_ActivateDuringPageInitialization()
     {
         var root = FindRepositoryRoot();
-        var lifecycle = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.ProductGridFixes.cs");
-        var activation = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.VisibleDropdownActivation.cs");
+        var lifecycle = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.Initialization.cs");
+        var activation = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.CaliberSelectorSmoke.cs");
 
         Assert.Contains("protected override void OnInitialized(EventArgs e)", lifecycle, StringComparison.Ordinal);
-        Assert.Contains("EnsureProductVisibleDropdownInitialization();", lifecycle, StringComparison.Ordinal);
-        Assert.Contains("ApplyProductCaliberDropdownPolish();", activation, StringComparison.Ordinal);
-        Assert.Contains("_productVisibleDropdownActivatedFromInitialization = true", activation, StringComparison.Ordinal);
-        Assert.DoesNotContain("RegisterProductVisibleDropdownActivation", activation, StringComparison.Ordinal);
-        Assert.Contains("VerifyProductVisibleDropdownInitialization", activation, StringComparison.Ordinal);
-        Assert.Contains("FavoriteCaliberMenuButton.Visibility != Visibility.Collapsed", activation, StringComparison.Ordinal);
-        Assert.Contains("ReferenceEquals(CaliberComboBox.ItemTemplate, _productFavoriteCaliberComboBox.ItemTemplate)", activation, StringComparison.Ordinal);
+        Assert.Contains("InitializeProductCaliberDropdowns();", lifecycle, StringComparison.Ordinal);
+        Assert.DoesNotContain("EnsureProductVisibleDropdownInitialization", lifecycle, StringComparison.Ordinal);
+        Assert.DoesNotContain("_productVisibleDropdownActivatedFromInitialization", activation, StringComparison.Ordinal);
+        Assert.Contains("VerifyProductCaliberSelectorInitialization", activation, StringComparison.Ordinal);
+        Assert.DoesNotContain("FavoriteCaliberMenuButton", activation, StringComparison.Ordinal);
+        Assert.Contains("ReferenceEquals(CaliberComboBox.ItemTemplate, FavoriteCaliberComboBox.ItemTemplate)", activation, StringComparison.Ordinal);
     }
 
     [Fact]
     public void AmmoPublishedSmoke_CannotRepairMissingProductInitialization()
     {
         var root = FindRepositoryRoot();
-        var source = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.VisibleDropdownActivation.cs");
+        var source = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.CaliberSelectorSmoke.cs");
 
         Assert.Contains("typeof(MainWindow)", source, StringComparison.Ordinal);
-        Assert.Contains("window.AmmoPage.VerifyProductVisibleDropdownInitialization();", source, StringComparison.Ordinal);
-        Assert.Contains("cannot hide a missing real product initialization", source, StringComparison.Ordinal);
+        Assert.Contains("window.AmmoPage.VerifyProductCaliberSelectorInitialization();", source, StringComparison.Ordinal);
+        Assert.Contains("cannot repair a missing real product path", source, StringComparison.Ordinal);
         Assert.Contains("Environment.Exit(88)", source, StringComparison.Ordinal);
     }
 
