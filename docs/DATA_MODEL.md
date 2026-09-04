@@ -412,7 +412,7 @@ Future planning은 `IndeterminatePotential`을 보수적으로 보호하여 프�
 
 Game Content는 모드별 `content.db`에 versioned snapshot으로 저장합니다.
 
-현재 최신 schema는 **v7**이고 v3~v7을 last-known-good 범위로 읽습니다.
+현재 write schema는 **v12**이고 v3~v12를 last-known-good 범위로 읽습니다.
 
 계산 편의를 위한 convenience property는 같은 사실을 snapshot에 중복 저장하지 않습니다.
 
