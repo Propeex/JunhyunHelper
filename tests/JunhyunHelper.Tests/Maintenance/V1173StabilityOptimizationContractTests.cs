@@ -83,6 +83,46 @@ public sealed class V1173StabilityOptimizationContractTests
         Assert.Contains("ownsBusyState", manualUpdate, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ScannerSearch_ReusesCatalogSnapshotAndCanonicalContentIndexes()
+    {
+        var root = FindRepositoryRoot();
+        var catalog = Read(root, "src", "JunhyunHelper.Infrastructure", "Scanner", "ScannerCatalogService.cs");
+        var index = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerCoordinator.ContentPresentationIndex.cs");
+        var search = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerCoordinator.Search.cs");
+        var relationships = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerCoordinator.ItemRelationships.cs");
+
+        Assert.Contains("_itemsSnapshot = Array.Empty<ScannerCatalogItem>()", catalog, StringComparison.Ordinal);
+        Assert.Contains("return _itemsSnapshot;", catalog, StringComparison.Ordinal);
+        Assert.Contains("_itemsSnapshot = snapshot;", catalog, StringComparison.Ordinal);
+
+        Assert.Contains("GetContentPresentationIndex", index, StringComparison.Ordinal);
+        Assert.Contains("ReferenceEquals(_indexedPresentationContent, content)", index, StringComparison.Ordinal);
+        Assert.Contains("GetContentPresentationIndex(context.Content)", search, StringComparison.Ordinal);
+        Assert.Contains("_catalog.TryGetItem(normalizedItemId, out var catalogItem)", search, StringComparison.Ordinal);
+        Assert.DoesNotContain("CreateContentById", search, StringComparison.Ordinal);
+        Assert.DoesNotContain("GetItemsSnapshot().FirstOrDefault", search, StringComparison.Ordinal);
+
+        Assert.Contains("var contentIndex = GetContentPresentationIndex(context.Content);", relationships, StringComparison.Ordinal);
+        Assert.DoesNotContain("context.Content.Items.FirstOrDefault", relationships, StringComparison.Ordinal);
+        Assert.DoesNotContain("context.Content.Traders.FirstOrDefault", relationships, StringComparison.Ordinal);
+        Assert.DoesNotContain("context.Content.HideoutStations.FirstOrDefault", relationships, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SharedImageCache_DeduplicatesConcurrentDownloadsAndDecodedImages()
+    {
+        var root = FindRepositoryRoot();
+        var source = Read(root, "src", "JunhyunHelper.Desktop", "Services", "ImageCacheService.cs");
+
+        Assert.Contains("ConcurrentDictionary<string, SemaphoreSlim> _cachePathGates", source, StringComparison.Ordinal);
+        Assert.Contains("ConcurrentDictionary<string, ImageSource> _decodedImages", source, StringComparison.Ordinal);
+        Assert.Contains("_decodedImages.TryGetValue(path, out var memoryCached)", source, StringComparison.Ordinal);
+        Assert.Contains("_cachePathGates.GetOrAdd(", source, StringComparison.Ordinal);
+        Assert.Contains("await pathGate.WaitAsync(cancellationToken);", source, StringComparison.Ordinal);
+        Assert.Contains("_decodedImages.GetOrAdd(path, cached)", source, StringComparison.Ordinal);
+    }
+
     private static int Count(string source, string value)
     {
         var count = 0;
