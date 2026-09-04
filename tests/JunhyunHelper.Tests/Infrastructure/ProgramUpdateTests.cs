@@ -32,7 +32,7 @@ public sealed class ProgramUpdateTests
         }
         """;
 
-    private const string LegacyReleaseJson = """
+    private const string MissingStablePackageReleaseJson = """
         {
           "tag_name": "v1.6.0",
           "draft": false,
@@ -64,14 +64,12 @@ public sealed class ProgramUpdateTests
     }
 
     [Fact]
-    public void LatestReleaseParserFallsBackToLegacyVersionedPackage()
+    public void LatestReleaseParserRejectsReleaseWithoutStablePackage()
     {
-        using var document = JsonDocument.Parse(LegacyReleaseJson);
+        using var document = JsonDocument.Parse(MissingStablePackageReleaseJson);
 
-        var release = GitHubProgramUpdateClient.ParseLatestRelease(document.RootElement);
-
-        Assert.NotNull(release);
-        Assert.Equal("Junhyun-Helper-v1.6.0-win-x64.zip", release.PackageFileName);
+        Assert.Throws<InvalidDataException>(() =>
+            GitHubProgramUpdateClient.ParseLatestRelease(document.RootElement));
     }
 
     [Theory]
@@ -168,7 +166,7 @@ public sealed class ProgramUpdateTests
     }
 
     [Fact]
-    public void PackageExtractionStillAcceptsLegacyPortableRootForTransitionCompatibility()
+    public void PackageExtractionRejectsLegacyPortableRoot()
     {
         var root = CreateTempDirectory();
         try
@@ -181,10 +179,8 @@ public sealed class ProgramUpdateTests
                 WriteEntry(archive, "Assets/DB/Data/example.json", "{}");
             }
 
-            var staging = Path.Combine(root, "staging");
-            GitHubProgramUpdateClient.ExtractAndValidatePackage(package, staging);
-
-            Assert.Equal("new executable", File.ReadAllText(Path.Combine(staging, "준현 헬퍼.exe")));
+            Assert.Throws<InvalidDataException>(() =>
+                GitHubProgramUpdateClient.ExtractAndValidatePackage(package, Path.Combine(root, "staging")));
         }
         finally
         {
@@ -193,7 +189,7 @@ public sealed class ProgramUpdateTests
     }
 
     [Fact]
-    public void PackageExtractionRejectsMixedStableAndLegacyRoots()
+    public void PackageExtractionRejectsEntriesOutsideStableProductRoot()
     {
         var root = CreateTempDirectory();
         try
