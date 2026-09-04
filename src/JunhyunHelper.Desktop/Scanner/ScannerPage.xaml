@@ -305,23 +305,6 @@
                                         Click="WikiButton_Click" />
                             </Grid>
 
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="190" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-                                <TextBlock Text="플리마켓 평균가" Margin="0,0,12,12" />
-                                <TextBlock x:Name="FleaAverageText" Grid.Column="1" FontWeight="SemiBold" Margin="0,0,0,12" />
-                                <TextBlock Grid.Row="1" Text="최고 상인 판매가" Margin="0,0,12,12" />
-                                <TextBlock x:Name="BestTraderText" Grid.Row="1" Grid.Column="1" FontWeight="SemiBold" Margin="0,0,0,12" />
-                                <TextBlock Grid.Row="2" Text="필요 개수" Margin="0,0,12,0" />
-                                <TextBlock x:Name="NeededCountText" Grid.Row="2" Grid.Column="1" FontWeight="SemiBold" />
-                            </Grid>
                         </StackPanel>
                     </Grid>
                 </Grid>
