@@ -67,6 +67,8 @@ Do **not** perform speculative performance optimization, broad redesign or unrel
 - updated the three stale deterministic contracts that still required removed Scanner/search-clear lifecycle structures; they now verify the canonical XAML/direct-owner paths instead of reviving retired code.
 - renamed current Scanner and Ammo runtime/smoke partials that still carried obsolete version/`Polish`/`Fixes` ownership names; behavior and published verification contracts remain unchanged.
 - staged the maintenance release identity as v1.17.2 per `docs/VERSIONING.md`; public stable remains v1.17.1 until exact-main release publication succeeds.
+- completed an exact branch-tree filename audit: retired Farming Guide/search-clear/old Scanner/old Ammo paths are absent; the remaining version-tagged first-party Map smoke names are retained as regression provenance around the pinned donor contract rather than treated as dead product code.
+- removed stale Scanner release-version wording from current published-smoke diagnostics and CI labels without changing any smoke assertion or product path.
 
 ## Current step
 
