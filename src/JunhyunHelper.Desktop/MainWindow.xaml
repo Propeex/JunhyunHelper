@@ -129,11 +129,13 @@
                     <TextBlock x:Name="EmptyStateMessage"
                                Text="프로필을 만들면 퀘스트·은신처 진행, 미래 필요 아이템과 탄약 정보를 사용할 수 있습니다."
                                Foreground="{StaticResource TextSecondaryBrush}" TextAlignment="Center" Margin="0,0,0,16" />
-                    <Button Content="프로필 만들기" HorizontalAlignment="Center" Click="CreateProfileButton_Click" />
+                    <Button x:Name="CreateProfileButton"
+                            Content="프로필 만들기"
+                            HorizontalAlignment="Center"
+                            Click="CreateProfileOverlayButton_Click" />
                 </StackPanel>
             </Grid>
 
-            <Button x:Name="CreateProfileButton" Visibility="Collapsed" IsHitTestVisible="False" />
 
             <Grid x:Name="KimTaeyoungDiagnosticProgressOverlay"
                   Visibility="Collapsed"
