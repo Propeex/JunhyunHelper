@@ -1008,4 +1008,4 @@ WPF에서는 handler 본문이 중복처럼 보여도 routed/class handler 또�
 
 현재 product stable은 v1.7.14이고 exact release source는 `docs/STATE.md`에 기록된 SHA다. 이 문서가 있는 docs-only commit을 product release source로 해석하지 않는다.
 
-현재 v1.7.14 릴리즈 배치에는 남은 제품 개발 작업이 없다. 이후 작업은 실제 runtime error, Tarkov 변화, reviewed Scanner evidence 또는 사용자가 새로 확정한 제품 요구사항이 있을 때 시작한다.
+현재 진행 중 제품 작업의 유무와 중단 지점은 `docs/ACTIVE_WORK.md`를 기준으로 판단한다. 새 유지보수/개발 작업은 실제 runtime error, Tarkov 변화, reviewed Scanner evidence 또는 사용자가 새로 확정한 제품 요구사항을 근거로 시작한다.
