@@ -18,7 +18,7 @@ public partial class AmmoPage
             return;
         }
 
-        VerifyProductVisibleDropdownInitialization();
+        VerifyProductCaliberSelectorInitialization();
 
         if (CaliberComboBox.Parent is not Grid header)
             throw new InvalidOperationException("Ammo toolbar parent is not the expected Grid.");
