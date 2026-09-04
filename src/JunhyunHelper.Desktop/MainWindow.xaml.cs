@@ -90,7 +90,6 @@ public partial class MainWindow : Window
         AmmoPage.Visibility = Visibility.Collapsed;
         MapPlaceholder.Visibility = Visibility.Collapsed;
         ScannerPlaceholder.Visibility = Visibility.Collapsed;
-        FarmingGuidePage.Visibility = Visibility.Collapsed;
         ItemsPage.ClearCleanupNotice();
         EmptyState.Visibility = Visibility.Visible;
         StatusText.Text = "프로필 설정 필요";
@@ -608,17 +607,11 @@ public partial class MainWindow : Window
             AmmoPage.Visibility = Visibility.Collapsed;
             MapPlaceholder.Visibility = Visibility.Collapsed;
             ScannerPlaceholder.Visibility = Visibility.Collapsed;
-            FarmingGuidePage.Visibility = Visibility.Collapsed;
             EmptyState.Visibility = Visibility.Visible;
             UpdateSectionButtons();
             return;
         }
 
-        if (_activeSection == DesktopSection.FarmingGuide)
-        {
-            EnsureFarmingGuideConfigured();
-            FarmingGuidePage.SetData(_activeContent, _activeProfile.ProfileId);
-        }
 
         EmptyState.Visibility = Visibility.Collapsed;
         QuestPage.Visibility = _activeSection == DesktopSection.Quest ? Visibility.Visible : Visibility.Collapsed;
@@ -627,7 +620,6 @@ public partial class MainWindow : Window
         AmmoPage.Visibility = _activeSection == DesktopSection.Ammo ? Visibility.Visible : Visibility.Collapsed;
         MapPlaceholder.Visibility = _activeSection == DesktopSection.Map ? Visibility.Visible : Visibility.Collapsed;
         ScannerPlaceholder.Visibility = _activeSection == DesktopSection.Scanner ? Visibility.Visible : Visibility.Collapsed;
-        FarmingGuidePage.Visibility = _activeSection == DesktopSection.FarmingGuide ? Visibility.Visible : Visibility.Collapsed;
         UpdateSectionButtons();
     }
 
@@ -643,14 +635,12 @@ public partial class MainWindow : Window
         HideoutPage.SetBusy(busy);
         ItemsPage.SetBusy(busy);
         AmmoPage.SetBusy(busy);
-        FarmingGuidePage.SetBusy(busy);
         QuestTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Quest;
         HideoutTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Hideout;
         ItemsTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Items;
         AmmoTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Ammo;
         MapTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Map;
         ScannerTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Scanner;
-        FarmingGuideTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.FarmingGuide;
         StatusText.Text = status;
     }
 
@@ -663,7 +653,6 @@ public partial class MainWindow : Window
         AmmoTabButton.IsEnabled = hasProfile && _activeSection != DesktopSection.Ammo;
         MapTabButton.IsEnabled = hasProfile && _activeSection != DesktopSection.Map;
         ScannerTabButton.IsEnabled = hasProfile && _activeSection != DesktopSection.Scanner;
-        FarmingGuideTabButton.IsEnabled = hasProfile && _activeSection != DesktopSection.FarmingGuide;
     }
 
     private string BuildLoadedStatus(GameMode gameMode)
@@ -713,6 +702,5 @@ public partial class MainWindow : Window
         Ammo,
         Map,
         Scanner,
-        FarmingGuide,
     }
 }
