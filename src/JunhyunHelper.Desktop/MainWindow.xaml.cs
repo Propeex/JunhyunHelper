@@ -253,6 +253,9 @@ public partial class MainWindow : Window
 
         var progress = new Progress<ContentUpdateProgress>(value =>
         {
+            if (_windowLifetimeCts.IsCancellationRequested)
+                return;
+
             var percent = Math.Clamp((int)Math.Round(value.Percent * 0.85), 0, 85);
             UpdateProgressBar.Value = percent;
             UpdateProgressStageText.Text = value.Message;
@@ -272,6 +275,9 @@ public partial class MainWindow : Window
             var snapshot = await _services.Content.ReadActiveOrRecoverAsync(gameMode, _windowLifetimeCts.Token);
             var imageProgress = new Progress<ImagePrefetchProgress>(value =>
             {
+                if (_windowLifetimeCts.IsCancellationRequested)
+                    return;
+
                 var fraction = value.Total <= 0 ? 1d : value.Completed / (double)value.Total;
                 var percent = 85 + Math.Clamp((int)Math.Round(fraction * 15), 0, 15);
                 UpdateProgressBar.Value = percent;
@@ -286,6 +292,7 @@ public partial class MainWindow : Window
                 imageProgress,
                 _windowLifetimeCts.Token);
 
+            _windowLifetimeCts.Token.ThrowIfCancellationRequested();
             UpdateProgressBar.Value = 100;
             UpdateProgressStageText.Text = "업데이트 완료";
             UpdateProgressPercentText.Text = "100%";
