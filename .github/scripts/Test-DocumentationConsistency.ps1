@@ -40,6 +40,9 @@ $requiredFiles = @(
     'docs/PROGRAM_UPDATE.md',
     'docs/DEPLOYMENT.md',
     'src/JunhyunHelper.Desktop/JunhyunHelper.Desktop.csproj',
+    'src/JunhyunHelper.Desktop/Scanner/ScannerDisplaySettings.cs',
+    'src/JunhyunHelper.Infrastructure/Scanner/ScannerCatalogService.cs',
+    'src/JunhyunHelper.Infrastructure/Storage/ContentSnapshotStore.cs',
     'packaging/FIRST_RUN_KO.txt'
 )
 
@@ -138,14 +141,23 @@ foreach ($entry in @(
     Assert-True ($entry.Text.Contains("v$contentReadableMin~v$contentReadableMax", [System.StringComparison]::Ordinal)) "$($entry.Name) does not contain canonical Content readable range v$contentReadableMin~v$contentReadableMax."
 }
 
-$developerReference = Read-RequiredText 'docs/DEVELOPER_REFERENCE.md'
-$scannerDisplaySchema = [int]$projectState.schemas.scannerDisplaySettings
-$scannerCatalogWrite = [int]$projectState.schemas.scannerCatalogWrite
-$scannerCatalogReadable = @($projectState.schemas.scannerCatalogReadable | ForEach-Object { [int]$_ })
-$scannerCatalogMin = ($scannerCatalogReadable | Measure-Object -Minimum).Minimum
-$scannerCatalogMax = ($scannerCatalogReadable | Measure-Object -Maximum).Maximum
-Assert-True ($developerReference.Contains("Scanner display settings: v$scannerDisplaySchema", [System.StringComparison]::Ordinal)) 'DEVELOPER_REFERENCE Scanner display schema is stale.'
-Assert-True ($developerReference.Contains("Scanner catalog write: v$scannerCatalogWrite / readable v$scannerCatalogMin~v$scannerCatalogMax", [System.StringComparison]::Ordinal)) 'DEVELOPER_REFERENCE Scanner catalog schema is stale.'
+$contentStoreSource = Read-RequiredText 'src/JunhyunHelper.Infrastructure/Storage/ContentSnapshotStore.cs'
+$contentWriteMatch = [regex]::Match($contentStoreSource, 'public const int CurrentSchemaVersion\s*=\s*(?<value>\d+);')
+$contentReadableMatch = [regex]::Match($contentStoreSource, 'public const int MinimumReadableSchemaVersion\s*=\s*(?<value>\d+);')
+Assert-True $contentWriteMatch.Success 'ContentSnapshotStore CurrentSchemaVersion constant is missing.'
+Assert-True $contentReadableMatch.Success 'ContentSnapshotStore MinimumReadableSchemaVersion constant is missing.'
+Assert-True ([int]$contentWriteMatch.Groups['value'].Value -eq $contentWrite) 'PROJECT_STATE contentWrite does not match ContentSnapshotStore.CurrentSchemaVersion.'
+Assert-True ([int]$contentReadableMatch.Groups['value'].Value -eq $contentReadableMin) 'PROJECT_STATE contentReadable minimum does not match ContentSnapshotStore.MinimumReadableSchemaVersion.'
+
+$scannerDisplaySource = Read-RequiredText 'src/JunhyunHelper.Desktop/Scanner/ScannerDisplaySettings.cs'
+$scannerDisplayMatch = [regex]::Match($scannerDisplaySource, 'public const int CurrentSchemaVersion\s*=\s*(?<value>\d+);')
+Assert-True $scannerDisplayMatch.Success 'ScannerDisplaySettings CurrentSchemaVersion constant is missing.'
+Assert-True ([int]$scannerDisplayMatch.Groups['value'].Value -eq [int]$projectState.schemas.scannerDisplaySettings) 'PROJECT_STATE scannerDisplaySettings does not match ScannerDisplaySettings.CurrentSchemaVersion.'
+
+$scannerCatalogSource = Read-RequiredText 'src/JunhyunHelper.Infrastructure/Scanner/ScannerCatalogService.cs'
+$scannerCatalogMatch = [regex]::Match($scannerCatalogSource, 'CurrentCacheSchemaVersion\s*=\s*(?<value>\d+);')
+Assert-True $scannerCatalogMatch.Success 'ScannerCatalogService CurrentCacheSchemaVersion constant is missing.'
+Assert-True ([int]$scannerCatalogMatch.Groups['value'].Value -eq [int]$projectState.schemas.scannerCatalogWrite) 'PROJECT_STATE scannerCatalogWrite does not match ScannerCatalogService.CurrentCacheSchemaVersion.'
 
 Write-Host 'Documentation consistency passed.'
 Write-Host "Desktop version: $desktopVersion"
