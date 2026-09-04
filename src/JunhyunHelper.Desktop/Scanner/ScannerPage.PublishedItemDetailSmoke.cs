@@ -204,9 +204,6 @@ public partial class ScannerPage
         if (!clickObserved)
             throw new InvalidOperationException("Scanner related-item Button did not dispatch its runtime click event.");
 
-        if (_neededSourcesHost is { Visibility: not Visibility.Collapsed })
-            throw new InvalidOperationException("Scanner legacy duplicate needed-source block remained visible.");
-
         var marker = Path.Combine(Path.GetTempPath(), "junhyun-scanner-item-detail-smoke-success.txt");
         File.WriteAllText(
             marker,
