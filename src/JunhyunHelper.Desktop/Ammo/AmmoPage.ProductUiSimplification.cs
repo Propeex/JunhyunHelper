@@ -7,11 +7,6 @@ public partial class AmmoPage
 {
     private void ApplyProductUiSimplification()
     {
-        // v1.7.13: the summary line duplicates information already visible in the table.
-        SummaryText.Visibility = Visibility.Collapsed;
-        if (_productRootGrid is { RowDefinitions.Count: > 1 })
-            _productRootGrid.RowDefinitions[1].Height = new GridLength(0);
-
         // A new application session always starts with the detail panel collapsed.
         _productDetailsExpanded = false;
         ApplyProductDetailExpansionState();
