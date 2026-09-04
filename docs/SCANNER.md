@@ -621,7 +621,7 @@ Desktop:
 - `Scanner/ScannerSettingsWindow.xaml(.cs)`
 - `Scanner/ScannerAdvancedWindow.xaml(.cs)`
 - `Scanner/MiniScannerWindow.xaml(.cs)`
-- `MainWindow.ScannerItemSources.cs`
+- `MainWindow.ScannerItemNavigation.cs`
 - `MainWindow.InAppOverlay.cs`
 - `MainWindow.ProductUiLayoutSmoke.cs`
 
