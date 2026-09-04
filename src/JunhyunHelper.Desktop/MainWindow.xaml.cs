@@ -48,7 +48,7 @@ public partial class MainWindow : Window
     {
         try
         {
-            SetBusy(true, "프로필을 불러오는 중...");
+            SetBusy(true);
             _profiles = await _services.ProfileManagement.LoadAllAsync();
 
             var targetProfileId = selectedProfileId ?? _activeProfile?.ProfileId;
@@ -75,7 +75,7 @@ public partial class MainWindow : Window
         }
         finally
         {
-            SetBusy(false, StatusText.Text);
+            SetBusy(false);
         }
     }
 
@@ -92,7 +92,7 @@ public partial class MainWindow : Window
         ScannerPlaceholder.Visibility = Visibility.Collapsed;
         ItemsPage.ClearCleanupNotice();
         EmptyState.Visibility = Visibility.Visible;
-        StatusText.Text = "프로필 설정 필요";
+
         EditProfileButton.IsEnabled = false;
         UpdateDataButton.IsEnabled = false;
         UpdateSectionButtons();
@@ -113,7 +113,7 @@ public partial class MainWindow : Window
         }
         finally
         {
-            SetBusy(false, StatusText.Text);
+            SetBusy(false);
         }
     }
 
@@ -122,7 +122,7 @@ public partial class MainWindow : Window
         if (ProfileComboBox.SelectedItem is not ProfileChoice choice)
             return;
 
-        SetBusy(true, "게임 데이터를 불러오는 중...");
+        SetBusy(true);
         _activeProfile = choice.Profile;
         _activeContent = await ReadOrCreateContentAsync(choice.Profile.GameMode);
         _activeItemsWorkspace = null;
@@ -132,7 +132,7 @@ public partial class MainWindow : Window
         AmmoPage.SetData(_activeContent);
         EmptyState.Visibility = Visibility.Collapsed;
         ShowActiveSection();
-        StatusText.Text = BuildLoadedStatus(choice.Profile.GameMode);
+
     }
 
     private async Task<IReadOnlyList<InventoryCleanupIncrease>> RefreshActiveWorkspacesAsync(
@@ -206,7 +206,7 @@ public partial class MainWindow : Window
             UpdateProgressBar.Value = percent;
             UpdateProgressStageText.Text = value.Message;
             UpdateProgressPercentText.Text = $"{percent}%";
-            StatusText.Text = value.Message;
+
         });
 
         try
@@ -225,7 +225,7 @@ public partial class MainWindow : Window
                     ? "아이콘 준비 완료"
                     : $"아이콘 다운로드 중... {value.Completed}/{value.Total}";
                 UpdateProgressPercentText.Text = $"{percent}%";
-                StatusText.Text = UpdateProgressStageText.Text;
+
             });
             await _services.Images.PrefetchAsync(snapshot.Content, imageProgress);
 
@@ -267,9 +267,9 @@ public partial class MainWindow : Window
 
         try
         {
-            SetBusy(true, $"{GameModeText(mode)} 데이터를 준비하는 중...");
+            SetBusy(true);
             var content = await ReadOrCreateContentAsync(mode);
-            SetBusy(false, "프로필 정보를 입력해주세요.");
+            SetBusy(false);
 
             var editor = new ProfileEditorWindow(mode, content)
             {
@@ -278,7 +278,7 @@ public partial class MainWindow : Window
             if (editor.ShowDialog() != true || editor.Result is not { } result)
                 return;
 
-            SetBusy(true, "프로필을 저장하는 중...");
+            SetBusy(true);
             var created = await _services.ProfileManagement.CreateAsync(
                 mode,
                 result.Level,
@@ -295,7 +295,7 @@ public partial class MainWindow : Window
         }
         finally
         {
-            SetBusy(false, StatusText.Text);
+            SetBusy(false);
         }
     }
 
@@ -319,7 +319,7 @@ public partial class MainWindow : Window
         {
             try
             {
-                SetBusy(true, "프로필을 삭제하는 중...");
+                SetBusy(true);
                 await _services.ProfileManagement.DeleteAsync(profileId);
                 _activeProfile = null;
                 await LoadProfilesAsync();
@@ -330,7 +330,7 @@ public partial class MainWindow : Window
             }
             finally
             {
-                SetBusy(false, StatusText.Text);
+                SetBusy(false);
             }
             return;
         }
@@ -340,7 +340,7 @@ public partial class MainWindow : Window
 
         try
         {
-            SetBusy(true, "프로필을 저장하는 중...");
+            SetBusy(true);
             var updated = await _services.ProfileManagement.UpdateSettingsAsync(
                 profileId,
                 result.Level,
@@ -357,7 +357,7 @@ public partial class MainWindow : Window
         }
         finally
         {
-            SetBusy(false, StatusText.Text);
+            SetBusy(false);
         }
     }
 
@@ -368,7 +368,7 @@ public partial class MainWindow : Window
 
         try
         {
-            SetBusy(true, "최신 게임 데이터를 업데이트하는 중...");
+            SetBusy(true);
             var result = await RunContentUpdateAsync(_activeProfile.GameMode);
             if (!result.Applied)
             {
@@ -392,7 +392,6 @@ public partial class MainWindow : Window
                     MessageBoxImage.Information);
             }
 
-            StatusText.Text = BuildLoadedStatus(_activeProfile.GameMode);
         }
         catch (Exception exception)
         {
@@ -400,7 +399,7 @@ public partial class MainWindow : Window
         }
         finally
         {
-            SetBusy(false, StatusText.Text);
+            SetBusy(false);
         }
     }
 
@@ -469,7 +468,7 @@ public partial class MainWindow : Window
         UpdateSectionButtons();
     }
 
-    private void SetBusy(bool busy, string status)
+    private void SetBusy(bool busy)
     {
         ProfileComboBox.IsEnabled = !busy && _profiles.Count > 0;
         EditProfileButton.IsEnabled = !busy && _activeProfile is not null;
@@ -487,7 +486,7 @@ public partial class MainWindow : Window
         AmmoTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Ammo;
         MapTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Map;
         ScannerTabButton.IsEnabled = !busy && _activeProfile is not null && _activeSection != DesktopSection.Scanner;
-        StatusText.Text = status;
+
     }
 
     private void UpdateSectionButtons()
@@ -501,16 +500,10 @@ public partial class MainWindow : Window
         ScannerTabButton.IsEnabled = hasProfile && _activeSection != DesktopSection.Scanner;
     }
 
-    private string BuildLoadedStatus(GameMode gameMode)
-    {
-        _ = gameMode;
-        var cleanupCount = _activeItemsWorkspace?.Plan.CleanupItems.Count ?? 0;
-        return $"정리 필요 {cleanupCount}";
-    }
 
     private void ShowFailure(string title, Exception exception)
     {
-        StatusText.Text = title;
+
         MessageBox.Show(
             this,
             exception.Message,
