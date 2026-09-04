@@ -206,7 +206,7 @@ public partial class ItemsPage : UserControl
                 var name = item is null ? itemId : DisplayName(item.NameKo, item.NameEn, item.Id);
                 var category = ItemCategoryClassifier.Classify(item);
                 var sourceRows = (needed?.Sources ?? cleanup?.Sources ?? Array.Empty<ItemRequirementSource>())
-                    .Select(source => BuildSourceRow(source, content))
+                    .Select(BuildSourceRow)
                     .DistinctBy(source => (source.Title, source.Detail, source.Kind, source.TargetId))
                     .ToArray();
                 var isFlexibleOnly = needed is null && cleanup is null && !workspace.Profile.Inventory.ContainsKey(itemId);
@@ -222,7 +222,7 @@ public partial class ItemsPage : UserControl
             .ToArray();
     }
 
-    private SourceRow BuildSourceRow(ItemRequirementSource source, GameContentCatalog content)
+    private SourceRow BuildSourceRow(ItemRequirementSource source)
     {
         if (source.Kind == ItemRequirementSourceKind.Quest)
         {
