@@ -3,7 +3,6 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
 using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.Profiles;
 using JunhyunHelper.Desktop.Services;
@@ -101,6 +100,8 @@ public partial class ProfileEditorWindow : Window
         TitleText.Text = existingProfile is null ? "새 프로필 설정" : "프로필 수정";
         ModeText.Text = $"{GameModeText(gameMode)} 캐릭터";
         DeleteProfileButton.Visibility = _editingExistingProfile ? Visibility.Visible : Visibility.Collapsed;
+        SaveProfileButton.Content = _editingExistingProfile ? "닫기" : "저장";
+        CancelProfileButton.Visibility = _editingExistingProfile ? Visibility.Collapsed : Visibility.Visible;
         UpdateTopValues();
 
         var factions = new[]
@@ -168,26 +169,11 @@ public partial class ProfileEditorWindow : Window
         AdvancedStandingItems.ItemsSource = advancedRows;
         AdvancedStandingExpander.Visibility = advancedRows.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
 
-        if (_editingExistingProfile)
-            Loaded += ExistingEditor_Loaded;
     }
 
     public ProfileSettingsResult? Result { get; private set; }
     public bool DeleteRequested { get; private set; }
 
-    private void ExistingEditor_Loaded(object sender, RoutedEventArgs e)
-    {
-        Loaded -= ExistingEditor_Loaded;
-        foreach (var button in FindVisualChildren<Button>(this))
-        {
-            if (button.Content is not string text)
-                continue;
-            if (string.Equals(text, "저장", StringComparison.Ordinal))
-                button.Content = "닫기";
-            else if (string.Equals(text, "취소", StringComparison.Ordinal))
-                button.Visibility = Visibility.Collapsed;
-        }
-    }
 
     protected override void OnClosing(CancelEventArgs e)
     {
@@ -251,8 +237,26 @@ public partial class ProfileEditorWindow : Window
             return;
 
         Result = result;
+        if (_inAppCloseRequested is not null)
+        {
+            _inAppCloseRequested(true);
+            return;
+        }
+
         _allowClose = true;
         DialogResult = true;
+    }
+
+    private void CancelButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_inAppCloseRequested is not null)
+        {
+            _inAppCloseRequested(false);
+            return;
+        }
+
+        _allowClose = true;
+        DialogResult = false;
     }
 
     private bool TryBuildResult(out ProfileSettingsResult result)
@@ -281,13 +285,20 @@ public partial class ProfileEditorWindow : Window
     private void DeleteProfileButton_Click(object sender, RoutedEventArgs e)
     {
         if (!_editingExistingProfile) return;
+        var owner = Window.GetWindow(DeleteProfileButton) ?? System.Windows.Application.Current.MainWindow;
         var result = MessageBox.Show(
-            this,
+            owner,
             "이 프로필의 퀘스트 진행, 은신처 레벨, 상인 진행, 보유 아이템 기록을 모두 삭제합니다. 다운로드된 게임 데이터와 다른 프로필은 유지됩니다.\n\n삭제하시겠습니까?",
             "프로필 삭제", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No);
         if (result != MessageBoxResult.Yes) return;
         DeleteRequested = true;
         Result = null;
+        if (_inAppCloseRequested is not null)
+        {
+            _inAppCloseRequested(true);
+            return;
+        }
+
         _allowClose = true;
         DialogResult = true;
     }
@@ -299,20 +310,11 @@ public partial class ProfileEditorWindow : Window
     }
 
     private void ShowValidation(string message) => MessageBox.Show(
-        this, message, "프로필 설정", MessageBoxButton.OK, MessageBoxImage.Information);
-
-    private static IEnumerable<T> FindVisualChildren<T>(DependencyObject root)
-        where T : DependencyObject
-    {
-        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
-        {
-            var child = VisualTreeHelper.GetChild(root, index);
-            if (child is T match)
-                yield return match;
-            foreach (var descendant in FindVisualChildren<T>(child))
-                yield return descendant;
-        }
-    }
+        Window.GetWindow(FactionComboBox) ?? System.Windows.Application.Current.MainWindow,
+        message,
+        "프로필 설정",
+        MessageBoxButton.OK,
+        MessageBoxImage.Information);
 
     private static string DisplayName(string? korean, string? english, string fallback) =>
         !string.IsNullOrWhiteSpace(korean) ? korean : !string.IsNullOrWhiteSpace(english) ? english : fallback;
