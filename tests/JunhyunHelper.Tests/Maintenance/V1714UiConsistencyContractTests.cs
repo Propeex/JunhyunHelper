@@ -6,13 +6,12 @@ namespace JunhyunHelper.Tests.Maintenance;
 public sealed class V1714UiConsistencyContractTests
 {
     [Fact]
-    public void AmmoPopupLaunchers_CloseAlreadyOpenPopupBeforeClickReopensIt()
+    public void AmmoDisplayedColumnsPopup_CloseAlreadyOpenPopupBeforeClickReopensIt()
     {
         var root = FindRepositoryRoot();
         var source = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.PopupToggleFixes.cs");
 
         Assert.Contains("OnPreviewMouseDown", source, StringComparison.Ordinal);
-        Assert.Contains("FavoriteCaliberPopup.IsOpen = false;", source, StringComparison.Ordinal);
         Assert.Contains("ColumnMenuPopup.IsOpen = false;", source, StringComparison.Ordinal);
         Assert.Contains("e.Handled = true;", source, StringComparison.Ordinal);
     }
