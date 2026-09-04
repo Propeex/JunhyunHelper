@@ -7,6 +7,7 @@ using System.Windows.Threading;
 using JunhyunHelper.Application.Items;
 using JunhyunHelper.Core.Content;
 using JunhyunHelper.Core.Items;
+using JunhyunHelper.Desktop.Controls;
 using JunhyunHelper.Desktop.Services;
 
 namespace JunhyunHelper.Desktop.Items;
@@ -34,6 +35,7 @@ public partial class ItemsPage : UserControl
     public ItemsPage()
     {
         InitializeComponent();
+        ProductSearchClearButtonBehavior.Attach(SearchBox);
         FilterComboBox.ItemsSource = new[]
         {
             new FilterChoice(ItemFilter.Needed, "필요"),
