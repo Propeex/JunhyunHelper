@@ -64,71 +64,59 @@
 
         <Grid Grid.Row="0" Margin="0,0,0,10">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="0" />
                 <ColumnDefinition Width="160" />
                 <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="12" />
-                <ColumnDefinition Width="0" />
                 <ColumnDefinition Width="170" />
                 <ColumnDefinition Width="12" />
-                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="300" />
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <TextBlock Grid.Column="0" Text="구경" Visibility="Collapsed" />
-            <ComboBox x:Name="CaliberComboBox" Grid.Column="1" Width="160" MinWidth="160" MaxWidth="160"
+            <ComboBox x:Name="CaliberComboBox"
+                      Grid.Column="0"
+                      Width="160"
+                      MinWidth="160"
+                      MaxWidth="160"
                       SelectionChanged="CaliberComboBox_SelectionChanged" />
-            <Button x:Name="FavoriteCaliberButton" Grid.Column="2" Margin="8,0,0,0"
-                    Width="38" MinWidth="38" MaxWidth="38" Padding="0" FontSize="16"
-                    Content="☆" ToolTip="즐겨찾기 추가" Click="FavoriteCaliberButton_Click" />
+            <Button x:Name="FavoriteCaliberButton"
+                    Grid.Column="1"
+                    Margin="8,0,8,0"
+                    Width="38"
+                    MinWidth="38"
+                    MaxWidth="38"
+                    Padding="0"
+                    FontSize="16"
+                    Content="☆"
+                    ToolTip="즐겨찾기 추가"
+                    Click="FavoriteCaliberButton_Click" />
+            <ComboBox x:Name="FavoriteCaliberComboBox"
+                      Grid.Column="2"
+                      Width="170"
+                      MinHeight="32"
+                      VerticalContentAlignment="Center"
+                      MaxDropDownHeight="460"
+                      ToolTip="즐겨찾기 구경 선택" />
 
-            <TextBlock Grid.Column="4" Text="즐겨찾기" Visibility="Collapsed" />
-            <Button x:Name="FavoriteCaliberMenuButton" Grid.Column="5" Width="170" MinWidth="170" MaxWidth="170"
-                    Content="즐겨찾기 선택" HorizontalContentAlignment="Left"
-                    Click="FavoriteCaliberMenuButton_Click" />
-
-            <Popup x:Name="FavoriteCaliberPopup"
-                   PlacementTarget="{Binding ElementName=FavoriteCaliberMenuButton}"
-                   Placement="Bottom" StaysOpen="False" AllowsTransparency="True">
-                <Border Background="{StaticResource BackgroundMediumBrush}"
-                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-                        CornerRadius="8" Padding="8" Margin="0,6,0,0" MinWidth="210" MaxHeight="360">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel>
-                            <TextBlock x:Name="FavoriteCaliberEmptyText"
-                                       Text="등록된 즐겨찾기가 없습니다."
-                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                       Padding="8,7" />
-                            <ItemsControl x:Name="FavoriteCaliberItems">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Button Tag="{Binding RawCaliber}"
-                                                Content="{Binding Label}"
-                                                HorizontalAlignment="Stretch"
-                                                HorizontalContentAlignment="Left"
-                                                Padding="10,7" Margin="0,0,0,4"
-                                                Click="FavoriteCaliberShortcutButton_Click" />
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                                <ItemsControl.ItemContainerStyle>
-                                    <Style TargetType="ContentPresenter">
-                                        <Setter Property="HorizontalAlignment" Value="Stretch" />
-                                    </Style>
-                                </ItemsControl.ItemContainerStyle>
-                            </ItemsControl>
-                        </StackPanel>
-                    </ScrollViewer>
-                </Border>
-            </Popup>
-
-            <Button x:Name="ColumnMenuButton" Grid.Column="7" Content="표시 열" Padding="14,6" Click="ColumnMenuButton_Click" />
+            <Button x:Name="ColumnMenuButton"
+                    Grid.Column="6"
+                    Content="표시 열"
+                    Padding="14,6"
+                    HorizontalAlignment="Right"
+                    Click="ColumnMenuButton_Click" />
 
             <Popup x:Name="ColumnMenuPopup"
+                   Grid.Column="6"
                    PlacementTarget="{Binding ElementName=ColumnMenuButton}"
-                   Placement="Bottom" StaysOpen="False" AllowsTransparency="True">
+                   Placement="Bottom"
+                   StaysOpen="False"
+                   AllowsTransparency="True">
                 <Border Background="{StaticResource BackgroundMediumBrush}"
-                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-                        CornerRadius="8" Padding="12" Margin="0,6,0,0">
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="12"
+                        Margin="0,6,0,0">
                     <StackPanel MinWidth="190">
                         <TextBlock Text="표에 표시할 정보" FontWeight="SemiBold" Margin="2,0,0,8" />
                         <CheckBox x:Name="CaliberColumnCheckBox" Content="구경" IsChecked="True" Checked="ColumnVisibility_Changed" Unchecked="ColumnVisibility_Changed" />
