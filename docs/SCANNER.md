@@ -16,7 +16,6 @@ Tarkov window pixels
 → HEADER_FRAME_LOCKED
 → item-name ROI
 → serialized Windows ko-KR OCR
-→ optional user OCR substitution
 → conditional cross-environment title normalization
 → current-catalog sanitation / normalization
 → conservative catalog matching / bounded recovery
@@ -345,8 +344,6 @@ OCR text는 current official catalog를 대상으로 sanitation/normalization �
 - conservative confidence + top1/top2 margin
 - ambiguous result fail closed
 - bounded unknown/edit recovery only
-- user substitution은 명시적 사용자 correction 범위에서만 적용
-- automatic global forced substitution table을 제품 기본값으로 만들지 않음
 - optional visual corroboration은 current exact pixels에 한정
 - matcher/visual recovery acceptance를 new reviewed evidence 없이 완화하지 않음
 
@@ -566,7 +563,7 @@ Failure stage 예시:
 - inspect-header ownership/semantic lock
 - title ROI
 - OCR
-- substitution/sanitation
+- sanitation / character policy
 - catalog match/ambiguity
 - visual corroboration
 - presentation join
@@ -596,7 +593,6 @@ Core:
 - `Core/Scanner/ScannerItemMatcher.cs`
 - `Core/Scanner/ScannerObservationPacingPolicy.cs`
 - `Core/Scanner/ScannerOcrCharacterPolicy.cs`
-- `Core/Scanner/ScannerOcrSubstitution.cs`
 - `Core/Scanner/ScannerPresentationJoin.cs`
 - `Core/Scanner/ScannerTitleIdentitySignature.cs`
 
