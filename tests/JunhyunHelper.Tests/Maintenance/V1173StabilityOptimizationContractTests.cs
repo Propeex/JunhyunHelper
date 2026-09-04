@@ -73,12 +73,12 @@ public sealed class V1173StabilityOptimizationContractTests
         var manualUpdate = Read(root, "src", "JunhyunHelper.Desktop", "MainWindow.DataUpdate.cs");
 
         Assert.Contains("private readonly SemaphoreSlim _contentOperationGate = new(1, 1);", schemaRefresh, StringComparison.Ordinal);
-        Assert.Contains("await _contentOperationGate.WaitAsync();", schemaRefresh, StringComparison.Ordinal);
+        Assert.Contains("await _contentOperationGate.WaitAsync(_windowLifetimeCts.Token);", schemaRefresh, StringComparison.Ordinal);
         Assert.Contains("snapshot = await _services.Content.ReadActiveOrRecoverAsync(gameMode);", schemaRefresh, StringComparison.Ordinal);
         Assert.Contains("if (!ContentSnapshotStore.RequiresCurrentSchemaRefresh(snapshot))", schemaRefresh, StringComparison.Ordinal);
         Assert.Contains("_contentOperationGate.Release();", schemaRefresh, StringComparison.Ordinal);
 
-        Assert.Contains("await _contentOperationGate.WaitAsync();", manualUpdate, StringComparison.Ordinal);
+        Assert.Contains("await _contentOperationGate.WaitAsync(_windowLifetimeCts.Token);", manualUpdate, StringComparison.Ordinal);
         Assert.Contains("_contentOperationGate.Release();", manualUpdate, StringComparison.Ordinal);
         Assert.Contains("ownsBusyState", manualUpdate, StringComparison.Ordinal);
     }
@@ -152,7 +152,7 @@ public sealed class V1173StabilityOptimizationContractTests
         var root = FindRepositoryRoot();
         var source = Read(root, "src", "JunhyunHelper.Desktop", "MainWindow.LegacyMapHost.cs");
 
-        Assert.Contains("await _contentOperationGate.WaitAsync();", source, StringComparison.Ordinal);
+        Assert.Contains("await _contentOperationGate.WaitAsync(_windowLifetimeCts.Token);", source, StringComparison.Ordinal);
         Assert.Contains("snapshot = await _services.Content.ReadActiveOrRecoverAsync", source, StringComparison.Ordinal);
         Assert.Contains("_contentOperationGate.Release();", source, StringComparison.Ordinal);
         Assert.Contains("TargetIsStillCurrent()", source, StringComparison.Ordinal);
@@ -192,7 +192,7 @@ public sealed class V1173StabilityOptimizationContractTests
         var source = Read(root, "src", "JunhyunHelper.Desktop", "MainWindow.xaml.cs");
 
         Assert.Contains("private async Task<GameContentCatalog> ReadOrCreateContentAsync", source, StringComparison.Ordinal);
-        Assert.Equal(2, Count(source, "await _contentOperationGate.WaitAsync();"));
+        Assert.Equal(2, Count(source, "await _contentOperationGate.WaitAsync(_windowLifetimeCts.Token);"));
         Assert.Equal(2, Count(source, "_contentOperationGate.Release();"));
         Assert.Contains("if (!File.Exists(paths.ActivePath))", source, StringComparison.Ordinal);
         Assert.Contains("var recovered = await _services.Content.ReadActiveOrRecoverAsync(gameMode);", source, StringComparison.Ordinal);
@@ -222,6 +222,29 @@ public sealed class V1173StabilityOptimizationContractTests
         Assert.Contains("var authoritative = _services.Hideout.BuildFromProfile(_activeContent, _activeProfile);", source, StringComparison.Ordinal);
         Assert.Contains("HideoutPage.SetData(_activeContent, authoritative);", source, StringComparison.Ordinal);
         Assert.Contains("A cancelled rollback is", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MainWindowLifetime_CancelsAsyncProductWorkWithoutShutdownErrorUi()
+    {
+        var root = FindRepositoryRoot();
+        var main = Read(root, "src", "JunhyunHelper.Desktop", "MainWindow.xaml.cs");
+        var dataUpdate = Read(root, "src", "JunhyunHelper.Desktop", "MainWindow.DataUpdate.cs");
+        var mutations = Read(root, "src", "JunhyunHelper.Desktop", "MainWindow.Mutations.cs");
+        var profile = Read(root, "src", "JunhyunHelper.Desktop", "MainWindow.ProfileOverlay.cs");
+        var diagnostic = Read(root, "src", "JunhyunHelper.Desktop", "MainWindow.KimTaeyoungDiagnostic.cs");
+
+        Assert.Contains("private readonly CancellationTokenSource _windowLifetimeCts = new();", main, StringComparison.Ordinal);
+        Assert.Contains("_windowLifetimeCts.Cancel();", main, StringComparison.Ordinal);
+        Assert.Contains("ContentUpdater.UpdateAsync(", main, StringComparison.Ordinal);
+        Assert.Contains("_windowLifetimeCts.Token,", main, StringComparison.Ordinal);
+        Assert.Contains("PrefetchAsync(", main, StringComparison.Ordinal);
+
+        Assert.Contains("catch (OperationCanceledException) when (_windowLifetimeCts.IsCancellationRequested)", dataUpdate, StringComparison.Ordinal);
+        Assert.Equal(3, Count(mutations, "catch (OperationCanceledException) when (_windowLifetimeCts.IsCancellationRequested)"));
+        Assert.Equal(2, Count(profile, "catch (OperationCanceledException) when (_windowLifetimeCts.IsCancellationRequested)"));
+        Assert.Contains("KimTaeyoungPcDiagnosticExporter.ExportAsync(", diagnostic, StringComparison.Ordinal);
+        Assert.Contains("_windowLifetimeCts.Token", diagnostic, StringComparison.Ordinal);
     }
 
     private static int Count(string source, string value)
