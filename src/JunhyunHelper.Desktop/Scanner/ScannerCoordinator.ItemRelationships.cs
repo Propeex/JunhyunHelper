@@ -89,8 +89,8 @@ public sealed partial class ScannerCoordinator
 
         var craftUsages = relation.CraftsUsingItem.Select(craft => new ScannerItemUsageRow(
                 ResolveStationName(contentIndex, craft.StationId), craft.RequiredLevel,
-                ResolveItemLink(context, contentIndex, craft.ProductItemId), craft.ProductCount,
-                ResolveMaterials(context, contentIndex, craft.RequiredItems)))
+                ResolveItemLink(contentIndex, craft.ProductItemId), craft.ProductCount,
+                ResolveMaterials(contentIndex, craft.RequiredItems)))
             .OrderBy(row => row.SourceName, StringComparer.CurrentCultureIgnoreCase)
             .ThenBy(row => row.RequiredLevel)
             .ThenBy(row => row.Product.OfficialName, StringComparer.CurrentCultureIgnoreCase)
@@ -98,8 +98,8 @@ public sealed partial class ScannerCoordinator
 
         var barterUsages = relation.BartersUsingItem.Select(barter => new ScannerItemUsageRow(
                 ResolveTraderName(contentIndex, barter.TraderId), barter.RequiredLevel,
-                ResolveItemLink(context, contentIndex, barter.ProductItemId), barter.ProductCount,
-                ResolveMaterials(context, contentIndex, barter.RequiredItems)))
+                ResolveItemLink(contentIndex, barter.ProductItemId), barter.ProductCount,
+                ResolveMaterials(contentIndex, barter.RequiredItems)))
             .OrderBy(row => row.SourceName, StringComparer.CurrentCultureIgnoreCase)
             .ThenBy(row => row.RequiredLevel)
             .ThenBy(row => row.Product.OfficialName, StringComparer.CurrentCultureIgnoreCase)
@@ -124,7 +124,7 @@ public sealed partial class ScannerCoordinator
                 ScannerItemAcquisitionKind.TraderBarter,
                 ResolveTraderName(contentIndex, barter.TraderId),
                 barter.RequiredLevel,
-                ResolveMaterials(context, contentIndex, barter.RequiredItems),
+                ResolveMaterials(contentIndex, barter.RequiredItems),
                 barter.ProductCount,
                 BuyLimit: barter.BuyLimit,
                 RefreshTime: contentIndex.TradersById.TryGetValue(barter.TraderId, out var trader)
@@ -135,7 +135,7 @@ public sealed partial class ScannerCoordinator
                 ScannerItemAcquisitionKind.HideoutCraft,
                 ResolveStationName(contentIndex, craft.StationId),
                 craft.RequiredLevel,
-                ResolveMaterials(context, contentIndex, craft.RequiredItems),
+                ResolveMaterials(contentIndex, craft.RequiredItems),
                 craft.ProductCount,
                 DurationSeconds: craft.DurationSeconds)));
         if (relation.FleaMarketAvailable)
@@ -164,7 +164,6 @@ public sealed partial class ScannerCoordinator
     }
 
     private ScannerItemLink ResolveItemLink(
-        ScannerDataContext context,
         ScannerContentPresentationIndex contentIndex,
         string itemId)
     {
@@ -178,11 +177,10 @@ public sealed partial class ScannerCoordinator
     }
 
     private IReadOnlyList<ScannerItemMaterialRow> ResolveMaterials(
-        ScannerDataContext context,
         ScannerContentPresentationIndex contentIndex,
         IReadOnlyList<ItemIngredient> materials) =>
         materials.Select(material => new ScannerItemMaterialRow(
-                ResolveItemLink(context, contentIndex, material.ItemId), material.Count, material.IsTool))
+                ResolveItemLink(contentIndex, material.ItemId), material.Count, material.IsTool))
             .OrderBy(row => row.Item.OfficialName, StringComparer.CurrentCultureIgnoreCase)
             .ThenBy(row => row.Item.ItemId, StringComparer.Ordinal).ToArray();
 
