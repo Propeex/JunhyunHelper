@@ -9,11 +9,11 @@ public sealed class V183VisibleUiActivationContractTests
     public void AmmoVisibleDropdowns_ActivateDuringPageInitialization()
     {
         var root = FindRepositoryRoot();
-        var lifecycle = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.ProductGridFixes.cs");
+        var lifecycle = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.Initialization.cs");
         var activation = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.CaliberSelectorSmoke.cs");
 
         Assert.Contains("protected override void OnInitialized(EventArgs e)", lifecycle, StringComparison.Ordinal);
-        Assert.Contains("ApplyProductCaliberDropdownPolish();", lifecycle, StringComparison.Ordinal);
+        Assert.Contains("InitializeProductCaliberDropdowns();", lifecycle, StringComparison.Ordinal);
         Assert.DoesNotContain("EnsureProductVisibleDropdownInitialization", lifecycle, StringComparison.Ordinal);
         Assert.DoesNotContain("_productVisibleDropdownActivatedFromInitialization", activation, StringComparison.Ordinal);
         Assert.Contains("VerifyProductCaliberSelectorInitialization", activation, StringComparison.Ordinal);
