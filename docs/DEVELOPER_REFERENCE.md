@@ -1,7 +1,7 @@
 # DEVELOPER_REFERENCE — 준현 헬퍼 개발자용 시스템 설명서
 
-상태: **ACTIVE / v1.7.14 PUBLIC STABLE / MAINTENANCE MODE**  
-기준일: 2026-08-27
+상태: **ACTIVE EVERGREEN IMPLEMENTATION REFERENCE / MAINTENANCE MODE**  
+기준일: 2026-09-04
 
 이 문서는 다음 개발 세션이 대화 기억 없이 저장소만 보고 **현재 구현 위치·책임·데이터 흐름·변경 영향**을 빠르게 복구하기 위한 지도다.
 
@@ -16,15 +16,17 @@
 # 1. 새 세션 복구 순서
 
 1. `AGENTS.md`
-2. `README.md`
-3. `docs/CURRENT_STATE.md`
-4. `docs/STATE.md`
-5. `docs/PRODUCT.md`
-6. `docs/DECISIONS.md`
-7. `docs/MAINTENANCE_CONTRACTS.md`
-8. `docs/DEVELOPER_REFERENCE.md`
-9. `docs/ARCHITECTURE.md`
-10. 작업 영역 전문 문서 + 관련 code/tests/current PR/CI
+2. `docs/PROJECT_STATE.json`
+3. `docs/ACTIVE_WORK.md`
+4. `README.md`
+5. `docs/CURRENT_STATE.md`
+6. `docs/STATE.md`
+7. `docs/PRODUCT.md`
+8. `docs/DECISIONS.md`
+9. `docs/MAINTENANCE_CONTRACTS.md`
+10. `docs/DEVELOPER_REFERENCE.md`
+11. `docs/ARCHITECTURE.md`
+12. 작업 영역 전문 문서 + 관련 code/tests/current PR/CI
 
 Scanner 작업은 추가로:
 
@@ -47,11 +49,11 @@ Map/MiniMap 작업은 추가로:
 - `docs/MAP_PRODUCT_REQUIREMENTS.md`
 - `docs/REFERENCE_POLICY.md`
 
-현재 public product release가 필요한 작업이면 추가로:
+현재 public product release 사실이 필요한 작업이면 특정 과거 릴리즈 파일을 하드코딩하지 않는다.
 
-- `docs/RELEASE_1.7.14.md`
-- `docs/.release-v1.7.14-status.json`
-- `docs/RELEASE_NOTES_V1.7.14.md`
+- current release identity: `docs/PROJECT_STATE.json`
+- current release evidence: `docs/CURRENT_STATE.md` / `docs/STATE.md`
+- 해당 current version의 `docs/.release-vX.Y.Z-status.json` / `docs/RELEASE_NOTES_VX.Y.Z.md`
 
 ---
 
