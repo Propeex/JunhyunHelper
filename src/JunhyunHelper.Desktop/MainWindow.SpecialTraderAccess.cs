@@ -30,10 +30,14 @@ public partial class MainWindow
                 _activeContent,
                 _activeProfile.ProfileId,
                 e.TraderId,
-                e.AccessAvailable);
+                e.AccessAvailable,
+                _windowLifetimeCts.Token);
 
             await RefreshActiveWorkspacesAsync(detectCleanupChanges: true);
 
+        }
+        catch (OperationCanceledException) when (_windowLifetimeCts.IsCancellationRequested)
+        {
         }
         catch (Exception exception)
         {
@@ -41,7 +45,8 @@ public partial class MainWindow
         }
         finally
         {
-            SetBusy(false);
+            if (!_windowLifetimeCts.IsCancellationRequested)
+                SetBusy(false);
         }
     }
 }
