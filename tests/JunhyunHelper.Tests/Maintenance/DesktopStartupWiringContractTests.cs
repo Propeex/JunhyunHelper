@@ -41,6 +41,11 @@ public sealed class DesktopStartupWiringContractTests
             "src",
             "JunhyunHelper.Desktop",
             "MainWindow.ItemsCleanupIndicator.cs"));
+        var mainWindow = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "JunhyunHelper.Desktop",
+            "MainWindow.xaml.cs"));
 
         Assert.Contains("QuestPage.SetImageCache(_services.Images);", lifecycle, StringComparison.Ordinal);
         Assert.Contains("HideoutPage.SetImageCache(_services.Images);", lifecycle, StringComparison.Ordinal);
