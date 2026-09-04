@@ -69,7 +69,7 @@ public partial class MainWindow : TarkovHelper.MainWindow
 
         try
         {
-            await _contentOperationGate.WaitAsync();
+            await _contentOperationGate.WaitAsync(_windowLifetimeCts.Token);
             gateEntered = true;
 
             if (!TargetIsStillCurrent())
@@ -78,7 +78,7 @@ public partial class MainWindow : TarkovHelper.MainWindow
             // A manual update or the startup schema refresh may have completed while
             // this Map-triggered upgrade was waiting. Always re-read under the shared
             // product gate before deciding that another network update is necessary.
-            var snapshot = await _services.Content.ReadActiveOrRecoverAsync(gameMode);
+            var snapshot = await _services.Content.ReadActiveOrRecoverAsync(gameMode, _windowLifetimeCts.Token);
             if (snapshot.SchemaVersion >= ContentSnapshotStore.CurrentSchemaVersion)
                 return;
 
@@ -89,7 +89,7 @@ public partial class MainWindow : TarkovHelper.MainWindow
             if (!update.Applied || !TargetIsStillCurrent())
                 return;
 
-            var upgraded = await _services.Content.ReadActiveOrRecoverAsync(gameMode);
+            var upgraded = await _services.Content.ReadActiveOrRecoverAsync(gameMode, _windowLifetimeCts.Token);
             if (!TargetIsStillCurrent())
                 return;
 
@@ -108,8 +108,12 @@ public partial class MainWindow : TarkovHelper.MainWindow
         }
         finally
         {
-            if (ownsBusyState && TargetIsStillCurrent())
+            if (ownsBusyState &&
+                !_windowLifetimeCts.IsCancellationRequested &&
+                TargetIsStillCurrent())
+            {
                 SetBusy(false);
+            }
             if (gateEntered)
                 _contentOperationGate.Release();
         }
