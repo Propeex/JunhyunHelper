@@ -22,13 +22,10 @@ public partial class AmmoPage
 
         if (CaliberComboBox.Parent is not Grid header)
             throw new InvalidOperationException("Ammo toolbar parent is not the expected Grid.");
-        if (_productFavoriteCaliberComboBox is null)
-            throw new InvalidOperationException("Ammo runtime favorite selector was not created before toolbar smoke.");
-
         header.Measure(new Size(1200, 80));
         header.Arrange(new Rect(0, 0, 1200, Math.Max(50, header.DesiredSize.Height)));
         header.UpdateLayout();
-        _productFavoriteCaliberComboBox.ApplyTemplate();
+        FavoriteCaliberComboBox.ApplyTemplate();
         ColumnMenuButton.ApplyTemplate();
         header.UpdateLayout();
 
@@ -36,12 +33,12 @@ public partial class AmmoPage
             throw new InvalidOperationException($"Ammo toolbar expected 7 product columns but rendered {header.ColumnDefinitions.Count}.");
         if (Grid.GetColumn(CaliberComboBox) != 0 ||
             Grid.GetColumn(FavoriteCaliberButton) != 1 ||
-            Grid.GetColumn(_productFavoriteCaliberComboBox) != 2 ||
+            Grid.GetColumn(FavoriteCaliberComboBox) != 2 ||
             Grid.GetColumn(ColumnMenuButton) != 6)
         {
             throw new InvalidOperationException(
                 $"Ammo toolbar column contract drifted: caliber={Grid.GetColumn(CaliberComboBox)}, " +
-                $"favoriteStar={Grid.GetColumn(FavoriteCaliberButton)}, favoriteSelector={Grid.GetColumn(_productFavoriteCaliberComboBox)}, " +
+                $"favoriteStar={Grid.GetColumn(FavoriteCaliberButton)}, favoriteSelector={Grid.GetColumn(FavoriteCaliberComboBox)}, " +
                 $"columns={Grid.GetColumn(ColumnMenuButton)}.");
         }
 
@@ -52,16 +49,16 @@ public partial class AmmoPage
         {
             throw new InvalidOperationException("Ammo displayed-columns button is not visible and interactive in the published toolbar.");
         }
-        if (_productFavoriteCaliberComboBox.Visibility != Visibility.Visible ||
-            !_productFavoriteCaliberComboBox.IsHitTestVisible ||
-            _productFavoriteCaliberComboBox.ActualWidth <= 0 || _productFavoriteCaliberComboBox.ActualHeight <= 0)
+        if (FavoriteCaliberComboBox.Visibility != Visibility.Visible ||
+            !FavoriteCaliberComboBox.IsHitTestVisible ||
+            FavoriteCaliberComboBox.ActualWidth <= 0 || FavoriteCaliberComboBox.ActualHeight <= 0)
         {
             throw new InvalidOperationException("Ammo favorite selector is not visible and interactive in the published toolbar.");
         }
 
         var caliberX = CaliberComboBox.TranslatePoint(new Point(0, 0), header).X;
         var favoriteStarX = FavoriteCaliberButton.TranslatePoint(new Point(0, 0), header).X;
-        var favoriteSelectorX = _productFavoriteCaliberComboBox.TranslatePoint(new Point(0, 0), header).X;
+        var favoriteSelectorX = FavoriteCaliberComboBox.TranslatePoint(new Point(0, 0), header).X;
         var columnMenuX = ColumnMenuButton.TranslatePoint(new Point(0, 0), header).X;
         var columnMenuRight = columnMenuX + ColumnMenuButton.ActualWidth;
         var rightGap = header.ActualWidth - columnMenuRight;
