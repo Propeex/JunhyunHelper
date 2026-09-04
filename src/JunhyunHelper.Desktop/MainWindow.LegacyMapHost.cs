@@ -57,28 +57,61 @@ public partial class MainWindow : TarkovHelper.MainWindow
             return;
         }
 
+        var targetProfileId = _activeProfile.ProfileId;
+        var gameMode = _activeProfile.GameMode;
+        var gateEntered = false;
+        var ownsBusyState = false;
+
+        bool TargetIsStillCurrent() =>
+            _activeProfile is { } activeProfile &&
+            string.Equals(activeProfile.ProfileId, targetProfileId, StringComparison.Ordinal) &&
+            activeProfile.GameMode == gameMode;
+
         try
         {
-            var snapshot = await _services.Content.ReadActiveOrRecoverAsync(_activeProfile.GameMode);
+            await _contentOperationGate.WaitAsync();
+            gateEntered = true;
+
+            if (!TargetIsStillCurrent())
+                return;
+
+            // A manual update or the startup schema refresh may have completed while
+            // this Map-triggered upgrade was waiting. Always re-read under the shared
+            // product gate before deciding that another network update is necessary.
+            var snapshot = await _services.Content.ReadActiveOrRecoverAsync(gameMode);
             if (snapshot.SchemaVersion >= ContentSnapshotStore.CurrentSchemaVersion)
                 return;
 
-            var update = await RunContentUpdateAsync(_activeProfile.GameMode);
-            if (!update.Applied)
-            {
+            SetBusy(true);
+            ownsBusyState = true;
 
+            var update = await RunContentUpdateAsync(gameMode);
+            if (!update.Applied || !TargetIsStillCurrent())
                 return;
-            }
 
-            var upgraded = await _services.Content.ReadActiveOrRecoverAsync(_activeProfile.GameMode);
+            var upgraded = await _services.Content.ReadActiveOrRecoverAsync(gameMode);
+            if (!TargetIsStillCurrent())
+                return;
+
             _activeContent = upgraded.Content;
             await RefreshActiveWorkspacesAsync(detectCleanupChanges: false);
             AmmoPage.SetData(_activeContent);
-
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (OperationCanceledException)
         {
-
+            // Shutdown can abandon this opportunistic geometry upgrade. The readable
+            // last-known-good snapshot remains usable and the next launch retries.
+        }
+        catch (Exception exception)
+        {
+            App.WriteDiagnostic("Map-triggered content schema refresh failed", exception);
+        }
+        finally
+        {
+            if (ownsBusyState && TargetIsStillCurrent())
+                SetBusy(false);
+            if (gateEntered)
+                _contentOperationGate.Release();
         }
     }
 
