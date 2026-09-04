@@ -171,10 +171,10 @@ Farming Guide는 **v1.17.1에서 제품에서 완전히 제거**된다.
 ## 11. Schema / compatibility
 
 ```text
-Desktop: 1.15.3
-Public stable: 1.15.3
-Content write: v10
-Content readable: v3-v10
+Desktop: 1.17.1
+Public stable: 1.17.1
+Content write: v12
+Content readable: v3-v12
 user.db: v1
 Scanner display settings: v10
 Scanner catalog write/read: v4 / v1-v4
