@@ -69,18 +69,18 @@ Do **not** perform speculative performance optimization, broad redesign or unrel
 - staged the maintenance release identity as v1.17.2 per `docs/VERSIONING.md`; public stable remains v1.17.1 until exact-main release publication succeeds.
 - completed an exact branch-tree filename audit: retired Farming Guide/search-clear/old Scanner/old Ammo paths are absent; the remaining version-tagged first-party Map smoke names are retained as regression provenance around the pinned donor contract rather than treated as dead product code.
 - removed stale Scanner release-version wording from current published-smoke diagnostics and CI labels without changing any smoke assertion or product path.
+- final validated code/CI head `f00e6871db6afa9f1cca6532e69d201674536687` passed CI `33839991885`, Shutdown Race `33839991847` and Documentation Consistency `33839991837`.
+- final PR validation: 488 passed / 0 failed / 0 skipped; Release build; win-x64 publish; actual Product UI / full Map/Factory/MiniMap / Scanner runtime smoke; graceful shutdown; clean portable root; package/checksum verification.
+- validated PR artifact `JunhyunHelper-win-x64`: id `9924637693`, bytes `241595338`, SHA-256 `c94ab864d16037841c693260f6b3a10cffe9b53d159ee521324f997d098c4f5c`; candidate `Junhyun-Helper.zip` SHA-256 `7e23087ba447cbd81a46edf82b59e583cc2f2fd38746fc180d1bc61ef36ff920`.
 
 ## Current step
 
-Validate the v1.17.2 release-identity cleanup HEAD through Windows CI / published smoke / package, Shutdown Race and Documentation Consistency; then perform the final PR/diff review before merge and exact-main release validation.
+Validate this final documentation checkpoint HEAD, then mark PR #292 ready, merge it, and run exact-main v1.17.2 release validation.
 
 ## Remaining
 
-- full source/test/config/assets audit;
-- remove only evidence-backed impurities;
-- add/adjust regression tests for defects found;
-- update current architecture/reference/state documentation as needed;
-- run Windows Release build, deterministic tests, published EXE relevant product smoke and Shutdown Race;
-- open PR and complete CI/review;
-- merge, exact-main validation and PATCH release if code changes are retained;
-- close ACTIVE_WORK with exact evidence.
+- validate this documentation-only checkpoint HEAD through CI / Shutdown Race / Documentation Consistency;
+- mark PR #292 ready and merge;
+- verify exact-main CI / Shutdown Race / Documentation Consistency and exact-main artifact/package identity;
+- publish and verify v1.17.2 stable release/assets;
+- finalize PROJECT_STATE/CURRENT_STATE/STATE/README/ACTIVE_WORK with exact release evidence and close ACTIVE_WORK.
