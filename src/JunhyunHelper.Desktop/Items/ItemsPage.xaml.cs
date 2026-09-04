@@ -6,7 +6,9 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using JunhyunHelper.Application.Items;
 using JunhyunHelper.Core.Content;
+using JunhyunHelper.Core.Hideout;
 using JunhyunHelper.Core.Items;
+using JunhyunHelper.Core.Quests;
 using JunhyunHelper.Desktop.Controls;
 using JunhyunHelper.Desktop.Services;
 
@@ -21,9 +23,14 @@ public partial class ItemsPage : UserControl
     private static readonly TimeSpan RapidInventoryClickWindow = TimeSpan.FromMilliseconds(160);
 
     private GameContentCatalog? _content;
+    private GameContentCatalog? _indexedContent;
+    private IReadOnlyDictionary<string, GameItem> _itemsById = new Dictionary<string, GameItem>(StringComparer.Ordinal);
+    private IReadOnlyDictionary<string, QuestDefinition> _questsById = new Dictionary<string, QuestDefinition>(StringComparer.Ordinal);
+    private IReadOnlyDictionary<string, HideoutStation> _stationsById = new Dictionary<string, HideoutStation>(StringComparer.Ordinal);
     private ItemsWorkspace? _workspace;
     private ImageCacheService? _imageCache;
     private IReadOnlyList<ItemRow> _allRows = [];
+    private IReadOnlyDictionary<string, ItemRow> _rowsById = new Dictionary<string, ItemRow>(StringComparer.Ordinal);
     private ItemRow? _selectedRow;
     private CancellationTokenSource? _iconLoadCts;
     private readonly DispatcherTimer _inventorySaveDebounceTimer;
@@ -65,8 +72,11 @@ public partial class ItemsPage : UserControl
 
     public void SetData(GameContentCatalog content, ItemsWorkspace workspace)
     {
-        _content = content ?? throw new ArgumentNullException(nameof(content));
-        _workspace = workspace ?? throw new ArgumentNullException(nameof(workspace));
+        ArgumentNullException.ThrowIfNull(content);
+        ArgumentNullException.ThrowIfNull(workspace);
+        EnsureContentIndexes(content);
+        _content = content;
+        _workspace = workspace;
 
         var selectedItemId = _selectedRow?.ItemId;
         var loadedIcons = _allRows
@@ -74,6 +84,7 @@ public partial class ItemsPage : UserControl
             .ToDictionary(row => row.ItemId, row => row.Icon!, StringComparer.Ordinal);
 
         _allRows = BuildRows(content, workspace);
+        _rowsById = _allRows.ToDictionary(row => row.ItemId, StringComparer.Ordinal);
         foreach (var row in _allRows)
         {
             if (loadedIcons.TryGetValue(row.ItemId, out var icon))
@@ -94,8 +105,7 @@ public partial class ItemsPage : UserControl
     public void NavigateToItem(string itemId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(itemId);
-        var target = _allRows.FirstOrDefault(row => row.ItemId == itemId);
-        if (target is null)
+        if (!_rowsById.TryGetValue(itemId, out var target))
             return;
 
         _viewMode = target.IsFlexibleOnly ? ItemViewMode.Flexible : ItemViewMode.Normal;
@@ -110,6 +120,17 @@ public partial class ItemsPage : UserControl
         UpdateModeControls();
         ApplyFilter();
         SelectVisibleItem(itemId, scrollIntoView: true);
+    }
+
+    private void EnsureContentIndexes(GameContentCatalog content)
+    {
+        if (ReferenceEquals(_indexedContent, content))
+            return;
+
+        _itemsById = content.Items.ToDictionary(item => item.Id, StringComparer.Ordinal);
+        _questsById = content.Quests.ToDictionary(quest => quest.Id, StringComparer.Ordinal);
+        _stationsById = content.HideoutStations.ToDictionary(station => station.Id, StringComparer.Ordinal);
+        _indexedContent = content;
     }
 
     public void SetCleanupChanges(IReadOnlyList<InventoryCleanupIncrease> changes)
@@ -144,7 +165,6 @@ public partial class ItemsPage : UserControl
 
     private IReadOnlyList<ItemRow> BuildRows(GameContentCatalog content, ItemsWorkspace workspace)
     {
-        var itemById = content.Items.ToDictionary(item => item.Id, StringComparer.Ordinal);
         var neededById = workspace.Plan.NeededItems.ToDictionary(item => item.ItemId, StringComparer.Ordinal);
         var cleanupById = workspace.Plan.CleanupItems.ToDictionary(item => item.ItemId, StringComparer.Ordinal);
         var protectionsById = workspace.Plan.CleanupProtections
@@ -182,11 +202,11 @@ public partial class ItemsPage : UserControl
                 var surplusFir = cleanup?.SurplusFir ?? 0;
                 var surplusNonFir = cleanup?.SurplusNonFir ?? 0;
 
-                itemById.TryGetValue(itemId, out var item);
+                _itemsById.TryGetValue(itemId, out var item);
                 var name = item is null ? itemId : DisplayName(item.NameKo, item.NameEn, item.Id);
                 var category = ItemCategoryClassifier.Classify(item);
                 var sourceRows = (needed?.Sources ?? cleanup?.Sources ?? Array.Empty<ItemRequirementSource>())
-                    .Select(source => BuildSourceRow(source, content))
+                    .Select(BuildSourceRow)
                     .DistinctBy(source => (source.Title, source.Detail, source.Kind, source.TargetId))
                     .ToArray();
                 var isFlexibleOnly = needed is null && cleanup is null && !workspace.Profile.Inventory.ContainsKey(itemId);
@@ -202,11 +222,11 @@ public partial class ItemsPage : UserControl
             .ToArray();
     }
 
-    private static SourceRow BuildSourceRow(ItemRequirementSource source, GameContentCatalog content)
+    private SourceRow BuildSourceRow(ItemRequirementSource source)
     {
         if (source.Kind == ItemRequirementSourceKind.Quest)
         {
-            var quest = content.Quests.FirstOrDefault(candidate => candidate.Id == source.SourceId);
+            _questsById.TryGetValue(source.SourceId, out var quest);
             var questName = DisplayName(quest?.NameKo, quest?.NameEn, source.SourceId);
             return new SourceRow(
                 $"퀘스트 · {questName}",
@@ -217,7 +237,7 @@ public partial class ItemsPage : UserControl
 
         if (source.Kind == ItemRequirementSourceKind.Hideout)
         {
-            var station = content.HideoutStations.FirstOrDefault(candidate => candidate.Id == source.SourceId);
+            _stationsById.TryGetValue(source.SourceId, out var station);
             var stationName = DisplayName(station?.NameKo, station?.NameEn, source.SourceId);
             return new SourceRow(
                 $"은신처 · {stationName}",
@@ -332,7 +352,7 @@ public partial class ItemsPage : UserControl
                 if (candidates.Length == 0)
                     return null;
 
-                var quest = _content?.Quests.FirstOrDefault(candidate => candidate.Id == group.Key);
+                _questsById.TryGetValue(group.Key, out var quest);
                 var questName = DisplayName(quest?.NameKo, quest?.NameEn, group.Key);
                 var progressText = string.Join(" · ", group.Select(progress =>
                 {
@@ -395,7 +415,7 @@ public partial class ItemsPage : UserControl
 
     private FlexibleSourceRow BuildFlexibleRow(FlexibleQuestItemProgress progress)
     {
-        var quest = _content?.Quests.FirstOrDefault(candidate => candidate.Id == progress.QuestId);
+        _questsById.TryGetValue(progress.QuestId, out var quest);
         var questName = DisplayName(quest?.NameKo, quest?.NameEn, progress.QuestId);
         var candidateNames = progress.AcceptedItemIds.Select(DisplayName).ToArray();
         var remainingText = progress.IsFulfilled ? "충족" : $"남음 {progress.RemainingTotal}개";
@@ -407,8 +427,7 @@ public partial class ItemsPage : UserControl
 
     private void SelectVisibleItem(string itemId, bool scrollIntoView)
     {
-        var target = _allRows.FirstOrDefault(row => row.ItemId == itemId);
-        if (target is null)
+        if (!_rowsById.TryGetValue(itemId, out var target))
             return;
         if (_viewMode == ItemViewMode.Flexible)
         {
@@ -436,8 +455,9 @@ public partial class ItemsPage : UserControl
 
     private string DisplayName(string itemId)
     {
-        var item = _content?.Items.FirstOrDefault(candidate => candidate.Id == itemId);
-        return item is null ? itemId : DisplayName(item.NameKo, item.NameEn, item.Id);
+        return _itemsById.TryGetValue(itemId, out var item)
+            ? DisplayName(item.NameKo, item.NameEn, item.Id)
+            : itemId;
     }
 
     private static string CleanupText(ItemRow row)
@@ -479,8 +499,8 @@ public partial class ItemsPage : UserControl
     private void FlexibleCandidateButton_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: string itemId } || string.IsNullOrWhiteSpace(itemId)) return;
-        var row = _allRows.FirstOrDefault(candidate => candidate.ItemId == itemId);
-        if (row is not null) ShowDetail(row);
+        if (_rowsById.TryGetValue(itemId, out var row))
+            ShowDetail(row);
     }
 
     private void SourceButton_Click(object sender, RoutedEventArgs e)

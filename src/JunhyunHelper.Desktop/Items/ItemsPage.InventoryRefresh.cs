@@ -11,8 +11,11 @@ public partial class ItemsPage
     /// </summary>
     public void SetInventoryData(GameContentCatalog content, ItemsWorkspace workspace)
     {
-        _content = content ?? throw new ArgumentNullException(nameof(content));
-        _workspace = workspace ?? throw new ArgumentNullException(nameof(workspace));
+        ArgumentNullException.ThrowIfNull(content);
+        ArgumentNullException.ThrowIfNull(workspace);
+        EnsureContentIndexes(content);
+        _content = content;
+        _workspace = workspace;
 
         var selectedItemId = _selectedRow?.ItemId;
         var previousRows = _allRows.ToDictionary(row => row.ItemId, StringComparer.Ordinal);
@@ -28,6 +31,7 @@ public partial class ItemsPage
         }
 
         _allRows = nextRows;
+        _rowsById = _allRows.ToDictionary(row => row.ItemId, StringComparer.Ordinal);
         ApplyFilter();
 
         if (!string.IsNullOrWhiteSpace(selectedItemId))

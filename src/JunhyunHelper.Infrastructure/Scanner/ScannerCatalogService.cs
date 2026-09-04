@@ -44,6 +44,7 @@ public sealed class ScannerCatalogService : IDisposable
     private readonly ScannerOcrCharacterPolicy _ocrPolicy = new();
 
     private Dictionary<string, ScannerCatalogItem> _itemsById = new(StringComparer.Ordinal);
+    private IReadOnlyList<ScannerCatalogItem> _itemsSnapshot = Array.Empty<ScannerCatalogItem>();
     private GameMode? _loadedMode;
     private DateTimeOffset? _generatedAtUtc;
     private int _loadedCacheSchemaVersion;
@@ -349,7 +350,7 @@ public sealed class ScannerCatalogService : IDisposable
     public IReadOnlyList<ScannerCatalogItem> GetItemsSnapshot()
     {
         lock (_dataGate)
-            return _itemsById.Values.ToArray();
+            return _itemsSnapshot;
     }
 
     public ScannerOcrTextAssessment AssessOcrText(string? text) => _ocrPolicy.Assess(text);
@@ -609,6 +610,7 @@ public sealed class ScannerCatalogService : IDisposable
             .Where(item => !string.IsNullOrWhiteSpace(item.Id) && !string.IsNullOrWhiteSpace(item.OfficialName))
             .GroupBy(item => item.Id, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+        var snapshot = Array.AsReadOnly(byId.Values.ToArray());
 
         lock (_dataGate)
         {
@@ -616,6 +618,7 @@ public sealed class ScannerCatalogService : IDisposable
             _generatedAtUtc = generatedAtUtc;
             _loadedCacheSchemaVersion = schemaVersion;
             _itemsById = byId;
+            _itemsSnapshot = snapshot;
             _matcher.ReplaceCatalog(byId.Values);
             _ocrPolicy.ReplaceCatalog(byId.Values);
         }
@@ -629,6 +632,7 @@ public sealed class ScannerCatalogService : IDisposable
             _generatedAtUtc = null;
             _loadedCacheSchemaVersion = 0;
             _itemsById = new Dictionary<string, ScannerCatalogItem>(StringComparer.Ordinal);
+            _itemsSnapshot = Array.Empty<ScannerCatalogItem>();
             _matcher.ReplaceCatalog([]);
             _ocrPolicy.ReplaceCatalog([]);
         }

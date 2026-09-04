@@ -32,7 +32,9 @@ public partial class MainWindow
 
         try
         {
-            _ = await KimTaeyoungPcDiagnosticExporter.ExportAsync(ScannerCoordinator);
+            _ = await KimTaeyoungPcDiagnosticExporter.ExportAsync(
+                ScannerCoordinator,
+                _windowLifetimeCts.Token);
             MessageBox.Show(
                 this,
                 "진단 완료.\n파일을 hyune4784@naver.com 으로 보내주세요.",
@@ -41,6 +43,9 @@ public partial class MainWindow
                 MessageBoxImage.Information);
 
             TryOpenKimTaeyoungNaverCompose();
+        }
+        catch (OperationCanceledException) when (_windowLifetimeCts.IsCancellationRequested)
+        {
         }
         catch (Exception exception)
         {
@@ -54,7 +59,8 @@ public partial class MainWindow
         }
         finally
         {
-            KimTaeyoungDiagnosticProgressOverlay.Visibility = Visibility.Collapsed;
+            if (!_windowLifetimeCts.IsCancellationRequested)
+                KimTaeyoungDiagnosticProgressOverlay.Visibility = Visibility.Collapsed;
             _kimTaeyoungDiagnosticRunning = false;
         }
     }

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.IO;
 using System.Net.Http;
 using System.Security.Cryptography;
@@ -19,6 +20,10 @@ public sealed class ImageCacheService
     private readonly HttpClient _httpClient;
     private readonly string _cacheDirectory;
     private readonly SemaphoreSlim _downloads = new(6, 6);
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _cachePathGates =
+        new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, WeakReference<ImageSource>> _decodedImages =
+        new(StringComparer.Ordinal);
 
     public ImageCacheService(HttpClient httpClient, string rootDirectory)
     {
@@ -39,12 +44,21 @@ public sealed class ImageCacheService
 
         try
         {
+            if (TryGetDecodedImage(path, out var memoryCached))
+                return memoryCached;
+
             var cached = TryLoadLocalImage(path);
             if (cached is not null)
+            {
+                RememberDecodedImage(path, cached);
                 return cached;
+            }
 
             await EnsureCachedAsync(stableId, sourceUrl, cancellationToken);
-            return TryLoadLocalImage(path);
+            cached = TryLoadLocalImage(path);
+            if (cached is not null)
+                RememberDecodedImage(path, cached);
+            return cached;
         }
         catch (OperationCanceledException)
         {
@@ -126,18 +140,57 @@ public sealed class ImageCacheService
         if (File.Exists(path))
             return;
 
-        await _downloads.WaitAsync(cancellationToken);
+        // Several product pages can request the same canonical item icon at once.
+        // Serialize by the final URL-hashed cache path before consuming a global
+        // download slot so duplicates wait for the first request instead of issuing
+        // redundant network/PNG normalization work.
+        var pathGate = _cachePathGates.GetOrAdd(
+            path,
+            static _ => new SemaphoreSlim(1, 1));
+        await pathGate.WaitAsync(cancellationToken);
         try
         {
             if (File.Exists(path))
                 return;
-            await DownloadAndNormalizeAsync(sourceUri, path, cancellationToken);
+
+            await _downloads.WaitAsync(cancellationToken);
+            try
+            {
+                if (File.Exists(path))
+                    return;
+                await DownloadAndNormalizeAsync(sourceUri, path, cancellationToken);
+            }
+            finally
+            {
+                _downloads.Release();
+            }
         }
         finally
         {
-            _downloads.Release();
+            // Keep the path gate for this process lifetime. Removing it immediately
+            // after Release can let a new caller create a second gate while an existing
+            // waiter still owns the old one after a failed first attempt.
+            pathGate.Release();
         }
     }
+
+    private bool TryGetDecodedImage(string path, out ImageSource image)
+    {
+        image = null!;
+        if (!_decodedImages.TryGetValue(path, out var reference))
+            return false;
+        if (reference.TryGetTarget(out var target) && target is not null)
+        {
+            image = target;
+            return true;
+        }
+
+        _decodedImages.TryRemove(path, out _);
+        return false;
+    }
+
+    private void RememberDecodedImage(string path, ImageSource image) =>
+        _decodedImages[path] = new WeakReference<ImageSource>(image);
 
     private bool TryGetSource(
         string stableId,

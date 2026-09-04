@@ -42,13 +42,13 @@ public partial class MainWindow
             var questWorkspace = e.Action switch
             {
                 QuestActionKind.Complete => await _services.Quests.CompleteAsync(
-                    _activeContent, _activeProfile.ProfileId, e.QuestId),
+                    _activeContent, _activeProfile.ProfileId, e.QuestId, _windowLifetimeCts.Token),
                 QuestActionKind.UndoCompletion => await _services.Quests.UndoCompletionAsync(
-                    _activeContent, _activeProfile.ProfileId, e.QuestId, restoreInventory),
+                    _activeContent, _activeProfile.ProfileId, e.QuestId, restoreInventory, _windowLifetimeCts.Token),
                 QuestActionKind.Fail => await _services.Quests.FailAsync(
-                    _activeContent, _activeProfile.ProfileId, e.QuestId),
+                    _activeContent, _activeProfile.ProfileId, e.QuestId, _windowLifetimeCts.Token),
                 QuestActionKind.UndoFailure => await _services.Quests.UndoFailureAsync(
-                    _activeContent, _activeProfile.ProfileId, e.QuestId),
+                    _activeContent, _activeProfile.ProfileId, e.QuestId, _windowLifetimeCts.Token),
                 _ => throw new ArgumentOutOfRangeException(nameof(e.Action), e.Action, null),
             };
 
@@ -61,13 +61,18 @@ public partial class MainWindow
             ApplyCleanupChanges(previousPlan, itemsWorkspace);
 
         }
+        catch (OperationCanceledException) when (_windowLifetimeCts.IsCancellationRequested)
+        {
+        }
         catch (Exception exception)
         {
+            await RecoverMutationPresentationAsync("Quest mutation presentation recovery failed");
             ShowFailure("퀘스트 진행 상태를 변경하지 못했습니다.", exception);
         }
         finally
         {
-            SetBusy(false);
+            if (!_windowLifetimeCts.IsCancellationRequested)
+                SetBusy(false);
         }
     }
 
@@ -99,7 +104,15 @@ public partial class MainWindow
                     MessageBoxImage.Question,
                     MessageBoxResult.Yes);
                 if (decision == MessageBoxResult.Cancel)
+                {
+                    // Hideout +/- controls update their row optimistically before the
+                    // debounced mutation reaches this handler. A cancelled rollback is
+                    // not a persistence failure, so restore the authoritative profile-
+                    // derived presentation explicitly.
+                    var authoritative = _services.Hideout.BuildFromProfile(_activeContent, _activeProfile);
+                    HideoutPage.SetData(_activeContent, authoritative);
                     return;
+                }
                 restoreInventory = decision == MessageBoxResult.Yes;
             }
         }
@@ -113,7 +126,8 @@ public partial class MainWindow
                 _activeProfile.ProfileId,
                 e.StationId,
                 e.Level,
-                restoreInventory);
+                restoreInventory,
+                _windowLifetimeCts.Token);
 
             _activeProfile = hideoutWorkspace.Profile;
 
@@ -127,13 +141,18 @@ public partial class MainWindow
             ApplyCleanupChanges(previousPlan, itemsWorkspace);
 
         }
+        catch (OperationCanceledException) when (_windowLifetimeCts.IsCancellationRequested)
+        {
+        }
         catch (Exception exception)
         {
+            await RecoverMutationPresentationAsync("Hideout mutation presentation recovery failed");
             ShowFailure("은신처 진행 상태를 변경하지 못했습니다.", exception);
         }
         finally
         {
-            SetBusy(false);
+            if (!_windowLifetimeCts.IsCancellationRequested)
+                SetBusy(false);
         }
     }
 
@@ -153,7 +172,8 @@ public partial class MainWindow
                 _activeProfile.ProfileId,
                 e.ItemId,
                 e.Fir,
-                e.NonFir);
+                e.NonFir,
+                _windowLifetimeCts.Token);
 
             _activeProfile = itemsWorkspace.Profile;
             _activeItemsWorkspace = itemsWorkspace;
@@ -164,13 +184,41 @@ public partial class MainWindow
             ApplyCleanupChanges(previousPlan, itemsWorkspace);
 
         }
+        catch (OperationCanceledException) when (_windowLifetimeCts.IsCancellationRequested)
+        {
+        }
         catch (Exception exception)
         {
+            await RecoverMutationPresentationAsync("Inventory mutation presentation recovery failed");
             ShowFailure("보유 아이템 수량을 저장하지 못했습니다.", exception);
         }
         finally
         {
-            SetBusy(false);
+            if (!_windowLifetimeCts.IsCancellationRequested)
+                SetBusy(false);
+        }
+    }
+
+    private async Task RecoverMutationPresentationAsync(string diagnosticContext)
+    {
+        if (_activeProfile is null || _activeContent is null)
+            return;
+
+        try
+        {
+            // Mutation pages may optimistically show a debounced +/- result before the
+            // authoritative SQLite write finishes. If that write fails, rebuild all
+            // profile-derived pages from UserProfileStore so the UI cannot keep showing
+            // a value that was never persisted. If the write committed but a later
+            // presentation rebuild failed, the store cache exposes the committed value.
+            await RefreshActiveWorkspacesAsync(detectCleanupChanges: false);
+        }
+        catch (OperationCanceledException) when (_windowLifetimeCts.IsCancellationRequested)
+        {
+        }
+        catch (Exception recoveryException)
+        {
+            App.WriteDiagnostic(diagnosticContext, recoveryException);
         }
     }
 

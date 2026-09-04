@@ -19,6 +19,7 @@ namespace JunhyunHelper.Desktop;
 public partial class MainWindow : Window
 {
     private readonly DesktopServices _services = new();
+    private readonly CancellationTokenSource _windowLifetimeCts = new();
     private IReadOnlyList<GameProfileSnapshot> _profiles = [];
     private GameProfileSnapshot? _activeProfile;
     private GameContentCatalog? _activeContent;
@@ -41,6 +42,7 @@ public partial class MainWindow : Window
 
     private void Window_Closed(object? sender, EventArgs e)
     {
+        _windowLifetimeCts.Cancel();
         _services.Dispose();
     }
 
@@ -49,7 +51,7 @@ public partial class MainWindow : Window
         try
         {
             SetBusy(true);
-            _profiles = await _services.ProfileManagement.LoadAllAsync();
+            _profiles = await _services.ProfileManagement.LoadAllAsync(_windowLifetimeCts.Token);
 
             var targetProfileId = selectedProfileId ?? _activeProfile?.ProfileId;
             var choices = _profiles.Select(profile => new ProfileChoice(profile)).ToArray();
@@ -69,13 +71,17 @@ public partial class MainWindow : Window
 
             await LoadSelectedProfileAsync();
         }
+        catch (OperationCanceledException) when (_windowLifetimeCts.IsCancellationRequested)
+        {
+        }
         catch (Exception exception)
         {
             ShowFailure("초기화하지 못했습니다.", exception);
         }
         finally
         {
-            SetBusy(false);
+            if (!_windowLifetimeCts.IsCancellationRequested)
+                SetBusy(false);
         }
     }
 
@@ -107,13 +113,17 @@ public partial class MainWindow : Window
         {
             await LoadSelectedProfileAsync();
         }
+        catch (OperationCanceledException) when (_windowLifetimeCts.IsCancellationRequested)
+        {
+        }
         catch (Exception exception)
         {
             ShowFailure("프로필을 불러오지 못했습니다.", exception);
         }
         finally
         {
-            SetBusy(false);
+            if (!_windowLifetimeCts.IsCancellationRequested)
+                SetBusy(false);
         }
     }
 
@@ -144,11 +154,16 @@ public partial class MainWindow : Window
         var previousPlan = detectCleanupChanges ? _activeItemsWorkspace?.Plan : null;
         var profileId = _activeProfile.ProfileId;
 
-        var questWorkspace = await _services.Quests.LoadAsync(_activeContent, profileId);
-        var hideoutWorkspace = await _services.Hideout.LoadAsync(_activeContent, profileId);
-        var itemsWorkspace = await _services.Items.LoadAsync(_activeContent, profileId);
+        // Build every derived workspace from one authoritative immutable profile
+        // snapshot. This prevents cross-page skew if persistence changes in the future
+        // and avoids three separate profile-store reads for one UI refresh.
+        var profile = await _services.Profiles.LoadAsync(profileId, _windowLifetimeCts.Token)
+            ?? throw new KeyNotFoundException($"Profile '{profileId}' does not exist.");
+        var questWorkspace = _services.Quests.BuildFromProfile(_activeContent, profile);
+        var hideoutWorkspace = _services.Hideout.BuildFromProfile(_activeContent, profile);
+        var itemsWorkspace = _services.Items.BuildFromProfile(_activeContent, profile);
 
-        _activeProfile = itemsWorkspace.Profile;
+        _activeProfile = profile;
         _activeItemsWorkspace = itemsWorkspace;
 
         QuestPage.SetDataPreservingScroll(_activeContent, questWorkspace);
@@ -172,24 +187,60 @@ public partial class MainWindow : Window
         var paths = _services.Content.GetPaths(gameMode);
         if (!File.Exists(paths.ActivePath))
         {
-            var firstUpdate = await RunContentUpdateAsync(gameMode);
-            if (!firstUpdate.Applied)
-                throw new InvalidDataException("최초 게임 데이터 업데이트가 검증을 통과하지 못했습니다.");
+            await _contentOperationGate.WaitAsync(_windowLifetimeCts.Token);
+            try
+            {
+                // Another caller may have completed first-run provisioning while this
+                // profile load was waiting. Re-check under the shared product gate before
+                // starting a second network import.
+                if (!File.Exists(paths.ActivePath))
+                {
+                    var firstUpdate = await RunContentUpdateAsync(gameMode);
+                    if (!firstUpdate.Applied)
+                        throw new InvalidDataException("최초 게임 데이터 업데이트가 검증을 통과하지 못했습니다.");
+                }
+            }
+            finally
+            {
+                _contentOperationGate.Release();
+            }
         }
 
         try
         {
-            var snapshot = await _services.Content.ReadActiveOrRecoverAsync(gameMode);
+            var snapshot = await _services.Content.ReadActiveOrRecoverAsync(gameMode, _windowLifetimeCts.Token);
             return snapshot.Content;
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            var update = await RunContentUpdateAsync(gameMode);
-            if (!update.Applied)
-                throw new InvalidDataException("게임 데이터 복구 업데이트가 검증을 통과하지 못했습니다.", exception);
+            await _contentOperationGate.WaitAsync(_windowLifetimeCts.Token);
+            try
+            {
+                // A manual/schema/Map update can repair the active snapshot while this
+                // caller waits. Retry the authoritative read before doing recovery I/O.
+                try
+                {
+                    var recovered = await _services.Content.ReadActiveOrRecoverAsync(gameMode, _windowLifetimeCts.Token);
+                    return recovered.Content;
+                }
+                catch (Exception retryException) when (retryException is not OperationCanceledException)
+                {
+                    var update = await RunContentUpdateAsync(gameMode);
+                    if (!update.Applied)
+                    {
+                        throw new InvalidDataException(
+                            "게임 데이터 복구 업데이트가 검증을 통과하지 못했습니다.",
+                            retryException);
+                    }
 
-            var snapshot = await _services.Content.ReadActiveOrRecoverAsync(gameMode);
-            return snapshot.Content;
+                    var snapshot = await _services.Content.ReadActiveOrRecoverAsync(gameMode, _windowLifetimeCts.Token);
+                    return snapshot.Content;
+                }
+            }
+            finally
+            {
+                _contentOperationGate.Release();
+            }
         }
     }
 
@@ -202,6 +253,9 @@ public partial class MainWindow : Window
 
         var progress = new Progress<ContentUpdateProgress>(value =>
         {
+            if (_windowLifetimeCts.IsCancellationRequested)
+                return;
+
             var percent = Math.Clamp((int)Math.Round(value.Percent * 0.85), 0, 85);
             UpdateProgressBar.Value = percent;
             UpdateProgressStageText.Text = value.Message;
@@ -211,13 +265,19 @@ public partial class MainWindow : Window
 
         try
         {
-            var result = await _services.ContentUpdater.UpdateAsync(gameMode, progress: progress);
+            var result = await _services.ContentUpdater.UpdateAsync(
+                gameMode,
+                _windowLifetimeCts.Token,
+                progress);
             if (!result.Applied)
                 return result;
 
-            var snapshot = await _services.Content.ReadActiveOrRecoverAsync(gameMode);
+            var snapshot = await _services.Content.ReadActiveOrRecoverAsync(gameMode, _windowLifetimeCts.Token);
             var imageProgress = new Progress<ImagePrefetchProgress>(value =>
             {
+                if (_windowLifetimeCts.IsCancellationRequested)
+                    return;
+
                 var fraction = value.Total <= 0 ? 1d : value.Completed / (double)value.Total;
                 var percent = 85 + Math.Clamp((int)Math.Round(fraction * 15), 0, 15);
                 UpdateProgressBar.Value = percent;
@@ -227,8 +287,12 @@ public partial class MainWindow : Window
                 UpdateProgressPercentText.Text = $"{percent}%";
 
             });
-            await _services.Images.PrefetchAsync(snapshot.Content, imageProgress);
+            await _services.Images.PrefetchAsync(
+                snapshot.Content,
+                imageProgress,
+                _windowLifetimeCts.Token);
 
+            _windowLifetimeCts.Token.ThrowIfCancellationRequested();
             UpdateProgressBar.Value = 100;
             UpdateProgressStageText.Text = "업데이트 완료";
             UpdateProgressPercentText.Text = "100%";
@@ -236,7 +300,8 @@ public partial class MainWindow : Window
         }
         finally
         {
-            UpdateProgressOverlay.Visibility = Visibility.Collapsed;
+            if (!_windowLifetimeCts.IsCancellationRequested)
+                UpdateProgressOverlay.Visibility = Visibility.Collapsed;
         }
     }
 

@@ -71,14 +71,11 @@ public partial class QuestPage
             return;
 
         var quest = row.Entry.Quest;
-        var itemsById = _content.Items.ToDictionary(item => item.Id, StringComparer.Ordinal);
-        var questsById = _content.Quests.ToDictionary(candidate => candidate.Id, StringComparer.Ordinal);
 
-        var itemRows = _content.QuestItemRequirements
-            .Where(requirement => requirement.QuestId == quest.Id)
+        var itemRows = QuestItemRequirementsFor(quest.Id)
             .SelectMany(requirement => requirement.AcceptedItemIds.Select(itemId =>
             {
-                itemsById.TryGetValue(itemId, out var item);
+                _itemsById.TryGetValue(itemId, out var item);
                 var name = DisplayName(item?.NameKo, item?.NameEn, itemId);
                 var count = Convert.ToString(requirement.Count, CultureInfo.InvariantCulture) ?? "0";
                 var amount = requirement.AcceptedItemIds.Count > 1
@@ -103,7 +100,7 @@ public partial class QuestPage
         var prerequisiteRows = quest.TaskRequirements
             .Select(requirement =>
             {
-                var name = questsById.TryGetValue(requirement.RequiredQuestId, out var prerequisite)
+                var name = _questsById.TryGetValue(requirement.RequiredQuestId, out var prerequisite)
                     ? DisplayName(prerequisite.NameKo, prerequisite.NameEn, requirement.RequiredQuestId)
                     : requirement.RequiredQuestId;
                 var states = string.Join(" / ", requirement.AcceptedStatuses.Select(StatusText));

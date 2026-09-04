@@ -16,9 +16,18 @@ public partial class MainWindow
         if (_activeProfile is null)
             return;
 
+        var gateEntered = false;
+        var ownsBusyState = false;
         try
         {
+            await _contentOperationGate.WaitAsync(_windowLifetimeCts.Token);
+            gateEntered = true;
+
+            if (_activeProfile is null)
+                return;
+
             SetBusy(true);
+            ownsBusyState = true;
             var gameMode = _activeProfile.GameMode;
             var result = await RunContentUpdateAsync(gameMode);
             if (!result.Applied)
@@ -28,7 +37,7 @@ public partial class MainWindow
                     $"{reason} 기존 정상 데이터는 그대로 유지했습니다.");
             }
 
-            var snapshot = await _services.Content.ReadActiveOrRecoverAsync(gameMode);
+            var snapshot = await _services.Content.ReadActiveOrRecoverAsync(gameMode, _windowLifetimeCts.Token);
             _activeContent = snapshot.Content;
             AmmoPage.SetData(_activeContent);
             var cleanupChanges = await RefreshActiveWorkspacesAsync(detectCleanupChanges: true);
@@ -39,7 +48,9 @@ public partial class MainWindow
             // game mode/content/profile set throughout the refresh/restart operation.
             // Network retry/timeout policy is owned by ScannerCatalogService so this UI
             // path never stacks another full retry sequence on top of service retries.
-            var scannerUsable = await ScannerCoordinator.SyncCatalogAsync();
+            var scannerUsable = await ScannerCoordinator.SyncCatalogAsync(_windowLifetimeCts.Token);
+            _windowLifetimeCts.Token.ThrowIfCancellationRequested();
+
             if (cleanupChanges.Count > 0)
             {
                 MessageBox.Show(
@@ -63,13 +74,19 @@ public partial class MainWindow
             }
 
         }
+        catch (OperationCanceledException) when (_windowLifetimeCts.IsCancellationRequested)
+        {
+        }
         catch (Exception exception)
         {
             ShowFailure("게임 데이터를 업데이트하지 못했습니다.", exception);
         }
         finally
         {
-            SetBusy(false);
+            if (ownsBusyState && !_windowLifetimeCts.IsCancellationRequested)
+                SetBusy(false);
+            if (gateEntered)
+                _contentOperationGate.Release();
         }
     }
 }

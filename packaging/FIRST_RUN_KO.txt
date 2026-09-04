@@ -1,4 +1,4 @@
-준현 헬퍼 v1.17.2 — Windows x64
+준현 헬퍼 v1.17.3 — Windows x64
 
 실행 방법
 1. 받은 'Junhyun-Helper.zip'을 원하는 위치에 압축 해제합니다.
@@ -6,17 +6,19 @@
 3. 처음 실행하면 프로필을 만들고 필요한 최신 게임 데이터를 온라인에서 내려받습니다.
 4. 프로그램 실행 시 GitHub의 최신 정식 준현 헬퍼 릴리즈를 확인합니다. 더 최신 버전이 있으면 업데이트 여부를 묻습니다.
 
-v1.17.2 변경
-- 새 기능 추가나 성능 최적화 없이 현재 제품의 불필요한 잔재와 중복 경로를 정리했습니다.
-- MainWindow, Profile, Ammo, Quest/Hideout/Items 검색, Scanner/Mini Scanner에서 숨은 구형 UI, runtime rebinding, proxy control, 도달 불가능한 handler와 이전 기능 잔재를 제거했습니다.
-- Ammo와 Scanner의 현재 UI 소유권을 XAML/명시적 lifecycle로 정리하고, 검증 smoke가 제품 UI를 대신 만들어 통과시키지 않도록 계약을 정리했습니다.
-- 현재 updater는 stable 'Junhyun-Helper.zip' 패키지와 stable wrapper root만 인정하며, 오래된 전환기용 package/root fallback을 제거했습니다.
-- 현재 release/schema 사실값은 PROJECT_STATE를 기준으로 관리하도록 문서 중복과 오래된 current-state 표현을 정리하고 Documentation Consistency 검사를 강화했습니다.
-- 정리 과정에서 발견한 Items 정리 필요 표시 갱신 회귀를 수정하고, 제거된 구조를 다시 요구하던 구형 회귀 테스트를 현재 제품 계약에 맞췄습니다.
-- Quest, Hideout, Items, Ammo, Map/MiniMap, Scanner 인식/검색/교정/진단의 현재 제품 기능과 Map donor 계약은 유지합니다.
+v1.17.3 변경
+- 새 사용자 기능 없이 기존 제품의 안정성, 종료 안전성, 데이터 갱신 직렬화, 반복 조회 효율과 UI 일관성을 강화했습니다.
+- Quest/Hideout/Items는 현재 콘텐츠를 인덱스화해 반복 선형 탐색을 줄이고, 세 workspace를 하나의 authoritative profile snapshot에서 일관되게 생성합니다.
+- Scanner는 catalog snapshot과 canonical content/requirement 역인덱스를 재사용해 검색·상세 관계 조회의 반복 작업을 줄였습니다. OCR 인식 기준·pacing·matching 계약은 변경하지 않았습니다.
+- 공용 이미지 캐시는 동일 URL의 동시 다운로드를 single-flight로 합치고 decoded image는 weak cache로 재사용해 중복 작업과 장기 메모리 점유 위험을 함께 줄였습니다.
+- Map Quest marker 크기 보정은 120ms polling 대신 실제 ScaleTransform 변경 이벤트에 반응하며, 현재 Map/MiniMap donor 계약과 사용자 동작은 유지합니다.
+- 데이터 업데이트, schema refresh, Map-triggered refresh, 최초 데이터 생성/복구는 하나의 content operation gate를 공유해 중복 네트워크 갱신과 UI busy 상태 경쟁을 방지합니다.
+- 프로그램 종료 시 데이터 업데이트, 프로필/Quest/Hideout/Items 변경, Scanner sync, PC 진단, 프로그램 업데이트 준비 작업을 취소하고 종료 후 예약된 progress UI 갱신도 차단합니다.
+- Hideout의 빠른 레벨 변경/시설 전환과 rollback 취소에서 화면이 실제 저장 상태와 어긋날 수 있는 경계를 보강했습니다.
+- 공유 버튼 스타일에 키보드 focus 표시를 추가하고 현재 페이지의 clipping/virtualization/layout 계약을 재검토했습니다.
 
 검증
-- deterministic tests
+- deterministic tests 503개
 - Windows Release build
 - win-x64 self-contained publish
 - 실제 published EXE Product UI / Map / Scanner smoke

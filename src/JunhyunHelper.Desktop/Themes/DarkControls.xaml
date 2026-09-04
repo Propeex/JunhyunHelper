@@ -70,6 +70,9 @@
                             <Setter TargetName="ButtonBorder" Property="Background" Value="{StaticResource BackgroundHoverBrush}" />
                             <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
                         </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                        </Trigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="ButtonBorder" Property="Background" Value="{StaticResource BackgroundMediumBrush}" />
                         </Trigger>
