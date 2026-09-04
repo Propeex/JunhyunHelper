@@ -104,9 +104,14 @@ public sealed class V1173StabilityOptimizationContractTests
         Assert.DoesNotContain("GetItemsSnapshot().FirstOrDefault", search, StringComparison.Ordinal);
 
         Assert.Contains("var contentIndex = GetContentPresentationIndex(context.Content);", relationships, StringComparison.Ordinal);
+        Assert.Contains("QuestRequirementsByItemId", index, StringComparison.Ordinal);
+        Assert.Contains("HideoutRequirementsByItemId", index, StringComparison.Ordinal);
+        Assert.Contains("contentIndex.QuestRequirementsByItemId.TryGetValue", relationships, StringComparison.Ordinal);
+        Assert.Contains("contentIndex.HideoutRequirementsByItemId.TryGetValue", relationships, StringComparison.Ordinal);
         Assert.DoesNotContain("context.Content.Items.FirstOrDefault", relationships, StringComparison.Ordinal);
         Assert.DoesNotContain("context.Content.Traders.FirstOrDefault", relationships, StringComparison.Ordinal);
         Assert.DoesNotContain("context.Content.HideoutStations.FirstOrDefault", relationships, StringComparison.Ordinal);
+        Assert.DoesNotContain("context.Content.QuestItemRequirements", relationships, StringComparison.Ordinal);
     }
 
     [Fact]
