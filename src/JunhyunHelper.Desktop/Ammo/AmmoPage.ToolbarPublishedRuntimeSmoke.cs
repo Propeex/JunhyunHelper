@@ -75,17 +75,16 @@ public partial class AmmoPage
                 $"Ammo displayed-columns button is not pinned to the right edge: rightGap={rightGap:F1}, header={header.ActualWidth:F1}.");
         }
 
-        if (_productSearchBox?.Parent is Grid searchHost)
+        if (ProductSearchBox.Parent is not Grid searchHost)
+            throw new InvalidOperationException("Ammo search box is not hosted in the canonical toolbar search lane.");
+        if (Grid.GetColumn(searchHost) != 4)
+            throw new InvalidOperationException($"Ammo search host rendered in column {Grid.GetColumn(searchHost)} instead of 4.");
+        var searchX = searchHost.TranslatePoint(new Point(0, 0), header).X;
+        if (!(favoriteSelectorX < searchX && searchX < columnMenuX))
         {
-            if (Grid.GetColumn(searchHost) != 4)
-                throw new InvalidOperationException($"Ammo search host rendered in column {Grid.GetColumn(searchHost)} instead of 4.");
-            var searchX = searchHost.TranslatePoint(new Point(0, 0), header).X;
-            if (!(favoriteSelectorX < searchX && searchX < columnMenuX))
-            {
-                throw new InvalidOperationException(
-                    $"Ammo search field is not between favorite selector and displayed-columns button: " +
-                    $"favorite={favoriteSelectorX:F1}, search={searchX:F1}, columns={columnMenuX:F1}.");
-            }
+            throw new InvalidOperationException(
+                $"Ammo search field is not between favorite selector and displayed-columns button: " +
+                $"favorite={favoriteSelectorX:F1}, search={searchX:F1}, columns={columnMenuX:F1}.");
         }
 
         var marker = Path.Combine(Path.GetTempPath(), "junhyun-ammo-toolbar-smoke-success.txt");
