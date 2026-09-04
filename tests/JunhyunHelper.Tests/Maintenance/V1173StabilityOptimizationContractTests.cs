@@ -74,7 +74,7 @@ public sealed class V1173StabilityOptimizationContractTests
 
         Assert.Contains("private readonly SemaphoreSlim _contentOperationGate = new(1, 1);", schemaRefresh, StringComparison.Ordinal);
         Assert.Contains("await _contentOperationGate.WaitAsync(_windowLifetimeCts.Token);", schemaRefresh, StringComparison.Ordinal);
-        Assert.Contains("snapshot = await _services.Content.ReadActiveOrRecoverAsync(gameMode);", schemaRefresh, StringComparison.Ordinal);
+        Assert.Contains("snapshot = await _services.Content.ReadActiveOrRecoverAsync(gameMode, _windowLifetimeCts.Token);", schemaRefresh, StringComparison.Ordinal);
         Assert.Contains("if (!ContentSnapshotStore.RequiresCurrentSchemaRefresh(snapshot))", schemaRefresh, StringComparison.Ordinal);
         Assert.Contains("_contentOperationGate.Release();", schemaRefresh, StringComparison.Ordinal);
 
@@ -197,7 +197,7 @@ public sealed class V1173StabilityOptimizationContractTests
         Assert.Equal(2, Count(source, "await _contentOperationGate.WaitAsync(_windowLifetimeCts.Token);"));
         Assert.Equal(2, Count(source, "_contentOperationGate.Release();"));
         Assert.Contains("if (!File.Exists(paths.ActivePath))", source, StringComparison.Ordinal);
-        Assert.Contains("var recovered = await _services.Content.ReadActiveOrRecoverAsync(gameMode);", source, StringComparison.Ordinal);
+        Assert.Contains("var recovered = await _services.Content.ReadActiveOrRecoverAsync(gameMode, _windowLifetimeCts.Token);", source, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -206,7 +206,7 @@ public sealed class V1173StabilityOptimizationContractTests
         var root = FindRepositoryRoot();
         var source = Read(root, "src", "JunhyunHelper.Desktop", "MainWindow.xaml.cs");
 
-        Assert.Contains("var profile = await _services.Profiles.LoadAsync(profileId)", source, StringComparison.Ordinal);
+        Assert.Contains("var profile = await _services.Profiles.LoadAsync(profileId, _windowLifetimeCts.Token)", source, StringComparison.Ordinal);
         Assert.Contains("_services.Quests.BuildFromProfile(_activeContent, profile)", source, StringComparison.Ordinal);
         Assert.Contains("_services.Hideout.BuildFromProfile(_activeContent, profile)", source, StringComparison.Ordinal);
         Assert.Contains("_services.Items.BuildFromProfile(_activeContent, profile)", source, StringComparison.Ordinal);
