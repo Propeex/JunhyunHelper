@@ -18,8 +18,8 @@ public sealed class V183VisibleUiActivationContractTests
         Assert.Contains("_productVisibleDropdownActivatedFromInitialization = true", activation, StringComparison.Ordinal);
         Assert.DoesNotContain("RegisterProductVisibleDropdownActivation", activation, StringComparison.Ordinal);
         Assert.Contains("VerifyProductVisibleDropdownInitialization", activation, StringComparison.Ordinal);
-        Assert.Contains("FavoriteCaliberMenuButton.Visibility != Visibility.Collapsed", activation, StringComparison.Ordinal);
-        Assert.Contains("ReferenceEquals(CaliberComboBox.ItemTemplate, _productFavoriteCaliberComboBox.ItemTemplate)", activation, StringComparison.Ordinal);
+        Assert.DoesNotContain("FavoriteCaliberMenuButton", activation, StringComparison.Ordinal);
+        Assert.Contains("ReferenceEquals(CaliberComboBox.ItemTemplate, FavoriteCaliberComboBox.ItemTemplate)", activation, StringComparison.Ordinal);
     }
 
     [Fact]
