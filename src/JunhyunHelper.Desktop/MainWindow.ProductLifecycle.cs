@@ -38,11 +38,6 @@ public partial class MainWindow
         ScannerCoordinator.AttachContextProvider(GetScannerDataContext);
         ScannerCoordinator.AttachHotkeyHost(this);
 
-        // The empty-state create button is XAML-owned and receives its legacy handler
-        // during InitializeComponent. Rebind it after the visual tree is complete so
-        // profile creation uses the same in-app overlay boundary as profile editing.
-        Dispatcher.BeginInvoke(AttachProfileOverlayLaunchers, DispatcherPriority.Loaded);
-
     }
 
     protected override void OnClosed(EventArgs e)
