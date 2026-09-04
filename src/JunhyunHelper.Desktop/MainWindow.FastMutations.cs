@@ -11,22 +11,8 @@ namespace JunhyunHelper.Desktop;
 
 public partial class MainWindow
 {
-    private void EnableFastMutationHandlers()
-    {
-        QuestPage.ActionRequested -= QuestPage_ActionRequested;
-        QuestPage.ActionRequested -= QuestPage_ActionRequestedFast;
-        QuestPage.ActionRequested += QuestPage_ActionRequestedFast;
 
-        HideoutPage.LevelChangeRequested -= HideoutPage_LevelChangeRequested;
-        HideoutPage.LevelChangeRequested -= HideoutPage_LevelChangeRequestedFast;
-        HideoutPage.LevelChangeRequested += HideoutPage_LevelChangeRequestedFast;
-
-        ItemsPage.InventoryChangeRequested -= ItemsPage_InventoryChangeRequested;
-        ItemsPage.InventoryChangeRequested -= ItemsPage_InventoryChangeRequestedFast;
-        ItemsPage.InventoryChangeRequested += ItemsPage_InventoryChangeRequestedFast;
-    }
-
-    private async void QuestPage_ActionRequestedFast(object? sender, QuestActionRequestedEventArgs e)
+    private async void QuestPage_ActionRequested(object? sender, QuestActionRequestedEventArgs e)
     {
         if (_activeProfile is null || _activeContent is null)
             return;
@@ -92,7 +78,7 @@ public partial class MainWindow
         }
     }
 
-    private async void HideoutPage_LevelChangeRequestedFast(
+    private async void HideoutPage_LevelChangeRequested(
         object? sender,
         HideoutLevelChangeRequestedEventArgs e)
     {
@@ -159,7 +145,7 @@ public partial class MainWindow
         }
     }
 
-    private async void ItemsPage_InventoryChangeRequestedFast(
+    private async void ItemsPage_InventoryChangeRequested(
         object? sender,
         InventoryChangeRequestedEventArgs e)
     {
