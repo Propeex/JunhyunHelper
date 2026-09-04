@@ -1,6 +1,5 @@
 using System.IO;
 using System.Windows;
-using JunhyunHelper.Infrastructure.Scanner;
 using JunhyunHelper.Infrastructure.Validation;
 
 namespace JunhyunHelper.Desktop;
