@@ -57,7 +57,6 @@
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="3*" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="2*" MinHeight="190" />
@@ -147,10 +146,7 @@
             </Popup>
         </Grid>
 
-        <TextBlock x:Name="SummaryText" Grid.Row="1"
-                   Foreground="{StaticResource TextSecondaryBrush}" Margin="2,0,0,10" />
-
-        <DataGrid x:Name="AmmoGrid" Grid.Row="2"
+        <DataGrid x:Name="AmmoGrid" Grid.Row="1"
                   AutoGenerateColumns="False" IsReadOnly="True"
                   CanUserAddRows="False" CanUserDeleteRows="False"
                   CanUserReorderColumns="True" CanUserResizeColumns="True" CanUserSortColumns="False"
@@ -197,13 +193,13 @@
             </DataGrid.Columns>
         </DataGrid>
 
-        <Button x:Name="ProductDetailToggleButton" Grid.Row="3"
+        <Button x:Name="ProductDetailToggleButton" Grid.Row="2"
                 Content="▼" ToolTip="상세정보 접기"
                 HorizontalAlignment="Center" VerticalAlignment="Center"
                 Width="42" MinWidth="42" MaxWidth="42" Height="30" Margin="0,3" Padding="0" FontWeight="SemiBold"
                 Click="ProductDetailToggleButton_Click" />
 
-        <Border x:Name="ProductDetailHost" Grid.Row="4" Background="{StaticResource BackgroundMediumBrush}" CornerRadius="8" Padding="16">
+        <Border x:Name="ProductDetailHost" Grid.Row="3" Background="{StaticResource BackgroundMediumBrush}" CornerRadius="8" Padding="16">
             <Grid>
                 <TextBlock x:Name="EmptyDetailText"
                            Text="탄약을 선택하면 세부 성능과 수급처를 확인할 수 있습니다."
