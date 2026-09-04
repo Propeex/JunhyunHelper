@@ -22,7 +22,7 @@ public sealed class ImageCacheService
     private readonly SemaphoreSlim _downloads = new(6, 6);
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _cachePathGates =
         new(StringComparer.Ordinal);
-    private readonly ConcurrentDictionary<string, ImageSource> _decodedImages =
+    private readonly ConcurrentDictionary<string, WeakReference<ImageSource>> _decodedImages =
         new(StringComparer.Ordinal);
 
     public ImageCacheService(HttpClient httpClient, string rootDirectory)
@@ -44,18 +44,21 @@ public sealed class ImageCacheService
 
         try
         {
-            if (_decodedImages.TryGetValue(path, out var memoryCached))
+            if (TryGetDecodedImage(path, out var memoryCached))
                 return memoryCached;
 
             var cached = TryLoadLocalImage(path);
             if (cached is not null)
-                return _decodedImages.GetOrAdd(path, cached);
+            {
+                RememberDecodedImage(path, cached);
+                return cached;
+            }
 
             await EnsureCachedAsync(stableId, sourceUrl, cancellationToken);
             cached = TryLoadLocalImage(path);
-            return cached is null
-                ? null
-                : _decodedImages.GetOrAdd(path, cached);
+            if (cached is not null)
+                RememberDecodedImage(path, cached);
+            return cached;
         }
         catch (OperationCanceledException)
         {
@@ -165,8 +168,24 @@ public sealed class ImageCacheService
         finally
         {
             pathGate.Release();
+            _cachePathGates.TryRemove(path, out _);
         }
     }
+
+    private bool TryGetDecodedImage(string path, out ImageSource image)
+    {
+        image = null!;
+        if (!_decodedImages.TryGetValue(path, out var reference))
+            return false;
+        if (reference.TryGetTarget(out image))
+            return true;
+
+        _decodedImages.TryRemove(path, out _);
+        return false;
+    }
+
+    private void RememberDecodedImage(string path, ImageSource image) =>
+        _decodedImages[path] = new WeakReference<ImageSource>(image);
 
     private bool TryGetSource(
         string stableId,
