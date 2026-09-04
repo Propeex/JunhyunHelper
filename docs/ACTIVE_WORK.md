@@ -10,7 +10,7 @@ Remove the Farming Guide product feature completely at the user's explicit reque
 
 - base: current `main` / public stable v1.17.0
 - working branch: `product/remove-farming-guide-2026-09-04`
-- PR: not opened yet
+- PR: #290 (draft)
 
 ## Confirmed scope
 
@@ -33,10 +33,13 @@ Historical release/decision records may remain only where needed as immutable hi
 - recovered v1.17.0 current state and canonical Farming Guide authority
 - user explicitly decided to remove the entire Farming Guide feature
 - created working branch
+- removed 101 dedicated Farming Guide implementation/test files
+- removed main navigation/service wiring and Scanner Farming Guide display/hotkey integration
+- opened draft PR #290 for Windows CI dependency detection
 
 ## Current step
 
-Inventory all code, UI, persistence, settings, tests, build/release smoke and documentation dependencies before deletion.
+Use PR #290 Windows CI plus targeted source review to remove any remaining cross-feature references, then update current documentation/version.
 
 ## Remaining
 
