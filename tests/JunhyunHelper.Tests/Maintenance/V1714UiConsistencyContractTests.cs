@@ -48,7 +48,7 @@ public sealed class V1714UiConsistencyContractTests
         Assert.Contains("SetScannerToggleHotkey", code, StringComparison.Ordinal);
         Assert.Contains("ToggleInAppWindowAsync(\"scanner-settings\"", page, StringComparison.Ordinal);
         Assert.Contains("Click=\"ProductSettingsButton_Click\"", pageXaml, StringComparison.Ordinal);
-        Assert.DoesNotContain("SettingsButton_Click", pageXaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Click=\"SettingsButton_Click\"", pageXaml, StringComparison.Ordinal);
         Assert.False(File.Exists(Path.Combine(scannerDirectory, "ScannerHotkeySettingsWindow.xaml")));
         Assert.False(File.Exists(Path.Combine(scannerDirectory, "ScannerHotkeySettingsWindow.xaml.cs")));
     }
@@ -68,7 +68,7 @@ public sealed class V1714UiConsistencyContractTests
         Assert.Contains("TryDismissInAppOverlay", code, StringComparison.Ordinal);
         Assert.Contains("ToggleInAppWindowAsync(\"scanner-advanced\"", page, StringComparison.Ordinal);
         Assert.Contains("Click=\"ProductAdvancedButton_Click\"", pageXaml, StringComparison.Ordinal);
-        Assert.DoesNotContain("AdvancedButton_Click", pageXaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Click=\"AdvancedButton_Click\"", pageXaml, StringComparison.Ordinal);
     }
 
     [Fact]
