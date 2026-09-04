@@ -9,11 +9,12 @@ public sealed class V1715UiRefinementsContractTests
     public void Header_ShowsVersionOnlyAndUsesItemsCleanupDot()
     {
         var root = FindRepositoryRoot();
-        var source = Read(root, "src", "JunhyunHelper.Desktop", "MainWindow.HeaderStatusPolish.cs");
+        var xaml = Read(root, "src", "JunhyunHelper.Desktop", "MainWindow.xaml");
+        var source = Read(root, "src", "JunhyunHelper.Desktop", "MainWindow.ItemsCleanupIndicator.cs");
 
-        Assert.Contains("StatusText.Visibility = Visibility.Collapsed", source, StringComparison.Ordinal);
-        Assert.Contains("VersionText.Margin = new Thickness(0)", source, StringComparison.Ordinal);
-        Assert.Contains("Color.FromRgb(245, 158, 11)", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("StatusText", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"ItemsCleanupIndicator\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Fill=\"#F59E0B\"", xaml, StringComparison.Ordinal);
         Assert.Contains("_activeItemsWorkspace?.Plan.CleanupItems.Count", source, StringComparison.Ordinal);
         Assert.Contains("Visibility.Visible", source, StringComparison.Ordinal);
         Assert.Contains("Visibility.Collapsed", source, StringComparison.Ordinal);
