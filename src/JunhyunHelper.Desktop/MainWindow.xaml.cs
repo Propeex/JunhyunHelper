@@ -172,9 +172,23 @@ public partial class MainWindow : Window
         var paths = _services.Content.GetPaths(gameMode);
         if (!File.Exists(paths.ActivePath))
         {
-            var firstUpdate = await RunContentUpdateAsync(gameMode);
-            if (!firstUpdate.Applied)
-                throw new InvalidDataException("최초 게임 데이터 업데이트가 검증을 통과하지 못했습니다.");
+            await _contentOperationGate.WaitAsync();
+            try
+            {
+                // Another caller may have completed first-run provisioning while this
+                // profile load was waiting. Re-check under the shared product gate before
+                // starting a second network import.
+                if (!File.Exists(paths.ActivePath))
+                {
+                    var firstUpdate = await RunContentUpdateAsync(gameMode);
+                    if (!firstUpdate.Applied)
+                        throw new InvalidDataException("최초 게임 데이터 업데이트가 검증을 통과하지 못했습니다.");
+                }
+            }
+            finally
+            {
+                _contentOperationGate.Release();
+            }
         }
 
         try
@@ -184,12 +198,34 @@ public partial class MainWindow : Window
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            var update = await RunContentUpdateAsync(gameMode);
-            if (!update.Applied)
-                throw new InvalidDataException("게임 데이터 복구 업데이트가 검증을 통과하지 못했습니다.", exception);
+            await _contentOperationGate.WaitAsync();
+            try
+            {
+                // A manual/schema/Map update can repair the active snapshot while this
+                // caller waits. Retry the authoritative read before doing recovery I/O.
+                try
+                {
+                    var recovered = await _services.Content.ReadActiveOrRecoverAsync(gameMode);
+                    return recovered.Content;
+                }
+                catch (Exception retryException) when (retryException is not OperationCanceledException)
+                {
+                    var update = await RunContentUpdateAsync(gameMode);
+                    if (!update.Applied)
+                    {
+                        throw new InvalidDataException(
+                            "게임 데이터 복구 업데이트가 검증을 통과하지 못했습니다.",
+                            retryException);
+                    }
 
-            var snapshot = await _services.Content.ReadActiveOrRecoverAsync(gameMode);
-            return snapshot.Content;
+                    var snapshot = await _services.Content.ReadActiveOrRecoverAsync(gameMode);
+                    return snapshot.Content;
+                }
+            }
+            finally
+            {
+                _contentOperationGate.Release();
+            }
         }
     }
 
