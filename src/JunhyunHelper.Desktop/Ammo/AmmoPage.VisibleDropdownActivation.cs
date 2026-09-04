@@ -24,12 +24,8 @@ public partial class AmmoPage
     {
         if (!_productVisibleDropdownActivatedFromInitialization || !_productCaliberDropdownApplied)
             throw new InvalidOperationException("Ammo visible dropdown polish was not activated during page initialization.");
-        if (_productFavoriteCaliberComboBox is null)
-            throw new InvalidOperationException("Ammo favorite caliber selector is not a ComboBox in the visible runtime toolbar.");
-        if (FavoriteCaliberMenuButton.Visibility != Visibility.Collapsed || FavoriteCaliberMenuButton.IsHitTestVisible)
-            throw new InvalidOperationException("Ammo legacy favorite menu is still visible or interactive.");
         if (CaliberComboBox.ItemTemplate is null ||
-            !ReferenceEquals(CaliberComboBox.ItemTemplate, _productFavoriteCaliberComboBox.ItemTemplate))
+            !ReferenceEquals(CaliberComboBox.ItemTemplate, FavoriteCaliberComboBox.ItemTemplate))
         {
             throw new InvalidOperationException("Ammo caliber and favorite dropdowns do not share the animated icon template.");
         }
