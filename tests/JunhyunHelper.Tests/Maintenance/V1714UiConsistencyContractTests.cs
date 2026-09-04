@@ -123,6 +123,8 @@ public sealed class V1714UiConsistencyContractTests
         Assert.Contains("ProductSearchClearButtonBehavior.Attach(ProductSearchBox)", ammo, StringComparison.Ordinal);
         Assert.DoesNotContain("new TextBox", ammo, StringComparison.Ordinal);
         Assert.DoesNotContain("new Popup", ammo, StringComparison.Ordinal);
+        Assert.DoesNotContain("FavoriteCaliberButton.Click +=", ammo, StringComparison.Ordinal);
+        Assert.DoesNotContain("CaliberComboBox.SelectionChanged +=", ammo, StringComparison.Ordinal);
         Assert.Contains("ProductSearchClearButtonBehavior.Attach(ItemSearchBox)", scanner, StringComparison.Ordinal);
     }
 
