@@ -70,10 +70,10 @@ public sealed class V190ScannerNavigationContractTests
         var root = FindRepositoryRoot();
         var smoke = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.PublishedRuntimeSmoke.cs");
 
-        Assert.Contains("if (!_productCaliberDropdownApplied", smoke, StringComparison.Ordinal);
+        Assert.Contains("if (!_productCaliberDropdownInitialized", smoke, StringComparison.Ordinal);
         Assert.Contains("ProductCaliberIconCycleInterval != TimeSpan.FromMilliseconds(700)", smoke, StringComparison.Ordinal);
         Assert.Contains("shared-cycle-ms=700", smoke, StringComparison.Ordinal);
-        Assert.DoesNotContain("ApplyProductCaliberDropdownPolish();", smoke, StringComparison.Ordinal);
+        Assert.DoesNotContain("InitializeProductCaliberDropdowns();", smoke, StringComparison.Ordinal);
     }
 
     private static int CountOccurrences(string source, string value) =>
