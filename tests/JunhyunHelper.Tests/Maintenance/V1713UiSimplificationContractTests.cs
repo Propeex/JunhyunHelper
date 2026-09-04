@@ -39,16 +39,20 @@ public sealed class V1713UiSimplificationContractTests
     }
 
     [Fact]
-    public void ScannerNeededSources_JoinAuthoritativeItemsWorkspacePlan()
+    public void ScannerItemUsageNavigation_ReusesCanonicalContentNavigation()
     {
         var root = FindRepositoryRoot();
-        var sources = Read(root, "src", "JunhyunHelper.Desktop", "MainWindow.ScannerItemSources.cs");
+        var navigation = Read(root, "src", "JunhyunHelper.Desktop", "MainWindow.ScannerItemNavigation.cs");
+        var usability = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.ProductUsability.cs");
+        var retiredSourceOwner = Path.Combine(
+            root, "src", "JunhyunHelper.Desktop", "MainWindow.ScannerItemSources.cs");
 
-        Assert.Contains("_activeItemsWorkspace.Plan.NeededItems", sources, StringComparison.Ordinal);
-        Assert.Contains("needed.Sources", sources, StringComparison.Ordinal);
-        Assert.Contains("needed.RemainingTotal", sources, StringComparison.Ordinal);
-        Assert.DoesNotContain("new ItemsApplicationService", sources, StringComparison.Ordinal);
-        Assert.DoesNotContain("new ItemRequirement", sources, StringComparison.Ordinal);
+        Assert.Contains("ItemsPage_QuestNavigationRequested", navigation, StringComparison.Ordinal);
+        Assert.Contains("ItemsPage_HideoutNavigationRequested", navigation, StringComparison.Ordinal);
+        Assert.DoesNotContain("GetScannerNeededSources", navigation, StringComparison.Ordinal);
+        Assert.DoesNotContain("BuildNeededSourcesPresentation", usability, StringComparison.Ordinal);
+        Assert.DoesNotContain("필요한 곳", usability, StringComparison.Ordinal);
+        Assert.False(File.Exists(retiredSourceOwner));
     }
 
     private static string Read(string root, params string[] path) =>
