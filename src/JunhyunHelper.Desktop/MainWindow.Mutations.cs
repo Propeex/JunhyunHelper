@@ -42,13 +42,13 @@ public partial class MainWindow
             var questWorkspace = e.Action switch
             {
                 QuestActionKind.Complete => await _services.Quests.CompleteAsync(
-                    _activeContent, _activeProfile.ProfileId, e.QuestId),
+                    _activeContent, _activeProfile.ProfileId, e.QuestId, _windowLifetimeCts.Token),
                 QuestActionKind.UndoCompletion => await _services.Quests.UndoCompletionAsync(
-                    _activeContent, _activeProfile.ProfileId, e.QuestId, restoreInventory),
+                    _activeContent, _activeProfile.ProfileId, e.QuestId, restoreInventory, _windowLifetimeCts.Token),
                 QuestActionKind.Fail => await _services.Quests.FailAsync(
-                    _activeContent, _activeProfile.ProfileId, e.QuestId),
+                    _activeContent, _activeProfile.ProfileId, e.QuestId, _windowLifetimeCts.Token),
                 QuestActionKind.UndoFailure => await _services.Quests.UndoFailureAsync(
-                    _activeContent, _activeProfile.ProfileId, e.QuestId),
+                    _activeContent, _activeProfile.ProfileId, e.QuestId, _windowLifetimeCts.Token),
                 _ => throw new ArgumentOutOfRangeException(nameof(e.Action), e.Action, null),
             };
 
@@ -61,6 +61,9 @@ public partial class MainWindow
             ApplyCleanupChanges(previousPlan, itemsWorkspace);
 
         }
+        catch (OperationCanceledException) when (_windowLifetimeCts.IsCancellationRequested)
+        {
+        }
         catch (Exception exception)
         {
             await RecoverMutationPresentationAsync("Quest mutation presentation recovery failed");
@@ -68,7 +71,8 @@ public partial class MainWindow
         }
         finally
         {
-            SetBusy(false);
+            if (!_windowLifetimeCts.IsCancellationRequested)
+                SetBusy(false);
         }
     }
 
@@ -122,7 +126,8 @@ public partial class MainWindow
                 _activeProfile.ProfileId,
                 e.StationId,
                 e.Level,
-                restoreInventory);
+                restoreInventory,
+                _windowLifetimeCts.Token);
 
             _activeProfile = hideoutWorkspace.Profile;
 
@@ -136,6 +141,9 @@ public partial class MainWindow
             ApplyCleanupChanges(previousPlan, itemsWorkspace);
 
         }
+        catch (OperationCanceledException) when (_windowLifetimeCts.IsCancellationRequested)
+        {
+        }
         catch (Exception exception)
         {
             await RecoverMutationPresentationAsync("Hideout mutation presentation recovery failed");
@@ -143,7 +151,8 @@ public partial class MainWindow
         }
         finally
         {
-            SetBusy(false);
+            if (!_windowLifetimeCts.IsCancellationRequested)
+                SetBusy(false);
         }
     }
 
@@ -163,7 +172,8 @@ public partial class MainWindow
                 _activeProfile.ProfileId,
                 e.ItemId,
                 e.Fir,
-                e.NonFir);
+                e.NonFir,
+                _windowLifetimeCts.Token);
 
             _activeProfile = itemsWorkspace.Profile;
             _activeItemsWorkspace = itemsWorkspace;
@@ -174,6 +184,9 @@ public partial class MainWindow
             ApplyCleanupChanges(previousPlan, itemsWorkspace);
 
         }
+        catch (OperationCanceledException) when (_windowLifetimeCts.IsCancellationRequested)
+        {
+        }
         catch (Exception exception)
         {
             await RecoverMutationPresentationAsync("Inventory mutation presentation recovery failed");
@@ -181,7 +194,8 @@ public partial class MainWindow
         }
         finally
         {
-            SetBusy(false);
+            if (!_windowLifetimeCts.IsCancellationRequested)
+                SetBusy(false);
         }
     }
 
