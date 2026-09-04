@@ -49,6 +49,8 @@ public partial class MainWindow
             // Network retry/timeout policy is owned by ScannerCatalogService so this UI
             // path never stacks another full retry sequence on top of service retries.
             var scannerUsable = await ScannerCoordinator.SyncCatalogAsync(_windowLifetimeCts.Token);
+            _windowLifetimeCts.Token.ThrowIfCancellationRequested();
+
             if (cleanupChanges.Count > 0)
             {
                 MessageBox.Show(
