@@ -199,23 +199,15 @@ Stable 게시 뒤 최소 확인:
 
 일반 실행 updater는 latest public stable을 source of truth로 사용한다.
 
-Canonical 신규 package는 `Junhyun-Helper.zip`이며, updater는 이전 versioned package와의 compatibility fallback을 제한적으로 유지할 수 있다.
+Current updater가 인정하는 package는 canonical `Junhyun-Helper.zip`뿐이다. 과거 전환기 versioned package는 current release/update contract가 아니다.
 
 상세 계약은 `docs/PROGRAM_UPDATE.md`가 권위다.
 
 ## 10. 호환성
 
-현재 v1.7.13:
+현재 schema/version 사실값은 이 배포 문서에 중복 저장하지 않는다. `docs/PROJECT_STATE.json`이 canonical source이며, 상세 read/write compatibility는 `docs/DEVELOPER_REFERENCE.md`와 subsystem 문서를 사용한다.
 
-```text
-Content schema: v7
-Readable Content schemas: v3~v7
-user.db schema: v1
-Scanner display settings schema: v6
-Scanner catalog cache: v1~v3 readable, v3 written
-```
-
-v1.7.13은 User Progress/Game Content schema migration release가 아니다. 기존 Profile / Quest / Inventory / Hideout / Map/MiniMap/Ammo/Scanner mutable state를 유지한다.
+배포/업데이트는 기존 Profile / Quest / Inventory / Hideout / Map/MiniMap/Ammo/Scanner mutable user state를 보존해야 하며, package 교체가 `%LocalAppData%/JunhyunHelper`의 사용자 소유 데이터를 초기화해서는 안 된다.
 
 ## 11. 릴리즈 이후 운영
 
