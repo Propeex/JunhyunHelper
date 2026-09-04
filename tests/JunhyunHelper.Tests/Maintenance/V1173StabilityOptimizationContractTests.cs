@@ -213,6 +213,17 @@ public sealed class V1173StabilityOptimizationContractTests
         Assert.DoesNotContain("_services.Items.LoadAsync(_activeContent, profileId)", source, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void CancelledHideoutRollback_RestoresAuthoritativePresentation()
+    {
+        var root = FindRepositoryRoot();
+        var source = Read(root, "src", "JunhyunHelper.Desktop", "MainWindow.Mutations.cs");
+
+        Assert.Contains("var authoritative = _services.Hideout.BuildFromProfile(_activeContent, _activeProfile);", source, StringComparison.Ordinal);
+        Assert.Contains("HideoutPage.SetData(_activeContent, authoritative);", source, StringComparison.Ordinal);
+        Assert.Contains("A cancelled rollback is", source, StringComparison.Ordinal);
+    }
+
     private static int Count(string source, string value)
     {
         var count = 0;
