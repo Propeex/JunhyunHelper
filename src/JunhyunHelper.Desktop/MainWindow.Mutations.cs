@@ -213,6 +213,9 @@ public partial class MainWindow
             // presentation rebuild failed, the store cache exposes the committed value.
             await RefreshActiveWorkspacesAsync(detectCleanupChanges: false);
         }
+        catch (OperationCanceledException) when (_windowLifetimeCts.IsCancellationRequested)
+        {
+        }
         catch (Exception recoveryException)
         {
             App.WriteDiagnostic(diagnosticContext, recoveryException);
