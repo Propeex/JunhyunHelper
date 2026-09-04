@@ -1,5 +1,4 @@
 using System.Text.Json;
-using JunhyunHelper.Core.FarmingGuide;
 using JunhyunHelper.Core.Items;
 
 namespace JunhyunHelper.Infrastructure.TarkovJson.Items;
@@ -54,257 +53,12 @@ public sealed class TarkovItemImporter
                 TarkovJsonReader.OptionalInt(raw, "basePrice"),
                 typeKeys.Length == 0
                     ? null
-                    : !typeKeys.Contains("noFlea", StringComparer.OrdinalIgnoreCase))
-            {
-                FarmingGuideData = ReadFarmingGuideLayout(raw),
-                FarmingGuideAssembly = ReadAssemblySource(raw),
-            };
+                    : !typeKeys.Contains("noFlea", StringComparer.OrdinalIgnoreCase));
 
             result.Add(item);
         }
 
         return result;
-    }
-
-    private static FarmingGuideAssemblySource? ReadAssemblySource(JsonElement item)
-    {
-        var gridImageUrl = TarkovJsonReader.OptionalString(item, "gridImageLink");
-        var image512Url = TarkovJsonReader.OptionalString(item, "image512pxLink");
-        var containedItemIds = ReadContainedItemIds(item);
-        string? defaultPresetItemId = null;
-
-        if (item.TryGetProperty("properties", out var properties) &&
-            properties.ValueKind == JsonValueKind.Object &&
-            properties.TryGetProperty("defaultPreset", out var defaultPreset))
-        {
-            defaultPresetItemId = ReferenceId(defaultPreset);
-        }
-
-        if (string.IsNullOrWhiteSpace(gridImageUrl) &&
-            string.IsNullOrWhiteSpace(image512Url) &&
-            string.IsNullOrWhiteSpace(defaultPresetItemId) &&
-            containedItemIds.Count == 0)
-        {
-            return null;
-        }
-
-        return new FarmingGuideAssemblySource(
-            gridImageUrl,
-            image512Url,
-            defaultPresetItemId,
-            containedItemIds);
-    }
-
-    private static IReadOnlyList<string> ReadContainedItemIds(JsonElement item)
-    {
-        if (!item.TryGetProperty("containsItems", out var values) || values.ValueKind != JsonValueKind.Array)
-            return [];
-
-        var result = new List<string>();
-        foreach (var value in values.EnumerateArray())
-        {
-            string? id = null;
-            if (value.ValueKind == JsonValueKind.Object && value.TryGetProperty("item", out var nestedItem))
-                id = ReferenceId(nestedItem);
-            id ??= ReferenceId(value);
-            if (!string.IsNullOrWhiteSpace(id) && !result.Contains(id, StringComparer.Ordinal))
-                result.Add(id);
-        }
-        return result;
-    }
-
-    private static FarmingGuideItemLayout? ReadFarmingGuideLayout(JsonElement item)
-    {
-        var blocksHeadphones = OptionalBool(item, "blocksHeadphones") ?? false;
-        var conflictingItems = ReadReferenceArray(item, "conflictingItems");
-        var conflictingSlotIds = ReadStringArray(item, "conflictingSlotIds");
-
-        if (!item.TryGetProperty("properties", out var properties) ||
-            properties.ValueKind != JsonValueKind.Object)
-        {
-            return blocksHeadphones || conflictingItems.Count > 0 || conflictingSlotIds.Length > 0
-                ? new FarmingGuideItemLayout(
-                    null,
-                    [],
-                    [],
-                    [],
-                    conflictingItems,
-                    conflictingSlotIds,
-                    blocksHeadphones,
-                    false)
-                : null;
-        }
-
-        var propertiesType = TarkovJsonReader.OptionalString(properties, "propertiesType")
-                             ?? TarkovJsonReader.OptionalString(properties, "__typename");
-        var storageLayoutName = ReadStorageLayoutName(properties);
-        var grids = ReadStorageGrids(properties);
-        var slots = ReadAttachmentSlots(properties);
-        var armorSlots = ReadArmorSlots(properties);
-        var armorClass = TarkovJsonReader.OptionalInt(properties, "class") ?? 0;
-        var headsetDistanceModifier = OptionalDecimal(properties, "distanceModifier");
-        var headsetDistortion = OptionalDecimal(properties, "distortion");
-        var energy = TarkovJsonReader.OptionalInt(properties, "energy");
-        var hydration = TarkovJsonReader.OptionalInt(properties, "hydration");
-        var caliber = TarkovJsonReader.OptionalString(properties, "caliber");
-        var allowedAmmoItemIds = ReadReferenceArray(properties, "allowedAmmo");
-        var isAmmo = string.Equals(
-            propertiesType,
-            "ItemPropertiesAmmo",
-            StringComparison.OrdinalIgnoreCase);
-        var isWeapon = string.Equals(
-            propertiesType,
-            "ItemPropertiesWeapon",
-            StringComparison.OrdinalIgnoreCase);
-        var isChestRig = string.Equals(
-            propertiesType,
-            "ItemPropertiesChestRig",
-            StringComparison.OrdinalIgnoreCase);
-        var isArmoredRig = isChestRig && (armorSlots.Count > 0 || armorClass > 0);
-
-        if (string.IsNullOrWhiteSpace(propertiesType) &&
-            string.IsNullOrWhiteSpace(storageLayoutName) &&
-            grids.Count == 0 &&
-            slots.Count == 0 &&
-            armorSlots.Count == 0 &&
-            armorClass <= 0 &&
-            headsetDistanceModifier is null &&
-            headsetDistortion is null &&
-            energy is null &&
-            hydration is null &&
-            string.IsNullOrWhiteSpace(caliber) &&
-            allowedAmmoItemIds.Count == 0 &&
-            !blocksHeadphones &&
-            conflictingItems.Count == 0 &&
-            conflictingSlotIds.Length == 0)
-        {
-            return null;
-        }
-
-        return new FarmingGuideItemLayout(
-            propertiesType,
-            grids,
-            slots,
-            armorSlots,
-            conflictingItems,
-            conflictingSlotIds,
-            blocksHeadphones,
-            isArmoredRig)
-        {
-            StorageLayoutName = storageLayoutName,
-            ArmorClass = armorClass > 0 ? armorClass : null,
-            HeadsetDistanceModifier = headsetDistanceModifier,
-            HeadsetDistortion = headsetDistortion,
-            Energy = energy,
-            Hydration = hydration,
-            AmmoCaliber = isAmmo ? caliber : null,
-            WeaponCaliber = isWeapon ? caliber : null,
-            AllowedAmmoItemIds = isWeapon
-                ? allowedAmmoItemIds
-                : Array.Empty<string>(),
-        };
-    }
-
-    private static string? ReadStorageLayoutName(JsonElement properties) =>
-        TarkovJsonReader.OptionalString(properties, "gridLayoutName")
-        ?? TarkovJsonReader.OptionalString(properties, "GridLayoutName")
-        ?? TarkovJsonReader.OptionalString(properties, "rigLayoutName")
-        ?? TarkovJsonReader.OptionalString(properties, "RigLayoutName");
-
-    private static IReadOnlyList<FarmingGuideStorageGridDefinition> ReadStorageGrids(JsonElement properties)
-    {
-        if (!properties.TryGetProperty("grids", out var grids) || grids.ValueKind != JsonValueKind.Array)
-            return [];
-
-        var result = new List<FarmingGuideStorageGridDefinition>();
-        foreach (var grid in grids.EnumerateArray())
-        {
-            if (grid.ValueKind != JsonValueKind.Object)
-                continue;
-
-            var width = TarkovJsonReader.OptionalInt(grid, "width") ?? 0;
-            var height = TarkovJsonReader.OptionalInt(grid, "height") ?? 0;
-            if (width <= 0 || height <= 0)
-                continue;
-
-            result.Add(new FarmingGuideStorageGridDefinition(
-                width,
-                height,
-                ReadFilter(grid)));
-        }
-
-        return result;
-    }
-
-    private static IReadOnlyList<FarmingGuideAttachmentSlotDefinition> ReadAttachmentSlots(JsonElement properties)
-    {
-        if (!properties.TryGetProperty("slots", out var slots) || slots.ValueKind != JsonValueKind.Array)
-            return [];
-
-        var result = new List<FarmingGuideAttachmentSlotDefinition>();
-        foreach (var slot in slots.EnumerateArray())
-        {
-            if (slot.ValueKind != JsonValueKind.Object)
-                continue;
-
-            var id = TarkovJsonReader.OptionalString(slot, "id")
-                     ?? TarkovJsonReader.OptionalString(slot, "nameId");
-            if (string.IsNullOrWhiteSpace(id))
-                continue;
-
-            result.Add(new FarmingGuideAttachmentSlotDefinition(
-                id,
-                TarkovJsonReader.OptionalString(slot, "nameId") ?? id,
-                TarkovJsonReader.OptionalString(slot, "name"),
-                OptionalBool(slot, "required") ?? false,
-                ReadFilter(slot)));
-        }
-
-        return result;
-    }
-
-    private static IReadOnlyList<FarmingGuideArmorSlotDefinition> ReadArmorSlots(JsonElement properties)
-    {
-        if (!properties.TryGetProperty("armorSlots", out var slots) || slots.ValueKind != JsonValueKind.Array)
-            return [];
-
-        var result = new List<FarmingGuideArmorSlotDefinition>();
-        var index = 0;
-        foreach (var slot in slots.EnumerateArray())
-        {
-            if (slot.ValueKind != JsonValueKind.Object)
-                continue;
-
-            var nameId = TarkovJsonReader.OptionalString(slot, "nameId") ?? $"armor-slot-{index}";
-            var id = TarkovJsonReader.OptionalString(slot, "id") ?? nameId;
-            var hasAllowedPlates = slot.TryGetProperty("allowedPlates", out var allowedPlates) &&
-                                   allowedPlates.ValueKind == JsonValueKind.Array;
-            var plateIds = hasAllowedPlates
-                ? ReadReferences(allowedPlates)
-                : Array.Empty<string>();
-
-            result.Add(new FarmingGuideArmorSlotDefinition(
-                id,
-                nameId,
-                TarkovJsonReader.OptionalString(slot, "name"),
-                Locked: !hasAllowedPlates,
-                plateIds));
-            index++;
-        }
-
-        return result;
-    }
-
-    private static FarmingGuideItemFilter ReadFilter(JsonElement owner)
-    {
-        if (!owner.TryGetProperty("filters", out var filter) || filter.ValueKind != JsonValueKind.Object)
-            return FarmingGuideItemFilter.Empty;
-
-        return new FarmingGuideItemFilter(
-            ReadReferenceArray(filter, "allowedCategories"),
-            ReadReferenceArray(filter, "allowedItems"),
-            ReadReferenceArray(filter, "excludedCategories"),
-            ReadReferenceArray(filter, "excludedItems"));
     }
 
     private static IReadOnlyDictionary<string, string> ReadCategoryKeys(JsonElement data)
@@ -377,14 +131,6 @@ public sealed class TarkovItemImporter
             .ToArray();
     }
 
-    private static IReadOnlyList<string> ReadReferenceArray(JsonElement parent, string propertyName)
-    {
-        if (!parent.TryGetProperty(propertyName, out var values) || values.ValueKind != JsonValueKind.Array)
-            return [];
-
-        return ReadReferences(values);
-    }
-
     private static string[] ReadReferences(JsonElement values)
     {
         return values.EnumerateArray()
@@ -404,22 +150,6 @@ public sealed class TarkovItemImporter
 
         return TarkovJsonReader.OptionalString(value, "id")
                ?? TarkovJsonReader.OptionalString(value, "_id");
-    }
-
-    private static bool? OptionalBool(JsonElement parent, string propertyName)
-    {
-        if (!parent.TryGetProperty(propertyName, out var value) ||
-            value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
-        {
-            return null;
-        }
-
-        return value.ValueKind switch
-        {
-            JsonValueKind.True => true,
-            JsonValueKind.False => false,
-            _ => null,
-        };
     }
 
     private static decimal? OptionalDecimal(JsonElement parent, string propertyName)
