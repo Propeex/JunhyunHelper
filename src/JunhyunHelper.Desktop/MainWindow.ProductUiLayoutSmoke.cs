@@ -328,7 +328,7 @@ public partial class MainWindow
             new Rect(18, 28, 13, 13),
             new Rect(138, 24, 20, 16),
             0.9, "STRUCTURE_MATCH", 0.9, "HEADER_FRAME_LOCKED");
-        var rendered = ScannerRecognitionDebugWindow.RenderDiagnosticBitmap(frame);
+        var rendered = ScannerDiagnosticImageRenderer.Render(frame);
         var pixels = new byte[stride * height];
         rendered.CopyPixels(pixels, stride, 0);
 
