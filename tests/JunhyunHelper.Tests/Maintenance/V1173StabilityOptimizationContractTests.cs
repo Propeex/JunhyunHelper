@@ -65,6 +65,24 @@ public sealed class V1173StabilityOptimizationContractTests
         Assert.Contains("App.WriteDiagnostic(diagnosticContext, recoveryException);", source, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ContentUpdates_ShareOneUiOperationGateAndRecheckSchemaAfterWaiting()
+    {
+        var root = FindRepositoryRoot();
+        var schemaRefresh = Read(root, "src", "JunhyunHelper.Desktop", "MainWindow.ContentSchemaRefresh.cs");
+        var manualUpdate = Read(root, "src", "JunhyunHelper.Desktop", "MainWindow.DataUpdate.cs");
+
+        Assert.Contains("private readonly SemaphoreSlim _contentOperationGate = new(1, 1);", schemaRefresh, StringComparison.Ordinal);
+        Assert.Contains("await _contentOperationGate.WaitAsync();", schemaRefresh, StringComparison.Ordinal);
+        Assert.Contains("snapshot = await _services.Content.ReadActiveOrRecoverAsync(gameMode);", schemaRefresh, StringComparison.Ordinal);
+        Assert.Contains("if (!ContentSnapshotStore.RequiresCurrentSchemaRefresh(snapshot))", schemaRefresh, StringComparison.Ordinal);
+        Assert.Contains("_contentOperationGate.Release();", schemaRefresh, StringComparison.Ordinal);
+
+        Assert.Contains("await _contentOperationGate.WaitAsync();", manualUpdate, StringComparison.Ordinal);
+        Assert.Contains("_contentOperationGate.Release();", manualUpdate, StringComparison.Ordinal);
+        Assert.Contains("ownsBusyState", manualUpdate, StringComparison.Ordinal);
+    }
+
     private static int Count(string source, string value)
     {
         var count = 0;
