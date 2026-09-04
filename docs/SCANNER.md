@@ -632,4 +632,4 @@ Current regression references:
 - `docs/CURRENT_SCANNER_WORK.md`
 - `docs/SCANNER_GROUND_TRUTH.md`
 
-현재 v1.7.14 릴리즈 배치에 남은 Scanner 개발 작업은 없다.
+현재 진행 중 Scanner 작업의 유무와 중단 지점은 `docs/ACTIVE_WORK.md`를 기준으로 판단한다.
