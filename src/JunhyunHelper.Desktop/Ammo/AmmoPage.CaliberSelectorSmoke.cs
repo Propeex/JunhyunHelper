@@ -8,7 +8,7 @@ public partial class AmmoPage
 {
     internal void VerifyProductCaliberSelectorInitialization()
     {
-        if (!_productCaliberDropdownApplied)
+        if (!_productCaliberDropdownInitialized)
             throw new InvalidOperationException("Ammo caliber selector initialization was not applied during page initialization.");
 
         if (CaliberComboBox.ItemTemplate is null ||
