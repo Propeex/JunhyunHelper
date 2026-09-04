@@ -1,38 +1,12 @@
 # DEPLOYMENT — 준현 헬퍼 배포 원칙
 
-기준일: 2026-08-27
-상태: **v1.7.13 PUBLIC STABLE / VERIFIED / MAINTENANCE MODE**
+상태: **EVERGREEN CURRENT DEPLOYMENT CONTRACT / MAINTENANCE MODE**
 
 ## 1. 공개 형태
 
 준현 헬퍼는 Windows x64에서 바로 실행 가능한 **portable / self-contained single-file product**로 공개한다.
 
-현재 public stable:
-
-```text
-version: v1.7.13
-exact product release source/tag target: 16198c462a6be58d77dbe2dc27aa57eabfc7b9fd
-main CI: 33051890329 — SUCCESS
-Release workflow: 33052109161 — SUCCESS
-400 passed / 0 failed / 0 skipped
-release id: 377652938
-asset: Junhyun-Helper.zip
-asset id: 531953179
-bytes: 80,486,670
-SHA-256: d1cfcf1f606985485584f0e085e8821e0f62156a980f259a90144fd134a7eeb6
-checksum asset id: 531953171
-published UTC: 2026-08-27T08:00:58Z
-```
-
-GitHub `/releases/latest` 및 `refs/tags/v1.7.13` readback에서 release target/tag ref가 exact product source와 일치하고, public ZIP digest가 exact main-CI package SHA-256과 일치함을 확인했다.
-
-상세:
-
-- `docs/RELEASE_1.7.13.md`
-- `docs/.release-v1.7.13-status.json`
-- `docs/RELEASE_NOTES_V1.7.13.md`
-
-후속 documentation-only main commit은 v1.7.13 product release source가 아니다.
+현재 public stable의 version/source/CI/release/asset/hash 사실값은 이 문서에 복제하지 않는다. `docs/PROJECT_STATE.json`, `docs/CURRENT_STATE.md`, `docs/STATE.md`와 해당 current release record를 사용한다. 후속 documentation-only commit은 기존 published product source를 재정의하지 않는다.
 
 ## 2. 배포 특성
 
