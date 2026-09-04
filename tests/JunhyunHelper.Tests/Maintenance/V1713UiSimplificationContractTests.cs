@@ -10,10 +10,13 @@ public sealed class V1713UiSimplificationContractTests
     {
         var root = FindRepositoryRoot();
         var simplification = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.ProductUiSimplification.cs");
+        var xaml = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.xaml");
+        var code = Read(root, "src", "JunhyunHelper.Desktop", "Ammo", "AmmoPage.xaml.cs");
         var smoke = Read(root, "src", "JunhyunHelper.Desktop", "MainWindow.ProductUiLayoutSmoke.cs");
 
         Assert.Contains("_productDetailsExpanded = false;", simplification, StringComparison.Ordinal);
-        Assert.Contains("SummaryText.Visibility = Visibility.Collapsed;", simplification, StringComparison.Ordinal);
+        Assert.DoesNotContain("SummaryText", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("SummaryText", code, StringComparison.Ordinal);
 
         Assert.Contains("initial != \"▲\" || AmmoPage.ProductDetailHost.Visibility != Visibility.Collapsed", smoke, StringComparison.Ordinal);
         Assert.Contains("toggle.Content as string != \"▼\" || AmmoPage.ProductDetailHost.Visibility != Visibility.Visible", smoke, StringComparison.Ordinal);
@@ -21,14 +24,18 @@ public sealed class V1713UiSimplificationContractTests
     }
 
     [Fact]
-    public void ItemsUsageFilter_IsCanonicalAll_AndNotInteractive()
+    public void ItemsUsageFilter_IsRemovedRatherThanHidden()
     {
         var root = FindRepositoryRoot();
-        var simplification = Read(root, "src", "JunhyunHelper.Desktop", "Items", "ItemsPage.ProductSimplification.cs");
+        var xaml = Read(root, "src", "JunhyunHelper.Desktop", "Items", "ItemsPage.xaml");
+        var code = Read(root, "src", "JunhyunHelper.Desktop", "Items", "ItemsPage.xaml.cs");
+        var retiredShim = Path.Combine(
+            root, "src", "JunhyunHelper.Desktop", "Items", "ItemsPage.ProductSimplification.cs");
 
-        Assert.Contains("ItemUsageFilter.All", simplification, StringComparison.Ordinal);
-        Assert.Contains("UsageComboBox.Visibility = Visibility.Collapsed;", simplification, StringComparison.Ordinal);
-        Assert.Contains("UsageComboBox.IsHitTestVisible = false;", simplification, StringComparison.Ordinal);
+        Assert.DoesNotContain("UsageComboBox", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("ItemUsageFilter", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("MatchesUsage", code, StringComparison.Ordinal);
+        Assert.False(File.Exists(retiredShim));
     }
 
     [Fact]
