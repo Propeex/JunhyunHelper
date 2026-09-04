@@ -159,7 +159,7 @@ remote Game Content fetch/build
 - 기존 healthy same-mode Scanner cache가 있으면 유지한다.
 - partial failure를 상태로 보고한다.
 
-## 7. Scanner UI — current v1.7.14
+## 7. Scanner UI — current contract
 
 Normal Scanner surface:
 
@@ -540,24 +540,7 @@ Release build
 → public tag/release/asset readback
 ```
 
-Current v1.7.14 proof:
-
-```text
-PR #200 final head: 1a2f0189c6a6f2a21dc70f50cb092217f0977c13
-final PR CI: 33060440860 — SUCCESS
-main release source: 0a51375de36cd13047216006c2c0311728b1bd89
-main CI: 33060827905 — SUCCESS
-Release workflow: 33061059154 — SUCCESS
-release id: 377720327
-asset id: 532104142
-asset bytes: 80,488,363
-asset SHA-256: 341ac502d2ace563ab2e7c8d7091a8e796cf87e7d1f5961edf869feab106e2fd
-407 passed / 0 failed / 0 skipped
-```
-
-Public tag/ref and `/releases/latest` point to exact product source and public ZIP digest matches main-CI package hash.
-
-이후 documentation-only commit은 v1.7.14 product release source가 아니다. Published stable assets are immutable.
+Current release proof is intentionally not duplicated in this specialist contract. Use `docs/PROJECT_STATE.json`, `docs/CURRENT_STATE.md`, `docs/STATE.md`, and the release record for the current version. Published stable assets remain immutable.
 
 ## 20. Maintenance workflow
 
