@@ -37,6 +37,7 @@ public sealed class V1714UiConsistencyContractTests
         var xaml = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerSettingsWindow.xaml");
         var code = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerSettingsWindow.xaml.cs");
         var page = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.ProductUsability.cs");
+        var pageXaml = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.xaml");
         var scannerDirectory = Path.Combine(root, "src", "JunhyunHelper.Desktop", "Scanner");
 
         Assert.Contains("Scanner 단축키", xaml, StringComparison.Ordinal);
@@ -47,6 +48,8 @@ public sealed class V1714UiConsistencyContractTests
         Assert.Contains("SetOneShotTestHotkey", code, StringComparison.Ordinal);
         Assert.Contains("SetScannerToggleHotkey", code, StringComparison.Ordinal);
         Assert.Contains("ToggleInAppWindowAsync(\"scanner-settings\"", page, StringComparison.Ordinal);
+        Assert.Contains("Click=\"ProductSettingsButton_Click\"", pageXaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("SettingsButton_Click", pageXaml, StringComparison.Ordinal);
         Assert.False(File.Exists(Path.Combine(scannerDirectory, "ScannerHotkeySettingsWindow.xaml")));
         Assert.False(File.Exists(Path.Combine(scannerDirectory, "ScannerHotkeySettingsWindow.xaml.cs")));
     }
@@ -58,12 +61,15 @@ public sealed class V1714UiConsistencyContractTests
         var xaml = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerAdvancedWindow.xaml");
         var code = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerAdvancedWindow.xaml.cs");
         var page = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.ProductUsability.cs");
+        var pageXaml = Read(root, "src", "JunhyunHelper.Desktop", "Scanner", "ScannerPage.xaml");
 
         Assert.DoesNotContain("AdvancedCloseButton", xaml, StringComparison.Ordinal);
         Assert.DoesNotContain("Content=\"닫기\"", xaml, StringComparison.Ordinal);
         Assert.Contains("IInAppOverlayDialog", code, StringComparison.Ordinal);
         Assert.Contains("TryDismissInAppOverlay", code, StringComparison.Ordinal);
         Assert.Contains("ToggleInAppWindowAsync(\"scanner-advanced\"", page, StringComparison.Ordinal);
+        Assert.Contains("Click=\"ProductAdvancedButton_Click\"", pageXaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("AdvancedButton_Click", pageXaml, StringComparison.Ordinal);
     }
 
     [Fact]
