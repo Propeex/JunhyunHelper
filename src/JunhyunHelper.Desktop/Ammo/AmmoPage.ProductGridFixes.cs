@@ -11,10 +11,9 @@ public partial class AmmoPage
     {
         base.OnInitialized(e);
 
-        // The selector surface is required product UI, not optional post-load polish.
-        // Initialize it from AmmoPage's existing lifecycle owner so a collapsed page does
-        // not depend on routed Loaded delivery before showing the correct controls.
-        EnsureProductVisibleDropdownInitialization();
+        // The selector surface is required product UI. Initialize it directly from the
+        // page lifecycle so it does not depend on routed Loaded delivery.
+        ApplyProductCaliberDropdownPolish();
 
         // The remaining presentation setup can run once layout/resources are ready.
         Dispatcher.BeginInvoke(InitializeProductSearchAndDetails, DispatcherPriority.Loaded);
