@@ -120,7 +120,7 @@ public partial class AmmoPage
     private void ProductFavoriteCaliberComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_productSyncingFavoriteSelection ||
-            FavoriteCaliberComboBox?.SelectedItem is not CaliberChoice { RawCaliber: { } caliber })
+            FavoriteCaliberComboBox.SelectedItem is not CaliberChoice { RawCaliber: { } caliber })
         {
             return;
         }
