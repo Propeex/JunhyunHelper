@@ -126,7 +126,7 @@ internal static class AmmoToolbarPublishedSmokeGate
                     try
                     {
                         var diagnostic = Path.Combine(Path.GetTempPath(), "junhyun-map-smoke-error.txt");
-                        File.WriteAllText(diagnostic, "Ammo v1.8.4 published toolbar smoke failed.\n" + exception);
+                        File.WriteAllText(diagnostic, "Ammo published toolbar smoke failed.\n" + exception);
                     }
                     catch
                     {
