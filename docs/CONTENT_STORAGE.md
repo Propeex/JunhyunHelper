@@ -70,15 +70,16 @@ SQLite를 사용하는 이유:
 
 Game Content 모델이 호환 불가능하게 바뀌면 `ContentSnapshotStore.CurrentSchemaVersion`을 올립니다.
 
-현재 최신 schema는 **v7**입니다.
+현재 write schema는 **v12**입니다.
 
 - v3: Ammo Wiki Ballistics membership/effectiveness 의미 보존
 - v4: Quest Map geometry (`possibleLocations` / `zones`) 보존
 - v5: opaque availability condition / delay metadata와 당시 special-trader compatibility
 - v6: recoverable special-trader access를 ordinary prerequisite와 분리하고 BTR/Ref source prerequisite 상태 보존
 - v7: `globalVariable` requirement를 `variableId / operator / required value` 구조로 보존
+- v8~v12: 이후 canonical item/content 확장. 이 구간 일부에는 현재 제거된 Farming Guide를 위해 당시 저장하던 optional metadata가 포함될 수 있으나, 현재 read-side 의미는 최신 canonical model이 결정한다.
 
-현재 읽기 가능 last-known-good 범위는 **v3~v7**입니다.
+현재 읽기 가능 last-known-good 범위는 **v3~v12**입니다.
 
 일반적으로 Game Content는 온라인에서 다시 만들 수 있으므로 최신 schema로 재빌드하는 것을 우선합니다.
 
@@ -90,11 +91,11 @@ Game Content 모델이 호환 불가능하게 바뀌면 `ContentSnapshotStore.Cu
 - 과거 Lightkeeper의 `Getting Acquainted = Complete` ordinary prerequisite를 recoverable special-trader access gate로 전환
 - Ref의 검증된 Complete 의미 유지
 
-이 in-memory 정규화는 active `content.db` 파일을 몰래 재작성하지 않습니다. 다음 정상 `데이터 업데이트` 성공 시 v7 snapshot이 새로 저장됩니다.
+이 in-memory 정규화는 active `content.db` 파일을 몰래 재작성하지 않습니다. 다음 정상 `데이터 업데이트` 성공 시 current v12 snapshot이 새로 저장됩니다.
 
 ### v3~v6 profile-variable 의미
 
-v7 이전 snapshot에는 `globalVariable`의 정확한 structured read-side 조건이 없을 수 있습니다. 그런 snapshot은 last-known-good로 계속 읽을 수 있지만, exact `ProfileVariables` 판정을 완전히 사용하려면 정상 `데이터 업데이트`로 v7 snapshot을 재구축하는 것이 기준입니다.
+v7 이전 snapshot에는 `globalVariable`의 정확한 structured read-side 조건이 없을 수 있습니다. 그런 snapshot은 last-known-good로 계속 읽을 수 있지만, exact `ProfileVariables` 판정을 완전히 사용하려면 정상 `데이터 업데이트`로 current v12 snapshot을 재구축하는 것이 기준입니다.
 
 프로그램은 오래된 snapshot의 opaque 정보를 보고 variable ID/value를 추측하지 않습니다.
 
@@ -140,7 +141,7 @@ candidate 내부의 `GameMode`가 저장 경로의 기대 모드와 다르면 �
 
 가능한 경우 `File.Replace`를 사용해 같은 볼륨 안에서 active/candidate 교체를 단순한 파일 연산으로 처리합니다.
 
-v0.1.13 final validator는 특히 다음 malformed requirement를 active 적용 전에 fatal로 차단합니다.
+Current final validator는 특히 다음 malformed requirement를 active 적용 전에 fatal로 차단합니다.
 
 - Quest item requirement accepted-item 후보가 비어 있음
 - Quest item requirement `Count <= 0`
