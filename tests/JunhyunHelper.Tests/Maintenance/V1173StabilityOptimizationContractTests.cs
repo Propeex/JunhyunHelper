@@ -241,8 +241,12 @@ public sealed class V1173StabilityOptimizationContractTests
         Assert.Contains("ContentUpdater.UpdateAsync(", main, StringComparison.Ordinal);
         Assert.Contains("_windowLifetimeCts.Token,", main, StringComparison.Ordinal);
         Assert.Contains("PrefetchAsync(", main, StringComparison.Ordinal);
+        Assert.True(Count(main, "if (_windowLifetimeCts.IsCancellationRequested)") >= 2);
+        Assert.Contains("_windowLifetimeCts.Token.ThrowIfCancellationRequested();", main, StringComparison.Ordinal);
 
         Assert.Contains("catch (OperationCanceledException) when (_windowLifetimeCts.IsCancellationRequested)", dataUpdate, StringComparison.Ordinal);
+        Assert.Contains("ScannerCoordinator.SyncCatalogAsync(_windowLifetimeCts.Token)", dataUpdate, StringComparison.Ordinal);
+        Assert.Contains("_windowLifetimeCts.Token.ThrowIfCancellationRequested();", dataUpdate, StringComparison.Ordinal);
         Assert.Equal(4, Count(mutations, "catch (OperationCanceledException) when (_windowLifetimeCts.IsCancellationRequested)"));
         Assert.Equal(2, Count(profile, "catch (OperationCanceledException) when (_windowLifetimeCts.IsCancellationRequested)"));
         Assert.Contains("KimTaeyoungPcDiagnosticExporter.ExportAsync(", diagnostic, StringComparison.Ordinal);
