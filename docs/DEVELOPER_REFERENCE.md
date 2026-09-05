@@ -282,7 +282,9 @@ Scanner presentation은 이 계산을 재구현하지 않는다.
 
 ```text
 ItemsWorkspace.Plan.NeededItems[itemId]
-├─ RemainingTotal → Scanner/Mini Scanner current needed
+├─ RemainingTotal → Scanner/Mini Scanner current needed total
+├─ RemainingFir   → Mini Scanner current FIR-needed component
+│                    └─ non-FIR/unrestricted display component = RemainingTotal - RemainingFir
 └─ Sources        → Scanner searched-item Quest/Hideout source rows
 ```
 
@@ -589,7 +591,7 @@ confirmed Item ID
 → Scanner search / Mini Scanner
 ```
 
-`RemainingTotal` 의미는 현재 Inventory/FIR 조건을 반영한 **현재 부족량**이다.
+`RemainingTotal` 의미는 현재 Inventory/FIR 조건을 반영한 **현재 부족량**이다. `RemainingFir`는 그중 반드시 FIR이어야 하는 잔여량이다. Mini Scanner의 `필요 아이템 개수`는 `RemainingFir(인레이드) + (RemainingTotal - RemainingFir)개`로 표시하고 두 값 중 0인 값도 숨기지 않는다.
 
 Scanner presentation이 raw inventory를 다시 빼거나 `RequiredTotal`을 사용자 표시값으로 사용하면 안 된다.
 

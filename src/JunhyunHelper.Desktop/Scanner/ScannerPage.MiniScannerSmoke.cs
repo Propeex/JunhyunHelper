@@ -113,9 +113,10 @@ public partial class ScannerPage
                 21000,
                 28500,
                 2,
-                3,
+                7,
                 "Therapist")
             {
+                CurrentNeededFir = 3,
                 FleaMinimumPrice = 51000,
                 AmmoShouldPickUp = true,
                 EvaluatedAmmoName = "5.56x45mm M855",
@@ -134,6 +135,21 @@ public partial class ScannerPage
                 throw new InvalidOperationException("Mini Scanner price/ammo presentation contract failed.");
             }
 
+            if (window.FindName("CurrentNeededText") is not TextBlock currentNeeded ||
+                currentNeeded.Text != "필요  3(인레이드) + 4개")
+            {
+                throw new InvalidOperationException("Mini Scanner FIR/non-FIR needed-count presentation contract failed.");
+            }
+
+            window.Render(snapshot with { CurrentNeeded = 4, CurrentNeededFir = 0 }, settings);
+            if (currentNeeded.Text != "필요  0(인레이드) + 4개")
+                throw new InvalidOperationException("Mini Scanner zero-FIR needed-count presentation contract failed.");
+
+            window.Render(snapshot with { CurrentNeeded = 4, CurrentNeededFir = 4 }, settings);
+            if (currentNeeded.Text != "필요  4(인레이드) + 0개")
+                throw new InvalidOperationException("Mini Scanner zero-non-FIR needed-count presentation contract failed.");
+
+            window.Render(snapshot, settings);
             if (window.FindName("InfoStackPanel") is not StackPanel infoStack ||
                 !ReferenceEquals(infoStack.Children[0], trader) ||
                 !ReferenceEquals(infoStack.Children[^1], ammoPickup))

@@ -136,6 +136,8 @@ Recognition:
 
 Mini Scanner는 confirmed Item ID에 대한 가격, 필요 개수, 탄약 판단 등 사용자가 선택한 Scanner presentation field를 표시한다.
 
+`필요 아이템 개수`는 FIR 제약을 합산 총량으로 숨기지 않는다. 현재 부족량을 항상 `<RemainingFir>(인레이드) + <RemainingUnrestricted>개` 형식으로 표시하며, 어느 한쪽이 0이어도 생략하지 않는다. 이 값은 기존 Items planner의 `RemainingTotal` / `RemainingFir` authority에서 파생하며 Scanner가 requirement 의미를 재계산하지 않는다.
+
 
 ## 8. Removed feature — Farming Guide
 
