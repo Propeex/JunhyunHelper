@@ -36,11 +36,17 @@ This is a presentation change only. Do not alter requirement planning, FIR seman
 
 - recovered v1.17.3 public-stable repository state;
 - captured and confirmed the Mini Scanner display contract;
-- created the v1.17.4 maintenance branch.
+- created the v1.17.4 maintenance branch and Draft PR #295;
+- confirmed existing planner authority already exposes `RemainingTotal` and `RemainingFir`;
+- kept requirement calculation unchanged and changed only Mini Scanner presentation;
+- Mini Scanner now renders `FIR(인레이드) + unrestricted개` and preserves zero-valued sides;
+- actual Mini Scanner product smoke covers 3+4, 0+4 and 4+0 cases;
+- added deterministic source contract for the display boundary;
+- updated PRODUCT and DEVELOPER_REFERENCE traceability.
 
 ## Current step
 
-Locate the canonical Mini Scanner requirement-count presentation and its existing tests, then implement the narrow formatting change.
+Validate the functional candidate through CI / Shutdown Race / Documentation Consistency and published EXE smoke before staging the v1.17.4 release identity.
 
 ## Remaining
 
