@@ -138,7 +138,7 @@ public partial class MiniScannerWindow : Window
         ConfigureLine(
             CurrentNeededText,
             settings.ShowCurrentNeeded,
-            $"필요  {snapshot.CurrentNeeded.ToString("N0", CultureInfo.InvariantCulture)}",
+            FormatCurrentNeeded(snapshot),
             settings.FontSize);
         ConfigureLine(
             AmmoPickupText,
@@ -179,6 +179,13 @@ public partial class MiniScannerWindow : Window
         string.IsNullOrWhiteSpace(snapshot.BestTraderName)
             ? "상인"
             : snapshot.BestTraderName.Trim();
+
+    private static string FormatCurrentNeeded(ScannerItemSnapshot snapshot)
+    {
+        var fir = Math.Max(0, snapshot.CurrentNeededFir);
+        var nonFir = Math.Max(0, snapshot.CurrentNeeded - fir);
+        return $"필요  {fir.ToString("N0", CultureInfo.InvariantCulture)}(인레이드) + {nonFir.ToString("N0", CultureInfo.InvariantCulture)}개";
+    }
 
     private static string FormatAmmoPickup(ScannerItemSnapshot snapshot)
     {
