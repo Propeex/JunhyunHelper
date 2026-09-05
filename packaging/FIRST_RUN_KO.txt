@@ -1,4 +1,4 @@
-준현 헬퍼 v1.17.3 — Windows x64
+준현 헬퍼 v1.17.4 — Windows x64
 
 실행 방법
 1. 받은 'Junhyun-Helper.zip'을 원하는 위치에 압축 해제합니다.
@@ -6,19 +6,14 @@
 3. 처음 실행하면 프로필을 만들고 필요한 최신 게임 데이터를 온라인에서 내려받습니다.
 4. 프로그램 실행 시 GitHub의 최신 정식 준현 헬퍼 릴리즈를 확인합니다. 더 최신 버전이 있으면 업데이트 여부를 묻습니다.
 
-v1.17.3 변경
-- 새 사용자 기능 없이 기존 제품의 안정성, 종료 안전성, 데이터 갱신 직렬화, 반복 조회 효율과 UI 일관성을 강화했습니다.
-- Quest/Hideout/Items는 현재 콘텐츠를 인덱스화해 반복 선형 탐색을 줄이고, 세 workspace를 하나의 authoritative profile snapshot에서 일관되게 생성합니다.
-- Scanner는 catalog snapshot과 canonical content/requirement 역인덱스를 재사용해 검색·상세 관계 조회의 반복 작업을 줄였습니다. OCR 인식 기준·pacing·matching 계약은 변경하지 않았습니다.
-- 공용 이미지 캐시는 동일 URL의 동시 다운로드를 single-flight로 합치고 decoded image는 weak cache로 재사용해 중복 작업과 장기 메모리 점유 위험을 함께 줄였습니다.
-- Map Quest marker 크기 보정은 120ms polling 대신 실제 ScaleTransform 변경 이벤트에 반응하며, 현재 Map/MiniMap donor 계약과 사용자 동작은 유지합니다.
-- 데이터 업데이트, schema refresh, Map-triggered refresh, 최초 데이터 생성/복구는 하나의 content operation gate를 공유해 중복 네트워크 갱신과 UI busy 상태 경쟁을 방지합니다.
-- 프로그램 종료 시 데이터 업데이트, 프로필/Quest/Hideout/Items 변경, Scanner sync, PC 진단, 프로그램 업데이트 준비 작업을 취소하고 종료 후 예약된 progress UI 갱신도 차단합니다.
-- Hideout의 빠른 레벨 변경/시설 전환과 rollback 취소에서 화면이 실제 저장 상태와 어긋날 수 있는 경계를 보강했습니다.
-- 공유 버튼 스타일에 키보드 focus 표시를 추가하고 현재 페이지의 clipping/virtualization/layout 계약을 재검토했습니다.
+v1.17.4 변경
+- Mini Scanner의 '필요 아이템 개수' 표시에서 FIR 필요량과 그 외 현재 부족량을 합산 숫자 하나로 숨기지 않고 분리해 보여줍니다.
+- 표시 형식은 '<FIR 필요량>(인레이드) + <그 외 필요량>개'이며 어느 한쪽이 0이어도 항상 표시합니다.
+- 예: 3(인레이드) + 4개 / 0(인레이드) + 4개 / 4(인레이드) + 0개.
+- Items planner의 기존 RemainingTotal/RemainingFir 계산을 그대로 사용하며 Quest/Hideout 필요량 계산, Scanner 인식, catalog, 저장 동작은 변경하지 않습니다.
 
 검증
-- deterministic tests 503개
+- deterministic tests 504개
 - Windows Release build
 - win-x64 self-contained publish
 - 실제 published EXE Product UI / Map / Scanner smoke
