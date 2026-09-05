@@ -5,26 +5,20 @@
 - Mini Scanner의 `필요 아이템 개수` 표시를 FIR 필요량과 그 외 현재 부족량으로 분리했습니다.
 - 표시 형식은 항상 `<FIR 필요량>(인레이드) + <그 외 필요량>개`입니다.
 - 어느 한쪽이 0이어도 생략하지 않습니다.
-  - FIR 3 / 그 외 4 → `3(인레이드) + 4개`
-  - FIR 0 / 그 외 4 → `0(인레이드) + 4개`
-  - FIR 4 / 그 외 0 → `4(인레이드) + 0개`
-- 이 값은 기존 Items planner의 `RemainingTotal` 및 `RemainingFir`에서 파생합니다.
-- Quest/Hideout 필요량 계산, FIR 의미, inventory accounting, Scanner recognition, catalog, persistence, Mini Scanner 정보 순서/레이아웃은 변경하지 않았습니다.
+  - `3(인레이드) + 4개`
+  - `0(인레이드) + 4개`
+  - `4(인레이드) + 0개`
+- 기존 Items planner의 `RemainingTotal` / `RemainingFir`에서 표시값을 파생합니다.
+- Quest/Hideout requirement calculation, FIR semantics, inventory accounting, Scanner recognition/catalog/persistence, Mini Scanner layout/order는 변경하지 않았습니다.
 
-## 기능 후보 검증
+## 검증 완료
 
-Functional candidate head:
-
-`e2477ffd8df3adbc1b9742c35a500944e0d1595f`
-
-Passed:
-
-- CI `33938858432`
-- Shutdown Race `33938858490`
-- Documentation Consistency `33938858443`
-- **504 passed / 0 failed / 0 skipped**
-- Windows Release build
-- win-x64 self-contained publish
-- actual published EXE Product UI / full Map/Factory/MiniMap / Scanner smoke
-- graceful shutdown
-- release package/checksum validation
+- final PR head: `5ba3c504e4da8b8758b685715498437d3a7862b2`
+- exact product source: `2297a27332069e18ade56c53931002f7a4728338`
+- 504 / 504 deterministic tests
+- PR CI / Shutdown / Docs: `33939249250` / `33939249290` / `33939249230`
+- exact-main CI / Shutdown / Docs: `33939474734` / `33939474738` / `33939474753`
+- Release workflow: `33939616674`
+- published EXE Product UI / full Map/Factory/MiniMap / Scanner smoke
+- graceful shutdown / Shutdown Race
+- package/checksum and public release asset digest verification

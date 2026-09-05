@@ -1,0 +1,48 @@
+{
+  "version": "1.17.4",
+  "tag": "v1.17.4",
+  "exactProductSource": "2297a27332069e18ade56c53931002f7a4728338",
+  "releaseId": 383108819,
+  "publishedAtUtc": "2026-09-05T02:38:16Z",
+  "mergePr": 295,
+  "validatedPrHead": "5ba3c504e4da8b8758b685715498437d3a7862b2",
+  "validation": {
+    "prCiRun": 33939249250,
+    "prShutdownRaceRun": 33939249290,
+    "prDocumentationConsistencyRun": 33939249230,
+    "exactMainCiRun": 33939474734,
+    "exactMainShutdownRaceRun": 33939474738,
+    "exactMainDocumentationConsistencyRun": 33939474753,
+    "releaseWorkflowRun": 33939616674,
+    "tests": {
+      "passed": 504,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "releaseAssets": [
+    {
+      "name": "Junhyun-Helper.zip",
+      "id": 545248484,
+      "bytes": 80559673,
+      "sha256": "bc174bfe1e58aee46fe8af4aeb3d9f680ac2320b09c8fab70f112914e1f076aa"
+    },
+    {
+      "name": "SHA256SUMS.txt",
+      "id": 545248486,
+      "bytes": 86,
+      "sha256": "e194eebb1812fae22d705877bd361eba79df9814ebef0b505f65341ba73ee253"
+    }
+  ],
+  "exactMainArtifact": {
+    "name": "JunhyunHelper-win-x64",
+    "id": 9961347314,
+    "bytes": 241610142,
+    "sha256": "7eddd2430970b346279585c3464706dc9fcc1dcb573d925560681ea08aaf1d32"
+  },
+  "releaseFlags": {
+    "draft": false,
+    "prerelease": false
+  },
+  "userRealPcTarkovValidation": "PENDING"
+}
