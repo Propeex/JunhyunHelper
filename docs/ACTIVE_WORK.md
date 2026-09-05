@@ -1,22 +1,52 @@
 # ACTIVE WORK
 
-Status: **NONE**
+Status: **ACTIVE**
 
-v1.17.3 whole-product stability, optimization and UI-finishing maintenance is complete.
+## Goal
 
-Canonical completion evidence:
+Change the Mini Scanner `필요 아이템 개수` presentation so found-in-raid and non-FIR requirements remain visibly separated instead of being shown only as one summed total.
 
-- merged PR: #294
-- final validated PR head: `230a5284f58f9d5eb8954c6042164bc5635fd35c`
-- exact product source / public tag target: `8ec677b1552f9deed55f98931c1df317e9bc4a4b`
-- public release: `v1.17.3`
-- PR CI / Shutdown / Docs: `33846545486` / `33846545485` / `33846545484` — SUCCESS
-- exact-main CI / Shutdown / Docs: `33846852935` / `33846852933` / `33846852922` — SUCCESS
-- release workflow: `33847077606` — SUCCESS
-- deterministic tests: 503 passed / 0 failed / 0 skipped
-- public package SHA-256: `1384f2d42b843617ed61f90d4b2b0c5aa46bc616fd54e808cafabef2eb24f1f7`
-- exact-main artifact SHA-256: `ce1946f12f8da5de755ac91696f2f1ed1b137bf76da5a32b198c36c0228e12a3`
+## Base / branch
 
-No implementation work remains active for this release.
+- base main: `11f3119b73146236545a99551696efba6df9934a`
+- current public stable: `v1.17.3`
+- exact stable product source: `8ec677b1552f9deed55f98931c1df317e9bc4a4b`
+- working branch: `maintenance/v1.17.4-mini-scanner-needed-count-2026-09-05`
+- target release: `v1.17.4`
 
-Future work starts from the current public stable state recorded in `docs/PROJECT_STATE.json`, `docs/CURRENT_STATE.md` and `docs/STATE.md`.
+## Confirmed scope
+
+The Mini Scanner row label remains `필요 아이템 개수`.
+
+Its value must always display:
+
+`<FIR 필요량>(인레이드) + <non-FIR 필요량>개`
+
+Examples:
+
+- FIR 3 / non-FIR 4 → `3(인레이드) + 4개`
+- FIR 0 / non-FIR 4 → `0(인레이드) + 4개`
+- FIR 4 / non-FIR 0 → `4(인레이드) + 0개`
+
+Neither zero side is omitted.
+
+This is a presentation change only. Do not alter requirement planning, FIR semantics, Scanner recognition, catalog data, persistence, or Mini Scanner layout beyond what is needed to render the new value.
+
+## Completed
+
+- recovered v1.17.3 public-stable repository state;
+- captured and confirmed the Mini Scanner display contract;
+- created the v1.17.4 maintenance branch.
+
+## Current step
+
+Locate the canonical Mini Scanner requirement-count presentation and its existing tests, then implement the narrow formatting change.
+
+## Remaining
+
+- implement formatting at the presentation boundary;
+- add/update regression tests;
+- stage v1.17.4 identity and release notes;
+- run CI / Shutdown Race / Documentation Consistency / published EXE smoke / package verification;
+- merge, exact-main verify and publish stable v1.17.4;
+- finalize project memory and close ACTIVE_WORK.
